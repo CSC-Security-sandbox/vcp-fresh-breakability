@@ -2554,6 +2554,69 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 		assert.NotNil(t, result)
 		mockOrchestrator.AssertExpectations(t)
 	})
+	t.Run("WhenGCBDRVaultEnabledAndCreateBackupVaultEntryInVCPFromCVPFails_ReturnsInternalServerError", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId: gcpgenserver.NewOptString("new-vault"),
+		}
+		origBackupEnabled := backupEnabled
+		origGCBDRVaultEnabled := GCBDRVaultEnabled
+		defer func() {
+			backupEnabled = origBackupEnabled
+			GCBDRVaultEnabled = origGCBDRVaultEnabled
+		}()
+		backupEnabled = true
+		GCBDRVaultEnabled = true
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "1234567890",
+		}
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		bvResponse := &models.BackupVaultV1beta{
+			BackupVaultID: "bv-uuid-1234",
+			ResourceID:    nillable.GetStringPtr("new-vault"),
+		}
+		mockResponse := &backup_vault.V1betaCreateBackupVaultAccepted{
+			Payload: &models.OperationV1beta{
+				Name:     "operation-id",
+				Done:     nillable.GetBoolPtr(true),
+				Response: bvResponse,
+			},
+		}
+		bvName := "new-vault"
+		mockOrchestrator.On("GetBackupVaultByNameAndOwnerID", mock.Anything, bvName, "1234567890").
+			Return(nil, errors2.NewNotFoundErr("backup vault", &bvName))
+		mockOrchestrator.On("CreateBackupVaultEntryInVCPFromCVP", mock.Anything, mock.Anything, "us-east4", "1234567890").
+			Return(nil, errors.New("database error"))
+		mockClient.EXPECT().
+			V1betaCreateBackupVault(mock.Anything).
+			Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := cvpCreateClient
+		defer func() {
+			cvpCreateClient = originalCreateClient
+			utilsConvertJsonToModel = utils.ConvertJsonToModel
+		}()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		utilsConvertJsonToModel = func(data []byte, model interface{}) error {
+			return nil
+		}
+		handler := Handler{Orchestrator: mockOrchestrator}
+		ctx := context.Background()
+		result, err := handler.V1betaCreateBackupVault(ctx, req, params)
+		assert.Error(t, err)
+		assert.NotNil(t, result)
+		internalErr, ok := result.(*gcpgenserver.V1betaCreateBackupVaultInternalServerError)
+		require.True(t, ok, "expected V1betaCreateBackupVaultInternalServerError")
+		assert.Equal(t, float64(500), internalErr.Code)
+		assert.Equal(t, "Failed to create BackupVault entry in VCP", internalErr.Message)
+		mockOrchestrator.AssertExpectations(t)
+	})
 }
 
 func TestConvertBackupRetentionPolicyToCvpModelForCreate(t *testing.T) {

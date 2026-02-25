@@ -22,6 +22,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 )
 
 var (
@@ -30,6 +31,7 @@ var (
 	updateBackupVaultInSDE  = _updateBackupVaultInSDE
 	jsonMarshal             = json.Marshal
 	deleteBackupVaultInSDE  = _deleteBackupVaultInSDE
+	GCBDRVaultEnabled       = env.GetBool("GCBDR_VAULT_ENABLED", false)
 )
 
 // _validateRetentionParameters validates retention policy updates against current backup vault settings
@@ -159,7 +161,8 @@ func extractRetentionPolicyParams(req *gcpgenserver.BackupVaultUpdateV1beta) *co
 		IsDailyBackupImmutable:                 dailyBackupImmutable,
 		IsWeeklyBackupImmutable:                weeklyBackupImmutable,
 		IsMonthlyBackupImmutable:               monthlyBackupImmutable,
-		IsAdhocBackupImmutable:                 adhocBackupImmutable}
+		IsAdhocBackupImmutable:                 adhocBackupImmutable,
+	}
 }
 
 func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.BackupVaultCreateV1beta, reqPayloadparams gcpgenserver.V1betaCreateBackupVaultParams) (gcpgenserver.V1betaCreateBackupVaultRes, error) {
@@ -356,6 +359,17 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 			Code:    500,
 			Message: "Failed to convert response from SDE BackupVault creation to model",
 		}, err
+	}
+
+	if GCBDRVaultEnabled {
+		_, err := h.Orchestrator.CreateBackupVaultEntryInVCPFromCVP(ctx, &data, reqPayloadparams.LocationId, reqPayloadparams.ProjectNumber)
+		if err != nil {
+			logger.Error("Failed to create BackupVault entry in VCP from CVP response", "error", err)
+			return &gcpgenserver.V1betaCreateBackupVaultInternalServerError{
+				Code:    500,
+				Message: "Failed to create BackupVault entry in VCP",
+			}, err
+		}
 	}
 
 	bvJSON, err := jsonMarshal(data)
@@ -806,7 +820,6 @@ func _updateBackupVaultInSDE(ctx context.Context, req *gcpgenserver.BackupVaultU
 		BackupVaultID:  params.BackupVaultId,
 		Body:           body,
 	})
-
 	if err != nil {
 		switch e := err.(type) {
 		case *backup_vault.V1betaUpdateBackupVaultUnprocessableEntity:
@@ -1140,6 +1153,7 @@ func (h Handler) V1betaUpdateBackupVault(ctx context.Context, req *gcpgenserver.
 	}
 	return &gcpgenserver.OperationV1beta{}, nil
 }
+
 func convertBackupRetentionPolicyToCvpModelForUpdate(brPolicy gcpgenserver.OptBackupRetentionPolicyUpdateV1beta) *models.BackupRetentionPolicyUpdateV1beta {
 	if brPolicy.IsSet() {
 		brPolicyValue := brPolicy.Value
@@ -1411,7 +1425,6 @@ func _rotateCmekBackupsInSDE(
 		BackupVaultID:  params.BackupVaultId,
 		Body:           body,
 	})
-
 	if err != nil {
 		switch e := err.(type) {
 		case *backup_vault.V1betaRotateCmekBackupsBadRequest:

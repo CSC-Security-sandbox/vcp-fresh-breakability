@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strconv"
 
+	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -25,6 +26,7 @@ var (
 	getBackupVaultByNameAndOwnerID     = _getBackupVaultByNameAndOwnerID
 	updateBackupVault                  = _updateBackupVault
 	deleteBackupVault                  = _deleteBackupVault
+	convertCVPToBackupVaultDataModel   = activities.ConvertToBackupVaultDataModel
 )
 
 // CreateBackupVaultParams describes parameters supplied to CreateBackupVault
@@ -437,6 +439,19 @@ func (o *Orchestrator) CreateBackupVaultEntryInVCP(ctx context.Context, bv *data
 		return nil, err
 	}
 	return backupVault, nil
+}
+
+// CreateBackupVaultEntryInVCPFromCVP converts a CVP backup vault response to the VCP datamodel and creates
+// a BackupVault entry in the VCP database. Used when GCBDR_VAULT_ENABLED is set to mirror CVP-created vaults in VCP.
+func (o *Orchestrator) CreateBackupVaultEntryInVCPFromCVP(ctx context.Context, cvpBV *cvpmodels.BackupVaultV1beta, region, accountName string) (*datamodel.BackupVault, error) {
+	if cvpBV == nil {
+		return nil, errors.New("CVP backup vault is nil")
+	}
+	bv, err := convertCVPToBackupVaultDataModel(cvpBV, region)
+	if err != nil {
+		return nil, err
+	}
+	return o.CreateBackupVaultEntryInVCP(ctx, bv, accountName)
 }
 
 // GetBackupVaultByExternalUUIDAndOwnerID gets a BackupVault by external UUID directly from storage for cross-region operations

@@ -523,6 +523,67 @@ func (_c *MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call) RunAndReturn
 	return _c
 }
 
+// CreateBackupVaultEntryInVCPFromCVP provides a mock function with given fields: ctx, cvpBV, region, accountName
+func (_m *MockOrchestratorFactory) CreateBackupVaultEntryInVCPFromCVP(ctx context.Context, cvpBV *cvpmodels.BackupVaultV1beta, region string, accountName string) (*datamodel.BackupVault, error) {
+	ret := _m.Called(ctx, cvpBV, region, accountName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateBackupVaultEntryInVCPFromCVP")
+	}
+
+	var r0 *datamodel.BackupVault
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *cvpmodels.BackupVaultV1beta, string, string) (*datamodel.BackupVault, error)); ok {
+		return rf(ctx, cvpBV, region, accountName)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *cvpmodels.BackupVaultV1beta, string, string) *datamodel.BackupVault); ok {
+		r0 = rf(ctx, cvpBV, region, accountName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.BackupVault)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *cvpmodels.BackupVaultV1beta, string, string) error); ok {
+		r1 = rf(ctx, cvpBV, region, accountName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_CreateBackupVaultEntryInVCPFromCVP_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateBackupVaultEntryInVCPFromCVP'
+type MockOrchestratorFactory_CreateBackupVaultEntryInVCPFromCVP_Call struct {
+	*mock.Call
+}
+
+// CreateBackupVaultEntryInVCPFromCVP is a helper method to define mock.On call
+//   - ctx context.Context
+//   - cvpBV *cvpmodels.BackupVaultV1beta
+//   - region string
+//   - accountName string
+func (_e *MockOrchestratorFactory_Expecter) CreateBackupVaultEntryInVCPFromCVP(ctx interface{}, cvpBV interface{}, region interface{}, accountName interface{}) *MockOrchestratorFactory_CreateBackupVaultEntryInVCPFromCVP_Call {
+	return &MockOrchestratorFactory_CreateBackupVaultEntryInVCPFromCVP_Call{Call: _e.mock.On("CreateBackupVaultEntryInVCPFromCVP", ctx, cvpBV, region, accountName)}
+}
+
+func (_c *MockOrchestratorFactory_CreateBackupVaultEntryInVCPFromCVP_Call) Run(run func(ctx context.Context, cvpBV *cvpmodels.BackupVaultV1beta, region string, accountName string)) *MockOrchestratorFactory_CreateBackupVaultEntryInVCPFromCVP_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*cvpmodels.BackupVaultV1beta), args[2].(string), args[3].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateBackupVaultEntryInVCPFromCVP_Call) Return(_a0 *datamodel.BackupVault, _a1 error) *MockOrchestratorFactory_CreateBackupVaultEntryInVCPFromCVP_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateBackupVaultEntryInVCPFromCVP_Call) RunAndReturn(run func(context.Context, *cvpmodels.BackupVaultV1beta, string, string) (*datamodel.BackupVault, error)) *MockOrchestratorFactory_CreateBackupVaultEntryInVCPFromCVP_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateExpertModeVolume provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) CreateExpertModeVolume(ctx context.Context, params *common.ExpertModeVolumeParams) error {
 	ret := _m.Called(ctx, params)

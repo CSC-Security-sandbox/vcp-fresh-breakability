@@ -6,8 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -2212,6 +2214,85 @@ func TestGetBackupVaultByExternalUUIDAndOwnerID(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, backupVault.UUID, result.UUID)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestCreateBackupVaultEntryInVCPFromCVP(t *testing.T) {
+	ctx := context.Background()
+	originalConvertCVP := convertCVPToBackupVaultDataModel
+	originalGetOrCreateAccount := getOrCreateAccount
+	defer func() {
+		convertCVPToBackupVaultDataModel = originalConvertCVP
+		getOrCreateAccount = originalGetOrCreateAccount
+	}()
+
+	t.Run("WhenCVPBackupVaultIsNil_ReturnsError", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+		orchestrator := &Orchestrator{storage: mockStorage, temporal: mockTemporal}
+
+		result, err := orchestrator.CreateBackupVaultEntryInVCPFromCVP(ctx, nil, "us-central1", "1234567890")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "CVP backup vault is nil")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenConvertToBackupVaultDataModelFails_ReturnsError", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+		orchestrator := &Orchestrator{storage: mockStorage, temporal: mockTemporal}
+		convertCVPToBackupVaultDataModel = func(_ *cvpmodels.BackupVaultV1beta, _ string) (*datamodel.BackupVault, error) {
+			return nil, errors.New("conversion failed")
+		}
+
+		cvpBV := &cvpmodels.BackupVaultV1beta{BackupVaultID: "bv-uuid"}
+		result, err := orchestrator.CreateBackupVaultEntryInVCPFromCVP(ctx, cvpBV, "us-central1", "1234567890")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "conversion failed")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenCreateBackupVaultEntryInVCPSucceeds_ReturnsCreatedVault", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+		orchestrator := &Orchestrator{storage: mockStorage, temporal: mockTemporal}
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "1234567890"}
+		bvData := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "bv-uuid"},
+			Name:      "vault-resource-id",
+			AccountID: account.ID,
+		}
+		createdBV := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "bv-uuid"},
+			Name:      "vault-resource-id",
+			AccountID: account.ID,
+		}
+
+		convertCVPToBackupVaultDataModel = func(_ *cvpmodels.BackupVaultV1beta, _ string) (*datamodel.BackupVault, error) {
+			return bvData, nil
+		}
+		getOrCreateAccount = func(_ context.Context, _ database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		mockStorage.On("CreateBackupVaultEntryInVCP", ctx, mock.MatchedBy(func(bv *datamodel.BackupVault) bool {
+			return bv.UUID == "bv-uuid" && bv.AccountID == account.ID
+		})).Return(createdBV, nil)
+
+		cvpBV := &cvpmodels.BackupVaultV1beta{
+			BackupVaultID: "bv-uuid",
+			ResourceID:    nillable.ToPointer("vault-resource-id"),
+			CreatedAt:     strfmt.DateTime(time.Now().UTC()),
+		}
+		result, err := orchestrator.CreateBackupVaultEntryInVCPFromCVP(ctx, cvpBV, "us-central1", "1234567890")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "bv-uuid", result.UUID)
 		mockStorage.AssertExpectations(tt)
 	})
 }

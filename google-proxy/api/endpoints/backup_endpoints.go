@@ -568,7 +568,6 @@ func (h Handler) V1betaUpdateBackup(ctx context.Context, req *gcpgenserver.Backu
 		Region:          params.LocationId,
 	}
 	backupResp, jobId, err := h.Orchestrator.UpdateBackup(ctx, vsaParams)
-
 	if err != nil {
 		if errors.IsUserInputValidationErr(err) {
 			return &gcpgenserver.V1betaUpdateBackupBadRequest{
@@ -581,7 +580,6 @@ func (h Handler) V1betaUpdateBackup(ctx context.Context, req *gcpgenserver.Backu
 	}
 	bResp := convertBackupModelToBackupsV1beta(backupResp)
 	backupResponse, err := json.Marshal(bResp)
-
 	if err != nil {
 		logger.Error("Failed to marshal backup", err.Error())
 		return &gcpgenserver.V1betaUpdateBackupInternalServerError{
@@ -708,7 +706,6 @@ func (h Handler) V1betaListBackups(ctx context.Context, params gcpgenserver.V1be
 		BackupName:     params.BackupName,
 	}
 	listBackupsResp, err := listBackupsToCVP(ctx, listBackupParams)
-
 	if err != nil {
 		logger.Error("Failed to list backups", "error", err.Error())
 		return listBackupsResp, err

@@ -51,6 +51,7 @@ ontapVersionDetailsExperimental: ""
 # "Comma-separated list of account IDs" implies only those accounts are allowlisted for files protocol support
 experimentalVersionAllowlistedAccounts: ""
 backupEnabled: false
+gcbdrVaultEnabled: false
 expertModeBackupEnabled: false
 sfrEnabled: false
 qaEnabled: false
