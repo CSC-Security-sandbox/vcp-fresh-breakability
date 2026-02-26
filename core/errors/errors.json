@@ -1766,7 +1766,7 @@
   "8011": {
     "description": "CMEK permission denied - Service account lacks access to KMS key",
     "message": "FAILED_PRECONDITION: Service account lacks the required permissions to access the KMS key. Grant the permission and run the cmek verification check again to confirm key reachability",
-    "retriable": false,
+    "retriable": true,
     "http_code": 412
   },
   "8501": {

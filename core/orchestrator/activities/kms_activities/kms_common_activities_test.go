@@ -1923,7 +1923,7 @@ func TestAccessCryptoKeyPermissionDenied(t *testing.T) {
 		vcpErr := errors2.NewVCPError(errors2.ErrKMSPermissionDenied, permissionDeniedErr)
 		assert.NotNil(t, vcpErr)
 		assert.Equal(t, errors2.ErrKMSPermissionDenied, vcpErr.TrackingID)
-		assert.False(t, vcpErr.IsRetriable())
+		assert.True(t, vcpErr.IsRetriable())
 	})
 
 	t.Run("DoesNotReturnPermissionDeniedForOtherErrors", func(t *testing.T) {

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	vsalogger "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -80,6 +81,10 @@ func RetryDoWithTimeout(ctx context.Context, timeout, wait time.Duration, caller
 }
 
 func shouldRetry(err error) bool {
+	var customErr *errors2.CustomError
+	if errors.As(err, &customErr) {
+		return customErr.IsRetriable()
+	}
 	var gerr *googleapi.Error
 	if errors.As(err, &gerr) {
 		switch gerr.Code {

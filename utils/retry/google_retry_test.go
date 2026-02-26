@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"google.golang.org/api/googleapi"
@@ -286,6 +287,54 @@ func TestShouldRetry(t *testing.T) {
 		}
 		if !shouldRetry(err) {
 			t.Error("Expected true because strings.Contains will match 'aborted' within 'unabortedly'")
+		}
+	})
+
+	// Tests for CustomError handling
+	t.Run("ShouldRetryReturnsTrueForCustomErrorWithRetriableTrue", func(tt *testing.T) {
+		// Use ErrKMSKeyUnreachable which has retriable: true
+		customErr := errors2.NewVCPError(errors2.ErrKMSKeyUnreachable, errors.New("key unreachable"))
+		if !shouldRetry(customErr) {
+			t.Error("Expected true for CustomError with Retriable=true")
+		}
+	})
+
+	t.Run("ShouldRetryReturnsFalseForCustomErrorWithRetriableFalse", func(tt *testing.T) {
+		// Use ErrKMSKeyDisabledOrDestroyed which has retriable: false
+		customErr := errors2.NewVCPError(errors2.ErrKMSKeyDisabledOrDestroyed, errors.New("key disabled"))
+		if shouldRetry(customErr) {
+			t.Error("Expected false for CustomError with Retriable=false")
+		}
+	})
+
+	t.Run("ShouldRetryRespectsCustomErrorRetriableFlagWhenWrappingGoogleError", func(tt *testing.T) {
+		// CustomError wrapping a googleapi.Error should use CustomError.Retriable, not the Google error's HTTP code
+		// Use ErrKMSPermissionDenied (retriable: true) wrapping a 403 error (normally non-retriable)
+		googleErr := &googleapi.Error{
+			Code:    http.StatusForbidden,
+			Message: "Permission denied",
+		}
+		customErr := errors2.NewVCPError(errors2.ErrKMSPermissionDenied, googleErr)
+		if !shouldRetry(customErr) {
+			t.Error("Expected true for CustomError with Retriable=true even when wrapping a non-retriable googleapi.Error")
+		}
+	})
+
+	t.Run("ShouldRetryRespectsCustomErrorNonRetriableFlagWhenWrappingRetriableGoogleError", func(tt *testing.T) {
+		// CustomError with Retriable=false should not retry even when wrapping a retriable googleapi.Error
+		googleErr := &googleapi.Error{
+			Code:    http.StatusInternalServerError,
+			Message: "Internal server error",
+		}
+		// Create a CustomError directly with Retriable=false
+		customErr := &errors2.CustomError{
+			TrackingID:  errors2.ErrKMSKeyDisabledOrDestroyed,
+			Message:     "Key disabled",
+			Retriable:   false,
+			OriginalErr: googleErr,
+		}
+		if shouldRetry(customErr) {
+			t.Error("Expected false for CustomError with Retriable=false even when wrapping a retriable googleapi.Error")
 		}
 	})
 }
