@@ -9105,9 +9105,13 @@ func TestDeleteReplication(t *testing.T) {
 			},
 		}
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.MatchedBy(func(repl *datamodel.VolumeReplication) bool {
 			return repl.State == models.LifeCycleStateDeleting && repl.StateDetails == models.LifeCycleStateDeletingDetails
 		})).Return(errors.New("failed to update replication state"))
+
+		expectedError := errors.New("failed to update replication state")
+		mockStorage.On("UpdateJob", ctx, "job-uuid", string(models.JobsStateERROR), 0, expectedError.Error()).Return(nil)
 
 		params := &commonparams.DeleteReplicationParams{
 			AccountName: "account-name",

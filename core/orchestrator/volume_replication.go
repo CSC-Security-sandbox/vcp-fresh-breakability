@@ -2090,15 +2090,6 @@ func _deleteReplication(ctx context.Context, se database.Storage, temporal clien
 		return nil, "", err
 	}
 
-	if dstReplication.HybridReplicationAttributes != nil {
-		dbReplication := event.CommonReplicationEventParams.ReplicationModel
-		dbReplication.State = models.LifeCycleStateDeleting
-		dbReplication.StateDetails = models.LifeCycleStateDeletingDetails
-		if err = se.UpdateVolumeReplicationStates(ctx, dbReplication); err != nil {
-			return nil, "", err
-		}
-	}
-	
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
 		if err != nil {
@@ -2140,6 +2131,14 @@ func _deleteReplication(ctx context.Context, se database.Storage, temporal clien
 	}
 	dstReplication.State = models.LifeCycleStateDeleting
 	dstReplication.StateDetails = models.LifeCycleStateDeletingDetails
+	if dstReplication.HybridReplicationAttributes != nil {
+		dbReplication := event.CommonReplicationEventParams.ReplicationModel
+		dbReplication.State = models.LifeCycleStateDeleting
+		dbReplication.StateDetails = models.LifeCycleStateDeletingDetails
+		if err = se.UpdateVolumeReplicationStates(ctx, dbReplication); err != nil {
+			return nil, "", err
+		}
+	}
 
 	return dstReplication, createdJob.UUID, nil
 }
