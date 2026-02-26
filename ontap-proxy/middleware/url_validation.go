@@ -58,7 +58,7 @@ var (
 	// Allowlist regexes (OWASP: define allowed characters; reject everything else)
 	ontapPathAllowedChars       = regexp.MustCompile(`^[a-zA-Z0-9\-_./]+$`)
 	queryParamNameAllowedChars  = regexp.MustCompile(`^[a-zA-Z0-9_.\-]+$`)
-	queryParamValueAllowedChars = regexp.MustCompile(`^[a-zA-Z0-9\-_.,;:/*><=!@+% ]+$`)
+	queryParamValueAllowedChars = regexp.MustCompile(`^[a-zA-Z0-9\-_.,;:/*><=!@+% |]+$`)
 
 	// blockedQueryParams contains query parameter names that are not allowed
 	blockedQueryParams = map[string]string{
