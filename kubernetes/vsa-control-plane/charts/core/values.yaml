@@ -29,6 +29,8 @@ global:
     broadcastDomainMtu: "9000"
     certCacheExpirationMinutes: "60"
     certCacheSleepRetryIntervalSeconds: "10"
+    # Minimum required certificate lifetime for service startup (e.g. 5184000s = 2 months). Env: MINIMUM_CERTIFICATE_LIFETIME
+    minimumCertificateLifetime: "5184000s"
     coreApiPort: "8080"
     cvpHost: ""
     dbConnMaxLifetime: "30m"

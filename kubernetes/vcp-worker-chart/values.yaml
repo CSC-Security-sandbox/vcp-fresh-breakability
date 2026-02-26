@@ -117,6 +117,8 @@ workerConfig:
   vmrsConfigPath: "/config/vmrs_gcp.yaml"
   vlmConfigFilePath: "/common/vsa_config/vlm-config.json"
   certificateLifetime: "94608000s"
+  # Minimum required certificate lifetime for service startup (e.g. 5184000s = 2 months). Used for ValidateCertificateLifetime.
+  minimumCertificateLifetime: "5184000s"
   caName: "20250718-pn6-boa"
   caPoolName: "vsa-pool-ca"
   caPoolDeployedProjectId: "266893635349"
