@@ -31,7 +31,7 @@ var (
 	updateBackupVaultInSDE  = _updateBackupVaultInSDE
 	jsonMarshal             = json.Marshal
 	deleteBackupVaultInSDE  = _deleteBackupVaultInSDE
-	GCBDRVaultEnabled       = env.GetBool("GCBDR_VAULT_ENABLED", false)
+	GCBDRVaultEnabled       = env.GetBool("GCBDR_VAULT_ENABLED", true)
 )
 
 // _validateRetentionParameters validates retention policy updates against current backup vault settings
@@ -361,8 +361,8 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 		}, err
 	}
 
-	if GCBDRVaultEnabled {
-		_, err := h.Orchestrator.CreateBackupVaultEntryInVCPFromCVP(ctx, &data, reqPayloadparams.LocationId, reqPayloadparams.ProjectNumber)
+	if GCBDRVaultEnabled && req.TenantProject.IsSet() && req.TenantProject.Value != "" {
+		_, err := h.Orchestrator.CreateBackupVaultEntryInVCPFromCVP(ctx, &data, reqPayloadparams.LocationId, reqPayloadparams.ProjectNumber, req.TenantProject.Value)
 		if err != nil {
 			logger.Error("Failed to create BackupVault entry in VCP from CVP response", "error", err)
 			return &gcpgenserver.V1betaCreateBackupVaultInternalServerError{

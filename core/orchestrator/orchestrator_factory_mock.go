@@ -523,9 +523,9 @@ func (_c *MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call) RunAndReturn
 	return _c
 }
 
-// CreateBackupVaultEntryInVCPFromCVP provides a mock function with given fields: ctx, cvpBV, region, accountName
-func (_m *MockOrchestratorFactory) CreateBackupVaultEntryInVCPFromCVP(ctx context.Context, cvpBV *cvpmodels.BackupVaultV1beta, region string, accountName string) (*datamodel.BackupVault, error) {
-	ret := _m.Called(ctx, cvpBV, region, accountName)
+// CreateBackupVaultEntryInVCPFromCVP provides a mock function with given fields: ctx, cvpBV, region, accountName, tenantProject
+func (_m *MockOrchestratorFactory) CreateBackupVaultEntryInVCPFromCVP(ctx context.Context, cvpBV *cvpmodels.BackupVaultV1beta, region string, accountName string, tenantProject string) (*datamodel.BackupVault, error) {
+	ret := _m.Called(ctx, cvpBV, region, accountName, tenantProject)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateBackupVaultEntryInVCPFromCVP")
@@ -533,19 +533,19 @@ func (_m *MockOrchestratorFactory) CreateBackupVaultEntryInVCPFromCVP(ctx contex
 
 	var r0 *datamodel.BackupVault
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *cvpmodels.BackupVaultV1beta, string, string) (*datamodel.BackupVault, error)); ok {
-		return rf(ctx, cvpBV, region, accountName)
+	if rf, ok := ret.Get(0).(func(context.Context, *cvpmodels.BackupVaultV1beta, string, string, string) (*datamodel.BackupVault, error)); ok {
+		return rf(ctx, cvpBV, region, accountName, tenantProject)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *cvpmodels.BackupVaultV1beta, string, string) *datamodel.BackupVault); ok {
-		r0 = rf(ctx, cvpBV, region, accountName)
+	if rf, ok := ret.Get(0).(func(context.Context, *cvpmodels.BackupVaultV1beta, string, string, string) *datamodel.BackupVault); ok {
+		r0 = rf(ctx, cvpBV, region, accountName, tenantProject)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*datamodel.BackupVault)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *cvpmodels.BackupVaultV1beta, string, string) error); ok {
-		r1 = rf(ctx, cvpBV, region, accountName)
+	if rf, ok := ret.Get(1).(func(context.Context, *cvpmodels.BackupVaultV1beta, string, string, string) error); ok {
+		r1 = rf(ctx, cvpBV, region, accountName, tenantProject)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -563,13 +563,14 @@ type MockOrchestratorFactory_CreateBackupVaultEntryInVCPFromCVP_Call struct {
 //   - cvpBV *cvpmodels.BackupVaultV1beta
 //   - region string
 //   - accountName string
-func (_e *MockOrchestratorFactory_Expecter) CreateBackupVaultEntryInVCPFromCVP(ctx interface{}, cvpBV interface{}, region interface{}, accountName interface{}) *MockOrchestratorFactory_CreateBackupVaultEntryInVCPFromCVP_Call {
-	return &MockOrchestratorFactory_CreateBackupVaultEntryInVCPFromCVP_Call{Call: _e.mock.On("CreateBackupVaultEntryInVCPFromCVP", ctx, cvpBV, region, accountName)}
+//   - tenantProject string
+func (_e *MockOrchestratorFactory_Expecter) CreateBackupVaultEntryInVCPFromCVP(ctx interface{}, cvpBV interface{}, region interface{}, accountName interface{}, tenantProject interface{}) *MockOrchestratorFactory_CreateBackupVaultEntryInVCPFromCVP_Call {
+	return &MockOrchestratorFactory_CreateBackupVaultEntryInVCPFromCVP_Call{Call: _e.mock.On("CreateBackupVaultEntryInVCPFromCVP", ctx, cvpBV, region, accountName, tenantProject)}
 }
 
-func (_c *MockOrchestratorFactory_CreateBackupVaultEntryInVCPFromCVP_Call) Run(run func(ctx context.Context, cvpBV *cvpmodels.BackupVaultV1beta, region string, accountName string)) *MockOrchestratorFactory_CreateBackupVaultEntryInVCPFromCVP_Call {
+func (_c *MockOrchestratorFactory_CreateBackupVaultEntryInVCPFromCVP_Call) Run(run func(ctx context.Context, cvpBV *cvpmodels.BackupVaultV1beta, region string, accountName string, tenantProject string)) *MockOrchestratorFactory_CreateBackupVaultEntryInVCPFromCVP_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*cvpmodels.BackupVaultV1beta), args[2].(string), args[3].(string))
+		run(args[0].(context.Context), args[1].(*cvpmodels.BackupVaultV1beta), args[2].(string), args[3].(string), args[4].(string))
 	})
 	return _c
 }
@@ -579,7 +580,7 @@ func (_c *MockOrchestratorFactory_CreateBackupVaultEntryInVCPFromCVP_Call) Retur
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_CreateBackupVaultEntryInVCPFromCVP_Call) RunAndReturn(run func(context.Context, *cvpmodels.BackupVaultV1beta, string, string) (*datamodel.BackupVault, error)) *MockOrchestratorFactory_CreateBackupVaultEntryInVCPFromCVP_Call {
+func (_c *MockOrchestratorFactory_CreateBackupVaultEntryInVCPFromCVP_Call) RunAndReturn(run func(context.Context, *cvpmodels.BackupVaultV1beta, string, string, string) (*datamodel.BackupVault, error)) *MockOrchestratorFactory_CreateBackupVaultEntryInVCPFromCVP_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -2232,7 +2232,7 @@ func TestCreateBackupVaultEntryInVCPFromCVP(t *testing.T) {
 		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
 		orchestrator := &Orchestrator{storage: mockStorage, temporal: mockTemporal}
 
-		result, err := orchestrator.CreateBackupVaultEntryInVCPFromCVP(ctx, nil, "us-central1", "1234567890")
+		result, err := orchestrator.CreateBackupVaultEntryInVCPFromCVP(ctx, nil, "us-central1", "1234567890", "")
 
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
@@ -2249,7 +2249,7 @@ func TestCreateBackupVaultEntryInVCPFromCVP(t *testing.T) {
 		}
 
 		cvpBV := &cvpmodels.BackupVaultV1beta{BackupVaultID: "bv-uuid"}
-		result, err := orchestrator.CreateBackupVaultEntryInVCPFromCVP(ctx, cvpBV, "us-central1", "1234567890")
+		result, err := orchestrator.CreateBackupVaultEntryInVCPFromCVP(ctx, cvpBV, "us-central1", "1234567890", "")
 
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
@@ -2288,11 +2288,54 @@ func TestCreateBackupVaultEntryInVCPFromCVP(t *testing.T) {
 			ResourceID:    nillable.ToPointer("vault-resource-id"),
 			CreatedAt:     strfmt.DateTime(time.Now().UTC()),
 		}
-		result, err := orchestrator.CreateBackupVaultEntryInVCPFromCVP(ctx, cvpBV, "us-central1", "1234567890")
+		result, err := orchestrator.CreateBackupVaultEntryInVCPFromCVP(ctx, cvpBV, "us-central1", "1234567890", "")
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "bv-uuid", result.UUID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenTenantProjectProvided_SetsGCBDRServiceTypeAndBucketDetails", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
+		orchestrator := &Orchestrator{storage: mockStorage, temporal: mockTemporal}
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "1234567890"}
+		bvData := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "bv-uuid"},
+			Name:      "vault-resource-id",
+			AccountID: account.ID,
+		}
+		createdBV := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "bv-uuid"},
+			Name:        "vault-resource-id",
+			AccountID:   account.ID,
+			ServiceType: models.ServiceTypeGCBDR,
+		}
+
+		convertCVPToBackupVaultDataModel = func(_ *cvpmodels.BackupVaultV1beta, _ string) (*datamodel.BackupVault, error) {
+			return bvData, nil
+		}
+		getOrCreateAccount = func(_ context.Context, _ database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		mockStorage.On("CreateBackupVaultEntryInVCP", ctx, mock.MatchedBy(func(bv *datamodel.BackupVault) bool {
+			return bv.UUID == "bv-uuid" &&
+				bv.ServiceType == models.ServiceTypeGCBDR &&
+				len(bv.BucketDetails) == 1 &&
+				bv.BucketDetails[0].TenantProjectNumber == "596181058421"
+		})).Return(createdBV, nil)
+
+		cvpBV := &cvpmodels.BackupVaultV1beta{
+			BackupVaultID: "bv-uuid",
+			ResourceID:    nillable.ToPointer("vault-resource-id"),
+			CreatedAt:     strfmt.DateTime(time.Now().UTC()),
+		}
+		result, err := orchestrator.CreateBackupVaultEntryInVCPFromCVP(ctx, cvpBV, "us-central1", "1234567890", "596181058421")
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, models.ServiceTypeGCBDR, result.ServiceType)
 		mockStorage.AssertExpectations(tt)
 	})
 }

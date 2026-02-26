@@ -13,6 +13,8 @@ type CreateBackupVaultParams struct {
 	SourceRegion               *string
 	BackupRetentionPolicy      BackupRetentionPolicyparams
 	CrossRegionBackupVaultName *string
+	TenantProject              string
+	ServiceType                string
 }
 
 // BackupRetentionPolicyparams describes request parameters for BackupRetentionPolicy
@@ -49,4 +51,5 @@ type BackupVaultV1beta struct {
 	KmsConfigResourcePath      *string
 	EncryptionState            *string
 	BackupsPrimaryKeyVersion   *string
+	ServiceType                string
 }

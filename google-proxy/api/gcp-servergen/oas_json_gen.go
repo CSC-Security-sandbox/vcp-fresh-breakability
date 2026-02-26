@@ -3806,15 +3806,22 @@ func (s *BackupVaultCreateV1beta) encodeFields(e *jx.Encoder) {
 			s.BackupsPrimaryKeyVersion.Encode(e)
 		}
 	}
+	{
+		if s.TenantProject.Set {
+			e.FieldStart("tenantProject")
+			s.TenantProject.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfBackupVaultCreateV1beta = [6]string{
+var jsonFieldsNameOfBackupVaultCreateV1beta = [7]string{
 	0: "resourceId",
 	1: "description",
 	2: "backupRegion",
 	3: "backupRetentionPolicy",
 	4: "kmsConfigResourcePath",
 	5: "backupsPrimaryKeyVersion",
+	6: "tenantProject",
 }
 
 // Decode decodes BackupVaultCreateV1beta from json.
@@ -3884,6 +3891,16 @@ func (s *BackupVaultCreateV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"backupsPrimaryKeyVersion\"")
+			}
+		case "tenantProject":
+			if err := func() error {
+				s.TenantProject.Reset()
+				if err := s.TenantProject.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"tenantProject\"")
 			}
 		default:
 			return d.Skip()

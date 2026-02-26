@@ -43,6 +43,8 @@ type CreateBackupVaultParams struct {
 	ExternalUUID               string
 	CrossRegionBackupVaultName *string
 	ProjectNumber              string
+	TenantProject              string
+	ServiceType                string
 }
 
 // BackupRetentionPolicyV2params describes request parameters for BackupRetentionPolicyV2
@@ -358,6 +360,7 @@ func _convertDatastoreBackupVaultToModel(bv *datamodel.BackupVault) *models.Back
 		CrossRegionBackupVaultName: bv.CrossRegionBackupVaultName,
 		ExternalUUID:               bv.ExternalUUID,
 		AccountName:                bv.Account.Name,
+		ServiceType:                bv.ServiceType,
 	}
 	if bv.ImmutableAttributes != nil {
 		res.BackupRetentionPolicy = models.BackupRetentionPolicyparams{
@@ -443,7 +446,8 @@ func (o *Orchestrator) CreateBackupVaultEntryInVCP(ctx context.Context, bv *data
 
 // CreateBackupVaultEntryInVCPFromCVP converts a CVP backup vault response to the VCP datamodel and creates
 // a BackupVault entry in the VCP database. Used when GCBDR_VAULT_ENABLED is set to mirror CVP-created vaults in VCP.
-func (o *Orchestrator) CreateBackupVaultEntryInVCPFromCVP(ctx context.Context, cvpBV *cvpmodels.BackupVaultV1beta, region, accountName string) (*datamodel.BackupVault, error) {
+// When tenantProject is non-empty, the vault is tagged as GCBDR with the tenant project stored in bucket_details.
+func (o *Orchestrator) CreateBackupVaultEntryInVCPFromCVP(ctx context.Context, cvpBV *cvpmodels.BackupVaultV1beta, region, accountName string, tenantProject string) (*datamodel.BackupVault, error) {
 	if cvpBV == nil {
 		return nil, errors.New("CVP backup vault is nil")
 	}
@@ -451,6 +455,18 @@ func (o *Orchestrator) CreateBackupVaultEntryInVCPFromCVP(ctx context.Context, c
 	if err != nil {
 		return nil, err
 	}
+
+	if tenantProject != "" {
+		bv.ServiceType = models.ServiceTypeGCBDR
+		bv.BucketDetails = datamodel.BucketDetailsArray{
+			&datamodel.BucketDetails{
+				TenantProjectNumber: tenantProject,
+			},
+		}
+	} else {
+		bv.ServiceType = models.ServiceTypeGCNV
+	}
+
 	return o.CreateBackupVaultEntryInVCP(ctx, bv, accountName)
 }
 

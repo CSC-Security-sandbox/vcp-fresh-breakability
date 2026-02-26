@@ -85,6 +85,7 @@ func TestConvertsValidBackupVaultV1betaToDataModel(tt *testing.T) {
 				IsAdhocBackupImmutable:                 false,
 			},
 			CrossRegionBackupVaultName: &dstBVname,
+			ServiceType:               coremodels.ServiceTypeGCNV,
 		}
 
 		result, err := ConvertToBackupVaultDataModel(bv, locationId)
@@ -118,6 +119,7 @@ func TestConvertsValidBackupVaultV1betaToDataModel(tt *testing.T) {
 				IsAdhocBackupImmutable:                 false,
 			},
 			CrossRegionBackupVaultName: nil,
+			ServiceType:               coremodels.ServiceTypeGCNV,
 		}
 
 		result, err := _convertToBackupVaultDataModel(bv, locationId)

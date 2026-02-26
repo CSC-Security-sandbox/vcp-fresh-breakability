@@ -1224,12 +1224,15 @@ func Test_validateBackupPoliciesForBackupVaultWithRetry(t *testing.T) {
 // TestV1betaCreateBackupVaultWithImmutableBackups tests backup vault creation with various immutable backup scenarios
 func TestV1betaCreateBackupVaultWithImmutableBackups2(t *testing.T) {
 	origBackupEnabled := backupEnabled
+	origGCBDRVaultEnabled := GCBDRVaultEnabled
 	originalValue := utils.IsImmutableBackupEnabled()
 	defer func() {
 		backupEnabled = origBackupEnabled
+		GCBDRVaultEnabled = origGCBDRVaultEnabled
 		utils.SetImmutableBackupEnabledForTest(originalValue)
 	}()
 	backupEnabled = true
+	GCBDRVaultEnabled = false
 	utils.SetImmutableBackupEnabledForTest(true)
 
 	t.Run("SuccessfulCreateWithImmutableDailyBackups", func(t *testing.T) {
@@ -2507,8 +2510,13 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 			ProjectNumber: "1234567890",
 		}
 		origBackupEnabled := backupEnabled
-		defer func() { backupEnabled = origBackupEnabled }()
+		origGCBDRVaultEnabled := GCBDRVaultEnabled
+		defer func() {
+			backupEnabled = origBackupEnabled
+			GCBDRVaultEnabled = origGCBDRVaultEnabled
+		}()
 		backupEnabled = true
+		GCBDRVaultEnabled = false
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
@@ -2557,7 +2565,8 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 	t.Run("WhenGCBDRVaultEnabledAndCreateBackupVaultEntryInVCPFromCVPFails_ReturnsInternalServerError", func(t *testing.T) {
 		mockClient := backup_vault.NewMockClientService(t)
 		req := &gcpgenserver.BackupVaultCreateV1beta{
-			ResourceId: gcpgenserver.NewOptString("new-vault"),
+			ResourceId:    gcpgenserver.NewOptString("new-vault"),
+			TenantProject: gcpgenserver.NewOptString("596181058421"),
 		}
 		origBackupEnabled := backupEnabled
 		origGCBDRVaultEnabled := GCBDRVaultEnabled
@@ -2589,7 +2598,7 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 		bvName := "new-vault"
 		mockOrchestrator.On("GetBackupVaultByNameAndOwnerID", mock.Anything, bvName, "1234567890").
 			Return(nil, errors2.NewNotFoundErr("backup vault", &bvName))
-		mockOrchestrator.On("CreateBackupVaultEntryInVCPFromCVP", mock.Anything, mock.Anything, "us-east4", "1234567890").
+		mockOrchestrator.On("CreateBackupVaultEntryInVCPFromCVP", mock.Anything, mock.Anything, "us-east4", "1234567890", "596181058421").
 			Return(nil, errors.New("database error"))
 		mockClient.EXPECT().
 			V1betaCreateBackupVault(mock.Anything).
@@ -2665,8 +2674,13 @@ func TestConvertBackupRetentionPolicyToCvpModelForCreate(t *testing.T) {
 
 func TestV1betaCreateBackupVaultWithKmsConfigResourcePathAndBackupsPrimaryKeyVersion(t *testing.T) {
 	origBackupEnabled := backupEnabled
-	defer func() { backupEnabled = origBackupEnabled }()
+	origGCBDRVaultEnabled := GCBDRVaultEnabled
+	defer func() {
+		backupEnabled = origBackupEnabled
+		GCBDRVaultEnabled = origGCBDRVaultEnabled
+	}()
 	backupEnabled = true
+	GCBDRVaultEnabled = false
 
 	t.Run("CreateWithBothKmsFieldsSet", func(t *testing.T) {
 		mockClient := backup_vault.NewMockClientService(t)
@@ -2884,8 +2898,13 @@ func TestV1betaCreateBackupVaultWithKmsConfigResourcePathAndBackupsPrimaryKeyVer
 
 func TestV1betaCreateBackupVaultWithEncryptionState(t *testing.T) {
 	origBackupEnabled := backupEnabled
-	defer func() { backupEnabled = origBackupEnabled }()
+	origGCBDRVaultEnabled := GCBDRVaultEnabled
+	defer func() {
+		backupEnabled = origBackupEnabled
+		GCBDRVaultEnabled = origGCBDRVaultEnabled
+	}()
 	backupEnabled = true
+	GCBDRVaultEnabled = false
 
 	t.Run("CreateWithEncryptionStatePending", func(t *testing.T) {
 		mockClient := backup_vault.NewMockClientService(t)
@@ -3209,8 +3228,13 @@ func TestV1betaCreateBackupVaultWithEncryptionState(t *testing.T) {
 
 func TestV1betaCreateBackupVaultWithKmsGrant(t *testing.T) {
 	origBackupEnabled := backupEnabled
-	defer func() { backupEnabled = origBackupEnabled }()
+	origGCBDRVaultEnabled := GCBDRVaultEnabled
+	defer func() {
+		backupEnabled = origBackupEnabled
+		GCBDRVaultEnabled = origGCBDRVaultEnabled
+	}()
 	backupEnabled = true
+	GCBDRVaultEnabled = false
 
 	t.Run("CreateWithKmsGrantSet", func(t *testing.T) {
 		mockClient := backup_vault.NewMockClientService(t)

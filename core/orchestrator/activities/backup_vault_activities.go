@@ -906,6 +906,7 @@ func _convertToBackupVaultDataModel(bv *models.BackupVaultV1beta, locationId str
 		ImmutableAttributes:        immutableFields,
 		CmekAttributes:             cmekFields,
 		CrossRegionBackupVaultName: bv.DestinationBackupVault,
+		ServiceType:                coremodels.ServiceTypeGCNV,
 	}, nil
 }
 

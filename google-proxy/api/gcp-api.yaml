@@ -13668,6 +13668,12 @@ components:
           description: key version used to encrypt backups in the vault
           example: projects/my-project-1/locations/eu-west-1/keyRings/my-keyring/cryptoKeys/my-key/cryptoKeyVersions/1
           x-nullable: true
+        tenantProject:
+          title: tenantProject
+          type: string
+          description: Tenant project number for GCBDR backup vaults. When provided, the vault is created as GCBDR service type and only in VCP.
+          example: "596181058421"
+          x-nullable: true
     BackupVaultUpdate_v1beta:
       title: BackupVaultUpdateRequest
       type: object

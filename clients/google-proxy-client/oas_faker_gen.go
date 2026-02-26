@@ -857,6 +857,11 @@ func (s *BackupVaultCreateV1beta) SetFake() {
 			s.BackupsPrimaryKeyVersion.SetFake()
 		}
 	}
+	{
+		{
+			s.TenantProject.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.

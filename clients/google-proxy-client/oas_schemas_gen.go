@@ -2018,6 +2018,9 @@ type BackupVaultCreateV1beta struct {
 	KmsConfigResourcePath OptString `json:"kmsConfigResourcePath"`
 	// Key version used to encrypt backups in the vault.
 	BackupsPrimaryKeyVersion OptString `json:"backupsPrimaryKeyVersion"`
+	// Tenant project number for GCBDR backup vaults. When provided, the vault is created as GCBDR
+	// service type and only in VCP.
+	TenantProject OptString `json:"tenantProject"`
 }
 
 // GetResourceId returns the value of ResourceId.
@@ -2050,6 +2053,11 @@ func (s *BackupVaultCreateV1beta) GetBackupsPrimaryKeyVersion() OptString {
 	return s.BackupsPrimaryKeyVersion
 }
 
+// GetTenantProject returns the value of TenantProject.
+func (s *BackupVaultCreateV1beta) GetTenantProject() OptString {
+	return s.TenantProject
+}
+
 // SetResourceId sets the value of ResourceId.
 func (s *BackupVaultCreateV1beta) SetResourceId(val OptString) {
 	s.ResourceId = val
@@ -2078,6 +2086,11 @@ func (s *BackupVaultCreateV1beta) SetKmsConfigResourcePath(val OptString) {
 // SetBackupsPrimaryKeyVersion sets the value of BackupsPrimaryKeyVersion.
 func (s *BackupVaultCreateV1beta) SetBackupsPrimaryKeyVersion(val OptString) {
 	s.BackupsPrimaryKeyVersion = val
+}
+
+// SetTenantProject sets the value of TenantProject.
+func (s *BackupVaultCreateV1beta) SetTenantProject(val OptString) {
+	s.TenantProject = val
 }
 
 // Ref: #/components/schemas/BackupVaultInternalUpdate_v1beta

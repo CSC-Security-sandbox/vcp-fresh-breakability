@@ -33,6 +33,9 @@ const (
 	KmsConfigV1betaKmsStateKEYSTATEUNSPECIFIED = "KEY_STATE_UNSPECIFIED"
 	LifeCycleStateUnknown                      = "UNKNOWN" // Unknown state, used when the state is not decided yet
 
+	ServiceTypeGCNV  = "GCNV"
+	ServiceTypeGCBDR = "GCBDR"
+
 	LifeCycleStateCreatingDetails                      = "Creation in progress"
 	LifeCycleStateRevertingDetails                     = "Revert in progress"
 	LifeCycleStateUndeletingDetails                    = "Undelete in progress"
