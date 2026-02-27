@@ -12,7 +12,9 @@ metadata:
     app: google-proxy-service
 data:
   # TODO: Remove these fields after application code fix
+  {{- if not .Values.global.cloudSqlIamAuthEnabled }}
   DB_HOST: "{{ index .Values "database" "host" }}"
+  {{- end }}
   DB_NAME: "{{ index .Values "database" "name" }}"
   DB_SSL_MODE: "{{ index .Values "database" "sslMode" }}"
   GCP_AUTH_ACCEPTED_SERVICE_ACCOUNTS: "{{ index .Values "acceptedSAs" }}"
@@ -148,7 +150,32 @@ data:
   ENABLE_INFERRED_IOPS: "{{ index .Values "enableInferredIops" | default true }}"
   ENABLE_VPG_ENDPOINTS: "{{ index .Values "enableVpgEndpoints" }}"
   ENABLE_VOLUME_PERFORMANCE_GROUP_ASSIGNMENT: "{{ index .Values "enableVolumePerformanceGroupAssignment" }}"
+  
+  {{- if .Values.global.cloudSqlIamAuthEnabled }}
+  {{- $gsaParts := .Values.gcpHydrateAuthServiceAccount | splitList "@" }}
+  {{- $dbServiceAccount := $gsaParts | first }}
+  {{- $projectPart := index $gsaParts 1 | splitList "." | first }}
+  # IAM authentication values - only set when cloudSqlIamAuthEnabled=true
+  DB_HOST: "127.0.0.1"
+  DB_USER: {{ printf "%s@%s.iam" $dbServiceAccount $projectPart | quote }}
+  {{- else }}
+  # When IAM is disabled, DB_HOST is set from values.yaml above
+  {{- end }}
+  
+  # CLOUD_SQL_IAM_AUTH_ENABLED controls authentication method for database connections
+  # true = Use IAM authentication via Cloud SQL Proxy sidecar (connects to 127.0.0.1)
+  # false = Use password authentication via shared proxy service (connects to cloud-sql-proxy.sde.svc.cluster.local)
+  CLOUD_SQL_IAM_AUTH_ENABLED: {{ .Values.global.cloudSqlIamAuthEnabled | default false | quote }}
+  
   config.yaml: |
+    {{- if .Values.global.cloudSqlIamAuthEnabled }}
+    {{- $gsaParts := .Values.gcpHydrateAuthServiceAccount | splitList "@" }}
+    {{- $dbServiceAccount := $gsaParts | first }}
+    {{- $projectPart := index $gsaParts 1 | splitList "." | first }}
+    DB_HOST: 127.0.0.1
+    DB_USER: {{ printf "%s@%s.iam" $dbServiceAccount $projectPart }}
+    {{- else }}
     DB_HOST: {{ index .Values "database" "host" }}
+    {{- end }}
     DB_NAME: {{ index .Values "database" "name"  }}
     SETUP_NW_HEARTBEAT_TIMEOUT_SEC: {{ index .Values "temporal" "timeouts" "heartbeat" "setupNwSecond"}}

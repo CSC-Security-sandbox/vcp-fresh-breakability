@@ -155,6 +155,10 @@ msiUser: db-msi-user
 serviceAccountName: vcp-core
 deployerServiceAccountName: vcp-core
 metricsEnabled: false
+# Database connection retry configuration for migration tool
+dbConnectRetryAttempts: 10
+dbConnectRetryBaseDelayMs: 500
+dbConnectRetryMaxDelayMs: 30000
 replicaCount: 1
 enableBackgroundTasks: true
 enableJSwapVersionCheck: true

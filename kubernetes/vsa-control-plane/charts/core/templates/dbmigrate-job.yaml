@@ -71,11 +71,13 @@ spec:
                 secretKeyRef:
                   name: core-service-env-secret
                   key: DB_ADMIN_USER
+            {{- if not .Values.global.cloudSqlIamAuthEnabled }}
             - name: DB_ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: core-service-env-secret
                   key: DB_ADMIN_PASSWORD
+            {{- end }}
 
             # MSI user (if enabled)
             - name: MSI_USER
@@ -115,6 +117,13 @@ spec:
             # Cloud SQL IAM authentication flag (used by migration tool to shutdown proxy sidecar)
             - name: CLOUD_SQL_IAM_AUTH_ENABLED
               value: {{ .Values.global.cloudSqlIamAuthEnabled | default false | quote }}
+            # Database connection retry configuration
+            - name: DB_CONNECT_RETRY_ATTEMPTS
+              value: {{ .Values.dbConnectRetryAttempts | default 10 | quote }}
+            - name: DB_CONNECT_RETRY_BASE_DELAY_MS
+              value: {{ .Values.dbConnectRetryBaseDelayMs | default 500 | quote }}
+            - name: DB_CONNECT_RETRY_MAX_DELAY_MS
+              value: {{ .Values.dbConnectRetryMaxDelayMs | default 30000 | quote }}
             {{- if .Values.metricsEnabled }}
             - name: METRICS_DB_USER
               valueFrom:
@@ -183,11 +192,13 @@ spec:
                 secretKeyRef:
                   name: core-service-env-secret
                   key: DB_ADMIN_USER
+            {{- if not .Values.global.cloudSqlIamAuthEnabled }}
             - name: DB_ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: core-service-env-secret
                   key: DB_ADMIN_PASSWORD
+            {{- end }}
 
             # MSI user (if enabled)
             - name: MSI_USER
@@ -255,6 +266,13 @@ spec:
             # Cloud SQL IAM authentication flag (used by migration tool to shutdown proxy sidecar)
             - name: CLOUD_SQL_IAM_AUTH_ENABLED
               value: {{ .Values.global.cloudSqlIamAuthEnabled | default false | quote }}
+            # Database connection retry configuration
+            - name: DB_CONNECT_RETRY_ATTEMPTS
+              value: {{ .Values.dbConnectRetryAttempts | default 10 | quote }}
+            - name: DB_CONNECT_RETRY_BASE_DELAY_MS
+              value: {{ .Values.dbConnectRetryBaseDelayMs | default 500 | quote }}
+            - name: DB_CONNECT_RETRY_MAX_DELAY_MS
+              value: {{ .Values.dbConnectRetryMaxDelayMs | default 30000 | quote }}
             # Database rollback step configuration
             - name: VCP_DB_PRE_ROLLBACK_STEPS
               value: {{ .Values.global.coreConfig.vcpDbPreRollbackSteps | default "0" | quote }}

@@ -85,3 +85,42 @@ Helper function to get the final URL of the image to be used in the deployment.
 {{- end }}
 {{- end }}
 {{- end }}
+
+{{/*
+Helper function to conditionally include Cloud SQL Proxy sidecar container
+Only included when global.cloudSqlIamAuthEnabled is true
+Used for long-running deployments (does not include graceful shutdown flags)
+*/}}
+{{- define "google-proxy.databaseProxyContainer" -}}
+{{- if .Values.global.cloudSqlIamAuthEnabled }}
+{{- $instanceName := "" }}
+{{- $proxyImage := "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1" }}
+{{- if and .Values.global.cloudSqlProxy .Values.global.cloudSqlProxy.image }}
+  {{- $proxyImage = .Values.global.cloudSqlProxy.image }}
+{{- end }}
+{{- if and .Values.global.cloudSqlProxy .Values.global.cloudSqlProxy.instanceConnectionName }}
+  {{- $instanceName = .Values.global.cloudSqlProxy.instanceConnectionName }}
+{{- else if and .Values.global.coreConfig .Values.global.coreConfig.gcp .Values.global.coreConfig.gcp.instanceConnectionName }}
+  {{- $instanceName = .Values.global.coreConfig.gcp.instanceConnectionName }}
+{{- else if .Values.cloudSqlConnector }}
+  {{- $instanceName = .Values.cloudSqlConnector }}
+{{- end }}
+- name: cloud-sql-proxy
+  image: {{ $proxyImage | quote }}
+  args:
+    - "--private-ip"
+    - "--auto-iam-authn"
+    - "--structured-logs"
+    - "--port=5432"
+    - "{{ $instanceName }}"
+  securityContext:
+    runAsNonRoot: true
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+{{- end }}
+{{- end -}}

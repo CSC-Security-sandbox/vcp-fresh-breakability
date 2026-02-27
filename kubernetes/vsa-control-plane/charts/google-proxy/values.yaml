@@ -201,6 +201,12 @@ database:
   adminPassword: testpass
   sslMode: "disable"
 
+# Cloud SQL instance connection name for IAM authentication
+# Format: project:region:instance
+# Example: "my-project:us-central1:my-instance"
+# Used when cloudSqlIamAuthEnabled=true
+cloudSqlConnector: ""
+
 # Annotations
 serviceAccountAnnotations:
   "iam.gke.io/gcp-service-account": vcp-ci@gcnv-artifact-registry-nonprod.iam.gserviceaccount.com

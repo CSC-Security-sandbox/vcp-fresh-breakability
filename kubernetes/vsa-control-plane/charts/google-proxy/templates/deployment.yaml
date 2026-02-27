@@ -102,6 +102,7 @@ spec:
             - name: env-config-volume
               mountPath: /etc/config
               readOnly: true
+{{- include "google-proxy.databaseProxyContainer" . | nindent 8 }}
       volumes:
         - name: env-config-volume
           configMap:

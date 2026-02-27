@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
+	"fmt"
 	"net"
 	"os"
 	"time"
@@ -19,12 +19,49 @@ import (
 
 var (
 	metricsEnabled = env.GetBool("METRICS_ENABLED", false)
+	// Database connection retry configuration (configurable via environment variables)
+	connectRetryAttempts  = env.GetInt("DB_CONNECT_RETRY_ATTEMPTS", 10)
+	connectRetryBaseDelay = time.Duration(env.GetInt("DB_CONNECT_RETRY_BASE_DELAY_MS", 500)) * time.Millisecond
+	connectRetryMaxDelay  = time.Duration(env.GetInt("DB_CONNECT_RETRY_MAX_DELAY_MS", 30000)) * time.Millisecond
 )
+
+// connectWithRetry attempts to connect to the database with retry logic.
+// When using Cloud SQL Proxy sidecar, the proxy may take 1-2 seconds to start.
+// This function retries connection attempts with exponential backoff.
+func connectWithRetry(storage interface{ Connect(bool) error }, isAdmin bool, logger slogger.Logger) error {
+	var lastErr error
+	for attempt := 0; attempt < connectRetryAttempts; attempt++ {
+		err := storage.Connect(isAdmin)
+		if err == nil {
+			if attempt > 0 {
+				logger.Info("Database connection succeeded after retries", "attempts", attempt)
+			}
+			return nil
+		}
+		
+		lastErr = err
+		
+		// Calculate exponential backoff delay
+		delay := connectRetryBaseDelay * time.Duration(1<<uint(attempt))
+		if delay > connectRetryMaxDelay {
+			delay = connectRetryMaxDelay
+		}
+		
+		logger.Warn("Database connection failed, retrying",
+			"attempt", attempt+1,
+			"max_retries", connectRetryAttempts,
+			"error", err.Error(),
+			"retry_delay", delay.String())
+		time.Sleep(delay)
+	}
+	
+	return fmt.Errorf("failed to connect to database after %d attempts: %w", connectRetryAttempts, lastErr)
+}
 
 // shutdownCloudSQLProxy gracefully shuts down the Cloud SQL Proxy sidecar
 // by sending a POST request to the admin endpoint (--quitquitquit).
 // This uses raw TCP to avoid requiring curl or shell utilities (distroless-friendly).
-func shutdownCloudSQLProxy() {
+func shutdownCloudSQLProxy(logger slogger.Logger) {
 	// Only attempt shutdown if IAM auth is enabled (indicates sidecar is present)
 	iamAuthEnabled := env.GetBool("CLOUD_SQL_IAM_AUTH_ENABLED", false)
 	if !iamAuthEnabled {
@@ -38,12 +75,12 @@ func shutdownCloudSQLProxy() {
 	// Connect with timeout
 	conn, err := net.DialTimeout("tcp", address, 2*time.Second)
 	if err != nil {
-		log.Printf("Failed to connect to Cloud SQL Proxy admin endpoint (%s): %v", address, err)
+		logger.Warn("Failed to connect to Cloud SQL Proxy admin endpoint", "address", address, "error", err.Error())
 		return
 	}
 	defer func() {
 		if err := conn.Close(); err != nil {
-			log.Printf("Failed to close connection to Cloud SQL Proxy admin endpoint: %v", err)
+			logger.Warn("Failed to close connection to Cloud SQL Proxy admin endpoint", "error", err.Error())
 		}
 	}()
 
@@ -51,19 +88,19 @@ func shutdownCloudSQLProxy() {
 	// This triggers graceful shutdown of the proxy sidecar
 	request := "POST /quitquitquit HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"
 	if _, err := conn.Write([]byte(request)); err != nil {
-		log.Printf("Failed to send shutdown request to Cloud SQL Proxy: %v", err)
+		logger.Warn("Failed to send shutdown request to Cloud SQL Proxy", "error", err.Error())
 		return
 	}
 
 	// Read response (optional, but good practice)
 	if err := conn.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
-		log.Printf("Failed to set read deadline: %v", err)
+		logger.Warn("Failed to set read deadline", "error", err.Error())
 		return
 	}
 	buffer := make([]byte, 1024)
 	_, _ = conn.Read(buffer) // Ignore response, just ensure connection is closed
 
-	log.Println("Cloud SQL Proxy shutdown request sent successfully")
+	logger.Info("Cloud SQL Proxy shutdown request sent successfully")
 }
 
 func main() {
@@ -83,7 +120,7 @@ func run() int {
 
 	// Ensure Cloud SQL Proxy sidecar is shut down on all exit paths (best-effort).
 	// NOTE: this must live in a function that returns normally; os.Exit would skip defers.
-	defer shutdownCloudSQLProxy()
+	defer shutdownCloudSQLProxy(logger)
 
 	dbConfig := dbutils.DbConfig{
 		Type:            cfg.DBType,
@@ -125,21 +162,21 @@ func run() int {
 			logger.Error("Database setup failed", "error", err.Error())
 			return 1
 		}
-		log.Println("Database infrastructure setup completed successfully")
+		logger.Info("Database infrastructure setup completed successfully")
 		return 0
 	case *rollback:
 		if err := performRollback(ctx, dbConfig, metricsDbConfig, logger); err != nil {
 			logger.Error("Rollback failed", "error", err.Error())
 			return 1
 		}
-		log.Println("Rollback completed successfully")
+		logger.Info("Rollback completed successfully")
 		return 0
 	case *migrate:
 		if err := performMigration(ctx, dbConfig, metricsDbConfig, logger); err != nil {
 			logger.Error("Migrations failed", "error", err.Error())
 			return 1
 		}
-		log.Println("Migrations completed successfully")
+		logger.Info("Migrations completed successfully")
 		return 0
 	default:
 		flag.Usage()
@@ -155,13 +192,24 @@ func setupDatabase(ctx context.Context, dbConfig dbutils.DbConfig, metricsDBConf
 	if err != nil {
 		return err
 	}
+	// Use retry logic to handle Cloud SQL Proxy startup delay
+	if err := connectWithRetry(storage, true, logger); err != nil {
+		return err
+	}
+	defer func(storage database.Storage) {
+		err := storage.Close()
+		if err != nil {
+			logger.Error("Failed to close VCP database connection", "error", err.Error())
+		}
+	}(storage)
+	
 	if err := storage.SetupDatabase(ctx); err != nil {
 		return err
 	}
-	log.Println("VCP database setup completed successfully")
+	logger.Info("VCP database setup completed successfully")
 
 	if !metricsEnabled {
-		log.Println("Metrics disabled... skipping metrics database setup")
+		logger.Info("Metrics disabled, skipping metrics database setup")
 		return nil
 	}
 
@@ -170,12 +218,22 @@ func setupDatabase(ctx context.Context, dbConfig dbutils.DbConfig, metricsDBConf
 	if err != nil {
 		return err
 	}
+	// Use retry logic to handle Cloud SQL Proxy startup delay
+	if err := connectWithRetry(metricsStorage, true, logger); err != nil {
+		return err
+	}
+	defer func(metricsStorage metricsdb.Storage) {
+		err := metricsStorage.Close()
+		if err != nil {
+			logger.Error("Failed to close metrics database connection", "error", err.Error())
+		}
+	}(metricsStorage)
 
 	if err := metricsStorage.SetupDatabase(ctx); err != nil {
 		return err
 	}
 
-	log.Println("Metrics database setup completed successfully")
+	logger.Info("Metrics database setup completed successfully")
 
 	return nil
 }
@@ -183,10 +241,11 @@ func setupDatabase(ctx context.Context, dbConfig dbutils.DbConfig, metricsDBConf
 func performRollback(ctx context.Context, dbConfig dbutils.DbConfig, metricsDBConfig dbutils.DbConfig, logger slogger.Logger) error {
 	// Rollback VCP database
 	storage, err := database.New(dbConfig, logger)
-	if err == nil {
-		err = storage.Connect(true)
-	}
 	if err != nil {
+		return err
+	}
+	// Use retry logic to handle Cloud SQL Proxy startup delay
+	if err := connectWithRetry(storage, true, logger); err != nil {
 		return err
 	}
 	defer func(storage database.Storage) {
@@ -199,18 +258,19 @@ func performRollback(ctx context.Context, dbConfig dbutils.DbConfig, metricsDBCo
 	if err := storage.Rollback(ctx); err != nil {
 		return err
 	}
-	log.Println("VCP database rollback completed successfully")
+	logger.Info("VCP database rollback completed successfully")
 
 	if !metricsEnabled {
-		log.Println("Metrics disabled... skipping metrics rollback")
+		logger.Info("Metrics disabled, skipping metrics rollback")
 		return nil
 	}
 	// Rollback metrics database
 	metricsStorage, err := metricsdb.New(metricsDBConfig, logger)
-	if err == nil {
-		err = metricsStorage.Connect(true)
-	}
 	if err != nil {
+		return err
+	}
+	// Use retry logic to handle Cloud SQL Proxy startup delay
+	if err := connectWithRetry(metricsStorage, true, logger); err != nil {
 		return err
 	}
 	defer func(metricsStorage metricsdb.Storage) {
@@ -223,7 +283,7 @@ func performRollback(ctx context.Context, dbConfig dbutils.DbConfig, metricsDBCo
 	if err := metricsStorage.Rollback(ctx); err != nil {
 		return err
 	}
-	log.Println("Metrics database rollback completed successfully")
+	logger.Info("Metrics database rollback completed successfully")
 
 	return nil
 }
@@ -231,10 +291,11 @@ func performRollback(ctx context.Context, dbConfig dbutils.DbConfig, metricsDBCo
 func performMigration(ctx context.Context, dbConfig dbutils.DbConfig, metricsDBConfig dbutils.DbConfig, logger slogger.Logger) error {
 	// Migrate VCP database
 	storage, err := database.New(dbConfig, logger)
-	if err == nil {
-		err = storage.Connect(true)
-	}
 	if err != nil {
+		return err
+	}
+	// Use retry logic to handle Cloud SQL Proxy startup delay
+	if err := connectWithRetry(storage, true, logger); err != nil {
 		return err
 	}
 	defer func(storage database.Storage) {
@@ -247,22 +308,23 @@ func performMigration(ctx context.Context, dbConfig dbutils.DbConfig, metricsDBC
 	if err := storage.Migrate(ctx); err != nil {
 		return err
 	}
-	log.Println("VCP database migration completed successfully")
+	logger.Info("VCP database migration completed successfully")
 
 	if !env.GetBool("METRICS_ENABLED", false) {
 		return nil
 	}
 
 	if !metricsEnabled {
-		log.Println("Metrics disabled... skipping metrics migration")
+		logger.Info("Metrics disabled, skipping metrics migration")
 		return nil
 	}
 	// Migrate metrics database
 	metricsStorage, err := metricsdb.New(metricsDBConfig, logger)
-	if err == nil {
-		err = metricsStorage.Connect(true)
-	}
 	if err != nil {
+		return err
+	}
+	// Use retry logic to handle Cloud SQL Proxy startup delay
+	if err := connectWithRetry(metricsStorage, true, logger); err != nil {
 		return err
 	}
 	defer func(metricsStorage metricsdb.Storage) {
@@ -275,7 +337,7 @@ func performMigration(ctx context.Context, dbConfig dbutils.DbConfig, metricsDBC
 	if err := metricsStorage.Migrate(ctx); err != nil {
 		return err
 	}
-	log.Println("Metrics database migration completed successfully")
+	logger.Info("Metrics database migration completed successfully")
 
 	return nil
 }

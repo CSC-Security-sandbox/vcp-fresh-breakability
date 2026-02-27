@@ -22,6 +22,10 @@ global:
   # Override in deployment-specific values to pin/upgrade proxy versions consistently.
   cloudSqlProxy:
     image: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1"
+    # Instance connection name in format: project:region:instance
+    # Required when cloudSqlIamAuthEnabled=true
+    # Example: "my-project:us-central1:my-instance"
+    instanceConnectionName: ""
   enableBackgroundTasks: true
   requiredTakeoverReasons:
     - "reason1"
