@@ -11327,6 +11327,66 @@ func (_c *MockDataStore_GetVolumePerformanceGroupByID_Call) RunAndReturn(run fun
 	return _c
 }
 
+// GetVolumePerformanceGroupByPoolAndName provides a mock function with given fields: ctx, poolID, name
+func (_m *MockDataStore) GetVolumePerformanceGroupByPoolAndName(ctx context.Context, poolID int64, name string) (*datamodel.VolumePerformanceGroup, error) {
+	ret := _m.Called(ctx, poolID, name)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVolumePerformanceGroupByPoolAndName")
+	}
+
+	var r0 *datamodel.VolumePerformanceGroup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64, string) (*datamodel.VolumePerformanceGroup, error)); ok {
+		return rf(ctx, poolID, name)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64, string) *datamodel.VolumePerformanceGroup); ok {
+		r0 = rf(ctx, poolID, name)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.VolumePerformanceGroup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64, string) error); ok {
+		r1 = rf(ctx, poolID, name)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetVolumePerformanceGroupByPoolAndName_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumePerformanceGroupByPoolAndName'
+type MockDataStore_GetVolumePerformanceGroupByPoolAndName_Call struct {
+	*mock.Call
+}
+
+// GetVolumePerformanceGroupByPoolAndName is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolID int64
+//   - name string
+func (_e *MockDataStore_Expecter) GetVolumePerformanceGroupByPoolAndName(ctx interface{}, poolID interface{}, name interface{}) *MockDataStore_GetVolumePerformanceGroupByPoolAndName_Call {
+	return &MockDataStore_GetVolumePerformanceGroupByPoolAndName_Call{Call: _e.mock.On("GetVolumePerformanceGroupByPoolAndName", ctx, poolID, name)}
+}
+
+func (_c *MockDataStore_GetVolumePerformanceGroupByPoolAndName_Call) Run(run func(ctx context.Context, poolID int64, name string)) *MockDataStore_GetVolumePerformanceGroupByPoolAndName_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetVolumePerformanceGroupByPoolAndName_Call) Return(_a0 *datamodel.VolumePerformanceGroup, _a1 error) *MockDataStore_GetVolumePerformanceGroupByPoolAndName_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetVolumePerformanceGroupByPoolAndName_Call) RunAndReturn(run func(context.Context, int64, string) (*datamodel.VolumePerformanceGroup, error)) *MockDataStore_GetVolumePerformanceGroupByPoolAndName_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetVolumePerformanceGroupByUUID provides a mock function with given fields: ctx, uuid
 func (_m *MockDataStore) GetVolumePerformanceGroupByUUID(ctx context.Context, uuid string) (*datamodel.VolumePerformanceGroup, error) {
 	ret := _m.Called(ctx, uuid)
@@ -15273,6 +15333,54 @@ func (_c *MockDataStore_UpdateBackup_Call) Return(_a0 *datamodel.Backup, _a1 err
 }
 
 func (_c *MockDataStore_UpdateBackup_Call) RunAndReturn(run func(context.Context, *datamodel.Backup) (*datamodel.Backup, error)) *MockDataStore_UpdateBackup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateBackupChainHistory provides a mock function with given fields: ctx, volumeUUID, newSize
+func (_m *MockDataStore) UpdateBackupChainHistory(ctx context.Context, volumeUUID string, newSize int64) error {
+	ret := _m.Called(ctx, volumeUUID, newSize)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateBackupChainHistory")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) error); ok {
+		r0 = rf(ctx, volumeUUID, newSize)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_UpdateBackupChainHistory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateBackupChainHistory'
+type MockDataStore_UpdateBackupChainHistory_Call struct {
+	*mock.Call
+}
+
+// UpdateBackupChainHistory is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUID string
+//   - newSize int64
+func (_e *MockDataStore_Expecter) UpdateBackupChainHistory(ctx interface{}, volumeUUID interface{}, newSize interface{}) *MockDataStore_UpdateBackupChainHistory_Call {
+	return &MockDataStore_UpdateBackupChainHistory_Call{Call: _e.mock.On("UpdateBackupChainHistory", ctx, volumeUUID, newSize)}
+}
+
+func (_c *MockDataStore_UpdateBackupChainHistory_Call) Run(run func(ctx context.Context, volumeUUID string, newSize int64)) *MockDataStore_UpdateBackupChainHistory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateBackupChainHistory_Call) Return(_a0 error) *MockDataStore_UpdateBackupChainHistory_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateBackupChainHistory_Call) RunAndReturn(run func(context.Context, string, int64) error) *MockDataStore_UpdateBackupChainHistory_Call {
 	_c.Call.Return(run)
 	return _c
 }

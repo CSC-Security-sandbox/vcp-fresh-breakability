@@ -256,6 +256,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterWorkflow(workflows.DeleteSnapshotWorkflow)
 	worker.RegisterWorkflow(workflows.CreateSnapshotWorkflow)
 	worker.RegisterWorkflow(workflows.CreateQuotaRuleWorkflow)
+	worker.RegisterWorkflow(workflows.CreateVolumePerformanceGroupWorkflow)
 	worker.RegisterWorkflow(workflows.UpdateQuotaRuleWorkflow)
 	worker.RegisterWorkflow(workflows.DeleteQuotaRuleWorkflow)
 	worker.RegisterWorkflow(workflows.AcceptClusterPeerWorkflow)

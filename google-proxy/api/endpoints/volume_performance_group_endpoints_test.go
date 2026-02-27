@@ -42,10 +42,10 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 		handler := Handler{Orchestrator: mockOrchestrator}
 		res, err := handler.V1betaCreateVolumePerformanceGroup(ctx, req, params)
 
-		assert.NoError(t, err)
-		assert.NotNil(t, res)
-		assert.Equal(t, float64(http.StatusNotImplemented), res.(*gcpgenserver.V1betaCreateVolumePerformanceGroupNotImplemented).Code)
-		assert.Equal(t, "Volume performance group creation is not enabled", res.(*gcpgenserver.V1betaCreateVolumePerformanceGroupNotImplemented).Message)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusNotImplemented), res.(*gcpgenserver.V1betaCreateVolumePerformanceGroupNotImplemented).Code)
+		assert.Equal(tt, "Volume performance group creation is not enabled", res.(*gcpgenserver.V1betaCreateVolumePerformanceGroupNotImplemented).Message)
 	})
 	t.Run("WhenMqosDisabled", func(tt *testing.T) {
 		origEnableMqos := enableMqos
@@ -74,10 +74,10 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 		handler := Handler{Orchestrator: mockOrchestrator}
 		res, err := handler.V1betaCreateVolumePerformanceGroup(ctx, req, params)
 
-		assert.NoError(t, err)
-		assert.NotNil(t, res)
-		assert.Equal(t, float64(http.StatusNotImplemented), res.(*gcpgenserver.V1betaCreateVolumePerformanceGroupNotImplemented).Code)
-		assert.Equal(t, "Volume performance group creation is not enabled", res.(*gcpgenserver.V1betaCreateVolumePerformanceGroupNotImplemented).Message)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusNotImplemented), res.(*gcpgenserver.V1betaCreateVolumePerformanceGroupNotImplemented).Code)
+		assert.Equal(tt, "Volume performance group creation is not enabled", res.(*gcpgenserver.V1betaCreateVolumePerformanceGroupNotImplemented).Message)
 	})
 	t.Run("WhenConflict", func(tt *testing.T) {
 		origEnableMqos := enableMqos
@@ -107,10 +107,45 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 		mockOrchestrator.EXPECT().CreateVolumePerformanceGroup(mock.Anything, mock.Anything).Return(nil, errors.NewConflictErr("volume performance group already exists"))
 		res, err := handler.V1betaCreateVolumePerformanceGroup(ctx, req, params)
 
-		assert.NoError(t, err)
-		assert.NotNil(t, res)
-		assert.Equal(t, float64(http.StatusConflict), res.(*gcpgenserver.V1betaCreateVolumePerformanceGroupConflict).Code)
-		assert.Equal(t, "volume performance group already exists", res.(*gcpgenserver.V1betaCreateVolumePerformanceGroupConflict).Message)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusConflict), res.(*gcpgenserver.V1betaCreateVolumePerformanceGroupConflict).Code)
+		assert.Equal(tt, "volume performance group already exists", res.(*gcpgenserver.V1betaCreateVolumePerformanceGroupConflict).Message)
+	})
+
+	t.Run("WhenVpgWithThatNameAlreadyExists", func(tt *testing.T) {
+		origEnableMqos := enableMqos
+		origEnableVpgEndpoints := enableVpgEndpoints
+		defer func() {
+			enableMqos = origEnableMqos
+			enableVpgEndpoints = origEnableVpgEndpoints
+		}()
+		enableMqos = true
+		enableVpgEndpoints = true
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		ctx := context.Background()
+		req := &gcpgenserver.VolumePerformanceGroupCreateV1beta{
+			ResourceId:      "existing-vpg-name",
+			ThroughputMibps: 100,
+			Iops:            1000,
+			IsShared:        true,
+		}
+		params := gcpgenserver.V1betaCreateVolumePerformanceGroupParams{
+			ProjectNumber: "12345",
+			LocationId:    "us-central1",
+			PoolId:        "pool-id",
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		mockOrchestrator.EXPECT().CreateVolumePerformanceGroup(mock.Anything, mock.Anything).
+			Return(nil, errors.NewConflictErr("volume performance group with this name already exists"))
+		res, err := handler.V1betaCreateVolumePerformanceGroup(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusConflict), res.(*gcpgenserver.V1betaCreateVolumePerformanceGroupConflict).Code)
+		assert.Equal(tt, "volume performance group with this name already exists", res.(*gcpgenserver.V1betaCreateVolumePerformanceGroupConflict).Message)
 	})
 
 	t.Run("WhenBadRequest", func(tt *testing.T) {
@@ -141,10 +176,10 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 		mockOrchestrator.EXPECT().CreateVolumePerformanceGroup(mock.Anything, mock.Anything).Return(nil, errors.NewBadRequestErr("invalid throughput value"))
 		res, err := handler.V1betaCreateVolumePerformanceGroup(ctx, req, params)
 
-		assert.NoError(t, err)
-		assert.NotNil(t, res)
-		assert.Equal(t, float64(http.StatusBadRequest), res.(*gcpgenserver.V1betaCreateVolumePerformanceGroupBadRequest).Code)
-		assert.Equal(t, "invalid throughput value", res.(*gcpgenserver.V1betaCreateVolumePerformanceGroupBadRequest).Message)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusBadRequest), res.(*gcpgenserver.V1betaCreateVolumePerformanceGroupBadRequest).Code)
+		assert.Equal(tt, "invalid throughput value", res.(*gcpgenserver.V1betaCreateVolumePerformanceGroupBadRequest).Message)
 	})
 
 	t.Run("WhenSuccessful", func(tt *testing.T) {
@@ -185,16 +220,16 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 		mockOrchestrator.EXPECT().CreateVolumePerformanceGroup(mock.Anything, mock.Anything).Return(expectedVPG, nil)
 		res, err := handler.V1betaCreateVolumePerformanceGroup(ctx, req, params)
 
-		assert.NoError(t, err)
-		assert.NotNil(t, res)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
 		vpgRes, ok := res.(*gcpgenserver.VolumePerformanceGroupV1beta)
-		assert.True(t, ok)
-		assert.Equal(t, "test-performance-group", vpgRes.ResourceId)
-		assert.Equal(t, "pool-id", vpgRes.PoolId)
-		assert.True(t, vpgRes.IsShared)
-		assert.Equal(t, int64(100), vpgRes.ThroughputMibps)
-		assert.Equal(t, int64(1000), vpgRes.Iops)
-		assert.Equal(t, "vpg-uuid-123", vpgRes.VolumePerformanceGroupId)
+		assert.True(tt, ok)
+		assert.Equal(tt, "test-performance-group", vpgRes.ResourceId)
+		assert.Equal(tt, "pool-id", vpgRes.PoolId)
+		assert.True(tt, vpgRes.IsShared)
+		assert.Equal(tt, int64(100), vpgRes.ThroughputMibps)
+		assert.Equal(tt, int64(1000), vpgRes.Iops)
+		assert.Equal(tt, "vpg-uuid-123", vpgRes.VolumePerformanceGroupId)
 	})
 }
 
@@ -220,10 +255,10 @@ func TestV1betaListVolumePerformanceGroups(t *testing.T) {
 		handler := Handler{Orchestrator: mockOrchestrator}
 		res, err := handler.V1betaListVolumePerformanceGroups(ctx, params)
 
-		assert.NoError(t, err)
-		assert.NotNil(t, res)
-		assert.Equal(t, float64(http.StatusNotImplemented), res.(*gcpgenserver.V1betaListVolumePerformanceGroupsNotImplemented).Code)
-		assert.Equal(t, "Listing volume performance groups is not enabled", res.(*gcpgenserver.V1betaListVolumePerformanceGroupsNotImplemented).Message)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusNotImplemented), res.(*gcpgenserver.V1betaListVolumePerformanceGroupsNotImplemented).Code)
+		assert.Equal(tt, "Listing volume performance groups is not enabled", res.(*gcpgenserver.V1betaListVolumePerformanceGroupsNotImplemented).Message)
 	})
 	t.Run("WhenMqosDisabled", func(tt *testing.T) {
 		origEnableMqos := enableMqos
@@ -246,10 +281,10 @@ func TestV1betaListVolumePerformanceGroups(t *testing.T) {
 		handler := Handler{Orchestrator: mockOrchestrator}
 		res, err := handler.V1betaListVolumePerformanceGroups(ctx, params)
 
-		assert.NoError(t, err)
-		assert.NotNil(t, res)
-		assert.Equal(t, float64(http.StatusNotImplemented), res.(*gcpgenserver.V1betaListVolumePerformanceGroupsNotImplemented).Code)
-		assert.Equal(t, "Listing volume performance groups is not enabled", res.(*gcpgenserver.V1betaListVolumePerformanceGroupsNotImplemented).Message)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusNotImplemented), res.(*gcpgenserver.V1betaListVolumePerformanceGroupsNotImplemented).Code)
+		assert.Equal(tt, "Listing volume performance groups is not enabled", res.(*gcpgenserver.V1betaListVolumePerformanceGroupsNotImplemented).Message)
 	})
 	t.Run("WhenOrchestratorError", func(tt *testing.T) {
 		origEnableMqos := enableMqos
@@ -273,11 +308,11 @@ func TestV1betaListVolumePerformanceGroups(t *testing.T) {
 		mockOrchestrator.EXPECT().ListVolumePerformanceGroups(mock.Anything, mock.Anything).Return(nil, errors.New("listing volume performance groups is not implemented"))
 		res, err := handler.V1betaListVolumePerformanceGroups(ctx, params)
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, "listing volume performance groups is not implemented")
-		assert.NotNil(t, res)
-		assert.Equal(t, float64(http.StatusInternalServerError), res.(*gcpgenserver.V1betaListVolumePerformanceGroupsInternalServerError).Code)
-		assert.Equal(t, "Internal server error", res.(*gcpgenserver.V1betaListVolumePerformanceGroupsInternalServerError).Message)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "listing volume performance groups is not implemented")
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusInternalServerError), res.(*gcpgenserver.V1betaListVolumePerformanceGroupsInternalServerError).Code)
+		assert.Equal(tt, "Internal server error", res.(*gcpgenserver.V1betaListVolumePerformanceGroupsInternalServerError).Message)
 	})
 
 	t.Run("WhenPoolNotFound", func(tt *testing.T) {
@@ -303,10 +338,10 @@ func TestV1betaListVolumePerformanceGroups(t *testing.T) {
 			Return(nil, errors.NewNotFoundErr("pool", nil))
 		res, err := handler.V1betaListVolumePerformanceGroups(ctx, params)
 
-		assert.NoError(t, err)
-		assert.NotNil(t, res)
-		assert.Equal(t, float64(http.StatusNotFound), res.(*gcpgenserver.V1betaListVolumePerformanceGroupsNotFound).Code)
-		assert.Equal(t, "Pool not found", res.(*gcpgenserver.V1betaListVolumePerformanceGroupsNotFound).Message)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusNotFound), res.(*gcpgenserver.V1betaListVolumePerformanceGroupsNotFound).Code)
+		assert.Equal(tt, "Pool not found", res.(*gcpgenserver.V1betaListVolumePerformanceGroupsNotFound).Message)
 	})
 
 	t.Run("WhenBadRequest", func(tt *testing.T) {
@@ -332,10 +367,10 @@ func TestV1betaListVolumePerformanceGroups(t *testing.T) {
 			Return(nil, errors.NewUserInputValidationErr("invalid pool"))
 		res, err := handler.V1betaListVolumePerformanceGroups(ctx, params)
 
-		assert.NoError(t, err)
-		assert.NotNil(t, res)
-		assert.Equal(t, float64(http.StatusBadRequest), res.(*gcpgenserver.V1betaListVolumePerformanceGroupsBadRequest).Code)
-		assert.Equal(t, "invalid pool", res.(*gcpgenserver.V1betaListVolumePerformanceGroupsBadRequest).Message)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusBadRequest), res.(*gcpgenserver.V1betaListVolumePerformanceGroupsBadRequest).Code)
+		assert.Equal(tt, "invalid pool", res.(*gcpgenserver.V1betaListVolumePerformanceGroupsBadRequest).Message)
 	})
 
 	t.Run("WhenNoVPGs", func(tt *testing.T) {
@@ -413,18 +448,18 @@ func TestV1betaListVolumePerformanceGroups(t *testing.T) {
 			Return(vpgs, nil)
 		res, err := handler.V1betaListVolumePerformanceGroups(ctx, params)
 
-		assert.NoError(t, err)
-		assert.NotNil(t, res)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
 		okRes, ok := res.(*gcpgenserver.V1betaListVolumePerformanceGroupsOK)
-		assert.True(t, ok)
-		assert.Len(t, okRes.VolumePerformanceGroups, 2)
-		assert.Equal(t, "vpg-1", okRes.VolumePerformanceGroups[0].ResourceId)
-		assert.Equal(t, "pool-id", okRes.VolumePerformanceGroups[0].PoolId)
-		assert.Equal(t, int64(1000), okRes.VolumePerformanceGroups[0].Iops)
-		assert.True(t, okRes.VolumePerformanceGroups[0].IsShared)
-		assert.Equal(t, "vpg-2", okRes.VolumePerformanceGroups[1].ResourceId)
-		assert.Equal(t, int64(2000), okRes.VolumePerformanceGroups[1].Iops)
-		assert.False(t, okRes.VolumePerformanceGroups[1].IsShared)
+		assert.True(tt, ok)
+		assert.Len(tt, okRes.VolumePerformanceGroups, 2)
+		assert.Equal(tt, "vpg-1", okRes.VolumePerformanceGroups[0].ResourceId)
+		assert.Equal(tt, "pool-id", okRes.VolumePerformanceGroups[0].PoolId)
+		assert.Equal(tt, int64(1000), okRes.VolumePerformanceGroups[0].Iops)
+		assert.True(tt, okRes.VolumePerformanceGroups[0].IsShared)
+		assert.Equal(tt, "vpg-2", okRes.VolumePerformanceGroups[1].ResourceId)
+		assert.Equal(tt, int64(2000), okRes.VolumePerformanceGroups[1].Iops)
+		assert.False(tt, okRes.VolumePerformanceGroups[1].IsShared)
 	})
 }
 
@@ -451,10 +486,10 @@ func TestV1betaDescribeVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		handler := Handler{Orchestrator: mockOrchestrator}
 		res, err := handler.V1betaDescribeVolumePerformanceGroup(ctx, params)
 
-		assert.NoError(t, err)
-		assert.NotNil(t, res)
-		assert.Equal(t, float64(http.StatusNotImplemented), res.(*gcpgenserver.V1betaDescribeVolumePerformanceGroupNotImplemented).Code)
-		assert.Equal(t, "Describing volume performance group is not enabled", res.(*gcpgenserver.V1betaDescribeVolumePerformanceGroupNotImplemented).Message)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusNotImplemented), res.(*gcpgenserver.V1betaDescribeVolumePerformanceGroupNotImplemented).Code)
+		assert.Equal(tt, "Describing volume performance group is not enabled", res.(*gcpgenserver.V1betaDescribeVolumePerformanceGroupNotImplemented).Message)
 	})
 	t.Run("WhenMqosDisabled", func(tt *testing.T) {
 		origEnableMqos := enableMqos
@@ -478,10 +513,10 @@ func TestV1betaDescribeVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		handler := Handler{Orchestrator: mockOrchestrator}
 		res, err := handler.V1betaDescribeVolumePerformanceGroup(ctx, params)
 
-		assert.NoError(t, err)
-		assert.NotNil(t, res)
-		assert.Equal(t, float64(http.StatusNotImplemented), res.(*gcpgenserver.V1betaDescribeVolumePerformanceGroupNotImplemented).Code)
-		assert.Equal(t, "Describing volume performance group is not enabled", res.(*gcpgenserver.V1betaDescribeVolumePerformanceGroupNotImplemented).Message)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusNotImplemented), res.(*gcpgenserver.V1betaDescribeVolumePerformanceGroupNotImplemented).Code)
+		assert.Equal(tt, "Describing volume performance group is not enabled", res.(*gcpgenserver.V1betaDescribeVolumePerformanceGroupNotImplemented).Message)
 	})
 	t.Run("WhenOrchestratorError", func(tt *testing.T) {
 		origEnableMqos := enableMqos
@@ -506,11 +541,11 @@ func TestV1betaDescribeVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		mockOrchestrator.EXPECT().GetVolumePerformanceGroup(mock.Anything, mock.Anything).Return(nil, errors.New("get volume performance group is not implemented"))
 		res, err := handler.V1betaDescribeVolumePerformanceGroup(ctx, params)
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, "get volume performance group is not implemented")
-		assert.NotNil(t, res)
-		assert.Equal(t, float64(http.StatusInternalServerError), res.(*gcpgenserver.V1betaDescribeVolumePerformanceGroupInternalServerError).Code)
-		assert.Equal(t, "Internal server error", res.(*gcpgenserver.V1betaDescribeVolumePerformanceGroupInternalServerError).Message)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "get volume performance group is not implemented")
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusInternalServerError), res.(*gcpgenserver.V1betaDescribeVolumePerformanceGroupInternalServerError).Code)
+		assert.Equal(tt, "Internal server error", res.(*gcpgenserver.V1betaDescribeVolumePerformanceGroupInternalServerError).Message)
 	})
 
 	t.Run("WhenNotFound", func(tt *testing.T) {
@@ -537,10 +572,10 @@ func TestV1betaDescribeVolumePerformanceGroup_NotImplemented(t *testing.T) {
 			Return(nil, errors.NewNotFoundErr("vpg", nil))
 		res, err := handler.V1betaDescribeVolumePerformanceGroup(ctx, params)
 
-		assert.NoError(t, err)
-		assert.NotNil(t, res)
-		assert.Equal(t, float64(http.StatusNotFound), res.(*gcpgenserver.V1betaDescribeVolumePerformanceGroupNotFound).Code)
-		assert.Equal(t, "Volume performance group not found", res.(*gcpgenserver.V1betaDescribeVolumePerformanceGroupNotFound).Message)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusNotFound), res.(*gcpgenserver.V1betaDescribeVolumePerformanceGroupNotFound).Code)
+		assert.Equal(tt, "Volume performance group not found", res.(*gcpgenserver.V1betaDescribeVolumePerformanceGroupNotFound).Message)
 	})
 
 	t.Run("WhenBadRequest", func(tt *testing.T) {
@@ -567,10 +602,10 @@ func TestV1betaDescribeVolumePerformanceGroup_NotImplemented(t *testing.T) {
 			Return(nil, errors.NewUserInputValidationErr("invalid vpg"))
 		res, err := handler.V1betaDescribeVolumePerformanceGroup(ctx, params)
 
-		assert.NoError(t, err)
-		assert.NotNil(t, res)
-		assert.Equal(t, float64(http.StatusBadRequest), res.(*gcpgenserver.V1betaDescribeVolumePerformanceGroupBadRequest).Code)
-		assert.Equal(t, "invalid vpg", res.(*gcpgenserver.V1betaDescribeVolumePerformanceGroupBadRequest).Message)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusBadRequest), res.(*gcpgenserver.V1betaDescribeVolumePerformanceGroupBadRequest).Code)
+		assert.Equal(tt, "invalid vpg", res.(*gcpgenserver.V1betaDescribeVolumePerformanceGroupBadRequest).Message)
 	})
 
 	t.Run("WhenSuccessful", func(tt *testing.T) {
@@ -605,16 +640,16 @@ func TestV1betaDescribeVolumePerformanceGroup_NotImplemented(t *testing.T) {
 			Return(vpg, nil)
 		res, err := handler.V1betaDescribeVolumePerformanceGroup(ctx, params)
 
-		assert.NoError(t, err)
-		assert.NotNil(t, res)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
 		descRes, ok := res.(*gcpgenserver.VolumePerformanceGroupV1beta)
-		assert.True(t, ok)
-		assert.Equal(t, "vpg-name", descRes.ResourceId)
-		assert.Equal(t, "pool-id", descRes.PoolId)
-		assert.Equal(t, "vpg-uuid-123", descRes.VolumePerformanceGroupId)
-		assert.Equal(t, int64(500), descRes.ThroughputMibps)
-		assert.Equal(t, int64(1500), descRes.Iops)
-		assert.True(t, descRes.IsShared)
+		assert.True(tt, ok)
+		assert.Equal(tt, "vpg-name", descRes.ResourceId)
+		assert.Equal(tt, "pool-id", descRes.PoolId)
+		assert.Equal(tt, "vpg-uuid-123", descRes.VolumePerformanceGroupId)
+		assert.Equal(tt, int64(500), descRes.ThroughputMibps)
+		assert.Equal(tt, int64(1500), descRes.Iops)
+		assert.True(tt, descRes.IsShared)
 	})
 }
 
@@ -644,10 +679,10 @@ func TestV1betaUpdateVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		handler := Handler{Orchestrator: mockOrchestrator}
 		res, err := handler.V1betaUpdateVolumePerformanceGroup(ctx, req, params)
 
-		assert.NoError(t, err)
-		assert.NotNil(t, res)
-		assert.Equal(t, float64(http.StatusNotImplemented), res.(*gcpgenserver.V1betaUpdateVolumePerformanceGroupNotImplemented).Code)
-		assert.Equal(t, "Updating volume performance group is not enabled", res.(*gcpgenserver.V1betaUpdateVolumePerformanceGroupNotImplemented).Message)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusNotImplemented), res.(*gcpgenserver.V1betaUpdateVolumePerformanceGroupNotImplemented).Code)
+		assert.Equal(tt, "Updating volume performance group is not enabled", res.(*gcpgenserver.V1betaUpdateVolumePerformanceGroupNotImplemented).Message)
 	})
 	t.Run("WhenMqosDisabled", func(tt *testing.T) {
 		origEnableMqos := enableMqos
@@ -674,10 +709,10 @@ func TestV1betaUpdateVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		handler := Handler{Orchestrator: mockOrchestrator}
 		res, err := handler.V1betaUpdateVolumePerformanceGroup(ctx, req, params)
 
-		assert.NoError(t, err)
-		assert.NotNil(t, res)
-		assert.Equal(t, float64(http.StatusNotImplemented), res.(*gcpgenserver.V1betaUpdateVolumePerformanceGroupNotImplemented).Code)
-		assert.Equal(t, "Updating volume performance group is not enabled", res.(*gcpgenserver.V1betaUpdateVolumePerformanceGroupNotImplemented).Message)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusNotImplemented), res.(*gcpgenserver.V1betaUpdateVolumePerformanceGroupNotImplemented).Code)
+		assert.Equal(tt, "Updating volume performance group is not enabled", res.(*gcpgenserver.V1betaUpdateVolumePerformanceGroupNotImplemented).Message)
 	})
 	t.Run("WhenOrchestratorError", func(tt *testing.T) {
 		origEnableMqos := enableMqos
@@ -705,11 +740,11 @@ func TestV1betaUpdateVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		mockOrchestrator.EXPECT().UpdateVolumePerformanceGroup(mock.Anything, mock.Anything).Return(nil, errors.New("updating volume performance group is not implemented"))
 		res, err := handler.V1betaUpdateVolumePerformanceGroup(ctx, req, params)
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, "updating volume performance group is not implemented")
-		assert.NotNil(t, res)
-		assert.Equal(t, float64(http.StatusInternalServerError), res.(*gcpgenserver.V1betaUpdateVolumePerformanceGroupInternalServerError).Code)
-		assert.Equal(t, "Internal server error", res.(*gcpgenserver.V1betaUpdateVolumePerformanceGroupInternalServerError).Message)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "updating volume performance group is not implemented")
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusInternalServerError), res.(*gcpgenserver.V1betaUpdateVolumePerformanceGroupInternalServerError).Code)
+		assert.Equal(tt, "Internal server error", res.(*gcpgenserver.V1betaUpdateVolumePerformanceGroupInternalServerError).Message)
 	})
 }
 
@@ -736,10 +771,10 @@ func TestV1betaDeleteVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		handler := Handler{Orchestrator: mockOrchestrator}
 		res, err := handler.V1betaDeleteVolumePerformanceGroup(ctx, params)
 
-		assert.NoError(t, err)
-		assert.NotNil(t, res)
-		assert.Equal(t, float64(http.StatusNotImplemented), res.(*gcpgenserver.V1betaDeleteVolumePerformanceGroupNotImplemented).Code)
-		assert.Equal(t, "Deleting volume performance group is not enabled", res.(*gcpgenserver.V1betaDeleteVolumePerformanceGroupNotImplemented).Message)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusNotImplemented), res.(*gcpgenserver.V1betaDeleteVolumePerformanceGroupNotImplemented).Code)
+		assert.Equal(tt, "Deleting volume performance group is not enabled", res.(*gcpgenserver.V1betaDeleteVolumePerformanceGroupNotImplemented).Message)
 	})
 	t.Run("WhenMqosDisabled", func(tt *testing.T) {
 		origEnableMqos := enableMqos
@@ -763,10 +798,10 @@ func TestV1betaDeleteVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		handler := Handler{Orchestrator: mockOrchestrator}
 		res, err := handler.V1betaDeleteVolumePerformanceGroup(ctx, params)
 
-		assert.NoError(t, err)
-		assert.NotNil(t, res)
-		assert.Equal(t, float64(http.StatusNotImplemented), res.(*gcpgenserver.V1betaDeleteVolumePerformanceGroupNotImplemented).Code)
-		assert.Equal(t, "Deleting volume performance group is not enabled", res.(*gcpgenserver.V1betaDeleteVolumePerformanceGroupNotImplemented).Message)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusNotImplemented), res.(*gcpgenserver.V1betaDeleteVolumePerformanceGroupNotImplemented).Code)
+		assert.Equal(tt, "Deleting volume performance group is not enabled", res.(*gcpgenserver.V1betaDeleteVolumePerformanceGroupNotImplemented).Message)
 	})
 	t.Run("WhenOrchestratorError", func(tt *testing.T) {
 		origEnableMqos := enableMqos
@@ -791,16 +826,16 @@ func TestV1betaDeleteVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		mockOrchestrator.EXPECT().DeleteVolumePerformanceGroup(mock.Anything, mock.Anything).Return(errors.New("deleting volume performance group is not implemented"))
 		res, err := handler.V1betaDeleteVolumePerformanceGroup(ctx, params)
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, "deleting volume performance group is not implemented")
-		assert.NotNil(t, res)
-		assert.Equal(t, float64(http.StatusInternalServerError), res.(*gcpgenserver.V1betaDeleteVolumePerformanceGroupInternalServerError).Code)
-		assert.Equal(t, "Internal server error", res.(*gcpgenserver.V1betaDeleteVolumePerformanceGroupInternalServerError).Message)
+		assert.Error(tt, err)
+		assert.EqualError(tt, err, "deleting volume performance group is not implemented")
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusInternalServerError), res.(*gcpgenserver.V1betaDeleteVolumePerformanceGroupInternalServerError).Code)
+		assert.Equal(tt, "Internal server error", res.(*gcpgenserver.V1betaDeleteVolumePerformanceGroupInternalServerError).Message)
 	})
 }
 
 func TestConvertModelToVCPVolumePerformanceGroup(t *testing.T) {
 	t.Run("NilModelReturnsNil", func(tt *testing.T) {
-		assert.Nil(t, convertModelToVCPVolumePerformanceGroup(nil, "pool-id"))
+		assert.Nil(tt, convertModelToVCPVolumePerformanceGroup(nil, "pool-id"))
 	})
 }

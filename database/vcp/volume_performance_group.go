@@ -45,6 +45,11 @@ func (d *DataStoreRepository) GetVolumePerformanceGroupByID(ctx context.Context,
 	return getVolumePerformanceGroupByID(d.db.GORM().WithContext(ctx), id)
 }
 
+// GetVolumePerformanceGroupByPoolAndName retrieves a volume performance group row by pool ID and name.
+func (d *DataStoreRepository) GetVolumePerformanceGroupByPoolAndName(ctx context.Context, poolID int64, name string) (*datamodel.VolumePerformanceGroup, error) {
+	return getVolumePerformanceGroupByPoolAndName(d.db.GORM().WithContext(ctx), poolID, name)
+}
+
 // ListVolumePerformanceGroupsByPoolID retrieves all volume performance group rows for a given pool ID.
 func (d *DataStoreRepository) ListVolumePerformanceGroupsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.VolumePerformanceGroup, error) {
 	return listVolumePerformanceGroupsByPoolID(d.db.GORM().WithContext(ctx), poolID)
@@ -76,6 +81,19 @@ func getVolumePerformanceGroupByID(db *gorm.DB, id int64) (*datamodel.VolumePerf
 	return vpg, nil
 }
 
+// Returns the volume performance group by pool ID and name. Respects soft deletes (deleted_at filter).
+func getVolumePerformanceGroupByPoolAndName(db *gorm.DB, poolID int64, name string) (*datamodel.VolumePerformanceGroup, error) {
+	vpg := &datamodel.VolumePerformanceGroup{}
+	err := db.Where("pool_id = ? AND name = ?", poolID, name).First(vpg).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, customerrors.NewNotFoundErr("volume performance group", &name)
+		}
+		return nil, err
+	}
+	return vpg, nil
+}
+
 // Returns the volume performance groups. Respects soft deletes (deleted_at filter).
 func listVolumePerformanceGroupsByPoolID(db *gorm.DB, poolID int64) ([]*datamodel.VolumePerformanceGroup, error) {
 	var vpgs []*datamodel.VolumePerformanceGroup
@@ -86,6 +104,14 @@ func listVolumePerformanceGroupsByPoolID(db *gorm.DB, poolID int64) ([]*datamode
 }
 
 func createVolumePerformanceGroup(db *gorm.DB, vpg *datamodel.VolumePerformanceGroup) (*datamodel.VolumePerformanceGroup, error) {
+	existing, err := getVolumePerformanceGroupByPoolAndName(db, vpg.PoolID, vpg.Name)
+	if err == nil && existing != nil {
+		return nil, customerrors.NewConflictErr("volume performance group with this name already exists")
+	}
+	if err != nil && !customerrors.IsNotFoundErr(err) {
+		return nil, err
+	}
+
 	// Generate UUID if empty (following the pattern from pools.go)
 	if vpg.UUID == "" {
 		vpg.UUID = utils.RandomUUID()
@@ -116,12 +142,15 @@ func updateVolumePerformanceGroup(db *gorm.DB, ctx context.Context, vpg *datamod
 		return err
 	}
 
-	// Only update allowed fields: Name, ThroughputMibps, Iops
+	// Only update allowed fields: Name, ThroughputMibps, Iops, and OntapQosPolicyID (when completing VPG creation).
 	// Do NOT update IsShared or PoolID
 	dbVPG.UpdatedAt = time.Now()
 	dbVPG.Name = vpg.Name
 	dbVPG.ThroughputMibps = vpg.ThroughputMibps
 	dbVPG.Iops = vpg.Iops
+	if vpg.OntapQosPolicyID != "" {
+		dbVPG.OntapQosPolicyID = vpg.OntapQosPolicyID
+	}
 
 	if err := tx.Updates(dbVPG).Error; err != nil {
 		return err

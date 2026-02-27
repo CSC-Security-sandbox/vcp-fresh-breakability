@@ -7229,6 +7229,47 @@ func TestCreateVolumePerformanceGroup_PersistenceStore(t *testing.T) {
 	})
 }
 
+func TestGetVolumePerformanceGroupByPoolAndName_PersistenceStore(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-vpg-byname"}, Name: "acct-vpg-byname"}
+	createdAcc, err := store.CreateAccount(ctx, account)
+	require.NoError(t, err)
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-vpg-byname"}, Name: "pool-vpg-byname", AccountID: createdAcc.ID, Account: createdAcc}
+	createdPool, err := store.CreatingPool(ctx, pool)
+	require.NoError(t, err)
+
+	vpg := &datamodel.VolumePerformanceGroup{
+		BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-byname"},
+		PoolID:           createdPool.ID,
+		Name:             "my-vpg-by-pool-and-name",
+		IsShared:         true,
+		IsAutoGen:        false,
+		ThroughputMibps:  128,
+		Iops:             2000,
+		OntapQosPolicyID: "ontap-qos-byname",
+	}
+	createdVPG, err := store.CreateVolumePerformanceGroup(ctx, vpg)
+	require.NoError(t, err)
+
+	got, err := store.GetVolumePerformanceGroupByPoolAndName(ctx, createdPool.ID, "my-vpg-by-pool-and-name")
+	assert.NoError(t, err)
+	assert.NotNil(t, got)
+	assert.Equal(t, createdVPG.UUID, got.UUID)
+	assert.Equal(t, "my-vpg-by-pool-and-name", got.Name)
+	assert.Equal(t, createdPool.ID, got.PoolID)
+}
+
 func TestGetVolumePerformanceGroup_PersistenceStore(t *testing.T) {
 	t.Run("WhenVPGExists", func(tt *testing.T) {
 		db, err := SetupTestDB()

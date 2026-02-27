@@ -1154,22 +1154,3 @@ func (a *VolumeUpdateActivity) FindQoSGroupPolicyForVolume(ctx context.Context, 
 	return qosPolicy, nil
 }
 
-// GetVolumePerformanceGroupByUUID retrieves a VolumePerformanceGroup from the database by UUID
-func (a *VolumeUpdateActivity) GetVolumePerformanceGroupByUUID(ctx context.Context, vpgUUID string) (*datamodel.VolumePerformanceGroup, error) {
-	logger := util.GetLogger(ctx)
-	activity.RecordHeartbeat(ctx, "Starting GetVolumePerformanceGroupByUUID activity")
-
-	if vpgUUID == "" {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("vpgUUID is empty"))
-	}
-
-	vpg, err := a.SE.GetVolumePerformanceGroupByUUID(ctx, vpgUUID)
-	if err != nil {
-		logger.Errorf("Failed to get VolumePerformanceGroup %s from database: %v", vpgUUID, err)
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
-	}
-
-	logger.Info("VolumePerformanceGroup retrieved", "vpgUUID", vpgUUID, "vpgName", vpg.Name)
-	activity.RecordHeartbeat(ctx, "Finished GetVolumePerformanceGroupByUUID activity")
-	return vpg, nil
-}

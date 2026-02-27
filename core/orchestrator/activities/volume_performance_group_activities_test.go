@@ -16,6 +16,84 @@ import (
 	"go.temporal.io/sdk/testsuite"
 )
 
+func TestGetVolumePerformanceGroupByUUID_EmptyUUID(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumePerformanceGroupActivity{SE: mockStorage}
+	env.RegisterActivity(activity.GetVolumePerformanceGroupByUUID)
+
+	val, err := env.ExecuteActivity(activity.GetVolumePerformanceGroupByUUID, "")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "vpgUUID is empty")
+	assert.Nil(t, val)
+}
+
+func TestGetVolumePerformanceGroupByUUID_VPGNotFound(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumePerformanceGroupActivity{SE: mockStorage}
+	env.RegisterActivity(activity.GetVolumePerformanceGroupByUUID)
+
+	vpgUUID := "non-existent-vpg-uuid"
+	mockStorage.On("GetVolumePerformanceGroupByUUID", mock.Anything, vpgUUID).Return(nil, errors.New("record not found"))
+
+	val, err := env.ExecuteActivity(activity.GetVolumePerformanceGroupByUUID, vpgUUID)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "record not found")
+	assert.Nil(t, val)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestGetVolumePerformanceGroupByUUID_DatabaseError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumePerformanceGroupActivity{SE: mockStorage}
+	env.RegisterActivity(activity.GetVolumePerformanceGroupByUUID)
+
+	vpgUUID := "vpg-uuid-123"
+	dbError := errors.New("database connection error")
+	mockStorage.On("GetVolumePerformanceGroupByUUID", mock.Anything, vpgUUID).Return(nil, dbError)
+
+	val, err := env.ExecuteActivity(activity.GetVolumePerformanceGroupByUUID, vpgUUID)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "database connection error")
+	assert.Nil(t, val)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestGetVolumePerformanceGroupByUUID_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumePerformanceGroupActivity{SE: mockStorage}
+	env.RegisterActivity(activity.GetVolumePerformanceGroupByUUID)
+
+	vpgUUID := "vpg-uuid-123"
+	expectedVPG := &datamodel.VolumePerformanceGroup{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: vpgUUID},
+		Name:      "test-vpg",
+		PoolID:    1,
+	}
+	mockStorage.On("GetVolumePerformanceGroupByUUID", mock.Anything, vpgUUID).Return(expectedVPG, nil)
+
+	var result *datamodel.VolumePerformanceGroup
+	val, err := env.ExecuteActivity(activity.GetVolumePerformanceGroupByUUID, vpgUUID)
+	if err == nil {
+		err = val.Get(&result)
+	}
+
+	assert.NoError(t, err)
+	assert.Equal(t, expectedVPG, result)
+	mockStorage.AssertExpectations(t)
+}
+
 func TestCreateVPGInDB_Success(t *testing.T) {
 	// Arrange
 	testSuite := &testsuite.WorkflowTestSuite{}
@@ -114,11 +192,6 @@ func TestCreateQoSPolicyInONTAP_Success(t *testing.T) {
 		Iops:            1000,
 		IsShared:         true,
 	}
-	poolView := &datamodel.PoolView{
-		Pool: datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: 1},
-		},
-	}
 	node := &models.Node{ExternalUUID: "node-uuid"}
 	svm := &datamodel.Svm{
 		Name: "test-svm",
@@ -126,12 +199,13 @@ func TestCreateQoSPolicyInONTAP_Success(t *testing.T) {
 
 	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
 	mockProvider.On("CreateQoSGroupPolicy", mock.AnythingOfType("vsa.CreateQoSGroupPolicyParams")).Return(&vsa.QoSGroupPolicyResponse{
-		Name: "qos-policy-uuid",
+		Name: "test-vpg",
+		UUID: "qos-policy-uuid",
 	}, nil)
 
 	// Act
 	var result string
-	val, err := env.ExecuteActivity(activity.CreateQoSPolicyInONTAP, vpg, poolView, node)
+	val, err := env.ExecuteActivity(activity.CreateQoSPolicyInONTAP, vpg, node)
 	if err == nil {
 		err = val.Get(&result)
 	}
@@ -158,11 +232,6 @@ func TestCreateQoSPolicyInONTAP_GetSvmError(t *testing.T) {
 		ThroughputMibps: 100,
 		Iops:            1000,
 	}
-	poolView := &datamodel.PoolView{
-		Pool: datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: 1},
-		},
-	}
 	node := &models.Node{ExternalUUID: "node-uuid"}
 	expectedError := errors.New("failed to get SVM")
 
@@ -170,7 +239,7 @@ func TestCreateQoSPolicyInONTAP_GetSvmError(t *testing.T) {
 
 	// Act
 	var result string
-	val, err := env.ExecuteActivity(activity.CreateQoSPolicyInONTAP, vpg, poolView, node)
+	val, err := env.ExecuteActivity(activity.CreateQoSPolicyInONTAP, vpg, node)
 	if err == nil {
 		err = val.Get(&result)
 	}
@@ -203,11 +272,6 @@ func TestCreateQoSPolicyInONTAP_GetProviderError(t *testing.T) {
 		ThroughputMibps: 100,
 		Iops:            1000,
 	}
-	poolView := &datamodel.PoolView{
-		Pool: datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: 1},
-		},
-	}
 	node := &models.Node{ExternalUUID: "node-uuid"}
 	svm := &datamodel.Svm{
 		Name: "test-svm",
@@ -217,7 +281,7 @@ func TestCreateQoSPolicyInONTAP_GetProviderError(t *testing.T) {
 
 	// Act
 	var result string
-	val, err := env.ExecuteActivity(activity.CreateQoSPolicyInONTAP, vpg, poolView, node)
+	val, err := env.ExecuteActivity(activity.CreateQoSPolicyInONTAP, vpg, node)
 	if err == nil {
 		err = val.Get(&result)
 	}
@@ -252,11 +316,6 @@ func TestCreateQoSPolicyInONTAP_CreatePolicyError(t *testing.T) {
 		Iops:            1000,
 		IsShared:         true,
 	}
-	poolView := &datamodel.PoolView{
-		Pool: datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: 1},
-		},
-	}
 	node := &models.Node{ExternalUUID: "node-uuid"}
 	svm := &datamodel.Svm{
 		Name: "test-svm",
@@ -268,7 +327,7 @@ func TestCreateQoSPolicyInONTAP_CreatePolicyError(t *testing.T) {
 
 	// Act
 	var result string
-	val, err := env.ExecuteActivity(activity.CreateQoSPolicyInONTAP, vpg, poolView, node)
+	val, err := env.ExecuteActivity(activity.CreateQoSPolicyInONTAP, vpg, node)
 	if err == nil {
 		err = val.Get(&result)
 	}
@@ -298,11 +357,7 @@ func TestDeleteQoSPolicyInONTAP_Success(t *testing.T) {
 	env.RegisterActivity(activity.DeleteQoSPolicyInONTAP)
 
 	qosPolicyID := "qos-policy-uuid"
-	poolView := &datamodel.PoolView{
-		Pool: datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: 1},
-		},
-	}
+	poolID := int64(1)
 	node := &models.Node{ExternalUUID: "node-uuid"}
 	svm := &datamodel.Svm{
 		Name: "test-svm",
@@ -312,7 +367,7 @@ func TestDeleteQoSPolicyInONTAP_Success(t *testing.T) {
 	mockProvider.On("DeleteQoSGroupPolicy", mock.AnythingOfType("vsa.DeleteQoSGroupPolicyParams")).Return(nil)
 
 	// Act
-	_, err := env.ExecuteActivity(activity.DeleteQoSPolicyInONTAP, qosPolicyID, poolView, node)
+	_, err := env.ExecuteActivity(activity.DeleteQoSPolicyInONTAP, qosPolicyID, poolID, node)
 
 	// Assert
 	assert.NoError(t, err)
@@ -330,15 +385,11 @@ func TestDeleteQoSPolicyInONTAP_EmptyPolicyID(t *testing.T) {
 	env.RegisterActivity(activity.DeleteQoSPolicyInONTAP)
 
 	qosPolicyID := ""
-	poolView := &datamodel.PoolView{
-		Pool: datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: 1},
-		},
-	}
+	poolID := int64(1)
 	node := &models.Node{ExternalUUID: "node-uuid"}
 
 	// Act
-	_, err := env.ExecuteActivity(activity.DeleteQoSPolicyInONTAP, qosPolicyID, poolView, node)
+	_, err := env.ExecuteActivity(activity.DeleteQoSPolicyInONTAP, qosPolicyID, poolID, node)
 
 	// Assert
 	assert.NoError(t, err)
@@ -355,18 +406,14 @@ func TestDeleteQoSPolicyInONTAP_GetSvmError(t *testing.T) {
 	env.RegisterActivity(activity.DeleteQoSPolicyInONTAP)
 
 	qosPolicyID := "qos-policy-uuid"
-	poolView := &datamodel.PoolView{
-		Pool: datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: 1},
-		},
-	}
+	poolID := int64(1)
 	node := &models.Node{ExternalUUID: "node-uuid"}
 	expectedError := errors.New("failed to get SVM")
 
 	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(nil, expectedError)
 
 	// Act
-	_, err := env.ExecuteActivity(activity.DeleteQoSPolicyInONTAP, qosPolicyID, poolView, node)
+	_, err := env.ExecuteActivity(activity.DeleteQoSPolicyInONTAP, qosPolicyID, poolID, node)
 
 	// Assert
 	assert.Error(t, err)
@@ -390,11 +437,7 @@ func TestDeleteQoSPolicyInONTAP_GetProviderError(t *testing.T) {
 	env.RegisterActivity(activity.DeleteQoSPolicyInONTAP)
 
 	qosPolicyID := "qos-policy-uuid"
-	poolView := &datamodel.PoolView{
-		Pool: datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: 1},
-		},
-	}
+	poolID := int64(1)
 	node := &models.Node{ExternalUUID: "node-uuid"}
 	svm := &datamodel.Svm{
 		Name: "test-svm",
@@ -403,7 +446,7 @@ func TestDeleteQoSPolicyInONTAP_GetProviderError(t *testing.T) {
 	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
 
 	// Act
-	_, err := env.ExecuteActivity(activity.DeleteQoSPolicyInONTAP, qosPolicyID, poolView, node)
+	_, err := env.ExecuteActivity(activity.DeleteQoSPolicyInONTAP, qosPolicyID, poolID, node)
 
 	// Assert
 	assert.Error(t, err)
@@ -428,11 +471,7 @@ func TestDeleteQoSPolicyInONTAP_DeleteError(t *testing.T) {
 	env.RegisterActivity(activity.DeleteQoSPolicyInONTAP)
 
 	qosPolicyID := "qos-policy-uuid"
-	poolView := &datamodel.PoolView{
-		Pool: datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: 1},
-		},
-	}
+	poolID := int64(1)
 	node := &models.Node{ExternalUUID: "node-uuid"}
 	svm := &datamodel.Svm{
 		Name: "test-svm",
@@ -443,7 +482,7 @@ func TestDeleteQoSPolicyInONTAP_DeleteError(t *testing.T) {
 	mockProvider.On("DeleteQoSGroupPolicy", mock.AnythingOfType("vsa.DeleteQoSGroupPolicyParams")).Return(expectedError)
 
 	// Act
-	_, err := env.ExecuteActivity(activity.DeleteQoSPolicyInONTAP, qosPolicyID, poolView, node)
+	_, err := env.ExecuteActivity(activity.DeleteQoSPolicyInONTAP, qosPolicyID, poolID, node)
 
 	// Assert
 	assert.Error(t, err)
@@ -469,11 +508,7 @@ func TestDeleteQoSPolicyInONTAP_NotFoundError(t *testing.T) {
 	env.RegisterActivity(activity.DeleteQoSPolicyInONTAP)
 
 	qosPolicyID := "qos-policy-uuid"
-	poolView := &datamodel.PoolView{
-		Pool: datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: 1},
-		},
-	}
+	poolID := int64(1)
 	node := &models.Node{ExternalUUID: "node-uuid"}
 	svm := &datamodel.Svm{
 		Name: "test-svm",
@@ -484,10 +519,80 @@ func TestDeleteQoSPolicyInONTAP_NotFoundError(t *testing.T) {
 	mockProvider.On("DeleteQoSGroupPolicy", mock.AnythingOfType("vsa.DeleteQoSGroupPolicyParams")).Return(notFoundError)
 
 	// Act
-	_, err := env.ExecuteActivity(activity.DeleteQoSPolicyInONTAP, qosPolicyID, poolView, node)
+	_, err := env.ExecuteActivity(activity.DeleteQoSPolicyInONTAP, qosPolicyID, poolID, node)
 
 	// Assert
 	assert.NoError(t, err) // NotFound errors should be ignored
 	mockStorage.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
+}
+
+func TestUpdateVPGWithOntapID_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumePerformanceGroupActivity{SE: mockStorage}
+	env.RegisterActivity(activity.UpdateVPGWithOntapID)
+
+	vpgUUID := "vpg-uuid-123"
+	ontapQosPolicyID := "qos-policy-ontap-id"
+	vpg := &datamodel.VolumePerformanceGroup{
+		BaseModel: datamodel.BaseModel{UUID: vpgUUID},
+		Name:      "test-vpg",
+		PoolID:    1,
+	}
+
+	mockStorage.On("GetVolumePerformanceGroupByUUID", mock.Anything, vpgUUID).Return(vpg, nil)
+	mockStorage.On("UpdateVolumePerformanceGroup", mock.Anything, mock.MatchedBy(func(v *datamodel.VolumePerformanceGroup) bool {
+		return v.UUID == vpgUUID && v.OntapQosPolicyID == ontapQosPolicyID
+	})).Return(nil)
+
+	_, err := env.ExecuteActivity(activity.UpdateVPGWithOntapID, vpgUUID, ontapQosPolicyID)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVPGWithOntapID_GetVPGError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumePerformanceGroupActivity{SE: mockStorage}
+	env.RegisterActivity(activity.UpdateVPGWithOntapID)
+
+	vpgUUID := "vpg-uuid-123"
+	ontapQosPolicyID := "qos-policy-ontap-id"
+	dbError := errors.New("vpg not found")
+
+	mockStorage.On("GetVolumePerformanceGroupByUUID", mock.Anything, vpgUUID).Return(nil, dbError)
+
+	_, err := env.ExecuteActivity(activity.UpdateVPGWithOntapID, vpgUUID, ontapQosPolicyID)
+	assert.Error(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateVPGWithOntapID_UpdateError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumePerformanceGroupActivity{SE: mockStorage}
+	env.RegisterActivity(activity.UpdateVPGWithOntapID)
+
+	vpgUUID := "vpg-uuid-123"
+	ontapQosPolicyID := "qos-policy-ontap-id"
+	vpg := &datamodel.VolumePerformanceGroup{
+		BaseModel: datamodel.BaseModel{UUID: vpgUUID},
+		Name:      "test-vpg",
+		PoolID:    1,
+	}
+	updateError := errors.New("update failed")
+
+	mockStorage.On("GetVolumePerformanceGroupByUUID", mock.Anything, vpgUUID).Return(vpg, nil)
+	mockStorage.On("UpdateVolumePerformanceGroup", mock.Anything, mock.Anything).Return(updateError)
+
+	_, err := env.ExecuteActivity(activity.UpdateVPGWithOntapID, vpgUUID, ontapQosPolicyID)
+	assert.Error(t, err)
+	mockStorage.AssertExpectations(t)
 }

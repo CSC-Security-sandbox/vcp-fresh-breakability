@@ -114,7 +114,7 @@ generate: generate-google-proxy generate-core-api generate-metrics-api generate-
 
 .PHONY: verify-generated
 verify-generated: generate
-verify-generated: 
+verify-generated:
 	cd scripts; ./verify-generated.sh
 
 .PHONY: test
@@ -256,7 +256,7 @@ build-core:
 		-e GOCACHE=/go-build-cache \
 		-e GOMODCACHE=/go/pkg/mod \
 		vsa-binaries-builder sh -c 'go build -gcflags="all=-N -l" -o /src/app/core ./core'
-		
+
 .PHONY: build-worker
 build-worker:
 	@echo "Building vcp-worker service..."

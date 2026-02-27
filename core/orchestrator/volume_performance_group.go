@@ -3,17 +3,78 @@ package orchestrator
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strconv"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/api/enums/v1"
+	"go.temporal.io/sdk/client"
 )
 
 // CreateVolumePerformanceGroup creates a new volume performance group
 func (o *Orchestrator) CreateVolumePerformanceGroup(ctx context.Context, params *commonparams.CreateVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, error) {
-	return nil, errors.New("volume performance group creation is not implemented")
+	logger := util.GetLogger(ctx)
+	se := o.storage
+
+	// Validate account exists
+	account, err := getAccountWithName(ctx, se, params.AccountName)
+	if err != nil {
+		logger.Error("Failed to fetch account for the given projectNumber", "error", err)
+		return nil, err
+	}
+
+	// Validate pool exists and belongs to account
+	pool, err := se.DescribePool(ctx, params.PoolID, account.ID)
+	if err != nil {
+		logger.Error("Failed to fetch pool for the given pool ID and account", "error", err)
+		return nil, err
+	}
+	if pool.QosType != utils.QosTypeManual {
+		return nil, customerrors.NewUserInputValidationErr("VPGs can only be created in pools with manual QoS type")
+	}
+
+	vpg, err := se.CreateVolumePerformanceGroup(ctx, &datamodel.VolumePerformanceGroup{
+		Name:            params.Name,
+		PoolID:          pool.ID,
+		ThroughputMibps: params.ThroughputMibps,
+		Iops:            params.Iops,
+		IsShared:        params.IsShared,
+		IsAutoGen:       false,
+	})
+	if err != nil {
+		logger.Error("Failed to create volume performance group", "error", err)
+		return nil, err
+	}
+
+	defer func() {
+		if err != nil {
+			deleteErr := se.DeleteVolumePerformanceGroup(ctx, vpg)
+			if deleteErr != nil {
+				logger.Error("Failed to delete volume performance group", "volume_performance_group_name", vpg.Name, "error", deleteErr)
+			}
+		}
+	}()
+
+	workflowID := fmt.Sprintf("vpg-create-%s", vpg.UUID)
+	_, err = o.temporal.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
+		ID:                    workflowID,
+		TaskQueue:             workflowengine.CustomerTaskQueue,
+		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+		WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+	}, workflows.CreateVolumePerformanceGroupWorkflow, vpg.UUID)
+	if err != nil {
+		logger.Error("Failed to start create volume performance group workflow", "error", err, "vpg_uuid", vpg.UUID)
+		return nil, err
+	}
+
+	return convertDatastoreVPGToModel(vpg), nil
 }
 
 // ListVolumePerformanceGroups lists all volume performance groups for a pool
@@ -109,6 +170,7 @@ func convertDatastoreVPGToModel(vpg *datamodel.VolumePerformanceGroup) *models.V
 			UpdatedAt: vpg.UpdatedAt,
 		},
 		Name:            vpg.Name,
+		PoolID:          strconv.FormatInt(vpg.PoolID, 10),
 		ThroughputMibps: vpg.ThroughputMibps,
 		Iops:            vpg.Iops,
 		IsShared:        vpg.IsShared,

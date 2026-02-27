@@ -4908,6 +4908,22 @@ func (re *retryEngine) GetVolumePerformanceGroupByID(ctx context.Context, id int
 	return var0, err
 }
 
+func (re *retryEngine) GetVolumePerformanceGroupByPoolAndName(ctx context.Context, poolID int64, name string) (*datamodel.VolumePerformanceGroup, error) {
+	var var0 *datamodel.VolumePerformanceGroup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetVolumePerformanceGroupByPoolAndName(ctx, poolID, name)
+		if err != nil {
+			re.logError("GetVolumePerformanceGroupByPoolAndName", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) ListVolumePerformanceGroupsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.VolumePerformanceGroup, error) {
 	var var0 []*datamodel.VolumePerformanceGroup
 	err := retry.Do(func(attempt int) (bool, error) {

@@ -1549,6 +1549,10 @@ func (s *PersistenceStore) GetVolumePerformanceGroupByID(ctx context.Context, id
 	return s.dataStore.GetVolumePerformanceGroupByID(ctx, id)
 }
 
+func (s *PersistenceStore) GetVolumePerformanceGroupByPoolAndName(ctx context.Context, poolID int64, name string) (*datamodel.VolumePerformanceGroup, error) {
+	return s.dataStore.GetVolumePerformanceGroupByPoolAndName(ctx, poolID, name)
+}
+
 func (s *PersistenceStore) ListVolumePerformanceGroupsByPoolID(ctx context.Context, poolID int64) ([]*datamodel.VolumePerformanceGroup, error) {
 	return s.dataStore.ListVolumePerformanceGroupsByPoolID(ctx, poolID)
 }

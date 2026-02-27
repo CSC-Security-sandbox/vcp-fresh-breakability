@@ -36,21 +36,33 @@ func (a *VolumePerformanceGroupActivity) CreateVPGInDB(ctx context.Context, vpg 
 	return createdVPG, nil
 }
 
+// GetVolumePerformanceGroupByUUID retrieves a VolumePerformanceGroup from the database by UUID.
+func (a *VolumePerformanceGroupActivity) GetVolumePerformanceGroupByUUID(ctx context.Context, vpgUUID string) (*datamodel.VolumePerformanceGroup, error) {
+	if vpgUUID == "" {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("vpgUUID is empty"))
+	}
+	activity.RecordHeartbeat(ctx, "Fetching VPG by UUID")
+	vpg, err := a.SE.GetVolumePerformanceGroupByUUID(ctx, vpgUUID)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return vpg, nil
+}
+
 // CreateQoSPolicyInONTAP creates a QoS policy in ONTAP and returns the policy ID (UUID/name)
 // This is called before creating the VPG in the database so the VPG can be created with the QPG UUID already set
 func (a *VolumePerformanceGroupActivity) CreateQoSPolicyInONTAP(
 	ctx context.Context,
 	vpg *datamodel.VolumePerformanceGroup,
-	pool *datamodel.PoolView,
 	node *models.Node,
 ) (string, error) {
 	logger := util.GetLogger(ctx)
 	activity.RecordHeartbeat(ctx, "Creating QoS policy in ONTAP")
 
 	// Get SVM for the pool
-	svm, err := a.SE.GetSvmForPoolID(ctx, pool.ID)
+	svm, err := a.SE.GetSvmForPoolID(ctx, vpg.PoolID)
 	if err != nil {
-		logger.Error("Failed to get SVM for QoS policy creation", "error", err, "pool_id", pool.ID)
+		logger.Error("Failed to get SVM for QoS policy creation", "error", err, "pool_id", vpg.PoolID)
 		return "", vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
@@ -78,14 +90,25 @@ func (a *VolumePerformanceGroupActivity) CreateQoSPolicyInONTAP(
 	}
 
 	logger.Info("QoS policy created in ONTAP", "qos_policy", qosPolicyResp.Name, "vpg_name", vpg.Name)
-	return qosPolicyResp.Name, nil
+	return qosPolicyResp.UUID, nil
+}
+
+// UpdateVPGWithOntapID updates the VPG row with the ONTAP QoS policy ID after successful creation in ONTAP.
+func (a *VolumePerformanceGroupActivity) UpdateVPGWithOntapID(ctx context.Context, vpgUUID, ontapQosPolicyID string) error {
+	activity.RecordHeartbeat(ctx, "Updating VPG with Ontap ID")
+	vpg, err := a.SE.GetVolumePerformanceGroupByUUID(ctx, vpgUUID)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	vpg.OntapQosPolicyID = ontapQosPolicyID
+	return vsaerrors.WrapAsTemporalApplicationError(a.SE.UpdateVolumePerformanceGroup(ctx, vpg))
 }
 
 // DeleteQoSPolicyInONTAP deletes a QoS policy from ONTAP by policy name.
 func (a *VolumePerformanceGroupActivity) DeleteQoSPolicyInONTAP(
 	ctx context.Context,
 	qosPolicyID string,
-	pool *datamodel.PoolView,
+	poolID int64,
 	node *models.Node,
 ) error {
 	logger := util.GetLogger(ctx)
@@ -94,9 +117,9 @@ func (a *VolumePerformanceGroupActivity) DeleteQoSPolicyInONTAP(
 	}
 
 	// Get SVM for the pool
-	svm, err := a.SE.GetSvmForPoolID(ctx, pool.ID)
+	svm, err := a.SE.GetSvmForPoolID(ctx, poolID)
 	if err != nil {
-		logger.Error("Failed to get SVM for QoS policy deletion", "error", err, "pool_id", pool.ID)
+		logger.Error("Failed to get SVM for QoS policy deletion", "error", err, "pool_id", poolID)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 

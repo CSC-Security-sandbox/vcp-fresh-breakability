@@ -179,15 +179,15 @@ type SubnetToIPs struct {
 }
 
 type PoolAttributes struct {
-	ThroughputMibps          int64    `json:"throughput"`
-	Iops                     int64    `json:"iops"`
-	PrimaryZone              string   `json:"primary_zone"`
-	SecondaryZone            string   `json:"secondary_zone"`
-	MediatorZone             string   `json:"mediator_zone"`
-	Labels                        *JSONB   `json:"labels"`
-	IsRegionalHA                  bool     `json:"is_regional_ha"`
-	LdapEnabled                   bool     `json:"ldap_enabled"`
-	AccountName                   string   `json:"account_name"`
+	ThroughputMibps                  int64    `json:"throughput"`
+	Iops                             int64    `json:"iops"`
+	PrimaryZone                      string   `json:"primary_zone"`
+	SecondaryZone                    string   `json:"secondary_zone"`
+	MediatorZone                     string   `json:"mediator_zone"`
+	Labels                           *JSONB   `json:"labels"`
+	IsRegionalHA                     bool     `json:"is_regional_ha"`
+	LdapEnabled                      bool     `json:"ldap_enabled"`
+	AccountName                      string   `json:"account_name"`
 	ServiceAccountPermissionProjects []string `json:"service_account_permission_projects,omitempty"`
 }
 

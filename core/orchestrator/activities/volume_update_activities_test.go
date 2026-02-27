@@ -4906,57 +4906,6 @@ func TestGenerateResourceNamesForBackupVault_Success(t *testing.T) {
 	assert.Equal(t, "test-service-account", resourceNames.ServiceAccountId)
 }
 
-func TestGetVolumePerformanceGroupByUUID_EmptyUUID(t *testing.T) {
-	testSuite := &testsuite.WorkflowTestSuite{}
-	env := testSuite.NewTestActivityEnvironment()
-
-	mockStorage := database.NewMockStorage(t)
-	activity := VolumeUpdateActivity{SE: mockStorage}
-	env.RegisterActivity(activity.GetVolumePerformanceGroupByUUID)
-
-	val, err := env.ExecuteActivity(activity.GetVolumePerformanceGroupByUUID, "")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "vpgUUID is empty")
-	assert.Nil(t, val)
-}
-
-func TestGetVolumePerformanceGroupByUUID_VPGNotFound(t *testing.T) {
-	testSuite := &testsuite.WorkflowTestSuite{}
-	env := testSuite.NewTestActivityEnvironment()
-
-	mockStorage := database.NewMockStorage(t)
-	activity := VolumeUpdateActivity{SE: mockStorage}
-	env.RegisterActivity(activity.GetVolumePerformanceGroupByUUID)
-
-	vpgUUID := "non-existent-vpg-uuid"
-	mockStorage.On("GetVolumePerformanceGroupByUUID", mock.Anything, vpgUUID).Return(nil, fmt.Errorf("record not found"))
-
-	val, err := env.ExecuteActivity(activity.GetVolumePerformanceGroupByUUID, vpgUUID)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "record not found")
-	assert.Nil(t, val)
-	mockStorage.AssertExpectations(t)
-}
-
-func TestGetVolumePerformanceGroupByUUID_DatabaseError(t *testing.T) {
-	testSuite := &testsuite.WorkflowTestSuite{}
-	env := testSuite.NewTestActivityEnvironment()
-
-	mockStorage := database.NewMockStorage(t)
-	activity := VolumeUpdateActivity{SE: mockStorage}
-	env.RegisterActivity(activity.GetVolumePerformanceGroupByUUID)
-
-	vpgUUID := "vpg-uuid-123"
-	dbError := fmt.Errorf("database connection error")
-	mockStorage.On("GetVolumePerformanceGroupByUUID", mock.Anything, vpgUUID).Return(nil, dbError)
-
-	val, err := env.ExecuteActivity(activity.GetVolumePerformanceGroupByUUID, vpgUUID)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "database connection error")
-	assert.Nil(t, val)
-	mockStorage.AssertExpectations(t)
-}
-
 func TestUpdateQoSPolicyGroupForVolume_Success(t *testing.T) {
 	testSuite := &testsuite.WorkflowTestSuite{}
 	env := testSuite.NewTestActivityEnvironment()

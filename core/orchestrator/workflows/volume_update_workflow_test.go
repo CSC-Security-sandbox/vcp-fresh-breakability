@@ -6183,6 +6183,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_Succes
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	vpgActivity := activities.VolumePerformanceGroupActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -6193,7 +6194,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_Succes
 	s.env.RegisterActivity(updateActivity.UpdateLun)
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
 	s.env.RegisterActivity(updateActivity.UnassignQoSPolicyFromVolume)
-	s.env.RegisterActivity(updateActivity.GetVolumePerformanceGroupByUUID)
+	s.env.RegisterActivity(vpgActivity.GetVolumePerformanceGroupByUUID)
 	s.env.RegisterActivity(updateActivity.FindQoSGroupPolicyForVolume)
 	s.env.RegisterActivity(updateActivity.AssignQoSPolicyToVolume)
 	s.env.RegisterActivity(updateActivity.UpdateVolumePerformanceGroupInDBForVolume)
@@ -6222,7 +6223,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_Succes
 		OntapQosPolicyID: "new-policy-uuid",
 		IsAutoGen:        false,
 	}
-	s.env.OnActivity(updateActivity.GetVolumePerformanceGroupByUUID, mock.Anything, "new-vpg-uuid").Return(newVPG, nil)
+	s.env.OnActivity(vpgActivity.GetVolumePerformanceGroupByUUID, mock.Anything, "new-vpg-uuid").Return(newVPG, nil)
 	newQosPolicy := &vsa.QoSGroupPolicyResponse{
 		Name:    "new-policy-name",
 		UUID:    "new-policy-uuid",
@@ -6273,6 +6274,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_Differ
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	vpgActivity := activities.VolumePerformanceGroupActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -6282,7 +6284,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_Differ
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
 	s.env.RegisterActivity(updateActivity.UpdateLun)
 	s.env.RegisterActivity(updateActivity.UnassignQoSPolicyFromVolume)
-	s.env.RegisterActivity(updateActivity.GetVolumePerformanceGroupByUUID)
+	s.env.RegisterActivity(vpgActivity.GetVolumePerformanceGroupByUUID)
 	backupActivity := activities.BackupActivity{SE: mockStorage}
 	s.env.RegisterActivity(backupActivity.UpdateBackupMetadataIfExistsActivity)
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
@@ -6311,7 +6313,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_Differ
 		OntapQosPolicyID: "new-policy-uuid",
 		IsAutoGen:        false,
 	}
-	s.env.OnActivity(updateActivity.GetVolumePerformanceGroupByUUID, mock.Anything, "new-vpg-uuid").Return(newVPG, nil)
+	s.env.OnActivity(vpgActivity.GetVolumePerformanceGroupByUUID, mock.Anything, "new-vpg-uuid").Return(newVPG, nil)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
@@ -6354,6 +6356,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_VPGNot
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	vpgActivity := activities.VolumePerformanceGroupActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -6363,7 +6366,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_VPGNot
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
 	s.env.RegisterActivity(updateActivity.UpdateLun)
 	s.env.RegisterActivity(updateActivity.UnassignQoSPolicyFromVolume)
-	s.env.RegisterActivity(updateActivity.GetVolumePerformanceGroupByUUID)
+	s.env.RegisterActivity(vpgActivity.GetVolumePerformanceGroupByUUID)
 	backupActivity := activities.BackupActivity{SE: mockStorage}
 	s.env.RegisterActivity(backupActivity.UpdateBackupMetadataIfExistsActivity)
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
@@ -6386,7 +6389,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_VPGNot
 
 	// Mock VPG reassignment activities
 	s.env.OnActivity(updateActivity.UnassignQoSPolicyFromVolume, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(updateActivity.GetVolumePerformanceGroupByUUID, mock.Anything, "non-existent-vpg-uuid").Return(nil, errors.New("VPG not found"))
+	s.env.OnActivity(vpgActivity.GetVolumePerformanceGroupByUUID, mock.Anything, "non-existent-vpg-uuid").Return(nil, errors.New("VPG not found"))
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
@@ -6429,6 +6432,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_Missin
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	vpgActivity := activities.VolumePerformanceGroupActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -6438,7 +6442,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_Missin
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
 	s.env.RegisterActivity(updateActivity.UpdateLun)
 	s.env.RegisterActivity(updateActivity.UnassignQoSPolicyFromVolume)
-	s.env.RegisterActivity(updateActivity.GetVolumePerformanceGroupByUUID)
+	s.env.RegisterActivity(vpgActivity.GetVolumePerformanceGroupByUUID)
 	backupActivity := activities.BackupActivity{SE: mockStorage}
 	s.env.RegisterActivity(backupActivity.UpdateBackupMetadataIfExistsActivity)
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
@@ -6467,7 +6471,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_Missin
 		OntapQosPolicyID: "", // Missing OntapQosPolicyID
 		IsAutoGen:        false,
 	}
-	s.env.OnActivity(updateActivity.GetVolumePerformanceGroupByUUID, mock.Anything, "new-vpg-uuid").Return(newVPG, nil)
+	s.env.OnActivity(vpgActivity.GetVolumePerformanceGroupByUUID, mock.Anything, "new-vpg-uuid").Return(newVPG, nil)
 
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
@@ -7242,6 +7246,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_FindQo
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	vpgActivity := activities.VolumePerformanceGroupActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -7252,7 +7257,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_FindQo
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
 	s.env.RegisterActivity(updateActivity.UpdateLun)
 	s.env.RegisterActivity(updateActivity.UnassignQoSPolicyFromVolume)
-	s.env.RegisterActivity(updateActivity.GetVolumePerformanceGroupByUUID)
+	s.env.RegisterActivity(vpgActivity.GetVolumePerformanceGroupByUUID)
 	s.env.RegisterActivity(updateActivity.FindQoSGroupPolicyForVolume)
 	backupActivity := activities.BackupActivity{SE: mockStorage}
 	s.env.RegisterActivity(backupActivity.UpdateBackupMetadataIfExistsActivity)
@@ -7283,7 +7288,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_FindQo
 		OntapQosPolicyID: "new-policy-uuid",
 		IsAutoGen:        false,
 	}
-	s.env.OnActivity(updateActivity.GetVolumePerformanceGroupByUUID, mock.Anything, "new-vpg-uuid").Return(newVPG, nil)
+	s.env.OnActivity(vpgActivity.GetVolumePerformanceGroupByUUID, mock.Anything, "new-vpg-uuid").Return(newVPG, nil)
 	s.env.OnActivity(updateActivity.FindQoSGroupPolicyForVolume, mock.Anything, "new-policy-uuid", "test-svm", mock.Anything).Return(nil, errors.New("failed to find QoS policy"))
 
 	// Execute workflow
@@ -7329,6 +7334,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_Assign
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	vpgActivity := activities.VolumePerformanceGroupActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -7339,7 +7345,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_Assign
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
 	s.env.RegisterActivity(updateActivity.UpdateLun)
 	s.env.RegisterActivity(updateActivity.UnassignQoSPolicyFromVolume)
-	s.env.RegisterActivity(updateActivity.GetVolumePerformanceGroupByUUID)
+	s.env.RegisterActivity(vpgActivity.GetVolumePerformanceGroupByUUID)
 	s.env.RegisterActivity(updateActivity.FindQoSGroupPolicyForVolume)
 	s.env.RegisterActivity(updateActivity.AssignQoSPolicyToVolume)
 	backupActivity := activities.BackupActivity{SE: mockStorage}
@@ -7371,7 +7377,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_Assign
 		OntapQosPolicyID: "new-policy-uuid",
 		IsAutoGen:        false,
 	}
-	s.env.OnActivity(updateActivity.GetVolumePerformanceGroupByUUID, mock.Anything, "new-vpg-uuid").Return(newVPG, nil)
+	s.env.OnActivity(vpgActivity.GetVolumePerformanceGroupByUUID, mock.Anything, "new-vpg-uuid").Return(newVPG, nil)
 	newQosPolicy := &vsa.QoSGroupPolicyResponse{
 		Name:    "new-policy-name",
 		UUID:    "new-policy-uuid",
@@ -7423,6 +7429,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_Update
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	vpgActivity := activities.VolumePerformanceGroupActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -7432,7 +7439,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_Update
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
 	s.env.RegisterActivity(updateActivity.UpdateLun)
 	s.env.RegisterActivity(updateActivity.UnassignQoSPolicyFromVolume)
-	s.env.RegisterActivity(updateActivity.GetVolumePerformanceGroupByUUID)
+	s.env.RegisterActivity(vpgActivity.GetVolumePerformanceGroupByUUID)
 	s.env.RegisterActivity(updateActivity.FindQoSGroupPolicyForVolume)
 	s.env.RegisterActivity(updateActivity.AssignQoSPolicyToVolume)
 	s.env.RegisterActivity(updateActivity.UpdateVolumePerformanceGroupInDBForVolume)
@@ -7464,7 +7471,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_Update
 		OntapQosPolicyID: "new-policy-uuid",
 		IsAutoGen:        false,
 	}
-	s.env.OnActivity(updateActivity.GetVolumePerformanceGroupByUUID, mock.Anything, "new-vpg-uuid").Return(newVPG, nil)
+	s.env.OnActivity(vpgActivity.GetVolumePerformanceGroupByUUID, mock.Anything, "new-vpg-uuid").Return(newVPG, nil)
 	newQosPolicy := &vsa.QoSGroupPolicyResponse{
 		Name:    "new-policy-name",
 		UUID:    "new-policy-uuid",
@@ -7526,6 +7533,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_NoCurr
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	vpgActivity := activities.VolumePerformanceGroupActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -7536,7 +7544,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_NoCurr
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
 	s.env.RegisterActivity(updateActivity.UpdateLun)
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
-	s.env.RegisterActivity(updateActivity.GetVolumePerformanceGroupByUUID)
+	s.env.RegisterActivity(vpgActivity.GetVolumePerformanceGroupByUUID)
 	s.env.RegisterActivity(updateActivity.FindQoSGroupPolicyForVolume)
 	s.env.RegisterActivity(updateActivity.AssignQoSPolicyToVolume)
 	s.env.RegisterActivity(updateActivity.UpdateVolumePerformanceGroupInDBForVolume)
@@ -7566,7 +7574,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_NoCurr
 		OntapQosPolicyID: "new-policy-uuid",
 		IsAutoGen:        false,
 	}
-	s.env.OnActivity(updateActivity.GetVolumePerformanceGroupByUUID, mock.Anything, "new-vpg-uuid").Return(newVPG, nil)
+	s.env.OnActivity(vpgActivity.GetVolumePerformanceGroupByUUID, mock.Anything, "new-vpg-uuid").Return(newVPG, nil)
 	newQosPolicy := &vsa.QoSGroupPolicyResponse{
 		Name:    "new-policy-name",
 		UUID:    "new-policy-uuid",
@@ -7614,6 +7622,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_Rollba
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	vpgActivity := activities.VolumePerformanceGroupActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -7624,7 +7633,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_Rollba
 	s.env.RegisterActivity(updateActivity.UpdateLun)
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
 	s.env.RegisterActivity(updateActivity.UnassignQoSPolicyFromVolume)
-	s.env.RegisterActivity(updateActivity.GetVolumePerformanceGroupByUUID)
+	s.env.RegisterActivity(vpgActivity.GetVolumePerformanceGroupByUUID)
 	s.env.RegisterActivity(updateActivity.FindQoSGroupPolicyForVolume)
 	s.env.RegisterActivity(updateActivity.AssignQoSPolicyToVolume)
 	s.env.RegisterActivity(updateActivity.UpdateVolumePerformanceGroupInDBForVolume)
@@ -7662,7 +7671,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_Rollba
 		OntapQosPolicyID: "new-policy-uuid",
 		IsAutoGen:        false,
 	}
-	s.env.OnActivity(updateActivity.GetVolumePerformanceGroupByUUID, mock.Anything, "new-vpg-uuid").Return(newVPG, nil)
+	s.env.OnActivity(vpgActivity.GetVolumePerformanceGroupByUUID, mock.Anything, "new-vpg-uuid").Return(newVPG, nil)
 	newQosPolicy := &vsa.QoSGroupPolicyResponse{
 		Name:    "new-policy-name",
 		UUID:    "new-policy-uuid",
@@ -7720,6 +7729,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_Rollba
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	vpgActivity := activities.VolumePerformanceGroupActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -7730,7 +7740,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_Rollba
 	s.env.RegisterActivity(updateActivity.UpdateLun)
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
 	s.env.RegisterActivity(updateActivity.UnassignQoSPolicyFromVolume)
-	s.env.RegisterActivity(updateActivity.GetVolumePerformanceGroupByUUID)
+	s.env.RegisterActivity(vpgActivity.GetVolumePerformanceGroupByUUID)
 	s.env.RegisterActivity(updateActivity.FindQoSGroupPolicyForVolume)
 	s.env.RegisterActivity(updateActivity.AssignQoSPolicyToVolume)
 	s.env.RegisterActivity(updateActivity.UpdateVolumePerformanceGroupInDBForVolume)
@@ -7770,7 +7780,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_VPGReassignment_Rollba
 		OntapQosPolicyID: "new-policy-uuid",
 		IsAutoGen:        false,
 	}
-	s.env.OnActivity(updateActivity.GetVolumePerformanceGroupByUUID, mock.Anything, "new-vpg-uuid").Return(newVPG, nil).Once()
+	s.env.OnActivity(vpgActivity.GetVolumePerformanceGroupByUUID, mock.Anything, "new-vpg-uuid").Return(newVPG, nil).Once()
 	newQosPolicy := &vsa.QoSGroupPolicyResponse{
 		Name:    "new-policy-name",
 		UUID:    "new-policy-uuid",

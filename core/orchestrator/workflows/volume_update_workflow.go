@@ -641,7 +641,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 		// Find the VPG by the provided VPGId
 		var newVPG *datamodel.VolumePerformanceGroup
-		err = workflow.ExecuteActivity(ctx, updateActivity.GetVolumePerformanceGroupByUUID,
+		err = workflow.ExecuteActivity(ctx, (&activities.VolumePerformanceGroupActivity{}).GetVolumePerformanceGroupByUUID,
 			*params.VolumePerformanceGroupId).Get(ctx, &newVPG)
 		if err != nil {
 			return nil, ConvertToVSAError(err)

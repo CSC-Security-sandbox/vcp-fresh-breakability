@@ -6,15 +6,54 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	workflowEngineMock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 )
 
 func TestCreateVolumePerformanceGroup(t *testing.T) {
-	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
+	ctx := context.Background()
+
+	t.Run("SuccessfullyCreatesVPGAndStartsWorkflow", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
-		orchestrator := &Orchestrator{storage: mockStorage}
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		orchestrator := NewOrchestrator(mockStorage, mockTemporal)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				QosType:   utils.QosTypeManual,
+			},
+		}
+		createdVPG := &datamodel.VolumePerformanceGroup{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "vpg-uuid-1"},
+			Name:            "test-vpg",
+			PoolID:          1,
+			ThroughputMibps: 100,
+			Iops:            1000,
+			IsShared:        false,
+			IsAutoGen:       false,
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("CreateVolumePerformanceGroup", ctx, mock.MatchedBy(func(vpg *datamodel.VolumePerformanceGroup) bool {
+			return vpg != nil && vpg.Name == "test-vpg" && vpg.PoolID == 1 && vpg.ThroughputMibps == 100 &&
+				vpg.Iops == 1000 && !vpg.IsShared && !vpg.IsAutoGen
+		})).Return(createdVPG, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, "vpg-uuid-1").Return(nil, nil)
 
 		params := &common.CreateVolumePerformanceGroupParams{
 			AccountName:     "test-account",
@@ -25,10 +64,256 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 			IsShared:        false,
 		}
 
-		result, err := orchestrator.CreateVolumePerformanceGroup(context.Background(), params)
+		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "vpg-uuid-1", result.UUID)
+		assert.Equal(tt, "test-vpg", result.Name)
+		assert.Equal(tt, int64(100), result.ThroughputMibps)
+		assert.Equal(tt, int64(1000), result.Iops)
+		assert.False(tt, result.IsShared)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ReturnsErrorWhenExecuteWorkflowFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		orchestrator := NewOrchestrator(mockStorage, mockTemporal)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				QosType:   utils.QosTypeManual,
+			},
+		}
+		createdVPG := &datamodel.VolumePerformanceGroup{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "vpg-uuid-1"},
+			Name:            "test-vpg",
+			PoolID:          1,
+			ThroughputMibps: 100,
+			Iops:            1000,
+			IsShared:        false,
+			IsAutoGen:       false,
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("CreateVolumePerformanceGroup", ctx, mock.Anything).Return(createdVPG, nil)
+		mockStorage.On("DeleteVolumePerformanceGroup", ctx, createdVPG).Return(nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, "vpg-uuid-1").Return(nil, errors.New("workflow start failed"))
+
+		params := &common.CreateVolumePerformanceGroupParams{
+			AccountName:     "test-account",
+			PoolID:          "test-pool-id",
+			Name:            "test-vpg",
+			ThroughputMibps: 100,
+			Iops:            1000,
+			IsShared:        false,
+		}
+
+		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
-		assert.Equal(tt, "volume performance group creation is not implemented", err.Error())
+		assert.Equal(tt, "workflow start failed", err.Error())
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ReturnsErrorWhenAccountNotFound", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		orchestrator := NewOrchestrator(mockStorage, mockTemporal)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("account not found")
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		params := &common.CreateVolumePerformanceGroupParams{
+			AccountName:     "test-account",
+			PoolID:          "test-pool-id",
+			Name:            "test-vpg",
+			ThroughputMibps: 100,
+			Iops:            1000,
+			IsShared:        false,
+		}
+
+		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "account not found", err.Error())
+	})
+
+	t.Run("ReturnsErrorWhenDescribePoolFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		orchestrator := NewOrchestrator(mockStorage, mockTemporal)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(nil, errors.New("pool not found"))
+
+		params := &common.CreateVolumePerformanceGroupParams{
+			AccountName:     "test-account",
+			PoolID:          "test-pool-id",
+			Name:            "test-vpg",
+			ThroughputMibps: 100,
+			Iops:            1000,
+			IsShared:        false,
+		}
+
+		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "pool not found")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ReturnsErrorWhenPoolQosTypeIsNotManual", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		orchestrator := NewOrchestrator(mockStorage, mockTemporal)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				QosType:   utils.QosTypeAuto, // Not manual
+			},
+		}
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+
+		params := &common.CreateVolumePerformanceGroupParams{
+			AccountName:     "test-account",
+			PoolID:          "test-pool-id",
+			Name:            "test-vpg",
+			ThroughputMibps: 100,
+			Iops:            1000,
+			IsShared:        false,
+		}
+
+		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "manual QoS type")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ReturnsErrorWhenCreateVolumePerformanceGroupFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		orchestrator := NewOrchestrator(mockStorage, mockTemporal)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				QosType:   utils.QosTypeManual,
+			},
+		}
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("CreateVolumePerformanceGroup", ctx, mock.Anything).Return(nil, errors.New("db create failed"))
+
+		params := &common.CreateVolumePerformanceGroupParams{
+			AccountName:     "test-account",
+			PoolID:          "test-pool-id",
+			Name:            "test-vpg",
+			ThroughputMibps: 100,
+			Iops:            1000,
+			IsShared:        false,
+		}
+
+		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "db create failed")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("DeferLogsErrorWhenWorkflowFailsAndDeleteVPGFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		orchestrator := NewOrchestrator(mockStorage, mockTemporal)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				QosType:   utils.QosTypeManual,
+			},
+		}
+		createdVPG := &datamodel.VolumePerformanceGroup{
+			BaseModel:       datamodel.BaseModel{ID: 1, UUID: "vpg-uuid-1"},
+			Name:            "test-vpg",
+			PoolID:          1,
+			ThroughputMibps: 100,
+			Iops:            1000,
+			IsShared:        false,
+			IsAutoGen:       false,
+		}
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("CreateVolumePerformanceGroup", ctx, mock.Anything).Return(createdVPG, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, "vpg-uuid-1").Return(nil, errors.New("workflow start failed"))
+		// Defer runs and tries to delete VPG; delete also fails (covers logger.Error in defer)
+		mockStorage.On("DeleteVolumePerformanceGroup", ctx, createdVPG).Return(errors.New("delete vpg failed"))
+
+		params := &common.CreateVolumePerformanceGroupParams{
+			AccountName:     "test-account",
+			PoolID:          "test-pool-id",
+			Name:            "test-vpg",
+			ThroughputMibps: 100,
+			Iops:            1000,
+			IsShared:        false,
+		}
+
+		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		mockStorage.AssertExpectations(tt)
 	})
 }
 
