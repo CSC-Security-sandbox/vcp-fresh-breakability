@@ -250,6 +250,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterWorkflow(workflows.WaitForGCPNetworkOperationStatusWorkflow)
 	worker.RegisterWorkflow(workflows.EnsureKerberosConfigWorkflow)
 	worker.RegisterWorkflow(workflows.UpdateVolumeWorkflow)
+	worker.RegisterWorkflow(workflows.UpdateVolumePerformanceGroupWorkflow)
 	worker.RegisterWorkflow(workflows.RevertVolumeWorkflow)
 	worker.RegisterWorkflow(workflows.DeleteVolumeWorkflow)
 	worker.RegisterWorkflow(workflows.SmbTeardownWorkflow)

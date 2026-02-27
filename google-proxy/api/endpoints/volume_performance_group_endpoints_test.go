@@ -667,7 +667,7 @@ func TestV1betaUpdateVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		req := &gcpgenserver.VolumePerformanceGroupUpdateV1beta{
-			ResourceId: "test-performance-group",
+			ResourceId: gcpgenserver.NewOptString("test-performance-group"),
 		}
 		params := gcpgenserver.V1betaUpdateVolumePerformanceGroupParams{
 			ProjectNumber:            "12345",
@@ -697,7 +697,7 @@ func TestV1betaUpdateVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		req := &gcpgenserver.VolumePerformanceGroupUpdateV1beta{
-			ResourceId: "test-performance-group",
+			ResourceId: gcpgenserver.NewOptString("test-performance-group"),
 		}
 		params := gcpgenserver.V1betaUpdateVolumePerformanceGroupParams{
 			ProjectNumber:            "12345",
@@ -727,7 +727,7 @@ func TestV1betaUpdateVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		req := &gcpgenserver.VolumePerformanceGroupUpdateV1beta{
-			ResourceId: "test-performance-group",
+			ResourceId: gcpgenserver.NewOptString("test-performance-group"),
 		}
 		params := gcpgenserver.V1betaUpdateVolumePerformanceGroupParams{
 			ProjectNumber:            "12345",
@@ -737,7 +737,7 @@ func TestV1betaUpdateVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		}
 
 		handler := Handler{Orchestrator: mockOrchestrator}
-		mockOrchestrator.EXPECT().UpdateVolumePerformanceGroup(mock.Anything, mock.Anything).Return(nil, errors.New("updating volume performance group is not implemented"))
+		mockOrchestrator.EXPECT().UpdateVolumePerformanceGroup(mock.Anything, mock.Anything).Return(nil, "", errors.New("updating volume performance group is not implemented"))
 		res, err := handler.V1betaUpdateVolumePerformanceGroup(ctx, req, params)
 
 		assert.Error(tt, err)
@@ -745,6 +745,188 @@ func TestV1betaUpdateVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		assert.NotNil(tt, res)
 		assert.Equal(tt, float64(http.StatusInternalServerError), res.(*gcpgenserver.V1betaUpdateVolumePerformanceGroupInternalServerError).Code)
 		assert.Equal(tt, "Internal server error", res.(*gcpgenserver.V1betaUpdateVolumePerformanceGroupInternalServerError).Message)
+	})
+
+	t.Run("WhenSuccessful_WithResourceId", func(tt *testing.T) {
+		origEnableMqos := enableMqos
+		origEnableVpgEndpoints := enableVpgEndpoints
+		defer func() {
+			enableMqos = origEnableMqos
+			enableVpgEndpoints = origEnableVpgEndpoints
+		}()
+		enableMqos = true
+		enableVpgEndpoints = true
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		ctx := context.Background()
+		req := &gcpgenserver.VolumePerformanceGroupUpdateV1beta{
+			ResourceId:     gcpgenserver.NewOptString("new-vpg-name"),
+			ThroughputMibps: gcpgenserver.NewOptInt64(200),
+			Iops:            gcpgenserver.NewOptInt64(600),
+		}
+		params := gcpgenserver.V1betaUpdateVolumePerformanceGroupParams{
+			ProjectNumber:            "12345",
+			LocationId:               "us-central1",
+			PoolId:                   "pool-id",
+			VolumePerformanceGroupId: "vpg-uuid",
+		}
+
+		expectedVPG := &models.VolumePerformanceGroup{
+			BaseModel:       models.BaseModel{UUID: "vpg-uuid"},
+			Name:            "new-vpg-name",
+			ThroughputMibps: 200,
+			Iops:            600,
+			IsShared:        true,
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		mockOrchestrator.EXPECT().UpdateVolumePerformanceGroup(mock.Anything, mock.Anything).Return(expectedVPG, "job-uuid-123", nil)
+		res, err := handler.V1betaUpdateVolumePerformanceGroup(ctx, req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, res)
+		opRes, ok := res.(*gcpgenserver.OperationV1beta)
+		assert.True(t, ok)
+		assert.True(t, opRes.Name.IsSet())
+		assert.Contains(t, opRes.Name.Value, "job-uuid-123")
+		assert.False(t, opRes.Done.Value)
+	})
+
+	t.Run("WhenSuccessful_WithoutResourceId", func(tt *testing.T) {
+		origEnableMqos := enableMqos
+		origEnableVpgEndpoints := enableVpgEndpoints
+		defer func() {
+			enableMqos = origEnableMqos
+			enableVpgEndpoints = origEnableVpgEndpoints
+		}()
+		enableMqos = true
+		enableVpgEndpoints = true
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		ctx := context.Background()
+		req := &gcpgenserver.VolumePerformanceGroupUpdateV1beta{
+			ThroughputMibps: gcpgenserver.NewOptInt64(150),
+		}
+		params := gcpgenserver.V1betaUpdateVolumePerformanceGroupParams{
+			ProjectNumber:            "12345",
+			LocationId:               "us-central1",
+			PoolId:                   "pool-id",
+			VolumePerformanceGroupId: "vpg-uuid",
+		}
+
+		expectedVPG := &models.VolumePerformanceGroup{
+			BaseModel:       models.BaseModel{UUID: "vpg-uuid"},
+			Name:            "existing-name",
+			ThroughputMibps: 150,
+			Iops:            500,
+			IsShared:        true,
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		mockOrchestrator.EXPECT().UpdateVolumePerformanceGroup(mock.Anything, mock.Anything).Return(expectedVPG, "job-uuid-456", nil)
+		res, err := handler.V1betaUpdateVolumePerformanceGroup(ctx, req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, res)
+		opRes, ok := res.(*gcpgenserver.OperationV1beta)
+		assert.True(t, ok)
+		assert.True(t, opRes.Name.IsSet())
+		assert.Contains(t, opRes.Name.Value, "job-uuid-456")
+		assert.False(t, opRes.Done.Value)
+	})
+
+	t.Run("WhenNotFound_ReturnsBadRequest", func(tt *testing.T) {
+		origEnableMqos := enableMqos
+		origEnableVpgEndpoints := enableVpgEndpoints
+		defer func() {
+			enableMqos = origEnableMqos
+			enableVpgEndpoints = origEnableVpgEndpoints
+		}()
+		enableMqos = true
+		enableVpgEndpoints = true
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		ctx := context.Background()
+		req := &gcpgenserver.VolumePerformanceGroupUpdateV1beta{}
+		params := gcpgenserver.V1betaUpdateVolumePerformanceGroupParams{
+			ProjectNumber:            "12345",
+			LocationId:               "us-central1",
+			PoolId:                   "pool-id",
+			VolumePerformanceGroupId: "vpg-uuid",
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		mockOrchestrator.EXPECT().UpdateVolumePerformanceGroup(mock.Anything, mock.Anything).
+			Return(nil, "", errors.NewNotFoundErr("volume performance group", nil))
+		res, err := handler.V1betaUpdateVolumePerformanceGroup(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusBadRequest), res.(*gcpgenserver.V1betaUpdateVolumePerformanceGroupBadRequest).Code)
+	})
+
+	t.Run("WhenBadRequest_ReturnsBadRequest", func(tt *testing.T) {
+		origEnableMqos := enableMqos
+		origEnableVpgEndpoints := enableVpgEndpoints
+		defer func() {
+			enableMqos = origEnableMqos
+			enableVpgEndpoints = origEnableVpgEndpoints
+		}()
+		enableMqos = true
+		enableVpgEndpoints = true
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		ctx := context.Background()
+		req := &gcpgenserver.VolumePerformanceGroupUpdateV1beta{}
+		params := gcpgenserver.V1betaUpdateVolumePerformanceGroupParams{
+			ProjectNumber:            "12345",
+			LocationId:               "us-central1",
+			PoolId:                   "pool-id",
+			VolumePerformanceGroupId: "vpg-uuid",
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		mockOrchestrator.EXPECT().UpdateVolumePerformanceGroup(mock.Anything, mock.Anything).
+			Return(nil, "", errors.NewUserInputValidationErr("pool must have manual QoS to update volume performance group"))
+		res, err := handler.V1betaUpdateVolumePerformanceGroup(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusBadRequest), res.(*gcpgenserver.V1betaUpdateVolumePerformanceGroupBadRequest).Code)
+		assert.Contains(tt, res.(*gcpgenserver.V1betaUpdateVolumePerformanceGroupBadRequest).Message, "manual QoS")
+	})
+
+	t.Run("WhenConflict_ReturnsConflict", func(tt *testing.T) {
+		origEnableMqos := enableMqos
+		origEnableVpgEndpoints := enableVpgEndpoints
+		defer func() {
+			enableMqos = origEnableMqos
+			enableVpgEndpoints = origEnableVpgEndpoints
+		}()
+		enableMqos = true
+		enableVpgEndpoints = true
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		ctx := context.Background()
+		req := &gcpgenserver.VolumePerformanceGroupUpdateV1beta{
+			ResourceId: gcpgenserver.NewOptString("new-name"),
+		}
+		params := gcpgenserver.V1betaUpdateVolumePerformanceGroupParams{
+			ProjectNumber:            "12345",
+			LocationId:               "us-central1",
+			PoolId:                   "pool-id",
+			VolumePerformanceGroupId: "vpg-uuid",
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		mockOrchestrator.EXPECT().UpdateVolumePerformanceGroup(mock.Anything, mock.Anything).
+			Return(nil, "", errors.NewConflictErr("volume performance group name already in use"))
+		res, err := handler.V1betaUpdateVolumePerformanceGroup(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusConflict), res.(*gcpgenserver.V1betaUpdateVolumePerformanceGroupConflict).Code)
+		assert.Contains(tt, res.(*gcpgenserver.V1betaUpdateVolumePerformanceGroupConflict).Message, "already in use")
 	})
 }
 

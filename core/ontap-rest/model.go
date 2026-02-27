@@ -1126,6 +1126,9 @@ func qosPolicyGroupCollectionModifyParamsToONTAP(qosPolicyGroupParams []*QosPoli
 				MaxThroughputIops: &qosPolicy.Iops,
 			},
 		}
+		if qosPolicy.Name != "" {
+			qosPolicyGroup.Name = &qosPolicy.Name
+		}
 
 		qosPolicyList = append(qosPolicyList, qosPolicyGroup)
 	}
@@ -1157,6 +1160,7 @@ type QosPolicyGroupModifyCollectionParams struct {
 	Throughput int64
 	Iops       int64
 	UUID       string
+	Name       string // New name for the policy (optional; non-empty to rename in ONTAP)
 }
 
 // VolumeModifyParams is the input param struct for storageClient.VolumeModify

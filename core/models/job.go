@@ -68,6 +68,7 @@ const (
 	JobTypeCreateLargeVolume                        JobType = "CREATE_LARGE_VOLUME"
 	JobTypeUpdateVolume                             JobType = "UPDATE_VOLUME"
 	JobTypeUpdateVolumeInReplication                JobType = "UPDATE_VOLUME_IN_REPLICATION"
+	JobTypeUpdateVolumePerformanceGroup             JobType = "UPDATE_VOLUME_PERFORMANCE_GROUP"
 	JobTypeRevertVolume                             JobType = "REVERT_VOLUME"
 	JobTypeDeleteVolume                             JobType = "DELETE_VOLUME"
 	JobTypeDeleteLargeVolume                        JobType = "DELETE_LARGE_VOLUME"

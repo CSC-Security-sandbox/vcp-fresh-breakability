@@ -142,7 +142,7 @@ func updateVolumePerformanceGroup(db *gorm.DB, ctx context.Context, vpg *datamod
 		return err
 	}
 
-	// Only update allowed fields: Name, ThroughputMibps, Iops, and OntapQosPolicyID (when completing VPG creation).
+	// Only update allowed fields: Name, ThroughputMibps, Iops, and OntapQosPolicyID (display name in ONTAP / resource name we call qosPolicyId for VPGs—not the policy UUID—when name changes or when completing VPG creation).
 	// Do NOT update IsShared or PoolID
 	dbVPG.UpdatedAt = time.Now()
 	dbVPG.Name = vpg.Name

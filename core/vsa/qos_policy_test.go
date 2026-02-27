@@ -775,4 +775,76 @@ func TestUpdateQoSGroupPolicy(t *testing.T) {
 		mockClient.AssertExpectations(t)
 		mockStorageClient.AssertExpectations(t)
 	})
+
+	t.Run("WithEmptyName_ThroughputOnlyUpdate", func(t *testing.T) {
+		mockClient := new(ontapRest.MockRESTClient)
+		mockStorageClient := new(ontapRest.MockStorageClient)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+		getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		ontapProvider := &OntapRestProvider{}
+		params := UpdateQoSGroupPolicyParams{
+			UUID:          "uuid-456",
+			Name:          "", // empty = do not rename; only update throughput/IOPS
+			SvmName:       "svm1",
+			MaxThroughput: 2000,
+			MaxIOPS:       5000,
+		}
+
+		mockClient.On("Storage").Return(mockStorageClient)
+		mockStorageClient.On("QoSPolicyGroupUpdate", &ontapRest.QoSPolicyGroupUpdateParams{
+			UUID:          "uuid-456",
+			Name:          "",
+			SvmName:       "svm1",
+			MaxThroughput: 2000,
+			MaxIOPS:       5000,
+		}).Return(&ontapRest.JobAccepted{JobUUID: "job-uuid"}, nil)
+
+		mockClient.On("Poll", "job-uuid").Return(nil)
+
+		err := ontapProvider.UpdateQoSGroupPolicy(params)
+		assert.NoError(t, err)
+		mockClient.AssertExpectations(t)
+		mockStorageClient.AssertExpectations(t)
+	})
+
+	t.Run("WithNonEmptyName_RenameAndUpdate", func(t *testing.T) {
+		mockClient := new(ontapRest.MockRESTClient)
+		mockStorageClient := new(ontapRest.MockStorageClient)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+
+		getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		ontapProvider := &OntapRestProvider{}
+		params := UpdateQoSGroupPolicyParams{
+			UUID:          "uuid-789",
+			Name:          "renamed-policy",
+			SvmName:       "svm1",
+			MaxThroughput: 3000,
+			MaxIOPS:       6000,
+		}
+
+		mockClient.On("Storage").Return(mockStorageClient)
+		mockStorageClient.On("QoSPolicyGroupUpdate", &ontapRest.QoSPolicyGroupUpdateParams{
+			UUID:          "uuid-789",
+			Name:          "renamed-policy",
+			SvmName:       "svm1",
+			MaxThroughput: 3000,
+			MaxIOPS:       6000,
+		}).Return(&ontapRest.JobAccepted{JobUUID: "job-uuid"}, nil)
+
+		mockClient.On("Poll", "job-uuid").Return(nil)
+
+		err := ontapProvider.UpdateQoSGroupPolicy(params)
+		assert.NoError(t, err)
+		mockClient.AssertExpectations(t)
+		mockStorageClient.AssertExpectations(t)
+	})
 }

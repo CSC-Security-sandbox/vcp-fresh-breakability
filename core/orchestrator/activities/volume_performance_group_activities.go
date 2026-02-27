@@ -21,6 +21,20 @@ type VolumePerformanceGroupActivity struct {
 	SE database.Storage
 }
 
+// GetPoolViewByPoolID returns the pool view for the given pool ID (used by VPG update workflow).
+func (a *VolumePerformanceGroupActivity) GetPoolViewByPoolID(ctx context.Context, poolID int64) (*datamodel.PoolView, error) {
+	activity.RecordHeartbeat(ctx, "Getting pool view for VPG update")
+	pool, err := a.SE.GetPoolByID(ctx, poolID)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	poolView, err := a.SE.GetPool(ctx, pool.UUID, pool.AccountID)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return poolView, nil
+}
+
 // CreateVPGInDB creates a Volume Performance Group in the database
 func (a *VolumePerformanceGroupActivity) CreateVPGInDB(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) (*datamodel.VolumePerformanceGroup, error) {
 	logger := util.GetLogger(ctx)
@@ -145,5 +159,95 @@ func (a *VolumePerformanceGroupActivity) DeleteQoSPolicyInONTAP(
 	}
 
 	logger.Info("Deleted QoS policy from ONTAP", "policy_name", qosPolicyID)
+	return nil
+}
+
+// UpdateQoSPolicyInONTAP updates an existing QoS policy in ONTAP (name, throughput, IOPS).
+// Uses the existing policy name (OntapQosPolicyID) to find the policy and then updates it.
+func (a *VolumePerformanceGroupActivity) UpdateQoSPolicyInONTAP(
+	ctx context.Context,
+	vpg *datamodel.VolumePerformanceGroup,
+	pool *datamodel.PoolView,
+	node *models.Node,
+	newName string,
+	maxThroughputMibps int64,
+	maxIops int64,
+) error {
+	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Updating QoS policy in ONTAP")
+
+	if vpg.OntapQosPolicyID == "" {
+		return vsaerrors.WrapAsTemporalApplicationError(utilErrors.NewUserInputValidationErr("VPG has no ONTAP QoS policy ID"))
+	}
+
+	svm, err := a.SE.GetSvmForPoolID(ctx, pool.ID)
+	if err != nil {
+		logger.Error("Failed to get SVM for QoS policy update", "error", err, "pool_id", pool.ID)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		logger.Error("Failed to get provider for QoS policy update", "error", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Find policy by name to get UUID (ONTAP update requires UUID).
+	// Try OntapQosPolicyID first (current name in DB). If not found and we're renaming, try newName
+	// (covers case where ONTAP was updated in a previous run but DB was not).
+	findParams := vsa.FindQoSGroupPolicyParams{
+		Name:    vpg.OntapQosPolicyID,
+		SvmName: svm.Name,
+	}
+	qosResp, err := provider.FindQoSGroupPolicy(findParams)
+	if err != nil {
+		customErr := vsaerrors.ExtractCustomError(err)
+		if customErr != nil && customErr.IsError(vsaerrors.ErrResourceNotFound) && newName != "" && newName != vpg.OntapQosPolicyID {
+			// Fallback: policy may already have been renamed in ONTAP (previous run updated ONTAP but not DB)
+			findParams.Name = newName
+			qosResp, err = provider.FindQoSGroupPolicy(findParams)
+		}
+		if err != nil {
+			logger.Error("Failed to find QoS policy for update", "policy_name", vpg.OntapQosPolicyID, "error", err)
+			// If DB was updated to the new name by a previous run but ONTAP was not, suggest fixing the DB
+			if newName != "" && newName == vpg.OntapQosPolicyID {
+				err = fmt.Errorf("qosPolicy %q not found in ONTAP; if the DB was updated by a previous run but ONTAP was not, set volume_performance_groups.ontap_qos_policy_id and name to the policy name currently shown in ONTAP (e.g. from \"qos policy-group show\") and retry: %w", vpg.OntapQosPolicyID, err)
+			}
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+	}
+
+	// Only send a new name to ONTAP when it actually changes; otherwise ONTAP treats it as a rename
+	// and can fail with "Policy with new name already exists" when the name is unchanged.
+	nameToSet := newName
+	if nameToSet == qosResp.Name {
+		nameToSet = ""
+	}
+	updateParams := vsa.UpdateQoSGroupPolicyParams{
+		UUID:          qosResp.UUID,
+		Name:          nameToSet,
+		SvmName:       svm.Name,
+		MaxThroughput: maxThroughputMibps,
+		MaxIOPS:       maxIops,
+	}
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Updating QoS policy: %s -> %s", vpg.OntapQosPolicyID, newName))
+	if err := provider.UpdateQoSGroupPolicy(updateParams); err != nil {
+		logger.Error("Failed to update QoS policy in ONTAP", "error", err, "vpg_name", vpg.Name)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Info("QoS policy updated in ONTAP", "policy_name", newName, "vpg_id", vpg.UUID)
+	return nil
+}
+
+// UpdateVPGInDB updates the VolumePerformanceGroup row in the database (name, throughput, iops, ontap_qos_policy_id).
+func (a *VolumePerformanceGroupActivity) UpdateVPGInDB(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) error {
+	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Updating VPG in database")
+	if err := a.SE.UpdateVolumePerformanceGroup(ctx, vpg); err != nil {
+		logger.Error("Failed to update VPG in database", "error", err, "vpg_id", vpg.UUID)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	logger.Info("VPG updated in database", "vpg_id", vpg.UUID)
 	return nil
 }

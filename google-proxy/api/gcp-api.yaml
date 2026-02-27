@@ -10074,8 +10074,6 @@ components:
           example: true
     VolumePerformanceGroupUpdate_v1beta:
       title: Volume Performance Group Update v1beta model definition
-      required:
-        - resourceId
       type: object
       properties:
         resourceId:
@@ -10101,6 +10099,7 @@ components:
           description: IOPS limit for throughput (nullable)
           minimum: 1
           example: 20
+      additionalProperties: false
     VolumeCreate_v1beta:
       title: VolumeCreate
       required:

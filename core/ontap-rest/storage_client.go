@@ -292,6 +292,7 @@ func (sc *storageClient) QoSPolicyGroupUpdate(params *QoSPolicyGroupUpdateParams
 	modifyParams := []*QosPolicyGroupModifyCollectionParams{
 		{
 			UUID:       params.UUID,
+			Name:       params.Name,
 			Throughput: params.MaxThroughput,
 			Iops:       params.MaxIOPS,
 		},

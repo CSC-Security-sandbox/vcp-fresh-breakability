@@ -15010,7 +15010,7 @@ func (s *VolumePerformanceGroupCreateV1beta) SetFake() {
 func (s *VolumePerformanceGroupUpdateV1beta) SetFake() {
 	{
 		{
-			s.ResourceId = "string"
+			s.ResourceId.SetFake()
 		}
 	}
 	{

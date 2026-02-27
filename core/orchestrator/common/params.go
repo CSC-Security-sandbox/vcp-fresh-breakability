@@ -910,9 +910,9 @@ type UpdateVolumePerformanceGroupParams struct {
 	AccountName              string
 	PoolID                   string
 	VolumePerformanceGroupID string
-	Name                     string // resourceId
-	ThroughputMibps          int64  // optional
-	Iops                     int64  // optional
+	Name                     string  // resourceId (optional; empty means do not change)
+	ThroughputMibps          *int64  // optional; nil means do not update
+	Iops                     *int64  // optional; nil means do not update
 }
 
 // DeleteVolumePerformanceGroupParams describes parameters supplied to DeleteVolumePerformanceGroup

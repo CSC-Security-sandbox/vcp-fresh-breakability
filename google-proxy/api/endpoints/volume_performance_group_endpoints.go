@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -10,7 +11,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"github.com/go-faster/jx"
 )
 
 var (
@@ -38,12 +41,13 @@ func (h Handler) V1betaCreateVolumePerformanceGroup(ctx context.Context, req *gc
 	volumePerformanceGroup, err := h.Orchestrator.CreateVolumePerformanceGroup(ctx, createParams)
 	if err != nil {
 		logger.Error("Failed to create volume performance group", "error", err.Error())
-		if errors.IsBadRequestErr(err) || errors.IsNotFoundErr(err) {
+		if errors.IsUserInputValidationErr(err) || errors.IsBadRequestErr(err) || errors.IsNotFoundErr(err) {
 			return &gcpgenserver.V1betaCreateVolumePerformanceGroupBadRequest{
 				Code:    http.StatusBadRequest,
 				Message: err.Error(),
 			}, nil
-		} else if errors.IsConflictErr(err) {
+		}
+		if errors.IsConflictErr(err) {
 			return &gcpgenserver.V1betaCreateVolumePerformanceGroupConflict{
 				Code:    http.StatusConflict,
 				Message: err.Error(),
@@ -67,7 +71,6 @@ func (h Handler) V1betaListVolumePerformanceGroups(ctx context.Context, params g
 	}
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-
 	listParams := &common.ListVolumePerformanceGroupsParams{
 		AccountName: params.ProjectNumber,
 		PoolID:      params.PoolId,
@@ -113,7 +116,11 @@ func (h Handler) V1betaDescribeVolumePerformanceGroup(ctx context.Context, param
 		}, nil
 	}
 	logger := util.GetLogger(ctx)
-	getParams := &common.GetVolumePerformanceGroupParams{}
+	getParams := &common.GetVolumePerformanceGroupParams{
+		AccountName:              params.ProjectNumber,
+		PoolID:                   params.PoolId,
+		VolumePerformanceGroupID: params.VolumePerformanceGroupId,
+	}
 	vpg, err := h.Orchestrator.GetVolumePerformanceGroup(ctx, getParams)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
@@ -147,17 +154,63 @@ func (h Handler) V1betaUpdateVolumePerformanceGroup(ctx context.Context, req *gc
 			Message: "Updating volume performance group is not enabled",
 		}, nil
 	}
-	updateParams := &common.UpdateVolumePerformanceGroupParams{}
-	_, err := h.Orchestrator.UpdateVolumePerformanceGroup(ctx, updateParams)
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+
+	name := ""
+	if req.ResourceId.IsSet() {
+		name = req.ResourceId.Value
+	}
+	var throughputMibps, iops *int64
+	if req.ThroughputMibps.IsSet() {
+		throughputMibps = nillable.ToPointer(req.ThroughputMibps.Value)
+	}
+	if req.Iops.IsSet() {
+		iops = nillable.ToPointer(req.Iops.Value)
+	}
+	updateParams := &common.UpdateVolumePerformanceGroupParams{
+		AccountName:              params.ProjectNumber,
+		PoolID:                   params.PoolId,
+		VolumePerformanceGroupID: params.VolumePerformanceGroupId,
+		Name:                     name,
+		ThroughputMibps:          throughputMibps,
+		Iops:                     iops,
+	}
+	vpg, jobUUID, err := h.Orchestrator.UpdateVolumePerformanceGroup(ctx, updateParams)
 	if err != nil {
+		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaUpdateVolumePerformanceGroupBadRequest{
+				Code:    http.StatusBadRequest,
+				Message: err.Error(),
+			}, nil
+		}
+		if errors.IsConflictErr(err) {
+			return &gcpgenserver.V1betaUpdateVolumePerformanceGroupConflict{
+				Code:    http.StatusConflict,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to update volume performance group", "error", err.Error())
 		return &gcpgenserver.V1betaUpdateVolumePerformanceGroupInternalServerError{
 			Code:    http.StatusInternalServerError,
 			Message: "Internal server error",
 		}, err
 	}
-	return &gcpgenserver.V1betaUpdateVolumePerformanceGroupNotImplemented{
-		Code:    http.StatusNotImplemented,
-		Message: "Updating volume performance group is not implemented",
+
+	vcpVPG := convertModelToVCPVolumePerformanceGroup(vpg, params.PoolId)
+	data, err := json.Marshal(vcpVPG)
+	if err != nil {
+		return &gcpgenserver.V1betaUpdateVolumePerformanceGroupInternalServerError{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to encode response",
+		}, err
+	}
+	resp := jx.Raw(data)
+	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(operationID),
+		Response: resp,
+		Done:     gcpgenserver.NewOptBool(false),
 	}, nil
 }
 
@@ -168,7 +221,11 @@ func (h Handler) V1betaDeleteVolumePerformanceGroup(ctx context.Context, params 
 			Message: "Deleting volume performance group is not enabled",
 		}, nil
 	}
-	deleteParams := &common.DeleteVolumePerformanceGroupParams{}
+	deleteParams := &common.DeleteVolumePerformanceGroupParams{
+		AccountName:              params.ProjectNumber,
+		PoolID:                   params.PoolId,
+		VolumePerformanceGroupID: params.VolumePerformanceGroupId,
+	}
 	err := h.Orchestrator.DeleteVolumePerformanceGroup(ctx, deleteParams)
 	if err != nil {
 		return &gcpgenserver.V1betaDeleteVolumePerformanceGroupInternalServerError{

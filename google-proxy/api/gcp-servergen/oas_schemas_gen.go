@@ -24528,7 +24528,7 @@ func (s *VolumePerformanceGroupCreateV1beta) SetIsShared(val bool) {
 type VolumePerformanceGroupUpdateV1beta struct {
 	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
 	// the first character a letter, the last a letter or a number, and a 63 character maximum.
-	ResourceId string `json:"resourceId"`
+	ResourceId OptString `json:"resourceId"`
 	// Throughput in MiB/s (non-null).
 	ThroughputMibps OptInt64 `json:"throughputMibps"`
 	// IOPS limit for throughput (nullable).
@@ -24536,7 +24536,7 @@ type VolumePerformanceGroupUpdateV1beta struct {
 }
 
 // GetResourceId returns the value of ResourceId.
-func (s *VolumePerformanceGroupUpdateV1beta) GetResourceId() string {
+func (s *VolumePerformanceGroupUpdateV1beta) GetResourceId() OptString {
 	return s.ResourceId
 }
 
@@ -24551,7 +24551,7 @@ func (s *VolumePerformanceGroupUpdateV1beta) GetIops() OptInt64 {
 }
 
 // SetResourceId sets the value of ResourceId.
-func (s *VolumePerformanceGroupUpdateV1beta) SetResourceId(val string) {
+func (s *VolumePerformanceGroupUpdateV1beta) SetResourceId(val OptString) {
 	s.ResourceId = val
 }
 
