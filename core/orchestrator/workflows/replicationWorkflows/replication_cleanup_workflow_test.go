@@ -2,6 +2,7 @@ package replicationWorkflows
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -264,6 +265,179 @@ func TestReplicationCleanupWorkflowWithMirrorStateUnspecified(t *testing.T) {
 		assert.True(tt, env.IsWorkflowCompleted())
 		assert.NoError(tt, env.GetWorkflowError())
 		// Verify that StopReplicationOnDestinationForCleanup was called
+		env.AssertExpectations(tt)
+	})
+}
+
+func TestReplicationCleanupWorkflow_WhenDestinationVolumeIsDeleted(t *testing.T) {
+	t.Run("TestReplicationCleanupWorkflow_WhenDestinationVolumeIsDeleted", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		resumeReplicationActivity := replicationActivities.CleanupVolumeReplicationActivity{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(resumeReplicationActivity.GetSrcBasePathCleanup)
+		env.RegisterActivity(resumeReplicationActivity.GetDstBasePathCleanup)
+		env.RegisterActivity(resumeReplicationActivity.GetSignedSrcTokenCleanup)
+		env.RegisterActivity(resumeReplicationActivity.GetSignedDstTokenCleanup)
+		env.RegisterActivity(resumeReplicationActivity.GetReplicationOnDestinationForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.StopReplicationOnDestinationForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.DescribeRemoteJobForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.DeleteReplicationOnDestinationForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.UpdateReplicationRecordOnSourceForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.DescribeSourceJobForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.DeHydrateDestinationVolumeReplicationForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.UpdateReplicationRecordOnDestinationForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.GetDestinationVolumeForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.DeleteVolumeOnDestinationForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.DeHydrateDestinationVolumeForCleanup)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		params := &commonparams.DeleteReplicationParams{}
+
+		event := &replication.DeleteReplicationEvent{
+			CommonReplicationEventParams: replication.CommonReplicationEventParams{
+				ReplicationModel: &datamodel.VolumeReplication{},
+			},
+		}
+
+		// Create a volume with Deleted field set (volume is deleted)
+		deletedVolume := &googleproxyclient.VolumeV1beta{
+			ResourceId: "test-volume-resource-id",
+			VolumeId:   googleproxyclient.NewOptString("test-volume-id"),
+			Deleted:    googleproxyclient.NewOptNilDateTime(time.Now()),
+		}
+
+		replicationResult := &replication.DeleteReplicationResult{
+			SrcProjectNumber: &event.SourceProjectNumber,
+			DstProjectNumber: &event.DestinationProjectNumber,
+			Event:            event,
+			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				Name:             googleproxyclient.NewOptString("repl-123"),
+				LastTransferSize: googleproxyclient.NewOptInt64(100),
+				MirrorState:      googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStatePREPARING),
+			},
+			DstVolume: deletedVolume,
+		}
+
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSrcBasePathCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetDstBasePathCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetSignedSrcTokenCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetSignedDstTokenCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetReplicationOnDestinationForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("DescribeRemoteJobForCleanup", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteReplicationOnDestinationForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("UpdateReplicationRecordOnSourceForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("DescribeSourceJobForCleanup", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeHydrateDestinationVolumeReplicationForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("UpdateReplicationRecordOnDestinationForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetDestinationVolumeForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		// These activities should NOT be called when volume is deleted
+		// env.OnActivity("DeleteVolumeOnDestinationForCleanup", ...) - should not be called
+		// env.OnActivity("DeHydrateDestinationVolumeForCleanup", ...) - should not be called
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.ExecuteWorkflow(ReplicationCleanupWorkflow, params, event)
+		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+		assert.Nil(tt, err)
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+		// Verify that DeleteVolumeOnDestinationForCleanup and DeHydrateDestinationVolumeForCleanup were NOT called
+		env.AssertExpectations(tt)
+	})
+}
+
+func TestReplicationCleanupWorkflow_WhenDestinationVolumeIsNotDeleted(t *testing.T) {
+	t.Run("TestReplicationCleanupWorkflow_WhenDestinationVolumeIsNotDeleted", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		mockStorage := database.NewMockStorage(tt)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		resumeReplicationActivity := replicationActivities.CleanupVolumeReplicationActivity{SE: mockStorage}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(resumeReplicationActivity.GetSrcBasePathCleanup)
+		env.RegisterActivity(resumeReplicationActivity.GetDstBasePathCleanup)
+		env.RegisterActivity(resumeReplicationActivity.GetSignedSrcTokenCleanup)
+		env.RegisterActivity(resumeReplicationActivity.GetSignedDstTokenCleanup)
+		env.RegisterActivity(resumeReplicationActivity.GetReplicationOnDestinationForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.StopReplicationOnDestinationForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.DescribeRemoteJobForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.DeleteReplicationOnDestinationForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.UpdateReplicationRecordOnSourceForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.DescribeSourceJobForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.DeHydrateDestinationVolumeReplicationForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.UpdateReplicationRecordOnDestinationForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.GetDestinationVolumeForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.DeleteVolumeOnDestinationForCleanup)
+		env.RegisterActivity(resumeReplicationActivity.DeHydrateDestinationVolumeForCleanup)
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		params := &commonparams.DeleteReplicationParams{}
+
+		event := &replication.DeleteReplicationEvent{
+			CommonReplicationEventParams: replication.CommonReplicationEventParams{
+				ReplicationModel: &datamodel.VolumeReplication{},
+			},
+		}
+
+		// Create a volume with Deleted field NOT set (volume is not deleted)
+		// Deleted field will be unset (default OptNilDateTime{} which has Set=false)
+		notDeletedVolume := &googleproxyclient.VolumeV1beta{
+			ResourceId: "test-volume-resource-id",
+			VolumeId:   googleproxyclient.NewOptString("test-volume-id"),
+			// Deleted field is not set, so IsSet() will return false
+		}
+
+		replicationResult := &replication.DeleteReplicationResult{
+			SrcProjectNumber: &event.SourceProjectNumber,
+			DstProjectNumber: &event.DestinationProjectNumber,
+			Event:            event,
+			DstReplication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				Name:             googleproxyclient.NewOptString("repl-123"),
+				LastTransferSize: googleproxyclient.NewOptInt64(100),
+				MirrorState:      googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStatePREPARING),
+			},
+			DstVolume: notDeletedVolume,
+		}
+
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSrcBasePathCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetDstBasePathCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetSignedSrcTokenCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetSignedDstTokenCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetReplicationOnDestinationForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("DescribeRemoteJobForCleanup", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteReplicationOnDestinationForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("UpdateReplicationRecordOnSourceForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("DescribeSourceJobForCleanup", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeHydrateDestinationVolumeReplicationForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("UpdateReplicationRecordOnDestinationForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("GetDestinationVolumeForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		// These activities SHOULD be called when volume is not deleted
+		env.OnActivity("DeleteVolumeOnDestinationForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		env.OnActivity("DeHydrateDestinationVolumeForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
+		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.ExecuteWorkflow(ReplicationCleanupWorkflow, params, event)
+		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
+		assert.Nil(tt, err)
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+		// Verify that DeleteVolumeOnDestinationForCleanup and DeHydrateDestinationVolumeForCleanup were called
 		env.AssertExpectations(tt)
 	})
 }

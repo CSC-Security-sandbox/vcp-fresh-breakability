@@ -235,7 +235,7 @@ func (wf *replicationCleanupWorkflow) Run(ctx workflow.Context, args ...interfac
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	if replicationResult.DstVolume != nil {
+	if replicationResult.DstVolume != nil && !replicationResult.DstVolume.Deleted.IsSet() {
 		err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteVolumeOnDestinationForCleanup, &replicationResult).Get(ctx, &replicationResult)
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
