@@ -323,6 +323,7 @@ func TestGetVolume(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool",
+			QosType:   utils.QosTypeManual,
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
@@ -333,7 +334,7 @@ func TestGetVolume(t *testing.T) {
 			tt.Fatalf("Failed to create pool: %v", err)
 		}
 
-		// Create VPG
+		// Create VPG (autogen: individual throughput/iops, do not return VPG UUID)
 		vpg := &datamodel.VolumePerformanceGroup{
 			BaseModel:       datamodel.BaseModel{UUID: "vpg-uuid"},
 			Name:            "test-vpg",
@@ -365,13 +366,16 @@ func TestGetVolume(t *testing.T) {
 		assert.Equal(tt, volume.Name, result.DisplayName)
 		assert.Equal(tt, account.Name, result.AccountName)
 
-		// Verify ThroughputMibps and Iops are set from VPG
+		// Verify ThroughputMibps and Iops are set from VPG (autogen VPG)
 		assert.NotNil(tt, result.ThroughputMibps, "ThroughputMibps should be set from VPG")
 		assert.Equal(tt, int64(200), *result.ThroughputMibps, "ThroughputMibps should match VPG value")
 		assert.NotNil(tt, result.Iops, "Iops should be set from VPG")
 		assert.Equal(tt, int64(1000), *result.Iops, "Iops should match VPG value")
+		// Autogen VPG: do not return VolumePerformanceGroupId
+		assert.Equal(tt, "", result.VolumePerformanceGroupId, "VolumePerformanceGroupId must be empty for autogen VPG")
 	})
 
+	// Auto-pool volumes have no VPG (valid). Manual-pool volumes always have a VPG (invariant).
 	t.Run("WhenVolumeExistsWithoutVPG_ShouldNotSetThroughputMibpsAndIops", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
@@ -405,6 +409,7 @@ func TestGetVolume(t *testing.T) {
 			Name:      "test_pool",
 			AccountID: account.ID,
 			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool",
+			QosType:   utils.QosTypeAuto,
 			PoolAttributes: &datamodel.PoolAttributes{
 				PrimaryZone:  "us-west1-a",
 				IsRegionalHA: false,
@@ -434,6 +439,82 @@ func TestGetVolume(t *testing.T) {
 		// Verify ThroughputMibps and Iops are not set
 		assert.Nil(tt, result.ThroughputMibps, "ThroughputMibps should be nil when no VPG")
 		assert.Nil(tt, result.Iops, "Iops should be nil when no VPG")
+		assert.Equal(tt, "", result.VolumePerformanceGroupId, "VolumePerformanceGroupId should be empty when no VPG")
+	})
+
+	t.Run("WhenVolumeExistsWithNonAutogenVPG_ShouldReturnOnlyVPGUUID", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		orch := Orchestrator{storage: store}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/us-west1-a/pools/test-pool",
+			QosType:   utils.QosTypeManual,
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel:       datamodel.BaseModel{UUID: "manual-vpg-uuid"},
+			Name:            "manual-vpg",
+			PoolID:          pool.ID,
+			ThroughputMibps: 100,
+			Iops:            500,
+			IsShared:        false,
+			IsAutoGen:       false,
+		}
+		err = store.DB().Create(vpg).Error
+		if err != nil {
+			tt.Fatalf("Failed to create VPG: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:                datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:                     "test_volume",
+			AccountID:                account.ID,
+			Pool:                     pool,
+			PoolID:                   pool.ID,
+			VolumePerformanceGroupID: sql.NullInt64{Int64: vpg.ID, Valid: true},
+			VolumePerformanceGroup:   vpg,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		result, err := orch.GetVolume(ctx, "test-volume-uuid", false)
+		assert.NoError(tt, err, "Failed to get volume")
+		assert.Equal(tt, volume.Name, result.DisplayName)
+		assert.Equal(tt, "manual-vpg-uuid", result.VolumePerformanceGroupId, "VolumePerformanceGroupId should match non-autogen VPG UUID")
+		assert.Nil(tt, result.ThroughputMibps, "ThroughputMibps should be nil for non-autogen VPG (user gets from VPG describe)")
+		assert.Nil(tt, result.Iops, "Iops should be nil for non-autogen VPG")
 	})
 }
 

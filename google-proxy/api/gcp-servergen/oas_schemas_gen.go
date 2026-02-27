@@ -27227,6 +27227,9 @@ type VolumeV1beta struct {
 	ThroughputMibps OptNilFloat64 `json:"throughputMibps"`
 	// IOPS limit for the volume, retrieved from the associated Volume Performance Group.
 	Iops OptNilInt64 `json:"iops"`
+	// UUID of the volume performance group this volume belongs to. Use this to query the VPG via GET ...
+	// /pools/{poolId}/volumePerformanceGroups/{volumePerformanceGroupId}.
+	VolumePerformanceGroupId OptNilString `json:"volumePerformanceGroupId"`
 	// Volume footprint in cold storage.
 	ColdTierSizeGib OptNilFloat64 `json:"coldTierSizeGib"`
 	// Percentage of volume storage reserved for snapshot storage. Default is 0 percent.
@@ -27384,6 +27387,11 @@ func (s *VolumeV1beta) GetThroughputMibps() OptNilFloat64 {
 // GetIops returns the value of Iops.
 func (s *VolumeV1beta) GetIops() OptNilInt64 {
 	return s.Iops
+}
+
+// GetVolumePerformanceGroupId returns the value of VolumePerformanceGroupId.
+func (s *VolumeV1beta) GetVolumePerformanceGroupId() OptNilString {
+	return s.VolumePerformanceGroupId
 }
 
 // GetColdTierSizeGib returns the value of ColdTierSizeGib.
@@ -27644,6 +27652,11 @@ func (s *VolumeV1beta) SetThroughputMibps(val OptNilFloat64) {
 // SetIops sets the value of Iops.
 func (s *VolumeV1beta) SetIops(val OptNilInt64) {
 	s.Iops = val
+}
+
+// SetVolumePerformanceGroupId sets the value of VolumePerformanceGroupId.
+func (s *VolumeV1beta) SetVolumePerformanceGroupId(val OptNilString) {
+	s.VolumePerformanceGroupId = val
 }
 
 // SetColdTierSizeGib sets the value of ColdTierSizeGib.

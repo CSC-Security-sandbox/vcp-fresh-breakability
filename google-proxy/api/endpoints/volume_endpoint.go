@@ -1626,13 +1626,16 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		UsedBytes:          gcpgenserver.NewOptNilFloat64(float64(volume.UsedBytes)), // default value for now
 		LargeCapacity:      gcpgenserver.NewOptNilBool(volume.LargeCapacity),
 	}
-	// Include throughput and iops if they were set from VPG (nullable int64)
+	// Include throughput and iops if they were set from VPG (nullable int64; only for autogen VPG / individual values)
 	if volume.ThroughputMibps != nil {
 		throughputMibps := float64(*volume.ThroughputMibps)
 		res.ThroughputMibps = gcpgenserver.NewOptNilFloat64(throughputMibps)
 	}
 	if volume.Iops != nil {
 		res.Iops = utils.SafeInt64(volume.Iops)
+	}
+	if volume.VolumePerformanceGroupId != "" {
+		res.VolumePerformanceGroupId = gcpgenserver.NewOptNilString(volume.VolumePerformanceGroupId)
 	}
 	res.KerberosEnabled = gcpgenserver.NewOptNilBool(volume.KerberosEnabled)
 	res.LdapEnabled = gcpgenserver.NewOptNilBool(volume.LdapEnabled)

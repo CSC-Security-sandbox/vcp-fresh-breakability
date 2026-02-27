@@ -331,9 +331,9 @@ func (s *RotatePoolCertificateWorkflowTestSuite) TestRotatePoolCertificateWorkfl
 	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).CertificateNeedsRotation, mock.Anything, poolUUID).Return(true, nil)
 	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).RotatePoolCertificateWithContext, mock.Anything, poolContext).Return(nil)
 	
-	// Second GetPoolContext call (before password rotation) fails
-	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).GetPoolContext, mock.Anything, poolUUID).Return(nil, errors.New("failed to re-fetch pool context")).Once()
-	
+	// Second GetPoolContext call (before password rotation) fails; activity retry policy retries, so allow multiple returns
+	s.env.OnActivity((&backgroundactivities.RotateVcpToVsaCertificateActivity{}).GetPoolContext, mock.Anything, poolUUID).Return(nil, errors.New("failed to re-fetch pool context"))
+
 	// Password rotation child workflow should still be called (fallback to cached context)
 	s.env.OnWorkflow(RotatePoolPasswordWorkflow, mock.Anything, poolUUID).Return(nil)
 

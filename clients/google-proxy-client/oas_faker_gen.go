@@ -15907,6 +15907,11 @@ func (s *VolumeV1beta) SetFake() {
 	}
 	{
 		{
+			s.VolumePerformanceGroupId.SetFake()
+		}
+	}
+	{
+		{
 			s.ColdTierSizeGib.SetFake()
 		}
 	}

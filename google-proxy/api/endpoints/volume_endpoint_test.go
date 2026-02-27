@@ -7727,6 +7727,37 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		assert.False(t, out.ThroughputMibps.IsSet())
 		assert.False(t, out.Iops.IsSet())
 	})
+
+	t.Run("WithVolumePerformanceGroupId", func(t *testing.T) {
+		vol := &models.Volume{
+			CreationToken:            "token",
+			PoolID:                   "pool",
+			QuotaInBytes:             1234,
+			ProtocolTypes:            []string{"NFSV3"},
+			LifeCycleState:           "READY",
+			VolumePerformanceGroupId: "a1b2c3d4-e5f6-4789-a012-3456789abcde",
+		}
+		out := convertModelToVCPVolume(vol)
+		assert.NotNil(t, out)
+		assert.True(t, out.VolumePerformanceGroupId.IsSet())
+		val, ok := out.VolumePerformanceGroupId.Get()
+		assert.True(t, ok)
+		assert.Equal(t, "a1b2c3d4-e5f6-4789-a012-3456789abcde", val)
+	})
+
+	t.Run("WithoutVolumePerformanceGroupId", func(t *testing.T) {
+		vol := &models.Volume{
+			CreationToken:            "token",
+			PoolID:                   "pool",
+			QuotaInBytes:             1234,
+			ProtocolTypes:            []string{"NFSV3"},
+			LifeCycleState:           "READY",
+			VolumePerformanceGroupId: "",
+		}
+		out := convertModelToVCPVolume(vol)
+		assert.NotNil(t, out)
+		assert.False(t, out.VolumePerformanceGroupId.IsSet())
+	})
 }
 
 func TestConvertModelToVCPVolume_BackupConfig(t *testing.T) {

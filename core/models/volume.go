@@ -47,6 +47,7 @@ type Volume struct {
 	CloneParentInfo             *CloneParentInfo
 	ThroughputMibps             *int64
 	Iops                        *int64
+	VolumePerformanceGroupId    string
 }
 
 // AutoTieringPolicy describes the auto tiering policy for a volume

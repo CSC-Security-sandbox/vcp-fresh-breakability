@@ -1802,9 +1802,21 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 	res.CreationToken = attributes.CreationToken
 	res.ProtocolTypes = attributes.Protocols
 
-	if volume.VolumePerformanceGroup != nil {
-		res.ThroughputMibps = &volume.VolumePerformanceGroup.ThroughputMibps
-		res.Iops = &volume.VolumePerformanceGroup.Iops
+	// Volumes in manual pools always have a VPG (invariant). The only distinction is autogen vs non-autogen:
+	// - Autogen VPG: expose throughput/iops on the volume (no VPG UUID).
+	// - Non-autogen VPG: expose the VPG UUID on the volume (no throughput/iops).
+	// Auto pools return none of the three. If we ever see a manual-pool volume without a VPG, something has gone wrong.
+	if volume.Pool != nil && volume.Pool.QosType == utils.QosTypeManual {
+		if volume.VolumePerformanceGroup != nil {
+			if volume.VolumePerformanceGroup.IsAutoGen {
+				res.ThroughputMibps = &volume.VolumePerformanceGroup.ThroughputMibps
+				res.Iops = &volume.VolumePerformanceGroup.Iops
+			} else {
+				res.VolumePerformanceGroupId = volume.VolumePerformanceGroup.UUID
+			}
+		} else {
+			log.NewLogger().Error("Invariant violation: volume in manual pool has no VPG", "volumeUUID", volume.UUID, "poolUUID", volume.Pool.UUID)
+		}
 	}
 
 	if volume.Svm != nil {
@@ -2026,11 +2038,6 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 			ParentVolumeId:   parentVolumeId,
 			ParentSnapshotId: parentSnapshotId,
 		}
-	}
-
-	if volume.VolumePerformanceGroupID.Valid && volume.VolumePerformanceGroup != nil && volume.VolumePerformanceGroup.IsAutoGen {
-		res.ThroughputMibps = &volume.VolumePerformanceGroup.ThroughputMibps
-		res.Iops = &volume.VolumePerformanceGroup.Iops
 	}
 
 	return res
