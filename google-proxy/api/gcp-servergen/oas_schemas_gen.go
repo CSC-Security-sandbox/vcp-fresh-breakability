@@ -4155,6 +4155,7 @@ func (*ErrorStatusCode) v1betaListVolumePerformanceGroupsRes()               {}
 func (*ErrorStatusCode) v1betaListVolumesRes()                               {}
 func (*ErrorStatusCode) v1betaResourceStateUpdateRes()                       {}
 func (*ErrorStatusCode) v1betaRestoreBackupFilesRes()                        {}
+func (*ErrorStatusCode) v1betaRestoreOntapModeBackupRes()                    {}
 func (*ErrorStatusCode) v1betaResumeReplicationRes()                         {}
 func (*ErrorStatusCode) v1betaReverseAndResumeReplicationRes()               {}
 func (*ErrorStatusCode) v1betaRevertVolumeRes()                              {}
@@ -8125,6 +8126,7 @@ func (*OperationV1beta) v1betaInternalUpdateBackupVaultRes()                 {}
 func (*OperationV1beta) v1betaInternalUpdateVolumeReplicationAttributesRes() {}
 func (*OperationV1beta) v1betaInternalUpdateVolumeRes()                      {}
 func (*OperationV1beta) v1betaRestoreBackupFilesRes()                        {}
+func (*OperationV1beta) v1betaRestoreOntapModeBackupRes()                    {}
 func (*OperationV1beta) v1betaResumeReplicationRes()                         {}
 func (*OperationV1beta) v1betaReverseAndResumeReplicationRes()               {}
 func (*OperationV1beta) v1betaRevertVolumeRes()                              {}
@@ -18481,6 +18483,59 @@ func (s *ResourceStateUpdateV1betaState) UnmarshalText(data []byte) error {
 	}
 }
 
+// Request object for restoring volume from backup (full-volume or file-level).
+// Ref: #/components/schemas/RestoreBackupRequest_v1beta
+type RestoreBackupRequestV1beta struct {
+	// Ontap volume UUID to restore into.
+	VolumeId string `json:"volumeId"`
+	// Complete path of the backup.
+	BackupUri string `json:"backupUri"`
+	// Paths of files to restore (file-level restore).
+	SourceFileList []string `json:"sourceFileList"`
+	// Destination path for file-level restore.
+	RestoreFilePath OptString `json:"restoreFilePath"`
+}
+
+// GetVolumeId returns the value of VolumeId.
+func (s *RestoreBackupRequestV1beta) GetVolumeId() string {
+	return s.VolumeId
+}
+
+// GetBackupUri returns the value of BackupUri.
+func (s *RestoreBackupRequestV1beta) GetBackupUri() string {
+	return s.BackupUri
+}
+
+// GetSourceFileList returns the value of SourceFileList.
+func (s *RestoreBackupRequestV1beta) GetSourceFileList() []string {
+	return s.SourceFileList
+}
+
+// GetRestoreFilePath returns the value of RestoreFilePath.
+func (s *RestoreBackupRequestV1beta) GetRestoreFilePath() OptString {
+	return s.RestoreFilePath
+}
+
+// SetVolumeId sets the value of VolumeId.
+func (s *RestoreBackupRequestV1beta) SetVolumeId(val string) {
+	s.VolumeId = val
+}
+
+// SetBackupUri sets the value of BackupUri.
+func (s *RestoreBackupRequestV1beta) SetBackupUri(val string) {
+	s.BackupUri = val
+}
+
+// SetSourceFileList sets the value of SourceFileList.
+func (s *RestoreBackupRequestV1beta) SetSourceFileList(val []string) {
+	s.SourceFileList = val
+}
+
+// SetRestoreFilePath sets the value of RestoreFilePath.
+func (s *RestoreBackupRequestV1beta) SetRestoreFilePath(val OptString) {
+	s.RestoreFilePath = val
+}
+
 type RestrictedActionsV1beta []RestrictedActionsV1betaItem
 
 type RestrictedActionsV1betaItem string
@@ -23392,6 +23447,38 @@ func (*V1betaRestoreBackupFilesUnauthorized) v1betaRestoreBackupFilesRes() {}
 type V1betaRestoreBackupFilesUnprocessableEntity Error
 
 func (*V1betaRestoreBackupFilesUnprocessableEntity) v1betaRestoreBackupFilesRes() {}
+
+type V1betaRestoreOntapModeBackupBadRequest Error
+
+func (*V1betaRestoreOntapModeBackupBadRequest) v1betaRestoreOntapModeBackupRes() {}
+
+type V1betaRestoreOntapModeBackupConflict Error
+
+func (*V1betaRestoreOntapModeBackupConflict) v1betaRestoreOntapModeBackupRes() {}
+
+type V1betaRestoreOntapModeBackupForbidden Error
+
+func (*V1betaRestoreOntapModeBackupForbidden) v1betaRestoreOntapModeBackupRes() {}
+
+type V1betaRestoreOntapModeBackupInternalServerError Error
+
+func (*V1betaRestoreOntapModeBackupInternalServerError) v1betaRestoreOntapModeBackupRes() {}
+
+type V1betaRestoreOntapModeBackupNotImplemented Error
+
+func (*V1betaRestoreOntapModeBackupNotImplemented) v1betaRestoreOntapModeBackupRes() {}
+
+type V1betaRestoreOntapModeBackupTooManyRequests Error
+
+func (*V1betaRestoreOntapModeBackupTooManyRequests) v1betaRestoreOntapModeBackupRes() {}
+
+type V1betaRestoreOntapModeBackupUnauthorized Error
+
+func (*V1betaRestoreOntapModeBackupUnauthorized) v1betaRestoreOntapModeBackupRes() {}
+
+type V1betaRestoreOntapModeBackupUnprocessableEntity Error
+
+func (*V1betaRestoreOntapModeBackupUnprocessableEntity) v1betaRestoreOntapModeBackupRes() {}
 
 type V1betaResumeReplicationBadRequest Error
 

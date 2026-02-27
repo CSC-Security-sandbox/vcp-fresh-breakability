@@ -1685,3 +1685,87 @@ func convertCVPActiveDirectoryToModel(cvpAd *cvpmodels.ActiveDirectoryV1beta) *m
 
 	return ad
 }
+
+// V1betaRestoreOntapModeBackup restores a volume from backup (full-volume or file-level) for ontap mode.
+func (h Handler) V1betaRestoreOntapModeBackup(ctx context.Context, req *gcpgenserver.RestoreBackupRequestV1beta, params gcpgenserver.V1betaRestoreOntapModeBackupParams) (gcpgenserver.V1betaRestoreOntapModeBackupRes, error) {
+	logger := util.GetLogger(ctx)
+	// LocationId comes from path parameters
+	locationId := params.LocationId
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, locationId, nil)
+
+	if !ExpertModeBackupEnabled {
+		return &gcpgenserver.V1betaRestoreOntapModeBackupBadRequest{
+			Code:    400,
+			Message: "Ontap mode Backup/Restore feature is currently not enabled.",
+		}, nil
+	}
+
+	region, _, parsingErr := parseAndValidateRegionAndZone(locationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaRestoreOntapModeBackupBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	if req.VolumeId == "" || req.BackupUri == "" {
+		return &gcpgenserver.V1betaRestoreOntapModeBackupBadRequest{
+			Code:    400,
+			Message: "VolumeId and BackupUri are required",
+		}, nil
+	}
+
+	backupPath := req.BackupUri
+	components := strings.Split(backupPath, "/")
+	if len(components) < MaxBackupPathComponents {
+		return &gcpgenserver.V1betaRestoreOntapModeBackupBadRequest{
+			Code:    400,
+			Message: "Invalid backup path format",
+		}, nil
+	}
+
+	if len(req.SourceFileList) > 0 {
+		if len(req.SourceFileList) > MaxSourceFileList {
+			return &gcpgenserver.V1betaRestoreOntapModeBackupBadRequest{
+				Code:    400,
+				Message: fmt.Sprintf("Source file list cannot contain more than %d files", MaxSourceFileList),
+			}, nil
+		}
+	}
+	var restoreFilePath string
+	if req.RestoreFilePath.IsSet() {
+		restoreFilePath = req.RestoreFilePath.Value
+	}
+
+	restoreParams := &commonparams.RestoreOntapModeBackupParams{
+		AccountName:     params.ProjectNumber,
+		BackupPath:      backupPath,
+		BackupID:        "",
+		SourceFileList:  req.SourceFileList,
+		RestoreFilePath: restoreFilePath,
+		VolumeUUID:      req.VolumeId,
+		Region:          region,
+		PoolID:          params.PoolId,
+	}
+
+	jobUUID, err := h.Orchestrator.RestoreOntapModeBackup(ctx, restoreParams)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaRestoreOntapModeBackupBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to restore files from backup", "error", err.Error())
+		return &gcpgenserver.V1betaRestoreOntapModeBackupInternalServerError{
+			Code:    500,
+			Message: err.Error(),
+		}, nil
+	}
+
+	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + locationId + "/operations/" + jobUUID
+	return &gcpgenserver.OperationV1beta{
+		Name: gcpgenserver.NewOptString(operationID),
+		Done: gcpgenserver.NewOptBool(false),
+	}, nil
+}

@@ -5330,6 +5330,37 @@ func (s *ResourceStateUpdateV1betaState) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *RestoreBackupRequestV1beta) SetFake() {
+	{
+		{
+			s.VolumeId = "string"
+		}
+	}
+	{
+		{
+			s.BackupUri = "string"
+		}
+	}
+	{
+		{
+			s.SourceFileList = nil
+			for i := 0; i < 0; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.SourceFileList = append(s.SourceFileList, elem)
+			}
+		}
+	}
+	{
+		{
+			s.RestoreFilePath.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *RestrictedActionsV1beta) SetFake() {
 	var unwrapped []RestrictedActionsV1betaItem
 	{
@@ -13151,6 +13182,78 @@ func (s *V1betaRestoreBackupFilesUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaRestoreBackupFilesUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaRestoreOntapModeBackupBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRestoreOntapModeBackupBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaRestoreOntapModeBackupConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRestoreOntapModeBackupConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaRestoreOntapModeBackupForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRestoreOntapModeBackupForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaRestoreOntapModeBackupInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRestoreOntapModeBackupInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaRestoreOntapModeBackupNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRestoreOntapModeBackupNotImplemented(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaRestoreOntapModeBackupTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRestoreOntapModeBackupTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaRestoreOntapModeBackupUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRestoreOntapModeBackupUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaRestoreOntapModeBackupUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaRestoreOntapModeBackupUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.

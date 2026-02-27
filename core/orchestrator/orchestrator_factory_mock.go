@@ -6743,6 +6743,63 @@ func (_c *MockOrchestratorFactory_RestoreFilesFromBackup_Call) RunAndReturn(run 
 	return _c
 }
 
+// RestoreOntapModeBackup provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) RestoreOntapModeBackup(ctx context.Context, params *common.RestoreOntapModeBackupParams) (string, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RestoreOntapModeBackup")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.RestoreOntapModeBackupParams) (string, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.RestoreOntapModeBackupParams) string); ok {
+		r0 = rf(ctx, params)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.RestoreOntapModeBackupParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_RestoreOntapModeBackup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RestoreOntapModeBackup'
+type MockOrchestratorFactory_RestoreOntapModeBackup_Call struct {
+	*mock.Call
+}
+
+// RestoreOntapModeBackup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.RestoreOntapModeBackupParams
+func (_e *MockOrchestratorFactory_Expecter) RestoreOntapModeBackup(ctx interface{}, params interface{}) *MockOrchestratorFactory_RestoreOntapModeBackup_Call {
+	return &MockOrchestratorFactory_RestoreOntapModeBackup_Call{Call: _e.mock.On("RestoreOntapModeBackup", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_RestoreOntapModeBackup_Call) Run(run func(ctx context.Context, params *common.RestoreOntapModeBackupParams)) *MockOrchestratorFactory_RestoreOntapModeBackup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.RestoreOntapModeBackupParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_RestoreOntapModeBackup_Call) Return(_a0 string, _a1 error) *MockOrchestratorFactory_RestoreOntapModeBackup_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_RestoreOntapModeBackup_Call) RunAndReturn(run func(context.Context, *common.RestoreOntapModeBackupParams) (string, error)) *MockOrchestratorFactory_RestoreOntapModeBackup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ResumeReplication provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) ResumeReplication(ctx context.Context, params *common.ResumeReplicationParams) (*models.VolumeReplication, string, error) {
 	ret := _m.Called(ctx, params)

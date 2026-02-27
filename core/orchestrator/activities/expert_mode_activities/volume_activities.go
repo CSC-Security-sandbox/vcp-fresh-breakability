@@ -108,6 +108,31 @@ func (a *ExpertModeVolumeActivity) CheckVolumeDeletedInOntap(ctx context.Context
 	return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, fmt.Errorf("volume %s still exists in ONTAP, deletion may be in progress", volume.Name)))
 }
 
+// UpdateExpertModeVolumeStateInDB updates the state (and style) of an expert mode volume looked up by its external UUID.
+func (a *ExpertModeVolumeActivity) UpdateExpertModeVolumeStateInDB(ctx context.Context, externalUUID, state, stateDetails string) error {
+	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Updating expert mode volume state for external UUID %s", externalUUID))
+
+	volume, err := a.SE.GetExpertModeVolumeByExternalUUID(ctx, externalUUID)
+	if err != nil {
+		logger.Errorf("Failed to get expert mode volume by external UUID %s: %v", externalUUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	volume.State = state
+	volume.Style = stateDetails
+
+	_, err = a.SE.UpdateExpertModeVolume(ctx, volume)
+	if err != nil {
+		logger.Errorf("Failed to update expert mode volume state for external UUID %s: %v", externalUUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Infof("Successfully updated expert mode volume state to %s for external UUID %s", state, externalUUID)
+	activity.RecordHeartbeat(ctx, "Expert mode volume state updated successfully")
+	return nil
+}
+
 // UpdateExpertModeVolumeInDB updates the expert mode volume in the database using UpdateExpertModeVolume.
 func (a *ExpertModeVolumeActivity) UpdateExpertModeVolumeInDB(ctx context.Context, volume *datamodel.ExpertModeVolumes) error {
 	logger := util.GetLogger(ctx)

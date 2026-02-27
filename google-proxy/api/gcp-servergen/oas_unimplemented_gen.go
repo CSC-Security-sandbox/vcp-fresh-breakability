@@ -951,6 +951,15 @@ func (UnimplementedHandler) V1betaRestoreBackupFiles(ctx context.Context, req *B
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaRestoreOntapModeBackup implements v1beta_restoreOntapModeBackup operation.
+//
+// Restore volume from backup (full-volume or file-level restore) of ontap mode volume.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/restoreBackup
+func (UnimplementedHandler) V1betaRestoreOntapModeBackup(ctx context.Context, req *RestoreBackupRequestV1beta, params V1betaRestoreOntapModeBackupParams) (r V1betaRestoreOntapModeBackupRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaResumeReplication implements v1beta_resumeReplication operation.
 //
 // Resume a replication.

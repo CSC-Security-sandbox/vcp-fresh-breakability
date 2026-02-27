@@ -79,6 +79,7 @@ const (
 	JobTypeDeleteQuotaRule                          JobType = "DELETE_QUOTA_RULE"
 	JobTypeRestoreBackup                            JobType = "RESTORE_BACKUP"
 	JobTypeRestoreFilesBackup                       JobType = "RESTORE_FILES_BACKUP"
+	JobTypeRestoreOntapModeBackup                   JobType = "RESTORE_ONTAP_MODE_BACKUP"
 	JobTypeAcceptClusterPeer                        JobType = "ACCEPT_CLUSTER_PEER"
 	JobTypeUpdateKmsConfig                          JobType = "UPDATE_KMS_CONFIG"
 	JobTypeCreateKmsConfig                          JobType = "CREATE_KMS_CONFIG"

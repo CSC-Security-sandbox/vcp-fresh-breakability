@@ -1208,6 +1208,18 @@ type V1betaRestoreBackupFilesParams struct {
 	XCorrelationID OptString
 }
 
+// V1betaRestoreOntapModeBackupParams is parameters of v1beta_restoreOntapModeBackup operation.
+type V1betaRestoreOntapModeBackupParams struct {
+	// Uuid v4 used to identify the pool.
+	PoolId string
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaResumeReplicationParams is parameters of v1beta_resumeReplication operation.
 type V1betaResumeReplicationParams struct {
 	// The project number of the GCP project owning the resource being acted upon.

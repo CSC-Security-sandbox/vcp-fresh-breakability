@@ -81,6 +81,8 @@ type VolumeResponse struct {
 	ConstituentCount               *int32
 	Style                          string
 	Encryption
+	// JunctionPath is the fully-qualified path in the SVM namespace at which the volume is mounted (from volume.nas.path). Empty for unmounted or block volumes.
+	JunctionPath string
 }
 
 type CreateLifParams struct {

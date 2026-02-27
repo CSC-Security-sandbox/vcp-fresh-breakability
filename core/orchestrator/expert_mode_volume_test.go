@@ -3425,3 +3425,358 @@ func TestGetBackupConfigsForPool(t *testing.T) {
 		assert.Contains(tt, err.Error(), "backup configurations are only available for ONTAP pools")
 	})
 }
+
+func TestRestoreOntapModeBackupExpertMode(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	t.Run("GetOrCreateAccountError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		params := &commonparams.RestoreOntapModeBackupParams{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+			VolumeUUID:  "volume-uuid",
+			BackupPath:  "projects/p/locations/reg/backupVaults/bv/backups/backup-id",
+			Region:      "us-east4",
+		}
+		originalGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("account error")
+		}
+		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+
+		result, err := restoreOntapModeBackup(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("PoolIDRequired", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		params := &commonparams.RestoreOntapModeBackupParams{
+			AccountName: "test-account",
+			VolumeUUID:  "volume-uuid",
+			BackupPath:  "projects/p/locations/reg/backupVaults/bv/backups/backup-id",
+			Region:      "us-east4",
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		originalGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+
+		result, err := restoreOntapModeBackup(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "PoolID is required")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("DescribePoolError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		params := &commonparams.RestoreOntapModeBackupParams{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+			VolumeUUID:  "volume-uuid",
+			BackupPath:  "projects/p/locations/reg/backupVaults/bv/backups/backup-id",
+			Region:      "us-east4",
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		originalGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+		mockStorage.EXPECT().DescribePool(mock.Anything, "pool-uuid", int64(1)).Return(nil, errors.New("describe pool failed"))
+
+		result, err := restoreOntapModeBackup(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("PoolNotExpertMode", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		params := &commonparams.RestoreOntapModeBackupParams{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+			VolumeUUID:  "volume-uuid",
+			BackupPath:  "projects/p/locations/reg/backupVaults/bv/backups/backup-id",
+			Region:      "us-east4",
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		poolViewNonONTAP := &datamodel.PoolView{Pool: datamodel.Pool{APIAccessMode: "DEFAULT"}}
+		originalGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+		mockStorage.EXPECT().DescribePool(mock.Anything, "pool-uuid", int64(1)).Return(poolViewNonONTAP, nil)
+
+		result, err := restoreOntapModeBackup(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "not an expert mode (ONTAP) pool")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("GetExpertModeVolumeByExternalUUIDError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		params := &commonparams.RestoreOntapModeBackupParams{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+			VolumeUUID:  "volume-uuid",
+			BackupPath:  "projects/p/locations/reg/backupVaults/bv/backups/backup-id",
+			Region:      "us-east4",
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		poolViewONTAP := &datamodel.PoolView{Pool: datamodel.Pool{APIAccessMode: commonparams.ONTAPMode}}
+		originalGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+		mockStorage.EXPECT().DescribePool(mock.Anything, "pool-uuid", int64(1)).Return(poolViewONTAP, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(nil, errors.New("db error"))
+
+		result, err := restoreOntapModeBackup(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("VolumeNotReady", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		params := &commonparams.RestoreOntapModeBackupParams{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+			VolumeUUID:  "volume-uuid",
+			BackupPath:  "projects/p/locations/reg/backupVaults/bv/backups/backup-id",
+			Region:      "us-east4",
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		poolViewONTAP := &datamodel.PoolView{Pool: datamodel.Pool{APIAccessMode: commonparams.ONTAPMode}}
+		expertModeVolume := &datamodel.ExpertModeVolumes{
+			BaseModel: datamodel.BaseModel{UUID: "emv-uuid"},
+			State:     models.LifeCycleStateCreating,
+		}
+		originalGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+		mockStorage.EXPECT().DescribePool(mock.Anything, "pool-uuid", int64(1)).Return(poolViewONTAP, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+
+		result, err := restoreOntapModeBackup(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "Volume is not available")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CreateJobError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		params := &commonparams.RestoreOntapModeBackupParams{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+			VolumeUUID:  "volume-uuid",
+			BackupPath:  "projects/p/locations/reg/backupVaults/bv/backups/backup-id",
+			Region:      "us-east4",
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		poolViewONTAP := &datamodel.PoolView{Pool: datamodel.Pool{APIAccessMode: commonparams.ONTAPMode}}
+		expertModeVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
+			ExternalUUID: "volume-uuid",
+			State:        models.LifeCycleStateREADY,
+		}
+		originalGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+		mockStorage.EXPECT().DescribePool(mock.Anything, "pool-uuid", int64(1)).Return(poolViewONTAP, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(nil, errors.New("create job failed"))
+
+		result, err := restoreOntapModeBackup(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("UpdateExpertModeVolumeFieldsError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		params := &commonparams.RestoreOntapModeBackupParams{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+			VolumeUUID:  "volume-uuid",
+			BackupPath:  "projects/p/locations/reg/backupVaults/bv/backups/backup-id",
+			Region:      "us-east4",
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		poolViewONTAP := &datamodel.PoolView{Pool: datamodel.Pool{APIAccessMode: commonparams.ONTAPMode}}
+		expertModeVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
+			ExternalUUID: "volume-uuid",
+			State:        models.LifeCycleStateREADY,
+		}
+		createdJob := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+		originalGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+		mockStorage.EXPECT().DescribePool(mock.Anything, "pool-uuid", int64(1)).Return(poolViewONTAP, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
+		mockStorage.EXPECT().UpdateExpertModeVolumeFields(mock.Anything, "volume-uuid", mock.Anything).Return(errors.New("update state failed"))
+		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(models.JobsStateERROR), 0, "update state failed").Return(nil)
+
+		result, err := restoreOntapModeBackup(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ExecuteWorkflowError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		params := &commonparams.RestoreOntapModeBackupParams{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+			VolumeUUID:  "volume-uuid",
+			BackupPath:  "projects/p/locations/reg/backupVaults/bv/backups/backup-id",
+			Region:      "us-east4",
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		poolViewONTAP := &datamodel.PoolView{Pool: datamodel.Pool{APIAccessMode: commonparams.ONTAPMode}}
+		expertModeVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
+			ExternalUUID: "volume-uuid",
+			State:        models.LifeCycleStateREADY,
+		}
+		createdJob := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+		originalGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+		mockStorage.EXPECT().DescribePool(mock.Anything, "pool-uuid", int64(1)).Return(poolViewONTAP, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
+		mockStorage.EXPECT().UpdateExpertModeVolumeFields(mock.Anything, "volume-uuid", mock.Anything).Return(nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow start failed"))
+		mockStorage.EXPECT().UpdateExpertModeVolumeFields(mock.Anything, "volume-uuid", mock.Anything).Return(nil) // defer rollback
+		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(models.JobsStateERROR), 0, "workflow start failed").Return(nil)
+
+		result, err := restoreOntapModeBackup(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
+	t.Run("Success", func(tt *testing.T) {
+		mockLogger := log.NewMockLogger(tt)
+		mockLogger.EXPECT().InfoContext(mock.Anything, "Running AutoMigrate for model changes")
+		store, err := database.SetupStorageForTest(mockLogger)
+		assert.NoError(tt, err)
+		err = database.ClearInMemoryDB(store.DB())
+		assert.NoError(tt, err)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		assert.NoError(tt, err)
+		pool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "550e8400-e29b-41d4-a716-446655440000"},
+			Name:           "test_pool",
+			AccountID:      account.ID,
+			SizeInBytes:    2199023255552,
+			APIAccessMode:  commonparams.ONTAPMode,
+			PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"},
+		}
+		err = store.DB().Create(pool).Error
+		assert.NoError(tt, err)
+		expertModeVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
+			ExternalUUID: "ext-volume-uuid",
+			Name:         "expert-vol",
+			State:        models.LifeCycleStateREADY,
+			Style:        models.LifeCycleStateAvailableDetails,
+			PoolID:       pool.ID,
+			AccountID:    account.ID,
+		}
+		err = store.DB().Create(expertModeVolume).Error
+		assert.NoError(tt, err)
+
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+		params := &commonparams.RestoreOntapModeBackupParams{
+			AccountName: "test_account",
+			PoolID:      pool.UUID,
+			VolumeUUID:  expertModeVolume.ExternalUUID,
+			BackupPath:  "projects/p/locations/reg/backupVaults/bv/backups/backup-id",
+			Region:      "us-east4",
+		}
+
+		orch := &Orchestrator{storage: store, temporal: mockTemporal}
+		result, err := orch.RestoreOntapModeBackup(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.NotEmpty(tt, result)
+		var job datamodel.Job
+		err = store.DB().Where("resource_name = ?", expertModeVolume.UUID).First(&job).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, result, job.UUID)
+		assert.Equal(tt, string(models.JobTypeRestoreOntapModeBackup), job.Type)
+		mockLogger.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+}

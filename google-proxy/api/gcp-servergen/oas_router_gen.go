@@ -1762,6 +1762,30 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												return
 											}
 
+										case 'r': // Prefix: "restoreBackup"
+
+											if l := len("restoreBackup"); len(elem) >= l && elem[0:l] == "restoreBackup" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch r.Method {
+												case "POST":
+													s.handleV1betaRestoreOntapModeBackupRequest([3]string{
+														args[0],
+														args[1],
+														args[2],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, "POST")
+												}
+
+												return
+											}
+
 										case 'v': // Prefix: "volumePerformanceGroups"
 
 											if l := len("volumePerformanceGroups"); len(elem) >= l && elem[0:l] == "volumePerformanceGroups" {
@@ -4724,6 +4748,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 													r.summary = "Get backup configurations for a pool"
 													r.operationID = "v1beta_getBackupConfigsForPool"
 													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/backupConfigs"
+													r.args = args
+													r.count = 3
+													return r, true
+												default:
+													return
+												}
+											}
+
+										case 'r': // Prefix: "restoreBackup"
+
+											if l := len("restoreBackup"); len(elem) >= l && elem[0:l] == "restoreBackup" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch method {
+												case "POST":
+													r.name = V1betaRestoreOntapModeBackupOperation
+													r.summary = "Restore files from backup of ontap mode volume"
+													r.operationID = "v1beta_restoreOntapModeBackup"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/restoreBackup"
 													r.args = args
 													r.count = 3
 													return r, true

@@ -643,6 +643,12 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/restoreFilesFromBackup
 	V1betaRestoreBackupFiles(ctx context.Context, req *BackupRestoreFilesV1beta, params V1betaRestoreBackupFilesParams) (V1betaRestoreBackupFilesRes, error)
+	// V1betaRestoreOntapModeBackup implements v1beta_restoreOntapModeBackup operation.
+	//
+	// Restore volume from backup (full-volume or file-level restore) of ontap mode volume.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/restoreBackup
+	V1betaRestoreOntapModeBackup(ctx context.Context, req *RestoreBackupRequestV1beta, params V1betaRestoreOntapModeBackupParams) (V1betaRestoreOntapModeBackupRes, error)
 	// V1betaResumeReplication implements v1beta_resumeReplication operation.
 	//
 	// Resume a replication.

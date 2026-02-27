@@ -6023,6 +6023,66 @@ func (_c *MockInvoker_V1betaRestoreBackupFiles_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// V1betaRestoreOntapModeBackup provides a mock function with given fields: ctx, request, params
+func (_m *MockInvoker) V1betaRestoreOntapModeBackup(ctx context.Context, request *RestoreBackupRequestV1beta, params V1betaRestoreOntapModeBackupParams) (V1betaRestoreOntapModeBackupRes, error) {
+	ret := _m.Called(ctx, request, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaRestoreOntapModeBackup")
+	}
+
+	var r0 V1betaRestoreOntapModeBackupRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *RestoreBackupRequestV1beta, V1betaRestoreOntapModeBackupParams) (V1betaRestoreOntapModeBackupRes, error)); ok {
+		return rf(ctx, request, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *RestoreBackupRequestV1beta, V1betaRestoreOntapModeBackupParams) V1betaRestoreOntapModeBackupRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaRestoreOntapModeBackupRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *RestoreBackupRequestV1beta, V1betaRestoreOntapModeBackupParams) error); ok {
+		r1 = rf(ctx, request, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1betaRestoreOntapModeBackup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaRestoreOntapModeBackup'
+type MockInvoker_V1betaRestoreOntapModeBackup_Call struct {
+	*mock.Call
+}
+
+// V1betaRestoreOntapModeBackup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - request *RestoreBackupRequestV1beta
+//   - params V1betaRestoreOntapModeBackupParams
+func (_e *MockInvoker_Expecter) V1betaRestoreOntapModeBackup(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1betaRestoreOntapModeBackup_Call {
+	return &MockInvoker_V1betaRestoreOntapModeBackup_Call{Call: _e.mock.On("V1betaRestoreOntapModeBackup", ctx, request, params)}
+}
+
+func (_c *MockInvoker_V1betaRestoreOntapModeBackup_Call) Run(run func(ctx context.Context, request *RestoreBackupRequestV1beta, params V1betaRestoreOntapModeBackupParams)) *MockInvoker_V1betaRestoreOntapModeBackup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*RestoreBackupRequestV1beta), args[2].(V1betaRestoreOntapModeBackupParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1betaRestoreOntapModeBackup_Call) Return(_a0 V1betaRestoreOntapModeBackupRes, _a1 error) *MockInvoker_V1betaRestoreOntapModeBackup_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1betaRestoreOntapModeBackup_Call) RunAndReturn(run func(context.Context, *RestoreBackupRequestV1beta, V1betaRestoreOntapModeBackupParams) (V1betaRestoreOntapModeBackupRes, error)) *MockInvoker_V1betaRestoreOntapModeBackup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaResumeReplication provides a mock function with given fields: ctx, params
 func (_m *MockInvoker) V1betaResumeReplication(ctx context.Context, params V1betaResumeReplicationParams) (V1betaResumeReplicationRes, error) {
 	ret := _m.Called(ctx, params)

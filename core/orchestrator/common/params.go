@@ -130,6 +130,8 @@ type CreateVolumeParams struct {
 	Iops                        *int64
 	VolumePerformanceGroupID    *string
 	// Note: Iops is not supported for create requests; it is derived from ThroughputMibps if enableInferredIops is true.
+	// IsExpertModeRestore is true when this restore was started from RestoreForOntapModeVolumeWorkflow (expert mode volume). When true, RestoreBackupWorkflow finalizes by updating expert_mode_volumes instead of volumes.
+	IsExpertModeRestore bool
 }
 
 type SnapmirrorRelationshipParams struct {
@@ -823,6 +825,29 @@ type RestoreFilesFromBackupParams struct {
 	SourceFileList  []string
 	RestoreFilePath string
 	VolumeUUID      string
+	Region          string
+	// PoolID is required for expert mode restore; used to fetch the pool and verify it is an expert mode (ONTAP) pool (APIAccessMode == ONTAP). Supplied from API path (e.g. params.PoolId).
+	PoolID string
+}
+
+// RestoreOntapModeBackupParams holds parameters for RestoreOntapModeBackup (pool endpoint full-volume or file-level restore for ONTAP mode).
+type RestoreOntapModeBackupParams struct {
+	AccountName     string
+	BackupPath      string
+	BackupID        string
+	SourceFileList  []string
+	RestoreFilePath string
+	VolumeUUID      string
+	Region          string
+	PoolID          string
+}
+
+// RestoreForOntapModeParams holds parameters for the RestoreForOntapModeVolumeWorkflow (full volume restore from backup for ONTAP mode).
+type RestoreForOntapModeParams struct {
+	AccountName      string
+	BackupPath       string
+	Region           string
+	ExpertModeVolume *datamodel.ExpertModeVolumes // Expert mode volume with Pool, Account, Svm loaded
 }
 
 type AdSdeUpdateResult struct {

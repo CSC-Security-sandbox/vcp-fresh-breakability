@@ -7179,10 +7179,10 @@ func TestV1betaUpdatePool_WithActiveDirectoryConfigId(t *testing.T) {
 			ActiveDirectoryConfigId: gcpgenserver.NewOptNilString("missing-ad"),
 		}
 		params := gcpgenserver.V1betaUpdatePoolParams{
-			ProjectNumber:   "test-project",
-			LocationId:      "us-central1-a",
-			PoolId:          "pool-uuid",
-			XCorrelationID:  gcpgenserver.NewOptString("corr-id"),
+			ProjectNumber:  "test-project",
+			LocationId:     "us-central1-a",
+			PoolId:         "pool-uuid",
+			XCorrelationID: gcpgenserver.NewOptString("corr-id"),
 		}
 
 		result, err := handler.V1betaUpdatePool(context.Background(), req, params)
@@ -8817,6 +8817,400 @@ func TestV1betaGetBackupConfigsForPool(t *testing.T) {
 		assert.True(tt, ok)
 		assert.Equal(tt, 100, len(okResp.BackupConfigs))
 
+		mockOrchestrator.AssertExpectations(tt)
+	})
+}
+
+func TestV1betaRestoreOntapModeBackup(t *testing.T) {
+	validBackupPath := "projects/p1/locations/us-east4/backupVaults/bv1/backups/backup-id-1"
+	ctx := context.Background()
+
+	t.Run("WhenOntapModeRestoreDisabled", func(tt *testing.T) {
+		originalOntapModeRestoreEnabled := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = false
+		defer func() { ExpertModeBackupEnabled = originalOntapModeRestoreEnabled }()
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaRestoreOntapModeBackupParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-uuid",
+		}
+		req := &gcpgenserver.RestoreBackupRequestV1beta{
+			VolumeId:  "vol-uuid",
+			BackupUri: validBackupPath,
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaRestoreOntapModeBackup(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		badReq, ok := result.(*gcpgenserver.V1betaRestoreOntapModeBackupBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Equal(tt, "Ontap mode Backup/Restore feature is currently not enabled.", badReq.Message)
+	})
+
+	t.Run("WhenRegionParsingFails", func(tt *testing.T) {
+		originalOntapModeRestoreEnabled := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = true
+		defer func() { ExpertModeBackupEnabled = originalOntapModeRestoreEnabled }()
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "", "", &gcpgenserver.Error{Code: 400, Message: "Invalid location ID"}
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaRestoreOntapModeBackupParams{
+			LocationId:    "invalid-location",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-uuid",
+		}
+		req := &gcpgenserver.RestoreBackupRequestV1beta{
+			VolumeId:  "vol-uuid",
+			BackupUri: validBackupPath,
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaRestoreOntapModeBackup(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		badReq, ok := result.(*gcpgenserver.V1betaRestoreOntapModeBackupBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Equal(tt, "Invalid location ID", badReq.Message)
+	})
+
+	t.Run("WhenVolumeIdEmpty", func(tt *testing.T) {
+		originalOntapModeRestoreEnabled := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = true
+		defer func() { ExpertModeBackupEnabled = originalOntapModeRestoreEnabled }()
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaRestoreOntapModeBackupParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-uuid",
+		}
+		req := &gcpgenserver.RestoreBackupRequestV1beta{
+			VolumeId:  "",
+			BackupUri: validBackupPath,
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaRestoreOntapModeBackup(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		badReq, ok := result.(*gcpgenserver.V1betaRestoreOntapModeBackupBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Equal(tt, "VolumeId and BackupUri are required", badReq.Message)
+	})
+
+	t.Run("WhenBackupUriEmpty", func(tt *testing.T) {
+		originalOntapModeRestoreEnabled := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = true
+		defer func() { ExpertModeBackupEnabled = originalOntapModeRestoreEnabled }()
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaRestoreOntapModeBackupParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-uuid",
+		}
+		req := &gcpgenserver.RestoreBackupRequestV1beta{
+			VolumeId:  "vol-uuid",
+			BackupUri: "",
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaRestoreOntapModeBackup(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		badReq, ok := result.(*gcpgenserver.V1betaRestoreOntapModeBackupBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Equal(tt, "VolumeId and BackupUri are required", badReq.Message)
+	})
+
+	t.Run("WhenBackupPathInvalid", func(tt *testing.T) {
+		originalOntapModeRestoreEnabled := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = true
+		defer func() { ExpertModeBackupEnabled = originalOntapModeRestoreEnabled }()
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaRestoreOntapModeBackupParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-uuid",
+		}
+		req := &gcpgenserver.RestoreBackupRequestV1beta{
+			VolumeId:  "vol-uuid",
+			BackupUri: "too/few/parts",
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaRestoreOntapModeBackup(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		badReq, ok := result.(*gcpgenserver.V1betaRestoreOntapModeBackupBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Equal(tt, "Invalid backup path format", badReq.Message)
+	})
+
+	t.Run("WhenSourceFileListExceedsMax", func(tt *testing.T) {
+		originalOntapModeRestoreEnabled := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = true
+		defer func() { ExpertModeBackupEnabled = originalOntapModeRestoreEnabled }()
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		params := gcpgenserver.V1betaRestoreOntapModeBackupParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-uuid",
+		}
+		sourceFileList := make([]string, MaxSourceFileList+1)
+		for i := range sourceFileList {
+			sourceFileList[i] = fmt.Sprintf("/file%d", i)
+		}
+		req := &gcpgenserver.RestoreBackupRequestV1beta{
+			VolumeId:       "vol-uuid",
+			BackupUri:      validBackupPath,
+			SourceFileList: sourceFileList,
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaRestoreOntapModeBackup(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		badReq, ok := result.(*gcpgenserver.V1betaRestoreOntapModeBackupBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Contains(tt, badReq.Message, "Source file list cannot contain more than")
+	})
+
+	t.Run("WhenOrchestratorReturnsUserValidationError", func(tt *testing.T) {
+		originalOntapModeRestoreEnabled := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = true
+		defer func() { ExpertModeBackupEnabled = originalOntapModeRestoreEnabled }()
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().RestoreOntapModeBackup(mock.Anything, mock.Anything).
+			Return("", errors.NewUserInputValidationErr("volume not found")).Once()
+
+		params := gcpgenserver.V1betaRestoreOntapModeBackupParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-uuid",
+		}
+		req := &gcpgenserver.RestoreBackupRequestV1beta{
+			VolumeId:  "vol-uuid",
+			BackupUri: validBackupPath,
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaRestoreOntapModeBackup(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		badReq, ok := result.(*gcpgenserver.V1betaRestoreOntapModeBackupBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		assert.Equal(tt, "volume not found", badReq.Message)
+		mockOrchestrator.AssertExpectations(tt)
+	})
+
+	t.Run("WhenOrchestratorReturnsNotFoundError", func(tt *testing.T) {
+		originalOntapModeRestoreEnabled := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = true
+		defer func() { ExpertModeBackupEnabled = originalOntapModeRestoreEnabled }()
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().RestoreOntapModeBackup(mock.Anything, mock.Anything).
+			Return("", errors.NewNotFoundErr("volume", nil)).Once()
+
+		params := gcpgenserver.V1betaRestoreOntapModeBackupParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-uuid",
+		}
+		req := &gcpgenserver.RestoreBackupRequestV1beta{
+			VolumeId:  "vol-uuid",
+			BackupUri: validBackupPath,
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaRestoreOntapModeBackup(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		badReq, ok := result.(*gcpgenserver.V1betaRestoreOntapModeBackupBadRequest)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(400), badReq.Code)
+		mockOrchestrator.AssertExpectations(tt)
+	})
+
+	t.Run("WhenOrchestratorReturnsInternalError", func(tt *testing.T) {
+		originalOntapModeRestoreEnabled := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = true
+		defer func() { ExpertModeBackupEnabled = originalOntapModeRestoreEnabled }()
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().RestoreOntapModeBackup(mock.Anything, mock.Anything).
+			Return("", stderrors.New("database error")).Once()
+
+		params := gcpgenserver.V1betaRestoreOntapModeBackupParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-uuid",
+		}
+		req := &gcpgenserver.RestoreBackupRequestV1beta{
+			VolumeId:  "vol-uuid",
+			BackupUri: validBackupPath,
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaRestoreOntapModeBackup(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		internalErr, ok := result.(*gcpgenserver.V1betaRestoreOntapModeBackupInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Equal(tt, "database error", internalErr.Message)
+		mockOrchestrator.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccess", func(tt *testing.T) {
+		originalOntapModeRestoreEnabled := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = true
+		defer func() { ExpertModeBackupEnabled = originalOntapModeRestoreEnabled }()
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		jobUUID := "job-uuid-123"
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().RestoreOntapModeBackup(mock.Anything, mock.MatchedBy(func(p *commonparams.RestoreOntapModeBackupParams) bool {
+			return p.AccountName == "project-number" && p.BackupPath == validBackupPath &&
+				p.VolumeUUID == "vol-uuid" && p.Region == "us-east4" && p.PoolID == "pool-uuid"
+		})).Return(jobUUID, nil).Once()
+
+		params := gcpgenserver.V1betaRestoreOntapModeBackupParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-uuid",
+		}
+		req := &gcpgenserver.RestoreBackupRequestV1beta{
+			VolumeId:  "vol-uuid",
+			BackupUri: validBackupPath,
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaRestoreOntapModeBackup(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.True(tt, op.Name.IsSet())
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/us-east4/operations/"+jobUUID, op.Name.Value)
+		assert.True(tt, op.Done.IsSet())
+		assert.False(tt, op.Done.Value)
+		mockOrchestrator.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccessWithRestoreFilePath", func(tt *testing.T) {
+		originalOntapModeRestoreEnabled := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = true
+		defer func() { ExpertModeBackupEnabled = originalOntapModeRestoreEnabled }()
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		jobUUID := "job-uuid-456"
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().RestoreOntapModeBackup(mock.Anything, mock.MatchedBy(func(p *commonparams.RestoreOntapModeBackupParams) bool {
+			return p.RestoreFilePath == "/restore/dest"
+		})).Return(jobUUID, nil).Once()
+
+		params := gcpgenserver.V1betaRestoreOntapModeBackupParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-uuid",
+		}
+		req := &gcpgenserver.RestoreBackupRequestV1beta{
+			VolumeId:        "vol-uuid",
+			BackupUri:       validBackupPath,
+			RestoreFilePath: gcpgenserver.NewOptString("/restore/dest"),
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaRestoreOntapModeBackup(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.True(tt, op.Name.IsSet())
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/us-east4/operations/"+jobUUID, op.Name.Value)
 		mockOrchestrator.AssertExpectations(tt)
 	})
 }

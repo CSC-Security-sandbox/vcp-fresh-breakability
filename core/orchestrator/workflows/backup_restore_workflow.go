@@ -9,6 +9,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	expertmodeactivities "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/expert_mode_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
@@ -369,27 +370,29 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 
 	// Post-provisioning child workflow
 	ontapVersion := activities.GetOntapVersionFromPool(backupActivitiesContext.BackupWorkflowInit.Volume.Pool)
-	postWorkflowFunc, err := selectVolumeChildWorkflow(backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.Protocols, PhasePost, ontapVersion)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-	var updatedVolume *datamodel.Volume
-	err = workflow.ExecuteChildWorkflow(ctx, postWorkflowFunc, backupActivitiesContext.BackupWorkflowInit.Volume, backupActivitiesContext.Node, hostParams, volCreateResponse, isRestoreFromBackup, false).Get(ctx, &updatedVolume)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-
-	// Update the dbVolume with the changes from the child workflow
-	if updatedVolume != nil {
-		backupActivitiesContext.BackupWorkflowInit.Volume = updatedVolume
-	}
 	backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.ExternalUUID = volCreateResponse.ExternalUUID
 
-	err = workflow.ExecuteActivity(ctx, volumeUpdateActivity.UpdateVolumeJunctionpath, backupActivitiesContext.BackupWorkflowInit.Volume, backupActivitiesContext.Node).Get(ctx, nil)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
+	if !createVolumeParams.IsExpertModeRestore {
+		postWorkflowFunc, err := selectVolumeChildWorkflow(backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.Protocols, PhasePost, ontapVersion)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		var updatedVolume *datamodel.Volume
+		err = workflow.ExecuteChildWorkflow(ctx, postWorkflowFunc, backupActivitiesContext.BackupWorkflowInit.Volume, backupActivitiesContext.Node, hostParams, volCreateResponse, isRestoreFromBackup, false).Get(ctx, &updatedVolume)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
 
+		// Update the dbVolume with the changes from the child workflow
+		if updatedVolume != nil {
+			backupActivitiesContext.BackupWorkflowInit.Volume = updatedVolume
+		}
+
+		err = workflow.ExecuteActivity(ctx, volumeUpdateActivity.UpdateVolumeJunctionpath, backupActivitiesContext.BackupWorkflowInit.Volume, backupActivitiesContext.Node).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+	}
 	var ontapAsyncResponse *vsa.OntapAsyncResponse
 	err = workflow.ExecuteActivity(ctx, volumeActivity.DeleteRestoreObjectStore, backupActivitiesContext.Node, backupActivitiesContext.ObjStoreName).Get(ctx, &ontapAsyncResponse)
 	if err != nil {
@@ -400,7 +403,14 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 		return nil, ConvertToVSAError(fmt.Errorf("failed to delete cloud endpoint: %w", err))
 	}
 
-	err = workflow.ExecuteActivity(ctx, volumeActivity.FinaliseRestoredVolume, &backupActivitiesContext.BackupWorkflowInit.Volume).Get(ctx, nil)
+	// Finalise restored volume: update volumes table for VSA-managed restores, or expert_mode_volumes for expert mode restores
+	volume := backupActivitiesContext.BackupWorkflowInit.Volume
+	if createVolumeParams.IsExpertModeRestore {
+		expertModeVolumeActivity := &expertmodeactivities.ExpertModeVolumeActivity{}
+		err = workflow.ExecuteActivity(ctx, expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, volume.UUID, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil)
+	} else {
+		err = workflow.ExecuteActivity(ctx, volumeActivity.FinaliseRestoredVolume, volume).Get(ctx, nil)
+	}
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}

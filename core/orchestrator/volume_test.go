@@ -27395,10 +27395,10 @@ func TestValidateCreateVolumeParams_CMEKPoolUpgradeCheck(t *testing.T) {
 		},
 	}
 	params := &common.CreateVolumeParams{
-		Name:             "vol",
-		QuotaInBytes:     utils.GiBInBytes,
-		Protocols:        []string{utils.ProtocolNFS},
-		BlockProperties:  &common.BlockPropertiesRequest{OSType: "LINUX"},
+		Name:            "vol",
+		QuotaInBytes:    utils.GiBInBytes,
+		Protocols:       []string{utils.ProtocolNFS},
+		BlockProperties: &common.BlockPropertiesRequest{OSType: "LINUX"},
 	}
 
 	t.Run("WhenUpgradeCheckReturnsError", func(t *testing.T) {
@@ -28554,6 +28554,193 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 		assert.Equal(tt, "job-uuid", result)
 		mockStorage.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
+	})
+}
+
+func TestRestoreOntapModeBackup(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	t.Run("PoolIDRequired", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		params := &common.RestoreOntapModeBackupParams{
+			AccountName: "test-account",
+			VolumeUUID:  "volume-uuid",
+			BackupPath:  "projects/123/locations/us-west1/backupVaults/vault/backups/backup",
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+
+		originalGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+
+		result, err := restoreOntapModeBackup(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "PoolID is required")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("GetExpertModeVolumeByUUIDError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		params := &common.RestoreOntapModeBackupParams{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+			VolumeUUID:  "volume-uuid",
+			BackupPath:  "projects/123/locations/us-west1/backupVaults/vault/backups/backup",
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+
+		poolViewONTAP := &datamodel.PoolView{Pool: datamodel.Pool{APIAccessMode: common.ONTAPMode}}
+
+		originalGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+
+		mockStorage.EXPECT().DescribePool(mock.Anything, "pool-uuid", int64(1)).Return(poolViewONTAP, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(nil, errors.New("expert mode volume not found"))
+
+		result, err := restoreOntapModeBackup(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("VolumeNotReady", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		params := &common.RestoreOntapModeBackupParams{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+			VolumeUUID:  "volume-uuid",
+			BackupPath:  "projects/123/locations/us-west1/backupVaults/vault/backups/backup",
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+
+		poolViewONTAP := &datamodel.PoolView{Pool: datamodel.Pool{APIAccessMode: common.ONTAPMode}}
+
+		expertModeVolume := &datamodel.ExpertModeVolumes{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			State:     models.LifeCycleStateCreating,
+		}
+
+		originalGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+
+		mockStorage.EXPECT().DescribePool(mock.Anything, "pool-uuid", int64(1)).Return(poolViewONTAP, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+
+		result, err := restoreOntapModeBackup(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("PoolNotExpertMode", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		params := &common.RestoreOntapModeBackupParams{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+			VolumeUUID:  "volume-uuid",
+			BackupPath:  "projects/123/locations/us-west1/backupVaults/vault/backups/backup",
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+
+		poolViewNonONTAP := &datamodel.PoolView{Pool: datamodel.Pool{APIAccessMode: "DEFAULT"}}
+
+		originalGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+
+		mockStorage.EXPECT().DescribePool(mock.Anything, "pool-uuid", int64(1)).Return(poolViewNonONTAP, nil)
+
+		result, err := restoreOntapModeBackup(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "not an expert mode (ONTAP) pool")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CreateJobError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		params := &common.RestoreOntapModeBackupParams{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+			VolumeUUID:  "volume-uuid",
+			BackupPath:  "projects/123/locations/us-west1/backupVaults/vault/backups/backup",
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{UUID: "pool-uuid"},
+			VendorID:      "/projects/123/locations/us-west1/pools/test-pool",
+			APIAccessMode: common.ONTAPMode,
+		}
+
+		poolViewONTAP := &datamodel.PoolView{Pool: datamodel.Pool{APIAccessMode: common.ONTAPMode}}
+
+		expertModeVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:        datamodel.BaseModel{UUID: "volume-uuid"},
+			ExternalUUID:     "ext-uuid",
+			State:            models.LifeCycleStateREADY,
+			Pool:             pool,
+			VolumeAttributes: &datamodel.ExpertModeVolumeAttributes{Protocols: []string{"NFS"}},
+		}
+
+		originalGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+
+		mockStorage.EXPECT().DescribePool(mock.Anything, "pool-uuid", int64(1)).Return(poolViewONTAP, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(nil, errors.New("failed to create job"))
+
+		result, err := restoreOntapModeBackup(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		mockStorage.AssertExpectations(tt)
 	})
 }
 

@@ -25,6 +25,114 @@ const (
 	APIAccessModeONTAP             = "ONTAP"
 )
 
+// RestoreOntapModeBackup restores an expert mode volume from backup by starting RestoreForOntapModeVolumeWorkflow.
+func (o *Orchestrator) RestoreOntapModeBackup(ctx context.Context, params *commonparams.RestoreOntapModeBackupParams) (string, error) {
+	return restoreOntapModeBackup(ctx, o.storage, o.temporal, params)
+}
+
+func restoreOntapModeBackup(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.RestoreOntapModeBackupParams) (string, error) {
+	logger := util.GetLogger(ctx)
+
+	account, err := getOrCreateAccount(ctx, se, params.AccountName)
+	if err != nil {
+		return "", err
+	}
+
+	if params.PoolID == "" {
+		return "", customerrors.NewUserInputValidationErr("PoolID is required for expert mode restore")
+	}
+
+	poolView, err := se.DescribePool(ctx, params.PoolID, account.ID)
+	if err != nil {
+		return "", err
+	}
+	if poolView.APIAccessMode != commonparams.ONTAPMode {
+		return "", customerrors.NewUserInputValidationErr("Pool is not an expert mode (ONTAP) pool")
+	}
+
+	expertModeVolume, err := se.GetExpertModeVolumeByExternalUUID(ctx, params.VolumeUUID)
+	if err != nil {
+		return "", err
+	}
+
+	if expertModeVolume.State != models.LifeCycleStateREADY {
+		return "", customerrors.NewUserInputValidationErr("Volume is not available")
+	}
+
+	volumeRegion := params.Region
+	originalState := expertModeVolume.State
+	originalStyle := expertModeVolume.Style
+	stateUpdated := false
+
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeRestoreOntapModeBackup),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  expertModeVolume.UUID,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create restore from backup job in database", "error", err)
+		return "", err
+	}
+
+	defer func() {
+		if err != nil {
+			if stateUpdated {
+				if rollbackErr := se.UpdateExpertModeVolumeFields(ctx, expertModeVolume.ExternalUUID, map[string]interface{}{
+					"state": originalState,
+					"style": originalStyle,
+				}); rollbackErr != nil {
+					logger.Error("Failed to rollback expert mode volume state", "error", rollbackErr, "originalState", originalState)
+				}
+			}
+			if createdJob != nil {
+				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+					logger.Error("Failed to update job state to ERROR", "error", jobErr, "jobUUID", createdJob.UUID)
+				}
+			}
+		}
+	}()
+
+	err = se.UpdateExpertModeVolumeFields(ctx, expertModeVolume.ExternalUUID, map[string]interface{}{
+		"state": models.LifeCycleStateRestoring,
+		"style": models.LifeCycleStateRestoringDetails,
+	})
+	if err != nil {
+		logger.Error("Failed to update expert mode volume state to restoring", "error", err)
+		return "", err
+	}
+	stateUpdated = true
+
+	restoreParams := &commonparams.RestoreForOntapModeParams{
+		AccountName:      params.AccountName,
+		BackupPath:       params.BackupPath,
+		Region:           volumeRegion,
+		ExpertModeVolume: expertModeVolume,
+	}
+
+	// Start Temporal workflow for restore
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    *workflowengine.GetCreateBackupWorkflowTimeout(),
+		},
+		expertModeWorkflows.RestoreForOntapModeVolumeWorkflow,
+		restoreParams,
+	)
+	if err != nil {
+		logger.Error("Failed to start restore workflow", "error", err)
+		return "", err
+	}
+	return createdJob.UUID, nil
+}
+
 // CreateExpertModeVolume creates a new expert mode volume
 func (o *Orchestrator) CreateExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeParams) error {
 	return _createExpertModeVolume(ctx, o.storage, o.temporal, params)

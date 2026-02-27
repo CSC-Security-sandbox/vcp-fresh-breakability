@@ -564,6 +564,85 @@ func TestUpdateExpertModeVolumeInDB(t *testing.T) {
 	})
 }
 
+func TestUpdateExpertModeVolumeStateInDB(t *testing.T) {
+	t.Run("WhenVolumeStateIsUpdatedSuccessfully", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		mockStorage := database.NewMockStorage(tt)
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.UpdateExpertModeVolumeStateInDB)
+
+		externalUUID := "ext-uuid-123"
+		state := models.LifeCycleStateREADY
+		stateDetails := models.LifeCycleStateAvailableDetails
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
+			ExternalUUID: externalUUID,
+			Name:         "test-vol",
+			State:        models.LifeCycleStateCreating,
+			Style:        "",
+		}
+		updatedVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
+			ExternalUUID: externalUUID,
+			Name:         "test-vol",
+			State:        state,
+			Style:        stateDetails,
+		}
+
+		mockStorage.On("GetExpertModeVolumeByExternalUUID", mock.Anything, externalUUID).Return(volume, nil)
+		mockStorage.On("UpdateExpertModeVolume", mock.Anything, mock.MatchedBy(func(v *datamodel.ExpertModeVolumes) bool {
+			return v.ExternalUUID == externalUUID && v.State == state && v.Style == stateDetails
+		})).Return(updatedVolume, nil)
+
+		_, err := env.ExecuteActivity(activity.UpdateExpertModeVolumeStateInDB, externalUUID, state, stateDetails)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetExpertModeVolumeByExternalUUIDFails", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		mockStorage := database.NewMockStorage(tt)
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.UpdateExpertModeVolumeStateInDB)
+
+		externalUUID := "ext-uuid-456"
+		getErr := errors.New("volume not found")
+		mockStorage.On("GetExpertModeVolumeByExternalUUID", mock.Anything, externalUUID).Return(nil, getErr)
+
+		_, err := env.ExecuteActivity(activity.UpdateExpertModeVolumeStateInDB, externalUUID, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "volume not found")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateExpertModeVolumeFails", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		mockStorage := database.NewMockStorage(tt)
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.UpdateExpertModeVolumeStateInDB)
+
+		externalUUID := "ext-uuid-789"
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
+			ExternalUUID: externalUUID,
+			Name:         "test-vol",
+			State:        models.LifeCycleStateCreating,
+		}
+		updateErr := errors.New("database update failed")
+		mockStorage.On("GetExpertModeVolumeByExternalUUID", mock.Anything, externalUUID).Return(volume, nil)
+		mockStorage.On("UpdateExpertModeVolume", mock.Anything, mock.Anything).Return(nil, updateErr)
+
+		_, err := env.ExecuteActivity(activity.UpdateExpertModeVolumeStateInDB, externalUUID, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "database update failed")
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
 func TestCheckVolumeDeletedInOntap(t *testing.T) {
 	t.Run("WhenVolumeIsNotFound_IsNotFoundErr", func(tt *testing.T) {
 		// Arrange
@@ -1821,10 +1900,10 @@ func TestExpertModeVolumeActivity_FetchOntapVolumeByUUID(t *testing.T) {
 		env.RegisterActivity(activity.FetchOntapVolumeByUUID)
 
 		volume := &datamodel.ExpertModeVolumes{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-123"},
-			Name:        "test-volume",
+			BaseModel:    datamodel.BaseModel{UUID: "volume-uuid-123"},
+			Name:         "test-volume",
 			ExternalUUID: "external-uuid-456",
-			Svm:         &datamodel.Svm{Name: "test-svm"},
+			Svm:          &datamodel.Svm{Name: "test-svm"},
 		}
 
 		node := &models.Node{Name: "test-node"}
@@ -1862,10 +1941,10 @@ func TestExpertModeVolumeActivity_FetchOntapVolumeByUUID(t *testing.T) {
 		env.RegisterActivity(activity.FetchOntapVolumeByUUID)
 
 		volume := &datamodel.ExpertModeVolumes{
-			BaseModel:   datamodel.BaseModel{UUID: "volume-uuid-123"},
-			Name:        "test-volume",
+			BaseModel:    datamodel.BaseModel{UUID: "volume-uuid-123"},
+			Name:         "test-volume",
 			ExternalUUID: "non-existent-uuid",
-			Svm:         &datamodel.Svm{Name: "test-svm"},
+			Svm:          &datamodel.Svm{Name: "test-svm"},
 		}
 
 		node := &models.Node{Name: "test-node"}

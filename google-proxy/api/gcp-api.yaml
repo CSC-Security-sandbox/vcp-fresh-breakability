@@ -531,6 +531,58 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/restoreBackup:
+    post:
+      tags:
+        - pools
+      summary: Restore files from backup of ontap mode volume
+      description: Restore volume from backup (full-volume or file-level restore) of ontap mode volume.
+      operationId: v1beta_restoreOntapModeBackup
+      parameters:
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The parameters required for restoring from backup
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RestoreBackupRequest_v1beta'
+        required: true
+      responses:
+        '202':
+          description: Restoring from backup
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                done: false
+                name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
   /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumePerformanceGroups:
     get:
       tags:
@@ -12359,6 +12411,39 @@ components:
           nullable: true
           example: 463811e7-9760-acf5-9bdb-020073ca3333
       description: Request object for restoring single file from backups
+    RestoreBackupRequest_v1beta:
+      title: RestoreBackupRequestOntapMode
+      type: object
+      required:
+        - volumeId
+        - backupUri
+      properties:
+        volumeId:
+          title: volumeId
+          type: string
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          description: Ontap volume UUID to restore into
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+        backupUri:
+          title: backupUri
+          type: string
+          description: Complete path of the backup
+          example: /backupVault/my-vault/backups/my-backup-20250110
+        sourceFileList:
+          type: array
+          description: Paths of files to restore (file-level restore)
+          items:
+            type: string
+          example:
+            - /backup.txt
+            - /restore.txt
+        restoreFilePath:
+          type: string
+          description: Destination path for file-level restore
+          example: /restore_dir
+      description: Request object for restoring volume from backup (full-volume or file-level)
     Backup_v1beta:
       type: object
       title: Backup
