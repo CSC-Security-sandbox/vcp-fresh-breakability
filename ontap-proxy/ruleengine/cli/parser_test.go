@@ -397,6 +397,47 @@ func TestCLICommand_MatchesPattern(t *testing.T) {
 			pattern: "system *",
 			want:    true,
 		},
+		// Prefix matching: positional args after the command should still match
+		{
+			name: "prefix match with positional arg",
+			cmd: &CLICommand{
+				Command:     "volume show",
+				Subcommand:  "vol3",
+				FullCommand: "volume show vol3",
+			},
+			pattern: "volume show",
+			want:    true,
+		},
+		{
+			name: "prefix match with positional arg case insensitive",
+			cmd: &CLICommand{
+				Command:     "volume show",
+				Subcommand:  "Vol3",
+				FullCommand: "volume show Vol3",
+			},
+			pattern: "Volume Show",
+			want:    true,
+		},
+		{
+			name: "prefix match must not match show-footprint",
+			cmd: &CLICommand{
+				Command:     "volume",
+				Subcommand:  "show-footprint",
+				FullCommand: "volume show-footprint",
+			},
+			pattern: "volume show",
+			want:    false,
+		},
+		{
+			name: "prefix match must not match different command",
+			cmd: &CLICommand{
+				Command:     "volume shower",
+				Subcommand:  "vol3",
+				FullCommand: "volume shower vol3",
+			},
+			pattern: "volume show",
+			want:    false,
+		},
 	}
 
 	for _, tt := range tests {

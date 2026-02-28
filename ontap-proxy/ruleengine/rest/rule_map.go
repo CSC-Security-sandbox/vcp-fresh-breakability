@@ -219,20 +219,26 @@ func GetProxyRules() map[string]Rule {
 		"/api/private/cli/volume": {
 			GET: Allow{
 				Name: "Allow private CLI volume listing",
-				ModifyResponse: RemoveFields{
-					Fields: []string{
-						"$.percent_used",
-						"$.physical_used",
-						"$.physical_used_percent",
-						"$.sis_space_saved",
-						"$.sis_space_saved_percent",
-						"$.dedupe_space_saved",
-						"$.dedupe_space_saved_percent",
-						"$.dedupe_space_shared",
-						"$.compression_space_saved",
-						"$.compression_space_saved_percent",
-					},
+			ModifyResponse: RemoveFields{
+				Fields: []string{
+					"$.percent_used",
+					"$.physical_used",
+					"$.physical_used_percent",
+					"$.total_metadata",
+					"$.total_metadata_footprint",
+					"$.space_guarantee",
+					"$.space_guarantee_enabled",
+					"$.space_slo",
+					"$.is_space_slo_enabled",
+					"$.sis_space_saved",
+					"$.sis_space_saved_percent",
+					"$.dedupe_space_saved",
+					"$.dedupe_space_saved_percent",
+					"$.dedupe_space_shared",
+					"$.compression_space_saved",
+					"$.compression_space_saved_percent",
 				},
+			},
 			},
 			POST: When{
 				Name: "Private CLI volume creation validation",

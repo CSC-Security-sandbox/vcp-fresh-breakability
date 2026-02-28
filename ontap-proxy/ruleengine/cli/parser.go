@@ -221,6 +221,7 @@ func (c *CLICommand) MatchesPattern(pattern string) bool {
 			strings.HasPrefix(strings.ToLower(c.FullCommand), strings.ToLower(prefix+" "))
 	}
 
-	// Exact match
-	return strings.EqualFold(c.FullCommand, pattern)
+	// Exact match or prefix match (handles positional arguments like "volume show vol3")
+	return strings.EqualFold(c.FullCommand, pattern) ||
+		strings.HasPrefix(strings.ToLower(c.FullCommand), strings.ToLower(pattern+" "))
 }
