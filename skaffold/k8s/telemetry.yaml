@@ -142,3 +142,9 @@ spec:
               value: "0"
             - name: ENVIRONMENT
               value: "dev"
+            - name: ENABLE_BACKUP_BILLING_METRICS
+              value: "false"
+            - name: ENABLE_BACKUP_HISTORY_FORMATTER
+              value: "false"
+
+

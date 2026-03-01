@@ -1,5 +1,7 @@
 package metadata
 
+import "time"
+
 type ResourceMetadata struct {
 	ResourceUUID        *string
 	ResourceName        *string
@@ -14,6 +16,7 @@ type ResourceMetadata struct {
 	Throughput          *float64
 	ResourceID          *int64
 	ServiceLevel        *string
+	DeletedAt           *time.Time
 }
 
 func (m *ResourceMetadata) SetResourceUUID(uuid string) {
@@ -58,4 +61,8 @@ func (m *ResourceMetadata) SetResourceID(resourceID int64) {
 
 func (m *ResourceMetadata) SetServiceLevel(serviceLevel string) {
 	m.ServiceLevel = &serviceLevel
+}
+
+func (m *ResourceMetadata) SetDeletedAt(deletedAt time.Time) {
+	m.DeletedAt = &deletedAt
 }

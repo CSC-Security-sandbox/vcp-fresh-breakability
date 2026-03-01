@@ -125,6 +125,24 @@ func TestEnableBackupVaultMetricsWithEnvironmentVariable(t *testing.T) {
 	}
 }
 
+func TestEnableBackupHistoryFormatterDefaultValue(t *testing.T) {
+	config := LoadConfig()
+
+	if config.EnableBackupHistoryFormatter {
+		t.Fatalf("Expected EnableBackupHistoryFormatter to default to false, got %v", config.EnableBackupHistoryFormatter)
+	}
+}
+
+func TestEnableBackupHistoryFormatterWithEnvironmentVariable(t *testing.T) {
+	t.Setenv("ENABLE_BACKUP_HISTORY_FORMATTER", "true")
+
+	config := LoadConfig()
+
+	if !config.EnableBackupHistoryFormatter {
+		t.Fatalf("Expected EnableBackupHistoryFormatter to be true, got %v", config.EnableBackupHistoryFormatter)
+	}
+}
+
 func TestLoadMetricsConfigFromBytesReturnsValidConfig(t *testing.T) {
 	config := LoadMetricsConfigFromBytes()
 

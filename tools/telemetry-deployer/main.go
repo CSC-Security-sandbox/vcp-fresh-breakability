@@ -543,7 +543,8 @@ func getDefaultEnvVars() map[string]string {
 		"RETRY_INTERVAL_SECONDS":                           getEnvOrDefault("RETRY_INTERVAL_SECONDS", "300"),
 		"NUM_WORKERS_BILLING_RETRY":                        getEnvOrDefault("NUM_WORKERS_BILLING_RETRY", "5"),
 		// Always include the flag so callers can reliably read it even if --env-vars omits it.
-		"CLOUD_SQL_IAM_AUTH_ENABLED": getEnvOrDefault("CLOUD_SQL_IAM_AUTH_ENABLED", "false"),
+		"CLOUD_SQL_IAM_AUTH_ENABLED":      getEnvOrDefault("CLOUD_SQL_IAM_AUTH_ENABLED", "false"),
+		"ENABLE_BACKUP_HISTORY_FORMATTER": getEnvOrDefault("ENABLE_BACKUP_HISTORY_FORMATTER", "false"),
 	}
 }
 

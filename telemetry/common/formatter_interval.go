@@ -220,6 +220,6 @@ func (f SampledMetricsFormatter) GetBackfillLimit() time.Duration {
 }
 
 // SetBackfillLimit sets the backfill limit of the formatter.
-func (f SampledMetricsFormatter) SetBackfillLimit(limit time.Duration) {
+func (f *SampledMetricsFormatter) SetBackfillLimit(limit time.Duration) {
 	f.BackfillLimit = limit
 }

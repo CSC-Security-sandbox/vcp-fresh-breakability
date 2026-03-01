@@ -25,6 +25,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"gorm.io/gorm"
 )
 
 var (
@@ -124,6 +125,7 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 
 	// Populate BackfillLimit for all DefaultAggregationJobDefinitions based on config
 	p.populateBackfillLimit(logger)
+	p.applyDataSourceAndFormatterOverrides(logger)
 
 	// Pre-fetch all counter values for optimization
 	counterCache, cacheErr := p.preloadCounterValues(ctx, aggregationStartTime, aggregationEndTime, logger)
@@ -148,9 +150,14 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 			// 1. All records from current aggregation window
 			// 2. Only the latest record from previous period (closest to aggregation start)
 			// 3. Only the earliest record from next period (closest to aggregation end)
-			metrics, err = p.fetchMetricsForCounterAndIntegralAggregation(ctx, aggregationStartTime, aggregationEndTime, key.ResourceType.String(), key.MeasuredType.String(), jobDef.TimeSeriesFormatter.GetBackfillLimit())
+			if p.config.EnableBackupHistoryFormatter && key.ResourceType == metadata.Backup && key.MeasuredType == metadata.BackupLogicalSize {
+				metrics, err = p.fetchBackupHistoryMetrics(ctx, aggregationStartTime, aggregationEndTime, jobDef.TimeSeriesFormatter.GetBackfillLimit(), resourceCollection)
+			} else {
+				metrics, err = p.fetchMetricsForCounterAndIntegralAggregation(ctx, aggregationStartTime, aggregationEndTime, key.ResourceType.String(), key.MeasuredType.String(), jobDef.TimeSeriesFormatter.GetBackfillLimit())
+			}
+
 			if err != nil {
-				logger.Error("Failed to list hydrated metrics", "error", err.Error())
+				logger.Error("Failed to list metrics from source", "error", err.Error())
 				continue
 			}
 		}
@@ -235,6 +242,22 @@ func (p *BillingProvider) populateBackfillLimit(logger log.Logger) {
 			jobDef.TimeSeriesFormatter.SetBackfillLimit(time.Duration(p.config.CounterBackfillLimitMinutes) * time.Minute)
 			logger.Debugf("Set BackfillLimit to %v for CounterAggregation: %s/%s",
 				jobDef.TimeSeriesFormatter.GetBackfillLimit(), key.ResourceType, key.MeasuredType)
+		}
+	}
+}
+
+// applyDataSourceOverrides switches job data sources based on runtime config.
+func (p *BillingProvider) applyDataSourceAndFormatterOverrides(logger log.Logger) {
+	for key, jobDef := range common.DefaultAggregationJobDefinitions {
+		if key.ResourceType == metadata.Backup && key.MeasuredType == metadata.BackupLogicalSize && p.config.EnableBackupHistoryFormatter {
+			backfillLimit := jobDef.TimeSeriesFormatter.GetBackfillLimit()
+			jobDef.TimeSeriesFormatter = &common.HistoricalMetricsFormatter{
+				BackfillLimit: backfillLimit,
+			}
+			if logger != nil {
+				logger.Debugf("Enabled backup history formatter for %s/%s", key.ResourceType, key.MeasuredType)
+			}
+			common.DefaultAggregationJobDefinitions[key] = jobDef
 		}
 	}
 }
@@ -588,6 +611,74 @@ func (p *BillingProvider) fetchBackupData(ctx context.Context, aggregationStartT
 	return nil
 }
 
+// fetchBackupHistoryMetrics builds hydrated metrics from backup chain history entries.
+func (p *BillingProvider) fetchBackupHistoryMetrics(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time, backfillLimit time.Duration, resourceCollection *ResourceCollection) ([]datamodel2.HydratedMetrics, error) {
+	startWindow := aggregationStartTime.Add(-backfillLimit)
+	endWindow := aggregationEndTime.Add(backfillLimit)
+
+	var histories []*datamodel.BackupChainHistory
+	offset := 0
+	limit := p.config.PoolVolumeLabelPageSize
+	conditions := [][]interface{}{
+		{"resource_uuid IS NOT NULL"},
+		{"created_at <= ?", endWindow},
+		{"(deleted_at IS NULL OR deleted_at >= ?)", startWindow},
+	}
+
+	for {
+		pagination := &dbutils.Pagination{
+			Offset: offset,
+			Limit:  limit,
+		}
+		page, err := p.vcpDataStore.ListBackupChainHistoriesWithPagination(ctx, conditions, pagination)
+		if err != nil {
+			return nil, err
+		}
+		if len(page) == 0 {
+			break
+		}
+		histories = append(histories, page...)
+		offset += len(page)
+		if len(page) < limit {
+			break
+		}
+	}
+
+	if len(histories) == 0 {
+		return []datamodel2.HydratedMetrics{}, nil
+	}
+
+	var metrics []datamodel2.HydratedMetrics
+	for _, history := range histories {
+		if history.ResourceUUID == "" {
+			continue
+		}
+
+		deletedAt := deletedAtPtr(history.DeletedAt)
+		metrics = append(metrics, datamodel2.HydratedMetrics{
+			MetricTimestamp: history.CreatedAt,
+			MeasuredType:    metadata.BackupLogicalSize,
+			ConsumerID:      history.ConsumerID,
+			ResourceType:    metadata.Backup,
+			ResourceName:    history.ResourceUUID,
+			Location:        p.config.RegionName,
+			Quantity:        float64(history.Size),
+			DeploymentName:  history.DeploymentName,
+			DeletedAt:       deletedAt,
+		})
+	}
+
+	return metrics, nil
+}
+
+func deletedAtPtr(deletedAt *gorm.DeletedAt) *time.Time {
+	if deletedAt == nil || !deletedAt.Valid {
+		return nil
+	}
+	t := deletedAt.Time
+	return &t
+}
+
 // fetchVolumeReplicationData fetches labels from volume replication table using pagination
 func (p *BillingProvider) fetchVolumeReplicationData(ctx context.Context, aggregationStartTime time.Time, resourceCollection *ResourceCollection) error {
 	logger := util.GetLogger(ctx)
@@ -926,6 +1017,7 @@ func (p *BillingProvider) groupMetricsByResource(metrics []datamodel2.HydratedMe
 					DeploymentName: &metric.DeploymentName,
 					AccountName:    &metric.ConsumerID,
 					RegionName:     &metric.Location,
+					DeletedAt:      metric.DeletedAt,
 				},
 			}
 			groups[identifier] = append(groups[identifier], hydratedMetric)

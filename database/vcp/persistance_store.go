@@ -1354,6 +1354,10 @@ func (s *PersistenceStore) GetBackupMetadata(ctx context.Context, conditions [][
 	return s.dataStore.GetBackupMetadata(ctx, conditions, pagination)
 }
 
+func (s *PersistenceStore) ListBackupChainHistoriesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.BackupChainHistory, error) {
+	return s.dataStore.ListBackupChainHistoriesWithPagination(ctx, conditions, pagination)
+}
+
 func (s *PersistenceStore) ListVolumesWithAccounts(ctx context.Context) ([]*datamodel.Volume, error) {
 	return s.dataStore.ListVolumesWithAccounts(ctx)
 }

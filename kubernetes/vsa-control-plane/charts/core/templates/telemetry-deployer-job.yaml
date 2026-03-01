@@ -241,7 +241,9 @@ spec:
             - name: RETRY_INTERVAL_SECONDS
               value: {{ .Values.telemetryDeployer.retryIntervalSeconds | default "300" | quote }}
             - name: NUM_WORKERS_BILLING_RETRY
-              value: {{ .Values.telemetryDeployer.numWorkersBillingRetry | default "5" | quote }}  
+              value: {{ .Values.telemetryDeployer.numWorkersBillingRetry | default "5" | quote }}
+            - name: ENABLE_BACKUP_HISTORY_FORMATTER
+              value: {{ .Values.telemetryDeployer.enableBackupHistoryFormatter | default "false" | quote }}
           resources:
             limits:
               cpu: {{ .Values.telemetryDeployer.resources.limits.cpu | default .Values.resources.limits.cpu }}

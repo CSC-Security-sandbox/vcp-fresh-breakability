@@ -1052,3 +1052,17 @@ func (d *DataStoreRepository) DeleteBackupChainHistoryOlderThan(ctx context.Cont
 
 	return totalDeleted, nil
 }
+
+// ListBackupChainHistoriesWithPagination retrieves backup chain history entries with pagination and conditions.
+func (d *DataStoreRepository) ListBackupChainHistoriesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.BackupChainHistory, error) {
+	// Use Unscoped to include soft-deleted history rows when deleted_at filters are provided.
+	db := d.db.ApplyFilter(conditions).Unscoped().GORM().WithContext(ctx).Order("created_at ASC")
+	var results []*datamodel.BackupChainHistory
+
+	err := db.Scopes(dbutils.Paginate(pagination)).Find(&results).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}

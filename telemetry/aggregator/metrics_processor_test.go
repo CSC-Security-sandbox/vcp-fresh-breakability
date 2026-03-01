@@ -19,6 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"gorm.io/gorm"
 )
 
 // Helper functions to convert between types for test compatibility
@@ -163,6 +164,135 @@ func TestGroupMetricsByResource(t *testing.T) {
 	assert.Equal(t, 1, len(result[resourceKey2]), "Expected 1 metric in second group")
 	// Third group should have 1 metric
 	assert.Equal(t, 1, len(result[resourceKey3]), "Expected 1 metric in third group")
+}
+
+func TestGroupMetricsByResource_SetsDeletedAtMetadata(t *testing.T) {
+	processor := &BillingProvider{}
+	now := time.Now()
+	deletedAt := now.Add(10 * time.Minute)
+
+	metrics := []datamodel2.HydratedMetrics{
+		{
+			ResourceName:    "resource1",
+			ConsumerID:      "customer1",
+			Location:        "location1",
+			Quantity:        100,
+			MetricTimestamp: now,
+			ResourceType:    metadata.Backup,
+			MeasuredType:    metadata.BackupLogicalSize,
+			DeploymentName:  "deployment1",
+			DeletedAt:       &deletedAt,
+		},
+	}
+
+	result := processor.groupMetricsByResource(metrics)
+
+	resourceKey := ResourceKey{
+		ResourceType:   metadata.Backup,
+		ResourceName:   "resource1",
+		DeploymentName: "deployment1",
+		ConsumerID:     "customer1",
+	}
+	require.Len(t, result, 1)
+	require.Len(t, result[resourceKey], 1)
+	require.NotNil(t, result[resourceKey][0].Metadata.DeletedAt)
+	assert.Equal(t, deletedAt, *result[resourceKey][0].Metadata.DeletedAt)
+}
+
+func TestApplyDataSourceAndFormatterOverrides_UsesHistoricalFormatter(t *testing.T) {
+	original := make(map[metadata.CombinedKeyResourceTypeMeasuredType]common.AggregationJobDefinition, len(common.DefaultAggregationJobDefinitions))
+	for key, value := range common.DefaultAggregationJobDefinitions {
+		original[key] = value
+	}
+	defer func() {
+		common.DefaultAggregationJobDefinitions = original
+	}()
+
+	key := metadata.CombinedKeyResourceTypeMeasuredType{
+		ResourceType: metadata.Backup,
+		MeasuredType: metadata.BackupLogicalSize,
+	}
+	jobDef := common.DefaultAggregationJobDefinitions[key]
+	jobDef.TimeSeriesFormatter = &common.SampledMetricsFormatter{
+		Mode:          common.Interval,
+		BackfillLimit: 5 * time.Minute,
+	}
+	common.DefaultAggregationJobDefinitions[key] = jobDef
+
+	provider := &BillingProvider{
+		config: &common.TelemetryConfig{
+			EnableBackupHistoryFormatter: true,
+		},
+	}
+
+	provider.applyDataSourceAndFormatterOverrides(nil)
+
+	updated := common.DefaultAggregationJobDefinitions[key]
+	formatter, ok := updated.TimeSeriesFormatter.(*common.HistoricalMetricsFormatter)
+	require.True(t, ok, "expected HistoricalMetricsFormatter for backup logical size")
+	assert.Equal(t, 5*time.Minute, formatter.GetBackfillLimit())
+}
+
+func TestFetchBackupHistoryMetrics_PopulatesFields(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 2, 18, 10, 0, 0, 0, time.UTC)
+	deletedAt := now.Add(30 * time.Minute)
+
+	histories := []*datamodel.BackupChainHistory{
+		{
+			BaseModel: datamodel.BaseModel{
+				CreatedAt: now,
+			},
+			ResourceUUID:   "resource-uuid-1",
+			ResourceName:   "vlm_resource_1",
+			ConsumerID:     "consumer-1",
+			DeploymentName: "deployment-1",
+			Size:           123,
+		},
+		{
+			BaseModel: datamodel.BaseModel{
+				CreatedAt: now.Add(15 * time.Minute),
+				DeletedAt: &gorm.DeletedAt{Time: deletedAt, Valid: true},
+			},
+			ResourceUUID:   "resource-uuid-2",
+			ResourceName:   "vlm_resource_2",
+			ConsumerID:     "consumer-2",
+			DeploymentName: "deployment-2",
+			Size:           456,
+		},
+	}
+
+	vcpDB := &database2.MockStorage{}
+	vcpDB.On("ListBackupChainHistoriesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(histories, nil).Once()
+
+	provider := &BillingProvider{
+		vcpDataStore: vcpDB,
+		config: &common.TelemetryConfig{
+			PoolVolumeLabelPageSize: 100,
+			RegionName:              "us-central1",
+		},
+	}
+
+	metrics, err := provider.fetchBackupHistoryMetrics(ctx, now.Add(-time.Hour), now.Add(time.Hour), 0, &ResourceCollection{})
+	require.NoError(t, err)
+	require.Len(t, metrics, 2)
+
+	byResource := map[string]datamodel2.HydratedMetrics{}
+	for _, metric := range metrics {
+		byResource[metric.ResourceName] = metric
+	}
+
+	first := byResource["resource-uuid-1"]
+	assert.Equal(t, now, first.MetricTimestamp)
+	assert.Equal(t, metadata.Backup, first.ResourceType)
+	assert.Equal(t, metadata.BackupLogicalSize, first.MeasuredType)
+	assert.Equal(t, "consumer-1", first.ConsumerID)
+	assert.Equal(t, "deployment-1", first.DeploymentName)
+	assert.Nil(t, first.DeletedAt)
+
+	second := byResource["resource-uuid-2"]
+	require.NotNil(t, second.DeletedAt)
+	assert.Equal(t, deletedAt, *second.DeletedAt)
 }
 
 func TestCreateMetricKey(t *testing.T) {
@@ -2255,6 +2385,117 @@ func TestProcessBillingMetrics_NonCounterAggregation(t *testing.T) {
 	mockDB.AssertExpectations(t)
 	mockVCPDB.AssertExpectations(t)
 	// mockUsageSink.AssertExpectations(t) // Not called since no metrics
+}
+
+func TestProcessBillingMetrics_BackupHistoryFormatterBranch(t *testing.T) {
+	mockDB := database.NewMockStorage(t)
+	mockVCPDB := database2.NewMockStorage(t)
+	mockUsageSink := &MockUsageSink{}
+
+	config := &common.TelemetryConfig{
+		EnableBackupBillingMetrics:      true,
+		EnableBackupHistoryFormatter:    true,
+		EnableReplicationBillingMetrics: true,
+		PoolVolumeLabelPageSize:         1,
+		GoogleBillingLabelsMaxEntries:   10,
+		IntervalBackfillLimitMinutes:    60,
+	}
+
+	provider := NewBillingProvider(mockDB, mockVCPDB, config, mockUsageSink)
+	ctx := context.Background()
+	aggregationEnd := time.Date(2026, 2, 18, 11, 0, 0, 0, time.UTC)
+	aggregationStart := aggregationEnd.Add(-1 * time.Hour)
+	deletedAt := aggregationStart.Add(30 * time.Minute)
+
+	// Resource data fetches (return empty)
+	mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil)
+	mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil)
+	mockVCPDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
+
+	// Backup metadata pagination (no labels)
+	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.BackupMetadata{}, nil).Once()
+
+	backup1 := &datamodel.Backup{
+		BaseModel:   datamodel.BaseModel{UUID: "backup-uuid-1"},
+		VolumeUUID:  "volume-uuid-1",
+		Attributes:  &datamodel.BackupAttributes{AccountIdentifier: "acct-1"},
+		BackupVault: &datamodel.BackupVault{Name: "vault-1", AccountID: 1},
+	}
+	backup2 := &datamodel.Backup{
+		BaseModel:   datamodel.BaseModel{UUID: "backup-uuid-2"},
+		VolumeUUID:  "volume-uuid-2",
+		Attributes:  &datamodel.BackupAttributes{AccountIdentifier: "acct-2"},
+		BackupVault: &datamodel.BackupVault{Name: "vault-2", AccountID: 2},
+	}
+	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 0
+	})).Return([]*datamodel.Backup{backup1}, nil)
+	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 1
+	})).Return([]*datamodel.Backup{backup2}, nil)
+	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset > 1
+	})).Return([]*datamodel.Backup{}, nil)
+
+	history1 := &datamodel.BackupChainHistory{
+		BaseModel: datamodel.BaseModel{
+			CreatedAt: aggregationStart.Add(-10 * time.Minute),
+			DeletedAt: &gorm.DeletedAt{Time: deletedAt, Valid: true},
+		},
+		ResourceUUID:   "volume-uuid-1",
+		ConsumerID:     "acct-1",
+		DeploymentName: "vault-1",
+		Size:           1024,
+	}
+	history2 := &datamodel.BackupChainHistory{
+		BaseModel: datamodel.BaseModel{
+			CreatedAt: aggregationStart.Add(-20 * time.Minute),
+		},
+		ResourceUUID:   "volume-uuid-2",
+		ConsumerID:     "acct-2",
+		DeploymentName: "vault-2",
+		Size:           2048,
+	}
+	mockVCPDB.On("ListBackupChainHistoriesWithPagination", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 0
+	})).Return([]*datamodel.BackupChainHistory{history1}, nil)
+	mockVCPDB.On("ListBackupChainHistoriesWithPagination", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset == 1
+	})).Return([]*datamodel.BackupChainHistory{history2}, nil)
+	mockVCPDB.On("ListBackupChainHistoriesWithPagination", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+		return p.Offset >= 2
+	})).Return([]*datamodel.BackupChainHistory{}, nil)
+
+	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
+		[]datamodel2.AggregatedUsage{}, nil,
+	).Maybe()
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(
+		[]datamodel2.HydratedMetrics{}, nil,
+	).Maybe()
+
+	var captured []datamodel2.AggregatedUsage
+	mockDB.On("CreateAggregatedUsageBatch", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		records := args.Get(1).([]datamodel2.AggregatedUsage)
+		captured = append(captured, records...)
+	}).Return(nil).Once()
+
+	err := provider.ProcessBillingMetrics(ctx, aggregationEnd)
+	require.NoError(t, err)
+
+	var backupRecord *datamodel2.AggregatedUsage
+	for i := range captured {
+		record := &captured[i]
+		if record.ResourceUUID == "volume-uuid-1" && record.MeasuredType == metadata.BackupLogicalSize {
+			backupRecord = record
+			break
+		}
+	}
+	require.NotNil(t, backupRecord)
+	assert.Equal(t, aggregationStart, backupRecord.AggregationStart)
+	assert.Equal(t, deletedAt, backupRecord.AggregationEnd)
+
+	mockDB.AssertExpectations(t)
+	mockVCPDB.AssertExpectations(t)
 }
 
 // TestProcessBillingMetrics_FetchResourceDataError tests error handling in fetchResourceData

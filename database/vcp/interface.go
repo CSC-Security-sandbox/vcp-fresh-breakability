@@ -305,6 +305,7 @@ type (
 		DeleteBackupChainHistoryOlderThan(ctx context.Context, olderThan time.Time) (int64, error)
 		GetBackupMetrics(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error)
 		GetBackupMetadata(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.BackupMetadata, error)
+		ListBackupChainHistoriesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.BackupChainHistory, error)
 		// TODO: remove ListVolumesWithAccounts as it has been replaced by ListVolumesForTelemetryMetrics
 		ListVolumesWithAccounts(ctx context.Context) ([]*datamodel.Volume, error)
 		// ListVolumesForTelemetryMetrics retrieves volumes with only the fields required for telemetry metrics.

@@ -3868,6 +3868,22 @@ func (re *retryEngine) GetBackupMetadata(ctx context.Context, conditions [][]int
 	return var0, err
 }
 
+func (re *retryEngine) ListBackupChainHistoriesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.BackupChainHistory, error) {
+	var var0 []*datamodel.BackupChainHistory
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListBackupChainHistoriesWithPagination(ctx, conditions, pagination)
+		if err != nil {
+			re.logError("ListBackupChainHistoriesWithPagination", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) ListVolumesWithAccounts(ctx context.Context) ([]*datamodel.Volume, error) {
 	var var0 []*datamodel.Volume
 	err := retry.Do(func(attempt int) (bool, error) {

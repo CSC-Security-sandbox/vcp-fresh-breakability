@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -719,6 +720,63 @@ func TestUpdateLatestBackupLogicalSize_BackupChainHistory(t *testing.T) {
 		err = store.UpdateLatestBackupLogicalSize(context.Background(), volumeUUID, int64(1024*1024*1024))
 		assert.Error(tt, err) // Should fail - no backup found
 	})
+}
+
+func TestListBackupChainHistoriesWithPagination_IncludesDeletedRows(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	start := time.Date(2026, 2, 18, 10, 0, 0, 0, time.UTC)
+	end := start.Add(1 * time.Hour)
+	deletedAt := start.Add(10 * time.Minute)
+
+	activeHistory := &datamodel.BackupChainHistory{
+		BaseModel: datamodel.BaseModel{
+			UUID:      "history-active",
+			CreatedAt: start.Add(-10 * time.Minute),
+		},
+		ResourceUUID:   "resource-uuid",
+		ConsumerID:     "consumer-id",
+		DeploymentName: "deployment-name",
+		Size:           123,
+	}
+	deletedHistory := &datamodel.BackupChainHistory{
+		BaseModel: datamodel.BaseModel{
+			UUID:      "history-deleted",
+			CreatedAt: start.Add(-20 * time.Minute),
+			DeletedAt: &gorm.DeletedAt{Time: deletedAt, Valid: true},
+		},
+		ResourceUUID:   "resource-uuid",
+		ConsumerID:     "consumer-id",
+		DeploymentName: "deployment-name",
+		Size:           456,
+	}
+
+	err = store.db.Create(activeHistory).Error()
+	assert.NoError(t, err)
+	err = store.db.Create(deletedHistory).Error()
+	assert.NoError(t, err)
+
+	conditions := [][]interface{}{
+		{"resource_uuid IS NOT NULL"},
+		{"created_at <= ?", end},
+		{"(deleted_at IS NULL OR deleted_at >= ?)", start},
+	}
+	pagination := &dbutils.Pagination{Offset: 0, Limit: 10}
+
+	results, err := store.ListBackupChainHistoriesWithPagination(context.Background(), conditions, pagination)
+	assert.NoError(t, err)
+	require.Len(t, results, 2)
+
+	uuids := map[string]bool{results[0].UUID: true, results[1].UUID: true}
+	assert.True(t, uuids["history-active"])
+	assert.True(t, uuids["history-deleted"])
 }
 
 func TestCreateBackup_Errors_Old(t *testing.T) {

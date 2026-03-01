@@ -18,6 +18,7 @@ type HydratedMetrics struct {
 	Location        string                `gorm:"column:location;size:255;index" json:"location"`
 	Metadata        []byte                `gorm:"column:metadata;type:jsonb" json:"metadata"`
 	DeploymentName  string                `gorm:"column:deployment_name;size:255;index" json:"deployment_name"`
+	DeletedAt       *time.Time            `gorm:"-" json:"deleted_at"`
 }
 
 type AggregatedUsage struct {
