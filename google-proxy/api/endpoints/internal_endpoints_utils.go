@@ -198,6 +198,7 @@ func convertToPoolInternalV1Beta(pool *models.Pool) *gcpgenserver.PoolInternalV1
 		AllowAutoTiering:        gcpgenserver.NewOptNilBool(pool.AllowAutoTiering),
 		SatisfiesPzi:            gcpgenserver.NewOptNilBool(pool.SatisfiesPzi),
 		SatisfiesPzs:            gcpgenserver.NewOptNilBool(pool.SatisfiesPzs),
+		LargeCapacity:           gcpgenserver.NewOptBool(pool.LargeCapacity),
 	}
 	if pool.PoolAttributes != nil {
 		poolResp.SecondaryZone = gcpgenserver.NewOptString(pool.PoolAttributes.SecondaryZone)

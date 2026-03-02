@@ -545,6 +545,9 @@ func TestConvertToPoolInternalV1Beta(t *testing.T) {
 	if result.AllowAutoTiering.Value != pool.AllowAutoTiering {
 		t.Errorf("Expected AllowAutoTiering %t, got %t", pool.AllowAutoTiering, result.AllowAutoTiering.Value)
 	}
+	if result.LargeCapacity.Value != pool.LargeCapacity {
+		t.Errorf("Expected LargeCapacity %t, got %t", pool.LargeCapacity, result.LargeCapacity.Value)
+	}
 }
 
 func TestConvertToVolumeReplicationsInternalV1Beta(t *testing.T) {
