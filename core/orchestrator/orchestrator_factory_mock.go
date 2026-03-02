@@ -8780,11 +8780,13 @@ func (_m *MockOrchestratorFactory) UpdateVolumePerformanceGroup(ctx context.Cont
 			r0 = ret.Get(0).(*models.VolumePerformanceGroup)
 		}
 	}
+
 	if rf, ok := ret.Get(1).(func(context.Context, *common.UpdateVolumePerformanceGroupParams) string); ok {
 		r1 = rf(ctx, params)
 	} else {
 		r1 = ret.Get(1).(string)
 	}
+
 	if rf, ok := ret.Get(2).(func(context.Context, *common.UpdateVolumePerformanceGroupParams) error); ok {
 		r2 = rf(ctx, params)
 	} else {

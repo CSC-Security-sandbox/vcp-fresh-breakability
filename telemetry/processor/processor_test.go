@@ -2,6 +2,7 @@ package processor
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -2012,5 +2013,171 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_BackupVaultMetricsDisabled(t
 
 	vcpStore.AssertNotCalled(t, "GetCmekRotationJobStatuses", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	sink.AssertCalled(t, "DeliverMetrics", mock.Anything, mock.Anything)
+	telemetryStore.AssertCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestMetricsProcessor_ProcessPerformanceMetrics_CrossRegionRestoreBillingEnabled(t *testing.T) {
+	t.Setenv("ENABLE_CROSS_REGION_BACKUP_BILLING_METRICS", "true")
+
+	ctx := context.Background()
+	vcpStore := &database.MockStorage{}
+	telemetryStore := &metricdb.MockStorage{}
+	sink := &performance.MockSink{}
+
+	testPoolData := &database.PoolMetricsData{
+		ID:             1,
+		UUID:           "pool-uuid-crr",
+		Name:           "crr-pool",
+		SizeInBytes:    1000,
+		DeploymentName: "crr-deployment",
+		PoolAttributes: &datamodel.PoolAttributes{
+			AccountName: "crr-account",
+		},
+	}
+
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{testPoolData}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
+
+	telemetryStore.On("GetRestoreTimestamp", mock.Anything).Return(nil, nil)
+	telemetryStore.On("UpdateRestoreTimestamp", mock.Anything, mock.Anything).Return(nil)
+	vcpStore.On("GetJobsWithCondition", mock.Anything, mock.Anything).Return([]*datamodel.Job{}, nil)
+
+	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
+	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: telemetryStore, sink: sink}
+	err := mp.ProcessPerformanceMetrics(ctx)
+	assert.NoError(t, err)
+
+	waitForAsyncOperations(t, 300*time.Millisecond)
+
+	vcpStore.AssertCalled(t, "GetJobsWithCondition", mock.Anything, mock.Anything)
+	telemetryStore.AssertCalled(t, "GetRestoreTimestamp", mock.Anything)
+	telemetryStore.AssertCalled(t, "UpdateRestoreTimestamp", mock.Anything, mock.Anything)
+	sink.AssertCalled(t, "DeliverMetrics", mock.Anything, mock.Anything)
+	telemetryStore.AssertCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestMetricsProcessor_ProcessPerformanceMetrics_CrossRegionRestoreBillingError(t *testing.T) {
+	t.Setenv("ENABLE_CROSS_REGION_BACKUP_BILLING_METRICS", "true")
+
+	ctx := context.Background()
+	vcpStore := &database.MockStorage{}
+	telemetryStore := &metricdb.MockStorage{}
+	sink := &performance.MockSink{}
+
+	testPoolData := &database.PoolMetricsData{
+		ID:             1,
+		UUID:           "pool-uuid-crr-err",
+		Name:           "crr-err-pool",
+		SizeInBytes:    1000,
+		DeploymentName: "crr-err-deployment",
+		PoolAttributes: &datamodel.PoolAttributes{
+			AccountName: "crr-err-account",
+		},
+	}
+
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{testPoolData}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
+
+	telemetryStore.On("GetRestoreTimestamp", mock.Anything).Return(nil, errors.New("restore timestamp db error"))
+
+	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
+	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: telemetryStore, sink: sink}
+	err := mp.ProcessPerformanceMetrics(ctx)
+	assert.NoError(t, err)
+
+	waitForAsyncOperations(t, 300*time.Millisecond)
+
+	telemetryStore.AssertCalled(t, "GetRestoreTimestamp", mock.Anything)
+	sink.AssertCalled(t, "DeliverMetrics", mock.Anything, mock.Anything)
+	telemetryStore.AssertCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestMetricsProcessor_ProcessPerformanceMetrics_CrossRegionRestoreBillingWithResults(t *testing.T) {
+	t.Setenv("ENABLE_CROSS_REGION_BACKUP_BILLING_METRICS", "true")
+
+	ctx := context.Background()
+	vcpStore := &database.MockStorage{}
+	telemetryStore := &metricdb.MockStorage{}
+	sink := &performance.MockSink{}
+
+	testPoolData := &database.PoolMetricsData{
+		ID:             1,
+		UUID:           "pool-uuid-crr-ok",
+		Name:           "crr-ok-pool",
+		SizeInBytes:    1000,
+		DeploymentName: "crr-ok-deployment",
+		PoolAttributes: &datamodel.PoolAttributes{
+			AccountName: "crr-ok-account",
+		},
+	}
+
+	vcpStore.On("ListPoolsForMetrics", mock.Anything).Return([]*database.PoolMetricsData{testPoolData}, nil)
+	vcpStore.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
+
+	now := time.Now()
+	jobUpdated := now.Add(-5 * time.Minute)
+	testJob := &datamodel.Job{
+		BaseModel:    datamodel.BaseModel{UUID: "crr-job-1", UpdatedAt: jobUpdated},
+		Type:         "RESTORE_BACKUP",
+		State:        "DONE",
+		ResourceName: "crr-vol",
+		AccountID:    sql.NullInt64{Int64: 100, Valid: true},
+	}
+
+	telemetryStore.On("GetRestoreTimestamp", mock.Anything).Return(nil, nil)
+	vcpStore.On("GetJobsWithCondition", mock.Anything, mock.Anything).Return([]*datamodel.Job{testJob}, nil)
+
+	testVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "crr-vol-uuid"},
+		Name:      "crr-vol",
+		Account:   &datamodel.Account{Name: "crr-ok-account"},
+		Pool:      &datamodel.Pool{DeploymentName: "crr-deploy"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			RestoredBackupID: "crr-backup-1",
+			AccountName:      "crr-ok-account",
+			DeploymentName:   "crr-deploy",
+		},
+	}
+	vcpStore.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{testVolume}, nil)
+
+	backupRegion := "us-west2"
+	testBackup := &datamodel.Backup{
+		BaseModel:   datamodel.BaseModel{UUID: "crr-backup-1"},
+		SizeInBytes: 5000,
+		BackupVault: &datamodel.BackupVault{
+			BackupVaultType:  "CROSS_REGION",
+			BackupRegionName: &backupRegion,
+		},
+	}
+	vcpStore.On("GetBackupWithVaultByUUID", mock.Anything, "crr-backup-1").Return(testBackup, nil)
+
+	telemetryStore.On("UpdateRestoreTimestamp", mock.Anything, mock.Anything).Return(nil)
+
+	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
+	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.MatchedBy(func(metrics []metricsdm.HydratedMetrics) bool {
+		for _, m := range metrics {
+			if m.MeasuredType == "CBS_CROSS_REGION_VOLUME_RESTORE_TRANSFER_BYTES" {
+				return m.Quantity == float64(5000)
+			}
+		}
+		return false
+	}), mock.Anything).Return(nil)
+
+	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: telemetryStore, sink: sink}
+	err := mp.ProcessPerformanceMetrics(ctx)
+	assert.NoError(t, err)
+
+	waitForAsyncOperations(t, 500*time.Millisecond)
+
+	vcpStore.AssertCalled(t, "GetJobsWithCondition", mock.Anything, mock.Anything)
+	telemetryStore.AssertCalled(t, "GetRestoreTimestamp", mock.Anything)
+	telemetryStore.AssertCalled(t, "UpdateRestoreTimestamp", mock.Anything, mock.Anything)
 	telemetryStore.AssertCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
 }

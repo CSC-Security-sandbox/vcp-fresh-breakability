@@ -275,3 +275,34 @@ func (re *retryEngine) DeleteJobsOlderThan(ctx context.Context, olderThan time.T
 	})
 	return var0, err
 }
+
+func (re *retryEngine) GetRestoreTimestamp(ctx context.Context) (*datamodel.RestoreTimestamp, error) {
+	var var0 *datamodel.RestoreTimestamp
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetRestoreTimestamp(ctx)
+		if err != nil {
+			re.logError("GetRestoreTimestamp", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) UpdateRestoreTimestamp(ctx context.Context, lastProcessedAt time.Time) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UpdateRestoreTimestamp(ctx, lastProcessedAt)
+		if err != nil {
+			re.logError("UpdateRestoreTimestamp", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return err
+}

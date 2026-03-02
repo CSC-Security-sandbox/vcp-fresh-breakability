@@ -5763,66 +5763,6 @@ func (_c *MockDataStore_GetBackupMetadata_Call) RunAndReturn(run func(context.Co
 	return _c
 }
 
-// ListBackupChainHistoriesWithPagination provides a mock function with given fields: ctx, conditions, pagination
-func (_m *MockDataStore) ListBackupChainHistoriesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination) ([]*datamodel.BackupChainHistory, error) {
-	ret := _m.Called(ctx, conditions, pagination)
-
-	if len(ret) == 0 {
-		panic("no return value specified for ListBackupChainHistoriesWithPagination")
-	}
-
-	var r0 []*datamodel.BackupChainHistory
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.BackupChainHistory, error)); ok {
-		return rf(ctx, conditions, pagination)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) []*datamodel.BackupChainHistory); ok {
-		r0 = rf(ctx, conditions, pagination)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*datamodel.BackupChainHistory)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, [][]interface{}, *utils.Pagination) error); ok {
-		r1 = rf(ctx, conditions, pagination)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockDataStore_ListBackupChainHistoriesWithPagination_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListBackupChainHistoriesWithPagination'
-type MockDataStore_ListBackupChainHistoriesWithPagination_Call struct {
-	*mock.Call
-}
-
-// ListBackupChainHistoriesWithPagination is a helper method to define mock.On call
-//   - ctx context.Context
-//   - conditions [][]interface{}
-//   - pagination *utils.Pagination
-func (_e *MockDataStore_Expecter) ListBackupChainHistoriesWithPagination(ctx interface{}, conditions interface{}, pagination interface{}) *MockDataStore_ListBackupChainHistoriesWithPagination_Call {
-	return &MockDataStore_ListBackupChainHistoriesWithPagination_Call{Call: _e.mock.On("ListBackupChainHistoriesWithPagination", ctx, conditions, pagination)}
-}
-
-func (_c *MockDataStore_ListBackupChainHistoriesWithPagination_Call) Run(run func(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination)) *MockDataStore_ListBackupChainHistoriesWithPagination_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].([][]interface{}), args[2].(*utils.Pagination))
-	})
-	return _c
-}
-
-func (_c *MockDataStore_ListBackupChainHistoriesWithPagination_Call) Return(_a0 []*datamodel.BackupChainHistory, _a1 error) *MockDataStore_ListBackupChainHistoriesWithPagination_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockDataStore_ListBackupChainHistoriesWithPagination_Call) RunAndReturn(run func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.BackupChainHistory, error)) *MockDataStore_ListBackupChainHistoriesWithPagination_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetBackupMetadataByVolumeUUID provides a mock function with given fields: ctx, volumeUUID
 func (_m *MockDataStore) GetBackupMetadataByVolumeUUID(ctx context.Context, volumeUUID string) (*datamodel.BackupMetadata, error) {
 	ret := _m.Called(ctx, volumeUUID)
@@ -6477,6 +6417,65 @@ func (_c *MockDataStore_GetBackupVaultUUIDsFromBackupPolicyUUID_Call) Return(_a0
 }
 
 func (_c *MockDataStore_GetBackupVaultUUIDsFromBackupPolicyUUID_Call) RunAndReturn(run func(context.Context, string, int64) ([]string, error)) *MockDataStore_GetBackupVaultUUIDsFromBackupPolicyUUID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetBackupWithVaultByUUID provides a mock function with given fields: ctx, backupUUID
+func (_m *MockDataStore) GetBackupWithVaultByUUID(ctx context.Context, backupUUID string) (*datamodel.Backup, error) {
+	ret := _m.Called(ctx, backupUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupWithVaultByUUID")
+	}
+
+	var r0 *datamodel.Backup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.Backup, error)); ok {
+		return rf(ctx, backupUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.Backup); ok {
+		r0 = rf(ctx, backupUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Backup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, backupUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetBackupWithVaultByUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupWithVaultByUUID'
+type MockDataStore_GetBackupWithVaultByUUID_Call struct {
+	*mock.Call
+}
+
+// GetBackupWithVaultByUUID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupUUID string
+func (_e *MockDataStore_Expecter) GetBackupWithVaultByUUID(ctx interface{}, backupUUID interface{}) *MockDataStore_GetBackupWithVaultByUUID_Call {
+	return &MockDataStore_GetBackupWithVaultByUUID_Call{Call: _e.mock.On("GetBackupWithVaultByUUID", ctx, backupUUID)}
+}
+
+func (_c *MockDataStore_GetBackupWithVaultByUUID_Call) Run(run func(ctx context.Context, backupUUID string)) *MockDataStore_GetBackupWithVaultByUUID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetBackupWithVaultByUUID_Call) Return(_a0 *datamodel.Backup, _a1 error) *MockDataStore_GetBackupWithVaultByUUID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetBackupWithVaultByUUID_Call) RunAndReturn(run func(context.Context, string) (*datamodel.Backup, error)) *MockDataStore_GetBackupWithVaultByUUID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -9844,6 +9843,65 @@ func (_c *MockDataStore_GetServiceAccountWithKeys_Call) RunAndReturn(run func(co
 	return _c
 }
 
+// GetSfrMetadataByJobID provides a mock function with given fields: ctx, jobID
+func (_m *MockDataStore) GetSfrMetadataByJobID(ctx context.Context, jobID int64) (*datamodel.SfrMetadata, error) {
+	ret := _m.Called(ctx, jobID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSfrMetadataByJobID")
+	}
+
+	var r0 *datamodel.SfrMetadata
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (*datamodel.SfrMetadata, error)); ok {
+		return rf(ctx, jobID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) *datamodel.SfrMetadata); ok {
+		r0 = rf(ctx, jobID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.SfrMetadata)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, jobID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetSfrMetadataByJobID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSfrMetadataByJobID'
+type MockDataStore_GetSfrMetadataByJobID_Call struct {
+	*mock.Call
+}
+
+// GetSfrMetadataByJobID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - jobID int64
+func (_e *MockDataStore_Expecter) GetSfrMetadataByJobID(ctx interface{}, jobID interface{}) *MockDataStore_GetSfrMetadataByJobID_Call {
+	return &MockDataStore_GetSfrMetadataByJobID_Call{Call: _e.mock.On("GetSfrMetadataByJobID", ctx, jobID)}
+}
+
+func (_c *MockDataStore_GetSfrMetadataByJobID_Call) Run(run func(ctx context.Context, jobID int64)) *MockDataStore_GetSfrMetadataByJobID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetSfrMetadataByJobID_Call) Return(_a0 *datamodel.SfrMetadata, _a1 error) *MockDataStore_GetSfrMetadataByJobID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetSfrMetadataByJobID_Call) RunAndReturn(run func(context.Context, int64) (*datamodel.SfrMetadata, error)) *MockDataStore_GetSfrMetadataByJobID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetSfrMetricsByTimeRange provides a mock function with given fields: ctx, startTime, endTime
 func (_m *MockDataStore) GetSfrMetricsByTimeRange(ctx context.Context, startTime time.Time, endTime time.Time) (map[string]datamodel.SfrMetricsAggregate, error) {
 	ret := _m.Called(ctx, startTime, endTime)
@@ -12764,6 +12822,66 @@ func (_c *MockDataStore_ListAllVolumes_Call) Return(_a0 []*datamodel.Volume, _a1
 }
 
 func (_c *MockDataStore_ListAllVolumes_Call) RunAndReturn(run func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.Volume, error)) *MockDataStore_ListAllVolumes_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListBackupChainHistoriesWithPagination provides a mock function with given fields: ctx, conditions, pagination
+func (_m *MockDataStore) ListBackupChainHistoriesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination) ([]*datamodel.BackupChainHistory, error) {
+	ret := _m.Called(ctx, conditions, pagination)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListBackupChainHistoriesWithPagination")
+	}
+
+	var r0 []*datamodel.BackupChainHistory
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.BackupChainHistory, error)); ok {
+		return rf(ctx, conditions, pagination)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) []*datamodel.BackupChainHistory); ok {
+		r0 = rf(ctx, conditions, pagination)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.BackupChainHistory)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, [][]interface{}, *utils.Pagination) error); ok {
+		r1 = rf(ctx, conditions, pagination)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ListBackupChainHistoriesWithPagination_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListBackupChainHistoriesWithPagination'
+type MockDataStore_ListBackupChainHistoriesWithPagination_Call struct {
+	*mock.Call
+}
+
+// ListBackupChainHistoriesWithPagination is a helper method to define mock.On call
+//   - ctx context.Context
+//   - conditions [][]interface{}
+//   - pagination *utils.Pagination
+func (_e *MockDataStore_Expecter) ListBackupChainHistoriesWithPagination(ctx interface{}, conditions interface{}, pagination interface{}) *MockDataStore_ListBackupChainHistoriesWithPagination_Call {
+	return &MockDataStore_ListBackupChainHistoriesWithPagination_Call{Call: _e.mock.On("ListBackupChainHistoriesWithPagination", ctx, conditions, pagination)}
+}
+
+func (_c *MockDataStore_ListBackupChainHistoriesWithPagination_Call) Run(run func(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination)) *MockDataStore_ListBackupChainHistoriesWithPagination_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([][]interface{}), args[2].(*utils.Pagination))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ListBackupChainHistoriesWithPagination_Call) Return(_a0 []*datamodel.BackupChainHistory, _a1 error) *MockDataStore_ListBackupChainHistoriesWithPagination_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ListBackupChainHistoriesWithPagination_Call) RunAndReturn(run func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.BackupChainHistory, error)) *MockDataStore_ListBackupChainHistoriesWithPagination_Call {
 	_c.Call.Return(run)
 	return _c
 }

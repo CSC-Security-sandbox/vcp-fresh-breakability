@@ -1012,6 +1012,25 @@ func (d *DataStoreRepository) GetSfrMetricsByTimeRange(ctx context.Context, star
 	return sfrMetricsMap, nil
 }
 
+func (d *DataStoreRepository) GetSfrMetadataByJobID(ctx context.Context, jobID int64) (*datamodel.SfrMetadata, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var sfrMetadata datamodel.SfrMetadata
+	err := db.Where("job_id = ?", jobID).First(&sfrMetadata).Error
+	if err != nil {
+		return nil, err
+	}
+	return &sfrMetadata, nil
+}
+
+func (d *DataStoreRepository) GetBackupWithVaultByUUID(ctx context.Context, backupUUID string) (*datamodel.Backup, error) {
+	var backup datamodel.Backup
+	err := d.db.GORM().WithContext(ctx).Unscoped().Preload("BackupVault").Where("uuid = ?", backupUUID).First(&backup).Error
+	if err != nil {
+		return nil, err
+	}
+	return &backup, nil
+}
+
 // UpdateBackupChainHistory updates the backup chain history with a new size for the active backup
 // It marks the current active entry as deleted and creates a new entry with the updated size
 func (d *DataStoreRepository) UpdateBackupChainHistory(ctx context.Context, volumeUUID string, newSize int64) error {

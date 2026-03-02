@@ -217,6 +217,34 @@ func (r *DataStoreRepository) DeleteJobsOlderThan(ctx context.Context, olderThan
 	return result.RowsAffected, result.Error
 }
 
+func (r *DataStoreRepository) GetRestoreTimestamp(ctx context.Context) (*datamodel.RestoreTimestamp, error) {
+	var restoreTimestamp datamodel.RestoreTimestamp
+	result := r.db.GORM().WithContext(ctx).First(&restoreTimestamp)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, result.Error
+	}
+	return &restoreTimestamp, nil
+}
+
+// UpdateRestoreTimestamp updates the restore timestamp. If the record does not exist, it creates a new one.
+// It is used to track the last processed timestamp.
+func (r *DataStoreRepository) UpdateRestoreTimestamp(ctx context.Context, lastProcessedAt time.Time) error {
+	var restoreTimestamp datamodel.RestoreTimestamp
+	result := r.db.GORM().WithContext(ctx).First(&restoreTimestamp)
+	if result.Error != nil && result.Error != gorm.ErrRecordNotFound {
+		return result.Error
+	}
+	if result.Error == gorm.ErrRecordNotFound {
+		restoreTimestamp = datamodel.RestoreTimestamp{LastProcessedAt: lastProcessedAt}
+		return r.db.GORM().WithContext(ctx).Create(&restoreTimestamp).Error
+	}
+	restoreTimestamp.LastProcessedAt = lastProcessedAt
+	return r.db.GORM().WithContext(ctx).Save(&restoreTimestamp).Error
+}
+
 // GetAggregatedUsageWithPagination retrieves aggregated usage with dedicated pagination support
 func (r *DataStoreRepository) GetAggregatedUsageWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]datamodel.AggregatedUsage, error) {
 	return r.getAggregatedUsageWithPagination(r.db.ApplyFilter(conditions).GORM().WithContext(ctx), pagination)
@@ -272,5 +300,9 @@ type (
 		DeleteAggregatedUsageOlderThan(ctx context.Context, olderThan time.Time) (int64, error)
 		AggregateUsageForBizOps(ctx context.Context, bizopsAggrParams *datamodel.BizOpsAggregateParams) error
 		DeleteJobsOlderThan(ctx context.Context, olderThan time.Time) (int64, error)
+
+		// RestoreTimestamp cursor for cross-region restore billing
+		GetRestoreTimestamp(ctx context.Context) (*datamodel.RestoreTimestamp, error)
+		UpdateRestoreTimestamp(ctx context.Context, lastProcessedAt time.Time) error
 	}
 )

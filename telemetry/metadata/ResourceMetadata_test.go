@@ -107,3 +107,19 @@ func Test_SetsServiceLevelCorrectly(t *testing.T) {
 	metadata.SetServiceLevel(serviceLevel)
 	assert.Equal(t, &serviceLevel, metadata.ServiceLevel)
 }
+
+func Test_SetsBackupRegionNameCorrectly(t *testing.T) {
+	metadata := ResourceMetadata{}
+	region := "us-west2"
+	metadata.SetBackupRegionName(region)
+	assert.NotNil(t, metadata.BackupRegionName)
+	assert.Equal(t, region, *metadata.BackupRegionName)
+}
+
+func Test_SetsSourceRegionNameCorrectly(t *testing.T) {
+	metadata := ResourceMetadata{}
+	region := "us-east4"
+	metadata.SetSourceRegionName(region)
+	assert.NotNil(t, metadata.SourceRegionName)
+	assert.Equal(t, region, *metadata.SourceRegionName)
+}

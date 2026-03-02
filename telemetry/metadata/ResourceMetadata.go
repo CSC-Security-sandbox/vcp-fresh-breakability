@@ -17,6 +17,8 @@ type ResourceMetadata struct {
 	ResourceID          *int64
 	ServiceLevel        *string
 	DeletedAt           *time.Time
+	BackupRegionName    *string
+	SourceRegionName    *string
 }
 
 func (m *ResourceMetadata) SetResourceUUID(uuid string) {
@@ -65,4 +67,12 @@ func (m *ResourceMetadata) SetServiceLevel(serviceLevel string) {
 
 func (m *ResourceMetadata) SetDeletedAt(deletedAt time.Time) {
 	m.DeletedAt = &deletedAt
+}
+
+func (m *ResourceMetadata) SetBackupRegionName(region string) {
+	m.BackupRegionName = &region
+}
+
+func (m *ResourceMetadata) SetSourceRegionName(region string) {
+	m.SourceRegionName = &region
 }

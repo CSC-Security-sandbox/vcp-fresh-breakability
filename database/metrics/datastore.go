@@ -14,6 +14,7 @@ func getMetricModels() []interface{} {
 		&datamodel.HydratedMetrics{},
 		&datamodel.AggregatedUsage{},
 		&datamodel.Job{},
+		&datamodel.RestoreTimestamp{},
 	}
 }
 

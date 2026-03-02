@@ -336,6 +336,31 @@ func TestGoogleUsageSink_completeRecords(t *testing.T) {
 
 		ml.AssertExpectations(t)
 	})
+
+	t.Run("CbsCrossRegionVolumeRestoreTransferBytes unit conversion", func(t *testing.T) {
+		ml := &log.MockLogger{}
+		sink.logger = ml
+
+		ml.On("Debugf", "Google Usage Mapping with ID is ready for billing", "Record ID: ", int64(1)).Once()
+
+		records := []datamodel.AggregatedUsage{
+			{
+				ID:               1,
+				VendorCustomerID: &customerID,
+				MeasuredType:     metadata.CbsCrossRegionVolumeRestoreTransferBytes,
+				Quantity:         1024.0, // MiB
+				ResourceType:     metadata.Volume,
+			},
+		}
+
+		googleMetrics := sink.completeRecords(records)
+
+		assert.Len(t, googleMetrics, 1)
+		// 1024 MiB -> 1073741824 Bytes (MibToBytes)
+		quantity, _ := googleMetrics[0].GetQuantity()
+		assert.Equal(t, int64(1073741824), quantity)
+		ml.AssertExpectations(t)
+	})
 }
 
 func TestGoogleUsageSink_processGcpUnifiedMetrics(t *testing.T) {
@@ -1290,6 +1315,11 @@ func TestGetMeasuredTypesWithUnits(t *testing.T) {
 			name:         "PoolCapacityTierLogicalFootprint returns MiB-hours suffix",
 			measuredType: metadata.PoolCapacityTierLogicalFootprint,
 			expected:     "POOL_CAPACITY_TIER_LOGICAL_FOOTPRINT_IN_MiB-hours",
+		},
+		{
+			name:         "CbsCrossRegionVolumeRestoreTransferBytes returns bytes suffix",
+			measuredType: metadata.CbsCrossRegionVolumeRestoreTransferBytes,
+			expected:     "CBS_CROSS_REGION_VOLUME_RESTORE_TRANSFER_BYTES_IN_Bytes",
 		},
 		{
 			name:         "default returns GiB-hours suffix",

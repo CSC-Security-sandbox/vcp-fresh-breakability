@@ -827,6 +827,64 @@ func (_c *MockDataStore_GetLatestAggregatedUsageForAllResources_Call) RunAndRetu
 	return _c
 }
 
+// GetRestoreTimestamp provides a mock function with given fields: ctx
+func (_m *MockDataStore) GetRestoreTimestamp(ctx context.Context) (*datamodel.RestoreTimestamp, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetRestoreTimestamp")
+	}
+
+	var r0 *datamodel.RestoreTimestamp
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) (*datamodel.RestoreTimestamp, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) *datamodel.RestoreTimestamp); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.RestoreTimestamp)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetRestoreTimestamp_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetRestoreTimestamp'
+type MockDataStore_GetRestoreTimestamp_Call struct {
+	*mock.Call
+}
+
+// GetRestoreTimestamp is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockDataStore_Expecter) GetRestoreTimestamp(ctx interface{}) *MockDataStore_GetRestoreTimestamp_Call {
+	return &MockDataStore_GetRestoreTimestamp_Call{Call: _e.mock.On("GetRestoreTimestamp", ctx)}
+}
+
+func (_c *MockDataStore_GetRestoreTimestamp_Call) Run(run func(ctx context.Context)) *MockDataStore_GetRestoreTimestamp_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetRestoreTimestamp_Call) Return(_a0 *datamodel.RestoreTimestamp, _a1 error) *MockDataStore_GetRestoreTimestamp_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetRestoreTimestamp_Call) RunAndReturn(run func(context.Context) (*datamodel.RestoreTimestamp, error)) *MockDataStore_GetRestoreTimestamp_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateAggregatedUsage provides a mock function with given fields: ctx, id, updates
 func (_m *MockDataStore) UpdateAggregatedUsage(ctx context.Context, id int64, updates map[string]interface{}) error {
 	ret := _m.Called(ctx, id, updates)
@@ -919,6 +977,53 @@ func (_c *MockDataStore_UpdateHydratedMetrics_Call) Return(_a0 error) *MockDataS
 }
 
 func (_c *MockDataStore_UpdateHydratedMetrics_Call) RunAndReturn(run func(context.Context, string, map[string]interface{}) error) *MockDataStore_UpdateHydratedMetrics_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateRestoreTimestamp provides a mock function with given fields: ctx, lastProcessedAt
+func (_m *MockDataStore) UpdateRestoreTimestamp(ctx context.Context, lastProcessedAt time.Time) error {
+	ret := _m.Called(ctx, lastProcessedAt)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateRestoreTimestamp")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time) error); ok {
+		r0 = rf(ctx, lastProcessedAt)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_UpdateRestoreTimestamp_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateRestoreTimestamp'
+type MockDataStore_UpdateRestoreTimestamp_Call struct {
+	*mock.Call
+}
+
+// UpdateRestoreTimestamp is a helper method to define mock.On call
+//   - ctx context.Context
+//   - lastProcessedAt time.Time
+func (_e *MockDataStore_Expecter) UpdateRestoreTimestamp(ctx interface{}, lastProcessedAt interface{}) *MockDataStore_UpdateRestoreTimestamp_Call {
+	return &MockDataStore_UpdateRestoreTimestamp_Call{Call: _e.mock.On("UpdateRestoreTimestamp", ctx, lastProcessedAt)}
+}
+
+func (_c *MockDataStore_UpdateRestoreTimestamp_Call) Run(run func(ctx context.Context, lastProcessedAt time.Time)) *MockDataStore_UpdateRestoreTimestamp_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(time.Time))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateRestoreTimestamp_Call) Return(_a0 error) *MockDataStore_UpdateRestoreTimestamp_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateRestoreTimestamp_Call) RunAndReturn(run func(context.Context, time.Time) error) *MockDataStore_UpdateRestoreTimestamp_Call {
 	_c.Call.Return(run)
 	return _c
 }

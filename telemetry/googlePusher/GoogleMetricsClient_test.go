@@ -2938,6 +2938,76 @@ func Test_reportOperation_MockMode_AllErrorCodes(t *testing.T) {
 	}
 }
 
+func Test_GetLabelKey_VolumeCBSCrossRegionRestore(t *testing.T) {
+	aggregated := &datamodel.AggregatedUsage{
+		ResourceType: metadata.Volume,
+		MeasuredType: metadata.CbsCrossRegionVolumeRestoreTransferBytes,
+	}
+	googleMetric := *common.NewGoogleMetric(aggregated)
+
+	result := GetLabelKey(googleMetric)
+	expected := []string{"/resource_id", "/backups/source_continent", "/backups/destination_continent"}
+	assert.Equal(t, expected, result)
+}
+
+func Test_GetLabelValue_VolumeCBSContinents(t *testing.T) {
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+
+	origGetSourceRegion := getSourceRegion
+	origGetDestinationRegion := getDestinationRegion
+	origGetContinent := getContinent
+	defer func() {
+		getSourceRegion = origGetSourceRegion
+		getDestinationRegion = origGetDestinationRegion
+		getContinent = origGetContinent
+	}()
+
+	getSourceRegion = func(m common.GoogleMetric) (string, error) {
+		return "us-west2", nil
+	}
+	getDestinationRegion = func(m common.GoogleMetric) (string, error) {
+		return "eu-west1", nil
+	}
+	getContinent = func(region string) string {
+		if region == "us-west2" {
+			return "northamerica"
+		}
+		return "europe"
+	}
+
+	regionName := "us-east4"
+	sourceRegion := "us-west2"
+	destRegion := "eu-west1"
+	aggregated := &datamodel.AggregatedUsage{
+		ResourceType:      metadata.Volume,
+		MeasuredType:      metadata.CbsCrossRegionVolumeRestoreTransferBytes,
+		ResourceUUID:      "restore-vol-uuid",
+		RegionName:        &regionName,
+		SourceRegion:      &sourceRegion,
+		DestinationRegion: &destRegion,
+	}
+	googleMetric := *common.NewGoogleMetric(aggregated)
+
+	t.Run("/resource_id", func(t *testing.T) {
+		val, err := GetLabelValue("/resource_id", googleMetric, logger)
+		assert.NoError(t, err)
+		assert.Equal(t, "restore-vol-uuid", val)
+	})
+
+	t.Run("/backups/source_continent", func(t *testing.T) {
+		val, err := GetLabelValue("/backups/source_continent", googleMetric, logger)
+		assert.NoError(t, err)
+		assert.Equal(t, "northamerica", val)
+	})
+
+	t.Run("/backups/destination_continent", func(t *testing.T) {
+		val, err := GetLabelValue("/backups/destination_continent", googleMetric, logger)
+		assert.NoError(t, err)
+		assert.Equal(t, "europe", val)
+	})
+}
+
 func Test_isAllowedEmptyLabel(t *testing.T) {
 	t.Run("Returns true for source_service_level", func(t *testing.T) {
 		result := isAllowedEmptyLabel("/replication/source_service_level")

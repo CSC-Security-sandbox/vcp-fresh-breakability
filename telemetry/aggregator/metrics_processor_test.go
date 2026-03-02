@@ -295,6 +295,73 @@ func TestFetchBackupHistoryMetrics_PopulatesFields(t *testing.T) {
 	assert.Equal(t, deletedAt, *second.DeletedAt)
 }
 
+func TestGroupMetricsByResource_ParsesBackupRegionName(t *testing.T) {
+	processor := &BillingProvider{}
+	now := time.Now()
+
+	extraJSON := []byte(`{"backup_region_name":"us-west2","source_region_name":"us-east4"}`)
+
+	metrics := []datamodel2.HydratedMetrics{
+		{
+			ResourceName:    "restore-vol-1",
+			ConsumerID:      "customer1",
+			Location:        "us-east4",
+			Quantity:        1024,
+			MetricTimestamp: now,
+			ResourceType:    metadata.Volume,
+			MeasuredType:    metadata.CbsCrossRegionVolumeRestoreTransferBytes,
+			DeploymentName:  "deployment1",
+			Metadata:        extraJSON,
+		},
+	}
+
+	result := processor.groupMetricsByResource(metrics)
+	assert.Equal(t, 1, len(result))
+
+	key := ResourceKey{
+		ResourceType:   metadata.Volume,
+		ResourceName:   "restore-vol-1",
+		DeploymentName: "deployment1",
+		ConsumerID:     "customer1",
+	}
+	group, ok := result[key]
+	assert.True(t, ok)
+	assert.Len(t, group, 1)
+	assert.NotNil(t, group[0].Metadata.BackupRegionName)
+	assert.Equal(t, "us-west2", *group[0].Metadata.BackupRegionName)
+	assert.Equal(t, "us-east4", *group[0].Metadata.RegionName)
+}
+
+func TestGroupMetricsByResource_EmptyMetadata(t *testing.T) {
+	processor := &BillingProvider{}
+	now := time.Now()
+
+	metrics := []datamodel2.HydratedMetrics{
+		{
+			ResourceName:    "restore-vol-2",
+			ConsumerID:      "customer1",
+			Location:        "us-east4",
+			Quantity:        128,
+			MetricTimestamp: now,
+			ResourceType:    metadata.Volume,
+			MeasuredType:    metadata.CbsCrossRegionVolumeRestoreTransferBytes,
+			DeploymentName:  "deployment1",
+			Metadata:        nil,
+		},
+	}
+
+	result := processor.groupMetricsByResource(metrics)
+	key := ResourceKey{
+		ResourceType:   metadata.Volume,
+		ResourceName:   "restore-vol-2",
+		DeploymentName: "deployment1",
+		ConsumerID:     "customer1",
+	}
+	group := result[key]
+	assert.Len(t, group, 1)
+	assert.Nil(t, group[0].Metadata.BackupRegionName)
+}
+
 func TestCreateMetricKey(t *testing.T) {
 	// This is testing an unexported function - we need to call it indirectly
 
@@ -5269,4 +5336,115 @@ func TestFetchResourceData_PopulatesIsONTAPModeFromAPIAccessMode(t *testing.T) {
 	assert.False(t, emptyModePoolData.IsONTAPMode, "IsONTAPMode should be false for pool with empty APIAccessMode")
 
 	mockVcpDB.AssertExpectations(t)
+}
+
+func TestProcessBillingMetrics_CrossRegionRestoreTransferBytes_RegionOverride(t *testing.T) {
+	mockDB := &database.MockStorage{}
+	mockSink := &MockUsageSink{}
+	config := &common.TelemetryConfig{}
+	vcpDB := &database2.MockStorage{}
+	processor := NewBillingProvider(mockDB, vcpDB, config, mockSink)
+	ctx := context.Background()
+	now := time.Now()
+	startTime := now.Add(-1 * time.Hour)
+
+	vcpDB.On("GetBlockOnlyPoolIDs", mock.Anything).Return(map[int64]bool{}, nil).Maybe()
+	vcpDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Maybe()
+	vcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{
+		{
+			UUID:      "vol-uuid-restore",
+			Name:      "restore-vol-1",
+			AccountID: 123,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "customer1",
+				DeploymentName: "deployment1",
+			},
+		},
+	}, nil).Once()
+	vcpDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Maybe()
+	vcpDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Maybe()
+
+	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
+		[]datamodel2.AggregatedUsage{}, nil,
+	).Maybe()
+
+	restoreMetricsJSON := []byte(`{"backup_region_name":"us-west2","source_region_name":"us-east4"}`)
+	restoreMetrics := []datamodel2.HydratedMetrics{
+		{
+			ResourceName:    "restore-vol-1",
+			ConsumerID:      "customer1",
+			Location:        "us-east4",
+			Quantity:        1024,
+			MetricTimestamp: startTime.Add(10 * time.Minute),
+			ResourceType:    metadata.Volume,
+			MeasuredType:    metadata.CbsCrossRegionVolumeRestoreTransferBytes,
+			DeploymentName:  "deployment1",
+			Metadata:        restoreMetricsJSON,
+		},
+		{
+			ResourceName:    "restore-vol-1",
+			ConsumerID:      "customer1",
+			Location:        "us-east4",
+			Quantity:        2048,
+			MetricTimestamp: startTime.Add(20 * time.Minute),
+			ResourceType:    metadata.Volume,
+			MeasuredType:    metadata.CbsCrossRegionVolumeRestoreTransferBytes,
+			DeploymentName:  "deployment1",
+			Metadata:        restoreMetricsJSON,
+		},
+	}
+
+	matchRestoreMetrics := func(conditions [][]interface{}) bool {
+		hasVolumeResourceType := false
+		hasRestoreMeasuredType := false
+		for _, cond := range conditions {
+			if len(cond) < 2 {
+				continue
+			}
+			condStr, ok := cond[0].(string)
+			if !ok {
+				continue
+			}
+			if condStr == "resource_type = ?" {
+				if val, ok := cond[1].(string); ok && val == "VOLUME" {
+					hasVolumeResourceType = true
+				}
+			}
+			if condStr == "measured_type = ?" {
+				if val, ok := cond[1].(string); ok && val == "CBS_CROSS_REGION_VOLUME_RESTORE_TRANSFER_BYTES" {
+					hasRestoreMeasuredType = true
+				}
+			}
+		}
+		return hasVolumeResourceType && hasRestoreMeasuredType
+	}
+
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.MatchedBy(matchRestoreMetrics), mock.Anything).Return(restoreMetrics, nil).Once()
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.MatchedBy(matchRestoreMetrics), mock.Anything).Return([]datamodel2.HydratedMetrics{}, nil).Once()
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(
+		[]datamodel2.HydratedMetrics{}, nil,
+	)
+
+	backupRegion := "us-west2"
+	sourceRegion := "us-east4"
+	mockDB.On("CreateAggregatedUsageBatch", mock.Anything, mock.MatchedBy(func(records []datamodel2.AggregatedUsage) bool {
+		for _, record := range records {
+			if record.MeasuredType == metadata.CbsCrossRegionVolumeRestoreTransferBytes {
+				if record.SourceRegion == nil || *record.SourceRegion != backupRegion {
+					return false
+				}
+				if record.DestinationRegion == nil || *record.DestinationRegion != sourceRegion {
+					return false
+				}
+				return true
+			}
+		}
+		return false
+	}), mock.Anything).Return(nil).Once()
+
+	err := processor.ProcessBillingMetrics(ctx, now)
+	assert.NoError(t, err)
+
+	mockDB.AssertExpectations(t)
+	vcpDB.AssertExpectations(t)
 }

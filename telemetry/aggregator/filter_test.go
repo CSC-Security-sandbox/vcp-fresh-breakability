@@ -101,6 +101,12 @@ func (m *MockMetricsStorage) DeleteBillingGcpUsage(ctx context.Context, id int64
 func (m *MockMetricsStorage) AggregateUsageForBizOps(ctx context.Context, bizopsAggrParams *datamodel.BizOpsAggregateParams) error {
 	return nil
 }
+func (m *MockMetricsStorage) GetRestoreTimestamp(ctx context.Context) (*datamodel.RestoreTimestamp, error) {
+	return nil, nil
+}
+func (m *MockMetricsStorage) UpdateRestoreTimestamp(ctx context.Context, lastProcessedAt time.Time) error {
+	return nil
+}
 func TestCreateFilterWithConditions(t *testing.T) {
 	config := &common.TelemetryConfig{}
 	mockDB := &MockMetricsStorage{}

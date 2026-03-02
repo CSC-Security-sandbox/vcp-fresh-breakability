@@ -426,3 +426,12 @@ func (s *PersistenceStore) AggregateUsageForBizOps(ctx context.Context, bizopsAg
 func (s *PersistenceStore) DeleteJobsOlderThan(ctx context.Context, olderThan time.Time) (int64, error) {
 	return s.dataStore.dataStore.DeleteJobsOlderThan(ctx, olderThan)
 }
+
+func (s *PersistenceStore) GetRestoreTimestamp(ctx context.Context) (*datamodel.RestoreTimestamp, error) {
+	return s.dataStore.dataStore.GetRestoreTimestamp(ctx)
+}
+
+func (s *PersistenceStore) UpdateRestoreTimestamp(ctx context.Context, lastProcessedAt time.Time) error {
+	return s.dataStore.dataStore.UpdateRestoreTimestamp(ctx, lastProcessedAt)
+}
+

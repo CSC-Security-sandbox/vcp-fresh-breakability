@@ -321,6 +321,10 @@ type (
 
 		CreateSfrMetadata(ctx context.Context, sfrMetadata *datamodel.SfrMetadata) (*datamodel.SfrMetadata, error)
 		GetSfrMetricsByTimeRange(ctx context.Context, startTime, endTime time.Time) (map[string]datamodel.SfrMetricsAggregate, error)
+		GetSfrMetadataByJobID(ctx context.Context, jobID int64) (*datamodel.SfrMetadata, error)
+
+		// GetBackupWithVaultByUUID fetches a backup by UUID including soft-deleted records, with BackupVault preloaded.
+		GetBackupWithVaultByUUID(ctx context.Context, backupUUID string) (*datamodel.Backup, error)
 
 		CreateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error)
 		CreateAdminJobSpecIfNotExists(ctx context.Context, jobSpec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error)

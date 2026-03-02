@@ -55,7 +55,8 @@ type ResourceData struct {
 	LargeCapacity         bool   // Track if pool/volume is large capacity
 	VolumeStyle           string // Track volume style (FLEXVOL/FLEXGROUP)
 	HasOnlyBlockVolumes   bool
-	IsONTAPMode           bool // True if pool has APIAccessMode == "ONTAP" (expert mode)
+	IsONTAPMode           bool    // True if pool has APIAccessMode == "ONTAP" (expert mode)
+	BackupRegionName      *string // Destination region for cross-region backups
 }
 
 type VolumeReplicationInfo struct {
@@ -158,6 +159,13 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 
 			if err != nil {
 				logger.Error("Failed to list metrics from source", "error", err.Error())
+				continue
+			}
+		} else {
+			// For Sum/First aggregation, fetch only records within the exact aggregation window
+			metrics, err = p.fetchMetricsWithinWindow(ctx, aggregationStartTime, aggregationEndTime, key.ResourceType.String(), key.MeasuredType.String())
+			if err != nil {
+				logger.Error("Failed to list hydrated metrics", "error", err.Error())
 				continue
 			}
 		}
@@ -584,11 +592,12 @@ func (p *BillingProvider) fetchBackupData(ctx context.Context, aggregationStartT
 			}
 
 			backupResourceData := ResourceData{
-				UUID:          backup.VolumeUUID, // Using volume UUID
-				AccountID:     backup.BackupVault.AccountID,
-				Labels:        labels,
-				LargeCapacity: largeCapacity,
-				VolumeStyle:   volumeStyle,
+				UUID:             backup.VolumeUUID, // Using volume UUID
+				AccountID:        backup.BackupVault.AccountID,
+				Labels:           labels,
+				LargeCapacity:    largeCapacity,
+				VolumeStyle:      volumeStyle,
+				BackupRegionName: backup.BackupVault.BackupRegionName,
 			}
 			id := ResourceKey{
 				ResourceType:   metadata.Backup,
@@ -1007,18 +1016,27 @@ func (p *BillingProvider) groupMetricsByResource(metrics []datamodel2.HydratedMe
 				ConsumerID:     metric.ConsumerID,
 				ResourceType:   metric.ResourceType,
 			}
+			resMeta := metadata.ResourceMetadata{
+				ResourceType:   metric.ResourceType,
+				ResourceName:   &metric.ResourceName,
+				DeploymentName: &metric.DeploymentName,
+				AccountName:    &metric.ConsumerID,
+				RegionName:     &metric.Location,
+				DeletedAt:      metric.DeletedAt,
+			}
+			if len(metric.Metadata) > 0 {
+				var extra map[string]string
+				if err := json.Unmarshal(metric.Metadata, &extra); err == nil {
+					if v, ok := extra["backup_region_name"]; ok {
+						resMeta.SetBackupRegionName(v)
+					}
+				}
+			}
 			hydratedMetric := entity.HydratedMetric{
 				Quantity:     metric.Quantity,
 				MeasuredType: metric.MeasuredType,
 				Timestamp:    entity.UnixNano(metric.MetricTimestamp.UnixNano()),
-				Metadata: metadata.ResourceMetadata{
-					ResourceType:   metric.ResourceType,
-					ResourceName:   &metric.ResourceName,
-					DeploymentName: &metric.DeploymentName,
-					AccountName:    &metric.ConsumerID,
-					RegionName:     &metric.Location,
-					DeletedAt:      metric.DeletedAt,
-				},
+				Metadata:     resMeta,
 			}
 			groups[identifier] = append(groups[identifier], hydratedMetric)
 		}
@@ -1048,6 +1066,19 @@ func (p *BillingProvider) fetchMetricsForCounterAndIntegralAggregation(ctx conte
 	}
 	slices.Reverse(allMetrics) // Reverse to have ASC order
 	return allMetrics, nil
+}
+
+// fetchMetricsWithinWindow fetches hydrated metrics strictly within the aggregation window.
+// Used for Sum and First aggregation types that don't need boundary records from adjacent periods.
+func (p *BillingProvider) fetchMetricsWithinWindow(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time, resourceType, measuredType string) ([]datamodel2.HydratedMetrics, error) {
+	filter := p.CreateComplexFilter(map[string]interface{}{
+		"startTime":    aggregationStartTime,
+		"endTime":      aggregationEndTime,
+		"resourceType": resourceType,
+		"measuredType": measuredType,
+		"order":        "resource_name, deployment_name, consumer_id, metric_timestamp ASC",
+	})
+	return p.fetchAllHydratedMetricsWithPagination(ctx, filter)
 }
 
 // filterMetricsForCounterAndIntegralAggregationSorted filters metrics to include only the latest record before
@@ -1184,6 +1215,11 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 	}
 
 	if aggregated.MeasuredType == metadata.BackupLogicalSize {
+		aggregated.DestinationRegion = metrics.Metadata.RegionName
+	}
+
+	if aggregated.MeasuredType == metadata.CbsCrossRegionVolumeRestoreTransferBytes {
+		aggregated.SourceRegion = metrics.Metadata.BackupRegionName
 		aggregated.DestinationRegion = metrics.Metadata.RegionName
 	}
 

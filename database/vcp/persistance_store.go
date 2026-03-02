@@ -1134,6 +1134,14 @@ func (s *PersistenceStore) GetSfrMetricsByTimeRange(ctx context.Context, startTi
 	return s.dataStore.GetSfrMetricsByTimeRange(ctx, startTime, endTime)
 }
 
+func (s *PersistenceStore) GetSfrMetadataByJobID(ctx context.Context, jobID int64) (*datamodel.SfrMetadata, error) {
+	return s.dataStore.GetSfrMetadataByJobID(ctx, jobID)
+}
+
+func (s *PersistenceStore) GetBackupWithVaultByUUID(ctx context.Context, backupUUID string) (*datamodel.Backup, error) {
+	return s.dataStore.GetBackupWithVaultByUUID(ctx, backupUUID)
+}
+
 func (s *PersistenceStore) CreateAdminJobSpec(ctx context.Context, spec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error) {
 	return s.dataStore.CreateAdminJobSpec(ctx, spec)
 }

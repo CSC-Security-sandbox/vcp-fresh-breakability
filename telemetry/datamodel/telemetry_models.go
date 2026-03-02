@@ -92,3 +92,10 @@ type BizOpsAggregateParams struct {
 	AggrEnd      time.Time
 	Writer       io.Writer
 }
+
+// RestoreTimestamp is a table to track the last processed timestamp for restore operations
+type RestoreTimestamp struct {
+	ID              int64     `gorm:"primaryKey;autoIncrement"`
+	LastProcessedAt time.Time `gorm:"column:last_processed_at;not null"`
+	UpdatedAt       time.Time `gorm:"column:updated_at;autoUpdateTime"`
+}

@@ -27,6 +27,7 @@ type TelemetryConfig struct {
 	EnableFilesBackupBilling                     bool
 	EnableCmekBackupBilling                      bool
 	EnableCrossRegionBackupBillingMetrics        bool
+	EnableSFRCrossRegionRestoreBilling           bool
 	EnableReplicationBillingMetrics              bool
 	EnableBidirectionalReplicationBillingMetrics bool
 	EnableInRegionReplicationBillingMetrics      bool
@@ -92,6 +93,7 @@ func LoadConfig() *TelemetryConfig {
 	enableBackupVaultMetrics := env.GetBool("ENABLE_BACKUP_VAULT_METRICS", false)
 	enableCrossRegionBackupBillingMetrics := env.GetBool("ENABLE_CROSS_REGION_BACKUP_BILLING_METRICS", false)
 	enableBackupHistoryFormatter := env.GetBool("ENABLE_BACKUP_HISTORY_FORMATTER", false)
+	enableSFRCrossRegionRestoreBilling := env.GetBool("ENABLE_SFR_CROSS_REGION_RESTORE_BILLING", false)
 	pushBatchSize := env.GetInt64("PUSH_BATCH_SIZE", 1000)
 	environment := env.GetString("ENVIRONMENT", Dev)
 	maxGoogleBillingPushRetry := env.GetInt64("MAX_GOOGLE_BILLING_PUSH_RETRY", 5)
@@ -128,6 +130,7 @@ func LoadConfig() *TelemetryConfig {
 		EnableFilesBackupBilling:                     enableFilesBackupBilling,
 		EnableCmekBackupBilling:                      enableCmekBackupBilling,
 		EnableCrossRegionBackupBillingMetrics:        enableCrossRegionBackupBillingMetrics,
+		EnableSFRCrossRegionRestoreBilling:           enableSFRCrossRegionRestoreBilling,
 		EnableReplicationBillingMetrics:              enableReplicationBillingMetrics,
 		EnableBidirectionalReplicationBillingMetrics: enableBidirectionalReplicationBillingMetrics,
 		EnableInRegionReplicationBillingMetrics:      enableInRegionReplicationBillingMetrics,

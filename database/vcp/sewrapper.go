@@ -4058,6 +4058,38 @@ func (re *retryEngine) GetSfrMetricsByTimeRange(ctx context.Context, startTime, 
 	return var0, err
 }
 
+func (re *retryEngine) GetSfrMetadataByJobID(ctx context.Context, jobID int64) (*datamodel.SfrMetadata, error) {
+	var var0 *datamodel.SfrMetadata
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetSfrMetadataByJobID(ctx, jobID)
+		if err != nil {
+			re.logError("GetSfrMetadataByJobID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetBackupWithVaultByUUID(ctx context.Context, backupUUID string) (*datamodel.Backup, error) {
+	var var0 *datamodel.Backup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetBackupWithVaultByUUID(ctx, backupUUID)
+		if err != nil {
+			re.logError("GetBackupWithVaultByUUID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) CreateAdminJobSpec(ctx context.Context, jobSpec *datamodel.AdminJobSpec) (*datamodel.AdminJobSpec, error) {
 	var var0 *datamodel.AdminJobSpec
 	err := retry.Do(func(attempt int) (bool, error) {

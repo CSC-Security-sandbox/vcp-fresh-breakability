@@ -118,6 +118,8 @@ func (s *GoogleUsageSink) completeRecords(records []datamodel.AggregatedUsage) [
 			record.Quantity = float64(utils2.MibHoursToGibHoursWithRoundOff(record.Quantity))
 		case metadata.XregionReplicationTotalTransferBytes:
 			record.Quantity = float64(utils2.MibToBytes(record.Quantity))
+		case metadata.CbsCrossRegionVolumeRestoreTransferBytes:
+			record.Quantity = float64(utils2.MibToBytes(record.Quantity))
 		case metadata.CoolTierDataReadSizeRaw, metadata.CoolTierDataWriteSizeRaw:
 			record.Quantity = float64(utils2.MibToBytes(record.Quantity))
 		case metadata.PoolHotTierProvisionedSize, metadata.PoolCapacityTierLogicalFootprint:
@@ -537,6 +539,8 @@ func getMeasuredTypesWithUnits(measuredType metadata.MeasuredType) string {
 	case metadata.BackupEnabledVolumeAllocatedSize:
 		return fmt.Sprintf("%s_IN_GiB-hours", measuredType)
 	case metadata.XregionReplicationTotalTransferBytes:
+		return fmt.Sprintf("%s_IN_Bytes", measuredType)
+	case metadata.CbsCrossRegionVolumeRestoreTransferBytes:
 		return fmt.Sprintf("%s_IN_Bytes", measuredType)
 	case metadata.CoolTierDataReadSizeRaw, metadata.CoolTierDataWriteSizeRaw:
 		return fmt.Sprintf("%s_IN_Bytes", measuredType)

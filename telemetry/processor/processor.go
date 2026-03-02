@@ -158,6 +158,16 @@ func (mp *MetricsProcessor) collectAndProcessMetrics(ctx context.Context, teleme
 		allHydratedMetrics = append(allHydratedMetrics, volumeMetricsResult.SFRHydratedMetrics...)
 	}
 
+	// Aggregate cross-region backup & restore billing metrics if enabled
+	if telemetryConfig.EnableCrossRegionBackupBillingMetrics {
+		crossRegionRestoreResult, err := collector.ProcessRestoreBillingMetrics(ctx, mp.vcpDatastore, mp.telemetryDatastore, telemetryConfig, timestamp)
+		if err != nil {
+			logger.Error("Failed to get cross-region restore metrics", "error", err.Error())
+		} else if crossRegionRestoreResult != nil {
+			allHydratedMetricsDataModel = append(allHydratedMetricsDataModel, crossRegionRestoreResult.HydratedMetricsDataModel...)
+		}
+	}
+
 	// Aggregate pool metrics for database storage
 	allHydratedMetricsDataModel = append(allHydratedMetricsDataModel, poolMetricsResult.HydratedMetricsDataModel...)
 
