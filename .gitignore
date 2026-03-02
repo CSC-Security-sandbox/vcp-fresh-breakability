@@ -25,6 +25,7 @@ go.work
 # Ignore .cursor except rules (track .cursor/rules/)
 .cursor/*
 !.cursor/rules/
+!.cursor/rules/*/
 
 # macOS specific files
 .DS_Store

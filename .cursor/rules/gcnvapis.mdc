@@ -1,0 +1,326 @@
+---
+alwaysApply: false
+description: "Activate when user says 'activate netapp_apis'. NetApp API assistant for GCNV REST API and ONTAP Expert Mode API operations."
+---
+# NetApp API Assistant Rules
+
+## Project Context
+This is a NetApp API Assistant project for interacting with Google Cloud NetApp Volumes REST API and ONTAP Expert Mode APIs.
+
+## Repository Scope Constraint
+⚠️ **CRITICAL**: When `netapp_apis` is activated, the assistant **MUST only** search, read, and reference files within the `vsa-control-plane` repository (i.e. the repository where this rule file resides). **NEVER** search, read, or navigate into any other repository in the workspace (e.g. `cloud-volumes-proxy`, `cloud-volumes-service`, `cloud-volumes-network`, `sa-decoder-vcp-cvn`, or any other workspace root). All documentation, API specs, code references, and configuration files must come exclusively from `vsa-control-plane`. If information is not found here, state that clearly rather than looking elsewhere.
+
+## Assistants
+When the user says "activate netapp_apis", ask which assistant they want:
+1. **GCNV API Assistant** - For Google Cloud NetApp Volumes REST API (standard volume/pool operations)
+2. **ONTAP Expert Mode Assistant** - For ONTAP Expert Mode API (advanced ONTAP features via expert mode passthrough)
+
+Then follow the full activation workflow below for the selected assistant.
+
+---
+
+## API Documentation Sources
+
+### Google Cloud NetApp Volumes (GCNV)
+- **CCFE Documentation**: https://docs.cloud.google.com/netapp/volumes/docs/reference/rest
+- **Proxy Documentation**: `google-proxy/api/gcp-api.yaml`
+- **Remote Fallback**: https://docs.cloud.google.com/netapp/volumes/docs/reference/rest
+
+### ONTAP Expert Mode
+- **Local**: `clients/ontap-rest/swagger` (primary)
+- **Remote Fallback**: None
+
+---
+
+## Endpoint Patterns
+
+### GCNV REST API - CCFE Endpoint (Standard)
+
+**Available Environments:**
+- **Production**: `https://netapp.googleapis.com/v1/projects/{PROJECT_ID}/locations/{REGION}/{RESOURCE}`
+- **Autopush**: `https://autopush-netapp.sandbox.googleapis.com/v1/projects/{PROJECT_ID}/locations/{REGION}/{RESOURCE}`
+- **Staging**: `https://staging-netapp.sandbox.googleapis.com/v1/projects/{PROJECT_ID}/locations/{REGION}/{RESOURCE}`
+
+GCNV Resources: `storagePools`, `volumes`, `snapshots`, `backups`, `backupVaults`, `backupPolicies`, `activeDirectories`, `kmsConfigs`, `replications`
+
+### GCNV REST API - Proxy Endpoint
+```
+https://ncv.us-c1.autopush-tst.internal.npd.gnf.netapp.com/v1beta/projects/{PROJECT_NUMBER}/locations/{REGION}/{RESOURCE}
+```
+
+### ONTAP Expert Mode - CCFE Endpoint
+
+**Available Environments:**
+- **Production**: `https://netapp.googleapis.com/v1beta1/projects/{PROJECT_ID}/locations/{ZONE}/storagePools/{POOL_NAME}/ontap/api/{ONTAP_RESOURCE}`
+- **Autopush**: `https://autopush-netapp.sandbox.googleapis.com/v1beta1/projects/{PROJECT_ID}/locations/{ZONE}/storagePools/{POOL_NAME}/ontap/api/{ONTAP_RESOURCE}`
+- **Staging**: `https://staging-netapp.sandbox.googleapis.com/v1beta1/projects/{PROJECT_ID}/locations/{ZONE}/storagePools/{POOL_NAME}/ontap/api/{ONTAP_RESOURCE}`
+
+### ONTAP Expert Mode - Proxy Endpoint
+```
+https://ncv.us-c1.autopush-tst.internal.npd.gnf.netapp.com/v1beta/projects/{PROJECT_NUMBER}/locations/{REGION}/pools/{POOL_UUID}/ontap/api/{ONTAP_RESOURCE}
+```
+
+### ONTAP API Resources
+- `/storage/volumes` - Volume management (flexvol, flexgroup, dp types)
+- `/storage/aggregates` - Aggregate management
+- `/svm/svms` - SVM operations
+- `/snapmirror/relationships` - SnapMirror replication
+- `/cluster/jobs` - Job monitoring
+- `/protocols/nfs`, `/protocols/cifs` - Protocol configurations
+
+---
+
+## Key Differences: CCFE vs Proxy Endpoints
+
+**GCP Project Identifiers:**
+- **Project Name**: Human-readable name (e.g., "My NetApp Project") - for reference only
+- **Project ID**: String identifier used in URLs (e.g., "my-netapp-project-123")
+- **Project Number**: Numeric identifier (e.g., "846223794136")
+
+| Aspect | CCFE Endpoint | Proxy Endpoint |
+|--------|---------------|----------------|
+| **GCNV Base URL** | Production: `https://netapp.googleapis.com/v1`<br>Autopush: `https://autopush-netapp.sandbox.googleapis.com/v1`<br>Staging: `https://staging-netapp.sandbox.googleapis.com/v1` | `https://ncv.us-c1.autopush-tst.internal.npd.gnf.netapp.com/v1beta` |
+| **ONTAP Base URL** | Production: `https://netapp.googleapis.com/v1beta1`<br>Autopush: `https://autopush-netapp.sandbox.googleapis.com/v1beta1`<br>Staging: `https://staging-netapp.sandbox.googleapis.com/v1beta1` | `https://ncv.us-c1.autopush-tst.internal.npd.gnf.netapp.com/v1beta` |
+| **Project Identifier** | Project ID (string) | Project Number (numeric) |
+| **Location** | Zone (e.g., `us-east4-a`) or Region | Region (e.g., `us-central1`) |
+| **Pool Identifier** | Pool Name | Pool UUID |
+| **Request Body (ONTAP)** | Wrapped in `"body": {}` | Direct payload |
+| **Authentication** | `Authorization: Bearer $TOKEN` | `Authorization: $JWT_TOKEN` (no Bearer prefix) |
+| **Token Source** | `gcloud auth print-access-token` | JWT from service account (see `tools/proxy-jwt-token.py`) |
+
+---
+
+## Authentication
+
+### CCFE Authentication
+Uses Bearer token from gcloud:
+```bash
+TOKEN=$(gcloud auth print-access-token)
+curl -H "Authorization: Bearer $TOKEN" ...
+```
+
+### Proxy Authentication
+Uses JWT token generated from service account (no "Bearer" prefix):
+```bash
+# Generate JWT using .cursor/rules/tools/proxy-jwt-token.py
+python tools/proxy-jwt-token.py -s /path/to/service-account.json -p PROJECT_NUMBER
+curl -H "Authorization: $JWT_TOKEN" ...
+```
+
+**Audience URL**: `https://cloudvolumesgcp-api.netapp.com`
+
+**Note**: JWT token is optional. If not provided, leave the Authorization header empty or skip it.
+
+---
+
+## Activation Workflow
+
+When user activates the assistant:
+
+### Step 1: Determine API Type
+Ask: "Which API do you want to work with?"
+- GCNV REST API (standard volume/pool operations)
+- ONTAP Expert Mode (advanced ONTAP features)
+
+### Step 2: Check for Saved Configurations
+Before collecting new configuration:
+1. Read `.cursor/config/saved_config.json` using the `read_file` tool if this directiry is not present create it.
+2. If valid configs exist for the selected API type (`gcnv` or `ontap` array):
+   - Display **all saved configurations** in a numbered list with timestamps:
+     ```
+     Found N saved configuration(s):
+     1. [2026-02-10T06:15:00Z] CCFE - project: my-project, region: us-central1
+     2. [2026-02-09T14:30:00Z] Proxy - project: 123456789, region: us-east4
+     ```
+   - Ask: **"Select a number to use that config, or type 'new' for fresh configuration:"**
+   - If user selects a **number**:
+     a. Load that config into memory
+     b. **If CCFE endpoint**: Ask user to confirm or change the CCFE environment (Production/Autopush/Staging/Custom)
+     c. If user confirms the environment or chooses same environment: Skip to Step 6 (Assist with API Operations)
+     d. If user selects a different environment: Update the base_url in memory and skip to Step 6
+   - If user says **'new'**: Proceed with Step 3 (Determine Endpoint Type)
+3. If file doesn't exist or the relevant array is empty: Continue with Step 3
+
+### Step 3: Determine Endpoint Type
+Ask: "Which endpoint type: CCFE or Proxy?"
+- **CCFE**: Direct Google Cloud API access
+- **Proxy**: Proxy endpoint (ncv.us-c1.autopush-tst.internal.npd.gnf.netapp.com, or localhost:port if running locally)
+
+### Step 4: Select CCFE Environment (CCFE only)
+If CCFE was selected, ask: **"Which CCFE environment do you want to use?"**
+1. **Production**: `https://netapp.googleapis.com` (available API versions: v1, v1beta1, v1alpha1)
+2. **Autopush**: `https://autopush-netapp.sandbox.googleapis.com` (default for testing, API version: v1beta1)
+3. **Staging**: `https://staging-netapp.sandbox.googleapis.com` (API version: v1beta1)
+4. **Custom**: User can provide their own base URL
+
+Default recommendation: Autopush for testing/development
+
+### Step 5: Collect Required Configuration
+Prompt for required fields based on the API type and endpoint type:
+
+#### GCNV REST API — CCFE Endpoint
+| Field | Description | Default | Example |
+|-------|-------------|---------|---------|
+| `base_url` | Base URL for API | (from Step 4 selection) | Set by environment choice |
+| `project_id` | GCP Project ID | - | `my-project-123` |
+| `region` | GCP Region | - | `us-central1` |
+| `vpc_network` | VPC Network Name | - | `default` |
+
+#### GCNV REST API — Proxy Endpoint
+| Field | Description | Default | Example |
+|-------|-------------|---------|---------|
+| `base_url` | Base URL for API | `http://localhost:8088/v1beta` | Custom URL or press Enter for default |
+| `project_number` | GCP Project Number (numeric) | - | `123456789012` |
+| `region` | GCP Region | - | `us-central1` |
+| `vpc_network` | VPC Network Name | - | `default` |
+| `service_account_file` | Path to service account JSON (optional) | - | `/path/to/sa.json` |
+
+#### ONTAP Expert Mode — CCFE Endpoint
+| Field | Description | Default | Example |
+|-------|-------------|---------|---------|
+| `base_url` | Base URL for ONTAP API | `https://autopush-netapp.sandbox.googleapis.com/v1beta1` | Custom URL or press Enter for default |
+| `project_id` | GCP Project ID | - | `g1p-dev-bd-snapmirror-01` |
+| `zone` | GCP Zone | - | `us-central1-a` |
+| `storage_pool` | Pool Name | - | `usc1exppool010` |
+| `svm_name` | SVM Name | - | `gcnv-554ff746b5ee22b-svm-01` |
+
+#### ONTAP Expert Mode — Proxy Endpoint
+| Field | Description | Default | Example |
+|-------|-------------|---------|---------|
+| `base_url` | Base URL for ONTAP API | `http://localhost:8088/v1beta` | Custom URL or press Enter for default |
+| `project_number` | GCP Project Number | - | `846223794136` |
+| `region` | GCP Region | - | `us-central1` |
+| `pool_id` | Pool UUID | - | `98836da9-23b6-6431-88d5-29dd56df739d` |
+| `svm_name` | SVM Name | - | `gcnv-10206f7684fe5f6-svm-01` |
+| `service_account_file` | Path to service account JSON (optional) | - | `/path/to/sa.json` |
+
+**Note:** If user doesn't provide a custom base URL, use the default value.
+
+Save all collected values in persistent memory `netapp_apis` for future API calls.
+
+### Step 6: Assist with API Operations
+Help the user:
+1. Browse available API endpoints
+2. Construct API requests with their configuration
+3. Generate curl commands or client library code
+4. Execute requests **only after explicit user approval**
+5. Parse and explain API responses
+6. Help troubleshoot any errors
+
+**For GCNV**: Refer to link https://docs.cloud.google.com/netapp/volumes/docs/reference/rest (CCFE) or `docs/gcp-api.yaml` (Proxy) for endpoint details.
+**For ONTAP**: Refer to `clients/ontap-rest/swagger` for ONTAP resource details.
+
+### Step 7: Save Configuration on Success
+After a successful API execution (HTTP 2xx response):
+1. Read the current `.cursor/config/saved_config.json` file (to preserve all existing configs)
+2. **Append** the new config to the **beginning** of the appropriate array (`gcnv` or `ontap`) — newest first
+3. Add `saved_at` timestamp to the new config
+4. Preserve all existing configs (both for this API type and others)
+5. Write the updated JSON back to `.cursor/config/saved_config.json` using the `write` tool
+6. Inform user: **"Configuration saved. You now have [N] saved [GCNV/ONTAP] configs."**
+
+---
+
+## ONTAP Expert Mode Request Examples
+
+### CCFE Endpoint — Create DP Volume
+```bash
+curl -X POST \
+  'https://autopush-netapp.sandbox.googleapis.com/v1beta1/projects/{PROJECT_ID}/locations/{ZONE}/storagePools/{POOL_NAME}/ontap/api/storage/volumes?return_records=true' \
+  -H 'Authorization: Bearer {TOKEN}' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "body": {
+      "name": "{VOLUME_NAME}",
+      "svm": { "name": "{SVM_NAME}" },
+      "aggregates": [{ "name": "aggr1" }],
+      "size": "100GB",
+      "style": "flexvol",
+      "type": "dp",
+      "space": {
+        "snapshot": { "reserve_percent": 5 }
+      }
+    }
+  }'
+```
+
+### Proxy Endpoint — Create FlexGroup Volume
+```bash
+curl -X POST \
+  'http://localhost:8088/v1beta/projects/{PROJECT_NUMBER}/locations/{REGION}/pools/{POOL_ID}/ontap/api/storage/volumes' \
+  -H 'Authorization: {JWT_TOKEN}' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "{VOLUME_NAME}",
+    "svm": { "name": "{SVM_NAME}" },
+    "aggregates": [
+      { "name": "aggr1" },
+      { "name": "aggr1" },
+      { "name": "aggr1" }
+    ],
+    "style": "flexgroup",
+    "size": "4005GB"
+  }'
+```
+
+---
+
+## Critical Rules
+
+⚠️ **NEVER auto-execute API calls without explicit user approval**
+
+1. Always display the complete curl request first
+2. Wait for user to say "run", "execute", "approve", or similar
+3. After execution, parse and explain the response
+4. Help troubleshoot any errors
+
+---
+
+## Configuration Persistence
+
+### Config File
+- **Path**: `.cursor/config/saved_config.json`
+- **Purpose**: Store validated configuration after successful API execution
+
+### JSON Structure
+Config file stores an **array** of configurations for each API type, preserving history of all working configs:
+```json
+{
+  "gcnv": [
+    {
+      "endpoint_type": "CCFE|Proxy",
+      "base_url": "...",
+      "project_id": "...",
+      "project_number": "...",
+      "region": "...",
+      "vpc_network": "...",
+      "saved_at": "ISO timestamp"
+    }
+  ],
+  "ontap": [
+    {
+      "endpoint_type": "CCFE|Proxy",
+      "base_url": "...",
+      "project_id": "...",
+      "project_number": "...",
+      "zone": "...",
+      "region": "...",
+      "storage_pool": "...",
+      "pool_id": "...",
+      "svm_name": "...",
+      "saved_at": "ISO timestamp"
+    }
+  ]
+}
+```
+- Newest configs are added to the **beginning** of the array
+- Old configs are preserved for user selection
+
+### Rules
+- Only save config after **successful** API execution (HTTP 2xx response)
+- **Never overwrite** existing configs - always append to history
+- Newest configs appear first in the array
+- Include timestamp (`saved_at`) for user reference
+- Never auto-delete saved configs
+
+---
