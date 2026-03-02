@@ -1,0 +1,102 @@
+{
+    "environment": "autopush",
+    "host": "https://autopush-netapp.sandbox.googleapis.com",
+    "isCCFE": true,
+    "clients": [
+        {
+            "name": "device1",
+            "type": "device",
+            "os": "linux",
+            "internalIp": "ip1",
+            "externalIp": "ip12",
+            "username": "USERNAME",
+            "password": "PASSWORD",
+            "initiatorName": "iqn.1994-05.com.redhat:abcdef12345"
+        },
+        {
+            "name": "device2",
+            "type": "device",
+            "os": "windows",
+            "internalIp": "ip2",
+            "externalIp": "ip23",
+            "username": "USERNAME",
+            "password": "PASSWORD"
+        }
+
+    ],
+    "projects": [
+        {
+            "projectNumber": "441180080430",
+            "projectId": "gcnv-vcp-nightly-consumer-01",
+            "network": "nightly-cons01-tst-vpc01",
+            "tenantProjectId": "ud2b718fae4b5671e-tp",
+            "location": "us-central1-a",
+            "saKeyFilePath": "PROJ01_SA_PATH",
+            "zone": "us-central1-a",
+            "region": "us-central1",
+            "isZonal": true,
+            "pool": {
+                "service_level": "FLEX",
+		"size": 1024
+            },
+            "clients": [{"$ref": "#/clients/0"}],
+            "ads": [
+                {"$ref": "#/activeDirectories/0"}
+            ],
+            "cmek": {
+                "keyName": "cmek-test-key-name",
+                "keyRingName": "cmek-test-key-ring-name",
+                "keyLocation": "us-central1",
+                "keyProjectId": "g1p-funl-ap-sqa-cbs-dev-02",
+                "commonSAProject": "gcnv-cicd-so-08",
+                "keyCredentials": {"$ref": "#/cmek/keyCredentials"},
+                "vpcs": ["vcp-ccfe-vpc"]
+            },
+            "databases": [{
+                "database": "vcp",
+                "user": "USER",
+                "password": "PASSWORD",
+                "host": "10.48.80.29",
+                "port": 5432
+            }]
+        }
+    ],
+
+     "databases": [{
+                "database": "vcp",
+                "user": "USER",
+                "password": "PASSWORD",
+                "host": "10.48.80.29",
+                "port": 5432
+            }],
+    "activeDirectories": [
+        {
+            "name": "AD1",
+            "domain": "ad1.domain.com",
+            "dns": "1.1.1.1",
+            "username": "USERNAME",
+            "password": "PASSWORD"
+        },
+        {
+            "name": "AD2",
+            "domain": "ad2.domain.com",
+            "dns": "1.2.3.4",
+            "username": "USERNAME",
+            "password": "PASSWORD"
+        }
+    ],
+    "cmek": {
+        "keyCredentials": {
+            "gcnv-cicd-so-03": {
+                "gcloud_account": "",
+                "svc_acct_path": ""
+            },
+            "gcnv-vcp-nightly-consumer-03": {
+                "gcloud_account": "nightlycons02@gcnv-vcp-nightly-consumer-02.iam.gserviceaccount.com",
+                "svc_acct_path": "/home/cbs/VSA/gcnv-vcp-nightly-consumer-02-7ed25afcc041.json"
+            }
+        }
+    }
+
+}
+
