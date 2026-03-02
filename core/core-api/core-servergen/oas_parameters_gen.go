@@ -1129,6 +1129,22 @@ func decodeV1GetMultipleReplicationsByExternalUUIDParams(args [0]string, argsEsc
 			}); err != nil {
 				return err
 			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    36,
+					MinLengthSet: true,
+					MaxLength:    1000,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})(,[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})*$"],
+				}).Validate(string(params.ExternalUuids)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
 		} else {
 			return err
 		}

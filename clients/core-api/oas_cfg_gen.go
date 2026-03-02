@@ -10,6 +10,7 @@ import (
 )
 
 var regexMap = map[string]ogenregex.Regexp{
+	"^([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})(,[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})*$": ogenregex.MustCompile("^([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})(,[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})*$"),
 	"^([a-zA-Z][a-zA-Z0-9_]{0,201})?$": ogenregex.MustCompile("^([a-zA-Z][a-zA-Z0-9_]{0,201})?$"),
 	"^[0-9]{1,20}$":                    ogenregex.MustCompile("^[0-9]{1,20}$"),
 	"^[1-9][0-9]{0,18}$":               ogenregex.MustCompile("^[1-9][0-9]{0,18}$"),
