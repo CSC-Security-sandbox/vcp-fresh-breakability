@@ -244,6 +244,23 @@ func (d *DataStoreRepository) GetBackupsByBackupVaultOwnerIDAndFilter(ctx contex
 	return getBackupsByBackupVault(d.db.ApplyFilter(filters).GORM().WithContext(ctx), bv.ID)
 }
 
+// GetBackupsByBackupVaultUUIDAndFilter retrieves backups by vault UUID without account filtering
+// This is used for GCBDR vaults where backups can come from multiple accounts/projects
+func (d *DataStoreRepository) GetBackupsByBackupVaultUUIDAndFilter(ctx context.Context, backupVaultUUID string, filters [][]interface{}) ([]*datamodel.Backup, error) {
+	bv, err := d.GetBackupVault(ctx, backupVaultUUID)
+	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			return nil, customerrors.NewNotFoundErr("backup vault", nil)
+		}
+		return nil, err
+	}
+	// If no filters are provided, fetch all backups for the backup vault
+	if len(filters) == 0 {
+		return getBackupsByBackupVault(d.db.GORM().WithContext(ctx), bv.ID)
+	}
+	return getBackupsByBackupVault(d.db.ApplyFilter(filters).GORM().WithContext(ctx), bv.ID)
+}
+
 func getBackupsByBackupVault(db *gorm.DB, backupVaultUUID int64) ([]*datamodel.Backup, error) {
 	var backups []*datamodel.Backup
 

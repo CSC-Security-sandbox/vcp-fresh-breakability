@@ -1582,6 +1582,223 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CheckOrCreateRemoteBackupVault
 	// UpdateJob is called through UpdateJobStatus activity, not directly on mock
 }
 
+// Test_CreateVolumeWorkflow_GCBDR_NoBucketDetails_Error tests that a GCBDR vault
+// with no BucketDetails returns an error ("GCBDR vault has no tenant project information").
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_GCBDR_NoBucketDetails_Error() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password: "password",
+			SecretID: "",
+		}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "backup-vault-id",
+		},
+		Account: &datamodel.Account{Name: "account-1"},
+	}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
+		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27"}}},
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{Name: "lun_test", ExternalUUID: "lun-uuid"},
+		SerialNumber:     "6c5738423724595454686164",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+	// GCBDR vault with NO BucketDetails -> should error
+	s.env.OnActivity(volumeCreateActivity.CheckBackupVaultExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{UUID: "backup-vault-uuid"},
+		Name:        "test-gcbdr-vault",
+		ServiceType: activities.GCBDRServiceType,
+		// No BucketDetails -> triggers error at "GCBDR vault has no tenant project information"
+	}, nil)
+	// NOTE: FindTenancy is NOT mocked because it should NOT be called for GCBDR vaults
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+
+	// Assert workflow failed with GCBDR bucket details error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+// Test_CreateVolumeWorkflow_GCBDR_NilPool_CrossProjectPermissions_Error tests that
+// a GCBDR vault with pool=nil fails at SetupCrossProjectBackupPermissions with
+// "pool details required for GCBDR bucket permissions".
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_GCBDR_NilPool_CrossProjectPermissions_Error() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	syncBackupZiZsActivity := backgroundactivities.SyncBackupZiZsActivity{SE: mockStorage}
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password: "password",
+			SecretID: "",
+		}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "backup-vault-id",
+		},
+		Account: &datamodel.Account{Name: "account-1"},
+	}
+
+	// Volume returned by GetVolumeByVolumeID has nil Pool to trigger the nil pool error at GCBDR cross-project permissions
+	volumeWithNilPool := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{UUID: "test-volume-uuid"},
+		Name:             "test-volume",
+		Account:          &datamodel.Account{BaseModel: datamodel.BaseModel{ID: int64(1)}, Name: "account-1"},
+		Pool:             nil, // nil Pool to trigger error
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "backup-vault-id",
+		},
+	}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
+	s.env.RegisterActivity(syncBackupZiZsActivity.SyncBucketDetails)
+	s.env.RegisterActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP)
+
+	// Override GetVolumeByVolumeID to return volume with nil Pool
+	s.env.OnActivity(volumeCreateActivity.GetVolumeByVolumeID, mock.Anything, mock.Anything).Return(volumeWithNilPool, nil)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
+		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27"}}},
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{Name: "lun_test", ExternalUUID: "lun-uuid"},
+		SerialNumber:     "6c5738423724595454686164",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+	// GCBDR vault WITH BucketDetails (for tenancy derivation)
+	s.env.OnActivity(volumeCreateActivity.CheckBackupVaultExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{UUID: "backup-vault-uuid"},
+		Name:        "test-gcbdr-vault",
+		ServiceType: activities.GCBDRServiceType,
+		BucketDetails: datamodel.BucketDetailsArray{
+			{TenantProjectNumber: "tenant-project-123", BucketName: "existing-bucket"},
+		},
+	}, nil)
+	// CheckForBucketResourceName returns empty -> triggers bucket creation flow
+	s.env.OnActivity(volumeCreateActivity.CheckForBucketResourceName, mock.Anything, mock.Anything).Return(&common.BucketDetails{}, nil)
+	s.env.OnActivity(volumeCreateActivity.GenerateResourceNames, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.ResourceNames{BucketName: "bucket-1"}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateBucket, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.AnythingOfType("*string")).Return(&common.BucketDetails{BucketName: "bucket-1", ServiceAccountName: "sa-1", TenantProjectNumber: "tp-1"}, nil)
+	s.env.OnActivity(syncBackupZiZsActivity.SyncBucketDetails, mock.Anything, mock.Anything).Return(&datamodel.BucketDetails{BucketName: "bucket-1"}, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// No FindTenancy mock - should NOT be called for GCBDR
+	// Pool is nil -> should error at "pool details required for GCBDR bucket permissions"
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+
+	// Assert workflow failed with nil pool error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+// Test_CreateVolumeWorkflow_GCBDR_SetupCrossProjectPermissions_Error tests that
+// failure in SetupCrossProjectBackupPermissions activity causes the workflow to fail.
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_GCBDR_SetupCrossProjectPermissions_Error() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	syncBackupZiZsActivity := backgroundactivities.SyncBackupZiZsActivity{SE: mockStorage}
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password: "password",
+			SecretID: "",
+		}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "backup-vault-id",
+		},
+		Account: &datamodel.Account{Name: "account-1"},
+	}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
+	s.env.RegisterActivity(syncBackupZiZsActivity.SyncBucketDetails)
+	s.env.RegisterActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP)
+	s.env.RegisterActivity(volumeCreateActivity.SetupCrossProjectBackupPermissions)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
+		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27"}}},
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{Name: "lun_test", ExternalUUID: "lun-uuid"},
+		SerialNumber:     "6c5738423724595454686164",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+	// GCBDR vault WITH BucketDetails (for tenancy derivation)
+	s.env.OnActivity(volumeCreateActivity.CheckBackupVaultExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{UUID: "backup-vault-uuid"},
+		Name:        "test-gcbdr-vault",
+		ServiceType: activities.GCBDRServiceType,
+		BucketDetails: datamodel.BucketDetailsArray{
+			{TenantProjectNumber: "tenant-project-123", BucketName: "existing-bucket"},
+		},
+	}, nil)
+	// CheckForBucketResourceName returns empty -> triggers bucket creation flow
+	s.env.OnActivity(volumeCreateActivity.CheckForBucketResourceName, mock.Anything, mock.Anything).Return(&common.BucketDetails{}, nil)
+	s.env.OnActivity(volumeCreateActivity.GenerateResourceNames, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.ResourceNames{BucketName: "bucket-1"}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateBucket, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.AnythingOfType("*string")).Return(&common.BucketDetails{BucketName: "bucket-1", ServiceAccountName: "sa-1", TenantProjectNumber: "tp-1"}, nil)
+	s.env.OnActivity(syncBackupZiZsActivity.SyncBucketDetails, mock.Anything, mock.Anything).Return(&datamodel.BucketDetails{BucketName: "bucket-1"}, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// No FindTenancy mock - should NOT be called for GCBDR
+	// SetupCrossProjectBackupPermissions fails
+	s.env.OnActivity(volumeCreateActivity.SetupCrossProjectBackupPermissions, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to setup cross-project backup permissions"))
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+
+	// Assert workflow failed with cross-project permissions error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
 func (s *UnitTestSuite) Test_CreateVolumeWorkflow_InitiateSplitForVolumeError() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}

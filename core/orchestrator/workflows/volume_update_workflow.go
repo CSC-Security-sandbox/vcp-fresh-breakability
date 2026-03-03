@@ -411,9 +411,18 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 
 		tenancyDetails := &common.TenancyInfo{}
-		err = workflow.ExecuteActivity(ctx, updateActivity.FindTenancyDetails, volume.VolumeAttributes.VendorSubnetID, volume.Account.Name, backupRegion).Get(ctx, &tenancyDetails)
-		if err != nil {
-			return nil, ConvertToVSAError(err)
+		if backupVault.ServiceType != activities.GCBDRServiceType {
+			err = workflow.ExecuteActivity(ctx, updateActivity.FindTenancyDetails, volume.VolumeAttributes.VendorSubnetID, volume.Account.Name, backupRegion).Get(ctx, &tenancyDetails)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
+		} else {
+			if backupVault.BucketDetails != nil && len(backupVault.BucketDetails) > 0 {
+				tenancyDetails.RegionalTenantProject = backupVault.BucketDetails[0].TenantProjectNumber
+			} else {
+				log.Errorf("GCBDR vault %s has no bucket details with tenant project", backupVault.UUID)
+				return nil, ConvertToVSAError(fmt.Errorf("GCBDR vault has no tenant project information"))
+			}
 		}
 
 		bucketDetails := &common.BucketDetails{}
@@ -439,6 +448,10 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				return nil, ConvertToVSAError(err)
 			}
 
+			if backupVault.ServiceType != activities.GCBDRServiceType {
+				bucketDetails.VendorSubnetID = volume.VolumeAttributes.VendorSubnetID
+			}
+
 			// Setting the 'satisfiesPzi' and 'satisfiesPzs' fields in bucketDetails by fetching the latest info from GCP
 			err = syncBucketDetailsWithGCP(ctx, bucketDetails)
 			if err != nil {
@@ -448,6 +461,20 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			err = workflow.ExecuteActivity(ctx, updateActivity.UpdateBucketDetailsOfBackupVault, &volume, &bucketDetails).Get(ctx, nil)
 			if err != nil {
 				return nil, ConvertToVSAError(err)
+			}
+
+			if backupVault.ServiceType == activities.GCBDRServiceType {
+				if volume.Pool == nil {
+					log.Errorf("Pool details not available for volume %s", volume.UUID)
+					return nil, ConvertToVSAError(fmt.Errorf("pool details required for GCBDR bucket permissions"))
+				}
+				volumeCreateActivity := &activities.VolumeCreateActivity{}
+				err = workflow.ExecuteActivity(ctx, volumeCreateActivity.SetupCrossProjectBackupPermissions, volume.Pool, &bucketDetails).Get(ctx, nil)
+				if err != nil {
+					log.Errorf("Failed to setup cross-project backup permissions: %v", err)
+					return nil, ConvertToVSAError(err)
+				}
+				log.Infof("Successfully granted pool SA access to GCBDR bucket %s", bucketDetails.BucketName)
 			}
 
 			var RemoteBV *datamodel.BackupVault

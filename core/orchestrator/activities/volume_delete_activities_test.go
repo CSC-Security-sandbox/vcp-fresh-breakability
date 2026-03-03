@@ -2329,7 +2329,7 @@ func TestDeleteSnapmirrorInONTAP_BackupVaultNotFound_WrappedNotFoundErr(t *testi
 }
 
 func TestDeleteSnapmirrorInONTAP_BackupVaultNotFound_GormRecordNotFound(t *testing.T) {
-	// Test that when GetBackupVault returns gorm.ErrRecordNotFound, deletion skips gracefully
+	// Test that when GetBackupVault returns NotFoundErr, deletion skips gracefully
 	mockProvider := new(vsa.MockProvider)
 	mockStorage := database.NewMockStorage(t)
 	originalGetProviderByNode := hyperscaler.GetProviderByNode
@@ -2351,8 +2351,7 @@ func TestDeleteSnapmirrorInONTAP_BackupVaultNotFound_GormRecordNotFound(t *testi
 	}
 	node := &models.Node{}
 
-	// Return raw gorm.ErrRecordNotFound (as GetBackupVault currently does)
-	mockStorage.On("GetBackupVault", ctx, backupVaultID).Return(nil, gorm.ErrRecordNotFound)
+	mockStorage.On("GetBackupVault", ctx, backupVaultID).Return(nil, utilErrors.NewNotFoundErr("backup vault", &backupVaultID))
 
 	// Act
 	resp, err := activity.DeleteSnapmirrorInONTAP(ctx, volume, node)

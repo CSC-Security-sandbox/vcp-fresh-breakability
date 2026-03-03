@@ -3716,6 +3716,65 @@ func (_c *MockOrchestratorFactory_GetBackupVaultByUUID_Call) RunAndReturn(run fu
 	return _c
 }
 
+// GetBackupVaultByUUIDWithoutAccount provides a mock function with given fields: ctx, bvUUID
+func (_m *MockOrchestratorFactory) GetBackupVaultByUUIDWithoutAccount(ctx context.Context, bvUUID string) (*models.BackupVaultV1beta, error) {
+	ret := _m.Called(ctx, bvUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupVaultByUUIDWithoutAccount")
+	}
+
+	var r0 *models.BackupVaultV1beta
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*models.BackupVaultV1beta, error)); ok {
+		return rf(ctx, bvUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *models.BackupVaultV1beta); ok {
+		r0 = rf(ctx, bvUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.BackupVaultV1beta)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, bvUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetBackupVaultByUUIDWithoutAccount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupVaultByUUIDWithoutAccount'
+type MockOrchestratorFactory_GetBackupVaultByUUIDWithoutAccount_Call struct {
+	*mock.Call
+}
+
+// GetBackupVaultByUUIDWithoutAccount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - bvUUID string
+func (_e *MockOrchestratorFactory_Expecter) GetBackupVaultByUUIDWithoutAccount(ctx interface{}, bvUUID interface{}) *MockOrchestratorFactory_GetBackupVaultByUUIDWithoutAccount_Call {
+	return &MockOrchestratorFactory_GetBackupVaultByUUIDWithoutAccount_Call{Call: _e.mock.On("GetBackupVaultByUUIDWithoutAccount", ctx, bvUUID)}
+}
+
+func (_c *MockOrchestratorFactory_GetBackupVaultByUUIDWithoutAccount_Call) Run(run func(ctx context.Context, bvUUID string)) *MockOrchestratorFactory_GetBackupVaultByUUIDWithoutAccount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetBackupVaultByUUIDWithoutAccount_Call) Return(_a0 *models.BackupVaultV1beta, _a1 error) *MockOrchestratorFactory_GetBackupVaultByUUIDWithoutAccount_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetBackupVaultByUUIDWithoutAccount_Call) RunAndReturn(run func(context.Context, string) (*models.BackupVaultV1beta, error)) *MockOrchestratorFactory_GetBackupVaultByUUIDWithoutAccount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetBackupVaultUUIDsFromBackupPolicyUUID provides a mock function with given fields: ctx, backupPolicyUUID, accountName
 func (_m *MockOrchestratorFactory) GetBackupVaultUUIDsFromBackupPolicyUUID(ctx context.Context, backupPolicyUUID string, accountName string) ([]string, error) {
 	ret := _m.Called(ctx, backupPolicyUUID, accountName)
@@ -6094,6 +6153,66 @@ func (_c *MockOrchestratorFactory_ListBackups_Call) Return(_a0 []*datamodel.Back
 }
 
 func (_c *MockOrchestratorFactory_ListBackups_Call) RunAndReturn(run func(context.Context, string, string, [][]interface{}) ([]*datamodel.Backup, error)) *MockOrchestratorFactory_ListBackups_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListBackupsWithoutAccountFilter provides a mock function with given fields: ctx, backupVaultID, filters
+func (_m *MockOrchestratorFactory) ListBackupsWithoutAccountFilter(ctx context.Context, backupVaultID string, filters [][]interface{}) ([]*datamodel.Backup, error) {
+	ret := _m.Called(ctx, backupVaultID, filters)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListBackupsWithoutAccountFilter")
+	}
+
+	var r0 []*datamodel.Backup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, [][]interface{}) ([]*datamodel.Backup, error)); ok {
+		return rf(ctx, backupVaultID, filters)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, [][]interface{}) []*datamodel.Backup); ok {
+		r0 = rf(ctx, backupVaultID, filters)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Backup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, [][]interface{}) error); ok {
+		r1 = rf(ctx, backupVaultID, filters)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_ListBackupsWithoutAccountFilter_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListBackupsWithoutAccountFilter'
+type MockOrchestratorFactory_ListBackupsWithoutAccountFilter_Call struct {
+	*mock.Call
+}
+
+// ListBackupsWithoutAccountFilter is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupVaultID string
+//   - filters [][]interface{}
+func (_e *MockOrchestratorFactory_Expecter) ListBackupsWithoutAccountFilter(ctx interface{}, backupVaultID interface{}, filters interface{}) *MockOrchestratorFactory_ListBackupsWithoutAccountFilter_Call {
+	return &MockOrchestratorFactory_ListBackupsWithoutAccountFilter_Call{Call: _e.mock.On("ListBackupsWithoutAccountFilter", ctx, backupVaultID, filters)}
+}
+
+func (_c *MockOrchestratorFactory_ListBackupsWithoutAccountFilter_Call) Run(run func(ctx context.Context, backupVaultID string, filters [][]interface{})) *MockOrchestratorFactory_ListBackupsWithoutAccountFilter_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].([][]interface{}))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_ListBackupsWithoutAccountFilter_Call) Return(_a0 []*datamodel.Backup, _a1 error) *MockOrchestratorFactory_ListBackupsWithoutAccountFilter_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_ListBackupsWithoutAccountFilter_Call) RunAndReturn(run func(context.Context, string, [][]interface{}) ([]*datamodel.Backup, error)) *MockOrchestratorFactory_ListBackupsWithoutAccountFilter_Call {
 	_c.Call.Return(run)
 	return _c
 }

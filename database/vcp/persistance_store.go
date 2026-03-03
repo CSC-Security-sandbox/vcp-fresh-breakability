@@ -1066,6 +1066,10 @@ func (s *PersistenceStore) GetBackupsByBackupVaultOwnerIDAndFilter(ctx context.C
 	return s.dataStore.GetBackupsByBackupVaultOwnerIDAndFilter(ctx, backupVaultUUID, accountID, filters)
 }
 
+func (s *PersistenceStore) GetBackupsByBackupVaultUUIDAndFilter(ctx context.Context, backupVaultUUID string, filters [][]interface{}) ([]*datamodel.Backup, error) {
+	return s.dataStore.GetBackupsByBackupVaultUUIDAndFilter(ctx, backupVaultUUID, filters)
+}
+
 func (s *PersistenceStore) GetBackupCountByBackupVaultID(ctx context.Context, backupVaultID int64) (int64, error) {
 	return s.dataStore.GetBackupCountByBackupVaultID(ctx, backupVaultID)
 }

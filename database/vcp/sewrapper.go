@@ -4390,6 +4390,22 @@ func (re *retryEngine) GetBackupsByBackupVaultOwnerIDAndFilter(ctx context.Conte
 	return var0, err
 }
 
+func (re *retryEngine) GetBackupsByBackupVaultUUIDAndFilter(ctx context.Context, backupVaultUUID string, filters [][]interface{}) ([]*datamodel.Backup, error) {
+	var var0 []*datamodel.Backup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetBackupsByBackupVaultUUIDAndFilter(ctx, backupVaultUUID, filters)
+		if err != nil {
+			re.logError("GetBackupsByBackupVaultUUIDAndFilter", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) AssignTwoNodesToTwoGroups(ctx context.Context, params datamodel.NodeGroupAssignmentParams) ([]*datamodel.NodeNodeGroupMap, error) {
 	var var0 []*datamodel.NodeNodeGroupMap
 	err := retry.Do(func(attempt int) (bool, error) {

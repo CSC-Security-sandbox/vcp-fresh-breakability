@@ -349,6 +349,7 @@ type (
 
 		ErroredResource(ctx context.Context, resource interface{}, errorMessage string) (interface{}, error)
 		GetBackupsByBackupVaultOwnerIDAndFilter(ctx context.Context, backupVaultUUID string, accountID int64, filters [][]interface{}) ([]*datamodel.Backup, error)
+		GetBackupsByBackupVaultUUIDAndFilter(ctx context.Context, backupVaultUUID string, filters [][]interface{}) ([]*datamodel.Backup, error)
 
 		// AssignTwoNodesToTwoGroups assigns two nodes to two different node groups, ensuring no group exceeds maxNodesPerGroup nodes
 		// Assumes that node1 and node2 are precreated and have valid IDs

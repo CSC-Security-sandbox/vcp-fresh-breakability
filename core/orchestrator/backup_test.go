@@ -6175,3 +6175,219 @@ func TestValidateCreateBackupParams_ExpertModeVolume_BackupTransitionCheckError(
 	assert.EqualError(t, err, "database query failed")
 	store.AssertExpectations(t)
 }
+
+func TestListBackupsWithoutAccountFilter(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("SuccessfullyListsBackupsWithoutAccountFilter", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{
+			storage: mockStorage,
+		}
+
+		backupVaultID := "test-vault-uuid"
+		filters := [][]interface{}{{"name = ?", "test-backup"}}
+
+		expectedBackups := []*datamodel.Backup{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "backup-1-uuid"},
+				Name:      "test-backup",
+			},
+		}
+
+		mockStorage.EXPECT().
+			GetBackupsByBackupVaultUUIDAndFilter(ctx, backupVaultID, filters).
+			Return(expectedBackups, nil).
+			Once()
+
+		backups, err := orchestrator.ListBackupsWithoutAccountFilter(ctx, backupVaultID, filters)
+
+		assert.NoError(tt, err)
+		assert.Len(tt, backups, 1)
+		assert.Equal(tt, "test-backup", backups[0].Name)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ReturnsErrorWhenDatabaseFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{
+			storage: mockStorage,
+		}
+
+		backupVaultID := "test-vault-uuid"
+		expectedError := errors.New("database error")
+
+		mockStorage.EXPECT().
+			GetBackupsByBackupVaultUUIDAndFilter(ctx, backupVaultID, [][]interface{}(nil)).
+			Return(nil, expectedError).
+			Once()
+
+		backups, err := orchestrator.ListBackupsWithoutAccountFilter(ctx, backupVaultID, nil)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, backups)
+		assert.Equal(tt, expectedError, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ReturnsEmptyListWhenNoBackups", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		orchestrator := &Orchestrator{
+			storage: mockStorage,
+		}
+
+		backupVaultID := "test-vault-uuid"
+		emptyBackups := []*datamodel.Backup{}
+
+		mockStorage.EXPECT().
+			GetBackupsByBackupVaultUUIDAndFilter(ctx, backupVaultID, [][]interface{}(nil)).
+			Return(emptyBackups, nil).
+			Once()
+
+		backups, err := orchestrator.ListBackupsWithoutAccountFilter(ctx, backupVaultID, nil)
+
+		assert.NoError(tt, err)
+		assert.Empty(tt, backups)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+// ===== GCBDR coverage: _createBackup with BackupVaultServiceType == GCBDR uses GetVolume =====
+
+func TestCreateBackup_GCBDR_UsesGetVolumeWithoutAccountID(t *testing.T) {
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	store := database.NewMockStorage(t)
+	temporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+		Name:      "test-account",
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{ID: 10, UUID: "vol-uuid"},
+		Name:      "test-volume",
+		Account:   account,
+		AccountID: account.ID,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{"NFS"},
+		},
+	}
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{ID: 5, UUID: "vault-uuid"},
+		ServiceType: "GCBDR",
+		AccountID:   account.ID,
+	}
+
+	params := &common.CreateBackupParams{
+		BackupName:             "gcbdr-backup",
+		VolumeUUID:             volume.UUID,
+		BackupVaultID:          backupVault.UUID,
+		AccountName:            account.Name,
+		Description:            "GCBDR test backup",
+		BackupType:             "MANUAL",
+		BackupVaultServiceType: "GCBDR", // triggers GetVolume path
+	}
+
+	job := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+		WorkflowID: "workflow-id",
+	}
+
+	backup := &datamodel.Backup{
+		BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
+		Name:          params.BackupName,
+		VolumeUUID:    params.VolumeUUID,
+		BackupVaultID: backupVault.ID,
+		BackupVault:   backupVault,
+		State:         models.LifeCycleStateCreating,
+		StateDetails:  models.LifeCycleStateCreatingDetails,
+		Attributes: &datamodel.BackupAttributes{
+			VolumeName:        volume.Name,
+			AccountIdentifier: account.Name,
+			Protocols:         volume.VolumeAttributes.Protocols,
+		},
+		Description: params.Description,
+		Type:        params.BackupType,
+	}
+
+	origValidate := validateCreateBackupParams
+	validateCreateBackupParams = func(ctx context.Context, se database.Storage, params *common.CreateBackupParams) error {
+		return nil
+	}
+	origGetOrCreate := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() {
+		validateCreateBackupParams = origValidate
+		getOrCreateAccount = origGetOrCreate
+	}()
+
+	// GCBDR path: uses GetVolume (NOT GetVolumeWithAccountID)
+	store.On("GetVolume", ctx, params.VolumeUUID).Return(volume, nil)
+	store.On("GetBackupVault", ctx, params.BackupVaultID).Return(backupVault, nil)
+	store.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+	store.On("CreateBackup", ctx, mock.Anything).Return(backup, nil)
+	temporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	result, jobID, err := _createBackup(ctx, store, temporal, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, job.UUID, jobID)
+	store.AssertExpectations(t)
+}
+
+// ===== GCBDR coverage: GetBackupVaultByUUIDWithoutAccount =====
+
+func TestGetBackupVaultByUUIDWithoutAccount_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+	orchestrator := &Orchestrator{
+		storage:  mockStorage,
+		temporal: mockTemporal,
+	}
+
+	bvUUID := "gcbdr-vault-uuid"
+	backupVault := &datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{ID: 1, UUID: bvUUID},
+		Name:        "gcbdr-vault",
+		ServiceType: "GCBDR",
+		Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "owner-uuid"}},
+	}
+
+	ctx := context.Background()
+	mockStorage.On("GetBackupVault", ctx, bvUUID).Return(backupVault, nil)
+
+	result, err := orchestrator.GetBackupVaultByUUIDWithoutAccount(ctx, bvUUID)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, bvUUID, result.BackupVaultID)
+	assert.Equal(t, "gcbdr-vault", result.Name)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestGetBackupVaultByUUIDWithoutAccount_Error(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+	orchestrator := &Orchestrator{
+		storage:  mockStorage,
+		temporal: mockTemporal,
+	}
+
+	bvUUID := "nonexistent-vault"
+	ctx := context.Background()
+	mockStorage.On("GetBackupVault", ctx, bvUUID).Return(nil, errors.New("not found"))
+
+	result, err := orchestrator.GetBackupVaultByUUIDWithoutAccount(ctx, bvUUID)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	mockStorage.AssertExpectations(t)
+}

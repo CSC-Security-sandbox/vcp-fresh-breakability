@@ -290,6 +290,15 @@ func (o *Orchestrator) GetBackupVaultByUUID(ctx context.Context, bvUUID string, 
 	}
 	return GetBackupVaultByUUIDAndOwnerID(ctx, se, bvUUID, account.ID)
 }
+// GetBackupVaultByUUIDWithoutAccount gets backup vault by UUID without account filtering (for GCBDR vaults)
+func (o *Orchestrator) GetBackupVaultByUUIDWithoutAccount(ctx context.Context, bvUUID string) (*models.BackupVaultV1beta, error) {
+	se := o.storage
+	bvDetails, err := se.GetBackupVault(ctx, bvUUID)
+	if err != nil {
+		return nil, err
+	}
+	return convertDatastoreBackupVaultToModel(bvDetails), nil
+}
 
 func GetBackupVaultByUUIDAndOwnerID(ctx context.Context, se database.Storage, bvUUID string, accountID int64) (*models.BackupVaultV1beta, error) {
 	bvDetails, err := se.GetBackupVaultByUUIDndOwnerID(ctx, bvUUID, accountID)

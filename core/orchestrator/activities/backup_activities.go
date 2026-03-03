@@ -1033,6 +1033,12 @@ func getObjStoreName(backupVault *datamodel.BackupVault, vol *datamodel.Volume) 
 }
 
 func getBucketDetails(backupVault *datamodel.BackupVault, vol *datamodel.Volume) (*datamodel.BucketDetails, error) {
+	if backupVault.ServiceType == GCBDRServiceType {
+		if len(backupVault.BucketDetails) > 0 && backupVault.BucketDetails[0].BucketName != "" {
+			return backupVault.BucketDetails[0], nil
+		}
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("no bucket details found for GCBDR vault %s", backupVault.Name))
+	}
 	for _, bucketDetail := range backupVault.BucketDetails {
 		if bucketDetail.VendorSubnetID == vol.VolumeAttributes.VendorSubnetID && bucketDetail.BucketName != "" {
 			return bucketDetail, nil
@@ -1073,7 +1079,15 @@ func GetSmDestinationPath(backupVault *datamodel.BackupVault, volume *datamodel.
 	return fmt.Sprintf("%s:/objstore/%s", objStoreName, volume.UUID), nil
 }
 
+// GetBucketDetails returns the bucket associated with the given volume in the backup vault.
+// GCBDR vaults use a single shared bucket (first entry), while regular vaults match by VendorSubnetID.
 func GetBucketDetails(backupVault *datamodel.BackupVault, vol *datamodel.Volume) (*datamodel.BucketDetails, error) {
+	if backupVault.ServiceType == GCBDRServiceType {
+		if len(backupVault.BucketDetails) > 0 && backupVault.BucketDetails[0].BucketName != "" {
+			return backupVault.BucketDetails[0], nil
+		}
+		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("no bucket details found for GCBDR vault %s", backupVault.Name))
+	}
 	if vol.VolumeAttributes == nil {
 		return nil, vsaerrors.ExtractCustomError(fmt.Errorf("volume %s has no volume attributes", vol.Name))
 	}
@@ -1993,6 +2007,9 @@ func (a *BackupActivity) CheckAndAttachBackupVaultToVolume(ctx context.Context, 
 	backupRegion := region
 	if existingBackupVault.BackupVaultType == CrossRegionBackupType && existingBackupVault.BackupRegionName != nil && *existingBackupVault.BackupRegionName != "" {
 		backupRegion = *existingBackupVault.BackupRegionName
+	} else if existingBackupVault.ServiceType == GCBDRServiceType && existingBackupVault.SourceRegionName != nil && *existingBackupVault.SourceRegionName != "" {
+		// For GCBDR vaults, use SourceRegionName for bucket region
+		backupRegion = *existingBackupVault.SourceRegionName
 	}
 
 	// Find tenancy details
@@ -2010,9 +2027,23 @@ func (a *BackupActivity) CheckAndAttachBackupVaultToVolume(ctx context.Context, 
 		volume.DataProtection.BackupVaultID = existingBackupVault.UUID
 	}
 
-	tenancyDetails, err := volumeActivity.FindTenancy(ctx, volume.VolumeAttributes.VendorSubnetID, volume.Account.Name, &backupRegion)
-	if err != nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to find tenancy: %w", err))
+	var tenancyDetails *commonparams.TenancyInfo
+	// For GCBDR vaults, skip FindTenancy and use vault's tenant project directly
+	if existingBackupVault.ServiceType != GCBDRServiceType {
+		tenancyDetails, err = volumeActivity.FindTenancy(ctx, volume.VolumeAttributes.VendorSubnetID, volume.Account.Name, &backupRegion)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to find tenancy: %w", err))
+		}
+	} else {
+		// For GCBDR, prepare tenancy details from vault's bucket details
+		if existingBackupVault.BucketDetails != nil && len(existingBackupVault.BucketDetails) > 0 {
+			tenancyDetails = &commonparams.TenancyInfo{
+				RegionalTenantProject: existingBackupVault.BucketDetails[0].TenantProjectNumber,
+			}
+			logger.Infof("Using GCBDR vault's tenant project: %s", tenancyDetails.RegionalTenantProject)
+		} else {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("GCBDR vault %s has no tenant project information", existingBackupVault.UUID))
+		}
 	}
 	// Check for bucket resource name
 	bucketDetails, err := volumeActivity.CheckForBucketResourceName(ctx, volume)
@@ -2036,7 +2067,9 @@ func (a *BackupActivity) CheckAndAttachBackupVaultToVolume(ctx context.Context, 
 		if err != nil {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to create bucket: %w", err))
 		}
-		bucketDetails.VendorSubnetID = volume.VolumeAttributes.VendorSubnetID
+		if existingBackupVault.ServiceType != GCBDRServiceType {
+			bucketDetails.VendorSubnetID = volume.VolumeAttributes.VendorSubnetID
+		}
 
 		// Update backup vault with bucket details
 		err = volumeActivity.UpdateBackupVaultWithBucketDetails(ctx, volume, bucketDetails)
@@ -2057,6 +2090,7 @@ func (a *BackupActivity) CheckAndAttachBackupVaultToVolume(ctx context.Context, 
 			}
 		}
 
+		// Setup permissions for cross-region or cross-project scenarios
 		if existingBackupVault.BackupVaultType == CrossRegionBackupType && existingBackupVault.BackupRegionName != nil && *existingBackupVault.BackupRegionName != "" {
 			if volume.Pool == nil {
 				return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("volume pool cannot be nil for cross-region backup setup"))
@@ -2065,6 +2099,15 @@ func (a *BackupActivity) CheckAndAttachBackupVaultToVolume(ctx context.Context, 
 			if err != nil {
 				return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to setup cross-region backup permissions: %w", err))
 			}
+		} else if existingBackupVault.ServiceType == GCBDRServiceType {
+			if volume.Pool == nil {
+				return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("volume pool cannot be nil for GCBDR backup setup"))
+			}
+			err = volumeActivity.SetupCrossProjectBackupPermissions(ctx, volume.Pool, bucketDetails)
+			if err != nil {
+				return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to setup cross-project backup permissions: %w", err))
+			}
+			logger.Infof("Successfully granted pool SA access to GCBDR bucket %s", bucketDetails.BucketName)
 		}
 	}
 	// Convert commonparams.BucketDetails to datamodel.BucketDetails

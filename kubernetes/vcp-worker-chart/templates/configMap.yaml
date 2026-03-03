@@ -133,6 +133,7 @@ data:
   CVP_HOST: {{$.Values.workerConfig.cvpHost | quote }}
   IMMUTABLE_BACKUP_ENABLED: {{$.Values.workerConfig.immutableBackupEnabled | quote }}
   CROSS_REGION_BACKUP_ENABLED: {{$.Values.workerConfig.crossRegionBackupEnabled | quote }}
+  GCBDR_VAULT_ENABLED: {{$.Values.workerConfig.gcbdrVaultEnabled | quote }}
   THIN_CLONE_GA_SUPPORT: {{$.Values.workerConfig.thinCloneGASupport | quote }}
   ENABLE_CLONE_INFO_REFRESH: {{$.Values.workerConfig.enableCloneInfoRefresh | quote }}
   RESTORE_VOLUME_BUFFER_ENABLED: {{$.Values.workerConfig.restoreVolumeBufferEnabled | quote }}

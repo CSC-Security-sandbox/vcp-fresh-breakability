@@ -6541,6 +6541,66 @@ func (_c *MockDataStore_GetBackupsByBackupVaultOwnerIDAndFilter_Call) RunAndRetu
 	return _c
 }
 
+// GetBackupsByBackupVaultUUIDAndFilter provides a mock function with given fields: ctx, backupVaultUUID, filters
+func (_m *MockDataStore) GetBackupsByBackupVaultUUIDAndFilter(ctx context.Context, backupVaultUUID string, filters [][]interface{}) ([]*datamodel.Backup, error) {
+	ret := _m.Called(ctx, backupVaultUUID, filters)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupsByBackupVaultUUIDAndFilter")
+	}
+
+	var r0 []*datamodel.Backup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, [][]interface{}) ([]*datamodel.Backup, error)); ok {
+		return rf(ctx, backupVaultUUID, filters)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, [][]interface{}) []*datamodel.Backup); ok {
+		r0 = rf(ctx, backupVaultUUID, filters)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Backup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, [][]interface{}) error); ok {
+		r1 = rf(ctx, backupVaultUUID, filters)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetBackupsByBackupVaultUUIDAndFilter_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupsByBackupVaultUUIDAndFilter'
+type MockDataStore_GetBackupsByBackupVaultUUIDAndFilter_Call struct {
+	*mock.Call
+}
+
+// GetBackupsByBackupVaultUUIDAndFilter is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupVaultUUID string
+//   - filters [][]interface{}
+func (_e *MockDataStore_Expecter) GetBackupsByBackupVaultUUIDAndFilter(ctx interface{}, backupVaultUUID interface{}, filters interface{}) *MockDataStore_GetBackupsByBackupVaultUUIDAndFilter_Call {
+	return &MockDataStore_GetBackupsByBackupVaultUUIDAndFilter_Call{Call: _e.mock.On("GetBackupsByBackupVaultUUIDAndFilter", ctx, backupVaultUUID, filters)}
+}
+
+func (_c *MockDataStore_GetBackupsByBackupVaultUUIDAndFilter_Call) Run(run func(ctx context.Context, backupVaultUUID string, filters [][]interface{})) *MockDataStore_GetBackupsByBackupVaultUUIDAndFilter_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].([][]interface{}))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetBackupsByBackupVaultUUIDAndFilter_Call) Return(_a0 []*datamodel.Backup, _a1 error) *MockDataStore_GetBackupsByBackupVaultUUIDAndFilter_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetBackupsByBackupVaultUUIDAndFilter_Call) RunAndReturn(run func(context.Context, string, [][]interface{}) ([]*datamodel.Backup, error)) *MockDataStore_GetBackupsByBackupVaultUUIDAndFilter_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetBackupsByVolumeUUID provides a mock function with given fields: ctx, volumeUUID
 func (_m *MockDataStore) GetBackupsByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error) {
 	ret := _m.Called(ctx, volumeUUID)

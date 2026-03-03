@@ -490,6 +490,7 @@ type CreateBackupParams struct {
 	VolumeUsageBytes         int64
 	BackupChainBytes         int64
 	IsExpertModeVolume       bool // Indicates if the volume is an expert mode volume (ONTAP mode)
+	BackupVaultServiceType   string // Service type of the backup vault (GCBDR, GCNV, etc.)
 }
 
 type GetBackupsParams struct {

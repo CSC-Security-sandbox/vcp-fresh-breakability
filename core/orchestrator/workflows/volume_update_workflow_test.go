@@ -8266,3 +8266,361 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_SizeReduction_GetVolum
 	assert.Error(s.T(), s.env.GetWorkflowError())
 	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "failed to fetch volume from ONTAP")
 }
+
+// ===== GCBDR Backup Vault Tests for Volume Update =====
+
+// Test_UpdateVolumeWorkflow_GCBDR_BucketAlreadyExists tests the happy path when a GCBDR
+// vault is attached and the bucket already exists (skips bucket creation).
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_GCBDR_BucketAlreadyExists() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	backupActivity := activities.BackupActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(updateActivity.GetVolumeFromONTAP)
+	s.env.RegisterActivity(updateActivity.CheckBackupVaultExistInVCP)
+	s.env.RegisterActivity(updateActivity.FindTenancyDetails)
+	s.env.RegisterActivity(updateActivity.CheckBucketResourceName)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(backupActivity.UpdateBackupMetadataIfExistsActivity)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+
+	// CheckBackupVaultExistInVCP returns a GCBDR vault (ServiceType = "GCBDR")
+	s.env.OnActivity(updateActivity.CheckBackupVaultExistInVCP, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{UUID: "gcbdr-vault-uuid"},
+		Name:        "gcbdr-vault",
+		ServiceType: activities.GCBDRServiceType,
+		BucketDetails: datamodel.BucketDetailsArray{
+			{BucketName: "gcbdr-bucket", TenantProjectNumber: "tenant-project"},
+		},
+	}, nil)
+	// CheckBucketResourceName returns existing bucket — no bucket creation needed
+	s.env.OnActivity(updateActivity.CheckBucketResourceName, mock.Anything, mock.Anything).Return(&common.BucketDetails{
+		BucketName:          "gcbdr-bucket",
+		ServiceAccountName:  "gcbdr-sa",
+		TenantProjectNumber: "12345",
+	}, nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.UpdateBackupMetadataIfExistsActivity, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+		},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "gcbdr-vault-uuid",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			VendorSubnetID: "test-subnet-id",
+		},
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 1000,
+		Region:       "us-west-1",
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed successfully — bucket already exists, no creation needed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+// Test_UpdateVolumeWorkflow_GCBDR_NewBucketCreation tests the full bucket creation flow
+// when a GCBDR vault is attached and no bucket exists yet.
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_GCBDR_NewBucketCreation() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	backupActivity := activities.BackupActivity{SE: mockStorage}
+	syncBackupZiZsActivity := backgroundactivities.SyncBackupZiZsActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(commonActivity.GetAuthJWTToken)
+	s.env.RegisterActivity(updateActivity.GetVolumeFromONTAP)
+	s.env.RegisterActivity(updateActivity.CheckBackupVaultExistInVCP)
+	s.env.RegisterActivity(updateActivity.FindTenancyDetails)
+	s.env.RegisterActivity(updateActivity.CheckBucketResourceName)
+	s.env.RegisterActivity(updateActivity.GenerateResourceNamesForBackupVault)
+	s.env.RegisterActivity(updateActivity.CreateBucketForBackupVault)
+	s.env.RegisterActivity(updateActivity.UpdateBucketDetailsOfBackupVault)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(syncBackupZiZsActivity.SyncBucketDetails)
+	s.env.RegisterActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateRemoteBackupVaultWithBucketDetails)
+	s.env.RegisterActivity(volumeCreateActivity.SetupCrossProjectBackupPermissions)
+	s.env.RegisterActivity(backupActivity.UpdateBackupMetadataIfExistsActivity)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+
+	// CheckBackupVaultExistInVCP returns a GCBDR vault
+	s.env.OnActivity(updateActivity.CheckBackupVaultExistInVCP, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{UUID: "gcbdr-vault-uuid"},
+		Name:        "gcbdr-vault",
+		ServiceType: activities.GCBDRServiceType,
+		BucketDetails: datamodel.BucketDetailsArray{
+			{BucketName: "gcbdr-existing-bucket", TenantProjectNumber: "tenant-project"},
+		},
+	}, nil)
+	// CheckBucketResourceName returns empty — triggers bucket creation
+	s.env.OnActivity(updateActivity.CheckBucketResourceName, mock.Anything, mock.Anything).Return(&common.BucketDetails{}, nil)
+	s.env.OnActivity(updateActivity.GenerateResourceNamesForBackupVault, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.ResourceNames{}, nil)
+	s.env.OnActivity(updateActivity.CreateBucketForBackupVault, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.AnythingOfType("*string")).Return(&common.BucketDetails{
+		BucketName:          "gcbdr-new-bucket",
+		TenantProjectNumber: "12345",
+	}, nil)
+	s.env.OnActivity(syncBackupZiZsActivity.SyncBucketDetails, mock.Anything, mock.Anything).Return(&datamodel.BucketDetails{
+		BucketName:          "gcbdr-new-bucket",
+		TenantProjectNumber: "12345",
+		SatisfiesPzi:        true,
+		SatisfiesPzs:        false,
+	}, nil)
+	s.env.OnActivity(updateActivity.UpdateBucketDetailsOfBackupVault, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.SetupCrossProjectBackupPermissions, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// GCBDR is not CrossRegion, so CheckOrCreateRemoteBackupVaultInVCP returns nil
+	s.env.OnActivity(volumeCreateActivity.CheckOrCreateRemoteBackupVaultInVCP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateRemoteBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.UpdateBackupMetadataIfExistsActivity, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel:        datamodel.BaseModel{ID: int64(1)},
+			ServiceAccountId: "pool-sa@project.iam.gserviceaccount.com",
+			ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "pool-tenant"},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+		},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "gcbdr-vault-uuid",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			VendorSubnetID: "test-subnet-id",
+		},
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 1000,
+		Region:       "us-west-1",
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed successfully — full GCBDR bucket creation path
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+// Test_UpdateVolumeWorkflow_GCBDR_CreateBucketFailure tests that the workflow fails
+// when bucket creation fails for a GCBDR vault.
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_GCBDR_CreateBucketFailure() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateLun)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{ProviderResponse: vsa.ProviderResponse{Name: "/vol/vol1/lun1"}}, nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+
+	// CheckBackupVaultExistInVCP returns a GCBDR vault
+	s.env.OnActivity(updateActivity.CheckBackupVaultExistInVCP, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{UUID: "gcbdr-vault-uuid"},
+		Name:        "gcbdr-vault",
+		ServiceType: activities.GCBDRServiceType,
+		BucketDetails: datamodel.BucketDetailsArray{
+			{BucketName: "gcbdr-existing-bucket", TenantProjectNumber: "tenant-project"},
+		},
+	}, nil)
+	// CheckBucketResourceName returns empty — triggers bucket creation
+	s.env.OnActivity(updateActivity.CheckBucketResourceName, mock.Anything, mock.Anything).Return(&common.BucketDetails{}, nil)
+	s.env.OnActivity(updateActivity.GenerateResourceNamesForBackupVault, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.ResourceNames{}, nil)
+	// CreateBucketForBackupVault fails
+	s.env.OnActivity(updateActivity.CreateBucketForBackupVault, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.AnythingOfType("*string")).Return(nil, errors.New("failed to create bucket for GCBDR vault"))
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+		},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		SizeInBytes: 100,
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "gcbdr-vault-uuid",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			VendorSubnetID: "test-subnet-id",
+		},
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 200,
+		Region:       "us-west-1",
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	// Assert workflow failed due to bucket creation error
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+// Test_UpdateVolumeWorkflow_GCBDR_UpdateBucketDetailsFailure tests that the workflow fails
+// when updating bucket details fails for a GCBDR vault after successful bucket creation.
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_GCBDR_UpdateBucketDetailsFailure() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	syncBackupZiZsActivity := backgroundactivities.SyncBackupZiZsActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateLun)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(syncBackupZiZsActivity.SyncBucketDetails)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{ProviderResponse: vsa.ProviderResponse{Name: "/vol/vol1/lun1"}}, nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+
+	// CheckBackupVaultExistInVCP returns a GCBDR vault
+	s.env.OnActivity(updateActivity.CheckBackupVaultExistInVCP, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{UUID: "gcbdr-vault-uuid"},
+		Name:        "gcbdr-vault",
+		ServiceType: activities.GCBDRServiceType,
+		BucketDetails: datamodel.BucketDetailsArray{
+			{BucketName: "gcbdr-existing-bucket", TenantProjectNumber: "tenant-project"},
+		},
+	}, nil)
+	s.env.OnActivity(updateActivity.CheckBucketResourceName, mock.Anything, mock.Anything).Return(&common.BucketDetails{}, nil)
+	s.env.OnActivity(updateActivity.GenerateResourceNamesForBackupVault, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.ResourceNames{}, nil)
+	s.env.OnActivity(updateActivity.CreateBucketForBackupVault, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.AnythingOfType("*string")).Return(&common.BucketDetails{
+		BucketName:          "gcbdr-new-bucket",
+		TenantProjectNumber: "12345",
+	}, nil)
+	s.env.OnActivity(syncBackupZiZsActivity.SyncBucketDetails, mock.Anything, mock.Anything).Return(&datamodel.BucketDetails{
+		BucketName:          "gcbdr-new-bucket",
+		TenantProjectNumber: "12345",
+		SatisfiesPzi:        true,
+		SatisfiesPzs:        false,
+	}, nil)
+	// UpdateBucketDetailsOfBackupVault fails
+	s.env.OnActivity(updateActivity.UpdateBucketDetailsOfBackupVault, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update GCBDR vault bucket details"))
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+		},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		SizeInBytes: 100,
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "gcbdr-vault-uuid",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			VendorSubnetID: "test-subnet-id",
+		},
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 200,
+		Region:       "us-west-1",
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}

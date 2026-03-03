@@ -366,8 +366,8 @@ func TestGetBackupVault(t *testing.T) {
 		if err == nil {
 			tt.Errorf("Expected error, got nil")
 		}
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			tt.Errorf("Expected error %v, got %v", gorm.ErrRecordNotFound, err)
+		if !customerrors.IsNotFoundErr(err) {
+			tt.Errorf("Expected NotFoundErr, got %v", err)
 		}
 	})
 	t.Run("GetBackupVaultReturnsBackupVaultWhenExists", func(tt *testing.T) {

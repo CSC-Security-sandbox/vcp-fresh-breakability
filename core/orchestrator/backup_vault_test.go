@@ -15,6 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -416,7 +417,7 @@ func TestGetBackupVaultByUUID(tt *testing.T) {
 	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
 
 	mockStorage := new(database.MockStorage)
-	mockStorage.On("GetBackupVaultByUUIDndOwnerID", context.Background(), "backup-vault-uuid", int64(account.ID)).Return(nil, gorm.ErrRecordNotFound)
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", context.Background(), "backup-vault-uuid", int64(account.ID)).Return(nil, utilErrors.NewNotFoundErr("backup vault", nil))
 
 	res, err := GetBackupVaultByUUIDAndOwnerID(context.Background(), mockStorage, "backup-vault-uuid", account.ID)
 
@@ -604,7 +605,7 @@ func TestUpdateBackupVault(t *testing.T) {
 			WorkflowID: "workflow-id",
 		}
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(job, nil)
-		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, params.BackupVaultID, int64(account.ID)).Return(nil, gorm.ErrRecordNotFound)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, params.BackupVaultID, int64(account.ID)).Return(nil, utilErrors.NewNotFoundErr("backup vault", nil))
 
 		bv, _, err := updateBackupVault(ctx, se, temporal, params)
 		assert.Error(t, err, "Expected error when validation fails")

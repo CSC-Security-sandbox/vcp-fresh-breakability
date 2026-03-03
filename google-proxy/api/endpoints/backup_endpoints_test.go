@@ -630,7 +630,7 @@ func TestCreateBackupParams(t *testing.T) {
 			BackupVaultId: "backup-vault-id",
 		}
 
-		result := createBackupParams(req, params, false)
+		result := createBackupParams(req, params, false, "GCNV")
 
 		assert.Equal(t, "project-number", result.AccountName)
 		assert.Equal(t, "backup-vault-id", result.BackupVaultID)
@@ -650,7 +650,7 @@ func TestCreateBackupParams(t *testing.T) {
 			ProjectNumber: "project-number",
 			BackupVaultId: "backup-vault-id",
 		}
-		result := createBackupParams(req, params, false)
+		result := createBackupParams(req, params, false, "GCNV")
 		assert.Equal(t, "project-number", result.AccountName)
 		assert.Equal(t, "backup-vault-id", result.BackupVaultID)
 		assert.Equal(t, "volume-uuid", result.VolumeUUID)
@@ -754,6 +754,15 @@ func TestV1betaCreateBackup(t *testing.T) {
 			return false, nil // Backup doesn't exist in CVP
 		}
 		backupEnabled = true
+
+		// Mock backup vault
+		backupVault := &coremodels.BackupVaultV1beta{
+			BackupVaultID: "vault",
+			AccountName:   "proj",
+			ServiceType:   "GCNV",
+		}
+		mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, "vault").Return(backupVault, nil)
+
 		// Mock volume exists in VSA
 		volume := &coremodels.Volume{
 			BaseModel: coremodels.BaseModel{
@@ -761,9 +770,13 @@ func TestV1betaCreateBackup(t *testing.T) {
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			},
+			AccountName:           "proj",
 			DisplayName:           "test-volume",
 			LifeCycleState:        "READY",
 			LifeCycleStateDetails: "All systems go",
+			DataProtection: &coremodels.DataProtection{
+				BackupVaultID: "vault",
+			},
 		}
 		mockOrch.EXPECT().GetVolume(ctx, "vol-id", false).Return(volume, nil)
 
@@ -817,6 +830,14 @@ func TestV1betaCreateBackup(t *testing.T) {
 			return false, nil // Backup doesn't exist in CVP
 		}
 
+		// Mock backup vault
+		backupVault := &coremodels.BackupVaultV1beta{
+			BackupVaultID: "vault",
+			AccountName:   "proj",
+			ServiceType:   "GCNV",
+		}
+		mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, "vault").Return(backupVault, nil)
+
 		// Mock volume exists in VSA
 		volume := &coremodels.Volume{
 			BaseModel: coremodels.BaseModel{
@@ -824,9 +845,13 @@ func TestV1betaCreateBackup(t *testing.T) {
 				CreatedAt: time.Now(),
 				UpdatedAt: time.Now(),
 			},
+			AccountName:           "proj",
 			DisplayName:           "test-volume",
 			LifeCycleState:        "READY",
 			LifeCycleStateDetails: "All systems go",
+			DataProtection: &coremodels.DataProtection{
+				BackupVaultID: "vault",
+			},
 		}
 		mockOrch.EXPECT().GetVolume(ctx, "vol-id", false).Return(volume, nil)
 
@@ -1174,6 +1199,14 @@ func TestV1betaCreateBackup_CVPErrorCases(t *testing.T) {
 				return "us-east4", "us-east4", nil
 			}
 
+			// Mock backup vault
+			backupVault := &coremodels.BackupVaultV1beta{
+				BackupVaultID: "vault",
+				AccountName:   "proj",
+				ServiceType:   "GCNV",
+			}
+			mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, "vault").Return(backupVault, nil)
+
 			volumeID := "vol-id"
 			mockOrch.EXPECT().
 				GetVolume(ctx, "vol-id", false).
@@ -1221,6 +1254,15 @@ func TestV1betaCreateBackup_CVPCreateBackupCreatedAndAccepted(t *testing.T) {
 		utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
+
+		// Mock backup vault
+		backupVault := &coremodels.BackupVaultV1beta{
+			BackupVaultID: "vault",
+			AccountName:   "proj",
+			ServiceType:   "GCNV",
+		}
+		mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, "vault").Return(backupVault, nil)
+
 		mockOrch.EXPECT().
 			GetVolume(ctx, "vol-id", false).
 			Return(nil, nil)
@@ -1264,6 +1306,15 @@ func TestV1betaCreateBackup_CVPCreateBackupCreatedAndAccepted(t *testing.T) {
 		utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
+
+		// Mock backup vault
+		backupVault := &coremodels.BackupVaultV1beta{
+			BackupVaultID: "vault",
+			AccountName:   "proj",
+			ServiceType:   "GCNV",
+		}
+		mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, "vault").Return(backupVault, nil)
+
 		mockOrch.EXPECT().
 			GetVolume(ctx, "vol-id", false).
 			Return(nil, nil)
@@ -1307,6 +1358,15 @@ func TestV1betaCreateBackup_CVPCreateBackupCreatedAndAccepted(t *testing.T) {
 		utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
+
+		// Mock backup vault
+		backupVault := &coremodels.BackupVaultV1beta{
+			BackupVaultID: "vault",
+			AccountName:   "proj",
+			ServiceType:   "GCNV",
+		}
+		mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, "vault").Return(backupVault, nil)
+
 		mockOrch.EXPECT().
 			GetVolume(ctx, "vol-id", false).
 			Return(nil, nil)
@@ -1366,6 +1426,15 @@ func TestV1betaCreateBackup_CVPCreateBackupCreatedAndAccepted(t *testing.T) {
 			LifeCycleStateDetails: "All systems go",
 			IsDataProtection:      false,
 		}
+
+		// Mock backup vault
+		backupVault := &coremodels.BackupVaultV1beta{
+			BackupVaultID: "vault",
+			AccountName:   "proj",
+			ServiceType:   "GCNV",
+		}
+		mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, "vault").Return(backupVault, nil)
+
 		mockOrch.EXPECT().
 			GetVolume(ctx, "vol-id", false).
 			Return(vol, errors.NewUserInputValidationErr("Invalid input parameters"))
@@ -2506,13 +2575,18 @@ func TestV1betaListBackups(t *testing.T) {
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 
-		// Mock GetBackupVaultByUUID to return success (vault exists)
+		// Mock backup vault (needed for GCBDR check)
+		backupVault := &coremodels.BackupVaultV1beta{
+			BackupVaultID: params.BackupVaultId,
+			AccountName:   params.ProjectNumber,
+			ServiceType:   "GCNV",
+		}
 		mockOrchestrator.EXPECT().
-			GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber).
-			Return(&coremodels.BackupVaultV1beta{}, nil)
+			GetBackupVaultByUUIDWithoutAccount(ctx, params.BackupVaultId).
+			Return(backupVault, nil)
 
 		// Mock ListBackups to return VSA backups
-		backupVault := &datamodel.BackupVault{
+		backupVaultData := &datamodel.BackupVault{
 			Name:             "test-backup-vault",
 			SourceRegionName: nillable.ToPointer("us-east4"),
 			BucketDetails:    datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
@@ -2522,7 +2596,7 @@ func TestV1betaListBackups(t *testing.T) {
 				State:         "InProgress",
 				Name:          "vsa-backup-1",
 				VolumeUUID:    "test-vol-1",
-				BackupVault:   backupVault,
+				BackupVault:   backupVaultData,
 				BackupVaultID: 1,
 				Attributes:    &datamodel.BackupAttributes{},
 			},
@@ -2530,7 +2604,7 @@ func TestV1betaListBackups(t *testing.T) {
 				State:         "Available",
 				Name:          "vsa-backup-2",
 				VolumeUUID:    "test-vol-2",
-				BackupVault:   backupVault,
+				BackupVault:   backupVaultData,
 				BackupVaultID: 1,
 				Attributes:    &datamodel.BackupAttributes{},
 			},
@@ -2583,9 +2657,9 @@ func TestV1betaListBackups(t *testing.T) {
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 
-		// Mock GetBackupVaultByUUID to return NotFoundErr (vault doesn't exist in VSA)
+		// Mock GetBackupVaultByUUIDWithoutAccount to return NotFoundErr (vault doesn't exist in VSA)
 		mockOrchestrator.EXPECT().
-			GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber).
+			GetBackupVaultByUUIDWithoutAccount(ctx, params.BackupVaultId).
 			Return(nil, errors.NewNotFoundErr("backup vault", nil))
 
 		// Mock CVP response
@@ -2624,10 +2698,15 @@ func TestV1betaListBackups(t *testing.T) {
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 
-		// Mock GetBackupVaultByUUID to return success (vault exists)
+		// Mock backup vault (needed for GCBDR check)
+		backupVault := &coremodels.BackupVaultV1beta{
+			BackupVaultID: params.BackupVaultId,
+			AccountName:   params.ProjectNumber,
+			ServiceType:   "GCNV",
+		}
 		mockOrchestrator.EXPECT().
-			GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber).
-			Return(&coremodels.BackupVaultV1beta{}, nil)
+			GetBackupVaultByUUIDWithoutAccount(ctx, params.BackupVaultId).
+			Return(backupVault, nil)
 
 		// Mock ListBackups to return error
 		mockOrchestrator.EXPECT().
@@ -2668,10 +2747,15 @@ func TestV1betaListBackups(t *testing.T) {
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 
-		// Mock GetBackupVaultByUUID to return success (vault exists)
+		// Mock backup vault (needed for GCBDR check)
+		backupVault := &coremodels.BackupVaultV1beta{
+			BackupVaultID: params.BackupVaultId,
+			AccountName:   params.ProjectNumber,
+			ServiceType:   "GCNV",
+		}
 		mockOrchestrator.EXPECT().
-			GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber).
-			Return(&coremodels.BackupVaultV1beta{}, nil)
+			GetBackupVaultByUUIDWithoutAccount(ctx, params.BackupVaultId).
+			Return(backupVault, nil)
 
 		// Mock ListBackups to return empty list
 		mockOrchestrator.EXPECT().
@@ -2712,6 +2796,13 @@ func TestV1betaListBackups(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+
+		// Mock GetBackupVaultByUUIDWithoutAccount - vault not found (will go to CVP)
+		mockOrchestrator.EXPECT().
+			GetBackupVaultByUUIDWithoutAccount(ctx, params.BackupVaultId).
+			Return(nil, errors.NewNotFoundErr("backup vault", nil))
+
 		mockListBackupsToCVP := func(ctx context.Context, params gcpgenserver.V1betaListBackupsParams) (gcpgenserver.V1betaListBackupsRes, error) {
 			return nil, errors.New("failed to list backups")
 		}
@@ -2720,7 +2811,7 @@ func TestV1betaListBackups(t *testing.T) {
 		defer func() { listBackupsToCVP = originalListBackupsToCVP }()
 		listBackupsToCVP = mockListBackupsToCVP
 
-		handler := Handler{}
+		handler := Handler{Orchestrator: mockOrchestrator}
 		result, err := handler.V1betaListBackups(ctx, params)
 
 		assert.Error(t, err)
@@ -2736,6 +2827,13 @@ func TestV1betaListBackups(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 
+		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+
+		// Mock GetBackupVaultByUUIDWithoutAccount - vault not found (will go to CVP)
+		mockOrchestrator.EXPECT().
+			GetBackupVaultByUUIDWithoutAccount(ctx, params.BackupVaultId).
+			Return(nil, errors.NewNotFoundErr("backup vault", nil))
+
 		// Mock CVP to return an error response instead of OK
 		mockListBackupsToCVP := func(ctx context.Context, params gcpgenserver.V1betaListBackupsParams) (gcpgenserver.V1betaListBackupsRes, error) {
 			return &gcpgenserver.V1betaListBackupsBadRequest{
@@ -2748,7 +2846,7 @@ func TestV1betaListBackups(t *testing.T) {
 		defer func() { listBackupsToCVP = originalListBackupsToCVP }()
 		listBackupsToCVP = mockListBackupsToCVP
 
-		handler := Handler{}
+		handler := Handler{Orchestrator: mockOrchestrator}
 		result, err := handler.V1betaListBackups(ctx, params)
 
 		assert.NoError(t, err)
@@ -2773,13 +2871,18 @@ func TestV1betaListBackups(t *testing.T) {
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 
-		// Mock GetBackupVaultByUUID to return success (vault exists in VCP)
+		// Mock backup vault (needed for GCBDR check)
+		backupVaultModel := &coremodels.BackupVaultV1beta{
+			BackupVaultID: params.BackupVaultId,
+			AccountName:   params.ProjectNumber,
+			ServiceType:   "GCNV",
+		}
 		mockOrchestrator.EXPECT().
-			GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber).
-			Return(&coremodels.BackupVaultV1beta{}, nil)
+			GetBackupVaultByUUIDWithoutAccount(ctx, params.BackupVaultId).
+			Return(backupVaultModel, nil)
 
 		// Mock ListBackups to verify it's called with the correct filter and returns backup from VCP
-		backupVault := &datamodel.BackupVault{
+		backupVaultData := &datamodel.BackupVault{
 			Name:             "test-backup-vault",
 			SourceRegionName: nillable.ToPointer("us-east4"),
 			BucketDetails:    datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
@@ -2789,7 +2892,7 @@ func TestV1betaListBackups(t *testing.T) {
 				State:         "Available",
 				Name:          backupName,
 				VolumeUUID:    "test-vol-1",
-				BackupVault:   backupVault,
+				BackupVault:   backupVaultData,
 				BackupVaultID: 1,
 				Attributes:    &datamodel.BackupAttributes{},
 			},
@@ -2841,9 +2944,9 @@ func TestV1betaListBackups(t *testing.T) {
 
 		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
 
-		// Mock GetBackupVaultByUUID to return NotFoundErr (vault doesn't exist in VCP, so backup is in CVP)
+		// Mock GetBackupVaultByUUIDWithoutAccount to return NotFoundErr (vault doesn't exist in VCP, so backup is in CVP)
 		mockOrchestrator.EXPECT().
-			GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber).
+			GetBackupVaultByUUIDWithoutAccount(ctx, params.BackupVaultId).
 			Return(nil, errors.NewNotFoundErr("backup vault", nil))
 
 		// Mock CVP response with BackupName filter - backup found in CVP
@@ -4528,6 +4631,14 @@ func TestV1betaCreateBackup_VolumeNotFoundInVSA(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 
+		// Mock backup vault lookup
+		backupVault := &coremodels.BackupVaultV1beta{
+			BackupVaultID: "vault",
+			AccountName:   "proj",
+			ServiceType:   "GCNV",
+		}
+		mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, "vault").Return(backupVault, nil)
+
 		// Mock GetVolume to return NotFoundErr (volume doesn't exist in VSA)
 		mockOrch.EXPECT().GetVolume(ctx, "vol-id", false).Return(nil, errors.NewNotFoundErr("Volume not found", nil))
 
@@ -4575,6 +4686,14 @@ func TestV1betaCreateBackup_VolumeNotFoundInVSA(t *testing.T) {
 		utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
+
+		// Mock backup vault lookup
+		backupVault := &coremodels.BackupVaultV1beta{
+			BackupVaultID: "vault",
+			AccountName:   "proj",
+			ServiceType:   "GCNV",
+		}
+		mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, "vault").Return(backupVault, nil)
 
 		// Mock GetVolume to return NotFoundErr (volume doesn't exist in VSA)
 		mockOrch.EXPECT().GetVolume(ctx, "vol-id", false).Return(nil, errors.NewNotFoundErr("Volume not found", nil))
@@ -4630,6 +4749,14 @@ func TestV1betaCreateBackup_VolumeNotFoundInVSA(t *testing.T) {
 		utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
+
+		// Mock backup vault lookup
+		backupVault := &coremodels.BackupVaultV1beta{
+			BackupVaultID: "vault",
+			AccountName:   "proj",
+			ServiceType:   "GCNV",
+		}
+		mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, "vault").Return(backupVault, nil)
 
 		// Mock GetVolume to return nil volume (volume doesn't exist in VSA)
 		mockOrch.EXPECT().GetVolume(ctx, "vol-id", false).Return(nil, nil)
@@ -4692,6 +4819,14 @@ func TestV1betaCreateBackup_VolumeNotFoundInVSA(t *testing.T) {
 		utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
+
+		// Mock backup vault lookup
+		backupVault := &coremodels.BackupVaultV1beta{
+			BackupVaultID: "vault",
+			AccountName:   "proj",
+			ServiceType:   "GCNV",
+		}
+		mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, "vault").Return(backupVault, nil)
 
 		// Mock GetVolume to return NotFoundErr (volume doesn't exist in VSA)
 		mockOrch.EXPECT().GetVolume(ctx, "vol-id", false).Return(nil, errors.NewNotFoundErr("Volume not found", nil))
@@ -4764,6 +4899,14 @@ func TestV1betaCreateBackup_VolumeNotFoundInVSA(t *testing.T) {
 		utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-east4", "us-east4", nil
 		}
+
+		// Mock backup vault lookup
+		backupVault := &coremodels.BackupVaultV1beta{
+			BackupVaultID: "vault",
+			AccountName:   "proj",
+			ServiceType:   "GCNV",
+		}
+		mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, "vault").Return(backupVault, nil)
 
 		// Mock GetVolume to return NotFoundErr (volume doesn't exist in VSA)
 		mockOrch.EXPECT().GetVolume(ctx, "vol-id", false).Return(nil, errors.NewNotFoundErr("Volume not found", nil))
@@ -5099,6 +5242,14 @@ func TestV1betaCreateBackup_PoolAndExpertModeVolumeHandling(t *testing.T) {
 			PoolId:     gcpgenserver.OptString{}, // Not set
 		}
 
+		// Mock backup vault lookup
+		bv := &coremodels.BackupVaultV1beta{
+			BackupVaultID: backupVaultId,
+			AccountName:   projectNumber,
+			ServiceType:   "GCNV",
+		}
+		mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, backupVaultId).Return(bv, nil)
+
 		// Should call GetVolume since poolId is not provided
 		mockOrch.EXPECT().
 			GetVolume(ctx, volumeId, false).
@@ -5152,6 +5303,14 @@ func TestV1betaCreateBackup_PoolAndExpertModeVolumeHandling(t *testing.T) {
 			return "us-central1", "a", nil
 		}
 
+		// Mock backup vault lookup
+		bv := &coremodels.BackupVaultV1beta{
+			BackupVaultID: backupVaultId,
+			AccountName:   projectNumber,
+			ServiceType:   "GCNV",
+		}
+		mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, backupVaultId).Return(bv, nil)
+
 		// Mock validateAndDescribePool to return error response
 		notFoundErr := errors.NewNotFoundErr("Pool", &poolId)
 		mockOrch.EXPECT().
@@ -5187,6 +5346,14 @@ func TestV1betaCreateBackup_PoolAndExpertModeVolumeHandling(t *testing.T) {
 			return "us-central1", "a", nil
 		}
 
+		// Mock backup vault lookup
+		bv := &coremodels.BackupVaultV1beta{
+			BackupVaultID: backupVaultId,
+			AccountName:   projectNumber,
+			ServiceType:   "GCNV",
+		}
+		mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, backupVaultId).Return(bv, nil)
+
 		// Mock validateAndDescribePool to return non-NotFound error
 		dbError := fmt.Errorf("database connection error")
 		mockOrch.EXPECT().
@@ -5218,6 +5385,15 @@ func TestV1betaCreateBackup_PoolAndExpertModeVolumeHandling(t *testing.T) {
 		oldOntapModebackupEnabled := ExpertModeBackupEnabled
 		defer func() { ExpertModeBackupEnabled = oldOntapModebackupEnabled }()
 		ExpertModeBackupEnabled = true
+
+		// Mock backup vault lookup
+		bv := &coremodels.BackupVaultV1beta{
+			BackupVaultID: backupVaultId,
+			AccountName:   projectNumber,
+			ServiceType:   "GCNV",
+		}
+		mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, backupVaultId).Return(bv, nil)
+
 		// Mock pool description to return ONTAP mode
 		pool := &coremodels.Pool{
 			BaseModel: coremodels.BaseModel{
@@ -5266,6 +5442,14 @@ func TestV1betaCreateBackup_PoolAndExpertModeVolumeHandling(t *testing.T) {
 		oldOntapModebackupEnabled := ExpertModeBackupEnabled
 		defer func() { ExpertModeBackupEnabled = oldOntapModebackupEnabled }()
 		ExpertModeBackupEnabled = true
+
+		// Mock backup vault lookup
+		bv := &coremodels.BackupVaultV1beta{
+			BackupVaultID: backupVaultId,
+			AccountName:   projectNumber,
+			ServiceType:   "GCNV",
+		}
+		mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, backupVaultId).Return(bv, nil)
 
 		// Mock pool description to return ONTAP mode
 		pool := &coremodels.Pool{
@@ -5325,6 +5509,14 @@ func TestV1betaCreateBackup_PoolAndExpertModeVolumeHandling(t *testing.T) {
 		defer func() { ExpertModeBackupEnabled = oldOntapModebackupEnabled }()
 		ExpertModeBackupEnabled = true
 
+		// Mock backup vault lookup
+		bv := &coremodels.BackupVaultV1beta{
+			BackupVaultID: backupVaultId,
+			AccountName:   projectNumber,
+			ServiceType:   "GCNV",
+		}
+		mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, backupVaultId).Return(bv, nil)
+
 		// Mock pool description to return ONTAP mode
 		pool := &coremodels.Pool{
 			BaseModel: coremodels.BaseModel{
@@ -5377,6 +5569,14 @@ func TestV1betaCreateBackup_PoolAndExpertModeVolumeHandling(t *testing.T) {
 			ResourceId: "backup-123",
 			PoolId:     gcpgenserver.NewOptString(poolId),
 		}
+
+		// Mock backup vault lookup
+		bv := &coremodels.BackupVaultV1beta{
+			BackupVaultID: backupVaultId,
+			AccountName:   projectNumber,
+			ServiceType:   "GCNV",
+		}
+		mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, backupVaultId).Return(bv, nil)
 
 		// Mock pool description to return non-ONTAP mode
 		pool := &coremodels.Pool{
@@ -5469,11 +5669,20 @@ func TestV1betaCreateBackup_ConflictError(t *testing.T) {
 			return "us-east4", "us-east4-a", nil
 		}
 
+		// Mock backup vault lookup
+		bv := &coremodels.BackupVaultV1beta{
+			BackupVaultID: backupVaultId,
+			AccountName:   projectNumber,
+			ServiceType:   "GCNV",
+		}
+		mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, backupVaultId).Return(bv, nil)
+
 		// Mock GetVolume to succeed (volume exists in VSA)
 		vol := &coremodels.Volume{
 			BaseModel: coremodels.BaseModel{
 				UUID: volumeId,
 			},
+			AccountName: projectNumber,
 		}
 		mockOrch.EXPECT().
 			GetVolume(ctx, volumeId, false).
@@ -5543,6 +5752,14 @@ func TestV1betaCreateBackup_ConflictError(t *testing.T) {
 			return "us-central1", "us-central1-a", nil
 		}
 
+		// Mock backup vault lookup
+		bv := &coremodels.BackupVaultV1beta{
+			BackupVaultID: backupVaultId,
+			AccountName:   projectNumber,
+			ServiceType:   "GCNV",
+		}
+		mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, backupVaultId).Return(bv, nil)
+
 		// Mock pool description to return ONTAP mode
 		pool := &coremodels.Pool{
 			BaseModel: coremodels.BaseModel{
@@ -5597,4 +5814,401 @@ func TestV1betaCreateBackup_ConflictError(t *testing.T) {
 		assert.Equal(t, float64(409), conflictResp.Code)
 		assert.Contains(t, conflictResp.Message, "Backup with the same name already exists")
 	})
+}
+
+// ===== Tests for GCBDR coverage in V1betaCreateBackup =====
+
+func TestV1betaCreateBackup_BackupVaultNotFound(t *testing.T) {
+	// Covers backup_endpoints.go lines 165-170: GetBackupVaultByUUIDWithoutAccount returns not found
+	origBackupEnabled := backupEnabled
+	origParse := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		backupEnabled = origBackupEnabled
+		utils.ParseAndValidateRegionAndZone = origParse
+	}()
+	backupEnabled = true
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+
+	params := gcpgenserver.V1betaCreateBackupParams{
+		BackupVaultId:  "nonexistent-vault",
+		LocationId:     "us-central1-a",
+		ProjectNumber:  "12345",
+		XCorrelationID: gcpgenserver.NewOptString("corr-id"),
+	}
+	req := &gcpgenserver.BackupCreateV1beta{
+		VolumeId:   "vol-id",
+		ResourceId: "backup-id",
+	}
+
+	mockOrch.EXPECT().
+		GetBackupVaultByUUIDWithoutAccount(ctx, params.BackupVaultId).
+		Return(nil, errors.NewNotFoundErr("backup vault", nil))
+
+	handler := Handler{Orchestrator: mockOrch}
+	result, err := handler.V1betaCreateBackup(ctx, req, params)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &gcpgenserver.V1betaCreateBackupBadRequest{}, result)
+	badReq := result.(*gcpgenserver.V1betaCreateBackupBadRequest)
+	assert.Equal(t, float64(400), badReq.Code)
+	assert.Contains(t, badReq.Message, "not found")
+}
+
+func TestV1betaCreateBackup_BackupVaultInternalError(t *testing.T) {
+	// Covers backup_endpoints.go line 172: GetBackupVaultByUUIDWithoutAccount returns non-NotFound error
+	origBackupEnabled := backupEnabled
+	origParse := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		backupEnabled = origBackupEnabled
+		utils.ParseAndValidateRegionAndZone = origParse
+	}()
+	backupEnabled = true
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+
+	params := gcpgenserver.V1betaCreateBackupParams{
+		BackupVaultId:  "vault-id",
+		LocationId:     "us-central1-a",
+		ProjectNumber:  "12345",
+		XCorrelationID: gcpgenserver.NewOptString("corr-id"),
+	}
+	req := &gcpgenserver.BackupCreateV1beta{
+		VolumeId:   "vol-id",
+		ResourceId: "backup-id",
+	}
+
+	mockOrch.EXPECT().
+		GetBackupVaultByUUIDWithoutAccount(ctx, params.BackupVaultId).
+		Return(nil, fmt.Errorf("database connection error"))
+
+	handler := Handler{Orchestrator: mockOrch}
+	result, err := handler.V1betaCreateBackup(ctx, req, params)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &gcpgenserver.V1betaCreateBackupInternalServerError{}, result)
+	serverErr := result.(*gcpgenserver.V1betaCreateBackupInternalServerError)
+	assert.Equal(t, float64(500), serverErr.Code)
+}
+
+func TestV1betaCreateBackup_NonGCBDR_VaultNotBelongingToAccount(t *testing.T) {
+	// Covers backup_endpoints.go lines 183-190: non-GCBDR vault with mismatched account
+	origBackupEnabled := backupEnabled
+	origParse := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		backupEnabled = origBackupEnabled
+		utils.ParseAndValidateRegionAndZone = origParse
+	}()
+	backupEnabled = true
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+
+	params := gcpgenserver.V1betaCreateBackupParams{
+		BackupVaultId:  "vault-id",
+		LocationId:     "us-central1-a",
+		ProjectNumber:  "project-A",
+		XCorrelationID: gcpgenserver.NewOptString("corr-id"),
+	}
+	req := &gcpgenserver.BackupCreateV1beta{
+		VolumeId:   "vol-id",
+		ResourceId: "backup-id",
+	}
+
+	// Return a GCNV vault that belongs to a different project
+	vcpBv := &coremodels.BackupVaultV1beta{
+		BackupVaultID: params.BackupVaultId,
+		ServiceType:   "GCNV",
+		AccountName:   "project-B", // different from ProjectNumber
+	}
+	mockOrch.EXPECT().
+		GetBackupVaultByUUIDWithoutAccount(ctx, params.BackupVaultId).
+		Return(vcpBv, nil)
+
+	handler := Handler{Orchestrator: mockOrch}
+	result, err := handler.V1betaCreateBackup(ctx, req, params)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &gcpgenserver.V1betaCreateBackupBadRequest{}, result)
+	badReq := result.(*gcpgenserver.V1betaCreateBackupBadRequest)
+	assert.Equal(t, float64(400), badReq.Code)
+	assert.Contains(t, badReq.Message, "does not belong to account")
+}
+
+func TestV1betaCreateBackup_NonGCBDR_VolumeNotBelongingToAccount(t *testing.T) {
+	// Covers backup_endpoints.go lines 274-282: volume AccountName != ProjectNumber
+	origBackupEnabled := backupEnabled
+	origParse := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		backupEnabled = origBackupEnabled
+		utils.ParseAndValidateRegionAndZone = origParse
+	}()
+	backupEnabled = true
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	projectNumber := "project-A"
+	volumeId := "vol-id"
+
+	params := gcpgenserver.V1betaCreateBackupParams{
+		BackupVaultId:  "vault-id",
+		LocationId:     "us-central1-a",
+		ProjectNumber:  projectNumber,
+		XCorrelationID: gcpgenserver.NewOptString("corr-id"),
+	}
+	req := &gcpgenserver.BackupCreateV1beta{
+		VolumeId:   volumeId,
+		ResourceId: "backup-id",
+	}
+
+	// GCNV vault that matches the project
+	vcpBv := &coremodels.BackupVaultV1beta{
+		BackupVaultID: params.BackupVaultId,
+		ServiceType:   "GCNV",
+		AccountName:   projectNumber,
+	}
+	mockOrch.EXPECT().
+		GetBackupVaultByUUIDWithoutAccount(ctx, params.BackupVaultId).
+		Return(vcpBv, nil)
+
+	// Volume belongs to a different project
+	vol := &coremodels.Volume{
+		BaseModel:   coremodels.BaseModel{UUID: volumeId},
+		AccountName: "project-B", // different from ProjectNumber
+	}
+	mockOrch.EXPECT().
+		GetVolume(ctx, volumeId, false).
+		Return(vol, nil)
+
+	handler := Handler{Orchestrator: mockOrch}
+	result, err := handler.V1betaCreateBackup(ctx, req, params)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &gcpgenserver.V1betaCreateBackupBadRequest{}, result)
+	badReq := result.(*gcpgenserver.V1betaCreateBackupBadRequest)
+	assert.Equal(t, float64(400), badReq.Code)
+	assert.Contains(t, badReq.Message, "does not belong to account")
+}
+
+func TestV1betaCreateBackup_GCBDR_SkipsCVPCheckAndDetectsConflictInVCP(t *testing.T) {
+	// Covers backup_endpoints.go lines 441-457: GCBDR path skips CVP and checks VCP
+	origBackupEnabled := backupEnabled
+	origParse := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		backupEnabled = origBackupEnabled
+		utils.ParseAndValidateRegionAndZone = origParse
+	}()
+	backupEnabled = true
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	projectNumber := "project-A"
+	volumeId := "vol-id"
+
+	params := gcpgenserver.V1betaCreateBackupParams{
+		BackupVaultId:  "gcbdr-vault",
+		LocationId:     "us-central1-a",
+		ProjectNumber:  projectNumber,
+		XCorrelationID: gcpgenserver.NewOptString("corr-id"),
+	}
+	req := &gcpgenserver.BackupCreateV1beta{
+		VolumeId:   volumeId,
+		ResourceId: "existing-backup",
+	}
+
+	// GCBDR vault
+	vcpBv := &coremodels.BackupVaultV1beta{
+		BackupVaultID: params.BackupVaultId,
+		ServiceType:   "GCBDR",
+		AccountName:   "vault-owner",
+	}
+	mockOrch.EXPECT().
+		GetBackupVaultByUUIDWithoutAccount(ctx, params.BackupVaultId).
+		Return(vcpBv, nil)
+
+	// Volume fetch
+	vol := &coremodels.Volume{
+		BaseModel:   coremodels.BaseModel{UUID: volumeId},
+		AccountName: projectNumber,
+	}
+	mockOrch.EXPECT().
+		GetVolume(ctx, volumeId, false).
+		Return(vol, nil)
+
+	// GCBDR path: ListBackupsWithoutAccountFilter returns existing backup (conflict)
+	existingBackup := []*datamodel.Backup{
+		{Name: "existing-backup"},
+	}
+	filters := [][]interface{}{{"name = ?", req.ResourceId}}
+	mockOrch.EXPECT().
+		ListBackupsWithoutAccountFilter(ctx, params.BackupVaultId, filters).
+		Return(existingBackup, nil)
+
+	handler := Handler{Orchestrator: mockOrch}
+	result, err := handler.V1betaCreateBackup(ctx, req, params)
+
+	assert.NoError(t, err)
+	assert.IsType(t, &gcpgenserver.V1betaCreateBackupConflict{}, result)
+	conflictResp := result.(*gcpgenserver.V1betaCreateBackupConflict)
+	assert.Equal(t, float64(409), conflictResp.Code)
+	assert.Contains(t, conflictResp.Message, "already exists")
+}
+
+func TestV1betaCreateBackup_GCBDR_VCPCheckError(t *testing.T) {
+	// Covers backup_endpoints.go lines 447-449: GCBDR VCP backup check error
+	origBackupEnabled := backupEnabled
+	origParse := utils.ParseAndValidateRegionAndZone
+	defer func() {
+		backupEnabled = origBackupEnabled
+		utils.ParseAndValidateRegionAndZone = origParse
+	}()
+	backupEnabled = true
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "us-central1-a", nil
+	}
+
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	projectNumber := "project-A"
+	volumeId := "vol-id"
+
+	params := gcpgenserver.V1betaCreateBackupParams{
+		BackupVaultId:  "gcbdr-vault",
+		LocationId:     "us-central1-a",
+		ProjectNumber:  projectNumber,
+		XCorrelationID: gcpgenserver.NewOptString("corr-id"),
+	}
+	req := &gcpgenserver.BackupCreateV1beta{
+		VolumeId:   volumeId,
+		ResourceId: "backup-id",
+	}
+
+	// GCBDR vault
+	vcpBv := &coremodels.BackupVaultV1beta{
+		BackupVaultID: params.BackupVaultId,
+		ServiceType:   "GCBDR",
+		AccountName:   "vault-owner",
+	}
+	mockOrch.EXPECT().
+		GetBackupVaultByUUIDWithoutAccount(ctx, params.BackupVaultId).
+		Return(vcpBv, nil)
+
+	vol := &coremodels.Volume{BaseModel: coremodels.BaseModel{UUID: volumeId}, AccountName: projectNumber}
+	mockOrch.EXPECT().GetVolume(ctx, volumeId, false).Return(vol, nil)
+
+	// ListBackupsWithoutAccountFilter returns error
+	filters := [][]interface{}{{"name = ?", req.ResourceId}}
+	mockOrch.EXPECT().
+		ListBackupsWithoutAccountFilter(ctx, params.BackupVaultId, filters).
+		Return(nil, fmt.Errorf("database error"))
+
+	handler := Handler{Orchestrator: mockOrch}
+	result, err := handler.V1betaCreateBackup(ctx, req, params)
+
+	assert.Error(t, err)
+	assert.IsType(t, &gcpgenserver.V1betaCreateBackupInternalServerError{}, result)
+}
+
+// ===== Tests for GCBDR coverage in V1betaListBackups =====
+
+func TestV1betaListBackups_GCBDR_UsesListBackupsWithoutAccountFilter(t *testing.T) {
+	// Covers backup_endpoints.go lines 816-817
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	ctx := context.Background()
+	mockLogger := log.NewLogger()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+
+	params := gcpgenserver.V1betaListBackupsParams{
+		BackupVaultId:  "gcbdr-vault-id",
+		LocationId:     "us-central1",
+		ProjectNumber:  "12345",
+		XCorrelationID: gcpgenserver.NewOptString("corr-id"),
+	}
+
+	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+
+	// Return GCBDR vault
+	vcpBv := &coremodels.BackupVaultV1beta{
+		BackupVaultID: params.BackupVaultId,
+		ServiceType:   "GCBDR",
+		AccountName:   "vault-owner",
+	}
+	mockOrch.EXPECT().
+		GetBackupVaultByUUIDWithoutAccount(ctx, params.BackupVaultId).
+		Return(vcpBv, nil)
+
+	// GCBDR path: ListBackupsWithoutAccountFilter (no CVP call)
+	sourceRegion := "us-central1"
+	backupVaultData := &datamodel.BackupVault{
+		Name:             "gcbdr-vault",
+		ServiceType:      "GCBDR",
+		SourceRegionName: &sourceRegion,
+		BucketDetails:    datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "gcbdr-bucket"}},
+	}
+	backups := []*datamodel.Backup{
+		{
+			State:         "Available",
+			Name:          "gcbdr-backup-1",
+			VolumeUUID:    "vol-1",
+			BackupVault:   backupVaultData,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:        "gcbdr-bucket",
+				AccountIdentifier: "12345",
+				VolumeName:        "vol-1",
+				SourceVolumeZone:  "us-central1",
+			},
+		},
+	}
+	mockOrch.EXPECT().
+		ListBackupsWithoutAccountFilter(ctx, params.BackupVaultId, mock.Anything).
+		Return(backups, nil)
+
+	handler := Handler{Orchestrator: mockOrch}
+	result, err := handler.V1betaListBackups(ctx, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.IsType(t, &gcpgenserver.V1betaListBackupsOK{}, result)
+	response := result.(*gcpgenserver.V1betaListBackupsOK)
+	assert.Len(t, response.Backups, 1)
+	assert.Equal(t, "gcbdr-backup-1", response.Backups[0].ResourceId.Value)
 }

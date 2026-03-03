@@ -24,6 +24,10 @@ import (
 	"go.temporal.io/sdk/client"
 )
 
+const (
+	GCBDRServiceType = "GCBDR"
+)
+
 var (
 	hydrationEnabled = env.GetBool("GCP_HYDRATE_ENABLED", true)
 
@@ -69,6 +73,12 @@ func (o *Orchestrator) ListBackups(ctx context.Context, backupVaultID, ownerID s
 		AccountID:     account.ID,
 	}
 	return getBackups(ctx, o.storage, params, filters)
+}
+
+// ListBackupsWithoutAccountFilter lists backups by vault UUID without account filtering
+// This is used for GCBDR vaults where backups can come from multiple accounts/projects
+func (o *Orchestrator) ListBackupsWithoutAccountFilter(ctx context.Context, backupVaultID string, filters [][]interface{}) ([]*datamodel.Backup, error) {
+	return o.storage.GetBackupsByBackupVaultUUIDAndFilter(ctx, backupVaultID, filters)
 }
 
 // GetBackupsUnderBackupVault retrieves all backups associated with the specified BackupVault
@@ -154,7 +164,12 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		}
 	} else {
 		// Fetch from regular Volumes table
-		volume, err = se.GetVolumeWithAccountID(ctx, params.VolumeUUID, account.ID)
+		// For GCBDR vaults, skip account validation - fetch by UUID only
+		if params.BackupVaultServiceType == GCBDRServiceType {
+			volume, err = se.GetVolume(ctx, params.VolumeUUID)
+		} else {
+			volume, err = se.GetVolumeWithAccountID(ctx, params.VolumeUUID, account.ID)
+		}
 		if err != nil {
 			return nil, "", err
 		}
@@ -457,11 +472,14 @@ func _validateCreateBackupParams(ctx context.Context, se database.Storage, param
 		if vol.State != models.LifeCycleStateREADY {
 			return customerrors.NewUserInputValidationErr("Volume is not in available state")
 		}
-		if vol.DataProtection == nil {
-			return customerrors.NewUserInputValidationErr("Volume does not have any backup vault associated with it")
-		}
-		if vol.DataProtection != nil && vol.DataProtection.BackupVaultID != params.BackupVaultID {
-			return customerrors.NewUserInputValidationErr("Volume does not have the specified backup vault associated with it")
+		// For GCBDR vaults, skip backup vault association validation
+		if params.BackupVaultServiceType != GCBDRServiceType {
+			if vol.DataProtection == nil {
+				return customerrors.NewUserInputValidationErr("Volume does not have any backup vault associated with it")
+			}
+			if vol.DataProtection != nil && vol.DataProtection.BackupVaultID != params.BackupVaultID {
+				return customerrors.NewUserInputValidationErr("Volume does not have the specified backup vault associated with it")
+			}
 		}
 		if vol.VolumeAttributes != nil && vol.VolumeAttributes.IsDataProtection && params.SnapshotID == "" {
 			return customerrors.NewUserInputValidationErr("Backup creation is not supported for destination volumes without specifying an existing snapshot. Please use an existing snapshot to create backups or create a snapshot on the source volume and back that up on this volume once it has been replicated to this volume")

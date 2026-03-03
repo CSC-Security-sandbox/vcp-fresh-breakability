@@ -791,7 +791,7 @@ func TestSnapshotActivities(t *testing.T) {
 		mockProvider.On("SnapmirrorRelationshipTransferGet", snapmirrorUUID, snapshotName).
 			Return(&ontap_rest.SnapmirrorTransfer{
 				SnapmirrorTransfer: oModels.SnapmirrorTransfer{
-					State:           &status,
+					State:            &status,
 					BytesTransferred: &expectedBytes,
 				},
 			}, nil)
@@ -845,7 +845,7 @@ func TestSnapshotActivities(t *testing.T) {
 		mockProvider.On("SnapmirrorRelationshipTransferGet", snapmirrorUUID, snapshotName).
 			Return(&ontap_rest.SnapmirrorTransfer{
 				SnapmirrorTransfer: oModels.SnapmirrorTransfer{
-					State:           &status,
+					State:            &status,
 					BytesTransferred: nil,
 				},
 			}, nil).Once()
@@ -12344,5 +12344,408 @@ func TestDetachBackupVaultFromVolume_UpdateFails(t *testing.T) {
 	assert.Error(t, err)
 	// The error is returned as-is since it's not a CustomError
 	assert.Equal(t, updateError, err)
+	mockStorage.AssertExpectations(t)
+}
+
+// ===== Tests for GCBDR getBucketDetails (unexported) =====
+
+func TestGetBucketDetails_GCBDR_WithBucketDetails(t *testing.T) {
+	bv := &datamodel.BackupVault{
+		Name:        "gcbdr-vault",
+		ServiceType: GCBDRServiceType,
+		BucketDetails: datamodel.BucketDetailsArray{
+			{BucketName: "gcbdr-bucket", TenantProjectNumber: "123456"},
+		},
+	}
+	vol := &datamodel.Volume{}
+
+	result, err := getBucketDetails(bv, vol)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "gcbdr-bucket", result.BucketName)
+}
+
+func TestGetBucketDetails_GCBDR_NoBucketDetails(t *testing.T) {
+	bv := &datamodel.BackupVault{
+		Name:          "gcbdr-vault",
+		ServiceType:   GCBDRServiceType,
+		BucketDetails: datamodel.BucketDetailsArray{},
+	}
+	vol := &datamodel.Volume{}
+
+	result, err := getBucketDetails(bv, vol)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	// ExtractCustomError wraps as "An internal error occurred." — check OriginalErr for specifics
+	var customErr *vsaerrors.CustomError
+	assert.True(t, errors.As(err, &customErr))
+	assert.Contains(t, customErr.OriginalErr.Error(), "no bucket details found for GCBDR vault")
+}
+
+// ===== Tests for GCBDR GetBucketDetails (exported) =====
+
+func TestGetBucketDetails_Exported_GCBDR_WithBucketDetails(t *testing.T) {
+	bv := &datamodel.BackupVault{
+		Name:        "gcbdr-vault",
+		ServiceType: GCBDRServiceType,
+		BucketDetails: datamodel.BucketDetailsArray{
+			{BucketName: "gcbdr-bucket", TenantProjectNumber: "123456"},
+		},
+	}
+	vol := &datamodel.Volume{}
+
+	result, err := GetBucketDetails(bv, vol)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "gcbdr-bucket", result.BucketName)
+}
+
+func TestGetBucketDetails_Exported_GCBDR_NoBucketDetails(t *testing.T) {
+	bv := &datamodel.BackupVault{
+		Name:          "gcbdr-vault",
+		ServiceType:   GCBDRServiceType,
+		BucketDetails: datamodel.BucketDetailsArray{},
+	}
+	vol := &datamodel.Volume{}
+
+	result, err := GetBucketDetails(bv, vol)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	var customErr *vsaerrors.CustomError
+	assert.True(t, errors.As(err, &customErr))
+	assert.Contains(t, customErr.OriginalErr.Error(), "no bucket details found for GCBDR vault")
+}
+
+func TestGetBucketDetails_Exported_GCBDR_EmptyBucketName(t *testing.T) {
+	bv := &datamodel.BackupVault{
+		Name:        "gcbdr-vault",
+		ServiceType: GCBDRServiceType,
+		BucketDetails: datamodel.BucketDetailsArray{
+			{BucketName: "", TenantProjectNumber: "123456"},
+		},
+	}
+	vol := &datamodel.Volume{}
+
+	result, err := GetBucketDetails(bv, vol)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	var customErr *vsaerrors.CustomError
+	assert.True(t, errors.As(err, &customErr))
+	assert.Contains(t, customErr.OriginalErr.Error(), "no bucket details found for GCBDR vault")
+}
+
+// ===== Tests for GCBDR CheckAndAttachBackupVaultToVolume - GCBDR paths =====
+
+func TestCheckAndAttachBackupVaultToVolume_GCBDR_SourceRegionForBackupRegion(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test-project",
+	}
+
+	backupVaultUUID := "gcbdr-vault-uuid"
+	volumeUUID := "test-volume-uuid"
+	region := "us-central1"
+	sourceRegion := "us-east1"
+	vendorSubnetID := "projects/test-project/regions/us-central1/subnetworks/test-subnet"
+
+	backupActivitiesContext := &BackupActivitiesContext{
+		BackupWorkflowInit: &BackupWorkflowInput{
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+				Account:   account,
+				AccountID: account.ID,
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					VendorSubnetID: vendorSubnetID,
+				},
+			},
+			BackupVault: &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: backupVaultUUID}},
+		},
+	}
+
+	existingBackupVault := &datamodel.BackupVault{
+		BaseModel:        datamodel.BaseModel{UUID: backupVaultUUID},
+		ServiceType:      GCBDRServiceType,
+		SourceRegionName: &sourceRegion,
+		BucketDetails: datamodel.BucketDetailsArray{
+			{BucketName: "gcbdr-bucket", TenantProjectNumber: "tenant-123"},
+		},
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).Return(existingBackupVault, nil)
+
+	// Mock CheckForBucketResourceName to return existing bucket (so it skips bucket creation)
+	originalCheckForBucketResourceName := CheckForBucketResourceName
+	defer func() { CheckForBucketResourceName = originalCheckForBucketResourceName }()
+	CheckForBucketResourceName = func(ctx context.Context, se database.Storage, volume *datamodel.Volume) (*commonparams.BucketDetails, error) {
+		return &commonparams.BucketDetails{
+			BucketName:          "gcbdr-bucket",
+			TenantProjectNumber: "tenant-123",
+		}, nil
+	}
+
+	// Mock GetExpertModeVolumeByUUID and UpdateExpertModeVolumeDataProtection for attaching
+	expertModeVol := &datamodel.ExpertModeVolumes{
+		BaseModel:    datamodel.BaseModel{UUID: volumeUUID},
+		BackupConfig: &datamodel.DataProtection{},
+	}
+	mockStorage.On("GetExpertModeVolumeByUUID", ctx, volumeUUID).Return(expertModeVol, nil)
+	mockStorage.On("UpdateExpertModeVolumeDataProtection", ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(nil)
+
+	result, err := activity.CheckAndAttachBackupVaultToVolume(ctx, backupActivitiesContext, region)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestCheckAndAttachBackupVaultToVolume_GCBDR_NoBucketDetails_ReturnsError(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test-project",
+	}
+
+	backupVaultUUID := "gcbdr-vault-uuid"
+	volumeUUID := "test-volume-uuid"
+	region := "us-central1"
+	vendorSubnetID := "projects/test-project/regions/us-central1/subnetworks/test-subnet"
+
+	backupActivitiesContext := &BackupActivitiesContext{
+		BackupWorkflowInit: &BackupWorkflowInput{
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+				Account:   account,
+				AccountID: account.ID,
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					VendorSubnetID: vendorSubnetID,
+				},
+			},
+			BackupVault: &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: backupVaultUUID}},
+		},
+	}
+
+	// GCBDR vault with NO bucket details → should fail getting tenancy
+	existingBackupVault := &datamodel.BackupVault{
+		BaseModel:     datamodel.BaseModel{UUID: backupVaultUUID},
+		ServiceType:   GCBDRServiceType,
+		BucketDetails: datamodel.BucketDetailsArray{},
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).Return(existingBackupVault, nil)
+
+	result, err := activity.CheckAndAttachBackupVaultToVolume(ctx, backupActivitiesContext, region)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "has no tenant project information")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestCheckAndAttachBackupVaultToVolume_GCBDR_NilPoolForCrossProjectPermissions(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test-project",
+	}
+
+	backupVaultUUID := "gcbdr-vault-uuid"
+	volumeUUID := "test-volume-uuid"
+	region := "us-central1"
+	vendorSubnetID := "projects/test-project/regions/us-central1/subnetworks/test-subnet"
+
+	backupActivitiesContext := &BackupActivitiesContext{
+		BackupWorkflowInit: &BackupWorkflowInput{
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+				Account:   account,
+				AccountID: account.ID,
+				Pool:      nil, // nil pool triggers the error
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					VendorSubnetID: vendorSubnetID,
+				},
+			},
+			BackupVault: &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: backupVaultUUID}},
+		},
+	}
+
+	existingBackupVault := &datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{UUID: backupVaultUUID},
+		ServiceType: GCBDRServiceType,
+		BucketDetails: datamodel.BucketDetailsArray{
+			{BucketName: "", TenantProjectNumber: "tenant-123"}, // empty bucket name triggers creation
+		},
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).Return(existingBackupVault, nil)
+
+	// Mock CheckForBucketResourceName to return nil (triggers bucket creation)
+	originalCheckForBucketResourceName := CheckForBucketResourceName
+	defer func() { CheckForBucketResourceName = originalCheckForBucketResourceName }()
+	CheckForBucketResourceName = func(ctx context.Context, se database.Storage, volume *datamodel.Volume) (*commonparams.BucketDetails, error) {
+		return nil, nil
+	}
+
+	// Mock GenerateResourceNames
+	originalGenerateResourceNames := GenerateResourceNames
+	defer func() { GenerateResourceNames = originalGenerateResourceNames }()
+	GenerateResourceNames = func(ctx context.Context, volume *datamodel.Volume, tenancyDetails *commonparams.TenancyInfo, gcpRegion string) (*commonparams.ResourceNames, error) {
+		return &commonparams.ResourceNames{
+			BucketName:       "test-bucket",
+			Email:            "test@example.com",
+			ServiceAccountId: "test-sa-id",
+		}, nil
+	}
+
+	// Mock CreateBucket
+	originalCreateBucket := CreateBucket
+	defer func() { CreateBucket = originalCreateBucket }()
+	CreateBucket = func(ctx context.Context, resourceNames *commonparams.ResourceNames, tenancyDetails *commonparams.TenancyInfo, region string, kmsGrant *string) (*commonparams.BucketDetails, error) {
+		return &commonparams.BucketDetails{
+			BucketName:          "test-bucket",
+			TenantProjectNumber: "tenant-123",
+		}, nil
+	}
+
+	// Mock UpdateBackupVaultWithBucketDetails
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", mock.Anything, mock.Anything, mock.Anything).Return(existingBackupVault, nil).Maybe()
+	mockStorage.On("GetBackupVault", ctx, backupVaultUUID).Return(existingBackupVault, nil).Maybe()
+	mockStorage.On("UpdateBackupVault", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil).Maybe()
+
+	// Mock CheckBackupVaultExistsInVCP (used by CheckOrCreateRemoteBackupVaultInVCP)
+	originalCheckBackupVaultExistsInVCP := CheckBackupVaultExistsInVCP
+	defer func() { CheckBackupVaultExistsInVCP = originalCheckBackupVaultExistsInVCP }()
+	CheckBackupVaultExistsInVCP = func(ctx context.Context, se database.Storage, volume *datamodel.Volume, region string) (*datamodel.BackupVault, error) {
+		return nil, nil
+	}
+
+	result, err := activity.CheckAndAttachBackupVaultToVolume(ctx, backupActivitiesContext, region)
+
+	// Should fail because pool is nil for GCBDR setup
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "volume pool cannot be nil for GCBDR backup setup")
+}
+
+func TestCheckAndAttachBackupVaultToVolume_GCBDR_SuccessfulCrossProjectPermissions(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test-project",
+	}
+
+	backupVaultUUID := "gcbdr-vault-uuid"
+	volumeUUID := "test-volume-uuid"
+	region := "us-central1"
+	vendorSubnetID := "projects/test-project/regions/us-central1/subnetworks/test-subnet"
+
+	pool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{UUID: "pool-uuid"},
+		ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "pool-tenant-123"},
+		ServiceAccountId: "sa-id",
+	}
+
+	backupActivitiesContext := &BackupActivitiesContext{
+		BackupWorkflowInit: &BackupWorkflowInput{
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+				Account:   account,
+				AccountID: account.ID,
+				Pool:      pool,
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					VendorSubnetID: vendorSubnetID,
+				},
+			},
+			BackupVault: &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: backupVaultUUID}},
+		},
+	}
+
+	existingBackupVault := &datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{UUID: backupVaultUUID},
+		ServiceType: GCBDRServiceType,
+		BucketDetails: datamodel.BucketDetailsArray{
+			{BucketName: "", TenantProjectNumber: "bucket-tenant-456"}, // empty name triggers creation
+		},
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).Return(existingBackupVault, nil)
+
+	// Mock CheckForBucketResourceName → nil (triggers bucket creation)
+	originalCheckForBucketResourceName := CheckForBucketResourceName
+	defer func() { CheckForBucketResourceName = originalCheckForBucketResourceName }()
+	CheckForBucketResourceName = func(ctx context.Context, se database.Storage, volume *datamodel.Volume) (*commonparams.BucketDetails, error) {
+		return nil, nil
+	}
+
+	// Mock GenerateResourceNames
+	originalGenerateResourceNames := GenerateResourceNames
+	defer func() { GenerateResourceNames = originalGenerateResourceNames }()
+	GenerateResourceNames = func(ctx context.Context, volume *datamodel.Volume, tenancyDetails *commonparams.TenancyInfo, gcpRegion string) (*commonparams.ResourceNames, error) {
+		return &commonparams.ResourceNames{BucketName: "test-bucket", Email: "test@example.com", ServiceAccountId: "test-sa-id"}, nil
+	}
+
+	// Mock CreateBucket
+	originalCreateBucket := CreateBucket
+	defer func() { CreateBucket = originalCreateBucket }()
+	CreateBucket = func(ctx context.Context, resourceNames *commonparams.ResourceNames, tenancyDetails *commonparams.TenancyInfo, region string, kmsGrant *string) (*commonparams.BucketDetails, error) {
+		return &commonparams.BucketDetails{BucketName: "test-bucket", TenantProjectNumber: "bucket-tenant-456"}, nil
+	}
+
+	// Mock UpdateBackupVaultWithBucketDetails (via storage calls)
+	mockStorage.On("GetBackupVault", ctx, backupVaultUUID).Return(existingBackupVault, nil).Maybe()
+	mockStorage.On("UpdateBackupVault", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil).Maybe()
+
+	// Mock CheckBackupVaultExistsInVCP (used by CheckOrCreateRemoteBackupVaultInVCP) → nil (no remote vault)
+	originalCheckBackupVaultExistsInVCP := CheckBackupVaultExistsInVCP
+	defer func() { CheckBackupVaultExistsInVCP = originalCheckBackupVaultExistsInVCP }()
+	CheckBackupVaultExistsInVCP = func(ctx context.Context, se database.Storage, volume *datamodel.Volume, region string) (*datamodel.BackupVault, error) {
+		return nil, nil
+	}
+
+	// Mock SetupCrossProjectBackupPermissions
+	originalGetPoolServiceAccountName := GetPoolServiceAccountName
+	defer func() { GetPoolServiceAccountName = originalGetPoolServiceAccountName }()
+	GetPoolServiceAccountName = func(pool *datamodel.Pool, projectID string) (string, error) {
+		return "sa@project.iam.gserviceaccount.com", nil
+	}
+
+	originalGrantStorageObjectAdminRole := GrantStorageObjectAdminRole
+	defer func() { GrantStorageObjectAdminRole = originalGrantStorageObjectAdminRole }()
+	GrantStorageObjectAdminRole = func(ctx context.Context, serviceAccount string, project string) error {
+		return nil
+	}
+
+	// Mock addServiceAccountPermissionProject call
+	mockStorage.On("GetPoolByUUID", ctx, pool.UUID).Return(pool, nil).Maybe()
+	mockStorage.On("UpdatePool", ctx, mock.AnythingOfType("*datamodel.Pool")).Return(pool, nil).Maybe()
+
+	// Mock GetExpertModeVolumeByUUID and UpdateExpertModeVolumeDataProtection for attaching
+	expertModeVol := &datamodel.ExpertModeVolumes{
+		BaseModel:    datamodel.BaseModel{UUID: volumeUUID},
+		BackupConfig: &datamodel.DataProtection{},
+	}
+	mockStorage.On("GetExpertModeVolumeByUUID", ctx, volumeUUID).Return(expertModeVol, nil)
+	mockStorage.On("UpdateExpertModeVolumeDataProtection", ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(nil)
+
+	result, err := activity.CheckAndAttachBackupVaultToVolume(ctx, backupActivitiesContext, region)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
 	mockStorage.AssertExpectations(t)
 }

@@ -97,6 +97,9 @@ func (d *DataStoreRepository) GetBackupVault(ctx context.Context, backupVaultId 
 	var bv datamodel.BackupVault
 	err := d.db.GORM().WithContext(ctx).Preload("Account").Where("uuid = ?", backupVaultId).First(&bv).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, customerrors.NewNotFoundErr("backup vault", &backupVaultId)
+		}
 		return nil, err
 	}
 	return &bv, nil

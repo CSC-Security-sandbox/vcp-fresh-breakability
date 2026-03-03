@@ -2775,7 +2775,9 @@ func TestCheckForBucketResourceName_ReturnsBucketDetails(t *testing.T) {
 			AccountID:      123,
 		}
 
-		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(123)).Return(nil, errors.New("backup vault not found"))
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(123)).Return(nil, utilErrors.NewNotFoundErr("backup vault", nil))
+		// GCBDR vault fallback check
+		mockStorage.On("GetBackupVault", ctx, "vault-id").Return(nil, utilErrors.NewNotFoundErr("backup vault", nil))
 
 		result, err := activity.CheckForBucketResourceName(ctx, volume)
 
@@ -2907,7 +2909,9 @@ func TestBackupVaultExistsSDE_ReturnsImmutableBVError(t *testing.T) {
 		AccountID:      123,
 	}
 
-	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", volume.AccountID).Return(nil, errors.New("backup vault not found"))
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", volume.AccountID).Return(nil, utilErrors.NewNotFoundErr("backup vault", nil))
+	// GCBDR vault fallback check
+	mockStorage.On("GetBackupVault", ctx, "vault-id").Return(nil, utilErrors.NewNotFoundErr("backup vault", nil))
 
 	mockClient := backup_vault.NewMockClientService(t)
 	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
@@ -7034,6 +7038,8 @@ func TestUpdateBackupVaultWithBucketDetails_VolumeWithoutBackupVault(t *testing.
 
 	// Mock GetBackupVaultByUUIDndOwnerID to return no backup vault
 	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, accountID).Return(nil, utilErrors.NewNotFoundErr("backup vault", nil))
+	// GCBDR fallback also returns not found
+	mockStorage.On("GetBackupVault", ctx, backupVaultUUID).Return(nil, utilErrors.NewNotFoundErr("backup vault", nil))
 
 	// Act
 	err := activity.UpdateBackupVaultWithBucketDetails(ctx, volume, bucketDetails)
@@ -11280,7 +11286,9 @@ func TestCheckBackupVaultExistsInVCP_CrossRegionBackupVaultInSameRegion_FromCVP(
 	}
 
 	// Mock storage to return not found (so it goes to CVP)
-	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultID, accountID).Return(nil, fmt.Errorf("not found"))
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultID, accountID).Return(nil, utilErrors.NewNotFoundErr("backup vault", nil))
+	// GCBDR vault fallback check
+	mockStorage.On("GetBackupVault", ctx, backupVaultID).Return(nil, utilErrors.NewNotFoundErr("backup vault", nil))
 
 	// Setup mock CVP client
 	mockBackupVaultClient := backup_vault.NewMockClientService(t)
@@ -11340,7 +11348,9 @@ func TestCheckBackupVaultExistsInVCP_BackupVaultNotFoundInList_FromCVP(t *testin
 	}
 
 	// Mock storage to return not found (so it goes to CVP)
-	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultID, accountID).Return(nil, fmt.Errorf("not found"))
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultID, accountID).Return(nil, utilErrors.NewNotFoundErr("backup vault", nil))
+	// GCBDR vault fallback check
+	mockStorage.On("GetBackupVault", ctx, backupVaultID).Return(nil, utilErrors.NewNotFoundErr("backup vault", nil))
 
 	// Setup mock CVP client
 	mockBackupVaultClient := backup_vault.NewMockClientService(t)
@@ -11398,7 +11408,9 @@ func TestCheckBackupVaultExistsInVCP_EmptyBackupVaultList_FromCVP(t *testing.T) 
 	}
 
 	// Mock storage to return not found (so it goes to CVP)
-	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultID, accountID).Return(nil, fmt.Errorf("not found"))
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultID, accountID).Return(nil, utilErrors.NewNotFoundErr("backup vault", nil))
+	// GCBDR vault fallback check
+	mockStorage.On("GetBackupVault", ctx, backupVaultID).Return(nil, utilErrors.NewNotFoundErr("backup vault", nil))
 
 	// Setup mock CVP client
 	mockBackupVaultClient := backup_vault.NewMockClientService(t)
@@ -11454,7 +11466,9 @@ func TestCheckBackupVaultExistsInVCP_SuccessfullyFetchedAndCreatedFromCVP(t *tes
 	}
 
 	// Mock storage to return not found (so it goes to CVP)
-	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultID, accountID).Return(nil, fmt.Errorf("not found"))
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultID, accountID).Return(nil, utilErrors.NewNotFoundErr("backup vault", nil))
+	// GCBDR vault fallback check
+	mockStorage.On("GetBackupVault", ctx, backupVaultID).Return(nil, utilErrors.NewNotFoundErr("backup vault", nil))
 
 	// Setup mock CVP client
 	mockBackupVaultClient := backup_vault.NewMockClientService(t)
@@ -14538,4 +14552,505 @@ func TestConvertGoogleProxyBackupToDatamodel(t *testing.T) {
 			})
 		}
 	})
+}
+
+// ===== Tests for GCBDR coverage: getBackupVaultDetails, CheckForBucketResourceName, UpdateBackupVaultWithBucketDetails, SetupCrossProjectBackupPermissions =====
+
+func TestCheckBackupVaultExistsInVCP_GCBDR_FallbackNonNotFoundError(t *testing.T) {
+	// Covers volume_create_activities.go line 842: GCBDR fallback returns non-"not found" error
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+		AccountID:      123,
+	}
+
+	// First call returns NotFoundErr
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(123)).Return(nil, utilErrors.NewNotFoundErr("backup vault", nil))
+	// GCBDR fallback returns a non-not-found error (e.g. database error)
+	mockStorage.On("GetBackupVault", ctx, "vault-id").Return(nil, errors.New("database connection error"))
+
+	result, err := activities.CheckBackupVaultExistsInVCP(ctx, mockStorage, volume, "us-central1")
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "database connection error")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestCheckForBucketResourceName_GCBDR_ReturnsBucketDetails(t *testing.T) {
+	// Covers volume_create_activities.go line 1026: GCBDR vault with bucket details
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			VendorSubnetID: "subnet-id",
+		},
+		AccountID: 123,
+	}
+
+	backupVault := &datamodel.BackupVault{
+		ServiceType: activities.GCBDRServiceType,
+		BucketDetails: datamodel.BucketDetailsArray{
+			{BucketName: "gcbdr-bucket", ServiceAccountName: "sa", VendorSubnetID: "", TenantProjectNumber: "tenant-123"},
+		},
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(123)).Return(backupVault, nil)
+
+	result, err := activity.CheckForBucketResourceName(ctx, volume)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "gcbdr-bucket", result.BucketName)
+	assert.Equal(t, "tenant-123", result.TenantProjectNumber)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestCheckForBucketResourceName_GCBDR_FallbackNonNotFoundError(t *testing.T) {
+	// Covers volume_create_activities.go line 1063 via getBackupVaultDetails: GCBDR fallback returns non-"not found" error
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+		AccountID:      123,
+	}
+
+	// GetBackupVaultByUUIDndOwnerID returns NotFoundErr
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(123)).Return(nil, utilErrors.NewNotFoundErr("backup vault", nil))
+	// GCBDR fallback returns database error (non-not-found)
+	mockStorage.On("GetBackupVault", ctx, "vault-id").Return(nil, errors.New("database connection error"))
+
+	result, err := activity.CheckForBucketResourceName(ctx, volume)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "database connection error")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateBackupVaultWithBucketDetails_NonNotFoundError(t *testing.T) {
+	// Covers volume_create_activities.go line 1110: non-"not found" error from GetBackupVaultByUUIDndOwnerID
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{UUID: "vol-uuid"},
+		AccountID:        123,
+		DataProtection:   &datamodel.DataProtection{BackupVaultID: "vault-id"},
+		VolumeAttributes: &datamodel.VolumeAttributes{VendorSubnetID: "subnet-id"},
+	}
+
+	bucketDetails := &common.BucketDetails{
+		BucketName:          "test-bucket",
+		TenantProjectNumber: "tenant-123",
+	}
+
+	// Return non-"not found" error
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(123)).Return(nil, errors.New("database connection error"))
+
+	err := activity.UpdateBackupVaultWithBucketDetails(ctx, volume, bucketDetails)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "database connection error")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateBackupVaultWithBucketDetails_GCBDR_ReplacesBucketDetails(t *testing.T) {
+	// Covers volume_create_activities.go line 1132: GCBDR vault replaces bucket details
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{UUID: "vol-uuid"},
+		AccountID:        123,
+		DataProtection:   &datamodel.DataProtection{BackupVaultID: "vault-id"},
+		VolumeAttributes: &datamodel.VolumeAttributes{VendorSubnetID: "subnet-id"},
+	}
+
+	bucketDetails := &common.BucketDetails{
+		BucketName:          "new-gcbdr-bucket",
+		TenantProjectNumber: "tenant-456",
+	}
+
+	existingVault := &datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{UUID: "vault-id"},
+		ServiceType: activities.GCBDRServiceType,
+		BucketDetails: datamodel.BucketDetailsArray{
+			{BucketName: "old-bucket", TenantProjectNumber: "tenant-old"},
+		},
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(123)).Return(existingVault, nil)
+	mockStorage.On("UpdateBackupVault", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil)
+
+	err := activity.UpdateBackupVaultWithBucketDetails(ctx, volume, bucketDetails)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestSetupCrossProjectBackupPermissions_NilPool(t *testing.T) {
+	// Covers volume_create_activities.go line 2678-2679
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	bucketDetails := &common.BucketDetails{
+		BucketName:          "test-bucket",
+		TenantProjectNumber: "tenant-123",
+	}
+
+	err := activity.SetupCrossProjectBackupPermissions(ctx, nil, bucketDetails)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "pool is nil")
+}
+
+func TestSetupCrossProjectBackupPermissions_NilBucketDetails(t *testing.T) {
+	// Covers volume_create_activities.go line 2682-2683
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	pool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{UUID: "pool-uuid"},
+		ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "pool-tenant"},
+		ServiceAccountId: "sa-id",
+	}
+
+	err := activity.SetupCrossProjectBackupPermissions(ctx, pool, nil)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "bucket details or tenant project number is empty")
+}
+
+func TestSetupCrossProjectBackupPermissions_SameTenantProject(t *testing.T) {
+	// Covers volume_create_activities.go line 2690-2692: same tenant project, skip
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	pool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{UUID: "pool-uuid"},
+		ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "tenant-123"},
+		ServiceAccountId: "sa-id",
+	}
+
+	bucketDetails := &common.BucketDetails{
+		BucketName:          "test-bucket",
+		TenantProjectNumber: "tenant-123", // same as pool tenant
+	}
+
+	err := activity.SetupCrossProjectBackupPermissions(ctx, pool, bucketDetails)
+	assert.NoError(t, err)
+}
+
+func TestSetupCrossProjectBackupPermissions_Success(t *testing.T) {
+	// Covers volume_create_activities.go lines 2696-2720
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	pool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{UUID: "pool-uuid"},
+		ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "pool-tenant-123"},
+		ServiceAccountId: "sa-id",
+		PoolAttributes:   &datamodel.PoolAttributes{},
+	}
+
+	bucketDetails := &common.BucketDetails{
+		BucketName:          "test-bucket",
+		TenantProjectNumber: "bucket-tenant-456", // different from pool
+	}
+
+	// Mock GetPoolServiceAccountName
+	origGetPoolSA := activities.GetPoolServiceAccountName
+	defer func() { activities.GetPoolServiceAccountName = origGetPoolSA }()
+	activities.GetPoolServiceAccountName = func(pool *datamodel.Pool, projectID string) (string, error) {
+		return "sa@pool-tenant-123.iam.gserviceaccount.com", nil
+	}
+
+	// Mock GrantStorageObjectAdminRole
+	origGrant := activities.GrantStorageObjectAdminRole
+	defer func() { activities.GrantStorageObjectAdminRole = origGrant }()
+	activities.GrantStorageObjectAdminRole = func(ctx context.Context, serviceAccount string, project string) error {
+		return nil
+	}
+
+	// Mock addServiceAccountPermissionProject (via pool storage calls)
+	mockStorage.On("GetPoolByUUID", ctx, "pool-uuid").Return(pool, nil)
+	mockStorage.On("UpdatePoolFields", ctx, "pool-uuid", mock.AnythingOfType("map[string]interface {}")).Return(nil)
+
+	err := activity.SetupCrossProjectBackupPermissions(ctx, pool, bucketDetails)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestSetupCrossProjectBackupPermissions_GetPoolSAError(t *testing.T) {
+	// Covers volume_create_activities.go line 2697-2699
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	pool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{UUID: "pool-uuid"},
+		ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "pool-tenant-123"},
+		ServiceAccountId: "sa-id",
+	}
+
+	bucketDetails := &common.BucketDetails{
+		BucketName:          "test-bucket",
+		TenantProjectNumber: "bucket-tenant-456",
+	}
+
+	origGetPoolSA := activities.GetPoolServiceAccountName
+	defer func() { activities.GetPoolServiceAccountName = origGetPoolSA }()
+	activities.GetPoolServiceAccountName = func(pool *datamodel.Pool, projectID string) (string, error) {
+		return "", errors.New("failed to get SA")
+	}
+
+	err := activity.SetupCrossProjectBackupPermissions(ctx, pool, bucketDetails)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get SA")
+}
+
+func TestSetupCrossProjectBackupPermissions_GrantRoleError(t *testing.T) {
+	// Covers volume_create_activities.go line 2705-2708
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	pool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{UUID: "pool-uuid"},
+		ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "pool-tenant-123"},
+		ServiceAccountId: "sa-id",
+	}
+
+	bucketDetails := &common.BucketDetails{
+		BucketName:          "test-bucket",
+		TenantProjectNumber: "bucket-tenant-456",
+	}
+
+	origGetPoolSA := activities.GetPoolServiceAccountName
+	defer func() { activities.GetPoolServiceAccountName = origGetPoolSA }()
+	activities.GetPoolServiceAccountName = func(pool *datamodel.Pool, projectID string) (string, error) {
+		return "sa@project.iam.gserviceaccount.com", nil
+	}
+
+	origGrant := activities.GrantStorageObjectAdminRole
+	defer func() { activities.GrantStorageObjectAdminRole = origGrant }()
+	activities.GrantStorageObjectAdminRole = func(ctx context.Context, serviceAccount string, project string) error {
+		return errors.New("IAM permission denied")
+	}
+
+	err := activity.SetupCrossProjectBackupPermissions(ctx, pool, bucketDetails)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "IAM permission denied")
+}
+
+// ===== Tests for GCBDRVaultEnabled=false: GCBDR fallback is skipped =====
+
+func TestCheckBackupVaultExistsInVCP_GCBDRDisabled_SkipsFallback(t *testing.T) {
+	origFlag := activities.GCBDRVaultEnabled
+	defer func() { activities.GCBDRVaultEnabled = origFlag }()
+	activities.GCBDRVaultEnabled = false
+
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	// Owner-scoped lookup finds the vault — GCBDR fallback is not needed
+	existingVault := &datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{UUID: "vault-id"},
+		ServiceType: "GCNV",
+	}
+
+	volume := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+		AccountID:      123,
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(123)).Return(existingVault, nil)
+
+	result, err := activities.CheckBackupVaultExistsInVCP(ctx, mockStorage, volume, "us-central1")
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "vault-id", result.UUID)
+	mockStorage.AssertExpectations(t)
+	mockStorage.AssertNotCalled(t, "GetBackupVault", mock.Anything, mock.Anything)
+}
+
+func TestGetBackupVaultDetails_GCBDRDisabled_SkipsFallback(t *testing.T) {
+	origFlag := activities.GCBDRVaultEnabled
+	defer func() { activities.GCBDRVaultEnabled = origFlag }()
+	activities.GCBDRVaultEnabled = false
+
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+		AccountID:      123,
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(123)).Return(nil, utilErrors.NewNotFoundErr("backup vault", nil))
+
+	result, err := activity.CheckForBucketResourceName(ctx, volume)
+	assert.NoError(t, err)
+	assert.Nil(t, result)
+	mockStorage.AssertExpectations(t)
+	mockStorage.AssertNotCalled(t, "GetBackupVault", mock.Anything, mock.Anything)
+}
+
+func TestUpdateBackupVaultWithBucketDetails_GCBDRDisabled_SkipsFallback(t *testing.T) {
+	origFlag := activities.GCBDRVaultEnabled
+	defer func() { activities.GCBDRVaultEnabled = origFlag }()
+	activities.GCBDRVaultEnabled = false
+
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{UUID: "vol-uuid"},
+		AccountID:        123,
+		DataProtection:   &datamodel.DataProtection{BackupVaultID: "vault-id"},
+		VolumeAttributes: &datamodel.VolumeAttributes{VendorSubnetID: "subnet-id"},
+	}
+
+	bucketDetails := &common.BucketDetails{
+		BucketName:          "test-bucket",
+		TenantProjectNumber: "tenant-123",
+	}
+
+	// Owner-scoped lookup finds the vault — GCBDR fallback is not needed
+	existingVault := &datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{UUID: "vault-id"},
+		ServiceType: "GCNV",
+		BucketDetails: datamodel.BucketDetailsArray{
+			{BucketName: "existing-bucket", VendorSubnetID: "subnet-id"},
+		},
+	}
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(123)).Return(existingVault, nil)
+	mockStorage.On("UpdateBackupVault", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil)
+
+	err := activity.UpdateBackupVaultWithBucketDetails(ctx, volume, bucketDetails)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockStorage.AssertNotCalled(t, "GetBackupVault", mock.Anything, mock.Anything)
+}
+
+// ===== Tests for GCBDR fallback rejecting non-GCBDR (normal) vaults =====
+
+func TestCheckBackupVaultExistsInVCP_FallbackRejectsNonGCBDRVault(t *testing.T) {
+	origFlag := activities.GCBDRVaultEnabled
+	defer func() { activities.GCBDRVaultEnabled = origFlag }()
+	activities.GCBDRVaultEnabled = true
+
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+		AccountID:      1,
+		Account:        &datamodel.Account{Name: "1088371202435"},
+	}
+
+	normalVault := &datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{UUID: "vault-id"},
+		ServiceType: "GCNV",
+		AccountID:   2,
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(1)).Return(nil, utilErrors.NewNotFoundErr("backup vault", nil))
+	mockStorage.On("GetBackupVault", ctx, "vault-id").Return(normalVault, nil)
+
+	// After fallback rejects the non-GCBDR vault, the function proceeds to CVP lookup.
+	// Mock CVP to return an empty list so the vault is truly "not found".
+	mockBackupVaultClient := backup_vault.NewMockClientService(t)
+	cvpClient := &cvpapi.Cvp{BackupVault: mockBackupVaultClient}
+	originalCreateClient := activities.CvpCreateClient
+	defer func() { activities.CvpCreateClient = originalCreateClient }()
+	activities.CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+	mockBackupVaultClient.On("V1betaListBackupVaults", mock.Anything).Return(&backup_vault.V1betaListBackupVaultsOK{
+		Payload: &backup_vault.V1betaListBackupVaultsOKBody{
+			BackupVaults: []*cvpModels.BackupVaultV1beta{},
+		},
+	}, nil)
+
+	result, err := activities.CheckBackupVaultExistsInVCP(ctx, mockStorage, volume, "us-central1")
+	assert.Error(t, err, "Should error because non-GCBDR vault was rejected and CVP has no matching vault")
+	assert.Nil(t, result, "Normal vault with mismatched account should not be returned via GCBDR fallback")
+	mockStorage.AssertExpectations(t)
+	mockBackupVaultClient.AssertExpectations(t)
+}
+
+func TestGetBackupVaultDetails_FallbackRejectsNonGCBDRVault(t *testing.T) {
+	origFlag := activities.GCBDRVaultEnabled
+	defer func() { activities.GCBDRVaultEnabled = origFlag }()
+	activities.GCBDRVaultEnabled = true
+
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-id"},
+		AccountID:      1,
+	}
+
+	normalVault := &datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{UUID: "vault-id"},
+		ServiceType: "GCNV",
+		AccountID:   2,
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(1)).Return(nil, utilErrors.NewNotFoundErr("backup vault", nil))
+	mockStorage.On("GetBackupVault", ctx, "vault-id").Return(normalVault, nil)
+
+	result, err := activity.CheckForBucketResourceName(ctx, volume)
+	assert.NoError(t, err)
+	assert.Nil(t, result, "Normal vault with mismatched account should not be returned via GCBDR fallback")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateBackupVaultWithBucketDetails_FallbackRejectsNonGCBDRVault(t *testing.T) {
+	origFlag := activities.GCBDRVaultEnabled
+	defer func() { activities.GCBDRVaultEnabled = origFlag }()
+	activities.GCBDRVaultEnabled = true
+
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{UUID: "vol-uuid"},
+		AccountID:        1,
+		DataProtection:   &datamodel.DataProtection{BackupVaultID: "vault-id"},
+		VolumeAttributes: &datamodel.VolumeAttributes{VendorSubnetID: "subnet-id"},
+	}
+
+	bucketDetails := &common.BucketDetails{
+		BucketName:          "test-bucket",
+		TenantProjectNumber: "tenant-123",
+	}
+
+	normalVault := &datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{UUID: "vault-id"},
+		ServiceType: "GCNV",
+		AccountID:   2,
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, "vault-id", int64(1)).Return(nil, utilErrors.NewNotFoundErr("backup vault", nil))
+	mockStorage.On("GetBackupVault", ctx, "vault-id").Return(normalVault, nil)
+
+	err := activity.UpdateBackupVaultWithBucketDetails(ctx, volume, bucketDetails)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+	mockStorage.AssertExpectations(t)
+	mockStorage.AssertNotCalled(t, "UpdateBackupVault", mock.Anything, mock.Anything)
 }

@@ -7648,3 +7648,49 @@ func TestCancelPrepopulateJobsForVolume_NoActiveJobs_Persistence_Store(t *testin
 	err := store.CancelPrepopulateJobsForVolume(ctx, "non-existent-volume-uuid")
 	assert.NoError(t, err)
 }
+
+func TestPersistenceStore_GetBackupsByBackupVaultUUIDAndFilter(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+
+	t.Run("ReturnsBackupsWithoutAccountFiltering", func(tt *testing.T) {
+		err := ClearInMemoryDB(store.DB())
+		require.NoError(tt, err)
+
+		bv := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: "ps-gcbdr-vault-uuid"},
+			Name:        "ps-gcbdr-vault",
+			ServiceType: "GCBDR",
+			AccountID:   1,
+		}
+		err = store.DB().Create(bv).Error
+		require.NoError(tt, err)
+
+		backup := &datamodel.Backup{
+			Name:          "ps-backup",
+			BackupVaultID: bv.ID,
+			VolumeUUID:    "vol-1",
+		}
+		err = store.DB().Create(backup).Error
+		require.NoError(tt, err)
+
+		backups, err := store.GetBackupsByBackupVaultUUIDAndFilter(ctx, bv.UUID, nil)
+		assert.NoError(tt, err)
+		assert.Len(tt, backups, 1)
+		assert.Equal(tt, "ps-backup", backups[0].Name)
+	})
+
+	t.Run("ReturnsNotFoundForNonExistentVault", func(tt *testing.T) {
+		backups, err := store.GetBackupsByBackupVaultUUIDAndFilter(ctx, "nonexistent", nil)
+		assert.Error(tt, err)
+		assert.Nil(tt, backups)
+	})
+}

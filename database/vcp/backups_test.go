@@ -1275,6 +1275,47 @@ func TestUpdateBackup(t *testing.T) {
 		assert.Equal(tt, "backup vault not found", err.Error())
 		assert.Empty(tt, backups)
 	})
+
+	t.Run("ReturnsFilteredBackupsWithFilters", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		bv := &datamodel.BackupVault{AccountID: 1, BaseModel: datamodel.BaseModel{UUID: "bv-filter-uuid"}}
+		err = store.db.Create(bv).Error()
+		assert.NoError(tt, err)
+
+		backup1 := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-filter-uuid-1"},
+			Name:          "matching-backup",
+			BackupVaultID: bv.ID,
+			BackupVault:   bv,
+			VolumeUUID:    "vol-1",
+		}
+		err = store.db.Create(backup1).Error()
+		assert.NoError(tt, err)
+
+		backup2 := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-filter-uuid-2"},
+			Name:          "other-backup",
+			BackupVaultID: bv.ID,
+			BackupVault:   bv,
+			VolumeUUID:    "vol-2",
+		}
+		err = store.db.Create(backup2).Error()
+		assert.NoError(tt, err)
+
+		filters := [][]interface{}{{"name = ?", "matching-backup"}}
+		backups, err := store.GetBackupsByBackupVaultOwnerIDAndFilter(context.Background(), bv.UUID, int64(1), filters)
+		assert.NoError(tt, err)
+		assert.Len(tt, backups, 1)
+		assert.Equal(tt, "matching-backup", backups[0].Name)
+	})
 }
 
 func TestUpdateBackupState(t *testing.T) {
@@ -5974,6 +6015,139 @@ func TestDeleteBackupChainHistoryOlderThan(t *testing.T) {
 		// This should fail because the database connection is closed
 		cutoffTime := time.Now().AddDate(0, 0, -7)
 		_, err = store.DeleteBackupChainHistoryOlderThan(ctx, cutoffTime)
+		assert.Error(tt, err)
+	})
+}
+
+func TestGetBackupsByBackupVaultUUIDAndFilter(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("ReturnsBackupsWithoutAccountFiltering", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Create two accounts
+		account1 := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-1-uuid"},
+			Name:      "project-1",
+		}
+		err = store.db.Create(account1).Error()
+		assert.NoError(tt, err)
+
+		account2 := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-2-uuid"},
+			Name:      "project-2",
+		}
+		err = store.db.Create(account2).Error()
+		assert.NoError(tt, err)
+
+		// Create a GCBDR backup vault
+		backupVault := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: "gcbdr-vault-uuid"},
+			Name:        "gcbdr-vault",
+			AccountID:   account1.ID,
+			ServiceType: "GCBDR",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		// Create backup from account1
+		backup1 := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-1-uuid"},
+			Name:          "backup-1",
+			BackupVaultID: backupVault.ID,
+		}
+		err = store.db.Create(backup1).Error()
+		assert.NoError(tt, err)
+
+		// Create backup from account2 in the same GCBDR vault (cross-project)
+		backup2 := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-2-uuid"},
+			Name:          "backup-2",
+			BackupVaultID: backupVault.ID,
+		}
+		err = store.db.Create(backup2).Error()
+		assert.NoError(tt, err)
+
+		// List backups without account filtering
+		backups, err := store.GetBackupsByBackupVaultUUIDAndFilter(ctx, backupVault.UUID, nil)
+		assert.NoError(tt, err)
+		assert.Len(tt, backups, 2)
+
+		// Verify we got backups from the vault (both backups belong to the same vault)
+		for _, b := range backups {
+			assert.Equal(tt, backupVault.ID, b.BackupVaultID)
+		}
+	})
+
+	t.Run("ReturnsFilteredBackups", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "project-1",
+		}
+		err = store.db.Create(account).Error()
+		assert.NoError(tt, err)
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: "vault-uuid"},
+			Name:        "test-vault",
+			AccountID:   account.ID,
+			ServiceType: "GCBDR",
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		backup1 := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-1-uuid"},
+			Name:          "backup-to-find",
+			BackupVaultID: backupVault.ID,
+		}
+		err = store.db.Create(backup1).Error()
+		assert.NoError(tt, err)
+
+		backup2 := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-2-uuid"},
+			Name:          "other-backup",
+			BackupVaultID: backupVault.ID,
+		}
+		err = store.db.Create(backup2).Error()
+		assert.NoError(tt, err)
+
+		// Filter by name
+		filters := [][]interface{}{{"name = ?", "backup-to-find"}}
+		backups, err := store.GetBackupsByBackupVaultUUIDAndFilter(ctx, backupVault.UUID, filters)
+		assert.NoError(tt, err)
+		assert.Len(tt, backups, 1)
+		assert.Equal(tt, "backup-to-find", backups[0].Name)
+	})
+
+	t.Run("ReturnsErrorWhenVaultNotFound", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		// Try to list backups for non-existent vault
+		_, err = store.GetBackupsByBackupVaultUUIDAndFilter(ctx, "non-existent-vault", nil)
 		assert.Error(tt, err)
 	})
 }

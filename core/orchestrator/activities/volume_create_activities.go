@@ -44,10 +44,13 @@ const (
 	VolumeTypeDP                 = "dp"
 	SnapshotPolicyNone           = "none"
 	CrossRegionBackupType        = "CROSS_REGION"
+	GCBDRServiceType             = "GCBDR"
 	CrossRegionBackupVaultErrMsg = "Cross region backup vaults are not supported for ISCSI volumes"
 	RestoreBackupWorkflow        = "RestoreBackupWorkflow"
 	BytesPerGB                   = 1073741824 // 1024^3 bytes = 1 GB
 )
+
+var GCBDRVaultEnabled = env.GetBool("GCBDR_VAULT_ENABLED", true)
 
 type VolumeCreateActivity struct {
 	SE        database.Storage
@@ -829,10 +832,22 @@ func _checkBackupVaultExistsInVCP(ctx context.Context, se database.Storage, volu
 	bvId := volume.DataProtection.BackupVaultID
 	backupVault, err := se.GetBackupVaultByUUIDndOwnerID(ctx, bvId, volume.AccountID)
 	if err != nil {
-		if !strings.Contains(err.Error(), "not found") {
+		if !errors.IsNotFoundErr(err) {
 			return nil, err
 		}
 	}
+	if backupVault == nil && GCBDRVaultEnabled {
+		backupVault, err = se.GetBackupVault(ctx, bvId)
+		if err != nil {
+			if !errors.IsNotFoundErr(err) {
+				return nil, err
+			}
+		}
+		if backupVault != nil && backupVault.ServiceType != GCBDRServiceType {
+			backupVault = nil
+		}
+	}
+
 	if backupVault != nil {
 		if backupVault.ImmutableAttributes != nil && !utils.IsImmutableBackupEnabled() {
 			err := validateImmutableBackupVault(*backupVault.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration)
@@ -1007,12 +1022,10 @@ func _checkForBucketResourceName(ctx context.Context, se database.Storage, volum
 		logger.Errorf("Error getting backup vault details: %v", err)
 		return nil, err
 	}
-	var buckets datamodel.BucketDetailsArray
-	if bvDetails != nil {
-		if bvDetails.BucketDetails != nil {
-			buckets = bvDetails.BucketDetails
-			for _, bucket := range buckets {
-				if strings.Contains(bucket.BucketName, volume.DataProtection.BackupVaultID) && volume.VolumeAttributes.VendorSubnetID == bucket.VendorSubnetID {
+	if bvDetails != nil && bvDetails.BucketDetails != nil {
+		for i, bucket := range bvDetails.BucketDetails {
+			if bvDetails.ServiceType == GCBDRServiceType {
+				if i == 0 && bucket.BucketName != "" {
 					return &common.BucketDetails{
 						BucketName:          bucket.BucketName,
 						ServiceAccountName:  bucket.ServiceAccountName,
@@ -1020,6 +1033,15 @@ func _checkForBucketResourceName(ctx context.Context, se database.Storage, volum
 						TenantProjectNumber: bucket.TenantProjectNumber,
 					}, nil
 				}
+				break
+			}
+			if strings.Contains(bucket.BucketName, volume.DataProtection.BackupVaultID) && volume.VolumeAttributes.VendorSubnetID == bucket.VendorSubnetID {
+				return &common.BucketDetails{
+					BucketName:          bucket.BucketName,
+					ServiceAccountName:  bucket.ServiceAccountName,
+					VendorSubnetID:      bucket.VendorSubnetID,
+					TenantProjectNumber: bucket.TenantProjectNumber,
+				}, nil
 			}
 		}
 	}
@@ -1029,8 +1051,19 @@ func _checkForBucketResourceName(ctx context.Context, se database.Storage, volum
 func getBackupVaultDetails(se database.Storage, ctx context.Context, bvID string, accountId int64) (*datamodel.BackupVault, error) {
 	backupVault, err := se.GetBackupVaultByUUIDndOwnerID(ctx, bvID, accountId)
 	if err != nil {
-		if !strings.Contains(err.Error(), "backup vault not found") {
+		if !errors.IsNotFoundErr(err) {
 			return nil, err
+		}
+	}
+	if backupVault == nil && GCBDRVaultEnabled {
+		backupVault, err = se.GetBackupVault(ctx, bvID)
+		if err != nil {
+			if !errors.IsNotFoundErr(err) {
+				return nil, err
+			}
+		}
+		if backupVault != nil && backupVault.ServiceType != GCBDRServiceType {
+			backupVault = nil
 		}
 	}
 	return backupVault, nil
@@ -1075,30 +1108,47 @@ func _createBucket(ctx context.Context, resourceName *common.ResourceNames, tena
 func UpdateBackupVaultWithBucketDetails(se database.Storage, ctx context.Context, volume *datamodel.Volume, bucketDetails *common.BucketDetails) error {
 	existingBackupVault, err := se.GetBackupVaultByUUIDndOwnerID(ctx, volume.DataProtection.BackupVaultID, volume.AccountID)
 	if err != nil {
-		return err
+		if !errors.IsNotFoundErr(err) {
+			return err
+		}
 	}
-
-	convertCommonToDatamodel := func(bucketDetails *common.BucketDetails) *datamodel.BucketDetails {
-		return &datamodel.BucketDetails{
-			BucketName:          bucketDetails.BucketName,
-			ServiceAccountName:  "", // No service accounts created
-			TenantProjectNumber: bucketDetails.TenantProjectNumber,
-			VendorSubnetID:      volume.VolumeAttributes.VendorSubnetID,
-			SatisfiesPzi:        bucketDetails.SatisfiesPzi,
-			SatisfiesPzs:        bucketDetails.SatisfiesPzs,
+	if existingBackupVault == nil && GCBDRVaultEnabled {
+		existingBackupVault, err = se.GetBackupVault(ctx, volume.DataProtection.BackupVaultID)
+		if err != nil {
+			return err
+		}
+		if existingBackupVault != nil && existingBackupVault.ServiceType != GCBDRServiceType {
+			existingBackupVault = nil
 		}
 	}
 
-	if existingBackupVault.BucketDetails != nil {
-		for _, bucket := range existingBackupVault.BucketDetails {
-			if bucket.BucketName == bucketDetails.BucketName && bucket.VendorSubnetID == volume.VolumeAttributes.VendorSubnetID {
-				return nil
+	if existingBackupVault == nil {
+		return fmt.Errorf("backup vault %s not found for volume %s", volume.DataProtection.BackupVaultID, volume.UUID)
+	}
+
+	newBucketDetail := &datamodel.BucketDetails{
+		BucketName:          bucketDetails.BucketName,
+		ServiceAccountName:  "", // No service accounts created
+		TenantProjectNumber: bucketDetails.TenantProjectNumber,
+		VendorSubnetID:      bucketDetails.VendorSubnetID, // For GCBDR this is empty, for others it's from volume
+		SatisfiesPzi:        bucketDetails.SatisfiesPzi,
+		SatisfiesPzs:        bucketDetails.SatisfiesPzs,
+	}
+
+	// For GCBDR vaults: only one bucket entry, replace it
+	if existingBackupVault.ServiceType == GCBDRServiceType {
+		existingBackupVault.BucketDetails = []*datamodel.BucketDetails{newBucketDetail}
+	} else {
+		// For regular/cross-region vaults: check if already exists, append if not
+		if existingBackupVault.BucketDetails != nil {
+			for _, bucket := range existingBackupVault.BucketDetails {
+				if bucket.BucketName == bucketDetails.BucketName && bucket.VendorSubnetID == volume.VolumeAttributes.VendorSubnetID {
+					return nil
+				}
 			}
 		}
+		existingBackupVault.BucketDetails = append(existingBackupVault.BucketDetails, newBucketDetail)
 	}
-
-	newBucketDetail := convertCommonToDatamodel(bucketDetails)
-	existingBackupVault.BucketDetails = append(existingBackupVault.BucketDetails, newBucketDetail)
 
 	err = se.UpdateBackupVault(ctx, existingBackupVault)
 	if err != nil {
@@ -2624,6 +2674,39 @@ func (a *VolumeCreateActivity) SetupCrossTenantProjectPermissions(ctx context.Co
 	}
 
 	log.Infof("Successfully granted storage.objectAdmin role to service account %s in project %s", poolServiceAccount, backupTenantProject)
+
+	return nil
+}
+
+// SetupCrossProjectBackupPermissions sets up IAM permissions for GCBDR cross-project backups.
+// Delegates to SetupCrossTenantProjectPermissions for the core grant logic, then tracks the
+// tenant project for cleanup during pool deletion.
+func (a *VolumeCreateActivity) SetupCrossProjectBackupPermissions(ctx context.Context, pool *datamodel.Pool, bucketDetails *common.BucketDetails) error {
+	logger := util.GetLogger(ctx)
+
+	if pool == nil {
+		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("pool is nil"))
+	}
+
+	if bucketDetails == nil || bucketDetails.TenantProjectNumber == "" {
+		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("bucket details or tenant project number is empty"))
+	}
+
+	bucketTenantProject := bucketDetails.TenantProjectNumber
+
+	if strings.EqualFold(pool.ClusterDetails.RegionalTenantProject, bucketTenantProject) {
+		logger.Info("Pool and bucket are in same tenant project, skipping cross-project permissions")
+		return nil
+	}
+
+	if err := a.SetupCrossTenantProjectPermissions(ctx, pool, bucketTenantProject); err != nil {
+		return err
+	}
+
+	// Track the tenant project for cleanup during pool deletion
+	if err := addServiceAccountPermissionProject(ctx, a.SE, pool.UUID, bucketTenantProject); err != nil {
+		logger.Warnf("Failed to track tenant project %s for pool %s: %v", bucketTenantProject, pool.UUID, err)
+	}
 
 	return nil
 }

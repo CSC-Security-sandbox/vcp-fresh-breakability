@@ -30,6 +30,7 @@ var (
 	checkIfBackupExistInCVP           = _checkIfBackupExistInCVP
 	ONTAPMode                         = "ONTAP"
 	ExpertModeBackupEnabled           = env.GetBool("EXPERT_MODE_BACKUP_ENABLED", false)
+	gcbdrServiceType                  = "GCBDR"
 )
 
 func (h Handler) V1betaGetMultipleBackups(ctx context.Context, req *gcpgenserver.BackupUuidListV1beta, params gcpgenserver.V1betaGetMultipleBackupsParams) (gcpgenserver.V1betaGetMultipleBackupsRes, error) {
@@ -158,6 +159,36 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 
 	var isExpertMode bool
 	var err error
+
+	vcpBv, err := h.Orchestrator.GetBackupVaultByUUIDWithoutAccount(ctx, params.BackupVaultId)
+	if err != nil {
+		logger.Error("Failed to get backup vault from VCP", "error", err.Error())
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaCreateBackupBadRequest{
+				Code:    400,
+				Message: fmt.Sprintf("Backup vault %s not found", params.BackupVaultId),
+			}, nil
+		}
+		return &gcpgenserver.V1betaCreateBackupInternalServerError{Code: 500, Message: err.Error()}, nil
+	}
+
+	backupVaultServiceType := "GCNV"
+	isGCBDRVault := false
+	if vcpBv.ServiceType != "" {
+		backupVaultServiceType = vcpBv.ServiceType
+		isGCBDRVault = backupVaultServiceType == gcbdrServiceType
+	}
+
+	// For non-GCBDR vaults, validate that vault belongs to the requesting account
+	if !isGCBDRVault && vcpBv.AccountName != params.ProjectNumber {
+		msg := fmt.Sprintf("Backup vault %s does not belong to account %s", params.BackupVaultId, params.ProjectNumber)
+		logger.Error(msg)
+		return &gcpgenserver.V1betaCreateBackupBadRequest{
+			Code:    400,
+			Message: msg,
+		}, nil
+	}
+
 	// Check if poolID is provided
 	if req.PoolId.IsSet() && req.PoolId.Value != "" {
 		pool, err := h.Orchestrator.DescribePool(ctx, req.PoolId.Value, params.ProjectNumber)
@@ -173,7 +204,6 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 		}
 		isExpertMode = pool.APIAccessMode == ONTAPMode
 	}
-
 	if isExpertMode && !ExpertModeBackupEnabled {
 		msg := "Backup for ONTAP mode pools is currently not enabled."
 		logger.Error(msg)
@@ -182,7 +212,6 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 			Message: msg,
 		}, nil
 	}
-
 	var vol *coremodels.Volume
 	var expertModeVol *datamodel.ExpertModeVolumes
 	// If pool is ONTAP mode, fetch from ExpertModeVolumes table
@@ -225,6 +254,8 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 		}
 	} else {
 		// For non-ONTAP pools or when poolID is not provided, use regular volume lookup
+		// For GCBDR vaults, fetch volume without account filter
+		// For non-GCBDR vaults, we'll validate account ownership after fetching
 		vol, err = h.Orchestrator.GetVolume(ctx, req.VolumeId, false)
 		if err != nil {
 			if errors.IsNotFoundErr(err) {
@@ -239,10 +270,21 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 				return &gcpgenserver.V1betaCreateBackupInternalServerError{Code: 500, Message: err.Error()}, err
 			}
 		}
+		// For non-GCBDR vaults, validate that volume belongs to the requesting account
+		if vol != nil && !isGCBDRVault {
+			if vol.AccountName != params.ProjectNumber {
+				msg := fmt.Sprintf("Volume %s does not belong to account %s", req.VolumeId, params.ProjectNumber)
+				logger.Error(msg)
+				return &gcpgenserver.V1betaCreateBackupBadRequest{
+					Code:    400,
+					Message: msg,
+				}, nil
+			}
+		}
 	}
 
 	// Check if volume exist in the VSA if not call CVP API to create the backup
-	if (err != nil && fetchFromCVP) || (vol == nil && !isExpertMode) {
+	if !isGCBDRVault && ((err != nil && fetchFromCVP) || (vol == nil && !isExpertMode)) {
 		// Check if backup already exists in VCP under the same vault before creating in CVP
 		filters := [][]interface{}{{"name = ?", req.ResourceId}}
 		existingBackups, err := h.Orchestrator.ListBackups(ctx, params.BackupVaultId, params.ProjectNumber, filters)
@@ -381,21 +423,42 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 		logger.Error("Failed to get volume", "error", err.Error())
 		return &gcpgenserver.V1betaCreateBackupInternalServerError{Code: 500, Message: err.Error()}, err
 	}
-	exist, err := checkIfBackupExistInCVP(ctx, &req.ResourceId, params)
-	if err != nil {
-		logger.Error("Failed to check if backup exists in CVP", "error", err.Error())
-		return &gcpgenserver.V1betaCreateBackupInternalServerError{Code: 500, Message: err.Error()}, err
-	}
-	if exist {
-		msg := fmt.Sprintf("Backup with resource ID %s already exists in the backup vault %s", req.ResourceId, params.BackupVaultId)
-		logger.Error(msg)
-		return &gcpgenserver.V1betaCreateBackupConflict{
-			Code:    409,
-			Message: msg,
-		}, nil
+	// For GCBDR vaults, skip CVP check and only check VCP
+	if !isGCBDRVault {
+		exist, err := checkIfBackupExistInCVP(ctx, &req.ResourceId, params)
+		if err != nil {
+			logger.Error("Failed to check if backup exists in CVP", "error", err.Error())
+			return &gcpgenserver.V1betaCreateBackupInternalServerError{Code: 500, Message: err.Error()}, err
+		}
+		if exist {
+			msg := fmt.Sprintf("Backup with resource ID %s already exists in the backup vault %s", req.ResourceId, params.BackupVaultId)
+			logger.Error(msg)
+			return &gcpgenserver.V1betaCreateBackupConflict{
+				Code:    409,
+				Message: msg,
+			}, nil
+		}
+	} else {
+		logger.Info("Skipping CVP backup existence check for GCBDR vault, checking VCP only", "backupVaultId", params.BackupVaultId)
+		filters := [][]interface{}{{"name = ?", req.ResourceId}}
+		// For GCBDR vaults, do not apply project/account filtering when checking for existing backups
+		// This ensures we detect backups created by other projects in the same GCBDR vault
+		existingBackups, err := h.Orchestrator.ListBackupsWithoutAccountFilter(ctx, params.BackupVaultId, filters)
+		if err != nil && !errors.IsNotFoundErr(err) {
+			logger.Error("Failed to check for existing backups in VCP", "error", err.Error())
+			return &gcpgenserver.V1betaCreateBackupInternalServerError{Code: 500, Message: err.Error()}, err
+		}
+		if len(existingBackups) > 0 {
+			msg := fmt.Sprintf("Backup with resource ID %s already exists in backup vault %s", req.ResourceId, params.BackupVaultId)
+			logger.Error(msg)
+			return &gcpgenserver.V1betaCreateBackupConflict{
+				Code:    409,
+				Message: msg,
+			}, nil
+		}
 	}
 	// If the request belongs to VSA, we will create the backup using the orchestrator
-	vsaParams := createBackupParams(req, params, isExpertMode && expertModeVol != nil)
+	vsaParams := createBackupParams(req, params, isExpertMode && expertModeVol != nil, backupVaultServiceType)
 
 	backup, jobID, err := h.Orchestrator.CreateBackup(ctx, vsaParams)
 	if err != nil {
@@ -698,29 +761,9 @@ func (h Handler) V1betaListBackups(ctx context.Context, params gcpgenserver.V1be
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 
-	listBackupParams := gcpgenserver.V1betaListBackupsParams{
-		BackupVaultId:  params.BackupVaultId,
-		LocationId:     params.LocationId,
-		ProjectNumber:  params.ProjectNumber,
-		XCorrelationID: gcpgenserver.NewOptString(params.XCorrelationID.Value),
-		BackupName:     params.BackupName,
-	}
-	listBackupsResp, err := listBackupsToCVP(ctx, listBackupParams)
-	if err != nil {
-		logger.Error("Failed to list backups", "error", err.Error())
-		return listBackupsResp, err
-	}
-	var cvpBackups *gcpgenserver.V1betaListBackupsOK
-	switch resp := listBackupsResp.(type) {
-	case *gcpgenserver.V1betaListBackupsOK:
-		cvpBackups = resp
-	default:
-		logger.Error("Unexpected response type from listBackupsToCVP", "responseType", fmt.Sprintf("%T", listBackupsResp))
-		return listBackupsResp, nil
-	}
-
 	var response gcpgenserver.V1betaListBackupsOK
-	_, err = h.Orchestrator.GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber)
+	// Check if backup vault exists and determine if it's a GCBDR vault
+	vcpBv, err := h.Orchestrator.GetBackupVaultByUUIDWithoutAccount(ctx, params.BackupVaultId)
 	if err != nil {
 		if !errors.IsNotFoundErr(err) {
 			logger.Error("Failed to get backup vault", "error", err)
@@ -729,13 +772,52 @@ func (h Handler) V1betaListBackups(ctx context.Context, params gcpgenserver.V1be
 				Message: "Failed to get Backup Vault",
 			}, nil
 		}
-	} else {
+	}
+
+	// Determine if this is a GCBDR vault
+	isGCBDRVault := false
+	if vcpBv != nil {
+		isGCBDRVault = vcpBv.ServiceType == gcbdrServiceType
+	}
+
+	// For GCBDR vaults, skip CVP call and only list from VCP
+	var cvpBackups *gcpgenserver.V1betaListBackupsOK
+	if !isGCBDRVault {
+		listBackupParams := gcpgenserver.V1betaListBackupsParams{
+			BackupVaultId:  params.BackupVaultId,
+			LocationId:     params.LocationId,
+			ProjectNumber:  params.ProjectNumber,
+			XCorrelationID: params.XCorrelationID,
+			BackupName:     params.BackupName,
+		}
+		listBackupsResp, err := listBackupsToCVP(ctx, listBackupParams)
+		if err != nil {
+			logger.Error("Failed to list backups", "error", err.Error())
+			return listBackupsResp, err
+		}
+		switch resp := listBackupsResp.(type) {
+		case *gcpgenserver.V1betaListBackupsOK:
+			cvpBackups = resp
+		default:
+			logger.Error("Unexpected response type from listBackupsToCVP", "responseType", fmt.Sprintf("%T", listBackupsResp))
+			return listBackupsResp, nil
+		}
+	}
+
+	if vcpBv != nil {
 		var filters [][]interface{}
 		if params.BackupName.IsSet() && params.BackupName.Value != "" {
 			filters = [][]interface{}{{"name = ?", params.BackupName.Value}}
 		}
 
-		backupList, err := h.Orchestrator.ListBackups(ctx, params.BackupVaultId, params.ProjectNumber, filters)
+		// For GCBDR vaults, list backups without account filtering to show backups from all projects
+		var backupList []*datamodel.Backup
+		if isGCBDRVault {
+			logger.Info("Listing backups for GCBDR vault without account filtering", "backupVaultId", params.BackupVaultId)
+			backupList, err = h.Orchestrator.ListBackupsWithoutAccountFilter(ctx, params.BackupVaultId, filters)
+		} else {
+			backupList, err = h.Orchestrator.ListBackups(ctx, params.BackupVaultId, params.ProjectNumber, filters)
+		}
 		if err != nil {
 			logger.Error("Failed to list backups", "error", err)
 			return &gcpgenserver.V1betaListBackupsInternalServerError{
@@ -747,7 +829,11 @@ func (h Handler) V1betaListBackups(ctx context.Context, params gcpgenserver.V1be
 			response.Backups = append(response.Backups, convertBackupDataModelToBackupsV1beta(backup))
 		}
 	}
-	response.Backups = append(response.Backups, cvpBackups.GetBackups()...)
+
+	// Only append CVP backups if this is not a GCBDR vault
+	if cvpBackups != nil {
+		response.Backups = append(response.Backups, cvpBackups.GetBackups()...)
+	}
 
 	return &response, nil
 }
@@ -986,17 +1072,18 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 	return backupV1
 }
 
-func createBackupParams(req *gcpgenserver.BackupCreateV1beta, params gcpgenserver.V1betaCreateBackupParams, isExpertModeVolume bool) *common.CreateBackupParams {
+func createBackupParams(req *gcpgenserver.BackupCreateV1beta, params gcpgenserver.V1betaCreateBackupParams, isExpertModeVolume bool, backupVaultServiceType string) *common.CreateBackupParams {
 	backupParams := common.CreateBackupParams{
-		AccountName:         params.ProjectNumber,
-		BackupVaultID:       params.BackupVaultId,
-		VolumeUUID:          req.VolumeId,
-		BackupName:          req.ResourceId,
-		BackupType:          utils.BackupTypeMANUAL, // Default to MANUAL, later can be changed based on the request
-		LocationID:          params.LocationId,
-		UseExistingSnapshot: false,              // Default to false, can be changed based on the request
-		SnapshotID:          "",                 // Default to empty, can be changed based on the request
-		IsExpertModeVolume:  isExpertModeVolume, // Indicates if this is an expert mode volume
+		AccountName:            params.ProjectNumber,
+		BackupVaultID:          params.BackupVaultId,
+		VolumeUUID:             req.VolumeId,
+		BackupName:             req.ResourceId,
+		BackupType:             utils.BackupTypeMANUAL, // Default to MANUAL, later can be changed based on the request
+		LocationID:             params.LocationId,
+		UseExistingSnapshot:    false,                  // Default to false, can be changed based on the request
+		SnapshotID:             "",                     // Default to empty, can be changed based on the request
+		IsExpertModeVolume:     isExpertModeVolume,     // Indicates if this is an expert mode volume
+		BackupVaultServiceType: backupVaultServiceType, // Service type of the backup vault (GCBDR, GCNV, etc.)
 	}
 	if req.Description.IsSet() {
 		backupParams.Description = req.Description.Value
