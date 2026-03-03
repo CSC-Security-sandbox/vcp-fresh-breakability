@@ -5421,7 +5421,7 @@ func Test_UpdateQuotaRuleOnDestination(t *testing.T) {
 
 		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(expectedResponse, nil)
 
-		result, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+		result, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken, "")
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -5492,7 +5492,7 @@ func Test_UpdateQuotaRuleOnDestination(t *testing.T) {
 
 		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(expectedResponse, nil)
 
-		result, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+		result, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken, "")
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -5558,7 +5558,7 @@ func Test_UpdateQuotaRuleOnDestination(t *testing.T) {
 
 		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(expectedResponse, nil)
 
-		result, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+		result, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken, "")
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -5586,7 +5586,7 @@ func Test_UpdateQuotaRuleOnDestination(t *testing.T) {
 		}
 
 		jwtToken := "test-jwt-token"
-		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken, "")
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to get destination base path")
@@ -5618,7 +5618,7 @@ func Test_UpdateQuotaRuleOnDestination(t *testing.T) {
 
 		// Test with empty JWT token
 		emptyJwtToken := ""
-		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &emptyJwtToken)
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &emptyJwtToken, "")
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "JWT token is required")
@@ -5649,7 +5649,7 @@ func Test_UpdateQuotaRuleOnDestination(t *testing.T) {
 		}
 
 		// Test with nil JWT token
-		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, nil)
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, nil, "")
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "JWT token is required")
@@ -5705,7 +5705,7 @@ func Test_UpdateQuotaRuleOnDestination(t *testing.T) {
 		expectedError := errors.New("API call failed")
 		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(nil, expectedError)
 
-		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken, "")
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to update quota rule on destination")
@@ -5764,7 +5764,7 @@ func Test_UpdateQuotaRuleOnDestination(t *testing.T) {
 		}
 		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(badRequestResponse, nil)
 
-		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken, "")
 
 		assert.Error(t, err)
 		mockInvoker.AssertExpectations(t)
@@ -5822,7 +5822,7 @@ func Test_UpdateQuotaRuleOnDestination(t *testing.T) {
 		}
 		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(notFoundResponse, nil)
 
-		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken, "")
 
 		assert.Error(t, err)
 		mockInvoker.AssertExpectations(t)
@@ -5880,7 +5880,7 @@ func Test_UpdateQuotaRuleOnDestination(t *testing.T) {
 		}
 		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(conflictResponse, nil)
 
-		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken, "")
 
 		assert.Error(t, err)
 		mockInvoker.AssertExpectations(t)
@@ -5939,7 +5939,7 @@ func Test_UpdateQuotaRuleOnDestination(t *testing.T) {
 		}
 		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(operationResponse, nil)
 
-		result, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+		result, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken, "")
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -6003,9 +6003,75 @@ func Test_UpdateQuotaRuleOnDestination(t *testing.T) {
 
 		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(expectedResponse, nil)
 
-		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken, "")
 
 		assert.NoError(t, err)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("UpdateQuotaRuleOnDestination_DescriptionOnly_Success", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := QuotaRuleUpdateActivity{SE: mockStorage}
+		destinationVolumeUUID := "destination-volume-uuid"
+		destinationQuotaRuleId := "destination-quota-id-123"
+		diskLimitInKib := int64(0)
+		destinationRegion := "us-east1"
+		projectNumber := "123456789"
+		description := "Updated description"
+
+		originalParseRegionAndZone := utils.ParseRegionAndZone
+		originalGetPairedRegionURI := replication.InternalUtilGetPairedRegionURI
+		defer func() {
+			utils.ParseRegionAndZone = originalParseRegionAndZone
+			replication.InternalUtilGetPairedRegionURI = originalGetPairedRegionURI
+		}()
+
+		utils.ParseRegionAndZone = func(locationID string) (string, string, error) {
+			return "us-east1", "us-east1-a", nil
+		}
+		basePath := "https://us-east1.example.com"
+		replication.InternalUtilGetPairedRegionURI = func(region string) (string, error) {
+			return basePath, nil
+		}
+
+		originalGetSignedJwtToken := auth.GetSignedJwtToken
+		defer func() {
+			auth.GetSignedJwtToken = originalGetSignedJwtToken
+		}()
+		jwtToken := "test-jwt-token"
+		auth.GetSignedJwtToken = func(projectNumber string) (string, error) {
+			return jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		expectedResponse := &googleproxyclient.QuotaRulesVCPV1beta{
+			QuotaId:    googleproxyclient.NewOptString(destinationQuotaRuleId),
+			ResourceId: "test-quota-rule",
+			State:      googleproxyclient.NewOptQuotaRulesVCPV1betaState(googleproxyclient.QuotaRulesVCPV1betaStateREADY),
+		}
+
+		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.MatchedBy(func(body *googleproxyclient.QuotaRulesUpdateV1beta) bool {
+			return !body.DiskLimitInMib.IsSet() && body.Description.IsSet() && body.Description.Value == description
+		}), mock.Anything).Return(expectedResponse, nil)
+
+		result, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken, description)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.IsDone)
 		mockInvoker.AssertExpectations(t)
 	})
 
@@ -6062,7 +6128,7 @@ func Test_UpdateQuotaRuleOnDestination(t *testing.T) {
 		}
 		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(unexpectedResponse, nil)
 
-		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken, "")
 
 		assert.Error(t, err)
 		mockInvoker.AssertExpectations(t)
@@ -6120,7 +6186,7 @@ func Test_UpdateQuotaRuleOnDestination(t *testing.T) {
 		}
 		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(unauthorizedResponse, nil)
 
-		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken, "")
 
 		assert.Error(t, err)
 		mockInvoker.AssertExpectations(t)
@@ -6178,7 +6244,7 @@ func Test_UpdateQuotaRuleOnDestination(t *testing.T) {
 		}
 		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(forbiddenResponse, nil)
 
-		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken, "")
 
 		assert.Error(t, err)
 		mockInvoker.AssertExpectations(t)
@@ -6236,7 +6302,7 @@ func Test_UpdateQuotaRuleOnDestination(t *testing.T) {
 		}
 		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(methodNotAllowedResponse, nil)
 
-		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken, "")
 
 		assert.Error(t, err)
 		mockInvoker.AssertExpectations(t)
@@ -6294,7 +6360,7 @@ func Test_UpdateQuotaRuleOnDestination(t *testing.T) {
 		}
 		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(requestTimeoutResponse, nil)
 
-		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken, "")
 
 		assert.Error(t, err)
 		mockInvoker.AssertExpectations(t)
@@ -6352,7 +6418,7 @@ func Test_UpdateQuotaRuleOnDestination(t *testing.T) {
 		}
 		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(unprocessableEntityResponse, nil)
 
-		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken, "")
 
 		assert.Error(t, err)
 		mockInvoker.AssertExpectations(t)
@@ -6410,7 +6476,7 @@ func Test_UpdateQuotaRuleOnDestination(t *testing.T) {
 		}
 		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(tooManyRequestsResponse, nil)
 
-		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken, "")
 
 		assert.Error(t, err)
 		mockInvoker.AssertExpectations(t)
@@ -6468,7 +6534,7 @@ func Test_UpdateQuotaRuleOnDestination(t *testing.T) {
 		}
 		mockInvoker.On("V1betaUpdateQuotaRuleVCP", ctx, mock.Anything, mock.Anything).Return(serviceUnavailableResponse, nil)
 
-		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken)
+		_, err := activity.UpdateQuotaRuleOnDestination(ctx, destinationVolumeUUID, destinationQuotaRuleId, diskLimitInKib, destinationRegion, projectNumber, &jwtToken, "")
 
 		assert.Error(t, err)
 		mockInvoker.AssertExpectations(t)

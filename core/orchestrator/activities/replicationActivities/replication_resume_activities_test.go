@@ -2316,6 +2316,65 @@ func TestListQuotaRulesOnSourceResume(t *testing.T) {
 		mockClient.AssertExpectations(tt)
 	})
 
+	t.Run("WhenSuccess_QuotaRuleWithDescription_DescriptionSyncedToDbModel", func(tt *testing.T) {
+		// Ensures list response Description is converted so destination gets it on resume
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+		}()
+
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+
+		result := &replication.ResumeReplicationResult{
+			Event: &replication.ResumeReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID:      &correlationID,
+					SourceProjectNumber: srcProjectNumber,
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation:   srcLocation,
+							SourceVolumeUUID: srcVolumeUUID,
+						},
+					},
+				},
+			},
+			SrcBasePath: &srcBasePath,
+			SrcJwtToken: &srcJwtToken,
+		}
+
+		sourceDescription := "Source quota rule description for resume sync"
+		expectedResponse := &googleproxyclient.V1betaListAllQuotaRulesOK{
+			QuotaRules: []googleproxyclient.QuotaRulesV1beta{
+				{
+					ResourceId:     "quota-rule-with-desc",
+					QuotaId:        googleproxyclient.NewOptString("quota-uuid-desc"),
+					DiskLimitInMib: int64(512),
+					QuotaType:      googleproxyclient.QuotaRulesV1betaQuotaTypeINDIVIDUALUSERQUOTA,
+					State:          googleproxyclient.NewOptQuotaRulesV1betaState(googleproxyclient.QuotaRulesV1betaStateREADY),
+					Description:    googleproxyclient.NewOptString(sourceDescription),
+				},
+			},
+		}
+
+		mockClient.EXPECT().V1betaListAllQuotaRules(ctx, mock.Anything).Return(expectedResponse, nil)
+
+		quotaRules, err := activity.ListQuotaRulesOnSourceResume(ctx, result)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, quotaRules)
+		assert.Len(tt, quotaRules, 1)
+		assert.Equal(tt, "quota-rule-with-desc", quotaRules[0].Name)
+		assert.Equal(tt, sourceDescription, quotaRules[0].Description, "Description from source must be in db model so destination gets it on AddSrcQuotaRulesToDstDB")
+		mockClient.AssertExpectations(tt)
+	})
+
 	t.Run("WhenSuccess_NoQuotaRules", func(tt *testing.T) {
 		originalGetGProxyClient := googleproxyclient.GetGProxyClient
 		defer func() {

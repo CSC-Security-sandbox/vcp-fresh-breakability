@@ -667,6 +667,23 @@ func TestConvertDbModelToQuotaRulesV1beta(t *testing.T) {
 		assert.True(tt, result.QuotaTarget.IsSet())
 		assert.Equal(tt, "user:alice", result.QuotaTarget.Value)
 	})
+
+	t.Run("WhenDescriptionIsSet", func(tt *testing.T) {
+		rule := &datamodel.QuotaRule{
+			BaseModel: datamodel.BaseModel{
+				UUID: "quota-uuid-desc",
+			},
+			Name:           "quota-rule-desc",
+			QuotaType:      "INDIVIDUAL_USER_QUOTA",
+			DiskLimitInKib: 100 * 1024,
+			Description:    "Quota rule description for destination sync",
+		}
+
+		result := convertDbModelToQuotaRulesV1beta(rule)
+
+		assert.True(tt, result.Description.IsSet())
+		assert.Equal(tt, "Quota rule description for destination sync", result.Description.Value)
+	})
 }
 
 // TestConvertQuotaRulesV1betaToDbModel tests the convertQuotaRulesV1betaToDbModel function
@@ -743,6 +760,20 @@ func TestConvertQuotaRulesV1betaToDbModel(t *testing.T) {
 		result := convertQuotaRulesV1betaToDbModel(clientRule)
 
 		assert.Equal(tt, "Ready state details", result.StateDetails)
+	})
+
+	t.Run("WhenDescriptionIsSet", func(tt *testing.T) {
+		clientRule := googleproxyclient.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-desc",
+			QuotaType:      googleproxyclient.QuotaRulesV1betaQuotaTypeINDIVIDUALUSERQUOTA,
+			DiskLimitInMib: 100,
+			QuotaId:        googleproxyclient.NewOptString("quota-uuid-desc"),
+			Description:    googleproxyclient.NewOptString("Source quota rule description"),
+		}
+
+		result := convertQuotaRulesV1betaToDbModel(clientRule)
+
+		assert.Equal(tt, "Source quota rule description", result.Description)
 	})
 }
 

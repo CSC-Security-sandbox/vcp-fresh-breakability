@@ -150,9 +150,8 @@ func (wf *quotaRuleUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}
 		isDataProtection = volumeDetails.VolumeAttributes.IsDataProtection
 	}
 
-	// If volume is data protection or only description is being updated (no disk limit change)
-	// then only update the database
-	if isDataProtection || params.DiskLimitInMib == 0 {
+	// If volume is data protection, only update the database (no ONTAP or destination sync needed)
+	if isDataProtection {
 		dbQuotaRule.DiskLimitInKib = newDiskLimitInKib
 		dbQuotaRule.Description = newDescription
 
@@ -162,40 +161,44 @@ func (wf *quotaRuleUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}
 			logger.Errorf("Failed to update quota rule state in database: %v", err)
 			return nil, ConvertToVSAError(err)
 		}
-		// DB-only update (DP volume or description-only): return after successful update.
-		logger.Info("DB update of quotaRule successful")
+		// DB-only update (DP volume): return after successful update.
+		logger.Info("DB update of quotaRule successful for DP volume")
 		return nil, nil
 	}
 
-	var dbNodes []*datamodel.Node
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, volumeDetails.PoolID).Get(ctx, &dbNodes)
-	if err != nil {
-		logger.Errorf("Failed to get nodes for pool: %v", err)
-		return nil, ConvertToVSAError(err)
-	}
-
-	// Create node structure for provider - this will be passed to activities
-	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
-		Nodes:            dbNodes,
-		DeploymentName:   volumeDetails.Pool.DeploymentName,
-		OntapCredentials: volumeDetails.Pool.PoolCredentials,
-	})
-
-	// Get ONTAP quota UUID for the quota rule
+	var node *models.Node
 	var quotaUUID string
-	err = workflow.ExecuteActivity(ctx, commonActivity.GetOntapQuotaUUID,
-		volumeDetails, node, dbQuotaRule.QuotaType, dbQuotaRule.QuotaTarget, JobActionUpdate).Get(ctx, &quotaUUID)
-	if err != nil {
-		logger.Errorf("Failed to get quota UUID from ONTAP: %v", err)
-		return nil, ConvertToVSAError(err)
-	}
 
-	// Update quota rule on ONTAP
-	err = workflow.ExecuteActivity(ctx, quotaRuleActivity.UpdateQuotaRulesOnOntap,
-		quotaUUID, node, newDiskLimitInKib).Get(ctx, nil)
-	if err != nil {
-		logger.Errorf("Failed to update quota rule on ONTAP: %v", err)
-		return nil, ConvertToVSAError(err)
+	if params.DiskLimitInMib > 0 {
+		var dbNodes []*datamodel.Node
+		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, volumeDetails.PoolID).Get(ctx, &dbNodes)
+		if err != nil {
+			logger.Errorf("Failed to get nodes for pool: %v", err)
+			return nil, ConvertToVSAError(err)
+		}
+
+		// Create node structure for provider - this will be passed to activities
+		node = hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+			Nodes:            dbNodes,
+			DeploymentName:   volumeDetails.Pool.DeploymentName,
+			OntapCredentials: volumeDetails.Pool.PoolCredentials,
+		})
+
+		// Get ONTAP quota UUID for the quota rule
+		err = workflow.ExecuteActivity(ctx, commonActivity.GetOntapQuotaUUID,
+			volumeDetails, node, dbQuotaRule.QuotaType, dbQuotaRule.QuotaTarget, JobActionUpdate).Get(ctx, &quotaUUID)
+		if err != nil {
+			logger.Errorf("Failed to get quota UUID from ONTAP: %v", err)
+			return nil, ConvertToVSAError(err)
+		}
+
+		// Update quota rule on ONTAP
+		err = workflow.ExecuteActivity(ctx, quotaRuleActivity.UpdateQuotaRulesOnOntap,
+			quotaUUID, node, newDiskLimitInKib).Get(ctx, nil)
+		if err != nil {
+			logger.Errorf("Failed to update quota rule on ONTAP: %v", err)
+			return nil, ConvertToVSAError(err)
+		}
 	}
 
 	var replications []*datamodel.VolumeReplication
@@ -249,33 +252,45 @@ func (wf *quotaRuleUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}
 					logger.Errorf("Failed to fetch matching quota rule from destination: destinationVolumeUUID=%s, quotaRuleName=%s, error=%v",
 						replication.ReplicationAttributes.DestinationVolumeUUID, dbQuotaRule.Name, err)
 
-					// Revert source quota rule if it was updated
-					logger.Errorf("Reverting source quota rule due to destination sync failure")
-					revertErr := workflow.ExecuteActivity(ctx, quotaRuleActivity.RevertQuotaRulesOnSource,
-						quotaUUID, node, originalDiskLimitInKib).Get(ctx, nil)
-					if revertErr != nil {
-						logger.Errorf("Failed to revert quota rule on source: %v", revertErr)
-						return nil, ConvertToVSAError(revertErr)
+					if params.DiskLimitInMib > 0 {
+						// Revert source quota rule if it was updated
+						logger.Errorf("Reverting source quota rule due to destination sync failure")
+						revertErr := workflow.ExecuteActivity(ctx, quotaRuleActivity.RevertQuotaRulesOnSource,
+							quotaUUID, node, originalDiskLimitInKib).Get(ctx, nil)
+						if revertErr != nil {
+							logger.Errorf("Failed to revert quota rule on source: %v", revertErr)
+							return nil, ConvertToVSAError(revertErr)
+						}
 					}
 					// Return original error so defer marks quota rule in error state
 					return nil, ConvertToVSAError(err)
 				}
 
-				// Update quota rule on destination via internal API
+				// Update quota rule on destination via internal API — only send fields the user explicitly requested
+				diskLimitForDestination := int64(0)
+				if params.DiskLimitInMib > 0 {
+					diskLimitForDestination = newDiskLimitInKib
+				}
+				descriptionForDestination := ""
+				if params.Description != "" {
+					descriptionForDestination = newDescription
+				}
 				var updateOperationResult *activities.QuotaRuleOperationResult
 				err = workflow.ExecuteActivity(ctx, quotaRuleActivity.UpdateQuotaRuleOnDestination,
-					replication.ReplicationAttributes.DestinationVolumeUUID, *destinationQuotaRuleId, newDiskLimitInKib, replication.ReplicationAttributes.DestinationLocation, destProjectNumber, jwtToken).Get(ctx, &updateOperationResult)
+					replication.ReplicationAttributes.DestinationVolumeUUID, *destinationQuotaRuleId, diskLimitForDestination, replication.ReplicationAttributes.DestinationLocation, destProjectNumber, jwtToken, descriptionForDestination).Get(ctx, &updateOperationResult)
 				if err != nil {
 					logger.Errorf("Failed to update quota rule on destination: destinationVolumeUUID=%s, quotaRuleId=%s, error=%v",
 						replication.ReplicationAttributes.DestinationVolumeUUID, destinationQuotaRuleId, err)
 
-					// Revert source quota rule if it was updated
-					logger.Warnf("Reverting source quota rule due to destination update failure")
-					revertErr := workflow.ExecuteActivity(ctx, quotaRuleActivity.RevertQuotaRulesOnSource,
-						quotaUUID, node, originalDiskLimitInKib).Get(ctx, nil)
-					if revertErr != nil {
-						logger.Errorf("Failed to revert quota rule on source: %v", revertErr)
-						return nil, ConvertToVSAError(revertErr)
+					if params.DiskLimitInMib > 0 {
+						// Revert source quota rule if it was updated
+						logger.Warnf("Reverting source quota rule due to destination update failure")
+						revertErr := workflow.ExecuteActivity(ctx, quotaRuleActivity.RevertQuotaRulesOnSource,
+							quotaUUID, node, originalDiskLimitInKib).Get(ctx, nil)
+						if revertErr != nil {
+							logger.Errorf("Failed to revert quota rule on source: %v", revertErr)
+							return nil, ConvertToVSAError(revertErr)
+						}
 					}
 					// Return original error so defer marks quota rule in error state
 					return nil, ConvertToVSAError(err)
@@ -290,13 +305,15 @@ func (wf *quotaRuleUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}
 						logger.Errorf("Failed to wait for quota rule update on destination: operationName=%s, error=%v",
 							updateOperationResult.OperationName, err)
 
-						// Revert source quota rule if destination update failed
-						logger.Warnf("Reverting source quota rule due to destination operation failure")
-						revertErr := workflow.ExecuteActivity(ctx, quotaRuleActivity.RevertQuotaRulesOnSource,
-							quotaUUID, node, originalDiskLimitInKib).Get(ctx, nil)
-						if revertErr != nil {
-							logger.Errorf("Failed to revert quota rule on source: %v", revertErr)
-							return nil, ConvertToVSAError(revertErr)
+						if params.DiskLimitInMib > 0 {
+							// Revert source quota rule if destination update failed
+							logger.Warnf("Reverting source quota rule due to destination operation failure")
+							revertErr := workflow.ExecuteActivity(ctx, quotaRuleActivity.RevertQuotaRulesOnSource,
+								quotaUUID, node, originalDiskLimitInKib).Get(ctx, nil)
+							if revertErr != nil {
+								logger.Errorf("Failed to revert quota rule on source: %v", revertErr)
+								return nil, ConvertToVSAError(revertErr)
+							}
 						}
 						// Return original error so defer marks quota rule in error state
 						return nil, ConvertToVSAError(err)

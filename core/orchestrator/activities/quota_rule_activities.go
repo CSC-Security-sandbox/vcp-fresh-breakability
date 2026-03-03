@@ -1618,6 +1618,7 @@ func (a *QuotaRuleUpdateActivity) UpdateQuotaRuleOnDestination(
 	destinationRegion string,
 	projectNumber string,
 	jwtToken *string,
+	description string,
 ) (*QuotaRuleOperationResult, error) {
 	logger := util.GetLogger(ctx)
 
@@ -1662,6 +1663,10 @@ func (a *QuotaRuleUpdateActivity) UpdateQuotaRuleOnDestination(
 	// Set disk limit if it's being updated (non-zero)
 	if diskLimitInKib > 0 {
 		body.DiskLimitInMib = googleproxyclient.NewOptInt64(diskLimitInMib)
+	}
+
+	if description != "" {
+		body.Description = googleproxyclient.NewOptString(description)
 	}
 
 	// Call the internal VCP API to update quota rule on destination

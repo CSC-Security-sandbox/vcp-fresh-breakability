@@ -257,6 +257,11 @@ func convertDbModelToQuotaRulesV1beta(rule *datamodel.QuotaRule) googleproxyclie
 		clientRule.QuotaTarget = googleproxyclient.NewOptString(rule.QuotaTarget)
 	}
 
+	// Set description so it is synced when creating quota rules on destination (e.g. resume flow)
+	if rule.Description != "" {
+		clientRule.Description = googleproxyclient.NewOptString(rule.Description)
+	}
+
 	return clientRule
 }
 
@@ -301,6 +306,11 @@ func convertQuotaRulesV1betaToDbModel(clientRule googleproxyclient.QuotaRulesV1b
 	// Set state details if available
 	if stateDetails, hasStateDetails := clientRule.StateDetails.Get(); hasStateDetails {
 		rule.StateDetails = stateDetails
+	}
+
+	// Set description if available (so source description is synced to destination on resume)
+	if desc, hasDesc := clientRule.Description.Get(); hasDesc {
+		rule.Description = desc
 	}
 
 	return rule
