@@ -10,5 +10,9 @@ const (
 	GetHealthOperation                            OperationName = "GetHealth"
 	SnaplockFileDeleteOperation                   OperationName = "SnaplockFileDelete"
 	V1ClusterLicensingAccessTokensCreateOperation OperationName = "V1ClusterLicensingAccessTokensCreate"
+	V1DeleteDestinationEndpointOperation          OperationName = "V1DeleteDestinationEndpoint"
+	V1DeleteSnapshotOperation                     OperationName = "V1DeleteSnapshot"
+	V1GetDestinationEndpointInfoOperation         OperationName = "V1GetDestinationEndpointInfo"
+	V1GetSnapshotsOperation                       OperationName = "V1GetSnapshots"
 	V1PrivateCliOperation                         OperationName = "V1PrivateCli"
 )

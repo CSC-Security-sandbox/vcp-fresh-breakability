@@ -449,6 +449,222 @@ func TestJobLink_EncodeDecode(t *testing.T) {
 	var typ2 JobLink
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestObjectStoreEndpointInfo_EncodeDecode(t *testing.T) {
+	var typ ObjectStoreEndpointInfo
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ObjectStoreEndpointInfo
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestObjectStoreEndpointInfoDestination_EncodeDecode(t *testing.T) {
+	var typ ObjectStoreEndpointInfoDestination
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ObjectStoreEndpointInfoDestination
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestObjectStoreEndpointInfoJobLinkResponse_EncodeDecode(t *testing.T) {
+	var typ ObjectStoreEndpointInfoJobLinkResponse
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ObjectStoreEndpointInfoJobLinkResponse
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestObjectStoreEndpointInfoLinks_EncodeDecode(t *testing.T) {
+	var typ ObjectStoreEndpointInfoLinks
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ObjectStoreEndpointInfoLinks
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestObjectStoreEndpointInfoObjectStore_EncodeDecode(t *testing.T) {
+	var typ ObjectStoreEndpointInfoObjectStore
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ObjectStoreEndpointInfoObjectStore
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestObjectStoreEndpointInfoObjectStoreLinks_EncodeDecode(t *testing.T) {
+	var typ ObjectStoreEndpointInfoObjectStoreLinks
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ObjectStoreEndpointInfoObjectStoreLinks
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestObjectStoreEndpointInfoObjectStoreProviderType_EncodeDecode(t *testing.T) {
+	var typ ObjectStoreEndpointInfoObjectStoreProviderType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ObjectStoreEndpointInfoObjectStoreProviderType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestObjectStoreEndpointInfoSource_EncodeDecode(t *testing.T) {
+	var typ ObjectStoreEndpointInfoSource
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ObjectStoreEndpointInfoSource
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestObjectStoreEndpointInfoSourceEndpoint_EncodeDecode(t *testing.T) {
+	var typ ObjectStoreEndpointInfoSourceEndpoint
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ObjectStoreEndpointInfoSourceEndpoint
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestObjectStoreEndpointInfoSourceEndpointLinks_EncodeDecode(t *testing.T) {
+	var typ ObjectStoreEndpointInfoSourceEndpointLinks
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ObjectStoreEndpointInfoSourceEndpointLinks
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestObjectStoreEndpointInfoSourceEndpointSvm_EncodeDecode(t *testing.T) {
+	var typ ObjectStoreEndpointInfoSourceEndpointSvm
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ObjectStoreEndpointInfoSourceEndpointSvm
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestObjectStoreEndpointInfoSourceEndpointSvmLinks_EncodeDecode(t *testing.T) {
+	var typ ObjectStoreEndpointInfoSourceEndpointSvmLinks
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ObjectStoreEndpointInfoSourceEndpointSvmLinks
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestObjectStoreEndpointInfoSourceEndpointType_EncodeDecode(t *testing.T) {
+	var typ ObjectStoreEndpointInfoSourceEndpointType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ObjectStoreEndpointInfoSourceEndpointType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestObjectStoreEndpointInfoSourceType_EncodeDecode(t *testing.T) {
+	var typ ObjectStoreEndpointInfoSourceType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ObjectStoreEndpointInfoSourceType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestObjectStoreEndpointRef_EncodeDecode(t *testing.T) {
+	var typ ObjectStoreEndpointRef
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ObjectStoreEndpointRef
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestObjectStoreEndpointRefLinks_EncodeDecode(t *testing.T) {
+	var typ ObjectStoreEndpointRefLinks
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ObjectStoreEndpointRefLinks
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestObjectStoreRef_EncodeDecode(t *testing.T) {
+	var typ ObjectStoreRef
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ObjectStoreRef
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestObjectStoreRefLinks_EncodeDecode(t *testing.T) {
+	var typ ObjectStoreRefLinks
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ObjectStoreRefLinks
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestSelfLink_EncodeDecode(t *testing.T) {
 	var typ SelfLink
 	typ.SetFake()
@@ -545,6 +761,90 @@ func TestSnaplockFileRetentionJobLinkResponse_EncodeDecode(t *testing.T) {
 	var typ2 SnaplockFileRetentionJobLinkResponse
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestSnapmirrorObjectStoreEndpointSnapshot_EncodeDecode(t *testing.T) {
+	var typ SnapmirrorObjectStoreEndpointSnapshot
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnapmirrorObjectStoreEndpointSnapshot
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnapmirrorObjectStoreEndpointSnapshotJobLinkResponse_EncodeDecode(t *testing.T) {
+	var typ SnapmirrorObjectStoreEndpointSnapshotJobLinkResponse
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnapmirrorObjectStoreEndpointSnapshotJobLinkResponse
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnapmirrorObjectStoreEndpointSnapshotLinks_EncodeDecode(t *testing.T) {
+	var typ SnapmirrorObjectStoreEndpointSnapshotLinks
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnapmirrorObjectStoreEndpointSnapshotLinks
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnapmirrorObjectStoreEndpointSnapshotResponse_EncodeDecode(t *testing.T) {
+	var typ SnapmirrorObjectStoreEndpointSnapshotResponse
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnapmirrorObjectStoreEndpointSnapshotResponse
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnapmirrorObjectStoreEndpointSnapshotResponseLinks_EncodeDecode(t *testing.T) {
+	var typ SnapmirrorObjectStoreEndpointSnapshotResponseLinks
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnapmirrorObjectStoreEndpointSnapshotResponseLinks
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnapmirrorObjectStoreEndpointSnapshotSnapshotLockState_EncodeDecode(t *testing.T) {
+	var typ SnapmirrorObjectStoreEndpointSnapshotSnapshotLockState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnapmirrorObjectStoreEndpointSnapshotSnapshotLockState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnapmirrorObjectStoreEndpointSnapshotSnapshotState_EncodeDecode(t *testing.T) {
+	var typ SnapmirrorObjectStoreEndpointSnapshotSnapshotState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnapmirrorObjectStoreEndpointSnapshotSnapshotState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1ClusterLicensingAccessTokensCreateBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1ClusterLicensingAccessTokensCreateBadRequest
 	typ.SetFake()
@@ -603,6 +903,294 @@ func TestV1ClusterLicensingAccessTokensCreateUnauthorized_EncodeDecode(t *testin
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1ClusterLicensingAccessTokensCreateUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteDestinationEndpointAccepted_EncodeDecode(t *testing.T) {
+	var typ V1DeleteDestinationEndpointAccepted
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteDestinationEndpointAccepted
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteDestinationEndpointBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1DeleteDestinationEndpointBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteDestinationEndpointBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteDestinationEndpointForbidden_EncodeDecode(t *testing.T) {
+	var typ V1DeleteDestinationEndpointForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteDestinationEndpointForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteDestinationEndpointInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1DeleteDestinationEndpointInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteDestinationEndpointInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteDestinationEndpointNotFound_EncodeDecode(t *testing.T) {
+	var typ V1DeleteDestinationEndpointNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteDestinationEndpointNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteDestinationEndpointOK_EncodeDecode(t *testing.T) {
+	var typ V1DeleteDestinationEndpointOK
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteDestinationEndpointOK
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteDestinationEndpointUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1DeleteDestinationEndpointUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteDestinationEndpointUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteSnapshotAccepted_EncodeDecode(t *testing.T) {
+	var typ V1DeleteSnapshotAccepted
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteSnapshotAccepted
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteSnapshotBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1DeleteSnapshotBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteSnapshotBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteSnapshotForbidden_EncodeDecode(t *testing.T) {
+	var typ V1DeleteSnapshotForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteSnapshotForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteSnapshotInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1DeleteSnapshotInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteSnapshotInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteSnapshotNotFound_EncodeDecode(t *testing.T) {
+	var typ V1DeleteSnapshotNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteSnapshotNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteSnapshotOK_EncodeDecode(t *testing.T) {
+	var typ V1DeleteSnapshotOK
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteSnapshotOK
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteSnapshotUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1DeleteSnapshotUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteSnapshotUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetDestinationEndpointInfoBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1GetDestinationEndpointInfoBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetDestinationEndpointInfoBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetDestinationEndpointInfoForbidden_EncodeDecode(t *testing.T) {
+	var typ V1GetDestinationEndpointInfoForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetDestinationEndpointInfoForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetDestinationEndpointInfoInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1GetDestinationEndpointInfoInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetDestinationEndpointInfoInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetDestinationEndpointInfoNotFound_EncodeDecode(t *testing.T) {
+	var typ V1GetDestinationEndpointInfoNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetDestinationEndpointInfoNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetDestinationEndpointInfoUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1GetDestinationEndpointInfoUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetDestinationEndpointInfoUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetSnapshotsBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1GetSnapshotsBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetSnapshotsBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetSnapshotsForbidden_EncodeDecode(t *testing.T) {
+	var typ V1GetSnapshotsForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetSnapshotsForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetSnapshotsInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1GetSnapshotsInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetSnapshotsInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetSnapshotsNotFound_EncodeDecode(t *testing.T) {
+	var typ V1GetSnapshotsNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetSnapshotsNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetSnapshotsUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1GetSnapshotsUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetSnapshotsUnauthorized
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1PrivateCliBadRequest_EncodeDecode(t *testing.T) {

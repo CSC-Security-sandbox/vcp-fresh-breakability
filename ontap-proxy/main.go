@@ -114,6 +114,12 @@ func setupHTTPServer(handler http.Handler) *http.Server {
 		// Cluster licensing access token API uses admin credentials and is handled by ogen server
 		r.Post("/api/cluster/licensing/access-tokens", handler.ServeHTTP)
 
+		// SnapMirror object store APIs - admin credentials, handled by ogen server
+		r.Get("/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}", handler.ServeHTTP)
+		r.Delete("/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}", handler.ServeHTTP)
+		r.Get("/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots", handler.ServeHTTP)
+		r.Delete("/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots/{snapshotId}", handler.ServeHTTP)
+
 		// Passthrough routes (chi middleware for reverse proxy)
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.URLValidationMiddleware())

@@ -287,57 +287,6 @@ func TestSnaplockFileDelete(t *testing.T) {
 	})
 }
 
-func TestParseOntapErrorBody(t *testing.T) {
-	t.Run("valid error with code and message", func(t *testing.T) {
-		body := []byte(`{"error":{"message":"Volume not found","code":"12345"}}`)
-		code, message := parseOntapErrorBody(body)
-		assert.Equal(t, 12345, code)
-		assert.Equal(t, "Volume not found", message)
-	})
-
-	t.Run("valid error with message only", func(t *testing.T) {
-		body := []byte(`{"error":{"message":"Permission denied"}}`)
-		code, message := parseOntapErrorBody(body)
-		assert.Equal(t, 0, code)
-		assert.Equal(t, "Permission denied", message)
-	})
-
-	t.Run("invalid JSON returns generic message", func(t *testing.T) {
-		body := []byte(`not json`)
-		code, message := parseOntapErrorBody(body)
-		assert.Equal(t, 0, code)
-		assert.Equal(t, ontapErrorFallbackMessage, message)
-	})
-
-	t.Run("empty error object returns generic message", func(t *testing.T) {
-		body := []byte(`{"other":"data"}`)
-		code, message := parseOntapErrorBody(body)
-		assert.Equal(t, 0, code)
-		assert.Equal(t, ontapErrorFallbackMessage, message)
-	})
-
-	t.Run("empty body", func(t *testing.T) {
-		body := []byte(``)
-		code, message := parseOntapErrorBody(body)
-		assert.Equal(t, 0, code)
-		assert.Equal(t, "", message)
-	})
-
-	t.Run("non-numeric code returns 0", func(t *testing.T) {
-		body := []byte(`{"error":{"message":"Bad request","code":"ERR_INVALID"}}`)
-		code, message := parseOntapErrorBody(body)
-		assert.Equal(t, 0, code)
-		assert.Equal(t, "Bad request", message)
-	})
-
-	t.Run("error object with empty message returns generic message", func(t *testing.T) {
-		body := []byte(`{"error":{"message":"","code":"500"}}`)
-		code, message := parseOntapErrorBody(body)
-		assert.Equal(t, 500, code)
-		assert.Equal(t, ontapErrorFallbackMessage, message)
-	})
-}
-
 func TestV1ClusterLicensingAccessTokensCreate(t *testing.T) {
 	poolUUID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 	params := oasgenserver.V1ClusterLicensingAccessTokensCreateParams{
@@ -346,7 +295,11 @@ func TestV1ClusterLicensingAccessTokensCreate(t *testing.T) {
 		PoolId:        poolUUID,
 	}
 
-	t.Run("WhenNoCredentials_ReturnsUnauthorized", func(t *testing.T) {
+	t.Run("WhenAdminCredentialOperationDisabled_ReturnsBadRequest", func(t *testing.T) {
+		old := smcOperationEnabled
+		smcOperationEnabled = false
+		defer func() { smcOperationEnabled = old }()
+
 		handler := Handler{}
 		req := &oasgenserver.AccessTokenRequest{
 			ClientID:     oasgenserver.NewOptString("app"),
@@ -358,13 +311,39 @@ func TestV1ClusterLicensingAccessTokensCreate(t *testing.T) {
 
 		require.NoError(t, err)
 		require.NotNil(t, res)
-		unauth, ok := res.(*oasgenserver.V1ClusterLicensingAccessTokensCreateUnauthorized)
-		require.True(t, ok, "expected Unauthorized, got %T", res)
-		assert.Equal(t, 401, unauth.Code)
-		assert.Contains(t, unauth.Message, "authentication")
+		badReq, ok := res.(*oasgenserver.V1ClusterLicensingAccessTokensCreateBadRequest)
+		require.True(t, ok, "expected BadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Equal(t, "Operation is disabled", badReq.Message)
 	})
 
-	t.Run("WhenEnsureCertificateOrPasswordFails_ReturnsUnauthorized", func(t *testing.T) {
+	t.Run("WhenNoCredentials_ReturnsInternalServerError", func(t *testing.T) {
+		old := smcOperationEnabled
+		smcOperationEnabled = true
+		defer func() { smcOperationEnabled = old }()
+
+		handler := Handler{}
+		req := &oasgenserver.AccessTokenRequest{
+			ClientID:     oasgenserver.NewOptString("app"),
+			ClientSecret: oasgenserver.NewOptString("secret"),
+			GrantType:    oasgenserver.NewOptAccessTokenRequestGrantType(oasgenserver.AccessTokenRequestGrantTypeClientCredentials),
+		}
+
+		res, err := handler.V1ClusterLicensingAccessTokensCreate(context.Background(), req, params)
+
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		internalErr, ok := res.(*oasgenserver.V1ClusterLicensingAccessTokensCreateInternalServerError)
+		require.True(t, ok, "expected InternalServerError, got %T", res)
+		assert.Equal(t, 500, internalErr.Code)
+		assert.Contains(t, internalErr.Message, "credentials")
+	})
+
+	t.Run("WhenEnsureCertificateOrPasswordFails_ReturnsInternalServerError", func(t *testing.T) {
+		old := smcOperationEnabled
+		smcOperationEnabled = true
+		defer func() { smcOperationEnabled = old }()
+
 		oldSetup := setupCredentialsForHandler
 		oldEnsure := ensureCertificateOrPassword
 		defer func() {
@@ -389,13 +368,17 @@ func TestV1ClusterLicensingAccessTokensCreate(t *testing.T) {
 
 		require.NoError(t, err)
 		require.NotNil(t, res)
-		unauth, ok := res.(*oasgenserver.V1ClusterLicensingAccessTokensCreateUnauthorized)
-		require.True(t, ok, "expected Unauthorized, got %T", res)
-		assert.Equal(t, 401, unauth.Code)
-		assert.Contains(t, unauth.Message, "authentication")
+		internalErr, ok := res.(*oasgenserver.V1ClusterLicensingAccessTokensCreateInternalServerError)
+		require.True(t, ok, "expected InternalServerError, got %T", res)
+		assert.Equal(t, 500, internalErr.Code)
+		assert.Contains(t, internalErr.Message, "certificate")
 	})
 
 	t.Run("WhenNewOntapClientFromContextFails_ReturnsInternalServerError", func(t *testing.T) {
+		old := smcOperationEnabled
+		smcOperationEnabled = true
+		defer func() { smcOperationEnabled = old }()
+
 		oldSetup := setupCredentialsForHandler
 		oldEnsure := ensureCertificateOrPassword
 		oldNewClient := newOntapClientFromContext
@@ -430,6 +413,10 @@ func TestV1ClusterLicensingAccessTokensCreate(t *testing.T) {
 	})
 
 	t.Run("WhenOntapReturns200InvalidJSON_ReturnsInternalServerError", func(t *testing.T) {
+		old := smcOperationEnabled
+		smcOperationEnabled = true
+		defer func() { smcOperationEnabled = old }()
+
 		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte("not json"))
@@ -480,6 +467,10 @@ func TestV1ClusterLicensingAccessTokensCreate(t *testing.T) {
 	})
 
 	t.Run("WhenOntapReturns200ValidJSON_ReturnsAccessTokenInfo", func(t *testing.T) {
+		old := smcOperationEnabled
+		smcOperationEnabled = true
+		defer func() { smcOperationEnabled = old }()
+
 		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"access_token":"tok123","expires_in":3600,"token_type":"bearer"}`))
@@ -530,6 +521,10 @@ func TestV1ClusterLicensingAccessTokensCreate(t *testing.T) {
 	})
 
 	t.Run("WhenOntapReturnsNon200_ReturnsErrorStatusCode", func(t *testing.T) {
+		old := smcOperationEnabled
+		smcOperationEnabled = true
+		defer func() { smcOperationEnabled = old }()
+
 		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			_, _ = w.Write([]byte(`{"error":{"message":"invalid_grant","code":"400"}}`))

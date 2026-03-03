@@ -14,6 +14,8 @@ tags:
     description: ONTAP CLI command execution
   - name: licensing
     description: Cluster licensing operations (admin credentials)
+  - name: snapmirror-object-store
+    description: SnapMirror object store endpoint and snapshot operations (passthrough to ONTAP REST)
 paths:
   /health:
     get:
@@ -228,6 +230,174 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}:
+    get:
+      operationId: v1_getDestinationEndpointInfo
+      summary: Get object store destination endpoint info
+      description: |
+        Retrieves information for the specified SnapMirror object store destination endpoint.
+        Proxies to ONTAP GET /api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}.
+        Depends on an existing SnapMirror relationship (created via POST /api/snapmirror/relationships).
+      tags:
+        - snapmirror-object-store
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/objectStoreIdPathParameter'
+        - $ref: '#/components/parameters/destinationEndpointIdPathParameter'
+      responses:
+        '200':
+          description: OK - object store endpoint info from ONTAP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObjectStoreEndpointInfo'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      operationId: v1_deleteDestinationEndpoint
+      summary: Delete object store destination endpoint data
+      description: |
+        Deletes all data of the specified endpoint within the object store (populated by SnapMirror).
+        Proxies to ONTAP DELETE /api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}.
+        Depends on an existing SnapMirror relationship.
+      tags:
+        - snapmirror-object-store
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/objectStoreIdPathParameter'
+        - $ref: '#/components/parameters/destinationEndpointIdPathParameter'
+      responses:
+        '200':
+          description: OK - job link response from ONTAP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObjectStoreEndpointInfoJobLinkResponse'
+        '202':
+          description: Accepted - operation in progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObjectStoreEndpointInfoJobLinkResponse'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots:
+    get:
+      operationId: v1_getSnapshots
+      summary: List object store endpoint snapshots
+      description: |
+        Retrieves snapshot information for the specified object store endpoint.
+        Proxies to ONTAP GET /api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots.
+        Depends on an existing SnapMirror relationship.
+      tags:
+        - snapmirror-object-store
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/objectStoreIdPathParameter'
+        - $ref: '#/components/parameters/destinationEndpointIdPathParameter'
+      responses:
+        '200':
+          description: OK - snapshot collection from ONTAP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnapmirrorObjectStoreEndpointSnapshotResponse'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots/{snapshotId}:
+    delete:
+      operationId: v1_deleteSnapshot
+      summary: Delete object store endpoint snapshot
+      description: |
+        Deletes a snapshot from the object store endpoint.
+        Proxies to ONTAP DELETE /api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots/{snapshotId}.
+        Depends on an existing SnapMirror relationship.
+      tags:
+        - snapmirror-object-store
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/objectStoreIdPathParameter'
+        - $ref: '#/components/parameters/destinationEndpointIdPathParameter'
+        - $ref: '#/components/parameters/snapshotIdPathParameter'
+      responses:
+        '200':
+          description: OK - job link response from ONTAP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnapmirrorObjectStoreEndpointSnapshotJobLinkResponse'
+        '202':
+          description: Accepted - operation in progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnapmirrorObjectStoreEndpointSnapshotJobLinkResponse'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   parameters:
     projectNumberPathParameter:
@@ -280,6 +450,33 @@ components:
       schema:
         type: string
         example: "dir%2Ffile.txt"
+    objectStoreIdPathParameter:
+      name: objectStoreId
+      in: path
+      description: UUID of the SnapMirror object store (same as cloud target UUID from GET /api/cloud/targets)
+      required: true
+      schema:
+        type: string
+        format: uuid
+        example: "cd9563a0-2e59-11ea-a778-00505682bd8f"
+    destinationEndpointIdPathParameter:
+      name: destinationEndpointId
+      in: path
+      description: UUID of the object store destination endpoint
+      required: true
+      schema:
+        type: string
+        format: uuid
+        example: "af86c94c-bcb2-4b4e-b8cc-c294793a310a"
+    snapshotIdPathParameter:
+      name: snapshotId
+      in: path
+      description: UUID of the snapshot in the object store endpoint
+      required: true
+      schema:
+        type: string
+        format: uuid
+        example: "04fb1ddb-2947-4eb0-af09-3eb6dc538926"
   schemas:
     Health:
       type: object
@@ -403,6 +600,207 @@ components:
         message:
           type: string
           description: Error message
+    OntapPassthroughResponse:
+      type: object
+      description: Passthrough response from ONTAP REST API (structure varies by endpoint)
+      additionalProperties: true
+    ObjectStoreEndpointInfo:
+      type: object
+      title: ObjectStoreEndpointInfo
+      description: Destination endpoint info. Aligned with ontap-rest swagger object_store_endpoint_info.
+      properties:
+        _links:
+          type: object
+          properties:
+            self:
+              $ref: '#/components/schemas/Href'
+        archived_objects:
+          type: boolean
+          description: Whether the endpoint has objects in archival storage.
+        destination:
+          type: object
+          properties:
+            logical_size:
+              type: integer
+              format: int64
+              description: Logical size of the destination endpoint.
+        object_store:
+          type: object
+          properties:
+            _links:
+              type: object
+              properties:
+                self:
+                  $ref: '#/components/schemas/Href'
+            container:
+              type: string
+              description: Object store container hosting the endpoint.
+            name:
+              type: string
+              description: Object store configuration name.
+            provider_type:
+              type: string
+              enum: [aws_s3, sgws, azure_cloud, s3_compatible, ibm_cos, alicloud, googlecloud, ontap_s3]
+            uuid:
+              type: string
+              format: uuid
+        source:
+          type: object
+          properties:
+            endpoint:
+              type: object
+              properties:
+                _links:
+                  type: object
+                  properties:
+                    self:
+                      $ref: '#/components/schemas/Href'
+                name:
+                  type: string
+                svm:
+                  type: object
+                  properties:
+                    _links:
+                      type: object
+                      properties:
+                        self:
+                          $ref: '#/components/schemas/Href'
+                    name:
+                      type: string
+                    uuid:
+                      type: string
+                type:
+                  type: string
+                  enum: [volume, flexgroup]
+                uuid:
+                  type: string
+                  format: uuid
+            physical_size:
+              type: integer
+              format: int64
+            type:
+              type: string
+              enum: [rw, dp]
+            virtual_size:
+              type: integer
+              format: int64
+        uuid:
+          type: string
+          format: uuid
+          description: Destination endpoint UUID.
+    ObjectStoreEndpointInfoJobLinkResponse:
+      type: object
+      title: ObjectStoreEndpointInfoJobLinkResponse
+      description: Job link response for destination endpoint operations. Aligned with ontap-rest object_store_endpoint_info_job_link_response.
+      properties:
+        job:
+          $ref: '#/components/schemas/JobLink'
+        num_records:
+          type: integer
+          description: Number of records.
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/ObjectStoreEndpointInfo'
+    ObjectStoreRef:
+      type: object
+      description: Object store reference. Aligned with ontap-rest object_store (minimal).
+      properties:
+        _links:
+          type: object
+          properties:
+            self:
+              $ref: '#/components/schemas/Href'
+        uuid:
+          type: string
+          format: uuid
+    ObjectStoreEndpointRef:
+      type: object
+      description: Object store endpoint reference. Aligned with ontap-rest object_store_endpoint (minimal).
+      properties:
+        _links:
+          type: object
+          properties:
+            self:
+              $ref: '#/components/schemas/Href'
+        uuid:
+          type: string
+          format: uuid
+    SnapmirrorObjectStoreEndpointSnapshot:
+      type: object
+      title: SnapmirrorObjectStoreEndpointSnapshot
+      description: Snapshot for an object store endpoint. Aligned with ontap-rest snapmirror_object_store_endpoint_snapshot.
+      properties:
+        _links:
+          type: object
+          properties:
+            self:
+              $ref: '#/components/schemas/Href'
+        archived_objects:
+          type: boolean
+        create_time:
+          type: string
+          format: date-time
+        endpoint:
+          $ref: '#/components/schemas/ObjectStoreEndpointRef'
+        group_member_count:
+          type: integer
+          format: int64
+        logical_size:
+          type: integer
+          format: int64
+        name:
+          type: string
+        object_store:
+          $ref: '#/components/schemas/ObjectStoreRef'
+        retention_until_date:
+          type: string
+          format: date-time
+        snapmirror_label:
+          type: string
+        snapshot_lock_state:
+          type: string
+          enum: [not_locked, locked, cannot_be_locked, lock_expired]
+        snapshot_state:
+          type: string
+          enum: [in_transfer, transferred, deleted, delete_cleanup, recyclable]
+        uuid:
+          type: string
+          format: uuid
+        version_uuid:
+          type: string
+          format: uuid
+    SnapmirrorObjectStoreEndpointSnapshotResponse:
+      type: object
+      title: SnapmirrorObjectStoreEndpointSnapshotResponse
+      description: Snapshot list response. Aligned with ontap-rest snapmirror_object_store_endpoint_snapshot_response.
+      properties:
+        _links:
+          type: object
+          properties:
+            next:
+              $ref: '#/components/schemas/Href'
+            self:
+              $ref: '#/components/schemas/Href'
+        num_records:
+          type: integer
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/SnapmirrorObjectStoreEndpointSnapshot'
+    SnapmirrorObjectStoreEndpointSnapshotJobLinkResponse:
+      type: object
+      title: SnapmirrorObjectStoreEndpointSnapshotJobLinkResponse
+      description: Job link response for snapshot delete. Aligned with ontap-rest snapmirror_object_store_endpoint_snapshot_job_link_response.
+      properties:
+        job:
+          $ref: '#/components/schemas/JobLink'
+        num_records:
+          type: integer
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/SnapmirrorObjectStoreEndpointSnapshot'
     SnaplockFileRetentionJobLinkResponse:
       type: object
       title: SnaplockFileRetentionJobLinkResponse

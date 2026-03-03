@@ -4,6 +4,8 @@ package ontapserver
 
 import (
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // SetFake set fake values.
@@ -286,6 +288,273 @@ func (s *JobLink) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *ObjectStoreEndpointInfo) SetFake() {
+	{
+		{
+			s.Links.SetFake()
+		}
+	}
+	{
+		{
+			s.ArchivedObjects.SetFake()
+		}
+	}
+	{
+		{
+			s.Destination.SetFake()
+		}
+	}
+	{
+		{
+			s.ObjectStore.SetFake()
+		}
+	}
+	{
+		{
+			s.Source.SetFake()
+		}
+	}
+	{
+		{
+			s.UUID.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ObjectStoreEndpointInfoDestination) SetFake() {
+	{
+		{
+			s.LogicalSize.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ObjectStoreEndpointInfoJobLinkResponse) SetFake() {
+	{
+		{
+			s.Job.SetFake()
+		}
+	}
+	{
+		{
+			s.NumRecords.SetFake()
+		}
+	}
+	{
+		{
+			s.Records = nil
+			for i := 0; i < 0; i++ {
+				var elem ObjectStoreEndpointInfo
+				{
+					elem.SetFake()
+				}
+				s.Records = append(s.Records, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ObjectStoreEndpointInfoLinks) SetFake() {
+	{
+		{
+			s.Self.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ObjectStoreEndpointInfoObjectStore) SetFake() {
+	{
+		{
+			s.Links.SetFake()
+		}
+	}
+	{
+		{
+			s.Container.SetFake()
+		}
+	}
+	{
+		{
+			s.Name.SetFake()
+		}
+	}
+	{
+		{
+			s.ProviderType.SetFake()
+		}
+	}
+	{
+		{
+			s.UUID.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ObjectStoreEndpointInfoObjectStoreLinks) SetFake() {
+	{
+		{
+			s.Self.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ObjectStoreEndpointInfoObjectStoreProviderType) SetFake() {
+	*s = ObjectStoreEndpointInfoObjectStoreProviderTypeAWSS3
+}
+
+// SetFake set fake values.
+func (s *ObjectStoreEndpointInfoSource) SetFake() {
+	{
+		{
+			s.Endpoint.SetFake()
+		}
+	}
+	{
+		{
+			s.PhysicalSize.SetFake()
+		}
+	}
+	{
+		{
+			s.Type.SetFake()
+		}
+	}
+	{
+		{
+			s.VirtualSize.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ObjectStoreEndpointInfoSourceEndpoint) SetFake() {
+	{
+		{
+			s.Links.SetFake()
+		}
+	}
+	{
+		{
+			s.Name.SetFake()
+		}
+	}
+	{
+		{
+			s.Svm.SetFake()
+		}
+	}
+	{
+		{
+			s.Type.SetFake()
+		}
+	}
+	{
+		{
+			s.UUID.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ObjectStoreEndpointInfoSourceEndpointLinks) SetFake() {
+	{
+		{
+			s.Self.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ObjectStoreEndpointInfoSourceEndpointSvm) SetFake() {
+	{
+		{
+			s.Links.SetFake()
+		}
+	}
+	{
+		{
+			s.Name.SetFake()
+		}
+	}
+	{
+		{
+			s.UUID.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ObjectStoreEndpointInfoSourceEndpointSvmLinks) SetFake() {
+	{
+		{
+			s.Self.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ObjectStoreEndpointInfoSourceEndpointType) SetFake() {
+	*s = ObjectStoreEndpointInfoSourceEndpointTypeVolume
+}
+
+// SetFake set fake values.
+func (s *ObjectStoreEndpointInfoSourceType) SetFake() {
+	*s = ObjectStoreEndpointInfoSourceTypeRw
+}
+
+// SetFake set fake values.
+func (s *ObjectStoreEndpointRef) SetFake() {
+	{
+		{
+			s.Links.SetFake()
+		}
+	}
+	{
+		{
+			s.UUID.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ObjectStoreEndpointRefLinks) SetFake() {
+	{
+		{
+			s.Self.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ObjectStoreRef) SetFake() {
+	{
+		{
+			s.Links.SetFake()
+		}
+	}
+	{
+		{
+			s.UUID.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ObjectStoreRefLinks) SetFake() {
+	{
+		{
+			s.Self.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *OptAccessTokenInfoTokenType) SetFake() {
 	var elem AccessTokenInfoTokenType
 	{
@@ -376,8 +645,188 @@ func (s *OptJobLink) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptObjectStoreEndpointInfoDestination) SetFake() {
+	var elem ObjectStoreEndpointInfoDestination
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptObjectStoreEndpointInfoLinks) SetFake() {
+	var elem ObjectStoreEndpointInfoLinks
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptObjectStoreEndpointInfoObjectStore) SetFake() {
+	var elem ObjectStoreEndpointInfoObjectStore
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptObjectStoreEndpointInfoObjectStoreLinks) SetFake() {
+	var elem ObjectStoreEndpointInfoObjectStoreLinks
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptObjectStoreEndpointInfoObjectStoreProviderType) SetFake() {
+	var elem ObjectStoreEndpointInfoObjectStoreProviderType
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptObjectStoreEndpointInfoSource) SetFake() {
+	var elem ObjectStoreEndpointInfoSource
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptObjectStoreEndpointInfoSourceEndpoint) SetFake() {
+	var elem ObjectStoreEndpointInfoSourceEndpoint
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptObjectStoreEndpointInfoSourceEndpointLinks) SetFake() {
+	var elem ObjectStoreEndpointInfoSourceEndpointLinks
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptObjectStoreEndpointInfoSourceEndpointSvm) SetFake() {
+	var elem ObjectStoreEndpointInfoSourceEndpointSvm
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptObjectStoreEndpointInfoSourceEndpointSvmLinks) SetFake() {
+	var elem ObjectStoreEndpointInfoSourceEndpointSvmLinks
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptObjectStoreEndpointInfoSourceEndpointType) SetFake() {
+	var elem ObjectStoreEndpointInfoSourceEndpointType
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptObjectStoreEndpointInfoSourceType) SetFake() {
+	var elem ObjectStoreEndpointInfoSourceType
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptObjectStoreEndpointRef) SetFake() {
+	var elem ObjectStoreEndpointRef
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptObjectStoreEndpointRefLinks) SetFake() {
+	var elem ObjectStoreEndpointRefLinks
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptObjectStoreRef) SetFake() {
+	var elem ObjectStoreRef
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptObjectStoreRefLinks) SetFake() {
+	var elem ObjectStoreRefLinks
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptSelfLink) SetFake() {
 	var elem SelfLink
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptSnapmirrorObjectStoreEndpointSnapshotLinks) SetFake() {
+	var elem SnapmirrorObjectStoreEndpointSnapshotLinks
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptSnapmirrorObjectStoreEndpointSnapshotResponseLinks) SetFake() {
+	var elem SnapmirrorObjectStoreEndpointSnapshotResponseLinks
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptSnapmirrorObjectStoreEndpointSnapshotSnapshotLockState) SetFake() {
+	var elem SnapmirrorObjectStoreEndpointSnapshotSnapshotLockState
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptSnapmirrorObjectStoreEndpointSnapshotSnapshotState) SetFake() {
+	var elem SnapmirrorObjectStoreEndpointSnapshotSnapshotState
 	{
 		elem.SetFake()
 	}
@@ -389,6 +838,15 @@ func (s *OptString) SetFake() {
 	var elem string
 	{
 		elem = "string"
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptUUID) SetFake() {
+	var elem uuid.UUID
+	{
+		elem = uuid.New()
 	}
 	s.SetTo(elem)
 }
@@ -522,6 +980,165 @@ func (s *SnaplockFileRetentionJobLinkResponse) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *SnapmirrorObjectStoreEndpointSnapshot) SetFake() {
+	{
+		{
+			s.Links.SetFake()
+		}
+	}
+	{
+		{
+			s.ArchivedObjects.SetFake()
+		}
+	}
+	{
+		{
+			s.CreateTime.SetFake()
+		}
+	}
+	{
+		{
+			s.Endpoint.SetFake()
+		}
+	}
+	{
+		{
+			s.GroupMemberCount.SetFake()
+		}
+	}
+	{
+		{
+			s.LogicalSize.SetFake()
+		}
+	}
+	{
+		{
+			s.Name.SetFake()
+		}
+	}
+	{
+		{
+			s.ObjectStore.SetFake()
+		}
+	}
+	{
+		{
+			s.RetentionUntilDate.SetFake()
+		}
+	}
+	{
+		{
+			s.SnapmirrorLabel.SetFake()
+		}
+	}
+	{
+		{
+			s.SnapshotLockState.SetFake()
+		}
+	}
+	{
+		{
+			s.SnapshotState.SetFake()
+		}
+	}
+	{
+		{
+			s.UUID.SetFake()
+		}
+	}
+	{
+		{
+			s.VersionUUID.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SnapmirrorObjectStoreEndpointSnapshotJobLinkResponse) SetFake() {
+	{
+		{
+			s.Job.SetFake()
+		}
+	}
+	{
+		{
+			s.NumRecords.SetFake()
+		}
+	}
+	{
+		{
+			s.Records = nil
+			for i := 0; i < 0; i++ {
+				var elem SnapmirrorObjectStoreEndpointSnapshot
+				{
+					elem.SetFake()
+				}
+				s.Records = append(s.Records, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SnapmirrorObjectStoreEndpointSnapshotLinks) SetFake() {
+	{
+		{
+			s.Self.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SnapmirrorObjectStoreEndpointSnapshotResponse) SetFake() {
+	{
+		{
+			s.Links.SetFake()
+		}
+	}
+	{
+		{
+			s.NumRecords.SetFake()
+		}
+	}
+	{
+		{
+			s.Records = nil
+			for i := 0; i < 0; i++ {
+				var elem SnapmirrorObjectStoreEndpointSnapshot
+				{
+					elem.SetFake()
+				}
+				s.Records = append(s.Records, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SnapmirrorObjectStoreEndpointSnapshotResponseLinks) SetFake() {
+	{
+		{
+			s.Next.SetFake()
+		}
+	}
+	{
+		{
+			s.Self.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SnapmirrorObjectStoreEndpointSnapshotSnapshotLockState) SetFake() {
+	*s = SnapmirrorObjectStoreEndpointSnapshotSnapshotLockStateNotLocked
+}
+
+// SetFake set fake values.
+func (s *SnapmirrorObjectStoreEndpointSnapshotSnapshotState) SetFake() {
+	*s = SnapmirrorObjectStoreEndpointSnapshotSnapshotStateInTransfer
+}
+
+// SetFake set fake values.
 func (s *V1ClusterLicensingAccessTokensCreateBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -564,6 +1181,222 @@ func (s *V1ClusterLicensingAccessTokensCreateUnauthorized) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1ClusterLicensingAccessTokensCreateUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteDestinationEndpointAccepted) SetFake() {
+	var unwrapped ObjectStoreEndpointInfoJobLinkResponse
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteDestinationEndpointAccepted(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteDestinationEndpointBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteDestinationEndpointBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteDestinationEndpointForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteDestinationEndpointForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteDestinationEndpointInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteDestinationEndpointInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteDestinationEndpointNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteDestinationEndpointNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteDestinationEndpointOK) SetFake() {
+	var unwrapped ObjectStoreEndpointInfoJobLinkResponse
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteDestinationEndpointOK(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteDestinationEndpointUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteDestinationEndpointUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteSnapshotAccepted) SetFake() {
+	var unwrapped SnapmirrorObjectStoreEndpointSnapshotJobLinkResponse
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteSnapshotAccepted(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteSnapshotBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteSnapshotBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteSnapshotForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteSnapshotForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteSnapshotInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteSnapshotInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteSnapshotNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteSnapshotNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteSnapshotOK) SetFake() {
+	var unwrapped SnapmirrorObjectStoreEndpointSnapshotJobLinkResponse
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteSnapshotOK(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteSnapshotUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteSnapshotUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetDestinationEndpointInfoBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetDestinationEndpointInfoBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetDestinationEndpointInfoForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetDestinationEndpointInfoForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetDestinationEndpointInfoInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetDestinationEndpointInfoInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetDestinationEndpointInfoNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetDestinationEndpointInfoNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetDestinationEndpointInfoUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetDestinationEndpointInfoUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetSnapshotsBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetSnapshotsBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetSnapshotsForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetSnapshotsForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetSnapshotsInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetSnapshotsInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetSnapshotsNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetSnapshotsNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetSnapshotsUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetSnapshotsUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.

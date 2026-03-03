@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/api/ontap-proxy-servergen"
@@ -14,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/handlers"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/reverseproxy"
+	ontapproxyutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
@@ -21,15 +21,12 @@ import (
 var (
 	snapLockOperationEnabled   = env.GetBool("SNAPLOCK_OPERATION_ENABLED", false)
 	privateCliOperationEnabled = env.GetBool("PRIVATE_CLI_OPERATION_ENABLED", false)
+	smcOperationEnabled        = env.GetBool("SMC_OPERATION_ENABLED", false)
 
 	setupCredentialsForHandler  = middleware.SetupCredentialsForHandler
 	ensureCertificateOrPassword = middleware.EnsureCertificateOrPassword
 	newOntapClientFromContext   = handlers.NewOntapClientFromContext
 )
-
-// ontapErrorFallbackMessage is returned to the client when the ONTAP error body cannot be parsed,
-// to avoid leaking raw response (which may be large or sensitive) to API callers.
-const ontapErrorFallbackMessage = "ONTAP returned an error"
 
 type Handler struct {
 	oasgenserver.UnimplementedHandler
@@ -260,6 +257,14 @@ func (h Handler) V1ClusterLicensingAccessTokensCreate(
 		"poolId", params.PoolId.String(),
 	)
 
+	if !smcOperationEnabled {
+		logger.Debug("V1ClusterLicensingAccessTokensCreate: SMC operation is disabled")
+		return &oasgenserver.V1ClusterLicensingAccessTokensCreateBadRequest{
+			Code:    400,
+			Message: "Operation is disabled",
+		}, nil
+	}
+
 	ctx, err := setupCredentialsForHandler(
 		ctx,
 		params.ProjectNumber,
@@ -268,17 +273,17 @@ func (h Handler) V1ClusterLicensingAccessTokensCreate(
 	)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to setup credentials", "error", err)
-		return &oasgenserver.V1ClusterLicensingAccessTokensCreateUnauthorized{
-			Code:    401,
-			Message: fmt.Sprintf("authentication error: %s", err.Error()),
+		return &oasgenserver.V1ClusterLicensingAccessTokensCreateInternalServerError{
+			Code:    500,
+			Message: fmt.Sprintf("failed to setup credentials: %s", err.Error()),
 		}, nil
 	}
 
 	if err := ensureCertificateOrPassword(ctx); err != nil {
 		logger.ErrorContext(ctx, "Failed to setup certificate/password", "error", err)
-		return &oasgenserver.V1ClusterLicensingAccessTokensCreateUnauthorized{
-			Code:    401,
-			Message: fmt.Sprintf("authentication error: %s", err.Error()),
+		return &oasgenserver.V1ClusterLicensingAccessTokensCreateInternalServerError{
+			Code:    500,
+			Message: fmt.Sprintf("failed to setup certificate/password: %s", err.Error()),
 		}, nil
 	}
 
@@ -320,7 +325,7 @@ func (h Handler) V1ClusterLicensingAccessTokensCreate(
 		return &accessResp, nil
 	}
 
-	errCode, message := parseOntapErrorBody(respBody)
+	errCode, message := ontapproxyutils.ParseOntapErrorBody(respBody)
 	if message == "" {
 		message = fmt.Sprintf("ONTAP returned status %d", statusCode)
 	}
@@ -332,25 +337,4 @@ func (h Handler) V1ClusterLicensingAccessTokensCreate(
 		StatusCode: statusCode,
 		Response:   oasgenserver.Error{Code: errCode, Message: message},
 	}
-}
-
-func parseOntapErrorBody(body []byte) (code int, message string) {
-	if len(body) == 0 {
-		return 0, ""
-	}
-	var parsed handlers.OntapErrorResponse
-	if err := json.Unmarshal(body, &parsed); err != nil || parsed.Error == nil {
-		return 0, ontapErrorFallbackMessage
-	}
-	if parsed.Error.Message != "" {
-		message = parsed.Error.Message
-	} else {
-		message = ontapErrorFallbackMessage
-	}
-	if parsed.Error.Code != "" {
-		if c, err := strconv.Atoi(parsed.Error.Code); err == nil {
-			code = c
-		}
-	}
-	return code, message
 }

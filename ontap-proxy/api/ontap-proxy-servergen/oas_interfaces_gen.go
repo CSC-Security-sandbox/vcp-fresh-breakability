@@ -17,6 +17,22 @@ type V1ClusterLicensingAccessTokensCreateRes interface {
 	v1ClusterLicensingAccessTokensCreateRes()
 }
 
+type V1DeleteDestinationEndpointRes interface {
+	v1DeleteDestinationEndpointRes()
+}
+
+type V1DeleteSnapshotRes interface {
+	v1DeleteSnapshotRes()
+}
+
+type V1GetDestinationEndpointInfoRes interface {
+	v1GetDestinationEndpointInfoRes()
+}
+
+type V1GetSnapshotsRes interface {
+	v1GetSnapshotsRes()
+}
+
 type V1PrivateCliRes interface {
 	v1PrivateCliRes()
 }

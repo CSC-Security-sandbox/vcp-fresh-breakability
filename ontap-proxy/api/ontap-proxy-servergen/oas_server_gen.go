@@ -43,6 +43,42 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/cluster/licensing/access-tokens
 	V1ClusterLicensingAccessTokensCreate(ctx context.Context, req *AccessTokenRequest, params V1ClusterLicensingAccessTokensCreateParams) (V1ClusterLicensingAccessTokensCreateRes, error)
+	// V1DeleteDestinationEndpoint implements v1_deleteDestinationEndpoint operation.
+	//
+	// Deletes all data of the specified endpoint within the object store (populated by SnapMirror).
+	// Proxies to ONTAP DELETE
+	// /api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}.
+	// Depends on an existing SnapMirror relationship.
+	//
+	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}
+	V1DeleteDestinationEndpoint(ctx context.Context, params V1DeleteDestinationEndpointParams) (V1DeleteDestinationEndpointRes, error)
+	// V1DeleteSnapshot implements v1_deleteSnapshot operation.
+	//
+	// Deletes a snapshot from the object store endpoint.
+	// Proxies to ONTAP DELETE
+	// /api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots/{snapshotId}.
+	// Depends on an existing SnapMirror relationship.
+	//
+	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots/{snapshotId}
+	V1DeleteSnapshot(ctx context.Context, params V1DeleteSnapshotParams) (V1DeleteSnapshotRes, error)
+	// V1GetDestinationEndpointInfo implements v1_getDestinationEndpointInfo operation.
+	//
+	// Retrieves information for the specified SnapMirror object store destination endpoint.
+	// Proxies to ONTAP GET
+	// /api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}.
+	// Depends on an existing SnapMirror relationship (created via POST /api/snapmirror/relationships).
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}
+	V1GetDestinationEndpointInfo(ctx context.Context, params V1GetDestinationEndpointInfoParams) (V1GetDestinationEndpointInfoRes, error)
+	// V1GetSnapshots implements v1_getSnapshots operation.
+	//
+	// Retrieves snapshot information for the specified object store endpoint.
+	// Proxies to ONTAP GET
+	// /api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots.
+	// Depends on an existing SnapMirror relationship.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots
+	V1GetSnapshots(ctx context.Context, params V1GetSnapshotsParams) (V1GetSnapshotsRes, error)
 	// V1PrivateCli implements v1_privateCli operation.
 	//
 	// Executes an ONTAP CLI command through the private CLI API.

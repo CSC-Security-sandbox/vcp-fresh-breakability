@@ -326,3 +326,56 @@ func TestParseSizeString(t *testing.T) {
 		}
 	}
 }
+
+func TestParseOntapErrorBody(t *testing.T) {
+	const fallback = "ONTAP returned an error"
+
+	t.Run("valid error with code and message", func(t *testing.T) {
+		body := []byte(`{"error":{"message":"Volume not found","code":"12345"}}`)
+		code, message := ParseOntapErrorBody(body)
+		assert.Equal(t, 12345, code)
+		assert.Equal(t, "Volume not found", message)
+	})
+
+	t.Run("valid error with message only", func(t *testing.T) {
+		body := []byte(`{"error":{"message":"Permission denied"}}`)
+		code, message := ParseOntapErrorBody(body)
+		assert.Equal(t, 0, code)
+		assert.Equal(t, "Permission denied", message)
+	})
+
+	t.Run("invalid JSON returns generic message", func(t *testing.T) {
+		body := []byte(`not json`)
+		code, message := ParseOntapErrorBody(body)
+		assert.Equal(t, 0, code)
+		assert.Equal(t, fallback, message)
+	})
+
+	t.Run("empty error object returns generic message", func(t *testing.T) {
+		body := []byte(`{"other":"data"}`)
+		code, message := ParseOntapErrorBody(body)
+		assert.Equal(t, 0, code)
+		assert.Equal(t, fallback, message)
+	})
+
+	t.Run("empty body", func(t *testing.T) {
+		body := []byte(``)
+		code, message := ParseOntapErrorBody(body)
+		assert.Equal(t, 0, code)
+		assert.Equal(t, "", message)
+	})
+
+	t.Run("non-numeric code returns 0", func(t *testing.T) {
+		body := []byte(`{"error":{"message":"Bad request","code":"ERR_INVALID"}}`)
+		code, message := ParseOntapErrorBody(body)
+		assert.Equal(t, 0, code)
+		assert.Equal(t, "Bad request", message)
+	})
+
+	t.Run("error object with empty message returns generic message", func(t *testing.T) {
+		body := []byte(`{"error":{"message":"","code":"500"}}`)
+		code, message := ParseOntapErrorBody(body)
+		assert.Equal(t, 500, code)
+		assert.Equal(t, fallback, message)
+	})
+}

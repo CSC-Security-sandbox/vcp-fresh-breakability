@@ -60,6 +60,54 @@ func (UnimplementedHandler) V1ClusterLicensingAccessTokensCreate(ctx context.Con
 	return r, ht.ErrNotImplemented
 }
 
+// V1DeleteDestinationEndpoint implements v1_deleteDestinationEndpoint operation.
+//
+// Deletes all data of the specified endpoint within the object store (populated by SnapMirror).
+// Proxies to ONTAP DELETE
+// /api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}.
+// Depends on an existing SnapMirror relationship.
+//
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}
+func (UnimplementedHandler) V1DeleteDestinationEndpoint(ctx context.Context, params V1DeleteDestinationEndpointParams) (r V1DeleteDestinationEndpointRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1DeleteSnapshot implements v1_deleteSnapshot operation.
+//
+// Deletes a snapshot from the object store endpoint.
+// Proxies to ONTAP DELETE
+// /api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots/{snapshotId}.
+// Depends on an existing SnapMirror relationship.
+//
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots/{snapshotId}
+func (UnimplementedHandler) V1DeleteSnapshot(ctx context.Context, params V1DeleteSnapshotParams) (r V1DeleteSnapshotRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1GetDestinationEndpointInfo implements v1_getDestinationEndpointInfo operation.
+//
+// Retrieves information for the specified SnapMirror object store destination endpoint.
+// Proxies to ONTAP GET
+// /api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}.
+// Depends on an existing SnapMirror relationship (created via POST /api/snapmirror/relationships).
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}
+func (UnimplementedHandler) V1GetDestinationEndpointInfo(ctx context.Context, params V1GetDestinationEndpointInfoParams) (r V1GetDestinationEndpointInfoRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1GetSnapshots implements v1_getSnapshots operation.
+//
+// Retrieves snapshot information for the specified object store endpoint.
+// Proxies to ONTAP GET
+// /api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots.
+// Depends on an existing SnapMirror relationship.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots
+func (UnimplementedHandler) V1GetSnapshots(ctx context.Context, params V1GetSnapshotsParams) (r V1GetSnapshotsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1PrivateCli implements v1_privateCli operation.
 //
 // Executes an ONTAP CLI command through the private CLI API.

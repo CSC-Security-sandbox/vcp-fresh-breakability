@@ -40,7 +40,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
-	args := [5]string{}
+	args := [6]string{}
 
 	// Static code generated router with unwrapped path search.
 	switch {
@@ -224,60 +224,204 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									return
 								}
 
-							case 's': // Prefix: "storage/snaplock/file/"
+							case 's': // Prefix: "s"
 
-								if l := len("storage/snaplock/file/"); len(elem) >= l && elem[0:l] == "storage/snaplock/file/" {
+								if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
 									elem = elem[l:]
 								} else {
 									break
 								}
 
-								// Param: "volumeUuid"
-								// Match until "/"
-								idx := strings.IndexByte(elem, '/')
-								if idx < 0 {
-									idx = len(elem)
-								}
-								args[3] = elem[:idx]
-								elem = elem[idx:]
-
 								if len(elem) == 0 {
 									break
 								}
 								switch elem[0] {
-								case '/': // Prefix: "/"
+								case 'n': // Prefix: "napmirror/object-stores/"
 
-									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+									if l := len("napmirror/object-stores/"); len(elem) >= l && elem[0:l] == "napmirror/object-stores/" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
-									// Param: "filePath"
-									// Leaf parameter, slashes are prohibited
+									// Param: "objectStoreId"
+									// Match until "/"
 									idx := strings.IndexByte(elem, '/')
-									if idx >= 0 {
-										break
+									if idx < 0 {
+										idx = len(elem)
 									}
-									args[4] = elem
-									elem = ""
+									args[3] = elem[:idx]
+									elem = elem[idx:]
 
 									if len(elem) == 0 {
-										// Leaf node.
-										switch r.Method {
-										case "DELETE":
-											s.handleSnaplockFileDeleteRequest([5]string{
-												args[0],
-												args[1],
-												args[2],
-												args[3],
-												args[4],
-											}, elemIsEscaped, w, r)
-										default:
-											s.notAllowed(w, r, "DELETE")
+										break
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/endpoints/"
+
+										if l := len("/endpoints/"); len(elem) >= l && elem[0:l] == "/endpoints/" {
+											elem = elem[l:]
+										} else {
+											break
 										}
 
-										return
+										// Param: "destinationEndpointId"
+										// Match until "/"
+										idx := strings.IndexByte(elem, '/')
+										if idx < 0 {
+											idx = len(elem)
+										}
+										args[4] = elem[:idx]
+										elem = elem[idx:]
+
+										if len(elem) == 0 {
+											switch r.Method {
+											case "DELETE":
+												s.handleV1DeleteDestinationEndpointRequest([5]string{
+													args[0],
+													args[1],
+													args[2],
+													args[3],
+													args[4],
+												}, elemIsEscaped, w, r)
+											case "GET":
+												s.handleV1GetDestinationEndpointInfoRequest([5]string{
+													args[0],
+													args[1],
+													args[2],
+													args[3],
+													args[4],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, "DELETE,GET")
+											}
+
+											return
+										}
+										switch elem[0] {
+										case '/': // Prefix: "/snapshots"
+
+											if l := len("/snapshots"); len(elem) >= l && elem[0:l] == "/snapshots" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												switch r.Method {
+												case "GET":
+													s.handleV1GetSnapshotsRequest([5]string{
+														args[0],
+														args[1],
+														args[2],
+														args[3],
+														args[4],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, "GET")
+												}
+
+												return
+											}
+											switch elem[0] {
+											case '/': // Prefix: "/"
+
+												if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												// Param: "snapshotId"
+												// Leaf parameter, slashes are prohibited
+												idx := strings.IndexByte(elem, '/')
+												if idx >= 0 {
+													break
+												}
+												args[5] = elem
+												elem = ""
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch r.Method {
+													case "DELETE":
+														s.handleV1DeleteSnapshotRequest([6]string{
+															args[0],
+															args[1],
+															args[2],
+															args[3],
+															args[4],
+															args[5],
+														}, elemIsEscaped, w, r)
+													default:
+														s.notAllowed(w, r, "DELETE")
+													}
+
+													return
+												}
+
+											}
+
+										}
+
+									}
+
+								case 't': // Prefix: "torage/snaplock/file/"
+
+									if l := len("torage/snaplock/file/"); len(elem) >= l && elem[0:l] == "torage/snaplock/file/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									// Param: "volumeUuid"
+									// Match until "/"
+									idx := strings.IndexByte(elem, '/')
+									if idx < 0 {
+										idx = len(elem)
+									}
+									args[3] = elem[:idx]
+									elem = elem[idx:]
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/"
+
+										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										// Param: "filePath"
+										// Leaf parameter, slashes are prohibited
+										idx := strings.IndexByte(elem, '/')
+										if idx >= 0 {
+											break
+										}
+										args[4] = elem
+										elem = ""
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "DELETE":
+												s.handleSnaplockFileDeleteRequest([5]string{
+													args[0],
+													args[1],
+													args[2],
+													args[3],
+													args[4],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, "DELETE")
+											}
+
+											return
+										}
+
 									}
 
 								}
@@ -304,7 +448,7 @@ type Route struct {
 	operationID string
 	pathPattern string
 	count       int
-	args        [5]string
+	args        [6]string
 }
 
 // Name returns ogen operation name.
@@ -555,58 +699,195 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									}
 								}
 
-							case 's': // Prefix: "storage/snaplock/file/"
+							case 's': // Prefix: "s"
 
-								if l := len("storage/snaplock/file/"); len(elem) >= l && elem[0:l] == "storage/snaplock/file/" {
+								if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
 									elem = elem[l:]
 								} else {
 									break
 								}
 
-								// Param: "volumeUuid"
-								// Match until "/"
-								idx := strings.IndexByte(elem, '/')
-								if idx < 0 {
-									idx = len(elem)
-								}
-								args[3] = elem[:idx]
-								elem = elem[idx:]
-
 								if len(elem) == 0 {
 									break
 								}
 								switch elem[0] {
-								case '/': // Prefix: "/"
+								case 'n': // Prefix: "napmirror/object-stores/"
 
-									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+									if l := len("napmirror/object-stores/"); len(elem) >= l && elem[0:l] == "napmirror/object-stores/" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
-									// Param: "filePath"
-									// Leaf parameter, slashes are prohibited
+									// Param: "objectStoreId"
+									// Match until "/"
 									idx := strings.IndexByte(elem, '/')
-									if idx >= 0 {
-										break
+									if idx < 0 {
+										idx = len(elem)
 									}
-									args[4] = elem
-									elem = ""
+									args[3] = elem[:idx]
+									elem = elem[idx:]
 
 									if len(elem) == 0 {
-										// Leaf node.
-										switch method {
-										case "DELETE":
-											r.name = SnaplockFileDeleteOperation
-											r.summary = "Privileged delete of unexpired WORM file"
-											r.operationID = "snaplockFileDelete"
-											r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/file/{volumeUuid}/{filePath}"
-											r.args = args
-											r.count = 5
-											return r, true
-										default:
-											return
+										break
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/endpoints/"
+
+										if l := len("/endpoints/"); len(elem) >= l && elem[0:l] == "/endpoints/" {
+											elem = elem[l:]
+										} else {
+											break
 										}
+
+										// Param: "destinationEndpointId"
+										// Match until "/"
+										idx := strings.IndexByte(elem, '/')
+										if idx < 0 {
+											idx = len(elem)
+										}
+										args[4] = elem[:idx]
+										elem = elem[idx:]
+
+										if len(elem) == 0 {
+											switch method {
+											case "DELETE":
+												r.name = V1DeleteDestinationEndpointOperation
+												r.summary = "Delete object store destination endpoint data"
+												r.operationID = "v1_deleteDestinationEndpoint"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}"
+												r.args = args
+												r.count = 5
+												return r, true
+											case "GET":
+												r.name = V1GetDestinationEndpointInfoOperation
+												r.summary = "Get object store destination endpoint info"
+												r.operationID = "v1_getDestinationEndpointInfo"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}"
+												r.args = args
+												r.count = 5
+												return r, true
+											default:
+												return
+											}
+										}
+										switch elem[0] {
+										case '/': // Prefix: "/snapshots"
+
+											if l := len("/snapshots"); len(elem) >= l && elem[0:l] == "/snapshots" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												switch method {
+												case "GET":
+													r.name = V1GetSnapshotsOperation
+													r.summary = "List object store endpoint snapshots"
+													r.operationID = "v1_getSnapshots"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots"
+													r.args = args
+													r.count = 5
+													return r, true
+												default:
+													return
+												}
+											}
+											switch elem[0] {
+											case '/': // Prefix: "/"
+
+												if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												// Param: "snapshotId"
+												// Leaf parameter, slashes are prohibited
+												idx := strings.IndexByte(elem, '/')
+												if idx >= 0 {
+													break
+												}
+												args[5] = elem
+												elem = ""
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch method {
+													case "DELETE":
+														r.name = V1DeleteSnapshotOperation
+														r.summary = "Delete object store endpoint snapshot"
+														r.operationID = "v1_deleteSnapshot"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots/{snapshotId}"
+														r.args = args
+														r.count = 6
+														return r, true
+													default:
+														return
+													}
+												}
+
+											}
+
+										}
+
+									}
+
+								case 't': // Prefix: "torage/snaplock/file/"
+
+									if l := len("torage/snaplock/file/"); len(elem) >= l && elem[0:l] == "torage/snaplock/file/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									// Param: "volumeUuid"
+									// Match until "/"
+									idx := strings.IndexByte(elem, '/')
+									if idx < 0 {
+										idx = len(elem)
+									}
+									args[3] = elem[:idx]
+									elem = elem[idx:]
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case '/': // Prefix: "/"
+
+										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										// Param: "filePath"
+										// Leaf parameter, slashes are prohibited
+										idx := strings.IndexByte(elem, '/')
+										if idx >= 0 {
+											break
+										}
+										args[4] = elem
+										elem = ""
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "DELETE":
+												r.name = SnaplockFileDeleteOperation
+												r.summary = "Privileged delete of unexpired WORM file"
+												r.operationID = "snaplockFileDelete"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/file/{volumeUuid}/{filePath}"
+												r.args = args
+												r.count = 5
+												return r, true
+											default:
+												return
+											}
+										}
+
 									}
 
 								}

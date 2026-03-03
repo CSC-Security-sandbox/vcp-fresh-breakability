@@ -50,4 +50,5 @@ data:
   IAM_ROLE_TO_USER_VALIDATION_ENABLED: {{ .Values.iamRoleToUserMapping.enabled | default false | quote }}
   SNAPLOCK_OPERATION_ENABLED: {{ .Values.snaplockOperationEnabled | default false | quote }}
   PRIVATE_CLI_OPERATION_ENABLED: {{ .Values.privateCliOperationEnabled | default false | quote }}
+  SMC_OPERATION_ENABLED: {{ .Values.smcOperationEnabled | default false | quote }}
 

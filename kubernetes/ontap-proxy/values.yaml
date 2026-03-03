@@ -107,3 +107,4 @@ iamRoleToUserMapping:
   enabled: false
 snaplockOperationEnabled: false
 privateCliOperationEnabled: false
+smcOperationEnabled: false

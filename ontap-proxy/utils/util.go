@@ -100,3 +100,39 @@ func ParseSizeString(s string) float64 {
 	}
 	return result
 }
+
+// ontapErrorFallbackMessage is returned to the client when the ONTAP error body cannot be parsed,
+// to avoid leaking raw response (which may be large or sensitive) to API callers.
+const ontapErrorFallbackMessage = "ONTAP returned an error"
+
+// ontapErrorResponse matches the ONTAP REST API error response JSON (same shape as handlers.OntapErrorResponse).
+type ontapErrorResponse struct {
+	Error *ontapError `json:"error,omitempty"`
+}
+
+type ontapError struct {
+	Message string `json:"message"`
+	Code    string `json:"code"`
+}
+
+// ParseOntapErrorBody parses an ONTAP REST API error response body and returns the error code and message.
+func ParseOntapErrorBody(body []byte) (code int, message string) {
+	if len(body) == 0 {
+		return 0, ""
+	}
+	var parsed ontapErrorResponse
+	if err := json.Unmarshal(body, &parsed); err != nil || parsed.Error == nil {
+		return 0, ontapErrorFallbackMessage
+	}
+	if parsed.Error.Message != "" {
+		message = parsed.Error.Message
+	} else {
+		message = ontapErrorFallbackMessage
+	}
+	if parsed.Error.Code != "" {
+		if c, err := strconv.Atoi(parsed.Error.Code); err == nil {
+			code = c
+		}
+	}
+	return code, message
+}
