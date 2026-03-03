@@ -161,26 +161,20 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 	var err error
 
 	vcpBv, err := h.Orchestrator.GetBackupVaultByUUIDWithoutAccount(ctx, params.BackupVaultId)
-	if err != nil {
+	if err != nil && !errors.IsNotFoundErr(err) {
 		logger.Error("Failed to get backup vault from VCP", "error", err.Error())
-		if errors.IsNotFoundErr(err) {
-			return &gcpgenserver.V1betaCreateBackupBadRequest{
-				Code:    400,
-				Message: fmt.Sprintf("Backup vault %s not found", params.BackupVaultId),
-			}, nil
-		}
 		return &gcpgenserver.V1betaCreateBackupInternalServerError{Code: 500, Message: err.Error()}, nil
 	}
 
 	backupVaultServiceType := "GCNV"
 	isGCBDRVault := false
-	if vcpBv.ServiceType != "" {
+	if vcpBv != nil && vcpBv.ServiceType != "" {
 		backupVaultServiceType = vcpBv.ServiceType
 		isGCBDRVault = backupVaultServiceType == gcbdrServiceType
 	}
 
-	// For non-GCBDR vaults, validate that vault belongs to the requesting account
-	if !isGCBDRVault && vcpBv.AccountName != params.ProjectNumber {
+	// For non-GCBDR vaults found in VCP, validate that vault belongs to the requesting account
+	if !isGCBDRVault && vcpBv != nil && vcpBv.AccountName != params.ProjectNumber {
 		msg := fmt.Sprintf("Backup vault %s does not belong to account %s", params.BackupVaultId, params.ProjectNumber)
 		logger.Error(msg)
 		return &gcpgenserver.V1betaCreateBackupBadRequest{

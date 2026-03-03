@@ -5818,8 +5818,9 @@ func TestV1betaCreateBackup_ConflictError(t *testing.T) {
 
 // ===== Tests for GCBDR coverage in V1betaCreateBackup =====
 
-func TestV1betaCreateBackup_BackupVaultNotFound(t *testing.T) {
-	// Covers backup_endpoints.go lines 165-170: GetBackupVaultByUUIDWithoutAccount returns not found
+func TestV1betaCreateBackup_BackupVaultNotInVCP_FallsThroughToCVP(t *testing.T) {
+	// When vault is not in VCP (e.g. SDE-only vault), the handler should proceed
+	// as a regular non-GCBDR vault and fall through to the CVP path.
 	origBackupEnabled := backupEnabled
 	origParse := utils.ParseAndValidateRegionAndZone
 	defer func() {
@@ -5838,7 +5839,7 @@ func TestV1betaCreateBackup_BackupVaultNotFound(t *testing.T) {
 	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
 
 	params := gcpgenserver.V1betaCreateBackupParams{
-		BackupVaultId:  "nonexistent-vault",
+		BackupVaultId:  "sde-vault",
 		LocationId:     "us-central1-a",
 		ProjectNumber:  "12345",
 		XCorrelationID: gcpgenserver.NewOptString("corr-id"),
@@ -5848,18 +5849,43 @@ func TestV1betaCreateBackup_BackupVaultNotFound(t *testing.T) {
 		ResourceId: "backup-id",
 	}
 
+	// Vault not in VCP — should NOT return 400, should proceed
 	mockOrch.EXPECT().
 		GetBackupVaultByUUIDWithoutAccount(ctx, params.BackupVaultId).
 		Return(nil, errors.NewNotFoundErr("backup vault", nil))
+	// Volume not found in VCP either — triggers CVP fallback
+	mockOrch.EXPECT().
+		GetVolume(ctx, "vol-id", false).
+		Return(nil, errors.NewNotFoundErr("Volume not found", nil))
+	// Duplicate check before CVP call
+	mockOrch.EXPECT().
+		ListBackups(ctx, params.BackupVaultId, params.ProjectNumber, mock.Anything).
+		Return(nil, errors.NewNotFoundErr("no backups", nil))
+
+	// Mock CVP client — backup created successfully in CVP
+	mockCVPClient := backups.NewMockClientService(t)
+	originalCreateClient := createClient
+	defer func() { createClient = originalCreateClient }()
+	createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return cvpapi.Cvp{Backups: mockCVPClient}
+	}
+	cvpBackupCreated := &backups.V1betaCreateBackupCreated{
+		Payload: &models.BackupV1beta{
+			ResourceID: "backup-id",
+			VolumeID:   "vol-id",
+			State:      "Available for use",
+			BackupID:   "cvp-backup-id",
+		},
+	}
+	mockCVPClient.EXPECT().V1betaCreateBackup(mock.Anything).Return(cvpBackupCreated, nil, nil)
 
 	handler := Handler{Orchestrator: mockOrch}
 	result, err := handler.V1betaCreateBackup(ctx, req, params)
 
 	assert.NoError(t, err)
-	assert.IsType(t, &gcpgenserver.V1betaCreateBackupBadRequest{}, result)
-	badReq := result.(*gcpgenserver.V1betaCreateBackupBadRequest)
-	assert.Equal(t, float64(400), badReq.Code)
-	assert.Contains(t, badReq.Message, "not found")
+	assert.IsType(t, &gcpgenserver.OperationV1beta{}, result, "Should reach CVP path, not return 400 vault-not-found")
+	operation := result.(*gcpgenserver.OperationV1beta)
+	assert.True(t, operation.Done.Value)
 }
 
 func TestV1betaCreateBackup_BackupVaultInternalError(t *testing.T) {
