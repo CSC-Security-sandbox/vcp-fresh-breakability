@@ -639,7 +639,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			// Add rollback activities to restore old state
 			rollbackManager.AddActivity(updateActivity.UpdateVolumePerformanceGroupInDB, oldVPG)
 			if oldVPG.OntapQosPolicyID != "" {
-				rollbackManager.AddActivity(updateActivity.AssignQoSPolicyToVolume, volume, oldVPG.OntapQosPolicyID, &node)
+				rollbackManager.AddActivity(updateActivity.AssignQoSPolicyToVolume, volume, oldVPG.Name, &node)
 			}
 
 			// Update VPG in database
@@ -686,7 +686,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 
 		var newQosPolicy *vsa.QoSGroupPolicyResponse
 		err = workflow.ExecuteActivity(ctx, updateActivity.FindQoSGroupPolicyForVolume,
-			newVPG.OntapQosPolicyID, volume.Svm.Name, &node).Get(ctx, &newQosPolicy)
+			newVPG.Name, volume.Svm.Name, &node).Get(ctx, &newQosPolicy)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -712,7 +712,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		// Add rollback activities to restore old state
 		rollbackManager.AddActivity(updateActivity.UpdateVolumePerformanceGroupInDBForVolume, volume.UUID, oldVPG)
 		if oldQosPolicyID != "" {
-			rollbackManager.AddActivity(updateActivity.AssignQoSPolicyToVolume, volume, oldQosPolicyID, &node)
+			rollbackManager.AddActivity(updateActivity.AssignQoSPolicyToVolume, volume, oldVPG.Name, &node)
 		}
 	}
 

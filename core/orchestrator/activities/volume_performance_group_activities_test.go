@@ -590,22 +590,22 @@ func TestUpdateQoSPolicyInONTAP_Success_WithRename(t *testing.T) {
 	env.RegisterActivity(activity.UpdateQoSPolicyInONTAP)
 
 	vpg := &datamodel.VolumePerformanceGroup{
-		BaseModel:       datamodel.BaseModel{UUID: "vpg-uuid"},
-		Name:            "old-name",
-		OntapQosPolicyID: "old-name",
-		PoolID:          1,
-		ThroughputMibps: 100,
-		Iops:            500,
+		BaseModel:        datamodel.BaseModel{UUID: "vpg-uuid"},
+		Name:             "old-name",
+		OntapQosPolicyID: "550e8400-e29b-41d4-a716-446655440000",
+		PoolID:           1,
+		ThroughputMibps:  100,
+		Iops:             500,
 	}
 	poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}}
 	node := &models.Node{ExternalUUID: "node-uuid"}
 	svm := &datamodel.Svm{Name: "svm1"}
-	qosResp := &vsa.QoSGroupPolicyResponse{UUID: "policy-uuid", Name: "old-name"}
+	qosResp := &vsa.QoSGroupPolicyResponse{UUID: "550e8400-e29b-41d4-a716-446655440000", Name: "old-name"}
 
 	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
-	mockProvider.On("FindQoSGroupPolicy", vsa.FindQoSGroupPolicyParams{Name: "old-name", SvmName: "svm1"}).Return(qosResp, nil)
+	mockProvider.On("FindQoSGroupPolicy", vsa.FindQoSGroupPolicyParams{UUID: vpg.OntapQosPolicyID, SvmName: "svm1"}).Return(qosResp, nil)
 	mockProvider.On("UpdateQoSGroupPolicy", vsa.UpdateQoSGroupPolicyParams{
-		UUID: "policy-uuid", Name: "new-name", SvmName: "svm1", MaxThroughput: 200, MaxIOPS: 600,
+		UUID: qosResp.UUID, Name: "new-name", SvmName: "svm1", MaxThroughput: 200, MaxIOPS: 600,
 	}).Return(nil)
 
 	_, err := env.ExecuteActivity(activity.UpdateQoSPolicyInONTAP, vpg, poolView, node, "new-name", int64(200), int64(600))
@@ -630,22 +630,22 @@ func TestUpdateQoSPolicyInONTAP_Success_ThroughputOnly(t *testing.T) {
 	env.RegisterActivity(activity.UpdateQoSPolicyInONTAP)
 
 	vpg := &datamodel.VolumePerformanceGroup{
-		BaseModel:       datamodel.BaseModel{UUID: "vpg-uuid"},
-		Name:            "current-name",
-		OntapQosPolicyID: "current-name",
-		PoolID:          1,
-		ThroughputMibps: 100,
-		Iops:            500,
+		BaseModel:        datamodel.BaseModel{UUID: "vpg-uuid"},
+		Name:             "current-name",
+		OntapQosPolicyID: "550e8400-e29b-41d4-a716-446655440001",
+		PoolID:           1,
+		ThroughputMibps:  100,
+		Iops:             500,
 	}
 	poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}}
 	node := &models.Node{ExternalUUID: "node-uuid"}
 	svm := &datamodel.Svm{Name: "svm1"}
-	qosResp := &vsa.QoSGroupPolicyResponse{UUID: "policy-uuid", Name: "current-name"}
+	qosResp := &vsa.QoSGroupPolicyResponse{UUID: "550e8400-e29b-41d4-a716-446655440001", Name: "current-name"}
 
 	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
-	mockProvider.On("FindQoSGroupPolicy", vsa.FindQoSGroupPolicyParams{Name: "current-name", SvmName: "svm1"}).Return(qosResp, nil)
+	mockProvider.On("FindQoSGroupPolicy", vsa.FindQoSGroupPolicyParams{UUID: vpg.OntapQosPolicyID, SvmName: "svm1"}).Return(qosResp, nil)
 	mockProvider.On("UpdateQoSGroupPolicy", vsa.UpdateQoSGroupPolicyParams{
-		UUID: "policy-uuid", Name: "", SvmName: "svm1", MaxThroughput: 200, MaxIOPS: 600,
+		UUID: qosResp.UUID, Name: "", SvmName: "svm1", MaxThroughput: 200, MaxIOPS: 600,
 	}).Return(nil)
 
 	_, err := env.ExecuteActivity(activity.UpdateQoSPolicyInONTAP, vpg, poolView, node, "current-name", int64(200), int64(600))
@@ -685,8 +685,8 @@ func TestUpdateQoSPolicyInONTAP_GetSvmError(t *testing.T) {
 	env.RegisterActivity(activity.UpdateQoSPolicyInONTAP)
 
 	vpg := &datamodel.VolumePerformanceGroup{
-		BaseModel:       datamodel.BaseModel{UUID: "vpg-uuid"},
-		OntapQosPolicyID: "policy-name",
+		BaseModel:        datamodel.BaseModel{UUID: "vpg-uuid"},
+		OntapQosPolicyID: "550e8400-e29b-41d4-a716-svm-error",
 		PoolID:           1,
 	}
 	poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}}
@@ -714,9 +714,9 @@ func TestUpdateQoSPolicyInONTAP_GetProviderError(t *testing.T) {
 	env.RegisterActivity(activity.UpdateQoSPolicyInONTAP)
 
 	vpg := &datamodel.VolumePerformanceGroup{
-		BaseModel:       datamodel.BaseModel{UUID: "vpg-uuid"},
-		OntapQosPolicyID: "policy-name",
-		PoolID:          1,
+		BaseModel:        datamodel.BaseModel{UUID: "vpg-uuid"},
+		OntapQosPolicyID: "550e8400-e29b-41d4-a716-provider-error",
+		PoolID:           1,
 	}
 	poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}}
 	node := &models.Node{ExternalUUID: "node-uuid"}
@@ -745,15 +745,17 @@ func TestUpdateQoSPolicyInONTAP_FindPolicyNotFound(t *testing.T) {
 	env.RegisterActivity(activity.UpdateQoSPolicyInONTAP)
 
 	vpg := &datamodel.VolumePerformanceGroup{
-		BaseModel:       datamodel.BaseModel{UUID: "vpg-uuid"},
-		OntapQosPolicyID: "missing-policy",
-		PoolID:          1,
+		BaseModel:        datamodel.BaseModel{UUID: "vpg-uuid"},
+		OntapQosPolicyID: "550e8400-e29b-41d4-missing",
+		PoolID:           1,
 	}
 	poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}}
 	node := &models.Node{ExternalUUID: "node-uuid"}
 	svm := &datamodel.Svm{Name: "svm1"}
 
 	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
+	mockProvider.On("FindQoSGroupPolicy", vsa.FindQoSGroupPolicyParams{UUID: vpg.OntapQosPolicyID, SvmName: "svm1"}).
+		Return(nil, vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, errors.New("not found")))
 	mockProvider.On("FindQoSGroupPolicy", vsa.FindQoSGroupPolicyParams{Name: "missing-policy", SvmName: "svm1"}).
 		Return(nil, vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, errors.New("not found")))
 
@@ -779,22 +781,22 @@ func TestUpdateQoSPolicyInONTAP_FindPolicyNotFound_FallbackByNewName_Success(t *
 	env.RegisterActivity(activity.UpdateQoSPolicyInONTAP)
 
 	vpg := &datamodel.VolumePerformanceGroup{
-		BaseModel:       datamodel.BaseModel{UUID: "vpg-uuid"},
-		OntapQosPolicyID: "old-db-name",
-		PoolID:          1,
+		BaseModel:        datamodel.BaseModel{UUID: "vpg-uuid"},
+		OntapQosPolicyID: "550e8400-e29b-41d4-old-db-uuid",
+		PoolID:           1,
 	}
 	poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}}
 	node := &models.Node{ExternalUUID: "node-uuid"}
 	svm := &datamodel.Svm{Name: "svm1"}
-	qosResp := &vsa.QoSGroupPolicyResponse{UUID: "policy-uuid", Name: "already-renamed-in-ontap"}
+	qosResp := &vsa.QoSGroupPolicyResponse{UUID: "550e8400-e29b-41d4-old-db-uuid", Name: "already-renamed-in-ontap"}
 
 	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
-	mockProvider.On("FindQoSGroupPolicy", vsa.FindQoSGroupPolicyParams{Name: "old-db-name", SvmName: "svm1"}).
+	mockProvider.On("FindQoSGroupPolicy", vsa.FindQoSGroupPolicyParams{UUID: vpg.OntapQosPolicyID, SvmName: "svm1"}).
 		Return(nil, vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, errors.New("not found")))
 	mockProvider.On("FindQoSGroupPolicy", vsa.FindQoSGroupPolicyParams{Name: "already-renamed-in-ontap", SvmName: "svm1"}).
 		Return(qosResp, nil)
 	mockProvider.On("UpdateQoSGroupPolicy", vsa.UpdateQoSGroupPolicyParams{
-		UUID: "policy-uuid", Name: "", SvmName: "svm1", MaxThroughput: 150, MaxIOPS: 700,
+		UUID: qosResp.UUID, Name: "", SvmName: "svm1", MaxThroughput: 150, MaxIOPS: 700,
 	}).Return(nil)
 
 	_, err := env.ExecuteActivity(activity.UpdateQoSPolicyInONTAP, vpg, poolView, node, "already-renamed-in-ontap", int64(150), int64(700))
@@ -819,17 +821,17 @@ func TestUpdateQoSPolicyInONTAP_UpdateQoSGroupPolicyError(t *testing.T) {
 	env.RegisterActivity(activity.UpdateQoSPolicyInONTAP)
 
 	vpg := &datamodel.VolumePerformanceGroup{
-		BaseModel:       datamodel.BaseModel{UUID: "vpg-uuid"},
-		OntapQosPolicyID: "policy-name",
-		PoolID:          1,
+		BaseModel:        datamodel.BaseModel{UUID: "vpg-uuid"},
+		OntapQosPolicyID: "550e8400-e29b-41d4-a716-446655440002",
+		PoolID:           1,
 	}
 	poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}}
 	node := &models.Node{ExternalUUID: "node-uuid"}
 	svm := &datamodel.Svm{Name: "svm1"}
-	qosResp := &vsa.QoSGroupPolicyResponse{UUID: "policy-uuid", Name: "policy-name"}
+	qosResp := &vsa.QoSGroupPolicyResponse{UUID: "550e8400-e29b-41d4-a716-446655440002", Name: "policy-name"}
 
 	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
-	mockProvider.On("FindQoSGroupPolicy", vsa.FindQoSGroupPolicyParams{Name: "policy-name", SvmName: "svm1"}).Return(qosResp, nil)
+	mockProvider.On("FindQoSGroupPolicy", vsa.FindQoSGroupPolicyParams{UUID: vpg.OntapQosPolicyID, SvmName: "svm1"}).Return(qosResp, nil)
 	mockProvider.On("UpdateQoSGroupPolicy", mock.AnythingOfType("vsa.UpdateQoSGroupPolicyParams")).Return(errors.New("ONTAP update failed"))
 
 	_, err := env.ExecuteActivity(activity.UpdateQoSPolicyInONTAP, vpg, poolView, node, "new-name", int64(100), int64(500))

@@ -192,27 +192,22 @@ func (a *VolumePerformanceGroupActivity) UpdateQoSPolicyInONTAP(
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	// Find policy by name to get UUID (ONTAP update requires UUID).
-	// Try OntapQosPolicyID first (current name in DB). If not found and we're renaming, try newName
-	// (covers case where ONTAP was updated in a previous run but DB was not).
 	findParams := vsa.FindQoSGroupPolicyParams{
-		Name:    vpg.OntapQosPolicyID,
+		UUID:    vpg.OntapQosPolicyID,
 		SvmName: svm.Name,
 	}
 	qosResp, err := provider.FindQoSGroupPolicy(findParams)
 	if err != nil {
 		customErr := vsaerrors.ExtractCustomError(err)
-		if customErr != nil && customErr.IsError(vsaerrors.ErrResourceNotFound) && newName != "" && newName != vpg.OntapQosPolicyID {
-			// Fallback: policy may already have been renamed in ONTAP (previous run updated ONTAP but not DB)
-			findParams.Name = newName
+		if customErr != nil && customErr.IsError(vsaerrors.ErrResourceNotFound) && newName != "" {
+			findParams = vsa.FindQoSGroupPolicyParams{
+				Name:    newName,
+				SvmName: svm.Name,
+			}
 			qosResp, err = provider.FindQoSGroupPolicy(findParams)
 		}
 		if err != nil {
-			logger.Error("Failed to find QoS policy for update", "policy_name", vpg.OntapQosPolicyID, "error", err)
-			// If DB was updated to the new name by a previous run but ONTAP was not, suggest fixing the DB
-			if newName != "" && newName == vpg.OntapQosPolicyID {
-				err = fmt.Errorf("qosPolicy %q not found in ONTAP; if the DB was updated by a previous run but ONTAP was not, set volume_performance_groups.ontap_qos_policy_id and name to the policy name currently shown in ONTAP (e.g. from \"qos policy-group show\") and retry: %w", vpg.OntapQosPolicyID, err)
-			}
+			logger.Error("Failed to find QoS policy for update", "policy_uuid", vpg.OntapQosPolicyID, "error", err)
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 	}

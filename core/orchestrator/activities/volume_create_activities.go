@@ -249,12 +249,9 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 			return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("QoS policy not found for VPG %s - should have been created at VPG creation time", vpg.UUID))
 		}
 
-		// Use the existing QoS policy name
-		qosPolicyName := vpg.OntapQosPolicyID
-		logger.Info("Assigning QoS policy to volume", "volume_id", volume.UUID, "vpg_id", vpg.UUID, "qos_policy", qosPolicyName)
-
-		// Set QoS policy for volume creation
-		params.QosPolicy = &qosPolicyName
+		// ONTAP volume create API requires the QoS policy name, not UUID; policy is created with VPG name.
+		logger.Info("Assigning QoS policy to volume", "volume_id", volume.UUID, "vpg_id", vpg.UUID, "qos_policy_name", vpg.Name, "qos_policy_uuid", vpg.OntapQosPolicyID)
+		params.QosPolicy = &vpg.Name
 	} else {
 		if !enableMqos {
 			logger.Debug("Skipping QoS policy assignment: ENABLE_MQOS feature flag is disabled", "volume_id", volume.UUID)

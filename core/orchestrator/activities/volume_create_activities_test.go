@@ -770,7 +770,7 @@ func TestCreateVolumeInONTAP_WithVPG_AssignsQosPolicy(t *testing.T) {
 	activity := activities.VolumeCreateActivity{SE: mockStorage}
 	env.RegisterActivity(activity.CreateVolumeInONTAP)
 
-	qosPolicy := "qos-policy-1"
+	qosPolicyName := "qos-policy-1"
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
 		Name:      "test-volume",
@@ -784,14 +784,15 @@ func TestCreateVolumeInONTAP_WithVPG_AssignsQosPolicy(t *testing.T) {
 		VolumePerformanceGroupID: sql.NullInt64{Int64: 42, Valid: true},
 		VolumePerformanceGroup: &datamodel.VolumePerformanceGroup{
 			BaseModel:        datamodel.BaseModel{UUID: "vpg-uuid"},
-			OntapQosPolicyID: qosPolicy,
+			Name:             qosPolicyName,
+			OntapQosPolicyID: "550e8400-e29b-41d4-a716-446655440000",
 		},
 	}
 	node := &models.Node{}
 	expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}}
 
 	mockProvider.On("CreateVolume", mock.MatchedBy(func(params vsa.CreateVolumeParams) bool {
-		return params.QosPolicy != nil && *params.QosPolicy == qosPolicy
+		return params.QosPolicy != nil && *params.QosPolicy == qosPolicyName
 	})).Return(expectedResponse, nil)
 
 	val, err := env.ExecuteActivity(activity.CreateVolumeInONTAP, volume, node, nil, nil, nil)
@@ -959,7 +960,8 @@ func TestCreateVolumeInONTAP_WithQoSPolicy_VPGLoaded(t *testing.T) {
 
 	vpg := &datamodel.VolumePerformanceGroup{
 		BaseModel:        datamodel.BaseModel{UUID: "vpg-uuid"},
-		OntapQosPolicyID: "qos-policy-uuid",
+		Name:             "my-vpg-qos-policy",
+		OntapQosPolicyID: "550e8400-e29b-41d4-a716-446655440000",
 	}
 	volume := &datamodel.Volume{
 		BaseModel:                datamodel.BaseModel{UUID: "vol-uuid"},
@@ -976,7 +978,7 @@ func TestCreateVolumeInONTAP_WithQoSPolicy_VPGLoaded(t *testing.T) {
 	expectedResponse := &vsa.VolumeResponse{ProviderResponse: vsa.ProviderResponse{ExternalUUID: "uuid-123"}, AvailableSpace: 1024}
 
 	mockProvider.On("CreateVolume", mock.MatchedBy(func(params vsa.CreateVolumeParams) bool {
-		return params.QosPolicy != nil && *params.QosPolicy == "qos-policy-uuid"
+		return params.QosPolicy != nil && *params.QosPolicy == vpg.Name
 	})).Return(expectedResponse, nil)
 
 	// Act

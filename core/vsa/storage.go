@@ -153,9 +153,24 @@ func (rc *OntapRestProvider) LunCreate(params LunCreateParams) (*LunResponse, er
 			Name:         *lun.Name,
 			ExternalUUID: *lun.UUID,
 		},
-		SerialNumber: *lun.SerialNumberHex,
-		Size:         *lun.Space.Size,
-		OSType:       *lun.OsType,
+		SerialNumber: func() string {
+			if lun.SerialNumberHex != nil {
+				return *lun.SerialNumberHex
+			}
+			return ""
+		}(),
+		Size: func() int64 {
+			if lun.Space != nil && lun.Space.Size != nil {
+				return *lun.Space.Size
+			}
+			return 0
+		}(),
+		OSType: func() string {
+			if lun.OsType != nil {
+				return *lun.OsType
+			}
+			return ""
+		}(),
 	}, nil
 }
 
@@ -189,8 +204,18 @@ func (rc *OntapRestProvider) LunGet(params LunGetParams) (*LunResponse, error) {
 			Name:         *lun[0].Name,
 			ExternalUUID: *lun[0].UUID,
 		},
-		SerialNumber: *lun[0].SerialNumberHex,
-		Size:         *lun[0].Space.Size,
+		SerialNumber: func() string {
+			if lun[0].SerialNumberHex != nil {
+				return *lun[0].SerialNumberHex
+			}
+			return ""
+		}(),
+		Size: func() int64 {
+			if lun[0].Space != nil && lun[0].Space.Size != nil {
+				return *lun[0].Space.Size
+			}
+			return 0
+		}(),
 		OSType: func() string {
 			if lun[0].OsType != nil {
 				return *lun[0].OsType
@@ -233,8 +258,18 @@ func (rc *OntapRestProvider) LunList(params LunGetParams) ([]*LunResponse, error
 				Name:         *lun.Name,
 				ExternalUUID: *lun.UUID,
 			},
-			SerialNumber: *lun.SerialNumberHex,
-			Size:         *lun.Space.Size,
+			SerialNumber: func() string {
+				if lun.SerialNumberHex != nil {
+					return *lun.SerialNumberHex
+				}
+				return ""
+			}(),
+			Size: func() int64 {
+				if lun.Space != nil && lun.Space.Size != nil {
+					return *lun.Space.Size
+				}
+				return 0
+			}(),
 			OSType: func() string {
 				if lun.OsType != nil {
 					return *lun.OsType

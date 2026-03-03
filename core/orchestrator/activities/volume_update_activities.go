@@ -910,10 +910,8 @@ func (a *VolumeUpdateActivity) UpdateQoSPolicyGroupForVolume(
 		return nil
 	}
 
-	// Update the QoS policy with new values
 	updateQosPolicyParams := vsa.UpdateQoSGroupPolicyParams{
 		UUID:          existingQosPolicy.UUID,
-		Name:          existingQosPolicy.Name,
 		SvmName:       existingQosPolicy.SvmName,
 		MaxThroughput: throughputMibps,
 		MaxIOPS:       iops,

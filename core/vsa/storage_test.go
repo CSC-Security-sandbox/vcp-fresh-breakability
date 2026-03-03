@@ -92,6 +92,53 @@ func TestLunCreate_Error(t *testing.T) {
 	mockClient.AssertExpectations(t)
 }
 
+func TestLunCreate_NilOptionalFields(t *testing.T) {
+	mockSAN := new(ontaprest.MockSANClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("SAN").Return(mockSAN)
+
+	originalgetOntapClientFunc := getOntapClientFunc
+	defer func() { getOntapClientFunc = originalgetOntapClientFunc }()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	lunName := "testLun"
+	params := LunCreateParams{
+		LunName:    lunName,
+		SvmName:    "testSVM",
+		OsType:     "linux",
+		VolumeName: "testVolume",
+		Size:       int64(1024),
+	}
+
+	mockLun := &ontaprest.Lun{
+		Lun: models.Lun{
+			Name:            nillable.ToPointer(lunName),
+			UUID:            nillable.ToPointer("testUUID"),
+			SerialNumberHex: nil,
+			OsType:          nil,
+			Space:           nil,
+		},
+	}
+
+	mockSAN.On("LunCreate", mock.Anything).Return(mockLun, nil)
+
+	resp, err := rc.LunCreate(params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, lunName, resp.Name)
+	assert.Equal(t, "testUUID", resp.ExternalUUID)
+	assert.Equal(t, "", resp.SerialNumber)
+	assert.Equal(t, int64(0), resp.Size)
+	assert.Equal(t, "", resp.OSType)
+
+	mockSAN.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
 func TestLunMapCreate_Success(t *testing.T) {
 	mockSAN := new(ontaprest.MockSANClient)
 	mockClient := new(ontaprest.MockRESTClient)

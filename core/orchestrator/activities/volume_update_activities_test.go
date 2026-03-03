@@ -4947,7 +4947,6 @@ func TestUpdateQoSPolicyGroupForVolume_Success(t *testing.T) {
 
 	mockProvider.On("UpdateQoSGroupPolicy", vsa.UpdateQoSGroupPolicyParams{
 		UUID:          "policy-uuid-456",
-		Name:          "test-policy",
 		MaxThroughput: throughputMibps,
 		MaxIOPS:       iops,
 	}).Return(nil)
@@ -5159,7 +5158,6 @@ func TestUpdateQoSPolicyGroupForVolume_UpdateQoSGroupPolicyError(t *testing.T) {
 
 	mockProvider.On("UpdateQoSGroupPolicy", vsa.UpdateQoSGroupPolicyParams{
 		UUID:          "policy-uuid-456",
-		Name:          "test-policy",
 		MaxThroughput: throughputMibps,
 		MaxIOPS:       iops,
 	}).Return(updateError)
