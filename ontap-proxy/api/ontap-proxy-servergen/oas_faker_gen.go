@@ -7,6 +7,54 @@ import (
 )
 
 // SetFake set fake values.
+func (s *AccessTokenInfo) SetFake() {
+	{
+		{
+			s.AccessToken.SetFake()
+		}
+	}
+	{
+		{
+			s.ExpiresIn.SetFake()
+		}
+	}
+	{
+		{
+			s.TokenType.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *AccessTokenInfoTokenType) SetFake() {
+	*s = AccessTokenInfoTokenTypeBearer
+}
+
+// SetFake set fake values.
+func (s *AccessTokenRequest) SetFake() {
+	{
+		{
+			s.ClientID.SetFake()
+		}
+	}
+	{
+		{
+			s.ClientSecret.SetFake()
+		}
+	}
+	{
+		{
+			s.GrantType.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *AccessTokenRequestGrantType) SetFake() {
+	*s = AccessTokenRequestGrantTypeClientCredentials
+}
+
+// SetFake set fake values.
 func (s *CLIExecuteRequest) SetFake() {
 	{
 		{
@@ -238,6 +286,24 @@ func (s *JobLink) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptAccessTokenInfoTokenType) SetFake() {
+	var elem AccessTokenInfoTokenType
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptAccessTokenRequestGrantType) SetFake() {
+	var elem AccessTokenRequestGrantType
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptBool) SetFake() {
 	var elem bool
 	{
@@ -453,6 +519,51 @@ func (s *SnaplockFileRetentionJobLinkResponse) SetFake() {
 			}
 		}
 	}
+}
+
+// SetFake set fake values.
+func (s *V1ClusterLicensingAccessTokensCreateBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ClusterLicensingAccessTokensCreateBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ClusterLicensingAccessTokensCreateForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ClusterLicensingAccessTokensCreateForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ClusterLicensingAccessTokensCreateInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ClusterLicensingAccessTokensCreateInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ClusterLicensingAccessTokensCreateNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ClusterLicensingAccessTokensCreateNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ClusterLicensingAccessTokensCreateUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ClusterLicensingAccessTokensCreateUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.

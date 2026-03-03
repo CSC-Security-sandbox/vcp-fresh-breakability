@@ -176,6 +176,30 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								break
 							}
 							switch elem[0] {
+							case 'c': // Prefix: "cluster/licensing/access-tokens"
+
+								if l := len("cluster/licensing/access-tokens"); len(elem) >= l && elem[0:l] == "cluster/licensing/access-tokens" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "POST":
+										s.handleV1ClusterLicensingAccessTokensCreateRequest([3]string{
+											args[0],
+											args[1],
+											args[2],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "POST")
+									}
+
+									return
+								}
+
 							case 'p': // Prefix: "private/cli"
 
 								if l := len("private/cli"); len(elem) >= l && elem[0:l] == "private/cli" {
@@ -483,6 +507,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								break
 							}
 							switch elem[0] {
+							case 'c': // Prefix: "cluster/licensing/access-tokens"
+
+								if l := len("cluster/licensing/access-tokens"); len(elem) >= l && elem[0:l] == "cluster/licensing/access-tokens" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "POST":
+										r.name = V1ClusterLicensingAccessTokensCreateOperation
+										r.summary = "Request an access token"
+										r.operationID = "v1_clusterLicensingAccessTokensCreate"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/cluster/licensing/access-tokens"
+										r.args = args
+										r.count = 3
+										return r, true
+									default:
+										return
+									}
+								}
+
 							case 'p': // Prefix: "private/cli"
 
 								if l := len("private/cli"); len(elem) >= l && elem[0:l] == "private/cli" {

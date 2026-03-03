@@ -16,6 +16,112 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestAccessTokenInfo_EncodeDecode(t *testing.T) {
+	var typ AccessTokenInfo
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 AccessTokenInfo
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestAccessTokenInfoTokenType_EncodeDecode(t *testing.T) {
+	var typ AccessTokenInfoTokenType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 AccessTokenInfoTokenType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestAccessTokenInfoTokenType_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"bearer\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ AccessTokenInfoTokenType
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 AccessTokenInfoTokenType
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestAccessTokenRequest_EncodeDecode(t *testing.T) {
+	var typ AccessTokenRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 AccessTokenRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestAccessTokenRequestGrantType_EncodeDecode(t *testing.T) {
+	var typ AccessTokenRequestGrantType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 AccessTokenRequestGrantType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestAccessTokenRequestGrantType_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"client_credentials\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ AccessTokenRequestGrantType
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 AccessTokenRequestGrantType
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
 func TestCLIExecuteRequest_EncodeDecode(t *testing.T) {
 	var typ CLIExecuteRequest
 	typ.SetFake()
@@ -437,6 +543,66 @@ func TestSnaplockFileRetentionJobLinkResponse_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 SnaplockFileRetentionJobLinkResponse
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ClusterLicensingAccessTokensCreateBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1ClusterLicensingAccessTokensCreateBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ClusterLicensingAccessTokensCreateBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ClusterLicensingAccessTokensCreateForbidden_EncodeDecode(t *testing.T) {
+	var typ V1ClusterLicensingAccessTokensCreateForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ClusterLicensingAccessTokensCreateForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ClusterLicensingAccessTokensCreateInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1ClusterLicensingAccessTokensCreateInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ClusterLicensingAccessTokensCreateInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ClusterLicensingAccessTokensCreateNotFound_EncodeDecode(t *testing.T) {
+	var typ V1ClusterLicensingAccessTokensCreateNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ClusterLicensingAccessTokensCreateNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ClusterLicensingAccessTokensCreateUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1ClusterLicensingAccessTokensCreateUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ClusterLicensingAccessTokensCreateUnauthorized
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1PrivateCliBadRequest_EncodeDecode(t *testing.T) {

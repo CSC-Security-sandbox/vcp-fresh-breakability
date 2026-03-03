@@ -2,8 +2,11 @@ package endpoints
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
 	"strings"
 
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/api/ontap-proxy-servergen"
@@ -18,7 +21,15 @@ import (
 var (
 	snapLockOperationEnabled   = env.GetBool("SNAPLOCK_OPERATION_ENABLED", false)
 	privateCliOperationEnabled = env.GetBool("PRIVATE_CLI_OPERATION_ENABLED", false)
+
+	setupCredentialsForHandler  = middleware.SetupCredentialsForHandler
+	ensureCertificateOrPassword = middleware.EnsureCertificateOrPassword
+	newOntapClientFromContext   = handlers.NewOntapClientFromContext
 )
+
+// ontapErrorFallbackMessage is returned to the client when the ONTAP error body cannot be parsed,
+// to avoid leaking raw response (which may be large or sensitive) to API callers.
+const ontapErrorFallbackMessage = "ONTAP returned an error"
 
 type Handler struct {
 	oasgenserver.UnimplementedHandler
@@ -233,4 +244,113 @@ func (h Handler) SnaplockFileDelete(
 			},
 		},
 	}, nil
+}
+
+// V1ClusterLicensingAccessTokensCreate implements v1_clusterLicensingAccessTokensCreate (POST /api/cluster/licensing/access-tokens).
+// Uses admin credentials and forwards the request to ONTAP.
+func (h Handler) V1ClusterLicensingAccessTokensCreate(
+	ctx context.Context,
+	req *oasgenserver.AccessTokenRequest,
+	params oasgenserver.V1ClusterLicensingAccessTokensCreateParams,
+) (oasgenserver.V1ClusterLicensingAccessTokensCreateRes, error) {
+	logger := util.GetLogger(ctx)
+
+	logger.InfoContext(ctx, "Processing cluster licensing access token request",
+		"projectNumber", params.ProjectNumber,
+		"poolId", params.PoolId.String(),
+	)
+
+	ctx, err := setupCredentialsForHandler(
+		ctx,
+		params.ProjectNumber,
+		params.PoolId.String(),
+		middleware.CredentialTypeAdmin,
+	)
+	if err != nil {
+		logger.ErrorContext(ctx, "Failed to setup credentials", "error", err)
+		return &oasgenserver.V1ClusterLicensingAccessTokensCreateUnauthorized{
+			Code:    401,
+			Message: fmt.Sprintf("authentication error: %s", err.Error()),
+		}, nil
+	}
+
+	if err := ensureCertificateOrPassword(ctx); err != nil {
+		logger.ErrorContext(ctx, "Failed to setup certificate/password", "error", err)
+		return &oasgenserver.V1ClusterLicensingAccessTokensCreateUnauthorized{
+			Code:    401,
+			Message: fmt.Sprintf("authentication error: %s", err.Error()),
+		}, nil
+	}
+
+	bodyBytes, err := json.Marshal(req)
+	if err != nil {
+		logger.ErrorContext(ctx, "Failed to marshal request", "error", err)
+		return &oasgenserver.V1ClusterLicensingAccessTokensCreateInternalServerError{
+			Code:    500,
+			Message: "Failed to serialize request",
+		}, nil
+	}
+
+	ontapClient, clientErr := newOntapClientFromContext(ctx)
+	if clientErr != nil {
+		logger.ErrorContext(ctx, "Failed to get ONTAP client", "error", clientErr)
+		return &oasgenserver.V1ClusterLicensingAccessTokensCreateInternalServerError{
+			Code:    500,
+			Message: fmt.Sprintf("failed to connect to ONTAP: %s", clientErr.Error()),
+		}, nil
+	}
+	respBody, statusCode, err := ontapClient.ExecuteAPI(ctx, http.MethodPost, "/api/cluster/licensing/access-tokens", bodyBytes)
+	if err != nil {
+		logger.ErrorContext(ctx, "ONTAP request failed", "error", err)
+		return &oasgenserver.V1ClusterLicensingAccessTokensCreateInternalServerError{
+			Code:    500,
+			Message: fmt.Sprintf("ONTAP request failed: %s", err.Error()),
+		}, nil
+	}
+
+	if statusCode == http.StatusOK {
+		var accessResp oasgenserver.AccessTokenInfo
+		if err := json.Unmarshal(respBody, &accessResp); err != nil {
+			logger.ErrorContext(ctx, "Failed to parse ONTAP response", "error", err)
+			return &oasgenserver.V1ClusterLicensingAccessTokensCreateInternalServerError{
+				Code:    500,
+				Message: fmt.Sprintf("invalid ONTAP response: %s", err.Error()),
+			}, nil
+		}
+		return &accessResp, nil
+	}
+
+	errCode, message := parseOntapErrorBody(respBody)
+	if message == "" {
+		message = fmt.Sprintf("ONTAP returned status %d", statusCode)
+	}
+	if errCode == 0 {
+		errCode = statusCode
+	}
+	logger.InfoContext(ctx, fmt.Sprintf("Returning ONTAP error to customer: statusCode=%d message=%s", statusCode, message))
+	return nil, &oasgenserver.ErrorStatusCode{
+		StatusCode: statusCode,
+		Response:   oasgenserver.Error{Code: errCode, Message: message},
+	}
+}
+
+func parseOntapErrorBody(body []byte) (code int, message string) {
+	if len(body) == 0 {
+		return 0, ""
+	}
+	var parsed handlers.OntapErrorResponse
+	if err := json.Unmarshal(body, &parsed); err != nil || parsed.Error == nil {
+		return 0, ontapErrorFallbackMessage
+	}
+	if parsed.Error.Message != "" {
+		message = parsed.Error.Message
+	} else {
+		message = ontapErrorFallbackMessage
+	}
+	if parsed.Error.Code != "" {
+		if c, err := strconv.Atoi(parsed.Error.Code); err == nil {
+			code = c
+		}
+	}
+	return code, message
 }

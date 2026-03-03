@@ -15,6 +15,278 @@ import (
 )
 
 // Encode implements json.Marshaler.
+func (s *AccessTokenInfo) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AccessTokenInfo) encodeFields(e *jx.Encoder) {
+	{
+		if s.AccessToken.Set {
+			e.FieldStart("access_token")
+			s.AccessToken.Encode(e)
+		}
+	}
+	{
+		if s.ExpiresIn.Set {
+			e.FieldStart("expires_in")
+			s.ExpiresIn.Encode(e)
+		}
+	}
+	{
+		if s.TokenType.Set {
+			e.FieldStart("token_type")
+			s.TokenType.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfAccessTokenInfo = [3]string{
+	0: "access_token",
+	1: "expires_in",
+	2: "token_type",
+}
+
+// Decode decodes AccessTokenInfo from json.
+func (s *AccessTokenInfo) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AccessTokenInfo to nil")
+	}
+	s.setDefaults()
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "access_token":
+			if err := func() error {
+				s.AccessToken.Reset()
+				if err := s.AccessToken.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"access_token\"")
+			}
+		case "expires_in":
+			if err := func() error {
+				s.ExpiresIn.Reset()
+				if err := s.ExpiresIn.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"expires_in\"")
+			}
+		case "token_type":
+			if err := func() error {
+				s.TokenType.Reset()
+				if err := s.TokenType.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"token_type\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AccessTokenInfo")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AccessTokenInfo) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AccessTokenInfo) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes AccessTokenInfoTokenType as json.
+func (s AccessTokenInfoTokenType) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes AccessTokenInfoTokenType from json.
+func (s *AccessTokenInfoTokenType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AccessTokenInfoTokenType to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch AccessTokenInfoTokenType(v) {
+	case AccessTokenInfoTokenTypeBearer:
+		*s = AccessTokenInfoTokenTypeBearer
+	default:
+		*s = AccessTokenInfoTokenType(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s AccessTokenInfoTokenType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AccessTokenInfoTokenType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AccessTokenRequest) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AccessTokenRequest) encodeFields(e *jx.Encoder) {
+	{
+		if s.ClientID.Set {
+			e.FieldStart("client_id")
+			s.ClientID.Encode(e)
+		}
+	}
+	{
+		if s.ClientSecret.Set {
+			e.FieldStart("client_secret")
+			s.ClientSecret.Encode(e)
+		}
+	}
+	{
+		if s.GrantType.Set {
+			e.FieldStart("grant_type")
+			s.GrantType.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfAccessTokenRequest = [3]string{
+	0: "client_id",
+	1: "client_secret",
+	2: "grant_type",
+}
+
+// Decode decodes AccessTokenRequest from json.
+func (s *AccessTokenRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AccessTokenRequest to nil")
+	}
+	s.setDefaults()
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "client_id":
+			if err := func() error {
+				s.ClientID.Reset()
+				if err := s.ClientID.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"client_id\"")
+			}
+		case "client_secret":
+			if err := func() error {
+				s.ClientSecret.Reset()
+				if err := s.ClientSecret.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"client_secret\"")
+			}
+		case "grant_type":
+			if err := func() error {
+				s.GrantType.Reset()
+				if err := s.GrantType.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"grant_type\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AccessTokenRequest")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AccessTokenRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AccessTokenRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes AccessTokenRequestGrantType as json.
+func (s AccessTokenRequestGrantType) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes AccessTokenRequestGrantType from json.
+func (s *AccessTokenRequestGrantType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AccessTokenRequestGrantType to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch AccessTokenRequestGrantType(v) {
+	case AccessTokenRequestGrantTypeClientCredentials:
+		*s = AccessTokenRequestGrantTypeClientCredentials
+	default:
+		*s = AccessTokenRequestGrantType(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s AccessTokenRequestGrantType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AccessTokenRequestGrantType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *CLIExecuteRequest) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -1255,6 +1527,72 @@ func (s *JobLink) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
+// Encode encodes AccessTokenInfoTokenType as json.
+func (o OptAccessTokenInfoTokenType) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes AccessTokenInfoTokenType from json.
+func (o *OptAccessTokenInfoTokenType) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptAccessTokenInfoTokenType to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptAccessTokenInfoTokenType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptAccessTokenInfoTokenType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes AccessTokenRequestGrantType as json.
+func (o OptAccessTokenRequestGrantType) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes AccessTokenRequestGrantType from json.
+func (o *OptAccessTokenRequestGrantType) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptAccessTokenRequestGrantType to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptAccessTokenRequestGrantType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptAccessTokenRequestGrantType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
 // Encode encodes bool as json.
 func (o OptBool) Encode(e *jx.Encoder) {
 	if !o.Set {
@@ -2150,6 +2488,196 @@ func (s *SnaplockFileRetentionJobLinkResponse) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *SnaplockFileRetentionJobLinkResponse) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1ClusterLicensingAccessTokensCreateBadRequest as json.
+func (s *V1ClusterLicensingAccessTokensCreateBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1ClusterLicensingAccessTokensCreateBadRequest from json.
+func (s *V1ClusterLicensingAccessTokensCreateBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1ClusterLicensingAccessTokensCreateBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1ClusterLicensingAccessTokensCreateBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1ClusterLicensingAccessTokensCreateBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1ClusterLicensingAccessTokensCreateBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1ClusterLicensingAccessTokensCreateForbidden as json.
+func (s *V1ClusterLicensingAccessTokensCreateForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1ClusterLicensingAccessTokensCreateForbidden from json.
+func (s *V1ClusterLicensingAccessTokensCreateForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1ClusterLicensingAccessTokensCreateForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1ClusterLicensingAccessTokensCreateForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1ClusterLicensingAccessTokensCreateForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1ClusterLicensingAccessTokensCreateForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1ClusterLicensingAccessTokensCreateInternalServerError as json.
+func (s *V1ClusterLicensingAccessTokensCreateInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1ClusterLicensingAccessTokensCreateInternalServerError from json.
+func (s *V1ClusterLicensingAccessTokensCreateInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1ClusterLicensingAccessTokensCreateInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1ClusterLicensingAccessTokensCreateInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1ClusterLicensingAccessTokensCreateInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1ClusterLicensingAccessTokensCreateInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1ClusterLicensingAccessTokensCreateNotFound as json.
+func (s *V1ClusterLicensingAccessTokensCreateNotFound) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1ClusterLicensingAccessTokensCreateNotFound from json.
+func (s *V1ClusterLicensingAccessTokensCreateNotFound) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1ClusterLicensingAccessTokensCreateNotFound to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1ClusterLicensingAccessTokensCreateNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1ClusterLicensingAccessTokensCreateNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1ClusterLicensingAccessTokensCreateNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1ClusterLicensingAccessTokensCreateUnauthorized as json.
+func (s *V1ClusterLicensingAccessTokensCreateUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1ClusterLicensingAccessTokensCreateUnauthorized from json.
+func (s *V1ClusterLicensingAccessTokensCreateUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1ClusterLicensingAccessTokensCreateUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1ClusterLicensingAccessTokensCreateUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1ClusterLicensingAccessTokensCreateUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1ClusterLicensingAccessTokensCreateUnauthorized) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

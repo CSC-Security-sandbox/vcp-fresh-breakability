@@ -2,6 +2,9 @@ package endpoints
 
 import (
 	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/google/uuid"
@@ -9,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/api/ontap-proxy-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/handlers"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/reverseproxy"
 )
@@ -280,5 +284,299 @@ func TestSnaplockFileDelete(t *testing.T) {
 		// ogen handlers return typed error responses, not Go errors
 		require.NoError(t, err, "ogen handlers should not return Go errors")
 		require.NotNil(t, res, "Should return a typed error response")
+	})
+}
+
+func TestParseOntapErrorBody(t *testing.T) {
+	t.Run("valid error with code and message", func(t *testing.T) {
+		body := []byte(`{"error":{"message":"Volume not found","code":"12345"}}`)
+		code, message := parseOntapErrorBody(body)
+		assert.Equal(t, 12345, code)
+		assert.Equal(t, "Volume not found", message)
+	})
+
+	t.Run("valid error with message only", func(t *testing.T) {
+		body := []byte(`{"error":{"message":"Permission denied"}}`)
+		code, message := parseOntapErrorBody(body)
+		assert.Equal(t, 0, code)
+		assert.Equal(t, "Permission denied", message)
+	})
+
+	t.Run("invalid JSON returns generic message", func(t *testing.T) {
+		body := []byte(`not json`)
+		code, message := parseOntapErrorBody(body)
+		assert.Equal(t, 0, code)
+		assert.Equal(t, ontapErrorFallbackMessage, message)
+	})
+
+	t.Run("empty error object returns generic message", func(t *testing.T) {
+		body := []byte(`{"other":"data"}`)
+		code, message := parseOntapErrorBody(body)
+		assert.Equal(t, 0, code)
+		assert.Equal(t, ontapErrorFallbackMessage, message)
+	})
+
+	t.Run("empty body", func(t *testing.T) {
+		body := []byte(``)
+		code, message := parseOntapErrorBody(body)
+		assert.Equal(t, 0, code)
+		assert.Equal(t, "", message)
+	})
+
+	t.Run("non-numeric code returns 0", func(t *testing.T) {
+		body := []byte(`{"error":{"message":"Bad request","code":"ERR_INVALID"}}`)
+		code, message := parseOntapErrorBody(body)
+		assert.Equal(t, 0, code)
+		assert.Equal(t, "Bad request", message)
+	})
+
+	t.Run("error object with empty message returns generic message", func(t *testing.T) {
+		body := []byte(`{"error":{"message":"","code":"500"}}`)
+		code, message := parseOntapErrorBody(body)
+		assert.Equal(t, 500, code)
+		assert.Equal(t, ontapErrorFallbackMessage, message)
+	})
+}
+
+func TestV1ClusterLicensingAccessTokensCreate(t *testing.T) {
+	poolUUID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	params := oasgenserver.V1ClusterLicensingAccessTokensCreateParams{
+		ProjectNumber: "123456",
+		LocationId:    "us-central1",
+		PoolId:        poolUUID,
+	}
+
+	t.Run("WhenNoCredentials_ReturnsUnauthorized", func(t *testing.T) {
+		handler := Handler{}
+		req := &oasgenserver.AccessTokenRequest{
+			ClientID:     oasgenserver.NewOptString("app"),
+			ClientSecret: oasgenserver.NewOptString("secret"),
+			GrantType:    oasgenserver.NewOptAccessTokenRequestGrantType(oasgenserver.AccessTokenRequestGrantTypeClientCredentials),
+		}
+
+		res, err := handler.V1ClusterLicensingAccessTokensCreate(context.Background(), req, params)
+
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		unauth, ok := res.(*oasgenserver.V1ClusterLicensingAccessTokensCreateUnauthorized)
+		require.True(t, ok, "expected Unauthorized, got %T", res)
+		assert.Equal(t, 401, unauth.Code)
+		assert.Contains(t, unauth.Message, "authentication")
+	})
+
+	t.Run("WhenEnsureCertificateOrPasswordFails_ReturnsUnauthorized", func(t *testing.T) {
+		oldSetup := setupCredentialsForHandler
+		oldEnsure := ensureCertificateOrPassword
+		defer func() {
+			setupCredentialsForHandler = oldSetup
+			ensureCertificateOrPassword = oldEnsure
+		}()
+		setupCredentialsForHandler = func(ctx context.Context, _, _ string, _ string) (context.Context, error) {
+			return ctx, nil
+		}
+		ensureCertificateOrPassword = func(context.Context) error {
+			return errors.New("no cert")
+		}
+
+		handler := Handler{}
+		req := &oasgenserver.AccessTokenRequest{
+			ClientID:     oasgenserver.NewOptString("app"),
+			ClientSecret: oasgenserver.NewOptString("secret"),
+			GrantType:    oasgenserver.NewOptAccessTokenRequestGrantType(oasgenserver.AccessTokenRequestGrantTypeClientCredentials),
+		}
+
+		res, err := handler.V1ClusterLicensingAccessTokensCreate(context.Background(), req, params)
+
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		unauth, ok := res.(*oasgenserver.V1ClusterLicensingAccessTokensCreateUnauthorized)
+		require.True(t, ok, "expected Unauthorized, got %T", res)
+		assert.Equal(t, 401, unauth.Code)
+		assert.Contains(t, unauth.Message, "authentication")
+	})
+
+	t.Run("WhenNewOntapClientFromContextFails_ReturnsInternalServerError", func(t *testing.T) {
+		oldSetup := setupCredentialsForHandler
+		oldEnsure := ensureCertificateOrPassword
+		oldNewClient := newOntapClientFromContext
+		defer func() {
+			setupCredentialsForHandler = oldSetup
+			ensureCertificateOrPassword = oldEnsure
+			newOntapClientFromContext = oldNewClient
+		}()
+		setupCredentialsForHandler = func(ctx context.Context, _, _ string, _ string) (context.Context, error) {
+			return ctx, nil
+		}
+		ensureCertificateOrPassword = func(context.Context) error { return nil }
+		newOntapClientFromContext = func(context.Context) (*handlers.OntapClient, error) {
+			return nil, errors.New("no client")
+		}
+
+		handler := Handler{}
+		req := &oasgenserver.AccessTokenRequest{
+			ClientID:     oasgenserver.NewOptString("app"),
+			ClientSecret: oasgenserver.NewOptString("secret"),
+			GrantType:    oasgenserver.NewOptAccessTokenRequestGrantType(oasgenserver.AccessTokenRequestGrantTypeClientCredentials),
+		}
+
+		res, err := handler.V1ClusterLicensingAccessTokensCreate(context.Background(), req, params)
+
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		internalErr, ok := res.(*oasgenserver.V1ClusterLicensingAccessTokensCreateInternalServerError)
+		require.True(t, ok, "expected InternalServerError, got %T", res)
+		assert.Equal(t, 500, internalErr.Code)
+		assert.Contains(t, internalErr.Message, "failed to connect to ONTAP")
+	})
+
+	t.Run("WhenOntapReturns200InvalidJSON_ReturnsInternalServerError", func(t *testing.T) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("not json"))
+		}))
+		defer server.Close()
+
+		endpoint := server.Listener.Addr().String()
+		cacheKey := "auth:licensing-test-200-invalid"
+		authData := &models.AuthData{
+			AuthType:    models.USERNAME_PWD,
+			Username:    "u",
+			Password:    "p",
+			PoolID:      cacheKey,
+			AccountName: "test",
+			OntapEndpoints: []models.OntapEndpoint{
+				{DNS: endpoint, IP: endpoint},
+			},
+		}
+		cache.AddToAuthDataCache(cacheKey, authData)
+		defer cache.RemoveFromAuthDataCache(cacheKey)
+
+		oldSetup := setupCredentialsForHandler
+		oldEnsure := ensureCertificateOrPassword
+		defer func() {
+			setupCredentialsForHandler = oldSetup
+			ensureCertificateOrPassword = oldEnsure
+		}()
+		setupCredentialsForHandler = func(ctx context.Context, _, _ string, _ string) (context.Context, error) {
+			return context.WithValue(ctx, models.AuthDataKey, cacheKey), nil
+		}
+		ensureCertificateOrPassword = func(context.Context) error { return nil }
+
+		handler := Handler{}
+		req := &oasgenserver.AccessTokenRequest{
+			ClientID:     oasgenserver.NewOptString("app"),
+			ClientSecret: oasgenserver.NewOptString("secret"),
+			GrantType:    oasgenserver.NewOptAccessTokenRequestGrantType(oasgenserver.AccessTokenRequestGrantTypeClientCredentials),
+		}
+
+		res, err := handler.V1ClusterLicensingAccessTokensCreate(context.Background(), req, params)
+
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		internalErr, ok := res.(*oasgenserver.V1ClusterLicensingAccessTokensCreateInternalServerError)
+		require.True(t, ok, "expected InternalServerError, got %T", res)
+		assert.Equal(t, 500, internalErr.Code)
+		assert.Contains(t, internalErr.Message, "invalid ONTAP response")
+	})
+
+	t.Run("WhenOntapReturns200ValidJSON_ReturnsAccessTokenInfo", func(t *testing.T) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"access_token":"tok123","expires_in":3600,"token_type":"bearer"}`))
+		}))
+		defer server.Close()
+
+		endpoint := server.Listener.Addr().String()
+		cacheKey := "auth:licensing-test-200-valid"
+		authData := &models.AuthData{
+			AuthType:    models.USERNAME_PWD,
+			Username:    "u",
+			Password:    "p",
+			PoolID:      cacheKey,
+			AccountName: "test",
+			OntapEndpoints: []models.OntapEndpoint{
+				{DNS: endpoint, IP: endpoint},
+			},
+		}
+		cache.AddToAuthDataCache(cacheKey, authData)
+		defer cache.RemoveFromAuthDataCache(cacheKey)
+
+		oldSetup := setupCredentialsForHandler
+		oldEnsure := ensureCertificateOrPassword
+		defer func() {
+			setupCredentialsForHandler = oldSetup
+			ensureCertificateOrPassword = oldEnsure
+		}()
+		setupCredentialsForHandler = func(ctx context.Context, _, _ string, _ string) (context.Context, error) {
+			return context.WithValue(ctx, models.AuthDataKey, cacheKey), nil
+		}
+		ensureCertificateOrPassword = func(context.Context) error { return nil }
+
+		handler := Handler{}
+		req := &oasgenserver.AccessTokenRequest{
+			ClientID:     oasgenserver.NewOptString("app"),
+			ClientSecret: oasgenserver.NewOptString("secret"),
+			GrantType:    oasgenserver.NewOptAccessTokenRequestGrantType(oasgenserver.AccessTokenRequestGrantTypeClientCredentials),
+		}
+
+		res, err := handler.V1ClusterLicensingAccessTokensCreate(context.Background(), req, params)
+
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		info, ok := res.(*oasgenserver.AccessTokenInfo)
+		require.True(t, ok, "expected AccessTokenInfo, got %T", res)
+		assert.True(t, info.AccessToken.Set)
+		assert.Equal(t, "tok123", info.AccessToken.Value)
+	})
+
+	t.Run("WhenOntapReturnsNon200_ReturnsErrorStatusCode", func(t *testing.T) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"error":{"message":"invalid_grant","code":"400"}}`))
+		}))
+		defer server.Close()
+
+		endpoint := server.Listener.Addr().String()
+		cacheKey := "auth:licensing-test-non200"
+		authData := &models.AuthData{
+			AuthType:    models.USERNAME_PWD,
+			Username:    "u",
+			Password:    "p",
+			PoolID:      cacheKey,
+			AccountName: "test",
+			OntapEndpoints: []models.OntapEndpoint{
+				{DNS: endpoint, IP: endpoint},
+			},
+		}
+		cache.AddToAuthDataCache(cacheKey, authData)
+		defer cache.RemoveFromAuthDataCache(cacheKey)
+
+		oldSetup := setupCredentialsForHandler
+		oldEnsure := ensureCertificateOrPassword
+		defer func() {
+			setupCredentialsForHandler = oldSetup
+			ensureCertificateOrPassword = oldEnsure
+		}()
+		setupCredentialsForHandler = func(ctx context.Context, _, _ string, _ string) (context.Context, error) {
+			return context.WithValue(ctx, models.AuthDataKey, cacheKey), nil
+		}
+		ensureCertificateOrPassword = func(context.Context) error { return nil }
+
+		handler := Handler{}
+		req := &oasgenserver.AccessTokenRequest{
+			ClientID:     oasgenserver.NewOptString("app"),
+			ClientSecret: oasgenserver.NewOptString("secret"),
+			GrantType:    oasgenserver.NewOptAccessTokenRequestGrantType(oasgenserver.AccessTokenRequestGrantTypeClientCredentials),
+		}
+
+		res, err := handler.V1ClusterLicensingAccessTokensCreate(context.Background(), req, params)
+
+		require.Error(t, err)
+		require.Nil(t, res)
+		sc, ok := err.(*oasgenserver.ErrorStatusCode)
+		require.True(t, ok, "expected ErrorStatusCode, got %T", err)
+		assert.Equal(t, 400, sc.StatusCode)
+		assert.Equal(t, 400, sc.Response.Code)
+		assert.Contains(t, sc.Response.Message, "invalid_grant")
 	})
 }

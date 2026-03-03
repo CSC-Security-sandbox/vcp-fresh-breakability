@@ -13,6 +13,10 @@ type SnaplockFileDeleteRes interface {
 	snaplockFileDeleteRes()
 }
 
+type V1ClusterLicensingAccessTokensCreateRes interface {
+	v1ClusterLicensingAccessTokensCreateRes()
+}
+
 type V1PrivateCliRes interface {
 	v1PrivateCliRes()
 }

@@ -13,6 +13,160 @@ func (s *ErrorStatusCode) Error() string {
 	return fmt.Sprintf("code %d: %+v", s.StatusCode, s.Response)
 }
 
+// Access token information (same as ONTAP access_token_info).
+// Ref: #/components/schemas/AccessTokenInfo
+type AccessTokenInfo struct {
+	// Access token that is used by the ISV application to access the protected APIs.
+	AccessToken OptString `json:"access_token"`
+	// Number of seconds after which an access token expires.
+	ExpiresIn OptInt64 `json:"expires_in"`
+	// Access token type.
+	TokenType OptAccessTokenInfoTokenType `json:"token_type"`
+}
+
+// GetAccessToken returns the value of AccessToken.
+func (s *AccessTokenInfo) GetAccessToken() OptString {
+	return s.AccessToken
+}
+
+// GetExpiresIn returns the value of ExpiresIn.
+func (s *AccessTokenInfo) GetExpiresIn() OptInt64 {
+	return s.ExpiresIn
+}
+
+// GetTokenType returns the value of TokenType.
+func (s *AccessTokenInfo) GetTokenType() OptAccessTokenInfoTokenType {
+	return s.TokenType
+}
+
+// SetAccessToken sets the value of AccessToken.
+func (s *AccessTokenInfo) SetAccessToken(val OptString) {
+	s.AccessToken = val
+}
+
+// SetExpiresIn sets the value of ExpiresIn.
+func (s *AccessTokenInfo) SetExpiresIn(val OptInt64) {
+	s.ExpiresIn = val
+}
+
+// SetTokenType sets the value of TokenType.
+func (s *AccessTokenInfo) SetTokenType(val OptAccessTokenInfoTokenType) {
+	s.TokenType = val
+}
+
+func (*AccessTokenInfo) v1ClusterLicensingAccessTokensCreateRes() {}
+
+// Access token type.
+type AccessTokenInfoTokenType string
+
+const (
+	AccessTokenInfoTokenTypeBearer AccessTokenInfoTokenType = "bearer"
+)
+
+// AllValues returns all AccessTokenInfoTokenType values.
+func (AccessTokenInfoTokenType) AllValues() []AccessTokenInfoTokenType {
+	return []AccessTokenInfoTokenType{
+		AccessTokenInfoTokenTypeBearer,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AccessTokenInfoTokenType) MarshalText() ([]byte, error) {
+	switch s {
+	case AccessTokenInfoTokenTypeBearer:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AccessTokenInfoTokenType) UnmarshalText(data []byte) error {
+	switch AccessTokenInfoTokenType(data) {
+	case AccessTokenInfoTokenTypeBearer:
+		*s = AccessTokenInfoTokenTypeBearer
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Request an access token (same as ONTAP access_token_request).
+// Ref: #/components/schemas/AccessTokenRequest
+type AccessTokenRequest struct {
+	// Name of the ISV application requesting an access token.
+	ClientID OptString `json:"client_id"`
+	// Content of the ISV license.
+	ClientSecret OptString `json:"client_secret"`
+	// ISV application grant type.
+	GrantType OptAccessTokenRequestGrantType `json:"grant_type"`
+}
+
+// GetClientID returns the value of ClientID.
+func (s *AccessTokenRequest) GetClientID() OptString {
+	return s.ClientID
+}
+
+// GetClientSecret returns the value of ClientSecret.
+func (s *AccessTokenRequest) GetClientSecret() OptString {
+	return s.ClientSecret
+}
+
+// GetGrantType returns the value of GrantType.
+func (s *AccessTokenRequest) GetGrantType() OptAccessTokenRequestGrantType {
+	return s.GrantType
+}
+
+// SetClientID sets the value of ClientID.
+func (s *AccessTokenRequest) SetClientID(val OptString) {
+	s.ClientID = val
+}
+
+// SetClientSecret sets the value of ClientSecret.
+func (s *AccessTokenRequest) SetClientSecret(val OptString) {
+	s.ClientSecret = val
+}
+
+// SetGrantType sets the value of GrantType.
+func (s *AccessTokenRequest) SetGrantType(val OptAccessTokenRequestGrantType) {
+	s.GrantType = val
+}
+
+// ISV application grant type.
+type AccessTokenRequestGrantType string
+
+const (
+	AccessTokenRequestGrantTypeClientCredentials AccessTokenRequestGrantType = "client_credentials"
+)
+
+// AllValues returns all AccessTokenRequestGrantType values.
+func (AccessTokenRequestGrantType) AllValues() []AccessTokenRequestGrantType {
+	return []AccessTokenRequestGrantType{
+		AccessTokenRequestGrantTypeClientCredentials,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AccessTokenRequestGrantType) MarshalText() ([]byte, error) {
+	switch s {
+	case AccessTokenRequestGrantTypeClientCredentials:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AccessTokenRequestGrantType) UnmarshalText(data []byte) error {
+	switch AccessTokenRequestGrantType(data) {
+	case AccessTokenRequestGrantTypeClientCredentials:
+		*s = AccessTokenRequestGrantTypeClientCredentials
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Request to execute an ONTAP CLI command.
 // Ref: #/components/schemas/CLIExecuteRequest
 type CLIExecuteRequest struct {
@@ -343,6 +497,98 @@ func (s *JobLink) SetLinks(val OptSelfLink) {
 // SetUUID sets the value of UUID.
 func (s *JobLink) SetUUID(val OptString) {
 	s.UUID = val
+}
+
+// NewOptAccessTokenInfoTokenType returns new OptAccessTokenInfoTokenType with value set to v.
+func NewOptAccessTokenInfoTokenType(v AccessTokenInfoTokenType) OptAccessTokenInfoTokenType {
+	return OptAccessTokenInfoTokenType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptAccessTokenInfoTokenType is optional AccessTokenInfoTokenType.
+type OptAccessTokenInfoTokenType struct {
+	Value AccessTokenInfoTokenType
+	Set   bool
+}
+
+// IsSet returns true if OptAccessTokenInfoTokenType was set.
+func (o OptAccessTokenInfoTokenType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptAccessTokenInfoTokenType) Reset() {
+	var v AccessTokenInfoTokenType
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptAccessTokenInfoTokenType) SetTo(v AccessTokenInfoTokenType) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptAccessTokenInfoTokenType) Get() (v AccessTokenInfoTokenType, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptAccessTokenInfoTokenType) Or(d AccessTokenInfoTokenType) AccessTokenInfoTokenType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptAccessTokenRequestGrantType returns new OptAccessTokenRequestGrantType with value set to v.
+func NewOptAccessTokenRequestGrantType(v AccessTokenRequestGrantType) OptAccessTokenRequestGrantType {
+	return OptAccessTokenRequestGrantType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptAccessTokenRequestGrantType is optional AccessTokenRequestGrantType.
+type OptAccessTokenRequestGrantType struct {
+	Value AccessTokenRequestGrantType
+	Set   bool
+}
+
+// IsSet returns true if OptAccessTokenRequestGrantType was set.
+func (o OptAccessTokenRequestGrantType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptAccessTokenRequestGrantType) Reset() {
+	var v AccessTokenRequestGrantType
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptAccessTokenRequestGrantType) SetTo(v AccessTokenRequestGrantType) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptAccessTokenRequestGrantType) Get() (v AccessTokenRequestGrantType, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptAccessTokenRequestGrantType) Or(d AccessTokenRequestGrantType) AccessTokenRequestGrantType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
 }
 
 // NewOptBool returns new OptBool with value set to v.
@@ -1012,6 +1258,27 @@ func (s *SnaplockFileRetentionJobLinkResponse) SetRecords(val []SnaplockFileRete
 }
 
 func (*SnaplockFileRetentionJobLinkResponse) snaplockFileDeleteRes() {}
+
+type V1ClusterLicensingAccessTokensCreateBadRequest Error
+
+func (*V1ClusterLicensingAccessTokensCreateBadRequest) v1ClusterLicensingAccessTokensCreateRes() {}
+
+type V1ClusterLicensingAccessTokensCreateForbidden Error
+
+func (*V1ClusterLicensingAccessTokensCreateForbidden) v1ClusterLicensingAccessTokensCreateRes() {}
+
+type V1ClusterLicensingAccessTokensCreateInternalServerError Error
+
+func (*V1ClusterLicensingAccessTokensCreateInternalServerError) v1ClusterLicensingAccessTokensCreateRes() {
+}
+
+type V1ClusterLicensingAccessTokensCreateNotFound Error
+
+func (*V1ClusterLicensingAccessTokensCreateNotFound) v1ClusterLicensingAccessTokensCreateRes() {}
+
+type V1ClusterLicensingAccessTokensCreateUnauthorized Error
+
+func (*V1ClusterLicensingAccessTokensCreateUnauthorized) v1ClusterLicensingAccessTokensCreateRes() {}
 
 type V1PrivateCliBadRequest Error
 

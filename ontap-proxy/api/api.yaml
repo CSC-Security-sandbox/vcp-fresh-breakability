@@ -12,6 +12,8 @@ tags:
     description: SnapLock file operations
   - name: cli
     description: ONTAP CLI command execution
+  - name: licensing
+    description: Cluster licensing operations (admin credentials)
 paths:
   /health:
     get:
@@ -178,6 +180,54 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/cluster/licensing/access-tokens:
+    post:
+      operationId: v1_clusterLicensingAccessTokensCreate
+      summary: Request an access token
+      description: |
+        Requests an access token (same as ONTAP REST POST /api/cluster/licensing/access-tokens).
+        
+        This operation:
+        1. Fetches admin credentials for the pool
+        2. Forwards the request body to ONTAP POST /api/cluster/licensing/access-tokens
+        3. Returns the access token information from ONTAP
+        
+        Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
+      tags:
+        - licensing
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/poolIdPathParameter'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccessTokenRequest'
+      responses:
+        '200':
+          description: Access token information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessTokenInfo'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   parameters:
     projectNumberPathParameter:
@@ -272,6 +322,47 @@ components:
           format: date-time
           description: Timestamp when the entry will expire
           example: "2025-12-29T10:30:00Z"
+    # Aligned with ontap-rest swagger definitions access_token_request and access_token_info
+    AccessTokenRequest:
+      type: object
+      title: AccessTokenRequest
+      description: Request an access token (same as ONTAP access_token_request).
+      properties:
+        client_id:
+          type: string
+          description: Name of the ISV application requesting an access token.
+          example: XYZ Software
+        client_secret:
+          type: string
+          description: Content of the ISV license.
+        grant_type:
+          type: string
+          description: ISV application grant type.
+          enum:
+            - client_credentials
+          default: client_credentials
+          example: client_credentials
+    AccessTokenInfo:
+      type: object
+      title: AccessTokenInfo
+      description: Access token information (same as ONTAP access_token_info).
+      properties:
+        access_token:
+          type: string
+          description: Access token that is used by the ISV application to access the protected APIs.
+        expires_in:
+          type: integer
+          format: int64
+          description: Number of seconds after which an access token expires.
+          default: 604800
+          example: 1036800
+        token_type:
+          type: string
+          description: Access token type.
+          enum:
+            - bearer
+          default: bearer
+          example: bearer
     CLIExecuteRequest:
       type: object
       title: CLIExecuteRequest

@@ -239,6 +239,44 @@ func (c *OntapClient) ExecuteCLI(ctx context.Context, command, privilege string)
 	return &cliResp, nil
 }
 
+// ExecuteAPI sends an HTTP request to the given ONTAP API path.
+// method is the HTTP method (GET, POST, PATCH, DELETE, etc.). For GET/DELETE body may be nil; for POST/PATCH body is the request body.
+// Returns the response body, status code, and an error only for transport/read failures.
+// For HTTP 4xx/5xx, err is nil and the caller should interpret statusCode and body.
+func (c *OntapClient) ExecuteAPI(ctx context.Context, method, apiPath string, body []byte) (respBody []byte, statusCode int, err error) {
+	var bodyReader io.Reader
+	if len(body) > 0 {
+		bodyReader = bytes.NewReader(body)
+	}
+	url := fmt.Sprintf("https://%s%s", c.endpoint, apiPath)
+	req, err := http.NewRequestWithContext(ctx, method, url, bodyReader)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to create request: %w", err)
+	}
+	c.setAuthHeaders(req)
+	req.Header.Set("Accept", "application/json")
+	if len(body) > 0 {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, 0, fmt.Errorf("request failed: %w", err)
+	}
+	defer func() {
+		if resp.Body != nil {
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+		}
+	}()
+
+	respBody, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, resp.StatusCode, fmt.Errorf("failed to read response: %w", err)
+	}
+	return respBody, resp.StatusCode, nil
+}
+
 // setAuthHeaders sets the appropriate authentication headers on the request
 // based on the auth type (certificate or basic auth).
 func (c *OntapClient) setAuthHeaders(req *http.Request) {

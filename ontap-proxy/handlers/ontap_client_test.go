@@ -438,3 +438,129 @@ func TestOntapClient_setAuthHeaders(t *testing.T) {
 		assert.Empty(t, req.Header.Get("Authorization"))
 	})
 }
+
+func TestOntapClient_ExecuteAPI(t *testing.T) {
+	t.Run("successfully returns 200 and body", func(t *testing.T) {
+		body := []byte(`{"access_token":"tok123","expires_in":3600}`)
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodPost, r.Method)
+			assert.Equal(t, "/api/cluster/licensing/access-tokens", r.URL.Path)
+			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+			assert.Equal(t, "application/json", r.Header.Get("Accept"))
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write(body)
+		}))
+		defer server.Close()
+
+		client := &OntapClient{
+			httpClient: server.Client(),
+			endpoint:   server.Listener.Addr().String(),
+			authData: &models.AuthData{
+				AuthType: models.USERNAME_PWD,
+				Username: "u",
+				Password: "p",
+			},
+		}
+
+		respBody, statusCode, err := client.ExecuteAPI(context.Background(), http.MethodPost, "/api/cluster/licensing/access-tokens", []byte(`{"client_id":"x"}`))
+
+		require.NoError(t, err)
+		assert.Equal(t, 200, statusCode)
+		assert.Equal(t, body, respBody)
+	})
+
+	t.Run("GET with nil body", func(t *testing.T) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodGet, r.Method)
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{}`))
+		}))
+		defer server.Close()
+
+		client := &OntapClient{
+			httpClient: server.Client(),
+			endpoint:   server.Listener.Addr().String(),
+			authData: &models.AuthData{
+				AuthType: models.USERNAME_PWD,
+				Username: "u",
+				Password: "p",
+			},
+		}
+
+		respBody, statusCode, err := client.ExecuteAPI(context.Background(), http.MethodGet, "/api/foo", nil)
+
+		require.NoError(t, err)
+		assert.Equal(t, 200, statusCode)
+		assert.Equal(t, []byte(`{}`), respBody)
+	})
+
+	t.Run("returns status code and body on non-200", func(t *testing.T) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"error":{"message":"bad"}}`))
+		}))
+		defer server.Close()
+
+		client := &OntapClient{
+			httpClient: server.Client(),
+			endpoint:   server.Listener.Addr().String(),
+			authData: &models.AuthData{
+				AuthType: models.USERNAME_PWD,
+				Username: "u",
+				Password: "p",
+			},
+		}
+
+		respBody, statusCode, err := client.ExecuteAPI(context.Background(), http.MethodPost, "/api/bar", []byte("{}"))
+
+		require.NoError(t, err)
+		assert.Equal(t, 400, statusCode)
+		assert.Equal(t, []byte(`{"error":{"message":"bad"}}`), respBody)
+	})
+
+	t.Run("returns error when request fails", func(t *testing.T) {
+		client := &OntapClient{
+			httpClient: &http.Client{},
+			endpoint:   "127.0.0.1:1",
+			authData: &models.AuthData{
+				AuthType: models.USERNAME_PWD,
+				Username: "u",
+				Password: "p",
+			},
+		}
+
+		respBody, statusCode, err := client.ExecuteAPI(context.Background(), http.MethodGet, "/api/foo", nil)
+
+		assert.Error(t, err)
+		assert.Nil(t, respBody)
+		assert.Equal(t, 0, statusCode)
+		assert.Contains(t, err.Error(), "request failed")
+	})
+
+	t.Run("POST with non-empty body sets Content-Type and reads then closes response body", func(t *testing.T) {
+		body := []byte(`{"key":"value"}`)
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "application/json", r.Header.Get("Content-Type"), "Content-Type must be set when body is non-empty")
+			assert.Equal(t, "application/json", r.Header.Get("Accept"))
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"ok":true}`))
+		}))
+		defer server.Close()
+
+		client := &OntapClient{
+			httpClient: server.Client(),
+			endpoint:   server.Listener.Addr().String(),
+			authData: &models.AuthData{
+				AuthType: models.USERNAME_PWD,
+				Username: "u",
+				Password: "p",
+			},
+		}
+
+		respBody, statusCode, err := client.ExecuteAPI(context.Background(), http.MethodPost, "/api/test", body)
+
+		require.NoError(t, err)
+		assert.Equal(t, 200, statusCode)
+		assert.Equal(t, []byte(`{"ok":true}`), respBody)
+	})
+}

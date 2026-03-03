@@ -111,6 +111,9 @@ func setupHTTPServer(handler http.Handler) *http.Server {
 		// CLI execute - delegated to ogen server which handles auth and CLI rules internally
 		r.Post("/api/private/cli", handler.ServeHTTP)
 
+		// Cluster licensing access token API uses admin credentials and is handled by ogen server
+		r.Post("/api/cluster/licensing/access-tokens", handler.ServeHTTP)
+
 		// Passthrough routes (chi middleware for reverse proxy)
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.URLValidationMiddleware())
