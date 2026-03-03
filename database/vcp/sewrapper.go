@@ -3279,6 +3279,22 @@ func (re *retryEngine) DeleteBackupVaultInVCP(ctx context.Context, backupVaultId
 	return var0, err
 }
 
+func (re *retryEngine) RestoreDeletedBackupVault(ctx context.Context, backupVaultUUID string, accountID int64, state, stateDetails string) (*datamodel.BackupVault, error) {
+	var var0 *datamodel.BackupVault
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.RestoreDeletedBackupVault(ctx, backupVaultUUID, accountID, state, stateDetails)
+		if err != nil {
+			re.logError("RestoreDeletedBackupVault", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetVolumeCountByBackupVaultID(ctx context.Context, backupVaultUUID string) (int64, error) {
 	var var0 int64
 	err := retry.Do(func(attempt int) (bool, error) {

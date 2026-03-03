@@ -950,6 +950,62 @@ func TestReturnsErrorWhenStateUpdateFails(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
+func TestUpdateDeletedBackupVaultStateInCaseOfErrorSuccess(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.Background()
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "bv-uuid"},
+		AccountID: 1,
+		Name:      "test-vault",
+	}
+	state := coremodels.LifeCycleStateREADY
+	stateDetails := coremodels.LifeCycleStateAvailableDetails
+
+	restored := &datamodel.BackupVault{
+		BaseModel:             datamodel.BaseModel{UUID: "bv-uuid"},
+		AccountID:             1,
+		Name:                  "test-vault",
+		LifeCycleState:        state,
+		LifeCycleStateDetails: stateDetails,
+	}
+
+	mockStorage.On("RestoreDeletedBackupVault", ctx, "bv-uuid", int64(1), state, stateDetails).Return(restored, nil).Once()
+
+	activity := BackupVaultActivity{
+		SE: mockStorage,
+	}
+
+	err := activity.UpdateDeletedBackupVaultStateInCaseOfError(ctx, backupVault, state, stateDetails)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateDeletedBackupVaultStateInCaseOfErrorFailure(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	ctx := context.Background()
+
+	backupVault := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "bv-uuid"},
+		AccountID: 1,
+		Name:      "test-vault",
+	}
+	state := coremodels.LifeCycleStateREADY
+	stateDetails := coremodels.LifeCycleStateAvailableDetails
+
+	mockStorage.On("RestoreDeletedBackupVault", ctx, "bv-uuid", int64(1), state, stateDetails).Return(nil, errors.New("restore failed")).Once()
+
+	activity := BackupVaultActivity{
+		SE: mockStorage,
+	}
+
+	err := activity.UpdateDeletedBackupVaultStateInCaseOfError(ctx, backupVault, state, stateDetails)
+
+	assert.Error(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
 func TestDeletesBackupVaultSuccessfullyFromSDE(t *testing.T) {
 	mockClient := backup_vault.NewMockClientService(t)
 	ctx := context.Background()

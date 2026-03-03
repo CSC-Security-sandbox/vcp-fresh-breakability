@@ -46,6 +46,33 @@ func (d *DataStoreRepository) DeleteBackupVaultInVCP(ctx context.Context, backup
 	return dbBackupVault, nil
 }
 
+func (d *DataStoreRepository) RestoreDeletedBackupVault(ctx context.Context, backupVaultUUID string, accountID int64, state, stateDetails string) (*datamodel.BackupVault, error) {
+	db := d.db.GORM().WithContext(ctx)
+	logger := util.GetLogger(ctx)
+
+	tx, err := startTransaction(db)
+	if err != nil {
+		return nil, err
+	}
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	var bv datamodel.BackupVault
+	err = tx.Unscoped().Preload("Account").Where("uuid = ? AND account_id = ?", backupVaultUUID, accountID).First(&bv).Error
+	if err != nil {
+		return nil, err
+	}
+
+	bv.DeletedAt = nil
+	bv.LifeCycleState = state
+	bv.LifeCycleStateDetails = stateDetails
+	err = tx.Unscoped().Save(&bv).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &bv, nil
+}
+
 func (d *DataStoreRepository) UpdateBackupVaultInVCP(ctx context.Context, sdeBackupVault *datamodel.BackupVault, dbBackupVault *datamodel.BackupVault) (*datamodel.BackupVault, error) {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)

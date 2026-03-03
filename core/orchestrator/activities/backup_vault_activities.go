@@ -935,6 +935,22 @@ func (j *BackupVaultActivity) UpdateBackupVaultStateInCaseOfError(ctx context.Co
 	return nil
 }
 
+func (j *BackupVaultActivity) UpdateDeletedBackupVaultStateInCaseOfError(ctx context.Context, backupVault *datamodel.BackupVault, state, stateDetails string) error {
+	logger := util.GetLogger(ctx)
+	se := j.SE
+
+	logger.Infof("UpdateDeletedBackupVaultStateInCaseOfError: restoring backup vault %s to state=%q stateDetails=%q",
+		backupVault.UUID, state, stateDetails)
+
+	_, err := se.RestoreDeletedBackupVault(ctx, backupVault.UUID, backupVault.AccountID, state, stateDetails)
+	if err != nil {
+		logger.Errorf("Failed to restore deleted backup vault state in case of error: %v", err)
+		return err
+	}
+
+	return nil
+}
+
 // DeleteBackupVaultBuckets deletes all buckets associated with a backup vault
 func (j *BackupVaultActivity) DeleteBackupVaultBuckets(ctx context.Context, backupVault *datamodel.BackupVault) error {
 	if backupVault == nil {

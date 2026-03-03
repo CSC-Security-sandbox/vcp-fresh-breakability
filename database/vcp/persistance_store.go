@@ -1090,6 +1090,10 @@ func (s *PersistenceStore) GetBackupVaultByUUIDndOwnerID(ctx context.Context, ba
 	return s.dataStore.GetBackupVaultByUUIDndOwnerID(ctx, backupVaultUUID, accountID)
 }
 
+func (s *PersistenceStore) RestoreDeletedBackupVault(ctx context.Context, backupVaultUUID string, accountID int64, state, stateDetails string) (*datamodel.BackupVault, error) {
+	return s.dataStore.RestoreDeletedBackupVault(ctx, backupVaultUUID, accountID, state, stateDetails)
+}
+
 func (s *PersistenceStore) GetBackupVaultByExternalUUIDAndOwnerID(ctx context.Context, externalUUID string, accountID int64) (*datamodel.BackupVault, error) {
 	return s.dataStore.GetBackupVaultByExternalUUIDAndOwnerID(ctx, externalUUID, accountID)
 }

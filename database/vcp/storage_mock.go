@@ -15233,6 +15233,68 @@ func (_c *MockStorage_ReplaceDstQuotaRulesWithSrc_Call) RunAndReturn(run func(co
 	return _c
 }
 
+// RestoreDeletedBackupVault provides a mock function with given fields: ctx, backupVaultUUID, accountID, state, stateDetails
+func (_m *MockStorage) RestoreDeletedBackupVault(ctx context.Context, backupVaultUUID string, accountID int64, state string, stateDetails string) (*datamodel.BackupVault, error) {
+	ret := _m.Called(ctx, backupVaultUUID, accountID, state, stateDetails)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RestoreDeletedBackupVault")
+	}
+
+	var r0 *datamodel.BackupVault
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, string, string) (*datamodel.BackupVault, error)); ok {
+		return rf(ctx, backupVaultUUID, accountID, state, stateDetails)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64, string, string) *datamodel.BackupVault); ok {
+		r0 = rf(ctx, backupVaultUUID, accountID, state, stateDetails)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.BackupVault)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64, string, string) error); ok {
+		r1 = rf(ctx, backupVaultUUID, accountID, state, stateDetails)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_RestoreDeletedBackupVault_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RestoreDeletedBackupVault'
+type MockStorage_RestoreDeletedBackupVault_Call struct {
+	*mock.Call
+}
+
+// RestoreDeletedBackupVault is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupVaultUUID string
+//   - accountID int64
+//   - state string
+//   - stateDetails string
+func (_e *MockStorage_Expecter) RestoreDeletedBackupVault(ctx interface{}, backupVaultUUID interface{}, accountID interface{}, state interface{}, stateDetails interface{}) *MockStorage_RestoreDeletedBackupVault_Call {
+	return &MockStorage_RestoreDeletedBackupVault_Call{Call: _e.mock.On("RestoreDeletedBackupVault", ctx, backupVaultUUID, accountID, state, stateDetails)}
+}
+
+func (_c *MockStorage_RestoreDeletedBackupVault_Call) Run(run func(ctx context.Context, backupVaultUUID string, accountID int64, state string, stateDetails string)) *MockStorage_RestoreDeletedBackupVault_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(int64), args[3].(string), args[4].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_RestoreDeletedBackupVault_Call) Return(_a0 *datamodel.BackupVault, _a1 error) *MockStorage_RestoreDeletedBackupVault_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_RestoreDeletedBackupVault_Call) RunAndReturn(run func(context.Context, string, int64, string, string) (*datamodel.BackupVault, error)) *MockStorage_RestoreDeletedBackupVault_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // RevertedVolume provides a mock function with given fields: ctx, volume, snapshot
 func (_m *MockStorage) RevertedVolume(ctx context.Context, volume *datamodel.Volume, snapshot *datamodel.Snapshot) ([]*datamodel.Snapshot, error) {
 	ret := _m.Called(ctx, volume, snapshot)

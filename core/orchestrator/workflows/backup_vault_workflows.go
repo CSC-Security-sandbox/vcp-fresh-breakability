@@ -235,7 +235,7 @@ func (wf *backupVaultDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 
 	defer func() {
 		if err != nil {
-			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultStateInCaseOfError, backupVault, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil)
+			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateDeletedBackupVaultStateInCaseOfError, backupVault, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil)
 		}
 	}()
 
@@ -246,17 +246,7 @@ func (wf *backupVaultDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 	}
 	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
 
-	// Delete associated buckets
-	err = workflow.ExecuteActivity(ctx, backupVaultActivity.DeleteBackupVaultBuckets, backupVault).Get(ctx, nil)
-	if err != nil {
-		// We may fail to delete the buckets as there might be some backups which will be later deleted by Ontap GC.
-		wf.Logger.Error("Failed to delete backup vault buckets", log.Fields{
-			"error":  err,
-			"params": backupVault,
-		})
-	}
-
-	// Delete backup vault in VCP database
+	// Step 1: Soft-delete backup vault in VCP database (state → DELETED, DeletedAt set)
 	dbBackupVault := &datamodel.BackupVault{}
 	err = workflow.ExecuteActivity(ctx, backupVaultActivity.DeleteBackupVaultInVCP, bvCommonParams.BackupVaultID).Get(ctx, &dbBackupVault)
 	if err != nil {
@@ -267,6 +257,7 @@ func (wf *backupVaultDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 		return nil, ConvertToVSAError(fmt.Errorf("DeleteBackupVaultInVCP failed: %w", err))
 	}
 
+	// Step 2: Delete backup vault in SDE
 	sdeBackupVault := &datamodel.BackupVault{}
 	err = workflow.ExecuteActivity(ctx, backupVaultActivity.DeleteBackupVaultInSDE, bvCommonParams).Get(ctx, &sdeBackupVault)
 	if err != nil {
@@ -277,7 +268,9 @@ func (wf *backupVaultDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 		return nil, ConvertToVSAError(fmt.Errorf("DeleteBackupVaultInSDE failed: %w", err))
 	}
 
-	if dbBackupVault.BackupVaultType == activities.CrossRegionBackupType && *dbBackupVault.BackupRegionName != "" {
+	// Step 3: Delete remote backup vault in VCP (cross-region only)
+	if dbBackupVault.BackupVaultType == activities.CrossRegionBackupType &&
+		dbBackupVault.BackupRegionName != nil && *dbBackupVault.BackupRegionName != "" {
 		remoteParams := *bvCommonParams
 		remoteParams.BackupRegion = dbBackupVault.BackupRegionName
 
@@ -290,6 +283,15 @@ func (wf *backupVaultDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 			})
 			return nil, ConvertToVSAError(fmt.Errorf("DeleteRemoteBackupVaultInVCP failed: %w", err))
 		}
+	}
+
+	// Step 4: Delete associated buckets (non-fatal — retries already exhausted by Temporal retry policy)
+	bucketErr := workflow.ExecuteActivity(ctx, backupVaultActivity.DeleteBackupVaultBuckets, backupVault).Get(ctx, nil)
+	if bucketErr != nil {
+		wf.Logger.Error("Failed to delete backup vault buckets", log.Fields{
+			"error":  bucketErr,
+			"params": backupVault,
+		})
 	}
 
 	return dbBackupVault, nil
