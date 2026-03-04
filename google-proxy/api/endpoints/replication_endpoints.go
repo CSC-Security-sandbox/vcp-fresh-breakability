@@ -16,7 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -130,7 +130,7 @@ func (h Handler) V1betaGetMultipleReplications(ctx context.Context, req *gcpgens
 		}, nil
 	}
 
-	getReplicationParams := common.GetMultipleReplicationsParams{
+	getReplicationParams := commonparams.GetMultipleReplicationsParams{
 		ReplicationURIs:  req.GetReplicationUris(),
 		AccountName:      params.ProjectNumber,
 		LocationId:       params.LocationId,
@@ -158,8 +158,7 @@ func (h Handler) V1betaGetMultipleReplications(ctx context.Context, req *gcpgens
 
 	if len(vcpReplications) == len(replicationURIs) {
 		logger.Infof("Returning %d replications found in VCP", len(vcpReplications))
-		reps := make([]gcpgenserver.ReplicationV1beta, len(vcpReplications))
-		copy(reps, vcpReplications)
+		reps := convertCommonReplicationV1betaToGcp(vcpReplications)
 		return &gcpgenserver.V1betaGetMultipleReplicationsOK{Replications: reps}, nil
 	}
 
@@ -245,7 +244,8 @@ func (h Handler) V1betaGetMultipleReplications(ctx context.Context, req *gcpgens
 	}
 	// append the replications found in VCP
 	if len(vcpReplications) > 0 {
-		replicationResp.Replications = append(replicationResp.Replications, vcpReplications...)
+		convertedVcpReplications := convertCommonReplicationV1betaToGcp(vcpReplications)
+		replicationResp.Replications = append(replicationResp.Replications, convertedVcpReplications...)
 	}
 
 	return &replicationResp, nil
@@ -274,7 +274,7 @@ func (h Handler) V1betaEstablishPeering(ctx context.Context, req *gcpgenserver.E
 		}, nil
 	}
 
-	establishPeeringParams := &common.EstablishReplicationPeeringParams{
+	establishPeeringParams := &commonparams.EstablishReplicationPeeringParams{
 		AccountName:           params.ProjectNumber,
 		Region:                region,
 		Zone:                  zone,
@@ -327,7 +327,7 @@ func (h Handler) V1betaEstablishPeering(ctx context.Context, req *gcpgenserver.E
 	}, nil
 }
 
-func _validateReplicationURIList(param common.GetMultipleReplicationsParams) error {
+func _validateReplicationURIList(param commonparams.GetMultipleReplicationsParams) error {
 	for _, uri := range param.ReplicationURIs {
 		err := utils.ValidateCcfeReplicationUri(uri)
 		if err != nil {
@@ -430,6 +430,142 @@ func convertToReplicationV1Beta(replication *models.ReplicationV1beta) gcpgenser
 	return replicationResp
 }
 
+// convertCommonReplicationV1betaToGcp converts []commonparams.ReplicationV1beta to []gcpgenserver.ReplicationV1beta
+func convertCommonReplicationV1betaToGcp(commonReplications []commonparams.ReplicationV1beta) []gcpgenserver.ReplicationV1beta {
+	gcpReplications := make([]gcpgenserver.ReplicationV1beta, 0, len(commonReplications))
+	for _, commonRepl := range commonReplications {
+		gcpRepl := gcpgenserver.ReplicationV1beta{}
+
+		if commonRepl.ReplicationId != nil {
+			gcpRepl.ReplicationId = gcpgenserver.NewOptString(*commonRepl.ReplicationId)
+		}
+		if commonRepl.ResourceId != nil {
+			gcpRepl.ResourceId = gcpgenserver.NewOptString(*commonRepl.ResourceId)
+		}
+		if commonRepl.Description != nil {
+			gcpRepl.Description = gcpgenserver.NewOptString(*commonRepl.Description)
+		}
+		if commonRepl.Source != nil {
+			src := gcpgenserver.ReplicationVolumeInformationV1beta{}
+			if commonRepl.Source.VolumeName != nil {
+				src.VolumeName = gcpgenserver.NewOptString(*commonRepl.Source.VolumeName)
+			}
+			if commonRepl.Source.VolumeId != nil {
+				src.VolumeId = gcpgenserver.NewOptString(*commonRepl.Source.VolumeId)
+			}
+			gcpRepl.Source = gcpgenserver.NewOptReplicationVolumeInformationV1beta(src)
+		}
+		if commonRepl.Destination != nil {
+			dst := gcpgenserver.ReplicationVolumeInformationV1beta{}
+			if commonRepl.Destination.VolumeName != nil {
+				dst.VolumeName = gcpgenserver.NewOptString(*commonRepl.Destination.VolumeName)
+			}
+			if commonRepl.Destination.VolumeId != nil {
+				dst.VolumeId = gcpgenserver.NewOptString(*commonRepl.Destination.VolumeId)
+			}
+			gcpRepl.Destination = gcpgenserver.NewOptReplicationVolumeInformationV1beta(dst)
+		}
+		if commonRepl.State != nil {
+			gcpRepl.State = gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaState(*commonRepl.State))
+		}
+		if commonRepl.StateDetails != nil {
+			gcpRepl.StateDetails = gcpgenserver.NewOptString(*commonRepl.StateDetails)
+		}
+		if commonRepl.StateDetailsCode != nil {
+			gcpRepl.StateDetailsCode = gcpgenserver.NewOptInt32(*commonRepl.StateDetailsCode)
+		}
+		if commonRepl.Role != nil {
+			gcpRepl.Role = gcpgenserver.NewOptReplicationV1betaRole(gcpgenserver.ReplicationV1betaRole(*commonRepl.Role))
+		}
+		if commonRepl.ReplicationSchedule != nil {
+			gcpRepl.ReplicationSchedule = gcpgenserver.NewOptReplicationV1betaReplicationSchedule(gcpgenserver.ReplicationV1betaReplicationSchedule(*commonRepl.ReplicationSchedule))
+		}
+		if commonRepl.MirrorState != nil {
+			gcpRepl.MirrorState = gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorState(*commonRepl.MirrorState))
+		}
+		if commonRepl.Healthy != nil {
+			gcpRepl.Healthy = gcpgenserver.NewOptBool(*commonRepl.Healthy)
+		}
+		if commonRepl.TransferStats != nil {
+			ts := gcpgenserver.TransferStatsV1beta{}
+			if commonRepl.TransferStats.TotalTransferBytes != nil {
+				ts.TotalTransferBytes = gcpgenserver.NewOptFloat64(*commonRepl.TransferStats.TotalTransferBytes)
+			}
+			if commonRepl.TransferStats.TotalTransferTimeSecs != nil {
+				ts.TotalTransferTimeSecs = gcpgenserver.NewOptFloat64(*commonRepl.TransferStats.TotalTransferTimeSecs)
+			}
+			if commonRepl.TransferStats.LastTransferSize != nil {
+				ts.LastTransferSize = gcpgenserver.NewOptFloat64(*commonRepl.TransferStats.LastTransferSize)
+			}
+			if commonRepl.TransferStats.LastTransferError != nil {
+				ts.LastTransferError = gcpgenserver.NewOptString(*commonRepl.TransferStats.LastTransferError)
+			}
+			if commonRepl.TransferStats.LastTransferDuration != nil {
+				ts.LastTransferDuration = gcpgenserver.NewOptFloat64(*commonRepl.TransferStats.LastTransferDuration)
+			}
+			if commonRepl.TransferStats.LastTransferEndTime != nil {
+				ts.LastTransferEndTime = gcpgenserver.NewOptDateTime(*commonRepl.TransferStats.LastTransferEndTime)
+			}
+			if commonRepl.TransferStats.TotalProgress != nil {
+				ts.TotalProgress = gcpgenserver.NewOptFloat64(*commonRepl.TransferStats.TotalProgress)
+			}
+			if commonRepl.TransferStats.ProgressLastUpdated != nil {
+				ts.ProgressLastUpdated = gcpgenserver.NewOptDateTime(*commonRepl.TransferStats.ProgressLastUpdated)
+			}
+			if commonRepl.TransferStats.LagTime != nil {
+				ts.LagTime = gcpgenserver.NewOptFloat64(*commonRepl.TransferStats.LagTime)
+			}
+			gcpRepl.TransferStats = gcpgenserver.NewOptTransferStatsV1beta(ts)
+		}
+		if commonRepl.Created != nil {
+			gcpRepl.Created = gcpgenserver.NewOptDateTime(*commonRepl.Created)
+		}
+		if commonRepl.Labels != nil {
+			gcpRepl.Labels = gcpgenserver.NewOptReplicationV1betaLabels(gcpgenserver.ReplicationV1betaLabels(commonRepl.Labels))
+		}
+		if commonRepl.ClusterLocation != nil {
+			gcpRepl.ClusterLocation = gcpgenserver.NewOptString(*commonRepl.ClusterLocation)
+		}
+		if commonRepl.HybridReplicationType != nil {
+			gcpRepl.HybridReplicationType = gcpgenserver.NewOptReplicationV1betaHybridReplicationType(gcpgenserver.ReplicationV1betaHybridReplicationType(*commonRepl.HybridReplicationType))
+		}
+		if commonRepl.HybridPeeringDetails != nil {
+			commonPeering := commonRepl.HybridPeeringDetails
+			gcpPeering := gcpgenserver.HybridPeeringV1beta{}
+			if commonPeering.SubnetIp != nil {
+				gcpPeering.SubnetIp = gcpgenserver.NewOptString(*commonPeering.SubnetIp)
+			}
+			if commonPeering.Command != nil {
+				gcpPeering.Command = gcpgenserver.NewOptString(*commonPeering.Command)
+			}
+			if commonPeering.Passphrase != nil {
+				gcpPeering.Passphrase = gcpgenserver.NewOptString(*commonPeering.Passphrase)
+			}
+			if commonPeering.CommandExpiryTime != nil {
+				gcpPeering.CommandExpiryTime = gcpgenserver.NewOptDateTime(*commonPeering.CommandExpiryTime)
+			}
+			if commonPeering.PeerVolumeName != nil {
+				gcpPeering.PeerVolumeName = gcpgenserver.NewOptString(*commonPeering.PeerVolumeName)
+			}
+			if commonPeering.PeerClusterName != nil {
+				gcpPeering.PeerClusterName = gcpgenserver.NewOptString(*commonPeering.PeerClusterName)
+			}
+			if commonPeering.PeerSvmName != nil {
+				gcpPeering.PeerSvmName = gcpgenserver.NewOptString(*commonPeering.PeerSvmName)
+			}
+			gcpRepl.HybridPeeringDetails = gcpgenserver.NewOptHybridPeeringV1beta(gcpPeering)
+		}
+		if commonRepl.HybridReplicationUserCommands != nil {
+			gcpRepl.HybridReplicationUserCommands = gcpgenserver.NewOptHybridReplicationUserCommandsV1beta(gcpgenserver.HybridReplicationUserCommandsV1beta{
+				Commands: commonRepl.HybridReplicationUserCommands.Commands,
+			})
+		}
+
+		gcpReplications = append(gcpReplications, gcpRepl)
+	}
+	return gcpReplications
+}
+
 func convertVolumeInfoToReplicationVolumeInformationV1beta(in *models.ReplicationVolumeInformationV1beta) *gcpgenserver.ReplicationVolumeInformationV1beta {
 	if in == nil {
 		return nil
@@ -444,8 +580,8 @@ func convertVolumeInfoToReplicationVolumeInformationV1beta(in *models.Replicatio
 	}
 }
 
-func prepareCreateVolumeReplicationParams(req *gcpgenserver.ReplicationCreateV1beta, params gcpgenserver.V1betaCreateReplicationParams, region, zone string) *common.CreateVolumeReplicationParams {
-	replication := common.CreateVolumeReplicationParams{
+func prepareCreateVolumeReplicationParams(req *gcpgenserver.ReplicationCreateV1beta, params gcpgenserver.V1betaCreateReplicationParams, region, zone string) *commonparams.CreateVolumeReplicationParams {
+	replication := commonparams.CreateVolumeReplicationParams{
 		AccountName:      params.ProjectNumber,
 		Region:           region,
 		LocationId:       region,
@@ -507,7 +643,7 @@ func (h Handler) V1betaResumeReplication(ctx context.Context, params gcpgenserve
 		}, nil
 	}
 
-	resumeReplicationParams := &common.ResumeReplicationParams{
+	resumeReplicationParams := &commonparams.ResumeReplicationParams{
 		AccountName:           params.ProjectNumber,
 		Region:                region,
 		Zone:                  zone,
@@ -580,7 +716,7 @@ func (h Handler) V1betaUpdateReplication(ctx context.Context, req *gcpgenserver.
 		}, nil
 	}
 
-	updateReplicationParams := &common.UpdateReplicationParams{
+	updateReplicationParams := &commonparams.UpdateReplicationParams{
 		AccountName:           params.ProjectNumber,
 		Region:                region,
 		Zone:                  zone,
@@ -678,7 +814,7 @@ func (h Handler) V1betaDeleteReplication(ctx context.Context, req *gcpgenserver.
 		}
 	}
 
-	deleteReplicationParams := &common.DeleteReplicationParams{
+	deleteReplicationParams := &commonparams.DeleteReplicationParams{
 		AccountName:           params.ProjectNumber,
 		Region:                region,
 		CorrelationId:         params.XCorrelationID.Value,
@@ -799,7 +935,7 @@ func (h Handler) V1betaStopReplication(ctx context.Context, req *gcpgenserver.Re
 		}, nil
 	}
 
-	stopReplicationParams := &common.StopReplicationParams{
+	stopReplicationParams := &commonparams.StopReplicationParams{
 		AccountName:           params.ProjectNumber,
 		Region:                region,
 		Zone:                  zone,
@@ -872,7 +1008,7 @@ func (h Handler) V1betaSyncReplication(ctx context.Context, params gcpgenserver.
 		}, nil
 	}
 
-	syncReplicationParams := &common.ResumeReplicationParams{
+	syncReplicationParams := &commonparams.ResumeReplicationParams{
 		AccountName:           params.ProjectNumber,
 		Region:                region,
 		Zone:                  zone,
@@ -947,7 +1083,7 @@ func (h Handler) V1betaReverseAndResumeReplication(ctx context.Context, params g
 		}, nil
 	}
 
-	reverseAndResumeParams := &common.ReverseAndResumeReplicationParams{
+	reverseAndResumeParams := &commonparams.ReverseAndResumeReplicationParams{
 		AccountName:           params.ProjectNumber,
 		Region:                region,
 		Zone:                  zone,
@@ -1010,7 +1146,7 @@ func (h Handler) V1betaListReplications(ctx context.Context, params gcpgenserver
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 
-	getReplicationParams := common.GetMultipleReplicationsParams{
+	getReplicationParams := commonparams.GetMultipleReplicationsParams{
 		ReplicationURIs: nil,
 		AccountName:     params.ProjectNumber,
 		LocationId:      params.LocationId,
@@ -1040,7 +1176,7 @@ func (h Handler) V1betaListReplications(ctx context.Context, params gcpgenserver
 
 	// Execute both calls in parallel
 	type vcpResult struct {
-		replications []gcpgenserver.ReplicationV1beta
+		replications []commonparams.ReplicationV1beta
 		err          error
 	}
 	type cvpResult struct {
@@ -1145,7 +1281,8 @@ func (h Handler) V1betaListReplications(ctx context.Context, params gcpgenserver
 		}
 		logger.Errorf("Error getting replications from CVP: %v", cvpRes.err)
 		// If CVP call fails, still return VCP results
-		return &gcpgenserver.V1betaListReplicationsOK{Replications: vcpRes.replications}, nil
+		gcpReplications := convertCommonReplicationV1betaToGcp(vcpRes.replications)
+		return &gcpgenserver.V1betaListReplicationsOK{Replications: gcpReplications}, nil
 	}
 
 	replicationResp := gcpgenserver.V1betaListReplicationsOK{
@@ -1161,7 +1298,8 @@ func (h Handler) V1betaListReplications(ctx context.Context, params gcpgenserver
 
 	// Append VCP replications
 	if len(vcpRes.replications) > 0 {
-		replicationResp.Replications = append(replicationResp.Replications, vcpRes.replications...)
+		gcpReplications := convertCommonReplicationV1betaToGcp(vcpRes.replications)
+		replicationResp.Replications = append(replicationResp.Replications, gcpReplications...)
 	}
 
 	return &replicationResp, nil

@@ -14,8 +14,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	vcpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -35,7 +35,7 @@ func TestV1betaCreateActiveDirectory_Success(t *testing.T) {
 		utils.SyncADCreateSDEEnabled = originalSyncADCreateSDEEnabled
 	}()
 
-	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 	handler := Handler{Orchestrator: mockOrchestrator}
 	mockAD := &vcpModels.ActiveDirectory{
 		BaseModel: vcpModels.BaseModel{
@@ -171,7 +171,7 @@ func TestV1betaCreateActiveDirectory_OnlyRequiredFields_Success(t *testing.T) {
 	cvp.CVP_HOST = "localhost:8009"
 	defer func() { cvp.CVP_HOST = originalCVPHost }()
 
-	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 	handler := Handler{Orchestrator: mockOrchestrator}
 	mockAD := &vcpModels.ActiveDirectory{
 		BaseModel: vcpModels.BaseModel{
@@ -220,7 +220,7 @@ func TestV1betaCreateActiveDirectory_BadRequest(t *testing.T) {
 	cvp.CVP_HOST = "localhost:8009"
 	defer func() { cvp.CVP_HOST = originalCVPHost }()
 
-	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 	handler := Handler{Orchestrator: mockOrchestrator}
 	mockOrchestrator.On("CreateActiveDirectory", mock.Anything, mock.Anything).Return(nil, "", customerrors.NewUserInputValidationErr("bad request"))
 	handler.Orchestrator = mockOrchestrator
@@ -239,7 +239,7 @@ func TestV1betaCreateActiveDirectory_InternalServerError(t *testing.T) {
 	cvp.CVP_HOST = "localhost:8009"
 	defer func() { cvp.CVP_HOST = originalCVPHost }()
 
-	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 	handler := Handler{Orchestrator: mockOrchestrator}
 	mockOrchestrator.On("CreateActiveDirectory", mock.Anything, mock.Anything).Return(nil, "", errors.New("internal error"))
 	handler.Orchestrator = mockOrchestrator
@@ -258,7 +258,7 @@ func TestV1betaCreateActiveDirectory_Conflict(t *testing.T) {
 	cvp.CVP_HOST = "localhost:8009"
 	defer func() { cvp.CVP_HOST = originalCVPHost }()
 
-	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 	handler := Handler{Orchestrator: mockOrchestrator}
 	mockOrchestrator.On("CreateActiveDirectory", mock.Anything, mock.Anything).Return(nil, "", customerrors.NewConflictErr("Active Directory with the given name already exists"))
 	handler.Orchestrator = mockOrchestrator
@@ -354,7 +354,7 @@ func TestV1betaCreateActiveDirectory_SyncModeDisabled_UsesOrchestrator(t *testin
 		utils.SyncADCreateSDEEnabled = originalSyncADCreateSDEEnabled
 	}()
 
-	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 	handler := Handler{Orchestrator: mockOrchestrator}
 	mockAD := &vcpModels.ActiveDirectory{
 		BaseModel: vcpModels.BaseModel{
@@ -412,7 +412,7 @@ func TestV1betaCreateActiveDirectory_VCPMode_UsesOrchestrator(t *testing.T) {
 		utils.SyncADCreateSDEEnabled = originalSyncADCreateSDEEnabled
 	}()
 
-	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 	handler := Handler{Orchestrator: mockOrchestrator}
 	mockAD := &vcpModels.ActiveDirectory{
 		BaseModel: vcpModels.BaseModel{
@@ -1064,7 +1064,7 @@ func TestV1betaListActiveDirectories(t *testing.T) {
 	createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 		return *cvpClient
 	}
-	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 	mockOrchestrator.On("ListActiveDirectories", mock.Anything, params.ProjectNumber).Return([]*vcpModels.ActiveDirectory{}, nil)
 	handler := Handler{Orchestrator: mockOrchestrator}
 	// Call the method under test
@@ -1138,7 +1138,7 @@ func TestV1betaListActiveDirectories_XCorrelationIDForwarding(t *testing.T) {
 		return *cvpClient
 	}
 
-	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 	mockOrchestrator.On("ListActiveDirectories", mock.Anything, params.ProjectNumber).Return([]*vcpModels.ActiveDirectory{}, nil)
 	handler := Handler{Orchestrator: mockOrchestrator}
 
@@ -1164,7 +1164,7 @@ func TestV1betaDeleteActiveDirectory(t *testing.T) {
 		cvp.CVP_HOST = "localhost:8009"
 		defer func() { cvp.CVP_HOST = originalCVPHost }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 
 		// Define input parameters
 		params := gcpgenserver.V1betaDeleteActiveDirectoryParams{
@@ -1197,7 +1197,7 @@ func TestV1betaDeleteActiveDirectory(t *testing.T) {
 		cvp.CVP_HOST = "localhost:8009"
 		defer func() { cvp.CVP_HOST = originalCVPHost }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 
 		// Define input parameters
 		params := gcpgenserver.V1betaDeleteActiveDirectoryParams{
@@ -1223,7 +1223,7 @@ func TestV1betaDeleteActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenDeleteActiveDirectoryFailsWithConflict", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 
 		// Define input parameters
 		params := gcpgenserver.V1betaDeleteActiveDirectoryParams{
@@ -1257,7 +1257,7 @@ func TestV1betaDeleteActiveDirectory(t *testing.T) {
 		cvp.CVP_HOST = "localhost:8009"
 		defer func() { cvp.CVP_HOST = originalCVPHost }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 
 		// Define input parameters
 		params := gcpgenserver.V1betaDeleteActiveDirectoryParams{
@@ -1286,7 +1286,7 @@ func TestV1betaDeleteActiveDirectory(t *testing.T) {
 
 	t.Run("WhenDeleteActiveDirectoryAlreadyDeleted", func(t *testing.T) {
 		// Create a mock orchestrator
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 
 		// Define input parameters
 		params := gcpgenserver.V1betaDeleteActiveDirectoryParams{
@@ -1316,7 +1316,7 @@ func TestV1betaDeleteActiveDirectory(t *testing.T) {
 // V1betaUpdateActiveDirectory unittests
 func TestV1betaUpdateActiveDirectory(t *testing.T) {
 	t.Run("WhenUpdateActiveDirectorySuccess", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		mockAD := &vcpModels.ActiveDirectory{
@@ -1382,7 +1382,7 @@ func TestV1betaUpdateActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateActiveDirectoryFailsWithBadRequest", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		mockOrchestrator.On("UpdateActiveDirectory", mock.Anything, mock.Anything).Return(nil, "", customerrors.NewUserInputValidationErr("invalid input"))
@@ -1410,7 +1410,7 @@ func TestV1betaUpdateActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateActiveDirectoryFailsWithInternalServerError", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		mockOrchestrator.On("UpdateActiveDirectory", mock.Anything, mock.Anything).Return(nil, "", errors.New("internal server error"))
@@ -1438,7 +1438,7 @@ func TestV1betaUpdateActiveDirectory(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateActiveDirectoryOnlyRequiredFields", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		mockAD := &vcpModels.ActiveDirectory{
@@ -1544,7 +1544,7 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		mockOrchestrator.On("GetMultipleActiveDirectories", mock.Anything, req.ActiveDirectoryUuids).Return([]*vcpModels.ActiveDirectory{
 			{
 				BaseModel: vcpModels.BaseModel{
@@ -1959,7 +1959,7 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 		cvp.CVP_HOST = ""
 		defer func() { cvp.CVP_HOST = originalCVPHost }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaGetMultipleActiveDirectoriesParams{
@@ -2036,7 +2036,7 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 		cvp.CVP_HOST = ""
 		defer func() { cvp.CVP_HOST = originalCVPHost }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaGetMultipleActiveDirectoriesParams{
@@ -2137,7 +2137,7 @@ func TestV1betaGetMultipleActiveDirectories(t *testing.T) {
 		}
 
 		// Set up mock orchestrator for VCP data merging
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		mockOrchestrator.On("GetMultipleActiveDirectories", mock.Anything, req.ActiveDirectoryUuids).Return([]*vcpModels.ActiveDirectory{}, nil)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
@@ -2165,7 +2165,7 @@ func TestV1betaDescribeActiveDirectory_VCPPath(t *testing.T) {
 		cvp.CVP_HOST = ""
 		defer func() { cvp.CVP_HOST = originalCVPHost }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaDescribeActiveDirectoryParams{
@@ -2228,7 +2228,7 @@ func TestV1betaDescribeActiveDirectory_VCPPath(t *testing.T) {
 		cvp.CVP_HOST = ""
 		defer func() { cvp.CVP_HOST = originalCVPHost }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaDescribeActiveDirectoryParams{
@@ -2260,7 +2260,7 @@ func TestV1betaDescribeActiveDirectory_VCPPath(t *testing.T) {
 		cvp.CVP_HOST = ""
 		defer func() { cvp.CVP_HOST = originalCVPHost }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaDescribeActiveDirectoryParams{
@@ -2293,7 +2293,7 @@ func TestV1betaListActiveDirectories_VCPPath(t *testing.T) {
 		cvp.CVP_HOST = ""
 		defer func() { cvp.CVP_HOST = originalCVPHost }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaListActiveDirectoriesParams{
@@ -2366,7 +2366,7 @@ func TestV1betaListActiveDirectories_VCPPath(t *testing.T) {
 		cvp.CVP_HOST = ""
 		defer func() { cvp.CVP_HOST = originalCVPHost }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaListActiveDirectoriesParams{
@@ -2393,7 +2393,7 @@ func TestV1betaListActiveDirectories_VCPPath(t *testing.T) {
 		cvp.CVP_HOST = ""
 		defer func() { cvp.CVP_HOST = originalCVPHost }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaListActiveDirectoriesParams{
@@ -2652,7 +2652,7 @@ func TestV1betaCreateActiveDirectory_PasswordEncryption(t *testing.T) {
 		cvp.CVP_HOST = "localhost:8009"
 		defer func() { cvp.CVP_HOST = originalCVPHost }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		// Mock successful AD creation
@@ -2712,7 +2712,7 @@ func TestV1betaCreateActiveDirectory_PasswordEncryption(t *testing.T) {
 		}
 		defer func() { utils.EncryptPassword = originalEncryptPassword }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		req := &gcpgenserver.ActiveDirectoryV1beta{
@@ -2744,7 +2744,7 @@ func TestV1betaUpdateActiveDirectory_PasswordEncryption(t *testing.T) {
 		cvp.CVP_HOST = "localhost:8009"
 		defer func() { cvp.CVP_HOST = originalCVPHost }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		mockAD := &vcpModels.ActiveDirectory{
@@ -2793,7 +2793,7 @@ func TestV1betaUpdateActiveDirectory_PasswordEncryption(t *testing.T) {
 		}
 		defer func() { utils.EncryptPassword = originalEncryptPassword }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		req := &gcpgenserver.ActiveDirectoryUpdateV1beta{
@@ -2819,7 +2819,7 @@ func TestV1betaUpdateActiveDirectory_PasswordEncryption(t *testing.T) {
 		cvp.CVP_HOST = "localhost:8009"
 		defer func() { cvp.CVP_HOST = originalCVPHost }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		mockAD := &vcpModels.ActiveDirectory{

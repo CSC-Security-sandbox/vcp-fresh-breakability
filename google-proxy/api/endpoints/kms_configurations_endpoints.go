@@ -15,8 +15,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	coremodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory/gcp"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -1060,7 +1060,7 @@ func convertToOperationV1beta(res *models.OperationV1beta) *gcpgenserver.Operati
 }
 
 func convertToKmsConfigV1beta(res *models.KmsConfigV1beta) *gcpgenserver.KmsConfigV1beta {
-	newState, stateDetails := orchestrator.ConvertKmsConfigStateV1beta(res.KmsState, res.KmsStateDetails)
+	newState, stateDetails := gcp.ConvertKmsConfigStateV1beta(res.KmsState, res.KmsStateDetails)
 	state := gcpgenserver.KmsConfigV1betaKmsState(newState)
 	kmsConfigV1beta := &gcpgenserver.KmsConfigV1beta{
 		UUID:            gcpgenserver.NewOptString(res.UUID),
@@ -1290,7 +1290,7 @@ func _encodeEncryptVolumeV1beta(encryptVolumeV1beta *models.EncryptVolumeV1beta)
 
 // convertModelToKmsConfigV1Beta converts a vsaModel.KmsConfig to gcpgenserver.KmsConfigV1beta
 func convertModelToKmsConfigV1Beta(kmsConfig *coremodel.KmsConfig) *gcpgenserver.KmsConfigV1beta {
-	state, stateDetails := orchestrator.ConvertKmsConfigStateV1beta(kmsConfig.State, kmsConfig.StateDetails)
+	state, stateDetails := gcp.ConvertKmsConfigStateV1beta(kmsConfig.State, kmsConfig.StateDetails)
 	model := &gcpgenserver.KmsConfigV1beta{
 		UUID:            gcpgenserver.NewOptString(kmsConfig.UUID),
 		KmsState:        gcpgenserver.NewOptKmsConfigV1betaKmsState(gcpgenserver.KmsConfigV1betaKmsState(state)),

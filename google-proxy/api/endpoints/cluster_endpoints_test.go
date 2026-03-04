@@ -8,15 +8,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
 func TestV1BetaInternalAcceptClusterPeer(t *testing.T) {
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaInternalAcceptClusterPeerParams{
 			LocationId:    "invalid-location-id",
 			ProjectNumber: "project-number",
@@ -48,7 +48,7 @@ func TestV1BetaInternalAcceptClusterPeer(t *testing.T) {
 		assert.Equal(tt, "Invalid location ID", result.(*gcpgenserver.V1betaInternalAcceptClusterPeerBadRequest).Message)
 	})
 	t.Run("WhenOrchestratorFailsToAcceptClusterPeer", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaInternalAcceptClusterPeerParams{
 			LocationId:    "valid-location-id",
 			ProjectNumber: "project-number",
@@ -75,7 +75,7 @@ func TestV1BetaInternalAcceptClusterPeer(t *testing.T) {
 		assert.NotNil(tt, result)
 	})
 	t.Run("WhenAllInputsAreValid", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaInternalAcceptClusterPeerParams{
 			LocationId:    "valid-location-id",
 			ProjectNumber: "project-number",

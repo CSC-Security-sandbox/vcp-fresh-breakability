@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilserrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -24,7 +24,7 @@ func TestV1RotateGcpKmsConfig_Success(t *testing.T) {
 	}()
 	kmsRotationEnabled = true
 
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 	handler := NewHandler(mockOrch)
 
 	// Test data
@@ -127,7 +127,7 @@ func TestV1RotateGcpKmsConfig_WithCorrelationID(t *testing.T) {
 	}()
 	kmsRotationEnabled = true
 
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 	handler := NewHandler(mockOrch)
 
 	// Test data
@@ -194,7 +194,7 @@ func TestV1RotateGcpKmsConfig_KmsConfigNotFound(t *testing.T) {
 	}()
 	kmsRotationEnabled = true
 
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 	handler := NewHandler(mockOrch)
 
 	kmsConfigUUID := "non-existent-uuid"
@@ -242,7 +242,7 @@ func TestV1RotateGcpKmsConfig_BadRequestError(t *testing.T) {
 	}()
 	kmsRotationEnabled = true
 
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 	handler := NewHandler(mockOrch)
 
 	kmsConfigUUID := "test-kms-config-uuid"
@@ -291,7 +291,7 @@ func TestV1RotateGcpKmsConfig_ConflictError(t *testing.T) {
 	}()
 	kmsRotationEnabled = true
 
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 	handler := NewHandler(mockOrch)
 
 	kmsConfigUUID := "test-kms-config-uuid"
@@ -339,7 +339,7 @@ func TestV1RotateGcpKmsConfig_InternalServerError(t *testing.T) {
 	}()
 	kmsRotationEnabled = true
 
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 	handler := NewHandler(mockOrch)
 
 	kmsConfigUUID := "test-kms-config-uuid"
@@ -387,7 +387,7 @@ func TestV1RotateGcpKmsConfig_RotationDisabled(t *testing.T) {
 	}()
 	kmsRotationEnabled = false
 
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 	handler := NewHandler(mockOrch)
 
 	kmsConfigUUID := "test-kms-config-uuid"
@@ -426,7 +426,7 @@ func TestV1RotateGcpKmsConfig_RotationEnabled(t *testing.T) {
 	}()
 	kmsRotationEnabled = true
 
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 	handler := NewHandler(mockOrch)
 
 	kmsConfigUUID := "test-kms-config-uuid"

@@ -12,7 +12,7 @@ import (
 
 // V1GetMultipleReplicationsByExternalUUID handles requests to get multiple replications by external UUID
 func (h Handler) V1GetMultipleReplicationsByExternalUUID(ctx context.Context, params oasgenserver.V1GetMultipleReplicationsByExternalUUIDParams) (oasgenserver.V1GetMultipleReplicationsByExternalUUIDRes, error) {
-	// Parse the comma-separated external UUIDs
+	// Parse the comma-separated external	 UUIDs
 	uuidStrings := strings.Split(params.ExternalUuids, ",")
 	externalUUIDs := make([]string, len(uuidStrings))
 	for i, uuid := range uuidStrings {
@@ -37,10 +37,10 @@ func (h Handler) V1GetMultipleReplicationsByExternalUUID(ctx context.Context, pa
 		return nil, err
 	}
 
-	// Convert GCP types to core-api types
+	// Convert common types to core-api types
 	var coreReplications []oasgenserver.ReplicationV1
 	for _, replication := range replications {
-		coreReplication := convertGcpGenServerToCoreReplication(replication)
+		coreReplication := convertCommonReplicationV1betaToCoreReplication(replication)
 		coreReplications = append(coreReplications, coreReplication)
 	}
 
@@ -48,6 +48,55 @@ func (h Handler) V1GetMultipleReplicationsByExternalUUID(ctx context.Context, pa
 	return &oasgenserver.V1GetMultipleReplicationsByExternalUUIDOK{
 		Replications: coreReplications,
 	}, nil
+}
+
+// convertCommonReplicationV1betaToCoreReplication converts a commonparams.ReplicationV1beta to oasgenserver.ReplicationV1
+func convertCommonReplicationV1betaToCoreReplication(commonReplication commonparams.ReplicationV1beta) oasgenserver.ReplicationV1 {
+	getString := func(s *string) string {
+		if s != nil {
+			return *s
+		}
+		return ""
+	}
+	getTime := func(t *time.Time) time.Time {
+		if t != nil {
+			return *t
+		}
+		return time.Time{}
+	}
+	getState := func(s *string) oasgenserver.ReplicationV1State {
+		if s != nil {
+			return mapGcpStateToCore(*s)
+		}
+		return oasgenserver.ReplicationV1StateSTATEUNSPECIFIED
+	}
+
+	return oasgenserver.ReplicationV1{
+		ReplicationId: oasgenserver.OptString{
+			Value: getString(commonReplication.ReplicationId),
+			Set:   commonReplication.ReplicationId != nil,
+		},
+		ResourceId: oasgenserver.OptString{
+			Value: getString(commonReplication.ResourceId),
+			Set:   commonReplication.ResourceId != nil,
+		},
+		Description: oasgenserver.OptNilString{
+			Value: getString(commonReplication.Description),
+			Set:   commonReplication.Description != nil,
+		},
+		State: oasgenserver.OptReplicationV1State{
+			Value: getState(commonReplication.State),
+			Set:   commonReplication.State != nil,
+		},
+		StateDetails: oasgenserver.OptString{
+			Value: getString(commonReplication.StateDetails),
+			Set:   commonReplication.StateDetails != nil,
+		},
+		Created: oasgenserver.OptDateTime{
+			Value: getTime(commonReplication.Created),
+			Set:   commonReplication.Created != nil,
+		},
+	}
 }
 
 // convertGcpGenServerToCoreReplication converts a gcpgenserver.ReplicationV1beta to oasgenserver.ReplicationV1

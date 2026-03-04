@@ -109,7 +109,7 @@ packages:
       dir: "{{.InterfaceDir}}"
     interfaces:
       Logger:
-  github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator:
+  github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory:
     config:
       inpackage: True
       dir: "{{.InterfaceDir}}"

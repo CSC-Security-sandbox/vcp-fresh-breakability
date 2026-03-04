@@ -13,8 +13,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -879,11 +879,11 @@ func _updateBackupVaultInSDE(ctx context.Context, req *gcpgenserver.BackupVaultU
 	return convertOperationToOperationV1Beta(vault.Payload), nil
 }
 
-func _validateBackupPoliciesForBackupVault(ctx context.Context, backupVault *coremodels.BackupVaultV1beta, newRetentionParams *commonparams.BackupRetentionPolicyParams, o orchestrator.OrchestratorFactory) error {
+func _validateBackupPoliciesForBackupVault(ctx context.Context, backupVault *coremodels.BackupVaultV1beta, newRetentionParams *commonparams.BackupRetentionPolicyParams, o factory.OrchestratorFactory) error {
 	return _validateBackupPoliciesForBackupVaultWithRetry(ctx, backupVault, newRetentionParams, o, commonparams.MaxRetries, commonparams.RetryDelay)
 }
 
-func _validateBackupPoliciesForBackupVaultWithRetry(ctx context.Context, backupVault *coremodels.BackupVaultV1beta, newRetentionParams *commonparams.BackupRetentionPolicyParams, o orchestrator.OrchestratorFactory, maxRetries int, retryInterval time.Duration) error {
+func _validateBackupPoliciesForBackupVaultWithRetry(ctx context.Context, backupVault *coremodels.BackupVaultV1beta, newRetentionParams *commonparams.BackupRetentionPolicyParams, o factory.OrchestratorFactory, maxRetries int, retryInterval time.Duration) error {
 	logger := util.GetLogger(ctx)
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
@@ -932,7 +932,7 @@ func isBackupPolicyRetryableError(err error) bool {
 	return false
 }
 
-func _performBackupPolicyValidation(ctx context.Context, backupVault *coremodels.BackupVaultV1beta, newRetentionParams *commonparams.BackupRetentionPolicyParams, o orchestrator.OrchestratorFactory) error {
+func _performBackupPolicyValidation(ctx context.Context, backupVault *coremodels.BackupVaultV1beta, newRetentionParams *commonparams.BackupRetentionPolicyParams, o factory.OrchestratorFactory) error {
 	logger := util.GetLogger(ctx)
 	// Get all backup policy UUIDs associated with this backup vault
 	backupPolicyUUIDs, err := o.GetBackupPolicyUUIDsFromBackupVaultUUID(ctx, backupVault.BackupVaultID, backupVault.AccountName)

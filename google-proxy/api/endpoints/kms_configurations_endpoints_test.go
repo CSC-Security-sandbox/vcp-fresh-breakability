@@ -17,8 +17,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaCoreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -46,7 +46,7 @@ func TestParseCmekSupervisorGracePeriod_Invalid(t *testing.T) {
 
 // V1betaCreateKmsConfiguration unittests
 func TestV1betaCreateKmsConfigurations(t *testing.T) {
-	expectCreateJobMaybe := func(mockOrchestrator *orchestrator.MockOrchestratorFactory) {
+	expectCreateJobMaybe := func(mockOrchestrator *factory.MockOrchestratorFactory) {
 		job := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "sde-job-id"}}
 		mockOrchestrator.EXPECT().CreateJob(mock.Anything, mock.Anything).
 			Maybe().
@@ -100,7 +100,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.Equal(t, "LocationID represents neither a region nor a zone", result.(*gcpgenserver.V1betaCreateKmsConfigurationBadRequest).Message)
 	})
 	t.Run("CreateKmsConfigurationFailsWithConflictError", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
@@ -164,7 +164,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.Equal(t, float64(400), result.(*gcpgenserver.V1betaCreateKmsConfigurationBadRequest).Code)
 	})
 	t.Run("CreateKmsConfigurationFails", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
@@ -209,7 +209,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.Equal(t, float64(500), result.(*gcpgenserver.V1betaCreateKmsConfigurationInternalServerError).Code)
 	})
 	t.Run("V1betaCreateKmsConfigurationFails", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
@@ -247,7 +247,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.Equal(t, float64(500), result.(*gcpgenserver.V1betaCreateKmsConfigurationInternalServerError).Code)
 	})
 	t.Run("ParseKmsConfigResponseFails", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
@@ -296,7 +296,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.Equal(t, float64(500), result.(*gcpgenserver.V1betaCreateKmsConfigurationInternalServerError).Code)
 	})
 	t.Run("CreateKmsConfigurationSuccess", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
@@ -347,7 +347,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.Equal(t, operationID, result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
 	t.Run("GetKmsConfigByKeyFullPathFails", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
@@ -371,7 +371,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.Equal(t, float64(500), result.(*gcpgenserver.V1betaCreateKmsConfigurationInternalServerError).Code)
 	})
 	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInErrorState", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
@@ -398,7 +398,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.NotNil(t, result)
 	})
 	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInCreatingState", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
@@ -426,7 +426,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.NotNil(t, result)
 	})
 	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInCreatingStateWithDifferentResourceID_ReturnsConflict", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
@@ -460,7 +460,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.Contains(t, result.(*gcpgenserver.V1betaCreateKmsConfigurationConflict).Message, "existing-resource-id")
 	})
 	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInInUseState", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
@@ -488,7 +488,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.NotNil(t, result)
 	})
 	t.Run("WhenGetJobByResourceUUIDFails", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
@@ -515,7 +515,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 	})
 	t.Run("WhenCheckKmsConfigurationParseAndValidateRegionAndZoneReturnsGlobalRegion", func(t *testing.T) {
 		// Define input parameters
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
@@ -541,7 +541,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.Equal(t, float64(http.StatusBadRequest), result.(*gcpgenserver.V1betaCreateKmsConfigurationBadRequest).Code)
 	})
 	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInDeletingState", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "us-east4",
@@ -568,7 +568,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.Equal(t, float64(409), result.(*gcpgenserver.V1betaCreateKmsConfigurationConflict).Code)
 	})
 	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInUpdatingState", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "us-east4",
@@ -595,7 +595,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.Equal(t, float64(409), result.(*gcpgenserver.V1betaCreateKmsConfigurationConflict).Code)
 	})
 	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInMigratingState", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "us-east4",
@@ -622,7 +622,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.Equal(t, float64(409), result.(*gcpgenserver.V1betaCreateKmsConfigurationConflict).Code)
 	})
 	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInCreatedState", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "us-east4",
@@ -652,7 +652,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.Equal(t, operationID, result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
 	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInReadyState", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "us-east4",
@@ -682,7 +682,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.Equal(t, operationID, result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
 	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigInReadyStateWithDifferentResourceID_ReturnsConflict", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "us-east4",
@@ -716,7 +716,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.Contains(t, result.(*gcpgenserver.V1betaCreateKmsConfigurationConflict).Message, "existing-resource-id")
 	})
 	t.Run("CvpClientCreateKmsConfigurationReturnsConflictError", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "us-east4",
@@ -761,7 +761,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.Equal(t, float64(409), result.(*gcpgenserver.V1betaCreateKmsConfigurationConflict).Code)
 	})
 	t.Run("CvpClientCreateKmsConfigurationReturnsBadRequestError", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "us-east4",
@@ -806,7 +806,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.Equal(t, float64(400), result.(*gcpgenserver.V1betaCreateKmsConfigurationBadRequest).Code)
 	})
 	t.Run("CvpClientCreateKmsConfigurationReturnsUnauthorizedError", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "us-east4",
@@ -851,7 +851,7 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.Equal(t, float64(401), result.(*gcpgenserver.V1betaCreateKmsConfigurationUnauthorized).Code)
 	})
 	t.Run("OrchestratorCreateKmsConfigFails", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		expectCreateJobMaybe(mockOrchestrator)
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "us-east4",
@@ -943,7 +943,7 @@ func TestV1betaEncryptVolumes(t *testing.T) {
 		}
 
 		handler := Handler{}
-		orchInstance := orchestrator.NewOrchestrator(store, nil)
+		orchInstance := factory.GetOrchestratorForProvider(store, nil)
 		handler.Orchestrator = orchInstance
 
 		// Mock of CVP Client
@@ -1027,7 +1027,7 @@ func TestV1betaEncryptVolumes(t *testing.T) {
 		}
 
 		handler := Handler{}
-		orchInstance := orchestrator.NewOrchestrator(store, nil)
+		orchInstance := factory.GetOrchestratorForProvider(store, nil)
 		handler.Orchestrator = orchInstance
 
 		result, err := handler.V1betaEncryptVolumes(context.Background(), params)
@@ -1055,7 +1055,7 @@ func TestV1betaEncryptVolumes(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().GetMultipleKMSConfigs(mock.Anything, mock.Anything).Return(kmsConfigsResult, nil)
 		mockOrchestrator.EXPECT().MigrateKmsConfig(mock.Anything, mock.Anything).Return("", nil)
 		handlerForOrch := Handler{
@@ -1087,7 +1087,7 @@ func TestV1betaEncryptVolumes(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().GetMultipleKMSConfigs(mock.Anything, mock.Anything).Return(kmsConfigsResult, nil)
 		mockOrchestrator.EXPECT().MigrateKmsConfig(mock.Anything, mock.Anything).Return("operationID", nil)
 		handlerForOrch := Handler{
@@ -1188,7 +1188,7 @@ func TestEncodeEncryptVolumeV1beta(t *testing.T) {
 // V1betaDeleteKmsConfiguration unittests
 func TestV1betaDelete1KmsConfiguration(t *testing.T) {
 	t.Run("CreatKmsConfigurationSuccess", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		params := gcpgenserver.V1betaDeleteKmsConfigurationParams{
 			LocationId:    "invalid-location",
 			ProjectNumber: "test-project",
@@ -1214,7 +1214,7 @@ func TestV1betaDelete1KmsConfiguration(t *testing.T) {
 	})
 	t.Run("WhenFailureNotFound", func(t *testing.T) {
 		// Define input parameters
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		params := gcpgenserver.V1betaDeleteKmsConfigurationParams{
 			LocationId:    "invalid-location",
 			ProjectNumber: "test-project",
@@ -1240,7 +1240,7 @@ func TestV1betaDelete1KmsConfiguration(t *testing.T) {
 	})
 	t.Run("WhenFailure", func(t *testing.T) {
 		// Define input parameters
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		params := gcpgenserver.V1betaDeleteKmsConfigurationParams{
 			LocationId:    "invalid-location",
 			ProjectNumber: "test-project",
@@ -1299,7 +1299,7 @@ func TestV1betaDescribeKmsConfiguration(t *testing.T) {
 	t.Run("WhenDescribeKmsConfigurationSuccess", func(t *testing.T) {
 		// Define request
 		// create a mock orchestrator
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
 
@@ -1368,7 +1368,7 @@ func TestV1betaDescribeKmsConfiguration(t *testing.T) {
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
 		// create a mock orchestrator
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 
 		// Define input parameters
 		params := gcpgenserver.V1betaDescribeKmsConfigurationParams{
@@ -1424,7 +1424,7 @@ func TestV1betaDescribeKmsConfiguration(t *testing.T) {
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
 		// create a mock orchestrator
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 
 		// Define input parameters
 		params := gcpgenserver.V1betaDescribeKmsConfigurationParams{
@@ -1481,7 +1481,7 @@ func TestV1betaDescribeKmsConfiguration(t *testing.T) {
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
 		// create a mock orchestrator
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		// Define input parameters
 		params := gcpgenserver.V1betaDescribeKmsConfigurationParams{
 			LocationId:     "test-location",
@@ -1532,7 +1532,7 @@ func TestV1betaDescribeKmsConfiguration(t *testing.T) {
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
 		// create a mock orchestrator
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		// Define input parameters
 		params := gcpgenserver.V1betaDescribeKmsConfigurationParams{
 			LocationId:     "test-location",
@@ -1584,7 +1584,7 @@ func TestV1betaDescribeKmsConfiguration(t *testing.T) {
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
 		// create a mock orchestrator
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 
 		// Define input parameters
 		params := gcpgenserver.V1betaDescribeKmsConfigurationParams{
@@ -1637,7 +1637,7 @@ func TestV1betaDescribeKmsConfiguration(t *testing.T) {
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
 		// create a mock orchestrator
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 
 		// Define input parameters
 		params := gcpgenserver.V1betaDescribeKmsConfigurationParams{
@@ -1690,7 +1690,7 @@ func TestV1betaDescribeKmsConfiguration(t *testing.T) {
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
 		// create a mock orchestrator
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 
 		// Define input parameters
 		params := gcpgenserver.V1betaDescribeKmsConfigurationParams{
@@ -1743,7 +1743,7 @@ func TestV1betaDescribeKmsConfiguration(t *testing.T) {
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
 		// create a mock orchestrator
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 
 		// Define input parameters
 		params := gcpgenserver.V1betaDescribeKmsConfigurationParams{
@@ -1795,7 +1795,7 @@ func TestV1betaDescribeKmsConfiguration(t *testing.T) {
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
 		// create a mock orchestrator
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 
 		// Define input parameters
 		params := gcpgenserver.V1betaDescribeKmsConfigurationParams{
@@ -1846,7 +1846,7 @@ func TestV1betaDescribeKmsConfiguration(t *testing.T) {
 	t.Run("WhenStateIsInUseInSDEAndCreatedInVCP", func(t *testing.T) {
 		// Define request
 		// create a mock orchestrator
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
 
@@ -1916,7 +1916,7 @@ func TestV1betaDescribeKmsConfiguration(t *testing.T) {
 	t.Run("WhenStateIsInErrorInSDEAndCreatedInVCP", func(t *testing.T) {
 		// Define request
 		// create a mock orchestrator
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
 
@@ -2019,7 +2019,7 @@ func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 			KmsAttributes:   &vsaCoreModels.KmsAttributes{},
 		}
 
-		mockOrch := &orchestrator.MockOrchestratorFactory{}
+		mockOrch := &factory.MockOrchestratorFactory{}
 		mockOrch.On("UpdateKmsConfig", mock.Anything, mock.Anything).Return(kms, nil)
 
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
@@ -2055,7 +2055,7 @@ func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 			ResourceId:  gcpgenserver.NewOptString("test-resource-id"),
 		}
 
-		mockOrch := &orchestrator.MockOrchestratorFactory{}
+		mockOrch := &factory.MockOrchestratorFactory{}
 		mockOrch.On("UpdateKmsConfig", mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("kms", nil))
 
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
@@ -2085,7 +2085,7 @@ func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 			ResourceId:  gcpgenserver.NewOptString("test-resource-id"),
 		}
 
-		mockOrch := &orchestrator.MockOrchestratorFactory{}
+		mockOrch := &factory.MockOrchestratorFactory{}
 		mockOrch.On("UpdateKmsConfig", mock.Anything, mock.Anything).Return(nil, errors.NewConflictErr("kms"))
 
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
@@ -2130,7 +2130,7 @@ func TestV1betaCheckKmsConfiguration(t *testing.T) {
 
 	t.Run("WhenCheckKmsConfigurationWhenVsaKmsConfigFoundSuccess", func(t *testing.T) {
 		// Define request
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
 
@@ -2192,7 +2192,7 @@ func TestV1betaCheckKmsConfiguration(t *testing.T) {
 
 	t.Run("WhenCheckKmsConfigurationWhenVsaKmsConfigNotFoundSuccess", func(t *testing.T) {
 		// Define request
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
 
@@ -2248,7 +2248,7 @@ func TestV1betaCheckKmsConfiguration(t *testing.T) {
 
 	t.Run("WhenCheckKmsConfigurationWithUnhealthyInitialCheck", func(t *testing.T) {
 		// Define request
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
 
@@ -2308,7 +2308,7 @@ func TestV1betaCheckKmsConfiguration(t *testing.T) {
 
 	t.Run("WhenCheckKmsConfigurationWithImpersonationFailure", func(t *testing.T) {
 		// Define request
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
 
@@ -2374,7 +2374,7 @@ func TestV1betaCheckKmsConfiguration(t *testing.T) {
 
 	t.Run("WhenCheckKmsConfigurationHealthUpdateFails", func(t *testing.T) {
 		// Define request
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
 
@@ -2441,7 +2441,7 @@ func TestV1betaCheckKmsConfiguration(t *testing.T) {
 	t.Run("WhenDCheckKmsConfigurationFailsWithBadRequest", func(t *testing.T) {
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		// Define input parameters
 		params := gcpgenserver.V1betaCheckKmsConfigParams{}
 
@@ -2487,7 +2487,7 @@ func TestV1betaCheckKmsConfiguration(t *testing.T) {
 	t.Run("WhenDCheckKmsConfigurationFailsWithUnprocessableEntity", func(t *testing.T) {
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		// Define input parameters
 		params := gcpgenserver.V1betaCheckKmsConfigParams{}
 
@@ -2533,7 +2533,7 @@ func TestV1betaCheckKmsConfiguration(t *testing.T) {
 	t.Run("WhenDCheckKmsConfigurationFailsWithConflict", func(t *testing.T) {
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		// Define input parameters
 		params := gcpgenserver.V1betaCheckKmsConfigParams{}
 
@@ -2579,7 +2579,7 @@ func TestV1betaCheckKmsConfiguration(t *testing.T) {
 	t.Run("WhenDCheckKmsConfigurationFailsWithUnauthorized", func(t *testing.T) {
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		// Define input parameters
 		params := gcpgenserver.V1betaCheckKmsConfigParams{}
 
@@ -2625,7 +2625,7 @@ func TestV1betaCheckKmsConfiguration(t *testing.T) {
 	t.Run("WhenDCheckKmsConfigurationFailsWithForbidden", func(t *testing.T) {
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		// Define input parameters
 		params := gcpgenserver.V1betaCheckKmsConfigParams{}
 
@@ -2671,7 +2671,7 @@ func TestV1betaCheckKmsConfiguration(t *testing.T) {
 	t.Run("WhenDCheckKmsConfigurationFailsWithTooManyRequests", func(t *testing.T) {
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		// Define input parameters
 		params := gcpgenserver.V1betaCheckKmsConfigParams{}
 
@@ -2717,7 +2717,7 @@ func TestV1betaCheckKmsConfiguration(t *testing.T) {
 	t.Run("WhenDCheckKmsConfigurationFailsWithDefault", func(t *testing.T) {
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		// Define input parameters
 		params := gcpgenserver.V1betaCheckKmsConfigParams{}
 
@@ -2763,7 +2763,7 @@ func TestV1betaCheckKmsConfiguration(t *testing.T) {
 	t.Run("WhenDCheckKmsConfigurationFailsWithUnknownError", func(t *testing.T) {
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		// Define input parameters
 		params := gcpgenserver.V1betaCheckKmsConfigParams{}
 
@@ -2813,7 +2813,7 @@ func TestV1betaListKmsConfigurations(t *testing.T) {
 		// Define request
 		// Create a mock client
 		mockClient := kms_configurations.NewMockClientService(t)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 
 		// Define input parameters
 		params := gcpgenserver.V1betaListKmsConfigurationsParams{
@@ -3173,7 +3173,7 @@ func TestV1betaGetMultipleKmsConfigs(t *testing.T) {
 		t.Fatalf("Failed to clean up test storage: %v", err)
 	}
 
-	orchInstance := orchestrator.NewOrchestrator(store, nil)
+	orchInstance := factory.GetOrchestratorForProvider(store, nil)
 
 	serviceAccounts := []*datamodel.ServiceAccount{
 		{BaseModel: datamodel.BaseModel{ID: int64(111), UUID: "uuid10"}, Name: "ServiceAccount1"},
@@ -3321,7 +3321,7 @@ func TestV1betaGetMultipleKmsConfigsErrorConditions(t *testing.T) {
 		t.Fatalf("Failed to clean up test storage: %v", err)
 	}
 
-	orchInstance := orchestrator.NewOrchestrator(store, nil)
+	orchInstance := factory.GetOrchestratorForProvider(store, nil)
 
 	serviceAccounts := []*datamodel.ServiceAccount{
 		{BaseModel: datamodel.BaseModel{ID: int64(111), UUID: "uuid10"}, Name: "ServiceAccount1"},
@@ -3608,7 +3608,7 @@ func TestV1betaGetMultipleKmsConfigsErrorConditions(t *testing.T) {
 	t.Run("WhenGetMultipleKmsConfigsFailsWithUnknownErrorFromVCP", func(tt *testing.T) {
 		expectedErrorMsg := "Unknown error encountered during Get Multiple KMS configurations operation"
 		expectedErrorCode := float64(500)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().GetMultipleKMSConfigs(mock.Anything, mock.Anything).Return(nil, fmt.Errorf("internal error"))
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -3883,7 +3883,7 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 		}
 
 		// Setup mock orchestrator factory
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		// Call the method under test
@@ -3917,7 +3917,7 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 		}
 
 		// Setup mock orchestrator factory
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		// Call the method under test
@@ -3957,7 +3957,7 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 		}
 
 		// Setup mock orchestrator factory that returns a non-NotFoundErr error
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		mockOrchestrator.EXPECT().
 			GetKmsConfig(mock.Anything, mock.MatchedBy(func(params *common.GetKmsConfigParams) bool {
 				return params.UUID == "test-id" && params.AccountName == "12345"
@@ -4003,7 +4003,7 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 		}
 
 		// Setup mock orchestrator factory that returns a KmsConfig with Error state
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		vcpKmsConfig := &vsaCoreModels.KmsConfig{
 			BaseModel: vsaCoreModels.BaseModel{
 				UUID: "test-id",
@@ -4065,7 +4065,7 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 		}
 
 		// Setup mock orchestrator factory that returns a KmsConfig with InUse state
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		vcpKmsConfig := &vsaCoreModels.KmsConfig{
 			BaseModel: vsaCoreModels.BaseModel{
 				UUID: "test-id",
@@ -4127,7 +4127,7 @@ func TestV1betaListKmsConfigurations_UncoveredScenarios(t *testing.T) {
 		}
 
 		// Setup mock orchestrator factory that returns a KmsConfig with some other state
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		vcpKmsConfig := &vsaCoreModels.KmsConfig{
 			BaseModel: vsaCoreModels.BaseModel{
 				UUID: "test-id",

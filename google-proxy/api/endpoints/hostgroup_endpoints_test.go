@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -18,7 +18,7 @@ import (
 
 func TestV1betaDeleteHostGroup(t *testing.T) {
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDeleteHostGroupParams{
 			LocationId:    "invalid-location-id",
 			ProjectNumber: "project-number",
@@ -43,7 +43,7 @@ func TestV1betaDeleteHostGroup(t *testing.T) {
 		assert.Equal(tt, "Invalid location ID", result.(*gcpgenserver.V1betaDeleteHostGroupBadRequest).Message)
 	})
 	t.Run("WhenHostGroupDoesNotExist", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDeleteHostGroupParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -64,7 +64,7 @@ func TestV1betaDeleteHostGroup(t *testing.T) {
 		assert.NotNil(tt, result)
 	})
 	t.Run("WhenHostGroupHasActiveVolumes", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDeleteHostGroupParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -93,7 +93,7 @@ func TestV1betaDeleteHostGroup(t *testing.T) {
 		assert.Equal(tt, "host group is attached to volumes", result.(*gcpgenserver.V1betaDeleteHostGroupBadRequest).Message)
 	})
 	t.Run("WhenHostGroupGetFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDeleteHostGroupParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -122,7 +122,7 @@ func TestV1betaDeleteHostGroup(t *testing.T) {
 		assert.Equal(tt, "Internal server error", result.(*gcpgenserver.V1betaDeleteHostGroupInternalServerError).Message)
 	})
 	t.Run("WhenHostGroupDeleteFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDeleteHostGroupParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -150,7 +150,7 @@ func TestV1betaDeleteHostGroup(t *testing.T) {
 		assert.Equal(tt, "Internal server error", result.(*gcpgenserver.V1betaDeleteHostGroupInternalServerError).Message)
 	})
 	t.Run("WhenHostGroupDeletionSucceeds", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDeleteHostGroupParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -186,7 +186,7 @@ func TestV1betaDeleteHostGroup(t *testing.T) {
 
 func TestV1betaGetMultipleHostGroups(t *testing.T) {
 	t.Run("WhenGetMultipleHostGroupsFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultipleHostGroupsParams{
 			LocationId:    "invalid-location-id",
 			ProjectNumber: "project-number",
@@ -209,7 +209,7 @@ func TestV1betaGetMultipleHostGroups(t *testing.T) {
 		assert.Equal(tt, "Internal server error", result.(*gcpgenserver.V1betaGetMultipleHostGroupsInternalServerError).Message)
 	})
 	t.Run("WhenGetMultipleHostGroupsReturnsZeroHGs", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultipleHostGroupsParams{
 			LocationId:    "invalid-location-id",
 			ProjectNumber: "project-number",
@@ -232,7 +232,7 @@ func TestV1betaGetMultipleHostGroups(t *testing.T) {
 		assert.Len(tt, result.(*gcpgenserver.V1betaGetMultipleHostGroupsOK).HostGroups, 0)
 	})
 	t.Run("WhenGetMultipleHostGroupsReturns2HGs", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultipleHostGroupsParams{
 			LocationId:    "invalid-location-id",
 			ProjectNumber: "project-number",
@@ -269,7 +269,7 @@ func TestV1betaGetMultipleHostGroups(t *testing.T) {
 
 func TestV1betaCreateHostGroup(t *testing.T) {
 	t.Run("WhenCreateHostGroupFailsWithConflict", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreateHostGroupParams{
 			LocationId:    "invalid-location-id",
 			ProjectNumber: "project-number",
@@ -303,7 +303,7 @@ func TestV1betaCreateHostGroup(t *testing.T) {
 		assert.Equal(tt, "Host group already exists", result.(*gcpgenserver.V1betaCreateHostGroupConflict).Message)
 	})
 	t.Run("WhenCreateHostGroupFailsWithISE", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreateHostGroupParams{
 			LocationId:    "invalid-location-id",
 			ProjectNumber: "project-number",
@@ -337,7 +337,7 @@ func TestV1betaCreateHostGroup(t *testing.T) {
 		assert.Equal(tt, "Internal server error", result.(*gcpgenserver.V1betaCreateHostGroupInternalServerError).Message)
 	})
 	t.Run("WhenCreateHostGroupWithHosts>128", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreateHostGroupParams{
 			LocationId:    "invalid-location-id",
 			ProjectNumber: "project-number",
@@ -375,7 +375,7 @@ func TestV1betaCreateHostGroup(t *testing.T) {
 		assert.Equal(tt, fmt.Sprintf("Host group cannot have more than %d hosts", maxHostsPerHG), result.(*gcpgenserver.V1betaCreateHostGroupBadRequest).Message)
 	})
 	t.Run("WhenCreateHostGroupWithSuccess", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreateHostGroupParams{
 			LocationId:    "invalid-location-id",
 			ProjectNumber: "project-number",
@@ -420,7 +420,7 @@ func TestV1betaCreateHostGroup(t *testing.T) {
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/invalid-location-id/operations/00000000-0000-0000-0000-000000000000", result.(*gcpgenserver.V1betaCreateHostGroupOK).Name.Value)
 	})
 	t.Run("WhenCreateHostGroupWithSuccessWithTypeDefault", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreateHostGroupParams{
 			LocationId:    "invalid-location-id",
 			ProjectNumber: "project-number",
@@ -466,7 +466,7 @@ func TestV1betaCreateHostGroup(t *testing.T) {
 
 func TestV1betaUpdateHostGroup(t *testing.T) {
 	t.Run("WhenParseAndValidateRegionAndZoneFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaUpdateHostGroupParams{
 			LocationId:    "invalid-location-id",
 			ProjectNumber: "project-number",
@@ -496,7 +496,7 @@ func TestV1betaUpdateHostGroup(t *testing.T) {
 		assert.Equal(tt, "some error", result.(*gcpgenserver.V1betaUpdateHostGroupBadRequest).Message)
 	})
 	t.Run("WhenGetHostGroupFailsWithNotFound", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaUpdateHostGroupParams{
 			LocationId:    "invalid-location-id",
 			ProjectNumber: "project-number",
@@ -528,7 +528,7 @@ func TestV1betaUpdateHostGroup(t *testing.T) {
 		assert.Equal(tt, "host group not found", result.(*gcpgenserver.V1betaUpdateHostGroupNotFound).Message)
 	})
 	t.Run("WhenGetHostGroupFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaUpdateHostGroupParams{
 			LocationId:    "invalid-location-id",
 			ProjectNumber: "project-number",
@@ -560,7 +560,7 @@ func TestV1betaUpdateHostGroup(t *testing.T) {
 		assert.Equal(tt, "Internal server error", result.(*gcpgenserver.V1betaUpdateHostGroupInternalServerError).Message)
 	})
 	t.Run("WhenUpdateHostGroupFailsWithValidationError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaUpdateHostGroupParams{
 			LocationId:    "invalid-location-id",
 			ProjectNumber: "project-number",
@@ -593,7 +593,7 @@ func TestV1betaUpdateHostGroup(t *testing.T) {
 		assert.Equal(tt, "invalid input", result.(*gcpgenserver.V1betaUpdateHostGroupBadRequest).Message)
 	})
 	t.Run("WhenUpdateHostGroupFailsWithError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaUpdateHostGroupParams{
 			LocationId:    "invalid-location-id",
 			ProjectNumber: "project-number",
@@ -626,7 +626,7 @@ func TestV1betaUpdateHostGroup(t *testing.T) {
 		assert.Equal(tt, "Internal server error", result.(*gcpgenserver.V1betaUpdateHostGroupInternalServerError).Message)
 	})
 	t.Run("WhenUpdateHostGroupHosts>128Fails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaUpdateHostGroupParams{
 			LocationId:    "valid-location-id",
 			ProjectNumber: "project-number",
@@ -664,7 +664,7 @@ func TestV1betaUpdateHostGroup(t *testing.T) {
 		assert.Equal(tt, fmt.Sprintf("Host group cannot have more than %d hosts", maxHostsPerHG), result.(*gcpgenserver.V1betaUpdateHostGroupBadRequest).Message)
 	})
 	t.Run("WhenUpdateHostGroupFailsWithNoIQN", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaUpdateHostGroupParams{
 			LocationId:    "valid-location-id",
 			ProjectNumber: "project-number",
@@ -696,7 +696,7 @@ func TestV1betaUpdateHostGroup(t *testing.T) {
 		assert.Equal(tt, "Host group should have at least one IQN", result.(*gcpgenserver.V1betaUpdateHostGroupBadRequest).Message)
 	})
 	t.Run("WhenUpdateHostGroupSucceeds", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaUpdateHostGroupParams{
 			LocationId:    "valid-location-id",
 			ProjectNumber: "project-number",
@@ -729,7 +729,7 @@ func TestV1betaUpdateHostGroup(t *testing.T) {
 		assert.Equal(tt, false, result.(*gcpgenserver.OperationV1beta).Done.Value)
 	})
 	t.Run("WhenUpdateHostGroupSucceedsWithOnlyDescriptions", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaUpdateHostGroupParams{
 			LocationId:    "valid-location-id",
 			ProjectNumber: "project-number",
@@ -766,7 +766,7 @@ func TestV1betaUpdateHostGroup(t *testing.T) {
 
 func TestV1betaDescribeHostGroup(t *testing.T) {
 	t.Run("WhenHostGroupNotFound", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDescribeHostGroupParams{
 			LocationId:    "valid-location-id",
 			ProjectNumber: "project-number",
@@ -788,7 +788,7 @@ func TestV1betaDescribeHostGroup(t *testing.T) {
 	})
 
 	t.Run("WhenGetHostGroupFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDescribeHostGroupParams{
 			LocationId:    "valid-location-id",
 			ProjectNumber: "project-number",
@@ -809,7 +809,7 @@ func TestV1betaDescribeHostGroup(t *testing.T) {
 	})
 
 	t.Run("WhenHostGroupFound", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDescribeHostGroupParams{
 			LocationId:    "valid-location-id",
 			ProjectNumber: "project-number",

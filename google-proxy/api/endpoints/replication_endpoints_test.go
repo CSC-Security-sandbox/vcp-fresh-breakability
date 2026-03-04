@@ -14,18 +14,20 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
 
 func TestV1betaGetMultipleReplications(t *testing.T) {
 	t.Run("WhenReplicationURIsAreEmpty", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -51,7 +53,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		assert.Equal(tt, errorMessage, result.(*gcpgenserver.V1betaGetMultipleReplicationsBadRequest).Message)
 	})
 	t.Run("WhenAccountNameDoesNotMatch", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -77,7 +79,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		assert.Equal(tt, errorMessage, result.(*gcpgenserver.V1betaGetMultipleReplicationsBadRequest).Message)
 	})
 	t.Run("WhenLocationDoesNotMatch", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -103,7 +105,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		assert.Equal(tt, errorMessage, result.(*gcpgenserver.V1betaGetMultipleReplicationsBadRequest).Message)
 	})
 	t.Run("WhenVolumeDoesNotMatch", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -129,7 +131,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		assert.Equal(tt, errorMessage, result.(*gcpgenserver.V1betaGetMultipleReplicationsBadRequest).Message)
 	})
 	t.Run("WhenGetMultipleReplicationsReturnsError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -154,7 +156,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		assert.Equal(tt, "Error retrieving replications from VCP", result.(*gcpgenserver.V1betaGetMultipleReplicationsInternalServerError).Message)
 	})
 	t.Run("WhenRelicationsFoundInVCP", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -168,11 +170,14 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		req := &gcpgenserver.ReplicationURIListV1beta{
 			ReplicationUris: []string{"projects/project-number/locations/location-id/volumes/volume-resource-id/replications/replication-name-6"},
 		}
-		expResp := []gcpgenserver.ReplicationV1beta{
+		replicationId := "replication-id-1"
+		resourceId := "resource-id-1"
+		mirrorState := "MIRRORED"
+		expResp := []commonparams.ReplicationV1beta{
 			{
-				ReplicationId: gcpgenserver.NewOptString("replication-id-1"),
-				ResourceId:    gcpgenserver.NewOptString("resource-id-1"),
-				MirrorState:   gcpgenserver.NewOptReplicationV1betaMirrorState(gcpgenserver.ReplicationV1betaMirrorStateMIRRORED),
+				ReplicationId: &replicationId,
+				ResourceId:    &resourceId,
+				MirrorState:   &mirrorState,
 			},
 		}
 
@@ -186,7 +191,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 	})
 	t.Run("WhenGetMultipleReplicationsFailsWithBadRequest", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -210,7 +215,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 			},
 		}
 		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything).Return(nil, mockError)
-		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]commonparams.ReplicationV1beta{}, nil)
 		cvpClient := &cvpapi.Cvp{Replications: mockClient}
 		originalClient := createClient
 		defer func() {
@@ -228,7 +233,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 	})
 	t.Run("WhenGetMultipleReplicationsFailsWithUnauthorized", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -252,7 +257,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 				Message: errorMessage,
 			},
 		}
-		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]commonparams.ReplicationV1beta{}, nil)
 		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything).Return(nil, mockError)
 		cvpClient := &cvpapi.Cvp{Replications: mockClient}
 		originalClient := createClient
@@ -271,7 +276,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 	})
 	t.Run("WhenGetMultipleReplicationsFailsWithForbidden", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -294,7 +299,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 				Message: errorMessage,
 			},
 		}
-		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]commonparams.ReplicationV1beta{}, nil)
 		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything).Return(nil, mockError)
 		cvpClient := &cvpapi.Cvp{Replications: mockClient}
 		originalClient := createClient
@@ -313,7 +318,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 	})
 	t.Run("WhenGetMultipleReplicationsFailsWithNotFound", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -337,7 +342,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 				Message: errorMessage,
 			},
 		}
-		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]commonparams.ReplicationV1beta{}, nil)
 		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything).Return(nil, mockError)
 		cvpClient := &cvpapi.Cvp{Replications: mockClient}
 		originalClient := createClient
@@ -356,7 +361,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 	})
 	t.Run("WhenGetMultipleReplicationsFailsWithTooManyRequests", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -379,7 +384,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 				Message: errorMessage,
 			},
 		}
-		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]commonparams.ReplicationV1beta{}, nil)
 		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything).Return(nil, mockError)
 		cvpClient := &cvpapi.Cvp{Replications: mockClient}
 		originalClient := createClient
@@ -398,7 +403,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 	})
 	t.Run("WhenGetMultipleReplicationsFailsWithDefault", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -422,7 +427,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 				Message: errorMessage,
 			},
 		}
-		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]commonparams.ReplicationV1beta{}, nil)
 		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything).Return(nil, mockError)
 		cvpClient := &cvpapi.Cvp{Replications: mockClient}
 		originalClient := createClient
@@ -442,7 +447,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 	})
 	t.Run("WhenGetMultipleReplicationsResponseIsNil", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -457,7 +462,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 			ReplicationUris: []string{"projects/project-number/locations/location-id/volumes/volume-resource-id/replications/replication-name-6"},
 		}
 
-		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]commonparams.ReplicationV1beta{}, nil)
 		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything).Return(nil, nil)
 		cvpClient := &cvpapi.Cvp{Replications: mockClient}
 		originalClient := createClient
@@ -477,7 +482,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 	})
 	t.Run("WhenGetMultipleReplicationsSucceeds", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -523,7 +528,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 				},
 			},
 		}
-		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]commonparams.ReplicationV1beta{}, nil)
 		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything).Return(mockResponse, nil)
 		cvpClient := &cvpapi.Cvp{Replications: mockClient}
 		originalClient := createClient
@@ -543,7 +548,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 	})
 	t.Run("WhenGetMultipleReplicationsSucceedsWithBlankReplId", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -576,7 +581,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 				},
 			},
 		}
-		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]commonparams.ReplicationV1beta{}, nil)
 		mockClient.EXPECT().V1betaGetMultipleReplications(mock.Anything).Return(mockResponse, nil)
 		cvpClient := &cvpapi.Cvp{Replications: mockClient}
 		originalClient := createClient
@@ -595,7 +600,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 		assert.Equal(tt, "replication-id-1", successResult.Replications[0].ResourceId.Value)
 	})
 	t.Run("WhenVolumeResourceIdInvalidForCVP", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -622,7 +627,7 @@ func TestV1betaGetMultipleReplications(t *testing.T) {
 
 func TestV1betaGetReplicationCount(t *testing.T) {
 	t.Run("WhenGetReplicationCountSucceeds", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -642,7 +647,7 @@ func TestV1betaGetReplicationCount(t *testing.T) {
 	})
 
 	t.Run("WhenGetReplicationCountFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.On("GetReplicationCount", mock.Anything, "project-number").Return(int64(0), assert.AnError)
 
 		handler := Handler{
@@ -662,7 +667,7 @@ func TestV1betaGetReplicationCount(t *testing.T) {
 
 func TestV1betaCreateReplication(t *testing.T) {
 	t.Run("WhenCRRNotEnabled", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -684,7 +689,7 @@ func TestV1betaCreateReplication(t *testing.T) {
 		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaCreateReplicationBadRequest).Code)
 	})
 	t.Run("WhenCreateReplicationSucceedsWithNoJob", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -720,7 +725,7 @@ func TestV1betaCreateReplication(t *testing.T) {
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
 	t.Run("WhenCreateReplicationSucceedsWithJob", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -774,7 +779,7 @@ func TestV1betaCreateReplication(t *testing.T) {
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -804,7 +809,7 @@ func TestV1betaCreateReplication(t *testing.T) {
 		assert.Equal(tt, "Invalid location ID", result.(*gcpgenserver.V1betaCreateReplicationBadRequest).Message)
 	})
 	t.Run("WhenCreateReplicationFailsWithBadRequest", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -837,7 +842,7 @@ func TestV1betaCreateReplication(t *testing.T) {
 		assert.Equal(tt, "Invalid input", result.(*gcpgenserver.V1betaCreateReplicationBadRequest).Message)
 	})
 	t.Run("WhenCreateReplicationFailsWithSomeOtherError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -869,7 +874,7 @@ func TestV1betaCreateReplication(t *testing.T) {
 		assert.Equal(tt, "some error", result.(*gcpgenserver.V1betaCreateReplicationInternalServerError).Message)
 	})
 	t.Run("WhenCreateReplicationFailsWithCustomVCPError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -904,7 +909,7 @@ func TestV1betaCreateReplication(t *testing.T) {
 
 func TestV1betaResumeReplication(t *testing.T) {
 	t.Run("WhenCRRNotEnabled", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -923,7 +928,7 @@ func TestV1betaResumeReplication(t *testing.T) {
 		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaResumeReplicationBadRequest).Code)
 	})
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -951,7 +956,7 @@ func TestV1betaResumeReplication(t *testing.T) {
 		assert.Equal(tt, "Invalid location ID", resp.(*gcpgenserver.V1betaResumeReplicationBadRequest).Message)
 	})
 	t.Run("WhenResumeReplicationFailsWithBadRequest", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -981,7 +986,7 @@ func TestV1betaResumeReplication(t *testing.T) {
 		assert.Equal(tt, "Invalid input", result.(*gcpgenserver.V1betaResumeReplicationBadRequest).Message)
 	})
 	t.Run("WhenResumeReplicationFailsWithSomeOtherError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1011,7 +1016,7 @@ func TestV1betaResumeReplication(t *testing.T) {
 		assert.Equal(tt, "some error", result.(*gcpgenserver.V1betaResumeReplicationInternalServerError).Message)
 	})
 	t.Run("WhenResumeReplicationSucceedsWithNoJob", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1043,7 +1048,7 @@ func TestV1betaResumeReplication(t *testing.T) {
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
 	t.Run("WhenResumeReplicationSucceedsWithJob", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1079,7 +1084,7 @@ func TestV1betaResumeReplication(t *testing.T) {
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
 	t.Run("WhenResumeReplicationFailsWithCustomVCPError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1112,7 +1117,7 @@ func TestV1betaResumeReplication(t *testing.T) {
 
 func TestV1betaStopReplication(t *testing.T) {
 	t.Run("WhenCRRNotEnabled", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		defer func() {
 			crrEnabled = env.GetBool("CRR_ENABLED", true)
@@ -1130,7 +1135,7 @@ func TestV1betaStopReplication(t *testing.T) {
 		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaStopReplicationBadRequest).Code)
 	})
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaStopReplicationParams{
@@ -1153,7 +1158,7 @@ func TestV1betaStopReplication(t *testing.T) {
 	})
 
 	t.Run("WhenStopReplicationFailsWithBadRequest", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -1179,7 +1184,7 @@ func TestV1betaStopReplication(t *testing.T) {
 		assert.Equal(tt, "Invalid input", result.(*gcpgenserver.V1betaStopReplicationBadRequest).Message)
 	})
 	t.Run("WhenStopReplicationFailsWithInternalServerError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -1205,7 +1210,7 @@ func TestV1betaStopReplication(t *testing.T) {
 		assert.Equal(tt, "internal error", result.(*gcpgenserver.V1betaStopReplicationInternalServerError).Message)
 	})
 	t.Run("WhenStopReplicationSucceeds", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -1232,7 +1237,7 @@ func TestV1betaStopReplication(t *testing.T) {
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
 	t.Run("WhenStopReplicationFailsWithCustomVcpError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -1263,7 +1268,7 @@ func TestV1betaStopReplication(t *testing.T) {
 
 func TestV1betaDeleteReplication(t *testing.T) {
 	t.Run("WhenCRRNotEnabled", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1285,7 +1290,7 @@ func TestV1betaDeleteReplication(t *testing.T) {
 		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaDeleteReplicationBadRequest).Code)
 	})
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1315,7 +1320,7 @@ func TestV1betaDeleteReplication(t *testing.T) {
 		assert.Equal(tt, "Invalid location ID", resp.(*gcpgenserver.V1betaDeleteReplicationBadRequest).Message)
 	})
 	t.Run("WhenDeleteReplicationFailsWithBadRequest", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1347,7 +1352,7 @@ func TestV1betaDeleteReplication(t *testing.T) {
 		assert.Equal(tt, "Invalid input", resp.(*gcpgenserver.V1betaDeleteReplicationBadRequest).Message)
 	})
 	t.Run("WhenDeleteReplicationFailsWithSomeOtherError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1380,7 +1385,7 @@ func TestV1betaDeleteReplication(t *testing.T) {
 	})
 
 	t.Run("WhenDeleteReplicationSucceedsWithNoJob", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1414,7 +1419,7 @@ func TestV1betaDeleteReplication(t *testing.T) {
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", resp.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
 	t.Run("WhenDeleteReplicationSucceedsWithJob", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1453,7 +1458,7 @@ func TestV1betaDeleteReplication(t *testing.T) {
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", resp.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
 	t.Run("WhenDeleteReplicationSucceedsWithJobWithCleanup", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1489,7 +1494,7 @@ func TestV1betaDeleteReplication(t *testing.T) {
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", resp.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
 	t.Run("WhenDeleteReplicationFailsWithCustomVcpError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1572,7 +1577,7 @@ func TestV1betaSyncReplication(t *testing.T) {
 	})
 
 	t.Run("WhenSyncFailsWithUserInputError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		defer func() { parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone }()
 
@@ -1599,7 +1604,7 @@ func TestV1betaSyncReplication(t *testing.T) {
 	})
 
 	t.Run("WhenSyncFailsWithOtherError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		defer func() { parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone }()
 
@@ -1625,7 +1630,7 @@ func TestV1betaSyncReplication(t *testing.T) {
 		assert.Equal(tt, "some error", result.(*gcpgenserver.V1betaSyncReplicationInternalServerError).Message)
 	})
 	t.Run("WhenSyncSucceedsWithNoJob", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1657,7 +1662,7 @@ func TestV1betaSyncReplication(t *testing.T) {
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
 	t.Run("WhenSyncSucceedsWithJob", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1693,7 +1698,7 @@ func TestV1betaSyncReplication(t *testing.T) {
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
 	t.Run("WhenSyncFailsWithCustomVcpError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		defer func() { parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone }()
 
@@ -1722,7 +1727,7 @@ func TestV1betaSyncReplication(t *testing.T) {
 
 func TestV1betaUpdateReplication(t *testing.T) {
 	t.Run("WhenCRRNotEnabled", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1744,7 +1749,7 @@ func TestV1betaUpdateReplication(t *testing.T) {
 		assert.Equal(tt, float64(400), result.(*gcpgenserver.V1betaUpdateReplicationBadRequest).Code)
 	})
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1775,7 +1780,7 @@ func TestV1betaUpdateReplication(t *testing.T) {
 		assert.Equal(tt, "Invalid location ID", resp.(*gcpgenserver.V1betaUpdateReplicationBadRequest).Message)
 	})
 	t.Run("WhenResumeReplicationFailsWithBadRequest", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1808,7 +1813,7 @@ func TestV1betaUpdateReplication(t *testing.T) {
 		assert.Equal(tt, "Invalid input", result.(*gcpgenserver.V1betaUpdateReplicationBadRequest).Message)
 	})
 	t.Run("WhenResumeReplicationFailsWithSomeOtherError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1840,7 +1845,7 @@ func TestV1betaUpdateReplication(t *testing.T) {
 		assert.Equal(tt, "some error", result.(*gcpgenserver.V1betaUpdateReplicationInternalServerError).Message)
 	})
 	t.Run("WhenResumeReplicationSucceedsWithNoJob", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1874,7 +1879,7 @@ func TestV1betaUpdateReplication(t *testing.T) {
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
 	t.Run("WhenResumeReplicationSucceedsWithJob", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1917,7 +1922,7 @@ func TestV1betaUpdateReplication(t *testing.T) {
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
 	t.Run("WhenResumeReplicationFailsWithCustomVcpError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1949,7 +1954,7 @@ func TestV1betaUpdateReplication(t *testing.T) {
 		assert.Equal(tt, "Update replication payload is empty", result.(*gcpgenserver.V1betaUpdateReplicationBadRequest).Message)
 	})
 	t.Run("WhenUpdateReplicationSucceedsWithClusterLocation", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1991,7 +1996,7 @@ func TestV1betaUpdateReplication(t *testing.T) {
 
 func TestV1betaReverseAndResumeReplication(t *testing.T) {
 	t.Run("WhenCRRNotEnabled", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		defer func() { crrEnabled = true }()
 		crrEnabled = false
@@ -2010,7 +2015,7 @@ func TestV1betaReverseAndResumeReplication(t *testing.T) {
 	})
 
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		defer func() { parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone }()
 
@@ -2033,7 +2038,7 @@ func TestV1betaReverseAndResumeReplication(t *testing.T) {
 	})
 
 	t.Run("WhenReverseAndResumeReplicationFailsWithBadRequest", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		defer func() { parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone }()
 
@@ -2059,7 +2064,7 @@ func TestV1betaReverseAndResumeReplication(t *testing.T) {
 	})
 
 	t.Run("WhenReverseAndResumeReplicationFailsWithSomeOtherError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		defer func() { parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone }()
 
@@ -2085,7 +2090,7 @@ func TestV1betaReverseAndResumeReplication(t *testing.T) {
 	})
 
 	t.Run("WhenReverseAndResumeReplicationSucceedsWithNoJob", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -2126,7 +2131,7 @@ func TestV1betaReverseAndResumeReplication(t *testing.T) {
 	})
 
 	t.Run("WhenReverseAndResumeReplicationSucceedsWithJob", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -2167,7 +2172,7 @@ func TestV1betaReverseAndResumeReplication(t *testing.T) {
 	})
 
 	t.Run("WhenReverseAndResumeReplicationFailsWithCustomVcpError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		defer func() { parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone }()
 
@@ -2195,7 +2200,7 @@ func TestV1betaReverseAndResumeReplication(t *testing.T) {
 
 func TestV1betaEstablishPeering(t *testing.T) {
 	t.Run("WhenHybridReplicationNotEnabled", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2226,7 +2231,7 @@ func TestV1betaEstablishPeering(t *testing.T) {
 	})
 
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2267,7 +2272,7 @@ func TestV1betaEstablishPeering(t *testing.T) {
 	})
 
 	t.Run("WhenEstablishPeeringSucceedsWithNoJob", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2311,7 +2316,7 @@ func TestV1betaEstablishPeering(t *testing.T) {
 	})
 
 	t.Run("WhenEstablishPeeringSucceedsWithJob", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2359,7 +2364,7 @@ func TestV1betaEstablishPeering(t *testing.T) {
 	})
 
 	t.Run("WhenEstablishPeeringFailsWithConflict", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2399,7 +2404,7 @@ func TestV1betaEstablishPeering(t *testing.T) {
 	})
 
 	t.Run("WhenEstablishPeeringFailsWithUserInputValidationError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2439,7 +2444,7 @@ func TestV1betaEstablishPeering(t *testing.T) {
 	})
 
 	t.Run("WhenEstablishPeeringFailsWithNotFoundError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2478,7 +2483,7 @@ func TestV1betaEstablishPeering(t *testing.T) {
 	})
 
 	t.Run("WhenEstablishPeeringFailsWithInternalServerError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2518,7 +2523,7 @@ func TestV1betaEstablishPeering(t *testing.T) {
 	})
 
 	t.Run("WhenEstablishPeeringSucceedsWithPeerIPAddresses", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2566,7 +2571,7 @@ func TestV1betaEstablishPeering(t *testing.T) {
 func TestV1betaListReplications(t *testing.T) {
 	t.Run("WhenVCPGetMultipleReplicationsReturnsError", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -2600,7 +2605,7 @@ func TestV1betaListReplications(t *testing.T) {
 
 	t.Run("WhenCVPListReplicationsFailsWithBadRequest", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -2619,7 +2624,7 @@ func TestV1betaListReplications(t *testing.T) {
 				Message: errorMessage,
 			},
 		}
-		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]commonparams.ReplicationV1beta{}, nil)
 		mockClient.EXPECT().V1betaListReplications(mock.Anything).Return(nil, mockError)
 		cvpClient := &cvpapi.Cvp{Replications: mockClient}
 		originalClient := createClient
@@ -2639,7 +2644,7 @@ func TestV1betaListReplications(t *testing.T) {
 
 	t.Run("WhenCVPListReplicationsFailsWithUnauthorized", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -2658,7 +2663,7 @@ func TestV1betaListReplications(t *testing.T) {
 				Message: errorMessage,
 			},
 		}
-		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]commonparams.ReplicationV1beta{}, nil)
 		mockClient.EXPECT().V1betaListReplications(mock.Anything).Return(nil, mockError)
 		cvpClient := &cvpapi.Cvp{Replications: mockClient}
 		originalClient := createClient
@@ -2678,7 +2683,7 @@ func TestV1betaListReplications(t *testing.T) {
 
 	t.Run("WhenCVPListReplicationsFailsWithForbidden", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -2697,7 +2702,7 @@ func TestV1betaListReplications(t *testing.T) {
 				Message: errorMessage,
 			},
 		}
-		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]commonparams.ReplicationV1beta{}, nil)
 		mockClient.EXPECT().V1betaListReplications(mock.Anything).Return(nil, mockError)
 		cvpClient := &cvpapi.Cvp{Replications: mockClient}
 		originalClient := createClient
@@ -2717,7 +2722,7 @@ func TestV1betaListReplications(t *testing.T) {
 
 	t.Run("WhenCVPListReplicationsFailsWithTooManyRequests", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -2736,7 +2741,7 @@ func TestV1betaListReplications(t *testing.T) {
 				Message: errorMessage,
 			},
 		}
-		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]commonparams.ReplicationV1beta{}, nil)
 		mockClient.EXPECT().V1betaListReplications(mock.Anything).Return(nil, mockError)
 		cvpClient := &cvpapi.Cvp{Replications: mockClient}
 		originalClient := createClient
@@ -2756,7 +2761,7 @@ func TestV1betaListReplications(t *testing.T) {
 
 	t.Run("WhenCVPListReplicationsFailsWithDefault", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -2775,7 +2780,7 @@ func TestV1betaListReplications(t *testing.T) {
 				Message: errorMessage,
 			},
 		}
-		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]commonparams.ReplicationV1beta{}, nil)
 		mockClient.EXPECT().V1betaListReplications(mock.Anything).Return(nil, mockError)
 		cvpClient := &cvpapi.Cvp{Replications: mockClient}
 		originalClient := createClient
@@ -2795,7 +2800,7 @@ func TestV1betaListReplications(t *testing.T) {
 
 	t.Run("WhenCVPListReplicationsFailsWithUnexpectedError", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -2806,10 +2811,12 @@ func TestV1betaListReplications(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("X-Correlation-ID"),
 		}
 
-		vcpReplications := []gcpgenserver.ReplicationV1beta{
+		replicationId1 := "vcp-replication-id-1"
+		resourceId1 := "vcp-resource-id-1"
+		vcpReplications := []commonparams.ReplicationV1beta{
 			{
-				ReplicationId: gcpgenserver.NewOptString("vcp-replication-id-1"),
-				ResourceId:    gcpgenserver.NewOptString("vcp-resource-id-1"),
+				ReplicationId: &replicationId1,
+				ResourceId:    &resourceId1,
 			},
 		}
 		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return(vcpReplications, nil)
@@ -2834,7 +2841,7 @@ func TestV1betaListReplications(t *testing.T) {
 
 	t.Run("WhenBothVCPAndCVPSucceed", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -2845,10 +2852,12 @@ func TestV1betaListReplications(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("X-Correlation-ID"),
 		}
 
-		vcpReplications := []gcpgenserver.ReplicationV1beta{
+		replicationId1 := "vcp-replication-id-1"
+		resourceId1 := "vcp-resource-id-1"
+		vcpReplications := []commonparams.ReplicationV1beta{
 			{
-				ReplicationId: gcpgenserver.NewOptString("vcp-replication-id-1"),
-				ResourceId:    gcpgenserver.NewOptString("vcp-resource-id-1"),
+				ReplicationId: &replicationId1,
+				ResourceId:    &resourceId1,
 			},
 		}
 
@@ -2896,7 +2905,7 @@ func TestV1betaListReplications(t *testing.T) {
 
 	t.Run("WhenOnlyVCPSucceeds", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -2907,10 +2916,12 @@ func TestV1betaListReplications(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("X-Correlation-ID"),
 		}
 
-		vcpReplications := []gcpgenserver.ReplicationV1beta{
+		replicationId1 := "vcp-replication-id-1"
+		resourceId1 := "vcp-resource-id-1"
+		vcpReplications := []commonparams.ReplicationV1beta{
 			{
-				ReplicationId: gcpgenserver.NewOptString("vcp-replication-id-1"),
-				ResourceId:    gcpgenserver.NewOptString("vcp-resource-id-1"),
+				ReplicationId: &replicationId1,
+				ResourceId:    &resourceId1,
 			},
 		}
 
@@ -2941,7 +2952,7 @@ func TestV1betaListReplications(t *testing.T) {
 
 	t.Run("WhenOnlyCVPSucceeds", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -2971,7 +2982,7 @@ func TestV1betaListReplications(t *testing.T) {
 				},
 			},
 		}
-		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]commonparams.ReplicationV1beta{}, nil)
 		mockClient.EXPECT().V1betaListReplications(mock.Anything).Return(mockResponse, nil)
 		cvpClient := &cvpapi.Cvp{Replications: mockClient}
 		originalClient := createClient
@@ -2993,7 +3004,7 @@ func TestV1betaListReplications(t *testing.T) {
 
 	t.Run("WhenBothVCPAndCVPReturnEmpty", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -3009,7 +3020,7 @@ func TestV1betaListReplications(t *testing.T) {
 				Replications: []*models.ReplicationV1beta{},
 			},
 		}
-		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]gcpgenserver.ReplicationV1beta{}, nil)
+		mockOrchestrator.EXPECT().GetMultipleReplications(mock.Anything, mock.Anything).Return([]commonparams.ReplicationV1beta{}, nil)
 		mockClient.EXPECT().V1betaListReplications(mock.Anything).Return(mockResponse, nil)
 		cvpClient := &cvpapi.Cvp{Replications: mockClient}
 		originalClient := createClient
@@ -3030,7 +3041,7 @@ func TestV1betaListReplications(t *testing.T) {
 
 	t.Run("WhenBothCallsExecuteInParallel", func(tt *testing.T) {
 		mockClient := replications.NewMockClientService(tt)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -3041,10 +3052,12 @@ func TestV1betaListReplications(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("X-Correlation-ID"),
 		}
 
-		vcpReplications := []gcpgenserver.ReplicationV1beta{
+		replicationId1 := "vcp-replication-id-1"
+		resourceId1 := "vcp-resource-id-1"
+		vcpReplications := []commonparams.ReplicationV1beta{
 			{
-				ReplicationId: gcpgenserver.NewOptString("vcp-replication-id-1"),
-				ResourceId:    gcpgenserver.NewOptString("vcp-resource-id-1"),
+				ReplicationId: &replicationId1,
+				ResourceId:    &resourceId1,
 			},
 		}
 
@@ -3095,5 +3108,155 @@ func TestV1betaListReplications(t *testing.T) {
 		}
 		assert.True(tt, replicationIDs["cvp-replication-id-1"], "CVP replication should be present")
 		assert.True(tt, replicationIDs["vcp-replication-id-1"], "VCP replication should be present")
+	})
+}
+
+func TestConvertCommonReplicationV1betaToGcp(t *testing.T) {
+	t.Run("WhenAllOptionalFieldsAreSet", func(tt *testing.T) {
+		now := time.Now()
+		state := "READY"
+		stateDetails := "Active state"
+		stateDetailsCode := int32(1)
+		role := "SOURCE"
+		replicationSchedule := "HOURLY"
+		mirrorState := "MIRRORED"
+		healthy := true
+		sourceVolumeName := "source-vol"
+		sourceVolumeId := "source-vol-id"
+		destVolumeName := "dest-vol"
+		destVolumeId := "dest-vol-id"
+		description := "Test replication"
+		clusterLocation := "us-east1"
+		hybridReplicationType := "ONPREM_REPLICATION"
+
+		commonReplications := []commonparams.ReplicationV1beta{
+			{
+				ReplicationId: nillable.ToPointer("repl-1"),
+				ResourceId:    nillable.ToPointer("resource-1"),
+				Description:   &description,
+				Source: &commonparams.ReplicationVolumeInformationV1beta{
+					VolumeName: &sourceVolumeName,
+					VolumeId:   &sourceVolumeId,
+				},
+				Destination: &commonparams.ReplicationVolumeInformationV1beta{
+					VolumeName: &destVolumeName,
+					VolumeId:   &destVolumeId,
+				},
+				State:               &state,
+				StateDetails:        &stateDetails,
+				StateDetailsCode:    &stateDetailsCode,
+				Role:                &role,
+				ReplicationSchedule: &replicationSchedule,
+				MirrorState:         &mirrorState,
+				Healthy:             &healthy,
+				TransferStats: &commonparams.TransferStatsV1beta{
+					TotalTransferBytes:    nillable.ToPointer(float64(1000.0)),
+					TotalTransferTimeSecs: nillable.ToPointer(float64(100.0)),
+					LastTransferSize:      nillable.ToPointer(float64(500.0)),
+					LastTransferError:     nillable.ToPointer(""),
+					LastTransferDuration:  nillable.ToPointer(float64(50.0)),
+					LastTransferEndTime:   &now,
+					TotalProgress:         nillable.ToPointer(float64(75.0)),
+					ProgressLastUpdated:   &now,
+					LagTime:               nillable.ToPointer(float64(10.0)),
+				},
+				Created:               &now,
+				Labels:                map[string]string{"key": "value"},
+				ClusterLocation:       &clusterLocation,
+				HybridReplicationType: &hybridReplicationType,
+			},
+		}
+
+		result := convertCommonReplicationV1betaToGcp(commonReplications)
+
+		assert.Len(tt, result, 1)
+		repl := result[0]
+		assert.True(tt, repl.ReplicationId.IsSet())
+		assert.Equal(tt, "repl-1", repl.ReplicationId.Value)
+		assert.True(tt, repl.ResourceId.IsSet())
+		assert.Equal(tt, "resource-1", repl.ResourceId.Value)
+		assert.True(tt, repl.Description.IsSet())
+		assert.Equal(tt, "Test replication", repl.Description.Value)
+		assert.True(tt, repl.Source.IsSet())
+		assert.True(tt, repl.Source.Value.VolumeName.IsSet())
+		assert.Equal(tt, "source-vol", repl.Source.Value.VolumeName.Value)
+		assert.True(tt, repl.Source.Value.VolumeId.IsSet())
+		assert.Equal(tt, "source-vol-id", repl.Source.Value.VolumeId.Value)
+		assert.True(tt, repl.Destination.IsSet())
+		assert.True(tt, repl.Destination.Value.VolumeName.IsSet())
+		assert.Equal(tt, "dest-vol", repl.Destination.Value.VolumeName.Value)
+		assert.True(tt, repl.Destination.Value.VolumeId.IsSet())
+		assert.Equal(tt, "dest-vol-id", repl.Destination.Value.VolumeId.Value)
+		assert.True(tt, repl.State.IsSet())
+		assert.Equal(tt, gcpgenserver.ReplicationV1betaState("READY"), repl.State.Value)
+		assert.True(tt, repl.StateDetails.IsSet())
+		assert.Equal(tt, "Active state", repl.StateDetails.Value)
+		assert.True(tt, repl.StateDetailsCode.IsSet())
+		assert.Equal(tt, int32(1), repl.StateDetailsCode.Value)
+		assert.True(tt, repl.Role.IsSet())
+		assert.Equal(tt, gcpgenserver.ReplicationV1betaRole("SOURCE"), repl.Role.Value)
+		assert.True(tt, repl.ReplicationSchedule.IsSet())
+		assert.Equal(tt, gcpgenserver.ReplicationV1betaReplicationSchedule("HOURLY"), repl.ReplicationSchedule.Value)
+		assert.True(tt, repl.MirrorState.IsSet())
+		assert.Equal(tt, gcpgenserver.ReplicationV1betaMirrorState("MIRRORED"), repl.MirrorState.Value)
+		assert.True(tt, repl.Healthy.IsSet())
+		assert.True(tt, repl.Healthy.Value)
+		assert.True(tt, repl.TransferStats.IsSet())
+		assert.True(tt, repl.TransferStats.Value.TotalTransferBytes.IsSet())
+		assert.Equal(tt, float64(1000.0), repl.TransferStats.Value.TotalTransferBytes.Value)
+		assert.True(tt, repl.TransferStats.Value.TotalTransferTimeSecs.IsSet())
+		assert.Equal(tt, float64(100.0), repl.TransferStats.Value.TotalTransferTimeSecs.Value)
+		assert.True(tt, repl.TransferStats.Value.LastTransferSize.IsSet())
+		assert.Equal(tt, float64(500.0), repl.TransferStats.Value.LastTransferSize.Value)
+		assert.True(tt, repl.TransferStats.Value.LastTransferError.IsSet())
+		assert.Equal(tt, "", repl.TransferStats.Value.LastTransferError.Value)
+		assert.True(tt, repl.TransferStats.Value.LastTransferDuration.IsSet())
+		assert.Equal(tt, float64(50.0), repl.TransferStats.Value.LastTransferDuration.Value)
+		assert.True(tt, repl.TransferStats.Value.LastTransferEndTime.IsSet())
+		assert.Equal(tt, now, repl.TransferStats.Value.LastTransferEndTime.Value)
+		assert.True(tt, repl.TransferStats.Value.TotalProgress.IsSet())
+		assert.Equal(tt, float64(75.0), repl.TransferStats.Value.TotalProgress.Value)
+		assert.True(tt, repl.TransferStats.Value.ProgressLastUpdated.IsSet())
+		assert.Equal(tt, now, repl.TransferStats.Value.ProgressLastUpdated.Value)
+		assert.True(tt, repl.TransferStats.Value.LagTime.IsSet())
+		assert.Equal(tt, float64(10.0), repl.TransferStats.Value.LagTime.Value)
+		assert.True(tt, repl.Created.IsSet())
+		assert.Equal(tt, now, repl.Created.Value)
+		assert.True(tt, repl.Labels.IsSet())
+		assert.Equal(tt, "value", repl.Labels.Value["key"])
+		assert.True(tt, repl.ClusterLocation.IsSet())
+		assert.Equal(tt, "us-east1", repl.ClusterLocation.Value)
+		assert.True(tt, repl.HybridReplicationType.IsSet())
+		assert.Equal(tt, gcpgenserver.ReplicationV1betaHybridReplicationType("ONPREM_REPLICATION"), repl.HybridReplicationType.Value)
+	})
+
+	t.Run("WhenOptionalFieldsAreNotSet", func(tt *testing.T) {
+		commonReplications := []commonparams.ReplicationV1beta{
+			{
+				ReplicationId: nillable.ToPointer("repl-2"),
+				ResourceId:    nillable.ToPointer("resource-2"),
+			},
+		}
+
+		result := convertCommonReplicationV1betaToGcp(commonReplications)
+
+		assert.Len(tt, result, 1)
+		repl := result[0]
+		assert.True(tt, repl.ReplicationId.IsSet())
+		assert.Equal(tt, "repl-2", repl.ReplicationId.Value)
+		assert.False(tt, repl.Description.IsSet())
+		assert.False(tt, repl.Source.IsSet())
+		assert.False(tt, repl.Destination.IsSet())
+		assert.False(tt, repl.State.IsSet())
+		assert.False(tt, repl.TransferStats.IsSet())
+		assert.False(tt, repl.Labels.IsSet())
+	})
+
+	t.Run("WhenEmptyArray", func(tt *testing.T) {
+		commonReplications := []commonparams.ReplicationV1beta{}
+
+		result := convertCommonReplicationV1betaToGcp(commonReplications)
+
+		assert.Len(tt, result, 0)
 	})
 }

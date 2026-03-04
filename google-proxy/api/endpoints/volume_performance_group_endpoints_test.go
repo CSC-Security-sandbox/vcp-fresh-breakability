@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
@@ -25,7 +25,7 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = false
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		req := &gcpgenserver.VolumePerformanceGroupCreateV1beta{
 			ResourceId:      "test-performance-group",
@@ -57,7 +57,7 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 		enableMqos = false
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		req := &gcpgenserver.VolumePerformanceGroupCreateV1beta{
 			ResourceId:      "test-performance-group",
@@ -89,7 +89,7 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		req := &gcpgenserver.VolumePerformanceGroupCreateV1beta{
 			ResourceId:      "test-performance-group",
@@ -123,7 +123,7 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		req := &gcpgenserver.VolumePerformanceGroupCreateV1beta{
 			ResourceId:      "existing-vpg-name",
@@ -158,7 +158,7 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		req := &gcpgenserver.VolumePerformanceGroupCreateV1beta{
 			ResourceId:      "test-performance-group",
@@ -192,7 +192,7 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		req := &gcpgenserver.VolumePerformanceGroupCreateV1beta{
 			ResourceId:      "test-performance-group",
@@ -244,7 +244,7 @@ func TestV1betaListVolumePerformanceGroups(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = false
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		params := gcpgenserver.V1betaListVolumePerformanceGroupsParams{
 			ProjectNumber: "12345",
@@ -270,7 +270,7 @@ func TestV1betaListVolumePerformanceGroups(t *testing.T) {
 		enableMqos = false
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		params := gcpgenserver.V1betaListVolumePerformanceGroupsParams{
 			ProjectNumber: "12345",
@@ -296,7 +296,7 @@ func TestV1betaListVolumePerformanceGroups(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		params := gcpgenserver.V1betaListVolumePerformanceGroupsParams{
 			ProjectNumber: "12345",
@@ -325,7 +325,7 @@ func TestV1betaListVolumePerformanceGroups(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		params := gcpgenserver.V1betaListVolumePerformanceGroupsParams{
 			ProjectNumber: "12345",
@@ -354,7 +354,7 @@ func TestV1betaListVolumePerformanceGroups(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		params := gcpgenserver.V1betaListVolumePerformanceGroupsParams{
 			ProjectNumber: "12345",
@@ -383,7 +383,7 @@ func TestV1betaListVolumePerformanceGroups(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		params := gcpgenserver.V1betaListVolumePerformanceGroupsParams{
 			ProjectNumber: "12345",
@@ -420,7 +420,7 @@ func TestV1betaListVolumePerformanceGroups(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		params := gcpgenserver.V1betaListVolumePerformanceGroupsParams{
 			ProjectNumber: "12345",
@@ -474,7 +474,7 @@ func TestV1betaDescribeVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = false
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		params := gcpgenserver.V1betaDescribeVolumePerformanceGroupParams{
 			ProjectNumber:            "12345",
@@ -501,7 +501,7 @@ func TestV1betaDescribeVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		enableMqos = false
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		params := gcpgenserver.V1betaDescribeVolumePerformanceGroupParams{
 			ProjectNumber:            "12345",
@@ -528,7 +528,7 @@ func TestV1betaDescribeVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		params := gcpgenserver.V1betaDescribeVolumePerformanceGroupParams{
 			ProjectNumber:            "12345",
@@ -558,7 +558,7 @@ func TestV1betaDescribeVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		params := gcpgenserver.V1betaDescribeVolumePerformanceGroupParams{
 			ProjectNumber:            "12345",
@@ -588,7 +588,7 @@ func TestV1betaDescribeVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		params := gcpgenserver.V1betaDescribeVolumePerformanceGroupParams{
 			ProjectNumber:            "12345",
@@ -618,7 +618,7 @@ func TestV1betaDescribeVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		params := gcpgenserver.V1betaDescribeVolumePerformanceGroupParams{
 			ProjectNumber:            "12345",
@@ -664,7 +664,7 @@ func TestV1betaUpdateVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = false
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		req := &gcpgenserver.VolumePerformanceGroupUpdateV1beta{
 			ResourceId: gcpgenserver.NewOptString("test-performance-group"),
@@ -694,7 +694,7 @@ func TestV1betaUpdateVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		enableMqos = false
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		req := &gcpgenserver.VolumePerformanceGroupUpdateV1beta{
 			ResourceId: gcpgenserver.NewOptString("test-performance-group"),
@@ -724,7 +724,7 @@ func TestV1betaUpdateVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		req := &gcpgenserver.VolumePerformanceGroupUpdateV1beta{
 			ResourceId: gcpgenserver.NewOptString("test-performance-group"),
@@ -757,10 +757,10 @@ func TestV1betaUpdateVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		req := &gcpgenserver.VolumePerformanceGroupUpdateV1beta{
-			ResourceId:     gcpgenserver.NewOptString("new-vpg-name"),
+			ResourceId:      gcpgenserver.NewOptString("new-vpg-name"),
 			ThroughputMibps: gcpgenserver.NewOptInt64(200),
 			Iops:            gcpgenserver.NewOptInt64(600),
 		}
@@ -802,7 +802,7 @@ func TestV1betaUpdateVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		req := &gcpgenserver.VolumePerformanceGroupUpdateV1beta{
 			ThroughputMibps: gcpgenserver.NewOptInt64(150),
@@ -845,7 +845,7 @@ func TestV1betaUpdateVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		req := &gcpgenserver.VolumePerformanceGroupUpdateV1beta{}
 		params := gcpgenserver.V1betaUpdateVolumePerformanceGroupParams{
@@ -875,7 +875,7 @@ func TestV1betaUpdateVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		req := &gcpgenserver.VolumePerformanceGroupUpdateV1beta{}
 		params := gcpgenserver.V1betaUpdateVolumePerformanceGroupParams{
@@ -906,7 +906,7 @@ func TestV1betaUpdateVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		req := &gcpgenserver.VolumePerformanceGroupUpdateV1beta{
 			ResourceId: gcpgenserver.NewOptString("new-name"),
@@ -941,7 +941,7 @@ func TestV1betaDeleteVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = false
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		params := gcpgenserver.V1betaDeleteVolumePerformanceGroupParams{
 			ProjectNumber:            "12345",
@@ -968,7 +968,7 @@ func TestV1betaDeleteVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		enableMqos = false
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		params := gcpgenserver.V1betaDeleteVolumePerformanceGroupParams{
 			ProjectNumber:            "12345",
@@ -995,7 +995,7 @@ func TestV1betaDeleteVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		enableMqos = true
 		enableVpgEndpoints = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		params := gcpgenserver.V1betaDeleteVolumePerformanceGroupParams{
 			ProjectNumber:            "12345",

@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync/atomic"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 )
@@ -38,7 +38,7 @@ func (s *ServerState) IsShuttingDown() bool {
 
 type Handler struct {
 	oasgenserver.UnimplementedHandler
-	Orchestrator orchestrator.OrchestratorFactory
+	Orchestrator factory.OrchestratorFactory
 	ServerState  *ServerState
 }
 

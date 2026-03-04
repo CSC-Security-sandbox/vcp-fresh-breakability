@@ -36,6 +36,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"go.temporal.io/sdk/workflow"
+	"gorm.io/gorm"
 )
 
 var (
@@ -1489,4 +1490,31 @@ func ExtractSnapshotNameFromCVPBackup(backup *cvpModels.BackupV1beta, backupName
 
 	// Default: return empty string if none of the conditions match
 	return ""
+}
+
+// DeletedAtOrNil converts gorm.DeletedAt to *time.Time, returning nil if deletedAt is invalid
+func DeletedAtOrNil(deletedAt *gorm.DeletedAt) *time.Time {
+	if deletedAt != nil && deletedAt.Valid {
+		return &deletedAt.Time
+	}
+	return nil
+}
+
+// ConvertJSONBToMap converts a JSONB object to a map[string]string
+func ConvertJSONBToMap(jsonb *datamodel.JSONB) map[string]string {
+	result := make(map[string]string)
+	if jsonb == nil {
+		return result
+	}
+
+	for k, v := range *jsonb {
+		// attempt a type assertion
+		if strVal, ok := v.(string); ok {
+			result[k] = strVal
+		} else {
+			// fallback: convert using fmt.Sprintf
+			result[k] = fmt.Sprintf("%v", v)
+		}
+	}
+	return result
 }

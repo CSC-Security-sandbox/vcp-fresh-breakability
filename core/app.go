@@ -18,8 +18,8 @@ import (
 	api "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/endpoints"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/tasks"
@@ -105,14 +105,14 @@ func main() {
 		os.Exit(1)
 	}
 	defer workflowClient.CloseClient(workflowClient.GetTemporalClient())
-	
+
 	// Initialize FetchTemporalClient function for use in activities
 	workflowengine.FetchTemporalClient = func() (client.Client, error) {
 		return workflowClient.GetTemporalClient(), nil
 	}
 
 	// Create GCP proxy server and inject required dependencies
-	orch := orchestrator.GetNewOrchestrator(dbCon, workflowClient.GetTemporalClient())
+	orch := factory.GetOrchestratorForProvider(dbCon, workflowClient.GetTemporalClient())
 	newHandler := &api.Handler{Orchestrator: orch} // inject the orchestrator into the handler
 	oasserver, err := coregenserver.NewServer(newHandler)
 	if err != nil {

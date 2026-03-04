@@ -14,7 +14,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/backgroundworkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler/adminbackgroundjobs"
@@ -87,7 +87,7 @@ func main() {
 	}
 
 	// Create GCP proxy server and inject required dependencies
-	orch := orchestrator.GetNewOrchestrator(dbCon, workflowClient.GetTemporalClient())
+	orch := factory.GetOrchestratorForProvider(dbCon, workflowClient.GetTemporalClient())
 	serverState := api.NewServerState()
 	newHandler := &api.Handler{Orchestrator: orch, ServerState: serverState} // inject the orchestrator and server state into the handler
 	gcpServer, err := gcpgenserver.NewServer(newHandler)

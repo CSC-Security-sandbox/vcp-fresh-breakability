@@ -16,8 +16,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	orchestratorcommon "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -34,7 +34,7 @@ func TestMain(m *testing.M) {
 
 func TestV1betaCreateQuotaRule(t *testing.T) {
 	t.Run("WhenCreateQuotaRuleSucceeds", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -79,7 +79,7 @@ func TestV1betaCreateQuotaRule(t *testing.T) {
 	})
 
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 
 		params := gcpgenserver.V1betaCreateQuotaRuleParams{
@@ -113,7 +113,7 @@ func TestV1betaCreateQuotaRule(t *testing.T) {
 		defer func() { enableQuotaRule = orig }()
 		enableQuotaRule = false
 
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		params := gcpgenserver.V1betaCreateQuotaRuleParams{
 			ProjectNumber: "project-1",
@@ -139,7 +139,7 @@ func TestV1betaCreateQuotaRule(t *testing.T) {
 	})
 
 	t.Run("WhenCreateQuotaRuleFailsWithBadRequest", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -177,7 +177,7 @@ func TestV1betaCreateQuotaRule(t *testing.T) {
 	})
 
 	t.Run("WhenCreateQuotaRuleFailsWithInternalError", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -216,7 +216,7 @@ func TestV1betaCreateQuotaRule(t *testing.T) {
 
 func TestV1betaUpdateQuotaRule(t *testing.T) {
 	t.Run("WhenUpdateQuotaRuleSucceeds", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -262,7 +262,7 @@ func TestV1betaUpdateQuotaRule(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateQuotaRuleSucceedsWithoutOperationID", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -305,7 +305,7 @@ func TestV1betaUpdateQuotaRule(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateQuotaRuleSucceedsWithOnlyDiskLimit", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -343,7 +343,7 @@ func TestV1betaUpdateQuotaRule(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateQuotaRuleSucceedsWithOnlyDescription", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -381,7 +381,7 @@ func TestV1betaUpdateQuotaRule(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateQuotaRuleSucceedsWithBothFields", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -421,7 +421,7 @@ func TestV1betaUpdateQuotaRule(t *testing.T) {
 	})
 
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 
 		params := gcpgenserver.V1betaUpdateQuotaRuleParams{
@@ -446,7 +446,7 @@ func TestV1betaUpdateQuotaRule(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateQuotaRuleFailsWithBadRequest", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -481,7 +481,7 @@ func TestV1betaUpdateQuotaRule(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateQuotaRuleFailsWithNotFound", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -516,7 +516,7 @@ func TestV1betaUpdateQuotaRule(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateQuotaRuleFailsWithConflict", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -551,7 +551,7 @@ func TestV1betaUpdateQuotaRule(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateQuotaRuleFailsWithInternalError", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -587,7 +587,7 @@ func TestV1betaUpdateQuotaRule(t *testing.T) {
 
 func TestV1betaUpdateQuotaRuleVCP(t *testing.T) {
 	t.Run("WhenUpdateQuotaRuleInternalSucceeds", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -651,7 +651,7 @@ func TestV1betaUpdateQuotaRuleVCP(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateQuotaRuleInternalSucceedsWithoutJob", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -695,7 +695,7 @@ func TestV1betaUpdateQuotaRuleVCP(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateQuotaRuleInternalSucceedsWithOnlyDiskLimit", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -734,7 +734,7 @@ func TestV1betaUpdateQuotaRuleVCP(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateQuotaRuleInternalSucceedsWithOnlyDescription", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -773,7 +773,7 @@ func TestV1betaUpdateQuotaRuleVCP(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateQuotaRuleInternalSucceedsWithBothFields", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -814,7 +814,7 @@ func TestV1betaUpdateQuotaRuleVCP(t *testing.T) {
 	})
 
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 
 		params := gcpgenserver.V1betaUpdateQuotaRuleVCPParams{
@@ -839,7 +839,7 @@ func TestV1betaUpdateQuotaRuleVCP(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateQuotaRuleInternalFailsWithBadRequest", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -874,7 +874,7 @@ func TestV1betaUpdateQuotaRuleVCP(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateQuotaRuleInternalFailsWithNotFound", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -909,7 +909,7 @@ func TestV1betaUpdateQuotaRuleVCP(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateQuotaRuleInternalFailsWithConflict", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -944,7 +944,7 @@ func TestV1betaUpdateQuotaRuleVCP(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateQuotaRuleInternalFailsWithInternalError", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -980,7 +980,7 @@ func TestV1betaUpdateQuotaRuleVCP(t *testing.T) {
 
 func TestV1betaCreateQuotaRuleVCP(t *testing.T) {
 	t.Run("WhenCreateQuotaRuleInternalSucceeds", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -1044,7 +1044,7 @@ func TestV1betaCreateQuotaRuleVCP(t *testing.T) {
 	})
 
 	t.Run("WhenCreateQuotaRuleInternalSucceedsWithoutJob", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -1096,7 +1096,7 @@ func TestV1betaCreateQuotaRuleVCP(t *testing.T) {
 	})
 
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 
 		params := gcpgenserver.V1betaCreateQuotaRuleVCPParams{
@@ -1125,7 +1125,7 @@ func TestV1betaCreateQuotaRuleVCP(t *testing.T) {
 	})
 
 	t.Run("WhenCreateQuotaRuleInternalFailsWithBadRequest", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -1164,7 +1164,7 @@ func TestV1betaCreateQuotaRuleVCP(t *testing.T) {
 	})
 
 	t.Run("WhenCreateQuotaRuleInternalFailsWithConflict", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -1203,7 +1203,7 @@ func TestV1betaCreateQuotaRuleVCP(t *testing.T) {
 	})
 
 	t.Run("WhenCreateQuotaRuleInternalFailsWithInternalError", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -1513,7 +1513,7 @@ func TestJobStateToVCPV1Beta(t *testing.T) {
 
 func TestV1betaListAllQuotaRules(t *testing.T) {
 	t.Run("WhenListAllQuotaRulesSucceeds", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -1565,7 +1565,7 @@ func TestV1betaListAllQuotaRules(t *testing.T) {
 	})
 
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 
 		params := gcpgenserver.V1betaListAllQuotaRulesParams{
@@ -1586,7 +1586,7 @@ func TestV1betaListAllQuotaRules(t *testing.T) {
 	})
 
 	t.Run("WhenListQuotaRulesFailsWithNotFound", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -1617,7 +1617,7 @@ func TestV1betaListAllQuotaRules(t *testing.T) {
 	})
 
 	t.Run("WhenListQuotaRulesFailsWithInternalError", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -1649,7 +1649,7 @@ func TestV1betaListAllQuotaRules(t *testing.T) {
 }
 func TestV1betaDeleteQuotaRule(t *testing.T) {
 	t.Run("WhenDeleteQuotaRuleSucceeds", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -1689,7 +1689,7 @@ func TestV1betaDeleteQuotaRule(t *testing.T) {
 	})
 
 	t.Run("WhenDeleteQuotaRuleSucceedsWithoutOperationID", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -1728,7 +1728,7 @@ func TestV1betaDeleteQuotaRule(t *testing.T) {
 	})
 
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 
 		params := gcpgenserver.V1betaDeleteQuotaRuleParams{
@@ -1749,7 +1749,7 @@ func TestV1betaDeleteQuotaRule(t *testing.T) {
 	})
 
 	t.Run("WhenDeleteQuotaRuleFailsWithBadRequest", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -1780,7 +1780,7 @@ func TestV1betaDeleteQuotaRule(t *testing.T) {
 	})
 
 	t.Run("WhenDeleteQuotaRuleFailsWithNotFound", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -1811,7 +1811,7 @@ func TestV1betaDeleteQuotaRule(t *testing.T) {
 	})
 
 	t.Run("WhenDeleteQuotaRuleFailsWithConflict", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -1842,7 +1842,7 @@ func TestV1betaDeleteQuotaRule(t *testing.T) {
 	})
 
 	t.Run("WhenDeleteQuotaRuleFailsWithInternalError", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -1874,7 +1874,7 @@ func TestV1betaDeleteQuotaRule(t *testing.T) {
 
 func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 	t.Run("WhenGetMultipleQuotaRulesSucceeds", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -1930,7 +1930,7 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 	})
 
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 
 		params := gcpgenserver.V1betaGetMultipleQuotaRulesParams{
@@ -1955,7 +1955,7 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 	})
 
 	t.Run("WhenGetMultipleQuotaRulesFailsWithError", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -1990,7 +1990,7 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 	})
 
 	t.Run("WhenGetMultipleQuotaRulesReturnsEmptyList_DoesNotCallCVP_ReturnsEmptyList", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -2034,7 +2034,7 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 	})
 
 	t.Run("WhenVCPReturnsNotFoundErr_TriggersCVPFallback", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -2089,7 +2089,7 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 	})
 
 	t.Run("WhenCVPReturnsNotFound_ReturnsNotFound", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -2139,7 +2139,7 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 	})
 
 	t.Run("WhenCVPReturnsBadRequest_ReturnsBadRequest", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -2189,7 +2189,7 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 	})
 
 	t.Run("WhenCVPReturnsUnauthorized_ReturnsUnauthorized", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -2239,7 +2239,7 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 	})
 
 	t.Run("WhenCVPReturnsForbidden_ReturnsForbidden", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -2289,7 +2289,7 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 	})
 
 	t.Run("WhenCVPReturnsTooManyRequests_ReturnsTooManyRequests", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -2339,7 +2339,7 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 	})
 
 	t.Run("WhenCVPReturnsQuotaRules_ReturnsCVPQuotaRules", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -2398,7 +2398,7 @@ func TestV1betaGetMultipleQuotaRules(t *testing.T) {
 
 func TestV1betaDescribeQuotaRule(t *testing.T) {
 	t.Run("WhenDescribeQuotaRuleSucceeds", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -2441,7 +2441,7 @@ func TestV1betaDescribeQuotaRule(t *testing.T) {
 	})
 
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 
 		params := gcpgenserver.V1betaDescribeQuotaRuleParams{
@@ -2463,7 +2463,7 @@ func TestV1betaDescribeQuotaRule(t *testing.T) {
 	})
 
 	t.Run("WhenDescribeQuotaRuleFailsWithNotFound", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -2495,7 +2495,7 @@ func TestV1betaDescribeQuotaRule(t *testing.T) {
 	})
 
 	t.Run("WhenDescribeQuotaRuleFailsWithInternalError", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -2527,7 +2527,7 @@ func TestV1betaDescribeQuotaRule(t *testing.T) {
 	})
 
 	t.Run("WhenDescribeQuotaRuleReturnsNil", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -3150,7 +3150,7 @@ func TestConvertDatastoreQuotaRuleToModel(t *testing.T) {
 // TestV1betaUpdateDestinationQuotaRulesVCP tests the V1betaUpdateDestinationQuotaRulesVCP handler
 func TestV1betaUpdateDestinationQuotaRulesVCP(t *testing.T) {
 	t.Run("WhenSuccess", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -3204,7 +3204,11 @@ func TestV1betaUpdateDestinationQuotaRulesVCP(t *testing.T) {
 			return "us-central1", "us-central1", nil
 		}
 
-		mockOrch.EXPECT().ReplaceDstQuotaRulesWithSrc(mock.Anything, req, params).
+		// Convert to commonparams types for the mock expectation
+		commonReq := convertGcpUpdateDstWithSrcQuotaRulesToCommon(req)
+		commonParams := convertGcpV1betaUpdateDestinationQuotaRulesVCPParamsToCommon(params)
+
+		mockOrch.EXPECT().ReplaceDstQuotaRulesWithSrc(mock.Anything, commonReq, commonParams).
 			Return(createdQuotaRules, nil)
 
 		ctx := context.Background()
@@ -3221,7 +3225,7 @@ func TestV1betaUpdateDestinationQuotaRulesVCP(t *testing.T) {
 	})
 
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -3257,7 +3261,7 @@ func TestV1betaUpdateDestinationQuotaRulesVCP(t *testing.T) {
 	})
 
 	t.Run("WhenOrchestratorReturnsNotFoundError", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -3278,7 +3282,11 @@ func TestV1betaUpdateDestinationQuotaRulesVCP(t *testing.T) {
 			return "us-central1", "us-central1", nil
 		}
 
-		mockOrch.EXPECT().ReplaceDstQuotaRulesWithSrc(mock.Anything, req, params).
+		// Convert to commonparams types for the mock expectation
+		commonReq := convertGcpUpdateDstWithSrcQuotaRulesToCommon(req)
+		commonParams := convertGcpV1betaUpdateDestinationQuotaRulesVCPParamsToCommon(params)
+
+		mockOrch.EXPECT().ReplaceDstQuotaRulesWithSrc(mock.Anything, commonReq, commonParams).
 			Return(nil, errors.NewNotFoundErr("Volume", nillable.ToPointer("vol-1")))
 
 		ctx := context.Background()
@@ -3293,7 +3301,7 @@ func TestV1betaUpdateDestinationQuotaRulesVCP(t *testing.T) {
 	})
 
 	t.Run("WhenOrchestratorReturnsConflictError", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -3314,7 +3322,11 @@ func TestV1betaUpdateDestinationQuotaRulesVCP(t *testing.T) {
 			return "us-central1", "us-central1", nil
 		}
 
-		mockOrch.EXPECT().ReplaceDstQuotaRulesWithSrc(mock.Anything, req, params).
+		// Convert to commonparams types for the mock expectation
+		commonReq := convertGcpUpdateDstWithSrcQuotaRulesToCommon(req)
+		commonParams := convertGcpV1betaUpdateDestinationQuotaRulesVCPParamsToCommon(params)
+
+		mockOrch.EXPECT().ReplaceDstQuotaRulesWithSrc(mock.Anything, commonReq, commonParams).
 			Return(nil, errors.NewConflictErr("Quota rule conflict"))
 
 		ctx := context.Background()
@@ -3329,7 +3341,7 @@ func TestV1betaUpdateDestinationQuotaRulesVCP(t *testing.T) {
 	})
 
 	t.Run("WhenOrchestratorReturnsInternalError", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -3350,7 +3362,11 @@ func TestV1betaUpdateDestinationQuotaRulesVCP(t *testing.T) {
 			return "us-central1", "us-central1", nil
 		}
 
-		mockOrch.EXPECT().ReplaceDstQuotaRulesWithSrc(mock.Anything, req, params).
+		// Convert to commonparams types for the mock expectation
+		commonReq := convertGcpUpdateDstWithSrcQuotaRulesToCommon(req)
+		commonParams := convertGcpV1betaUpdateDestinationQuotaRulesVCPParamsToCommon(params)
+
+		mockOrch.EXPECT().ReplaceDstQuotaRulesWithSrc(mock.Anything, commonReq, commonParams).
 			Return(nil, errors.New("database connection failed"))
 
 		ctx := context.Background()
@@ -3365,7 +3381,7 @@ func TestV1betaUpdateDestinationQuotaRulesVCP(t *testing.T) {
 	})
 
 	t.Run("WhenMultipleQuotaRulesAreCreated", func(tt *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrch := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrch}
 		defer func() {
 			parseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
@@ -3427,7 +3443,11 @@ func TestV1betaUpdateDestinationQuotaRulesVCP(t *testing.T) {
 			return "us-central1", "us-central1", nil
 		}
 
-		mockOrch.EXPECT().ReplaceDstQuotaRulesWithSrc(mock.Anything, req, params).
+		// Convert to commonparams types for the mock expectation
+		commonReq := convertGcpUpdateDstWithSrcQuotaRulesToCommon(req)
+		commonParams := convertGcpV1betaUpdateDestinationQuotaRulesVCPParamsToCommon(params)
+
+		mockOrch.EXPECT().ReplaceDstQuotaRulesWithSrc(mock.Anything, commonReq, commonParams).
 			Return(createdQuotaRules, nil)
 
 		ctx := context.Background()
@@ -3441,5 +3461,102 @@ func TestV1betaUpdateDestinationQuotaRulesVCP(t *testing.T) {
 		assert.Len(tt, ok.QuotaRules, 2)
 		assert.Equal(tt, "quota-uuid-1", ok.QuotaRules[0].QuotaId.Value)
 		assert.Equal(tt, "quota-uuid-2", ok.QuotaRules[1].QuotaId.Value)
+	})
+}
+
+func TestConvertGcpQuotaRulesV1betaToCommon(t *testing.T) {
+	t.Run("WhenAllOptionalFieldsAreSet", func(tt *testing.T) {
+		state := gcpgenserver.QuotaRulesV1betaState("Active")
+		stateDetails := "Quota rule is active"
+		description := "Test quota rule"
+		createdAt := time.Now()
+		updatedAt := time.Now()
+
+		rule := gcpgenserver.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-1",
+			QuotaType:      gcpgenserver.QuotaRulesV1betaQuotaTypeINDIVIDUALUSERQUOTA,
+			DiskLimitInMib: 100,
+			QuotaId:        gcpgenserver.NewOptString("quota-id-1"),
+			QuotaTarget:    gcpgenserver.NewOptString("user:alice"),
+			State:          gcpgenserver.NewOptQuotaRulesV1betaState(state),
+			StateDetails:   gcpgenserver.NewOptString(stateDetails),
+			Description:    gcpgenserver.NewOptString(description),
+			CreatedAt:      gcpgenserver.NewOptDateTime(createdAt),
+			UpdatedAt:      gcpgenserver.NewOptDateTime(updatedAt),
+		}
+
+		result := convertGcpQuotaRulesV1betaToCommon(rule)
+
+		assert.Equal(tt, "quota-rule-1", result.ResourceId)
+		assert.Equal(tt, "INDIVIDUAL_USER_QUOTA", result.QuotaType)
+		assert.Equal(tt, int64(100), result.DiskLimitInMib)
+		assert.NotNil(tt, result.QuotaId)
+		assert.Equal(tt, "quota-id-1", *result.QuotaId)
+		assert.NotNil(tt, result.QuotaTarget)
+		assert.Equal(tt, "user:alice", *result.QuotaTarget)
+		assert.NotNil(tt, result.State)
+		assert.Equal(tt, "Active", *result.State)
+		assert.NotNil(tt, result.StateDetails)
+		assert.Equal(tt, "Quota rule is active", *result.StateDetails)
+		assert.NotNil(tt, result.Description)
+		assert.Equal(tt, "Test quota rule", *result.Description)
+		assert.NotNil(tt, result.CreatedAt)
+		assert.Equal(tt, createdAt, *result.CreatedAt)
+		assert.NotNil(tt, result.UpdatedAt)
+		assert.Equal(tt, updatedAt, *result.UpdatedAt)
+	})
+
+	t.Run("WhenOptionalFieldsAreNotSet", func(tt *testing.T) {
+		rule := gcpgenserver.QuotaRulesV1beta{
+			ResourceId:     "quota-rule-2",
+			QuotaType:      gcpgenserver.QuotaRulesV1betaQuotaTypeINDIVIDUALGROUPQUOTA,
+			DiskLimitInMib: 200,
+		}
+
+		result := convertGcpQuotaRulesV1betaToCommon(rule)
+
+		assert.Equal(tt, "quota-rule-2", result.ResourceId)
+		assert.Equal(tt, "INDIVIDUAL_GROUP_QUOTA", result.QuotaType)
+		assert.Equal(tt, int64(200), result.DiskLimitInMib)
+		assert.Nil(tt, result.State)
+		assert.Nil(tt, result.StateDetails)
+		assert.Nil(tt, result.Description)
+		assert.Nil(tt, result.CreatedAt)
+		assert.Nil(tt, result.UpdatedAt)
+	})
+}
+
+func TestConvertGcpV1betaUpdateDestinationQuotaRulesVCPParamsToCommon(t *testing.T) {
+	t.Run("WhenXCorrelationIDIsSet", func(tt *testing.T) {
+		params := gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPParams{
+			ProjectNumber:  "test-project",
+			LocationId:     "us-central1",
+			VolumeId:       "volume-123",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+
+		result := convertGcpV1betaUpdateDestinationQuotaRulesVCPParamsToCommon(params)
+
+		assert.Equal(tt, "test-project", result.ProjectNumber)
+		assert.Equal(tt, "us-central1", result.LocationId)
+		assert.Equal(tt, "volume-123", result.VolumeId)
+		assert.NotNil(tt, result.XCorrelationID)
+		assert.Equal(tt, "test-correlation-id", *result.XCorrelationID)
+	})
+
+	t.Run("WhenXCorrelationIDIsNotSet", func(tt *testing.T) {
+		params := gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPParams{
+			ProjectNumber:  "test-project",
+			LocationId:     "us-central1",
+			VolumeId:       "volume-123",
+			XCorrelationID: gcpgenserver.OptString{},
+		}
+
+		result := convertGcpV1betaUpdateDestinationQuotaRulesVCPParamsToCommon(params)
+
+		assert.Equal(tt, "test-project", result.ProjectNumber)
+		assert.Equal(tt, "us-central1", result.LocationId)
+		assert.Equal(tt, "volume-123", result.VolumeId)
+		assert.Nil(tt, result.XCorrelationID)
 	})
 }

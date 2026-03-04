@@ -19,8 +19,8 @@ import (
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -2796,7 +2796,7 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 		}
 
 		// mockClient removed (was unused)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultipleVolumesParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -2827,7 +2827,7 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 			return "location-id", "location-id", nil
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultipleVolumesParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -2858,7 +2858,7 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 			return "location-id", "location-id", nil
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultipleVolumesParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -2889,7 +2889,7 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 			return "location-id", "location-id", nil
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultipleVolumesParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -2920,7 +2920,7 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 			return "location-id", "location-id", nil
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultipleVolumesParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -2951,7 +2951,7 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 			return "location-id", "location-id", nil
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultipleVolumesParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -2982,7 +2982,7 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 			return "location-id", "location-id", nil
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultipleVolumesParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -3013,7 +3013,7 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 			return "location-id", "location-id", nil
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultipleVolumesParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -3044,7 +3044,7 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 			return "location-id", "location-id", nil
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultipleVolumesParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -3072,7 +3072,7 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 			return "location-id", "location-id", nil
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultipleVolumesParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -3108,7 +3108,7 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 			getMultipleVolumesFromCVP = origGetMultipleVolumesFromCVP
 		}()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3173,7 +3173,7 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 			},
 		}, nil)
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3201,7 +3201,7 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 	})
 
 	t.Run("Success - some volumes found in VCP, CVP_HOST is not set", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3230,7 +3230,7 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 	})
 
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3267,7 +3267,7 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 		// Don't set CVP_HOST so CVP calls will be skipped
 		cvp.SetCVPHost("")
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultipleVolumesParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -3308,7 +3308,7 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 		// Set CVP_HOST so CVP calls will be made
 		cvp.SetCVPHost("http://cvp-host")
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultipleVolumesParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -3372,7 +3372,7 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 			},
 		}, nil)
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3409,7 +3409,7 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 		// Set CVP_HOST so CVP calls will be made
 		setupCVPEnvironment(tt)
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3446,7 +3446,7 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 		// Set CVP_HOST so CVP calls will be made
 		cvp.SetCVPHost("http://cvp-host")
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3508,7 +3508,7 @@ func TestV1betaGetMultipleVolumes(t *testing.T) {
 		// Set CVP_HOST so CVP calls will be made
 		cvp.SetCVPHost("http://cvp-host")
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -4427,7 +4427,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 	defer func() { utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
 
 	t.Run("ValidUpdateVolume", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaUpdateVolumeParams{
@@ -4457,7 +4457,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 	})
 
 	t.Run("UserInputValidationError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaUpdateVolumeParams{
 			ProjectNumber: "test-project",
@@ -4483,7 +4483,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 	})
 
 	t.Run("InternalServerError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaUpdateVolumeParams{
 			ProjectNumber: "test-project",
@@ -4512,7 +4512,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
 		defer func() { utils.ParseAndValidateRegionAndZone = mockParseAndValidateRegionAndZone }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaUpdateVolumeParams{
 			ProjectNumber: "test-project",
@@ -4534,7 +4534,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 	})
 
 	t.Run("WhenOrchestratorValidationThrowsAnError_Return400BadRequest", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaUpdateVolumeParams{
@@ -4561,7 +4561,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 	})
 
 	t.Run("WhenOrchestratorThrowsAnError_ReturnError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaUpdateVolumeParams{
@@ -4588,7 +4588,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 	})
 
 	t.Run("WhenOrchestratorThrowsConflictError_Return409Conflict", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaUpdateVolumeParams{
@@ -4615,7 +4615,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 	})
 
 	t.Run("WhenLifeCycleStateUpdating_ThenReturnDoneAsFalse", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaUpdateVolumeParams{
@@ -4648,7 +4648,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		autoTieringEnabled = true
 		defer func() { autoTieringEnabled = currentATState }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaUpdateVolumeParams{
 			LocationId:    "location-id",
@@ -4686,7 +4686,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		autoTieringEnabled = true
 		defer func() { autoTieringEnabled = currentATState }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaUpdateVolumeParams{
 			LocationId:    "location-id",
@@ -4728,7 +4728,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		autoTieringEnabled = false
 		defer func() { autoTieringEnabled = currentATState }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaUpdateVolumeParams{
 			LocationId:    "location-id",
@@ -4846,7 +4846,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 	})
 
 	t.Run("WhenGetVolumeReturnsNotFoundError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaUpdateVolumeParams{
@@ -4871,7 +4871,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 	})
 
 	t.Run("WhenGetVolumeReturnsInternalError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaUpdateVolumeParams{
@@ -4900,7 +4900,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		flexCacheEnabled = false
 		defer func() { flexCacheEnabled = currentFCState }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaUpdateVolumeParams{
 			LocationId:    "location-id",
@@ -4933,7 +4933,7 @@ func TestV1betaUpdateVolume(t *testing.T) {
 		flexCacheEnabled = true
 		defer func() { flexCacheEnabled = currentFCState }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaUpdateVolumeParams{
 			LocationId:    "location-id",
@@ -5364,7 +5364,7 @@ func TestPrepareUpdateVolumeParams(t *testing.T) {
 
 func TestV1betaGetVolumeCount(t *testing.T) {
 	t.Run("ValidVolumeCount", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetVolumeCountParams{
 			ProjectNumber: "test-project",
 		}
@@ -5384,7 +5384,7 @@ func TestV1betaGetVolumeCount(t *testing.T) {
 	})
 
 	t.Run("ErrorGettingVolumeCount", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetVolumeCountParams{
 			ProjectNumber: "test-project",
 		}
@@ -5405,7 +5405,7 @@ func TestV1betaGetVolumeCount(t *testing.T) {
 
 func TestV1betaListVolumes(t *testing.T) {
 	t.Run("SuccessfulListVolumes", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaListVolumesParams{
 			ProjectNumber: "test-project",
 		}
@@ -5437,7 +5437,7 @@ func TestV1betaListVolumes(t *testing.T) {
 	})
 
 	t.Run("ErrorListingVolumes", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaListVolumesParams{
 			ProjectNumber: "test-project",
 		}
@@ -5894,7 +5894,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 	defer func() { utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
 
 	t.Run("ValidCreateVolume", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaCreateVolumeParams{
@@ -5928,7 +5928,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 	})
 
 	t.Run("SMBPoolDescribeNotFound", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaCreateVolumeParams{
@@ -5957,7 +5957,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 	})
 
 	t.Run("SMBPoolDescribeInternalError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaCreateVolumeParams{
@@ -5986,7 +5986,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 	})
 
 	t.Run("KerberosPoolDescribeNotFound", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaCreateVolumeParams{
@@ -6016,7 +6016,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 	})
 
 	t.Run("KerberosPoolDescribeInternalError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaCreateVolumeParams{
@@ -6046,7 +6046,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 	})
 
 	t.Run("UserInputValidationError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaCreateVolumeParams{
 			ProjectNumber: "test-project",
@@ -6073,7 +6073,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		hybridReplicationEnabled = false
 		defer func() { hybridReplicationEnabled = originalHybridReplicationEnabled }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaCreateVolumeParams{
@@ -6120,7 +6120,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		bidiReplicationEnabled = false
 		defer func() { bidiReplicationEnabled = originalBidiReplicationEnabled }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaCreateVolumeParams{
@@ -6157,7 +6157,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 	})
 
 	t.Run("UserInputValidationErrorWhenVolumeQuotaIsByteIsNotSet", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaCreateVolumeParams{
 			ProjectNumber: "test-project",
@@ -6178,7 +6178,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 	})
 
 	t.Run("InternalServerError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaCreateVolumeParams{
 			ProjectNumber: "test-project",
@@ -6204,7 +6204,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
 		defer func() { utils.ParseAndValidateRegionAndZone = mockParseAndValidateRegionAndZone }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaCreateVolumeParams{
 			ProjectNumber: "test-project",
@@ -6225,7 +6225,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 	})
 
 	t.Run("WhenOrchestratorValidationThrowsAnError_Return400BadRequest", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaCreateVolumeParams{
@@ -6254,7 +6254,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 	})
 
 	t.Run("WhenOrchestratorThrowsAnError_ReturnError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaCreateVolumeParams{
@@ -6283,7 +6283,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 	})
 
 	t.Run("WhenOrchestratorThrowsConflictError_Return409Conflict", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaCreateVolumeParams{
@@ -6312,7 +6312,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 	})
 
 	t.Run("WhenLifeCycleStateCreating_ThenReturnDoneAsFalse", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaCreateVolumeParams{
@@ -6345,7 +6345,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 	})
 
 	t.Run("WhenLifeCycleStateCreating_ThenReturnDoneAsFalse", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaCreateVolumeParams{
@@ -6382,7 +6382,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		currentATState := autoTieringEnabled
 		defer func() { autoTieringEnabled = currentATState }()
 		autoTieringEnabled = true
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaCreateVolumeParams{
@@ -6434,7 +6434,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		defer func() { hybridReplicationEnabled = originalBidiReplicationEnabled }()
 		defer func() { hybridReplicationEnabled = originalHybridReplicationEnabled }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaCreateVolumeParams{
@@ -6487,7 +6487,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		defer func() { hybridReplicationEnabled = originalHybridReplicationEnabled }()
 		defer func() { bidiReplicationEnabled = originalBidiReplicationEnabled }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaCreateVolumeParams{
@@ -6534,7 +6534,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 	})
 
 	t.Run("BlockDevicesNil_ShouldPass", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaCreateVolumeParams{
@@ -6568,7 +6568,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 	})
 
 	t.Run("BlockDevicesEmpty_ShouldPass", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaCreateVolumeParams{
@@ -6602,7 +6602,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 	})
 
 	t.Run("BlockDevicesWithoutName_ShouldPass", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaCreateVolumeParams{
@@ -6640,7 +6640,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 	})
 
 	t.Run("BlockDevicesWithNameButNoHybridReplication_ShouldPass", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaCreateVolumeParams{
@@ -6688,7 +6688,7 @@ func TestV1betaCreateVolume(t *testing.T) {
 		defer func() { hybridReplicationEnabled = originalBidiReplicationEnabled }()
 		defer func() { hybridReplicationEnabled = originalHybridReplicationEnabled }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaCreateVolumeParams{
@@ -8209,7 +8209,7 @@ func TestV1betaCreateVolume_BackupNotSupported(t *testing.T) {
 	utils.ParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
 		return "us-e4", "", nil
 	}
-	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 	handler := Handler{Orchestrator: mockOrchestrator}
 	params := gcpgenserver.V1betaCreateVolumeParams{
 		ProjectNumber: "test-project",
@@ -8265,7 +8265,7 @@ func TestV1betaUpdateVolume_BackupNotSupported(t *testing.T) {
 	utils.ParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
 		return "us-e4", "", nil
 	}
-	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 	handler := Handler{Orchestrator: mockOrchestrator}
 	params := gcpgenserver.V1betaUpdateVolumeParams{
 		ProjectNumber: "test-project",
@@ -9174,7 +9174,7 @@ func TestConvertModelToVCPVolume_MountPoints(t *testing.T) {
 
 func TestV1betaDescribeVolume(t *testing.T) {
 	t.Run("Success", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaDescribeVolumeParams{
 			ProjectNumber: "test-project",
@@ -9197,7 +9197,7 @@ func TestV1betaDescribeVolume(t *testing.T) {
 	})
 
 	t.Run("VolumeNotFound", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaDescribeVolumeParams{
 			ProjectNumber: "test-project",
@@ -9216,7 +9216,7 @@ func TestV1betaDescribeVolume(t *testing.T) {
 	})
 
 	t.Run("InternalServerError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaDescribeVolumeParams{
 			ProjectNumber: "test-project",
@@ -9240,7 +9240,7 @@ func TestV1betaDescribeVolume(t *testing.T) {
 		defer func() { utils.EnableAllSquashForTesting(originalValue) }()
 		utils.EnableAllSquashForTesting(true)
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaDescribeVolumeParams{
 			ProjectNumber: "test-project",
@@ -9305,7 +9305,7 @@ func TestV1betaDescribeVolume(t *testing.T) {
 	})
 
 	t.Run("VolumeWithQos_ShouldIncludeThroughputMibpsAndIops", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaDescribeVolumeParams{
 			ProjectNumber: "test-project",
@@ -9343,7 +9343,7 @@ func TestV1betaDescribeVolume(t *testing.T) {
 	})
 
 	t.Run("VolumeWithoutQos_ShouldNotIncludeThroughputMibpsAndIops", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaDescribeVolumeParams{
 			ProjectNumber: "test-project",
@@ -9373,7 +9373,7 @@ func TestV1betaDescribeVolume(t *testing.T) {
 
 func TestV1betaDeleteVolume(t *testing.T) {
 	t.Run("Success", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaDeleteVolumeParams{
 			ProjectNumber: "test-project",
@@ -9411,7 +9411,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 	})
 
 	t.Run("GetVolumeNotFound", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaDeleteVolumeParams{
 			ProjectNumber: "test-project",
@@ -9432,7 +9432,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 	})
 
 	t.Run("GetVolumeInternalServerError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaDeleteVolumeParams{
 			ProjectNumber: "test-project",
@@ -9453,7 +9453,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 	})
 
 	t.Run("VolumeAlreadyDeleting", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaDeleteVolumeParams{
 			ProjectNumber: "test-project",
@@ -9489,7 +9489,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 	})
 
 	t.Run("FlexGroupVolumeAlreadyDeleting", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaDeleteVolumeParams{
 			ProjectNumber: "test-project",
@@ -9526,7 +9526,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 	})
 
 	t.Run("VolumeAlreadyDeleted", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaDeleteVolumeParams{
 			ProjectNumber: "test-project",
@@ -9559,7 +9559,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 	})
 
 	t.Run("VolumeAlreadyDeleted", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaDeleteVolumeParams{
 			ProjectNumber: "test-project",
@@ -9592,7 +9592,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 	})
 
 	t.Run("DeleteVolumeNotFound", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaDeleteVolumeParams{
 			ProjectNumber: "test-project",
@@ -9624,7 +9624,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 	})
 
 	t.Run("DeleteVolumeInternalServerError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaDeleteVolumeParams{
 			ProjectNumber: "test-project",
@@ -9655,7 +9655,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 	})
 
 	t.Run("SuccessWithDeletingState", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaDeleteVolumeParams{
 			ProjectNumber: "test-project",
@@ -9712,7 +9712,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 
 		for _, tc := range testCases {
 			tt.Run(tc.name, func(t *testing.T) {
-				mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+				mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 				handler := Handler{Orchestrator: mockOrchestrator}
 				params := gcpgenserver.V1betaDeleteVolumeParams{
 					ProjectNumber: "test-project",
@@ -9756,7 +9756,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 	})
 
 	t.Run("SuccessfulDelete", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaDeleteVolumeParams{
@@ -9793,7 +9793,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 	})
 
 	t.Run("UserInputValidationError_BackupInTransition", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaDeleteVolumeParams{
@@ -9825,7 +9825,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 	})
 
 	t.Run("UserInputValidationError_OtherValidation", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaDeleteVolumeParams{
@@ -9857,7 +9857,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 	})
 
 	t.Run("DeleteVolumeConflictError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaDeleteVolumeParams{
@@ -9889,7 +9889,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 	})
 
 	t.Run("VolumeNotFound_GetVolume", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaDeleteVolumeParams{
@@ -9913,7 +9913,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 	})
 
 	t.Run("VolumeNotFound_DeleteVolume", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaDeleteVolumeParams{
@@ -9945,7 +9945,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 	})
 
 	t.Run("InternalServerError_GetVolume", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaDeleteVolumeParams{
@@ -9969,7 +9969,7 @@ func TestV1betaDeleteVolume(t *testing.T) {
 	})
 
 	t.Run("InternalServerError_DeleteVolume", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaDeleteVolumeParams{
@@ -10009,7 +10009,7 @@ func TestV1betaRevertVolume(t *testing.T) {
 	defer func() { utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
 
 	t.Run("ValidRevertVolume", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaRevertVolumeParams{
@@ -10036,7 +10036,7 @@ func TestV1betaRevertVolume(t *testing.T) {
 	})
 
 	t.Run("UserInputValidationError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaRevertVolumeParams{
 			ProjectNumber: "test-project",
@@ -10060,7 +10060,7 @@ func TestV1betaRevertVolume(t *testing.T) {
 	})
 
 	t.Run("InternalServerError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaRevertVolumeParams{
 			ProjectNumber: "test-project",
@@ -10087,7 +10087,7 @@ func TestV1betaRevertVolume(t *testing.T) {
 		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
 		defer func() { utils.ParseAndValidateRegionAndZone = mockParseAndValidateRegionAndZone }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaRevertVolumeParams{
 			ProjectNumber: "test-project",
@@ -10111,7 +10111,7 @@ func TestV1betaRevertVolume(t *testing.T) {
 	})
 
 	t.Run("WhenOrchestratorValidationThrowsAnError_Return400BadRequest", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaRevertVolumeParams{
@@ -10134,7 +10134,7 @@ func TestV1betaRevertVolume(t *testing.T) {
 	})
 
 	t.Run("WhenOrchestratorThrowsAnError_ReturnError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaRevertVolumeParams{
@@ -10157,7 +10157,7 @@ func TestV1betaRevertVolume(t *testing.T) {
 	})
 
 	t.Run("WhenOrchestratorNotFoundError_Return404NotFoundError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaRevertVolumeParams{
@@ -12155,7 +12155,7 @@ func TestV1betaEstablishVolumePeering(t *testing.T) {
 		flexCacheEnabled = true
 		defer func() { flexCacheEnabled = orig }()
 
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		h := Handler{
 			Orchestrator: mockOrch,
 		}
@@ -12189,7 +12189,7 @@ func TestV1betaEstablishVolumePeering(t *testing.T) {
 		flexCacheEnabled = true
 		defer func() { flexCacheEnabled = orig }()
 
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrch}
 
 		params := gcpgenserver.V1betaEstablishVolumePeeringParams{
@@ -13017,7 +13017,7 @@ func TestV1betaSplitCloneVolume(t *testing.T) {
 		defer func() { thinCloneGASupport = origThinCloneGASupport }()
 		thinCloneGASupport = false
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaSplitCloneVolumeParams{
@@ -13039,7 +13039,7 @@ func TestV1betaSplitCloneVolume(t *testing.T) {
 		defer func() { thinCloneGASupport = origThinCloneGASupport }()
 		thinCloneGASupport = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaSplitCloneVolumeParams{
@@ -13067,7 +13067,7 @@ func TestV1betaSplitCloneVolume(t *testing.T) {
 		defer func() { thinCloneGASupport = origThinCloneGASupport }()
 		thinCloneGASupport = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaSplitCloneVolumeParams{
@@ -13096,7 +13096,7 @@ func TestV1betaSplitCloneVolume(t *testing.T) {
 		defer func() { thinCloneGASupport = origThinCloneGASupport }()
 		thinCloneGASupport = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaSplitCloneVolumeParams{
 			ProjectNumber: "test-project",
@@ -13121,7 +13121,7 @@ func TestV1betaSplitCloneVolume(t *testing.T) {
 		defer func() { thinCloneGASupport = origThinCloneGASupport }()
 		thinCloneGASupport = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaSplitCloneVolumeParams{
 			ProjectNumber: "test-project",
@@ -13149,7 +13149,7 @@ func TestV1betaSplitCloneVolume(t *testing.T) {
 		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
 		defer func() { utils.ParseAndValidateRegionAndZone = mockParseAndValidateRegionAndZone }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 		params := gcpgenserver.V1betaSplitCloneVolumeParams{
 			ProjectNumber: "test-project",
@@ -13169,7 +13169,7 @@ func TestV1betaSplitCloneVolume(t *testing.T) {
 		defer func() { thinCloneGASupport = origThinCloneGASupport }()
 		thinCloneGASupport = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaSplitCloneVolumeParams{
@@ -13193,7 +13193,7 @@ func TestV1betaSplitCloneVolume(t *testing.T) {
 		defer func() { thinCloneGASupport = origThinCloneGASupport }()
 		thinCloneGASupport = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaSplitCloneVolumeParams{
@@ -13217,7 +13217,7 @@ func TestV1betaSplitCloneVolume(t *testing.T) {
 		defer func() { thinCloneGASupport = origThinCloneGASupport }()
 		thinCloneGASupport = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaSplitCloneVolumeParams{
@@ -13241,7 +13241,7 @@ func TestV1betaSplitCloneVolume(t *testing.T) {
 		defer func() { thinCloneGASupport = origThinCloneGASupport }()
 		thinCloneGASupport = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaSplitCloneVolumeParams{
@@ -15440,7 +15440,7 @@ func TestPrepareUpdateVolumeParams_ExportPolicyRules_WithinLimit_Succeeds(t *tes
 
 // TestV1betaDeleteVolume_DeletingState_GetJobByResourceUUIDFails tests lines 1316, 1318: error logging and dummy operation return when job lookup fails
 func TestV1betaDeleteVolume_DeletingState_GetJobByResourceUUIDFails(t *testing.T) {
-	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 	handler := Handler{Orchestrator: mockOrchestrator}
 	params := gcpgenserver.V1betaDeleteVolumeParams{
 		ProjectNumber: "test-project",
@@ -15472,7 +15472,7 @@ func TestV1betaDeleteVolume_DeletingState_GetJobByResourceUUIDFails(t *testing.T
 
 // TestV1betaDeleteVolume_DeletingState_LargeVolume tests lines 1310-1311: JobType determination for large volumes in DELETING state
 func TestV1betaDeleteVolume_DeletingState_LargeVolume(t *testing.T) {
-	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 	handler := Handler{Orchestrator: mockOrchestrator}
 	params := gcpgenserver.V1betaDeleteVolumeParams{
 		ProjectNumber: "test-project",

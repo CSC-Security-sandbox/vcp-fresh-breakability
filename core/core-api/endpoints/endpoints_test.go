@@ -6,13 +6,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 )
 
 func TestGetHealth(t *testing.T) {
 	t.Run("ReturnsHealthyResponse", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Execute
@@ -22,7 +22,7 @@ func TestGetHealth(t *testing.T) {
 		// Assert
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		
+
 		healthResponse, ok := result.(*oasgenserver.Health)
 		assert.True(t, ok, "Expected result to be of type *oasgenserver.Health")
 		assert.NotNil(t, healthResponse)
@@ -30,7 +30,7 @@ func TestGetHealth(t *testing.T) {
 
 	t.Run("WithCancelledContext", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Execute with cancelled context
@@ -42,7 +42,7 @@ func TestGetHealth(t *testing.T) {
 		// as it doesn't perform any long-running operations
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		
+
 		healthResponse, ok := result.(*oasgenserver.Health)
 		assert.True(t, ok, "Expected result to be of type *oasgenserver.Health")
 		assert.NotNil(t, healthResponse)

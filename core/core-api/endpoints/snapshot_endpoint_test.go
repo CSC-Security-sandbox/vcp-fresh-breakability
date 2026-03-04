@@ -13,8 +13,8 @@ import (
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
@@ -22,7 +22,7 @@ import (
 func TestV1CreateSnapshot(t *testing.T) {
 	t.Run("WhenSuccessfulWithSyncModeCompleted", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Mock parseAndValidateRegionAndZone to return success
@@ -112,7 +112,7 @@ func TestV1CreateSnapshot(t *testing.T) {
 
 	t.Run("WhenSuccessfulWithSyncModeInProgress", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Mock parseAndValidateRegionAndZone to return success
@@ -185,7 +185,7 @@ func TestV1CreateSnapshot(t *testing.T) {
 
 	t.Run("WhenOrchestratorReturnsUserInputValidationError", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Mock parseAndValidateRegionAndZone to return success
@@ -227,7 +227,7 @@ func TestV1CreateSnapshot(t *testing.T) {
 
 	t.Run("WhenOrchestratorReturnsNotFoundError", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Mock parseAndValidateRegionAndZone to return success
@@ -268,7 +268,7 @@ func TestV1CreateSnapshot(t *testing.T) {
 
 	t.Run("WhenOrchestratorReturnsConflictError", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Mock parseAndValidateRegionAndZone to return success
@@ -310,7 +310,7 @@ func TestV1CreateSnapshot(t *testing.T) {
 
 	t.Run("WhenOrchestratorReturnsInternalError", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Mock parseAndValidateRegionAndZone to return success
@@ -352,7 +352,7 @@ func TestV1CreateSnapshot(t *testing.T) {
 
 	t.Run("WhenONTAPRWVolumeErrorReturned_ThenReturn400", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Mock parseAndValidateRegionAndZone to return success
@@ -395,7 +395,7 @@ func TestV1CreateSnapshot(t *testing.T) {
 
 	t.Run("WhenVCPErrorWithSnapshotNotAllowedReturned_ThenReturn400", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Mock parseAndValidateRegionAndZone to return success
@@ -438,7 +438,7 @@ func TestV1CreateSnapshot(t *testing.T) {
 
 	t.Run("WhenDescriptionNotSet", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Mock parseAndValidateRegionAndZone to return success
@@ -494,7 +494,7 @@ func TestV1CreateSnapshot(t *testing.T) {
 
 	t.Run("WhenIsAppConsistentNotSet", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Mock parseAndValidateRegionAndZone to return success
@@ -550,7 +550,7 @@ func TestV1CreateSnapshot(t *testing.T) {
 
 	t.Run("WhenVCPErrorWithInsufficientSpaceReturned_ThenReturn400", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Mock parseAndValidateRegionAndZone to return success
@@ -594,7 +594,7 @@ func TestV1CreateSnapshot(t *testing.T) {
 
 	t.Run("WhenVCPErrorWithMaximumLimitExceededReturned_ThenReturn400", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Mock parseAndValidateRegionAndZone to return success
@@ -638,7 +638,7 @@ func TestV1CreateSnapshot(t *testing.T) {
 
 	t.Run("WhenVCPErrorWithConflictReturned_ThenReturn409", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Mock parseAndValidateRegionAndZone to return success

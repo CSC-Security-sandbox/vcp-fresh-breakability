@@ -4,15 +4,15 @@ import (
 	"context"
 
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 )
 
 type Handler struct {
 	oasgenserver.UnimplementedHandler
-	Orchestrator orchestrator.OrchestratorFactory
+	Orchestrator factory.OrchestratorFactory
 }
 
-func NewHandler(orch orchestrator.OrchestratorFactory) *Handler {
+func NewHandler(orch factory.OrchestratorFactory) *Handler {
 	return &Handler{
 		Orchestrator: orch,
 	}

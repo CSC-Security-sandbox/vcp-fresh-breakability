@@ -11,8 +11,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory/gcp"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -1404,7 +1404,7 @@ func checkAndFetchBackupVault(ctx context.Context, handler *Handler, expertModeV
 	}
 
 	// Backup vault not found locally, fetch from CVP
-	backupVault, err := orchestrator.GetBackupVaultFromCVP(ctx, backupVaultID, region, expertModeVol.Account.Name)
+	backupVault, err := gcp.GetBackupVaultFromCVP(ctx, backupVaultID, region, expertModeVol.Account.Name)
 	if err != nil {
 		return nil, err
 	}

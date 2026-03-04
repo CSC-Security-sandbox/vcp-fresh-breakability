@@ -7,7 +7,6 @@ import (
 
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -77,7 +76,7 @@ func convertKmsConfigToApiResponse(kmsConfig *models.KmsConfig, job *models.Job)
 	if kmsConfig != nil {
 		// Map KMS config fields
 		if kmsConfig.UUID != "" {
-			newState, stateDetails := orchestrator.ConvertKmsConfigStateV1beta(kmsConfig.State, kmsConfig.StateDetails)
+			newState, stateDetails := common.ConvertKmsConfigStateV1beta(kmsConfig.State, kmsConfig.StateDetails)
 			response.UUID = oasgenserver.NewOptString(kmsConfig.UUID)
 			response.ResourceId = oasgenserver.NewOptString(kmsConfig.ResourceID)
 			response.KeyRing = oasgenserver.NewOptString(kmsConfig.KeyRing)

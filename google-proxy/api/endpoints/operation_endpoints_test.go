@@ -13,7 +13,7 @@ import (
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -146,7 +146,7 @@ func TestV1betaDescribeOperation_CVPErrorCases(t *testing.T) {
 			ctx := context.Background()
 			logger := &log.MockLogger{}
 			ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-			mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+			mockOrch := factory.NewMockOrchestratorFactory(t)
 			mockOrch.On("GetJob", ctx, mock.Anything).Return(nil, nil)
 			originalCreateClient := createClient
 			originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
@@ -177,7 +177,7 @@ func TestReturnsBadRequestForJobStateError(t *testing.T) {
 	ctx := context.Background()
 	logger := &log.MockLogger{}
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 
 	originalCreateClient := createClient
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
@@ -211,7 +211,7 @@ func TestReturnsOperationForJobStateNew(t *testing.T) {
 	ctx := context.Background()
 	logger := &log.MockLogger{}
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 
 	originalCreateClient := createClient
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
@@ -245,7 +245,7 @@ func TestReturnsOperationForJobStateProcessing(t *testing.T) {
 	ctx := context.Background()
 	logger := &log.MockLogger{}
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 
 	originalCreateClient := createClient
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
@@ -279,7 +279,7 @@ func TestReturnsOperationForJobStateDone(t *testing.T) {
 	ctx := context.Background()
 	logger := &log.MockLogger{}
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 
 	originalCreateClient := createClient
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
@@ -313,7 +313,7 @@ func TestV1betaDescribeOperationError(t *testing.T) {
 	ctx := context.Background()
 	logger := &log.MockLogger{}
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 	mockOrch.On("GetJob", ctx, mock.Anything).Return(nil, nil)
 	originalCreateClient := createClient
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
@@ -342,7 +342,7 @@ func TestV1betaDescribeOperationSuccess(t *testing.T) {
 	ctx := context.Background()
 	logger := &log.MockLogger{}
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 	mockOrch.On("GetJob", ctx, mock.Anything).Return(nil, nil)
 	originalCreateClient := createClient
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
@@ -415,7 +415,7 @@ func TestReturnsOperationForJobStateWaitForTemporal(t *testing.T) {
 	ctx := context.Background()
 	logger := &log.MockLogger{}
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 
 	originalCreateClient := createClient
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
@@ -456,7 +456,7 @@ func TestReturnsOperationForJobStateErrorWithRestoreVolumeValidation(t *testing.
 	ctx := context.Background()
 	logger := &log.MockLogger{}
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 
 	originalCreateClient := createClient
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
@@ -497,7 +497,7 @@ func TestReturnsOperationForJobStateErrorWithSnapshotNotAllowedForVolume(t *test
 	ctx := context.Background()
 	logger := &log.MockLogger{}
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 
 	originalCreateClient := createClient
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
@@ -558,7 +558,7 @@ func TestV1betaInternalDescribeOperation_VCPJobSuccess_NEW(t *testing.T) {
 	ctx := context.Background()
 	logger := &log.MockLogger{}
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
 	defer func() {
@@ -599,7 +599,7 @@ func TestV1betaInternalDescribeOperation_VCPJobSuccess_DONE(t *testing.T) {
 	ctx := context.Background()
 	logger := &log.MockLogger{}
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
 	defer func() {
@@ -636,7 +636,7 @@ func TestV1betaInternalDescribeOperation_VCPJobSuccess_ERROR(t *testing.T) {
 	ctx := context.Background()
 	logger := &log.MockLogger{}
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
 	defer func() {
@@ -671,7 +671,7 @@ func TestV1betaInternalDescribeOperation_VCPJobSuccess_ERROR(t *testing.T) {
 }
 
 func TestV1betaInternalDescribeOperation_Success(t *testing.T) {
-	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 	handler := &Handler{
 		Orchestrator: mockOrchestrator,
 	}
@@ -717,7 +717,7 @@ func TestV1betaInternalDescribeOperation_JobInProgress(t *testing.T) {
 	ctx := context.Background()
 	logger := &log.MockLogger{}
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
 	defer func() {
@@ -765,7 +765,7 @@ func TestV1betaInternalDescribeOperation_JobError(t *testing.T) {
 	ctx := context.Background()
 	logger := &log.MockLogger{}
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
 	defer func() {
@@ -816,7 +816,7 @@ func TestV1betaInternalDescribeOperation_RestoreVolumeValidationError(t *testing
 	ctx := context.Background()
 	logger := &log.MockLogger{}
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
 	defer func() {
@@ -865,7 +865,7 @@ func TestV1betaInternalDescribeOperation_RestoreVolumeValidationError(t *testing
 }
 
 func TestV1betaInternalDescribeOperation_SnapshotNotAllowedForVolumeError(t *testing.T) {
-	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 	handler := &Handler{
 		Orchestrator: mockOrchestrator,
 	}
@@ -918,7 +918,7 @@ func TestV1betaInternalDescribeOperation_SnapshotNotAllowedForVolumeError(t *tes
 }
 
 func TestV1betaInternalDescribeOperation_InvalidOperationId(t *testing.T) {
-	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 	handler := &Handler{
 		Orchestrator: mockOrchestrator,
 	}
@@ -949,7 +949,7 @@ func TestV1betaInternalDescribeOperation_InvalidOperationId(t *testing.T) {
 }
 
 func TestV1betaInternalDescribeOperation_InvalidLocation(t *testing.T) {
-	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 	handler := &Handler{
 		Orchestrator: mockOrchestrator,
 	}
@@ -973,7 +973,7 @@ func TestV1betaInternalDescribeOperation_InvalidLocation(t *testing.T) {
 }
 
 func TestV1betaInternalDescribeOperation_DatabaseError(t *testing.T) {
-	mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 	handler := &Handler{
 		Orchestrator: mockOrchestrator,
 	}
@@ -1022,7 +1022,7 @@ func TestV1betaInternalDescribeOperation_JobStatesMapping(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+			mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 			handler := &Handler{
 				Orchestrator: mockOrchestrator,
 			}
@@ -1071,7 +1071,7 @@ func TestV1betaDescribeOperation_ResumeVolumeReplication_QuotaRuleFailure(t *tes
 	ctx := context.Background()
 	logger := &log.MockLogger{}
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 
 	originalCreateClient := createClient
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
@@ -1119,7 +1119,7 @@ func TestV1betaDescribeOperation_ReverseResumeVolumeReplication_QuotaRuleFailure
 	ctx := context.Background()
 	logger := &log.MockLogger{}
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 
 	originalCreateClient := createClient
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
@@ -1169,7 +1169,7 @@ func TestV1betaDescribeOperation_StopVolumeReplication_QuotaRuleFailure(t *testi
 	ctx := context.Background()
 	logger := &log.MockLogger{}
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 
 	originalCreateClient := createClient
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
@@ -1220,7 +1220,7 @@ func TestV1betaInternalDescribeOperation_StopInternal_QuotaRuleFailure(t *testin
 	ctx := context.Background()
 	logger := &log.MockLogger{}
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
 	defer func() {
@@ -1260,7 +1260,7 @@ func TestV1betaDescribeOperation_Done_NoQuotaRuleFailure(t *testing.T) {
 	ctx := context.Background()
 	logger := &log.MockLogger{}
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 
 	originalCreateClient := createClient
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
@@ -1301,7 +1301,7 @@ func TestV1betaDescribeOperation_InternalResume_NoMetadata(t *testing.T) {
 	ctx := context.Background()
 	logger := &log.MockLogger{}
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+	mockOrch := factory.NewMockOrchestratorFactory(t)
 
 	originalCreateClient := createClient
 	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone

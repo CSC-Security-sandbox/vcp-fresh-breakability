@@ -10,13 +10,13 @@ import (
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 )
 
 func TestV1GetOntapCredentials(t *testing.T) {
 	t.Run("WhenSuccessful", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Test data
@@ -75,7 +75,7 @@ func TestV1GetOntapCredentials(t *testing.T) {
 	})
 	t.Run("WhenAccountNameMissing", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		params := oasgenserver.V1GetOntapCredentialsParams{
@@ -100,7 +100,7 @@ func TestV1GetOntapCredentials(t *testing.T) {
 	})
 	t.Run("WhenPoolNotFound", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Test data
@@ -134,7 +134,7 @@ func TestV1GetOntapCredentials(t *testing.T) {
 	})
 	t.Run("WhenPoolInCreatingState", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		poolID := "test-pool-uuid"
@@ -161,7 +161,7 @@ func TestV1GetOntapCredentials(t *testing.T) {
 		assert.Equal(t, float64(400), response.Code)
 	})
 	t.Run("WhenPoolInCreatingState_WithEmptyMessage", func(t *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// CustomError with empty Message so handler uses fallback "Pool is in creating state"
@@ -188,7 +188,7 @@ func TestV1GetOntapCredentials(t *testing.T) {
 	})
 	t.Run("WhenOtherVSAError", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Test data
@@ -222,7 +222,7 @@ func TestV1GetOntapCredentials(t *testing.T) {
 	})
 	t.Run("WhenStandardError", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Test data
@@ -257,7 +257,7 @@ func TestV1GetOntapCredentials(t *testing.T) {
 	})
 	t.Run("WhenEmptyCredentials", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Test data

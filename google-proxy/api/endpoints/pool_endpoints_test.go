@@ -18,9 +18,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/pools"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -74,7 +74,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 		// Don't set CVP_HOST so CVP calls will be skipped
 		tt.Setenv("CVP_HOST", "")
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -109,7 +109,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 		// Don't set CVP_HOST so CVP calls will be skipped
 		tt.Setenv("CVP_HOST", "")
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -144,7 +144,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 		// Don't set CVP_HOST so CVP calls will be skipped
 		tt.Setenv("CVP_HOST", "")
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -180,7 +180,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 		// Don't set CVP_HOST so CVP calls will be skipped
 		tt.Setenv("CVP_HOST", "")
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -225,7 +225,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 		// Don't set CVP_HOST so CVP calls will be skipped
 		tt.Setenv("CVP_HOST", "")
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -267,7 +267,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 		// Don't set CVP_HOST so CVP calls will be skipped
 		tt.Setenv("CVP_HOST", "")
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -304,7 +304,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 	})
 
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "invalid-location",
 			ProjectNumber: "project-number",
@@ -337,7 +337,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 	})
 
 	t.Run("WhenPoolUuidsIsNil", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -367,7 +367,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 	})
 
 	t.Run("WhenPoolUuidsExceeds1000", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -403,7 +403,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 	})
 
 	t.Run("WhenGetMultiplePoolsFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -439,7 +439,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 		// Don't set CVP_HOST so CVP calls will be skipped
 		tt.Setenv("CVP_HOST", "")
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -487,7 +487,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 		// Set CVP_HOST so CVP calls will be made
 		tt.Setenv("CVP_HOST", "http://cvp-host")
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -535,7 +535,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 		// Set CVP_HOST so CVP calls will be made
 		tt.Setenv("CVP_HOST", "http://cvp-host")
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -616,7 +616,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 			},
 		}, nil)
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -659,7 +659,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 		// Don't set CVP_HOST so CVP calls will be skipped
 		tt.Setenv("CVP_HOST", "")
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -696,7 +696,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 		// Don't set CVP_HOST so CVP calls will be skipped
 		tt.Setenv("CVP_HOST", "")
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -770,7 +770,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 			},
 		}, nil)
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -822,7 +822,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 		// Set CVP_HOST to enable CVP calls
 		tt.Setenv("CVP_HOST", "http://cvp-host")
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -888,7 +888,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 			},
 		}, nil)
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -942,7 +942,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 			},
 		}, nil)
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -976,7 +976,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 
 	t.Run("WhenPoolsHaveAutoTieringEnabled_IncludesConsumptionFields", func(tt *testing.T) {
 		tt.Setenv("CVP_HOST", "")
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -1033,7 +1033,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 
 	t.Run("WhenPoolsHaveAutoTieringDisabled_NoConsumptionFields", func(tt *testing.T) {
 		tt.Setenv("CVP_HOST", "")
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -1089,7 +1089,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 
 func TestV1betaCreatePool(t *testing.T) {
 	t.Run("WhenUnifiedIsNotSetToTrue", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -1117,7 +1117,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.Equal(tt, "type must be set to UNIFIED, or unified/unifiedPool must be set to true (for backward compatibility)", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
 	})
 	t.Run("WhenUnifiedPoolIsNotSetToTrue", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -1145,7 +1145,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.Equal(tt, "type must be set to UNIFIED, or unified/unifiedPool must be set to true (for backward compatibility)", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
 	})
 	t.Run("WhenRegionAndZoneParsingFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "invalid-location-id",
 			ProjectNumber: "project-number",
@@ -1174,7 +1174,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.Equal(tt, "Invalid location ID", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
 	})
 	t.Run("WhenLdapEnabledIsSetButActiveDirectoryConfigIdIsNotSet", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		// Mock the environment variable to enable LDAP
 		originalEnableLdap := enableLdap
 		enableLdap = true
@@ -1217,7 +1217,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.Equal(tt, "Active Directory configuration is required when LDAP is enabled", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
 	})
 	t.Run("WhenLdapEnabledIsSetButLdapFeatureFlagIsDisabled", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -1257,7 +1257,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.Equal(tt, "LDAP is not currently supported for Unified Flex Storage Pool", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
 	})
 	t.Run("WhenLdapEnabledIsSet", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		// Mock the environment variable to enable LDAP
 		originalEnableLdap := enableLdap
 		enableLdap = true
@@ -1314,7 +1314,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.NotNil(tt, result)
 	})
 	t.Run("WhenRegionalPoolSupportIsNotEnabled", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		// Create a request with regional pool parameters
 		req := &gcpgenserver.PoolV1beta{
@@ -1347,7 +1347,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.Equal(tt, "Regional Pool Support is not enabled", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
 	})
 	t.Run("WhenRegionalPoolSupportIsEnabled", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		// Mock the environment variable to enable regional pool support
 		originalRegionalPoolEnabled := regionalPoolEnabled
 		regionalPoolEnabled = true
@@ -1386,7 +1386,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.Equal(tt, operationID, result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
 	t.Run("WhenZoneIsEmpty", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		originalRegionalPoolEnabled := regionalPoolEnabled
 		regionalPoolEnabled = true
 		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
@@ -1420,7 +1420,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.Equal(tt, "Zone cannot be empty for regional pool.", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
 	})
 	t.Run("WhenSecondaryZoneIsEmpty", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		originalRegionalPoolEnabled := regionalPoolEnabled
 		regionalPoolEnabled = true
 		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
@@ -1454,7 +1454,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.Equal(tt, "Secondary Zone cannot be empty for regional pool.", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
 	})
 	t.Run("WhenZonesDontMatch", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4-a",
 			ProjectNumber: "project-number",
@@ -1489,7 +1489,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		originalRegionalPoolEnabled := regionalPoolEnabled
 		regionalPoolEnabled = true
 		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -1534,7 +1534,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.NotNil(tt, conflictResp)
 	})
 	t.Run("WhenPoolCreationFailsWithUserInputValidationError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		originalRegionalPoolEnabled := regionalPoolEnabled
 		regionalPoolEnabled = true
 		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
@@ -1575,7 +1575,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.Equal(tt, "Given pool size must be a multiple of 1GiB", result.(*gcpgenserver.V1betaCreatePoolBadRequest).Message)
 	})
 	t.Run("WhenPoolCreationSucceeds", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		originalRegionalPoolEnabled := regionalPoolEnabled
 		regionalPoolEnabled = true
 		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
@@ -1611,7 +1611,7 @@ func TestV1betaCreatePool(t *testing.T) {
 			return "us-east4", "", nil
 		}
 
-		getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface orchestrator.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
+		getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface factory.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
 			return nil, nil
 		}
 
@@ -1629,7 +1629,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.Equal(tt, operationID, result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
 	t.Run("WhenPoolCreationSucceedsWithManualQosType", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		originalRegionalPoolEnabled := regionalPoolEnabled
 		originalEnableMqos := enableMqos
 		regionalPoolEnabled = true
@@ -1670,7 +1670,7 @@ func TestV1betaCreatePool(t *testing.T) {
 			return "us-east4", "", nil
 		}
 
-		getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface orchestrator.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
+		getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface factory.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
 			return nil, nil
 		}
 
@@ -1688,7 +1688,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		assert.Equal(tt, operationID, result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
 	t.Run("WhenPoolCreationSucceedsWithExpertMode", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		originalRegionalPoolEnabled := regionalPoolEnabled
 		regionalPoolEnabled = true
 		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
@@ -1724,7 +1724,7 @@ func TestV1betaCreatePool(t *testing.T) {
 			return "us-east4", "", nil
 		}
 
-		getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface orchestrator.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
+		getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface factory.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
 			return nil, nil
 		}
 
@@ -1753,7 +1753,7 @@ func TestV1betaCreatePool(t *testing.T) {
 			hotTierSize = 1099511627776 // 1 TiB
 		)
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4-a",
 			ProjectNumber: "project-number",
@@ -1808,7 +1808,7 @@ func TestV1betaCreatePool(t *testing.T) {
 	t.Run("HotTierSizeInBytes assignment when auto-tiering is disabled", func(tt *testing.T) {
 		const poolSize = 2199023255552 // 2 TiB
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4-a",
 			ProjectNumber: "project-number",
@@ -1859,7 +1859,7 @@ func TestV1betaCreatePool(t *testing.T) {
 
 	// Test cases for the new Type enum field
 	t.Run("WhenTypeIsSetToUnified", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		originalRegionalPoolEnabled := regionalPoolEnabled
 		regionalPoolEnabled = true
 		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
@@ -1904,7 +1904,7 @@ func TestV1betaCreatePool(t *testing.T) {
 	})
 
 	t.Run("WhenTypeIsSetToStandard", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -1933,7 +1933,7 @@ func TestV1betaCreatePool(t *testing.T) {
 	})
 
 	t.Run("WhenTypeIsSetToUnspecified", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -1962,7 +1962,7 @@ func TestV1betaCreatePool(t *testing.T) {
 	})
 
 	t.Run("WhenTypeIsNotSetAndUnifiedFieldsAreNotSet", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -1994,7 +1994,7 @@ func TestV1betaCreatePool(t *testing.T) {
 	})
 
 	t.Run("WhenTypeIsSetToUnifiedAndUnifiedFieldIsAlsoSet", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		originalRegionalPoolEnabled := regionalPoolEnabled
 		regionalPoolEnabled = true
 		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
@@ -2040,7 +2040,7 @@ func TestV1betaCreatePool(t *testing.T) {
 	})
 
 	t.Run("WhenTypeIsSetToUnifiedAndUnifiedPoolFieldIsAlsoSet", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		originalRegionalPoolEnabled := regionalPoolEnabled
 		regionalPoolEnabled = true
 		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
@@ -2090,7 +2090,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		regionalPoolEnabled = true
 		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4-a",
 			ProjectNumber: "project-number",
@@ -2144,7 +2144,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		regionalPoolEnabled = true
 		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4-a",
 			ProjectNumber: "project-number",
@@ -2190,7 +2190,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		regionalPoolEnabled = true
 		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4-a",
 			ProjectNumber: "project-number",
@@ -2246,7 +2246,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		regionalPoolEnabled = true
 		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4-a",
 			ProjectNumber: "project-number",
@@ -2302,7 +2302,7 @@ func TestV1betaCreatePool(t *testing.T) {
 		regionalPoolEnabled = true
 		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4-a",
 			ProjectNumber: "project-number",
@@ -2354,7 +2354,7 @@ func TestV1betaCreatePool(t *testing.T) {
 	})
 
 	t.Run("WhenGetKmsConfigForPoolFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		originalRegionalPoolEnabled := regionalPoolEnabled
 		regionalPoolEnabled = true
 		defer func() { regionalPoolEnabled = originalRegionalPoolEnabled }()
@@ -2389,7 +2389,7 @@ func TestV1betaCreatePool(t *testing.T) {
 			return "us-east4", "", nil
 		}
 
-		getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface orchestrator.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
+		getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface factory.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
 			return nil, &gcpgenserver.V1betaCreatePoolBadRequest{
 				Code:    http.StatusBadRequest,
 				Message: fmt.Sprintf("KMS Config with ID %s not found", req.KmsConfigId.Value),
@@ -2409,7 +2409,7 @@ func TestV1betaCreatePool(t *testing.T) {
 	})
 
 	t.Run("ModeAssignment_MODEUNSPECIFIED_SetsGCNVMode", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4-a",
 			ProjectNumber: "project-number",
@@ -2438,7 +2438,7 @@ func TestV1betaCreatePool(t *testing.T) {
 			return "us-east4", "us-east4-a", nil
 		}
 
-		getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface orchestrator.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
+		getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface factory.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
 			return nil, nil
 		}
 
@@ -2467,7 +2467,7 @@ func TestV1betaCreatePool(t *testing.T) {
 	})
 
 	t.Run("ModeAssignment_DEFAULT_SetsDEFAULTMode", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4-a",
 			ProjectNumber: "project-number",
@@ -2496,7 +2496,7 @@ func TestV1betaCreatePool(t *testing.T) {
 			return "us-east4", "us-east4-a", nil
 		}
 
-		getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface orchestrator.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
+		getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface factory.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
 			return nil, nil
 		}
 
@@ -2525,7 +2525,7 @@ func TestV1betaCreatePool(t *testing.T) {
 	})
 
 	t.Run("ModeAssignment_ONTAP_SetsONTAPMode", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4-a",
 			ProjectNumber: "project-number",
@@ -2554,7 +2554,7 @@ func TestV1betaCreatePool(t *testing.T) {
 			return "us-east4", "us-east4-a", nil
 		}
 
-		getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface orchestrator.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
+		getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface factory.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
 			return nil, nil
 		}
 
@@ -2583,7 +2583,7 @@ func TestV1betaCreatePool(t *testing.T) {
 	})
 
 	t.Run("ModeAssignment_OtherValue_SetsONTAPMode", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaCreatePoolParams{
 			LocationId:    "us-east4-a",
 			ProjectNumber: "project-number",
@@ -2612,7 +2612,7 @@ func TestV1betaCreatePool(t *testing.T) {
 			return "us-east4", "us-east4-a", nil
 		}
 
-		getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface orchestrator.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
+		getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface factory.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
 			return nil, nil
 		}
 
@@ -2747,7 +2747,7 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 
 	for _, tc := range validationErrorCases {
 		t.Run(tc.name, func(tt *testing.T) {
-			mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+			mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 			params := gcpgenserver.V1betaUpdatePoolParams{
 				LocationId:    "us-east4",
 				ProjectNumber: "project-number",
@@ -2801,7 +2801,7 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 	}
 
 	t.Run("TestOngoingUpdatePoolOperationScenario", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaUpdatePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -2846,7 +2846,7 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 	})
 
 	t.Run("TestDegradedPoolUpdateBlocked", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaUpdatePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -2895,7 +2895,7 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 	})
 
 	t.Run("TestClusterUpgradeInProgressPoolUpdateBlocked", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaUpdatePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -2929,7 +2929,7 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 	})
 
 	t.Run("WhenHasActiveClusterUpgradeReturnsError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaUpdatePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -3133,7 +3133,7 @@ func TestV1betaCreatePoolValidationErrors(t *testing.T) {
 
 	for _, tc := range validationErrorCases {
 		t.Run(tc.name, func(tt *testing.T) {
-			mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+			mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 			// Use custom locationId if provided, otherwise default
 			locationId := tc.locationId
@@ -3205,7 +3205,7 @@ func TestV1betaCreatePoolValidationErrors(t *testing.T) {
 				}
 			}
 
-			getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface orchestrator.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
+			getAndSyncKmsConfigForPool = func(ctx context.Context, req *gcpgenserver.PoolV1beta, params *common.CreatePoolParams, orchestratorInterface factory.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
 				return nil, nil
 			}
 
@@ -3248,7 +3248,7 @@ func TestV1betaUpdatePool(t *testing.T) {
 		}
 		defer func() { parseAndValidateRegionAndZone = originalParseAndValidate }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaUpdatePoolParams{
 			LocationId:    "invalid-location",
 			ProjectNumber: "project-number",
@@ -3271,7 +3271,7 @@ func TestV1betaUpdatePool(t *testing.T) {
 		}
 		defer func() { parseAndValidateRegionAndZone = originalParseAndValidate }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		// Set orchestrator to return a pool when DescribePool is called.
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("pool not found", nil))
 
@@ -3300,7 +3300,7 @@ func TestV1betaUpdatePool(t *testing.T) {
 		}
 		defer func() { parseAndValidateRegionAndZone = originalParseAndValidate }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		// Set orchestrator to return a pool when DescribePool is called.
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel: models.BaseModel{
@@ -3347,7 +3347,7 @@ func TestV1betaUpdatePool(t *testing.T) {
 		}
 		defer func() { parseAndValidateRegionAndZone = originalParseAndValidate }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		// Set orchestrator to return a pool when DescribePool is called.
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel: models.BaseModel{
@@ -3393,7 +3393,7 @@ func TestV1betaUpdatePool(t *testing.T) {
 		}
 		defer func() { parseAndValidateRegionAndZone = originalParseAndValidate }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		// Set orchestrator to return a pool when DescribePool is called.
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel: models.BaseModel{
@@ -3448,7 +3448,7 @@ func TestV1betaUpdatePool(t *testing.T) {
 			PoolAttributes: &models.PoolAttributes{},
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		// Set orchestrator to return a pool when DescribePool is called.
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
 			BaseModel: models.BaseModel{
@@ -3495,7 +3495,7 @@ func TestV1betaUpdatePool(t *testing.T) {
 
 func TestV1betaDeletePool(t *testing.T) {
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDeletePoolParams{
 			LocationId:    "invalid-location-id",
 			ProjectNumber: "project-number",
@@ -3520,7 +3520,7 @@ func TestV1betaDeletePool(t *testing.T) {
 		assert.Equal(tt, "Invalid location ID", result.(*gcpgenserver.V1betaDeletePoolBadRequest).Message)
 	})
 	t.Run("WhenPoolDoesNotExist", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDeletePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -3543,7 +3543,7 @@ func TestV1betaDeletePool(t *testing.T) {
 		assert.Equal(tt, "Pool not found", result.(*gcpgenserver.V1betaDeletePoolNotFound).Message)
 	})
 	t.Run("WhenPoolHasActiveVolumes", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDeletePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -3572,7 +3572,7 @@ func TestV1betaDeletePool(t *testing.T) {
 		assert.Equal(tt, "Pool has active volumes", result.(*gcpgenserver.V1betaDeletePoolConflict).Message)
 	})
 	t.Run("WhenPoolIsAlreadyDeleted", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDeletePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -3604,7 +3604,7 @@ func TestV1betaDeletePool(t *testing.T) {
 		assert.Equal(tt, true, result.(*gcpgenserver.OperationV1beta).Done.Value)
 	})
 	t.Run("WhenPoolDeletionRaceCondition", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDeletePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -3640,7 +3640,7 @@ func TestV1betaDeletePool(t *testing.T) {
 		assert.Equal(tt, true, result.(*gcpgenserver.OperationV1beta).Done.Value)
 	})
 	t.Run("WhenPoolDeletionSucceeds", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDeletePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -3676,7 +3676,7 @@ func TestV1betaDeletePool(t *testing.T) {
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/us-east4/operations/operation-id", result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
 	t.Run("WhenPoolIsInCreatingState", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDeletePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -3711,7 +3711,7 @@ func TestV1betaDeletePool(t *testing.T) {
 		assert.Equal(tt, "Error deleting pool - Pool is already transitioning between states", result.(*gcpgenserver.V1betaDeletePoolConflict).Message)
 	})
 	t.Run("WhenPoolIsInUpdatingState", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDeletePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -3741,7 +3741,7 @@ func TestV1betaDeletePool(t *testing.T) {
 		assert.Equal(tt, "Error deleting pool - Pool is already transitioning between states", result.(*gcpgenserver.V1betaDeletePoolConflict).Message)
 	})
 	t.Run("WhenPoolIsInDeletingStateAndJobExists_ThenReturnTheSameJob", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDeletePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -3781,7 +3781,7 @@ func TestV1betaDeletePool(t *testing.T) {
 		assert.False(tt, result.(*gcpgenserver.OperationV1beta).Done.Value)
 	})
 	t.Run("WhenPoolIsInDeletingStateAndJobDoesNotExists_ThenReturnStaticJobWithDone", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDeletePoolParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -3813,7 +3813,7 @@ func TestV1betaDeletePool(t *testing.T) {
 		assert.True(tt, result.(*gcpgenserver.OperationV1beta).Done.Value)
 	})
 	t.Run("WhenPoolIsInCreatingStateWithCorrelationIDAndExistingDeleteJob_ReturnsExistingJobUUID", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		correlationID := "test-correlation-id"
 		params := gcpgenserver.V1betaDeletePoolParams{
 			LocationId:     "us-east4",
@@ -3858,7 +3858,7 @@ func TestV1betaDeletePool(t *testing.T) {
 		assert.False(tt, op.Done.Value) // Job is PROCESSING, not done
 	})
 	t.Run("WhenPoolIsInCreatingStateWithCorrelationIDAndExistingDeleteJobInDoneState_ReturnsExistingJobUUIDWithDone", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		correlationID := "test-correlation-id"
 		params := gcpgenserver.V1betaDeletePoolParams{
 			LocationId:     "us-east4",
@@ -3903,7 +3903,7 @@ func TestV1betaDeletePool(t *testing.T) {
 		assert.True(tt, op.Done.Value) // Job is DONE
 	})
 	t.Run("WhenPoolIsInCreatingStateWithCorrelationIDAndExistingDeleteJobWithMismatchedCorrelationID_ProceedsWithNormalDelete", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		correlationID := "test-correlation-id"
 		params := gcpgenserver.V1betaDeletePoolParams{
 			LocationId:     "us-east4",
@@ -3961,7 +3961,7 @@ func TestV1betaDeletePool(t *testing.T) {
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/us-east4/operations/new-operation-id", op.Name.Value)
 	})
 	t.Run("WhenPoolIsInCreatingStateWithCorrelationIDAndNoExistingDeleteJob_ProceedsWithNormalDelete", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		correlationID := "test-correlation-id"
 		params := gcpgenserver.V1betaDeletePoolParams{
 			LocationId:     "us-east4",
@@ -4010,7 +4010,7 @@ func TestV1betaDeletePool(t *testing.T) {
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/us-east4/operations/new-operation-id", op.Name.Value)
 	})
 	t.Run("WhenPoolIsInCreatingStateWithoutCorrelationID_ProceedsWithNormalDelete", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDeletePoolParams{
 			LocationId:     "us-east4",
 			ProjectNumber:  "project-number",
@@ -4058,7 +4058,7 @@ func TestV1betaDeletePool(t *testing.T) {
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/us-east4/operations/new-operation-id", op.Name.Value)
 	})
 	t.Run("WhenPoolIsInCreatingStateWithCorrelationIDAndGetJobByResourceUUIDFails_ProceedsWithNormalDelete", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		correlationID := "test-correlation-id"
 		params := gcpgenserver.V1betaDeletePoolParams{
 			LocationId:     "us-east4",
@@ -4107,7 +4107,7 @@ func TestV1betaDeletePool(t *testing.T) {
 		assert.Equal(tt, "/v1beta/projects/project-number/locations/us-east4/operations/new-operation-id", op.Name.Value)
 	})
 	t.Run("WhenPoolIsInCreatingStateWithCorrelationIDAndExistingDeleteJobInErrorState_ReturnsExistingJobUUIDWithDone", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		correlationID := "test-correlation-id"
 		params := gcpgenserver.V1betaDeletePoolParams{
 			LocationId:     "us-east4",
@@ -4156,7 +4156,7 @@ func TestV1betaDeletePool(t *testing.T) {
 
 func TestV1betaDescribePool(t *testing.T) {
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDescribePoolParams{
 			LocationId:    "invalid-location-id",
 			ProjectNumber: "project-number",
@@ -4180,7 +4180,7 @@ func TestV1betaDescribePool(t *testing.T) {
 		assert.Equal(tt, "Invalid location ID", result.(*gcpgenserver.V1betaDescribePoolBadRequest).Message)
 	})
 	t.Run("WhenPoolDoesNotExist", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDescribePoolParams{
 			PoolId:        "non-existent-pool-id",
 			ProjectNumber: "project-number",
@@ -4203,7 +4203,7 @@ func TestV1betaDescribePool(t *testing.T) {
 	})
 
 	t.Run("WhenDescribePoolFailsWithInternalError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDescribePoolParams{
 			PoolId:        "pool-id",
 			ProjectNumber: "project-number",
@@ -4226,7 +4226,7 @@ func TestV1betaDescribePool(t *testing.T) {
 	})
 
 	t.Run("WhenDescribePoolSucceeds", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDescribePoolParams{
 			PoolId:        "existing-pool-id",
 			ProjectNumber: "project-number",
@@ -4260,7 +4260,7 @@ func TestV1betaDescribePool(t *testing.T) {
 	})
 
 	t.Run("WhenPoolHasAutoTieringEnabled_IncludesConsumptionFields", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaDescribePoolParams{
 			PoolId:        "pool-id",
 			ProjectNumber: "project-number",
@@ -4307,7 +4307,7 @@ func TestV1betaDescribePool(t *testing.T) {
 
 func TestV1betaListPools(t *testing.T) {
 	t.Run("WhenLocationValidationFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaListPoolsParams{
 			LocationId:    "invalid-location-id",
 			ProjectNumber: "project-number",
@@ -4331,7 +4331,7 @@ func TestV1betaListPools(t *testing.T) {
 		assert.Equal(tt, "Invalid location ID", result.(*gcpgenserver.V1betaListPoolsBadRequest).Message)
 	})
 	t.Run("WhenListPoolsFailsWithInternalError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaListPoolsParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -4353,7 +4353,7 @@ func TestV1betaListPools(t *testing.T) {
 		assert.True(tt, ok)
 	})
 	t.Run("WhenListPoolsSucceeds", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaListPoolsParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -4390,7 +4390,7 @@ func TestV1betaListPools(t *testing.T) {
 		assert.Equal(tt, "pool-uuid-2", successResult.Pools[1].PoolId.Value)
 	})
 	t.Run("WhenListPoolsSucceedsIncludeDeleted", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaListPoolsParams{
 			LocationId:     "us-east4",
 			ProjectNumber:  "project-number",
@@ -4429,7 +4429,7 @@ func TestV1betaListPools(t *testing.T) {
 	})
 
 	t.Run("WhenPoolsHaveAutoTieringEnabled_IncludesConsumptionFields", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaListPoolsParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -5889,7 +5889,7 @@ func TestV1betaUpdatePool_ThroughputOnlyUpdate(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		// Set orchestrator to return a pool when DescribePool is called.
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
@@ -5956,7 +5956,7 @@ func TestV1betaUpdatePool_ManualQos_IopsOnlyUpdate(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		// Pool with manual QoS and utilized values
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
@@ -6016,7 +6016,7 @@ func TestV1betaUpdatePool_ManualQos_IopsOnlyUpdate(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		// Pool with manual QoS and utilized values
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
@@ -6059,7 +6059,7 @@ func TestV1betaUpdatePool_ManualQos_IopsOnlyUpdate(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		// Pool with manual QoS and utilized values
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(&models.Pool{
@@ -6120,7 +6120,7 @@ func TestGetKmsConfigForPool(t *testing.T) {
 		ctx := context.Background()
 		req := &gcpgenserver.PoolV1beta{KmsConfigId: gcpgenserver.NewOptNilString("")}
 		params := &common.CreatePoolParams{}
-		orchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		orchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		kmsConfig, errResp := _getAndSyncKmsConfigForPool(ctx, req, params, orchestrator)
 		assert.Nil(tt, kmsConfig)
@@ -6132,7 +6132,7 @@ func TestGetKmsConfigForPool(t *testing.T) {
 		req := &gcpgenserver.PoolV1beta{KmsConfigId: gcpgenserver.NewOptNilString("kms-uuid")}
 		params := &common.CreatePoolParams{}
 		expectedConfig := &models.KmsConfig{}
-		orchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		orchestrator := factory.NewMockOrchestratorFactory(tt)
 		orchestrator.On("GetKmsConfig", ctx, mock.Anything).Return(expectedConfig, nil)
 
 		kmsConfig, errResp := _getAndSyncKmsConfigForPool(ctx, req, params, orchestrator)
@@ -6144,7 +6144,7 @@ func TestGetKmsConfigForPool(t *testing.T) {
 		ctx := context.Background()
 		req := &gcpgenserver.PoolV1beta{KmsConfigId: gcpgenserver.NewOptNilString("kms-uuid")}
 		params := &common.CreatePoolParams{}
-		orchestratorFactory := orchestrator.NewMockOrchestratorFactory(tt)
+		orchestratorFactory := factory.NewMockOrchestratorFactory(tt)
 		desc := "Description"
 		kfp := "projects/project/locations/location/keyRings/keyring/cryptoKeys/key"
 		resId := "resourceId"
@@ -6171,7 +6171,7 @@ func TestGetKmsConfigForPool(t *testing.T) {
 		ctx := context.Background()
 		req := &gcpgenserver.PoolV1beta{KmsConfigId: gcpgenserver.NewOptNilString("kms-uuid")}
 		params := &common.CreatePoolParams{}
-		orchestratorFactory := orchestrator.NewMockOrchestratorFactory(tt)
+		orchestratorFactory := factory.NewMockOrchestratorFactory(tt)
 		orchestratorFactory.On("GetKmsConfig", ctx, mock.Anything).Return(nil, errors.New("unexpected error"))
 
 		kmsConfig, errResp := _getAndSyncKmsConfigForPool(ctx, req, params, orchestratorFactory)
@@ -6185,7 +6185,7 @@ func TestGetKmsConfigForPool(t *testing.T) {
 		ctx := context.Background()
 		req := &gcpgenserver.PoolV1beta{KmsConfigId: gcpgenserver.NewOptNilString("kms-uuid")}
 		params := &common.CreatePoolParams{}
-		orchestratorFactory := orchestrator.NewMockOrchestratorFactory(tt)
+		orchestratorFactory := factory.NewMockOrchestratorFactory(tt)
 
 		orchestratorFactory.On("GetKmsConfig", ctx, mock.Anything).Return(nil, errors.NewNotFoundErr("kms", nil))
 		orchestratorFactory.On("GetSDEKmsConfiguration", ctx, mock.Anything).Return(nil, stderrors.New("sde error"))
@@ -6202,7 +6202,7 @@ func TestGetKmsConfigForPool(t *testing.T) {
 		ctx := context.Background()
 		req := &gcpgenserver.PoolV1beta{KmsConfigId: gcpgenserver.NewOptNilString("kms-uuid")}
 		params := &common.CreatePoolParams{}
-		orchestratorFactory := orchestrator.NewMockOrchestratorFactory(tt)
+		orchestratorFactory := factory.NewMockOrchestratorFactory(tt)
 		sdeResp := &cvpmodels.KmsConfigV1beta{KmsState: cvpmodels.KmsConfigV1betaKmsStateREADY}
 
 		orchestratorFactory.On("GetKmsConfig", ctx, mock.Anything).Return(nil, errors.NewNotFoundErr("kms", nil))
@@ -6221,7 +6221,7 @@ func TestGetKmsConfigForPool(t *testing.T) {
 		ctx := context.Background()
 		req := &gcpgenserver.PoolV1beta{KmsConfigId: gcpgenserver.NewOptNilString("kms-uuid")}
 		params := &common.CreatePoolParams{}
-		orchestratorFactory := orchestrator.NewMockOrchestratorFactory(tt)
+		orchestratorFactory := factory.NewMockOrchestratorFactory(tt)
 
 		orchestratorFactory.On("GetKmsConfig", ctx, mock.Anything).Return(nil, errors.NewNotFoundErr("kms", nil))
 		orchestratorFactory.On("GetSDEKmsConfiguration", ctx, mock.Anything).Return(nil, errors.NewNotFoundErr("kms", nil))
@@ -6238,7 +6238,7 @@ func TestGetKmsConfigForPool(t *testing.T) {
 		ctx := context.Background()
 		req := &gcpgenserver.PoolV1beta{KmsConfigId: gcpgenserver.NewOptNilString("kms-uuid")}
 		params := &common.CreatePoolParams{}
-		orchestratorFactory := orchestrator.NewMockOrchestratorFactory(tt)
+		orchestratorFactory := factory.NewMockOrchestratorFactory(tt)
 		sdeResp := &cvpmodels.KmsConfigV1beta{KmsState: cvpmodels.KmsConfigV1betaKmsStateDELETING}
 
 		orchestratorFactory.On("GetKmsConfig", ctx, mock.Anything).Return(nil, errors.NewNotFoundErr("kms", nil))
@@ -6293,7 +6293,7 @@ func TestV1betaUpdatePool_AutoTieringValidation(t *testing.T) {
 	t.Run("AutoTiering feature disabled - rejects AllowAutoTiering=true", func(tt *testing.T) {
 		autoTieringEnabled = false
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
 
 		req := &gcpgenserver.PoolUpdateV1beta{
@@ -6313,7 +6313,7 @@ func TestV1betaUpdatePool_AutoTieringValidation(t *testing.T) {
 	t.Run("AutoTiering feature disabled - rejects HotTierSizeInBytes", func(tt *testing.T) {
 		autoTieringEnabled = false
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
 
 		req := &gcpgenserver.PoolUpdateV1beta{
@@ -6333,7 +6333,7 @@ func TestV1betaUpdatePool_AutoTieringValidation(t *testing.T) {
 	t.Run("AutoTiering feature disabled - rejects EnableHotTierAutoResize", func(tt *testing.T) {
 		autoTieringEnabled = false
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
 
 		req := &gcpgenserver.PoolUpdateV1beta{
@@ -6353,7 +6353,7 @@ func TestV1betaUpdatePool_AutoTieringValidation(t *testing.T) {
 	t.Run("AutoTiering feature disabled - allows non-AutoTiering updates", func(tt *testing.T) {
 		autoTieringEnabled = false
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
 		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(&models.Pool{
@@ -6382,7 +6382,7 @@ func TestV1betaUpdatePool_AutoTieringValidation(t *testing.T) {
 	t.Run("AutoTiering feature enabled - rejects HotTierSizeInBytes without AllowAutoTiering", func(tt *testing.T) {
 		autoTieringEnabled = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
 
 		req := &gcpgenserver.PoolUpdateV1beta{
@@ -6403,7 +6403,7 @@ func TestV1betaUpdatePool_AutoTieringValidation(t *testing.T) {
 	t.Run("AutoTiering feature enabled - rejects EnableHotTierAutoResize without AllowAutoTiering", func(tt *testing.T) {
 		autoTieringEnabled = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
 
 		req := &gcpgenserver.PoolUpdateV1beta{
@@ -6424,7 +6424,7 @@ func TestV1betaUpdatePool_AutoTieringValidation(t *testing.T) {
 	t.Run("AutoTiering feature enabled - rejects both HotTierSizeInBytes and EnableHotTierAutoResize without AllowAutoTiering", func(tt *testing.T) {
 		autoTieringEnabled = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
 
 		req := &gcpgenserver.PoolUpdateV1beta{
@@ -6446,7 +6446,7 @@ func TestV1betaUpdatePool_AutoTieringValidation(t *testing.T) {
 	t.Run("AutoTiering feature enabled - rejects HotTierSizeInBytes with AllowAutoTiering explicitly set to false", func(tt *testing.T) {
 		autoTieringEnabled = true
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
 
 		req := &gcpgenserver.PoolUpdateV1beta{
@@ -6486,7 +6486,7 @@ func TestV1betaUpdatePool_AutoTieringValidation(t *testing.T) {
 			},
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(poolWithAutoTiering, nil)
 		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(&models.Pool{
@@ -6585,7 +6585,7 @@ func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
 			},
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
 		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(&models.Pool{
@@ -6653,7 +6653,7 @@ func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
 			},
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
 		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(&models.Pool{
@@ -6716,7 +6716,7 @@ func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
 			},
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
 		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(&models.Pool{
@@ -6772,7 +6772,7 @@ func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
 			State: models.LifeCycleStateREADY,
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPool, nil)
 		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(&models.Pool{
@@ -6827,7 +6827,7 @@ func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
 			},
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().DescribePool(mock.Anything, mock.Anything, mock.Anything).Return(existingPoolWithAutoTiering, nil)
 		mockOrchestrator.EXPECT().HasActiveClusterUpgrade(mock.Anything, "pool-uuid").Return(false, nil)
 		mockOrchestrator.EXPECT().UpdatePool(mock.Anything, mock.Anything).Return(&models.Pool{
@@ -6882,7 +6882,7 @@ func TestV1betaUpdatePool_AutoTieringParameterHandling(t *testing.T) {
 
 func TestV1betaCreatePool_WithActiveDirectoryConfigId(t *testing.T) {
 	t.Run("WhenActiveDirectoryConfigIdIsValid", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		// Mock Active Directory config
 		adConfig := &models.ActiveDirectory{
@@ -6966,7 +6966,7 @@ func TestV1betaCreatePool_WithActiveDirectoryConfigId(t *testing.T) {
 	})
 
 	t.Run("WhenActiveDirectoryConfigIdNotFound", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		// Mock parseAndValidateRegionAndZone
 		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
@@ -7010,7 +7010,7 @@ func TestV1betaCreatePool_WithActiveDirectoryConfigId(t *testing.T) {
 	})
 
 	t.Run("WhenActiveDirectoryConfigIdInternalError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		// Mock parseAndValidateRegionAndZone
 		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
@@ -7056,7 +7056,7 @@ func TestV1betaCreatePool_WithActiveDirectoryConfigId(t *testing.T) {
 
 func TestV1betaUpdatePool_WithActiveDirectoryConfigId(t *testing.T) {
 	t.Run("WhenActiveDirectoryConfigIdIsValid", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		adConfig := &models.ActiveDirectory{
 			BaseModel: models.BaseModel{
 				UUID: "ad-config-uuid",
@@ -7148,7 +7148,7 @@ func TestV1betaUpdatePool_WithActiveDirectoryConfigId(t *testing.T) {
 		cvp.CVP_HOST = ""
 		defer func() { cvp.CVP_HOST = origCVPHost }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
 		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
@@ -7195,7 +7195,7 @@ func TestV1betaUpdatePool_WithActiveDirectoryConfigId(t *testing.T) {
 	})
 
 	t.Run("WhenActiveDirectoryConfigIdIsValid_PropagatesCorrelationID", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		adConfig := &models.ActiveDirectory{
 			BaseModel: models.BaseModel{
 				UUID: "ad-config-uuid",
@@ -7256,7 +7256,7 @@ func TestV1betaUpdatePool_WithActiveDirectoryConfigId(t *testing.T) {
 	})
 
 	t.Run("WhenActiveDirectoryConfigIdInternalError_UpdateReturnsInternal", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
 		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
@@ -7303,7 +7303,7 @@ func TestV1betaUpdatePool_WithActiveDirectoryConfigId(t *testing.T) {
 	})
 
 	t.Run("WhenActiveDirectoryConfigIdIsEmpty", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		// Mock parseAndValidateRegionAndZone
 		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
@@ -7416,7 +7416,7 @@ func TestV1betaUpdatePool_LargeCapacityPropagation(t *testing.T) {
 	}
 
 	t.Run("SetsLargeCapacityWhenProvided", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		originalParse := parseAndValidateRegionAndZone
 		defer func() { parseAndValidateRegionAndZone = originalParse }()
 
@@ -7444,7 +7444,7 @@ func TestV1betaUpdatePool_LargeCapacityPropagation(t *testing.T) {
 	})
 
 	t.Run("LeavesLargeCapacityNilWhenNotProvided", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		originalParse := parseAndValidateRegionAndZone
 		defer func() { parseAndValidateRegionAndZone = originalParse }()
 
@@ -7480,7 +7480,7 @@ func TestGetAndSyncAdConfigForPool(t *testing.T) {
 		accountName := "test-project"
 		region := "us-central1"
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		adConfig, _, errResp := getAndSyncAdConfigForPool(context.Background(), req.ActiveDirectoryConfigId, accountName, region, "", mockOrchestrator)
 
@@ -7503,7 +7503,7 @@ func TestGetAndSyncAdConfigForPool(t *testing.T) {
 		accountName := "test-project"
 		region := "us-central1"
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().GetADConfig(mock.Anything, mock.MatchedBy(func(getParams *commonparams.GetADParams) bool {
 			return getParams.UUID == "ad-config-uuid" && getParams.AccountName == "test-project"
 		})).Return(adConfig, nil)
@@ -7524,7 +7524,7 @@ func TestGetAndSyncAdConfigForPool(t *testing.T) {
 		accountName := "test-project"
 		region := "us-central1"
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().GetADConfig(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("Active Directory", nil))
 
 		adConfig, _, errResp := getAndSyncAdConfigForPool(context.Background(), req.ActiveDirectoryConfigId, accountName, region, "", mockOrchestrator)
@@ -7546,7 +7546,7 @@ func TestGetAndSyncAdConfigForPool(t *testing.T) {
 		accountName := "test-project"
 		region := "us-central1"
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().GetADConfig(mock.Anything, mock.Anything).Return(nil, stderrors.New("database error"))
 
 		adConfig, _, errResp := getAndSyncAdConfigForPool(context.Background(), req.ActiveDirectoryConfigId, accountName, region, "", mockOrchestrator)
@@ -7625,7 +7625,7 @@ func TestGetAndSyncAdConfigForPool(t *testing.T) {
 		accountName := "test-project"
 		region := "us-central1"
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().GetADConfig(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("Active Directory", nil))
 
 		adConfig, existsInVCP, errResp := getAndSyncAdConfigForPool(context.Background(), req.ActiveDirectoryConfigId, accountName, region, "", mockOrchestrator)
@@ -7683,7 +7683,7 @@ func TestGetAndSyncAdConfigForPool(t *testing.T) {
 		accountName := "test-project"
 		region := "us-central1"
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().GetADConfig(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("Active Directory", nil))
 
 		adConfig, _, errResp := getAndSyncAdConfigForPool(context.Background(), req.ActiveDirectoryConfigId, accountName, region, "", mockOrchestrator)
@@ -8451,7 +8451,7 @@ func TestValidateUpdatePoolParams_QosType(t *testing.T) {
 func TestV1betaGetBackupConfigsForPool(t *testing.T) {
 	t.Run("Success_WithBackupConfigs", func(tt *testing.T) {
 		ctx := context.Background()
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		params := gcpgenserver.V1betaGetBackupConfigsForPoolParams{
 			ProjectNumber: "test-project",
@@ -8511,7 +8511,7 @@ func TestV1betaGetBackupConfigsForPool(t *testing.T) {
 
 	t.Run("Success_WithMixedBackupConfigs", func(tt *testing.T) {
 		ctx := context.Background()
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		params := gcpgenserver.V1betaGetBackupConfigsForPoolParams{
 			ProjectNumber: "test-project",
@@ -8567,7 +8567,7 @@ func TestV1betaGetBackupConfigsForPool(t *testing.T) {
 
 	t.Run("Success_EmptyPool", func(tt *testing.T) {
 		ctx := context.Background()
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		params := gcpgenserver.V1betaGetBackupConfigsForPoolParams{
 			ProjectNumber: "test-project",
@@ -8603,7 +8603,7 @@ func TestV1betaGetBackupConfigsForPool(t *testing.T) {
 
 	t.Run("Error_NotEnabled", func(tt *testing.T) {
 		ctx := context.Background()
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		params := gcpgenserver.V1betaGetBackupConfigsForPoolParams{
 			ProjectNumber: "test-project",
@@ -8628,7 +8628,7 @@ func TestV1betaGetBackupConfigsForPool(t *testing.T) {
 
 	t.Run("Error_InvalidLocation", func(tt *testing.T) {
 		ctx := context.Background()
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		params := gcpgenserver.V1betaGetBackupConfigsForPoolParams{
 			ProjectNumber: "test-project",
@@ -8663,7 +8663,7 @@ func TestV1betaGetBackupConfigsForPool(t *testing.T) {
 
 	t.Run("Error_PoolNotFound", func(tt *testing.T) {
 		ctx := context.Background()
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		params := gcpgenserver.V1betaGetBackupConfigsForPoolParams{
 			ProjectNumber: "test-project",
@@ -8701,7 +8701,7 @@ func TestV1betaGetBackupConfigsForPool(t *testing.T) {
 
 	t.Run("Error_NonONTAPPool", func(tt *testing.T) {
 		ctx := context.Background()
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		params := gcpgenserver.V1betaGetBackupConfigsForPoolParams{
 			ProjectNumber: "test-project",
@@ -8739,7 +8739,7 @@ func TestV1betaGetBackupConfigsForPool(t *testing.T) {
 
 	t.Run("Error_InternalServerError", func(tt *testing.T) {
 		ctx := context.Background()
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		params := gcpgenserver.V1betaGetBackupConfigsForPoolParams{
 			ProjectNumber: "test-project",
@@ -8775,7 +8775,7 @@ func TestV1betaGetBackupConfigsForPool(t *testing.T) {
 
 	t.Run("Success_LargeNumberOfVolumes", func(tt *testing.T) {
 		ctx := context.Background()
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		params := gcpgenserver.V1betaGetBackupConfigsForPoolParams{
 			ProjectNumber: "test-project",
@@ -8830,7 +8830,7 @@ func TestV1betaRestoreOntapModeBackup(t *testing.T) {
 		ExpertModeBackupEnabled = false
 		defer func() { ExpertModeBackupEnabled = originalOntapModeRestoreEnabled }()
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaRestoreOntapModeBackupParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -8863,7 +8863,7 @@ func TestV1betaRestoreOntapModeBackup(t *testing.T) {
 			return "", "", &gcpgenserver.Error{Code: 400, Message: "Invalid location ID"}
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaRestoreOntapModeBackupParams{
 			LocationId:    "invalid-location",
 			ProjectNumber: "project-number",
@@ -8896,7 +8896,7 @@ func TestV1betaRestoreOntapModeBackup(t *testing.T) {
 			return "us-east4", "", nil
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaRestoreOntapModeBackupParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -8929,7 +8929,7 @@ func TestV1betaRestoreOntapModeBackup(t *testing.T) {
 			return "us-east4", "", nil
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaRestoreOntapModeBackupParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -8962,7 +8962,7 @@ func TestV1betaRestoreOntapModeBackup(t *testing.T) {
 			return "us-east4", "", nil
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaRestoreOntapModeBackupParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -8995,7 +8995,7 @@ func TestV1betaRestoreOntapModeBackup(t *testing.T) {
 			return "us-east4", "", nil
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaRestoreOntapModeBackupParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -9033,7 +9033,7 @@ func TestV1betaRestoreOntapModeBackup(t *testing.T) {
 			return "us-east4", "", nil
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().RestoreOntapModeBackup(mock.Anything, mock.Anything).
 			Return("", errors.NewUserInputValidationErr("volume not found")).Once()
 
@@ -9070,7 +9070,7 @@ func TestV1betaRestoreOntapModeBackup(t *testing.T) {
 			return "us-east4", "", nil
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().RestoreOntapModeBackup(mock.Anything, mock.Anything).
 			Return("", errors.NewNotFoundErr("volume", nil)).Once()
 
@@ -9106,7 +9106,7 @@ func TestV1betaRestoreOntapModeBackup(t *testing.T) {
 			return "us-east4", "", nil
 		}
 
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().RestoreOntapModeBackup(mock.Anything, mock.Anything).
 			Return("", stderrors.New("database error")).Once()
 
@@ -9144,7 +9144,7 @@ func TestV1betaRestoreOntapModeBackup(t *testing.T) {
 		}
 
 		jobUUID := "job-uuid-123"
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().RestoreOntapModeBackup(mock.Anything, mock.MatchedBy(func(p *commonparams.RestoreOntapModeBackupParams) bool {
 			return p.AccountName == "project-number" && p.BackupPath == validBackupPath &&
 				p.VolumeUUID == "vol-uuid" && p.Region == "us-east4" && p.PoolID == "pool-uuid"
@@ -9186,7 +9186,7 @@ func TestV1betaRestoreOntapModeBackup(t *testing.T) {
 		}
 
 		jobUUID := "job-uuid-456"
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().RestoreOntapModeBackup(mock.Anything, mock.MatchedBy(func(p *commonparams.RestoreOntapModeBackupParams) bool {
 			return p.RestoreFilePath == "/restore/dest"
 		})).Return(jobUUID, nil).Once()

@@ -15,7 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/snapshots"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	gcpserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -25,7 +25,7 @@ import (
 
 func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 	t.Run("WhenRegionParsingError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
 			LocationId:    "bad-location",
 			ProjectNumber: "project-number",
@@ -51,7 +51,7 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 	})
 
 	t.Run("WhenSnapshotUuidsIsNil", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -74,7 +74,7 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 	})
 
 	t.Run("WhenOrchestratorReturnsError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -100,7 +100,7 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 
 	t.Run("WhenGetMultipleSnapshotsFailsWithBadRequest", func(tt *testing.T) {
 		mockClient := snapshots.NewMockClientService(tt)
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		oldValidateRegionAndZone := parseAndValidateRegionAndZone
 		defer func() { parseAndValidateRegionAndZone = oldValidateRegionAndZone }()
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpserver.Error) {
@@ -150,7 +150,7 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 	})
 
 	t.Run("WhenSnapshotsFoundInVCP", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -188,7 +188,7 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 	})
 
 	t.Run("WhenSnapshotsNotFoundInVCP", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -232,7 +232,7 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 	})
 
 	t.Run("WhenSnapshotsNotFoundInVCPAndFoundInCVP", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -297,7 +297,7 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 	})
 
 	t.Run("WhenOrchestratorGetMultipleSnapshotsFails_ReturnsInternalServerError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -329,7 +329,7 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 	})
 
 	t.Run("WhenOrchestratorGetMultipleSnapshotsFails_ErrorNotReturned", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -361,7 +361,7 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 	})
 
 	t.Run("WhenSomeSnapshotsNotFoundInVCP_TriggersCVPFallback", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -405,7 +405,7 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 	})
 
 	t.Run("WhenAllSnapshotsFoundInVCP_NoCVPFallback", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -449,7 +449,7 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 	})
 
 	t.Run("WhenOrchestratorGetMultipleSnapshotsReturnsEmpty_TriggersCVPFallback", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -490,7 +490,7 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 	})
 
 	t.Run("WhenOrchestratorGetMultipleSnapshotsReturnsNil_TriggersCVPFallback", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -531,7 +531,7 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 	})
 
 	t.Run("WhenAccountCreationSucceeds_ProceedsWithSnapshotRetrieval", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
 			LocationId:    "location-id",
 			ProjectNumber: "new-account-number", // New account that will be created
@@ -569,7 +569,7 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 	})
 
 	t.Run("WhenAccountCreationFails_ReturnsInternalServerError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaGetMultipleSnapshotsParams{
 			LocationId:    "location-id",
 			ProjectNumber: "invalid-account-number",
@@ -603,7 +603,7 @@ func TestHandler_V1betaGetMultipleSnapshots(t *testing.T) {
 
 func TestV1betaCreateSnapshot(t *testing.T) {
 	t.Run("WhenRegionParsingError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaCreateSnapshotParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -636,7 +636,7 @@ func TestV1betaCreateSnapshot(t *testing.T) {
 	})
 
 	t.Run("WhenCreateSnapshotReturnsError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaCreateSnapshotParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -668,7 +668,7 @@ func TestV1betaCreateSnapshot(t *testing.T) {
 	})
 
 	t.Run("WhenCreateSnapshotReturnsNotFoundError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaCreateSnapshotParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -701,7 +701,7 @@ func TestV1betaCreateSnapshot(t *testing.T) {
 	})
 
 	t.Run("WhenCreateSnapshotReturnsConflictError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaCreateSnapshotParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -734,7 +734,7 @@ func TestV1betaCreateSnapshot(t *testing.T) {
 	})
 
 	t.Run("WhenCreateSnapshotReturnsConflictError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaCreateSnapshotParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -767,7 +767,7 @@ func TestV1betaCreateSnapshot(t *testing.T) {
 	})
 
 	t.Run("WhenCreateSnapshotSucceeds", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaCreateSnapshotParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
@@ -856,7 +856,7 @@ func Test_convertModelToVCPSnapshot(t *testing.T) {
 
 func TestHandler_V1betaDescribeSnapshot(t *testing.T) {
 	t.Run("WhenSnapshotNotFound", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaDescribeSnapshotParams{
 			SnapshotId: "non-existent-snapshot-id",
 		}
@@ -875,7 +875,7 @@ func TestHandler_V1betaDescribeSnapshot(t *testing.T) {
 	})
 
 	t.Run("WhenInternalServerError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaDescribeSnapshotParams{
 			SnapshotId: "snapshot-id",
 		}
@@ -896,7 +896,7 @@ func TestHandler_V1betaDescribeSnapshot(t *testing.T) {
 	})
 
 	t.Run("WhenSuccess", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaDescribeSnapshotParams{
 			SnapshotId: "snapshot-id",
 		}
@@ -939,7 +939,7 @@ func TestHandler_V1betaDescribeSnapshot(t *testing.T) {
 
 func TestHandler_V1betaListSnapshot(t *testing.T) {
 	t.Run("WhenListSnapshotsSucceeds", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaListSnapshotParams{
 			ProjectNumber: "project-number",
 			VolumeId:      "volume-id",
@@ -978,7 +978,7 @@ func TestHandler_V1betaListSnapshot(t *testing.T) {
 	})
 
 	t.Run("WhenListSnapshotsNotFound", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaListSnapshotParams{
 			ProjectNumber: "project-number",
 			VolumeId:      "volume-id",
@@ -995,7 +995,7 @@ func TestHandler_V1betaListSnapshot(t *testing.T) {
 	})
 
 	t.Run("WhenListSnapshotsInternalServerError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaListSnapshotParams{
 			ProjectNumber: "project-number",
 			VolumeId:      "volume-id",
@@ -1014,7 +1014,7 @@ func TestHandler_V1betaListSnapshot(t *testing.T) {
 
 func TestHandler_V1betaUpdateSnapshot(t *testing.T) {
 	t.Run("WhenSnapshotUpdateSucceeds", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaUpdateSnapshotParams{
 			SnapshotId:    "snapshot-id",
 			ProjectNumber: "project-number",
@@ -1051,7 +1051,7 @@ func TestHandler_V1betaUpdateSnapshot(t *testing.T) {
 	})
 
 	t.Run("WhenSnapshotReturnsBadRequestOnEmptySnapshotID", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaUpdateSnapshotParams{
 			SnapshotId:    "",
 			ProjectNumber: "project-number",
@@ -1075,7 +1075,7 @@ func TestHandler_V1betaUpdateSnapshot(t *testing.T) {
 	})
 
 	t.Run("WhenSnapshotUpdateReturnsNotFound", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaUpdateSnapshotParams{
 			SnapshotId:    "snapshot-id",
 			ProjectNumber: "project-number",
@@ -1098,7 +1098,7 @@ func TestHandler_V1betaUpdateSnapshot(t *testing.T) {
 	})
 
 	t.Run("WhenSnapshotUpdateReturnsBadRequest", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaUpdateSnapshotParams{
 			SnapshotId:    "snapshot-id",
 			ProjectNumber: "project-number",
@@ -1121,7 +1121,7 @@ func TestHandler_V1betaUpdateSnapshot(t *testing.T) {
 	})
 
 	t.Run("WhenSnapshotUpdateReturnsConflict", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaUpdateSnapshotParams{
 			SnapshotId:    "snapshot-id",
 			ProjectNumber: "project-number",
@@ -1144,7 +1144,7 @@ func TestHandler_V1betaUpdateSnapshot(t *testing.T) {
 	})
 
 	t.Run("WhenSnapshotUpdateReturnsInternalServerError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaUpdateSnapshotParams{
 			SnapshotId:    "snapshot-id",
 			ProjectNumber: "project-number",
@@ -1168,7 +1168,7 @@ func TestHandler_V1betaUpdateSnapshot(t *testing.T) {
 }
 func TestV1betaDeleteSnapshot(t *testing.T) {
 	t.Run("WhenLocationValidationFailsInDeleteSnapshot", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaDeleteSnapshotParams{
 			ProjectNumber: "project-number",
 			LocationId:    "invalid-location-id",
@@ -1193,7 +1193,7 @@ func TestV1betaDeleteSnapshot(t *testing.T) {
 		assert.Equal(tt, "Invalid location ID", result.(*gcpserver.V1betaDeleteSnapshotBadRequest).Message)
 	})
 	t.Run("WhenDeleteSnapshotReturnsError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaDeleteSnapshotParams{
 			ProjectNumber: "project-number",
 			LocationId:    "location-id",
@@ -1216,7 +1216,7 @@ func TestV1betaDeleteSnapshot(t *testing.T) {
 	})
 
 	t.Run("WhenDeleteSnapshotReturnsNotFoundError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaDeleteSnapshotParams{
 			ProjectNumber: "project-number",
 			LocationId:    "location-id",
@@ -1240,7 +1240,7 @@ func TestV1betaDeleteSnapshot(t *testing.T) {
 	})
 
 	t.Run("WhenDeleteSnapshotReturnsConflictError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaDeleteSnapshotParams{
 			ProjectNumber: "project-number",
 			LocationId:    "location-id",
@@ -1264,7 +1264,7 @@ func TestV1betaDeleteSnapshot(t *testing.T) {
 	})
 
 	t.Run("WhenDeleteSnapshotSucceeds", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaDeleteSnapshotParams{
 			ProjectNumber: "project-number",
 			LocationId:    "location-id",
@@ -1599,7 +1599,7 @@ func (m *mockInvoker) V1RefreshRbacForExpertModePools(ctx context.Context, param
 
 func TestV1betaCreateSnapshot_WithSyncModeEnabled(t *testing.T) {
 	t.Run("WhenSyncModeEnabled_ForwardsToCoreAPI", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaCreateSnapshotParams{
 			LocationId:    "us-east1",
 			ProjectNumber: "123456789",
@@ -1678,7 +1678,7 @@ func TestV1betaCreateSnapshot_WithSyncModeEnabled(t *testing.T) {
 	})
 
 	t.Run("WhenSyncModeEnabledButCoreAPIHostNotSet", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaCreateSnapshotParams{
 			LocationId:    "us-east1",
 			ProjectNumber: "123456789",
@@ -1730,7 +1730,7 @@ func TestV1betaCreateSnapshot_WithSyncModeEnabled(t *testing.T) {
 	})
 
 	t.Run("WhenSyncModeDisabled_UsesLocalOrchestrator", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpserver.V1betaCreateSnapshotParams{
 			LocationId:    "us-east1",
 			ProjectNumber: "123456789",

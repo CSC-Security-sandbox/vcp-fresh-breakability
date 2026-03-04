@@ -17,9 +17,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -245,7 +245,7 @@ func (h Handler) V1betaCreatePool(ctx context.Context, req *gcpgenserver.PoolV1b
 	return &gcpgenserver.OperationV1beta{}, nil
 }
 
-func handleExistingPool(ctx context.Context, req *gcpgenserver.PoolV1beta, params gcpgenserver.V1betaCreatePoolParams, existingPool *models.Pool, orchestrator orchestrator.OrchestratorFactory) (gcpgenserver.V1betaCreatePoolRes, error) {
+func handleExistingPool(ctx context.Context, req *gcpgenserver.PoolV1beta, params gcpgenserver.V1betaCreatePoolParams, existingPool *models.Pool, orchestrator factory.OrchestratorFactory) (gcpgenserver.V1betaCreatePoolRes, error) {
 	logger := util.GetLogger(ctx)
 	if existingPool.State != models.LifeCycleStateCreating {
 		// Pool exists and is not in creating state, return 409 Conflict
@@ -1411,7 +1411,7 @@ func validateLabels(labels map[string]string) (*datamodel.JSONB, error) {
 	return &jsonbLabels, nil
 }
 
-func _getAndSyncKmsConfigForPool(ctx context.Context, req *gcpgenserver.PoolV1beta, params *commonparams.CreatePoolParams, orchestratorInterface orchestrator.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
+func _getAndSyncKmsConfigForPool(ctx context.Context, req *gcpgenserver.PoolV1beta, params *commonparams.CreatePoolParams, orchestratorInterface factory.OrchestratorFactory) (*models.KmsConfig, gcpgenserver.V1betaCreatePoolRes) {
 	if req.KmsConfigId.Value == "" {
 		return nil, nil
 	}
@@ -1508,7 +1508,7 @@ func newAdSyncInternal(code float64, message string) *adSyncError {
 	return &adSyncError{kind: adSyncErrorKindInternal, code: code, message: message}
 }
 
-func getAndSyncAdConfigForPool(ctx context.Context, activeDirectoryConfigId gcpgenserver.OptNilString, accountName, region, xCorrelationID string, orchestrator orchestrator.OrchestratorFactory) (*models.ActiveDirectory, bool, *adSyncError) {
+func getAndSyncAdConfigForPool(ctx context.Context, activeDirectoryConfigId gcpgenserver.OptNilString, accountName, region, xCorrelationID string, orchestrator factory.OrchestratorFactory) (*models.ActiveDirectory, bool, *adSyncError) {
 	log := util.GetLogger(ctx)
 	ifADExistsInVCP := false
 	if activeDirectoryConfigId.Value == "" {

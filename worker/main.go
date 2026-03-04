@@ -26,6 +26,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/flexcache_workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/jobmanagerworkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/kms_workflows"
+	ociworkflows "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/oci"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/replicationWorkflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	database2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/connection"
@@ -231,6 +232,7 @@ func initializeTemporalClient(logger log.Logger) (workflowEngine.WorkflowEngine,
 func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.Storage, temporal client.Client) {
 	worker.RegisterWorkflow(workflows.SequenceWorkflow)
 	worker.RegisterWorkflow(workflows.CreatePoolWorkflow)
+	worker.RegisterWorkflow(ociworkflows.OCICreatePoolWorkflow)
 	worker.RegisterWorkflow(workflows.DataSubnetSequentialPoller)
 	worker.RegisterWorkflow(workflows.PoolDataSubnetWorkFlow)
 	worker.RegisterWorkflow(workflows.ConfigureNetworkWorkflow)

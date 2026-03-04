@@ -398,6 +398,8 @@ var (
 
 	ExpertModeUserSuffix     = GetString("EXPERT_MODE_USER_SUFFIX", "gadmin")
 	PrivExpertModeUserSuffix = GetString("PRIV_EXPERT_MODE_USER_SUFFIX", "padmin")
+
+	Hyperscaler = GetString("HYPERSCALER", "gcp")
 )
 
 // networkEnvVariables holds the environment variables related to firewall of network configuration for source ranges
@@ -525,6 +527,11 @@ func ValidateCertificateLifetime() error {
 	}
 
 	return nil
+}
+
+// GetHyperscaler returns the hyperscaler provider from environment variable, defaulting to "gcp"
+func GetHyperscaler() string {
+	return strings.ToLower(Hyperscaler)
 }
 
 var IsLocalEnv = isLocalEnv

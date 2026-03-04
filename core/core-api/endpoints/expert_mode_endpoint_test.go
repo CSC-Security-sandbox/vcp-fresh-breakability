@@ -10,15 +10,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
 func TestV1ExpertModeVolume(t *testing.T) {
 	t.Run("SuccessWithSvmUUID", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Test data
@@ -60,7 +60,7 @@ func TestV1ExpertModeVolume(t *testing.T) {
 
 	t.Run("SuccessWithSvmName", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Test data
@@ -102,7 +102,7 @@ func TestV1ExpertModeVolume(t *testing.T) {
 
 	t.Run("SuccessWithCorrelationID", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Test data
@@ -145,7 +145,7 @@ func TestV1ExpertModeVolume(t *testing.T) {
 
 	t.Run("BadRequestError_SvmNotFound", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Test data
@@ -193,7 +193,7 @@ func TestV1ExpertModeVolume(t *testing.T) {
 
 	t.Run("BadRequestError_InsufficientCapacity", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Test data
@@ -240,7 +240,7 @@ func TestV1ExpertModeVolume(t *testing.T) {
 
 	t.Run("BadRequestError_MissingSvmIdentifier", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Test data - neither svmUUID nor svmName provided
@@ -286,7 +286,7 @@ func TestV1ExpertModeVolume(t *testing.T) {
 
 	t.Run("InternalServerError_PoolNotFound", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Test data
@@ -333,7 +333,7 @@ func TestV1ExpertModeVolume(t *testing.T) {
 
 	t.Run("InternalServerError_DatabaseError", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Test data
@@ -380,7 +380,7 @@ func TestV1ExpertModeVolume(t *testing.T) {
 
 	t.Run("Success_DeleteAction", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Test data
@@ -425,7 +425,7 @@ func TestV1ExpertModeVolume(t *testing.T) {
 
 	t.Run("Success_UpdateAction", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Test data
@@ -481,7 +481,7 @@ func TestV1ExpertModeVolumeRename(t *testing.T) {
 	projectNumber := "123456789"
 
 	t.Run("Success", func(t *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		req := &oasgenserver.ExpertModeVolumeRenameV1{
@@ -512,7 +512,7 @@ func TestV1ExpertModeVolumeRename(t *testing.T) {
 	})
 
 	t.Run("BadRequestError_VolumeNotFound", func(t *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		req := &oasgenserver.ExpertModeVolumeRenameV1{
@@ -548,7 +548,7 @@ func TestV1ExpertModeVolumeRename(t *testing.T) {
 	})
 
 	t.Run("BadRequestError_SvmNameMismatch", func(t *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		req := &oasgenserver.ExpertModeVolumeRenameV1{
@@ -584,7 +584,7 @@ func TestV1ExpertModeVolumeRename(t *testing.T) {
 	})
 
 	t.Run("InternalServerError", func(t *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		req := &oasgenserver.ExpertModeVolumeRenameV1{
@@ -620,7 +620,7 @@ func TestV1ExpertModeVolumeRename(t *testing.T) {
 	})
 
 	t.Run("Success_WithCorrelationID", func(t *testing.T) {
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		req := &oasgenserver.ExpertModeVolumeRenameV1{
@@ -681,7 +681,7 @@ func newExpertModeVolumeRequest(poolUUID string, action oasgenserver.ExpertModeV
 func TestV1RefreshRbacForExpertModePools(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Test data
@@ -711,7 +711,7 @@ func TestV1RefreshRbacForExpertModePools(t *testing.T) {
 
 	t.Run("BadRequestError", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Test data
@@ -740,7 +740,7 @@ func TestV1RefreshRbacForExpertModePools(t *testing.T) {
 
 	t.Run("InternalServerError_WorkflowExecutionFailed", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Test data
@@ -769,7 +769,7 @@ func TestV1RefreshRbacForExpertModePools(t *testing.T) {
 
 	t.Run("InternalServerError_JobCreationFailed", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Test data
@@ -798,7 +798,7 @@ func TestV1RefreshRbacForExpertModePools(t *testing.T) {
 
 	t.Run("Success_WithCorrelationID", func(t *testing.T) {
 		// Setup
-		mockOrch := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := NewHandler(mockOrch)
 
 		// Test data

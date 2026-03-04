@@ -5,13 +5,13 @@ package api
 import (
 	"context"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"testing"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
@@ -45,7 +45,7 @@ func TestResourceEventsEndpoints(t *testing.T) {
 		assert.Equal(tt, errorMessage, res.(*gcpgenserver.V1betaStartProjectEventNotImplemented).Message)
 	})
 	t.Run("TestV1betaStartProjectEvent_ErrorWhenLocationValidationFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		req := &gcpgenserver.ProjectStateUpdateV1beta{}
 		params := gcpgenserver.V1betaStartProjectEventParams{
@@ -72,7 +72,7 @@ func TestResourceEventsEndpoints(t *testing.T) {
 		assert.Equal(tt, errorMessage, res.(*gcpgenserver.V1betaStartProjectEventBadRequest).Message)
 	})
 	t.Run("TestV1betaStartProjectEvent_ErrorWhenCreateOrGetStartProjectEventJob", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		req := &gcpgenserver.ProjectStateUpdateV1beta{}
 		params := gcpgenserver.V1betaStartProjectEventParams{
@@ -96,7 +96,7 @@ func TestResourceEventsEndpoints(t *testing.T) {
 		assert.Equal(tt, errorMessage, res.(*gcpgenserver.V1betaStartProjectEventInternalServerError).Message)
 	})
 	t.Run("TestV1betaStartProjectEvent_Success", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		req := &gcpgenserver.ProjectStateUpdateV1beta{
 			State: gcpgenserver.ProjectStateUpdateV1betaStateON,
@@ -156,7 +156,7 @@ func TestV1betaFinishProjectEvent(t *testing.T) {
 		name           string
 		locationID     string
 		state          gcpgenserver.ProjectStateUpdateV1betaState
-		mockSetup      func(m *orchestrator.MockOrchestratorFactory)
+		mockSetup      func(m *factory.MockOrchestratorFactory)
 		expectedResult gcpgenserver.V1betaFinishProjectEventRes
 		expectError    bool
 	}{
@@ -164,7 +164,7 @@ func TestV1betaFinishProjectEvent(t *testing.T) {
 			name:       "Invalid location ID",
 			locationID: "invalid-location",
 			state:      gcpgenserver.ProjectStateUpdateV1betaStateDELETE,
-			mockSetup:  func(m *orchestrator.MockOrchestratorFactory) {},
+			mockSetup:  func(m *factory.MockOrchestratorFactory) {},
 			expectedResult: &gcpgenserver.V1betaFinishProjectEventBadRequest{
 				Code:    400,
 				Message: "LocationID represents neither a region nor a zone",
@@ -175,7 +175,7 @@ func TestV1betaFinishProjectEvent(t *testing.T) {
 			name:       "Valid location which is not configured in the environment",
 			locationID: GetValidOtherRegion(),
 			state:      gcpgenserver.ProjectStateUpdateV1betaStateDELETE,
-			mockSetup:  func(m *orchestrator.MockOrchestratorFactory) {},
+			mockSetup:  func(m *factory.MockOrchestratorFactory) {},
 			expectedResult: &gcpgenserver.V1betaFinishProjectEventBadRequest{
 				Code:    400,
 				Message: fmt.Sprintf("Invalid region. Region can only be %s", GetConfiguredRegion()),
@@ -186,7 +186,7 @@ func TestV1betaFinishProjectEvent(t *testing.T) {
 			name:       "ON state not implemented",
 			locationID: GetValidOtherRegion(),
 			state:      gcpgenserver.ProjectStateUpdateV1betaStateON,
-			mockSetup: func(m *orchestrator.MockOrchestratorFactory) {
+			mockSetup: func(m *factory.MockOrchestratorFactory) {
 				parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 					return "", "", nil
 				}
@@ -201,7 +201,7 @@ func TestV1betaFinishProjectEvent(t *testing.T) {
 			name:       "OFF state not implemented",
 			locationID: GetConfiguredRegion(),
 			state:      gcpgenserver.ProjectStateUpdateV1betaStateOFF,
-			mockSetup: func(m *orchestrator.MockOrchestratorFactory) {
+			mockSetup: func(m *factory.MockOrchestratorFactory) {
 				parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 					return "", "", nil
 				}
@@ -216,7 +216,7 @@ func TestV1betaFinishProjectEvent(t *testing.T) {
 			name:       "Successful DELETE state",
 			locationID: GetConfiguredRegion(),
 			state:      gcpgenserver.ProjectStateUpdateV1betaStateDELETE,
-			mockSetup: func(m *orchestrator.MockOrchestratorFactory) {
+			mockSetup: func(m *factory.MockOrchestratorFactory) {
 				parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 					return "", "", nil
 				}
@@ -232,7 +232,7 @@ func TestV1betaFinishProjectEvent(t *testing.T) {
 			name:       "Orchestrator error",
 			locationID: GetConfiguredRegion(),
 			state:      gcpgenserver.ProjectStateUpdateV1betaStateDELETE,
-			mockSetup: func(m *orchestrator.MockOrchestratorFactory) {
+			mockSetup: func(m *factory.MockOrchestratorFactory) {
 				parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 					return "", "", nil
 				}
@@ -249,7 +249,7 @@ func TestV1betaFinishProjectEvent(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup
-			mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+			mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 			tt.mockSetup(mockOrchestrator)
 
 			handler := Handler{
@@ -311,7 +311,7 @@ func TestHandleResourceEventsEndpoints(t *testing.T) {
 		assert.Equal(tt, errorMessage, res.(*gcpgenserver.V1betaResourceStateUpdateNotImplemented).Message)
 	})
 	t.Run("TestV1betaHandleResourceEvent_ErrorWhenUpdateResourceState", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		req := &gcpgenserver.ResourceStateUpdateV1beta{
 			State: gcpgenserver.ResourceStateUpdateV1betaStateOFF,
@@ -335,7 +335,7 @@ func TestHandleResourceEventsEndpoints(t *testing.T) {
 		assert.Equal(tt, errorMessage, res.(*gcpgenserver.V1betaResourceStateUpdateInternalServerError).Message)
 	})
 	t.Run("TestV1betaStartProjectEvent_Success", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		ctx := context.Background()
 		req := &gcpgenserver.ResourceStateUpdateV1beta{
 			State: gcpgenserver.ResourceStateUpdateV1betaStateON,

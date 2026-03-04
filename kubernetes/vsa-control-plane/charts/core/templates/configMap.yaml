@@ -26,6 +26,7 @@ data:
   # false = Use password authentication via shared proxy service (connects to cloud-sql-proxy.sde.svc.cluster.local)
   CLOUD_SQL_IAM_AUTH_ENABLED: {{ .Values.global.cloudSqlIamAuthEnabled | default false | quote }}
   TASK_QUEUE_VERSION: "{{ index .Chart.Version | lower | replace "." "-" }}"
+  HYPERSCALER: {{ .Values.global.hyperscaler | default "gcp" | quote }}
   config.yaml: |
     {{- include "core.generateConfigMapData" . | nindent 4 }}
     {{- if .Values.global.cloudSqlIamAuthEnabled }}

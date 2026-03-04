@@ -10,8 +10,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -847,12 +847,12 @@ func convertToBackupPolicyV1beta(bp *models.BackupPolicyV1beta) gcpgenserver.Bac
 }
 
 // _validateBackupVaultsForBackupPolicy validates backup vaults associated with a backup policy
-func _validateBackupVaultsForBackupPolicy(ctx context.Context, backupPolicy *coremodels.BackupPolicy, newBackupPolicyParams *commonparams.UpdateBackupPolicyParams, o orchestrator.OrchestratorFactory) error {
+func _validateBackupVaultsForBackupPolicy(ctx context.Context, backupPolicy *coremodels.BackupPolicy, newBackupPolicyParams *commonparams.UpdateBackupPolicyParams, o factory.OrchestratorFactory) error {
 	return _validateBackupVaultsForBackupPolicyWithRetry(ctx, backupPolicy, newBackupPolicyParams, o, commonparams.MaxRetries, commonparams.RetryDelay)
 }
 
 // _validateBackupVaultsForBackupPolicyWithRetry validates backup vaults with retry mechanism
-func _validateBackupVaultsForBackupPolicyWithRetry(ctx context.Context, backupPolicy *coremodels.BackupPolicy, newBackupPolicyParams *commonparams.UpdateBackupPolicyParams, o orchestrator.OrchestratorFactory, maxRetries int, retryInterval time.Duration) error {
+func _validateBackupVaultsForBackupPolicyWithRetry(ctx context.Context, backupPolicy *coremodels.BackupPolicy, newBackupPolicyParams *commonparams.UpdateBackupPolicyParams, o factory.OrchestratorFactory, maxRetries int, retryInterval time.Duration) error {
 	logger := util.GetLogger(ctx)
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
@@ -902,7 +902,7 @@ func isBackupVaultRetryableError(err error) bool {
 }
 
 // _performBackupVaultValidation performs the core validation logic
-func _performBackupVaultValidation(ctx context.Context, backupPolicy *coremodels.BackupPolicy, newBackupPolicyParams *commonparams.UpdateBackupPolicyParams, o orchestrator.OrchestratorFactory) error {
+func _performBackupVaultValidation(ctx context.Context, backupPolicy *coremodels.BackupPolicy, newBackupPolicyParams *commonparams.UpdateBackupPolicyParams, o factory.OrchestratorFactory) error {
 	logger := util.GetLogger(ctx)
 
 	if backupPolicy == nil {

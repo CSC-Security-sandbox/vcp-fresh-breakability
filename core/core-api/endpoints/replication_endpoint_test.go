@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
-	orchestratorMocks "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	orchestratorMocks "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 )
 
@@ -75,18 +75,26 @@ func TestV1GetMultipleReplicationsByExternalUUID_Success(t *testing.T) {
 	}
 
 	// Mock orchestrator response
-	mockReplications := []gcpgenserver.ReplicationV1beta{
+	replId1 := "repl-id-1"
+	resourceId1 := "resource-1"
+	description1 := "test description"
+	state1 := "READY"
+	stateDetails1 := "ready for use"
+	created1 := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
+	replId2 := "repl-id-2"
+	resourceId2 := "resource-2"
+	mockReplications := []commonparams.ReplicationV1beta{
 		{
-			ReplicationId: gcpgenserver.NewOptString("repl-id-1"),
-			ResourceId:    gcpgenserver.NewOptString("resource-1"),
-			Description:   gcpgenserver.NewOptString("test description"),
-			State:         gcpgenserver.NewOptReplicationV1betaState(gcpgenserver.ReplicationV1betaStateREADY),
-			StateDetails:  gcpgenserver.NewOptString("ready for use"),
-			Created:       gcpgenserver.NewOptDateTime(time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)),
+			ReplicationId: &replId1,
+			ResourceId:    &resourceId1,
+			Description:   &description1,
+			State:         &state1,
+			StateDetails:  &stateDetails1,
+			Created:       &created1,
 		},
 		{
-			ReplicationId: gcpgenserver.NewOptString("repl-id-2"),
-			ResourceId:    gcpgenserver.NewOptString("resource-2"),
+			ReplicationId: &replId2,
+			ResourceId:    &resourceId2,
 		},
 	}
 
@@ -194,7 +202,7 @@ func TestV1GetMultipleReplicationsByExternalUUID_EmptyInput(t *testing.T) {
 	}
 
 	// Mock orchestrator response (empty)
-	mockReplications := []gcpgenserver.ReplicationV1beta{}
+	mockReplications := []commonparams.ReplicationV1beta{}
 
 	// Set up mock expectation
 	mockOrchestrator.On("GetMultipleReplicationsByExternalUUID",
@@ -249,6 +257,59 @@ func TestConvertGcpGenServerToCoreReplication_UnsetFields(t *testing.T) {
 	gcpReplication := gcpgenserver.ReplicationV1beta{}
 
 	result := convertGcpGenServerToCoreReplication(gcpReplication)
+
+	assert.Equal(t, "", result.ReplicationId.Value)
+	assert.False(t, result.ReplicationId.Set)
+	assert.Equal(t, "", result.ResourceId.Value)
+	assert.False(t, result.ResourceId.Set)
+	assert.Equal(t, "", result.Description.Value)
+	assert.False(t, result.Description.Set)
+	assert.Equal(t, oasgenserver.ReplicationV1StateSTATEUNSPECIFIED, result.State.Value)
+	assert.False(t, result.State.Set)
+	assert.Equal(t, "", result.StateDetails.Value)
+	assert.False(t, result.StateDetails.Set)
+	assert.Equal(t, time.Time{}, result.Created.Value)
+	assert.False(t, result.Created.Set)
+}
+
+func TestConvertCommonReplicationV1betaToCoreReplication(t *testing.T) {
+	// Test with all fields set
+	replId := "test-repl-id"
+	resourceId := "test-resource-id"
+	description := "test description"
+	state := "CREATING"
+	stateDetails := "creating resource"
+	created := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
+	commonReplication := commonparams.ReplicationV1beta{
+		ReplicationId: &replId,
+		ResourceId:    &resourceId,
+		Description:   &description,
+		State:         &state,
+		StateDetails:  &stateDetails,
+		Created:       &created,
+	}
+
+	result := convertCommonReplicationV1betaToCoreReplication(commonReplication)
+
+	assert.Equal(t, "test-repl-id", result.ReplicationId.Value)
+	assert.True(t, result.ReplicationId.Set)
+	assert.Equal(t, "test-resource-id", result.ResourceId.Value)
+	assert.True(t, result.ResourceId.Set)
+	assert.Equal(t, "test description", result.Description.Value)
+	assert.True(t, result.Description.Set)
+	assert.Equal(t, oasgenserver.ReplicationV1StateCREATING, result.State.Value)
+	assert.True(t, result.State.Set)
+	assert.Equal(t, "creating resource", result.StateDetails.Value)
+	assert.True(t, result.StateDetails.Set)
+	assert.Equal(t, time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC), result.Created.Value)
+	assert.True(t, result.Created.Set)
+}
+
+func TestConvertCommonReplicationV1betaToCoreReplication_UnsetFields(t *testing.T) {
+	// Test with minimal fields
+	commonReplication := commonparams.ReplicationV1beta{}
+
+	result := convertCommonReplicationV1betaToCoreReplication(commonReplication)
 
 	assert.Equal(t, "", result.ReplicationId.Value)
 	assert.False(t, result.ReplicationId.Set)

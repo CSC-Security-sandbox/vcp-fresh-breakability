@@ -14,6 +14,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	orchestratorcommon "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -824,8 +825,12 @@ func (h Handler) V1betaUpdateDestinationQuotaRulesVCP(ctx context.Context, req *
 		}, nil
 	}
 
+	// Convert gcpgenserver types to common types
+	commonReq := convertGcpUpdateDstWithSrcQuotaRulesToCommon(req)
+	commonParams := convertGcpV1betaUpdateDestinationQuotaRulesVCPParamsToCommon(params)
+	
 	// Replace destination quota rules with source quota rules via orchestrator (handles transaction)
-	createdQuotaRules, err := h.Orchestrator.ReplaceDstQuotaRulesWithSrc(ctx, req, params)
+	createdQuotaRules, err := h.Orchestrator.ReplaceDstQuotaRulesWithSrc(ctx, commonReq, commonParams)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
 			return &gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPNotFound{
@@ -861,4 +866,80 @@ func (h Handler) V1betaUpdateDestinationQuotaRulesVCP(ctx context.Context, req *
 		State:      gcpgenserver.NewOptString("SUCCESS"),
 		QuotaRules: quotaRulesV1Beta,
 	}, nil
+}
+
+// convertGcpUpdateDstWithSrcQuotaRulesToCommon converts gcpgenserver.UpdateDstWithSrcQuotaRulesV1beta to commonparams.UpdateDstWithSrcQuotaRulesV1beta
+func convertGcpUpdateDstWithSrcQuotaRulesToCommon(req *gcpgenserver.UpdateDstWithSrcQuotaRulesV1beta) *commonparams.UpdateDstWithSrcQuotaRulesV1beta {
+	commonReq := &commonparams.UpdateDstWithSrcQuotaRulesV1beta{
+		SrcQuotaRules: make([]commonparams.QuotaRulesV1beta, 0, len(req.SrcQuotaRules)),
+		DstQuotaRules: make([]commonparams.QuotaRulesV1beta, 0, len(req.DstQuotaRules)),
+	}
+	
+	for _, rule := range req.SrcQuotaRules {
+		commonRule := convertGcpQuotaRulesV1betaToCommon(rule)
+		commonReq.SrcQuotaRules = append(commonReq.SrcQuotaRules, commonRule)
+	}
+	
+	for _, rule := range req.DstQuotaRules {
+		commonRule := convertGcpQuotaRulesV1betaToCommon(rule)
+		commonReq.DstQuotaRules = append(commonReq.DstQuotaRules, commonRule)
+	}
+	
+	return commonReq
+}
+
+// convertGcpQuotaRulesV1betaToCommon converts gcpgenserver.QuotaRulesV1beta to commonparams.QuotaRulesV1beta
+func convertGcpQuotaRulesV1betaToCommon(rule gcpgenserver.QuotaRulesV1beta) commonparams.QuotaRulesV1beta {
+	commonRule := commonparams.QuotaRulesV1beta{
+		ResourceId:    rule.ResourceId,
+		QuotaType:     string(rule.QuotaType),
+		DiskLimitInMib: rule.DiskLimitInMib,
+	}
+	
+	if rule.QuotaId.IsSet() {
+		val := rule.QuotaId.Value
+		commonRule.QuotaId = &val
+	}
+	if rule.QuotaTarget.IsSet() {
+		val := rule.QuotaTarget.Value
+		commonRule.QuotaTarget = &val
+	}
+	if rule.State.IsSet() {
+		val := string(rule.State.Value)
+		commonRule.State = &val
+	}
+	if rule.StateDetails.IsSet() {
+		val := rule.StateDetails.Value
+		commonRule.StateDetails = &val
+	}
+	if rule.Description.IsSet() {
+		val := rule.Description.Value
+		commonRule.Description = &val
+	}
+	if rule.CreatedAt.IsSet() {
+		val := rule.CreatedAt.Value
+		commonRule.CreatedAt = &val
+	}
+	if rule.UpdatedAt.IsSet() {
+		val := rule.UpdatedAt.Value
+		commonRule.UpdatedAt = &val
+	}
+	
+	return commonRule
+}
+
+// convertGcpV1betaUpdateDestinationQuotaRulesVCPParamsToCommon converts gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPParams to commonparams.V1betaUpdateDestinationQuotaRulesVCPParams
+func convertGcpV1betaUpdateDestinationQuotaRulesVCPParamsToCommon(params gcpgenserver.V1betaUpdateDestinationQuotaRulesVCPParams) commonparams.V1betaUpdateDestinationQuotaRulesVCPParams {
+	commonParams := commonparams.V1betaUpdateDestinationQuotaRulesVCPParams{
+		ProjectNumber: params.ProjectNumber,
+		LocationId:    params.LocationId,
+		VolumeId:      params.VolumeId,
+	}
+	
+	if params.XCorrelationID.IsSet() {
+		val := params.XCorrelationID.Value
+		commonParams.XCorrelationID = &val
+	}
+	
+	return commonParams
 }

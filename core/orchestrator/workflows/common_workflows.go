@@ -115,6 +115,7 @@ type WorkflowInterface interface {
 	Setup(ctx workflow.Context, input interface{}) error
 	Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError)
 	UpdateJobStatus(ctx workflow.Context, status string, err error) error
+	EnsureJobState(ctx workflow.Context, expected models.JobState) error
 }
 
 // BaseWorkflow provides common functionalities for all workflows.

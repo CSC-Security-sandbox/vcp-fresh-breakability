@@ -911,9 +911,9 @@ type UpdateVolumePerformanceGroupParams struct {
 	AccountName              string
 	PoolID                   string
 	VolumePerformanceGroupID string
-	Name                     string  // resourceId (optional; empty means do not change)
-	ThroughputMibps          *int64  // optional; nil means do not update
-	Iops                     *int64  // optional; nil means do not update
+	Name                     string // resourceId (optional; empty means do not change)
+	ThroughputMibps          *int64 // optional; nil means do not update
+	Iops                     *int64 // optional; nil means do not update
 }
 
 // DeleteVolumePerformanceGroupParams describes parameters supplied to DeleteVolumePerformanceGroup
@@ -934,4 +934,90 @@ type GetVolumePerformanceGroupParams struct {
 type ListVolumePerformanceGroupsParams struct {
 	AccountName string
 	PoolID      string
+}
+
+// ReplicationV1beta represents a volume replication in v1beta format
+type ReplicationV1beta struct {
+	ReplicationId                 *string
+	ResourceId                    *string
+	Description                   *string
+	Source                        *ReplicationVolumeInformationV1beta
+	Destination                   *ReplicationVolumeInformationV1beta
+	State                         *string
+	StateDetails                  *string
+	StateDetailsCode              *int32
+	Role                          *string
+	ReplicationSchedule           *string
+	MirrorState                   *string
+	Healthy                       *bool
+	TransferStats                 *TransferStatsV1beta
+	Created                       *time.Time
+	Labels                        map[string]string
+	ClusterLocation               *string
+	HybridReplicationType         *string
+	HybridPeeringDetails          *HybridPeeringV1beta
+	HybridReplicationUserCommands *HybridReplicationUserCommandsV1beta
+}
+
+// ReplicationVolumeInformationV1beta represents volume information for replication
+type ReplicationVolumeInformationV1beta struct {
+	VolumeName *string
+	VolumeId   *string
+}
+
+// TransferStatsV1beta represents transfer statistics for replication
+type TransferStatsV1beta struct {
+	TotalTransferBytes    *float64
+	TotalTransferTimeSecs *float64
+	LastTransferSize      *float64
+	LastTransferError     *string
+	LastTransferDuration  *float64
+	LastTransferEndTime   *time.Time
+	TotalProgress         *float64
+	ProgressLastUpdated   *time.Time
+	LagTime               *float64
+}
+
+// HybridPeeringV1beta represents hybrid peering details for replication
+type HybridPeeringV1beta struct {
+	SubnetIp          *string
+	Command           *string
+	Passphrase        *string
+	CommandExpiryTime *time.Time
+	PeerVolumeName    *string
+	PeerClusterName   *string
+	PeerSvmName       *string
+}
+
+// HybridReplicationUserCommandsV1beta represents user commands for hybrid replication
+type HybridReplicationUserCommandsV1beta struct {
+	Commands []string
+}
+
+// UpdateDstWithSrcQuotaRulesV1beta represents parameters for updating destination quota rules with source quota rules
+type UpdateDstWithSrcQuotaRulesV1beta struct {
+	SrcQuotaRules []QuotaRulesV1beta
+	DstQuotaRules []QuotaRulesV1beta
+}
+
+// QuotaRulesV1beta represents a quota rule in v1beta format
+type QuotaRulesV1beta struct {
+	QuotaId        *string
+	ResourceId     string
+	QuotaType      string
+	DiskLimitInMib int64
+	QuotaTarget    *string
+	State          *string
+	StateDetails   *string
+	Description    *string
+	CreatedAt      *time.Time
+	UpdatedAt      *time.Time
+}
+
+// V1betaUpdateDestinationQuotaRulesVCPParams represents parameters for updating destination quota rules
+type V1betaUpdateDestinationQuotaRulesVCPParams struct {
+	ProjectNumber  string
+	LocationId     string
+	VolumeId       string
+	XCorrelationID *string
 }

@@ -14,9 +14,9 @@ import (
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -27,7 +27,7 @@ import (
 
 func TestInternalDescribePool(t *testing.T) {
 	t.Run("WhenErrorGetPoolByName", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		mockOrchestrator.EXPECT().GetPoolByName(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("some error"))
 		handler := Handler{
@@ -43,7 +43,7 @@ func TestInternalDescribePool(t *testing.T) {
 		assert.Equal(tt, "some error", err.Error())
 	})
 	t.Run("WhenPoolNotFound", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		mockOrchestrator.EXPECT().GetPoolByName(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("pool", nil))
 		handler := Handler{
@@ -63,7 +63,7 @@ func TestInternalDescribePool(t *testing.T) {
 		assert.Equal(tt, expectedResponse, resp)
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		pool := &models.Pool{
 			Name: "test-pool",
@@ -135,7 +135,7 @@ func TestInternalDescribePool(t *testing.T) {
 
 func TestInternalCreateVolumeReplication(t *testing.T) {
 	t.Run("WhenEndpointNotDst", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -156,7 +156,7 @@ func TestInternalCreateVolumeReplication(t *testing.T) {
 		assert.Equal(tt, expectedResponse, resp)
 	})
 	t.Run("WhenCreateVolumeReplicationError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -174,7 +174,7 @@ func TestInternalCreateVolumeReplication(t *testing.T) {
 		assert.Equal(tt, "some error", err.Error())
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -256,7 +256,7 @@ func TestInternalCreateVolumeReplication(t *testing.T) {
 
 func TestV1betaInternalGetReplicationJobs(t *testing.T) {
 	t.Run("ReturnsInternalServerErrorWhenGetReplicationJobsFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		mockOrchestrator.EXPECT().GetReplicationJobs(mock.Anything, "test-project", "test-pool").Return(nil, errors.New("some error"))
 		handler := Handler{
@@ -273,7 +273,7 @@ func TestV1betaInternalGetReplicationJobs(t *testing.T) {
 		assert.IsType(tt, &gcpgenserver.V1betaInternalGetReplicationJobsInternalServerError{}, resp)
 	})
 	t.Run("ReturnsEmptyListWhenNoReplicationJobsExist", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		mockOrchestrator.EXPECT().GetReplicationJobs(mock.Anything, "test-project", "test-pool").Return([]*models.Job{}, nil)
 		handler := Handler{
@@ -290,7 +290,7 @@ func TestV1betaInternalGetReplicationJobs(t *testing.T) {
 		assert.Empty(tt, resp.(*gcpgenserver.V1betaInternalGetReplicationJobsOK).Jobs)
 	})
 	t.Run("ReturnsReplicationJobsWhenTheyExist", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		jobs := []*models.Job{
 			{
 				BaseModel: models.BaseModel{
@@ -337,7 +337,7 @@ func TestV1betaInternalGetReplicationJobs(t *testing.T) {
 
 func TestV1betaGetMultipleReplicationsInternal(t *testing.T) {
 	t.Run("WhenGetReplicationsError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -359,7 +359,7 @@ func TestV1betaGetMultipleReplicationsInternal(t *testing.T) {
 		assert.Equal(tt, "some error", err.Error())
 	})
 	t.Run("WhenGetReplicationReturnsNotFound", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -380,7 +380,7 @@ func TestV1betaGetMultipleReplicationsInternal(t *testing.T) {
 		assert.NotNil(tt, resp)
 	})
 	t.Run("WhenGetMultipleReplicationsSuccess", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		defer func() {
 			convertToVolumeReplicationsInternalV1Beta = _convertToVolumeReplicationsInternalV1Beta
 		}()
@@ -438,7 +438,7 @@ func TestV1betaGetMultipleReplicationsInternal(t *testing.T) {
 
 func TestBetaInternalmountVolumeReplication(t *testing.T) {
 	t.Run("ReturnsInternalServerErrorWhenPerformMountCheckFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.On("PerformMountCheck", mock.Anything, "volume-replication-id", "project-number").
 			Return(nil, errors.New("mount check failed"))
 
@@ -452,7 +452,7 @@ func TestBetaInternalmountVolumeReplication(t *testing.T) {
 		mockOrchestrator.AssertExpectations(tt)
 	})
 	t.Run("ReturnsVolumeReplicationInternalWhenMountCheckSucceeds", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockJob := &models.Job{
 			BaseModel: models.BaseModel{
 				UUID:      "job-uuid",
@@ -481,7 +481,7 @@ func TestBetaInternalmountVolumeReplication(t *testing.T) {
 
 func TestV1betaInternalResumeVolumeReplication(t *testing.T) {
 	t.Run("WhenResumeVolumeReplicationInternalServerError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -502,7 +502,7 @@ func TestV1betaInternalResumeVolumeReplication(t *testing.T) {
 		assert.Equal(tt, expectedResponse, resp)
 	})
 	t.Run("WhenResumeVolumeReplicationBadRequest", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -523,7 +523,7 @@ func TestV1betaInternalResumeVolumeReplication(t *testing.T) {
 		assert.Equal(tt, expectedResponse, resp)
 	})
 	t.Run("WhenResumeVolumeReplicationNotFound", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -544,7 +544,7 @@ func TestV1betaInternalResumeVolumeReplication(t *testing.T) {
 		assert.Equal(tt, expectedResponse, resp)
 	})
 	t.Run("WhenSuccess", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
@@ -583,7 +583,7 @@ func TestV1betaInternalResumeVolumeReplication(t *testing.T) {
 
 func TestV1betaInternalDeleteVolumeReplicationRow(t *testing.T) {
 	t.Run("ReturnsInternalServerErrorWhenDeleteFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -606,7 +606,7 @@ func TestV1betaInternalDeleteVolumeReplicationRow(t *testing.T) {
 		assert.Equal(tt, float64(500), resp.(*gcpgenserver.V1betaInternalReleaseVolumeReplicationInternalServerError).Code)
 	})
 	t.Run("ReturnsNotFoundErrorWhenDeleteFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -629,7 +629,7 @@ func TestV1betaInternalDeleteVolumeReplicationRow(t *testing.T) {
 		assert.Equal(tt, float64(404), resp.(*gcpgenserver.V1betaInternalReleaseVolumeReplicationBadRequest).Code)
 	})
 	t.Run("ReturnsOKWhenSuccess", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -698,7 +698,7 @@ func TestV1betaInternalDeleteVolumeReplicationRow(t *testing.T) {
 
 func TestV1betaInternalDeleteVolumeReplication(t *testing.T) {
 	t.Run("ReturnsInternalServerErrorWhenDeleteFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -721,7 +721,7 @@ func TestV1betaInternalDeleteVolumeReplication(t *testing.T) {
 		assert.Equal(tt, float64(500), resp.(*gcpgenserver.V1betaInternalDeleteVolumeReplicationInternalServerError).Code)
 	})
 	t.Run("WhenVolumeReplicationNotFound", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -745,7 +745,7 @@ func TestV1betaInternalDeleteVolumeReplication(t *testing.T) {
 		assert.Equal(tt, float64(404), resp.(*gcpgenserver.V1betaInternalDeleteVolumeReplicationBadRequest).Code)
 	})
 	t.Run("ReturnsOKWhenSuccess", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -837,7 +837,7 @@ func TestV1betaInternalDeleteVolumeSnapshot(t *testing.T) {
 		VolumeId:      "test-volume",
 	}
 	t.Run("ReturnsBadRequestOnInvalidLocation", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -860,7 +860,7 @@ func TestV1betaInternalDeleteVolumeSnapshot(t *testing.T) {
 		assert.Equal(tt, "Invalid location ID", resp.(*gcpgenserver.V1betaInternalDeleteVolumeSnapmirrorSnapshotBadRequest).Message)
 	})
 	t.Run("ReturnsNotFoundWhenSnapshotNotFound", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -876,7 +876,7 @@ func TestV1betaInternalDeleteVolumeSnapshot(t *testing.T) {
 		assert.Equal(tt, float64(404), resp.(*gcpgenserver.V1betaInternalDeleteVolumeSnapmirrorSnapshotBadRequest).Code)
 	})
 	t.Run("ReturnsBadRequestOnUserInputValidationErr", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -892,7 +892,7 @@ func TestV1betaInternalDeleteVolumeSnapshot(t *testing.T) {
 		assert.Equal(tt, float64(400), resp.(*gcpgenserver.V1betaInternalDeleteVolumeSnapmirrorSnapshotBadRequest).Code)
 	})
 	t.Run("ReturnsConflictOnConflictErr", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -908,7 +908,7 @@ func TestV1betaInternalDeleteVolumeSnapshot(t *testing.T) {
 		assert.Equal(tt, float64(409), resp.(*gcpgenserver.V1betaInternalDeleteVolumeSnapmirrorSnapshotConflict).Code)
 	})
 	t.Run("ReturnsInternalServerErrorOnOtherError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -924,7 +924,7 @@ func TestV1betaInternalDeleteVolumeSnapshot(t *testing.T) {
 		assert.Equal(tt, float64(500), resp.(*gcpgenserver.V1betaInternalDeleteVolumeSnapmirrorSnapshotInternalServerError).Code)
 	})
 	t.Run("ReturnsInternalServerErrorOnOtherError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -945,7 +945,7 @@ func TestV1betaInternalDeleteVolumeSnapshot(t *testing.T) {
 
 func TestV1betaInternalStopVolumeReplication(t *testing.T) {
 	t.Run("WhenVolumeReplicationNotFound", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaInternalStopVolumeReplicationParams{
@@ -966,7 +966,7 @@ func TestV1betaInternalStopVolumeReplication(t *testing.T) {
 	})
 
 	t.Run("WhenInvalidRequestParameters", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaInternalStopVolumeReplicationParams{
@@ -987,7 +987,7 @@ func TestV1betaInternalStopVolumeReplication(t *testing.T) {
 	})
 
 	t.Run("WhenInternalServerError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaInternalStopVolumeReplicationParams{
@@ -1007,7 +1007,7 @@ func TestV1betaInternalStopVolumeReplication(t *testing.T) {
 		assert.Equal(tt, "Internal server error while resuming replication", resp.(*gcpgenserver.V1betaInternalStopVolumeReplicationInternalServerError).Message)
 	})
 	t.Run("WhenStopReplicationSucceeds", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaInternalStopVolumeReplicationParams{
@@ -1047,7 +1047,7 @@ func TestV1betaInternalStopVolumeReplication(t *testing.T) {
 
 func TestV1betaUpdateVolumeReplicationInternal(t *testing.T) {
 	t.Run("WhenUpdateSuccess", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		req := &gcpgenserver.VolumeReplicationUpdateInternalV1beta{
@@ -1072,7 +1072,7 @@ func TestV1betaUpdateVolumeReplicationInternal(t *testing.T) {
 	})
 
 	t.Run("WhenNotFoundError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		req := &gcpgenserver.VolumeReplicationUpdateInternalV1beta{}
@@ -1091,7 +1091,7 @@ func TestV1betaUpdateVolumeReplicationInternal(t *testing.T) {
 	})
 
 	t.Run("WhenInternalError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		req := &gcpgenserver.VolumeReplicationUpdateInternalV1beta{}
@@ -1110,7 +1110,7 @@ func TestV1betaUpdateVolumeReplicationInternal(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateSuccessWithClusterLocation", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		req := &gcpgenserver.VolumeReplicationUpdateInternalV1beta{
@@ -1138,7 +1138,7 @@ func TestV1betaUpdateVolumeReplicationInternal(t *testing.T) {
 
 func TestV1betaInternalDescribeVolume(t *testing.T) {
 	t.Run("WhenVolumeNotFound", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-123", true).Return(nil, errors.NewNotFoundErr("volume", nil))
 
@@ -1162,7 +1162,7 @@ func TestV1betaInternalDescribeVolume(t *testing.T) {
 	})
 
 	t.Run("WhenGetVolumeReturnsError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		mockOrchestrator.EXPECT().GetVolume(mock.Anything, "vol-123", true).Return(nil, errors.New("database error"))
 
@@ -1187,7 +1187,7 @@ func TestV1betaInternalDescribeVolume(t *testing.T) {
 	})
 
 	t.Run("WhenJsonMarshalFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		// Mock volume data
 		volume := &models.Volume{
@@ -1239,7 +1239,7 @@ func TestV1betaInternalDescribeVolume(t *testing.T) {
 	})
 
 	t.Run("WhenJsonUnmarshalFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		// Mock volume data
 		volume := &models.Volume{
@@ -1290,7 +1290,7 @@ func TestV1betaInternalDescribeVolume(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulVolumeDescribe", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		// Mock volume data with SvmName
 		volume := &models.Volume{
@@ -1335,7 +1335,7 @@ func TestV1betaInternalDescribeVolume(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulVolumeDescribeWithoutSvmName", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		// Mock volume data without SvmName
 		volume := &models.Volume{
@@ -1430,7 +1430,7 @@ func TestInternalVolumeV1beta_ResourceId_ValidationChange(t *testing.T) {
 
 func TestV1betaInternalUpdateVolumeReplicationAttributes(t *testing.T) {
 	t.Run("WhenNotFoundError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		notFoundErr := errors.NewNotFoundErr("volume replication", nil)
 		mockOrchestrator.EXPECT().UpdateVolumeReplicationAttributes(mock.Anything, mock.AnythingOfType("models.UpdateVolumeReplicationAttributesParams")).Return(nil, notFoundErr)
@@ -1460,7 +1460,7 @@ func TestV1betaInternalUpdateVolumeReplicationAttributes(t *testing.T) {
 	})
 
 	t.Run("WhenInternalServerError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		internalErr := errors.New("database connection failed")
 		mockOrchestrator.EXPECT().UpdateVolumeReplicationAttributes(mock.Anything, mock.AnythingOfType("models.UpdateVolumeReplicationAttributesParams")).Return(nil, internalErr)
@@ -1491,7 +1491,7 @@ func TestV1betaInternalUpdateVolumeReplicationAttributes(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessful", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		job := &models.Job{
 			BaseModel: models.BaseModel{
@@ -1532,7 +1532,7 @@ func TestV1betaInternalUpdateVolumeReplicationAttributes(t *testing.T) {
 
 func TestV1betaInternalReverseVolumeReplication(t *testing.T) {
 	t.Run("WhenNotFoundError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		notFoundErr := errors.NewNotFoundErr("volume replication", nil)
 		mockOrchestrator.EXPECT().ReverseReplicationInternal(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil, notFoundErr)
@@ -1558,7 +1558,7 @@ func TestV1betaInternalReverseVolumeReplication(t *testing.T) {
 	})
 
 	t.Run("WhenUserInputValidationError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		validationErr := errors.NewUserInputValidationErr("Invalid replication state for reverse operation")
 		mockOrchestrator.EXPECT().ReverseReplicationInternal(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil, validationErr)
@@ -1584,7 +1584,7 @@ func TestV1betaInternalReverseVolumeReplication(t *testing.T) {
 	})
 
 	t.Run("WhenInternalServerError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		internalErr := errors.New("database connection failed")
 		mockOrchestrator.EXPECT().ReverseReplicationInternal(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil, internalErr)
@@ -1610,7 +1610,7 @@ func TestV1betaInternalReverseVolumeReplication(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessful", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		volumeReplication := &models.VolumeReplication{
 			BaseModel: models.BaseModel{
@@ -1667,7 +1667,7 @@ func TestV1betaInternalReverseVolumeReplication(t *testing.T) {
 	})
 
 	t.Run("WhenEmptyCorrelationId", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 
 		volumeReplication := &models.VolumeReplication{
 			BaseModel: models.BaseModel{
@@ -1723,7 +1723,7 @@ func TestV1betaInternalReverseVolumeReplication(t *testing.T) {
 
 func TestV1betaInternalUpdateVolume(t *testing.T) {
 	t.Run("WhenLocationParsingFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1756,7 +1756,7 @@ func TestV1betaInternalUpdateVolume(t *testing.T) {
 	})
 
 	t.Run("WhenPrepareUpdateVolumeParamsFailsWithValidationError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1798,7 +1798,7 @@ func TestV1betaInternalUpdateVolume(t *testing.T) {
 	})
 
 	t.Run("WhenPrepareUpdateVolumeParamsFailsWithNotFoundError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1840,7 +1840,7 @@ func TestV1betaInternalUpdateVolume(t *testing.T) {
 	})
 
 	t.Run("WhenPrepareUpdateVolumeParamsFailsWithOtherError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1883,7 +1883,7 @@ func TestV1betaInternalUpdateVolume(t *testing.T) {
 	})
 
 	t.Run("WhenOrchestratorUpdateVolumeFailsWithValidationError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1928,7 +1928,7 @@ func TestV1betaInternalUpdateVolume(t *testing.T) {
 	})
 
 	t.Run("WhenOrchestratorUpdateVolumeFailsWithNotFoundError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -1973,7 +1973,7 @@ func TestV1betaInternalUpdateVolume(t *testing.T) {
 	})
 
 	t.Run("WhenOrchestratorUpdateVolumeFailsWithOtherError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2019,7 +2019,7 @@ func TestV1betaInternalUpdateVolume(t *testing.T) {
 	})
 
 	t.Run("WhenLifeCycleStateUpdating_ThenReturnDoneAsFalse", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2066,7 +2066,7 @@ func TestV1betaInternalUpdateVolume(t *testing.T) {
 	})
 
 	t.Run("WhenLifeCycleStateNotUpdating_ThenReturnDoneAsTrue", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2113,7 +2113,7 @@ func TestV1betaInternalUpdateVolume(t *testing.T) {
 	})
 
 	t.Run("WhenGetVolumeReturnsNotFoundError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2146,7 +2146,7 @@ func TestV1betaInternalUpdateVolume(t *testing.T) {
 	})
 
 	t.Run("WhenGetVolumeReturnsInternalError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2181,7 +2181,7 @@ func TestV1betaInternalUpdateVolume(t *testing.T) {
 
 func TestV1betaInternalDescribeBackupVault_Success(t *testing.T) {
 	t.Run("WhenBackupVaultNotFound", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2205,7 +2205,7 @@ func TestV1betaInternalDescribeBackupVault_Success(t *testing.T) {
 	})
 
 	t.Run("WhenGetBackupVaultReturnsError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2230,7 +2230,7 @@ func TestV1betaInternalDescribeBackupVault_Success(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulDescribe", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2281,7 +2281,7 @@ func TestV1betaInternalDescribeBackupVault_Success(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulDescribeWithMinimalFields", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2321,7 +2321,7 @@ func TestV1betaInternalDescribeBackupVault_Success(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulDescribeWithImmutableAttributes", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2373,7 +2373,7 @@ func TestV1betaInternalDescribeBackupVault_Success(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulDescribeWithPartialImmutableAttributes", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2417,7 +2417,7 @@ func TestV1betaInternalDescribeBackupVault_Success(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulDescribeWithCMEKAttributes", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2466,7 +2466,7 @@ func TestV1betaInternalDescribeBackupVault_Success(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulDescribeWithPartialCMEKAttributes", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2510,7 +2510,7 @@ func TestV1betaInternalDescribeBackupVault_Success(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulDescribeWithBucketDetails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2578,7 +2578,7 @@ func TestV1betaInternalDescribeBackupVault_Success(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulDescribeWithSingleBucketDetail", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2622,7 +2622,7 @@ func TestV1betaInternalDescribeBackupVault_Success(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulDescribeWithAllOptionalFields", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2676,7 +2676,7 @@ func TestV1betaInternalDescribeBackupVault_Success(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulDescribeWithEmptyLifeCycleStateDetails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2712,7 +2712,7 @@ func TestV1betaInternalDescribeBackupVault_Success(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulDescribeWithCompleteData", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2782,7 +2782,7 @@ func TestV1betaInternalDescribeBackupVault_Success(t *testing.T) {
 
 func TestV1betaInternalDeleteBackupVault(t *testing.T) {
 	t.Run("WhenParsingErrorInvalidLocation", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2802,7 +2802,7 @@ func TestV1betaInternalDeleteBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenValidationErrorFromOrchestrator", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2833,7 +2833,7 @@ func TestV1betaInternalDeleteBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenInternalServerErrorFromOrchestrator", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2864,7 +2864,7 @@ func TestV1betaInternalDeleteBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulDeleteWithOperation", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2897,7 +2897,7 @@ func TestV1betaInternalDeleteBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulDeleteWithoutOperation", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2929,7 +2929,7 @@ func TestV1betaInternalDeleteBackupVault(t *testing.T) {
 
 func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	t.Run("WhenRequestBodyIsNil", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2951,7 +2951,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenBackupVaultIdIsEmpty", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2974,7 +2974,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenProjectNumberIsEmpty", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -2997,7 +2997,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenValidationErrorFromOrchestrator", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3031,7 +3031,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenBackupVaultNotFound", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3058,7 +3058,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenConflictErrorFromOrchestrator", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3085,7 +3085,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenInternalServerErrorFromOrchestrator", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3112,7 +3112,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulUpdateWithDescription", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3149,7 +3149,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulUpdateWithBackupRetentionPolicy", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3201,7 +3201,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulUpdateWithPartialBackupRetentionPolicy", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3244,7 +3244,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulUpdateWithDescriptionAndRetentionPolicy", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3302,7 +3302,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulUpdateWithoutOperation", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3337,7 +3337,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenBackupRetentionPolicyIsSetButEmpty", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3380,7 +3380,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenOnlyBackupMinimumEnforcedRetentionDaysIsSet", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3426,7 +3426,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenOnlyWeeklyBackupImmutableIsSet", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3472,7 +3472,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenOnlyMonthlyBackupImmutableIsSet", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3518,7 +3518,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenOnlyManualBackupImmutableIsSet", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3564,7 +3564,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulUpdateWithBucketDetailsAllFields", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3616,7 +3616,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulUpdateWithBucketDetailsPartialFields", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3663,7 +3663,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulUpdateWithMultipleBucketDetails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3736,7 +3736,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulUpdateWithEmptyBucketDetails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3771,7 +3771,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulUpdateWithBucketDetailsAndOtherFields", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3822,7 +3822,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulUpdateWithBucketDetailsOnlyBucketName", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3868,7 +3868,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulUpdateWithoutBucketDetails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3908,7 +3908,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenPureCMEKUpdateWithEncryptionState", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3948,7 +3948,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenPureCMEKUpdateWithBackupsPrimaryKeyVersion", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -3988,7 +3988,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenPureCMEKUpdateWithBothFields", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -4030,7 +4030,7 @@ func TestV1betaInternalUpdateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenMixedCMEKUpdateWithDescription", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -4073,7 +4073,7 @@ func TestV1betaInternalDescribeBackup(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("WhenBackupIsFoundAndNotInUseForRestoration", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		defer func() {
 			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 		}()
@@ -4133,7 +4133,7 @@ func TestV1betaInternalDescribeBackup(t *testing.T) {
 	})
 
 	t.Run("WhenBackupIsFoundAndInUseForRestoration", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		defer func() {
 			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 		}()
@@ -4193,7 +4193,7 @@ func TestV1betaInternalDescribeBackup(t *testing.T) {
 	})
 
 	t.Run("WhenParsingRegionAndZoneFails", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaInternalDescribeBackupParams{
@@ -4207,7 +4207,7 @@ func TestV1betaInternalDescribeBackup(t *testing.T) {
 	})
 
 	t.Run("WhenGetBackupReturnsError", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		defer func() {
 			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 		}()
@@ -4237,7 +4237,7 @@ func TestV1betaInternalDescribeBackup(t *testing.T) {
 	})
 
 	t.Run("WhenBackupHasImmutableAttributesAndEnforcedRetention", func(t *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		defer func() {
 			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
 		}()
@@ -4303,7 +4303,7 @@ func TestV1betaInternalDescribeBackup(t *testing.T) {
 func TestV1betaInternalDeleteBackupUnderBackupVault(t *testing.T) {
 	t.Run("WhenParsingRegionAndZoneFails", func(tt *testing.T) {
 		ctx := context.Background()
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultParams{
@@ -4318,7 +4318,7 @@ func TestV1betaInternalDeleteBackupUnderBackupVault(t *testing.T) {
 
 	t.Run("WhenBackupNotFoundInVSA", func(tt *testing.T) {
 		ctx := context.Background()
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultParams{
@@ -4348,7 +4348,7 @@ func TestV1betaInternalDeleteBackupUnderBackupVault(t *testing.T) {
 
 	t.Run("WhenGetBackupReturnsNonNotFoundError", func(tt *testing.T) {
 		ctx := context.Background()
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultParams{
@@ -4377,7 +4377,7 @@ func TestV1betaInternalDeleteBackupUnderBackupVault(t *testing.T) {
 
 	t.Run("WhenDeleteBackupInternalReturnsUserInputValidationError", func(tt *testing.T) {
 		ctx := context.Background()
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultParams{
@@ -4407,7 +4407,7 @@ func TestV1betaInternalDeleteBackupUnderBackupVault(t *testing.T) {
 
 	t.Run("WhenDeleteBackupInternalReturnsOtherError", func(tt *testing.T) {
 		ctx := context.Background()
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultParams{
@@ -4437,7 +4437,7 @@ func TestV1betaInternalDeleteBackupUnderBackupVault(t *testing.T) {
 
 	t.Run("WhenDeleteBackupInternalSuccessWithEmptyJobId", func(tt *testing.T) {
 		ctx := context.Background()
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultParams{
@@ -4468,7 +4468,7 @@ func TestV1betaInternalDeleteBackupUnderBackupVault(t *testing.T) {
 
 	t.Run("WhenDeleteBackupInternalSuccessWithNonEmptyJobId", func(tt *testing.T) {
 		ctx := context.Background()
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		params := gcpgenserver.V1betaInternalDeleteBackupUnderBackupVaultParams{
@@ -4503,7 +4503,7 @@ func TestV1betaInternalCreateBackup(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("WhenInvalidLocationId", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		req := &gcpgenserver.InternalBackupCreateV1beta{
@@ -4539,7 +4539,7 @@ func TestV1betaInternalCreateBackup(t *testing.T) {
 	})
 
 	t.Run("WhenCreateBackupInternalReturnsValidationError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		req := &gcpgenserver.InternalBackupCreateV1beta{
@@ -4574,7 +4574,7 @@ func TestV1betaInternalCreateBackup(t *testing.T) {
 	})
 
 	t.Run("WhenCreateBackupInternalReturnsNotFoundError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		req := &gcpgenserver.InternalBackupCreateV1beta{
@@ -4608,7 +4608,7 @@ func TestV1betaInternalCreateBackup(t *testing.T) {
 	})
 
 	t.Run("WhenCreateBackupInternalReturnsInternalError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		req := &gcpgenserver.InternalBackupCreateV1beta{
@@ -4643,7 +4643,7 @@ func TestV1betaInternalCreateBackup(t *testing.T) {
 	})
 
 	t.Run("WhenGetBackupByExternalUUIDFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		req := &gcpgenserver.InternalBackupCreateV1beta{
@@ -4679,7 +4679,7 @@ func TestV1betaInternalCreateBackup(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessSynchronousOperation", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		req := &gcpgenserver.InternalBackupCreateV1beta{
@@ -4747,7 +4747,7 @@ func TestV1betaInternalCreateBackup(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessAsynchronousOperation", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		req := &gcpgenserver.InternalBackupCreateV1beta{
@@ -4816,7 +4816,7 @@ func TestV1betaInternalCreateBackup(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateBackupLatestLogicalBackupSizeByVolumeFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		req := &gcpgenserver.InternalBackupCreateV1beta{
@@ -4887,7 +4887,7 @@ func TestV1betaInternalUpdateBackup(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("WhenInvalidLocationId", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		req := &gcpgenserver.BackupUpdateV1beta{
@@ -4920,7 +4920,7 @@ func TestV1betaInternalUpdateBackup(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateBackupInternalReturnsValidationError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		req := &gcpgenserver.BackupUpdateV1beta{
@@ -4952,7 +4952,7 @@ func TestV1betaInternalUpdateBackup(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateBackupInternalReturnsNotFoundError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		req := &gcpgenserver.BackupUpdateV1beta{
@@ -4983,7 +4983,7 @@ func TestV1betaInternalUpdateBackup(t *testing.T) {
 	})
 
 	t.Run("WhenUpdateBackupInternalReturnsInternalError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		req := &gcpgenserver.BackupUpdateV1beta{
@@ -5015,7 +5015,7 @@ func TestV1betaInternalUpdateBackup(t *testing.T) {
 	})
 
 	t.Run("WhenGetBackupByExternalUUIDFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		req := &gcpgenserver.BackupUpdateV1beta{
@@ -5048,7 +5048,7 @@ func TestV1betaInternalUpdateBackup(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessSynchronousOperation", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		req := &gcpgenserver.BackupUpdateV1beta{
@@ -5111,7 +5111,7 @@ func TestV1betaInternalUpdateBackup(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessAsynchronousOperation", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		req := &gcpgenserver.BackupUpdateV1beta{
@@ -5329,7 +5329,7 @@ func TestCreateInternalBackupParams(t *testing.T) {
 
 func TestV1betaInternalCreateBackupVault(t *testing.T) {
 	t.Run("WhenRequestIsNil", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -5349,7 +5349,7 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenBackupVaultIdIsEmpty", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -5372,7 +5372,7 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenProjectNumberIsEmpty", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -5395,7 +5395,7 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenLocationIdIsEmpty", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		handler := Handler{
 			Orchestrator: mockOrchestrator,
 		}
@@ -5418,7 +5418,7 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenCVPListBackupVaultsReturnsError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockCVPClient := backup_vault.NewMockClientService(tt)
 
 		handler := Handler{
@@ -5454,7 +5454,7 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenCVPListBackupVaultsReturnsNotFoundErr", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockCVPClient := backup_vault.NewMockClientService(tt)
 
 		handler := Handler{
@@ -5489,7 +5489,7 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenCVPListBackupVaultsReturnsNilPayload", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockCVPClient := backup_vault.NewMockClientService(tt)
 
 		handler := Handler{
@@ -5527,7 +5527,7 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenBackupVaultNotFoundInCVP", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockCVPClient := backup_vault.NewMockClientService(tt)
 
 		handler := Handler{
@@ -5575,7 +5575,7 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenConvertToBackupVaultDataModelFails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockCVPClient := backup_vault.NewMockClientService(tt)
 
 		handler := Handler{
@@ -5632,7 +5632,7 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenCreateBackupVaultEntryInVCPReturnsConflictErr", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockCVPClient := backup_vault.NewMockClientService(tt)
 
 		handler := Handler{
@@ -5702,7 +5702,7 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenCreateBackupVaultEntryInVCPReturnsOtherError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockCVPClient := backup_vault.NewMockClientService(tt)
 
 		handler := Handler{
@@ -5773,7 +5773,7 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulCreationWithoutBucketDetails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockCVPClient := backup_vault.NewMockClientService(tt)
 
 		handler := Handler{
@@ -5855,7 +5855,7 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulCreationWithBucketDetails", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockCVPClient := backup_vault.NewMockClientService(tt)
 
 		handler := Handler{
@@ -5959,7 +5959,7 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessfulCreationWithCMEKAttributes", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockCVPClient := backup_vault.NewMockClientService(tt)
 
 		handler := Handler{
@@ -5990,12 +5990,12 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 			Payload: &backup_vault.V1betaListBackupVaultsOKBody{
 				BackupVaults: []*cvpmodels.BackupVaultV1beta{
 					{
-						BackupVaultID:     "test-backup-vault-id",
-						ResourceID:        nillable.GetStringPtr("test-resource-id"),
-						BackupVaultType:   &backupVaultType,
-						SourceBackupVault: &sourceBackupVault,
-						KmsConfigResourcePath: nillable.GetStringPtr(kmsConfigPath),
-						EncryptionState:       nillable.GetStringPtr(encryptionState),
+						BackupVaultID:            "test-backup-vault-id",
+						ResourceID:               nillable.GetStringPtr("test-resource-id"),
+						BackupVaultType:          &backupVaultType,
+						SourceBackupVault:        &sourceBackupVault,
+						KmsConfigResourcePath:    nillable.GetStringPtr(kmsConfigPath),
+						EncryptionState:          nillable.GetStringPtr(encryptionState),
 						BackupsPrimaryKeyVersion: nillable.GetStringPtr(backupsPrimaryKeyVersion),
 					},
 				},
@@ -6066,7 +6066,7 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenSourceBackupVaultMatchesResourceId", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockCVPClient := backup_vault.NewMockClientService(tt)
 
 		handler := Handler{
@@ -6145,7 +6145,7 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 	})
 
 	t.Run("WhenBackupVaultTypeIsNilButSourceBackupVaultMatches", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockCVPClient := backup_vault.NewMockClientService(tt)
 
 		handler := Handler{
@@ -6224,7 +6224,7 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 
 func TestV1betaInternalUpdateState(t *testing.T) {
 	t.Run("WhenNotFoundError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		notFoundErr := errors.NewNotFoundErr("volume replication", nil)
 		mockOrchestrator.EXPECT().UpdateVolumeReplicationState(mock.Anything, mock.AnythingOfType("models.UpdateVolumeReplicationStateParams")).Return(nil, notFoundErr)
 		handler := Handler{
@@ -6248,7 +6248,7 @@ func TestV1betaInternalUpdateState(t *testing.T) {
 	})
 
 	t.Run("WhenInternalServerError", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		internalErr := errors.New("database connection failed")
 		mockOrchestrator.EXPECT().UpdateVolumeReplicationState(mock.Anything, mock.AnythingOfType("models.UpdateVolumeReplicationStateParams")).Return(nil, internalErr)
 		handler := Handler{
@@ -6273,7 +6273,7 @@ func TestV1betaInternalUpdateState(t *testing.T) {
 	})
 
 	t.Run("WhenSuccessful", func(tt *testing.T) {
-		mockOrchestrator := orchestrator.NewMockOrchestratorFactory(tt)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		volumeReplication := &models.VolumeReplication{
 			BaseModel: models.BaseModel{
 				UUID: "replication-789",
