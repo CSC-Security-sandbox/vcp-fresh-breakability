@@ -499,7 +499,7 @@ func createSnapshotSyncWithDirectPolling(ctx context.Context, provider vsa.Provi
 			Name:         *snapshot.Name,
 			ExternalUUID: *snapshot.UUID,
 		},
-		SizeInBytes:        *snapshot.Size,
+		SizeInBytes:        int64(0),
 		LogicalSizeInBytes: *snapshot.LogicalSize,
 	}, nil
 }

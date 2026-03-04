@@ -4326,7 +4326,7 @@ func TestCreateSnapshotSyncWithDirectPolling_ErrorPaths(t *testing.T) {
 		// After polling completes, SnapshotGet is called to get snapshot details
 		snapshotName := "test_snapshot"
 		snapshotUUID := resourceUUID
-		snapshotSize := int64(1024)
+		snapshotSize := int64(0)
 		snapshotLogicalSize := int64(2048)
 		mockSnapshot := &ontapRest.Snapshot{
 			Snapshot: ontapRestModels.Snapshot{
@@ -4585,7 +4585,7 @@ func TestCreateSnapshotSyncWithDirectPolling_ErrorPaths(t *testing.T) {
 
 		snapshotName := "test_snapshot"
 		snapshotUUID := "snapshot-uuid"
-		snapshotSize := int64(1024)
+		snapshotSize := int64(0)
 		snapshotLogicalSize := int64(2048)
 		mockSnapshot := &ontapRest.Snapshot{
 			Snapshot: ontapRestModels.Snapshot{
@@ -4847,7 +4847,7 @@ func TestCreateSnapshotSync_AdditionalPaths(t *testing.T) {
 		assert.Equal(tt, originalDescription, dbSnapshot.Description)
 		// Verify snapshot state was set (lines 363-367)
 		assert.Equal(tt, models.LifeCycleStateREADY, dbSnapshot.State)
-		assert.Equal(tt, int64(1024), dbSnapshot.SnapshotAttributes.SizeInBytes)
+		assert.Equal(tt, int64(0), dbSnapshot.SnapshotAttributes.SizeInBytes)
 		assert.Equal(tt, "snapshot-uuid", dbSnapshot.SnapshotAttributes.ExternalUUID)
 		mockStorage.AssertExpectations(tt)
 		mockRESTClient.AssertExpectations(tt)

@@ -2,15 +2,23 @@ package vsa
 
 import (
 	"context"
+	"crypto/tls"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"sort"
 	"strings"
+	"time"
 
+	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
 	ontaprestmodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -118,7 +126,7 @@ func (rc *OntapRestProvider) CreateSnapshot(params CreateSnapshotParams) (*Snaps
 			Name:         *snapshot.Name,
 			ExternalUUID: *snapshot.UUID,
 		},
-		SizeInBytes:        *snapshot.Size,
+		SizeInBytes:        int64(0),
 		LogicalSizeInBytes: *snapshot.LogicalSize,
 	}, nil
 }
@@ -345,6 +353,186 @@ func (rc *OntapRestProvider) GetSnapshots(volumeUUID string) ([]*Snapshot, error
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 	}
 	return resultSnapshots, nil
+}
+
+// GetSnapshotsViaCLIAPI gets snapshots using the CLI API endpoint with accurate sizes
+// This replaces GetSnapshots to get accurate sizes: size (for SizeInBytes) and afs_used (for LogicalSizeUsedInBytes)
+// Following the pattern from ontap-proxy/handlers/ontap_client.go GetVolume method
+func (rc *OntapRestProvider) GetSnapshotsViaCLIAPI(ctx context.Context, volumeName string, svmName string) ([]*Snapshot, error) {
+	logger := rc.Logger
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
+	}
+
+	host := client.Host()
+	if host == "" {
+		return nil, fmt.Errorf("REST client host is empty")
+	}
+
+	baseURL := fmt.Sprintf("https://%s/api/private/cli/snapshot", host)
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse URL: %w", err)
+	}
+
+	q := u.Query()
+	q.Set("volume", volumeName)
+	if svmName != "" {
+		q.Set("vserver", svmName)
+	}
+	// Include all fields we need: size (for SizeInBytes), afs_used (for LogicalSizeUsedInBytes), version_uuid (for ExternalVersionUUID), instance_uuid (for ExternalUUID), volume_uuid (for ProvenanceVolume), snapmirror-label (for SnapmirrorLabel)
+	q.Set("fields", "vserver,volume,snapshot,size,create-time,afs-used,version-uuid,instance-uuid,snapmirror-label,volume-uuid")
+	u.RawQuery = q.Encode()
+
+	// Create HTTP request
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Accept", "application/json")
+
+	// Create HTTP client with TLS config
+	var tlsConfig *tls.Config
+	if rc.ClientParams.CertificateBasedAuthEnabled {
+		// Load certificates for certificate-based auth
+		rootCA, clientCert, err := ontapRest.GetAPICallCertificate(rc.ClientParams)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load certificates for CLI API: %w", err)
+		}
+		tlsConfig = &tls.Config{
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: rc.ClientParams.InsecureSkipVerify,
+			RootCAs:            rootCA,
+			Certificates:       []tls.Certificate{clientCert},
+		}
+	} else {
+		// For basic auth, just set up TLS without client certificates
+		tlsConfig = &tls.Config{
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: rc.ClientParams.InsecureSkipVerify,
+		}
+		// Set basic auth header
+		req.SetBasicAuth(env.Admin, string(rc.ClientParams.Password))
+	}
+
+	transport := &http.Transport{
+		TLSClientConfig: tlsConfig,
+	}
+
+	httpClient := &http.Client{
+		Transport: transport,
+		Timeout:   30 * time.Second,
+	}
+
+	logger.Infof("Fetching snapshots via CLI API for volume %s, URL: %s", volumeName, u.String())
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("CLI API request failed: %w", err)
+	}
+	defer func() {
+		if resp.Body != nil {
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+		}
+	}()
+
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("ONTAP CLI API error (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	// Parse response
+	var cliResponse struct {
+		Records []struct {
+			Vserver         string `json:"vserver"`
+			Volume          string `json:"volume"`
+			Snapshot        string `json:"snapshot"`
+			Size            int64  `json:"size"`
+			CreateTime      string `json:"create_time"`
+			InstanceUUID    string `json:"instance_uuid"`
+			VersionUUID     string `json:"version_uuid"`
+			AfsUsed         int64  `json:"afs_used"`
+			SnapmirrorLabel string `json:"snapmirror_label"`
+			VolumeUUID      string `json:"volume_uuid"`
+		} `json:"records"`
+		NumRecords int `json:"num_records"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&cliResponse); err != nil {
+		return nil, fmt.Errorf("failed to parse CLI API response: %w", err)
+	}
+
+	// Convert to vsa.Snapshot format
+	var snapshots []*Snapshot
+	for _, record := range cliResponse.Records {
+		// Parse create_time
+		createTime, err := time.Parse("2006-01-02T15:04:05+00:00", record.CreateTime)
+		if err != nil {
+			createTime, err = time.Parse(time.RFC3339, record.CreateTime)
+			if err != nil {
+				logger.Warnf("Failed to parse create_time %s: %v", record.CreateTime, err)
+				createTime = time.Now()
+			}
+		}
+		createTimeFmt := strfmt.DateTime(createTime)
+
+		snapshotName := record.Snapshot
+		volName := record.Volume
+		vserverName := record.Vserver
+
+		// Use instance_uuid as ExternalUUID (or version_uuid if instance_uuid is empty)
+		externalUUID := record.InstanceUUID
+		if externalUUID == "" {
+			externalUUID = record.VersionUUID
+		}
+
+		// Build ProvenanceVolume using volume_uuid
+		var provenanceVolume *ontaprestmodel.SnapshotInlineProvenanceVolume
+		if record.VolumeUUID != "" {
+			provenanceUUID := record.VolumeUUID
+			provenanceVolume = &ontaprestmodel.SnapshotInlineProvenanceVolume{
+				UUID: &provenanceUUID,
+			}
+		}
+
+		// Build Volume reference
+		volumeRef := &ontaprestmodel.SnapshotInlineVolume{
+			Name: &volName,
+		}
+
+		// Build SVM reference
+		svmRef := &ontaprestmodel.SnapshotInlineSvm{
+			Name: &vserverName,
+		}
+
+		// Build SnapmirrorLabel if present
+		var snapmirrorLabel *string
+		if record.SnapmirrorLabel != "" {
+			snapmirrorLabel = &record.SnapmirrorLabel
+		}
+
+		snapshot := &Snapshot{
+			Snapshot: ontaprestmodel.Snapshot{
+				Name:             &snapshotName,
+				ProvenanceVolume: provenanceVolume,
+				Volume:           volumeRef,
+				Svm:              svmRef,
+				SnapmirrorLabel:  snapmirrorLabel,
+				CreateTime:       &createTimeFmt,
+			},
+			ExternalUUID:           externalUUID,
+			ExternalVersionUUID:    record.VersionUUID,
+			SizeInBytes:            record.Size,
+			LogicalSizeUsedInBytes: record.AfsUsed,
+			CreationTime:           &createTimeFmt,
+		}
+		snapshots = append(snapshots, snapshot)
+	}
+
+	return snapshots, nil
 }
 
 func (rc *OntapRestProvider) CreateSnapshotPolicy(sp *SnapshotPolicy) error {

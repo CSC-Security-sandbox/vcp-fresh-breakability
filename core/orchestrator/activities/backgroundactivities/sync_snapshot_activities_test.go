@@ -832,7 +832,7 @@ func TestSyncSnapshotActivity_GetOntapVolumesAndSnapshotsForPool(t *testing.T) {
 		Style:     nillable.ToPointer("flexvol"),
 	}, ExternalUUID: "vol-uuid"}
 	mockProvider.On("GetVolumes").Return([]*vsa.Volume{vol}, nil)
-	mockProvider.On("GetSnapshots", "vol-uuid").Return([]*vsa.Snapshot{{
+	mockProvider.On("GetSnapshotsViaCLIAPI", mock.Anything, "vol-name", "svm-name").Return([]*vsa.Snapshot{{
 		Snapshot: ontaprestmodel.Snapshot{
 			Name:             nillable.ToPointer("snap"),
 			ProvenanceVolume: &ontaprestmodel.SnapshotInlineProvenanceVolume{UUID: nillable.ToPointer("vol-uuid")},
@@ -1617,7 +1617,7 @@ func TestSyncSnapshotActivity_GetOntapVolumesAndSnapshotsForPool_ConcurrencyLimi
 		Style:     nillable.ToPointer("flexvol"),
 	}, ExternalUUID: "vol-uuid"}
 	mockProvider.On("GetVolumes").Return([]*vsa.Volume{vol}, nil)
-	mockProvider.On("GetSnapshots", "vol-uuid").Return([]*vsa.Snapshot{}, nil)
+	mockProvider.On("GetSnapshotsViaCLIAPI", mock.Anything, "vol-name", "svm-name").Return([]*vsa.Snapshot{}, nil)
 
 	originalGetProviderForPool := GetOntapRestProviderForPool
 	GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
@@ -1646,7 +1646,9 @@ func TestSyncSnapshotActivity_GetOntapVolumesAndSnapshotsForPool_GetSnapshotsErr
 		Style:     nillable.ToPointer("flexvol"),
 	}, ExternalUUID: "vol-uuid"}
 	mockProvider.On("GetVolumes").Return([]*vsa.Volume{vol}, nil)
-	mockProvider.On("GetSnapshots", "vol-uuid").Return(nil, errors.New("failed to get snapshots"))
+	mockProvider.On("GetSnapshotsViaCLIAPI", mock.Anything, "vol-name", "svm-name").Return(nil, errors.New("failed to get snapshots"))
+	// Fallback to REST API when CLI API fails
+	mockProvider.On("GetSnapshots", "vol-uuid").Return(nil, errors.New("failed to get snapshots from REST API"))
 
 	originalGetProviderForPool := GetOntapRestProviderForPool
 	GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
@@ -1658,6 +1660,49 @@ func TestSyncSnapshotActivity_GetOntapVolumesAndSnapshotsForPool_GetSnapshotsErr
 	assert.NoError(t, err) // Should not return error, just log it
 	assert.NotNil(t, result)
 	assert.Len(t, result.OntapSnapshots, 0) // No snapshots due to error
+	mockProvider.AssertExpectations(t)
+}
+
+func TestSyncSnapshotActivity_GetOntapVolumesAndSnapshotsForPool_CLIAPIFailsRESTAPISucceeds(t *testing.T) {
+	ctx := context.TODO()
+	mockStorage := database.NewMockStorage(t)
+	activity := SyncSnapshotActivity{SE: mockStorage}
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"}, PoolCredentials: &datamodel.PoolCredentials{Password: "pass"}}
+
+	mockProvider := new(vsa.MockProvider)
+	vol := &vsa.Volume{Volume: ontaprestmodel.Volume{
+		UUID:      nillable.ToPointer("vol-uuid"),
+		Name:      nillable.ToPointer("vol-name"),
+		Svm:       &ontaprestmodel.VolumeInlineSvm{Name: nillable.ToPointer("svm-name")},
+		IsSvmRoot: nillable.ToPointer(false),
+		Style:     nillable.ToPointer("flexvol"),
+	}, ExternalUUID: "vol-uuid"}
+	mockProvider.On("GetVolumes").Return([]*vsa.Volume{vol}, nil)
+	// CLI API fails
+	mockProvider.On("GetSnapshotsViaCLIAPI", mock.Anything, "vol-name", "svm-name").Return(nil, errors.New("CLI API unavailable"))
+	// Fallback to REST API succeeds
+	mockProvider.On("GetSnapshots", "vol-uuid").Return([]*vsa.Snapshot{{
+		Snapshot: ontaprestmodel.Snapshot{
+			Name:             nillable.ToPointer("snap"),
+			ProvenanceVolume: &ontaprestmodel.SnapshotInlineProvenanceVolume{UUID: nillable.ToPointer("vol-uuid")},
+			Volume:           &ontaprestmodel.SnapshotInlineVolume{Name: nillable.ToPointer("vol-name")},
+			Svm:              &ontaprestmodel.SnapshotInlineSvm{Name: nillable.ToPointer("svm-name")},
+		},
+		ExternalUUID:       "snap-uuid",
+		ExternalVolumeUUID: "vol-uuid",
+	}}, nil)
+
+	originalGetProviderForPool := GetOntapRestProviderForPool
+	GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { GetOntapRestProviderForPool = originalGetProviderForPool }()
+
+	result, err := activity.GetOntapVolumesAndSnapshotsForPool(ctx, pool)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Contains(t, result.OntapVolumeMap, "vol-uuid")
+	assert.Len(t, result.OntapSnapshots, 1) // Snapshot from REST API fallback
 	mockProvider.AssertExpectations(t)
 }
 
@@ -2042,4 +2087,183 @@ func TestGetOntapRestProviderForPoolFastConn(t *testing.T) {
 		assert.Contains(t, err.Error(), "fast connection failed")
 		mockStorage.AssertExpectations(t)
 	})
+}
+
+func TestSyncSnapshotActivity_GetOntapVolumesAndSnapshotsForPool_VolumeMissingNameFallbackToREST(t *testing.T) {
+	ctx := context.TODO()
+	mockStorage := database.NewMockStorage(t)
+	activity := SyncSnapshotActivity{SE: mockStorage}
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"}, PoolCredentials: &datamodel.PoolCredentials{Password: "pass"}}
+
+	mockProvider := new(vsa.MockProvider)
+	// Volume with UUID but no Name
+	vol := &vsa.Volume{Volume: ontaprestmodel.Volume{
+		UUID:      nillable.ToPointer("vol-uuid"),
+		Name:      nil, // Name is missing
+		IsSvmRoot: nillable.ToPointer(false),
+		Style:     nillable.ToPointer("flexvol"),
+	}, ExternalUUID: "vol-uuid"}
+	mockProvider.On("GetVolumes").Return([]*vsa.Volume{vol}, nil)
+	// Should fall back to REST API using UUID
+	mockProvider.On("GetSnapshots", "vol-uuid").Return([]*vsa.Snapshot{{
+		Snapshot: ontaprestmodel.Snapshot{
+			Name:             nillable.ToPointer("snap"),
+			ProvenanceVolume: &ontaprestmodel.SnapshotInlineProvenanceVolume{UUID: nillable.ToPointer("vol-uuid")},
+			Volume:           &ontaprestmodel.SnapshotInlineVolume{Name: nillable.ToPointer("vol-name")},
+			Svm:              &ontaprestmodel.SnapshotInlineSvm{Name: nillable.ToPointer("svm-name")},
+		},
+		ExternalUUID:       "snap-uuid",
+		ExternalVolumeUUID: "vol-uuid",
+	}}, nil)
+
+	originalGetProviderForPool := GetOntapRestProviderForPool
+	GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { GetOntapRestProviderForPool = originalGetProviderForPool }()
+
+	result, err := activity.GetOntapVolumesAndSnapshotsForPool(ctx, pool)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	// Volume without name gets filtered out by filterOntapVolumesAndSnapshots
+	assert.NotContains(t, result.OntapVolumeMap, "vol-uuid")
+	// Snapshots also get filtered out because the volume isn't in the map
+	assert.Len(t, result.OntapSnapshots, 0)
+	// But REST API should still be called (verified by AssertExpectations)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestSyncSnapshotActivity_GetOntapVolumesAndSnapshotsForPool_VolumeMissingNameAndUUID(t *testing.T) {
+	ctx := context.TODO()
+	mockStorage := database.NewMockStorage(t)
+	activity := SyncSnapshotActivity{SE: mockStorage}
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"}, PoolCredentials: &datamodel.PoolCredentials{Password: "pass"}}
+
+	mockProvider := new(vsa.MockProvider)
+	// Volume with both Name and UUID missing
+	vol := &vsa.Volume{Volume: ontaprestmodel.Volume{
+		UUID:      nil, // UUID is missing
+		Name:      nil, // Name is missing
+		IsSvmRoot: nillable.ToPointer(false),
+		Style:     nillable.ToPointer("flexvol"),
+	}, ExternalUUID: "vol-uuid"}
+	mockProvider.On("GetVolumes").Return([]*vsa.Volume{vol}, nil)
+	// Should not call GetSnapshots since both Name and UUID are missing
+
+	originalGetProviderForPool := GetOntapRestProviderForPool
+	GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { GetOntapRestProviderForPool = originalGetProviderForPool }()
+
+	result, err := activity.GetOntapVolumesAndSnapshotsForPool(ctx, pool)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	// Volume should be filtered out, so no snapshots
+	assert.Len(t, result.OntapSnapshots, 0)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestSyncSnapshotActivity_GetOntapVolumesAndSnapshotsForPool_CLIAPIFailsUUIDMissing(t *testing.T) {
+	ctx := context.TODO()
+	mockStorage := database.NewMockStorage(t)
+	activity := SyncSnapshotActivity{SE: mockStorage}
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"}, PoolCredentials: &datamodel.PoolCredentials{Password: "pass"}}
+
+	mockProvider := new(vsa.MockProvider)
+	// Volume with Name but no UUID
+	vol := &vsa.Volume{Volume: ontaprestmodel.Volume{
+		UUID:      nil, // UUID is missing
+		Name:      nillable.ToPointer("vol-name"),
+		Svm:       &ontaprestmodel.VolumeInlineSvm{Name: nillable.ToPointer("svm-name")},
+		IsSvmRoot: nillable.ToPointer(false),
+		Style:     nillable.ToPointer("flexvol"),
+	}, ExternalUUID: "vol-uuid"}
+	mockProvider.On("GetVolumes").Return([]*vsa.Volume{vol}, nil)
+	// CLI API fails
+	mockProvider.On("GetSnapshotsViaCLIAPI", mock.Anything, "vol-name", "svm-name").Return(nil, errors.New("CLI API unavailable"))
+	// Should not call GetSnapshots since UUID is missing
+
+	originalGetProviderForPool := GetOntapRestProviderForPool
+	GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { GetOntapRestProviderForPool = originalGetProviderForPool }()
+
+	result, err := activity.GetOntapVolumesAndSnapshotsForPool(ctx, pool)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	// No snapshots since fallback couldn't happen
+	assert.Len(t, result.OntapSnapshots, 0)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestSyncSnapshotActivity_GetOntapVolumesAndSnapshotsForPool_CLIAPIFailsRESTAPIFails(t *testing.T) {
+	ctx := context.TODO()
+	mockStorage := database.NewMockStorage(t)
+	activity := SyncSnapshotActivity{SE: mockStorage}
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"}, PoolCredentials: &datamodel.PoolCredentials{Password: "pass"}}
+
+	mockProvider := new(vsa.MockProvider)
+	vol := &vsa.Volume{Volume: ontaprestmodel.Volume{
+		UUID:      nillable.ToPointer("vol-uuid"),
+		Name:      nillable.ToPointer("vol-name"),
+		Svm:       &ontaprestmodel.VolumeInlineSvm{Name: nillable.ToPointer("svm-name")},
+		IsSvmRoot: nillable.ToPointer(false),
+		Style:     nillable.ToPointer("flexvol"),
+	}, ExternalUUID: "vol-uuid"}
+	mockProvider.On("GetVolumes").Return([]*vsa.Volume{vol}, nil)
+	// CLI API fails
+	mockProvider.On("GetSnapshotsViaCLIAPI", mock.Anything, "vol-name", "svm-name").Return(nil, errors.New("CLI API unavailable"))
+	// REST API also fails
+	mockProvider.On("GetSnapshots", "vol-uuid").Return(nil, errors.New("REST API unavailable"))
+
+	originalGetProviderForPool := GetOntapRestProviderForPool
+	GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { GetOntapRestProviderForPool = originalGetProviderForPool }()
+
+	result, err := activity.GetOntapVolumesAndSnapshotsForPool(ctx, pool)
+	assert.NoError(t, err) // Should not return error, just log it
+	assert.NotNil(t, result)
+	assert.Contains(t, result.OntapVolumeMap, "vol-uuid")
+	// No snapshots due to both APIs failing
+	assert.Len(t, result.OntapSnapshots, 0)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestSyncSnapshotActivity_GetOntapVolumesAndSnapshotsForPool_VolumeMissingNameRESTAPIFails(t *testing.T) {
+	ctx := context.TODO()
+	mockStorage := database.NewMockStorage(t)
+	activity := SyncSnapshotActivity{SE: mockStorage}
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"}, PoolCredentials: &datamodel.PoolCredentials{Password: "pass"}}
+
+	mockProvider := new(vsa.MockProvider)
+	// Volume with UUID but no Name
+	vol := &vsa.Volume{Volume: ontaprestmodel.Volume{
+		UUID:      nillable.ToPointer("vol-uuid"),
+		Name:      nil, // Name is missing
+		IsSvmRoot: nillable.ToPointer(false),
+		Style:     nillable.ToPointer("flexvol"),
+	}, ExternalUUID: "vol-uuid"}
+	mockProvider.On("GetVolumes").Return([]*vsa.Volume{vol}, nil)
+	// REST API fails
+	mockProvider.On("GetSnapshots", "vol-uuid").Return(nil, errors.New("REST API unavailable"))
+
+	originalGetProviderForPool := GetOntapRestProviderForPool
+	GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { GetOntapRestProviderForPool = originalGetProviderForPool }()
+
+	result, err := activity.GetOntapVolumesAndSnapshotsForPool(ctx, pool)
+	assert.NoError(t, err) // Should not return error, just log it
+	assert.NotNil(t, result)
+	// Volume without name gets filtered out by filterOntapVolumesAndSnapshots
+	assert.NotContains(t, result.OntapVolumeMap, "vol-uuid")
+	// No snapshots due to REST API failure and volume being filtered out
+	assert.Len(t, result.OntapSnapshots, 0)
+	// But REST API should still be called (verified by AssertExpectations)
+	mockProvider.AssertExpectations(t)
 }

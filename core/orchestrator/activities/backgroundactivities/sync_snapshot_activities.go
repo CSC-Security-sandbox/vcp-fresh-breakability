@@ -461,8 +461,8 @@ func (a *SyncSnapshotActivity) GetOntapVolumesAndSnapshotsForPool(ctx context.Co
 	var volumesErr error
 
 	go func() {
+		defer close(done)
 		ontapVolumes, volumesErr = provider.GetVolumes()
-		close(done)
 	}()
 
 	select {
@@ -479,7 +479,7 @@ func (a *SyncSnapshotActivity) GetOntapVolumesAndSnapshotsForPool(ctx context.Co
 	case <-ctx.Done():
 		errMsg := fmt.Sprintf("Context cancelled while getting ONTAP volumes for pool %s", pool.UUID)
 		logger.Errorf(errMsg)
-		return nil, errors.New(errMsg)
+		return nil, ctx.Err()
 	}
 
 	// Get snapshots in parallel with controlled concurrency
@@ -494,15 +494,53 @@ func (a *SyncSnapshotActivity) GetOntapVolumesAndSnapshotsForPool(ctx context.Co
 	semaphore := make(chan struct{}, maxConcurrency)
 
 	for _, volume := range ontapVolumes {
+		// Check if context is cancelled before starting new goroutine
+		if ctx.Err() != nil {
+			logger.Warnf("Context cancelled, stopping snapshot fetch for remaining volumes")
+			break
+		}
+
 		wg.Add(1)
 		go func(vol *vsa.Volume) {
 			defer wg.Done()
 			semaphore <- struct{}{}        // Acquire slot
 			defer func() { <-semaphore }() // Release slot
 
-			volumeSnapshots, err := provider.GetSnapshots(*vol.UUID)
-			if err != nil {
-				logger.Errorf("Failed to get snapshots from ONTAP for volume %s: %v", *vol.UUID, err)
+			// Check context cancellation before processing
+			if ctx.Err() != nil {
+				return
+			}
+
+			// Using CLI API instead of REST API to get accurate sizes (size and afs_used)
+			var volumeSnapshots []*vsa.Snapshot
+			var cliErr error
+			if vol.Name != nil {
+				// Get SVM name if available (optional - vserver filter is optional in CLI API)
+				svmName := ""
+				if vol.Svm != nil && vol.Svm.Name != nil {
+					svmName = *vol.Svm.Name
+				}
+				volumeSnapshots, cliErr = provider.GetSnapshotsViaCLIAPI(ctx, *vol.Name, svmName)
+				if cliErr != nil {
+					logger.Errorf("Failed to get snapshots from ONTAP CLI API for volume %s: %v, falling back to REST API", *vol.Name, cliErr)
+				}
+			}
+			// Fallback to REST API if CLI API failed or name is missing
+			if cliErr != nil || vol.Name == nil {
+				if vol.UUID == nil {
+					logger.Warn("ALERT: Volume missing UUID, cannot fall back to REST API, skipping snapshot fetch")
+					return
+				}
+				var restErr error
+				volumeSnapshots, restErr = provider.GetSnapshots(*vol.UUID)
+				if restErr != nil {
+					logger.Errorf("ALERT: Failed to get snapshots from ONTAP REST API for volume %s: %v", *vol.UUID, restErr)
+					return
+				}
+				logger.Infof("Successfully fetched snapshots for volume %s using REST API fallback", *vol.UUID)
+			}
+			// Check context cancellation before appending results
+			if ctx.Err() != nil {
 				return
 			}
 			mu.Lock()
@@ -653,6 +691,12 @@ func (a *SyncSnapshotActivity) SyncSnapshotsForPoolBatchActivity(ctx context.Con
 	semaphore := make(chan struct{}, snapshotSyncMaxConcurrency)
 
 	for _, poolIdentifier := range poolIdentifiers {
+		// Check if context is cancelled before starting new goroutine
+		if ctx.Err() != nil {
+			logger.Warnf("Context cancelled, stopping snapshot sync for remaining pools")
+			break
+		}
+
 		wg.Add(1)
 		go func(pid *database.PoolIdentifier) {
 			defer wg.Done()
@@ -660,6 +704,11 @@ func (a *SyncSnapshotActivity) SyncSnapshotsForPoolBatchActivity(ctx context.Con
 			// Acquire semaphore
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
+
+			// Check context cancellation before processing
+			if ctx.Err() != nil {
+				return
+			}
 
 			err := a.processPoolSnapshotSync(ctx, pid)
 
@@ -702,21 +751,21 @@ func (a *SyncSnapshotActivity) processPoolSnapshotSync(ctx context.Context, pool
 	pool, err := a.FetchPoolByUUID(ctx, poolIdentifier.UUID, poolIdentifier.AccountID)
 	if err != nil {
 		logger.Errorf("Failed to fetch pool %s: %v", poolIdentifier.Name, err)
-		return fmt.Errorf("FetchPoolByUUID Failed")
+		return fmt.Errorf("FetchPoolByUUID Failed: %w", err)
 	}
 
 	// Get ONTAP volumes and snapshots
 	ontapVolSnapshotResp, err := a.GetOntapVolumesAndSnapshotsForPool(ctx, pool)
 	if err != nil {
 		logger.Errorf("Failed to get ONTAP volumes and snapshots for pool %s: %v", pool.Name, err)
-		return fmt.Errorf("GetOntapVolumesAndSnapshotsForPool Failed")
+		return fmt.Errorf("GetOntapVolumesAndSnapshotsForPool Failed: %w", err)
 	}
 
 	// Get DB volumes and snapshots
 	dbVolSnapshotResp, err := a.GetDBVolumeAndSnapshotsForPool(ctx, pool)
 	if err != nil {
 		logger.Errorf("Failed to get ONTAP volumes and snapshots for pool %s: %v", pool.Name, err)
-		return fmt.Errorf("GetDBVolumeAndSnapshotsForPool Failed")
+		return fmt.Errorf("GetDBVolumeAndSnapshotsForPool Failed: %w", err)
 	}
 
 	// Process snapshots to determine what needs to be created, updated, or deleted
@@ -729,21 +778,21 @@ func (a *SyncSnapshotActivity) processPoolSnapshotSync(ctx context.Context, pool
 	)
 	if err != nil {
 		logger.Errorf("Failed to process snapshots for pool %s: %v", pool.Name, err)
-		return fmt.Errorf("ProcessSnapshots Failed")
+		return fmt.Errorf("ProcessSnapshots Failed: %w", err)
 	}
 
 	// Sync deleted snapshots to database
 	deletedSnapshots, err := a.SyncDeletedSnapshotsToDatabase(ctx, processSnapshotsResp.DeleteIDs)
 	if err != nil {
 		logger.Errorf("Failed to sync deleted snapshots for pool %s: %v", pool.Name, err)
-		return fmt.Errorf("SyncDeletedSnapshotsToDatabase Failed")
+		return fmt.Errorf("SyncDeletedSnapshotsToDatabase Failed: %w", err)
 	}
 
 	// Sync new snapshots to database
 	createdSnapshots, err := a.SyncNewSnapshotsToDatabase(ctx, processSnapshotsResp.NewIDs, processSnapshotsResp.NewSSMap, dbVolSnapshotResp.DBVolumeMap, pool)
 	if err != nil {
 		logger.Errorf("Failed to sync new snapshots for pool %s: %v", pool.Name, err)
-		return fmt.Errorf("SyncNewSnapshotsToDatabase Failed")
+		return fmt.Errorf("SyncNewSnapshotsToDatabase Failed: %w", err)
 	}
 
 	// Sync updated snapshots to database
@@ -757,14 +806,14 @@ func (a *SyncSnapshotActivity) processPoolSnapshotSync(ctx context.Context, pool
 	_, err = a.SyncWronglyDeletedSnapshotsToDatabase(ctx, processSnapshotsResp.WronglyDeletedIDs, processSnapshotsResp.WronglyDeletedSnapshotsMap)
 	if err != nil {
 		logger.Errorf("Failed to sync wrongly deleted snapshots for pool %s: %v", pool.Name, err)
-		return fmt.Errorf("SyncWronglyDeletedSnapshotsToDatabase Failed")
+		return fmt.Errorf("SyncWronglyDeletedSnapshotsToDatabase Failed: %w", err)
 	}
 
 	// Hydrate snapshots to CCFE
 	err = a.HydrateSnapshotsToCCFE(ctx, createdSnapshots, deletedSnapshots)
 	if err != nil {
 		logger.Errorf("Failed to hydrate snapshots to CCFE for pool %s: %v", pool.Name, err)
-		return fmt.Errorf("HydrateSnapshotsToCCFE Failed")
+		return fmt.Errorf("HydrateSnapshotsToCCFE Failed: %w", err)
 	}
 
 	logger.Infof("Successfully completed snapshot synchronization for pool: %s", poolIdentifier.Name)

@@ -72,7 +72,7 @@ func TestCreateSnapshot(t *testing.T) {
 		assert.NotNil(t, resp)
 		assert.Equal(t, "testSnapshot", resp.Name)
 		assert.Equal(t, "testUUID", resp.ExternalUUID)
-		assert.Equal(t, int64(1024), resp.SizeInBytes)
+		assert.Equal(t, int64(0), resp.SizeInBytes)
 	})
 
 	t.Run("CreateSnapshotErrorOnCreate", func(t *testing.T) {

@@ -88,6 +88,7 @@ type Provider interface {
 	DeleteSnapshot(snapshotUUID string, volumeUUID string) error
 	GetSnapshot(snapshotUUID string, volumeUUID string) (*SnapshotProviderResponse, error)
 	GetSnapshots(volumeUUID string) ([]*Snapshot, error)
+	GetSnapshotsViaCLIAPI(ctx context.Context, volumeName string, svmName string) ([]*Snapshot, error)
 	ListSnapmirrorSnapshots(volumeUUID string) ([]*SnapshotListResponse, error)
 	CreateQuotaRule(ctx context.Context, params CreateQuotaRuleParams) (*JobStatus, error)
 	GetQuotaRuleCollection(ctx context.Context, volumeUUID, svmName string) ([]*QuotaRuleCollectionItem, error)

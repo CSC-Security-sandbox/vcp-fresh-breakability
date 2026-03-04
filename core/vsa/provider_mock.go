@@ -4030,6 +4030,66 @@ func (_c *MockProvider_GetSnapshots_Call) RunAndReturn(run func(string) ([]*Snap
 	return _c
 }
 
+// GetSnapshotsViaCLIAPI provides a mock function with given fields: ctx, volumeName, svmName
+func (_m *MockProvider) GetSnapshotsViaCLIAPI(ctx context.Context, volumeName string, svmName string) ([]*Snapshot, error) {
+	ret := _m.Called(ctx, volumeName, svmName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSnapshotsViaCLIAPI")
+	}
+
+	var r0 []*Snapshot
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) ([]*Snapshot, error)); ok {
+		return rf(ctx, volumeName, svmName)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) []*Snapshot); ok {
+		r0 = rf(ctx, volumeName, svmName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*Snapshot)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, volumeName, svmName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetSnapshotsViaCLIAPI_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSnapshotsViaCLIAPI'
+type MockProvider_GetSnapshotsViaCLIAPI_Call struct {
+	*mock.Call
+}
+
+// GetSnapshotsViaCLIAPI is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeName string
+//   - svmName string
+func (_e *MockProvider_Expecter) GetSnapshotsViaCLIAPI(ctx interface{}, volumeName interface{}, svmName interface{}) *MockProvider_GetSnapshotsViaCLIAPI_Call {
+	return &MockProvider_GetSnapshotsViaCLIAPI_Call{Call: _e.mock.On("GetSnapshotsViaCLIAPI", ctx, volumeName, svmName)}
+}
+
+func (_c *MockProvider_GetSnapshotsViaCLIAPI_Call) Run(run func(ctx context.Context, volumeName string, svmName string)) *MockProvider_GetSnapshotsViaCLIAPI_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetSnapshotsViaCLIAPI_Call) Return(_a0 []*Snapshot, _a1 error) *MockProvider_GetSnapshotsViaCLIAPI_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetSnapshotsViaCLIAPI_Call) RunAndReturn(run func(context.Context, string, string) ([]*Snapshot, error)) *MockProvider_GetSnapshotsViaCLIAPI_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetVolume provides a mock function with given fields: params
 func (_m *MockProvider) GetVolume(params GetVolumeParams) (*VolumeResponse, error) {
 	ret := _m.Called(params)
