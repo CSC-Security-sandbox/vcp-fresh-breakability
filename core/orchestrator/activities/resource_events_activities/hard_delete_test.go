@@ -241,6 +241,7 @@ func TestFinishProjectEventActivity_HardDeleteResourcesInOrder(t *testing.T) {
 			"backups", "backup_policies", "snapshots", "volume_replications",
 			"volumes", "backup_vaults", "svms", "pools", "host_groups",
 			"kms_configs", "nodes", "service_accounts", "lifs", "accounts", "quota_rules",
+			"active_directories",
 		}
 		assert.Equal(t, expectedOrder, callOrder)
 	})
@@ -348,13 +349,13 @@ func TestFinishProjectEventActivity_HardDeleteResourcesInOrder(t *testing.T) {
 				accountIDQueryCount++
 			}
 		}
-		assert.Equal(t, 13, accountIDQueryCount) // All except backups and accounts (12 resources + quota_rules)
+		assert.Equal(t, 14, accountIDQueryCount) // All except backups and accounts (13 resources + quota_rules + active_directories)
 	})
 }
 
 func TestResourceConfiguration(t *testing.T) {
 	t.Run("VerifyResourceCount", func(t *testing.T) {
-		assert.Equal(t, 15, len(resourcesToHardDelete), "Should have 15 resources to delete")
+		assert.Equal(t, 16, len(resourcesToHardDelete), "Should have 16 resources to delete")
 	})
 
 	t.Run("VerifyConstantValues", func(t *testing.T) {
@@ -376,6 +377,7 @@ func TestResourceConfiguration(t *testing.T) {
 			"backups", "backup_policies", "snapshots", "volume_replications",
 			"volumes", "backup_vaults", "svms", "pools", "host_groups",
 			"kms_configs", "nodes", "service_accounts", "lifs", "accounts", "quota_rules",
+			"active_directories",
 		}
 
 		for i, resource := range resourcesToHardDelete {

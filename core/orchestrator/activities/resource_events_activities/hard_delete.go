@@ -29,6 +29,7 @@ var (
 		{"lifs", dbQueryAccountID},
 		{"accounts", dbQueryAccountName},
 		{"quota_rules", dbQueryAccountID},
+		{"active_directories", dbQueryAccountID},
 	}
 )
 

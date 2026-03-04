@@ -46,6 +46,8 @@ func (a *ResourceEventsActivity) HandleResourceEventCheckForVCPActivity(ctx cont
 		return a.checkVolumeExistence(ctx, params)
 	case common.ResourceStateV1ResourceTypeBackupPolicy:
 		return a.checkBackupPolicyExistence(ctx, params)
+	case common.ResourceStateV1ResourceTypeAD:
+		return a.checkActiveDirectoryExistence(ctx, params)
 	default:
 		return false, errors.New("unsupported resource type")
 	}
@@ -124,6 +126,63 @@ func (a *ResourceEventsActivity) checkBackupPolicyExistence(ctx context.Context,
 	return true, nil
 }
 
+func (a *ResourceEventsActivity) checkActiveDirectoryExistence(ctx context.Context, params *common.HandleResourceEventParams) (bool, error) {
+	ad, err := a.SE.GetActiveDirectoryByUUID(ctx, params.ResourceId)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return false, temporal.NewNonRetryableApplicationError(err.Error(), ErrTypeResourceNotFound, err)
+		}
+		return false, err
+	}
+	if ad == nil {
+		notFoundErr := errors.New("active directory not found")
+		return false, temporal.NewNonRetryableApplicationError(notFoundErr.Error(), ErrTypeResourceNotFound, notFoundErr)
+	}
+	return true, nil
+}
+
+func (a *ResourceEventsActivity) handleActiveDirectory(ctx context.Context, params *common.HandleResourceEventParams, state string, stateDetails string) (bool, error) {
+	logger := util.GetLogger(ctx)
+
+	ad, err := a.SE.GetActiveDirectoryByUUID(ctx, params.ResourceId)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return false, temporal.NewNonRetryableApplicationError(err.Error(), ErrTypeResourceNotFound, err)
+		}
+		return false, err
+	}
+	if ad == nil {
+		notFoundErr := errors.New("active directory not found")
+		return false, temporal.NewNonRetryableApplicationError(notFoundErr.Error(), ErrTypeResourceNotFound, notFoundErr)
+	}
+
+	// For ON events, determine the AD state based on SVM usage.
+	// If any SVM references this AD, mark it as IN_USE; otherwise READY.
+	// For OFF events, apply the passed state (e.g. DISABLED) directly.
+	if state != coremodels.LifeCycleStateDisabled {
+		svms, err := a.SE.GetSVMsUsingActiveDirectory(ctx, ad.ID)
+		if err != nil {
+			logger.Error("Failed to check SVMs using active directory", "error", err, "active_directory_id", ad.ID)
+			return false, err
+		}
+		if len(svms) > 0 {
+			state = coremodels.LifeCycleStateInUse
+			stateDetails = coremodels.LifeCycleStateInUseDetails
+		} else {
+			state = coremodels.LifeCycleStateREADY
+			stateDetails = coremodels.LifeCycleStateReadyDetails
+		}
+	}
+
+	ad.State = state
+	ad.StateDetails = stateDetails
+	_, err = a.SE.UpdateActiveDirectory(ctx, ad)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func (a *ResourceEventsActivity) HandleResourceEventsOFFForVCPActivity(ctx context.Context, params *common.HandleResourceEventParams) (bool, error) {
 	switch params.ResourceType {
 	case common.ResourceStateV1ResourceTypeKmsConfig:
@@ -135,7 +194,7 @@ func (a *ResourceEventsActivity) HandleResourceEventsOFFForVCPActivity(ctx conte
 	case common.ResourceStateV1ResourceTypeVolume:
 		return a.handleVolume(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
 	case common.ResourceStateV1ResourceTypeAD:
-		return false, nil
+		return a.handleActiveDirectory(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
 	case common.ResourceStateV1ResourceTypeBackupPolicy:
 		return a.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateDisabled, coremodels.LifeCycleStateDisabledDetails)
 	case common.ResourceStateV1ResourceTypeHostGroup:
@@ -156,7 +215,7 @@ func (a *ResourceEventsActivity) HandleResourceEventsONForVCPActivity(ctx contex
 	case common.ResourceStateV1ResourceTypeVolume:
 		return a.handleVolume(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
 	case common.ResourceStateV1ResourceTypeAD:
-		return false, nil
+		return a.handleActiveDirectory(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
 	case common.ResourceStateV1ResourceTypeBackupPolicy:
 		return a.handleBackupPolicy(ctx, params, coremodels.LifeCycleStateREADY, coremodels.LifeCycleStateAvailableDetails)
 	case common.ResourceStateV1ResourceTypeHostGroup:

@@ -598,9 +598,75 @@ func TestHandleResourceEventsOFFForVCPActivity(t *testing.T) {
 			ResourceId:   "test-ad-id",
 		}
 
+		mockAD := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{UUID: "test-ad-id"},
+		}
+		mockSE.On("GetActiveDirectoryByUUID", ctx, params.ResourceId).Return(mockAD, nil)
+		// OFF event: no SVM check, state set directly to DISABLED
+		mockSE.On("UpdateActiveDirectory", ctx, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
+			return ad.UUID == "test-ad-id" && ad.State == coremodels.LifeCycleStateDisabled && ad.StateDetails == coremodels.LifeCycleStateDisabledDetails
+		})).Return(mockAD, nil)
+
+		result, err := activity.HandleResourceEventsOFFForVCPActivity(ctx, params)
+		assert.True(tt, result)
+		assert.Nil(tt, err)
+	})
+
+	t.Run("HandleResourceEventsOFFForVCPActivity_WhenADNotFound", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceType: common.ResourceStateV1ResourceTypeAD,
+			ResourceId:   "test-ad-id",
+		}
+
+		mockSE.On("GetActiveDirectoryByUUID", ctx, params.ResourceId).Return(nil, nil)
+
 		result, err := activity.HandleResourceEventsOFFForVCPActivity(ctx, params)
 		assert.False(tt, result)
-		assert.Nil(tt, err)
+		assert.NotNil(tt, err)
+		assert.ErrorContains(tt, err, "active directory not found")
+	})
+
+	t.Run("HandleResourceEventsOFFForVCPActivity_WhenADGetFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceType: common.ResourceStateV1ResourceTypeAD,
+			ResourceId:   "test-ad-id",
+		}
+
+		mockSE.On("GetActiveDirectoryByUUID", ctx, params.ResourceId).Return(nil, utilErrors.NewNotFoundErr("active-directory", nil))
+
+		result, err := activity.HandleResourceEventsOFFForVCPActivity(ctx, params)
+		assert.False(tt, result)
+		assert.NotNil(tt, err)
+	})
+
+	t.Run("HandleResourceEventsOFFForVCPActivity_WhenADUpdateFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceType: common.ResourceStateV1ResourceTypeAD,
+			ResourceId:   "test-ad-id",
+		}
+
+		mockAD := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{UUID: "test-ad-id"},
+		}
+		mockSE.On("GetActiveDirectoryByUUID", ctx, params.ResourceId).Return(mockAD, nil)
+		mockSE.On("UpdateActiveDirectory", ctx, mock.Anything).Return(nil, errors.New("update failed"))
+
+		result, err := activity.HandleResourceEventsOFFForVCPActivity(ctx, params)
+		assert.False(tt, result)
+		assert.NotNil(tt, err)
+		assert.ErrorContains(tt, err, "update failed")
 	})
 
 	t.Run("HandleResourceEventsOFFForVCPActivity_WhenResourceTypeIsUnsupported", func(tt *testing.T) {
@@ -767,6 +833,41 @@ func Test_HandleResourceEventCheckForVCPActivity(t *testing.T) {
 		assert.Nil(tt, err)
 	})
 
+	t.Run("HandleResourceEventCheckForVCPActivity_ActiveDirectoryExists", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceType: common.ResourceStateV1ResourceTypeAD,
+			ResourceId:   "test-ad-id",
+		}
+
+		mockSE.On("GetActiveDirectoryByUUID", ctx, params.ResourceId).Return(&datamodel.ActiveDirectory{}, nil)
+
+		result, err := activity.HandleResourceEventCheckForVCPActivity(ctx, params)
+		assert.True(tt, result)
+		assert.Nil(tt, err)
+	})
+
+	t.Run("HandleResourceEventCheckForVCPActivity_ActiveDirectoryNotFound", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceType: common.ResourceStateV1ResourceTypeAD,
+			ResourceId:   "test-ad-id",
+		}
+
+		mockSE.On("GetActiveDirectoryByUUID", ctx, params.ResourceId).Return(nil, nil)
+
+		result, err := activity.HandleResourceEventCheckForVCPActivity(ctx, params)
+		assert.False(tt, result)
+		assert.NotNil(tt, err)
+		assert.ErrorContains(tt, err, "active directory not found")
+	})
+
 	t.Run("HandleResourceEventCheckForVCPActivity_UnsupportedResourceType", func(tt *testing.T) {
 		ctx := context.Background()
 		mockSE := database.NewMockStorage(tt)
@@ -889,7 +990,7 @@ func TestHandleResourceEventsONForVCPActivity(t *testing.T) {
 		assert.Nil(tt, err)
 	})
 
-	t.Run("HandleResourceEventsONForVCPActivity_WhenResourceTypeIsAD", func(tt *testing.T) {
+	t.Run("HandleResourceEventsONForVCPActivity_WhenResourceTypeIsAD_NoSVMs_Ready", func(tt *testing.T) {
 		ctx := context.Background()
 		mockSE := database.NewMockStorage(tt)
 		activity := &ResourceEventsActivity{SE: mockSE}
@@ -899,9 +1000,125 @@ func TestHandleResourceEventsONForVCPActivity(t *testing.T) {
 			ResourceId:   "test-ad-id",
 		}
 
+		mockAD := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{UUID: "test-ad-id"},
+		}
+		mockSE.On("GetActiveDirectoryByUUID", ctx, params.ResourceId).Return(mockAD, nil)
+		mockSE.On("GetSVMsUsingActiveDirectory", ctx, mockAD.ID).Return([]*datamodel.Svm{}, nil)
+		mockSE.On("UpdateActiveDirectory", ctx, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
+			return ad.UUID == "test-ad-id" && ad.State == coremodels.LifeCycleStateREADY && ad.StateDetails == coremodels.LifeCycleStateReadyDetails
+		})).Return(mockAD, nil)
+
+		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
+		assert.True(tt, result)
+		assert.Nil(tt, err)
+	})
+
+	t.Run("HandleResourceEventsONForVCPActivity_WhenResourceTypeIsAD_WithSVMs_InUse", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceType: common.ResourceStateV1ResourceTypeAD,
+			ResourceId:   "test-ad-id",
+		}
+
+		mockAD := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{UUID: "test-ad-id"},
+		}
+		mockSVM := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "svm-1"},
+		}
+		mockSE.On("GetActiveDirectoryByUUID", ctx, params.ResourceId).Return(mockAD, nil)
+		mockSE.On("GetSVMsUsingActiveDirectory", ctx, mockAD.ID).Return([]*datamodel.Svm{mockSVM}, nil)
+		mockSE.On("UpdateActiveDirectory", ctx, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
+			return ad.UUID == "test-ad-id" && ad.State == coremodels.LifeCycleStateInUse && ad.StateDetails == coremodels.LifeCycleStateInUseDetails
+		})).Return(mockAD, nil)
+
+		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
+		assert.True(tt, result)
+		assert.Nil(tt, err)
+	})
+
+	t.Run("HandleResourceEventsONForVCPActivity_WhenADNotFound", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceType: common.ResourceStateV1ResourceTypeAD,
+			ResourceId:   "test-ad-id",
+		}
+
+		mockSE.On("GetActiveDirectoryByUUID", ctx, params.ResourceId).Return(nil, nil)
+
 		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
 		assert.False(tt, result)
-		assert.Nil(tt, err)
+		assert.NotNil(tt, err)
+		assert.ErrorContains(tt, err, "active directory not found")
+	})
+
+	t.Run("HandleResourceEventsONForVCPActivity_WhenADGetFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceType: common.ResourceStateV1ResourceTypeAD,
+			ResourceId:   "test-ad-id",
+		}
+
+		mockSE.On("GetActiveDirectoryByUUID", ctx, params.ResourceId).Return(nil, utilErrors.NewNotFoundErr("active-directory", nil))
+
+		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
+		assert.False(tt, result)
+		assert.NotNil(tt, err)
+	})
+
+	t.Run("HandleResourceEventsONForVCPActivity_WhenADUpdateFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceType: common.ResourceStateV1ResourceTypeAD,
+			ResourceId:   "test-ad-id",
+		}
+
+		mockAD := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{UUID: "test-ad-id"},
+		}
+		mockSE.On("GetActiveDirectoryByUUID", ctx, params.ResourceId).Return(mockAD, nil)
+		mockSE.On("GetSVMsUsingActiveDirectory", ctx, mockAD.ID).Return([]*datamodel.Svm{}, nil)
+		mockSE.On("UpdateActiveDirectory", ctx, mock.Anything).Return(nil, errors.New("update failed"))
+
+		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
+		assert.False(tt, result)
+		assert.NotNil(tt, err)
+		assert.ErrorContains(tt, err, "update failed")
+	})
+
+	t.Run("HandleResourceEventsONForVCPActivity_WhenADSVMLookupFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		params := &common.HandleResourceEventParams{
+			ResourceType: common.ResourceStateV1ResourceTypeAD,
+			ResourceId:   "test-ad-id",
+		}
+
+		mockAD := &datamodel.ActiveDirectory{
+			BaseModel: datamodel.BaseModel{UUID: "test-ad-id"},
+		}
+		mockSE.On("GetActiveDirectoryByUUID", ctx, params.ResourceId).Return(mockAD, nil)
+		mockSE.On("GetSVMsUsingActiveDirectory", ctx, mockAD.ID).Return(nil, errors.New("svm db error"))
+
+		result, err := activity.HandleResourceEventsONForVCPActivity(ctx, params)
+		assert.False(tt, result)
+		assert.NotNil(tt, err)
+		assert.ErrorContains(tt, err, "svm db error")
 	})
 
 	t.Run("HandleResourceEventsONForVCPActivity_WhenResourceTypeIsUnsupported", func(tt *testing.T) {
