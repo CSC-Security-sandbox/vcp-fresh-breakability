@@ -139,7 +139,7 @@ spec:
             - name: INTERVAL_BACKFILL_LIMIT_MINUTES
               value: "60"
             - name: COUNTER_BACKFILL_LIMIT_MINUTES
-              value: "0"
+              value: "60"
             - name: ENVIRONMENT
               value: "dev"
             - name: ENABLE_BACKUP_BILLING_METRICS

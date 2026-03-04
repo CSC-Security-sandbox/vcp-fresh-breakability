@@ -500,7 +500,7 @@ func getDefaultEnvVars() map[string]string {
 		"METRICS_DB_MAX_OPEN_CONNS":                  getEnvOrDefault("METRICS_DB_MAX_OPEN_CONNS", "25"),
 		"METRICS_DB_MAX_IDLE_CONNS":                  getEnvOrDefault("METRICS_DB_MAX_IDLE_CONNS", "25"),
 		"INTERVAL_BACKFILL_LIMIT_MINUTES":            getEnvOrDefault("INTERVAL_BACKFILL_LIMIT_MINUTES", "60"),
-		"COUNTER_BACKFILL_LIMIT_MINUTES":             getEnvOrDefault("COUNTER_BACKFILL_LIMIT_MINUTES", "0"),
+		"COUNTER_BACKFILL_LIMIT_MINUTES":             getEnvOrDefault("COUNTER_BACKFILL_LIMIT_MINUTES", "60"),
 		"METRICS_DB_CONN_MAX_LIFETIME":               getEnvOrDefault("METRICS_DB_CONN_MAX_LIFETIME", "1h"),
 		"ROOT_URL":                                   getEnvOrDefault("ROOT_URL", "https://servicecontrol.googleapis.com"),
 		"OPERATION_BATCH_SIZE":                       getEnvOrDefault("OPERATION_BATCH_SIZE", "200"),
