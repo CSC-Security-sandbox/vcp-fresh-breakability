@@ -96,7 +96,7 @@ func (a ActiveDirectoryUpdateActivity) MarkVcpAdToErrorActivity(ctx context.Cont
 	return nil
 }
 
-func (a ActiveDirectoryUpdateActivity) UpdateVcpActiveDirectory(ctx context.Context, params *common.UpdateActiveDirectoryParams, oldAd *models.ActiveDirectory, changeId string) error {
+func (a ActiveDirectoryUpdateActivity) UpdateVcpActiveDirectory(ctx context.Context, params *common.UpdateActiveDirectoryParams, oldAd *models.ActiveDirectory, changeId string, state string, stateDetails string) error {
 	Logger := util.GetLogger(ctx)
 	Logger.Debug("Updating VCP ActiveDirectory")
 
@@ -117,7 +117,6 @@ func (a ActiveDirectoryUpdateActivity) UpdateVcpActiveDirectory(ctx context.Cont
 	}
 
 	updatedAd := convertUpdateParamsToModel(params, oldAd)
-
 	if params.Password != nil {
 		decryptedPassword, decryptErr := utils.DecryptPassword(log.Secret(*params.Password))
 		if decryptErr != nil {
@@ -131,6 +130,8 @@ func (a ActiveDirectoryUpdateActivity) UpdateVcpActiveDirectory(ctx context.Cont
 		updatedAd.CredentialPath = oldDbAd.CredentialPath
 	}
 
+	updatedAd.State = state
+	updatedAd.StateDetails = stateDetails
 	updatedAd.ChangeId = changeId
 	updatedAd.ID = oldDbAd.ID
 	_, err = a.SE.UpdateActiveDirectory(ctx, updatedAd)
@@ -330,13 +331,11 @@ func convertUpdateParamsToModel(params *common.UpdateActiveDirectoryParams, oldA
 			UUID:      oldAd.UUID,
 			CreatedAt: oldAd.CreatedAt,
 		},
-		AdName:       oldAd.AdName,
-		Username:     oldAd.Username,
-		Domain:       oldAd.Domain,
-		DNS:          oldAd.DNS,
-		NetBIOS:      oldAd.NetBIOS,
-		State:        models.LifeCycleStateREADY,
-		StateDetails: models.LifeCycleStateReadyDetails,
+		AdName:   oldAd.AdName,
+		Username: oldAd.Username,
+		Domain:   oldAd.Domain,
+		DNS:      oldAd.DNS,
+		NetBIOS:  oldAd.NetBIOS,
 		ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
 			OrganizationalUnit: oldAd.ActiveDirectoryAttributes.OrganizationalUnit,
 			Site:               oldAd.ActiveDirectoryAttributes.Site,

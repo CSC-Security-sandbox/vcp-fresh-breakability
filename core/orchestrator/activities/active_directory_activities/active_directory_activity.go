@@ -49,6 +49,22 @@ func (a ActiveDirectoryActivity) GetActiveDirectoryForPool(ctx context.Context, 
 	return validateAndGetVsaActiveDirectory(ctx, activeDirectory)
 }
 
+// GetActiveDirectoryStateFromSVMUsage returns the appropriate state and stateDetails for an AD
+// based on whether any SVMs use it (IN_USE when in use, READY when not). Same logic as Create Volume flow.
+// On error fetching SVMs, defaults to READY and returns nil error.
+func (a ActiveDirectoryActivity) GetActiveDirectoryStateFromSVMUsage(ctx context.Context, activeDirectoryId int64) (common.ActiveDirectoryStateResult, error) {
+	logger := util.GetLogger(ctx)
+	svms, err := a.SE.GetSVMsUsingActiveDirectory(ctx, activeDirectoryId)
+	if err != nil {
+		logger.Warnf("Failed to fetch SVMs for Active Directory id %d, defaulting state to READY: %v", activeDirectoryId, err)
+		return common.ActiveDirectoryStateResult{State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateReadyDetails}, nil
+	}
+	if len(svms) > 0 {
+		return common.ActiveDirectoryStateResult{State: models.LifeCycleStateInUse, StateDetails: models.LifeCycleStateInUseDetails}, nil
+	}
+	return common.ActiveDirectoryStateResult{State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateReadyDetails}, nil
+}
+
 func (a ActiveDirectoryActivity) GetSvmsForAd(ctx context.Context, activeDirectoryId int64) ([]*datamodel.Svm, error) {
 	logger := util.GetLogger(ctx)
 	svms, err := a.SE.GetSVMsUsingActiveDirectory(ctx, activeDirectoryId)

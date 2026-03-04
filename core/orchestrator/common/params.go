@@ -489,7 +489,7 @@ type CreateBackupParams struct {
 	ConstituentCountOfBackup int32
 	VolumeUsageBytes         int64
 	BackupChainBytes         int64
-	IsExpertModeVolume       bool // Indicates if the volume is an expert mode volume (ONTAP mode)
+	IsExpertModeVolume       bool   // Indicates if the volume is an expert mode volume (ONTAP mode)
 	BackupVaultServiceType   string // Service type of the backup vault (GCBDR, GCNV, etc.)
 }
 
@@ -849,6 +849,12 @@ type RestoreForOntapModeParams struct {
 	BackupPath       string
 	Region           string
 	ExpertModeVolume *datamodel.ExpertModeVolumes // Expert mode volume with Pool, Account, Svm loaded
+}
+
+// ActiveDirectoryStateResult holds state and stateDetails computed from SVM usage (e.g. by GetActiveDirectoryStateFromSVMUsage activity).
+type ActiveDirectoryStateResult struct {
+	State        string
+	StateDetails string
 }
 
 type AdSdeUpdateResult struct {

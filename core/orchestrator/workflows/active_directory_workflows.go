@@ -522,10 +522,18 @@ func (wf *ActiveDirectoryUpdateWorkflow) handleVcpUpdate(
 		return err
 	}
 
-	// Then update VCP
-	logger.Info("Updating VCP Active Directory")
-	err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.UpdateVcpActiveDirectory, params, oldAd, vcpActiveDirectoryChangeId).Get(ctx, nil)
+	// Get state based on active SVMs using this AD (same as Create Volume flow: IN_USE when in use, READY when not)
+	adActivity := &active_directory_activities.ActiveDirectoryActivity{}
+	var stateResult common.ActiveDirectoryStateResult
+	err = workflow.ExecuteActivity(ctx, adActivity.GetActiveDirectoryStateFromSVMUsage, oldAd.ID).Get(ctx, &stateResult)
+	if err != nil {
+		logger.Errorf("Failed to get Active Directory state from SVM usage: %v", err)
+		return err
+	}
 
+	// Then update VCP with the computed state
+	logger.Info("Updating VCP Active Directory")
+	err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.UpdateVcpActiveDirectory, params, oldAd, vcpActiveDirectoryChangeId, stateResult.State, stateResult.StateDetails).Get(ctx, nil)
 	if err != nil {
 		logger.Errorf("Failed to update Active Directory in VCP: %v", err)
 		return err

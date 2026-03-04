@@ -617,7 +617,8 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 
 		// Mock Setup will be called by the workflow
 		env.OnActivity("GetSvmsForAd", mock.Anything, int64(456)).Return([]*datamodel.Svm{}, nil)
-		env.OnActivity("UpdateVcpActiveDirectory", mock.Anything, params, oldAd, mock.AnythingOfType("string")).Return(nil)
+		env.OnActivity("GetActiveDirectoryStateFromSVMUsage", mock.Anything, int64(456)).Return(common.ActiveDirectoryStateResult{State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateReadyDetails}, nil)
+		env.OnActivity("UpdateVcpActiveDirectory", mock.Anything, params, oldAd, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil)
 
 		var runResult interface{}
 		var runErr *vsaerrors.CustomError
@@ -665,6 +666,7 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 		env.RegisterActivity(adUpdateActivity.UpdateVcpActiveDirectory)
 
 		adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+		env.RegisterActivity(adActivity.GetActiveDirectoryStateFromSVMUsage)
 		env.RegisterActivity(adActivity.GetSvmsForAd)
 
 		commonActivity := activities.CommonActivities{SE: mockStorage}
@@ -700,7 +702,8 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 		env.OnActivity(adUpdateActivity.UpdateSdeActiveDirectory, mock.Anything, params).Return(sdeResult, nil)
 		env.OnActivity(adUpdateActivity.PollSdeUpdateActivity, mock.Anything, params, sdeResult).Return(nil)
 		env.OnActivity(adUpdateActivity.MarkVcpAdToUpdatingActivity, mock.Anything, params, adRecord).Return(nil)
-		env.OnActivity(adUpdateActivity.UpdateVcpActiveDirectory, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity(adActivity.GetActiveDirectoryStateFromSVMUsage, mock.Anything, int64(2)).Return(common.ActiveDirectoryStateResult{State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateReadyDetails}, nil)
+		env.OnActivity(adUpdateActivity.UpdateVcpActiveDirectory, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity(adActivity.GetSvmsForAd, mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil)
 
@@ -854,6 +857,7 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 		env.RegisterActivity(adUpdateActivity.MarkVcpAdToErrorActivity)
 
 		adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+		env.RegisterActivity(adActivity.GetActiveDirectoryStateFromSVMUsage)
 		env.RegisterActivity(adActivity.GetSvmsForAd)
 
 		commonActivity := activities.CommonActivities{SE: mockStorage}
@@ -872,7 +876,8 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 		}
 
 		env.OnActivity(adActivity.GetSvmsForAd, mock.Anything, int64(123)).Return([]*datamodel.Svm{}, nil)
-		env.OnActivity(adUpdateActivity.UpdateVcpActiveDirectory, mock.Anything, params, oldAd, mock.AnythingOfType("string")).Return(vsaerrors.New("VCP update failed"))
+		env.OnActivity(adActivity.GetActiveDirectoryStateFromSVMUsage, mock.Anything, int64(123)).Return(common.ActiveDirectoryStateResult{State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateReadyDetails}, nil)
+		env.OnActivity(adUpdateActivity.UpdateVcpActiveDirectory, mock.Anything, params, oldAd, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(vsaerrors.New("VCP update failed"))
 		env.OnActivity(adUpdateActivity.MarkVcpAdToErrorActivity, mock.Anything, params, oldAd).Return(nil)
 		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 
@@ -880,6 +885,81 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("VcpPath_GetActiveDirectoryStateFromSVMUsageFails_WorkflowFails", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryActivity{})
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		oldAd := &models.ActiveDirectory{
+			BaseModel: models.BaseModel{ID: 321},
+			AdName:    "test-ad",
+			Domain:    "example.com",
+		}
+		params := &common.UpdateActiveDirectoryParams{
+			AccountId:         "test-account",
+			ActiveDirectoryId: "ad-uuid",
+		}
+
+		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSvmsForAd", mock.Anything, int64(321)).Return([]*datamodel.Svm{}, nil)
+		env.OnActivity("GetActiveDirectoryStateFromSVMUsage", mock.Anything, int64(321)).
+			Return(common.ActiveDirectoryStateResult{}, vsaerrors.New("state fetch failed"))
+
+		env.ExecuteWorkflow(UpdateActiveDirectoryWorkflow, params, oldAd)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("VcpPath_StateActivityReturnsInUse_UpdateVcpCalledWithInUse", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryActivity{})
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+		oldAd := &models.ActiveDirectory{
+			BaseModel: models.BaseModel{ID: 555},
+			AdName:    "test-ad",
+			Domain:    "example.com",
+		}
+		params := &common.UpdateActiveDirectoryParams{
+			AccountId:         "test-account",
+			ActiveDirectoryId: "ad-uuid",
+		}
+
+		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSvmsForAd", mock.Anything, int64(555)).Return([]*datamodel.Svm{}, nil)
+		env.OnActivity("GetActiveDirectoryStateFromSVMUsage", mock.Anything, int64(555)).
+			Return(common.ActiveDirectoryStateResult{State: models.LifeCycleStateInUse, StateDetails: models.LifeCycleStateInUseDetails}, nil)
+		env.OnActivity("UpdateVcpActiveDirectory", mock.Anything, params, oldAd, mock.AnythingOfType("string"), models.LifeCycleStateInUse, models.LifeCycleStateInUseDetails).Return(nil)
+
+		env.ExecuteWorkflow(UpdateActiveDirectoryWorkflow, params, oldAd)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
 }
@@ -993,7 +1073,8 @@ func TestActiveDirectoryUpdateWorkflow_Run(t *testing.T) {
 		}
 
 		env.OnActivity("GetSvmsForAd", mock.Anything, int64(789)).Return([]*datamodel.Svm{}, nil)
-		env.OnActivity("UpdateVcpActiveDirectory", mock.Anything, params, oldAd, mock.AnythingOfType("string")).Return(nil)
+		env.OnActivity("GetActiveDirectoryStateFromSVMUsage", mock.Anything, int64(789)).Return(common.ActiveDirectoryStateResult{State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateReadyDetails}, nil)
+		env.OnActivity("UpdateVcpActiveDirectory", mock.Anything, params, oldAd, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil)
 
 		wf := &ActiveDirectoryUpdateWorkflow{}
 		var result interface{}
@@ -1067,7 +1148,8 @@ func TestActiveDirectoryUpdateWorkflow_Run(t *testing.T) {
 		env.OnActivity("UpdateSdeActiveDirectory", mock.Anything, params).Return(sdeResult, nil)
 		env.OnActivity("PollSdeUpdateActivity", mock.Anything, params, sdeResult).Return(nil)
 		env.OnActivity("MarkVcpAdToUpdatingActivity", mock.Anything, params, adRecord).Return(nil)
-		env.OnActivity("UpdateVcpActiveDirectory", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetActiveDirectoryStateFromSVMUsage", mock.Anything, int64(2)).Return(common.ActiveDirectoryStateResult{State: models.LifeCycleStateREADY, StateDetails: models.LifeCycleStateReadyDetails}, nil)
+		env.OnActivity("UpdateVcpActiveDirectory", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSvmsForAd", mock.Anything, int64(2)).Return([]*datamodel.Svm{}, nil)
 
 		var runResult interface{}

@@ -362,6 +362,93 @@ func TestActiveDirectoryActivity_GetSvmsForAd(t *testing.T) {
 	})
 }
 
+func TestActiveDirectoryActivity_GetActiveDirectoryStateFromSVMUsage(t *testing.T) {
+	t.Run("returns READY when GetSVMsUsingActiveDirectory fails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := ActiveDirectoryActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		activeDirectoryId := int64(123)
+
+		mockStorage.On("GetSVMsUsingActiveDirectory", ctx, activeDirectoryId).Return(([]*datamodel.Svm)(nil), vsaerrors.New("db error"))
+
+		result, err := activity.GetActiveDirectoryStateFromSVMUsage(ctx, activeDirectoryId)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, models.LifeCycleStateREADY, result.State)
+		assert.Equal(tt, models.LifeCycleStateReadyDetails, result.StateDetails)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("returns READY when no SVMs use the AD", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := ActiveDirectoryActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		activeDirectoryId := int64(456)
+
+		mockStorage.On("GetSVMsUsingActiveDirectory", ctx, activeDirectoryId).Return([]*datamodel.Svm{}, nil)
+
+		result, err := activity.GetActiveDirectoryStateFromSVMUsage(ctx, activeDirectoryId)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, models.LifeCycleStateREADY, result.State)
+		assert.Equal(tt, models.LifeCycleStateReadyDetails, result.StateDetails)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("returns IN_USE when SVMs use the AD", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := ActiveDirectoryActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		activeDirectoryId := int64(789)
+
+		svms := []*datamodel.Svm{{BaseModel: datamodel.BaseModel{ID: 1}, Name: "svm-1"}}
+		mockStorage.On("GetSVMsUsingActiveDirectory", ctx, activeDirectoryId).Return(svms, nil)
+
+		result, err := activity.GetActiveDirectoryStateFromSVMUsage(ctx, activeDirectoryId)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, models.LifeCycleStateInUse, result.State)
+		assert.Equal(tt, models.LifeCycleStateInUseDetails, result.StateDetails)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("returns READY when GetSVMsUsingActiveDirectory returns nil slice", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := ActiveDirectoryActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		activeDirectoryId := int64(999)
+
+		mockStorage.On("GetSVMsUsingActiveDirectory", ctx, activeDirectoryId).Return(([]*datamodel.Svm)(nil), nil)
+
+		result, err := activity.GetActiveDirectoryStateFromSVMUsage(ctx, activeDirectoryId)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, models.LifeCycleStateREADY, result.State)
+		assert.Equal(tt, models.LifeCycleStateReadyDetails, result.StateDetails)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("returns IN_USE when multiple SVMs use the AD", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := ActiveDirectoryActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		activeDirectoryId := int64(111)
+
+		svms := []*datamodel.Svm{
+			{BaseModel: datamodel.BaseModel{ID: 1}, Name: "svm-1"},
+			{BaseModel: datamodel.BaseModel{ID: 2}, Name: "svm-2"},
+		}
+		mockStorage.On("GetSVMsUsingActiveDirectory", ctx, activeDirectoryId).Return(svms, nil)
+
+		result, err := activity.GetActiveDirectoryStateFromSVMUsage(ctx, activeDirectoryId)
+
+		assert.NoError(tt, err)
+		assert.Equal(tt, models.LifeCycleStateInUse, result.State)
+		assert.Equal(tt, models.LifeCycleStateInUseDetails, result.StateDetails)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
 func TestActiveDirectoryActivity_GenerateUpdateAdCredentialsParams(t *testing.T) {
 	t.Run("returns error when GetActiveDirectoryByUUID fails", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
@@ -1152,4 +1239,3 @@ func TestActiveDirectoryActivity_UpdateActiveDirectoryState(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 }
-

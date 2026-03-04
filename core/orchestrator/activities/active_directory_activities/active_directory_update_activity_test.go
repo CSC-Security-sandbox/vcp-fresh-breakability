@@ -131,7 +131,101 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_Success(t *testi
 	updatePasswordSecret = mockUpdatePasswordSecret
 	defer func() { updatePasswordSecret = originalUpdatePassword }()
 
-	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "test-change-id")
+	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "test-change-id", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_Success_SetsInUseWhenSvmsExist(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	activity := &ActiveDirectoryUpdateActivity{
+		SE: mockStorage,
+	}
+
+	params := &common.UpdateActiveDirectoryParams{
+		ActiveDirectoryId: "test-ad-uuid",
+		AccountId:         "123",
+		DNS:               nillable.GetStringPtr("10.0.0.2"),
+	}
+
+	ad := &models.ActiveDirectory{
+		BaseModel:                 models.BaseModel{UUID: "test-ad-uuid"},
+		AdName:                    "test-ad",
+		ActiveDirectoryAttributes: &models.ActiveDirectoryAttributes{},
+	}
+
+	existingRecord := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-ad-uuid"},
+		AdName:    "test-ad",
+		AccountId: 123,
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 123},
+		Name:      "test-account",
+	}
+
+	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil).Maybe()
+	mockStorage.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, "test-ad", int64(123)).
+		Return(existingRecord, nil)
+	mockStorage.On("UpdateActiveDirectory", mock.Anything, mock.MatchedBy(func(ad *datamodel.ActiveDirectory) bool {
+		return ad.State == models.LifeCycleStateInUse &&
+			ad.StateDetails == models.LifeCycleStateInUseDetails
+	})).Return(existingRecord, nil)
+
+	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "test-change-id", models.LifeCycleStateInUse, models.LifeCycleStateInUseDetails)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_PersistsPassedStateAndStateDetails(t *testing.T) {
+	// Verifies that state and stateDetails passed into UpdateVcpActiveDirectory are the ones persisted to DB
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	activity := &ActiveDirectoryUpdateActivity{
+		SE: mockStorage,
+	}
+
+	params := &common.UpdateActiveDirectoryParams{
+		ActiveDirectoryId: "test-ad-uuid",
+		AccountId:         "123",
+		DNS:               nillable.GetStringPtr("10.0.0.2"),
+	}
+
+	ad := &models.ActiveDirectory{
+		BaseModel:                 models.BaseModel{UUID: "test-ad-uuid"},
+		AdName:                    "test-ad",
+		ActiveDirectoryAttributes: &models.ActiveDirectoryAttributes{},
+	}
+
+	existingRecord := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-ad-uuid"},
+		AdName:    "test-ad",
+		AccountId: 123,
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 123},
+		Name:      "test-account",
+	}
+
+	customState := "READY"
+	customStateDetails := "No SVMs using this AD"
+
+	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil)
+	mockStorage.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, "test-ad", int64(123)).
+		Return(existingRecord, nil)
+	mockStorage.On("UpdateActiveDirectory", mock.Anything, mock.MatchedBy(func(updated *datamodel.ActiveDirectory) bool {
+		return updated.State == customState && updated.StateDetails == customStateDetails &&
+			updated.ChangeId == "change-123"
+	})).Return(existingRecord, nil)
+
+	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "change-123", customState, customStateDetails)
 
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
@@ -168,7 +262,7 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_ADNotFound(t *te
 	mockStorage.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, "test-ad", int64(123)).
 		Return(nil, nil)
 
-	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "test-change-id")
+	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "test-change-id", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
 
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
@@ -218,7 +312,7 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_PasswordStoreFai
 	mockStorage.On("GetAccount", mock.Anything, "123").Return(account, nil).Maybe()
 
 	mockStorage.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, "test-ad", int64(123)).
-		Return(existingRecord, nil)
+		Return(existingRecord, nil).Maybe()
 
 	// Mock password decryption
 	originalDecryptPassword := utils.DecryptPassword
@@ -235,7 +329,7 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_PasswordStoreFai
 	}
 	defer func() { updatePasswordSecret = originalUpdatePassword }()
 
-	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "test-change-id")
+	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "test-change-id", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to store password")
@@ -289,7 +383,7 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_UpdateDBFailed(t
 	mockStorage.On("UpdateActiveDirectory", mock.Anything, mock.Anything).
 		Return(nil, vsaerrors.New("database update failed"))
 
-	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "test-change-id")
+	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "test-change-id", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "database update failed")
@@ -365,7 +459,7 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_PartialUpdate(t 
 			ad.DNS == "10.0.0.3" // DNS updated
 	})).Return(updatedRecord, nil)
 
-	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "test-change-id")
+	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "test-change-id", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
 
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
@@ -449,7 +543,7 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_UpdateSecurityGr
 			ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectoryGroupBuiltInAdministrators] == nil
 	})).Return(updatedRecord, nil)
 
-	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "test-change-id")
+	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "test-change-id", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
 
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
@@ -535,7 +629,7 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_UpdateToEmptyLis
 			ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectoryGroupBuiltInAdministrators] == nil
 	})).Return(updatedRecord, nil)
 
-	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "test-change-id")
+	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "test-change-id", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
 
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
@@ -620,7 +714,7 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_UpdateOnlyOneToE
 			len(ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectoryGroupBuiltInAdministrators]) == 1
 	})).Return(updatedRecord, nil)
 
-	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "test-change-id")
+	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "test-change-id", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
 
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
@@ -638,9 +732,9 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_MixedEmptyAndNon
 	params := &common.UpdateActiveDirectoryParams{
 		ActiveDirectoryId: "test-ad-uuid",
 		AccountId:         "123",
-		SecurityOperators: []string{},                   // Empty list -> should become nil
-		BackupOperators:   []string{"backup-user-1"},   // Non-empty list -> should remain as array
-		Administrators:    []string{},                   // Empty list -> should become nil
+		SecurityOperators: []string{},                // Empty list -> should become nil
+		BackupOperators:   []string{"backup-user-1"}, // Non-empty list -> should remain as array
+		Administrators:    []string{},                // Empty list -> should become nil
 	}
 
 	ad := &models.ActiveDirectory{
@@ -710,7 +804,7 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_MixedEmptyAndNon
 			ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectoryGroupBuiltInAdministrators] == nil
 	})).Return(updatedRecord, nil)
 
-	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "test-change-id")
+	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "test-change-id", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
 
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
@@ -778,7 +872,7 @@ func TestActiveDirectoryUpdateActivity_NilAttributes(t *testing.T) {
 	mockStorage.On("UpdateActiveDirectory", mock.Anything, mock.Anything).
 		Return(updatedRecord, nil)
 
-	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "test-change-id")
+	err := activity.UpdateVcpActiveDirectory(ctx, params, ad, "test-change-id", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
 
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
@@ -1054,9 +1148,9 @@ func TestActiveDirectoryUpdateActivity_UpdateSdeActiveDirectory_MixedEmptyAndNon
 		AccountId:         "123456789",
 		LocationId:        "us-central1",
 		XCorrelationId:    "test-correlation-id",
-		SecurityOperators: []string{},                 // Empty list
+		SecurityOperators: []string{},                // Empty list
 		BackupOperators:   []string{"backup-user-1"}, // Non-empty list
-		Administrators:    []string{},                 // Empty list
+		Administrators:    []string{},                // Empty list
 	}
 
 	// Mock JWT token in context
@@ -1934,7 +2028,7 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_PasswordDecrypti
 		mockStorage.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, "test-ad", int64(123)).Return(oldAdDbRecord, nil)
 		mockStorage.On("UpdateActiveDirectory", mock.Anything, mock.Anything).Return(oldAdDbRecord, nil)
 
-		err := activity.UpdateVcpActiveDirectory(ctx, params, oldAd, "test-change-id")
+		err := activity.UpdateVcpActiveDirectory(ctx, params, oldAd, "test-change-id", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
 
 		assert.NoError(t, err)
 		assert.True(t, updatePasswordSecretCalled, "updatePasswordSecret should have been called")
@@ -2000,7 +2094,7 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_PasswordDecrypti
 		mockStorage.On("GetAccount", mock.Anything, "123").Return(mockAccount, nil)
 		mockStorage.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, "test-ad", int64(123)).Return(oldAdDbRecord, nil)
 
-		err := activity.UpdateVcpActiveDirectory(ctx, params, oldAd, "test-change-id")
+		err := activity.UpdateVcpActiveDirectory(ctx, params, oldAd, "test-change-id", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
 
 		assert.Error(t, err)
 	})
@@ -2072,7 +2166,7 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_PasswordDecrypti
 		mockStorage.On("GetAccount", mock.Anything, "123").Return(mockAccount, nil)
 		mockStorage.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, "test-ad", int64(123)).Return(oldAdDbRecord, nil)
 
-		err := activity.UpdateVcpActiveDirectory(ctx, params, oldAd, "test-change-id")
+		err := activity.UpdateVcpActiveDirectory(ctx, params, oldAd, "test-change-id", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
 
 		assert.Error(t, err)
 	})
@@ -2129,7 +2223,7 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_PasswordDecrypti
 		mockStorage.On("GetActiveDirectoryByNameAndAccountID", mock.Anything, "test-ad", int64(123)).Return(oldAdDbRecord, nil)
 		mockStorage.On("UpdateActiveDirectory", mock.Anything, mock.Anything).Return(oldAdDbRecord, nil)
 
-		err := activity.UpdateVcpActiveDirectory(ctx, params, oldAd, "test-change-id")
+		err := activity.UpdateVcpActiveDirectory(ctx, params, oldAd, "test-change-id", models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails)
 
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
