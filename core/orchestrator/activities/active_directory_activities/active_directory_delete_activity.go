@@ -6,6 +6,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -160,7 +161,9 @@ func (a ActiveDirectoryDeleteActivity) DeleteSdeActiveDirectory(ctx context.Cont
 		// Handle different error types
 		switch e := err.(type) {
 		case *active_directories.V1betaDeleteActiveDirectoryConflict:
-			return customerrors.NewConflictErr(fmt.Sprintf("Active Directory deletion conflict: %v", e.Error()))
+			conflictErr := vsaerrors.NewVCPError(vsaerrors.ErrActiveDirectoryDeleteErrorDueToInUseByPool,
+				fmt.Errorf("Active Directory deletion conflict: %v", e.Error()))
+			return vsaerrors.WrapAsNonRetryableTemporalApplicationError(conflictErr)
 		case *active_directories.V1betaDeleteActiveDirectoryBadRequest:
 			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Bad request when deleting Active Directory: %v", e.Error()))
 		case *active_directories.V1betaDeleteActiveDirectoryDefault:

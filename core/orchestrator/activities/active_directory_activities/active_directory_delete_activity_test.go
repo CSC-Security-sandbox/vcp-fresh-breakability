@@ -2,18 +2,26 @@ package active_directory_activities
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
-	"net/http"
-	"testing"
+	"go.temporal.io/sdk/temporal"
 )
 
 // TestCheckDeletionAllowed tests the CheckDeletionAllowed activity
@@ -464,21 +472,51 @@ func TestDeleteSdeActiveDirectory(t *testing.T) {
 		t.Skip("Requires CVP client injection for full testing")
 	})
 
-	t.Run("Error_ConflictError", func(t *testing.T) {
-		// Test conflict error handling
-		mockError := &active_directories.V1betaDeleteActiveDirectoryConflict{
-			Payload: &models.Error{
+	t.Run("Error_ConflictReturnsNonRetryableError", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			_ = json.NewEncoder(w).Encode(models.Error{
 				Code:    409,
-				Message: "Conflict",
-			},
+				Message: "AD credentials are in use by Storage Pool(s)",
+			})
+		}))
+		defer server.Close()
+
+		originalCVPHost := cvp.CVP_HOST
+		originalRegion := env.Region
+		originalRetryDelay := cvp.ApiCvpRetryDelay
+		originalMaxRetries := cvp.ApiCvpMaxRetries
+		defer func() {
+			cvp.SetCVPHost(originalCVPHost)
+			env.Region = originalRegion
+			cvp.ApiCvpRetryDelay = originalRetryDelay
+			cvp.ApiCvpMaxRetries = originalMaxRetries
+		}()
+
+		cvp.SetCVPHost(strings.TrimPrefix(server.URL, "http://"))
+		env.Region = "us-central1"
+		cvp.ApiCvpRetryDelay = 0
+		cvp.ApiCvpMaxRetries = 1
+
+		activity := &ActiveDirectoryDeleteActivity{}
+		ctx := context.Background()
+		params := &common.DeleteActiveDirectoryParams{
+			AccountId:           int64(42),
+			ActiveDirectoryUUID: "ad-uuid-123",
+			ProjectNumber:       "test-project",
 		}
 
-		// Verify we can detect conflict errors
-		assert.NotNil(t, mockError)
-		assert.Equal(t, float64(409), mockError.Payload.Code)
+		err := activity.DeleteSdeActiveDirectory(ctx, params)
 
-		// Full test would require CVP client injection
-		t.Skip("Requires CVP client injection for full testing")
+		assert.Error(t, err)
+		var appErr *temporal.ApplicationError
+		assert.True(t, errors.As(err, &appErr))
+		assert.True(t, appErr.NonRetryable())
+
+		var customErr *vsaerrors.CustomError
+		assert.True(t, errors.As(err, &customErr))
+		assert.True(t, customErr.IsError(vsaerrors.ErrActiveDirectoryDeleteErrorDueToInUseByPool))
 	})
 
 	t.Run("Error_BadRequest", func(t *testing.T) {

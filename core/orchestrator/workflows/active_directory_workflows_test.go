@@ -27,6 +27,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
 	"go.temporal.io/sdk/converter"
+	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/testsuite"
 	"go.temporal.io/sdk/workflow"
 )
@@ -2484,6 +2485,149 @@ func TestActiveDirectoryDeleteWorkflow_Run(t *testing.T) {
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		assert.NotNil(t, runErr)
+		assert.Nil(t, runResult)
+		env.AssertExpectations(t)
+	})
+
+	t.Run("Failure_SdeConflict_ADNotFoundAtVCP_Returns409", func(t *testing.T) {
+		// Verify that when DeleteSdeActiveDirectory returns a CustomError with
+		// ErrActiveDirectoryDeleteErrorDueToInUseByPool (14000), the workflow
+		// properly surfaces it. This simulates CVP returning 409 Conflict.
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logger": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryDeleteActivity{})
+
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+
+		params := &common.DeleteActiveDirectoryParams{
+			AccountId:           int64(444),
+			ActiveDirectoryUUID: "ad-uuid-cvp-conflict",
+			ProjectNumber:       "test-project-444",
+		}
+
+		originalHost := cvp.CVP_HOST
+		cvp.CVP_HOST = cvpHost
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
+
+		checkResult := &active_directory_activities.CheckDeletionAllowedResult{
+			ADExists:        false,
+			DeletionAllowed: true,
+		}
+
+		sdeConflictErr := temporal.NewNonRetryableApplicationError(
+			"Error deleting active directory - Active Directory credentials are in use by Storage Pool(s)",
+			vsaerrors.CustomErrorType,
+			nil,
+			vsaerrors.ErrActiveDirectoryDeleteErrorDueToInUseByPool,
+			"Active Directory deletion conflict: AD credentials are in use by Storage Pool(s)",
+		)
+
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.ProjectNumber).Return("test-jwt-token", nil)
+		env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
+		env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(sdeConflictErr)
+
+		var runResult interface{}
+		var runErr *vsaerrors.CustomError
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			wf := &ActiveDirectoryDeleteWorkflow{}
+			runResult, runErr = wf.Run(ctx, params)
+			if runErr != nil {
+				return runErr
+			}
+			return nil
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		require.NotNil(t, runErr, "expected CustomError from Run()")
+		assert.True(t, runErr.IsError(vsaerrors.ErrActiveDirectoryDeleteErrorDueToInUseByPool),
+			"expected tracking ID 14000, got %d", runErr.TrackingID)
+		assert.Nil(t, runResult)
+		env.AssertExpectations(t)
+	})
+
+	t.Run("Failure_SdeConflict_ADExistsAtBoth_Returns409", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logger": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryDeleteActivity{})
+
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+
+		params := &common.DeleteActiveDirectoryParams{
+			AccountId:           int64(555),
+			ActiveDirectoryUUID: "ad-uuid-cvp-conflict-both",
+			ProjectNumber:       "test-project-555-conflict",
+		}
+
+		originalHost := cvp.CVP_HOST
+		cvp.CVP_HOST = cvpHost
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
+
+		checkResult := &active_directory_activities.CheckDeletionAllowedResult{
+			ADExists:        true,
+			DeletionAllowed: true,
+		}
+
+		sdeConflictErr := temporal.NewNonRetryableApplicationError(
+			"Error deleting active directory - Active Directory credentials are in use by Storage Pool(s)",
+			vsaerrors.CustomErrorType,
+			nil,
+			vsaerrors.ErrActiveDirectoryDeleteErrorDueToInUseByPool,
+			"Active Directory deletion conflict: AD credentials are in use by Storage Pool(s)",
+		)
+
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.ProjectNumber).Return("test-jwt-token", nil)
+		env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
+		env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(sdeConflictErr)
+
+		var runResult interface{}
+		var runErr *vsaerrors.CustomError
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			wf := &ActiveDirectoryDeleteWorkflow{}
+			runResult, runErr = wf.Run(ctx, params)
+			if runErr != nil {
+				return runErr
+			}
+			return nil
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		require.NotNil(t, runErr, "expected CustomError from Run()")
+		assert.True(t, runErr.IsError(vsaerrors.ErrActiveDirectoryDeleteErrorDueToInUseByPool),
+			"expected tracking ID 14000, got %d", runErr.TrackingID)
 		assert.Nil(t, runResult)
 		env.AssertExpectations(t)
 	})
