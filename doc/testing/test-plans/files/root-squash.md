@@ -3,7 +3,7 @@
 **Document Version:** 1.0  
 **Last Updated:** February 16, 2026  
 **Status:** Draft  
-**JIRA Tracker:** [TBD]  
+**JIRA Tracker:** [NFSAAS-121918]  
 **Component:** VSA Files – Export Policy (hasRootAccess, allSquash, anonUid, allowedClients, accessType)  
 **Data Protection Classification:** Internal
 
@@ -72,15 +72,6 @@ This document contains test cases for NFS export policy behavior related to **ro
 - All invalid Create/Update requests return 400 with the specified error messages.
 - All valid Update requests result in Get Volume response matching the expected table.
 
-## 8. Test Schedule
-- [TBD]
-
-## 9. Test Team
-- **Test Lead:** [TBD]
-- **Test Engineers:** [TBD]
-
-## 10. Deliverables
-- This test plan, execution report, and automation artifacts.
 
 ---
 
