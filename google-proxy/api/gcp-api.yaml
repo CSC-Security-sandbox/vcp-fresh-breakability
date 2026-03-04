@@ -845,9 +845,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Operation_v1beta'
-        "204":
-          description: No content
-          content: {}
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':

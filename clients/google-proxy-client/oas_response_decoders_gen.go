@@ -12605,9 +12605,6 @@ func decodeV1betaDeleteVolumePerformanceGroupResponse(resp *http.Response) (res 
 		default:
 			return res, validate.InvalidContentType(ct)
 		}
-	case 204:
-		// Code 204.
-		return &V1betaDeleteVolumePerformanceGroupNoContent{}, nil
 	case 400:
 		// Code 400.
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))

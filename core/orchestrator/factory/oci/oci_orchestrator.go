@@ -657,8 +657,8 @@ func (o *OCIOrchestrator) UpdateVolumePerformanceGroup(ctx context.Context, para
 	return nil, "", utilserrors.NewNotImplementedYetErr()
 }
 
-func (o *OCIOrchestrator) DeleteVolumePerformanceGroup(ctx context.Context, params *commonparams.DeleteVolumePerformanceGroupParams) error {
-	return utilserrors.NewNotImplementedYetErr()
+func (o *OCIOrchestrator) DeleteVolumePerformanceGroup(ctx context.Context, params *commonparams.DeleteVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, error) {
+	return nil, utilserrors.NewNotImplementedYetErr()
 }
 
 func (o *OCIOrchestrator) ReplaceDstQuotaRulesWithSrc(ctx context.Context, req *commonparams.UpdateDstWithSrcQuotaRulesV1beta, params commonparams.V1betaUpdateDestinationQuotaRulesVCPParams) ([]*datamodel.QuotaRule, error) {

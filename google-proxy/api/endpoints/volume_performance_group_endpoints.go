@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/go-faster/jx"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
@@ -13,7 +14,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	"github.com/go-faster/jx"
 )
 
 var (
@@ -221,21 +221,54 @@ func (h Handler) V1betaDeleteVolumePerformanceGroup(ctx context.Context, params 
 			Message: "Deleting volume performance group is not enabled",
 		}, nil
 	}
+	logger := util.GetLogger(ctx)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+
 	deleteParams := &common.DeleteVolumePerformanceGroupParams{
 		AccountName:              params.ProjectNumber,
 		PoolID:                   params.PoolId,
 		VolumePerformanceGroupID: params.VolumePerformanceGroupId,
 	}
-	err := h.Orchestrator.DeleteVolumePerformanceGroup(ctx, deleteParams)
+	vpg, err := h.Orchestrator.DeleteVolumePerformanceGroup(ctx, deleteParams)
 	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaDeleteVolumePerformanceGroupNotFound{
+				Code:    http.StatusNotFound,
+				Message: "Volume performance group not found",
+			}, nil
+		}
+		if errors.IsConflictErr(err) {
+			return &gcpgenserver.V1betaDeleteVolumePerformanceGroupConflict{
+				Code:    http.StatusConflict,
+				Message: err.Error(),
+			}, nil
+		}
+		if errors.IsUserInputValidationErr(err) {
+			return &gcpgenserver.V1betaDeleteVolumePerformanceGroupBadRequest{
+				Code:    http.StatusBadRequest,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to delete volume performance group", "error", err.Error())
 		return &gcpgenserver.V1betaDeleteVolumePerformanceGroupInternalServerError{
 			Code:    http.StatusInternalServerError,
 			Message: "Internal server error",
 		}, err
 	}
-	return &gcpgenserver.V1betaDeleteVolumePerformanceGroupNotImplemented{
-		Code:    http.StatusNotImplemented,
-		Message: "Deleting volume performance group is not implemented",
+	// Return operation with deleted VPG in response (like volume delete).
+	vcpVPG := convertModelToVCPVolumePerformanceGroup(vpg, params.PoolId)
+	data, err := json.Marshal(vcpVPG)
+	if err != nil {
+		return &gcpgenserver.V1betaDeleteVolumePerformanceGroupInternalServerError{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to encode response",
+		}, err
+	}
+	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/vpg-delete-" + vpg.UUID
+	return &gcpgenserver.OperationV1beta{
+		Name:     gcpgenserver.NewOptString(operationID),
+		Response: jx.Raw(data),
+		Done:     gcpgenserver.NewOptBool(true),
 	}, nil
 }
 

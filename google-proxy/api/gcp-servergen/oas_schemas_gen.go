@@ -20593,11 +20593,6 @@ type V1betaDeleteVolumePerformanceGroupInternalServerError Error
 func (*V1betaDeleteVolumePerformanceGroupInternalServerError) v1betaDeleteVolumePerformanceGroupRes() {
 }
 
-// V1betaDeleteVolumePerformanceGroupNoContent is response for V1betaDeleteVolumePerformanceGroup operation.
-type V1betaDeleteVolumePerformanceGroupNoContent struct{}
-
-func (*V1betaDeleteVolumePerformanceGroupNoContent) v1betaDeleteVolumePerformanceGroupRes() {}
-
 type V1betaDeleteVolumePerformanceGroupNotFound Error
 
 func (*V1betaDeleteVolumePerformanceGroupNotFound) v1betaDeleteVolumePerformanceGroupRes() {}

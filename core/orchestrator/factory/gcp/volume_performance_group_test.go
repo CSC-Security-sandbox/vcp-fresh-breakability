@@ -8,9 +8,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflowEngineMock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 )
 
@@ -1232,18 +1236,553 @@ func TestUpdateVolumePerformanceGroup(t *testing.T) {
 }
 
 func TestDeleteVolumePerformanceGroup(t *testing.T) {
-	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		orchestrator := &GCPOrchestrator{storage: mockStorage}
+	ctx := context.Background()
 
-		params := &common.DeleteVolumePerformanceGroupParams{
-			AccountName:              "test-account",
-			PoolID:                   "test-pool-id",
-			VolumePerformanceGroupID: "test-vpg-id",
+	t.Run("Success_DeletesFromONTAPAndDB", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
 		}
 
-		err := orchestrator.DeleteVolumePerformanceGroup(context.Background(), params)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:       datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				DeploymentName:  "deploy-1",
+				PoolCredentials: &datamodel.PoolCredentials{},
+			},
+		}
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel:        datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
+			Name:             "vpg-name",
+			OntapQosPolicyID: "ontap-policy-name",
+			PoolID:           1,
+		}
+		svm := &datamodel.Svm{Name: "svm1"}
+		nodes := []*datamodel.Node{{BaseModel: datamodel.BaseModel{ID: 1}, EndpointAddress: "10.0.0.1"}}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
+		mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(svm, nil)
+		mockStorage.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
+		mockProvider.On("DeleteQoSGroupPolicy", vsa.DeleteQoSGroupPolicyParams{Name: "ontap-policy-name", SvmName: "svm1"}).Return(nil)
+		mockStorage.On("HardDeleteVolumePerformanceGroup", ctx, vpg).Return(nil)
+
+		o := &GCPOrchestrator{storage: mockStorage}
+		params := &common.DeleteVolumePerformanceGroupParams{
+			AccountName:              "test-account",
+			PoolID:                   "pool-id",
+			VolumePerformanceGroupID: "vpg-uuid",
+		}
+
+		deletedVpg, err := o.DeleteVolumePerformanceGroup(ctx, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, deletedVpg)
+		assert.Equal(tt, "vpg-uuid", deletedVpg.UUID)
+		mockStorage.AssertExpectations(tt)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("Conflict_WhenVolumesAttached", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"}}}
+		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"}, PoolID: 1}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(2), nil)
+
+		o := &GCPOrchestrator{storage: mockStorage}
+		params := &common.DeleteVolumePerformanceGroupParams{
+			AccountName:              "test-account",
+			PoolID:                   "pool-id",
+			VolumePerformanceGroupID: "vpg-uuid",
+		}
+
+		deletedVpg, err := o.DeleteVolumePerformanceGroup(ctx, params)
 		assert.Error(tt, err)
-		assert.Equal(tt, "deleting volume performance group is not implemented", err.Error())
+		assert.Nil(tt, deletedVpg)
+		assert.True(tt, utilErrors.IsConflictErr(err))
+		assert.Contains(tt, err.Error(), "attached to one or more volumes")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("NotFound_WhenVPGMissing", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"}}}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(nil, utilErrors.NewNotFoundErr("vpg", nil))
+
+		o := &GCPOrchestrator{storage: mockStorage}
+		params := &common.DeleteVolumePerformanceGroupParams{
+			AccountName:              "test-account",
+			PoolID:                   "pool-id",
+			VolumePerformanceGroupID: "vpg-uuid",
+		}
+
+		deletedVpg, err := o.DeleteVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, deletedVpg)
+		assert.True(tt, utilErrors.IsNotFoundErr(err))
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("BadRequest_WhenVPGBelongsToDifferentPool", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"}}}
+		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"}, PoolID: 2}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
+
+		o := &GCPOrchestrator{storage: mockStorage}
+		params := &common.DeleteVolumePerformanceGroupParams{
+			AccountName:              "test-account",
+			PoolID:                   "pool-id",
+			VolumePerformanceGroupID: "vpg-uuid",
+		}
+
+		deletedVpg, err := o.DeleteVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, deletedVpg)
+		assert.True(tt, utilErrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "does not belong to the specified pool")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("SkipsONTAPDelete_WhenOntapQosPolicyIDEmpty", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:       datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				DeploymentName:  "deploy-1",
+				PoolCredentials: &datamodel.PoolCredentials{},
+			},
+		}
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel:        datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
+			OntapQosPolicyID: "",
+			PoolID:           1,
+		}
+		svm := &datamodel.Svm{Name: "svm1"}
+		nodes := []*datamodel.Node{{BaseModel: datamodel.BaseModel{ID: 1}, EndpointAddress: "10.0.0.1"}}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
+		mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(svm, nil)
+		mockStorage.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
+		// DeleteQoSGroupPolicy should NOT be called when OntapQosPolicyID is empty
+		mockStorage.On("HardDeleteVolumePerformanceGroup", ctx, vpg).Return(nil)
+
+		o := &GCPOrchestrator{storage: mockStorage}
+		params := &common.DeleteVolumePerformanceGroupParams{
+			AccountName:              "test-account",
+			PoolID:                   "pool-id",
+			VolumePerformanceGroupID: "vpg-uuid",
+		}
+
+		deletedVpg, err := o.DeleteVolumePerformanceGroup(ctx, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, deletedVpg)
+		mockStorage.AssertExpectations(tt)
+		mockProvider.AssertNotCalled(tt, "DeleteQoSGroupPolicy")
+	})
+
+	t.Run("ReturnsErrorWhenDescribePoolFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(nil, errors.New("pool not found"))
+		o := &GCPOrchestrator{storage: mockStorage}
+		params := &common.DeleteVolumePerformanceGroupParams{
+			AccountName: "test-account", PoolID: "pool-id", VolumePerformanceGroupID: "vpg-uuid",
+		}
+		deletedVpg, err := o.DeleteVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, deletedVpg)
+		assert.Contains(tt, err.Error(), "pool not found")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ReturnsErrorWhenGetVolumePerformanceGroupByUUIDFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"}}}
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(nil, errors.New("db error"))
+		o := &GCPOrchestrator{storage: mockStorage}
+		params := &common.DeleteVolumePerformanceGroupParams{
+			AccountName: "test-account", PoolID: "pool-id", VolumePerformanceGroupID: "vpg-uuid",
+		}
+		deletedVpg, err := o.DeleteVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, deletedVpg)
+		assert.Contains(tt, err.Error(), "db error")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ReturnsErrorWhenGetVolumeCountByVolumePerformanceGroupIDFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"}}}
+		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"}, PoolID: 1}
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), errors.New("db error"))
+		o := &GCPOrchestrator{storage: mockStorage}
+		params := &common.DeleteVolumePerformanceGroupParams{
+			AccountName: "test-account", PoolID: "pool-id", VolumePerformanceGroupID: "vpg-uuid",
+		}
+		deletedVpg, err := o.DeleteVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, deletedVpg)
+		assert.Contains(tt, err.Error(), "db error")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ReturnsErrorWhenGetSvmForPoolIDFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"}}}
+		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"}, PoolID: 1}
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
+		mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(nil, errors.New("svm not found"))
+		o := &GCPOrchestrator{storage: mockStorage}
+		params := &common.DeleteVolumePerformanceGroupParams{
+			AccountName: "test-account", PoolID: "pool-id", VolumePerformanceGroupID: "vpg-uuid",
+		}
+		deletedVpg, err := o.DeleteVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, deletedVpg)
+		assert.Contains(tt, err.Error(), "svm not found")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ReturnsErrorWhenGetNodesByPoolIDFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"}}}
+		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"}, PoolID: 1}
+		svm := &datamodel.Svm{Name: "svm1"}
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
+		mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(svm, nil)
+		mockStorage.On("GetNodesByPoolID", ctx, int64(1)).Return(nil, errors.New("nodes error"))
+		o := &GCPOrchestrator{storage: mockStorage}
+		params := &common.DeleteVolumePerformanceGroupParams{
+			AccountName: "test-account", PoolID: "pool-id", VolumePerformanceGroupID: "vpg-uuid",
+		}
+		deletedVpg, err := o.DeleteVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, deletedVpg)
+		assert.Contains(tt, err.Error(), "nodes error")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ReturnsErrorWhenNoNodesForPool", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"}}}
+		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"}, PoolID: 1}
+		svm := &datamodel.Svm{Name: "svm1"}
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
+		mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(svm, nil)
+		mockStorage.On("GetNodesByPoolID", ctx, int64(1)).Return([]*datamodel.Node{}, nil)
+		o := &GCPOrchestrator{storage: mockStorage}
+		params := &common.DeleteVolumePerformanceGroupParams{
+			AccountName: "test-account", PoolID: "pool-id", VolumePerformanceGroupID: "vpg-uuid",
+		}
+		deletedVpg, err := o.DeleteVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, deletedVpg)
+		assert.True(tt, utilErrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "no node found")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ReturnsErrorWhenCreateNodeForProviderReturnsNil", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				DeploymentName: "deploy-1", PoolCredentials: &datamodel.PoolCredentials{},
+			},
+		}
+		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"}, PoolID: 1}
+		svm := &datamodel.Svm{Name: "svm1"}
+		nodes := []*datamodel.Node{{BaseModel: datamodel.BaseModel{ID: 1}, EndpointAddress: "10.0.0.1"}}
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		originalCreateNode := hyperscaler.CreateNodeForProvider
+		hyperscaler.CreateNodeForProvider = func(hyperscaler.NodeProviderInput) *models.Node { return nil }
+		defer func() { hyperscaler.CreateNodeForProvider = originalCreateNode }()
+		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
+		mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(svm, nil)
+		mockStorage.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
+		o := &GCPOrchestrator{storage: mockStorage}
+		params := &common.DeleteVolumePerformanceGroupParams{
+			AccountName: "test-account", PoolID: "pool-id", VolumePerformanceGroupID: "vpg-uuid",
+		}
+		deletedVpg, err := o.DeleteVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, deletedVpg)
+		assert.Contains(tt, err.Error(), "CreateNodeForProvider returned nil")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ReturnsErrorWhenGetProviderByNodeFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				DeploymentName: "deploy-1", PoolCredentials: &datamodel.PoolCredentials{},
+			},
+		}
+		vpg := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"}, PoolID: 1}
+		svm := &datamodel.Svm{Name: "svm1"}
+		nodes := []*datamodel.Node{{BaseModel: datamodel.BaseModel{ID: 1}, EndpointAddress: "10.0.0.1"}}
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("provider error")
+		}
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
+		mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(svm, nil)
+		mockStorage.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
+		o := &GCPOrchestrator{storage: mockStorage}
+		params := &common.DeleteVolumePerformanceGroupParams{
+			AccountName: "test-account", PoolID: "pool-id", VolumePerformanceGroupID: "vpg-uuid",
+		}
+		deletedVpg, err := o.DeleteVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, deletedVpg)
+		assert.Contains(tt, err.Error(), "provider error")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ReturnsErrorWhenDeleteQoSGroupPolicyFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				DeploymentName: "deploy-1", PoolCredentials: &datamodel.PoolCredentials{},
+			},
+		}
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"}, OntapQosPolicyID: "policy-1", PoolID: 1,
+		}
+		svm := &datamodel.Svm{Name: "svm1"}
+		nodes := []*datamodel.Node{{BaseModel: datamodel.BaseModel{ID: 1}, EndpointAddress: "10.0.0.1"}}
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
+		mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(svm, nil)
+		mockStorage.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
+		mockProvider.On("DeleteQoSGroupPolicy", vsa.DeleteQoSGroupPolicyParams{Name: "policy-1", SvmName: "svm1"}).Return(errors.New("ontap error"))
+		o := &GCPOrchestrator{storage: mockStorage}
+		params := &common.DeleteVolumePerformanceGroupParams{
+			AccountName: "test-account", PoolID: "pool-id", VolumePerformanceGroupID: "vpg-uuid",
+		}
+		deletedVpg, err := o.DeleteVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, deletedVpg)
+		assert.Contains(tt, err.Error(), "ontap error")
+		mockStorage.AssertExpectations(tt)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("ContinuesWhenDeleteQoSGroupPolicyReturnsNotFound", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				DeploymentName: "deploy-1", PoolCredentials: &datamodel.PoolCredentials{},
+			},
+		}
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"}, OntapQosPolicyID: "policy-1", PoolID: 1,
+		}
+		svm := &datamodel.Svm{Name: "svm1"}
+		nodes := []*datamodel.Node{{BaseModel: datamodel.BaseModel{ID: 1}, EndpointAddress: "10.0.0.1"}}
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
+		mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(svm, nil)
+		mockStorage.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
+		mockProvider.On("DeleteQoSGroupPolicy", vsa.DeleteQoSGroupPolicyParams{Name: "policy-1", SvmName: "svm1"}).Return(utilErrors.NewNotFoundErr("policy", nil))
+		mockStorage.On("HardDeleteVolumePerformanceGroup", ctx, vpg).Return(nil)
+		o := &GCPOrchestrator{storage: mockStorage}
+		params := &common.DeleteVolumePerformanceGroupParams{
+			AccountName: "test-account", PoolID: "pool-id", VolumePerformanceGroupID: "vpg-uuid",
+		}
+		deletedVpg, err := o.DeleteVolumePerformanceGroup(ctx, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, deletedVpg)
+		assert.Equal(tt, "vpg-uuid", deletedVpg.UUID)
+		mockStorage.AssertExpectations(tt)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("ReturnsErrorWhenHardDeleteVolumePerformanceGroupFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockProvider := new(vsa.MockProvider)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				DeploymentName: "deploy-1", PoolCredentials: &datamodel.PoolCredentials{},
+			},
+		}
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"}, OntapQosPolicyID: "policy-1", PoolID: 1,
+		}
+		svm := &datamodel.Svm{Name: "svm1"}
+		nodes := []*datamodel.Node{{BaseModel: datamodel.BaseModel{ID: 1}, EndpointAddress: "10.0.0.1"}}
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
+		mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(svm, nil)
+		mockStorage.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
+		mockProvider.On("DeleteQoSGroupPolicy", vsa.DeleteQoSGroupPolicyParams{Name: "policy-1", SvmName: "svm1"}).Return(nil)
+		mockStorage.On("HardDeleteVolumePerformanceGroup", ctx, vpg).Return(errors.New("hard delete failed"))
+		o := &GCPOrchestrator{storage: mockStorage}
+		params := &common.DeleteVolumePerformanceGroupParams{
+			AccountName: "test-account", PoolID: "pool-id", VolumePerformanceGroupID: "vpg-uuid",
+		}
+		deletedVpg, err := o.DeleteVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, deletedVpg)
+		assert.Contains(tt, err.Error(), "hard delete failed")
+		mockStorage.AssertExpectations(tt)
+		mockProvider.AssertExpectations(tt)
 	})
 }

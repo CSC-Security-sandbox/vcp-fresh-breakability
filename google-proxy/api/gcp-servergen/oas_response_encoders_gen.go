@@ -4190,12 +4190,6 @@ func encodeV1betaDeleteVolumePerformanceGroupResponse(response V1betaDeleteVolum
 
 		return nil
 
-	case *V1betaDeleteVolumePerformanceGroupNoContent:
-		w.WriteHeader(204)
-		span.SetStatus(codes.Ok, http.StatusText(204))
-
-		return nil
-
 	case *V1betaDeleteVolumePerformanceGroupBadRequest:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)

@@ -2698,21 +2698,30 @@ func (_c *MockOrchestratorFactory_DeleteVolume_Call) RunAndReturn(run func(conte
 }
 
 // DeleteVolumePerformanceGroup provides a mock function with given fields: ctx, params
-func (_m *MockOrchestratorFactory) DeleteVolumePerformanceGroup(ctx context.Context, params *common.DeleteVolumePerformanceGroupParams) error {
+func (_m *MockOrchestratorFactory) DeleteVolumePerformanceGroup(ctx context.Context, params *common.DeleteVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, error) {
 	ret := _m.Called(ctx, params)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteVolumePerformanceGroup")
 	}
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *common.DeleteVolumePerformanceGroupParams) error); ok {
+	var r0 *models.VolumePerformanceGroup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.DeleteVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.DeleteVolumePerformanceGroupParams) *models.VolumePerformanceGroup); ok {
 		r0 = rf(ctx, params)
+	} else if ret.Get(0) != nil {
+		r0 = ret.Get(0).(*models.VolumePerformanceGroup)
+	}
+	if rf, ok := ret.Get(1).(func(context.Context, *common.DeleteVolumePerformanceGroupParams) error); ok {
+		r1 = rf(ctx, params)
 	} else {
-		r0 = ret.Error(0)
+		r1 = ret.Error(1)
 	}
 
-	return r0
+	return r0, r1
 }
 
 // MockOrchestratorFactory_DeleteVolumePerformanceGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteVolumePerformanceGroup'
@@ -2734,8 +2743,8 @@ func (_c *MockOrchestratorFactory_DeleteVolumePerformanceGroup_Call) Run(run fun
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_DeleteVolumePerformanceGroup_Call) Return(_a0 error) *MockOrchestratorFactory_DeleteVolumePerformanceGroup_Call {
-	_c.Call.Return(_a0)
+func (_c *MockOrchestratorFactory_DeleteVolumePerformanceGroup_Call) Return(_a0 *models.VolumePerformanceGroup, _a1 error) *MockOrchestratorFactory_DeleteVolumePerformanceGroup_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 

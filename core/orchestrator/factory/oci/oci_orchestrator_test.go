@@ -2021,7 +2021,7 @@ func TestOCIOrchestrator_DeleteVolumePerformanceGroup(t *testing.T) {
 		ctx := context.Background()
 		params := &common.DeleteVolumePerformanceGroupParams{}
 
-		err := orch.DeleteVolumePerformanceGroup(ctx, params)
+		_, err := orch.DeleteVolumePerformanceGroup(ctx, params)
 
 		assert.Error(tt, err)
 		assert.True(tt, errors.IsNotImplementedYetErr(err))

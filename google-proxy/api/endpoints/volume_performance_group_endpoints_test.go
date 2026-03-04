@@ -1005,7 +1005,7 @@ func TestV1betaDeleteVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		}
 
 		handler := Handler{Orchestrator: mockOrchestrator}
-		mockOrchestrator.EXPECT().DeleteVolumePerformanceGroup(mock.Anything, mock.Anything).Return(errors.New("deleting volume performance group is not implemented"))
+		mockOrchestrator.EXPECT().DeleteVolumePerformanceGroup(mock.Anything, mock.Anything).Return(nil, errors.New("deleting volume performance group is not implemented"))
 		res, err := handler.V1betaDeleteVolumePerformanceGroup(ctx, params)
 
 		assert.Error(tt, err)
@@ -1013,6 +1013,138 @@ func TestV1betaDeleteVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		assert.NotNil(tt, res)
 		assert.Equal(tt, float64(http.StatusInternalServerError), res.(*gcpgenserver.V1betaDeleteVolumePerformanceGroupInternalServerError).Code)
 		assert.Equal(tt, "Internal server error", res.(*gcpgenserver.V1betaDeleteVolumePerformanceGroupInternalServerError).Message)
+	})
+
+	t.Run("Success_ReturnsOperationWithDeletedVPG", func(tt *testing.T) {
+		origEnableMqos := enableMqos
+		origEnableVpgEndpoints := enableVpgEndpoints
+		defer func() {
+			enableMqos = origEnableMqos
+			enableVpgEndpoints = origEnableVpgEndpoints
+		}()
+		enableMqos = true
+		enableVpgEndpoints = true
+
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		ctx := context.Background()
+		params := gcpgenserver.V1betaDeleteVolumePerformanceGroupParams{
+			ProjectNumber:            "12345",
+			LocationId:               "us-central1",
+			PoolId:                   "pool-id",
+			VolumePerformanceGroupId: "vpg-uuid-1",
+		}
+		deletedVPG := &models.VolumePerformanceGroup{
+			BaseModel:       models.BaseModel{UUID: "vpg-uuid-1"},
+			Name:            "vpg-name",
+			ThroughputMibps: 100,
+			Iops:            1000,
+			IsShared:        true,
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		mockOrchestrator.EXPECT().DeleteVolumePerformanceGroup(mock.Anything, mock.MatchedBy(func(p *common.DeleteVolumePerformanceGroupParams) bool {
+			return p.PoolID == "pool-id" && p.VolumePerformanceGroupID == "vpg-uuid-1" && p.AccountName == "12345"
+		})).Return(deletedVPG, nil)
+
+		res, err := handler.V1betaDeleteVolumePerformanceGroup(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		op, ok := res.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.True(tt, op.Done.IsSet() && op.Done.Value)
+		assert.True(tt, op.Name.IsSet())
+		assert.Contains(tt, op.Name.Value, "/operations/vpg-delete-vpg-uuid-1")
+	})
+
+	t.Run("NotFound_WhenOrchestratorReturnsNotFound", func(tt *testing.T) {
+		origEnableMqos := enableMqos
+		origEnableVpgEndpoints := enableVpgEndpoints
+		defer func() {
+			enableMqos = origEnableMqos
+			enableVpgEndpoints = origEnableVpgEndpoints
+		}()
+		enableMqos = true
+		enableVpgEndpoints = true
+
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		ctx := context.Background()
+		params := gcpgenserver.V1betaDeleteVolumePerformanceGroupParams{
+			ProjectNumber:            "12345",
+			LocationId:               "us-central1",
+			PoolId:                   "pool-id",
+			VolumePerformanceGroupId: "vpg-uuid",
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		mockOrchestrator.EXPECT().DeleteVolumePerformanceGroup(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("volume performance group", nil))
+
+		res, err := handler.V1betaDeleteVolumePerformanceGroup(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusNotFound), res.(*gcpgenserver.V1betaDeleteVolumePerformanceGroupNotFound).Code)
+		assert.Equal(tt, "Volume performance group not found", res.(*gcpgenserver.V1betaDeleteVolumePerformanceGroupNotFound).Message)
+	})
+
+	t.Run("Conflict_WhenOrchestratorReturnsConflict", func(tt *testing.T) {
+		origEnableMqos := enableMqos
+		origEnableVpgEndpoints := enableVpgEndpoints
+		defer func() {
+			enableMqos = origEnableMqos
+			enableVpgEndpoints = origEnableVpgEndpoints
+		}()
+		enableMqos = true
+		enableVpgEndpoints = true
+
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		ctx := context.Background()
+		params := gcpgenserver.V1betaDeleteVolumePerformanceGroupParams{
+			ProjectNumber:            "12345",
+			LocationId:               "us-central1",
+			PoolId:                   "pool-id",
+			VolumePerformanceGroupId: "vpg-uuid",
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		mockOrchestrator.EXPECT().DeleteVolumePerformanceGroup(mock.Anything, mock.Anything).Return(nil, errors.NewConflictErr("attached to volumes"))
+
+		res, err := handler.V1betaDeleteVolumePerformanceGroup(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusConflict), res.(*gcpgenserver.V1betaDeleteVolumePerformanceGroupConflict).Code)
+		assert.Contains(tt, res.(*gcpgenserver.V1betaDeleteVolumePerformanceGroupConflict).Message, "attached to volumes")
+	})
+
+	t.Run("BadRequest_WhenOrchestratorReturnsUserInputValidation", func(tt *testing.T) {
+		origEnableMqos := enableMqos
+		origEnableVpgEndpoints := enableVpgEndpoints
+		defer func() {
+			enableMqos = origEnableMqos
+			enableVpgEndpoints = origEnableVpgEndpoints
+		}()
+		enableMqos = true
+		enableVpgEndpoints = true
+
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		ctx := context.Background()
+		params := gcpgenserver.V1betaDeleteVolumePerformanceGroupParams{
+			ProjectNumber:            "12345",
+			LocationId:               "us-central1",
+			PoolId:                   "pool-id",
+			VolumePerformanceGroupId: "vpg-uuid",
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		mockOrchestrator.EXPECT().DeleteVolumePerformanceGroup(mock.Anything, mock.Anything).Return(nil, errors.NewUserInputValidationErr("does not belong to pool"))
+
+		res, err := handler.V1betaDeleteVolumePerformanceGroup(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, float64(http.StatusBadRequest), res.(*gcpgenserver.V1betaDeleteVolumePerformanceGroupBadRequest).Code)
+		assert.Contains(tt, res.(*gcpgenserver.V1betaDeleteVolumePerformanceGroupBadRequest).Message, "does not belong to pool")
 	})
 }
 
