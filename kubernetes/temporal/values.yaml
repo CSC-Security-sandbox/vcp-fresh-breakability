@@ -47,6 +47,68 @@ server:
     repository: ghcr.io/vcp-vsa-control-plane/temporalio-server
     tag: 1.29.1
     pullPolicy: IfNotPresent
+
+  # ---------------------------------------------------------------------------
+  # Cluster-level archival configuration (GCS)
+  # ---------------------------------------------------------------------------
+  # Must be enabled for any namespace-level archival to work.
+  # Doc: https://netapp.atlassian.net/wiki/spaces/VSCP/pages/485321035/VCP+Temporal+Archival+Draft
+  #
+  # To enable archival:
+  #   1. Set history.state and visibility.state to "enabled" below (or via env-specific overrides)
+  #   2. Set server.namespaceDefaults.archival URIs below (REQUIRED — see note)
+  #   3. Uncomment and set per-namespace archival URIs in server.config.namespaces
+  #
+  # credentialsPath: "" → uses ADC (Workload Identity on GKE).
+  #
+  # IMPORTANT: Temporal server validation REQUIRES server.namespaceDefaults.archival
+  # with non-empty URIs when archival state is "enabled". Without it the server fails
+  # at startup with: "config validation error: invalid history archival config"
+  archival:
+    history:
+      state: "disabled"     # set to "enabled" to activate archival writes
+      enableRead: true
+      provider:
+        gstorage:
+          # Leave empty ("") to use Application Default Credentials (ADC) via
+          # Workload Identity on GKE — no key file needed.
+          # For non-GKE environments, mount a SA key JSON file and set the path
+          # here, e.g. "/etc/temporal/sa/temporal-archival-sa.json".
+          credentialsPath: ""
+    visibility:
+      state: "disabled"     # set to "enabled" to activate archival writes
+      enableRead: true
+      provider:
+        gstorage:
+          # Leave empty ("") to use Application Default Credentials (ADC) via
+          # Workload Identity on GKE — no key file needed.
+          # For non-GKE environments, mount a SA key JSON file and set the path
+          # here, e.g. "/etc/temporal/sa/temporal-archival-sa.json".
+          credentialsPath: ""
+
+  # ---------------------------------------------------------------------------
+  # Namespace defaults — applied to newly created namespaces
+  # ---------------------------------------------------------------------------
+  # REQUIRED when server.archival is enabled. Temporal validates that default archival
+  # URIs are present at startup. Without this, the server crashes with:
+  #   "config validation error: invalid history archival config"
+  #
+  # When enabling archival, set URIs here to match the GCS bucket for the environment.
+  namespaceDefaults:
+    archival:
+      history:
+        state: "disabled"    # set to "enabled" when archival is active
+        URI: ""              # e.g. "gs://<env>-temporal-archival/history"
+      visibility:
+        state: "disabled"    # set to "enabled" when archival is active
+        URI: ""              # e.g. "gs://<env>-temporal-archival/visibility"
+
+  # dynamicConfig:
+  #   # Delay before the archival processor archives a workflow execution after completion.
+  #   # Lower values archive sooner; higher values reduce GCS write frequency.
+  #   history.archivalProcessorArchiveDelay:
+  #     - value: "24h"
+
   # Global default settings (can be overridden per service)
   replicaCount: 1
   metrics:
@@ -158,7 +220,27 @@ server:
       create: true
       namespace:
         - name: default
-          retention: 60d
+          retention: 30d
+          # Per-namespace archival config — applied by the namespace Kubernetes Job via temporal CLI.
+          # The Job checks current archival state and only updates when drift is detected.
+          #
+          # To enable archival for this namespace:
+          #   1. Enable cluster-level archival above (server.archival.history/visibility.state: "enabled")
+          #   2. Set server.namespaceDefaults.archival URIs above (required by Temporal at startup)
+          #   3. Uncomment the archival block below and set the GCS bucket URIs
+          #
+          # IMPORTANT:
+          #   - URIs are IMMUTABLE after the first enable — do not change them once set.
+          #   - credentialsPath: "" in server.archival uses ADC (Workload Identity on GKE).
+          #     For non-GKE environments, mount a SA key and set credentialsPath accordingly.
+          #
+          # archival:
+          #   history:
+          #     state: "enabled"
+          #     URI: "gs://<env>-temporal-archival/history"
+          #   visibility:
+          #     state: "enabled"
+          #     URI: "gs://<env>-temporal-archival/visibility"
   frontend:
     service:
       # Evaluated as template

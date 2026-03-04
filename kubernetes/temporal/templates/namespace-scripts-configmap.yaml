@@ -1,0 +1,110 @@
+{{- if $.Values.server.config.namespaces.create }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "{{ include "temporal.fullname" $ }}-namespace-scripts"
+  labels:
+    {{- include "temporal.resourceLabels" (list $ "database" "") | nindent 4 }}
+data:
+  setup-namespaces.sh: |
+    #!/bin/sh
+    set -e
+
+    log() { echo "[namespace-setup] $*"; }
+
+    # --- Istio helpers ---
+
+    wait_for_istio() {
+      log "Waiting for istio-proxy..."
+      until curl -fsI http://localhost:15021/healthz/ready > /dev/null 2>&1; do
+        sleep 2
+      done
+      log "istio-proxy is ready."
+    }
+
+    stop_istio() {
+      log "Stopping istio-proxy..."
+      curl -sf -X POST http://localhost:15000/quitquitquit || true
+    }
+
+    # --- Archival helper ---
+    # Returns the current archival state (enabled/disabled) for a given namespace and field.
+
+    archival_state() {
+      temporal operator namespace describe -n "$1" 2>&1 \
+        | grep -i "$2" | awk '{print $NF}' | tr '[:upper:]' '[:lower:]'
+    }
+
+    # ==============================
+    #  Main
+    # ==============================
+
+    {{- if $.Values.schema.istio.enabled }}
+    wait_for_istio
+    {{- end }}
+
+    {{- range $namespace := $.Values.server.config.namespaces.namespace }}
+
+    # ---------- {{ $namespace.name }} ----------
+
+    log "=== Namespace: {{ $namespace.name }} ==="
+
+    # Step 1: Create namespace if it does not exist
+    if ! temporal operator namespace describe -n {{ $namespace.name }} > /dev/null 2>&1; then
+      log "Creating namespace {{ $namespace.name }}..."
+      temporal operator namespace create -n {{ $namespace.name }}{{- if hasKey $namespace "retention" }} --retention {{ $namespace.retention }}{{- end }}
+
+      sleep 5
+    fi
+
+    # Step 2: Build the update command
+    set -- temporal operator namespace update -n {{ $namespace.name }}
+
+    {{- if hasKey $namespace "retention" }}
+    set -- "$@" --retention {{ $namespace.retention }}
+    {{- end }}
+
+    {{- if $namespace.archival }}
+
+    # Step 3: History archival
+    {{- with $namespace.archival.history }}
+    {{- if .state }}
+    set -- "$@" --history-archival-state {{ .state }}
+    {{- end }}
+    {{- if .URI }}
+    if [ "$(archival_state {{ $namespace.name }} HistoryArchivalState)" != "enabled" ]; then
+      set -- "$@" --history-uri "{{ .URI }}"
+    else
+      log "  WARNING: history URI skipped (already enabled; URIs are immutable)"
+    fi
+    {{- end }}
+    {{- end }}
+
+    # Step 4: Visibility archival
+    {{- with $namespace.archival.visibility }}
+    {{- if .state }}
+    set -- "$@" --visibility-archival-state {{ .state }}
+    {{- end }}
+    {{- if .URI }}
+    if [ "$(archival_state {{ $namespace.name }} VisibilityArchivalState)" != "enabled" ]; then
+      set -- "$@" --visibility-uri "{{ .URI }}"
+    else
+      log "  WARNING: visibility URI skipped (already enabled; URIs are immutable)"
+    fi
+    {{- end }}
+    {{- end }}
+
+    {{- end }}
+
+    # Step 5: Run the update
+    log "Updating: $*"
+    "$@"
+
+    log "{{ $namespace.name }} done."
+    {{- end }}
+    {{- if $.Values.schema.istio.enabled }}
+    stop_istio
+    {{- end }}
+
+    log "Namespace setup completed."
+{{- end }}
