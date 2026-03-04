@@ -65,8 +65,8 @@ func (gcpService *GcpServices) CreateSecret(projectID, region, secretID, secretV
 	return customSecret, nil
 }
 
-// createSecretHandleAlreadyExists is called when Create returns 409. It gets the existing secret and calls
-// AddSecretVersion (which is idempotent: returns existing version or adds one) then builds the response.
+// createSecretHandleAlreadyExists is called when Create returns 409. It gets the secret and either returns
+// the existing latest version (idempotent) or adds a new version if the secret has no versions yet.
 func createSecretHandleAlreadyExists(gcpService *GcpServices, projectID, secretID, secretValue string) (*models.CustomSecret, error) {
 	name := fmt.Sprintf("projects/%s/secrets/%s", projectID, secretID)
 	secret, err := gcpService.AdminGCPService.secretManagerService.Projects.Secrets.Get(name).Context(gcpService.Ctx).Do()
@@ -76,7 +76,19 @@ func createSecretHandleAlreadyExists(gcpService *GcpServices, projectID, secretI
 	}
 	gcpService.Logger.Debugf("CreateSecret: secret already exists, ensuring version for : %s", name)
 
-	version, err := AddSecretVersion(gcpService, projectID, secretID, secretValue)
+	// If secret already has a version, return it (idempotent).
+	version, err := GetSecretVersion(gcpService, projectID, secretID, LatestVersion)
+	if err == nil && version != nil {
+		gcpService.Logger.Debugf("CreateSecret: existing secret has version, returning for : %s", name)
+		customSecret, err := ConvertSecretToCustomSecret(secret, version)
+		if err != nil {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrModelConversionError, err)
+		}
+		return customSecret, nil
+	}
+
+	// No version yet (e.g. AddSecretVersion failed with 503); add version now.
+	version, err = AddSecretVersion(gcpService, projectID, secretID, secretValue)
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, err)
 	}
@@ -152,21 +164,13 @@ func (gcpService *GcpServices) DeleteSecret(projectID, secretID string) error {
 }
 
 // AddSecretVersion creates a secret version and stores the private key in the secret manager. Reference: https://cloud.google.com/secret-manager/docs/reference/rest/v1/projects.secrets/addVersion
-// It is idempotent: if the secret already has a version (e.g. after a retry), returns the existing latest version instead of adding a duplicate.
 func _addSecretVersion(gcpService *GcpServices, projectID, secretName, secretValue string) (*models.CustomSecretVersion, error) {
 	gcpService.Logger.Debug(fmt.Sprintf("Calling CreateSecretVersion for project id : %s", projectID))
-
-	// Validate secret value before processing (fail fast before any API call)
+	
+	// Validate secret value before processing
 	if secretValue == "" {
 		gcpService.Logger.Errorf("Secret value is empty")
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, fmt.Errorf("secret value is empty"))
-	}
-
-	// Idempotent: if secret already has a version, return it (e.g. retry after Create succeeded but first AddVersion call failed).
-	version, err := GetSecretVersion(gcpService, projectID, secretName, LatestVersion)
-	if err == nil && version != nil {
-		gcpService.Logger.Debugf("CreateSecretVersion: secret already has version, returning for : projects/%s/secrets/%s", projectID, secretName)
-		return version, nil
 	}
 	
 	encodedData := base64.StdEncoding.EncodeToString([]byte(secretValue))

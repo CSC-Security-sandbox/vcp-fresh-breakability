@@ -528,6 +528,91 @@ func Test_CreateSecret(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Nil(tt, secret)
 	})
+	t.Run("WhenCreateSecretAlreadyExists_ConvertSecretToCustomSecretFailsOnExistingVersion", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		createURL := fmt.Sprintf("/v1/projects/%s/secrets", projectId)
+		getURL := fmt.Sprintf("/v1/projects/%s/secrets/%s", projectId, secretName)
+		secretMeta := &secretmanager.Secret{Name: fmt.Sprintf("projects/%s/secrets/%s", projectId, secretName)}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == createURL && req.Method == http.MethodPost {
+				errBody := map[string]interface{}{"error": map[string]interface{}{"code": float64(409), "message": "already exists"}}
+				body, _ := json.Marshal(errBody)
+				rw.WriteHeader(http.StatusConflict)
+				_, _ = rw.Write(body)
+				return
+			}
+			if req.URL.Path == getURL && req.Method == http.MethodGet {
+				response, _ := json.Marshal(secretMeta)
+				rw.WriteHeader(http.StatusOK)
+				_, _ = rw.Write(response)
+				return
+			}
+		}))
+		defer server.Close()
+		svc, err := secretmanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		assert.NoError(tt, err)
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{secretManagerService: svc},
+			Ctx: ctx, Logger: util.GetLogger(ctx),
+			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
+		}
+		GetSecretVersion = func(g *GcpServices, projectId, secretName, versionId string) (*hyperscaler.CustomSecretVersion, error) {
+			return &hyperscaler.CustomSecretVersion{Name: secretName, Value: secretValue}, nil
+		}
+		originalConvert := ConvertSecretToCustomSecret
+		defer func() { ConvertSecretToCustomSecret = originalConvert }()
+		ConvertSecretToCustomSecret = func(secret *secretmanager.Secret, version *hyperscaler.CustomSecretVersion) (*hyperscaler.CustomSecret, error) {
+			return nil, fmt.Errorf("convert error")
+		}
+		secret, err := gService.CreateSecret(projectId, region, secretName, secretValue)
+		assert.Error(tt, err)
+		assert.Nil(tt, secret)
+	})
+	t.Run("WhenCreateSecretAlreadyExists_ConvertSecretToCustomSecretFailsAfterAddVersion", func(tt *testing.T) {
+		defer testReset(tt)
+		ctx := context.Background()
+		createURL := fmt.Sprintf("/v1/projects/%s/secrets", projectId)
+		getURL := fmt.Sprintf("/v1/projects/%s/secrets/%s", projectId, secretName)
+		secretMeta := &secretmanager.Secret{Name: fmt.Sprintf("projects/%s/secrets/%s", projectId, secretName)}
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if req.URL.Path == createURL && req.Method == http.MethodPost {
+				errBody := map[string]interface{}{"error": map[string]interface{}{"code": float64(409), "message": "already exists"}}
+				body, _ := json.Marshal(errBody)
+				rw.WriteHeader(http.StatusConflict)
+				_, _ = rw.Write(body)
+				return
+			}
+			if req.URL.Path == getURL && req.Method == http.MethodGet {
+				response, _ := json.Marshal(secretMeta)
+				rw.WriteHeader(http.StatusOK)
+				_, _ = rw.Write(response)
+				return
+			}
+		}))
+		defer server.Close()
+		svc, err := secretmanager.NewService(ctx, option.WithHTTPClient(&http.Client{Timeout: time.Second}), option.WithEndpoint(server.URL))
+		assert.NoError(tt, err)
+		gService := &GcpServices{
+			AdminGCPService: &AdminGCPService{secretManagerService: svc},
+			Ctx: ctx, Logger: util.GetLogger(ctx),
+			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
+		}
+		GetSecretVersion = func(g *GcpServices, projectId, secretName, versionId string) (*hyperscaler.CustomSecretVersion, error) {
+			return nil, fmt.Errorf("no versions")
+		}
+		AddSecretVersion = func(g *GcpServices, projectId, secretName, secretValue string) (*hyperscaler.CustomSecretVersion, error) {
+			return &hyperscaler.CustomSecretVersion{Name: secretName, Value: secretValue}, nil
+		}
+		originalConvert := ConvertSecretToCustomSecret
+		defer func() { ConvertSecretToCustomSecret = originalConvert }()
+		ConvertSecretToCustomSecret = func(secret *secretmanager.Secret, version *hyperscaler.CustomSecretVersion) (*hyperscaler.CustomSecret, error) {
+			return nil, fmt.Errorf("convert after add error")
+		}
+		secret, err := gService.CreateSecret(projectId, region, secretName, secretValue)
+		assert.Error(tt, err)
+		assert.Nil(tt, secret)
+	})
 }
 
 func Test_getSecretVersion(t *testing.T) {
@@ -775,23 +860,6 @@ func Test_addSecretVersion(t *testing.T) {
 		if secret == nil || secret.Name != secretName {
 			tt.Errorf("Unexpected operation: %+v", secretName)
 		}
-	})
-	t.Run("WhenAddSecretVersionReturnsExistingVersionIdempotent", func(tt *testing.T) {
-		defer testReset(tt)
-		ctx := context.Background()
-		gService := &GcpServices{
-			AdminGCPService: &AdminGCPService{},
-			Ctx:             ctx,
-			Logger:         util.GetLogger(ctx),
-			serviceConsumerManagementEndpoint: serviceConsumerManagementEndpoint,
-		}
-		existingVersion := &hyperscaler.CustomSecretVersion{Name: "existing-version", Value: "existing-value"}
-		GetSecretVersion = func(g *GcpServices, projectId, secretName, versionId string) (*hyperscaler.CustomSecretVersion, error) {
-			return existingVersion, nil
-		}
-		version, err := AddSecretVersion(gService, projectId, secretName, secretValue)
-		assert.NoError(tt, err)
-		assert.Equal(tt, existingVersion, version)
 	})
 }
 func Test_DeleteSecret(t *testing.T) {
