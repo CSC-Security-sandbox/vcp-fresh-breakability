@@ -210,7 +210,7 @@ func TestLunMapCreate_ConflictError(t *testing.T) {
 		IGroupName: []string{"iGroupName1", "iGroupName2"},
 	}
 
-	mockSAN.On("LunMapCreate", mock.Anything).Return(errors.New("LUN already mapped to this group"))
+	mockSAN.On("LunMapCreate", mock.Anything).Return(errors.New("LUN already mapped to initiator(s) in this group"))
 
 	err := rc.LunMapCreate(params)
 

@@ -317,7 +317,7 @@ func (rc *OntapRestProvider) LunMapCreate(params LunMapCreateParams) error {
 			LunName:    params.LunName,
 			SvmName:    params.SvmName,
 			IGroupName: params.IGroupName[i],
-		}); err != nil && !strings.Contains(err.Error(), "LUN already mapped to this group") {
+		}); err != nil && !strings.Contains(err.Error(), "LUN already mapped") {
 			return vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
 		}
 	}
