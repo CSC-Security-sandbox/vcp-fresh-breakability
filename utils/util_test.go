@@ -4057,94 +4057,40 @@ func TestGetONTAPSnapshotNameFromCBSDisplaySnapshotName(t *testing.T) {
 		description    string
 	}{
 		{
-			name:           "No dash in name",
+			name:           "Daily prefix",
+			input:          "daily-scheduled-backup-mpukqsfg-2026-03-04-102006",
+			expectedOutput: "scheduled-backup-mpukqsfg-2026-03-04-102006",
+			description:    "Trims daily- prefix and returns the rest",
+		},
+		{
+			name:           "Weekly prefix",
+			input:          "weekly-scheduled-backup-xyz-2026-03-04",
+			expectedOutput: "scheduled-backup-xyz-2026-03-04",
+			description:    "Trims weekly- prefix and returns the rest",
+		},
+		{
+			name:           "Monthly prefix",
+			input:          "monthly-scheduled-backup-abc",
+			expectedOutput: "scheduled-backup-abc",
+			description:    "Trims monthly- prefix and returns the rest",
+		},
+		{
+			name:           "No schedule prefix",
 			input:          "snapshot123",
 			expectedOutput: "snapshot123",
-			description:    "Should return input as-is when no dash is present",
+			description:    "Returns input as-is when no daily-/weekly-/monthly- prefix",
 		},
 		{
-			name:           "Name with dash but no scheduled prefix",
+			name:           "Name with dashes but no schedule prefix",
 			input:          "my-snapshot-abc123",
-			expectedOutput: "my-snapshot",
-			description:    "Should remove suffix after last dash when no scheduled prefix exists",
-		},
-		{
-			name:           "Daily prefix with dot",
-			input:          "policy-pool-daily.snapshot-abc123",
-			expectedOutput: "daily.snapshot",
-			description:    "Should extract daily. prefix and remove suffix",
-		},
-		{
-			name:           "Weekly prefix with dot",
-			input:          "policy-pool-weekly.snapshot-abc123",
-			expectedOutput: "weekly.snapshot",
-			description:    "Should extract weekly. prefix and remove suffix",
-		},
-		{
-			name:           "Monthly prefix with dot",
-			input:          "policy-pool-monthly.snapshot-abc123",
-			expectedOutput: "monthly.snapshot",
-			description:    "Should extract monthly. prefix and remove suffix",
-		},
-		{
-			name:           "Snapmirror prefix with dot",
-			input:          "policy-pool-snapmirror.snapshot-abc123",
-			expectedOutput: "snapmirror.snapshot",
-			description:    "Should extract snapmirror. prefix and remove suffix",
-		},
-		{
-			name:           "Daily prefix with dash",
-			input:          "policy-pool-daily-snapshot-abc123",
-			expectedOutput: "daily-snapshot",
-			description:    "Should extract daily- prefix and remove suffix",
-		},
-		{
-			name:           "Weekly prefix with dash",
-			input:          "policy-pool-weekly-snapshot-abc123",
-			expectedOutput: "weekly-snapshot",
-			description:    "Should extract weekly- prefix and remove suffix",
-		},
-		{
-			name:           "Monthly prefix with dash",
-			input:          "policy-pool-monthly-snapshot-abc123",
-			expectedOutput: "monthly-snapshot",
-			description:    "Should extract monthly- prefix and remove suffix",
-		},
-		{
-			name:           "Multiple dashes before scheduled prefix",
-			input:          "very-long-policy-name-pool-name-daily.snapshot-abc123",
-			expectedOutput: "daily.snapshot",
-			description:    "Should handle multiple dashes and extract scheduled prefix",
-		},
-		{
-			name:           "Scheduled prefix at start",
-			input:          "daily.snapshot-abc123",
-			expectedOutput: "daily.snapshot",
-			description:    "Should work when scheduled prefix is at the start",
+			expectedOutput: "my-snapshot-abc123",
+			description:    "Returns input as-is when prefix does not match",
 		},
 		{
 			name:           "Empty string",
 			input:          "",
 			expectedOutput: "",
-			description:    "Should handle empty string",
-		},
-		{
-			name:           "Only dash",
-			input:          "-",
-			expectedOutput: "",
-			description:    "Should handle string with only dash",
-		},
-		{
-			name:           "Dash at end",
-			input:          "snapshot-",
-			expectedOutput: "snapshot",
-			description:    "Should handle dash at the end",
-		},
-		{
-			name:           "Multiple scheduled prefixes (last match)",
-			input:          "daily.backup-weekly.snapshot-abc123",
-			expectedOutput: "weekly.snapshot",
-			description:    "Should match last scheduled prefix found in the string",
+			description:    "Returns empty string unchanged",
 		},
 	}
 
@@ -4225,8 +4171,8 @@ func TestExtractSnapshotNameFromCVPBackup(t *testing.T) {
 				SourceSnapshot: nil,
 				BackupType:     BackupTypeSCHEDULED,
 			},
-			backupName:     "policy-pool-daily.snapshot-abc123",
-			expectedOutput: "daily.snapshot",
+			backupName:     "daily-scheduled-backup-mpukqsfg-2026-03-04-102006",
+			expectedOutput: "scheduled-backup-mpukqsfg-2026-03-04-102006",
 			description:    "Should process backupName through GetONTAPSnapshotNameFromCBSDisplaySnapshotName when BackupType is SCHEDULED",
 		},
 		{
@@ -4260,14 +4206,14 @@ func TestExtractSnapshotNameFromCVPBackup(t *testing.T) {
 			description:    "Should return snapshot name when SourceSnapshot has no slashes",
 		},
 		{
-			name: "SCHEDULED backup with complex name",
+			name: "SCHEDULED backup with weekly prefix",
 			backup: &cvpModels.BackupV1beta{
 				SourceSnapshot: nil,
 				BackupType:     BackupTypeSCHEDULED,
 			},
-			backupName:     "very-long-policy-name-pool-name-weekly-backup-xyz789",
-			expectedOutput: "weekly-backup",
-			description:    "Should process complex scheduled backup name correctly",
+			backupName:     "weekly-scheduled-backup-xyz789",
+			expectedOutput: "scheduled-backup-xyz789",
+			description:    "Should trim weekly- prefix for SCHEDULED backup name",
 		},
 	}
 

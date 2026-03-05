@@ -1450,22 +1450,12 @@ func IsRuleKerberosSupported(nFSv4, kerberos5ReadWrite, kerberos5ReadOnly, kerbe
 	return enableKerberos && nFSv4 && (kerberos5ReadWrite || kerberos5ReadOnly || kerberos5pReadWrite || kerberos5pReadOnly || kerberos5iReadOnly || kerberos5iReadWrite)
 }
 
-// GetONTAPSnapshotNameFromCBSDisplaySnapshotName removes the extra random string added to make the backup Name unique across volumes
+// GetONTAPSnapshotNameFromCBSDisplaySnapshotName trims the schedule prefix (daily-, weekly-, monthly-) from the CBS display snapshot name and returns the rest, matching what is stored in the database.
 func GetONTAPSnapshotNameFromCBSDisplaySnapshotName(cbsSnapshotName string) string {
-	postFixPos := strings.LastIndex(cbsSnapshotName, "-")
-	if postFixPos == -1 {
-		return cbsSnapshotName
-	}
-	cbsSnapshotName = cbsSnapshotName[0:postFixPos]
-
-	scheduledTimes := [7]string{"daily.", "weekly.", "monthly.", "snapmirror.", "daily-", "weekly-", "monthly-"}
-	for _, schedTime := range scheduledTimes {
-		if strings.Contains(cbsSnapshotName, schedTime) {
-			// Removing the prefix like policy name, pool name
-			lastIndex := strings.LastIndex(cbsSnapshotName, schedTime)
-			if lastIndex != -1 {
-				cbsSnapshotName = cbsSnapshotName[lastIndex:]
-			}
+	prefixes := []string{"daily.", "weekly.", "monthly.", "snapmirror.", "daily-", "weekly-", "monthly-"}
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(cbsSnapshotName, prefix) {
+			return cbsSnapshotName[len(prefix):]
 		}
 	}
 	return cbsSnapshotName
