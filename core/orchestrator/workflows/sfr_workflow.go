@@ -583,7 +583,7 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 		}
 	}
 
-	// Wait for 60 seconds before proceeding
+	// Wait for 30 seconds before proceeding
 	err = workflow.Sleep(ctx, 30*time.Second)
 	if err != nil {
 		return nil, ConvertToVSAError(fmt.Errorf("failed to sleep before getting the snapmirror: %w", err))

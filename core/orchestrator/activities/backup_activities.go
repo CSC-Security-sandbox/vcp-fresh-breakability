@@ -655,6 +655,10 @@ func (a BackupActivity) GetSnapmirror(ctx context.Context, node *models.Node, so
 		resp.DestinationUUID = nillable.ToPointer(snapmirror.Destination.UUID.String())
 	}
 
+	if snapmirror.State != nil {
+		resp.State = nillable.ToPointer(*snapmirror.State)
+	}
+
 	// Populate Healthy field
 	if snapmirror.Healthy != nil {
 		resp.Healthy = nillable.ToPointer(*snapmirror.Healthy)

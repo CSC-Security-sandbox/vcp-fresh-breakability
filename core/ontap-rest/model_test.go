@@ -467,6 +467,18 @@ func TestSnapmirrorRelationshipListParamsToONTAP(t *testing.T) {
 		otParams := snapmirrorRelationshipListParamsToONTAP(params)
 		assert.Equal(tt, params.SourcePath, *otParams.SourcePath)
 		assert.Equal(tt, params.DestinationPath, *otParams.DestinationPath)
+		assert.Nil(tt, otParams.Fields)
+	})
+	t.Run("WhenDestinationPathContainsObjstore_SetsFields", func(tt *testing.T) {
+		params := &SnapmirrorRelationshipListParams{
+			SourcePath:      "src-svm:src-vol",
+			DestinationPath: "dst-svm:/objstore/bucket",
+		}
+		otParams := snapmirrorRelationshipListParamsToONTAP(params)
+		assert.Equal(tt, params.SourcePath, *otParams.SourcePath)
+		assert.Equal(tt, params.DestinationPath, *otParams.DestinationPath)
+		expectedFields := []string{"destination.uuid", "healthy", "unhealthy_reason.code", "unhealthy_reason.message", "state"}
+		assert.Equal(tt, expectedFields, otParams.Fields)
 	})
 }
 

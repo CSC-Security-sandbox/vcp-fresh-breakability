@@ -1101,6 +1101,166 @@ func TestBackupWorkflowUnhealthySnapmirrorWithReason(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
+func TestBackupWorkflowSnapmirrorStateNotSnapmirrored(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity)
+	env.RegisterWorkflow(CreateBackupWorkflow)
+	mockStorage.On("UpdateBackupState", mock.Anything, mock.Anything).Return(&datamodel.Backup{}, nil).Maybe()
+	env.RegisterActivity(&TestBackupActivity{BackupActivity: &activities.BackupActivity{SE: mockStorage}})
+
+	params := &commonparams.CreateBackupParams{
+		VolumeUUID:  "test-vol",
+		AccountName: "test-account",
+		BackupName:  "test-backup",
+	}
+	backupVault := &datamodel.BackupVault{
+		Name:          "test-backup-vault",
+		BucketDetails: datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"}},
+	}
+	backup := &datamodel.Backup{
+		State:         "InProgress",
+		Name:          "test-backup",
+		VolumeUUID:    "test-vol",
+		BackupVault:   backupVault,
+		BackupVaultID: 1,
+		Attributes:    &datamodel.BackupAttributes{},
+	}
+
+	volume := &datamodel.Volume{
+		Pool:                  &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{Password: "password"}, PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-central1-a"}},
+		Svm:                   &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes:      &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, VendorSubnetID: "subnet-12345", ExternalUUID: "external-uuid"},
+		LargeVolumeAttributes: nil,
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	env.OnActivity("PrepareObjectStoreActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup:      backup,
+			BackupVault: backupVault,
+			Volume:      volume,
+		},
+		Node: &models.Node{EndpointAddress: "127.0.0.1"},
+	}, nil)
+	env.OnActivity("GetOrCreateObjectStoreActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup:      backup,
+			BackupVault: backupVault,
+			Volume:      volume,
+		},
+		Node: &models.Node{EndpointAddress: "127.0.0.1"},
+	}, nil)
+	env.OnActivity("PrepareSnapmirrorActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup:      backup,
+			BackupVault: backupVault,
+			Volume:      volume,
+		},
+		Node:              &models.Node{EndpointAddress: "127.0.0.1"},
+		SmSourcePath:      "svm_test:volume_test",
+		SmDestinationPath: "test-bucket:/objstore/test-vol",
+	}, nil)
+	env.OnActivity("CreateSnapmirrorRelationshipActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup:      backup,
+			BackupVault: backupVault,
+			Volume:      volume,
+		},
+		Node:              &models.Node{EndpointAddress: "127.0.0.1"},
+		SmSourcePath:      "svm_test:volume_test",
+		SmDestinationPath: "test-bucket:/objstore/test-vol",
+		SnapmirrorRelationship: &commonparams.SnapmirrorRelationship{
+			UUID: "test-snapmirror-uuid",
+		},
+	}, nil)
+	env.OnActivity("CreatingSnapshotActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup:      backup,
+			BackupVault: backupVault,
+			Volume:      volume,
+		},
+		Node:         &models.Node{EndpointAddress: "127.0.0.1"},
+		SnapshotName: "test-backup",
+	}, nil)
+	env.OnActivity("CreateSnapshotActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup:      backup,
+			BackupVault: backupVault,
+			Volume:      volume,
+		},
+		Node:         &models.Node{EndpointAddress: "127.0.0.1"},
+		SnapshotName: "test-backup",
+	}, nil)
+	env.OnActivity("TransferSnapshotActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup:      backup,
+			BackupVault: backupVault,
+			Volume:      volume,
+		},
+		Node:              &models.Node{EndpointAddress: "127.0.0.1"},
+		SnapshotName:      "test-backup",
+		SmSourcePath:      "svm_test:volume_test",
+		SmDestinationPath: "test-bucket:/objstore/test-vol",
+	}, nil)
+	env.OnActivity("PollTransferStatusWithHistoryCheckActivity", mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
+		BackupActivitiesContext: &activities.BackupActivitiesContext{
+			BackupWorkflowInit: &activities.BackupWorkflowInput{
+				Backup:      backup,
+				BackupVault: backupVault,
+				Volume:      volume,
+			},
+			Node:              &models.Node{EndpointAddress: "127.0.0.1"},
+			SnapshotName:      "test-backup",
+			SmSourcePath:      "svm_test:volume_test",
+			SmDestinationPath: "test-bucket:/objstore/test-vol",
+			TransferStatus:    activities.SmStatusSuccess,
+		},
+		TransferComplete:    true,
+		ShouldContinueAsNew: false,
+	}, nil)
+	brokenOffState := "broken_off"
+	unhealthyReasons := []string{"Transfer failed", "Connection timeout"}
+	env.OnActivity("GetSnapmirror", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorRelationship{
+		UUID:            "test-snapmirror-uuid",
+		Healthy:         nillable.ToPointer(false),
+		UnhealthyReason: &unhealthyReasons,
+		State:           &brokenOffState,
+	}, nil)
+	env.OnActivity("UpdateBackupError", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("FinishBackupActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{
+		BackupWorkflowInit: &activities.BackupWorkflowInput{
+			Backup:      backup,
+			BackupVault: backupVault,
+			Volume:      volume,
+		},
+	}, nil).Maybe()
+
+	env.ExecuteWorkflow(CreateBackupWorkflow, params, backup, backupVault, volume)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.ErrorContains(t, env.GetWorkflowError(), "snapmirror relationship state is not snapmirrored")
+	env.AssertExpectations(t)
+}
+
 func TestBackupWorkflowUnhealthySnapmirrorWithoutReason(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()

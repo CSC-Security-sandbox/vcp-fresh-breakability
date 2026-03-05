@@ -303,7 +303,7 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 		return nil, ConvertToVSAError(err)
 	}
 
-	// Wait for 60 seconds before proceeding
+	// Wait for 30 seconds before proceeding
 	err = workflow.Sleep(ctx, 30*time.Second)
 	if err != nil {
 		return nil, ConvertToVSAError(fmt.Errorf("failed to sleep before getting the snapmirror: %w", err))
@@ -314,6 +314,15 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 	err = workflow.ExecuteActivity(ctx, backupActivity.GetSnapmirror, backupActivitiesContext.Node, backupActivitiesContext.SmSourcePath, backupActivitiesContext.SmDestinationPath).Get(ctx, &smRelationship)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
+	}
+
+	if smRelationship.State != nil && *smRelationship.State != models.OntapSnapmirrored {
+		unhealthyMsg := ""
+		if smRelationship.Healthy != nil && !*smRelationship.Healthy && smRelationship.UnhealthyReason != nil && len(*smRelationship.UnhealthyReason) > 0 {
+			unhealthyMsg = fmt.Sprintf(" Unhealthy reasons: %v", *smRelationship.UnhealthyReason)
+		}
+		wf.Logger.Infof("Snapmirror relationship state is %s, expected %s.%s", *smRelationship.State, models.OntapSnapmirrored, unhealthyMsg)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, vsaerrors.New("snapmirror relationship state is not snapmirrored"))
 	}
 
 	if smRelationship.Healthy != nil && !*smRelationship.Healthy {

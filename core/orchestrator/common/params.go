@@ -549,6 +549,7 @@ type SnapmirrorRelationship struct {
 	DestinationUUID *string
 	Healthy         *bool
 	UnhealthyReason *[]string
+	State           *string
 }
 
 type GetMultipleReplicationsParams struct {
