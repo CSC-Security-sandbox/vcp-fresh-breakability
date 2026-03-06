@@ -1578,6 +1578,55 @@ func TestGoogleMetric_GetResourceUUID_WithHydratedMetricFields(t *testing.T) {
 	}
 }
 
+// TestGetZone_BillingMetric_WithZone tests GetZone for BillingMetric with zone set
+func TestGetZone_BillingMetric_WithZone(t *testing.T) {
+	zone := "us-central1-a"
+	billingMetric := &datamodel.AggregatedUsage{Zone: &zone}
+	googleMetric := NewGoogleMetric(billingMetric)
+
+	result, err := googleMetric.GetZone()
+	assert.NoError(t, err)
+	assert.Equal(t, "us-central1-a", result)
+}
+
+// TestGetZone_BillingMetric_NilZone tests GetZone for BillingMetric with nil zone
+func TestGetZone_BillingMetric_NilZone(t *testing.T) {
+	billingMetric := &datamodel.AggregatedUsage{Zone: nil}
+	googleMetric := NewGoogleMetric(billingMetric)
+
+	result, err := googleMetric.GetZone()
+	assert.NoError(t, err)
+	assert.Empty(t, result)
+}
+
+// TestGetZone_BillingMetric_Error tests GetZone for BillingMetric with nil record
+func TestGetZone_BillingMetric_Error(t *testing.T) {
+	googleMetric := NewGoogleMetric(nil)
+
+	result, err := googleMetric.GetZone()
+	assert.Error(t, err)
+	assert.Empty(t, result)
+}
+
+// TestGetZone_HydratedMetric tests GetZone for HydratedMetric returns empty
+func TestGetZone_HydratedMetric(t *testing.T) {
+	hydratedMetric := &entity.HydratedMetric{Metadata: metadata.ResourceMetadata{}}
+	googleMetric := NewGoogleMetric(hydratedMetric)
+
+	result, err := googleMetric.GetZone()
+	assert.NoError(t, err)
+	assert.Empty(t, result)
+}
+
+// TestGetZone_InvalidMetric tests GetZone for invalid metric type
+func TestGetZone_InvalidMetric(t *testing.T) {
+	googleMetric := NewGoogleMetric("invalid")
+
+	result, err := googleMetric.GetZone()
+	assert.Error(t, err)
+	assert.Empty(t, result)
+}
+
 // Helper function to create string pointers for testing
 func stringPtr(s string) *string {
 	return &s

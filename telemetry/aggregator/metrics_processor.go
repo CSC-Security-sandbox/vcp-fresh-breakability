@@ -56,6 +56,7 @@ type ResourceData struct {
 	VolumeStyle           string // Track volume style (FLEXVOL/FLEXGROUP)
 	HasOnlyBlockVolumes   bool
 	IsONTAPMode           bool    // True if pool has APIAccessMode == "ONTAP" (expert mode)
+	PrimaryZone           string  // Pool's primary zone for AT billing location label
 	BackupRegionName      *string // Destination region for cross-region backups
 }
 
@@ -400,6 +401,10 @@ func (p *BillingProvider) fetchPoolData(ctx context.Context, aggregationStartTim
 				limitedLabels = make(Labels)
 			}
 
+			primaryZone := ""
+			if pool.PoolAttributes != nil {
+				primaryZone = pool.PoolAttributes.PrimaryZone
+			}
 			poolResourceData := ResourceData{
 				UUID:                pool.UUID,
 				AccountID:           pool.AccountID,
@@ -409,6 +414,7 @@ func (p *BillingProvider) fetchPoolData(ctx context.Context, aggregationStartTim
 				VolumeStyle:         "",                        // Empty for pools
 				HasOnlyBlockVolumes: blockOnlyPoolIDs[pool.ID], // Set based on block-only pool IDs map
 				IsONTAPMode:         pool.APIAccessMode == commonparams.ONTAPMode,
+				PrimaryZone:         primaryZone,
 			}
 			resourceType := metadata.VolumePool
 			if pool.IsRegionalHA() {
@@ -1212,6 +1218,11 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 		AggregationType:        string(jobDef.AggregationType),
 		ServiceLevel:           unifiedServiceType,
 		VolumeStyle:            resourceData.VolumeStyle,
+	}
+
+	// Set zone for zonal pools (available for all metrics, used by AT billing location label)
+	if resourceData.PrimaryZone != "" && resourceKey.ResourceType == metadata.VolumePool {
+		aggregated.Zone = &resourceData.PrimaryZone
 	}
 
 	if aggregated.MeasuredType == metadata.BackupLogicalSize {

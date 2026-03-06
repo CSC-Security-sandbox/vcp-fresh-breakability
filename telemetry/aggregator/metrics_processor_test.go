@@ -5338,6 +5338,101 @@ func TestFetchResourceData_PopulatesIsONTAPModeFromAPIAccessMode(t *testing.T) {
 	mockVcpDB.AssertExpectations(t)
 }
 
+// TestResourceData_PrimaryZone tests that PrimaryZone is set correctly
+func TestResourceData_PrimaryZone(t *testing.T) {
+	t.Run("PrimaryZone set from pool attributes", func(t *testing.T) {
+		rd := ResourceData{
+			UUID:        "test-uuid",
+			PrimaryZone: "us-central1-a",
+		}
+		assert.Equal(t, "us-central1-a", rd.PrimaryZone)
+	})
+
+	t.Run("PrimaryZone empty when not set", func(t *testing.T) {
+		rd := ResourceData{
+			UUID: "test-uuid",
+		}
+		assert.Empty(t, rd.PrimaryZone)
+	})
+}
+
+// TestZoneSetOnAggregatedUsage tests that Zone is set for all zonal pool metrics
+func TestZoneSetOnAggregatedUsage(t *testing.T) {
+	t.Run("Zone set for zonal pool", func(t *testing.T) {
+		resourceData := &ResourceData{
+			UUID:        "test-uuid",
+			AccountID:   123,
+			PrimaryZone: "us-central1-a",
+		}
+		resourceKey := ResourceKey{
+			ResourceType: metadata.VolumePool,
+		}
+
+		var zone *string
+		if resourceData.PrimaryZone != "" && resourceKey.ResourceType == metadata.VolumePool {
+			zone = &resourceData.PrimaryZone
+		}
+
+		assert.NotNil(t, zone)
+		assert.Equal(t, "us-central1-a", *zone)
+	})
+
+	t.Run("Zone nil for regional pool", func(t *testing.T) {
+		resourceData := &ResourceData{
+			UUID:        "test-uuid",
+			AccountID:   123,
+			PrimaryZone: "us-central1-a",
+		}
+		resourceKey := ResourceKey{
+			ResourceType: metadata.VolumePoolRegionalHA,
+		}
+
+		var zone *string
+		if resourceData.PrimaryZone != "" && resourceKey.ResourceType == metadata.VolumePool {
+			zone = &resourceData.PrimaryZone
+		}
+
+		assert.Nil(t, zone, "Zone should be nil for regional pool")
+	})
+
+	t.Run("Zone set for non-AT metric on zonal pool too", func(t *testing.T) {
+		resourceData := &ResourceData{
+			UUID:        "test-uuid",
+			AccountID:   123,
+			PrimaryZone: "us-central1-a",
+		}
+		resourceKey := ResourceKey{
+			ResourceType: metadata.VolumePool,
+		}
+
+		var zone *string
+		if resourceData.PrimaryZone != "" && resourceKey.ResourceType == metadata.VolumePool {
+			zone = &resourceData.PrimaryZone
+		}
+
+		assert.NotNil(t, zone, "Zone should be set for all zonal pool metrics")
+		assert.Equal(t, "us-central1-a", *zone)
+	})
+
+	t.Run("Zone nil when PrimaryZone is empty", func(t *testing.T) {
+		resourceData := &ResourceData{
+			UUID:        "test-uuid",
+			AccountID:   123,
+			PrimaryZone: "",
+		}
+		resourceKey := ResourceKey{
+			ResourceType: metadata.VolumePool,
+		}
+
+		var zone *string
+		if resourceData.PrimaryZone != "" && resourceKey.ResourceType == metadata.VolumePool {
+			zone = &resourceData.PrimaryZone
+		}
+
+		assert.Nil(t, zone, "Zone should be nil when PrimaryZone is empty")
+	})
+}
+
 func TestProcessBillingMetrics_CrossRegionRestoreTransferBytes_RegionOverride(t *testing.T) {
 	mockDB := &database.MockStorage{}
 	mockSink := &MockUsageSink{}

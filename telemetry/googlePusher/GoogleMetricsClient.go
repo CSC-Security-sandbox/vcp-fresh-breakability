@@ -609,7 +609,15 @@ func SetCommonLabels(op *Operation, consumerId, dataCenter, resourceId string, g
 
 	metricType := googleMetric.GetType()
 	if metricType == common.BillingMetric {
-		labels["cloud.googleapis.com/location"] = dataCenter
+		location := dataCenter
+		// For AT billing metrics on zonal pools, use zone instead of region
+		measuredType, _ := googleMetric.GetMeasuredType()
+		if isATBillingMeasuredType(measuredType) {
+			if zone, err := googleMetric.GetZone(); err == nil && zone != "" {
+				location = zone
+			}
+		}
+		labels["cloud.googleapis.com/location"] = location
 	} else {
 		labels["location"] = dataCenter
 		labels["resource_container"] = "projects/" + consumerId
@@ -617,6 +625,18 @@ func SetCommonLabels(op *Operation, consumerId, dataCenter, resourceId string, g
 	}
 	op.Labels = labels
 	return nil
+}
+
+// isATBillingMeasuredType returns true if the measured type is an auto-tiering billing metric.
+func isATBillingMeasuredType(measuredType metadata.MeasuredType) bool {
+	switch measuredType {
+	case metadata.CoolTierDataReadSizeRaw,
+		metadata.CoolTierDataWriteSizeRaw,
+		metadata.PoolHotTierProvisionedSize,
+		metadata.PoolCapacityTierLogicalFootprint:
+		return true
+	}
+	return false
 }
 
 func toGoogleProject(customerId string) string {
@@ -886,7 +906,25 @@ func GetLabelValue(key string, metric common.GoogleMetric, logger log.Logger) (s
 		case "/replication/replication_type":
 			return getReplicationType(metric)
 		}
-	case metadata.VolumePool, metadata.VolumePoolRegionalHA:
+	case metadata.VolumePool:
+		switch key {
+		case "/resource_id":
+			return metric.GetResourceUUID()
+		case "/storage/location":
+			if zone, err := metric.GetZone(); err == nil && zone != "" {
+				return zone, nil
+			}
+			return metric.GetRegion()
+		case "/storage/service_level":
+			return "UNIFIED", nil
+		case "/netapp/auto_tier_transfer_type":
+			measuredType, _ := metric.GetMeasuredType()
+			if measuredType == metadata.CoolTierDataReadSizeRaw {
+				return "COOL_TIER_DATA_READ_SIZE", nil
+			}
+			return "COOL_TIER_DATA_WRITE_SIZE", nil
+		}
+	case metadata.VolumePoolRegionalHA:
 		switch key {
 		case "/resource_id":
 			return metric.GetResourceUUID()

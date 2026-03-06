@@ -228,6 +228,29 @@ func (gm *GoogleMetric) GetRegion() (string, error) {
 	}
 }
 
+// GetZone returns the zone for the Google metric.
+// This is populated only for AT billing metrics on zonal pools.
+// Returns:
+// - The zone as a string (empty if not set).
+// - An error if the zone could not be retrieved.
+func (gm *GoogleMetric) GetZone() (string, error) {
+	switch gm.GetType() {
+	case BillingMetric:
+		metric, err := gm.GetAsUsageBillingMetric()
+		if err != nil {
+			return "", err
+		}
+		if metric.Zone == nil {
+			return "", nil
+		}
+		return *metric.Zone, nil
+	case HydratedMetric:
+		return "", nil
+	default:
+		return "", NewInvalidGoogleMetricException("Invalid GoogleMetric type")
+	}
+}
+
 // GetTags returns the tags for the Google metric.
 // Returns:
 // - The tags as a string.

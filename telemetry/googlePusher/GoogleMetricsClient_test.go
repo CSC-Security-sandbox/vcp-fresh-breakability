@@ -813,6 +813,65 @@ func Test_SetCommonLabels_ErrorPaths(t *testing.T) {
 	})
 }
 
+// Test SetCommonLabels for AT billing metrics on zonal pools uses zone
+func Test_SetCommonLabels_ATBilling_ZonalPool(t *testing.T) {
+	zone := "us-central1-a"
+	zonalATMetric := common.NewGoogleMetric(&datamodel.AggregatedUsage{
+		ResourceType: metadata.VolumePool,
+		MeasuredType: metadata.PoolHotTierProvisionedSize,
+		Zone:         &zone,
+	})
+
+	op := &Operation{}
+	err := SetCommonLabels(op, "test-customer", "us-central1", "resource-123", *zonalATMetric)
+	assert.NoError(t, err)
+	assert.Equal(t, "us-central1-a", op.Labels["cloud.googleapis.com/location"])
+}
+
+// Test SetCommonLabels for AT billing metrics on regional pools uses region
+func Test_SetCommonLabels_ATBilling_RegionalPool(t *testing.T) {
+	regionalATMetric := common.NewGoogleMetric(&datamodel.AggregatedUsage{
+		ResourceType: metadata.VolumePoolRegionalHA,
+		MeasuredType: metadata.PoolHotTierProvisionedSize,
+		// Zone is nil for regional pools
+	})
+
+	op := &Operation{}
+	err := SetCommonLabels(op, "test-customer", "us-central1", "resource-123", *regionalATMetric)
+	assert.NoError(t, err)
+	assert.Equal(t, "us-central1", op.Labels["cloud.googleapis.com/location"])
+}
+
+// Test SetCommonLabels for non-AT billing metrics uses region
+func Test_SetCommonLabels_NonATBilling(t *testing.T) {
+	customerID := "test-customer"
+	nonATMetric := common.NewGoogleMetric(&datamodel.AggregatedUsage{
+		VendorCustomerID: &customerID,
+		ResourceType:     metadata.VolumePool,
+		MeasuredType:     metadata.PoolAllocatedSize,
+		// Zone is nil for non-AT metrics
+	})
+
+	op := &Operation{}
+	err := SetCommonLabels(op, customerID, "us-central1", "resource-123", *nonATMetric)
+	assert.NoError(t, err)
+	assert.Equal(t, "us-central1", op.Labels["cloud.googleapis.com/location"])
+}
+
+// Test SetCommonLabels for zonal pool without zone falls back to region
+func Test_SetCommonLabels_ATBilling_ZonalPool_NoZone(t *testing.T) {
+	zonalATMetric := common.NewGoogleMetric(&datamodel.AggregatedUsage{
+		ResourceType: metadata.VolumePool,
+		MeasuredType: metadata.PoolHotTierProvisionedSize,
+		// Zone is nil
+	})
+
+	op := &Operation{}
+	err := SetCommonLabels(op, "test-customer", "us-central1", "resource-123", *zonalATMetric)
+	assert.NoError(t, err)
+	assert.Equal(t, "us-central1", op.Labels["cloud.googleapis.com/location"])
+}
+
 // Test missing coverage for GetLabelValue function
 func Test_GetLabelValue(t *testing.T) {
 	ctx := context.Background()
@@ -956,8 +1015,8 @@ func Test_GetLabelValue(t *testing.T) {
 		}
 	})
 
-	t.Run("VolumePoolRegionalHA autotier metrics match VolumePool", func(t *testing.T) {
-		// Test that VolumePoolRegionalHA returns same label values as VolumePool
+	t.Run("VolumePoolRegionalHA autotier metrics match VolumePool when no zone set", func(t *testing.T) {
+		// When no zone is set, VolumePool falls back to region, matching VolumePoolRegionalHA
 		regionName := "us-central1"
 		measuredType := metadata.CoolTierDataReadSizeRaw
 
@@ -981,8 +1040,42 @@ func Test_GetLabelValue(t *testing.T) {
 
 			assert.NoError(t, poolErr)
 			assert.NoError(t, haErr)
-			assert.Equal(t, poolResult, haResult, "VolumePoolRegionalHA should return same value as VolumePool for key %s", key)
+			assert.Equal(t, poolResult, haResult, "VolumePoolRegionalHA should return same value as VolumePool for key %s when no zone is set", key)
 		}
+	})
+
+	t.Run("VolumePool storage/location returns zone when zone is set", func(t *testing.T) {
+		regionName := "australia-southeast1"
+		zoneName := "australia-southeast1-a"
+		aggregated := &datamodel.AggregatedUsage{
+			ResourceType: metadata.VolumePool,
+			MeasuredType: metadata.PoolHotTierProvisionedSize,
+			ResourceUUID: "test-uuid",
+			RegionName:   &regionName,
+			Zone:         &zoneName,
+		}
+		googleMetric := *common.NewGoogleMetric(aggregated)
+
+		result, err := GetLabelValue("/storage/location", googleMetric, logger)
+		assert.NoError(t, err)
+		assert.Equal(t, "australia-southeast1-a", result, "VolumePool should return zone for /storage/location when zone is set")
+	})
+
+	t.Run("VolumePoolRegionalHA storage/location returns region even when zone is set", func(t *testing.T) {
+		regionName := "australia-southeast1"
+		zoneName := "australia-southeast1-a"
+		aggregated := &datamodel.AggregatedUsage{
+			ResourceType: metadata.VolumePoolRegionalHA,
+			MeasuredType: metadata.PoolHotTierProvisionedSize,
+			ResourceUUID: "test-uuid",
+			RegionName:   &regionName,
+			Zone:         &zoneName,
+		}
+		googleMetric := *common.NewGoogleMetric(aggregated)
+
+		result, err := GetLabelValue("/storage/location", googleMetric, logger)
+		assert.NoError(t, err)
+		assert.Equal(t, "australia-southeast1", result, "VolumePoolRegionalHA should return region for /storage/location even when zone is set")
 	})
 
 	t.Run("VolumeReplicationRelationship with MIGRATION and ONPREM replication types", func(t *testing.T) {
@@ -1467,7 +1560,7 @@ func Test_CreateMetricValue_HydratedMetricType(t *testing.T) {
 	t.Run("HydratedMetric with nil Tags does not panic", func(t *testing.T) {
 		rm := metadata.ResourceMetadata{
 			ResourceType: metadata.BackupVault,
-			Tags:        nil,
+			Tags:         nil,
 		}
 		hydratedM := &entity.HydratedMetric{
 			Metadata:     rm,
@@ -1486,7 +1579,7 @@ func Test_CreateMetricValue_HydratedMetricType(t *testing.T) {
 			ResourceType: metadata.BackupVault,
 			Tags: map[string]string{
 				"backup_crypto_key_version": "projects/test/locations/us/keyRings/test/cryptoKeys/key1",
-				"custom_label":               "custom_value",
+				"custom_label":              "custom_value",
 			},
 		}
 		hydratedM := &entity.HydratedMetric{

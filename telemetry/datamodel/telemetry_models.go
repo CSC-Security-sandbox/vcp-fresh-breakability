@@ -35,6 +35,7 @@ type AggregatedUsage struct {
 	AggregationType        string                `gorm:"column:aggregation_type;size:100;not null" json:"aggregation_type"`
 	LastCounterValue       *float64              `gorm:"column:last_counter_value" json:"last_counter_value"`
 	RegionName             *string               `gorm:"column:region_name;size:255;index" json:"region_name"`
+	Zone                   *string               `gorm:"column:zone;size:255" json:"zone"`
 	SourceRegion           *string               `gorm:"column:source_region;size:255" json:"source_region"`
 	DestinationRegion      *string               `gorm:"column:destination_region;size:255" json:"destination_region"`
 	BillingLabels          *string               `gorm:"column:billing_labels;type:jsonb" json:"billing_labels"`
