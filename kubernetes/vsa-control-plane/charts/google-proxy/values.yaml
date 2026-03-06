@@ -42,7 +42,7 @@ flexCacheEnabled: false
 hybridReplicationEnabled: false
 bidiReplicationEnabled: false
 autoTieringEnabled: false
-blockUpdatePoolToATPool: true # Block updating existing pools to Auto-Tiering pools
+blockUpdatePoolToATPool: false # Block updating existing pools to Auto-Tiering pools
 regionalSupportEnabled: true
 filesProtocolSupport: true
 ontapVersionDetails: "9.18.1"

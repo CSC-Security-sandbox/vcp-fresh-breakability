@@ -34,7 +34,7 @@ var (
 	minCustomThroughput                    = utils.MinCustomThroughput
 	getAndSyncKmsConfigForPool             = _getAndSyncKmsConfigForPool
 	enableLdap                             = env.GetBool("ENABLE_LDAP", false)
-	blockUpdatePooltoATPool                = env.GetBool("BLOCK_UPDATE_POOL_TO_AT_POOL", true)
+	blockUpdatePooltoATPool                = env.GetBool("BLOCK_UPDATE_POOL_TO_AT_POOL", false)
 	enableMqos                             = env.GetBool("ENABLE_MQOS", true)
 	enableVolumePerformanceGroupAssignment = env.GetBool("ENABLE_VOLUME_PERFORMANCE_GROUP_ASSIGNMENT", false)
 )
