@@ -400,15 +400,15 @@ func (o *GCPOrchestrator) DeleteVolumePerformanceGroup(ctx context.Context, para
 
 	if vpg.OntapQosPolicyID != "" {
 		deleteParams := vsa.DeleteQoSGroupPolicyParams{
-			Name:    vpg.OntapQosPolicyID,
+			UUID:    vpg.OntapQosPolicyID,
 			SvmName: svm.Name,
 		}
 		if err := provider.DeleteQoSGroupPolicy(deleteParams); err != nil {
 			if !customerrors.IsNotFoundErr(err) {
-				logger.Error("Failed to delete QoS policy from ONTAP", "policy_name", vpg.OntapQosPolicyID, "error", err)
+				logger.Error("Failed to delete QoS policy from ONTAP", "policy_id", vpg.OntapQosPolicyID, "error", err)
 				return nil, err
 			}
-			logger.Debug("QoS policy already deleted in ONTAP", "policy_name", vpg.OntapQosPolicyID)
+			logger.Debug("QoS policy already deleted in ONTAP", "policy_id", vpg.OntapQosPolicyID)
 		}
 	}
 

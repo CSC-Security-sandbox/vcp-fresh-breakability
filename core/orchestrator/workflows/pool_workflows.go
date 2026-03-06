@@ -72,6 +72,7 @@ var (
 	waitTimeForGCPOperationInSec = env.GetInt("WAIT_TIME_FOR_GCP_OPERATION_IN_SEC", 10)
 	parallelNumberOfNodesForITC  = env.GetInt("PARALLEL_NUMBER_OF_NODES_FOR_ITC", 4) // As of now it's 4 as per the VLM design document
 
+	enableVpgEndpoints                = env.GetBool("ENABLE_VPG_ENDPOINTS", false)
 	disableVsaCleanupOnVLMFailure     = env.GetBool("DISABLE_VSA_CLEANUP_ON_VLM_FAILURE", false)
 	enableAutoVolOfflineCronForGCPKMS = env.GetBool("ENABLE_AUTO_VOL_OFFLINE_CRON_FOR_GCP_KMS", true)
 	ginLoggingFeatureFlag             = env.GetBool("GIN_LOGGING_FEATURE", false)
@@ -1281,15 +1282,23 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 	// this rollback manager will be invoked whenever there is an error, and it will start calling clean up activities in LIFO manner ***/
 	rollbackManager.AddActivity(poolActivity.FailedPool, dbPool, "Failed to delete pool")
 
-	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.DeletingPoolResources, dbPool).Get(dbHbCtx, nil)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-
 	// For pools in CREATING state, skip cleanup activities that require resources that haven't been created yet
 	hasDeploymentName := dbPool.DeploymentName != ""
 	hasClusterDetails := dbPool.ClusterDetails.RegionalTenantProject != ""
 	hasPoolCredentials := dbPool.PoolCredentials != nil
+
+	// Cascade-delete all VPGs before infrastructure teardown (ONTAP is still alive at this point).
+	// Only for manual QoS pools with VPG endpoints enabled — auto QoS pools do not have VPGs.
+	if enableVpgEndpoints && hasPoolCredentials && dbPool.QosType == utils.QosTypeManual {
+		if vpgErr := workflow.ExecuteActivity(hyperscalerCtx, poolActivity.DeleteAllPoolVPGs, dbPool).Get(ctx, nil); vpgErr != nil {
+			wf.Logger.Warnf("Failed to delete VPGs for pool %s: %v, proceeding with pool deletion", dbPool.UUID, vpgErr)
+		}
+	}
+
+	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.DeletingPoolResources, dbPool).Get(dbHbCtx, nil)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
 
 	// Only perform DNS cleanup if pool credentials exist (indicates pool was at least partially created)
 	if hasPoolCredentials {

@@ -1275,7 +1275,7 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
 		mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(svm, nil)
 		mockStorage.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
-		mockProvider.On("DeleteQoSGroupPolicy", vsa.DeleteQoSGroupPolicyParams{Name: "ontap-policy-name", SvmName: "svm1"}).Return(nil)
+		mockProvider.On("DeleteQoSGroupPolicy", vsa.DeleteQoSGroupPolicyParams{UUID: "ontap-policy-name", SvmName: "svm1"}).Return(nil)
 		mockStorage.On("HardDeleteVolumePerformanceGroup", ctx, vpg).Return(nil)
 
 		o := &GCPOrchestrator{storage: mockStorage}
@@ -1685,7 +1685,7 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
 		mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(svm, nil)
 		mockStorage.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
-		mockProvider.On("DeleteQoSGroupPolicy", vsa.DeleteQoSGroupPolicyParams{Name: "policy-1", SvmName: "svm1"}).Return(errors.New("ontap error"))
+		mockProvider.On("DeleteQoSGroupPolicy", vsa.DeleteQoSGroupPolicyParams{UUID: "policy-1", SvmName: "svm1"}).Return(errors.New("ontap error"))
 		o := &GCPOrchestrator{storage: mockStorage}
 		params := &common.DeleteVolumePerformanceGroupParams{
 			AccountName: "test-account", PoolID: "pool-id", VolumePerformanceGroupID: "vpg-uuid",
@@ -1728,7 +1728,7 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
 		mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(svm, nil)
 		mockStorage.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
-		mockProvider.On("DeleteQoSGroupPolicy", vsa.DeleteQoSGroupPolicyParams{Name: "policy-1", SvmName: "svm1"}).Return(utilErrors.NewNotFoundErr("policy", nil))
+		mockProvider.On("DeleteQoSGroupPolicy", vsa.DeleteQoSGroupPolicyParams{UUID: "policy-1", SvmName: "svm1"}).Return(utilErrors.NewNotFoundErr("policy", nil))
 		mockStorage.On("HardDeleteVolumePerformanceGroup", ctx, vpg).Return(nil)
 		o := &GCPOrchestrator{storage: mockStorage}
 		params := &common.DeleteVolumePerformanceGroupParams{
@@ -1772,7 +1772,7 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
 		mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(svm, nil)
 		mockStorage.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
-		mockProvider.On("DeleteQoSGroupPolicy", vsa.DeleteQoSGroupPolicyParams{Name: "policy-1", SvmName: "svm1"}).Return(nil)
+		mockProvider.On("DeleteQoSGroupPolicy", vsa.DeleteQoSGroupPolicyParams{UUID: "policy-1", SvmName: "svm1"}).Return(nil)
 		mockStorage.On("HardDeleteVolumePerformanceGroup", ctx, vpg).Return(errors.New("hard delete failed"))
 		o := &GCPOrchestrator{storage: mockStorage}
 		params := &common.DeleteVolumePerformanceGroupParams{

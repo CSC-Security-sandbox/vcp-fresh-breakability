@@ -2428,6 +2428,83 @@ func (j *PoolActivity) DeletePoolResources(ctx context.Context, pool *datamodel.
 	return pool, nil
 }
 
+// DeleteAllPoolVPGs deletes all VPGs for a pool by removing their ONTAP QoS policies and
+// hard-deleting the VPG records from the database. This is called during pool deletion to
+// cascade-clean VPGs before the VSA cluster is destroyed.
+// The caller (workflow) is responsible for gating on manual QoS type and feature flags.
+func (j *PoolActivity) DeleteAllPoolVPGs(ctx context.Context, pool *datamodel.Pool) error {
+	logger := util.GetLogger(ctx)
+	se := j.SE
+	activity.RecordHeartbeat(ctx, "Starting DeleteAllPoolVPGs activity")
+
+	vpgs, err := se.ListVolumePerformanceGroupsByPoolID(ctx, pool.ID)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	if len(vpgs) == 0 {
+		activity.RecordHeartbeat(ctx, "No VPGs to clean up")
+		return nil
+	}
+
+	logger.Info("Deleting VPGs for pool", "pool_id", pool.ID, "vpg_count", len(vpgs))
+
+	svm, err := se.GetSvmForPoolID(ctx, pool.ID)
+	if err != nil {
+		logger.Warn("Failed to get SVM, will skip ONTAP QoS cleanup", "error", err)
+	}
+
+	dbNodes, err := se.GetNodesByPoolID(ctx, pool.ID)
+	if err != nil {
+		logger.Warn("Failed to get nodes, will skip ONTAP QoS cleanup", "error", err)
+	}
+
+	var provider vsa.Provider
+	if len(dbNodes) > 0 {
+		node := hyperscaler2.CreateNodeForProvider(hyperscaler2.NodeProviderInput{
+			Nodes:            dbNodes,
+			DeploymentName:   pool.DeploymentName,
+			OntapCredentials: pool.PoolCredentials,
+		})
+		if node != nil {
+			var providerErr error
+			provider, providerErr = hyperscaler2.GetProviderByNode(ctx, node)
+			if providerErr != nil {
+				logger.Warn("Failed to get ONTAP provider, will skip QoS cleanup", "error", providerErr)
+			}
+		}
+	}
+
+	for _, vpg := range vpgs {
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("Deleting VPG %s", vpg.UUID))
+
+		if vpg.OntapQosPolicyID != "" && provider != nil && svm != nil {
+			deleteParams := vsa.DeleteQoSGroupPolicyParams{
+				UUID:    vpg.OntapQosPolicyID,
+				SvmName: svm.Name,
+			}
+			if err := provider.DeleteQoSGroupPolicy(deleteParams); err != nil {
+				if !utilErrors.IsNotFoundErr(err) {
+					logger.Warn("Failed to delete QoS policy from ONTAP", "vpg_uuid", vpg.UUID, "policy", vpg.OntapQosPolicyID, "error", err)
+				}
+			}
+		}
+
+		if err := se.HardDeleteVolumePerformanceGroup(ctx, vpg); err != nil {
+			if utilErrors.IsNotFoundErr(err) {
+				logger.Info("VPG already deleted, skipping", "vpg_uuid", vpg.UUID)
+			} else {
+				logger.Error("Failed to hard-delete VPG", "vpg_uuid", vpg.UUID, "error", err)
+				return vsaerrors.WrapAsTemporalApplicationError(err)
+			}
+		} else {
+			logger.Info("Deleted VPG", "vpg_uuid", vpg.UUID, "vpg_name", vpg.Name)
+		}
+	}
+
+	activity.RecordHeartbeat(ctx, "Finished DeleteAllPoolVPGs activity")
+	return nil
+}
+
 // CreateAutoTierBucket creates a GCP bucket for auto-tiering in the specified project and region.
 // Parameters:
 // - ctx: The context for managing request-scoped values, deadlines, and cancellation signals.

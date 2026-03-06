@@ -137,6 +137,7 @@ workerConfig:
   enableQuotaRule: "true"
   enableKerberos: "false"
   enableMqos: "true"
+  enableVpgEndpoints: "false"
   vsaDeployedDnsName: "au-se1.vsa"
   vsaManagedZone: "au-se1-vsa"
   vsaSecretCacheCleanupIntervalHours: 24

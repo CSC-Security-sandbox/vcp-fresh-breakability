@@ -145,7 +145,7 @@ func (a *VolumePerformanceGroupActivity) DeleteQoSPolicyInONTAP(
 	}
 
 	deleteQosParams := vsa.DeleteQoSGroupPolicyParams{
-		Name:    qosPolicyID,
+		UUID:    qosPolicyID,
 		SvmName: svm.Name,
 	}
 	err = provider.DeleteQoSGroupPolicy(deleteQosParams)

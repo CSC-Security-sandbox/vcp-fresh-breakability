@@ -38,6 +38,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -15733,3 +15734,208 @@ func TestCleanupServiceAccountPermissionsInTenantProjects_MultipleProjectsWithFa
 	}
 	mockCloudService.AssertExpectations(t)
 }
+
+func Test_DeleteAllPoolVPGs_Success(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	act := activities.PoolActivity{SE: mockStorage}
+	env.RegisterActivity(act.DeleteAllPoolVPGs)
+
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+		DeploymentName:  "deploy-1",
+		PoolCredentials: &datamodel.PoolCredentials{},
+	}
+	svm := &datamodel.Svm{Name: "svm1"}
+	nodes := []*datamodel.Node{{BaseModel: datamodel.BaseModel{ID: 1}, EndpointAddress: "10.0.0.1"}}
+	vpgs := []*datamodel.VolumePerformanceGroup{
+		{BaseModel: datamodel.BaseModel{ID: 1, UUID: "vpg-1"}, Name: "vpg-one", OntapQosPolicyID: "qos-1", PoolID: 1},
+		{BaseModel: datamodel.BaseModel{ID: 2, UUID: "vpg-2"}, Name: "vpg-two", OntapQosPolicyID: "qos-2", PoolID: 1},
+	}
+
+	mockStorage.On("ListVolumePerformanceGroupsByPoolID", mock.Anything, int64(1)).Return(vpgs, nil)
+	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, int64(1)).Return(nodes, nil)
+	mockProvider.On("DeleteQoSGroupPolicy", vsa.DeleteQoSGroupPolicyParams{UUID: "qos-1", SvmName: "svm1"}).Return(nil)
+	mockProvider.On("DeleteQoSGroupPolicy", vsa.DeleteQoSGroupPolicyParams{UUID: "qos-2", SvmName: "svm1"}).Return(nil)
+	mockStorage.On("HardDeleteVolumePerformanceGroup", mock.Anything, vpgs[0]).Return(nil)
+	mockStorage.On("HardDeleteVolumePerformanceGroup", mock.Anything, vpgs[1]).Return(nil)
+
+	_, err := env.ExecuteActivity(act.DeleteAllPoolVPGs, pool)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func Test_DeleteAllPoolVPGs_NoVPGs(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	act := activities.PoolActivity{SE: mockStorage}
+	env.RegisterActivity(act.DeleteAllPoolVPGs)
+
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"}}
+
+	mockStorage.On("ListVolumePerformanceGroupsByPoolID", mock.Anything, int64(1)).Return([]*datamodel.VolumePerformanceGroup{}, nil)
+
+	_, err := env.ExecuteActivity(act.DeleteAllPoolVPGs, pool)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func Test_DeleteAllPoolVPGs_OntapFailureContinues(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	act := activities.PoolActivity{SE: mockStorage}
+	env.RegisterActivity(act.DeleteAllPoolVPGs)
+
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+		DeploymentName:  "deploy-1",
+		PoolCredentials: &datamodel.PoolCredentials{},
+	}
+	svm := &datamodel.Svm{Name: "svm1"}
+	nodes := []*datamodel.Node{{BaseModel: datamodel.BaseModel{ID: 1}, EndpointAddress: "10.0.0.1"}}
+	vpg := &datamodel.VolumePerformanceGroup{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "vpg-1"}, Name: "vpg-one", OntapQosPolicyID: "qos-1", PoolID: 1,
+	}
+
+	mockStorage.On("ListVolumePerformanceGroupsByPoolID", mock.Anything, int64(1)).Return([]*datamodel.VolumePerformanceGroup{vpg}, nil)
+	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, int64(1)).Return(nodes, nil)
+	mockProvider.On("DeleteQoSGroupPolicy", vsa.DeleteQoSGroupPolicyParams{UUID: "qos-1", SvmName: "svm1"}).Return(errors.New("ONTAP unreachable"))
+	mockStorage.On("HardDeleteVolumePerformanceGroup", mock.Anything, vpg).Return(nil)
+
+	_, err := env.ExecuteActivity(act.DeleteAllPoolVPGs, pool)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func Test_DeleteAllPoolVPGs_DBHardDeleteFailure(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	act := activities.PoolActivity{SE: mockStorage}
+	env.RegisterActivity(act.DeleteAllPoolVPGs)
+
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+		DeploymentName:  "deploy-1",
+		PoolCredentials: &datamodel.PoolCredentials{},
+	}
+	svm := &datamodel.Svm{Name: "svm1"}
+	nodes := []*datamodel.Node{{BaseModel: datamodel.BaseModel{ID: 1}, EndpointAddress: "10.0.0.1"}}
+	vpg := &datamodel.VolumePerformanceGroup{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "vpg-1"}, Name: "vpg-one", OntapQosPolicyID: "qos-1", PoolID: 1,
+	}
+
+	mockStorage.On("ListVolumePerformanceGroupsByPoolID", mock.Anything, int64(1)).Return([]*datamodel.VolumePerformanceGroup{vpg}, nil)
+	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, int64(1)).Return(nodes, nil)
+	mockProvider.On("DeleteQoSGroupPolicy", vsa.DeleteQoSGroupPolicyParams{UUID: "qos-1", SvmName: "svm1"}).Return(nil)
+	mockStorage.On("HardDeleteVolumePerformanceGroup", mock.Anything, vpg).Return(errors.New("DB connection failed"))
+
+	_, err := env.ExecuteActivity(act.DeleteAllPoolVPGs, pool)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "DB connection failed")
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func Test_DeleteAllPoolVPGs_NotFoundSkipped(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	act := activities.PoolActivity{SE: mockStorage}
+	env.RegisterActivity(act.DeleteAllPoolVPGs)
+
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+		DeploymentName:  "deploy-1",
+		PoolCredentials: &datamodel.PoolCredentials{},
+	}
+	svm := &datamodel.Svm{Name: "svm1"}
+	nodes := []*datamodel.Node{{BaseModel: datamodel.BaseModel{ID: 1}, EndpointAddress: "10.0.0.1"}}
+	vpg := &datamodel.VolumePerformanceGroup{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "vpg-1"}, Name: "vpg-one", OntapQosPolicyID: "qos-1", PoolID: 1,
+	}
+
+	mockStorage.On("ListVolumePerformanceGroupsByPoolID", mock.Anything, int64(1)).Return([]*datamodel.VolumePerformanceGroup{vpg}, nil)
+	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, int64(1)).Return(nodes, nil)
+	mockProvider.On("DeleteQoSGroupPolicy", vsa.DeleteQoSGroupPolicyParams{UUID: "qos-1", SvmName: "svm1"}).Return(utilErrors.NewNotFoundErr("QoS policy", nil))
+	mockStorage.On("HardDeleteVolumePerformanceGroup", mock.Anything, vpg).Return(utilErrors.NewNotFoundErr("VPG", nil))
+
+	_, err := env.ExecuteActivity(act.DeleteAllPoolVPGs, pool)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func Test_DeleteAllPoolVPGs_SkipsOntapWhenNoProvider(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	act := activities.PoolActivity{SE: mockStorage}
+	env.RegisterActivity(act.DeleteAllPoolVPGs)
+
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+		DeploymentName:  "deploy-1",
+		PoolCredentials: &datamodel.PoolCredentials{},
+	}
+	vpg := &datamodel.VolumePerformanceGroup{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "vpg-1"}, Name: "vpg-one", OntapQosPolicyID: "qos-1", PoolID: 1,
+	}
+
+	mockStorage.On("ListVolumePerformanceGroupsByPoolID", mock.Anything, int64(1)).Return([]*datamodel.VolumePerformanceGroup{vpg}, nil)
+	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(nil, errors.New("SVM not found"))
+	mockStorage.On("GetNodesByPoolID", mock.Anything, int64(1)).Return([]*datamodel.Node{}, nil)
+	mockStorage.On("HardDeleteVolumePerformanceGroup", mock.Anything, vpg).Return(nil)
+
+	_, err := env.ExecuteActivity(act.DeleteAllPoolVPGs, pool)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+

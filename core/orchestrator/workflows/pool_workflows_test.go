@@ -4222,6 +4222,7 @@ func TestDeletePoolWorkflow(t *testing.T) {
 		State:     string(models.JobsStateNEW),
 	}, nil).Maybe()
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil).Maybe()
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -4398,6 +4399,7 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabled(t *testing.T) {
 	// Mock GetCreateJobByResourceUUID - pool is in CREATING state, so this will be called
 	// Return error to simulate not finding create job (which is expected in this test scenario)
 	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("not found"))
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	// Pool doesn't have DeploymentName set, so DeleteVSAClusterDeployment won't be called
 	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -4498,6 +4500,7 @@ func TestDeletePoolWorkflowWhenVSACleanupEnabledPoolAvailable(t *testing.T) {
 		State:     string(models.JobsStateNEW),
 	}, nil).Maybe()
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	// Pool doesn't have DeploymentName set, so DeleteVSAClusterDeployment won't be called
 	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -4599,6 +4602,7 @@ func TestDeletePoolWorkflowWhenVSACleanupDisabledAndStateError(t *testing.T) {
 		State:     string(models.JobsStateNEW),
 	}, nil).Maybe()
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -4697,6 +4701,7 @@ func TestDeletePoolWorkflowWhenUnRegisterNodesFromHarvestFails(t *testing.T) {
 		State:     string(models.JobsStateNEW),
 	}, nil).Maybe()
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -4801,6 +4806,7 @@ func TestDeletePoolWorkflowWithAuthTypeUserPasswordInSecretManager(t *testing.T)
 		State:     string(models.JobsStateNEW),
 	}, nil).Maybe()
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -4903,6 +4909,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 			State:     string(models.JobsStateNEW),
 		}, nil).Maybe()
 		env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(poolEmpty, nil)
+		env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 		mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -4981,6 +4988,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 			State:     string(models.JobsStateNEW),
 		}, nil).Maybe()
 		env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(poolNonEmpty, nil)
+		env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 		mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -5058,6 +5066,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 			State:     string(models.JobsStateNEW),
 		}, nil).Maybe()
 		env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(poolNilBuildInfo, nil)
+		env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 		mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -5140,6 +5149,7 @@ func TestDeletePoolWorkflow_OntapVersionBranches(t *testing.T) {
 			State:     string(models.JobsStateNEW),
 		}, nil).Maybe()
 		env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(poolWithEmptyExtraction, nil)
+		env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 		// Mock DeleteVSAClusterDeployment to verify it's called with the fallback ontapVersion
 		mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -11593,6 +11603,7 @@ func TestServiceAccountBackwardCompatibility(t *testing.T) {
 				State:     string(models.JobsStateNEW),
 			}, nil).Maybe()
 			env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(tt.pool, nil)
+			env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 			env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil)
 			mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -15273,6 +15284,7 @@ func TestDeletePoolWorkflow_ErrorHandlingCancellation(t *testing.T) {
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	// Mock cancellation to return error (line 1250)
 	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("cancellation error"))
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
 	emptyHostMap := map[string]string{}
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(&emptyHostMap, nil)
@@ -15345,6 +15357,7 @@ func TestDeletePoolWorkflow_ErrorDeletingPoolResources(t *testing.T) {
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	// Mock DeletingPoolResources to fail (line 1259)
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, errors.New("delete failed"))
 	mockStorage.EXPECT().ErroredResource(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	mockStorage.EXPECT().GetSvmsByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil).Maybe()
@@ -15414,6 +15427,7 @@ func TestDeletePoolWorkflow_ErrorDeletingVSAClusterDeployment(t *testing.T) {
 	}, nil).Maybe()
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
 	mockStorage.EXPECT().ErroredResource(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	mockStorage.EXPECT().GetSvmsByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil).Maybe()
@@ -15487,6 +15501,7 @@ func TestDeletePoolWorkflow_ErrorDeletingVSAClusterDeploymentWhenStateNotError(t
 	}, nil).Maybe()
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
 	mockStorage.EXPECT().ErroredResource(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	mockStorage.EXPECT().GetSvmsByPoolID(mock.Anything, mock.Anything).Return([]*datamodel.Svm{}, nil).Maybe()
@@ -15546,6 +15561,7 @@ func TestDeletePoolWorkflow_ErrorDeletingServiceAccount(t *testing.T) {
 	}, nil).Maybe()
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// Line 1319 - error path
@@ -15605,6 +15621,7 @@ func TestDeletePoolWorkflow_ErrorReleasingSubnet(t *testing.T) {
 	}, nil).Maybe()
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil)
@@ -16451,6 +16468,7 @@ func TestDeletePoolWorkflow_HandleCancellationError(t *testing.T) {
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	// Mock GetCreateJobByResourceUUID to return error to test line 2406-2407
 	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, pool.UUID, mock.Anything, mock.Anything).Return(nil, errors.New("job not found"))
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
 	emptyHostMap := map[string]string{}
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(&emptyHostMap, nil)
@@ -16533,6 +16551,7 @@ func TestDeletePoolWorkflow_HandleCancellationCreateJobNotFound(t *testing.T) {
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	// Mock GetCreateJobByResourceUUID to return nil result to test lines 2410-2412
 	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, pool.UUID, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
 	emptyHostMap := map[string]string{}
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(&emptyHostMap, nil)
@@ -16622,6 +16641,7 @@ func TestDeletePoolWorkflow_HandleCancellationWorkflowNotRunning(t *testing.T) {
 	// Mock IsWorkflowRunningActivity to return false (workflow not running) to test lines 2426-2437
 	env.OnActivity("IsWorkflowRunningActivity", mock.Anything, createJobResult.WorkflowID).Return(false, nil)
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
 	emptyHostMap := map[string]string{}
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(&emptyHostMap, nil)
@@ -16714,6 +16734,7 @@ func TestDeletePoolWorkflow_HandleCancellationSendSignalError(t *testing.T) {
 	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, mock.Anything).Return(false, nil)
 	env.OnActivity("ForceCancelWorkflowActivity", mock.Anything, createJobResult.WorkflowID).Return(nil)
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
 	emptyHostMap := map[string]string{}
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(&emptyHostMap, nil)
@@ -16808,6 +16829,7 @@ func TestDeletePoolWorkflow_HandleCancellationTimeout(t *testing.T) {
 	// Mock second WaitForWorkflowCancellationAckActivity call for force cancel wait
 	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, mock.Anything).Return(true, nil).Once()
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
 	emptyHostMap := map[string]string{}
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(&emptyHostMap, nil)
@@ -16878,6 +16900,7 @@ func TestDeletePoolWorkflow_DeleteServiceAccountError(t *testing.T) {
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, pool.UUID, mock.Anything, mock.Anything).Return(nil, errors.New("job not found"))
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
 	emptyHostMap := map[string]string{}
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(&emptyHostMap, nil)
@@ -16948,6 +16971,7 @@ func TestDeletePoolWorkflow_DataSubnetSequentialPollerError(t *testing.T) {
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, pool.UUID, mock.Anything, mock.Anything).Return(nil, errors.New("job not found"))
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
 	emptyHostMap := map[string]string{}
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(&emptyHostMap, nil)
@@ -17108,6 +17132,7 @@ func TestDeletePoolWorkflow_HandleCancellationLogsCreateJobFound(t *testing.T) {
 	env.OnActivity("SendCancelSignalActivity", mock.Anything, createJobResult.WorkflowID, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("WaitForWorkflowCancellationAckActivity", mock.Anything, createJobResult.WorkflowID, mock.Anything).Return(true, nil)
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
 	emptyHostMap := map[string]string{}
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(&emptyHostMap, nil)
@@ -17287,6 +17312,7 @@ func TestDeletePoolWorkflow_HandleCancellationErrorAtLine1204(t *testing.T) {
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
 	// Mock GetCreateJobByResourceUUID to return error to test line 1204 (Logger.Warnf path)
 	env.OnActivity("GetCreateJobByResourceUUID", mock.Anything, pool.UUID, mock.Anything, mock.Anything).Return(nil, errors.New("job not found"))
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
 	emptyHostMap := map[string]string{}
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(&emptyHostMap, nil)
@@ -17364,6 +17390,7 @@ func TestDeletePoolWorkflow_DeleteServiceAccountErrorAtLine1279(t *testing.T) {
 	}, nil).Maybe()
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
 	emptyHostMap := map[string]string{}
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(&emptyHostMap, nil)
@@ -17448,6 +17475,7 @@ func TestDeletePoolWorkflow_DataSubnetSequentialPollerErrorAtLine1307(t *testing
 	}, nil).Maybe()
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil)
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Maybe()
 	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(pool, nil)
 	emptyHostMap := map[string]string{}
 	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(&emptyHostMap, nil)
@@ -17808,4 +17836,138 @@ func TestPrepareUpdateVSAClusterDeploymentRequest(t *testing.T) {
 		assert.Equal(tt, "", req.BucketName, "BucketName should be empty when not provided")
 		assert.Equal(tt, int64(-1), req.AutoTierThreshold, "AutoTierThreshold should be -1 even when bucket is empty")
 	})
+}
+
+func TestDeletePoolWorkflow_InvokesDeleteAllPoolVPGs_WhenManualQoS(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	ginLoggingFeatureFlag = true
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	origVSAClientWfMgr := GetNewVSAClientWorkflowManager
+	origEnableVpg := enableVpgEndpoints
+	enableVpgEndpoints = true
+	enableMetrics = true
+	defer func() {
+		GetNewVSAClientWorkflowManager = origVSAClientWfMgr
+		enableVpgEndpoints = origEnableVpg
+		enableMetrics = envs.GetBool("ENABLE_METRICS", false)
+	}()
+
+	env.RegisterActivity(&activities.CommonActivities{})
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+	env.RegisterWorkflowWithOptions(func(ctx workflow.Context, params *unRegisterNodeFromHarvestFarmParams) error { return nil }, workflow.RegisterOptions{Name: "UnRegisterNodeFromHarvestFarmWorkflow"})
+	env.RegisterWorkflowWithOptions(func(ctx workflow.Context, pool *datamodel.Pool) error { return nil }, workflow.RegisterOptions{Name: "ReleasePSCEndpointWorkflow"})
+	env.RegisterWorkflowWithOptions(func(ctx workflow.Context, params *common.CreatePoolParams, pool *datamodel.Pool, tp string, at models.ResourceOperation) (*common.TenancyInfo, error) { return nil, nil }, workflow.RegisterOptions{Name: "DataSubnetSequentialPoller"})
+	env.RegisterWorkflowWithOptions(func(ctx workflow.Context, pool *datamodel.Pool, rp *WorkflowRetryPolicy) error { return nil }, workflow.RegisterOptions{Name: "CleanupServiceAccountPermissionsWorkflow"})
+
+	params := &common.DeletePoolParams{PoolID: "test-pool", AccountName: "test-account"}
+	pool := &datamodel.Pool{
+		Name:             "test-pool",
+		QosType:          "manual",
+		AutoTieringConfig: &datamodel.AutoTieringConfig{BucketName: "test-bucket"},
+		Account:          &datamodel.Account{Name: "test-account"},
+		ServiceAccountId: "test-sa",
+		ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "test-tenant"},
+		BuildInfo:        &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
+		PoolCredentials:  &datamodel.PoolCredentials{Password: "pw", AuthType: envs.USERNAME_PWD},
+		KmsConfig:        &datamodel.KmsConfig{},
+		KmsConfigID:      sql.NullInt64{Int64: 1, Valid: true},
+		APIAccessMode:    common.ONTAPMode,
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil).Maybe()
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(nil).Once()
+	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeleteExpertModeCredentials", mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVSAClientWorkflowManager }
+
+	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+}
+
+func TestDeletePoolWorkflow_VPGDeleteFailure_DoesNotFailWorkflow(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	ginLoggingFeatureFlag = true
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
+
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	origVSAClientWfMgr := GetNewVSAClientWorkflowManager
+	origEnableVpg := enableVpgEndpoints
+	enableVpgEndpoints = true
+	enableMetrics = true
+	defer func() {
+		GetNewVSAClientWorkflowManager = origVSAClientWfMgr
+		enableVpgEndpoints = origEnableVpg
+		enableMetrics = envs.GetBool("ENABLE_METRICS", false)
+	}()
+
+	env.RegisterActivity(&activities.CommonActivities{})
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+	env.RegisterWorkflowWithOptions(func(ctx workflow.Context, params *unRegisterNodeFromHarvestFarmParams) error { return nil }, workflow.RegisterOptions{Name: "UnRegisterNodeFromHarvestFarmWorkflow"})
+	env.RegisterWorkflowWithOptions(func(ctx workflow.Context, pool *datamodel.Pool) error { return nil }, workflow.RegisterOptions{Name: "ReleasePSCEndpointWorkflow"})
+	env.RegisterWorkflowWithOptions(func(ctx workflow.Context, params *common.CreatePoolParams, pool *datamodel.Pool, tp string, at models.ResourceOperation) (*common.TenancyInfo, error) { return nil, nil }, workflow.RegisterOptions{Name: "DataSubnetSequentialPoller"})
+	env.RegisterWorkflowWithOptions(func(ctx workflow.Context, pool *datamodel.Pool, rp *WorkflowRetryPolicy) error { return nil }, workflow.RegisterOptions{Name: "CleanupServiceAccountPermissionsWorkflow"})
+
+	params := &common.DeletePoolParams{PoolID: "test-pool", AccountName: "test-account"}
+	pool := &datamodel.Pool{
+		Name:             "test-pool",
+		QosType:          "manual",
+		AutoTieringConfig: &datamodel.AutoTieringConfig{BucketName: "test-bucket"},
+		Account:          &datamodel.Account{Name: "test-account"},
+		ServiceAccountId: "test-sa",
+		ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "test-tenant"},
+		BuildInfo:        &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
+		PoolCredentials:  &datamodel.PoolCredentials{Password: "pw", AuthType: envs.USERNAME_PWD},
+		KmsConfig:        &datamodel.KmsConfig{},
+		KmsConfigID:      sql.NullInt64{Int64: 1, Valid: true},
+		APIAccessMode:    common.ONTAPMode,
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("GetPool", mock.Anything, mock.Anything).Return(pool, nil).Maybe()
+	env.OnActivity("DeleteAllPoolVPGs", mock.Anything, mock.Anything).Return(errors.New("VPG cleanup failed")).Once()
+	env.OnActivity("DeletingPoolResources", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	mockVSAClientWorkflowManager.On("DeleteVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeleteAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeleteServiceAccount", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeletePoolResources", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnActivity("GetCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnActivity("DeleteCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeleteOnTapCredentials", mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeleteExpertModeCredentials", mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVSAClientWorkflowManager }
+
+	env.ExecuteWorkflow(DeletePoolWorkflow, params, pool)
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
 }
