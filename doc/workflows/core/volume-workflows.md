@@ -52,6 +52,7 @@ Based on volume protocol, different child workflows are selected:
 - `ValidateVolumeCreation`: Validates volume creation parameters
 - `SetupVolumeMounts`: Sets up volume mount points
 - `ConfigureVolumePermissions`: Configures volume access permissions
+- `UpdateVolumeAutoTieringPolicyInONTAP`: Sets auto-tiering policy on a clone after creation (see below)
 
 #### Execution Flow
 
@@ -79,6 +80,21 @@ Based on volume protocol, different child workflows are selected:
    - Update job status
    - Handle rollback if errors occur
    - Log completion status
+
+#### Auto-Tiering in Volume Creation
+
+When a volume is created on an auto-tiering-enabled pool, the tiering policy is applied during the `CreateVolumeInONTAP` activity via `CreateAutoTieringParams`. Key behaviours:
+
+- **Policy translation for block volumes**: The `auto` policy maps to `snapshot-only` on ONTAP for SAN/block volumes. The `all` policy is not allowed for block volumes.
+- **Pool pause awareness**: If the pool's `TieringStatus` is `PAUSED` or `PARTIALLY_PAUSED` and the requested policy is `all`, the volume is created with tiering policy `none` and `cloudWriteMode=false`. The correct policy is restored when the pool resumes auto-tiering (via the background sync workflow).
+- **Aggregate selection**: When `allowAutoTiering` is true on the pool, aggregate distribution for large volumes uses CV-limit-based calculation instead of space-limit-based calculation.
+
+**Clone creation** requires special handling because ONTAP does not accept a tiering policy during thin clone creation. The workflow:
+1. Creates the clone without a tiering policy (ONTAP inherits the parent's policy).
+2. Immediately calls `UpdateVolumeAutoTieringPolicyInONTAP` to set the desired policy on the clone.
+3. If auto-tiering is disabled for the clone, explicitly sets policy to `none` to prevent inheriting the parent's policy.
+
+See [ADR-0013: Thin Clone Behaviour](../../architecture/decisions/0013-auto-tiering-thin-clone-behaviour-decision.md) for the full decision record and validated scenarios.
 
 #### Error Handling
 
@@ -127,6 +143,20 @@ ao := workflow.ActivityOptions{
 2. **Update VSA**: Apply changes to VSA cluster
 3. **Update Database**: Update volume information in database
 4. **Verification**: Verify changes were applied correctly
+
+#### Auto-Tiering in Volume Update
+
+The update workflow detects auto-tiering changes by comparing the incoming `AutoTieringPolicy` against the existing volume state. An ONTAP update is triggered when any of these differ:
+
+- `autoTieringEnabled` (enable/disable toggle)
+- `coolingThresholdDays` (cooling period change)
+- `tieringPolicy` (policy change, e.g. `auto` → `all`)
+
+The `updateAutoTieringParams` function in `volume_update_activities.go` handles policy translation:
+
+- **Pool pause awareness**: Same as volume creation — if the pool is paused/partially-paused and the policy is `all`, the volume is set to `none` on ONTAP. The background sync workflow will correct this when the pool resumes.
+- **DB update**: The `auto_tiering_enabled`, `auto_tiering_policy` (JSON), and related fields are persisted in the volume record. Fields updated include `tieringPolicy`, `coolingThresholdDays`, `retrievalPolicy`, `hotTierBypassModeEnabled`, and `cloudWriteModeEnabled`.
+- **Block volumes**: The `all` policy is not allowed; validation rejects it before reaching the workflow.
 
 ### 3. Volume Delete Workflow
 
@@ -274,4 +304,7 @@ Volume workflows provide extensive monitoring:
 - [Pool Workflows](./pool-workflows.md)
 - [Backup Workflows](./backup-workflows.md)
 - [Snapshot Workflows](./snapshot-workflows.md)
+- [Auto-Tiering Background Workflows](../background/auto-tiering-workflows.md)
+- [Auto-Tiering Design](../../architecture/designs/0005-vsa-auto-tiering-design.md)
+- [ADR-0013: Thin Clone Behaviour](../../architecture/decisions/0013-auto-tiering-thin-clone-behaviour-decision.md)
 - [Temporal Debugging Guide](../../guides/temporal-debugging.md)
