@@ -5551,7 +5551,13 @@ func TestRotateObjectsInParallel_ContextCancelledWhileFeeding(t *testing.T) {
 	}
 
 	origCopier := newObjectCopier
-	defer func() { newObjectCopier = origCopier }()
+	defer func() {
+		// Allow any lingering worker goroutines to finish before restoring
+		// the original newObjectCopier, which would panic with the nil bucket
+		// passed to rotateObjectsInParallel in this test.
+		time.Sleep(50 * time.Millisecond)
+		newObjectCopier = origCopier
+	}()
 
 	newObjectCopier = func(_ *storage.BucketHandle, name string) objectCopier {
 		return &fakeCopier{

@@ -457,18 +457,29 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_VolumeMetricsEnabledValidCli
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
+	rawMetricsDone := make(chan struct{}, 1)
 	originalFunc := collector.CollectVolumeMetrics
 	collector.CollectVolumeMetrics = func(ctx context.Context, logger log.Logger, provider collector.VolumeMetricsProvider, timestamp time.Time) error {
+		defer func() {
+			select {
+			case rawMetricsDone <- struct{}{}:
+			default:
+			}
+		}()
 		return nil
 	}
 	defer func() {
+		select {
+		case <-rawMetricsDone:
+		case <-time.After(2 * time.Second):
+		}
 		collector.CollectVolumeMetrics = originalFunc
 	}()
 
 	t.Setenv("ENABLE_VOLUME_METRICS", "true")
 	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: telemetryStore, sink: sink, googleMetricProvider: provider}
 	err := mp.ProcessPerformanceMetrics(ctx)
-	time.Sleep(100 * time.Millisecond)
+	waitForAsyncOperations(t, 200*time.Millisecond)
 	assert.NoError(t, err)
 }
 
@@ -499,11 +510,22 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CollectVolumeMetricsError(t 
 
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
+	rawMetricsDone := make(chan struct{}, 1)
 	originalFunc := collector.CollectVolumeMetrics
 	collector.CollectVolumeMetrics = func(ctx context.Context, logger log.Logger, provider collector.VolumeMetricsProvider, timestamp time.Time) error {
+		defer func() {
+			select {
+			case rawMetricsDone <- struct{}{}:
+			default:
+			}
+		}()
 		return errors.New("collect volume metrics error")
 	}
 	defer func() {
+		select {
+		case <-rawMetricsDone:
+		case <-time.After(2 * time.Second):
+		}
 		collector.CollectVolumeMetrics = originalFunc
 	}()
 
@@ -511,7 +533,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CollectVolumeMetricsError(t 
 
 	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: telemetryStore, sink: sink, googleMetricProvider: provider}
 	err := mp.ProcessPerformanceMetrics(ctx)
-	time.Sleep(100 * time.Millisecond)
+	waitForAsyncOperations(t, 200*time.Millisecond)
 	if err != nil {
 		telemetryStore.AssertNotCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
 	}
@@ -545,11 +567,22 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CreateHydratedMetricsError(t
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
 	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("database error"))
 
+	rawMetricsDone := make(chan struct{}, 1)
 	originalFunc := collector.CollectVolumeMetrics
 	collector.CollectVolumeMetrics = func(ctx context.Context, logger log.Logger, provider collector.VolumeMetricsProvider, timestamp time.Time) error {
+		defer func() {
+			select {
+			case rawMetricsDone <- struct{}{}:
+			default:
+			}
+		}()
 		return nil
 	}
 	defer func() {
+		select {
+		case <-rawMetricsDone:
+		case <-time.After(2 * time.Second):
+		}
 		collector.CollectVolumeMetrics = originalFunc
 	}()
 
@@ -557,7 +590,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CreateHydratedMetricsError(t
 
 	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: telemetryStore, sink: sink, googleMetricProvider: provider}
 	err := mp.ProcessPerformanceMetrics(ctx)
-	time.Sleep(100 * time.Millisecond)
+	waitForAsyncOperations(t, 200*time.Millisecond)
 	if err != nil {
 		assert.Contains(t, err.Error(), "database error")
 	}
@@ -610,15 +643,28 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_ProcessesAllMetricTypes(t *t
 
 	t.Setenv("ENABLE_VOLUME_METRICS", "true")
 
+	rawMetricsDone := make(chan struct{}, 1)
 	originalFunc := collector.CollectVolumeMetrics
 	collector.CollectVolumeMetrics = func(ctx context.Context, logger log.Logger, provider collector.VolumeMetricsProvider, timestamp time.Time) error {
+		defer func() {
+			select {
+			case rawMetricsDone <- struct{}{}:
+			default:
+			}
+		}()
 		return nil
 	}
-	defer func() { collector.CollectVolumeMetrics = originalFunc }()
+	defer func() {
+		select {
+		case <-rawMetricsDone:
+		case <-time.After(2 * time.Second):
+		}
+		collector.CollectVolumeMetrics = originalFunc
+	}()
 
 	mp := &MetricsProcessor{vcpDatastore: vcpStore, telemetryDatastore: telemetryStore, sink: sink, googleMetricProvider: provider}
 	err := mp.ProcessPerformanceMetrics(ctx)
-	time.Sleep(100 * time.Millisecond)
+	waitForAsyncOperations(t, 200*time.Millisecond)
 	assert.NoError(t, err)
 }
 
@@ -648,14 +694,31 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CollectVolumeMetricsReturnsE
 	// Mock ListVolumesForTelemetryMetrics for volume metrics collection
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 
-	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	hydratedDone := make(chan struct{}, 1)
+	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		select {
+		case hydratedDone <- struct{}{}:
+		default:
+		}
+	})
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
 
+	rawMetricsDone := make(chan struct{}, 1)
 	originalFunc := collector.CollectVolumeMetrics
 	collector.CollectVolumeMetrics = func(ctx context.Context, logger log.Logger, provider collector.VolumeMetricsProvider, timestamp time.Time) error {
+		defer func() {
+			select {
+			case rawMetricsDone <- struct{}{}:
+			default:
+			}
+		}()
 		return errors.New("collection failed")
 	}
 	defer func() {
+		select {
+		case <-rawMetricsDone:
+		case <-time.After(2 * time.Second):
+		}
 		collector.CollectVolumeMetrics = originalFunc
 	}()
 
@@ -664,8 +727,11 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CollectVolumeMetricsReturnsE
 	err := mp.ProcessPerformanceMetrics(ctx)
 
 	assert.NoError(t, err)
-	time.Sleep(100 * time.Millisecond)
-	// Pool metrics should still be processed even if volume metrics fail
+	select {
+	case <-hydratedDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Timed out waiting for CreateHydratedMetricsBatch to be called")
+	}
 	telemetryStore.AssertCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
 }
 
@@ -694,14 +760,31 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CollectVolumeMetricsReturnsE
 	// Mock ListVolumesForTelemetryMetrics for volume metrics collection
 	vcpStore.On("ListVolumesForTelemetryMetrics", mock.Anything).Return([]*database.VolumeMetricsData{}, nil)
 
-	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	hydratedDone := make(chan struct{}, 1)
+	telemetryStore.On("CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		select {
+		case hydratedDone <- struct{}{}:
+		default:
+		}
+	})
 	sink.On("DeliverMetrics", mock.Anything, mock.Anything).Return(1)
 
+	rawMetricsDone := make(chan struct{}, 1)
 	originalFunc := collector.CollectVolumeMetrics
 	collector.CollectVolumeMetrics = func(ctx context.Context, logger log.Logger, provider collector.VolumeMetricsProvider, timestamp time.Time) error {
+		defer func() {
+			select {
+			case rawMetricsDone <- struct{}{}:
+			default:
+			}
+		}()
 		return nil
 	}
 	defer func() {
+		select {
+		case <-rawMetricsDone:
+		case <-time.After(2 * time.Second):
+		}
 		collector.CollectVolumeMetrics = originalFunc
 	}()
 
@@ -710,8 +793,11 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CollectVolumeMetricsReturnsE
 	err := mp.ProcessPerformanceMetrics(ctx)
 
 	assert.NoError(t, err)
-	time.Sleep(100 * time.Millisecond)
-	// Pool metrics should still be processed even if volume metrics returns empty slice
+	select {
+	case <-hydratedDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Timed out waiting for CreateHydratedMetricsBatch to be called")
+	}
 	telemetryStore.AssertCalled(t, "CreateHydratedMetricsBatch", mock.Anything, mock.Anything, mock.Anything)
 }
 
