@@ -56,7 +56,8 @@ var (
 	pathTraversalCombinedPattern = regexp.MustCompile(`(?i)(\.\./|\.\.\\|\.\.%2f|\.\.%5c|%2e%2e%2f|%2e%2e%5c)`)
 
 	// Allowlist regexes (OWASP: define allowed characters; reject everything else)
-	ontapPathAllowedChars       = regexp.MustCompile(`^[a-zA-Z0-9\-_./]+$`)
+	// ontapPathValidStructure: path segments separated by /; each segment is either exactly *
+	ontapPathValidStructure     = regexp.MustCompile(`^/?(\*|[a-zA-Z0-9\-_.]+)(/(\*|[a-zA-Z0-9\-_.]+))*$`)
 	queryParamNameAllowedChars  = regexp.MustCompile(`^[a-zA-Z0-9_.\-]+$`)
 	queryParamValueAllowedChars = regexp.MustCompile(`^[a-zA-Z0-9\-_.,;:/*><=!@+% |]+$`)
 
@@ -270,11 +271,11 @@ func validateOntapPath(value string) error {
 		}
 	}
 
-	if !ontapPathAllowedChars.MatchString(value) {
+	if !ontapPathValidStructure.MatchString(value) {
 		return &URLValidationError{
 			Type:    "INVALID_CHARS",
 			Context: "ONTAP path",
-			Pattern: "contains disallowed characters",
+			Pattern: "contains disallowed characters or * must be a full path segment",
 		}
 	}
 

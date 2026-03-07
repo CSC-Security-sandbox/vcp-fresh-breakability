@@ -1467,6 +1467,29 @@ func TestValidateOntapPath(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "INVALID_CHARS")
 	})
+
+	t.Run("WhenOntapPathHasWildcardStarAsFullSegment_ShouldPass", func(t *testing.T) {
+		// ONTAP bulk endpoints use * only as a full path segment (e.g. consistency-groups/*/snapshots)
+		err := validateOntapPath("api/application/consistency-groups/*/snapshots")
+		assert.NoError(t, err)
+		err = validateOntapPath("api/storage/volumes/*/snapshots")
+		assert.NoError(t, err)
+	})
+
+	t.Run("WhenOntapPathHasAsteriskInsideSegment_ShouldFail", func(t *testing.T) {
+		err := validateOntapPath("api/stor*ge/volumes")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "INVALID_CHARS")
+		err = validateOntapPath("api/storage/vol*mes")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "INVALID_CHARS")
+	})
+
+	t.Run("WhenOntapPathIsOnlyAsterisksInOneSegment_ShouldFail", func(t *testing.T) {
+		err := validateOntapPath("***")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "INVALID_CHARS")
+	})
 }
 
 func TestValidatePathParams_OntapPathExtraction(t *testing.T) {
