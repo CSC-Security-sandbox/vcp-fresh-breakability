@@ -48,14 +48,14 @@ func (UnimplementedHandler) SnaplockFileDelete(ctx context.Context, params Snapl
 
 // V1ClusterLicensingAccessTokensCreate implements v1_clusterLicensingAccessTokensCreate operation.
 //
-// Requests an access token (same as ONTAP REST POST /api/cluster/licensing/access-tokens).
+// Generates SM-C access token (same as ONTAP REST POST /api/cluster/licensing/access_tokens).
 // This operation:
 // 1. Fetches admin credentials for the pool
-// 2. Forwards the request body to ONTAP POST /api/cluster/licensing/access-tokens
+// 2. Forwards the request body to ONTAP POST /api/cluster/licensing/access_tokens
 // 3. Returns the access token information from ONTAP
 // Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
 //
-// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/cluster/licensing/access-tokens
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/cluster/licensing/access_tokens
 func (UnimplementedHandler) V1ClusterLicensingAccessTokensCreate(ctx context.Context, req *AccessTokenRequest, params V1ClusterLicensingAccessTokensCreateParams) (r V1ClusterLicensingAccessTokensCreateRes, _ error) {
 	return r, ht.ErrNotImplemented
 }

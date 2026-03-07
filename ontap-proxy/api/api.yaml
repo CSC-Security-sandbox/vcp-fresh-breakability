@@ -182,16 +182,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/cluster/licensing/access-tokens:
+  /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/cluster/licensing/access_tokens:
     post:
       operationId: v1_clusterLicensingAccessTokensCreate
-      summary: Request an access token
+      summary: Request an access token (SM-C)
       description: |
-        Requests an access token (same as ONTAP REST POST /api/cluster/licensing/access-tokens).
+        Generates SM-C access token (same as ONTAP REST POST /api/cluster/licensing/access_tokens).
         
         This operation:
         1. Fetches admin credentials for the pool
-        2. Forwards the request body to ONTAP POST /api/cluster/licensing/access-tokens
+        2. Forwards the request body to ONTAP POST /api/cluster/licensing/access_tokens
         3. Returns the access token information from ONTAP
         
         Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.

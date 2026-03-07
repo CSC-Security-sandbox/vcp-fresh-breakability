@@ -444,7 +444,7 @@ func TestOntapClient_ExecuteAPI(t *testing.T) {
 		body := []byte(`{"access_token":"tok123","expires_in":3600}`)
 		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, http.MethodPost, r.Method)
-			assert.Equal(t, "/api/cluster/licensing/access-tokens", r.URL.Path)
+			assert.Equal(t, "/api/cluster/licensing/access_tokens", r.URL.Path)
 			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 			assert.Equal(t, "application/json", r.Header.Get("Accept"))
 			w.Header().Set("Content-Type", "application/json")
@@ -462,7 +462,7 @@ func TestOntapClient_ExecuteAPI(t *testing.T) {
 			},
 		}
 
-		respBody, statusCode, err := client.ExecuteAPI(context.Background(), http.MethodPost, "/api/cluster/licensing/access-tokens", []byte(`{"client_id":"x"}`))
+		respBody, statusCode, err := client.ExecuteAPI(context.Background(), http.MethodPost, "/api/cluster/licensing/access_tokens", []byte(`{"client_id":"x"}`))
 
 		require.NoError(t, err)
 		assert.Equal(t, 200, statusCode)

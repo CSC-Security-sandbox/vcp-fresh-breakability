@@ -176,9 +176,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								break
 							}
 							switch elem[0] {
-							case 'c': // Prefix: "cluster/licensing/access-tokens"
+							case 'c': // Prefix: "cluster/licensing/access_tokens"
 
-								if l := len("cluster/licensing/access-tokens"); len(elem) >= l && elem[0:l] == "cluster/licensing/access-tokens" {
+								if l := len("cluster/licensing/access_tokens"); len(elem) >= l && elem[0:l] == "cluster/licensing/access_tokens" {
 									elem = elem[l:]
 								} else {
 									break
@@ -651,9 +651,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								break
 							}
 							switch elem[0] {
-							case 'c': // Prefix: "cluster/licensing/access-tokens"
+							case 'c': // Prefix: "cluster/licensing/access_tokens"
 
-								if l := len("cluster/licensing/access-tokens"); len(elem) >= l && elem[0:l] == "cluster/licensing/access-tokens" {
+								if l := len("cluster/licensing/access_tokens"); len(elem) >= l && elem[0:l] == "cluster/licensing/access_tokens" {
 									elem = elem[l:]
 								} else {
 									break
@@ -664,9 +664,9 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									switch method {
 									case "POST":
 										r.name = V1ClusterLicensingAccessTokensCreateOperation
-										r.summary = "Request an access token"
+										r.summary = "Request an access token (SM-C)"
 										r.operationID = "v1_clusterLicensingAccessTokensCreate"
-										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/cluster/licensing/access-tokens"
+										r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/cluster/licensing/access_tokens"
 										r.args = args
 										r.count = 3
 										return r, true

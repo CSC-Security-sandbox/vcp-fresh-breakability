@@ -243,8 +243,8 @@ func (h Handler) SnaplockFileDelete(
 	}, nil
 }
 
-// V1ClusterLicensingAccessTokensCreate implements v1_clusterLicensingAccessTokensCreate (POST /api/cluster/licensing/access-tokens).
-// Uses admin credentials and forwards the request to ONTAP.
+// V1ClusterLicensingAccessTokensCreate implements v1_clusterLicensingAccessTokensCreate (POST /api/cluster/licensing/access_tokens).
+// Uses admin credentials and forwards the request to ONTAP SM-C access_tokens.
 func (h Handler) V1ClusterLicensingAccessTokensCreate(
 	ctx context.Context,
 	req *oasgenserver.AccessTokenRequest,
@@ -304,7 +304,7 @@ func (h Handler) V1ClusterLicensingAccessTokensCreate(
 			Message: fmt.Sprintf("failed to connect to ONTAP: %s", clientErr.Error()),
 		}, nil
 	}
-	respBody, statusCode, err := ontapClient.ExecuteAPI(ctx, http.MethodPost, "/api/cluster/licensing/access-tokens", bodyBytes)
+	respBody, statusCode, err := ontapClient.ExecuteAPI(ctx, http.MethodPost, "/api/cluster/licensing/access_tokens", bodyBytes)
 	if err != nil {
 		logger.ErrorContext(ctx, "ONTAP request failed", "error", err)
 		return &oasgenserver.V1ClusterLicensingAccessTokensCreateInternalServerError{

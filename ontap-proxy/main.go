@@ -111,8 +111,8 @@ func setupHTTPServer(handler http.Handler) *http.Server {
 		// CLI execute - delegated to ogen server which handles auth and CLI rules internally
 		r.Post("/api/private/cli", handler.ServeHTTP)
 
-		// Cluster licensing access token API uses admin credentials and is handled by ogen server
-		r.Post("/api/cluster/licensing/access-tokens", handler.ServeHTTP)
+		// Cluster licensing access token API (SM-C) uses admin credentials and is handled by ogen server
+		r.Post("/api/cluster/licensing/access_tokens", handler.ServeHTTP)
 
 		// SnapMirror object store APIs - admin credentials, handled by ogen server
 		r.Get("/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}", handler.ServeHTTP)

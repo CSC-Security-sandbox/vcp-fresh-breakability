@@ -463,21 +463,21 @@ func (s *Server) handleSnaplockFileDeleteRequest(args [5]string, argsEscaped boo
 
 // handleV1ClusterLicensingAccessTokensCreateRequest handles v1_clusterLicensingAccessTokensCreate operation.
 //
-// Requests an access token (same as ONTAP REST POST /api/cluster/licensing/access-tokens).
+// Generates SM-C access token (same as ONTAP REST POST /api/cluster/licensing/access_tokens).
 // This operation:
 // 1. Fetches admin credentials for the pool
-// 2. Forwards the request body to ONTAP POST /api/cluster/licensing/access-tokens
+// 2. Forwards the request body to ONTAP POST /api/cluster/licensing/access_tokens
 // 3. Returns the access token information from ONTAP
 // Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
 //
-// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/cluster/licensing/access-tokens
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/cluster/licensing/access_tokens
 func (s *Server) handleV1ClusterLicensingAccessTokensCreateRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	otelAttrs := []attribute.KeyValue{
 		otelogen.OperationID("v1_clusterLicensingAccessTokensCreate"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/cluster/licensing/access-tokens"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/cluster/licensing/access_tokens"),
 	}
 
 	// Start a span for this request.
@@ -571,7 +571,7 @@ func (s *Server) handleV1ClusterLicensingAccessTokensCreateRequest(args [3]strin
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    V1ClusterLicensingAccessTokensCreateOperation,
-			OperationSummary: "Request an access token",
+			OperationSummary: "Request an access token (SM-C)",
 			OperationID:      "v1_clusterLicensingAccessTokensCreate",
 			Body:             request,
 			Params: middleware.Parameters{
