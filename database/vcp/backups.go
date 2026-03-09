@@ -40,6 +40,16 @@ type backupChainHistoryParams struct {
 	Timestamp      time.Time
 }
 
+type BackupMetricsData struct {
+	UUID          string                      `gorm:"column:uuid"`
+	VolumeUUID    string                      `gorm:"column:volume_uuid"`
+	Attributes    *datamodel.BackupAttributes `gorm:"column:attributes;type:jsonb"`
+	BackupVaultID int64                       `gorm:"column:backup_vault_id"`
+	// BackupVault fields (from JOIN)
+	VaultAccountID int64  `gorm:"column:vault_account_id"`
+	VaultName      string `gorm:"column:vault_name"`
+}
+
 // createBackupChainHistoryEntry creates a new backup chain history entry
 func createBackupChainHistoryEntry(tx *gorm.DB, params backupChainHistoryParams) error {
 	history := &datamodel.BackupChainHistory{
@@ -733,12 +743,72 @@ func (d *DataStoreRepository) GetBackupMetrics(ctx context.Context, conditions [
 	return results, nil
 }
 
+func (d *DataStoreRepository) GetBackupResourceDataForAggregation(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error) {
+	db := d.db.Unscoped().ApplyFilter(conditions).GORM().WithContext(ctx)
+
+	var metricsData []*BackupMetricsData
+
+	subquery := db.Table("backups").
+		Select("MAX(id)").
+		Group("volume_uuid")
+
+	// Query backups table with JOIN to backup_vaults
+	query := db.Table("backups").
+		Select(`
+			backups.uuid,
+			backups.volume_uuid,
+			backups.attributes,
+			backups.backup_vault_id,
+			backup_vaults.account_id AS vault_account_id,
+			backup_vaults.name AS vault_name
+		`).
+		Joins("LEFT JOIN backup_vaults ON backups.backup_vault_id = backup_vaults.id").
+		Where("backups.id IN (?)", subquery)
+
+	// Apply pagination
+	if pagination != nil {
+		if pagination.Limit > 0 {
+			query = query.Limit(pagination.Limit)
+		}
+		if pagination.Offset > 0 {
+			query = query.Offset(pagination.Offset)
+		}
+	}
+
+	err := query.Find(&metricsData).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert BackupMetricsData to datamodel.Backup for backward compatibility
+	results := make([]*datamodel.Backup, len(metricsData))
+	for i, data := range metricsData {
+		results[i] = &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID: data.UUID,
+			},
+			VolumeUUID:    data.VolumeUUID,
+			Attributes:    data.Attributes,
+			BackupVaultID: data.BackupVaultID,
+			BackupVault: &datamodel.BackupVault{
+				BaseModel: datamodel.BaseModel{
+					ID: data.BackupVaultID,
+				},
+				Name:      data.VaultName,
+				AccountID: data.VaultAccountID,
+			},
+		}
+	}
+
+	return results, nil
+}
+
 // GetBackupMetadata retrieves backup metadata entries with pagination and conditions
 func (d *DataStoreRepository) GetBackupMetadata(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.BackupMetadata, error) {
 	db := d.db.ApplyFilter(conditions).GORM().WithContext(ctx)
 	var results []*datamodel.BackupMetadata
 
-	err := db.Scopes(dbutils.Paginate(pagination)).Find(&results).Error
+	err := db.Unscoped().Scopes(dbutils.Paginate(pagination)).Find(&results).Error
 	if err != nil {
 		return nil, err
 	}

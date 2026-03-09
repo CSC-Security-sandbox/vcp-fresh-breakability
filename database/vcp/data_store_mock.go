@@ -6062,6 +6062,66 @@ func (_c *MockDataStore_GetBackupPolicyUUIDsFromBackupVaultUUID_Call) RunAndRetu
 	return _c
 }
 
+// GetBackupResourceDataForAggregation provides a mock function with given fields: ctx, conditions, pagination
+func (_m *MockDataStore) GetBackupResourceDataForAggregation(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination) ([]*datamodel.Backup, error) {
+	ret := _m.Called(ctx, conditions, pagination)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBackupResourceDataForAggregation")
+	}
+
+	var r0 []*datamodel.Backup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.Backup, error)); ok {
+		return rf(ctx, conditions, pagination)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) []*datamodel.Backup); ok {
+		r0 = rf(ctx, conditions, pagination)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Backup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, [][]interface{}, *utils.Pagination) error); ok {
+		r1 = rf(ctx, conditions, pagination)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetBackupResourceDataForAggregation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBackupResourceDataForAggregation'
+type MockDataStore_GetBackupResourceDataForAggregation_Call struct {
+	*mock.Call
+}
+
+// GetBackupResourceDataForAggregation is a helper method to define mock.On call
+//   - ctx context.Context
+//   - conditions [][]interface{}
+//   - pagination *utils.Pagination
+func (_e *MockDataStore_Expecter) GetBackupResourceDataForAggregation(ctx interface{}, conditions interface{}, pagination interface{}) *MockDataStore_GetBackupResourceDataForAggregation_Call {
+	return &MockDataStore_GetBackupResourceDataForAggregation_Call{Call: _e.mock.On("GetBackupResourceDataForAggregation", ctx, conditions, pagination)}
+}
+
+func (_c *MockDataStore_GetBackupResourceDataForAggregation_Call) Run(run func(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination)) *MockDataStore_GetBackupResourceDataForAggregation_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([][]interface{}), args[2].(*utils.Pagination))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetBackupResourceDataForAggregation_Call) Return(_a0 []*datamodel.Backup, _a1 error) *MockDataStore_GetBackupResourceDataForAggregation_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetBackupResourceDataForAggregation_Call) RunAndReturn(run func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.Backup, error)) *MockDataStore_GetBackupResourceDataForAggregation_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetBackupVault provides a mock function with given fields: ctx, backupVaultId
 func (_m *MockDataStore) GetBackupVault(ctx context.Context, backupVaultId string) (*datamodel.BackupVault, error) {
 	ret := _m.Called(ctx, backupVaultId)

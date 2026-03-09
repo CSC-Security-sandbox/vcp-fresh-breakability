@@ -1366,6 +1366,10 @@ func (s *PersistenceStore) GetBackupMetrics(ctx context.Context, conditions [][]
 	return s.dataStore.GetBackupMetrics(ctx, conditions, pagination)
 }
 
+func (s *PersistenceStore) GetBackupResourceDataForAggregation(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error) {
+	return s.dataStore.GetBackupResourceDataForAggregation(ctx, conditions, pagination)
+}
+
 func (s *PersistenceStore) GetBackupMetadata(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.BackupMetadata, error) {
 	return s.dataStore.GetBackupMetadata(ctx, conditions, pagination)
 }

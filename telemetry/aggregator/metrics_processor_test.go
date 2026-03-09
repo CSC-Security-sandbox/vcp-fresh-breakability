@@ -2494,13 +2494,13 @@ func TestProcessBillingMetrics_BackupHistoryFormatterBranch(t *testing.T) {
 		Attributes:  &datamodel.BackupAttributes{AccountIdentifier: "acct-2"},
 		BackupVault: &datamodel.BackupVault{Name: "vault-2", AccountID: 2},
 	}
-	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset == 0
 	})).Return([]*datamodel.Backup{backup1}, nil)
-	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset == 1
 	})).Return([]*datamodel.Backup{backup2}, nil)
-	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset > 1
 	})).Return([]*datamodel.Backup{}, nil)
 
@@ -3005,10 +3005,10 @@ func TestFetchBackupData_Success(t *testing.T) {
 			BackupVault:             &datamodel.BackupVault{Name: "Vault1", AccountID: 1},
 		},
 	}
-	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset == 0
 	})).Return(backups, nil)
-	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset > 0
 	})).Return([]*datamodel.Backup{}, nil)
 
@@ -3061,7 +3061,7 @@ func TestFetchResourceData_BackupBillingDisabled(t *testing.T) {
 
 	// GetBackupMetadata and GetBackupMetrics should not be called when disabled
 	mockVCPDB.AssertNotCalled(t, "GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything)
-	mockVCPDB.AssertNotCalled(t, "GetBackupMetrics", mock.Anything, mock.Anything, mock.Anything)
+	mockVCPDB.AssertNotCalled(t, "GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.Anything)
 }
 
 // TestFetchBackupData_GetBackupMetadataError tests error handling for GetBackupMetadata
@@ -3089,7 +3089,7 @@ func TestFetchBackupData_GetBackupMetadataError(t *testing.T) {
 	}
 
 	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("metadata error"))
-	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset == 0
 	})).Return([]*datamodel.Backup{}, nil) // Still mock GetBackupMetrics to avoid panic
 
@@ -3125,7 +3125,7 @@ func TestFetchBackupData_GetBackupMetricsError(t *testing.T) {
 	}
 
 	mockVCPDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.BackupMetadata{}, nil)
-	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("metrics error"))
+	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("metrics error"))
 
 	err := provider.fetchBackupData(ctx, aggregationStartTime, resourceCollection)
 	assert.Error(t, err)
@@ -3170,10 +3170,10 @@ func TestFetchBackupData_NilAttributes(t *testing.T) {
 			BackupVault: &datamodel.BackupVault{Name: "Vault1", AccountID: 1},
 		},
 	}
-	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset == 0
 	})).Return(backups, nil)
-	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset > 0
 	})).Return([]*datamodel.Backup{}, nil)
 
@@ -3220,10 +3220,10 @@ func TestFetchBackupData_NilBackupVault(t *testing.T) {
 			BackupVault: nil, // Nil BackupVault
 		},
 	}
-	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset == 0
 	})).Return(backups, nil)
-	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset > 0
 	})).Return([]*datamodel.Backup{}, nil)
 
@@ -3535,7 +3535,7 @@ func TestFetchBackupData_MultipleBatches(t *testing.T) {
 			BackupVault:             &datamodel.BackupVault{Name: "Vault1", AccountID: 1},
 		},
 	}
-	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset == 0
 	})).Return(backups1, nil).Once()
 
@@ -3549,12 +3549,12 @@ func TestFetchBackupData_MultipleBatches(t *testing.T) {
 			BackupVault:             &datamodel.BackupVault{Name: "Vault2", AccountID: 2},
 		},
 	}
-	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset == 1
 	})).Return(backups2, nil).Once()
 
 	// Mock empty third batch to end pagination
-	mockVCPDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+	mockVCPDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
 		return p.Offset == 2
 	})).Return([]*datamodel.Backup{}, nil).Once()
 
@@ -5065,7 +5065,7 @@ func TestFetchBackupData_UsesOntapVolumeStyle(t *testing.T) {
 	mockVcpDB.On("GetBackupMetadata", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.BackupMetadata{}, nil)
 
 	// Mock backups - one with flexgroup (large capacity), one with flexvol (regular)
-	mockVcpDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+	mockVcpDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
 		return pagination.Offset == 0
 	})).Return([]*datamodel.Backup{
 		{
@@ -5099,7 +5099,7 @@ func TestFetchBackupData_UsesOntapVolumeStyle(t *testing.T) {
 			},
 		},
 	}, nil).Once()
-	mockVcpDB.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+	mockVcpDB.On("GetBackupResourceDataForAggregation", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
 		return pagination.Offset > 0
 	})).Return([]*datamodel.Backup{}, nil).Once()
 

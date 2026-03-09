@@ -3954,6 +3954,159 @@ func TestGetBackupMetrics(t *testing.T) {
 	})
 }
 
+func TestGetBackupResourceDataForAggregation(t *testing.T) {
+	t.Run("ReturnsLatestBackupPerVolumeWithVaultFields", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-agg"},
+			Name:      "agg-vault",
+			AccountID: 42,
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		backup1 := &datamodel.Backup{
+			BaseModel:  datamodel.BaseModel{UUID: "agg-backup-1"},
+			VolumeUUID: "vol-uuid-agg-1",
+			State:      models.LifeCycleStateAvailable,
+			BackupVaultID: backupVault.ID,
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "acct-agg",
+				VolumeName:        "vol-agg-1",
+			},
+		}
+		backup2 := &datamodel.Backup{
+			BaseModel:  datamodel.BaseModel{UUID: "agg-backup-2"},
+			VolumeUUID: "vol-uuid-agg-1",
+			State:      models.LifeCycleStateAvailable,
+			BackupVaultID: backupVault.ID,
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "acct-agg",
+				VolumeName:        "vol-agg-1",
+			},
+		}
+
+		err = store.db.Create(backup1).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(backup2).Error()
+		assert.NoError(tt, err)
+
+		results, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, nil)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+
+		assert.Equal(tt, "agg-backup-2", results[0].UUID)
+		assert.Equal(tt, "vol-uuid-agg-1", results[0].VolumeUUID)
+		assert.NotNil(tt, results[0].Attributes)
+		assert.Equal(tt, "acct-agg", results[0].Attributes.AccountIdentifier)
+		assert.NotNil(tt, results[0].BackupVault)
+		assert.Equal(tt, "agg-vault", results[0].BackupVault.Name)
+		assert.Equal(tt, int64(42), results[0].BackupVault.AccountID)
+		assert.Equal(tt, backupVault.ID, results[0].BackupVaultID)
+	})
+
+	t.Run("ReturnsEmptySliceWhenNoBackups", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		results, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, nil)
+		assert.NoError(tt, err)
+		assert.Empty(tt, results)
+	})
+
+	t.Run("RespectsPagination", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-page"},
+			Name:      "page-vault",
+			AccountID: 10,
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		for i := 0; i < 3; i++ {
+			b := &datamodel.Backup{
+				BaseModel:     datamodel.BaseModel{UUID: "page-backup-" + string(rune('a'+i))},
+				VolumeUUID:    "page-vol-" + string(rune('a'+i)),
+				State:         models.LifeCycleStateAvailable,
+				BackupVaultID: backupVault.ID,
+				Attributes:    &datamodel.BackupAttributes{AccountIdentifier: "acct"},
+			}
+			err = store.db.Create(b).Error()
+			assert.NoError(tt, err)
+		}
+
+		pagination := &dbutils.Pagination{Limit: 2, Offset: 0}
+		results, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, pagination)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 2)
+
+		pagination2 := &dbutils.Pagination{Limit: 2, Offset: 2}
+		results2, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, pagination2)
+		assert.NoError(tt, err)
+		assert.Len(tt, results2, 1)
+	})
+
+	t.Run("IncludesSoftDeletedBackupsViaUnscoped", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-del"},
+			Name:      "del-vault",
+			AccountID: 99,
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "del-backup-1"},
+			VolumeUUID:    "del-vol-1",
+			State:         models.LifeCycleStateAvailable,
+			BackupVaultID: backupVault.ID,
+			Attributes:    &datamodel.BackupAttributes{AccountIdentifier: "acct-del"},
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		err = store.db.Delete(backup).Error()
+		assert.NoError(tt, err)
+
+		results, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, nil)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+		assert.Equal(tt, "del-backup-1", results[0].UUID)
+	})
+}
+
 // Helper function to find backup by volume UUID in results
 func findBackupByVolumeUUID(backups []*datamodel.Backup, volumeUUID string) *datamodel.Backup {
 	for _, backup := range backups {

@@ -3868,6 +3868,22 @@ func (re *retryEngine) GetBackupMetrics(ctx context.Context, conditions [][]inte
 	return var0, err
 }
 
+func (re *retryEngine) GetBackupResourceDataForAggregation(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Backup, error) {
+	var var0 []*datamodel.Backup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetBackupResourceDataForAggregation(ctx, conditions, pagination)
+		if err != nil {
+			re.logError("GetBackupResourceDataForAggregation", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetBackupMetadata(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.BackupMetadata, error) {
 	var var0 []*datamodel.BackupMetadata
 	err := retry.Do(func(attempt int) (bool, error) {

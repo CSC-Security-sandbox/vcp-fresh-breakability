@@ -540,7 +540,7 @@ func (p *BillingProvider) fetchBackupData(ctx context.Context, aggregationStartT
 
 	// Create conditions for backups including deleted backups where deleted_at is between aggregation start time and current time
 	conditions := [][]interface{}{
-		{"(deleted_at IS NULL OR (deleted_at >= ? AND deleted_at <= ?))", aggregationStartTime, time.Now()},
+		{"(backups.deleted_at IS NULL OR (backups.deleted_at >= ? AND backups.deleted_at <= ?))", aggregationStartTime, time.Now()},
 	}
 
 	offset := int32(0)
@@ -557,7 +557,7 @@ func (p *BillingProvider) fetchBackupData(ctx context.Context, aggregationStartT
 		}
 
 		// Fetch paginated backup metrics
-		backups, err := p.vcpDataStore.GetBackupMetrics(ctx, conditions, pagination)
+		backups, err := p.vcpDataStore.GetBackupResourceDataForAggregation(ctx, conditions, pagination)
 		if err != nil {
 			return fmt.Errorf("failed to get backup metrics (offset %d): %w", offset, err)
 		}

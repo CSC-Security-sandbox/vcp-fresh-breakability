@@ -7694,3 +7694,19 @@ func TestPersistenceStore_GetBackupsByBackupVaultUUIDAndFilter(t *testing.T) {
 		assert.Nil(tt, backups)
 	})
 }
+
+func TestPersistenceStore_GetBackupResourceDataForAggregation(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+	results, err := store.GetBackupResourceDataForAggregation(ctx, [][]interface{}{}, nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, results)
+}
