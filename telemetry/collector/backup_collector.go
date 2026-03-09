@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -127,6 +128,14 @@ func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 				backup.BackupVault.CmekAttributes.KmsConfigResourcePath != nil &&
 				*backup.BackupVault.CmekAttributes.KmsConfigResourcePath != "" {
 				logger.Debug("Skipping BackupLogicalSize billing metric for CMEK backup", "backupUUID", backup.UUID, "backupVaultID", backup.BackupVault.UUID)
+				skipBilling = true
+			}
+		}
+
+		// Skip billing for backups in GCBDR backup vaults when GCBDR backup billing is disabled.
+		if !skipBilling && !config.EnableGcbdrBackupBilling {
+			if backup.BackupVault != nil && backup.BackupVault.ServiceType == models.ServiceTypeGCBDR {
+				logger.Debug("Skipping BackupLogicalSize billing metric for GCBDR backup", "backupUUID", backup.UUID, "backupVaultID", backup.BackupVault.UUID)
 				skipBilling = true
 			}
 		}

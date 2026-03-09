@@ -2016,6 +2016,129 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 	})
+	t.Run("ReturnsBadRequestWhenGCBDRDisabledButTenantProjectSet", func(t *testing.T) {
+		origBackupEnabled := backupEnabled
+		origGCBDRVaultEnabled := GCBDRVaultEnabled
+		defer func() {
+			backupEnabled = origBackupEnabled
+			GCBDRVaultEnabled = origGCBDRVaultEnabled
+		}()
+		backupEnabled = true
+		GCBDRVaultEnabled = false
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			LocationId:    "us-central1",
+			ProjectNumber: "test-project-123",
+		}
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:    gcpgenserver.NewOptString("gcbdr-vault"),
+			TenantProject: gcpgenserver.NewOptString("tenant-project-123"),
+		}
+
+		handler := Handler{}
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		badRequestResult, ok := result.(*gcpgenserver.V1betaCreateBackupVaultBadRequest)
+		assert.True(t, ok, "Expected BadRequest response type")
+		assert.Contains(t, badRequestResult.Message, "GCBDR backup vault creation is not enabled")
+	})
+	t.Run("ReturnsBadRequestWhenGCBDRWithCMEK", func(t *testing.T) {
+		origBackupEnabled := backupEnabled
+		origGCBDRVaultEnabled := GCBDRVaultEnabled
+		defer func() {
+			backupEnabled = origBackupEnabled
+			GCBDRVaultEnabled = origGCBDRVaultEnabled
+		}()
+		backupEnabled = true
+		GCBDRVaultEnabled = true
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			LocationId:    "us-central1",
+			ProjectNumber: "test-project-123",
+		}
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:            gcpgenserver.NewOptString("gcbdr-cmek-vault"),
+			TenantProject:         gcpgenserver.NewOptString("tenant-project-123"),
+			KmsConfigResourcePath: gcpgenserver.NewOptString("projects/p/locations/l/keyRings/r/cryptoKeys/k"),
+		}
+
+		handler := Handler{}
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		badRequestResult, ok := result.(*gcpgenserver.V1betaCreateBackupVaultBadRequest)
+		assert.True(t, ok, "Expected BadRequest response type")
+		assert.Contains(t, badRequestResult.Message, "CMEK is not supported for GCBDR backup vaults")
+	})
+	t.Run("ReturnsBadRequestWhenGCBDRWithCRB", func(t *testing.T) {
+		origBackupEnabled := backupEnabled
+		origGCBDRVaultEnabled := GCBDRVaultEnabled
+		defer func() {
+			backupEnabled = origBackupEnabled
+			GCBDRVaultEnabled = origGCBDRVaultEnabled
+		}()
+		backupEnabled = true
+		GCBDRVaultEnabled = true
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			LocationId:    "us-central1",
+			ProjectNumber: "test-project-123",
+		}
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:    gcpgenserver.NewOptString("gcbdr-crb-vault"),
+			TenantProject: gcpgenserver.NewOptString("tenant-project-123"),
+			BackupRegion:  gcpgenserver.NewOptString("us-east1"),
+		}
+
+		handler := Handler{}
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		badRequestResult, ok := result.(*gcpgenserver.V1betaCreateBackupVaultBadRequest)
+		assert.True(t, ok, "Expected BadRequest response type")
+		assert.Contains(t, badRequestResult.Message, "Cross-region backup is not supported for GCBDR backup vaults")
+	})
+	t.Run("ReturnsBadRequestWhenGCBDRWithImmutable", func(t *testing.T) {
+		origBackupEnabled := backupEnabled
+		origGCBDRVaultEnabled := GCBDRVaultEnabled
+		defer func() {
+			backupEnabled = origBackupEnabled
+			GCBDRVaultEnabled = origGCBDRVaultEnabled
+		}()
+		backupEnabled = true
+		GCBDRVaultEnabled = true
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			LocationId:    "us-central1",
+			ProjectNumber: "test-project-123",
+		}
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:    gcpgenserver.NewOptString("gcbdr-immutable-vault"),
+			TenantProject: gcpgenserver.NewOptString("tenant-project-123"),
+			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyV1beta(
+				gcpgenserver.BackupRetentionPolicyV1beta{
+					BackupMinimumEnforcedRetentionDays: gcpgenserver.NewOptInt(30),
+					DailyBackupImmutable:               gcpgenserver.NewOptBool(true),
+				}),
+		}
+
+		handler := Handler{}
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		badRequestResult, ok := result.(*gcpgenserver.V1betaCreateBackupVaultBadRequest)
+		assert.True(t, ok, "Expected BadRequest response type")
+		assert.Contains(t, badRequestResult.Message, "Immutable backup vaults are not supported for GCBDR backup vaults")
+	})
 	t.Run("ReturnsBadRequestWhenRegionParsingFails", func(t *testing.T) {
 		params := gcpgenserver.V1betaCreateBackupVaultParams{
 			LocationId:    "local",

@@ -54,9 +54,9 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 	var sfrMetrics []entity.HydratedMetric
 	var hydratedMetrics []datamodel2.HydratedMetrics
 
-	// Pre-fetch backup vaults only when needed for billing filters (CRB or CMEK).
+	// Pre-fetch backup vaults only when needed for billing filters (CRB, CMEK, or GCBDR).
 	backupVaultMap := make(map[string]*datamodel.BackupVault)
-	if config.EnableBackupBillingMetrics && (!config.EnableCrossRegionBackupBillingMetrics || !config.EnableCmekBackupBilling) {
+	if config.EnableBackupBillingMetrics && (!config.EnableCrossRegionBackupBillingMetrics || !config.EnableCmekBackupBilling || !config.EnableGcbdrBackupBilling) {
 		backupVaults, err := vcpDB.GetMultipleBackupVaults(ctx, nil)
 		if err != nil {
 			logger.Error("Failed to fetch backup vaults for billing filters", "error", err.Error())
@@ -179,6 +179,19 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 							// Conservative: if we can't look up the vault while CMEK billing is disabled,
 							// treat it as non-billable to avoid incorrectly billing CMEK backups.
 							logger.Error("Backup vault not found in map for CMEK billing check", "backupVaultID", volume.DataProtection.BackupVaultID, "for volumeUUID", volume.UUID)
+							skipBilling = true
+						}
+					}
+
+					// Skip billing for GCBDR backup vaults when GCBDR backup billing is disabled.
+					if !skipBilling && !config.EnableGcbdrBackupBilling && volume.DataProtection.BackupVaultID != "" {
+						if bv, exists := backupVaultMap[volume.DataProtection.BackupVaultID]; exists {
+							if bv.ServiceType == models.ServiceTypeGCBDR {
+								logger.Debug("Skipping BackupEnabledVolumeAllocatedSize billing metric for GCBDR backup vault", "volumeUUID", volume.UUID, "backupVaultID", volume.DataProtection.BackupVaultID)
+								skipBilling = true
+							}
+						} else {
+							logger.Error("Backup vault not found in map for GCBDR billing check", "backupVaultID", volume.DataProtection.BackupVaultID, "for volumeUUID", volume.UUID)
 							skipBilling = true
 						}
 					}

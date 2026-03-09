@@ -366,6 +366,197 @@ func Test_GetVolumeMetrics_CmekBackupBillingDisabled_VaultNotFound_SkipsBilling(
 	assert.Len(t, result.HydratedMetricsDataModel, 0)
 }
 
+func Test_GetVolumeMetrics_GcbdrBackupBillingDisabled_SkipsGcbdrVaults(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+
+	backupChainBytes := int64(1024)
+	volumes := []*database.VolumeMetricsData{
+		{
+			UUID:        "volume-uuid-1",
+			Name:        "Volume1",
+			SizeInBytes: 2048,
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account1",
+				DeploymentName: "test-deployment",
+				Protocols:      []string{"NFSv3"},
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID:    "bv-1",
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+	}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+
+	backupVaults := []*datamodel.BackupVault{
+		{
+			BaseModel:   datamodel.BaseModel{UUID: "bv-1"},
+			ServiceType: models.ServiceTypeGCBDR,
+		},
+	}
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return(backupVaults, nil)
+
+	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true
+	config.EnableGcbdrBackupBilling = false
+
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	assert.Len(t, result.HydratedMetricsDataModel, 0)
+}
+
+func Test_GetVolumeMetrics_GcbdrBackupBillingEnabled_IncludesGcbdrVaults(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+
+	backupChainBytes := int64(1024)
+	volumes := []*database.VolumeMetricsData{
+		{
+			UUID:        "volume-uuid-1",
+			Name:        "Volume1",
+			SizeInBytes: 2048,
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account1",
+				DeploymentName: "test-deployment",
+				Protocols:      []string{"NFSv3"},
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID:    "bv-1",
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+	}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+
+	backupVaults := []*datamodel.BackupVault{
+		{
+			BaseModel:   datamodel.BaseModel{UUID: "bv-1"},
+			ServiceType: models.ServiceTypeGCBDR,
+		},
+	}
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return(backupVaults, nil)
+
+	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true
+	config.EnableGcbdrBackupBilling = true
+
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	require.Len(t, result.HydratedMetricsDataModel, 1)
+	assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, result.HydratedMetricsDataModel[0].MeasuredType)
+	assert.Equal(t, float64(2048), result.HydratedMetricsDataModel[0].Quantity)
+}
+
+func Test_GetVolumeMetrics_GcbdrBackupBillingDisabled_VaultNotFound_SkipsBilling(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+
+	backupChainBytes := int64(1024)
+	volumes := []*database.VolumeMetricsData{
+		{
+			UUID:        "volume-uuid-1",
+			Name:        "Volume1",
+			SizeInBytes: 2048,
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account1",
+				DeploymentName: "test-deployment",
+				Protocols:      []string{"NFSv3"},
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID:    "bv-1",
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+	}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return([]*datamodel.BackupVault{}, nil)
+
+	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true
+	config.EnableGcbdrBackupBilling = false
+	config.EnableCrossRegionBackupBillingMetrics = true
+	config.EnableCmekBackupBilling = true
+
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	assert.Len(t, result.HydratedMetricsDataModel, 0)
+}
+
+func Test_GetVolumeMetrics_GcbdrBackupBillingDisabled_NonGcbdrVaultStillBilled(t *testing.T) {
+	m := new(mockVolumeStorage)
+	ctx := context.Background()
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+
+	backupChainBytes := int64(1024)
+	volumes := []*database.VolumeMetricsData{
+		{
+			UUID:        "volume-uuid-1",
+			Name:        "Volume1",
+			SizeInBytes: 2048,
+			PoolID:      1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				AccountName:    "Account1",
+				DeploymentName: "test-deployment",
+				Protocols:      []string{"NFSv3"},
+			},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID:    "bv-1",
+				BackupChainBytes: &backupChainBytes,
+			},
+		},
+	}
+
+	m.On("ListVolumesForTelemetryMetrics", mock.Anything).Return(volumes, nil)
+	m.On("ListAccountsForTelemetry", mock.Anything, mock.Anything).Return([]*database.AccountTelemetryData{}, nil)
+
+	backupVaults := []*datamodel.BackupVault{
+		{
+			BaseModel:   datamodel.BaseModel{UUID: "bv-1"},
+			ServiceType: models.ServiceTypeGCNV,
+		},
+	}
+	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return(backupVaults, nil)
+
+	config.EnableBackupBillingMetrics = true
+	config.EnableFilesBackupBilling = true
+	config.EnableGcbdrBackupBilling = false
+
+	poolMetadataMap := make(map[int64]metadata.ResourceMetadata)
+
+	result, err := GetVolumeMetrics(ctx, m, config, poolMetadataMap, time.Now())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	require.Len(t, result.HydratedMetricsDataModel, 1)
+	assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, result.HydratedMetricsDataModel[0].MeasuredType)
+}
+
 func Test_GetVolumeMetrics_ListVolumesWithAccountsError(t *testing.T) {
 	m := new(mockVolumeStorage)
 	ctx := context.Background()

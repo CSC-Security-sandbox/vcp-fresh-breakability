@@ -172,6 +172,34 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 			Message: "Backup feature is currently not enabled.",
 		}, nil
 	}
+	if req.TenantProject.IsSet() && req.TenantProject.Value != "" {
+		if !GCBDRVaultEnabled {
+			return &gcpgenserver.V1betaCreateBackupVaultBadRequest{
+				Code:    400,
+				Message: "GCBDR backup vault creation is not enabled.",
+			}, nil
+		}
+		if req.KmsConfigResourcePath.IsSet() && req.KmsConfigResourcePath.Value != "" {
+			return &gcpgenserver.V1betaCreateBackupVaultBadRequest{
+				Code:    400,
+				Message: "CMEK is not supported for GCBDR backup vaults.",
+			}, nil
+		}
+		if req.BackupRegion.IsSet() && req.BackupRegion.Value != "" {
+			return &gcpgenserver.V1betaCreateBackupVaultBadRequest{
+				Code:    400,
+				Message: "Cross-region backup is not supported for GCBDR backup vaults.",
+			}, nil
+		}
+		if req.BackupRetentionPolicy.IsSet() &&
+			req.BackupRetentionPolicy.Value.BackupMinimumEnforcedRetentionDays.IsSet() &&
+			req.BackupRetentionPolicy.Value.BackupMinimumEnforcedRetentionDays.Value > 0 {
+			return &gcpgenserver.V1betaCreateBackupVaultBadRequest{
+				Code:    400,
+				Message: "Immutable backup vaults are not supported for GCBDR backup vaults.",
+			}, nil
+		}
+	}
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, reqPayloadparams.ProjectNumber, reqPayloadparams.LocationId, nil)
 	_, _, parsingErr := parseAndValidateRegionAndZone(reqPayloadparams.LocationId)

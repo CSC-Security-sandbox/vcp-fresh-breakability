@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -1696,6 +1697,123 @@ func TestAssembleBackupMetadata_WithBackupVaultRegion(t *testing.T) {
 	assert.NotNil(t, rm.BackupRegionName)
 	assert.Equal(t, "eu-west-1", *rm.BackupRegionName)
 	assert.Equal(t, "vault-name", derefString(rm.DeploymentName))
+}
+
+func TestGetBackupMetrics_GcbdrBackupBilling_SkipsAndIncludes(t *testing.T) {
+	tests := []struct {
+		name                          string
+		enableGcbdrBackupBilling      bool
+		backups                       []*datamodel.Backup
+		expectedHydratedMetricsCount  int
+		expectedDataModelMetricsCount int
+		description                   string
+	}{
+		{
+			name:                    "GCBDR billing disabled - skip GCBDR backup billing metrics",
+			enableGcbdrBackupBilling: false,
+			backups: []*datamodel.Backup{
+				{
+					BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-gcbdr-1"},
+					Name:                    "GcbdrBackup1",
+					VolumeUUID:              "volume-uuid-gcbdr-1",
+					LatestLogicalBackupSize: 1024,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier: "AccountGcbdr1",
+						VolumeName:        "VolumeGcbdr1",
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-gcbdr-1"},
+						Name:        "BackupVaultGcbdr1",
+						ServiceType: models.ServiceTypeGCBDR,
+					},
+				},
+			},
+			expectedHydratedMetricsCount:  1,
+			expectedDataModelMetricsCount: 0,
+			description:                   "GCBDR backup should skip HydratedMetricsDataModel when GCBDR billing is disabled",
+		},
+		{
+			name:                    "GCBDR billing enabled - include GCBDR backup billing metrics",
+			enableGcbdrBackupBilling: true,
+			backups: []*datamodel.Backup{
+				{
+					BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-gcbdr-2"},
+					Name:                    "GcbdrBackup2",
+					VolumeUUID:              "volume-uuid-gcbdr-2",
+					LatestLogicalBackupSize: 2048,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier: "AccountGcbdr2",
+						VolumeName:        "VolumeGcbdr2",
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-gcbdr-2"},
+						Name:        "BackupVaultGcbdr2",
+						ServiceType: models.ServiceTypeGCBDR,
+					},
+				},
+			},
+			expectedHydratedMetricsCount:  1,
+			expectedDataModelMetricsCount: 1,
+			description:                   "GCBDR backup should create both metrics when GCBDR billing is enabled",
+		},
+		{
+			name:                    "GCBDR billing disabled - non-GCBDR backups still billed",
+			enableGcbdrBackupBilling: false,
+			backups: []*datamodel.Backup{
+				{
+					BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-non-gcbdr-1"},
+					Name:                    "NonGcbdrBackup1",
+					VolumeUUID:              "volume-uuid-non-gcbdr-1",
+					LatestLogicalBackupSize: 4096,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier: "AccountNonGcbdr1",
+						VolumeName:        "VolumeNonGcbdr1",
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-non-gcbdr-1"},
+						Name:        "BackupVaultNonGcbdr1",
+						ServiceType: models.ServiceTypeGCNV,
+					},
+				},
+			},
+			expectedHydratedMetricsCount:  1,
+			expectedDataModelMetricsCount: 1,
+			description:                   "Non-GCBDR backup should create both metrics even when GCBDR billing is disabled",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := new(mockBackupStorage)
+			ctx := context.Background()
+			config := &common.TelemetryConfig{
+				RegionName:               "us-east-1",
+				EnableFilesBackupBilling: true,
+				EnableGcbdrBackupBilling: tt.enableGcbdrBackupBilling,
+			}
+
+			m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+				return pagination.Offset == 0
+			})).Return(tt.backups, nil)
+			m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+				return pagination.Offset > 0
+			})).Return([]*datamodel.Backup{}, nil)
+
+			result, err := GetBackupMetrics(ctx, m, config, time.Now())
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
+
+			assert.Len(t, result.HydratedMetrics, tt.expectedHydratedMetricsCount,
+				"HydratedMetrics count mismatch: %s", tt.description)
+			assert.Len(t, result.HydratedMetricsDataModel, tt.expectedDataModelMetricsCount,
+				"HydratedMetricsDataModel count mismatch: %s", tt.description)
+
+			for i, metric := range result.HydratedMetrics {
+				assert.Equal(t, metadata.BackupLogicalSize, metric.MeasuredType,
+					"HydratedMetrics[%d] should have BackupLogicalSize type", i)
+			}
+		})
+	}
 }
 
 // Helper function to create string pointers
