@@ -192,6 +192,7 @@ workerConfig:
   vlmUpdateVsaMediatorWFTimeoutMinutes: 30
   # Comma-separated list of error patterns that trigger delete and retry operations
   vlmRetryErrorPatterns: ""
+  sequenceWorkflowTimeoutMinutes: "120m"
 
   # ONTAP Image Version Match Configuration
   skipOntapImageVersionMatch: false

@@ -9,10 +9,15 @@ import (
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/workflow"
+)
+
+var (
+	SequenceWorkflowTimeout = env.GetString("SEQUENCE_WORKFLOW_TIMEOUT_MINUTES", "120m")
 )
 
 const (
@@ -135,6 +140,13 @@ func _executeWorkflowSequentially(temporal client.Client, ctx context.Context, s
 		sequenceWfOptions.TaskQueue = workflowengine.CustomerTaskQueue
 	}
 
+	// This will ensure that the control workflow does not run indefinitely and block the sequence workflow.
+	var parseErr error
+	sequenceWfOptions.WorkflowRunTimeout, parseErr = time.ParseDuration(SequenceWorkflowTimeout)
+	if parseErr != nil {
+		sequenceWfOptions.WorkflowRunTimeout = workflowengine.GetWorkflowGlobalTimeout()
+	}
+
 	// SignalWithStartWorkflow is used to signal the sequence workflow if running.
 	// If the sequence workflow is not running, it will start a new instance with the provided options and signal it.
 	_, err := temporal.SignalWithStartWorkflow(
@@ -163,7 +175,7 @@ func getWorkflowName(fnx interface{}) string {
 	if name, ok := fnx.(string); ok {
 		return name
 	}
-	
+
 	// Otherwise, use reflection to get the function name from the function pointer
 	// It uses reflection to get the function concrete value pointer, passes it to FuncForPC to get the
 	// function name. It returns the name in the below format -

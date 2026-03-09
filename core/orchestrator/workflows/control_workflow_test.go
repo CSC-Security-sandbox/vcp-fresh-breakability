@@ -24,6 +24,10 @@ func TestExecuteWorkflowSequentially_Success(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	ctx := context.Background()
+	timeout, pErr := time.ParseDuration(SequenceWorkflowTimeout)
+	if pErr != nil {
+		timeout = workflowengine.GetWorkflowGlobalTimeout()
+	}
 
 	env.RegisterActivity(&activities.CommonActivities{})
 	env.RegisterActivity(&activities.PoolActivity{})
@@ -42,8 +46,9 @@ func TestExecuteWorkflowSequentially_Success(t *testing.T) {
 			},
 		},
 		client.StartWorkflowOptions{
-			ID:        "test-sequence-workflow-id",
-			TaskQueue: workflowengine.CustomerTaskQueue,
+			ID:                 "test-sequence-workflow-id",
+			TaskQueue:          workflowengine.CustomerTaskQueue,
+			WorkflowRunTimeout: timeout,
 		},
 		mock.Anything,
 	).Return(nil, nil)
@@ -74,6 +79,10 @@ func TestExecuteWorkflowSequentially_SignalError(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
 	env := ts.NewTestWorkflowEnvironment()
 	ctx := context.Background()
+	timeout, pErr := time.ParseDuration(SequenceWorkflowTimeout)
+	if pErr != nil {
+		timeout = workflowengine.GetWorkflowGlobalTimeout()
+	}
 
 	temporal.EXPECT().SignalWithStartWorkflow(
 		ctx,
@@ -89,8 +98,9 @@ func TestExecuteWorkflowSequentially_SignalError(t *testing.T) {
 			},
 		},
 		client.StartWorkflowOptions{
-			ID:        "test-sequence-workflow-id",
-			TaskQueue: workflowengine.CustomerTaskQueue,
+			ID:                 "test-sequence-workflow-id",
+			TaskQueue:          workflowengine.CustomerTaskQueue,
+			WorkflowRunTimeout: timeout,
 		},
 		mock.Anything,
 	).Return(nil, errors.New("signal error"))
@@ -231,4 +241,59 @@ func TestSequenceWorkflow_ExitsOnTimeout(t *testing.T) {
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
+}
+
+func TestExecuteWorkflowSequentially_InvalidTimeoutFallsBackToGlobalTimeout(t *testing.T) {
+	// Save original value and restore after test
+	originalTimeout := SequenceWorkflowTimeout
+	defer func() { SequenceWorkflowTimeout = originalTimeout }()
+
+	// Set invalid duration to trigger parseErr
+	SequenceWorkflowTimeout = "invalid-duration"
+
+	temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	ctx := context.Background()
+
+	// When parse fails, should fallback to GetWorkflowGlobalTimeout()
+	expectedTimeout := workflowengine.GetWorkflowGlobalTimeout()
+
+	temporal.EXPECT().SignalWithStartWorkflow(
+		ctx,
+		"test-sequence-workflow-id",
+		Signal,
+		SignalWorkflowParams{
+			Function: "WorkflowTest",
+			Options: workflow.ChildWorkflowOptions{
+				TaskQueue:             workflowengine.CustomerTaskQueue,
+				WorkflowID:            "test-workflow-id",
+				WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+				WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+			},
+		},
+		client.StartWorkflowOptions{
+			ID:                 "test-sequence-workflow-id",
+			TaskQueue:          workflowengine.CustomerTaskQueue,
+			WorkflowRunTimeout: expectedTimeout,
+		},
+		mock.Anything,
+	).Return(nil, nil)
+
+	err := ExecuteWorkflowSequentially(
+		temporal,
+		ctx,
+		client.StartWorkflowOptions{
+			ID: "test-sequence-workflow-id",
+		},
+		WorkflowTest,
+		workflow.ChildWorkflowOptions{
+			WorkflowID:            "test-workflow-id",
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+		},
+	)
+
+	assert.NoError(t, err)
+	env.AssertExpectations(t)
 }

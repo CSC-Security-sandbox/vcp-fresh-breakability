@@ -297,6 +297,7 @@ data:
   RETRY_MAX_INTERVAL: {{$.Values.workerConfig.retryMaxInterval | quote }}
   RETRY_BACKOFF_COEFFICIENT: {{$.Values.workerConfig.retryBackoffCoefficient | quote }}
   BACKOFF_COEFFICIENT_FOR_REPLICATION_ACTIVITIES: {{$.Values.workerConfig.backoffCoefficientForReplicationActivities | quote }}
+  SEQUENCE_WORKFLOW_TIMEOUT_MINUTES: {{$.Values.workerConfig.sequenceWorkflowTimeoutMinutes | quote }}
 
 
   # Pool workflow timeout configuration
