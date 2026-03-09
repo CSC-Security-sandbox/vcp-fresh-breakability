@@ -949,7 +949,7 @@
   },
   "7016": {
     "description": "Hot Tier Capacity Exhausted",
-    "message": "Volume creation failed due to insufficient hot tier capacity. Please increase the hot tier capacity to proceed.",
+    "message": "Volume creation failed due to insufficient hot tier capacity. Please increase the hot tier capacity or free up space in the hot tier and try again.",
     "retriable": false,
     "http_code": 400
   },
