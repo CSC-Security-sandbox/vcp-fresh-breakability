@@ -602,6 +602,83 @@ func (va VolumeDeleteActivity) DeleteDnsRecordIfUnused(ctx context.Context, tear
 	return nil
 }
 
+// DeleteCifsShareIfSMB deletes the CIFS/SMB share for the volume when the volume has SMB in its protocols,
+// Active Directory configured, and a non-empty creation token (share name). Skips for NFS-only or other
+// non-SMB volumes to avoid issuing CIFS share delete for unrelated shares. Treats "share not found" as success.
+// Invoked after replication/source checks and before volume delete.
+func (va VolumeDeleteActivity) DeleteCifsShareIfSMB(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
+	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Starting DeleteCifsShareIfSMB activity")
+
+	if volume == nil || node == nil {
+		return nil
+	}
+	if volume.Pool == nil || volume.Pool.ActiveDirectory == nil {
+		logger.Debugf("Volume %s has no Active Directory configured, skipping CIFS share delete", volume.UUID)
+		return nil
+	}
+	if volume.VolumeAttributes == nil || strings.TrimSpace(volume.VolumeAttributes.CreationToken) == "" {
+		logger.Debugf("Volume %s has empty creation token, skipping CIFS share delete (avoids touching admin shares)", volume.UUID)
+		return nil
+	}
+	// Only delete CIFS share when the volume actually has SMB in its protocols (avoids deleting shares for NFS-only/LDAP volumes).
+	if !utils.IsSMBProtocols(volume.VolumeAttributes.Protocols) {
+		logger.Debugf("Volume %s does not have SMB in protocols, skipping CIFS share delete", volume.UUID)
+		return nil
+	}
+
+	shareName := strings.TrimSpace(volume.VolumeAttributes.CreationToken)
+	svmUUID := ""
+	if volume.Svm != nil && volume.Svm.SvmDetails != nil {
+		svmUUID = volume.Svm.SvmDetails.ExternalUUID
+	}
+	if svmUUID == "" {
+		se := va.SE
+		dbSvm, dbErr := se.GetSvmForPoolID(ctx, volume.PoolID)
+		if dbErr != nil {
+			logger.Errorf("failed to fetch SVM for pool %d for CIFS share delete: %v", volume.PoolID, dbErr)
+			return vsaerrors.WrapAsTemporalApplicationError(dbErr)
+		}
+		if dbSvm != nil && dbSvm.SvmDetails != nil {
+			svmUUID = dbSvm.SvmDetails.ExternalUUID
+		}
+	}
+	if svmUUID == "" {
+		logger.Warnf("SVM external UUID not found for volume %s, skipping CIFS share delete", volume.UUID)
+		return nil
+	}
+
+	provider, err := getCifsServerProvider(ctx, node)
+	if err != nil {
+		return err
+	}
+	restClient, err := provider.CreateRESTClient()
+	if err != nil {
+		logger.Errorf("failed to create REST client for CIFS share delete: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	err = restClient.NAS().CifsShareDelete(&ontapRest.CifsShareDeleteParams{
+		ShareName: shareName,
+		SvmUUID:   svmUUID,
+	})
+	if err != nil {
+		if utilErrors.IsNotFoundErr(err) ||
+			strings.Contains(err.Error(), "entry doesn't exist") ||
+			strings.Contains(err.Error(), "entry not found") {
+			logger.Debugf("CIFS share %s not found or already deleted for volume %s", shareName, volume.Name)
+			activity.RecordHeartbeat(ctx, "Finished DeleteCifsShareIfSMB activity - share not found")
+			return nil
+		}
+		logger.Errorf("failed to delete CIFS share %s for volume %s: %v", shareName, volume.Name, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Debugf("Deleted CIFS share %s for volume %s", shareName, volume.Name)
+	activity.RecordHeartbeat(ctx, "Finished DeleteCifsShareIfSMB activity")
+	return nil
+}
+
 func getCifsServerProvider(ctx context.Context, node *models.Node) (cifsServerProvider, error) {
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {

@@ -749,6 +749,296 @@ func TestDeleteCifsServerIfUnused_DeleteFailure(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestDeleteCifsShareIfSMB_SkipsWhenNilVolume(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	activity := VolumeDeleteActivity{}
+	env.RegisterActivity(activity.DeleteCifsShareIfSMB)
+	_, err := env.ExecuteActivity(activity.DeleteCifsShareIfSMB, nil, &models.Node{})
+	assert.NoError(t, err)
+}
+
+func TestDeleteCifsShareIfSMB_SkipsWhenNoActiveDirectory(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	activity := VolumeDeleteActivity{}
+	env.RegisterActivity(activity.DeleteCifsShareIfSMB)
+	volume := &datamodel.Volume{
+		Pool:             &datamodel.Pool{ActiveDirectory: nil},
+		VolumeAttributes: &datamodel.VolumeAttributes{CreationToken: "share-name"},
+	}
+	_, err := env.ExecuteActivity(activity.DeleteCifsShareIfSMB, volume, &models.Node{})
+	assert.NoError(t, err)
+}
+
+func TestDeleteCifsShareIfSMB_SkipsWhenEmptyCreationToken(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	activity := VolumeDeleteActivity{}
+	env.RegisterActivity(activity.DeleteCifsShareIfSMB)
+	volume := &datamodel.Volume{
+		Pool:             &datamodel.Pool{ActiveDirectory: &datamodel.ActiveDirectory{}},
+		VolumeAttributes: &datamodel.VolumeAttributes{CreationToken: ""},
+	}
+	_, err := env.ExecuteActivity(activity.DeleteCifsShareIfSMB, volume, &models.Node{})
+	assert.NoError(t, err)
+}
+
+func TestDeleteCifsShareIfSMB_SkipsWhenNFSOnlyProtocols(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	activity := VolumeDeleteActivity{}
+	env.RegisterActivity(activity.DeleteCifsShareIfSMB)
+	// Volume has AD and creation token but NFS-only protocols; CifsShareDelete must not be called.
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{ActiveDirectory: &datamodel.ActiveDirectory{}},
+		Svm:  &datamodel.Svm{SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-uuid"}},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CreationToken: "some-share",
+			Protocols:     []string{"NFSv3"},
+		},
+	}
+	_, err := env.ExecuteActivity(activity.DeleteCifsShareIfSMB, volume, &models.Node{})
+	assert.NoError(t, err)
+}
+
+func TestDeleteCifsShareIfSMB_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	env.RegisterActivity(activity.DeleteCifsShareIfSMB)
+
+	volume := &datamodel.Volume{
+		Name:   "vol1",
+		PoolID: 1,
+		Pool:   &datamodel.Pool{ActiveDirectory: &datamodel.ActiveDirectory{}},
+		Svm:    &datamodel.Svm{SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-uuid-123"}},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CreationToken: "my-share",
+			Protocols:     []string{utils.ProtocolSMB},
+		},
+	}
+
+	mockNAS := ontap_rest.NewMockNASClient(t)
+	mockNAS.EXPECT().CifsShareDelete(mock.MatchedBy(func(p *ontap_rest.CifsShareDeleteParams) bool {
+		return p.ShareName == "my-share" && p.SvmUUID == "svm-uuid-123"
+	})).Return(nil).Once()
+
+	mockREST := ontap_rest.NewMockRESTClient(t)
+	mockREST.EXPECT().NAS().Return(mockNAS).Once()
+
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), restClient: mockREST}
+	orig := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = orig }()
+
+	_, err := env.ExecuteActivity(activity.DeleteCifsShareIfSMB, volume, &models.Node{})
+	assert.NoError(t, err)
+}
+
+func TestDeleteCifsShareIfSMB_ShareNotFoundTreatedAsSuccess(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	activity := VolumeDeleteActivity{}
+	env.RegisterActivity(activity.DeleteCifsShareIfSMB)
+
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{ActiveDirectory: &datamodel.ActiveDirectory{}},
+		Svm:  &datamodel.Svm{SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-uuid"}},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CreationToken: "share",
+			Protocols:     []string{utils.ProtocolSMB},
+		},
+	}
+
+	mockNAS := ontap_rest.NewMockNASClient(t)
+	mockNAS.EXPECT().CifsShareDelete(mock.Anything).Return(utilErrors.NewNotFoundErr("Share", nil)).Once()
+
+	mockREST := ontap_rest.NewMockRESTClient(t)
+	mockREST.EXPECT().NAS().Return(mockNAS).Once()
+
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), restClient: mockREST}
+	orig := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = orig }()
+
+	_, err := env.ExecuteActivity(activity.DeleteCifsShareIfSMB, volume, &models.Node{})
+	assert.NoError(t, err)
+}
+
+func TestDeleteCifsShareIfSMB_DeleteErrorFails(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	activity := VolumeDeleteActivity{}
+	env.RegisterActivity(activity.DeleteCifsShareIfSMB)
+
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{ActiveDirectory: &datamodel.ActiveDirectory{}},
+		Svm:  &datamodel.Svm{SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-uuid"}},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CreationToken: "share",
+			Protocols:     []string{utils.ProtocolSMB},
+		},
+	}
+
+	mockNAS := ontap_rest.NewMockNASClient(t)
+	mockNAS.EXPECT().CifsShareDelete(mock.Anything).Return(fmt.Errorf("permission denied")).Once()
+
+	mockREST := ontap_rest.NewMockRESTClient(t)
+	mockREST.EXPECT().NAS().Return(mockNAS).Once()
+
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), restClient: mockREST}
+	orig := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = orig }()
+
+	_, err := env.ExecuteActivity(activity.DeleteCifsShareIfSMB, volume, &models.Node{})
+	assert.Error(t, err)
+}
+
+func TestDeleteCifsShareIfSMB_GetSvmForPoolIDError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	env.RegisterActivity(activity.DeleteCifsShareIfSMB)
+
+	volume := &datamodel.Volume{
+		PoolID: 1,
+		Pool:   &datamodel.Pool{ActiveDirectory: &datamodel.ActiveDirectory{}},
+		Svm:    nil, // no Svm so we fall back to GetSvmForPoolID
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CreationToken: "share",
+			Protocols:     []string{utils.ProtocolSMB},
+		},
+	}
+
+	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return((*datamodel.Svm)(nil), fmt.Errorf("db error"))
+
+	_, err := env.ExecuteActivity(activity.DeleteCifsShareIfSMB, volume, &models.Node{})
+	assert.Error(t, err)
+}
+
+func TestDeleteCifsShareIfSMB_GetsSvmUUIDFromDBWhenSvmNil(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	env.RegisterActivity(activity.DeleteCifsShareIfSMB)
+
+	volume := &datamodel.Volume{
+		PoolID: 1,
+		Pool:   &datamodel.Pool{ActiveDirectory: &datamodel.ActiveDirectory{}},
+		Svm:    nil,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CreationToken: "share",
+			Protocols:     []string{utils.ProtocolSMB},
+		},
+	}
+
+	dbSvm := &datamodel.Svm{SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-from-db"}}
+	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(dbSvm, nil)
+
+	mockNAS := ontap_rest.NewMockNASClient(t)
+	mockNAS.EXPECT().CifsShareDelete(mock.MatchedBy(func(p *ontap_rest.CifsShareDeleteParams) bool {
+		return p.ShareName == "share" && p.SvmUUID == "svm-from-db"
+	})).Return(nil).Once()
+
+	mockREST := ontap_rest.NewMockRESTClient(t)
+	mockREST.EXPECT().NAS().Return(mockNAS).Once()
+
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), restClient: mockREST}
+	orig := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = orig }()
+
+	_, err := env.ExecuteActivity(activity.DeleteCifsShareIfSMB, volume, &models.Node{})
+	assert.NoError(t, err)
+}
+
+func TestDeleteCifsShareIfSMB_SkipsWhenSvmUUIDNotFoundAfterDB(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	mockStorage := database.NewMockStorage(t)
+	activity := VolumeDeleteActivity{SE: mockStorage}
+	env.RegisterActivity(activity.DeleteCifsShareIfSMB)
+
+	volume := &datamodel.Volume{
+		PoolID: 1,
+		Pool:   &datamodel.Pool{ActiveDirectory: &datamodel.ActiveDirectory{}},
+		Svm:    nil,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CreationToken: "share",
+			Protocols:     []string{utils.ProtocolSMB},
+		},
+	}
+
+	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return((*datamodel.Svm)(nil), nil)
+
+	_, err := env.ExecuteActivity(activity.DeleteCifsShareIfSMB, volume, &models.Node{})
+	assert.NoError(t, err)
+}
+
+func TestDeleteCifsShareIfSMB_GetCifsServerProviderError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	activity := VolumeDeleteActivity{}
+	env.RegisterActivity(activity.DeleteCifsShareIfSMB)
+
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{ActiveDirectory: &datamodel.ActiveDirectory{}},
+		Svm:  &datamodel.Svm{SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-uuid"}},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CreationToken: "share",
+			Protocols:     []string{utils.ProtocolSMB},
+		},
+	}
+
+	orig := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return nil, fmt.Errorf("provider not available")
+	}
+	defer func() { hyperscaler.GetProviderByNode = orig }()
+
+	_, err := env.ExecuteActivity(activity.DeleteCifsShareIfSMB, volume, &models.Node{})
+	assert.Error(t, err)
+}
+
+func TestDeleteCifsShareIfSMB_CreateRESTClientError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	activity := VolumeDeleteActivity{}
+	env.RegisterActivity(activity.DeleteCifsShareIfSMB)
+
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{ActiveDirectory: &datamodel.ActiveDirectory{}},
+		Svm:  &datamodel.Svm{SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-uuid"}},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CreationToken: "share",
+			Protocols:     []string{utils.ProtocolSMB},
+		},
+	}
+
+	fakeProvider := &fakeCifsProvider{MockProvider: vsa.NewMockProvider(t), createErr: fmt.Errorf("REST client failed")}
+	orig := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(ctx context.Context, n *models.Node) (vsa.Provider, error) {
+		return fakeProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = orig }()
+
+	_, err := env.ExecuteActivity(activity.DeleteCifsShareIfSMB, volume, &models.Node{})
+	assert.Error(t, err)
+}
+
 func TestDeleteDnsRecordIfUnused_Success(t *testing.T) {
 	testSuite := &testsuite.WorkflowTestSuite{}
 	env := testSuite.NewTestActivityEnvironment()

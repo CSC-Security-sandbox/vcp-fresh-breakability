@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,8 +19,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	common "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	utilerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -53,6 +54,13 @@ func (s *VolumeDeleteTestSuite) SetupTest() {
 	// Register all activities that might be used across tests
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+
+	// Skip default DeleteCifsShareIfSMB mock when test will override it (e.g. DeleteCifsShareIfSMBError)
+	if !strings.Contains(s.T().Name(), "DeleteCifsShareIfSMBError") {
+		s.env.RegisterActivity(deleteActivity.DeleteCifsShareIfSMB)
+		s.env.OnActivity(deleteActivity.DeleteCifsShareIfSMB, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	}
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
@@ -532,6 +540,58 @@ func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_DeleteVolumeInONTAPErr
 	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
 
 	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+func (s *VolumeDeleteTestSuite) Test_DeleteVolumeWorkflow_DeleteCifsShareIfSMBError() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteCifsShareIfSMB)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(deleteActivity.DeleteVolumeAssociatedSnapshots)
+	s.env.RegisterActivity(deleteActivity.DetermineSmbTeardownContext)
+	s.env.RegisterActivity(deleteActivity.DeleteCifsServerIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteDnsRecordIfUnused)
+	s.env.RegisterActivity(deleteActivity.DeleteVolume)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
+	s.env.OnActivity(activities.CommonActivities.GetOntapJob, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
+	s.env.OnActivity(deleteActivity.DeleteCifsShareIfSMB, mock.Anything, mock.Anything, mock.Anything).Return(fmt.Errorf("CIFS share delete failed"))
+	s.env.OnActivity(deleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(deleteActivity.DetermineSmbTeardownContext, mock.Anything, mock.Anything, mock.Anything).Return(&activities.SmbTeardownContext{}, nil)
+	s.env.OnActivity(deleteActivity.DeleteCifsServerIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(deleteActivity.DeleteDnsRecordIfUnused, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		Name: "test_volume",
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "test-external-uuid",
+		},
+	}
+	s.env.ExecuteWorkflow(DeleteVolumeWorkflow, volume)
+
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
