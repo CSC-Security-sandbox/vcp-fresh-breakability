@@ -1049,6 +1049,14 @@ type BackupAttributes struct {
 	ConstituentCountOfBackup       int32     `json:"constituent_count_of_backup"`
 	IsRegionalHA                   bool      `json:"is_regional_ha"`
 	RestoreVolumeCount             int       `json:"restore_volume_count"`
+	TotalTransferBytes             int64     `json:"total_transfer_bytes"`
+}
+
+func (b *BackupAttributes) GetTotalTransferBytes() int64 {
+	if b != nil {
+		return b.TotalTransferBytes
+	}
+	return 0
 }
 
 func (b *BackupAttributes) Scan(value interface{}) error {

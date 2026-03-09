@@ -273,6 +273,31 @@ func TestGoogleUsageSink_completeRecords(t *testing.T) {
 		ml.AssertExpectations(t)
 	})
 
+	t.Run("CbsCrossRegionVolumeBackupTransferBytes unit conversion", func(t *testing.T) {
+		ml := &log.MockLogger{}
+		sink.logger = ml
+
+		ml.On("Debugf", "Google Usage Mapping with ID is ready for billing", "Record ID: ", int64(1)).Once()
+
+		records := []datamodel.AggregatedUsage{
+			{
+				ID:               1,
+				VendorCustomerID: &customerID,
+				MeasuredType:     metadata.CbsCrossRegionVolumeBackupTransferBytes,
+				Quantity:         1024.0, // MiB
+				ResourceType:     metadata.Backup,
+			},
+		}
+
+		googleMetrics := sink.completeRecords(records)
+
+		assert.Len(t, googleMetrics, 1)
+		// 1024 MiB -> 1073741824 Bytes (MibToBytes)
+		quantity, _ := googleMetrics[0].GetQuantity()
+		assert.Equal(t, int64(1073741824), quantity)
+		ml.AssertExpectations(t)
+	})
+
 	t.Run("Autotier unit conversions", func(t *testing.T) {
 		ml := &log.MockLogger{}
 		sink.logger = ml
@@ -1290,6 +1315,11 @@ func TestGetMeasuredTypesWithUnits(t *testing.T) {
 			name:         "BackupEnabledVolumeAllocatedSize returns GiB-hours suffix",
 			measuredType: metadata.BackupEnabledVolumeAllocatedSize,
 			expected:     "BACKUP_ENABLED_VOLUME_ALLOCATED_SIZE_IN_GiB-hours",
+		},
+		{
+			name:         "CbsCrossRegionVolumeBackupTransferBytes returns bytes suffix",
+			measuredType: metadata.CbsCrossRegionVolumeBackupTransferBytes,
+			expected:     "CBS_CROSS_REGION_VOLUME_BACKUP_TRANSFER_BYTES_IN_Bytes",
 		},
 		{
 			name:         "XregionReplicationTotalTransferBytes returns bytes suffix",

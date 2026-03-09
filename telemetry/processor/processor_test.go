@@ -2186,6 +2186,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CrossRegionRestoreBillingErr
 
 func TestMetricsProcessor_ProcessPerformanceMetrics_CrossRegionRestoreBillingWithResults(t *testing.T) {
 	t.Setenv("ENABLE_CROSS_REGION_BACKUP_BILLING_METRICS", "true")
+	t.Setenv("ENABLE_FILES_BACKUP_BILLING", "true")
 
 	ctx := context.Background()
 	vcpStore := &database.MockStorage{}
@@ -2229,6 +2230,7 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CrossRegionRestoreBillingWit
 			RestoredBackupID: "crr-backup-1",
 			AccountName:      "crr-ok-account",
 			DeploymentName:   "crr-deploy",
+			Protocols:        []string{"NFSV3"},
 		},
 	}
 	vcpStore.On("ListVolumesWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Volume{testVolume}, nil)

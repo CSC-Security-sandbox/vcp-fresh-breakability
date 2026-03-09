@@ -277,6 +277,18 @@ func TestDataProtection_Value(t *testing.T) {
 	assert.Equal(t, `{"scheduled_backup_enabled":true,"backup_vault_id":"vault123","backup_policy_id":"","backup_chain_bytes":null,"kms_grant":null}`, string(val.([]byte)))
 }
 
+func TestBackupAttributes_GetTotalTransferBytes(t *testing.T) {
+	t.Run("NonNilReceiver", func(t *testing.T) {
+		ba := &BackupAttributes{TotalTransferBytes: 42}
+		assert.Equal(t, int64(42), ba.GetTotalTransferBytes())
+	})
+
+	t.Run("NilReceiver", func(t *testing.T) {
+		var ba *BackupAttributes
+		assert.Equal(t, int64(0), ba.GetTotalTransferBytes())
+	})
+}
+
 func TestBackupAttributes_Scan(t *testing.T) {
 	t.Run("Valid JSON", func(t *testing.T) {
 		var ba BackupAttributes
@@ -362,7 +374,7 @@ func TestBackupAttributes_Value(t *testing.T) {
 	val, err := ba.Value()
 	assert.NoError(t, err)
 
-	expectedJSON := `{"backup_policy_name":"policy1","snapshot_id":"snap123","snapshot_name":"snapshot1","snapshot_creation_time":"2023-01-01T00:00:00Z","completion_time":"2023-01-01T01:00:00Z","life_cycle_tracking_id":"track123","constituent_volumes_per_aggregate":"vol1","delete_initiated":false,"use_existing_snapshot":true,"number_of_aggregates":2,"ontap_volume_style":"flexvol","service_account_name":"service1","endpoint_uuid":"endpoint123","bucket_name":"bucket1","protocols":["nfs","cifs"],"volume_name":"volume1","account_identifier":"project123","enforced_retention_duration":"0001-01-01T00:00:00Z","object_store_uuid":"","source_volume_zone":"us-central1-a","constituent_count_of_backup":0,"is_regional_ha":false,"restore_volume_count":1}`
+	expectedJSON := `{"backup_policy_name":"policy1","snapshot_id":"snap123","snapshot_name":"snapshot1","snapshot_creation_time":"2023-01-01T00:00:00Z","completion_time":"2023-01-01T01:00:00Z","life_cycle_tracking_id":"track123","constituent_volumes_per_aggregate":"vol1","delete_initiated":false,"use_existing_snapshot":true,"number_of_aggregates":2,"ontap_volume_style":"flexvol","service_account_name":"service1","endpoint_uuid":"endpoint123","bucket_name":"bucket1","protocols":["nfs","cifs"],"volume_name":"volume1","account_identifier":"project123","enforced_retention_duration":"0001-01-01T00:00:00Z","object_store_uuid":"","source_volume_zone":"us-central1-a","constituent_count_of_backup":0,"is_regional_ha":false,"restore_volume_count":1,"total_transfer_bytes":0}`
 	assert.JSONEq(t, expectedJSON, string(val.([]byte)))
 }
 

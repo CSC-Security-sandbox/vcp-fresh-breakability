@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -104,6 +106,20 @@ func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 			}
 		}
 
+		// When cross-region billing is enabled, skip BackupLogicalSize for cross-region
+		// backups where the backup region is nil or matches the current region.
+		if !skipBilling && config.EnableCrossRegionBackupBillingMetrics &&
+			backup.BackupVault != nil &&
+			backup.BackupVault.BackupVaultType == activities.CrossRegionBackupType {
+			if backup.BackupVault.BackupRegionName == nil {
+				logger.Warnf("Skipping BackupLogicalSize billing for cross-region backup %s (volume %s): BackupRegionName is nil", backup.UUID, backup.VolumeUUID)
+				skipBilling = true
+			} else if *backup.BackupVault.BackupRegionName == config.RegionName {
+				logger.Warnf("Skipping BackupLogicalSize billing for cross-region backup %s (volume %s): BackupRegionName %s matches current region", backup.UUID, backup.VolumeUUID, *backup.BackupVault.BackupRegionName)
+				skipBilling = true
+			}
+		}
+
 		// Skip billing for backups in CMEK backup vaults when CMEK backup billing is disabled.
 		if !skipBilling && !config.EnableCmekBackupBilling {
 			if backup.BackupVault != nil &&
@@ -125,6 +141,24 @@ func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 		if !skipBilling && (config.EnableFilesBackupBilling || isSANProtocol) {
 			if hydratedMetric := setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, backupMetadata, timestamp, float64(backup.LatestLogicalBackupSize)); hydratedMetric != nil {
 				hydratedMetrics = append(hydratedMetrics, *hydratedMetric)
+			}
+			// cross region backup network transfer billing metric
+			if config.EnableCrossRegionBackupBillingMetrics &&
+				backup.BackupVault != nil &&
+				backup.BackupVault.BackupVaultType == activities.CrossRegionBackupType &&
+				backup.Attributes.GetTotalTransferBytes() > 0 {
+				totalTransferBytes := float64(backup.Attributes.GetTotalTransferBytes())
+				if hm := setupHydratedMetricsDataModel(
+					metadata.CbsCrossRegionVolumeBackupTransferBytes,
+					metadata.Backup,
+					accountName,
+					backupMetadata,
+					timestamp,
+					totalTransferBytes,
+				); hm != nil {
+					setCrossRegionRegionMetadata(logger, hm, backupMetadata)
+					hydratedMetrics = append(hydratedMetrics, *hm)
+				}
 			}
 		}
 	}
@@ -149,8 +183,31 @@ func assembleBackupMetadata(backup *datamodel.Backup, config *common.TelemetryCo
 	// Check if BackupVault is not nil before accessing its Name
 	if backup.BackupVault != nil {
 		met.SetDeploymentName(backup.BackupVault.Name)
+		if backup.BackupVault.BackupRegionName != nil && *backup.BackupVault.BackupRegionName != "" &&
+			backup.BackupVault.BackupVaultType == activities.CrossRegionBackupType {
+			met.SetBackupRegionName(*backup.BackupVault.BackupRegionName)
+		}
 	} else {
 		met.SetDeploymentName(EmptyDeploymentName)
 	}
 	return met
+}
+
+// setCrossRegionRegionMetadata stores BackupRegionName into the
+// HydratedMetrics.Metadata JSONB column so the aggregator can set the
+// destination region on the AggregatedUsage record.
+func setCrossRegionRegionMetadata(logger log.Logger, hm *datamodel2.HydratedMetrics, rm metadata.ResourceMetadata) {
+	if hm == nil || (rm.BackupRegionName == nil) {
+		return
+	}
+	extra := make(map[string]string)
+	if rm.BackupRegionName != nil {
+		extra["backup_region_name"] = *rm.BackupRegionName
+	}
+	b, err := json.Marshal(extra)
+	if err != nil {
+		logger.Warnf("Failed to marshal cross-region metadata: %v", err)
+		return
+	}
+	hm.Metadata = b
 }

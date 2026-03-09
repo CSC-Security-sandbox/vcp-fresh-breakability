@@ -3,6 +3,7 @@ package collector
 import (
 	"context"
 	"fmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -184,6 +185,14 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 
 					if !skipBilling {
 						if hydratedMetric := setupHydratedMetricsDataModel(metric.MeasuredType, metric.Metadata.ResourceType, accountName, volumeMetadata, timestamp, float64(allocatedSize)); hydratedMetric != nil {
+							if volume.DataProtection.BackupVaultID != "" {
+								if bv, exists := backupVaultMap[volume.DataProtection.BackupVaultID]; exists &&
+									bv.BackupVaultType == activities.CrossRegionBackupType &&
+									bv.BackupRegionName != nil && *bv.BackupRegionName != "" {
+									volumeMetadata.SetBackupRegionName(*bv.BackupRegionName)
+									setCrossRegionRegionMetadata(logger, hydratedMetric, volumeMetadata)
+								}
+							}
 							hydratedMetrics = append(hydratedMetrics, *hydratedMetric)
 						}
 					}

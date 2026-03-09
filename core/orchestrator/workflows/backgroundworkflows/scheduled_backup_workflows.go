@@ -471,6 +471,8 @@ func (wf *createScheduledBackupWorkflow) RunScheduledBackupWithContext(ctx workf
 		snapmirrorRelationship := &common.SnapmirrorRelationship{}
 		smSourcePath := activities.GetSmSourcePath(volume)
 		smDestinationPath := fmt.Sprintf("%s:/objstore/%s", cloudTarget.Name, volume.UUID)
+		scheduledBackupContext.SmSourcePath = smSourcePath
+		scheduledBackupContext.SmDestinationPath = smDestinationPath
 		SnapmirrorRelationshipParams := &common.SnapmirrorRelationshipParams{
 			SourcePath:      smSourcePath,
 			DestinationPath: smDestinationPath,
@@ -574,6 +576,12 @@ func (wf *createScheduledBackupWorkflow) RunScheduledBackupWithContext(ctx workf
 			wf.Logger.Infof("Snapmirror relationship is unhealthy. Reasons: %v", *smRelationship.UnhealthyReason)
 		}
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, vsaerrors.New("snapmirror relationship is unhealthy"))
+	}
+
+	if smRelationship.TotalTransferBytes != nil && *smRelationship.TotalTransferBytes > 0 {
+		for i := range scheduledBackupContext.ScheduledBackupParams.Backups {
+			scheduledBackupContext.ScheduledBackupParams.Backups[i].Attributes.TotalTransferBytes = *smRelationship.TotalTransferBytes
+		}
 	}
 
 	backups = scheduledBackupContext.ScheduledBackupParams.Backups

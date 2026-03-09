@@ -294,6 +294,7 @@ telemetryDeployer:
   enableFilesBackupBilling: false
   enableCmekBackupBilling: false
   enableCrossRegionBackupBillingMetrics: false
+  enableSfrCrossRegionRestoreBilling: false
   enableReplicationBillingMetrics: false
   enableBidirectionalReplicationBillingMetrics: false
   enableInRegionReplicationBillingMetrics: false

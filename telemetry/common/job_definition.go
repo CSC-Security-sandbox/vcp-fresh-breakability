@@ -240,4 +240,13 @@ var DefaultAggregationJobDefinitions = map[metadata.CombinedKeyResourceTypeMeasu
 			BackfillLimit: 60 * time.Minute,
 		},
 	},
+	{ResourceType: metadata.Backup, MeasuredType: metadata.CbsCrossRegionVolumeBackupTransferBytes}: {
+		AggregationType: CounterAggregation,
+		IsBillable:      true,
+		SKU:             BillingMetricNameBackupNetworkTransfer,
+		TimeSeriesFormatter: &SampledMetricsFormatter{
+			Mode:          Interval,
+			BackfillLimit: 60 * time.Minute,
+		},
+	},
 }

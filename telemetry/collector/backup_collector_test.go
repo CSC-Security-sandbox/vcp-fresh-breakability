@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	datamodel2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/entity"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
 type mockBackupStorage struct {
@@ -932,6 +934,66 @@ func TestGetBackupMetrics_Skipping_Cross_Region_Backups_Billing_Metrics(t *testi
 			description:                   "Mixed backups should filter cross-region from HydratedMetricsDataModel",
 		},
 		{
+			name:                                  "Flag enabled - skip cross-region backup when BackupRegionName is nil",
+			enableCrossRegionBackupBillingMetrics: true,
+			backups: []*datamodel.Backup{
+				{
+					BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-nil-region"},
+					Name:                    "CrossRegionNilRegion",
+					VolumeUUID:              "volume-uuid-nil-region",
+					LatestLogicalBackupSize: 4096,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier: "AccountNilRegion",
+						VolumeName:        "VolumeNilRegion",
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel:        datamodel.BaseModel{UUID: "vault-uuid-nil-region"},
+						Name:             "BackupVaultNilRegion",
+						BackupVaultType:  activities.CrossRegionBackupType,
+						SourceRegionName: stringPtr("us-east-1"),
+						BackupRegionName: nil, // Nil backup region should be skipped
+						Account: &datamodel.Account{
+							BaseModel: datamodel.BaseModel{UUID: "account-uuid-nil-region"},
+							Name:      "AccountNilRegion",
+						},
+					},
+				},
+			},
+			expectedHydratedMetricsCount:  1,
+			expectedDataModelMetricsCount: 0,
+			description:                   "Cross-region backup with nil BackupRegionName should skip HydratedMetricsDataModel even when flag is enabled",
+		},
+		{
+			name:                                  "Flag enabled - skip cross-region backup when BackupRegionName matches current region",
+			enableCrossRegionBackupBillingMetrics: true,
+			backups: []*datamodel.Backup{
+				{
+					BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-same-region"},
+					Name:                    "CrossRegionSameRegion",
+					VolumeUUID:              "volume-uuid-same-region",
+					LatestLogicalBackupSize: 5120,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier: "AccountSameRegion",
+						VolumeName:        "VolumeSameRegion",
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel:        datamodel.BaseModel{UUID: "vault-uuid-same-region"},
+						Name:             "BackupVaultSameRegion",
+						BackupVaultType:  activities.CrossRegionBackupType,
+						SourceRegionName: stringPtr("eu-west-1"),
+						BackupRegionName: stringPtr("us-east-1"), // Matches config.RegionName
+						Account: &datamodel.Account{
+							BaseModel: datamodel.BaseModel{UUID: "account-uuid-same-region"},
+							Name:      "AccountSameRegion",
+						},
+					},
+				},
+			},
+			expectedHydratedMetricsCount:  1,
+			expectedDataModelMetricsCount: 0,
+			description:                   "Cross-region backup with BackupRegionName matching current region should skip HydratedMetricsDataModel",
+		},
+		{
 			name:                                  "Flag enabled - mixed cross-region and standard backups all included",
 			enableCrossRegionBackupBillingMetrics: true,
 			backups: []*datamodel.Backup{
@@ -970,7 +1032,7 @@ func TestGetBackupMetrics_Skipping_Cross_Region_Backups_Billing_Metrics(t *testi
 						Name:             "BackupVault10",
 						BackupVaultType:  activities.CrossRegionBackupType, // Cross-region
 						SourceRegionName: stringPtr("eu-west-1"),
-						BackupRegionName: stringPtr("us-east-1"),
+						BackupRegionName: stringPtr("ap-south-1"), // Different from config.RegionName (us-east-1)
 						Account: &datamodel.Account{
 							BaseModel: datamodel.BaseModel{UUID: "account-uuid-10"},
 							Name:      "Account10",
@@ -1161,6 +1223,479 @@ func TestGetBackupMetrics_CmekBackupBilling_SkipsAndIncludes(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestGetBackupMetrics_SkipBilling_Cascade validates the skipBilling decision
+// cascade in GetBackupMetrics. The billing metric (HydratedMetricsDataModel) is
+// gated by four sequential checks:
+//
+//	Gate 1: cross-region flag disabled + cross-region vault           → skip
+//	Gate 2: cross-region flag enabled  + (nil or same-region backup)  → skip
+//	Gate 3: CMEK billing disabled      + CMEK vault                   → skip
+//	Gate 4: skipBilling=false but files billing disabled & non-SAN    → not emitted
+//
+// Each sub-test targets one gate and confirms that subsequent gates are not
+// reached (or that all gates pass and the metric is emitted).
+func TestGetBackupMetrics_SkipBilling_Cascade(t *testing.T) {
+	cmekPath := "projects/p/locations/l/keyRings/r/cryptoKeys/k"
+
+	tests := []struct {
+		name   string
+		config *common.TelemetryConfig
+		backup *datamodel.Backup
+		// expectBilling is true when we expect a HydratedMetricsDataModel entry.
+		expectBilling bool
+		description   string
+	}{
+		{
+			name: "Gate1: cross-region flag disabled skips before CMEK check",
+			config: &common.TelemetryConfig{
+				RegionName:                            "us-east-1",
+				EnableCrossRegionBackupBillingMetrics: false,
+				EnableCmekBackupBilling:               true,
+				EnableFilesBackupBilling:              true,
+			},
+			backup: &datamodel.Backup{
+				BaseModel: datamodel.BaseModel{UUID: "b-g1"}, VolumeUUID: "v-g1",
+				LatestLogicalBackupSize: 100,
+				Attributes:              &datamodel.BackupAttributes{AccountIdentifier: "acct", VolumeName: "vol"},
+				BackupVault: &datamodel.BackupVault{
+					BaseModel:        datamodel.BaseModel{UUID: "bv-g1"},
+					Name:             "vault",
+					BackupVaultType:  activities.CrossRegionBackupType,
+					BackupRegionName: stringPtr("eu-west-1"),
+					CmekAttributes:   &datamodel.CmekAttributes{KmsConfigResourcePath: &cmekPath},
+				},
+			},
+			expectBilling: false,
+			description:   "Gate 1 fires; CMEK and protocol gates are never evaluated",
+		},
+		{
+			name: "Gate2: cross-region flag enabled, nil region skips before CMEK check",
+			config: &common.TelemetryConfig{
+				RegionName:                            "us-east-1",
+				EnableCrossRegionBackupBillingMetrics: true,
+				EnableCmekBackupBilling:               true,
+				EnableFilesBackupBilling:              true,
+			},
+			backup: &datamodel.Backup{
+				BaseModel: datamodel.BaseModel{UUID: "b-g2a"}, VolumeUUID: "v-g2a",
+				LatestLogicalBackupSize: 200,
+				Attributes:              &datamodel.BackupAttributes{AccountIdentifier: "acct", VolumeName: "vol"},
+				BackupVault: &datamodel.BackupVault{
+					BaseModel:        datamodel.BaseModel{UUID: "bv-g2a"},
+					Name:             "vault",
+					BackupVaultType:  activities.CrossRegionBackupType,
+					BackupRegionName: nil,
+				},
+			},
+			expectBilling: false,
+			description:   "Gate 2 fires (nil region); downstream gates irrelevant",
+		},
+		{
+			name: "Gate2: cross-region flag enabled, same region skips before CMEK check",
+			config: &common.TelemetryConfig{
+				RegionName:                            "us-east-1",
+				EnableCrossRegionBackupBillingMetrics: true,
+				EnableCmekBackupBilling:               true,
+				EnableFilesBackupBilling:              true,
+			},
+			backup: &datamodel.Backup{
+				BaseModel: datamodel.BaseModel{UUID: "b-g2b"}, VolumeUUID: "v-g2b",
+				LatestLogicalBackupSize: 300,
+				Attributes:              &datamodel.BackupAttributes{AccountIdentifier: "acct", VolumeName: "vol"},
+				BackupVault: &datamodel.BackupVault{
+					BaseModel:        datamodel.BaseModel{UUID: "bv-g2b"},
+					Name:             "vault",
+					BackupVaultType:  activities.CrossRegionBackupType,
+					BackupRegionName: stringPtr("us-east-1"),
+				},
+			},
+			expectBilling: false,
+			description:   "Gate 2 fires (region matches); downstream gates irrelevant",
+		},
+		{
+			name: "Gate3: passes cross-region gates, CMEK billing disabled skips",
+			config: &common.TelemetryConfig{
+				RegionName:                            "us-east-1",
+				EnableCrossRegionBackupBillingMetrics: false,
+				EnableCmekBackupBilling:               false,
+				EnableFilesBackupBilling:              true,
+			},
+			backup: &datamodel.Backup{
+				BaseModel: datamodel.BaseModel{UUID: "b-g3"}, VolumeUUID: "v-g3",
+				LatestLogicalBackupSize: 400,
+				Attributes:              &datamodel.BackupAttributes{AccountIdentifier: "acct", VolumeName: "vol"},
+				BackupVault: &datamodel.BackupVault{
+					BaseModel: datamodel.BaseModel{UUID: "bv-g3"},
+					Name:      "vault",
+					BackupVaultType: "IN_REGION",
+					CmekAttributes:  &datamodel.CmekAttributes{KmsConfigResourcePath: &cmekPath},
+				},
+			},
+			expectBilling: false,
+			description:   "Not cross-region so gates 1/2 pass; gate 3 fires on CMEK",
+		},
+		{
+			name: "Gate4: all skip gates pass, but files billing disabled and NAS protocol blocks emission",
+			config: &common.TelemetryConfig{
+				RegionName:                            "us-east-1",
+				EnableCrossRegionBackupBillingMetrics: false,
+				EnableCmekBackupBilling:               true,
+				EnableFilesBackupBilling:              false,
+			},
+			backup: &datamodel.Backup{
+				BaseModel: datamodel.BaseModel{UUID: "b-g4"}, VolumeUUID: "v-g4",
+				LatestLogicalBackupSize: 500,
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier: "acct", VolumeName: "vol",
+					Protocols: []string{"NFS"},
+				},
+				BackupVault: &datamodel.BackupVault{
+					BaseModel: datamodel.BaseModel{UUID: "bv-g4"},
+					Name:      "vault",
+					BackupVaultType: "IN_REGION",
+				},
+			},
+			expectBilling: false,
+			description:   "skipBilling=false but final protocol/files gate blocks NAS when files billing disabled",
+		},
+		{
+			name: "Gate4: skipBilling false, files billing disabled but SAN protocol passes",
+			config: &common.TelemetryConfig{
+				RegionName:                            "us-east-1",
+				EnableCrossRegionBackupBillingMetrics: false,
+				EnableCmekBackupBilling:               true,
+				EnableFilesBackupBilling:              false,
+			},
+			backup: &datamodel.Backup{
+				BaseModel: datamodel.BaseModel{UUID: "b-g4san"}, VolumeUUID: "v-g4san",
+				LatestLogicalBackupSize: 600,
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier: "acct", VolumeName: "vol",
+					Protocols: []string{"ISCSI"},
+				},
+				BackupVault: &datamodel.BackupVault{
+					BaseModel: datamodel.BaseModel{UUID: "bv-g4san"},
+					Name:      "vault",
+					BackupVaultType: "IN_REGION",
+				},
+			},
+			expectBilling: true,
+			description:   "skipBilling=false and SAN protocol passes final gate even with files billing disabled",
+		},
+		{
+			name: "All gates pass: cross-region different region + no CMEK + files billing enabled",
+			config: &common.TelemetryConfig{
+				RegionName:                            "us-east-1",
+				EnableCrossRegionBackupBillingMetrics: true,
+				EnableCmekBackupBilling:               true,
+				EnableFilesBackupBilling:              true,
+			},
+			backup: &datamodel.Backup{
+				BaseModel: datamodel.BaseModel{UUID: "b-all"}, VolumeUUID: "v-all",
+				LatestLogicalBackupSize: 700,
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier: "acct", VolumeName: "vol",
+					Protocols: []string{"NFS"},
+				},
+				BackupVault: &datamodel.BackupVault{
+					BaseModel:        datamodel.BaseModel{UUID: "bv-all"},
+					Name:             "vault",
+					BackupVaultType:  activities.CrossRegionBackupType,
+					BackupRegionName: stringPtr("eu-west-1"),
+				},
+			},
+			expectBilling: true,
+			description:   "Every gate passes; billing metric emitted",
+		},
+		{
+			name: "All gates pass: in-region non-CMEK with files billing enabled",
+			config: &common.TelemetryConfig{
+				RegionName:                            "us-east-1",
+				EnableCrossRegionBackupBillingMetrics: false,
+				EnableCmekBackupBilling:               false,
+				EnableFilesBackupBilling:              true,
+			},
+			backup: &datamodel.Backup{
+				BaseModel: datamodel.BaseModel{UUID: "b-std"}, VolumeUUID: "v-std",
+				LatestLogicalBackupSize: 800,
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier: "acct", VolumeName: "vol",
+					Protocols: []string{"NFS"},
+				},
+				BackupVault: &datamodel.BackupVault{
+					BaseModel: datamodel.BaseModel{UUID: "bv-std"},
+					Name:      "vault",
+					BackupVaultType: "IN_REGION",
+				},
+			},
+			expectBilling: true,
+			description:   "Standard in-region backup passes all gates",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := new(mockBackupStorage)
+			ctx := context.Background()
+
+			m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+				return p.Offset == 0
+			})).Return([]*datamodel.Backup{tt.backup}, nil)
+			m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+				return p.Offset > 0
+			})).Return([]*datamodel.Backup{}, nil)
+
+			result, err := GetBackupMetrics(ctx, m, tt.config, time.Now())
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
+
+			// HydratedMetrics (observability) should always be emitted regardless of billing skip.
+			assert.Len(t, result.HydratedMetrics, 1, "%s: observability metric must always be present", tt.description)
+			assert.Equal(t, metadata.BackupLogicalSize, result.HydratedMetrics[0].MeasuredType)
+
+			if tt.expectBilling {
+				assert.Len(t, result.HydratedMetricsDataModel, 1,
+					"%s: billing metric should be emitted", tt.description)
+				assert.Equal(t, metadata.BackupLogicalSize, result.HydratedMetricsDataModel[0].MeasuredType)
+				assert.Equal(t, float64(tt.backup.LatestLogicalBackupSize), result.HydratedMetricsDataModel[0].Quantity)
+			} else {
+				assert.Empty(t, result.HydratedMetricsDataModel,
+					"%s: billing metric should NOT be emitted", tt.description)
+			}
+		})
+	}
+}
+
+func TestGetBackupMetrics_CrossRegionTransferBytes(t *testing.T) {
+	tests := []struct {
+		name                       string
+		backup                     *datamodel.Backup
+		enableCRBBilling           bool
+		regionName                 string
+		expectedTransferBytesCount int
+		description                string
+	}{
+		{
+			name:             "emits CbsCrossRegionVolumeBackupTransferBytes when conditions met",
+			enableCRBBilling: true,
+			regionName:       "us-east-1",
+			backup: &datamodel.Backup{
+				BaseModel: datamodel.BaseModel{UUID: "b-crb"}, VolumeUUID: "v-crb",
+				LatestLogicalBackupSize: 1024,
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier:  "acct-crb",
+					VolumeName:         "vol-crb",
+					TotalTransferBytes: 5000,
+				},
+				BackupVault: &datamodel.BackupVault{
+					BaseModel:        datamodel.BaseModel{UUID: "bv-crb"},
+					Name:             "vault-crb",
+					BackupVaultType:  activities.CrossRegionBackupType,
+					BackupRegionName: stringPtr("eu-west-1"),
+				},
+			},
+			expectedTransferBytesCount: 1,
+			description:                "cross-region backup with transfer bytes > 0 and different region should emit transfer metric",
+		},
+		{
+			name:             "skips when BackupRegionName is nil",
+			enableCRBBilling: true,
+			regionName:       "us-east-1",
+			backup: &datamodel.Backup{
+				BaseModel: datamodel.BaseModel{UUID: "b-nil-region"}, VolumeUUID: "v-nil-region",
+				LatestLogicalBackupSize: 1024,
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier:  "acct",
+					VolumeName:         "vol",
+					TotalTransferBytes: 5000,
+				},
+				BackupVault: &datamodel.BackupVault{
+					BaseModel:        datamodel.BaseModel{UUID: "bv-nil"},
+					Name:             "vault",
+					BackupVaultType:  activities.CrossRegionBackupType,
+					BackupRegionName: nil,
+				},
+			},
+			expectedTransferBytesCount: 0,
+			description:                "nil BackupRegionName should skip transfer metric",
+		},
+		{
+			name:             "skips when BackupRegionName matches current region",
+			enableCRBBilling: true,
+			regionName:       "us-east-1",
+			backup: &datamodel.Backup{
+				BaseModel: datamodel.BaseModel{UUID: "b-same-region"}, VolumeUUID: "v-same-region",
+				LatestLogicalBackupSize: 1024,
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier:  "acct",
+					VolumeName:         "vol",
+					TotalTransferBytes: 5000,
+				},
+				BackupVault: &datamodel.BackupVault{
+					BaseModel:        datamodel.BaseModel{UUID: "bv-same"},
+					Name:             "vault",
+					BackupVaultType:  activities.CrossRegionBackupType,
+					BackupRegionName: stringPtr("us-east-1"),
+				},
+			},
+			expectedTransferBytesCount: 0,
+			description:                "BackupRegionName matching current region should skip transfer metric",
+		},
+		{
+			name:             "skips when feature flag disabled",
+			enableCRBBilling: false,
+			regionName:       "us-east-1",
+			backup: &datamodel.Backup{
+				BaseModel: datamodel.BaseModel{UUID: "b-flag-off"}, VolumeUUID: "v-flag-off",
+				LatestLogicalBackupSize: 1024,
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier:  "acct",
+					VolumeName:         "vol",
+					TotalTransferBytes: 5000,
+				},
+				BackupVault: &datamodel.BackupVault{
+					BaseModel:        datamodel.BaseModel{UUID: "bv-off"},
+					Name:             "vault",
+					BackupVaultType:  activities.CrossRegionBackupType,
+					BackupRegionName: stringPtr("eu-west-1"),
+				},
+			},
+			expectedTransferBytesCount: 0,
+			description:                "disabled flag should skip transfer metric",
+		},
+		{
+			name:             "skips when TotalTransferBytes is 0",
+			enableCRBBilling: true,
+			regionName:       "us-east-1",
+			backup: &datamodel.Backup{
+				BaseModel: datamodel.BaseModel{UUID: "b-zero"}, VolumeUUID: "v-zero",
+				LatestLogicalBackupSize: 1024,
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier:  "acct",
+					VolumeName:         "vol",
+					TotalTransferBytes: 0,
+				},
+				BackupVault: &datamodel.BackupVault{
+					BaseModel:        datamodel.BaseModel{UUID: "bv-zero"},
+					Name:             "vault",
+					BackupVaultType:  activities.CrossRegionBackupType,
+					BackupRegionName: stringPtr("eu-west-1"),
+				},
+			},
+			expectedTransferBytesCount: 0,
+			description:                "zero transfer bytes should skip transfer metric",
+		},
+		{
+			name:             "skips when vault type is not cross-region",
+			enableCRBBilling: true,
+			regionName:       "us-east-1",
+			backup: &datamodel.Backup{
+				BaseModel: datamodel.BaseModel{UUID: "b-in-region"}, VolumeUUID: "v-in-region",
+				LatestLogicalBackupSize: 1024,
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier:  "acct",
+					VolumeName:         "vol",
+					TotalTransferBytes: 5000,
+				},
+				BackupVault: &datamodel.BackupVault{
+					BaseModel:        datamodel.BaseModel{UUID: "bv-ir"},
+					Name:             "vault",
+					BackupVaultType:  "IN_REGION",
+					BackupRegionName: stringPtr("eu-west-1"),
+				},
+			},
+			expectedTransferBytesCount: 0,
+			description:                "non-cross-region vault should skip transfer metric",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := new(mockBackupStorage)
+			ctx := context.Background()
+			config := &common.TelemetryConfig{
+				RegionName:                            tt.regionName,
+				EnableFilesBackupBilling:              true,
+				EnableCrossRegionBackupBillingMetrics: tt.enableCRBBilling,
+			}
+
+			m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+				return p.Offset == 0
+			})).Return([]*datamodel.Backup{tt.backup}, nil)
+			m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(p *dbutils.Pagination) bool {
+				return p.Offset > 0
+			})).Return([]*datamodel.Backup{}, nil)
+
+			result, err := GetBackupMetrics(ctx, m, config, time.Now())
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
+
+			var transferBytesCount int
+			for _, dm := range result.HydratedMetricsDataModel {
+				if dm.MeasuredType == metadata.CbsCrossRegionVolumeBackupTransferBytes {
+					transferBytesCount++
+					assert.Equal(t, float64(tt.backup.Attributes.TotalTransferBytes), dm.Quantity)
+					assert.NotNil(t, dm.Metadata, "Metadata should contain backup_region_name")
+				}
+			}
+			assert.Equal(t, tt.expectedTransferBytesCount, transferBytesCount, tt.description)
+		})
+	}
+}
+
+func TestSetCrossRegionRegionMetadata(t *testing.T) {
+	t.Run("sets metadata when hm and region are non-nil", func(t *testing.T) {
+		hm := &datamodel2.HydratedMetrics{}
+		rm := metadata.ResourceMetadata{}
+		rm.SetBackupRegionName("eu-west-1")
+
+		setCrossRegionRegionMetadata(log.NewLogger(), hm, rm)
+
+		assert.NotNil(t, hm.Metadata)
+		var parsed map[string]string
+		err := json.Unmarshal(hm.Metadata, &parsed)
+		assert.NoError(t, err)
+		assert.Equal(t, "eu-west-1", parsed["backup_region_name"])
+	})
+
+	t.Run("no-op when hm is nil", func(t *testing.T) {
+		rm := metadata.ResourceMetadata{}
+		rm.SetBackupRegionName("eu-west-1")
+		setCrossRegionRegionMetadata(log.NewLogger(), nil, rm)
+	})
+
+	t.Run("no-op when BackupRegionName is nil", func(t *testing.T) {
+		hm := &datamodel2.HydratedMetrics{}
+		rm := metadata.ResourceMetadata{}
+
+		setCrossRegionRegionMetadata(log.NewLogger(), hm, rm)
+		assert.Nil(t, hm.Metadata)
+	})
+}
+
+func TestAssembleBackupMetadata_WithBackupVaultRegion(t *testing.T) {
+	backup := &datamodel.Backup{
+		VolumeUUID:              "vol-uuid",
+		LatestLogicalBackupSize: 2048,
+		Attributes: &datamodel.BackupAttributes{
+			AccountIdentifier: "test-account",
+			VolumeName:        "test-volume",
+		},
+		BackupVault: &datamodel.BackupVault{
+			Name:             "vault-name",
+			BackupRegionName: stringPtr("eu-west-1"),
+			BackupVaultType:  activities.CrossRegionBackupType,
+		},
+	}
+	config := &common.TelemetryConfig{RegionName: "us-east-1"}
+
+	rm := assembleBackupMetadata(backup, config)
+
+	assert.NotNil(t, rm.BackupRegionName)
+	assert.Equal(t, "eu-west-1", *rm.BackupRegionName)
+	assert.Equal(t, "vault-name", derefString(rm.DeploymentName))
 }
 
 // Helper function to create string pointers

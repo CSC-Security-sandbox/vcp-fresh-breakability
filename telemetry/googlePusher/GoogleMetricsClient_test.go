@@ -3101,6 +3101,490 @@ func Test_GetLabelValue_VolumeCBSContinents(t *testing.T) {
 	})
 }
 
+func Test_generateOperationId(t *testing.T) {
+	config := common.LoadConfig()
+	ctx := context.Background()
+	client := NewGoogleMetricsClient(ctx, "", config)
+
+	t.Run("deterministic for same metric properties", func(t *testing.T) {
+		resourceUUID := uuid.New().String()
+		rm := metadata.ResourceMetadata{
+			ResourceUUID:        nillable.ToPointer(resourceUUID),
+			ResourceName:        nillable.ToPointer("test-resource"),
+			ResourceDisplayName: nillable.ToPointer("Test Resource"),
+			AccountName:         nillable.ToPointer("account-1"),
+			RegionName:          nillable.ToPointer("us-central1"),
+			ResourceType:        metadata.VolumePool,
+		}
+		hydratedM := &entity.HydratedMetric{
+			Metadata:     rm,
+			MeasuredType: metadata.PoolAllocatedSize,
+			Quantity:     100.0,
+			Timestamp:    entity.UnixNano(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC).UnixNano()),
+		}
+		metric := *common.NewGoogleMetric(hydratedM)
+
+		opStart := int64(1700000000)
+		opEnd := int64(1700003600)
+
+		id1 := client.generateOperationId(metric, opStart, opEnd)
+		id2 := client.generateOperationId(metric, opStart, opEnd)
+
+		assert.Equal(t, id1, id2, "Same inputs must produce the same operation ID")
+		_, err := uuid.Parse(id1)
+		assert.NoError(t, err, "Operation ID must be a valid UUID")
+	})
+
+	t.Run("different for different resource UUIDs", func(t *testing.T) {
+		makeMetric := func(resUUID string) common.GoogleMetric {
+			rm := metadata.ResourceMetadata{
+				ResourceUUID: nillable.ToPointer(resUUID),
+				ResourceName: nillable.ToPointer("r"),
+				AccountName:  nillable.ToPointer("a"),
+				ResourceType: metadata.Volume,
+			}
+			return *common.NewGoogleMetric(&entity.HydratedMetric{
+				Metadata:     rm,
+				MeasuredType: metadata.LogicalSize,
+				Quantity:     1,
+				Timestamp:    entity.UnixNano(time.Now().UnixNano()),
+			})
+		}
+		id1 := client.generateOperationId(makeMetric(uuid.New().String()), 1, 2)
+		id2 := client.generateOperationId(makeMetric(uuid.New().String()), 1, 2)
+		assert.NotEqual(t, id1, id2)
+	})
+
+	t.Run("different for different measured types", func(t *testing.T) {
+		resUUID := uuid.New().String()
+		makeMetric := func(mt metadata.MeasuredType) common.GoogleMetric {
+			rm := metadata.ResourceMetadata{
+				ResourceUUID: nillable.ToPointer(resUUID),
+				ResourceName: nillable.ToPointer("r"),
+				AccountName:  nillable.ToPointer("a"),
+				ResourceType: metadata.VolumePool,
+			}
+			return *common.NewGoogleMetric(&entity.HydratedMetric{
+				Metadata:     rm,
+				MeasuredType: mt,
+				Quantity:     1,
+				Timestamp:    entity.UnixNano(time.Now().UnixNano()),
+			})
+		}
+		id1 := client.generateOperationId(makeMetric(metadata.PoolAllocatedSize), 1, 2)
+		id2 := client.generateOperationId(makeMetric(metadata.AllocatedUsed), 1, 2)
+		assert.NotEqual(t, id1, id2)
+	})
+
+	t.Run("different for different start times in metric", func(t *testing.T) {
+		resUUID := uuid.New().String()
+		makeMetric := func(ts time.Time) common.GoogleMetric {
+			rm := metadata.ResourceMetadata{
+				ResourceUUID: nillable.ToPointer(resUUID),
+				ResourceName: nillable.ToPointer("r"),
+				AccountName:  nillable.ToPointer("a"),
+				ResourceType: metadata.VolumePool,
+			}
+			return *common.NewGoogleMetric(&entity.HydratedMetric{
+				Metadata:     rm,
+				MeasuredType: metadata.PoolAllocatedSize,
+				Quantity:     1,
+				Timestamp:    entity.UnixNano(ts.UnixNano()),
+			})
+		}
+		m1 := makeMetric(time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC))
+		m2 := makeMetric(time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC))
+		id1 := client.generateOperationId(m1, 1, 2)
+		id2 := client.generateOperationId(m2, 1, 2)
+		assert.NotEqual(t, id1, id2)
+	})
+}
+
+func Test_CreateMetricValue_VolumeAllocatedThroughput(t *testing.T) {
+	config := common.LoadConfig()
+	ctx := context.Background()
+	client := NewGoogleMetricsClient(ctx, "", config)
+
+	t.Run("converts MiB/s to KiB/s", func(t *testing.T) {
+		rm := metadata.ResourceMetadata{
+			ResourceUUID: nillable.ToPointer(uuid.New().String()),
+			ResourceType: metadata.Volume,
+		}
+		hydratedM := &entity.HydratedMetric{
+			Metadata:     rm,
+			MeasuredType: metadata.VolumeAllocatedThroughput,
+			Quantity:     64.0, // 64 MiB/s
+			Timestamp:    entity.UnixNano(time.Now().UnixNano()),
+		}
+		googleMetric := *common.NewGoogleMetric(hydratedM)
+
+		mv, err := client.CreateMetricValue(googleMetric)
+		assert.NoError(t, err)
+		assert.NotNil(t, mv)
+		assert.NotNil(t, mv.Int64Value, "VolumeAllocatedThroughput should use Int64Value")
+		assert.Nil(t, mv.DoubleValue, "VolumeAllocatedThroughput should not use DoubleValue")
+		assert.Equal(t, int64(64*1024), *mv.Int64Value, "64 MiB/s should convert to 65536 KiB/s")
+	})
+
+	t.Run("zero throughput", func(t *testing.T) {
+		rm := metadata.ResourceMetadata{
+			ResourceUUID: nillable.ToPointer(uuid.New().String()),
+			ResourceType: metadata.Volume,
+		}
+		hydratedM := &entity.HydratedMetric{
+			Metadata:     rm,
+			MeasuredType: metadata.VolumeAllocatedThroughput,
+			Quantity:     0,
+			Timestamp:    entity.UnixNano(time.Now().UnixNano()),
+		}
+		googleMetric := *common.NewGoogleMetric(hydratedM)
+
+		mv, err := client.CreateMetricValue(googleMetric)
+		assert.NoError(t, err)
+		assert.Equal(t, int64(0), *mv.Int64Value)
+	})
+}
+
+func Test_CreateMetricValue_LatencyTypes(t *testing.T) {
+	config := common.LoadConfig()
+	ctx := context.Background()
+	client := NewGoogleMetricsClient(ctx, "", config)
+
+	latencyTypes := []metadata.MeasuredType{
+		metadata.AverageReadLatency,
+		metadata.AverageWriteLatency,
+		metadata.AverageOtherLatency,
+	}
+
+	for _, mt := range latencyTypes {
+		t.Run(string(mt), func(t *testing.T) {
+			rm := metadata.ResourceMetadata{
+				ResourceUUID: nillable.ToPointer(uuid.New().String()),
+				ResourceType: metadata.Volume,
+			}
+			hydratedM := &entity.HydratedMetric{
+				Metadata:     rm,
+				MeasuredType: mt,
+				Quantity:     1.234,
+				Timestamp:    entity.UnixNano(time.Now().UnixNano()),
+			}
+			googleMetric := *common.NewGoogleMetric(hydratedM)
+
+			mv, err := client.CreateMetricValue(googleMetric)
+			assert.NoError(t, err)
+			assert.NotNil(t, mv)
+			assert.NotNil(t, mv.DoubleValue, "Latency metric should use DoubleValue")
+			assert.Nil(t, mv.Int64Value, "Latency metric should not use Int64Value")
+			assert.Equal(t, 1.234, *mv.DoubleValue)
+		})
+	}
+}
+
+func Test_createOperationForMetric_BillingMetricUserLabels(t *testing.T) {
+	config := common.LoadConfig()
+	ctx := context.Background()
+	client := NewGoogleMetricsClient(ctx, "", config)
+
+	t.Run("billing metric sets location label and has correct structure", func(t *testing.T) {
+		customerID := "1088371202435"
+		regionName := "us-central1"
+		resourceName := "test-resource"
+		aggregated := &datamodel.AggregatedUsage{
+			ResourceUUID:     uuid.New().String(),
+			VendorCustomerID: &customerID,
+			MeasuredType:     metadata.BackupLogicalSize,
+			ResourceType:     metadata.Backup,
+			Quantity:         500,
+			ResourceName:     &resourceName,
+			RegionName:       &regionName,
+		}
+		googleMetric := *common.NewGoogleMetric(aggregated)
+
+		op, dropped, err := client.createOperationForMetric(
+			uuid.New().String(),
+			[]common.GoogleMetric{googleMetric},
+			customerID, aggregated.ResourceUUID,
+			time.Now().Unix(), time.Now().Add(time.Hour).Unix(),
+		)
+		assert.NoError(t, err)
+		assert.NotNil(t, op)
+		assert.Empty(t, dropped)
+		_, hasCloudLocation := op.Labels["cloud.googleapis.com/location"]
+		assert.True(t, hasCloudLocation, "billing metric should have cloud.googleapis.com/location label")
+		assert.Equal(t, client.config.RegionName, op.Labels["cloud.googleapis.com/location"])
+		assert.Equal(t, "project_number:"+customerID, op.ConsumerId)
+		assert.NotEmpty(t, op.OperationId)
+		assert.NotEmpty(t, op.OperationName)
+		assert.Len(t, op.MetricValueSets, 1)
+	})
+
+	t.Run("empty consumerId returns nil operation", func(t *testing.T) {
+		customerID := "1088371202435"
+		regionName := "us-central1"
+		resourceName := "test-resource"
+		aggregated := &datamodel.AggregatedUsage{
+			ResourceUUID:     uuid.New().String(),
+			VendorCustomerID: &customerID,
+			MeasuredType:     metadata.BackupLogicalSize,
+			ResourceType:     metadata.Backup,
+			Quantity:         500,
+			ResourceName:     &resourceName,
+			RegionName:       &regionName,
+		}
+		googleMetric := *common.NewGoogleMetric(aggregated)
+
+		op, _, err := client.createOperationForMetric(
+			uuid.New().String(),
+			[]common.GoogleMetric{googleMetric},
+			"", // empty consumer ID
+			aggregated.ResourceUUID,
+			time.Now().Unix(), time.Now().Add(time.Hour).Unix(),
+		)
+		assert.NoError(t, err)
+		assert.Nil(t, op, "Operation should be nil when consumerId is empty")
+	})
+}
+
+func Test_GetLabelKey_BackupCBSCrossRegion(t *testing.T) {
+	aggregated := &datamodel.AggregatedUsage{
+		ResourceType: metadata.Backup,
+		MeasuredType: metadata.CbsCrossRegionVolumeBackupTransferBytes,
+	}
+	googleMetric := *common.NewGoogleMetric(aggregated)
+
+	result := GetLabelKey(googleMetric)
+	expected := []string{"/resource_id", "/backups/source_continent", "/backups/destination_continent"}
+	assert.Equal(t, expected, result)
+}
+
+func Test_GetLabelKey_VolumeBackupEnabledAllocatedSize(t *testing.T) {
+	t.Run("Volume with BackupEnabledVolumeAllocatedSize", func(t *testing.T) {
+		aggregated := &datamodel.AggregatedUsage{
+			ResourceType: metadata.Volume,
+			MeasuredType: metadata.BackupEnabledVolumeAllocatedSize,
+		}
+		googleMetric := *common.NewGoogleMetric(aggregated)
+		result := GetLabelKey(googleMetric)
+		assert.Equal(t, []string{"/resource_id"}, result)
+	})
+
+	t.Run("VolumeRegionalHA with BackupEnabledVolumeAllocatedSize", func(t *testing.T) {
+		aggregated := &datamodel.AggregatedUsage{
+			ResourceType: metadata.VolumeRegionalHA,
+			MeasuredType: metadata.BackupEnabledVolumeAllocatedSize,
+		}
+		googleMetric := *common.NewGoogleMetric(aggregated)
+		result := GetLabelKey(googleMetric)
+		assert.Equal(t, []string{"/resource_id"}, result)
+	})
+}
+
+func Test_GetLabelValue_BackupCBSContinents(t *testing.T) {
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+
+	// Save originals and restore after
+	origGetSourceRegion := getSourceRegion
+	origGetDestinationRegion := getDestinationRegion
+	origGetContinent := getContinent
+	defer func() {
+		getSourceRegion = origGetSourceRegion
+		getDestinationRegion = origGetDestinationRegion
+		getContinent = origGetContinent
+	}()
+
+	getSourceRegion = func(m common.GoogleMetric) (string, error) {
+		return "us-central1", nil
+	}
+	getDestinationRegion = func(m common.GoogleMetric) (string, error) {
+		return "eu-west1", nil
+	}
+	getContinent = func(region string) string {
+		if region == "us-central1" {
+			return "northamerica"
+		}
+		return "europe"
+	}
+
+	regionName := "us-central1"
+	destRegion := "eu-west1"
+	aggregated := &datamodel.AggregatedUsage{
+		ResourceType:      metadata.Backup,
+		MeasuredType:      metadata.CbsCrossRegionVolumeBackupTransferBytes,
+		ResourceUUID:      "test-uuid-123",
+		RegionName:        &regionName,
+		SourceRegion:      &regionName,
+		DestinationRegion: &destRegion,
+	}
+	googleMetric := *common.NewGoogleMetric(aggregated)
+
+	t.Run("/resource_id", func(t *testing.T) {
+		val, err := GetLabelValue("/resource_id", googleMetric, logger)
+		assert.NoError(t, err)
+		assert.Equal(t, "test-uuid-123", val)
+	})
+
+	t.Run("/backups/source_continent", func(t *testing.T) {
+		val, err := GetLabelValue("/backups/source_continent", googleMetric, logger)
+		assert.NoError(t, err)
+		assert.Equal(t, "northamerica", val)
+	})
+
+	t.Run("/backups/destination_continent", func(t *testing.T) {
+		val, err := GetLabelValue("/backups/destination_continent", googleMetric, logger)
+		assert.NoError(t, err)
+		assert.Equal(t, "europe", val)
+	})
+
+	t.Run("/backups/location cross-region uses destination region", func(t *testing.T) {
+		val, err := GetLabelValue("/backups/location", googleMetric, logger)
+		assert.NoError(t, err)
+		assert.Equal(t, "eu-west1", val)
+	})
+}
+
+func Test_GetLabelValue_BackupLocation_InRegion(t *testing.T) {
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+
+	origGetDestinationRegion := getDestinationRegion
+	defer func() {
+		getDestinationRegion = origGetDestinationRegion
+	}()
+
+	getDestinationRegion = func(m common.GoogleMetric) (string, error) {
+		return "", nil
+	}
+
+	regionName := "us-central1"
+	aggregated := &datamodel.AggregatedUsage{
+		ResourceType: metadata.Backup,
+		MeasuredType: metadata.BackupLogicalSize,
+		ResourceUUID: "test-uuid-456",
+		RegionName:   &regionName,
+	}
+	googleMetric := *common.NewGoogleMetric(aggregated)
+
+	val, err := GetLabelValue("/backups/location", googleMetric, logger)
+	assert.NoError(t, err)
+	assert.Equal(t, "us-central1", val)
+}
+
+func Test_GetLabelValue_VolumeRegionalHA_ResourceId(t *testing.T) {
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+
+	aggregated := &datamodel.AggregatedUsage{
+		ResourceType: metadata.VolumeRegionalHA,
+		MeasuredType: metadata.BackupEnabledVolumeAllocatedSize,
+		ResourceUUID: "regional-ha-uuid",
+	}
+	googleMetric := *common.NewGoogleMetric(aggregated)
+
+	val, err := GetLabelValue("/resource_id", googleMetric, logger)
+	assert.NoError(t, err)
+	assert.Equal(t, "regional-ha-uuid", val)
+}
+
+func Test_getContinent_ZoneFormat(t *testing.T) {
+	t.Run("us zone with 3 parts", func(t *testing.T) {
+		result := _getContinent("us-central1-a")
+		assert.Equal(t, "northamerica", result)
+	})
+
+	t.Run("eu zone with 3 parts", func(t *testing.T) {
+		result := _getContinent("eu-west1-b")
+		assert.Equal(t, "europe", result)
+	})
+
+	t.Run("asia-southeast2 zone triggers indonesia", func(t *testing.T) {
+		result := _getContinent("asia-southeast2")
+		assert.Equal(t, "indonesia", result)
+	})
+
+	t.Run("asia-east1 returns asia fallback", func(t *testing.T) {
+		origGetContinentMap := getContinentMap
+		defer func() { getContinentMap = origGetContinentMap }()
+		getContinentMap = func(continents string) map[string]string {
+			return map[string]string{"asia": "asia"}
+		}
+		result := _getContinent("asia-east1")
+		assert.Equal(t, "asia", result)
+	})
+
+	t.Run("single part returns empty", func(t *testing.T) {
+		result := _getContinent("singlepart")
+		assert.Equal(t, "", result)
+	})
+}
+
+func Test_CreateMetricValue_BillingMetricEndTime(t *testing.T) {
+	config := common.LoadConfig()
+	ctx := context.Background()
+	client := NewGoogleMetricsClient(ctx, "", config)
+
+	customerID := "1088371202435"
+	regionName := "us-central1"
+	resourceName := "test-resource"
+	start := time.Date(2026, 2, 27, 21, 0, 0, 0, time.UTC)
+	end := time.Date(2026, 2, 27, 22, 0, 0, 0, time.UTC)
+
+	aggregated := &datamodel.AggregatedUsage{
+		ResourceUUID:     uuid.New().String(),
+		VendorCustomerID: &customerID,
+		MeasuredType:     metadata.CbsCrossRegionVolumeBackupTransferBytes,
+		ResourceType:     metadata.Backup,
+		Quantity:         426171268,
+		ResourceName:     &resourceName,
+		RegionName:       &regionName,
+		AggregationStart: start,
+		AggregationEnd:   end,
+	}
+	googleMetric := *common.NewGoogleMetric(aggregated)
+
+	mv, err := client.CreateMetricValue(googleMetric)
+	assert.NoError(t, err)
+	assert.NotNil(t, mv)
+	assert.NotNil(t, mv.Int64Value)
+	assert.Equal(t, int64(426171268), *mv.Int64Value)
+	assert.NotEmpty(t, mv.StartTime)
+	assert.NotEmpty(t, mv.EndTime)
+}
+
+func Test_SetCommonLabels_BillingVsPerformance(t *testing.T) {
+	t.Run("billing metric uses cloud.googleapis.com/location", func(t *testing.T) {
+		op := &Operation{}
+		customerID := "123456"
+		billingMetric := common.NewGoogleMetric(&datamodel.AggregatedUsage{
+			VendorCustomerID: &customerID,
+			MeasuredType:     metadata.CbsCrossRegionVolumeBackupTransferBytes,
+			ResourceType:     metadata.Backup,
+		})
+		err := SetCommonLabels(op, customerID, "us-east4", "res-id", *billingMetric)
+		assert.NoError(t, err)
+		assert.Equal(t, "us-east4", op.Labels["cloud.googleapis.com/location"])
+		_, hasLocation := op.Labels["location"]
+		assert.False(t, hasLocation, "billing metric should not have 'location' label")
+	})
+
+	t.Run("performance metric uses location and resource_container", func(t *testing.T) {
+		op := &Operation{}
+		hydratedM := &entity.HydratedMetric{
+			Metadata: metadata.ResourceMetadata{
+				ResourceDisplayName: nillable.ToPointer("vol-1"),
+			},
+		}
+		googleMetric := *common.NewGoogleMetric(hydratedM)
+		err := SetCommonLabels(op, "123456", "us-central1", "res-id", googleMetric)
+		assert.NoError(t, err)
+		assert.Equal(t, "us-central1", op.Labels["location"])
+		assert.Equal(t, "projects/123456", op.Labels["resource_container"])
+		assert.Equal(t, "vol-1", op.Labels["name"])
+		_, hasCloudLocation := op.Labels["cloud.googleapis.com/location"]
+		assert.False(t, hasCloudLocation, "performance metric should not have cloud location label")
+	})
+}
+
 func Test_isAllowedEmptyLabel(t *testing.T) {
 	t.Run("Returns true for source_service_level", func(t *testing.T) {
 		result := isAllowedEmptyLabel("/replication/source_service_level")

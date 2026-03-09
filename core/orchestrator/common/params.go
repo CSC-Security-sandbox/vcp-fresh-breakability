@@ -550,6 +550,7 @@ type SnapmirrorRelationship struct {
 	Healthy         *bool
 	UnhealthyReason *[]string
 	State           *string
+	TotalTransferBytes *int64
 }
 
 type GetMultipleReplicationsParams struct {

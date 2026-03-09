@@ -835,6 +835,8 @@ func GetLabelKey(metric common.GoogleMetric) []string {
 		switch metricMeasuredType {
 		case metadata.BackupLogicalSize:
 			return []string{"/resource_id", "/backups/location"}
+		case metadata.CbsCrossRegionVolumeBackupTransferBytes:
+			return []string{"/resource_id", "/backups/source_continent", "/backups/destination_continent"}
 		}
 	case metadata.VolumePool, metadata.VolumePoolRegionalHA:
 		switch metricMeasuredType {
@@ -863,7 +865,16 @@ func GetLabelValue(key string, metric common.GoogleMetric, logger log.Logger) (s
 		case "/resource_id":
 			return metric.GetResourceUUID()
 		case "/backups/location":
+			if destinationRegion, err := getDestinationRegion(metric); err == nil && destinationRegion != "" {
+				return destinationRegion, nil
+			}
 			return metric.GetRegion()
+		case "/backups/source_continent":
+			sourceRegion, err := getSourceRegion(metric)
+			return getContinent(sourceRegion), err
+		case "/backups/destination_continent":
+			destinationRegion, err := getDestinationRegion(metric)
+			return getContinent(destinationRegion), err
 		}
 	case metadata.Volume:
 		switch key {

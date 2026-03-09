@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -1806,6 +1807,19 @@ func Test_GetVolumeMetrics_Skip_CRB_BMF_Billing_Metrics(t *testing.T) {
 						"HydratedMetricsDataModel[%d] should have ConsumerID", i)
 					assert.NotEmpty(t, dataMetric.ResourceName,
 						"HydratedMetricsDataModel[%d] should have ResourceName", i)
+				}
+			}
+
+			// Verify backup_region_name in JSONB metadata for cross-region volumes
+			if tt.enableCrossRegionBackupBillingMetrics && tt.backupVault != nil && tt.backupVault.BackupRegionName != nil && tt.expectedDataModelMetricsCount > 0 {
+				for _, dataMetric := range result.HydratedMetricsDataModel {
+					if dataMetric.Metadata != nil {
+						var extra map[string]string
+						err := json.Unmarshal(dataMetric.Metadata, &extra)
+						assert.NoError(t, err, "Metadata should be valid JSON")
+						assert.Equal(t, *tt.backupVault.BackupRegionName, extra["backup_region_name"],
+							"backup_region_name should match backup vault region")
+					}
 				}
 			}
 

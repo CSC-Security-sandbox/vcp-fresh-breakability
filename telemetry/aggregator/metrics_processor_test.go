@@ -5543,3 +5543,267 @@ func TestProcessBillingMetrics_CrossRegionRestoreTransferBytes_RegionOverride(t 
 	mockDB.AssertExpectations(t)
 	vcpDB.AssertExpectations(t)
 }
+
+func TestProcessMetricsWithJobDef_BackupLogicalSize_SetsDestinationRegion(t *testing.T) {
+	mockDB := &database.MockStorage{}
+	processor := &BillingProvider{
+		metricsDB: mockDB,
+		config:    &common.TelemetryConfig{},
+	}
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+	now := time.Now()
+	startTime := now.Add(-1 * time.Hour)
+
+	regionName := "us-east-1"
+	resourceID := ResourceKey{
+		ResourceType: metadata.Backup,
+		ResourceName: "backup-resource-uuid",
+		ConsumerID:   "test-customer",
+	}
+
+	timeSeries := common.TimeSeries{
+		AggregationStart: startTime,
+		AggregationEnd:   now,
+		Metadata: metadata.ResourceMetadata{
+			ResourceType: metadata.Backup,
+			RegionName:   &regionName,
+		},
+		MeasuredType: metadata.BackupLogicalSize,
+		DataPoints: []common.DataPoint{
+			{Timestamp: startTime, Quantity: 1024},
+			{Timestamp: now, Quantity: 2048},
+		},
+	}
+
+	resourceCollection := &ResourceCollection{
+		PoolData:   make(map[ResourceKey]ResourceData),
+		VolumeData: make(map[ResourceKey]ResourceData),
+		BackupData: make(map[ResourceKey]ResourceData),
+	}
+	resourceCollection.BackupData[resourceID] = ResourceData{
+		UUID:      "backup-uuid",
+		AccountID: 456,
+		Labels:    Labels{"env": "test"},
+	}
+
+	var aggregatedRecords []datamodel2.AggregatedUsage
+	err := processor.processMetricsWithJobDef(ctx, resourceID, timeSeries, common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+	assert.NoError(t, err)
+	assert.Len(t, aggregatedRecords, 1)
+	assert.Equal(t, metadata.BackupLogicalSize, aggregatedRecords[0].MeasuredType)
+	assert.NotNil(t, aggregatedRecords[0].DestinationRegion)
+	assert.Equal(t, regionName, *aggregatedRecords[0].DestinationRegion)
+}
+
+func TestProcessMetricsWithJobDef_BackupLogicalSize_CrossRegion_SetsBackupRegion(t *testing.T) {
+	mockDB := &database.MockStorage{}
+	processor := &BillingProvider{
+		metricsDB: mockDB,
+		config:    &common.TelemetryConfig{},
+	}
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+	now := time.Now()
+	startTime := now.Add(-1 * time.Hour)
+
+	regionName := "us-central1"
+	backupRegion := "eu-west1"
+	resourceID := ResourceKey{
+		ResourceType: metadata.Backup,
+		ResourceName: "backup-resource-uuid",
+		ConsumerID:   "test-customer",
+	}
+
+	timeSeries := common.TimeSeries{
+		AggregationStart: startTime,
+		AggregationEnd:   now,
+		Metadata: metadata.ResourceMetadata{
+			ResourceType: metadata.Backup,
+			RegionName:   &regionName,
+		},
+		MeasuredType: metadata.BackupLogicalSize,
+		DataPoints: []common.DataPoint{
+			{Timestamp: startTime, Quantity: 1024},
+			{Timestamp: now, Quantity: 2048},
+		},
+	}
+
+	resourceCollection := &ResourceCollection{
+		PoolData:   make(map[ResourceKey]ResourceData),
+		VolumeData: make(map[ResourceKey]ResourceData),
+		BackupData: make(map[ResourceKey]ResourceData),
+	}
+	resourceCollection.BackupData[resourceID] = ResourceData{
+		UUID:             "backup-uuid",
+		AccountID:        456,
+		Labels:           Labels{"env": "test"},
+		BackupRegionName: &backupRegion,
+	}
+
+	var aggregatedRecords []datamodel2.AggregatedUsage
+	err := processor.processMetricsWithJobDef(ctx, resourceID, timeSeries, common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+	assert.NoError(t, err)
+	assert.Len(t, aggregatedRecords, 1)
+	assert.Equal(t, metadata.BackupLogicalSize, aggregatedRecords[0].MeasuredType)
+	assert.NotNil(t, aggregatedRecords[0].DestinationRegion)
+	assert.Equal(t, backupRegion, *aggregatedRecords[0].DestinationRegion)
+}
+
+func TestProcessMetricsWithJobDef_BackupEnabledVolumeAllocatedSize_CrossRegion_SetsBackupRegion(t *testing.T) {
+	mockDB := &database.MockStorage{}
+	processor := &BillingProvider{
+		metricsDB: mockDB,
+		config:    &common.TelemetryConfig{},
+	}
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+	now := time.Now()
+	startTime := now.Add(-1 * time.Hour)
+
+	regionName := "us-central1"
+	backupRegion := "eu-west1"
+	resourceID := ResourceKey{
+		ResourceType: metadata.Volume,
+		ResourceName: "volume-name",
+		ConsumerID:   "test-customer",
+	}
+
+	timeSeries := common.TimeSeries{
+		AggregationStart: startTime,
+		AggregationEnd:   now,
+		Metadata: metadata.ResourceMetadata{
+			ResourceType:     metadata.Volume,
+			RegionName:       &regionName,
+			BackupRegionName: &backupRegion,
+		},
+		MeasuredType: metadata.BackupEnabledVolumeAllocatedSize,
+		DataPoints: []common.DataPoint{
+			{Timestamp: startTime, Quantity: 1024},
+			{Timestamp: now, Quantity: 2048},
+		},
+	}
+
+	resourceCollection := &ResourceCollection{
+		PoolData:   make(map[ResourceKey]ResourceData),
+		VolumeData: make(map[ResourceKey]ResourceData),
+		BackupData: make(map[ResourceKey]ResourceData),
+	}
+	resourceCollection.VolumeData[resourceID] = ResourceData{
+		UUID:      "volume-uuid",
+		AccountID: 456,
+		Labels:    Labels{"env": "test"},
+	}
+
+	var aggregatedRecords []datamodel2.AggregatedUsage
+	err := processor.processMetricsWithJobDef(ctx, resourceID, timeSeries, common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+	assert.NoError(t, err)
+	assert.Len(t, aggregatedRecords, 1)
+	assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, aggregatedRecords[0].MeasuredType)
+	assert.NotNil(t, aggregatedRecords[0].DestinationRegion)
+	assert.Equal(t, backupRegion, *aggregatedRecords[0].DestinationRegion)
+}
+
+func TestProcessMetricsWithJobDef_BackupEnabledVolumeAllocatedSize_InRegion_NoDestinationRegion(t *testing.T) {
+	mockDB := &database.MockStorage{}
+	processor := &BillingProvider{
+		metricsDB: mockDB,
+		config:    &common.TelemetryConfig{},
+	}
+	ctx := context.Background()
+	logger := util.GetLogger(ctx)
+	now := time.Now()
+	startTime := now.Add(-1 * time.Hour)
+
+	regionName := "us-central1"
+	resourceID := ResourceKey{
+		ResourceType: metadata.Volume,
+		ResourceName: "volume-name",
+		ConsumerID:   "test-customer",
+	}
+
+	timeSeries := common.TimeSeries{
+		AggregationStart: startTime,
+		AggregationEnd:   now,
+		Metadata: metadata.ResourceMetadata{
+			ResourceType: metadata.Volume,
+			RegionName:   &regionName,
+		},
+		MeasuredType: metadata.BackupEnabledVolumeAllocatedSize,
+		DataPoints: []common.DataPoint{
+			{Timestamp: startTime, Quantity: 1024},
+			{Timestamp: now, Quantity: 2048},
+		},
+	}
+
+	resourceCollection := &ResourceCollection{
+		PoolData:   make(map[ResourceKey]ResourceData),
+		VolumeData: make(map[ResourceKey]ResourceData),
+		BackupData: make(map[ResourceKey]ResourceData),
+	}
+	resourceCollection.VolumeData[resourceID] = ResourceData{
+		UUID:      "volume-uuid",
+		AccountID: 456,
+		Labels:    Labels{"env": "test"},
+	}
+
+	var aggregatedRecords []datamodel2.AggregatedUsage
+	err := processor.processMetricsWithJobDef(ctx, resourceID, timeSeries, common.AggregationJobDefinition{AggregationType: common.IntegralAggregation}, startTime, now, resourceCollection, &aggregatedRecords, make(map[CounterAggregationCacheResourceKey]*float64), logger)
+	assert.NoError(t, err)
+	assert.Len(t, aggregatedRecords, 1)
+	assert.Equal(t, metadata.BackupEnabledVolumeAllocatedSize, aggregatedRecords[0].MeasuredType)
+	assert.Nil(t, aggregatedRecords[0].DestinationRegion)
+}
+
+func TestGroupMetricsByResource_ParsesBackupRegionNameFromMetadata(t *testing.T) {
+	processor := &BillingProvider{}
+
+	backupRegionJSON := []byte(`{"backup_region_name":"eu-west1"}`)
+	metrics := []datamodel2.HydratedMetrics{
+		{
+			ResourceName:    "volume-name",
+			DeploymentName:  "deployment-1",
+			ConsumerID:      "customer-1",
+			ResourceType:    metadata.Volume,
+			MeasuredType:    metadata.BackupEnabledVolumeAllocatedSize,
+			Quantity:        2048,
+			MetricTimestamp: time.Now(),
+			Location:        "us-central1",
+			Metadata:        backupRegionJSON,
+		},
+	}
+
+	groups := processor.groupMetricsByResource(metrics)
+	assert.Len(t, groups, 1)
+
+	for _, hydratedMetrics := range groups {
+		assert.Len(t, hydratedMetrics, 1)
+		assert.NotNil(t, hydratedMetrics[0].Metadata.BackupRegionName)
+		assert.Equal(t, "eu-west1", *hydratedMetrics[0].Metadata.BackupRegionName)
+	}
+}
+
+func TestGroupMetricsByResource_NilMetadata_NoBackupRegionName(t *testing.T) {
+	processor := &BillingProvider{}
+
+	metrics := []datamodel2.HydratedMetrics{
+		{
+			ResourceName:    "volume-name",
+			DeploymentName:  "deployment-1",
+			ConsumerID:      "customer-1",
+			ResourceType:    metadata.Volume,
+			MeasuredType:    metadata.BackupEnabledVolumeAllocatedSize,
+			Quantity:        2048,
+			MetricTimestamp: time.Now(),
+			Location:        "us-central1",
+		},
+	}
+
+	groups := processor.groupMetricsByResource(metrics)
+	assert.Len(t, groups, 1)
+
+	for _, hydratedMetrics := range groups {
+		assert.Len(t, hydratedMetrics, 1)
+		assert.Nil(t, hydratedMetrics[0].Metadata.BackupRegionName)
+	}
+}

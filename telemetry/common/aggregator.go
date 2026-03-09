@@ -125,7 +125,7 @@ func CounterDelta(points []DataPoint, logger log.Logger, measuredType metadata.M
 				logger.Warnf("Skipping cold tier write size sample value for pool uuid %s since value decreased from %.2f to %.2f", resourceUUID, lastPoint.Quantity, point.Quantity)
 				// Don't update lastPoint for delta calculation, but track this as the last counter value
 				continue
-			} else if (measuredType == metadata.CoolTierDataReadSizeRaw || measuredType == metadata.XregionReplicationTotalTransferBytes) && point.Quantity == 0 {
+			} else if (measuredType == metadata.CoolTierDataReadSizeRaw || measuredType == metadata.XregionReplicationTotalTransferBytes || measuredType == metadata.CbsCrossRegionVolumeBackupTransferBytes) && point.Quantity == 0 {
 				logger.Warnf("Skipping cold tier read size sample value for pool uuid %s since value decreased from %.2f to zero", resourceUUID, lastPoint.Quantity)
 				// Don't update lastPoint for delta calculation, but track this as the last counter value
 				continue

@@ -477,7 +477,7 @@ func TestSnapmirrorRelationshipListParamsToONTAP(t *testing.T) {
 		otParams := snapmirrorRelationshipListParamsToONTAP(params)
 		assert.Equal(tt, params.SourcePath, *otParams.SourcePath)
 		assert.Equal(tt, params.DestinationPath, *otParams.DestinationPath)
-		expectedFields := []string{"destination.uuid", "healthy", "unhealthy_reason.code", "unhealthy_reason.message", "state"}
+		expectedFields := []string{"destination.uuid", "healthy", "unhealthy_reason.code", "unhealthy_reason.message", "state", "total_transfer_bytes"}
 		assert.Equal(tt, expectedFields, otParams.Fields)
 	})
 }

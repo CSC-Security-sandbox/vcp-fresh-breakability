@@ -1226,12 +1226,26 @@ func (p *BillingProvider) processMetricsWithJobDef(ctx context.Context, resource
 	}
 
 	if aggregated.MeasuredType == metadata.BackupLogicalSize {
-		aggregated.DestinationRegion = metrics.Metadata.RegionName
+		if resourceData.BackupRegionName != nil && *resourceData.BackupRegionName != "" {
+			aggregated.DestinationRegion = resourceData.BackupRegionName
+		} else {
+			aggregated.DestinationRegion = metrics.Metadata.RegionName
+		}
+	}
+
+	if aggregated.MeasuredType == metadata.BackupEnabledVolumeAllocatedSize {
+		if metrics.Metadata.BackupRegionName != nil && *metrics.Metadata.BackupRegionName != "" {
+			aggregated.DestinationRegion = metrics.Metadata.BackupRegionName
+		}
 	}
 
 	if aggregated.MeasuredType == metadata.CbsCrossRegionVolumeRestoreTransferBytes {
 		aggregated.SourceRegion = metrics.Metadata.BackupRegionName
 		aggregated.DestinationRegion = metrics.Metadata.RegionName
+	}
+
+	if aggregated.MeasuredType == metadata.CbsCrossRegionVolumeBackupTransferBytes {
+		aggregated.DestinationRegion = resourceData.BackupRegionName
 	}
 
 	if aggregated.ResourceType == metadata.VolumeReplicationRelationship {

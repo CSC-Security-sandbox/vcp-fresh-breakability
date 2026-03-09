@@ -3537,7 +3537,7 @@ func snapmirrorRelationshipListParamsToONTAP(params *SnapmirrorRelationshipListP
 	otParams.SetDestinationPath(&params.DestinationPath)
 	otParams.SetSourcePath(&params.SourcePath)
 	if strings.Contains(params.DestinationPath, ":/objstore/") || strings.Contains(params.SourcePath, ":/objstore/") {
-		otParams.WithFields([]string{"destination.uuid", "healthy", "unhealthy_reason.code", "unhealthy_reason.message", "state"})
+		otParams.WithFields([]string{"destination.uuid", "healthy", "unhealthy_reason.code", "unhealthy_reason.message", "state", "total_transfer_bytes"})
 	}
 	return otParams
 }

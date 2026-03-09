@@ -340,6 +340,10 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 		}
 	}
 
+	if smRelationship.TotalTransferBytes != nil && *smRelationship.TotalTransferBytes > 0 {
+		backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.TotalTransferBytes = *smRelationship.TotalTransferBytes
+	}
+
 	backupActivitiesContext.BackupWorkflowInit.Backup.AssetMetadata = &datamodel.AssetMetadata{
 		ChildAssets: []datamodel.ChildAsset{
 			{

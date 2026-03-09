@@ -677,6 +677,8 @@ func (a BackupActivity) GetSnapmirror(ctx context.Context, node *models.Node, so
 		}
 	}
 
+	resp.TotalTransferBytes = snapmirror.TotalTransferBytes
+
 	activity.RecordHeartbeat(ctx, "GetSnapmirror completed")
 	return &resp, nil
 }
