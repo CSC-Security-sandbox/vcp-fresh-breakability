@@ -1091,6 +1091,13 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 			param.AutoTieringPolicy.CoolingThresholdDays = req.TieringPolicy.Value.CoolingThresholdDays.Value
 		}
 
+		if req.TieringPolicy.Value.CoolingThresholdDays.IsSet() &&
+			!req.TieringPolicy.Value.HotTierBypassModeEnabled.IsSet() &&
+			!req.TieringPolicy.Value.TierAction.IsSet() &&
+			dbVolume != nil && dbVolume.AutoTieringPolicy != nil && dbVolume.AutoTieringPolicy.HotTierBypassModeEnabled {
+			return nil, errors.NewUserInputValidationErr("Cooling threshold days cannot be updated when Hot Tier Bypass Mode is enabled.")
+		}
+
 		if req.TieringPolicy.Value.TierAction.IsSet() {
 			switch req.TieringPolicy.Value.TierAction.Value {
 			case gcpgenserver.TieringPolicyV1betaTierActionENABLED:
@@ -1134,6 +1141,14 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 				param.AutoTieringPolicy.AutoTieringEnabled = dbVolume.AutoTieringPolicy.AutoTieringEnabled
 				param.AutoTieringPolicy.RetrievalPolicy = ontapmodels.VolumeCloudRetrievalPolicyDefault
 				param.AutoTieringPolicy.CloudWriteModeEnabled = nillable.GetBoolPtr(false)
+			}
+		} else if !isBlockVolume && dbVolume != nil && dbVolume.AutoTieringPolicy != nil {
+			// Preserve existing HotTierBypassModeEnabled when it's not explicitly set in the request
+			param.AutoTieringPolicy.HotTierBypassModeEnabled = dbVolume.AutoTieringPolicy.HotTierBypassModeEnabled
+			// If HT bypass is enabled, ensure consistency with TieringPolicy and CloudWriteModeEnabled
+			if param.AutoTieringPolicy.HotTierBypassModeEnabled {
+				param.AutoTieringPolicy.TieringPolicy = ontapmodels.VolumeInlineTieringPolicyAll
+				param.AutoTieringPolicy.CloudWriteModeEnabled = nillable.GetBoolPtr(true)
 			}
 		}
 	}

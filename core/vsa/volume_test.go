@@ -565,6 +565,138 @@ func TestCreateVolume_ParentVolumeNotFoundError_WithoutRestoreFromSnapshot(t *te
 	mockClient.AssertExpectations(t)
 }
 
+func TestCreateVolume_HotTierCapacityExhaustedErrorOnCreate(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalGetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalGetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	volumeName := "testVolume"
+	params := CreateVolumeParams{
+		VolumeName: volumeName,
+		SvmName:    "testSVM",
+		Aggregates: []string{"testAggregate"},
+		Size:       int64(1024),
+		VolumeType: "rw",
+	}
+
+	// ONTAP error format: "Request to create volume ... failed because there is not enough space in aggregate ..."
+	mockStorage.On("VolumeCreate", mock.Anything).Return(nil, nil, errors.New("Request to create volume \"testVolume\" failed because there is not enough space in aggregate \"aggr1\". Either create 104MB of free space in the aggregate or select a size of at most 176MB for the new volume."))
+
+	resp, err := rc.CreateVolume(params)
+
+	assert.Error(t, err)
+	assert.Nil(t, resp)
+	// Verify that the error is wrapped as a TemporalApplicationError with ErrHotTierCapacityExhausted
+	customErr := vsaerrors.ExtractCustomError(err)
+	require.NotNil(t, customErr, "Expected CustomError to be extracted from TemporalApplicationError")
+	assert.Equal(t, vsaerrors.ErrHotTierCapacityExhausted, customErr.TrackingID)
+	// Verify the error message contains the expected user-friendly message
+	assert.Contains(t, err.Error(), "hot tier")
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
+func TestCreateVolume_HotTierCapacityExhaustedErrorOnPoll(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalGetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalGetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	volumeName := "testVolume"
+	params := CreateVolumeParams{
+		VolumeName: volumeName,
+		SvmName:    "testSVM",
+		Aggregates: []string{"testAggregate"},
+		Size:       int64(1024),
+		VolumeType: "rw",
+	}
+
+	mockJob := &ontaprest.JobAccepted{
+		JobUUID:      "testJobUUID",
+		ResourceUUID: "testResourceUUID",
+	}
+	mockVolume := &ontaprest.Volume{
+		Volume: models.Volume{
+			UUID: nillable.ToPointer("testUUID"),
+			Name: &volumeName,
+		},
+	}
+
+	// ONTAP error format from job: "Job completed with Error: Failed to create the volume on node ... Reason: Request to create volume ... failed because there is not enough space in aggregate ..."
+	mockStorage.On("VolumeCreate", mock.Anything).Return(mockVolume, mockJob, nil)
+	mockClient.On("Poll", mockJob.JobUUID).Return(errors.New("Job completed with Error: Failed to create the volume on node \"gcnv-10bf922142bb715-01\". Reason: Request to create volume \"testVolume\" failed because there is not enough space in aggregate \"aggr1\". Either create 104MB of free space in the aggregate or select a size of at most 176MB for the new volume."))
+
+	resp, err := rc.CreateVolume(params)
+
+	assert.Error(t, err)
+	assert.Nil(t, resp)
+	// Verify that the error is wrapped as a TemporalApplicationError with ErrHotTierCapacityExhausted
+	customErr := vsaerrors.ExtractCustomError(err)
+	require.NotNil(t, customErr, "Expected CustomError to be extracted from TemporalApplicationError")
+	assert.Equal(t, vsaerrors.ErrHotTierCapacityExhausted, customErr.TrackingID)
+	// Verify the error message contains the expected user-friendly message
+	assert.Contains(t, err.Error(), "hot tier")
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
+func TestCreateVolume_HotTierCapacityExhaustedErrorWithInsufficientSpace(t *testing.T) {
+	mockStorage := new(ontaprest.MockStorageClient)
+	mockClient := new(ontaprest.MockRESTClient)
+	mockClient.On("Storage").Return(mockStorage)
+	originalGetOntapClientFunc := getOntapClientFunc
+	defer func() {
+		getOntapClientFunc = originalGetOntapClientFunc
+	}()
+	getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+		return mockClient, nil
+	}
+	rc := &OntapRestProvider{}
+
+	volumeName := "testVolume"
+	params := CreateVolumeParams{
+		VolumeName: volumeName,
+		SvmName:    "testSVM",
+		Aggregates: []string{"testAggregate"},
+		Size:       int64(1024),
+		VolumeType: "rw",
+	}
+
+	// Test with "insufficient space" variant
+	mockStorage.On("VolumeCreate", mock.Anything).Return(nil, nil, errors.New("insufficient space in aggregate to create volume"))
+
+	resp, err := rc.CreateVolume(params)
+
+	assert.Error(t, err)
+	assert.Nil(t, resp)
+	// Verify that the error is wrapped as a TemporalApplicationError with ErrHotTierCapacityExhausted
+	customErr := vsaerrors.ExtractCustomError(err)
+	require.NotNil(t, customErr, "Expected CustomError to be extracted from TemporalApplicationError")
+	assert.Equal(t, vsaerrors.ErrHotTierCapacityExhausted, customErr.TrackingID)
+	// Verify the error message contains the expected user-friendly message
+	assert.Contains(t, err.Error(), "hot tier")
+
+	mockStorage.AssertExpectations(t)
+	mockClient.AssertExpectations(t)
+}
+
 func TestCreateVolume_ErrorOnNilResponse(t *testing.T) {
 	mockStorage := new(ontaprest.MockStorageClient)
 	mockClient := new(ontaprest.MockRESTClient)

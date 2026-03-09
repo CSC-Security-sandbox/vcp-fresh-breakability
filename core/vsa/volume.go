@@ -82,6 +82,11 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 		if strings.Contains(err.Error(), "Maximum clone hierarchy") {
 			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrNestedCloneLimitExceeded, err))
 		}
+		// ONTAP error format: "Request to create volume ... failed because there is not enough space in aggregate ..."
+		// This occurs when hot tier is full even though pool has capacity
+		if strings.Contains(err.Error(), "not enough space") || strings.Contains(err.Error(), "insufficient space") {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrHotTierCapacityExhausted, errors.NewUserInputValidationErr("The hot tier (local storage) capacity is full. Free up space in the hot tier or enable hot tier auto-resize to automatically expand the hot tier when needed.")))
+		}
 		// Check for parent volume not found error when restoring from snapshot
 		// ONTAP error format: "Volume \"parentvol2\" in SVM \"svm-name\" does not exist."
 		if strings.Contains(err.Error(), "Volume") && strings.Contains(err.Error(), "does not exist") && params.RestoreFromSnapshot != nil {
@@ -93,6 +98,11 @@ func (rc *OntapRestProvider) CreateVolume(params CreateVolumeParams) (*VolumeRes
 	// Poll the job if it exists
 	if job != nil {
 		if err = client.Poll(job.JobUUID); err != nil {
+			// ONTAP error format: "Request to create volume ... failed because there is not enough space in aggregate ..."
+			// This occurs when hot tier is full even though pool has capacity
+			if strings.Contains(err.Error(), "not enough space") || strings.Contains(err.Error(), "insufficient space") {
+				return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrHotTierCapacityExhausted, errors.NewUserInputValidationErr("The hot tier (local storage) capacity is full. Free up space in the hot tier or enable hot tier auto-resize to automatically expand the hot tier when needed.")))
+			}
 			return nil, err
 		}
 	}

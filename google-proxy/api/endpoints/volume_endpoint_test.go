@@ -2465,7 +2465,7 @@ func TestPrepareUpdateVolumeParamsHotTierBypassMode(t *testing.T) {
 		assert.Contains(tt, err.Error(), "Tiering action is required when enabling auto-tiering on volume for the first time")
 	})
 
-	t.Run("UpdateTieringPolicyWithoutTierAction_ExistingAutoPolicy_Success", func(tt *testing.T) {
+	t.Run("UpdateTieringPolicyWithoutTierAction_OnlyCoolingThresholdDays_HTBypassDisabled_ShouldSucceed", func(tt *testing.T) {
 		currentATState := autoTieringEnabled
 		defer func() { autoTieringEnabled = currentATState }()
 		autoTieringEnabled = true
@@ -2473,8 +2473,9 @@ func TestPrepareUpdateVolumeParamsHotTierBypassMode(t *testing.T) {
 		req := &gcpgenserver.VolumeUpdateV1beta{
 			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
 				gcpgenserver.TieringPolicyV1beta{
-					// No TierAction set
+					// No TierAction set, only CoolingThresholdDays
 					CoolingThresholdDays: gcpgenserver.OptNilInt32{Value: 40, Set: true},
+					// HotTierBypassModeEnabled not set
 				},
 			),
 		}
@@ -2488,8 +2489,9 @@ func TestPrepareUpdateVolumeParamsHotTierBypassMode(t *testing.T) {
 			ProtocolTypes: []string{utils.ProtocolNFSv3}, // File volume
 			AutoTieringPolicy: &models.AutoTieringPolicy{
 				AutoTieringEnabled:       true,
-				HotTierBypassModeEnabled: false,
+				HotTierBypassModeEnabled: false, // HT bypass disabled in DB
 				TieringPolicy:            "auto",
+				CoolingThresholdDays:     30,
 			},
 		}
 
@@ -2498,9 +2500,9 @@ func TestPrepareUpdateVolumeParamsHotTierBypassMode(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, result.AutoTieringPolicy)
-		assert.Equal(tt, "auto", result.AutoTieringPolicy.TieringPolicy)
-		assert.True(tt, result.AutoTieringPolicy.AutoTieringEnabled)
 		assert.Equal(tt, int32(40), result.AutoTieringPolicy.CoolingThresholdDays)
+		// HT bypass should be preserved from DB (false)
+		assert.False(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
 	})
 
 	t.Run("DisableHotTierBypassWithoutTierAction_PreservesExistingAutoPolicy_Success", func(tt *testing.T) {
@@ -2618,6 +2620,297 @@ func TestPrepareUpdateVolumeParamsHotTierBypassMode(t *testing.T) {
 		assert.NoError(tt, err, "HotTierBypassMode should be supported for file volumes")
 		assert.NotNil(tt, result)
 		assert.True(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+	})
+
+	// Tests for validation: cooling threshold days requires hotTierBypassModeEnabled
+	t.Run("OnlyCoolingThresholdDays_WithoutHotTierBypassMode_ShouldReturnError", func(tt *testing.T) {
+		currentATState := autoTieringEnabled
+		defer func() { autoTieringEnabled = currentATState }()
+		autoTieringEnabled = true
+
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
+				gcpgenserver.TieringPolicyV1beta{
+					// Only CoolingThresholdDays, no HotTierBypassModeEnabled, no TierAction
+					CoolingThresholdDays: gcpgenserver.OptNilInt32{Value: 50, Set: true},
+				},
+			),
+		}
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "test-volume-id",
+		}
+		region := "test-region"
+		dbVolume := &models.Volume{
+			ProtocolTypes: []string{utils.ProtocolNFSv3}, // File volume
+			AutoTieringPolicy: &models.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: true,
+				TieringPolicy:            "all",
+				CoolingThresholdDays:     30,
+			},
+		}
+
+		result, err := prepareUpdateVolumeParams(req, params, region, dbVolume)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "Cooling threshold days cannot be updated when Hot Tier Bypass Mode is enabled.")
+	})
+
+	t.Run("CoolingThresholdDays_WithHotTierBypassModeEnabled_ShouldSucceed", func(tt *testing.T) {
+		currentATState := autoTieringEnabled
+		defer func() { autoTieringEnabled = currentATState }()
+		autoTieringEnabled = true
+
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
+				gcpgenserver.TieringPolicyV1beta{
+					// Both CoolingThresholdDays and HotTierBypassModeEnabled provided
+					CoolingThresholdDays:     gcpgenserver.OptNilInt32{Value: 60, Set: true},
+					HotTierBypassModeEnabled: gcpgenserver.NewOptNilBool(true),
+					// No TierAction
+				},
+			),
+		}
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "test-volume-id",
+		}
+		region := "test-region"
+		dbVolume := &models.Volume{
+			ProtocolTypes: []string{utils.ProtocolNFSv3}, // File volume
+			AutoTieringPolicy: &models.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: false,
+				TieringPolicy:            "auto",
+				CoolingThresholdDays:     30,
+			},
+		}
+
+		result, err := prepareUpdateVolumeParams(req, params, region, dbVolume)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.AutoTieringPolicy)
+		assert.Equal(tt, int32(60), result.AutoTieringPolicy.CoolingThresholdDays)
+		assert.True(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+		assert.Equal(tt, "all", result.AutoTieringPolicy.TieringPolicy)
+	})
+
+	t.Run("CoolingThresholdDays_WithTierAction_HTBypassDisabledInDB_ShouldPreserveFalse", func(tt *testing.T) {
+		currentATState := autoTieringEnabled
+		defer func() { autoTieringEnabled = currentATState }()
+		autoTieringEnabled = true
+
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
+				gcpgenserver.TieringPolicyV1beta{
+					// CoolingThresholdDays with TierAction, HT bypass not set
+					TierAction:           gcpgenserver.NewOptNilTieringPolicyV1betaTierAction("ENABLED"),
+					CoolingThresholdDays: gcpgenserver.OptNilInt32{Value: 45, Set: true},
+					// HotTierBypassModeEnabled not set
+				},
+			),
+		}
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "test-volume-id",
+		}
+		region := "test-region"
+		dbVolume := &models.Volume{
+			ProtocolTypes: []string{utils.ProtocolNFSv3}, // File volume
+			AutoTieringPolicy: &models.AutoTieringPolicy{
+				AutoTieringEnabled:       false,
+				HotTierBypassModeEnabled: false, // HT bypass disabled in DB
+				TieringPolicy:            "none",
+				CoolingThresholdDays:     30,
+			},
+		}
+
+		result, err := prepareUpdateVolumeParams(req, params, region, dbVolume)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.AutoTieringPolicy)
+		assert.Equal(tt, int32(45), result.AutoTieringPolicy.CoolingThresholdDays)
+		assert.True(tt, result.AutoTieringPolicy.AutoTieringEnabled)
+		// HT bypass should be preserved from DB (false)
+		assert.False(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+	})
+
+	t.Run("TierActionENABLED_HTBypassNotSet_HTBypassEnabledInDB_ShouldPreserveAndSetConsistency", func(tt *testing.T) {
+		currentATState := autoTieringEnabled
+		defer func() { autoTieringEnabled = currentATState }()
+		autoTieringEnabled = true
+
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
+				gcpgenserver.TieringPolicyV1beta{
+					// TierAction=ENABLED, HT bypass not set
+					TierAction:           gcpgenserver.NewOptNilTieringPolicyV1betaTierAction("ENABLED"),
+					CoolingThresholdDays: gcpgenserver.OptNilInt32{Value: 30, Set: true},
+					// HotTierBypassModeEnabled not set - should preserve from DB
+				},
+			),
+		}
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "test-volume-id",
+		}
+		region := "test-region"
+		dbVolume := &models.Volume{
+			ProtocolTypes: []string{utils.ProtocolNFSv3}, // File volume
+			AutoTieringPolicy: &models.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: true, // HT bypass enabled in DB - should be preserved
+				TieringPolicy:            "all",
+				CoolingThresholdDays:     25,
+			},
+		}
+
+		result, err := prepareUpdateVolumeParams(req, params, region, dbVolume)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.AutoTieringPolicy)
+		assert.True(tt, result.AutoTieringPolicy.AutoTieringEnabled)
+		// HT bypass should be preserved from DB (true)
+		assert.True(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+		// Consistency: TieringPolicy should be "all" when HT bypass is true
+		assert.Equal(tt, "all", result.AutoTieringPolicy.TieringPolicy)
+		// Consistency: CloudWriteModeEnabled should be true when HT bypass is true
+		assert.NotNil(tt, result.AutoTieringPolicy.CloudWriteModeEnabled)
+		assert.True(tt, *result.AutoTieringPolicy.CloudWriteModeEnabled)
+		assert.Equal(tt, int32(30), result.AutoTieringPolicy.CoolingThresholdDays)
+	})
+
+	t.Run("TierActionENABLED_HTBypassNotSet_HTBypassDisabledInDB_ShouldPreserveFalse", func(tt *testing.T) {
+		currentATState := autoTieringEnabled
+		defer func() { autoTieringEnabled = currentATState }()
+		autoTieringEnabled = true
+
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
+				gcpgenserver.TieringPolicyV1beta{
+					// TierAction=ENABLED, HT bypass not set
+					TierAction:           gcpgenserver.NewOptNilTieringPolicyV1betaTierAction("ENABLED"),
+					CoolingThresholdDays: gcpgenserver.OptNilInt32{Value: 35, Set: true},
+					// HotTierBypassModeEnabled not set - should preserve from DB
+				},
+			),
+		}
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "test-volume-id",
+		}
+		region := "test-region"
+		dbVolume := &models.Volume{
+			ProtocolTypes: []string{utils.ProtocolNFSv3}, // File volume
+			AutoTieringPolicy: &models.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: false, // HT bypass disabled in DB - should be preserved
+				TieringPolicy:            "auto",
+				CoolingThresholdDays:     20,
+			},
+		}
+
+		result, err := prepareUpdateVolumeParams(req, params, region, dbVolume)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.AutoTieringPolicy)
+		assert.True(tt, result.AutoTieringPolicy.AutoTieringEnabled)
+		// HT bypass should be preserved from DB (false)
+		assert.False(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+		// TieringPolicy should be "auto" (set by TierAction=ENABLED, not overridden since HT bypass is false)
+		assert.Equal(tt, "auto", result.AutoTieringPolicy.TieringPolicy)
+		assert.Equal(tt, int32(35), result.AutoTieringPolicy.CoolingThresholdDays)
+	})
+
+	t.Run("OnlyCoolingThresholdDays_WithHTBypassDisabledInDB_ShouldSucceed", func(tt *testing.T) {
+		currentATState := autoTieringEnabled
+		defer func() { autoTieringEnabled = currentATState }()
+		autoTieringEnabled = true
+
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
+				gcpgenserver.TieringPolicyV1beta{
+					// Only CoolingThresholdDays, no HotTierBypassModeEnabled, no TierAction
+					CoolingThresholdDays: gcpgenserver.OptNilInt32{Value: 35, Set: true},
+				},
+			),
+		}
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "test-volume-id",
+		}
+		region := "test-region"
+		dbVolume := &models.Volume{
+			ProtocolTypes: []string{utils.ProtocolNFSv3}, // File volume
+			AutoTieringPolicy: &models.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: false, // HT bypass disabled in DB - validation should not trigger
+				TieringPolicy:            "auto",
+				CoolingThresholdDays:     25,
+			},
+		}
+
+		result, err := prepareUpdateVolumeParams(req, params, region, dbVolume)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.AutoTieringPolicy)
+		assert.Equal(tt, int32(35), result.AutoTieringPolicy.CoolingThresholdDays)
+		// HT bypass should be preserved from DB (false)
+		assert.False(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+	})
+
+	t.Run("CoolingThresholdDays_WithHotTierBypassModeDisabled_ShouldSucceed", func(tt *testing.T) {
+		currentATState := autoTieringEnabled
+		defer func() { autoTieringEnabled = currentATState }()
+		autoTieringEnabled = true
+
+		req := &gcpgenserver.VolumeUpdateV1beta{
+			TieringPolicy: gcpgenserver.NewOptTieringPolicyV1beta(
+				gcpgenserver.TieringPolicyV1beta{
+					// Both CoolingThresholdDays and HotTierBypassModeEnabled (set to false) provided
+					CoolingThresholdDays:     gcpgenserver.OptNilInt32{Value: 70, Set: true},
+					HotTierBypassModeEnabled: gcpgenserver.NewOptNilBool(false),
+					// No TierAction
+				},
+			),
+		}
+		params := gcpgenserver.V1betaUpdateVolumeParams{
+			ProjectNumber: "test-project",
+			LocationId:    "test-location",
+			VolumeId:      "test-volume-id",
+		}
+		region := "test-region"
+		dbVolume := &models.Volume{
+			ProtocolTypes: []string{utils.ProtocolNFSv3}, // File volume
+			AutoTieringPolicy: &models.AutoTieringPolicy{
+				AutoTieringEnabled:       true,
+				HotTierBypassModeEnabled: true, // HT bypass enabled in DB
+				TieringPolicy:            "all",
+				CoolingThresholdDays:     30,
+			},
+		}
+
+		result, err := prepareUpdateVolumeParams(req, params, region, dbVolume)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.AutoTieringPolicy)
+		assert.Equal(tt, int32(70), result.AutoTieringPolicy.CoolingThresholdDays)
+		assert.False(tt, result.AutoTieringPolicy.HotTierBypassModeEnabled)
+		assert.Equal(tt, "auto", result.AutoTieringPolicy.TieringPolicy)
 	})
 
 	t.Run("HotTierBypassModeDisabledForBlockVolume_ShouldNotError", func(tt *testing.T) {

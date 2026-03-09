@@ -947,6 +947,12 @@
     "retriable": false,
     "http_code": 400
   },
+  "7016": {
+    "description": "Hot Tier Capacity Exhausted",
+    "message": "Volume creation failed due to insufficient hot tier capacity. Please increase the hot tier capacity to proceed.",
+    "retriable": false,
+    "http_code": 400
+  },
   "6100": {
     "description": "Replication Schedule Unspecified",
     "message": "Replication schedule must be specified",
