@@ -6281,7 +6281,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("ValidateAndDeduplicateFileList", mock.Anything, mock.Anything).Return([]string{"/file1.txt"}, nil)
 
 		// Mock GetSnapmirror to return unhealthy with "Incomplete path to file" error
-		// This should trigger the pattern matching and return a 400 Bad Request error
+		// This should trigger the pattern matching and return an Incorrect destination path error
 		healthy := false
 		reasons := []string{"Incomplete path to file \"/tmp/22.txt\" on destination volume"}
 		env.OnActivity("GetSnapmirror", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{
@@ -6292,11 +6292,10 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 
 		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
 
-		// Verify workflow failed with Bad Request error (400), not Internal Server Error (500)
+		// Verify workflow failed with Incorrect destination path error (400)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
-		// The error should contain "Bad Request" from the pattern matching
-		assert.Contains(t, env.GetWorkflowError().Error(), "Bad Request")
+		assert.Contains(t, env.GetWorkflowError().Error(), "Incorrect destination path")
 	})
 }
 
@@ -6305,7 +6304,7 @@ func TestMatchErrorPattern(t *testing.T) {
 		// Arrange
 		patternMap := map[string]ontapErrorMapping{
 			"Incomplete path to file": {
-				ErrorCode:   vsaerrors.ErrBadRequest,
+				ErrorCode:   vsaerrors.ErrSFRIncorrectDestinationPath,
 				UserMessage: "Incorrect destination path",
 			},
 		}
@@ -6316,8 +6315,8 @@ func TestMatchErrorPattern(t *testing.T) {
 
 		// Assert
 		assert.NotNil(t, result)
-		assert.Equal(t, vsaerrors.ErrBadRequest, result.TrackingID)
-		assert.Equal(t, "Bad Request", result.Message) // From errors.json
+		assert.Equal(t, vsaerrors.ErrSFRIncorrectDestinationPath, result.TrackingID)
+		assert.Equal(t, "Incorrect destination path", result.Message)
 		assert.NotNil(t, result.OriginalErr)
 		assert.Equal(t, "Incorrect destination path", result.OriginalErr.Error())
 
@@ -6331,7 +6330,7 @@ func TestMatchErrorPattern(t *testing.T) {
 		// Arrange
 		patternMap := map[string]ontapErrorMapping{
 			"Incomplete path to file": {
-				ErrorCode:   vsaerrors.ErrBadRequest,
+				ErrorCode:   vsaerrors.ErrSFRIncorrectDestinationPath,
 				UserMessage: "Incorrect destination path",
 			},
 		}

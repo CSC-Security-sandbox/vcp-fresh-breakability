@@ -393,6 +393,7 @@ const (
 	ErrNoSFRFilesFound                                     = 12005
 	ErrInsufficientRestoreVolumeSize                       = 12017
 	ErrCrossRegionBackupVaultAssignmentToDestinationRegion = 12018
+	ErrSFRIncorrectDestinationPath                         = 12019
 
 	ErrMatchingQuotaRuleNotFoundOnDestination   = 12006
 	ErrQuotaRuleNotFound                        = 12007

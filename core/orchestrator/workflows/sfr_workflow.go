@@ -34,11 +34,10 @@ type ontapErrorMapping struct {
 	UserMessage string
 }
 
-// snapmirrorErrorPatternMap maps error patterns to their corresponding error codes and messages
-// Using a map provides O(1) lookup for exact matches and better organization
+// snapmirrorErrorPatternMap maps error substrings to their corresponding error codes and messages.
 var snapmirrorErrorPatternMap = map[string]ontapErrorMapping{
 	"Incomplete path to file": {
-		ErrorCode:   vsaerrors.ErrBadRequest,
+		ErrorCode:   vsaerrors.ErrSFRIncorrectDestinationPath,
 		UserMessage: "Incorrect destination path",
 	},
 }

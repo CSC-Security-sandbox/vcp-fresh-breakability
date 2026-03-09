@@ -2147,6 +2147,12 @@
     "retriable": false,
     "http_code": 400
   },
+  "12019": {
+    "description": "SFR snapmirror unhealthy due to incorrect destination path",
+    "message": "Incorrect destination path",
+    "retriable": false,
+    "http_code": 400
+  },
   "13001": {
     "description": "Large Volume Backup Restore Validation failure",
     "message": "Large Volume Restore Validation failure",
