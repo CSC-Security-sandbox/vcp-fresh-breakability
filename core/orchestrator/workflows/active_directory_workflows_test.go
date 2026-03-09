@@ -2612,11 +2612,12 @@ func TestActiveDirectoryDeleteWorkflow_Run(t *testing.T) {
 			DeletionAllowed: true,
 		}
 
+		// CVP 409 Conflict maps to generic conflict
 		sdeConflictErr := temporal.NewNonRetryableApplicationError(
 			"Error deleting active directory - Active Directory credentials are in use by Storage Pool(s)",
 			vsaerrors.CustomErrorType,
 			nil,
-			vsaerrors.ErrActiveDirectoryDeleteErrorDueToInUseByPool,
+			vsaerrors.ErrCVPConflict,
 			"Active Directory deletion conflict: AD credentials are in use by Storage Pool(s)",
 		)
 
@@ -2638,8 +2639,8 @@ func TestActiveDirectoryDeleteWorkflow_Run(t *testing.T) {
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		require.NotNil(t, runErr, "expected CustomError from Run()")
-		assert.True(t, runErr.IsError(vsaerrors.ErrActiveDirectoryDeleteErrorDueToInUseByPool),
-			"expected tracking ID 14000, got %d", runErr.TrackingID)
+		assert.True(t, runErr.IsError(vsaerrors.ErrCVPConflict),
+			"expected tracking ID %d (CVP Conflict), got %d", vsaerrors.ErrCVPConflict, runErr.TrackingID)
 		assert.Nil(t, runResult)
 		env.AssertExpectations(t)
 	})
@@ -2682,11 +2683,12 @@ func TestActiveDirectoryDeleteWorkflow_Run(t *testing.T) {
 			DeletionAllowed: true,
 		}
 
+		// CVP 409 Conflict maps to generic conflict
 		sdeConflictErr := temporal.NewNonRetryableApplicationError(
 			"Error deleting active directory - Active Directory credentials are in use by Storage Pool(s)",
 			vsaerrors.CustomErrorType,
 			nil,
-			vsaerrors.ErrActiveDirectoryDeleteErrorDueToInUseByPool,
+			vsaerrors.ErrCVPConflict,
 			"Active Directory deletion conflict: AD credentials are in use by Storage Pool(s)",
 		)
 
@@ -2708,8 +2710,8 @@ func TestActiveDirectoryDeleteWorkflow_Run(t *testing.T) {
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		require.NotNil(t, runErr, "expected CustomError from Run()")
-		assert.True(t, runErr.IsError(vsaerrors.ErrActiveDirectoryDeleteErrorDueToInUseByPool),
-			"expected tracking ID 14000, got %d", runErr.TrackingID)
+		assert.True(t, runErr.IsError(vsaerrors.ErrCVPConflict),
+			"expected tracking ID %d (CVP Conflict), got %d", vsaerrors.ErrCVPConflict, runErr.TrackingID)
 		assert.Nil(t, runResult)
 		env.AssertExpectations(t)
 	})

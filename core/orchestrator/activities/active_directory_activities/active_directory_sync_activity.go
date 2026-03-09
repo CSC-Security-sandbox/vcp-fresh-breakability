@@ -3,7 +3,6 @@ package active_directory_activities
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/internal_active_directories"
@@ -86,7 +85,7 @@ func (a ActiveDirectorySyncActivity) PushActiveDirectoryPasswordActivity(ctx con
 	response, err := cvpClient.InternalActiveDirectories.V1betaPushActiveDirectoryPassword(pushPasswordParams)
 	if err != nil {
 		logger.Errorf("Failed to push Active Directory password to CVP: %v", err)
-		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, WrapCvpError(err)
 	}
 
 	if response == nil || response.Payload == nil {
@@ -118,9 +117,7 @@ func (a ActiveDirectorySyncActivity) PollPushPasswordOperationActivity(ctx conte
 		logger.Info("Operation already completed synchronously, skipping poll")
 		if operation.Error != nil {
 			logger.Errorf("Operation completed with error: %v", operation.Error)
-			return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
-				customerrors.New(fmt.Sprintf("operation failed: %s", operation.Error.Message)),
-			)
+			return WrapCvpError(NewOperationError(int(operation.Error.Code), operation.Error.Message))
 		}
 		return nil
 	}
@@ -164,9 +161,7 @@ func (a ActiveDirectorySyncActivity) PollPushPasswordOperationActivity(ctx conte
 	if res.Done != nil && *res.Done {
 		if res.Error != nil {
 			logger.Errorf("Operation %s failed with error: %v", operationUUID, res.Error)
-			return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
-				customerrors.New(fmt.Sprintf("operation failed: %s", res.Error.Message)),
-			)
+			return WrapCvpError(NewOperationError(int(res.Error.Code), res.Error.Message))
 		}
 		logger.Infof("Operation %s completed successfully", operationUUID)
 		return nil

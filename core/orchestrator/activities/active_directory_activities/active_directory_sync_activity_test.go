@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/internal_active_directories"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	adHelper "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/helper"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -218,6 +219,32 @@ func TestPollPushPasswordOperationActivity(t *testing.T) {
 		}, &cvpModels.OperationV1beta{Name: "operations/test-op"})
 		assert.NoError(tt, err)
 	})
+}
+
+func TestPollSdeCreateADActivity_OperationCompletedWithError(t *testing.T) {
+	originalCvpClient := CvpClient
+	defer func() { CvpClient = originalCvpClient }()
+
+	done := true
+	code := float64(409)
+	CvpClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return cvpapi.Cvp{Async: fakeAsyncClient{resp: &cvpModels.OperationV1beta{
+			Done:  &done,
+			Error: &cvpModels.StatusV1Beta{Code: code, Message: "conflict"},
+			Name:  "operations/test-op",
+		}}}
+	}
+
+	activity := ActiveDirectorySyncActivity{}
+	notDone := false
+	err := activity.PollPushPasswordOperationActivity(buildAuthContext(), &SyncActiveDirectoryParams{
+		AccountName:    "acct",
+		LocationID:     "loc",
+		XCorrelationID: "corr",
+	}, &cvpModels.OperationV1beta{Done: &notDone, Name: "operations/test-op"})
+	assert.Error(t, err)
+	customErr := vsaerrors.ExtractCustomError(err)
+	assert.True(t, customErr.IsError(vsaerrors.ErrCVPConflict))
 }
 
 func TestCreateActiveDirectoryInVCPActivity(t *testing.T) {

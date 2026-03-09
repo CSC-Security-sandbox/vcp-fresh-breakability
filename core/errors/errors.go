@@ -411,9 +411,24 @@ const (
 	// Large volume backup specific error (13001-13999)
 	ErrLargeVolumeBackupRestoreValidation = 13001
 
-	// Active Directory specific errors (14000-14999)
+	// Active Directory specific errors (14000-14199)
 	ErrActiveDirectoryDeleteErrorDueToInUseByPool = 14000
+
+	// CVP/SDE Error Codes (14200-14399) - Errors returned by CVP (cloud-volumes-proxy) / SDE to VCP, mapped by HTTP status.
+	ErrCVPBadRequest          = 14200
+	ErrCVPUnauthorized        = 14201
+	ErrCVPForbidden           = 14202
+	ErrCVPNotFound            = 14203
+	ErrCVPConflict            = 14204
+	ErrCVPUnprocessableEntity = 14205
+	ErrCVPTooManyRequests     = 14206
+	ErrCVPInternalServerError = 14207
 )
+
+// IsCVPError returns true if the tracking ID is a CVP/SDE error (14200-14399 range).
+func IsCVPError(trackingID int) bool {
+	return trackingID >= ErrCVPBadRequest && trackingID <= 14399
+}
 
 // ErrorMessage struct represents the structure of each error message in the JSON file.
 type ErrorMessage struct {

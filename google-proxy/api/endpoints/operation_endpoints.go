@@ -67,7 +67,8 @@ func (h Handler) V1betaDescribeOperation(ctx context.Context, params gcpgenserve
 			errMsg := vsaerrors.GetErrorMessageByTrackingID(job.TrackingID)
 			detailedErrorMessage := errMsg.Message
 			if job.TrackingID == vsaerrors.ErrLargeVolumeBackupRestoreValidation || job.TrackingID == vsaerrors.ErrRestoreVolumeValidation || job.TrackingID == vsaerrors.ErrSFRFilesMissing ||
-				job.TrackingID == vsaerrors.ErrSnapshotNotAllowedForVolume {
+				job.TrackingID == vsaerrors.ErrSnapshotNotAllowedForVolume ||
+				vsaerrors.IsCVPError(job.TrackingID) {
 				detailedErrorMessage = string(job.ErrorDetails)
 			}
 			return &gcpgenserver.OperationV1beta{
@@ -332,7 +333,8 @@ func (h Handler) V1betaInternalDescribeOperation(ctx context.Context, params gcp
 	case models.JobsStateERROR:
 		errMsg := vsaerrors.GetErrorMessageByTrackingID(job.TrackingID)
 		detailedErrorMessage := errMsg.Message
-		if job.TrackingID == vsaerrors.ErrRestoreVolumeValidation || job.TrackingID == vsaerrors.ErrSnapshotNotAllowedForVolume {
+		if job.TrackingID == vsaerrors.ErrRestoreVolumeValidation || job.TrackingID == vsaerrors.ErrSnapshotNotAllowedForVolume ||
+			vsaerrors.IsCVPError(job.TrackingID) {
 			detailedErrorMessage = string(job.ErrorDetails)
 		}
 		baseOperation.Done = gcpgenserver.NewOptBool(jobFinished)

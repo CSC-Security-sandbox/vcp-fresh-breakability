@@ -1262,3 +1262,26 @@ func TestErrTooManyRequestsMapping(t *testing.T) {
 		t.Errorf("Expected ErrTooManyRequests to be retriable")
 	}
 }
+
+func TestIsCVPError(t *testing.T) {
+	tests := []struct {
+		name       string
+		trackingID int
+		expected   bool
+	}{
+		{"ErrCVPBadRequest", ErrCVPBadRequest, true},
+		{"ErrCVPInternalServerError", ErrCVPInternalServerError, true},
+		{"upper bound of range", 14399, true},
+		{"below range", 14199, false},
+		{"above range", 14400, false},
+		{"unrelated error", ErrBadRequest, false},
+		{"zero", 0, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsCVPError(tt.trackingID); got != tt.expected {
+				t.Errorf("IsCVPError(%d) = %v, want %v", tt.trackingID, got, tt.expected)
+			}
+		})
+	}
+}

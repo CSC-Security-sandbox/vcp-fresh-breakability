@@ -516,7 +516,8 @@ func TestDeleteSdeActiveDirectory(t *testing.T) {
 
 		var customErr *vsaerrors.CustomError
 		assert.True(t, errors.As(err, &customErr))
-		assert.True(t, customErr.IsError(vsaerrors.ErrActiveDirectoryDeleteErrorDueToInUseByPool))
+		// CVP 409 Conflict maps to ErrCVPConflict (14204).
+		assert.True(t, customErr.IsError(vsaerrors.ErrCVPConflict))
 	})
 
 	t.Run("Error_BadRequest", func(t *testing.T) {

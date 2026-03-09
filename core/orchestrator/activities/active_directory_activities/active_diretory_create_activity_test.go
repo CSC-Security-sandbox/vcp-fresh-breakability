@@ -2,10 +2,13 @@ package active_directory_activities
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/mock"
+	"go.temporal.io/sdk/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -266,8 +269,13 @@ func TestActiveDirectoryCreateActivity_CreateSdeActiveDirectory_Comprehensive(t 
 
 		err := activity.CreateSdeActiveDirectory(ctx, params)
 
-		assert.Error(t, err)
-		assert.Equal(t, expectedError, err)
+		require.Error(t, err)
+		var appErr *temporal.ApplicationError
+		require.True(t, errors.As(err, &appErr), "expected Temporal ApplicationError")
+		assert.False(t, appErr.NonRetryable(), "non-structured CVP errors should be retryable (transient)")
+		customErr := vsaerrors.ExtractCustomError(err)
+		require.NotNil(t, customErr)
+		assert.True(t, customErr.IsError(vsaerrors.ErrCVPInternalServerError))
 		mockActiveDirectoriesClient.AssertExpectations(t)
 	})
 

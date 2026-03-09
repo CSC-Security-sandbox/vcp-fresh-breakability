@@ -10,7 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	vsaerror "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	adHelper "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/helper"
@@ -85,7 +85,7 @@ func (a ActiveDirectoryCreateActivity) RollbackActiveDirectory(ctx context.Conte
 		err := adHelper.DeleteSecretFromGCP(ctx, gcpService, ad.CredentialPath)
 		if err != nil {
 			logger.Errorf("failed to delete secret from GCP during AD creation rollback, err: %v", err)
-			return vsaerror.New("failed to delete secret from GCP during AD creation rollback")
+			return vsaerrors.New("failed to delete secret from GCP during AD creation rollback")
 		}
 	}
 
@@ -126,7 +126,7 @@ func (a ActiveDirectoryCreateActivity) CreateSdeActiveDirectory(ctx context.Cont
 	cvpClient := CvpClient(logger, jwtToken)
 	created, err := cvpClient.ActiveDirectories.V1betaCreateActiveDirectory(createParams)
 	if err != nil {
-		return err
+		return WrapCvpError(err)
 	}
 	if created == nil || created.Payload == nil {
 		return customerrors.New("unknown error during the create active directory")

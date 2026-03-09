@@ -2170,5 +2170,53 @@
     "message": "Error deleting active directory - Active Directory credentials are in use by Storage Pool(s)",
     "retriable": false,
     "http_code": 409
+  },
+  "14200": {
+    "description": "CVP returned Bad Request",
+    "message": "An error occurred while processing the request",
+    "retriable": false,
+    "http_code": 400
+  },
+  "14201": {
+    "description": "CVP returned Unauthorized",
+    "message": "User is not authorized",
+    "retriable": false,
+    "http_code": 401
+  },
+  "14202": {
+    "description": "CVP returned Forbidden",
+    "message": "User does not have permission to perform this operation",
+    "retriable": false,
+    "http_code": 403
+  },
+  "14203": {
+    "description": "CVP returned Not Found",
+    "message": "The requested resource was not found",
+    "retriable": false,
+    "http_code": 404
+  },
+  "14204": {
+    "description": "CVP returned Conflict",
+    "message": "The resource is in a conflicting state",
+    "retriable": false,
+    "http_code": 409
+  },
+  "14205": {
+    "description": "CVP returned Unprocessable Entity",
+    "message": "The request could not be processed",
+    "retriable": false,
+    "http_code": 422
+  },
+  "14206": {
+    "description": "CVP returned Too Many Requests",
+    "message": "Rate limit exceeded, please retry after some time",
+    "retriable": true,
+    "http_code": 429
+  },
+  "14207": {
+    "description": "CVP returned Internal Server Error",
+    "message": "An internal error occurred",
+    "retriable": true,
+    "http_code": 500
   }
 }

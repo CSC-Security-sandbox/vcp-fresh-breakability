@@ -2,11 +2,9 @@ package active_directory_activities
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
-	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -135,8 +133,9 @@ func (a ActiveDirectoryDeleteActivity) DeleteVcpActiveDirectory(ctx context.Cont
 	return nil
 }
 
-// DeleteSdeActiveDirectory deletes an Active Directory from SDE/CVP
-// Returns error only if it's a real error; treats 404 as success
+// DeleteSdeActiveDirectory deletes an Active Directory from SDE/CVP.
+// Propagates all CVP errors (including 404 Not Found) to match CVP/CVS behavior:
+// CVP/CVS return 404 when the AD does not exist on delete; we do the same.
 func (a ActiveDirectoryDeleteActivity) DeleteSdeActiveDirectory(ctx context.Context, params *common.DeleteActiveDirectoryParams) error {
 	logger := util.GetLogger(ctx)
 	logger.Debug("Starting DeleteSdeActiveDirectory activity")
@@ -157,25 +156,7 @@ func (a ActiveDirectoryDeleteActivity) DeleteSdeActiveDirectory(ctx context.Cont
 	resp, err := cvpClient.ActiveDirectories.V1betaDeleteActiveDirectory(deleteParams)
 	if err != nil {
 		logger.Errorf("Failed to delete Active Directory from CVP: %v", err)
-
-		// Handle different error types
-		switch e := err.(type) {
-		case *active_directories.V1betaDeleteActiveDirectoryConflict:
-			conflictErr := vsaerrors.NewVCPError(vsaerrors.ErrActiveDirectoryDeleteErrorDueToInUseByPool,
-				fmt.Errorf("Active Directory deletion conflict: %v", e.Error()))
-			return vsaerrors.WrapAsNonRetryableTemporalApplicationError(conflictErr)
-		case *active_directories.V1betaDeleteActiveDirectoryBadRequest:
-			return customerrors.NewUserInputValidationErr(fmt.Sprintf("Bad request when deleting Active Directory: %v", e.Error()))
-		case *active_directories.V1betaDeleteActiveDirectoryDefault:
-			// Check if it's a 404
-			if e.Code() == 404 {
-				logger.Info("Active Directory not found at SDE (404), considering it already deleted")
-				return nil
-			}
-			return err
-		default:
-			return err
-		}
+		return WrapCvpError(err)
 	}
 
 	if resp != nil && resp.Payload != nil {

@@ -12,12 +12,14 @@ import (
 
 const (
 	// HTTP Status Codes for SDE Error Handling
-	HTTPStatusBadRequest          = 400
-	HTTPStatusUnauthorized        = 401
-	HTTPStatusForbidden           = 403
-	HTTPStatusNotFound            = 404
-	HTTPStatusInternalServerError = 500
-	HTTPStatusTooManyRequests     = 429
+	HTTPStatusBadRequest            = 400
+	HTTPStatusUnauthorized          = 401
+	HTTPStatusForbidden             = 403
+	HTTPStatusNotFound              = 404
+	HTTPStatusConflict              = 409
+	HTTPStatusUnprocessableEntity   = 422
+	HTTPStatusTooManyRequests       = 429
+	HTTPStatusInternalServerError   = 500
 	HttpStatusNotImplemented      = 501
 )
 

@@ -236,6 +236,24 @@ func convertCVPCreateADErrorToResponse(err error) (gcpgenserver.V1betaCreateActi
 			Code:    http.StatusTooManyRequests,
 			Message: msg,
 		}, nil
+	case *active_directories.V1betaCreateActiveDirectoryUnprocessableEntity:
+		msg := "unprocessable entity"
+		if e.Payload != nil && e.Payload.Message != "" {
+			msg = e.Payload.Message
+		}
+		return &gcpgenserver.V1betaCreateActiveDirectoryUnprocessableEntity{
+			Code:    http.StatusUnprocessableEntity,
+			Message: msg,
+		}, nil
+	case *active_directories.V1betaCreateActiveDirectoryInternalServerError:
+		msg := "internal server error"
+		if e.Payload != nil && e.Payload.Message != "" {
+			msg = e.Payload.Message
+		}
+		return &gcpgenserver.V1betaCreateActiveDirectoryInternalServerError{
+			Code:    http.StatusInternalServerError,
+			Message: msg,
+		}, nil
 	default:
 		return &gcpgenserver.V1betaCreateActiveDirectoryInternalServerError{
 			Code:    http.StatusInternalServerError,

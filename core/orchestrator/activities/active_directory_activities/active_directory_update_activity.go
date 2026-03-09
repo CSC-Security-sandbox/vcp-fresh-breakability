@@ -194,51 +194,8 @@ func (a ActiveDirectoryUpdateActivity) PollSdeUpdateActivity(ctx context.Context
 		if res.Error != nil {
 			logger.Errorf("Operation %s completed with error: Code=%d, Message=%s",
 				operationUUID, int(res.Error.Code), res.Error.Message)
-
-			switch int(res.Error.Code) {
-			case common.HTTPStatusBadRequest:
-				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
-					vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorBadRequest,
-						fmt.Errorf("Bad request while polling operation %s: %s", operationUUID, res.Error.Message)),
-				)
-
-			case common.HTTPStatusUnauthorized:
-				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
-					vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorUnauthorized,
-						fmt.Errorf("Unauthorized while polling operation %s: %s", operationUUID, res.Error.Message)),
-				)
-
-			case common.HTTPStatusForbidden:
-				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
-					vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorForbidden,
-						fmt.Errorf("Forbidden while polling operation %s: %s", operationUUID, res.Error.Message)),
-				)
-
-			case common.HTTPStatusNotFound:
-				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
-					vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorNotFound,
-						fmt.Errorf("Operation %s not found while polling: %s", operationUUID, res.Error.Message)),
-				)
-
-			case common.HTTPStatusInternalServerError:
-				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
-					vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorInternalServerError,
-						fmt.Errorf("Internal server error while polling operation %s: %s", operationUUID, res.Error.Message)),
-				)
-
-			case common.HTTPStatusTooManyRequests:
-				return vsaerrors.WrapAsTemporalApplicationError(
-					vsaerrors.NewVCPError(vsaerrors.ErrHandleResourceEventErrorTooManyRequests,
-						fmt.Errorf("Too many requests while polling operation %s: %s", operationUUID, res.Error.Message)),
-				)
-
-			default:
-				logger.Warnf("Unknown error code while polling operation %s: %d - %s", operationUUID, int(res.Error.Code), res.Error.Message)
-				return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
-					vsaerrors.NewVCPError(vsaerrors.ErrCVPClientStartProjectEventError,
-						fmt.Errorf("SDE polling failed for operation %s: %s", operationUUID, res.Error.Message)),
-				)
-			}
+			// Use operation error type so handling is by err type (same as direct CVP calls).
+			return WrapCvpError(NewOperationError(int(res.Error.Code), res.Error.Message))
 		}
 		logger.Infof("Operation %s completed successfully", operationUUID)
 		return nil
@@ -319,7 +276,7 @@ func (a ActiveDirectoryUpdateActivity) UpdateSdeActiveDirectory(ctx context.Cont
 	sdeResponse, err := cvpClient.ActiveDirectories.V1betaUpdateActiveDirectory(updateParams)
 	if err != nil {
 		logger.Errorf("Failed to update Active Directory in SDE: %v", err)
-		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.New(err.Error()))
+		return nil, WrapCvpError(err)
 	}
 	return sdeResponse.Payload, nil
 }

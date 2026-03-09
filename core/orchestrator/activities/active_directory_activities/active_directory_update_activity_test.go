@@ -1187,6 +1187,48 @@ func TestActiveDirectoryUpdateActivity_UpdateSdeActiveDirectory_MixedEmptyAndNon
 	mockActiveDirectoriesClient.AssertExpectations(t)
 }
 
+func TestActiveDirectoryUpdateActivity_UpdateSdeActiveDirectory_CVPError(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	activity := &ActiveDirectoryUpdateActivity{
+		SE: mockStorage,
+	}
+
+	params := &common.UpdateActiveDirectoryParams{
+		ActiveDirectoryId: "test-ad-uuid",
+		AccountId:         "123456789",
+		LocationId:        "us-central1",
+		XCorrelationId:    "test-correlation-id",
+		DNS:               nillable.GetStringPtr("10.0.0.2"),
+	}
+
+	ctx = context.WithValue(ctx, "jwt_token", "test-jwt-token")
+
+	mockActiveDirectoriesClient := active_directories.NewMockClientService(t)
+	mockActiveDirectoriesClient.On("V1betaUpdateActiveDirectory", mock.Anything).
+		Return(nil, &active_directories.V1betaUpdateActiveDirectoryNotFound{
+			Payload: &cvpModels.Error{
+				Code:    404,
+				Message: "Not found",
+			},
+		})
+
+	cvpClient := &cvpapi.Cvp{ActiveDirectories: mockActiveDirectoriesClient}
+	originalCvpClient := CvpClient
+	defer func() { CvpClient = originalCvpClient }()
+	CvpClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	result, err := activity.UpdateSdeActiveDirectory(ctx, params)
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	customErr := vsaerrors.ExtractCustomError(err)
+	assert.True(t, customErr.IsError(vsaerrors.ErrCVPNotFound))
+}
+
 func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_TokenError(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 
@@ -1347,7 +1389,8 @@ func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedW
 	err := activity.PollSdeUpdateActivity(ctx, params, result)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Bad request")
+	customErr := vsaerrors.ExtractCustomError(err)
+	assert.True(t, customErr.IsError(vsaerrors.ErrCVPBadRequest))
 }
 
 func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedWithUnauthorizedError(t *testing.T) {
@@ -1394,7 +1437,8 @@ func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedW
 	err := activity.PollSdeUpdateActivity(ctx, params, result)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Unauthorised")
+	customErr := vsaerrors.ExtractCustomError(err)
+	assert.True(t, customErr.IsError(vsaerrors.ErrCVPUnauthorized))
 }
 
 func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedWithForbiddenError(t *testing.T) {
@@ -1441,7 +1485,8 @@ func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedW
 	err := activity.PollSdeUpdateActivity(ctx, params, result)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Forbidden")
+	customErr := vsaerrors.ExtractCustomError(err)
+	assert.True(t, customErr.IsError(vsaerrors.ErrCVPForbidden))
 }
 
 func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedWithNotFoundError(t *testing.T) {
@@ -1535,7 +1580,8 @@ func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedW
 	err := activity.PollSdeUpdateActivity(ctx, params, result)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Internal server error")
+	customErr := vsaerrors.ExtractCustomError(err)
+	assert.True(t, customErr.IsError(vsaerrors.ErrCVPInternalServerError))
 }
 
 func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedWithTooManyRequestsError(t *testing.T) {
@@ -1582,7 +1628,8 @@ func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedW
 	err := activity.PollSdeUpdateActivity(ctx, params, result)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Too many requests")
+	customErr := vsaerrors.ExtractCustomError(err)
+	assert.True(t, customErr.IsError(vsaerrors.ErrCVPTooManyRequests))
 }
 
 func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedWithUnknownError(t *testing.T) {

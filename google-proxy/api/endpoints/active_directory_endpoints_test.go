@@ -821,6 +821,104 @@ func TestV1betaCreateActiveDirectory_SyncMode_CVPUnknownError(t *testing.T) {
 	assert.Contains(t, serverErr.Message, "connection timeout")
 }
 
+func TestV1betaCreateActiveDirectory_SyncMode_CVPUnprocessableEntity(t *testing.T) {
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+	utils.CreateCommonResourcesInVCP = false
+	originalSyncADCreateSDEEnabled := utils.SyncADCreateSDEEnabled
+	utils.SyncADCreateSDEEnabled = true
+	defer func() {
+		cvp.CVP_HOST = originalCVPHost
+		utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		utils.SyncADCreateSDEEnabled = originalSyncADCreateSDEEnabled
+	}()
+
+	mockClient := active_directories.NewMockClientService(t)
+	mockError := &active_directories.V1betaCreateActiveDirectoryUnprocessableEntity{
+		Payload: &models.Error{
+			Code:    422,
+			Message: "DNS unreachable",
+		},
+	}
+	mockClient.On("V1betaCreateActiveDirectory", mock.Anything).Return(nil, mockError)
+	cvpClient := &cvpapi.Cvp{ActiveDirectories: mockClient}
+	originalCreateClient := createClient
+	defer func() { createClient = originalCreateClient }()
+	createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	handler := Handler{}
+	req := &gcpgenserver.ActiveDirectoryV1beta{
+		Username:   "user",
+		ResourceId: "test-ad",
+		Password:   "pass",
+		Domain:     "domain",
+		DNS:        "192.168.1.1",
+		NetBIOS:    "netbios",
+	}
+	params := gcpgenserver.V1betaCreateActiveDirectoryParams{
+		ProjectNumber: "pn",
+		LocationId:    "loc",
+	}
+	res, err := handler.V1betaCreateActiveDirectory(context.Background(), req, params)
+	assert.NoError(t, err)
+	unprocessable, ok := res.(*gcpgenserver.V1betaCreateActiveDirectoryUnprocessableEntity)
+	assert.True(t, ok)
+	assert.Equal(t, float64(422), unprocessable.Code)
+	assert.Equal(t, "DNS unreachable", unprocessable.Message)
+}
+
+func TestV1betaCreateActiveDirectory_SyncMode_CVPInternalServerError(t *testing.T) {
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+	utils.CreateCommonResourcesInVCP = false
+	originalSyncADCreateSDEEnabled := utils.SyncADCreateSDEEnabled
+	utils.SyncADCreateSDEEnabled = true
+	defer func() {
+		cvp.CVP_HOST = originalCVPHost
+		utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		utils.SyncADCreateSDEEnabled = originalSyncADCreateSDEEnabled
+	}()
+
+	mockClient := active_directories.NewMockClientService(t)
+	mockError := &active_directories.V1betaCreateActiveDirectoryInternalServerError{
+		Payload: &models.Error{
+			Code:    500,
+			Message: "internal error",
+		},
+	}
+	mockClient.On("V1betaCreateActiveDirectory", mock.Anything).Return(nil, mockError)
+	cvpClient := &cvpapi.Cvp{ActiveDirectories: mockClient}
+	originalCreateClient := createClient
+	defer func() { createClient = originalCreateClient }()
+	createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	handler := Handler{}
+	req := &gcpgenserver.ActiveDirectoryV1beta{
+		Username:   "user",
+		ResourceId: "test-ad",
+		Password:   "pass",
+		Domain:     "domain",
+		DNS:        "192.168.1.1",
+		NetBIOS:    "netbios",
+	}
+	params := gcpgenserver.V1betaCreateActiveDirectoryParams{
+		ProjectNumber: "pn",
+		LocationId:    "loc",
+	}
+	res, err := handler.V1betaCreateActiveDirectory(context.Background(), req, params)
+	assert.NoError(t, err)
+	serverErr, ok := res.(*gcpgenserver.V1betaCreateActiveDirectoryInternalServerError)
+	assert.True(t, ok)
+	assert.Equal(t, float64(500), serverErr.Code)
+	assert.Equal(t, "internal error", serverErr.Message)
+}
+
 func TestV1betaCreateActiveDirectory_SyncMode_CVPResponseWithError(t *testing.T) {
 	// Set CVP_HOST to enable SDE mode
 	originalCVPHost := cvp.CVP_HOST
