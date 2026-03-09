@@ -1102,7 +1102,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_InRegion_Success() {
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("jwt-token", nil)
 	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupVaultActivity.StartSDECmekRotationForBackupVault, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupVaultActivity.WaitForSDECmekRotationCompletion, mock.Anything, mock.Anything).Return(true, nil)
 	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultCmekInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1155,7 +1155,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_InRegion_SDEFailure() {
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("jwt-token", nil)
 	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupVaultActivity.StartSDECmekRotationForBackupVault, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// SDE rotation completes with failure.
 	s.env.OnActivity(backupVaultActivity.WaitForSDECmekRotationCompletion, mock.Anything, mock.Anything).Return(false, nil)
@@ -1211,7 +1211,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_CRB_Success() {
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("jwt-token", nil)
 	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupVaultActivity.StartSDECmekRotationForBackupVault, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupVaultActivity.WaitForSDECmekRotationCompletion, mock.Anything, mock.Anything).Return(true, nil)
 	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultCmekInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1333,7 +1333,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_CRB_VCPBucketFailure() {
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// First bucket rotation fails.
-	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("bucket rotation failed"))
+	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("bucket rotation failed"))
 
 	s.env.ExecuteWorkflow(RotateCmekBackupsWorkflow, params, backupVault, primaryKeyVersion)
 
@@ -1463,7 +1463,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_InRegion_GetAuthJWTTokenF
 	}, nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// Force GetAuthJWTToken to fail.
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("", errors.New("failed to get auth token"))
 
@@ -1512,7 +1512,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_InRegion_StartSDEFailure(
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("jwt-token", nil)
 	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// Force StartSDECmekRotationForBackupVault to fail.
 	s.env.OnActivity(backupVaultActivity.StartSDECmekRotationForBackupVault, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to start SDE CMEK rotation"))
 
@@ -1562,7 +1562,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_InRegion_WaitForSDEError(
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("jwt-token", nil)
 	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupVaultActivity.StartSDECmekRotationForBackupVault, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// Wait activity returns an error; the workflow should treat this as SDE failure.
 	s.env.OnActivity(backupVaultActivity.WaitForSDECmekRotationCompletion, mock.Anything, mock.Anything).Return(false, errors.New("wait for SDE rotation failed"))
@@ -1618,7 +1618,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_CRB_UpdateCmekInVCPFailur
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("jwt-token", nil)
 	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupVaultActivity.StartSDECmekRotationForBackupVault, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupVaultActivity.WaitForSDECmekRotationCompletion, mock.Anything, mock.Anything).Return(true, nil)
 	// Fail the VCP CMEK metadata update.
@@ -1677,7 +1677,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_CRB_HydrationFailure() {
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("jwt-token", nil)
 	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupVaultActivity.StartSDECmekRotationForBackupVault, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupVaultActivity.WaitForSDECmekRotationCompletion, mock.Anything, mock.Anything).Return(true, nil)
 	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultCmekInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1747,7 +1747,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_UpdateJobStatusErrorOnFai
 
 	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// Cause bucket rotation to fail so that the workflow errors.
-	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("bucket rotation failed"))
+	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("bucket rotation failed"))
 
 	s.env.ExecuteWorkflow(RotateCmekBackupsWorkflow, params, backupVault, primaryKeyVersion)
 
@@ -1813,7 +1813,7 @@ func (s *UnitTestSuite) Test_RotateCmekBackupsWorkflow_UpdateJobStatusErrorOnCom
 
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("jwt-token", nil)
 	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupVaultActivity.RotateBucketCmekActivity, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupVaultActivity.StartSDECmekRotationForBackupVault, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupVaultActivity.WaitForSDECmekRotationCompletion, mock.Anything, mock.Anything).Return(true, nil)
 	s.env.OnActivity(backupVaultActivity.UpdateBackupVaultCmekInVCPActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)

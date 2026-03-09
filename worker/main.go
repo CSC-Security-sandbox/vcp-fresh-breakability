@@ -84,6 +84,7 @@ func main() {
 	metrics.RegisterPasswordRotationFailureCounter()
 	metrics.RegisterKmsKeyLimitReachedCounter()
 	metrics.RegisterKmsRotationFailureCounter()
+	metrics.RegisterCmekBackupRewriteErrorGauge()
 	// Start metrics HTTP server
 	metricsPort := os.Getenv("METRICS_PORT")
 	if metricsPort == "" {
@@ -375,7 +376,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterActivity(&activities.UploadHarvestTemplateActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.InternalVolumeReplicationDeleteActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.InternalVolumeReplicationUpdateActivity{SE: dbcon})
-	worker.RegisterActivity(&activities.BackupVaultActivity{SE: dbcon})
+	worker.RegisterActivity(&activities.BackupVaultActivity{SE: dbcon, CmekMetricsEmitter: metrics.NewPrometheusCmekBackupMetricsEmitter()})
 	worker.RegisterActivity(&replicationActivities.InternalSnapshotsDeleteActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.InternalStopVolumeReplicationActivity{SE: dbcon})
 	worker.RegisterActivity(&replicationActivities.StopVolumeReplicationActivity{SE: dbcon})

@@ -5552,10 +5552,9 @@ func TestRotateObjectsInParallel_ContextCancelledWhileFeeding(t *testing.T) {
 
 	origCopier := newObjectCopier
 	defer func() {
-		// Allow any lingering worker goroutines to finish before restoring
-		// the original newObjectCopier, which would panic with the nil bucket
-		// passed to rotateObjectsInParallel in this test.
-		time.Sleep(50 * time.Millisecond)
+		// Let internal worker goroutines drain before restoring the
+		// package-level copier which panics on a nil bucket handle.
+		time.Sleep(100 * time.Millisecond)
 		newObjectCopier = origCopier
 	}()
 
@@ -5601,7 +5600,12 @@ func TestRotateObjectsInParallel_ContextCancelledWhileCollecting(t *testing.T) {
 	}
 
 	origCopier := newObjectCopier
-	defer func() { newObjectCopier = origCopier }()
+	defer func() {
+		// Let internal worker goroutines drain before restoring the
+		// package-level copier which panics on a nil bucket handle.
+		time.Sleep(100 * time.Millisecond)
+		newObjectCopier = origCopier
+	}()
 
 	newObjectCopier = func(_ *storage.BucketHandle, name string) objectCopier {
 		return &blockingCopier{
@@ -5791,5 +5795,187 @@ func TestGetServiceAccountRoles(t *testing.T) {
 		assert.Nil(tt, err)
 		assert.NotNil(tt, roles)
 		assert.Equal(tt, 0, len(roles))
+	})
+}
+
+// TestRotateObjectsInParallel_RetryBehavior verifies retry logic for retryable vs non-retryable errors
+func TestRotateObjectsInParallel_RetryBehavior(t *testing.T) {
+	t.Run("RetryableError_503", func(t *testing.T) {
+		ctx := context.Background()
+		objects := []*storage.ObjectAttrs{{Name: "obj1", KMSKeyName: "old-key"}}
+		attemptCount := 0
+		origCopier := newObjectCopier
+		defer func() { newObjectCopier = origCopier }()
+		newObjectCopier = func(_ *storage.BucketHandle, name string) objectCopier {
+			attemptCount++
+			return &fakeCopier{err: &googleapi.Error{Code: http.StatusServiceUnavailable}}
+		}
+		_, err := rotateObjectsInParallel(ctx, nil, "test-bucket", "new-key", objects, 1)
+		require.Error(t, err)
+		var gerr *googleapi.Error
+		require.True(t, errors.As(err, &gerr))
+		assert.Equal(t, http.StatusServiceUnavailable, gerr.Code)
+		assert.Equal(t, 3, attemptCount, "Should retry 3 times for retryable 503 error")
+	})
+
+	t.Run("NonRetryableError_400", func(t *testing.T) {
+		ctx := context.Background()
+		objects := []*storage.ObjectAttrs{{Name: "obj1", KMSKeyName: "old-key"}}
+		attemptCount := 0
+		origCopier := newObjectCopier
+		defer func() { newObjectCopier = origCopier }()
+		newObjectCopier = func(_ *storage.BucketHandle, name string) objectCopier {
+			attemptCount++
+			return &fakeCopier{err: &googleapi.Error{Code: http.StatusBadRequest}}
+		}
+		_, err := rotateObjectsInParallel(ctx, nil, "test-bucket", "new-key", objects, 1)
+		require.Error(t, err)
+		var gerr *googleapi.Error
+		require.True(t, errors.As(err, &gerr))
+		assert.Equal(t, http.StatusBadRequest, gerr.Code)
+		assert.Equal(t, 1, attemptCount, "Should not retry for non-retryable 400 error")
+	})
+
+	t.Run("RetrySucceedsOnSecondAttempt", func(t *testing.T) {
+		ctx := context.Background()
+		objects := []*storage.ObjectAttrs{{Name: "obj1", KMSKeyName: "old-key"}}
+		attemptCount := 0
+		origCopier := newObjectCopier
+		defer func() { newObjectCopier = origCopier }()
+		newObjectCopier = func(_ *storage.BucketHandle, name string) objectCopier {
+			attemptCount++
+			if attemptCount == 1 {
+				return &fakeCopier{err: &googleapi.Error{Code: http.StatusServiceUnavailable}}
+			}
+			return &fakeCopier{result: &storage.ObjectAttrs{Name: name, KMSKeyName: "new-key"}}
+		}
+		rotated, err := rotateObjectsInParallel(ctx, nil, "test-bucket", "new-key", objects, 1)
+		require.NoError(t, err)
+		assert.Equal(t, 1, rotated)
+		assert.Equal(t, 2, attemptCount, "Should succeed on second attempt after retryable error")
+	})
+
+	t.Run("RetrySucceedsOnThirdAttempt", func(t *testing.T) {
+		ctx := context.Background()
+		objects := []*storage.ObjectAttrs{{Name: "obj1", KMSKeyName: "old-key"}}
+		attemptCount := 0
+		origCopier := newObjectCopier
+		defer func() { newObjectCopier = origCopier }()
+		newObjectCopier = func(_ *storage.BucketHandle, name string) objectCopier {
+			attemptCount++
+			if attemptCount <= 2 {
+				return &fakeCopier{err: &googleapi.Error{Code: http.StatusServiceUnavailable}}
+			}
+			return &fakeCopier{result: &storage.ObjectAttrs{Name: name, KMSKeyName: "new-key"}}
+		}
+		rotated, err := rotateObjectsInParallel(ctx, nil, "test-bucket", "new-key", objects, 1)
+		require.NoError(t, err)
+		assert.Equal(t, 1, rotated)
+		assert.Equal(t, 3, attemptCount, "Should succeed on third attempt after two retryable errors")
+	})
+
+	t.Run("NonGoogleAPIErrorRetriesAllAttempts", func(t *testing.T) {
+		ctx := context.Background()
+		objects := []*storage.ObjectAttrs{{Name: "obj1", KMSKeyName: "old-key"}}
+		attemptCount := 0
+		origCopier := newObjectCopier
+		defer func() { newObjectCopier = origCopier }()
+		newObjectCopier = func(_ *storage.BucketHandle, name string) objectCopier {
+			attemptCount++
+			return &fakeCopier{err: fmt.Errorf("generic network error")}
+		}
+		_, err := rotateObjectsInParallel(ctx, nil, "test-bucket", "new-key", objects, 1)
+		require.Error(t, err)
+		assert.Equal(t, 3, attemptCount, "Non-googleapi errors should be retried across all attempts")
+	})
+
+	t.Run("WrappedRetryableErrorIsRetried", func(t *testing.T) {
+		ctx := context.Background()
+		objects := []*storage.ObjectAttrs{{Name: "obj1", KMSKeyName: "old-key"}}
+		attemptCount := 0
+		origCopier := newObjectCopier
+		defer func() { newObjectCopier = origCopier }()
+		newObjectCopier = func(_ *storage.BucketHandle, name string) objectCopier {
+			attemptCount++
+			return &fakeCopier{err: fmt.Errorf("wrapped: %w", &googleapi.Error{Code: http.StatusServiceUnavailable})}
+		}
+		_, err := rotateObjectsInParallel(ctx, nil, "test-bucket", "new-key", objects, 1)
+		require.Error(t, err)
+		var gerr *googleapi.Error
+		require.True(t, errors.As(err, &gerr))
+		assert.Equal(t, http.StatusServiceUnavailable, gerr.Code)
+		assert.Equal(t, 3, attemptCount, "Wrapped retryable googleapi error should be retried")
+	})
+
+	t.Run("WrappedNonRetryableErrorIsNotRetried", func(t *testing.T) {
+		ctx := context.Background()
+		objects := []*storage.ObjectAttrs{{Name: "obj1", KMSKeyName: "old-key"}}
+		attemptCount := 0
+		origCopier := newObjectCopier
+		defer func() { newObjectCopier = origCopier }()
+		newObjectCopier = func(_ *storage.BucketHandle, name string) objectCopier {
+			attemptCount++
+			return &fakeCopier{err: fmt.Errorf("wrapped: %w", &googleapi.Error{Code: http.StatusForbidden})}
+		}
+		_, err := rotateObjectsInParallel(ctx, nil, "test-bucket", "new-key", objects, 1)
+		require.Error(t, err)
+		var gerr *googleapi.Error
+		require.True(t, errors.As(err, &gerr))
+		assert.Equal(t, http.StatusForbidden, gerr.Code)
+		assert.Equal(t, 1, attemptCount, "Wrapped non-retryable googleapi error should not be retried")
+	})
+
+	t.Run("ContextCancelledDuringRetryBackoff", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		objects := []*storage.ObjectAttrs{{Name: "obj1", KMSKeyName: "old-key"}}
+		attemptCount := 0
+		origCopier := newObjectCopier
+		defer func() { newObjectCopier = origCopier }()
+		newObjectCopier = func(_ *storage.BucketHandle, name string) objectCopier {
+			attemptCount++
+			if attemptCount == 1 {
+				go func() {
+					time.Sleep(50 * time.Millisecond)
+					cancel()
+				}()
+			}
+			return &fakeCopier{err: &googleapi.Error{Code: http.StatusServiceUnavailable}}
+		}
+		_, err := rotateObjectsInParallel(ctx, nil, "test-bucket", "new-key", objects, 1)
+		require.Error(t, err)
+		assert.Equal(t, 1, attemptCount, "Should stop retrying when context is cancelled during backoff")
+		assert.True(t, errors.Is(err, context.Canceled), "Error should wrap context.Canceled")
+	})
+
+	t.Run("RetryableError_429", func(t *testing.T) {
+		ctx := context.Background()
+		objects := []*storage.ObjectAttrs{{Name: "obj1", KMSKeyName: "old-key"}}
+		attemptCount := 0
+		origCopier := newObjectCopier
+		defer func() { newObjectCopier = origCopier }()
+		newObjectCopier = func(_ *storage.BucketHandle, name string) objectCopier {
+			attemptCount++
+			return &fakeCopier{err: &googleapi.Error{Code: http.StatusTooManyRequests}}
+		}
+		_, err := rotateObjectsInParallel(ctx, nil, "test-bucket", "new-key", objects, 1)
+		require.Error(t, err)
+		assert.Equal(t, 3, attemptCount, "Should retry 3 times for retryable 429 error")
+	})
+
+	t.Run("404DoesNotRetry", func(t *testing.T) {
+		ctx := context.Background()
+		objects := []*storage.ObjectAttrs{{Name: "obj1", KMSKeyName: "old-key"}}
+		attemptCount := 0
+		origCopier := newObjectCopier
+		defer func() { newObjectCopier = origCopier }()
+		newObjectCopier = func(_ *storage.BucketHandle, name string) objectCopier {
+			attemptCount++
+			return &fakeCopier{err: &googleapi.Error{Code: http.StatusNotFound}}
+		}
+		rotated, err := rotateObjectsInParallel(ctx, nil, "test-bucket", "new-key", objects, 1)
+		require.NoError(t, err, "404 should be treated as non-fatal")
+		assert.Equal(t, 0, rotated)
+		assert.Equal(t, 1, attemptCount, "404 should not be retried")
 	})
 }

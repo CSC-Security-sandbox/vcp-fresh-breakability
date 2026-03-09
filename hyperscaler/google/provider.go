@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"cloud.google.com/go/storage"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
@@ -807,6 +808,16 @@ func compareKMSKeys(key1, key2 string) bool {
 	return normalizeKMSKey(key1) == normalizeKMSKey(key2)
 }
 
+func isGCSRetryableErrorCode(code int) bool {
+	switch code {
+	case http.StatusRequestTimeout, http.StatusTooManyRequests, http.StatusInternalServerError,
+		http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+		return true
+	default:
+		return false
+	}
+}
+
 // RotateBucketCmek rotates CMEK for objects in a single GCS bucket.
 // It returns the total number of processed and rotated objects.
 func (gcpService *GcpServices) RotateBucketCmek(
@@ -927,10 +938,44 @@ func rotateObjectsInParallel(
 					continue
 				}
 
-				copier := newObjectCopier(bucket, obj.Name)
-				resultObj, err := copier.Run(ctx)
+				var resultObj *storage.ObjectAttrs
+				var err error
+
+			retryLoop:
+				for attempt := 0; attempt < 3; attempt++ {
+					// Create fresh copier for each attempt (GCS copiers are single-use)
+					copier := newObjectCopier(bucket, obj.Name)
+					resultObj, err = copier.Run(ctx)
+					if err == nil {
+						break retryLoop // Success, exit retry loop
+					}
+					// Use errors.As to handle wrapped errors
+					var gerr *googleapi.Error
+					if errors.As(err, &gerr) {
+						if !isGCSRetryableErrorCode(gerr.Code) {
+							break retryLoop
+						}
+					}
+					if attempt < 2 {
+						// Context-aware backoff: respect context cancellation
+						backoff := time.Duration(attempt+1) * time.Second
+						timer := time.NewTimer(backoff)
+						select {
+						case <-timer.C:
+							// proceed to next retry attempt
+						case <-ctx.Done():
+							if !timer.Stop() {
+								<-timer.C
+							}
+							err = ctx.Err()
+							break retryLoop
+						}
+					}
+				}
+
 				if err != nil {
-					if gerr, ok := err.(*googleapi.Error); ok && gerr.Code == http.StatusNotFound {
+					var gerr *googleapi.Error
+					if errors.As(err, &gerr) && gerr.Code == http.StatusNotFound {
 						// Object removed between listing and copy – treat as non-fatal.
 						logger.Infof("Object %s/%s not found during CMEK rotation; skipping", bucketName, obj.Name)
 						resultCh <- false

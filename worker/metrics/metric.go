@@ -68,6 +68,16 @@ var KmsRotationFailureCounter = prometheus.NewCounterVec(
 	[]string{"kms_config_uuid", "service_account_email", "failure_type"},
 )
 
+// Gauge for CMEK backup rewrite errors — uses the same metric name as CBS/SDE
+// (cbs_cmek_rewrite_error_gauge) so that a single alert rule covers both services.
+var CmekBackupRewriteErrorGauge = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "cbs_cmek_rewrite_error_gauge",
+		Help: "Number of times CMEK object rewrite error occurred",
+	},
+	[]string{"error", "bucket_name", "owner_id", "backup_vault_uuid"},
+)
+
 // Gauge for AutoTier enabled
 var autoTierEnabledGauge = prometheus.NewGaugeVec(
 	prometheus.GaugeOpts{
@@ -291,6 +301,25 @@ func EmitKmsKeyLimitReached(kmsConfigUUID, limitType string) {
 		kmsConfigUUID,
 		limitType,
 	).Inc()
+}
+
+// RegisterCmekBackupRewriteErrorGauge registers the CMEK backup rewrite error gauge
+func RegisterCmekBackupRewriteErrorGauge() {
+	err := prometheus.Register(CmekBackupRewriteErrorGauge)
+	if err != nil {
+		if are, ok := err.(prometheus.AlreadyRegisteredError); ok {
+			CmekBackupRewriteErrorGauge = are.ExistingCollector.(*prometheus.GaugeVec)
+		} else {
+			log.Printf("Failed to register CmekBackupRewriteErrorGauge: %v", err)
+		}
+	}
+}
+
+// AddCMEKRewriteErrorResult records a CMEK rotation failure. failureType must
+// be a fixed category (e.g. "bucket_rotation_failed") to keep Prometheus label
+// cardinality low.
+func AddCMEKRewriteErrorResult(bucketName, ownerID, backupVaultUUID, failureType string) {
+	CmekBackupRewriteErrorGauge.WithLabelValues(failureType, bucketName, ownerID, backupVaultUUID).Inc()
 }
 
 // EmitKmsRotationFailure emits a metric when KMS key rotation fails for a KMS config

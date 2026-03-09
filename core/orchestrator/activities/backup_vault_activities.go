@@ -12,6 +12,7 @@ import (
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/metricsinterface"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -19,6 +20,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	retryutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 )
@@ -34,23 +36,24 @@ var (
 )
 
 type BackupVaultActivity struct {
-	SE database.Storage
+	SE                 database.Storage
+	CmekMetricsEmitter metricsinterface.CmekBackupMetricsEmitter
 }
 
 // RotateBucketCmekActivity rotates CMEK for objects in a single GCS bucket.
-func (j *BackupVaultActivity) RotateBucketCmekActivity(ctx context.Context, bucketName string, primaryKeyVersion string) error {
+func (j *BackupVaultActivity) RotateBucketCmekActivity(ctx context.Context, bucketName, primaryKeyVersion, ownerID, backupVaultUUID string) error {
 	logger := util.GetLogger(ctx)
 
-	// Configuration knobs with sane defaults.
 	pageSize := env.GetInt("CMEK_ROTATION_PAGE_SIZE", 1000)
 	maxWorkers := env.GetInt("CMEK_ROTATION_MAX_WORKERS", 20)
 	maxPasses := env.GetInt("MAX_CMEK_ROTATION_PASSES", 10)
 
 	if bucketName == "" {
+		bucketErr := fmt.Errorf("bucket name must not be empty")
 		return temporal.NewNonRetryableApplicationError(
 			"bucket name is empty for CMEK rotation",
 			"RotateBucketCmekActivityInvalidBucket",
-			fmt.Errorf("bucket name must not be empty"),
+			bucketErr,
 		)
 	}
 
@@ -63,10 +66,24 @@ func (j *BackupVaultActivity) RotateBucketCmekActivity(ctx context.Context, buck
 	totalProcessed, totalRotated, err := gcpService.RotateBucketCmek(ctx, bucketName, primaryKeyVersion, pageSize, maxWorkers, maxPasses)
 	if err != nil {
 		logger.Errorf("Failed to rotate CMEK for bucket %s: %v", bucketName, err)
-		return errors.WrapAsTemporalApplicationError(err)
+		isRetriable := retryutils.ShouldRetry(err)
+		customErr := errors.NewVCPError(errors.ErrGCPResourceProvisionError, err)
+		customErr.Retriable = isRetriable
+		return errors.WrapAsTemporalApplicationError(customErr)
 	}
 
 	logger.Infof("CMEK rotation completed for bucket %s: totalProcessed=%d totalRotated=%d", bucketName, totalProcessed, totalRotated)
+	return nil
+}
+
+// EmitCmekRotationFailureMetric emits a single Prometheus gauge metric for a
+// CMEK rotation failure. It is called from the workflow (not inside retried
+// activities) so that exactly one metric is emitted per rotation failure,
+// regardless of how many Temporal activity retries occurred.
+func (j *BackupVaultActivity) EmitCmekRotationFailureMetric(ctx context.Context, bucketName, ownerID, backupVaultUUID, failureType string) error {
+	if j.CmekMetricsEmitter != nil {
+		j.CmekMetricsEmitter.AddCMEKRewriteErrorResult(bucketName, ownerID, backupVaultUUID, failureType)
+	}
 	return nil
 }
 

@@ -196,7 +196,7 @@ func (wf *backupVaultCmekRotationWorkflow) Run(ctx workflow.Context, args ...int
 	// Sequential, fail-fast bucket rotation in VCP. If any bucket rotation
 	// fails, mark VCP encryption state as FAILED and abort without invoking SDE.
 	for _, bucketName := range bucketNames {
-		err = workflow.ExecuteActivity(rotateCtx, backupVaultActivity.RotateBucketCmekActivity, bucketName, primaryKeyVersion).Get(rotateCtx, nil)
+		err = workflow.ExecuteActivity(rotateCtx, backupVaultActivity.RotateBucketCmekActivity, bucketName, primaryKeyVersion, bvCommonParams.OwnerID, backupVault.UUID).Get(rotateCtx, nil)
 		if err != nil {
 			wf.Logger.Error("Failed to rotate CMEK for bucket", log.Fields{
 				"bucketName":        bucketName,
@@ -205,6 +205,7 @@ func (wf *backupVaultCmekRotationWorkflow) Run(ctx workflow.Context, args ...int
 				"backupVaultName":   backupVault.Name,
 				"error":             err,
 			})
+			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.EmitCmekRotationFailureMetric, bucketName, bvCommonParams.OwnerID, backupVault.UUID, "bucket_rotation_failed").Get(ctx, nil)
 			failedState := models.EncryptionStateFailed
 			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, backupVault, failedState).Get(ctx, nil)
 			hydrateSourceFailed()
@@ -220,9 +221,9 @@ func (wf *backupVaultCmekRotationWorkflow) Run(ctx workflow.Context, args ...int
 			"backupVaultUUID": backupVault.UUID,
 			"error":           err,
 		})
+		_ = workflow.ExecuteActivity(ctx, backupVaultActivity.EmitCmekRotationFailureMetric, "", bvCommonParams.OwnerID, backupVault.UUID, "sde_auth_failed").Get(ctx, nil)
 		failedState := models.EncryptionStateFailed
 		_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, backupVault, failedState).Get(ctx, nil)
-		// For CRB, best-effort mark source-region vault as FAILED as well.
 		hydrateSourceFailed()
 		return nil, ConvertToVSAError(fmt.Errorf("GetAuthJWTToken failed: %w", err))
 	}
@@ -237,12 +238,11 @@ func (wf *backupVaultCmekRotationWorkflow) Run(ctx workflow.Context, args ...int
 			"backupVaultUUID": backupVault.UUID,
 			"error":           err,
 		})
+		_ = workflow.ExecuteActivity(ctx, backupVaultActivity.EmitCmekRotationFailureMetric, "", bvCommonParams.OwnerID, backupVault.UUID, "sde_rotation_start_failed").Get(ctx, nil)
 
-		// Mark encryption state as FAILED in VCP since we could not even start SDE rotation.
 		failedState := models.EncryptionStateFailed
 		_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, backupVault, failedState).Get(ctx, nil)
 
-		// For CRB, best-effort mark source-region vault as FAILED as well.
 		hydrateSourceFailed()
 
 		return nil, ConvertToVSAError(fmt.Errorf("StartSDECmekRotationForBackupVault failed: %w", err))
@@ -261,10 +261,9 @@ func (wf *backupVaultCmekRotationWorkflow) Run(ctx workflow.Context, args ...int
 	}
 
 	if !sdeSucceeded {
-		// Mark VCP encryption state as FAILED when SDE rotation does not complete successfully.
+		_ = workflow.ExecuteActivity(ctx, backupVaultActivity.EmitCmekRotationFailureMetric, "", bvCommonParams.OwnerID, backupVault.UUID, "sde_rotation_failed").Get(ctx, nil)
 		failedState := models.EncryptionStateFailed
 		_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, backupVault, failedState).Get(ctx, nil)
-		// For CRB, best-effort mark source-region vault as FAILED as well.
 		hydrateSourceFailed()
 		return nil, ConvertToVSAError(fmt.Errorf("SDE CMEK rotation failed for backup vault %s", backupVault.UUID))
 	}
@@ -278,9 +277,9 @@ func (wf *backupVaultCmekRotationWorkflow) Run(ctx workflow.Context, args ...int
 			"primaryKeyVersion": primaryKeyVersion,
 			"error":             err,
 		})
+		_ = workflow.ExecuteActivity(ctx, backupVaultActivity.EmitCmekRotationFailureMetric, "", bvCommonParams.OwnerID, backupVault.UUID, "metadata_update_failed").Get(ctx, nil)
 		failedState := models.EncryptionStateFailed
 		_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, backupVault, failedState).Get(ctx, nil)
-		// For CRB, best-effort mark source-region vault as FAILED as well.
 		hydrateSourceFailed()
 		return nil, ConvertToVSAError(fmt.Errorf("UpdateBackupVaultCmekInVCPActivity failed: %w", err))
 	}
