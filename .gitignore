@@ -50,3 +50,4 @@ app/
 triagebot_logs/
 .gcloud/
 .toolchain/
+.gomodcache/

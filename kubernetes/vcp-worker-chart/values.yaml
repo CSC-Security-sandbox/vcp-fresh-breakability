@@ -149,9 +149,9 @@ workerConfig:
   dataSubnetCidrBlock: 28
   cloudDnsCacheTtl: 300
   vsaLifecycleManagerQueuePrefix: "vsa-lifecycle-manager"
-  ontapVersionDetails: "9.18.1"
+  ontapVersionDetails: "9.18.1D1"
   ontapVersionDetailsExperimental: ""
-  fileSupportOntapVersion: "9.18.1"
+  fileSupportOntapVersion: "9.18.1D1"
   enforceMinSpConfig: "false"
   maxNodesPerGroup: 200
   maxNestedCloneLimit: 499
@@ -164,13 +164,13 @@ workerConfig:
   ontapRestAsyncPollTimeoutMinutes: 30
   ontapRestPollWorkflowMaxRetries: 3
   ontapRestPollWorkflowRetryWaitSeconds: 10
-  vsaImageName: "x-9-18-1"
+  vsaImageName: "x-9-18-1d1"
   vsaImageChecksums:
     VSA_IMAGE_CHECKSUM: ""
     VSA_MEDIATOR_IMAGE_CHECKSUM: ""
   validateImageDigest: false
   # this will be removed after AGA
-  vsaFilesImageName: "x-9-18-1"
+  vsaFilesImageName: "x-9-18-1d1"
   vsaImageExperimental: ""
   vsaMediatorImageExperimental: ""
   vsaImageProject: ""
@@ -200,8 +200,8 @@ workerConfig:
   # Mediator VM Configuration
   vsaMediatorInstanceType: "e2-micro"
   vsaMediatorDiskType: "pd-ssd"
-  vsaMediatorImageName: "cvo-mediator-x-9-18-1"
-  vsaFilesMediatorImageName: "cvo-mediator-x-9-18-1"
+  vsaMediatorImageName: "cvo-mediator-x-9-18-1d1"
+  vsaFilesMediatorImageName: "cvo-mediator-x-9-18-1d1"
 
   metricsPort: "9090"
 
