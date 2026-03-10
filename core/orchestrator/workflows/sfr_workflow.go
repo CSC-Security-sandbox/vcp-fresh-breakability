@@ -604,12 +604,13 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 		if smRelationship.UnhealthyReason != nil && len(*smRelationship.UnhealthyReason) > 0 {
 			errMsg := fmt.Sprintf("snapmirror relationship is unhealthy. Reasons: %v", *smRelationship.UnhealthyReason)
 			log.Errorf(errMsg)
+			err = fmt.Errorf("%s", errMsg)
 
 			// Check if error matches any known patterns and return appropriate error code
 			if matchedErr := matchErrorPattern(errMsg, snapmirrorErrorPatternMap); matchedErr != nil {
 				return nil, matchedErr
 			}
-			return nil, ConvertToVSAError(fmt.Errorf("%s", errMsg))
+			return nil, ConvertToVSAError(err)
 		}
 	}
 
