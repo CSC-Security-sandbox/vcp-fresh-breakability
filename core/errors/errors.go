@@ -321,6 +321,7 @@ const (
 	ErrValidateDestinationStoragePoolStateDegraded                                           = 6224
 	ErrUpdateVolume                                                                          = 6225
 	ErrStoragePoolTemporarilyUnavailable                                                     = 6226
+	ErrInRegionReplicationQuotaLimitExceeded                                                 = 6227
 
 	ErrKMSRotate                        = 8001
 	ErrServiceAccountNotFound           = 8002

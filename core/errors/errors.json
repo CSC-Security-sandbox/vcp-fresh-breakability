@@ -1709,6 +1709,12 @@
     "retriable": false,
     "http_code": 409
   },
+  "6227": {
+    "description": "In Region Replication Quota Limit Exceeded Error",
+    "message": "Replication quota limit exceeded. Requires at least 2 available quotas for In-Region replication.",
+    "retriable": false,
+    "http_code": 400
+  },
   "8001": {
     "description": "Kms key rotation failure",
     "message": "Error rotating kms key",

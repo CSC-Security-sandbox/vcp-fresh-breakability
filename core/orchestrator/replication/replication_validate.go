@@ -345,7 +345,10 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 		if err != nil {
 			return nil, errors.NewVCPError(errors.ErrValidateCreateReplicationCvpInternalGetReplicationCount, err)
 		}
-		if replicationQuotaLimit <= destReplicationCount {
+		if (sourceRegion == destRegion && replicationQuotaLimit <= destReplicationCount+1) || replicationQuotaLimit <= destReplicationCount {
+			if sourceRegion == destRegion {
+				return nil, errors.NewVCPError(errors.ErrInRegionReplicationQuotaLimitExceeded, errors.New("Quota limit 'ReplicatedVolumesPerRegion' has been exceeded."))
+			}
 			return nil, errors.NewVCPError(errors.ErrReplicationQuotaLimitExceeded, errors.New("Quota limit 'ReplicatedVolumesPerRegion' has been exceeded."))
 		}
 
