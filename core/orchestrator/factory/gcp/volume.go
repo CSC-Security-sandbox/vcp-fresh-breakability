@@ -73,7 +73,7 @@ var (
 	maxConstituentVolumesPerVolumePerAggregate = env.GetInt64("MAX_CONSTITUENT_VOLUMES_PER_VOLUME_PER_AGGREGATE", 200)
 	checkIsValidImmutableBackupPolicyWithRetry = _checkIsValidImmutableBackupPolicyWithRetry
 	enableMqos                                 = env.GetBool("ENABLE_MQOS", true)
-	enableInferredIops                         = env.GetBool("ENABLE_INFERRED_IOPS", true)
+	enableInferredIops                         = env.GetBool("ENABLE_INFERRED_IOPS", false)
 	enableVolumePerformanceGroupAssignment     = env.GetBool("ENABLE_VOLUME_PERFORMANCE_GROUP_ASSIGNMENT", false)
 )
 
@@ -1484,9 +1484,9 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 	hasVpgId := params.VolumePerformanceGroupID != nil
 	hasIops := params.Iops != nil
 
-	// Check mutually exclusive parameters
-	if hasThroughput && hasVpgId {
-		return customerrors.NewUserInputValidationErr("Cannot specify both throughputMibps and volumePerformanceGroupId. They are mutually exclusive.")
+	// Check mutually exclusive parameters: VPG cannot be combined with throughput or iops
+	if hasVpgId && (hasThroughput || hasIops) {
+		return customerrors.NewUserInputValidationErr(utils.ErrMsgVpgMutuallyExclusiveWithQos)
 	}
 
 	// Auto pools ALWAYS reject throughputMibps and iops (regardless of feature flag)
@@ -1504,10 +1504,10 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 	}
 
 	// Validate pool QosType rules for manual pools
-	// Manual pools require throughputMibps (if MQOS is enabled)
+	// Manual pools require either throughputMibps or volumePerformanceGroupId (if MQOS is enabled)
 	if pool.QosType == utils.QosTypeManual {
-		if enableMqos && !hasThroughput {
-			return customerrors.NewUserInputValidationErr(utils.ErrMsgPoolManualQosTypeRequiresThroughput)
+		if enableMqos && !hasThroughput && !hasVpgId {
+			return customerrors.NewUserInputValidationErr(utils.ErrMsgPoolManualQosTypeRequiresThroughputOrVpg)
 		}
 	}
 
@@ -1523,6 +1523,11 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		if hasVpgId {
 			return customerrors.NewUserInputValidationErr(utils.ErrMsgMqosNotEnabledVpgId)
 		}
+	}
+
+	// VPG assignment feature flag check
+	if hasVpgId && !enableVolumePerformanceGroupAssignment {
+		return customerrors.NewUserInputValidationErr(utils.ErrMsgVpgAssignmentNotEnabled)
 	}
 
 	// Early validation: Fail fast when IOPS is required but not provided.
@@ -2860,7 +2865,7 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 	}
 	if params.VolumePerformanceGroupId != nil {
 		if !enableVolumePerformanceGroupAssignment {
-			return customerrors.NewUserInputValidationErr("Volume performance group assignment is not enabled")
+			return customerrors.NewUserInputValidationErr(utils.ErrMsgVpgAssignmentNotEnabled)
 		}
 		vpg, err := se.GetVolumePerformanceGroupByUUID(ctx, *params.VolumePerformanceGroupId)
 		if err != nil {

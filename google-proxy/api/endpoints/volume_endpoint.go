@@ -56,7 +56,7 @@ var (
 	unixPermissionsEnabled            = env.GetBool("ENABLE_UNIX_PERMISSIONS", true)
 	smbCaShareEnabled                 = env.GetBool("SMB_CA_SHARE_ENABLED", false)
 	exportRulesLimit                  = env.GetInt("EXPORT_POLICY_RULES_LIMIT", 20)
-	enableInferredIops                = env.GetBool("ENABLE_INFERRED_IOPS", true)
+	enableInferredIops                = env.GetBool("ENABLE_INFERRED_IOPS", false)
 )
 
 const (
@@ -439,6 +439,7 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 
 	hasThroughput := req.Volume.ThroughputMibps.IsSet()
 	hasIops := req.Volume.Iops.IsSet()
+	hasVpg := req.Volume.VolumePerformanceGroupId.IsSet()
 
 	// Check MQOS feature flag for each parameter separately to provide specific error messages
 	if !enableMqos {
@@ -448,10 +449,23 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		if hasIops {
 			return nil, errors.NewUserInputValidationErr(utils.ErrMsgMqosNotEnabledIops)
 		}
+		if hasVpg {
+			return nil, errors.NewUserInputValidationErr(utils.ErrMsgMqosNotEnabledVpgId)
+		}
+	}
+
+	// VPG feature flag check
+	if hasVpg && !enableVolumePerformanceGroupAssignment {
+		return nil, errors.NewUserInputValidationErr(utils.ErrMsgVpgAssignmentNotEnabled)
+	}
+
+	// Mutual exclusion: VPG cannot be combined with throughput or iops
+	if hasVpg && (hasThroughput || hasIops) {
+		return nil, errors.NewUserInputValidationErr(utils.ErrMsgVpgMutuallyExclusiveWithQos)
 	}
 
 	// Early pool QosType validation - fail fast before orchestrator processing
-	// Auto pools reject throughputMibps and iops (regardless of feature flag)
+	// Auto pools reject throughputMibps, iops, and VPG (regardless of feature flag)
 	if pool != nil && pool.QosType == utils.QosTypeAuto {
 		if hasThroughput {
 			return nil, errors.NewUserInputValidationErr(utils.ErrMsgPoolAutoQosTypeCannotSpecifyThroughput)
@@ -459,28 +473,40 @@ func _prepareCreateVolumeParams(req *gcpgenserver.VolumeCreateV1beta, params gcp
 		if hasIops {
 			return nil, errors.NewUserInputValidationErr(utils.ErrMsgPoolAutoQosTypeCannotSpecifyIops)
 		}
+		if hasVpg {
+			return nil, errors.NewUserInputValidationErr(utils.ErrMsgPoolAutoQosTypeCannotSpecifyVpgId)
+		}
 	}
 
-	// Manual pools require throughputMibps when MQOS is enabled
-	if pool != nil && pool.QosType == utils.QosTypeManual && enableMqos && !hasThroughput {
-		return nil, errors.NewUserInputValidationErr(utils.ErrMsgPoolManualQosTypeRequiresThroughput)
+	// Manual pools require either throughputMibps or volumePerformanceGroupId when MQOS is enabled
+	if pool != nil && pool.QosType == utils.QosTypeManual && enableMqos && !hasThroughput && !hasVpg {
+		return nil, errors.NewUserInputValidationErr(utils.ErrMsgPoolManualQosTypeRequiresThroughputOrVpg)
 	}
 
-	if hasIops {
-		return nil, errors.NewUserInputValidationErr("iops is not supported for volume creation. Use throughputMibps to set QoS.")
+	// When inferred IOPS is enabled, the server calculates IOPS from throughput -- reject user-provided IOPS
+	if hasIops && enableInferredIops {
+		return nil, errors.NewUserInputValidationErr("iops must not be set when IOPS inference is enabled. Only throughputMibps is needed.")
 	}
 
-	// Fast-fail validation: When MQOS is enabled and inferred IOPS is disabled,
-	// require IOPS to be provided explicitly when throughputMibps is specified.
+	// When inferred IOPS is disabled, IOPS must be provided explicitly alongside throughput
 	if enableMqos && !enableInferredIops && hasThroughput && !hasIops {
 		return nil, errors.NewUserInputValidationErr("IOPS inference is disabled. IOPS must be provided explicitly when throughputMibps is specified.")
 	}
 
-	// Extract QoS parameters: throughputMibps (existing field in API spec)
-	// Note: iops is always calculated from throughputMibps server-side when inferred IOPS is enabled
+	// Extract QoS parameters
 	if hasThroughput {
 		throughputValue := int64(math.Floor(req.Volume.ThroughputMibps.Value))
 		param.ThroughputMibps = &throughputValue
+	}
+
+	if hasIops && !enableInferredIops {
+		iopsValue := req.Volume.Iops.Value
+		param.Iops = &iopsValue
+	}
+
+	if hasVpg {
+		vpgId := req.Volume.VolumePerformanceGroupId.Value
+		param.VolumePerformanceGroupID = &vpgId
 	}
 
 	smbProtocolRequested := hasSMBProtocol(req.Volume.GetProtocols())
@@ -1358,7 +1384,7 @@ func _prepareUpdateVolumeParams(req *gcpgenserver.VolumeUpdateV1beta, params gcp
 
 		if hasVpg {
 			if !enableVolumePerformanceGroupAssignment {
-				return nil, errors.NewUserInputValidationErr("Volume performance group assignment is not enabled")
+				return nil, errors.NewUserInputValidationErr(utils.ErrMsgVpgAssignmentNotEnabled)
 			}
 			if hasThroughput || hasIops {
 				return nil, errors.NewUserInputValidationErr("Only (throughputMibps + iops), or volumePerformanceGroupId can be set at a time")

@@ -131,10 +131,12 @@ const (
 	ErrMsgPoolAutoQosTypeCannotSpecifyThroughput = "Pool has auto QoS type. Cannot specify throughputMibps. Volumes inherit QoS from the pool."
 	ErrMsgPoolAutoQosTypeCannotSpecifyIops       = "Pool has auto QoS type. Cannot specify iops. Volumes inherit QoS from the pool."
 	ErrMsgPoolAutoQosTypeCannotSpecifyVpgId      = "Pool has auto QoS type. Cannot specify volumePerformanceGroupId. Volumes inherit QoS from the pool."
-	ErrMsgPoolManualQosTypeRequiresThroughput    = "Pool has manual QoS type. throughputMibps must be provided."
-	ErrMsgMqosNotEnabledThroughput               = "Manual QoS (MQOS) is not enabled. throughputMibps parameter is not supported."
-	ErrMsgMqosNotEnabledIops                     = "Manual QoS (MQOS) is not enabled. iops parameter is not supported."
-	ErrMsgMqosNotEnabledVpgId                    = "Manual QoS (MQOS) is not enabled. volumePerformanceGroupId parameter is not supported."
+	ErrMsgPoolManualQosTypeRequiresThroughputOrVpg = "Pool has manual QoS type. Either throughputMibps (with iops) or volumePerformanceGroupId must be provided."
+	ErrMsgVpgMutuallyExclusiveWithQos             = "Cannot specify throughputMibps or iops with volumePerformanceGroupId. They are mutually exclusive."
+	ErrMsgVpgAssignmentNotEnabled                 = "Volume performance group assignment is not enabled"
+	ErrMsgMqosNotEnabledThroughput                = "Manual QoS (MQOS) is not enabled. throughputMibps parameter is not supported."
+	ErrMsgMqosNotEnabledIops                      = "Manual QoS (MQOS) is not enabled. iops parameter is not supported."
+	ErrMsgMqosNotEnabledVpgId                     = "Manual QoS (MQOS) is not enabled. volumePerformanceGroupId parameter is not supported."
 	// ActiveDirectoryGroupBuiltInBackupOperators defines the name of the built-in backup operators group
 	ActiveDirectoryGroupBuiltInBackupOperators = `BUILTIN\Backup Operators`
 

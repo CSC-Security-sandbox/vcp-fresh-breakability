@@ -126,7 +126,7 @@ enableSmbCaShare: true
 enableMultiAd: true
 maxNumberOfAdPerAccount: 5
 enableMqos: true
-enableInferredIops: true
+enableInferredIops: false
 enableVpgEndpoints: false
 enableVolumePerformanceGroupAssignment: false
 exportPolicyRulesLimit: 20

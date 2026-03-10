@@ -17586,7 +17586,7 @@ func Test_validateUpdateVolumeRequest_QoSAndVPGValidation(t *testing.T) {
 
 		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "Volume performance group assignment is not enabled")
+		assert.Contains(tt, err.Error(), utils.ErrMsgVpgAssignmentNotEnabled)
 	})
 
 	t.Run("VPG_VPGNotFound_ShouldReturnError", func(tt *testing.T) {
@@ -32947,7 +32947,7 @@ func TestValidateCreateVolumeParams_QosValidation(t *testing.T) {
 
 		err := _validateCreateVolumeParams(ctx, mockStorage, params, basePool)
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "Cannot specify both throughputMibps and volumePerformanceGroupId")
+		assert.Contains(tt, err.Error(), utils.ErrMsgVpgMutuallyExclusiveWithQos)
 	})
 
 	t.Run("Auto Pool Rejects VPG ID", func(tt *testing.T) {
@@ -32970,7 +32970,7 @@ func TestValidateCreateVolumeParams_QosValidation(t *testing.T) {
 		assert.Contains(tt, err.Error(), utils.ErrMsgPoolAutoQosTypeCannotSpecifyVpgId)
 	})
 
-	t.Run("Manual Pool Requires Throughput When MQOS Enabled", func(tt *testing.T) {
+	t.Run("Manual Pool Requires Throughput Or VPG When MQOS Enabled", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		enableMqos = true
 		enableInferredIops = true
@@ -32983,7 +32983,66 @@ func TestValidateCreateVolumeParams_QosValidation(t *testing.T) {
 
 		err := _validateCreateVolumeParams(ctx, mockStorage, params, basePool)
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), utils.ErrMsgPoolManualQosTypeRequiresThroughput)
+		assert.Contains(tt, err.Error(), utils.ErrMsgPoolManualQosTypeRequiresThroughputOrVpg)
+	})
+
+	t.Run("Manual Pool Allows VPG ID Without Throughput", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		enableMqos = true
+		enableInferredIops = true
+		origVPGAssignment := enableVolumePerformanceGroupAssignment
+		enableVolumePerformanceGroupAssignment = true
+		defer func() { enableVolumePerformanceGroupAssignment = origVPGAssignment }()
+
+		vpgID := "vpg-uuid"
+		params := &common.CreateVolumeParams{
+			Name:                     "vol",
+			QuotaInBytes:             utils.GiBInBytes,
+			Protocols:                []string{utils.ProtocolISCSI},
+			VolumePerformanceGroupID: &vpgID,
+			BlockProperties:          &common.BlockPropertiesRequest{OSType: "LINUX"},
+		}
+
+		mockStorage.On("GetSvmForPoolID", ctx, basePool.ID).Return(&datamodel.Svm{
+			State: models.LifeCycleStateREADY,
+		}, nil)
+		mockStorage.On("GetNodesByPoolID", ctx, basePool.ID).Return([]*datamodel.Node{{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			AccountID: basePool.AccountID,
+			Name:      "node-1",
+			State:     models.LifeCycleStateREADY,
+		}, {
+			BaseModel: datamodel.BaseModel{ID: 2},
+			AccountID: basePool.AccountID,
+			Name:      "node-2",
+			State:     models.LifeCycleStateREADY,
+		}}, nil)
+		mockStorage.On("GetLifForNode", ctx, int64(1), basePool.AccountID).Return(&datamodel.Lif{Name: "lif-1"}, nil)
+		mockStorage.On("GetLifForNode", ctx, int64(2), basePool.AccountID).Return(&datamodel.Lif{Name: "lif-2"}, nil)
+
+		err := _validateCreateVolumeParams(ctx, mockStorage, params, basePool)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("Rejects VPG ID When VPG Assignment Feature Flag Disabled", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		enableMqos = true
+		enableInferredIops = true
+		origVPGAssignment := enableVolumePerformanceGroupAssignment
+		enableVolumePerformanceGroupAssignment = false
+		defer func() { enableVolumePerformanceGroupAssignment = origVPGAssignment }()
+
+		vpgID := "vpg-uuid"
+		params := &common.CreateVolumeParams{
+			Name:                     "vol",
+			QuotaInBytes:             utils.GiBInBytes,
+			Protocols:                []string{"nfs"},
+			VolumePerformanceGroupID: &vpgID,
+		}
+
+		err := _validateCreateVolumeParams(ctx, mockStorage, params, basePool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), utils.ErrMsgVpgAssignmentNotEnabled)
 	})
 
 	t.Run("Rejects IOPS When MQOS Disabled", func(tt *testing.T) {
@@ -33257,9 +33316,12 @@ func TestVolumeThroughputAbove5120Allowed(t *testing.T) {
 
 	t.Run("Volume Throughput 8192 Allowed When MQOS Enabled and Pool Manual", func(tt *testing.T) {
 		origEnableMqos := enableMqos
+		origEnableInferredIops := enableInferredIops
 		enableMqos = true
+		enableInferredIops = true
 		defer func() {
 			enableMqos = origEnableMqos
+			enableInferredIops = origEnableInferredIops
 		}()
 
 		mockStorage := database.NewMockStorage(tt)
@@ -33368,9 +33430,12 @@ func TestVolumeThroughputAbove5120Allowed(t *testing.T) {
 
 	t.Run("Volume Throughput 10000 Allowed When Pool Capacity Allows", func(tt *testing.T) {
 		origEnableMqos := enableMqos
+		origEnableInferredIops := enableInferredIops
 		enableMqos = true
+		enableInferredIops = true
 		defer func() {
 			enableMqos = origEnableMqos
+			enableInferredIops = origEnableInferredIops
 		}()
 
 		mockStorage := database.NewMockStorage(tt)
@@ -33433,9 +33498,12 @@ func TestVolumeThroughputAbove5120Allowed(t *testing.T) {
 
 	t.Run("Volume Throughput Rejected When Exceeds Pool Capacity", func(tt *testing.T) {
 		origEnableMqos := enableMqos
+		origEnableInferredIops := enableInferredIops
 		enableMqos = true
+		enableInferredIops = true
 		defer func() {
 			enableMqos = origEnableMqos
+			enableInferredIops = origEnableInferredIops
 		}()
 
 		mockStorage := database.NewMockStorage(tt)
@@ -33590,11 +33658,14 @@ func TestCreateVolume_VpgHandling(t *testing.T) {
 	t.Run("ReturnsErrorWhenVpgNotFound", func(tt *testing.T) {
 		origEnableMqos := enableMqos
 		origEnableInferredIops := enableInferredIops
+		origEnableVpgAssignment := enableVolumePerformanceGroupAssignment
 		enableMqos = true
 		enableInferredIops = true
+		enableVolumePerformanceGroupAssignment = true
 		defer func() {
 			enableMqos = origEnableMqos
 			enableInferredIops = origEnableInferredIops
+			enableVolumePerformanceGroupAssignment = origEnableVpgAssignment
 		}()
 
 		mockStorage := database.NewMockStorage(tt)
@@ -33671,11 +33742,14 @@ func TestCreateVolume_VpgHandling(t *testing.T) {
 	t.Run("ReturnsErrorWhenVpgPoolMismatch", func(tt *testing.T) {
 		origEnableMqos := enableMqos
 		origEnableInferredIops := enableInferredIops
+		origEnableVpgAssignment := enableVolumePerformanceGroupAssignment
 		enableMqos = true
 		enableInferredIops = true
+		enableVolumePerformanceGroupAssignment = true
 		defer func() {
 			enableMqos = origEnableMqos
 			enableInferredIops = origEnableInferredIops
+			enableVolumePerformanceGroupAssignment = origEnableVpgAssignment
 		}()
 
 		mockStorage := database.NewMockStorage(tt)
@@ -33752,11 +33826,14 @@ func TestCreateVolume_VpgHandling(t *testing.T) {
 	t.Run("AssignsVpgIdWhenVpgExists", func(tt *testing.T) {
 		origEnableMqos := enableMqos
 		origEnableInferredIops := enableInferredIops
+		origEnableVpgAssignment := enableVolumePerformanceGroupAssignment
 		enableMqos = true
 		enableInferredIops = true
+		enableVolumePerformanceGroupAssignment = true
 		defer func() {
 			enableMqos = origEnableMqos
 			enableInferredIops = origEnableInferredIops
+			enableVolumePerformanceGroupAssignment = origEnableVpgAssignment
 		}()
 
 		mockStorage := database.NewMockStorage(tt)

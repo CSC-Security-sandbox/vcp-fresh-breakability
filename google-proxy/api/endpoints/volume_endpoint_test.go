@@ -58,7 +58,11 @@ func TestPrepareCreateVolumeParams_SnapshotIdWithLargeVolumeConstituentCount_Ret
 
 func TestPrepareCreateVolumeParams_WithThroughputMibps(t *testing.T) {
 	originalEnableMqos := enableMqos
-	defer func() { enableMqos = originalEnableMqos }()
+	originalEnableInferredIops := enableInferredIops
+	defer func() {
+		enableMqos = originalEnableMqos
+		enableInferredIops = originalEnableInferredIops
+	}()
 
 	baseReq := &gcpgenserver.VolumeCreateV1beta{
 		Volume: gcpgenserver.VolumeV1beta{
@@ -79,6 +83,7 @@ func TestPrepareCreateVolumeParams_WithThroughputMibps(t *testing.T) {
 
 	t.Run("SetsParam_WithNilPool", func(tt *testing.T) {
 		enableMqos = true
+		enableInferredIops = true
 		result, err := _prepareCreateVolumeParams(baseReq, params, "test-region", "test-zone", nil)
 		require.NoError(tt, err)
 		require.NotNil(tt, result)
@@ -88,6 +93,7 @@ func TestPrepareCreateVolumeParams_WithThroughputMibps(t *testing.T) {
 
 	t.Run("SetsParam_WithManualPool_MQOSEnabled", func(tt *testing.T) {
 		enableMqos = true
+		enableInferredIops = true
 		pool := &models.Pool{
 			BaseModel: models.BaseModel{UUID: "test-pool"},
 			QosType:   utils.QosTypeManual,
@@ -127,7 +133,11 @@ func TestPrepareCreateVolumeParams_WithThroughputMibps(t *testing.T) {
 
 func TestPrepareCreateVolumeParams_WithIops(t *testing.T) {
 	originalEnableMqos := enableMqos
-	defer func() { enableMqos = originalEnableMqos }()
+	originalEnableInferredIops := enableInferredIops
+	defer func() {
+		enableMqos = originalEnableMqos
+		enableInferredIops = originalEnableInferredIops
+	}()
 
 	baseReq := &gcpgenserver.VolumeCreateV1beta{
 		Volume: gcpgenserver.VolumeV1beta{
@@ -146,12 +156,13 @@ func TestPrepareCreateVolumeParams_WithIops(t *testing.T) {
 		LocationId:    "test-location",
 	}
 
-	t.Run("ReturnsError_WithNilPool_MQOSEnabled", func(tt *testing.T) {
+	t.Run("ReturnsError_WithNilPool_MQOSEnabled_InferredIopsEnabled", func(tt *testing.T) {
 		enableMqos = true
+		enableInferredIops = true
 		result, err := _prepareCreateVolumeParams(baseReq, params, "test-region", "test-zone", nil)
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
-		assert.Contains(tt, err.Error(), "iops is not supported for volume creation")
+		assert.Contains(tt, err.Error(), "iops must not be set when IOPS inference is enabled")
 	})
 
 	t.Run("ReturnsError_WithNilPool_MQOSDisabled", func(tt *testing.T) {
@@ -221,6 +232,46 @@ func TestPrepareCreateVolumeParams_ThroughputRequiresIopsWhenInferenceDisabled(t
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "IOPS inference is disabled")
+}
+
+func TestPrepareCreateVolumeParams_ThroughputAndIopsWhenInferenceDisabled(t *testing.T) {
+	originalEnableMqos := enableMqos
+	originalEnableInferredIops := enableInferredIops
+	enableMqos = true
+	enableInferredIops = false
+	defer func() {
+		enableMqos = originalEnableMqos
+		enableInferredIops = originalEnableInferredIops
+	}()
+
+	manualPool := &models.Pool{
+		BaseModel: models.BaseModel{UUID: "test-pool"},
+		QosType:   utils.QosTypeManual,
+	}
+
+	req := &gcpgenserver.VolumeCreateV1beta{
+		Volume: gcpgenserver.VolumeV1beta{
+			ResourceId:      "testvolume",
+			CreationToken:   gcpgenserver.NewOptString("test-token"),
+			PoolId:          gcpgenserver.NewNilString("test-pool"),
+			QuotaInBytes:    gcpgenserver.NewOptFloat64(1024),
+			ThroughputMibps: gcpgenserver.NewOptNilFloat64(200),
+			Iops:            gcpgenserver.NewOptNilInt64(5000),
+			Protocols: []gcpgenserver.ProtocolsV1beta{
+				gcpgenserver.ProtocolsV1betaNFSV3,
+			},
+		},
+	}
+	params := gcpgenserver.V1betaCreateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+	}
+
+	result, err := _prepareCreateVolumeParams(req, params, "test-region", "test-zone", manualPool)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, int64(200), *result.ThroughputMibps)
+	assert.Equal(t, int64(5000), *result.Iops)
 }
 
 func TestPrepareCreateVolumeParams_WithThroughputMibps_MqosDisabled(t *testing.T) {
@@ -315,6 +366,157 @@ func TestPrepareCreateVolumeParams_ManualPoolRequirements(t *testing.T) {
 		// Should succeed when MQOS is disabled (no throughput requirement)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
+	})
+}
+
+func TestPrepareCreateVolumeParams_VPGOnCreate(t *testing.T) {
+	originalEnableMqos := enableMqos
+	originalEnableVPGAssignment := enableVolumePerformanceGroupAssignment
+	defer func() {
+		enableMqos = originalEnableMqos
+		enableVolumePerformanceGroupAssignment = originalEnableVPGAssignment
+	}()
+
+	params := gcpgenserver.V1betaCreateVolumeParams{
+		ProjectNumber: "test-project",
+		LocationId:    "test-location",
+	}
+	manualPool := &models.Pool{
+		BaseModel: models.BaseModel{UUID: "test-pool"},
+		QosType:   utils.QosTypeManual,
+	}
+	autoPool := &models.Pool{
+		BaseModel: models.BaseModel{UUID: "test-pool"},
+		QosType:   utils.QosTypeAuto,
+	}
+
+	t.Run("AllowsVpgIdWithoutThroughput_ManualPool_MQOSEnabled", func(tt *testing.T) {
+		enableMqos = true
+		enableVolumePerformanceGroupAssignment = true
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:               "testvolume",
+				CreationToken:            gcpgenserver.NewOptString("test-token"),
+				PoolId:                   gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:             gcpgenserver.NewOptFloat64(1024),
+				VolumePerformanceGroupId: gcpgenserver.NewOptNilString("vpg-123"),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaNFSV3,
+				},
+			},
+		}
+		result, err := _prepareCreateVolumeParams(req, params, "test-region", "test-zone", manualPool)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "vpg-123", *result.VolumePerformanceGroupID)
+		assert.Nil(tt, result.ThroughputMibps)
+	})
+
+	t.Run("RejectsVpgIdWithThroughput_MutualExclusion", func(tt *testing.T) {
+		enableMqos = true
+		enableVolumePerformanceGroupAssignment = true
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:               "testvolume",
+				CreationToken:            gcpgenserver.NewOptString("test-token"),
+				PoolId:                   gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:             gcpgenserver.NewOptFloat64(1024),
+				ThroughputMibps:          gcpgenserver.NewOptNilFloat64(128),
+				VolumePerformanceGroupId: gcpgenserver.NewOptNilString("vpg-123"),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaNFSV3,
+				},
+			},
+		}
+		result, err := _prepareCreateVolumeParams(req, params, "test-region", "test-zone", manualPool)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), utils.ErrMsgVpgMutuallyExclusiveWithQos)
+	})
+
+	t.Run("RejectsVpgIdWithIops_MutualExclusion", func(tt *testing.T) {
+		enableMqos = true
+		enableVolumePerformanceGroupAssignment = true
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:               "testvolume",
+				CreationToken:            gcpgenserver.NewOptString("test-token"),
+				PoolId:                   gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:             gcpgenserver.NewOptFloat64(1024),
+				Iops:                     gcpgenserver.NewOptNilInt64(5000),
+				VolumePerformanceGroupId: gcpgenserver.NewOptNilString("vpg-123"),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaNFSV3,
+				},
+			},
+		}
+		result, err := _prepareCreateVolumeParams(req, params, "test-region", "test-zone", manualPool)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), utils.ErrMsgVpgMutuallyExclusiveWithQos)
+	})
+
+	t.Run("RejectsVpgId_AutoPool", func(tt *testing.T) {
+		enableMqos = true
+		enableVolumePerformanceGroupAssignment = true
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:               "testvolume",
+				CreationToken:            gcpgenserver.NewOptString("test-token"),
+				PoolId:                   gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:             gcpgenserver.NewOptFloat64(1024),
+				VolumePerformanceGroupId: gcpgenserver.NewOptNilString("vpg-123"),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaNFSV3,
+				},
+			},
+		}
+		result, err := _prepareCreateVolumeParams(req, params, "test-region", "test-zone", autoPool)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), utils.ErrMsgPoolAutoQosTypeCannotSpecifyVpgId)
+	})
+
+	t.Run("RejectsVpgId_MQOSDisabled", func(tt *testing.T) {
+		enableMqos = false
+		enableVolumePerformanceGroupAssignment = true
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:               "testvolume",
+				CreationToken:            gcpgenserver.NewOptString("test-token"),
+				PoolId:                   gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:             gcpgenserver.NewOptFloat64(1024),
+				VolumePerformanceGroupId: gcpgenserver.NewOptNilString("vpg-123"),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaNFSV3,
+				},
+			},
+		}
+		result, err := _prepareCreateVolumeParams(req, params, "test-region", "test-zone", manualPool)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), utils.ErrMsgMqosNotEnabledVpgId)
+	})
+
+	t.Run("RejectsVpgId_VPGAssignmentFeatureFlagDisabled", func(tt *testing.T) {
+		enableMqos = true
+		enableVolumePerformanceGroupAssignment = false
+		req := &gcpgenserver.VolumeCreateV1beta{
+			Volume: gcpgenserver.VolumeV1beta{
+				ResourceId:               "testvolume",
+				CreationToken:            gcpgenserver.NewOptString("test-token"),
+				PoolId:                   gcpgenserver.NewNilString("test-pool"),
+				QuotaInBytes:             gcpgenserver.NewOptFloat64(1024),
+				VolumePerformanceGroupId: gcpgenserver.NewOptNilString("vpg-123"),
+				Protocols: []gcpgenserver.ProtocolsV1beta{
+					gcpgenserver.ProtocolsV1betaNFSV3,
+				},
+			},
+		}
+		result, err := _prepareCreateVolumeParams(req, params, "test-region", "test-zone", manualPool)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), utils.ErrMsgVpgAssignmentNotEnabled)
 	})
 }
 
@@ -9291,7 +9493,7 @@ func TestPrepareUpdateVolumeParams_MQoSValidation(t *testing.T) {
 		result, err := _prepareUpdateVolumeParams(req, params, region, nil)
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "Volume performance group assignment is not enabled")
+		assert.Contains(t, err.Error(), utils.ErrMsgVpgAssignmentNotEnabled)
 	})
 
 	t.Run("WhenEnableMqosIsTrueAndEnableInferredIopsIsTrue_OnlyIopsSet_ReturnsError", func(t *testing.T) {
