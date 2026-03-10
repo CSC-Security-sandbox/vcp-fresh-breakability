@@ -31,7 +31,9 @@ func (h *VolumeHandler) JobTypes() []models.JobType {
 	}
 }
 
-// Handle removes volume artifacts from VCP for the job.
+// Handle removes volume artifacts from VCP for the job when the supervisor
+// detects a timeout in NEW state. Create volume is not eligible for PROCESSING
+// state timeout handling.
 func (h *VolumeHandler) Handle(ctx context.Context, job *datamodel.Job, event Event, storage database.Storage) error {
 	if event != EventTimeout {
 		return nil
@@ -40,6 +42,7 @@ func (h *VolumeHandler) Handle(ctx context.Context, job *datamodel.Job, event Ev
 	logger := util.GetLogger(ctx).With(log.Fields{
 		"jobUUID":                               job.UUID,
 		"jobType":                               job.Type,
+		"jobState":                              job.State,
 		string(middleware.RequestCorrelationID): utils.GetCoRelationIDFromContext(ctx),
 	})
 
@@ -48,6 +51,12 @@ func (h *VolumeHandler) Handle(ctx context.Context, job *datamodel.Job, event Ev
 		return nil
 	}
 
+	return h.handleNewStateTimeout(ctx, job, storage, logger)
+}
+
+// handleNewStateTimeout handles timeout for jobs in NEW state.
+// It deletes the volume from VCP database.
+func (h *VolumeHandler) handleNewStateTimeout(ctx context.Context, job *datamodel.Job, storage database.Storage, logger log.Logger) error {
 	if _, err := storage.DeleteVolumeAndChildResources(ctx, job.JobAttributes.ResourceUUID); err != nil {
 		if vsaerrors.IsNotFoundErr(err) {
 			logger.Warnf("workflow-supervisor-task: volume already deleted in VCP")

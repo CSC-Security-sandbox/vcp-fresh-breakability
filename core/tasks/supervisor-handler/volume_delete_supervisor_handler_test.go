@@ -225,3 +225,127 @@ func TestVolumeDeleteHandler_Handle_FlexCacheDeleteVolumeJobType(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// Tests for PROCESSING state timeout handling
+
+func TestVolumeDeleteHandler_Handle_ProcessingTimeout_TransitionsDeletingToError(t *testing.T) {
+	storage := database.NewMockStorage(t)
+	handler := NewVolumeDeleteHandler()
+
+	job := &datamodel.Job{
+		State:         string(models.JobsStatePROCESSING),
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: "volume-uuid"},
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		State:     models.LifeCycleStateDeleting,
+	}
+	storage.EXPECT().GetVolume(mock.Anything, "volume-uuid").Return(volume, nil).Once()
+	storage.EXPECT().UpdateVolumeFields(mock.Anything, "volume-uuid", mock.MatchedBy(func(m map[string]interface{}) bool {
+		return m["state"] == models.LifeCycleStateError && m["state_details"] == models.LifeCycleStateDeletionErrorDetails
+	})).Return(nil).Once()
+
+	err := handler.Handle(context.Background(), job, EventTimeout, storage)
+	require.NoError(t, err)
+}
+
+func TestVolumeDeleteHandler_Handle_ProcessingTimeout_SkipsNonDeletingState(t *testing.T) {
+	storage := database.NewMockStorage(t)
+	handler := NewVolumeDeleteHandler()
+
+	job := &datamodel.Job{
+		State:         string(models.JobsStatePROCESSING),
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: "volume-uuid"},
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		State:     models.LifeCycleStateREADY,
+	}
+	storage.EXPECT().GetVolume(mock.Anything, "volume-uuid").Return(volume, nil).Once()
+
+	err := handler.Handle(context.Background(), job, EventTimeout, storage)
+	require.NoError(t, err)
+	storage.AssertNotCalled(t, "UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestVolumeDeleteHandler_Handle_ProcessingTimeout_VolumeNotFound(t *testing.T) {
+	storage := database.NewMockStorage(t)
+	handler := NewVolumeDeleteHandler()
+
+	job := &datamodel.Job{
+		State:         string(models.JobsStatePROCESSING),
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: "volume-uuid"},
+	}
+
+	storage.EXPECT().GetVolume(mock.Anything, "volume-uuid").Return((*datamodel.Volume)(nil), vsaerrors.NewNotFoundErr("volume", nil)).Once()
+
+	err := handler.Handle(context.Background(), job, EventTimeout, storage)
+	require.NoError(t, err)
+	storage.AssertNotCalled(t, "UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestVolumeDeleteHandler_Handle_ProcessingTimeout_GetVolumeError(t *testing.T) {
+	storage := database.NewMockStorage(t)
+	handler := NewVolumeDeleteHandler()
+
+	job := &datamodel.Job{
+		State:         string(models.JobsStatePROCESSING),
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: "volume-uuid"},
+	}
+
+	expectedErr := errors.New("database error")
+	storage.EXPECT().GetVolume(mock.Anything, "volume-uuid").Return((*datamodel.Volume)(nil), expectedErr).Once()
+
+	err := handler.Handle(context.Background(), job, EventTimeout, storage)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "load volume for PROCESSING timeout")
+}
+
+func TestVolumeDeleteHandler_Handle_ProcessingTimeout_UpdateVolumeFieldsError(t *testing.T) {
+	storage := database.NewMockStorage(t)
+	handler := NewVolumeDeleteHandler()
+
+	job := &datamodel.Job{
+		State:         string(models.JobsStatePROCESSING),
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: "volume-uuid"},
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		State:     models.LifeCycleStateDeleting,
+	}
+	expectedErr := errors.New("update failed")
+	storage.EXPECT().GetVolume(mock.Anything, "volume-uuid").Return(volume, nil).Once()
+	storage.EXPECT().UpdateVolumeFields(mock.Anything, "volume-uuid", mock.Anything).Return(expectedErr).Once()
+
+	err := handler.Handle(context.Background(), job, EventTimeout, storage)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "update volume state to ERROR")
+}
+
+func TestVolumeDeleteHandler_Handle_NewStateTimeout_RevertsVolumeState(t *testing.T) {
+	storage := database.NewMockStorage(t)
+	handler := NewVolumeDeleteHandler()
+
+	job := &datamodel.Job{
+		State: string(models.JobsStateNEW),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID:         "volume-uuid",
+			PreviousState:        models.LifeCycleStateREADY,
+			PreviousStateDetails: models.LifeCycleStateReadyDetails,
+		},
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+		State:     models.LifeCycleStateDeleting,
+	}
+	storage.EXPECT().GetVolume(mock.Anything, "volume-uuid").Return(volume, nil).Once()
+	storage.EXPECT().UpdateVolumeFields(mock.Anything, "volume-uuid", mock.MatchedBy(func(m map[string]interface{}) bool {
+		return m["state"] == models.LifeCycleStateREADY && m["state_details"] == models.LifeCycleStateReadyDetails
+	})).Return(nil).Once()
+
+	err := handler.Handle(context.Background(), job, EventTimeout, storage)
+	require.NoError(t, err)
+}

@@ -30,7 +30,8 @@ func (h *PoolDeleteHandler) JobTypes() []models.JobType {
 	}
 }
 
-// Handle reverts pool state from DELETING to previous state for stale delete jobs.
+// Handle reverts pool state from DELETING to previous state for stale delete jobs (NEW state),
+// or transitions to ERROR state for PROCESSING state timeouts.
 func (h *PoolDeleteHandler) Handle(ctx context.Context, job *datamodel.Job, event Event, storage database.Storage) error {
 	if event != EventTimeout {
 		return nil
@@ -39,6 +40,7 @@ func (h *PoolDeleteHandler) Handle(ctx context.Context, job *datamodel.Job, even
 	logger := util.GetLogger(ctx).With(log.Fields{
 		"jobUUID":                               job.UUID,
 		"jobType":                               job.Type,
+		"jobState":                              job.State,
 		string(middleware.RequestCorrelationID): utils.GetCoRelationIDFromContext(ctx),
 	})
 
@@ -47,6 +49,45 @@ func (h *PoolDeleteHandler) Handle(ctx context.Context, job *datamodel.Job, even
 		return nil
 	}
 
+	// Handle PROCESSING state timeout: update pool state to ERROR
+	if job.State == string(models.JobsStatePROCESSING) {
+		return h.handleProcessingTimeout(ctx, job, storage, logger)
+	}
+
+	// Handle NEW state timeout: revert pool state to previous state (existing behavior)
+	return h.handleNewStateTimeout(ctx, job, storage, logger)
+}
+
+// handleProcessingTimeout handles timeout for delete jobs in PROCESSING state.
+// It transitions the pool from DELETING to ERROR state.
+func (h *PoolDeleteHandler) handleProcessingTimeout(ctx context.Context, job *datamodel.Job, storage database.Storage, logger log.Logger) error {
+	pool, err := storage.GetPoolByUUID(ctx, job.JobAttributes.ResourceUUID)
+	if err != nil {
+		if vsaerrors.IsNotFoundErr(err) {
+			logger.Warnf("workflow-supervisor-task: pool %s already deleted in VCP", job.JobAttributes.ResourceUUID)
+			return nil
+		}
+		return fmt.Errorf("load pool for PROCESSING timeout: %w", err)
+	}
+
+	// Only transition if pool is in DELETING state
+	if pool.State != models.LifeCycleStateDeleting {
+		logger.Warnf("workflow-supervisor-task: pool %s not in DELETING state (%s); skipping state transition", pool.UUID, pool.State)
+		return nil
+	}
+
+	_, err = storage.UpdatePoolState(ctx, pool, models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails)
+	if err != nil {
+		return fmt.Errorf("update pool state to ERROR: %w", err)
+	}
+
+	logger.Infof("workflow-supervisor-task: pool %s transitioned from DELETING to ERROR due to workflow timeout", pool.UUID)
+	return nil
+}
+
+// handleNewStateTimeout handles timeout for delete jobs in NEW state.
+// It reverts the pool from DELETING to its previous state.
+func (h *PoolDeleteHandler) handleNewStateTimeout(ctx context.Context, job *datamodel.Job, storage database.Storage, logger log.Logger) error {
 	pool, err := storage.GetPoolByUUID(ctx, job.JobAttributes.ResourceUUID)
 	if err != nil {
 		if vsaerrors.IsNotFoundErr(err) {
@@ -81,4 +122,3 @@ func (h *PoolDeleteHandler) Handle(ctx context.Context, job *datamodel.Job, even
 	logger.Infof("workflow-supervisor-task: pool %s reverted from DELETING to %s", pool.UUID, previousState)
 	return nil
 }
-

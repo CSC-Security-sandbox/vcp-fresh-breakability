@@ -7,11 +7,13 @@ The workflow supervisor task is responsible for detecting long-running or stalle
 ## Components
 
 - **Supervisor Task Runner (`core/tasks/workflow_supervisor_task.go`)**
-  - Loads candidate jobs in `NEW` state from the database for supported job types.
+  - Runs two sequential scans per sweep: `scanNewStateJobs` for `NEW` state jobs and `scanProcessingStateTimeouts` for `PROCESSING` state jobs whose workflows have timed out.
   - Describes the Temporal workflow execution for each job to determine the current status.
   - Applies a grace period when the workflow execution is not found (to handle eventual consistency right after job creation).
   - Emits cleanup events to registered handlers when workflows time out or remain missing beyond the grace window.
-  - Acquires a transactional `SELECT ... FOR UPDATE` lock on each job before terminating the workflow; if the row is no longer in `NEW` state the supervisor skips termination and cleanup for that job to avoid double-processing.
+  - For `PROCESSING` state jobs, cleanup is only triggered when Temporal explicitly reports `TIMED_OUT` status (conservative policy); describe errors or non-timeout statuses are skipped.
+  - Acquires a transactional `SELECT ... FOR UPDATE` lock on each job before terminating the workflow; the lock query uses the expected job state (`NEW` or `PROCESSING`) to prevent race conditions where the job state changed between scan and cleanup.
+  - Uses job-type-specific workflow timeouts (via `getWorkflowTimeoutForJobType`) to determine when PROCESSING jobs have exceeded their timeout window. See [PROCESSING State Timeout Detection](0023-workflow-supervisor-processing-state-timeout.md) for full details.
 
 - **Supervisor Handlers (`core/tasks/supervisor-handler/`)**
   - Implement resource-specific cleanup logic invoked when the supervisor detects a timeout.
@@ -70,7 +72,9 @@ All handlers tolerate "not found" conditions to support idempotent retries.
 
 ## Configuration
 
-- `WORKFLOW_SUPERVISOR_NOT_FOUND_GRACE_PERIOD`: Grace period for missing workflows.
+- `WORKFLOW_SUPERVISOR_NOT_FOUND_GRACE_PERIOD`: Grace period for missing workflows (default 5 minutes).
+- `WORKFLOW_SUPERVISOR_PROCESSING_TIMEOUT_GRACE_PERIOD`: Additional wait time after the workflow timeout before treating a PROCESSING job as timed out (default 5 minutes).
+- `WORKFLOW_SUPERVISOR_PROCESSING_TIMEOUT_ENABLED`: Feature flag to enable/disable the PROCESSING state scan (default `true`).
 - `resourceCleanupTimeout`: Hard-coded 30s timeout for handler execution.
 - `temporalDescribeTimeout`: Hard-coded 15s timeout for describe calls.
 
@@ -87,7 +91,8 @@ Unit tests cover:
 
 - Each handler’s behavior for timeout events, missing resources, and successful cleanup.
 - Supervisor runner scenarios for grace-period logic, timed-out workflows, non-timeout statuses, and handler error propagation.
-- Lock acquisition behaviour: tests now confirm that jobs found in a non-`NEW` state are skipped without invoking cleanup or Temporal termination, preventing double processing.
+- Lock acquisition behaviour: tests now confirm that jobs found in a non-expected state are skipped without invoking cleanup or Temporal termination, preventing double processing.
+- PROCESSING state timeout detection: scan, per-job timeout filtering, conservative cleanup policy, and handler branching. See [0023-workflow-supervisor-processing-state-timeout.md](0023-workflow-supervisor-processing-state-timeout.md).
 
 See:
 

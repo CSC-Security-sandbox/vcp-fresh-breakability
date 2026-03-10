@@ -14,11 +14,13 @@ import (
 )
 
 func TestRunWorkflowSupervisorTask_RegistersAllHandlers(t *testing.T) {
+	enableProcessingTimeout(t)
 	storage := database.NewMockStorage(t)
 	temporal := workflowEngine.NewMockTemporalTestClient(t)
 
 	// Mock GetJobsWithCondition since runWorkflowSupervisorTask calls scan()
-	storage.EXPECT().GetJobsWithCondition(mock.Anything, mock.Anything).Return([]*datamodel.Job{}, nil).Once()
+	// First call for NEW state jobs, second call for PROCESSING state jobs
+	storage.EXPECT().GetJobsWithCondition(mock.Anything, mock.Anything).Return([]*datamodel.Job{}, nil).Twice()
 
 	// Call with no handlers to trigger default registration
 	runWorkflowSupervisorTask(context.Background(), storage, temporal, "test-correlation-id")
@@ -116,7 +118,8 @@ func TestRunWorkflowSupervisorTask_RegistersCustomHandlers(t *testing.T) {
 	temporal := workflowEngine.NewMockTemporalTestClient(t)
 	customHandler := newTestHandler(models.JobTypeUpdatePool)
 
-	// Mock GetJobsWithCondition since runWorkflowSupervisorTask calls scan()
+	// Mock GetJobsWithCondition for NEW state scan only.
+	// UPDATE_POOL is not eligible for PROCESSING state scan, so only one call.
 	storage.EXPECT().GetJobsWithCondition(mock.Anything, mock.Anything).Return([]*datamodel.Job{}, nil).Once()
 
 	// Call with custom handler

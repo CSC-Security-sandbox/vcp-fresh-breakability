@@ -198,3 +198,124 @@ func TestPoolDeleteHandler_Handle_UpdatePoolStateError(t *testing.T) {
 	require.Contains(t, err.Error(), "revert pool state")
 }
 
+// Tests for PROCESSING state timeout handling
+
+func TestPoolDeleteHandler_Handle_ProcessingTimeout_TransitionsDeletingToError(t *testing.T) {
+	storage := database.NewMockStorage(t)
+	handler := NewPoolDeleteHandler()
+
+	job := &datamodel.Job{
+		State:         string(models.JobsStatePROCESSING),
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: "pool-uuid"},
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		State:     models.LifeCycleStateDeleting,
+	}
+	storage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid").Return(pool, nil).Once()
+	storage.EXPECT().UpdatePoolState(mock.Anything, pool, models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails).Return(pool, nil).Once()
+
+	err := handler.Handle(context.Background(), job, EventTimeout, storage)
+	require.NoError(t, err)
+}
+
+func TestPoolDeleteHandler_Handle_ProcessingTimeout_SkipsNonDeletingState(t *testing.T) {
+	storage := database.NewMockStorage(t)
+	handler := NewPoolDeleteHandler()
+
+	job := &datamodel.Job{
+		State:         string(models.JobsStatePROCESSING),
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: "pool-uuid"},
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		State:     models.LifeCycleStateAvailable,
+	}
+	storage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid").Return(pool, nil).Once()
+
+	err := handler.Handle(context.Background(), job, EventTimeout, storage)
+	require.NoError(t, err)
+	storage.AssertNotCalled(t, "UpdatePoolState", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestPoolDeleteHandler_Handle_ProcessingTimeout_PoolNotFound(t *testing.T) {
+	storage := database.NewMockStorage(t)
+	handler := NewPoolDeleteHandler()
+
+	job := &datamodel.Job{
+		State:         string(models.JobsStatePROCESSING),
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: "pool-uuid"},
+	}
+
+	storage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid").Return((*datamodel.Pool)(nil), vsaerrors.NewNotFoundErr("pool", nil)).Once()
+
+	err := handler.Handle(context.Background(), job, EventTimeout, storage)
+	require.NoError(t, err)
+	storage.AssertNotCalled(t, "UpdatePoolState", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestPoolDeleteHandler_Handle_ProcessingTimeout_GetPoolError(t *testing.T) {
+	storage := database.NewMockStorage(t)
+	handler := NewPoolDeleteHandler()
+
+	job := &datamodel.Job{
+		State:         string(models.JobsStatePROCESSING),
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: "pool-uuid"},
+	}
+
+	expectedErr := errors.New("database error")
+	storage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid").Return((*datamodel.Pool)(nil), expectedErr).Once()
+
+	err := handler.Handle(context.Background(), job, EventTimeout, storage)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "load pool for PROCESSING timeout")
+}
+
+func TestPoolDeleteHandler_Handle_ProcessingTimeout_UpdatePoolStateError(t *testing.T) {
+	storage := database.NewMockStorage(t)
+	handler := NewPoolDeleteHandler()
+
+	job := &datamodel.Job{
+		State:         string(models.JobsStatePROCESSING),
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: "pool-uuid"},
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		State:     models.LifeCycleStateDeleting,
+	}
+	expectedErr := errors.New("update failed")
+	storage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid").Return(pool, nil).Once()
+	storage.EXPECT().UpdatePoolState(mock.Anything, pool, models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails).Return((*datamodel.Pool)(nil), expectedErr).Once()
+
+	err := handler.Handle(context.Background(), job, EventTimeout, storage)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "update pool state to ERROR")
+}
+
+func TestPoolDeleteHandler_Handle_NewStateTimeout_RevertsPoolState(t *testing.T) {
+	storage := database.NewMockStorage(t)
+	handler := NewPoolDeleteHandler()
+
+	// Job in NEW state should trigger revert behavior
+	job := &datamodel.Job{
+		State: string(models.JobsStateNEW),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID:         "pool-uuid",
+			PreviousState:        models.LifeCycleStateREADY,
+			PreviousStateDetails: models.LifeCycleStateReadyDetails,
+		},
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		State:     models.LifeCycleStateDeleting,
+	}
+	storage.EXPECT().GetPoolByUUID(mock.Anything, "pool-uuid").Return(pool, nil).Once()
+	storage.EXPECT().UpdatePoolState(mock.Anything, pool, models.LifeCycleStateREADY, models.LifeCycleStateReadyDetails).Return(pool, nil).Once()
+
+	err := handler.Handle(context.Background(), job, EventTimeout, storage)
+	require.NoError(t, err)
+}

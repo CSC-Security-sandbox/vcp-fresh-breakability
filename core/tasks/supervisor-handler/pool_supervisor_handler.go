@@ -30,7 +30,9 @@ func (h *PoolHandler) JobTypes() []models.JobType {
 	}
 }
 
-// Handle removes pool artifacts from VCP for the job.
+// Handle removes pool artifacts from VCP for the job when the supervisor
+// detects a timeout in NEW state. Create pool is not eligible for PROCESSING
+// state timeout handling.
 func (h *PoolHandler) Handle(ctx context.Context, job *datamodel.Job, event Event, storage database.Storage) error {
 	if event != EventTimeout {
 		return nil
@@ -39,6 +41,7 @@ func (h *PoolHandler) Handle(ctx context.Context, job *datamodel.Job, event Even
 	logger := util.GetLogger(ctx).With(log.Fields{
 		"jobUUID":                               job.UUID,
 		"jobType":                               job.Type,
+		"jobState":                              job.State,
 		string(middleware.RequestCorrelationID): utils.GetCoRelationIDFromContext(ctx),
 	})
 
@@ -47,6 +50,12 @@ func (h *PoolHandler) Handle(ctx context.Context, job *datamodel.Job, event Even
 		return nil
 	}
 
+	return h.handleNewStateTimeout(ctx, job, storage, logger)
+}
+
+// handleNewStateTimeout handles timeout for jobs in NEW state.
+// It deletes the pool from VCP database.
+func (h *PoolHandler) handleNewStateTimeout(ctx context.Context, job *datamodel.Job, storage database.Storage, logger log.Logger) error {
 	pool, err := storage.GetPoolByUUID(ctx, job.JobAttributes.ResourceUUID)
 	if err != nil {
 		if vsaerrors.IsNotFoundErr(err) {

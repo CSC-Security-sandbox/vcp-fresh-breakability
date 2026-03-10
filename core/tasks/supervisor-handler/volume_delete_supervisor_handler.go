@@ -31,7 +31,8 @@ func (h *VolumeDeleteHandler) JobTypes() []models.JobType {
 	}
 }
 
-// Handle reverts volume state from DELETING to previous state for stale delete jobs.
+// Handle reverts volume state from DELETING to previous state for stale delete jobs (NEW state),
+// or transitions to ERROR state for PROCESSING state timeouts.
 func (h *VolumeDeleteHandler) Handle(ctx context.Context, job *datamodel.Job, event Event, storage database.Storage) error {
 	if event != EventTimeout {
 		return nil
@@ -40,6 +41,7 @@ func (h *VolumeDeleteHandler) Handle(ctx context.Context, job *datamodel.Job, ev
 	logger := util.GetLogger(ctx).With(log.Fields{
 		"jobUUID":                               job.UUID,
 		"jobType":                               job.Type,
+		"jobState":                              job.State,
 		string(middleware.RequestCorrelationID): utils.GetCoRelationIDFromContext(ctx),
 	})
 
@@ -48,6 +50,45 @@ func (h *VolumeDeleteHandler) Handle(ctx context.Context, job *datamodel.Job, ev
 		return nil
 	}
 
+	if job.State == string(models.JobsStatePROCESSING) {
+		return h.handleProcessingTimeout(ctx, job, storage, logger)
+	}
+
+	return h.handleNewStateTimeout(ctx, job, storage, logger)
+}
+
+// handleProcessingTimeout handles timeout for delete jobs in PROCESSING state.
+// It transitions the volume from DELETING to ERROR state.
+func (h *VolumeDeleteHandler) handleProcessingTimeout(ctx context.Context, job *datamodel.Job, storage database.Storage, logger log.Logger) error {
+	volume, err := storage.GetVolume(ctx, job.JobAttributes.ResourceUUID)
+	if err != nil {
+		if vsaerrors.IsNotFoundErr(err) {
+			logger.Warnf("workflow-supervisor-task: volume already deleted in VCP")
+			return nil
+		}
+		return fmt.Errorf("load volume for PROCESSING timeout: %w", err)
+	}
+
+	if volume.State != models.LifeCycleStateDeleting {
+		logger.Warnf("workflow-supervisor-task: volume not in DELETING state (%s); skipping state transition", volume.State)
+		return nil
+	}
+
+	err = storage.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
+		"state":         models.LifeCycleStateError,
+		"state_details": models.LifeCycleStateDeletionErrorDetails,
+	})
+	if err != nil {
+		return fmt.Errorf("update volume state to ERROR: %w", err)
+	}
+
+	logger.Infof("workflow-supervisor-task: volume %s transitioned from DELETING to ERROR due to workflow timeout", volume.UUID)
+	return nil
+}
+
+// handleNewStateTimeout handles timeout for delete jobs in NEW state.
+// It reverts the volume from DELETING to its previous state.
+func (h *VolumeDeleteHandler) handleNewStateTimeout(ctx context.Context, job *datamodel.Job, storage database.Storage, logger log.Logger) error {
 	volume, err := storage.GetVolume(ctx, job.JobAttributes.ResourceUUID)
 	if err != nil {
 		if vsaerrors.IsNotFoundErr(err) {
@@ -57,17 +98,14 @@ func (h *VolumeDeleteHandler) Handle(ctx context.Context, job *datamodel.Job, ev
 		return fmt.Errorf("load volume: %w", err)
 	}
 
-	// Only revert if volume is in DELETING state
 	if volume.State != models.LifeCycleStateDeleting {
 		logger.Warnf("workflow-supervisor-task: volume not in DELETING state (%s); skipping revert", volume.State)
 		return nil
 	}
 
-	// Get previous state from job attributes, with fallback
 	previousState := job.JobAttributes.PreviousState
 	previousStateDetails := job.JobAttributes.PreviousStateDetails
 
-	// Fallback if previous state not stored (for backward compatibility with old jobs)
 	if previousState == "" {
 		logger.Warnf("workflow-supervisor-task: previous state not stored in job attributes, using default READY")
 		previousState = models.LifeCycleStateREADY
@@ -85,4 +123,3 @@ func (h *VolumeDeleteHandler) Handle(ctx context.Context, job *datamodel.Job, ev
 	logger.Infof("workflow-supervisor-task: volume %s reverted from DELETING to %s", volume.UUID, previousState)
 	return nil
 }
-
