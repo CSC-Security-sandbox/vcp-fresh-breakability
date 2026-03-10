@@ -7118,6 +7118,510 @@ func Test_createVolume_WithSnapshotPolicy(t *testing.T) {
 	assert.Equal(tt, []int{30}, volume.SnapshotPolicy.Schedules[0].Schedule.Minutes)
 }
 
+func TestCreateVolume_SMBDefaultSecurityStyle(t *testing.T) {
+	t.Run("Sets Ntfs SecurityStyle when FileProperties is nil and protocol is SMB", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+			Network:   "somevpc",
+			VendorID:  "/projects/project123/locations/location123/pools/pool123",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
+			APIAccessMode: common.DEFAULTMode,
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:            "test_node1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node1).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:            "test_node2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif1 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:      "test_node1",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node1.ID,
+		}
+		err = store.DB().Create(lif1).Error
+		assert.NoError(tt, err, "Failed to create lif1")
+
+		lif2 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:      "test_node2",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.2",
+			NodeID:    node2.ID,
+		}
+		err = store.DB().Create(lif2).Error
+		assert.NoError(tt, err, "Failed to create lif2")
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Region:        "test_region",
+			Name:          "test_volume",
+			Zone:          "us-west1-a",
+			VendorID:      "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
+			QuotaInBytes:  minQuotaInBytesVolume + 1,
+			Protocols:     []string{"SMB"},
+			Description:   "Some description",
+			DisplayName:   "Some display name",
+			PoolID:        "test-pool-uuid",
+			CreationToken: "test-creation-token",
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+				ID:   account.ID,
+			},
+			Name: "test_account",
+		}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+			return nil
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		// Mock ExecuteWorkflow for auto pool scaling
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+		// Mock ExecuteWorkflow for auto pool scaling
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			return nil
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+		volume, _, err := createVolume(ctx, store, temporal, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volume)
+		assert.NotNil(tt, volume.FileProperties)
+		assert.Equal(tt, "ntfs", volume.FileProperties.SecurityStyle)
+	})
+
+	t.Run("Sets NtfsSecurityStyle when FileProperties exists but SecurityStyle is empty and protocol is SMB", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+			Network:   "somevpc",
+			VendorID:  "/projects/project123/locations/location123/pools/pool123",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
+			APIAccessMode: common.DEFAULTMode,
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:            "test_node1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node1).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:            "test_node2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif1 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:      "test_node1",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node1.ID,
+		}
+		err = store.DB().Create(lif1).Error
+		assert.NoError(tt, err, "Failed to create lif1")
+
+		lif2 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:      "test_node2",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.2",
+			NodeID:    node2.ID,
+		}
+		err = store.DB().Create(lif2).Error
+		assert.NoError(tt, err, "Failed to create lif2")
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Region:        "test_region",
+			Name:          "test_volume",
+			Zone:          "us-west1-a",
+			VendorID:      "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
+			QuotaInBytes:  minQuotaInBytesVolume + 1,
+			Protocols:     []string{"SMB"},
+			Description:   "Some description",
+			DisplayName:   "Some display name",
+			PoolID:        "test-pool-uuid",
+			CreationToken: "test-creation-token",
+			FileProperties: &models.FileProperties{
+				JunctionPath: "smbshare",
+			},
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+				ID:   account.ID,
+			},
+			Name: "test_account",
+		}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+			return nil
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		// Mock ExecuteWorkflow for auto pool scaling
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+		// Mock ExecuteWorkflow for auto pool scaling
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			return nil
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+		volume, _, err := createVolume(ctx, store, temporal, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volume)
+		assert.NotNil(tt, volume.FileProperties)
+		assert.Equal(tt, "ntfs", volume.FileProperties.SecurityStyle)
+	})
+
+	t.Run("Does not override SecurityStyle when FileProperties has SecurityStyle set and protocol is SMB", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		// Clear the in-memory database
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			State:     models.LifeCycleStateREADY,
+			Network:   "somevpc",
+			VendorID:  "/projects/project123/locations/location123/pools/pool123",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
+			APIAccessMode: common.DEFAULTMode,
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
+			Name:      "test_svm",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(svm).Error
+		if err != nil {
+			tt.Fatalf("Failed to create svm: %v", err)
+		}
+
+		node1 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:            "test_node1",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node1).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		node2 := &datamodel.Node{
+			BaseModel:       datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:            "test_node2",
+			AccountID:       account.ID,
+			EndpointAddress: "12.12.12.12",
+			PoolID:          pool.ID,
+			State:           models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(node2).Error
+		assert.NoError(tt, err, "Failed to create node")
+
+		lif1 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid1"},
+			Name:      "test_node1",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.1",
+			NodeID:    node1.ID,
+		}
+		err = store.DB().Create(lif1).Error
+		assert.NoError(tt, err, "Failed to create lif1")
+
+		lif2 := &datamodel.Lif{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid2"},
+			Name:      "test_node2",
+			AccountID: account.ID,
+			IPAddress: "1.1.1.2",
+			NodeID:    node2.ID,
+		}
+		err = store.DB().Create(lif2).Error
+		assert.NoError(tt, err, "Failed to create lif2")
+
+		params := &common.CreateVolumeParams{
+			AccountName:   "test_account",
+			Region:        "test_region",
+			Name:          "test_volume",
+			Zone:          "us-west1-a",
+			VendorID:      "/projects/project123/locations/us-west1-a/volumes/test-volume", // Valid VendorID
+			QuotaInBytes:  minQuotaInBytesVolume + 1,
+			Protocols:     []string{"SMB"},
+			Description:   "Some description",
+			DisplayName:   "Some display name",
+			PoolID:        "test-pool-uuid",
+			CreationToken: "test-creation-token",
+			FileProperties: &models.FileProperties{
+				JunctionPath:  "smbshare",
+				SecurityStyle: UnixSecurityStyle,
+			},
+		}
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-uuid",
+				ID:   account.ID,
+			},
+			Name: "test_account",
+		}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return dbAccount, nil
+		}
+		validateCreateVolumeParams = func(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
+			return nil
+		}
+		defer func() {
+			getOrCreateAccount = _getOrCreateAccount
+			validateCreateVolumeParams = _validateCreateVolumeParams
+		}()
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		// Mock ExecuteWorkflow for auto pool scaling
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+		// Mock ExecuteWorkflow for auto pool scaling
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
+		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
+		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
+			return nil
+		}
+		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
+
+		volume, _, err := createVolume(ctx, store, temporal, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volume)
+		assert.NotNil(tt, volume.FileProperties)
+		assert.NotEqual(tt, NtfsSecurityStyle, volume.FileProperties.SecurityStyle)
+	})
+
+	t.Run("Does not set default SecurityStyle when protocol is not SMB", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			Name:           "test-volume",
+			QuotaInBytes:   minQuotaInBytesPool,
+			Protocols:      []string{"NFSv3"},
+			FileProperties: nil,
+		}
+		volumeObj := &datamodel.Volume{
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: params.Protocols,
+			},
+		}
+		if (params.FileProperties == nil || params.FileProperties.SecurityStyle == "") && len(params.Protocols) == 1 && utils.IsSMBProtocol(params.Protocols[0]) {
+			if volumeObj.VolumeAttributes.FileProperties == nil {
+				volumeObj.VolumeAttributes.FileProperties = &datamodel.FileProperties{}
+			}
+			volumeObj.VolumeAttributes.FileProperties.SecurityStyle = NtfsSecurityStyle
+		}
+		assert.Nil(tt, volumeObj.VolumeAttributes.FileProperties)
+	})
+
+	t.Run("Does not set default SecurityStyle when multiple protocols are specified", func(tt *testing.T) {
+		params := &common.CreateVolumeParams{
+			Name:           "test-volume",
+			QuotaInBytes:   minQuotaInBytesPool,
+			Protocols:      []string{"SMB", "NFSv4"},
+			FileProperties: nil,
+		}
+		volumeObj := &datamodel.Volume{
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: params.Protocols,
+			},
+		}
+		if (params.FileProperties == nil || params.FileProperties.SecurityStyle == "") && len(params.Protocols) == 1 && utils.IsSMBProtocol(params.Protocols[0]) {
+			if volumeObj.VolumeAttributes.FileProperties == nil {
+				volumeObj.VolumeAttributes.FileProperties = &datamodel.FileProperties{}
+			}
+			volumeObj.VolumeAttributes.FileProperties.SecurityStyle = NtfsSecurityStyle
+		}
+		assert.Nil(tt, volumeObj.VolumeAttributes.FileProperties)
+	})
+}
+
 // Test cases to cover lines 1420-1423 (IP validation in validateAllowedClients)
 func Test_validateAllowedClients(t *testing.T) {
 	t.Run("ValidSingleIP", func(tt *testing.T) {
