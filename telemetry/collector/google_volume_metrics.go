@@ -97,22 +97,26 @@ func (g *GoogleVolumeMetricsProvider) CollectProjectMetrics(ctx context.Context,
 			PageSize: telemetryConfig.PageSize,
 		}
 
-		if metric.MetricType == "performance" {
-			req.Aggregation = &monitoringpb.Aggregation{
-				AlignmentPeriod:    &durationpb.Duration{Seconds: 300},
-				PerSeriesAligner:   monitoringpb.Aggregation_ALIGN_MEAN,
-				CrossSeriesReducer: monitoringpb.Aggregation_REDUCE_MEAN,
-				GroupByFields: []string{
-					"metric.label.metric",
-					"metric.label.volume",
-					"metric.label.project",
-					"metric.label.datacenter",
-					"metric.label.pool_name",
-					"metric.label.deployment_name",
-					"metric.label.is_regional_ha",
-				},
-			}
+		agg := &monitoringpb.Aggregation{
+			AlignmentPeriod: &durationpb.Duration{Seconds: 300},
+			GroupByFields: []string{
+				"metric.label.metric",
+				"metric.label.volume",
+				"metric.label.project",
+				"metric.label.datacenter",
+				"metric.label.pool_name",
+				"metric.label.deployment_name",
+				"metric.label.is_regional_ha",
+			},
 		}
+		if metric.MetricType == "performance" {
+			agg.PerSeriesAligner = monitoringpb.Aggregation_ALIGN_MEAN
+			agg.CrossSeriesReducer = monitoringpb.Aggregation_REDUCE_MEAN
+		} else {
+			agg.PerSeriesAligner = monitoringpb.Aggregation_ALIGN_MAX
+			agg.CrossSeriesReducer = monitoringpb.Aggregation_REDUCE_MAX
+		}
+		req.Aggregation = agg
 
 		it := g.client.ListTimeSeries(ctx, req)
 		for {
