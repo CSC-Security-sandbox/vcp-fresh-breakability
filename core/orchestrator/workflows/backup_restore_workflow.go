@@ -382,6 +382,14 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 	backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.ExternalUUID = volCreateResponse.ExternalUUID
 
 	if !createVolumeParams.IsExpertModeRestore {
+		// Set the junction path before post-provisioning so the volume is mounted
+		// in the SVM namespace. PostFileVolumeWorkflowForSMB needs this to create
+		// CIFS shares that reference the junction path.
+		err = workflow.ExecuteActivity(ctx, volumeUpdateActivity.UpdateVolumeJunctionpath, backupActivitiesContext.BackupWorkflowInit.Volume, backupActivitiesContext.Node).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+
 		postWorkflowFunc, err := selectVolumeChildWorkflow(backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.Protocols, PhasePost, ontapVersion)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
@@ -395,11 +403,6 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 		// Update the dbVolume with the changes from the child workflow
 		if updatedVolume != nil {
 			backupActivitiesContext.BackupWorkflowInit.Volume = updatedVolume
-		}
-
-		err = workflow.ExecuteActivity(ctx, volumeUpdateActivity.UpdateVolumeJunctionpath, backupActivitiesContext.BackupWorkflowInit.Volume, backupActivitiesContext.Node).Get(ctx, nil)
-		if err != nil {
-			return nil, ConvertToVSAError(err)
 		}
 	}
 	var ontapAsyncResponse *vsa.OntapAsyncResponse
