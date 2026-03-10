@@ -92,8 +92,8 @@ The reason we followed this sort of versioning for VLM is listed below, as agree
        pullPolicy: IfNotPresent
      - ontapVersion: "9.18.1"
        vlmImageName: "vlm-worker"
-       vlmImageTag: "R9.18.1x_7870738"
-       vlmImageDigest: "sha256:d90463ab0f43bc1b78ef7fa66040184c176ccbd7531734d7d5d29a1d435d4ffe"
+       vlmImageTag: "R9.18.1Px_8002425"
+       vlmImageDigest: "sha256:9b1c349a2e1b1d8b9991a1de73ac8a24a5aef7efe2ce4664990e966ff1447d0e"
        secondary: true
        pullPolicy: IfNotPresent
    ```
