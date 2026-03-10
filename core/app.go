@@ -19,6 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
@@ -54,6 +55,11 @@ const (
 	workflowSupervisorScheduleExpression = "0 */5 * * * *"
 	workflowSupervisorCronExpression     = "0 */5 * * * *"
 	workflowSupervisorLockTimeoutSeconds = 300
+
+	leakedResourcesMonitoringJobType                = "LEAKED_RESOURCES_MONITORING"
+	leakedResourcesMonitoringCronExpressionDefault = "0 0 0 * * *" // once per day at midnight (sec min hour day month dow)
+	leakedResourcesMonitoringLockTimeoutSeconds     = 3600
+	leakedResourcesMonitoringRunTimeoutSeconds      = 30 * 60       // max time for one pipeline run; prevents stuck CCFE/DB from holding lock
 )
 
 func main() {
@@ -287,6 +293,21 @@ func startBackgroundTaskScheduler(ctx context.Context, se database.Storage, temp
 		return supervisorErr
 	}
 
+	// Schedule leaked resources monitoring when enabled (LEAKED_RESOURCES_MONITORING_ENABLED, default true).
+	// When enabled: default once per day at midnight; override via LEAKED_RESOURCES_MONITORING_CRON_EXPRESSION.
+	if env.GetBool("LEAKED_RESOURCES_MONITORING_ENABLED", true) {
+		leakedResourcesCronExpr := env.GetString("LEAKED_RESOURCES_MONITORING_CRON_EXPRESSION", leakedResourcesMonitoringCronExpressionDefault)
+		logger.InfoContext(ctx, "Leaked resources monitoring cron", "expression", leakedResourcesCronExpr)
+		leakedResourcesErr := cronScheduler.AddFunc(leakedResourcesCronExpr, func() { runLockedLeakedResourcesMonitoringTask(ctx, se, logger) })
+		if leakedResourcesErr != nil {
+			metrics.IncBackgroundTaskError(leakedResourcesMonitoringJobType, "schedule_registration")
+			logger.ErrorContext(ctx, "Failed to schedule Leaked Resources Monitoring Task", "error", leakedResourcesErr)
+			return leakedResourcesErr
+		}
+	} else {
+		logger.InfoContext(ctx, "Leaked resources monitoring disabled via LEAKED_RESOURCES_MONITORING_ENABLED")
+	}
+
 	cronScheduler.Start()
 	logger.InfoContext(ctx, "Background task scheduler started successfully")
 
@@ -451,6 +472,73 @@ func runLockedWorkflowSupervisorTask(ctx context.Context, se database.Storage, t
 		metrics.IncBackgroundTaskRun(workflowSupervisorJobType)
 		defer releaseAdminJobSpecLock(ctx, se, workflowSupervisorJobType, workflowSupervisorLockTimeoutSeconds, logger)
 		tasks.WorkflowSupervisorTask(ctx, se, temporal, correlationID)
+	} else {
+		logger.InfoContext(ctx, "Could not acquire lock - another pod is currently executing the task or not enough time has passed since last execution")
+	}
+}
+
+func runLockedLeakedResourcesMonitoringTask(ctx context.Context, se database.Storage, logger log.Logger) {
+	logger.InfoContext(ctx, "Starting leaked resources monitoring task with lock")
+
+	cronExpr := env.GetString("LEAKED_RESOURCES_MONITORING_CRON_EXPRESSION", leakedResourcesMonitoringCronExpressionDefault)
+	newJobSpec := &datamodel.AdminJobSpec{
+		BaseModel:      datamodel.BaseModel{UUID: utils.RandomUUID()},
+		JobType:        leakedResourcesMonitoringJobType,
+		CronExpression: cronExpr,
+		State:          scheduler.JobStatusScheduled,
+	}
+
+	createdJobSpec, createErr := se.CreateAdminJobSpecIfNotExists(ctx, newJobSpec)
+	if createErr == nil {
+		// Successfully created the job spec - we have the "lock", execute immediately (same as syncVSAClusterHealthWithLock).
+		logger.InfoContext(ctx, "Created new admin job spec, executing leaked resources monitoring immediately", "jobUUID", createdJobSpec.UUID)
+		metrics.IncBackgroundTaskRun(leakedResourcesMonitoringJobType)
+		defer releaseAdminJobSpecLock(ctx, se, leakedResourcesMonitoringJobType, leakedResourcesMonitoringLockTimeoutSeconds, logger)
+		runCtx, cancel := context.WithTimeout(ctx, time.Duration(leakedResourcesMonitoringRunTimeoutSeconds)*time.Second)
+		defer cancel()
+		if err := leakedresources.Run(runCtx, se); err != nil {
+			logger.ErrorContext(ctx, "Leaked resources monitoring failed", "error", err)
+			metrics.IncBackgroundTaskError(leakedResourcesMonitoringJobType, "run")
+		}
+		return
+	}
+
+	if !errors.Is(createErr, vsaerrors.ErrAdminJobSpecAlreadyExists) {
+		logger.ErrorContext(ctx, createErr.Error(), "error", createErr.Error())
+		metrics.IncBackgroundTaskError(leakedResourcesMonitoringJobType, "create_admin_job_spec")
+		return
+	}
+
+	// Job spec already exists, try to acquire lock by updating it
+	logger.InfoContext(ctx, "Job spec already exists, attempting to acquire lock by updating", "jobType", leakedResourcesMonitoringJobType)
+
+	currentTime := time.Now()
+	lockThreshold := currentTime.Add(-time.Duration(leakedResourcesMonitoringLockTimeoutSeconds) * time.Second)
+
+	rowsAffected, updateErr := se.UpdateAdminJobSpecWithLock(ctx, leakedResourcesMonitoringJobType, scheduler.JobStatusScheduled, lockThreshold, currentTime)
+	if updateErr != nil {
+		logger.ErrorContext(ctx, "Failed to acquire lock for admin job spec", "error", updateErr, "jobType", leakedResourcesMonitoringJobType)
+		metrics.IncBackgroundTaskError(leakedResourcesMonitoringJobType, "acquire_lock")
+		return
+	}
+
+	if rowsAffected > 0 {
+		jobSpec, getErr := se.GetAdminJobSpecByJobType(ctx, leakedResourcesMonitoringJobType)
+		if getErr != nil {
+			logger.ErrorContext(ctx, "Failed to retrieve job spec after acquiring lock", "error", getErr, "jobType", leakedResourcesMonitoringJobType)
+			metrics.IncBackgroundTaskError(leakedResourcesMonitoringJobType, "load_job_spec")
+			return
+		}
+
+		logger.InfoContext(ctx, "Successfully acquired lock, executing leaked resources monitoring", "jobUUID", jobSpec.UUID)
+		metrics.IncBackgroundTaskRun(leakedResourcesMonitoringJobType)
+		defer releaseAdminJobSpecLock(ctx, se, leakedResourcesMonitoringJobType, leakedResourcesMonitoringLockTimeoutSeconds, logger)
+		runCtx, cancel := context.WithTimeout(ctx, time.Duration(leakedResourcesMonitoringRunTimeoutSeconds)*time.Second)
+		defer cancel()
+		if err := leakedresources.Run(runCtx, se); err != nil {
+			logger.ErrorContext(ctx, "Leaked resources monitoring failed", "error", err)
+			metrics.IncBackgroundTaskError(leakedResourcesMonitoringJobType, "run")
+		}
 	} else {
 		logger.InfoContext(ctx, "Could not acquire lock - another pod is currently executing the task or not enough time has passed since last execution")
 	}
