@@ -843,7 +843,7 @@ func TestGoogleVolumeMetricsProvider_CollectProjectMetrics_PerformanceFlow(t *te
 		return req.Aggregation != nil &&
 			req.Aggregation.PerSeriesAligner == monitoringpb.Aggregation_ALIGN_MEAN &&
 			req.Aggregation.CrossSeriesReducer == monitoringpb.Aggregation_REDUCE_MEAN &&
-			len(req.Aggregation.GroupByFields) == 7
+			len(req.Aggregation.GroupByFields) == 8
 	})).Return(mockIterator)
 
 	result, err := provider.CollectProjectMetrics(ctx, logger, projectID, timestamp)

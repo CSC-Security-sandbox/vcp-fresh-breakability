@@ -107,6 +107,7 @@ func (g *GoogleVolumeMetricsProvider) CollectProjectMetrics(ctx context.Context,
 				"metric.label.pool_name",
 				"metric.label.deployment_name",
 				"metric.label.is_regional_ha",
+				"metric.label.relationship_id",
 			},
 		}
 		if metric.MetricType == "performance" {
