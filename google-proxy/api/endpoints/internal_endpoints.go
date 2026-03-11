@@ -162,12 +162,21 @@ func (h Handler) V1betaInternalDeleteVolumeReplication(ctx context.Context, para
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	var cleanupAfterReverse bool
+	var isCleanup bool
+
 	if params.CleanupAfterReverse.Set {
 		cleanupAfterReverse = params.CleanupAfterReverse.Value
 	} else {
 		cleanupAfterReverse = false
 	}
-	volumeReplication, job, err := h.Orchestrator.DeleteReplicationInternal(ctx, params.VolumeReplicationId, cleanupAfterReverse)
+
+	if params.IsCleanup.Set {
+		isCleanup = params.IsCleanup.Value
+	} else {
+		isCleanup = false
+	}
+
+	volumeReplication, job, err := h.Orchestrator.DeleteReplicationInternal(ctx, params.VolumeReplicationId, cleanupAfterReverse, isCleanup)
 	if err != nil {
 		logger.Error("Failed to delete replication", "error", err.Error())
 		if errors.IsNotFoundErr(err) {

@@ -319,7 +319,7 @@ func (o *OCIOrchestrator) ReleaseVolumeReplication(ctx context.Context, replicat
 	return nil, nil, utilserrors.NewNotImplementedYetErr()
 }
 
-func (o *OCIOrchestrator) DeleteReplicationInternal(ctx context.Context, volumeReplicationId string, cleanupAfterReverse bool) (*models.VolumeReplication, *datamodel.Job, error) {
+func (o *OCIOrchestrator) DeleteReplicationInternal(ctx context.Context, volumeReplicationId string, cleanupAfterReverse bool, isCleanup bool) (*models.VolumeReplication, *datamodel.Job, error) {
 	return nil, nil, utilserrors.NewNotImplementedYetErr()
 }
 

@@ -441,3 +441,94 @@ func TestReplicationCleanupWorkflow_WhenDestinationVolumeIsNotDeleted(t *testing
 		env.AssertExpectations(tt)
 	})
 }
+
+func TestShouldSkipDehydration(t *testing.T) {
+	tests := []struct {
+		name         string
+		replication  *googleproxyclient.VolumeReplicationInternalV1beta
+		expectedSkip bool
+	}{
+		{
+			name:         "nil replication should skip",
+			replication:  nil,
+			expectedSkip: true,
+		},
+		{
+			name: "lifecycle state creating should skip",
+			replication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				LifeCycleState: googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(
+					googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateCreating,
+				),
+			},
+			expectedSkip: true,
+		},
+		{
+			name: "lifecycle state error should skip",
+			replication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				LifeCycleState: googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(
+					googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateError,
+				),
+			},
+			expectedSkip: true,
+		},
+		{
+			name: "lifecycle state available should not skip",
+			replication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				LifeCycleState: googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(
+					googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateAvailable,
+				),
+			},
+			expectedSkip: false,
+		},
+		{
+			name: "lifecycle state updating should not skip",
+			replication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				LifeCycleState: googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(
+					googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateUpdating,
+				),
+			},
+			expectedSkip: false,
+		},
+		{
+			name: "lifecycle state disabled should not skip",
+			replication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				LifeCycleState: googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(
+					googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDisabled,
+				),
+			},
+			expectedSkip: false,
+		},
+		{
+			name: "lifecycle state deleting should not skip",
+			replication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				LifeCycleState: googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(
+					googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDeleting,
+				),
+			},
+			expectedSkip: false,
+		},
+		{
+			name: "lifecycle state deleted should not skip",
+			replication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				LifeCycleState: googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(
+					googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateDeleted,
+				),
+			},
+			expectedSkip: false,
+		},
+		{
+			name: "lifecycle state not set should not skip",
+			replication: &googleproxyclient.VolumeReplicationInternalV1beta{
+				// LifeCycleState is not set (default OptVolumeReplicationInternalV1betaLifeCycleState with Set=false)
+			},
+			expectedSkip: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := shouldSkipDehydration(tt.replication)
+			assert.Equal(t, tt.expectedSkip, result, "shouldSkipDehydration() = %v, want %v", result, tt.expectedSkip)
+		})
+	}
+}

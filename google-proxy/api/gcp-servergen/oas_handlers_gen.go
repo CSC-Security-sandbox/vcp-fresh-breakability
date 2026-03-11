@@ -10718,6 +10718,10 @@ func (s *Server) handleV1betaInternalDeleteVolumeReplicationRequest(args [3]stri
 					Name: "cleanupAfterReverse",
 					In:   "query",
 				}: params.CleanupAfterReverse,
+				{
+					Name: "isCleanup",
+					In:   "query",
+				}: params.IsCleanup,
 			},
 			Raw: r,
 		}

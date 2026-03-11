@@ -7581,7 +7581,7 @@ func Test_deleteVolumeReplication(t *testing.T) {
 		}
 		mockStorage.On("GetVolumeReplication", ctx, volumeReplication.UUID).Return(nil, errors.New("not found"))
 
-		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID, false)
+		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID, false, false)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "not found", err.Error())
 	})
@@ -7603,12 +7603,11 @@ func Test_deleteVolumeReplication(t *testing.T) {
 			},
 			Name:      "test-replication",
 			AccountID: 1,
-			State:     models.LifeCycleStateREADY,
+			State:     models.LifeCycleStateUpdating,
 		}
-		dbVolumeReplication.State = models.LifeCycleStateCreating
 		mockStorage.On("GetVolumeReplication", ctx, volumeReplication.UUID).Return(dbVolumeReplication, nil)
 
-		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID, false)
+		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID, false, false)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "Error deleting volume Replication - Volume replication is already transitioning between states", err.Error())
 	})
@@ -7636,7 +7635,7 @@ func Test_deleteVolumeReplication(t *testing.T) {
 		mockStorage.On("GetVolumeReplication", ctx, volumeReplication.UUID).Return(dbVolumeReplication, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("failed to create job"))
 
-		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID, false)
+		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID, false, false)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "failed to create job", err.Error())
 	})
@@ -7665,7 +7664,7 @@ func Test_deleteVolumeReplication(t *testing.T) {
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(&datamodel.Job{WorkflowID: "workflow-id"}, nil)
 		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.Anything).Return(errors.New("update error"))
 
-		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID, false)
+		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID, false, false)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "update error", err.Error())
 	})
@@ -7709,7 +7708,7 @@ func Test_deleteVolumeReplication(t *testing.T) {
 		mockStorage.On("UpdateJob", ctx, "job-uuid-789", string(models.JobsStateERROR), 0, expectedError.Error()).Return(nil)
 
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, false).Return(nil, expectedError)
-		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID, false)
+		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID, false, false)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "failed to execute workflow", err.Error())
 
@@ -7799,9 +7798,113 @@ func Test_deleteVolumeReplication(t *testing.T) {
 		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.Anything).Return(nil)
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, false).Return(nil, nil)
 
-		_, jobActualResponse, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, expectedResponse.UUID, false)
+		_, jobActualResponse, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, expectedResponse.UUID, false, false)
 		assert.Nil(tt, err)
 		assert.Equal(tt, jobResponse, jobActualResponse)
+	})
+	t.Run("WhenIsCleanupTrueAndStateIsCreating", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		volumeReplication := &models.VolumeReplication{
+			BaseModel: models.BaseModel{UUID: "replication-uuid"},
+			Name:      "test-replication",
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Name: "test-account",
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{
+				ID: 1,
+			},
+			Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "123"}},
+		}
+
+		dbVolumeReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "replication-uuid",
+			},
+			Name:      "test-replication",
+			AccountID: 1,
+			Account:   account,
+			State:     models.LifeCycleStateCreating,
+			Volume:    volume,
+			ReplicationAttributes: &datamodel.ReplicationDetails{},
+		}
+		jobResponse := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "job-uuid-789",
+			},
+			WorkflowID: "workflow-id",
+		}
+
+		mockStorage.On("GetVolumeReplication", ctx, volumeReplication.UUID).Return(dbVolumeReplication, nil)
+		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
+		// When cleanupAfterReverse=false, UpdateVolumeReplicationStates is called even if isCleanup=true
+		mockStorage.On("UpdateVolumeReplicationStates", ctx, mock.Anything).Return(nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, false).Return(nil, nil)
+
+		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID, false, true)
+		// Should succeed - cleanup allows Creating state
+		assert.Nil(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	t.Run("WhenIsCleanupTrueAndStateIsUpdating", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		volumeReplication := &models.VolumeReplication{
+			BaseModel: models.BaseModel{UUID: "replication-uuid"},
+			Name:      "test-replication",
+		}
+
+		dbVolumeReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "replication-uuid",
+			},
+			Name:      "test-replication",
+			AccountID: 1,
+			State:     models.LifeCycleStateUpdating,
+		}
+		mockStorage.On("GetVolumeReplication", ctx, volumeReplication.UUID).Return(dbVolumeReplication, nil)
+
+		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID, false, true)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "Error deleting volume Replication - Volume replication is already transitioning between states", err.Error())
+	})
+	t.Run("WhenIsCleanupTrueAndStateIsDeleting", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		volumeReplication := &models.VolumeReplication{
+			BaseModel: models.BaseModel{UUID: "replication-uuid"},
+			Name:      "test-replication",
+		}
+
+		dbVolumeReplication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{
+				ID:   1,
+				UUID: "replication-uuid",
+			},
+			Name:      "test-replication",
+			AccountID: 1,
+			State:     models.LifeCycleStateDeleting,
+		}
+		mockStorage.On("GetVolumeReplication", ctx, volumeReplication.UUID).Return(dbVolumeReplication, nil)
+
+		_, _, err := _deleteReplicationInternal(ctx, mockStorage, mockTemporal, volumeReplication.UUID, false, true)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, "Error deleting volume Replication - Volume replication is already transitioning between states", err.Error())
 	})
 }
 

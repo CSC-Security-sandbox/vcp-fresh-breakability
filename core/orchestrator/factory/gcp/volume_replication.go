@@ -1899,11 +1899,11 @@ func (o *GCPOrchestrator) GetReplication(ctx context.Context, volumeReplicationI
 	return convertDataStoreReplicationToModel(replication), nil
 }
 
-func (o *GCPOrchestrator) DeleteReplicationInternal(ctx context.Context, volumeReplicationId string, cleanupAfterReverse bool) (*models.VolumeReplication, *datamodel.Job, error) {
-	return deleteReplicationInternal(ctx, o.storage, o.temporal, volumeReplicationId, cleanupAfterReverse)
+func (o *GCPOrchestrator) DeleteReplicationInternal(ctx context.Context, volumeReplicationId string, cleanupAfterReverse bool, isCleanup bool) (*models.VolumeReplication, *datamodel.Job, error) {
+	return deleteReplicationInternal(ctx, o.storage, o.temporal, volumeReplicationId, cleanupAfterReverse, isCleanup)
 }
 
-func _deleteReplicationInternal(ctx context.Context, se database.Storage, temporal client.Client, volumeReplicationId string, cleanupAfterReverse bool) (*models.VolumeReplication, *datamodel.Job, error) {
+func _deleteReplicationInternal(ctx context.Context, se database.Storage, temporal client.Client, volumeReplicationId string, cleanupAfterReverse bool, isCleanup bool) (*models.VolumeReplication, *datamodel.Job, error) {
 	logger := util.GetLogger(ctx)
 
 	dbVolumeReplication, err := se.GetVolumeReplication(ctx, volumeReplicationId)
@@ -1915,10 +1915,21 @@ func _deleteReplicationInternal(ctx context.Context, se database.Storage, tempor
 		return nil, nil, err
 	}
 
-	if dbVolumeReplication.State == models.LifeCycleStateCreating ||
-		dbVolumeReplication.State == models.LifeCycleStateUpdating ||
-		dbVolumeReplication.State == models.LifeCycleStateDeleting {
-		return nil, nil, errors.New("Error deleting volume Replication - Volume replication is already transitioning between states")
+	// State validation logic differs based on isCleanup flag
+	if isCleanup {
+		// For cleanup operations, only check for Updating or Deleting states
+		// Allow cleanup even if replication is in Creating state
+		if dbVolumeReplication.State == models.LifeCycleStateUpdating ||
+			dbVolumeReplication.State == models.LifeCycleStateDeleting {
+			return nil, nil, errors.New("Error deleting volume Replication - Volume replication is already transitioning between states")
+		}
+	} else {
+		// For regular delete operations, check for Creating, Updating, or Deleting states
+		if dbVolumeReplication.State == models.LifeCycleStateCreating ||
+			dbVolumeReplication.State == models.LifeCycleStateUpdating ||
+			dbVolumeReplication.State == models.LifeCycleStateDeleting {
+			return nil, nil, errors.New("Error deleting volume Replication - Volume replication is already transitioning between states")
+		}
 	}
 
 	previousState := dbVolumeReplication.State

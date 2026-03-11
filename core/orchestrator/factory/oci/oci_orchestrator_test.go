@@ -967,7 +967,7 @@ func TestOCIOrchestrator_DeleteReplicationInternal(t *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
 
-		result, job, err := orch.DeleteReplicationInternal(ctx, "volume-replication-id", false)
+		result, job, err := orch.DeleteReplicationInternal(ctx, "volume-replication-id", false, false)
 
 		assert.Error(tt, err)
 		assert.True(tt, errors.IsNotImplementedYetErr(err))

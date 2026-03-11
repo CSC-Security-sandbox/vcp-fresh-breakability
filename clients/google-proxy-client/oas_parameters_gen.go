@@ -811,6 +811,10 @@ type V1betaInternalDeleteVolumeReplicationParams struct {
 	SkipPeeringCleanup OptBool
 	// If true, it will cleanup the old replication after reverse replication is done.
 	CleanupAfterReverse OptBool
+	// If true, indicates this is a cleanup replication operation (different from cleanupAfterReverse).
+	// Cleanup operations may skip certain validations and state transitions. Defaults to false if not
+	// provided.
+	IsCleanup OptBool
 }
 
 // V1betaInternalDeleteVolumeSnapmirrorSnapshotParams is parameters of v1beta_internalDeleteVolumeSnapmirrorSnapshot operation.

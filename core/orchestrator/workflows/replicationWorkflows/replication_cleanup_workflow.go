@@ -25,11 +25,26 @@ type replicationCleanupWorkflow struct {
 
 var _ workflows.WorkflowInterface = &replicationCleanupWorkflow{}
 
-// shouldStopReplicationBeforeDelete checks if the destination replication needs to be stopped
-// before deletion based on its mirror state. Returns true if the replication is in a state
-// that requires stopping (MIRRORED, BASELINETRANSFERRING, or MIRRORSTATEUNSPECIFIED).
+// shouldSkipDehydration checks if dehydration should be skipped.
+// Returns true if replication is nil, in "creating" lifecycle state, or in "error" lifecycle state, false otherwise.
+func shouldSkipDehydration(dstReplication *googleproxyclient.VolumeReplicationInternalV1beta) bool {
+	if dstReplication == nil {
+		return true
+	}
+	// Skip dehydration if lifecycle state is "creating" or "error"
+	return dstReplication.LifeCycleState.Set &&
+		(dstReplication.LifeCycleState.Value == googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateCreating ||
+			dstReplication.LifeCycleState.Value == googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateError)
+}
+
 func shouldStopReplicationBeforeDelete(dstReplication *googleproxyclient.VolumeReplicationInternalV1beta) bool {
 	if dstReplication == nil {
+		return false
+	}
+	// Don't stop if lifecycle state is "creating" or "error"
+	if dstReplication.LifeCycleState.Set &&
+		(dstReplication.LifeCycleState.Value == googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateCreating ||
+			dstReplication.LifeCycleState.Value == googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateError) {
 		return false
 	}
 	mirrorState := dstReplication.MirrorState.Value
@@ -201,7 +216,7 @@ func (wf *replicationCleanupWorkflow) Run(ctx workflow.Context, args ...interfac
 		}
 	}
 
-	if replicationResult.DstReplication != nil {
+	if !shouldSkipDehydration(replicationResult.DstReplication) {
 		err = workflow.ExecuteActivity(ctx, replicationActivity.DeHydrateDestinationVolumeReplicationForCleanup, &replicationResult).Get(ctx, &replicationResult)
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)

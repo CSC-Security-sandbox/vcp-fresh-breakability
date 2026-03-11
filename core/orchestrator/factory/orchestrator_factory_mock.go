@@ -2439,9 +2439,9 @@ func (_c *MockOrchestratorFactory_DeleteReplication_Call) RunAndReturn(run func(
 	return _c
 }
 
-// DeleteReplicationInternal provides a mock function with given fields: ctx, volumeReplicationId, cleanupAfterReverse
-func (_m *MockOrchestratorFactory) DeleteReplicationInternal(ctx context.Context, volumeReplicationId string, cleanupAfterReverse bool) (*models.VolumeReplication, *datamodel.Job, error) {
-	ret := _m.Called(ctx, volumeReplicationId, cleanupAfterReverse)
+// DeleteReplicationInternal provides a mock function with given fields: ctx, volumeReplicationId, cleanupAfterReverse, isCleanup
+func (_m *MockOrchestratorFactory) DeleteReplicationInternal(ctx context.Context, volumeReplicationId string, cleanupAfterReverse bool, isCleanup bool) (*models.VolumeReplication, *datamodel.Job, error) {
+	ret := _m.Called(ctx, volumeReplicationId, cleanupAfterReverse, isCleanup)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteReplicationInternal")
@@ -2450,27 +2450,27 @@ func (_m *MockOrchestratorFactory) DeleteReplicationInternal(ctx context.Context
 	var r0 *models.VolumeReplication
 	var r1 *datamodel.Job
 	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, bool) (*models.VolumeReplication, *datamodel.Job, error)); ok {
-		return rf(ctx, volumeReplicationId, cleanupAfterReverse)
+	if rf, ok := ret.Get(0).(func(context.Context, string, bool, bool) (*models.VolumeReplication, *datamodel.Job, error)); ok {
+		return rf(ctx, volumeReplicationId, cleanupAfterReverse, isCleanup)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, bool) *models.VolumeReplication); ok {
-		r0 = rf(ctx, volumeReplicationId, cleanupAfterReverse)
+	if rf, ok := ret.Get(0).(func(context.Context, string, bool, bool) *models.VolumeReplication); ok {
+		r0 = rf(ctx, volumeReplicationId, cleanupAfterReverse, isCleanup)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*models.VolumeReplication)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, bool) *datamodel.Job); ok {
-		r1 = rf(ctx, volumeReplicationId, cleanupAfterReverse)
+	if rf, ok := ret.Get(1).(func(context.Context, string, bool, bool) *datamodel.Job); ok {
+		r1 = rf(ctx, volumeReplicationId, cleanupAfterReverse, isCleanup)
 	} else {
 		if ret.Get(1) != nil {
 			r1 = ret.Get(1).(*datamodel.Job)
 		}
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, string, bool) error); ok {
-		r2 = rf(ctx, volumeReplicationId, cleanupAfterReverse)
+	if rf, ok := ret.Get(2).(func(context.Context, string, bool, bool) error); ok {
+		r2 = rf(ctx, volumeReplicationId, cleanupAfterReverse, isCleanup)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -2487,13 +2487,14 @@ type MockOrchestratorFactory_DeleteReplicationInternal_Call struct {
 //   - ctx context.Context
 //   - volumeReplicationId string
 //   - cleanupAfterReverse bool
-func (_e *MockOrchestratorFactory_Expecter) DeleteReplicationInternal(ctx interface{}, volumeReplicationId interface{}, cleanupAfterReverse interface{}) *MockOrchestratorFactory_DeleteReplicationInternal_Call {
-	return &MockOrchestratorFactory_DeleteReplicationInternal_Call{Call: _e.mock.On("DeleteReplicationInternal", ctx, volumeReplicationId, cleanupAfterReverse)}
+//   - isCleanup bool
+func (_e *MockOrchestratorFactory_Expecter) DeleteReplicationInternal(ctx interface{}, volumeReplicationId interface{}, cleanupAfterReverse interface{}, isCleanup interface{}) *MockOrchestratorFactory_DeleteReplicationInternal_Call {
+	return &MockOrchestratorFactory_DeleteReplicationInternal_Call{Call: _e.mock.On("DeleteReplicationInternal", ctx, volumeReplicationId, cleanupAfterReverse, isCleanup)}
 }
 
-func (_c *MockOrchestratorFactory_DeleteReplicationInternal_Call) Run(run func(ctx context.Context, volumeReplicationId string, cleanupAfterReverse bool)) *MockOrchestratorFactory_DeleteReplicationInternal_Call {
+func (_c *MockOrchestratorFactory_DeleteReplicationInternal_Call) Run(run func(ctx context.Context, volumeReplicationId string, cleanupAfterReverse bool, isCleanup bool)) *MockOrchestratorFactory_DeleteReplicationInternal_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(bool))
+		run(args[0].(context.Context), args[1].(string), args[2].(bool), args[3].(bool))
 	})
 	return _c
 }
@@ -2503,7 +2504,7 @@ func (_c *MockOrchestratorFactory_DeleteReplicationInternal_Call) Return(_a0 *mo
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_DeleteReplicationInternal_Call) RunAndReturn(run func(context.Context, string, bool) (*models.VolumeReplication, *datamodel.Job, error)) *MockOrchestratorFactory_DeleteReplicationInternal_Call {
+func (_c *MockOrchestratorFactory_DeleteReplicationInternal_Call) RunAndReturn(run func(context.Context, string, bool, bool) (*models.VolumeReplication, *datamodel.Job, error)) *MockOrchestratorFactory_DeleteReplicationInternal_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2712,9 +2713,12 @@ func (_m *MockOrchestratorFactory) DeleteVolumePerformanceGroup(ctx context.Cont
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, *common.DeleteVolumePerformanceGroupParams) *models.VolumePerformanceGroup); ok {
 		r0 = rf(ctx, params)
-	} else if ret.Get(0) != nil {
-		r0 = ret.Get(0).(*models.VolumePerformanceGroup)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.VolumePerformanceGroup)
+		}
 	}
+
 	if rf, ok := ret.Get(1).(func(context.Context, *common.DeleteVolumePerformanceGroupParams) error); ok {
 		r1 = rf(ctx, params)
 	} else {
@@ -2748,7 +2752,7 @@ func (_c *MockOrchestratorFactory_DeleteVolumePerformanceGroup_Call) Return(_a0 
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_DeleteVolumePerformanceGroup_Call) RunAndReturn(run func(context.Context, *common.DeleteVolumePerformanceGroupParams) error) *MockOrchestratorFactory_DeleteVolumePerformanceGroup_Call {
+func (_c *MockOrchestratorFactory_DeleteVolumePerformanceGroup_Call) RunAndReturn(run func(context.Context, *common.DeleteVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, error)) *MockOrchestratorFactory_DeleteVolumePerformanceGroup_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -68,6 +68,7 @@ func (a *CleanupVolumeReplicationActivity) DeleteReplicationOnDestinationForClea
 		LocationId:          result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
 		VolumeReplicationId: result.Event.ReplicationModel.ReplicationAttributes.DestinationReplicationUUID,
 		XCorrelationID:      googleproxyclient.NewOptString(*result.CorrelationID),
+		IsCleanup:           googleproxyclient.NewOptBool(true),
 	}
 	res, err := googleProxyClient.Invoker.V1betaInternalDeleteVolumeReplication(ctx, *deleteReplicationParams)
 	if err != nil {
@@ -362,6 +363,9 @@ func (a *CleanupVolumeReplicationActivity) DescribeSourceJobForCleanup(ctx conte
 }
 
 func (a *CleanupVolumeReplicationActivity) DeHydrateDestinationVolumeReplicationForCleanup(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("Dehydrating destination volume replication for cleanup")
+
 	if hydrationEnabled {
 		currentLocation := result.Event.Location
 		var remoteLocation, remoteVolume, remoteProject string

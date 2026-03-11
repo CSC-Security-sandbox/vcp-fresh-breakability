@@ -5793,6 +5793,14 @@ paths:
           required: false
           allowEmptyValue: true
           description: 'If true, it will cleanup the old replication after reverse replication is done.'
+        - in: query
+          name: isCleanup
+          schema:
+            type: boolean
+            default: false
+          required: false
+          allowEmptyValue: true
+          description: 'If true, indicates this is a cleanup replication operation (different from cleanupAfterReverse). Cleanup operations may skip certain validations and state transitions. Defaults to false if not provided.'
       responses:
         '202':
           description: Deleting volume replication
