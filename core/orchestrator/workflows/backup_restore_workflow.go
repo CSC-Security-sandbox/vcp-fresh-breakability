@@ -162,8 +162,8 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 	log := util.GetLogger(ctx)
 	isRestoreFromBackup := createVolumeParams.BackupPath != ""
 	volumeActivity := &activities.VolumeCreateActivity{}
-	var volumeUpdateActivity *activities.VolumeUpdateActivity
-	volumeUpdateActivity = &activities.VolumeUpdateActivity{}
+	volumeUpdateActivity := &activities.VolumeUpdateActivity{}
+	expertModeVolumeActivity := &expertmodeactivities.ExpertModeVolumeActivity{}
 	backupActivity := &activities.BackupActivity{}
 	var err error
 	retryPolicy, err := PopulateRetryPolicyParams()
@@ -182,6 +182,7 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 	rollbackManager := common.NewRollbackManager()
+	cleanupManager := common.NewRollbackManager()
 
 	var incrementErr error
 	defer func() {
@@ -196,13 +197,14 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 			}
 		}
 
-		// just a placeholder for rollback manager cleanup
-		if err != nil && workflow.IsContinueAsNewError(err) {
-			// Don't execute rollback for ContinueAsNew - let the new execution handle it
-			return
-		}
 		disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
-		rollbackManager.ExecuteRollback(disconnectedCtx, err)
+		if err != nil {
+			if workflow.IsContinueAsNewError(err) {
+				return
+			}
+			rollbackManager.ExecuteRollback(disconnectedCtx, err)
+		}
+		cleanupManager.ExecuteRollback(disconnectedCtx, err)
 	}()
 
 	info := workflow.GetInfo(ctx)
@@ -216,6 +218,12 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 			"snapshotName", backupActivitiesContext.SnapshotName,
 			"transferStatus", backupActivitiesContext.TransferStatus)
 	} else {
+		if createVolumeParams.IsExpertModeRestore {
+			rollbackManager.AddActivity(expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, backupActivitiesContext.BackupWorkflowInit.Volume.UUID, models.LifeCycleStateError, models.LifeCycleStateCreationErrorDetails)
+		} else {
+			rollbackManager.AddActivity(volumeActivity.UpdateVolumeStateInDB, backupActivitiesContext.BackupWorkflowInit.Volume.UUID, models.LifeCycleStateError, models.LifeCycleStateCreationErrorDetails)
+		}
+
 		// Increment restore count to indicate that a volume restoration is in-progress for the backup
 		incrementErr = workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupRestoreCount,
 			backupActivitiesContext.BackupWorkflowInit.BackupVault.UUID,
@@ -288,13 +296,13 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
-		rollbackManager.AddActivity(volumeActivity.DeleteRestoreObjectStore, backupActivitiesContext.Node, backupActivitiesContext.ObjStoreName)
+		cleanupManager.AddActivity(volumeActivity.DeleteRestoreObjectStore, backupActivitiesContext.Node, backupActivitiesContext.ObjStoreName)
 
 		err = workflow.ExecuteActivity(ctx, activities.BackupActivity.SnapmirrorGetOrCreate, node, &SnapmirrorRelationshipParams).Get(ctx, &snapmirrorRelationship)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
-		rollbackManager.AddActivity(activities.BackupActivity.DeleteSnapmirror, node, snapmirrorRelationship.UUID)
+		cleanupManager.AddActivity(activities.BackupActivity.DeleteSnapmirror, node, snapmirrorRelationship.UUID)
 
 		err = workflow.ExecuteActivity(ctx, activities.BackupActivity.SnapmirrorTransfer, node, snapmirrorRelationship.UUID, backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.SnapshotName).Get(ctx, nil)
 		if err != nil {
@@ -405,6 +413,7 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 			backupActivitiesContext.BackupWorkflowInit.Volume = updatedVolume
 		}
 	}
+
 	var ontapAsyncResponse *vsa.OntapAsyncResponse
 	err = workflow.ExecuteActivity(ctx, volumeActivity.DeleteRestoreObjectStore, backupActivitiesContext.Node, backupActivitiesContext.ObjStoreName).Get(ctx, &ontapAsyncResponse)
 	if err != nil {
@@ -418,7 +427,6 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 	// Finalise restored volume: update volumes table for VSA-managed restores, or expert_mode_volumes for expert mode restores
 	volume := backupActivitiesContext.BackupWorkflowInit.Volume
 	if createVolumeParams.IsExpertModeRestore {
-		expertModeVolumeActivity := &expertmodeactivities.ExpertModeVolumeActivity{}
 		err = workflow.ExecuteActivity(ctx, expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, volume.UUID, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil)
 	} else {
 		err = workflow.ExecuteActivity(ctx, volumeActivity.FinaliseRestoredVolume, volume).Get(ctx, nil)

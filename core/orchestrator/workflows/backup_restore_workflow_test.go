@@ -155,6 +155,7 @@ func (s *BackupRestoreWorkflowTestSuite) registerCommonActivities() {
 	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
 	s.env.RegisterActivity(volumeCreateActivity.FinaliseRestoredVolume)
 	s.env.RegisterActivity(volumeCreateActivity.DeleteRolesForServiceAccountInBackupTenantProject)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// WaitForONTAPJob is already registered in the package
 }
@@ -213,6 +214,8 @@ func (s *BackupRestoreWorkflowTestSuite) setupCommonMocks(volume *datamodel.Volu
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.DeleteRestoreObjectStore, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.FinaliseRestoredVolume, mock.Anything, mock.Anything).Return(nil)
+	// cleanupManager runs on success; rollbackManager's UpdateVolumeStateInDB runs only on failure
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnWorkflow("PostBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
 
 	// Mock UpdateBackupRestoreCount for both increment and decrement
@@ -292,6 +295,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetNodeFailur
 	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(backupActivity.UpdateBackupRestoreCount)
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock GetJob
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -310,6 +314,8 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetNodeFailur
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("get node failed", "GetNodeFailure", nil))
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountIncrement).Return(nil)
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil)
+	// Rollback runs on failure and calls UpdateVolumeStateInDB
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
@@ -349,6 +355,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_PreWorkflowFa
 	s.env.RegisterActivity(backupActivity.UpdateBackupRestoreCount)
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
 	s.env.RegisterActivity(backupActivity.GenerateObjectStoreNameForRestore)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock GetJob
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -369,6 +376,8 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_PreWorkflowFa
 	s.env.OnActivity(backupActivity.GenerateObjectStoreNameForRestore, mock.Anything, mock.Anything, mock.Anything).Return("test-obj-store-abcd", nil)
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountIncrement).Return(nil)
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil)
+	// Rollback runs on failure and calls UpdateVolumeStateInDB
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Mock child workflow to fail
 	s.env.OnWorkflow("PreBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("pre workflow failed"))
@@ -409,6 +418,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetSmSourcePa
 	s.env.RegisterActivity(commonActivity)
 	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Register specific backup activity methods
 	s.env.RegisterActivity(backupActivity.GetSmSourcePathActivity)
@@ -435,6 +445,8 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetSmSourcePa
 	s.env.OnActivity(backupActivity.GetSmSourcePathActivity, mock.Anything, mock.Anything).Return("", errors.New("get sm source path failed"))
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountIncrement).Return(nil)
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil)
+	// Rollback runs on failure and calls UpdateVolumeStateInDB
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
@@ -507,6 +519,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorTra
 	// Register missing activities
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
 	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Track UpdateJobStatus calls to verify error handling
 	var jobStatusCalls []string
@@ -527,6 +540,8 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorTra
 	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&activities.SnapmirrorTransferStatus{Status: activities.SmStatusFailed, BytesTransferred: nil}, nil)
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountIncrement).Return(nil)
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil)
+	// Rollback runs on failure and calls UpdateVolumeStateInDB; cleanup runs DeleteRestoreObjectStore and DeleteSnapmirror
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
@@ -608,6 +623,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_VolumeStatePo
 	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
 	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
 	s.env.RegisterActivity(volumeCreateActivity.FinaliseRestoredVolume)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 	s.env.RegisterActivity(commonActivity.GetNode)
 	s.env.RegisterActivity(backupActivity.DeleteSnapmirror)
 	s.env.RegisterActivity(volumeUpdateActivity.UpdateVolumeJunctionpath)
@@ -651,6 +667,8 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_VolumeStatePo
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil)
 	s.env.OnActivity(backupActivity.DeleteSnapmirror, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil).Maybe()
 	s.env.OnActivity(volumeCreateActivity.DeleteRestoreObjectStore, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil).Maybe()
+	// Rollback runs on timeout failure and calls UpdateVolumeStateInDB
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnWorkflow(WaitForONTAPJob, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// CRITICAL: Mock GetVolumeFromONTAP to return DP state - this must be set up BEFORE any RW state mock
@@ -726,6 +744,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_VolumeStatePo
 	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
 	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
 	s.env.RegisterActivity(volumeCreateActivity.FinaliseRestoredVolume)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 	s.env.RegisterActivity(commonActivity.GetNode)
 	s.env.RegisterActivity(backupActivity.DeleteSnapmirror)
 	s.env.RegisterActivity(volumeUpdateActivity.UpdateVolumeJunctionpath)
@@ -769,6 +788,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_VolumeStatePo
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil)
 	s.env.OnActivity(backupActivity.DeleteSnapmirror, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil).Maybe()
 	s.env.OnActivity(volumeCreateActivity.DeleteRestoreObjectStore, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil).Maybe()
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnWorkflow(WaitForONTAPJob, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// CRITICAL: Mock GetVolumeFromONTAP to return LS state - this ensures the timeout path is executed
@@ -838,6 +858,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_VolumeStateIn
 	// Register missing activities
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
 	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock GetJob
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -873,6 +894,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_VolumeStateIn
 	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{Type: "invalid"}, nil)
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountIncrement).Return(nil)
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
@@ -929,6 +951,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_PostWorkflowF
 	// Register missing activities
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
 	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock GetJob
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -1110,6 +1133,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_UpdateVolumeD
 	// Register missing activities
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
 	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock GetJob
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -1148,6 +1172,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_UpdateVolumeD
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("update volume details failed"))
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountIncrement).Return(nil)
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
@@ -1302,6 +1327,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetObjStoreNa
 	s.env.OnActivity(backupActivity.GenerateObjectStoreNameForRestore, mock.Anything, mock.Anything, mock.Anything).Return("", errors.New("get obj store name failed"))
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountIncrement).Return(nil)
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
@@ -1356,6 +1382,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GenerateObjec
 	// Mock UpdateBackupRestoreCount for cleanup
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountIncrement).Return(nil)
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
@@ -1408,6 +1435,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetBucketDeta
 	// Register missing activities
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
 	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock GetJob
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -1432,6 +1460,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetBucketDeta
 	s.env.OnActivity(activities.GetBucketDetailsFromBackup, mock.Anything, mock.Anything).Return(nil, errors.New("get bucket details failed"))
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountIncrement).Return(nil)
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
@@ -1476,6 +1505,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetOrCreateOb
 	// Register missing activities
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
 	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock GetJob
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -1501,6 +1531,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetOrCreateOb
 	s.env.OnActivity(backupActivity.GetOrCreateObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("get or create object store failed"))
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountIncrement).Return(nil)
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
@@ -1545,6 +1576,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorGet
 	// Register missing activities
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
 	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock GetJob
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -1571,6 +1603,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorGet
 	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("snapmirror get or create failed"))
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountIncrement).Return(nil)
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
@@ -1614,6 +1647,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorTra
 	// Register missing activities
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
 	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock GetJob
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -1642,6 +1676,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorTra
 	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("snapmirror transfer failed"))
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountIncrement).Return(nil)
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
@@ -1859,11 +1894,13 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_UpdateBackupR
 	}, nil).Maybe()
 	commonActivity := &activities.CommonActivities{SE: mockStorage}
 	backupActivity := &activities.BackupActivity{}
+	volumeCreateActivity := &activities.VolumeCreateActivity{}
 
 	// Register activities
 	s.env.RegisterActivity(commonActivity)
 	s.env.RegisterActivity(commonActivity.GetJob)
 	s.env.RegisterActivity(backupActivity.UpdateBackupRestoreCount)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock GetJob
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -1882,6 +1919,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_UpdateBackupR
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountIncrement).Return(errors.New("failed to update backup restore count"))
 	// Mock UpdateBackupRestoreCount decrement (called in defer block) - may or may not be called depending on error handling
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
@@ -2008,6 +2046,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetSnapmirror
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
 	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
 	s.env.RegisterActivity(volumeCreateActivity.DeleteRolesForServiceAccountInBackupTenantProject)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock GetJob
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -2060,6 +2099,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetSnapmirror
 	s.env.OnActivity(backupActivity.GetSnapmirror, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get snapmirror relationship"))
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountIncrement).Return(nil)
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
@@ -2104,6 +2144,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SleepBeforeGe
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
 	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
 	s.env.RegisterActivity(volumeCreateActivity.DeleteRolesForServiceAccountInBackupTenantProject)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
@@ -2196,6 +2237,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_UnhealthySnap
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
 	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
 	s.env.RegisterActivity(volumeCreateActivity.DeleteRolesForServiceAccountInBackupTenantProject)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock GetJob
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
@@ -2254,6 +2296,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_UnhealthySnap
 	}, nil)
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountIncrement).Return(nil)
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
@@ -2301,6 +2344,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorSta
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
 	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
 	s.env.RegisterActivity(volumeCreateActivity.DeleteRolesForServiceAccountInBackupTenantProject)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
 		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
@@ -2404,6 +2448,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetSnapmirror
 	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
 	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
 	s.env.RegisterActivity(volumeCreateActivity.DeleteRolesForServiceAccountInBackupTenantProject)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
 
 	// Mock GetJob
 	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{

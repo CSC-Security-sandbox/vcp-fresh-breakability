@@ -2346,14 +2346,20 @@ func _fetchBackupFromRemoteVCP(ctx context.Context, pathInfo *BackupPathInfo, ba
 		logger.Warnf("No backups returned from remote VCP in region '%s'", backupRegion)
 		return nil, errors.NewNotFoundErr("Backup", &pathInfo.BackupName)
 	}
-	logger.Infof("Found backup '%s' in remote VCP region '%s'", pathInfo.BackupName, backupRegion)
 
-	backup, err := convertGoogleProxyBackupToDatamodel(ctx, &backups[0], backupVault, volume.Account, region)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert backup to data model: %w", err)
+	// Temporary workaround until SDE supports backup name filter on ListBackups API
+	for _, b := range backups {
+		if b.ResourceId.IsSet() && b.ResourceId.Value == pathInfo.BackupName {
+			logger.Infof("Found backup '%s' in remote VCP region '%s'", pathInfo.BackupName, backupRegion)
+			backup, err := convertGoogleProxyBackupToDatamodel(ctx, &b, backupVault, volume.Account, region)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert backup to data model: %w", err)
+			}
+			logger.Infof("Successfully fetched backup '%s' from remote VCP", pathInfo.BackupName)
+			return backup, nil
+		}
 	}
-	logger.Infof("Successfully fetched backup '%s' from remote VCP", pathInfo.BackupName)
-	return backup, nil
+	return nil, errors.NewNotFoundErr("Backup", &pathInfo.BackupName)
 }
 
 // FetchProtocolsForBackup fetches protocols for a backup, either from the API response or from CVP for SDE backups
