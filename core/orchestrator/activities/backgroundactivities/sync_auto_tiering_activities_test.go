@@ -51,10 +51,10 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 			Name: "aggr3",
 		}
 
-		// Patch hyperscaler.GetProviderByNode
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		// Patch hyperscaler.GetProviderByNodeWithFastConnection
+		originalGetProviderByNode := hyperscaler.GetProviderByNodeWithFastConnection
+		defer func() { hyperscaler.GetProviderByNodeWithFastConnection = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -90,10 +90,10 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 		}
 		tieringFullnessThreshold := int64(80)
 
-		// Patch hyperscaler.GetProviderByNode to return error
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		// Patch hyperscaler.GetProviderByNodeWithFastConnection to return error
+		originalGetProviderByNode := hyperscaler.GetProviderByNodeWithFastConnection
+		defer func() { hyperscaler.GetProviderByNodeWithFastConnection = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return nil, errors.New("failed to get provider")
 		}
 
@@ -117,10 +117,10 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 
 		mockProvider := new(vsa.MockProvider)
 
-		// Patch hyperscaler.GetProviderByNode
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		// Patch hyperscaler.GetProviderByNodeWithFastConnection
+		originalGetProviderByNode := hyperscaler.GetProviderByNodeWithFastConnection
+		defer func() { hyperscaler.GetProviderByNodeWithFastConnection = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -151,10 +151,10 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 			Name: activities.AggregateName,
 		}
 
-		// Patch hyperscaler.GetProviderByNode
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		// Patch hyperscaler.GetProviderByNodeWithFastConnection
+		originalGetProviderByNode := hyperscaler.GetProviderByNodeWithFastConnection
+		defer func() { hyperscaler.GetProviderByNodeWithFastConnection = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -191,10 +191,10 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 			Name: "aggr2",
 		}
 
-		// Patch hyperscaler.GetProviderByNode
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		// Patch hyperscaler.GetProviderByNodeWithFastConnection
+		originalGetProviderByNode := hyperscaler.GetProviderByNodeWithFastConnection
+		defer func() { hyperscaler.GetProviderByNodeWithFastConnection = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -255,10 +255,10 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 			Name: "aggr3",
 		}
 
-		// Patch hyperscaler.GetProviderByNode
-		originalGetProviderByNode := hyperscaler.GetProviderByNode
-		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
-		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		// Patch hyperscaler.GetProviderByNodeWithFastConnection
+		originalGetProviderByNode := hyperscaler.GetProviderByNodeWithFastConnection
+		defer func() { hyperscaler.GetProviderByNodeWithFastConnection = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNodeWithFastConnection = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -285,6 +285,45 @@ func TestAutoTierSyncActivity_UpdateAggregateInOntap(t *testing.T) {
 		// Verify both errors are in the concatenated error message
 		assert.Contains(tt, err.Error(), "failed to update aggregate aggr1")
 		assert.Contains(tt, err.Error(), "failed to update aggregate aggr2")
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("UpdateAggregateInOntap_UsesRegularConnectionWhenFlagDisabled", func(tt *testing.T) {
+		originalFlag := autoTieringFastOntapConnection
+		defer func() { autoTieringFastOntapConnection = originalFlag }()
+		autoTieringFastOntapConnection = false
+
+		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.UpdateAggregatesInOntap)
+
+		node := &models.Node{
+			EndpointAddress: "test-endpoint",
+		}
+		tieringFullnessThreshold := int64(80)
+
+		mockProvider := new(vsa.MockProvider)
+		aggregate := &vsa.Aggregate{
+			UUID: "test-aggregate-uuid",
+			Name: "aggr1",
+		}
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		mockProvider.On("GetAggregateByName", "aggr1").Return(aggregate, nil)
+		mockProvider.On("UpdateAggregate", mock.MatchedBy(func(params vsa.UpdateAggregateParams) bool {
+			return params.UUID == aggregate.UUID && params.TieringFullnessThreshold == tieringFullnessThreshold
+		})).Return(nil)
+
+		_, err := env.ExecuteActivity(activity.UpdateAggregatesInOntap, node, tieringFullnessThreshold, []string{"aggr1"})
+		assert.NoError(tt, err)
 		mockProvider.AssertExpectations(tt)
 	})
 }
@@ -901,10 +940,10 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		mockStorage.On("BatchUpdateVolumeTieringFields", mock.Anything, mock.Anything).Return(nil)
 		mockProvider.On("GetVolumes").Return(volumes, nil)
 
-		// Mock GetOntapRestProviderForPool
-		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
-		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
-		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		// Mock GetOntapRestProviderForPoolFastConn
+		originalGetOntapRestProviderForPoolFastConn := GetOntapRestProviderForPoolFastConn
+		defer func() { GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn }()
+		GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -967,9 +1006,9 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		mockStorage.On("ListExpertModeVolumesByPoolID", mock.Anything, int64(1)).Return(expertVolumes, nil)
 		mockProvider.On("GetVolumes").Return(ontapVolumes, nil)
 
-		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
-		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
-		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, p *datamodel.Pool) (vsa.Provider, error) {
+		originalGetOntapRestProviderForPoolFastConn := GetOntapRestProviderForPoolFastConn
+		defer func() { GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn }()
+		GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, p *datamodel.Pool) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1073,10 +1112,10 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 
 		mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(123)).Return(pool, nil)
 
-		// Mock GetOntapRestProviderForPool to return error for non-ready pool
-		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
-		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
-		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		// Mock GetOntapRestProviderForPoolFastConn to return error for non-ready pool
+		originalGetOntapRestProviderForPoolFastConn := GetOntapRestProviderForPoolFastConn
+		defer func() { GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn }()
+		GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
 			return nil, errors.New("pool not ready")
 		}
 
@@ -1116,10 +1155,10 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 
 		mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(123)).Return(pool, nil)
 
-		// Mock GetOntapRestProviderForPool to return error
-		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
-		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
-		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		// Mock GetOntapRestProviderForPoolFastConn to return error
+		originalGetOntapRestProviderForPoolFastConn := GetOntapRestProviderForPoolFastConn
+		defer func() { GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn }()
+		GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
 			return nil, errors.New("failed to get provider")
 		}
 
@@ -1161,10 +1200,10 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		mockStorage.On("GetPool", mock.Anything, "test-pool-uuid", int64(123)).Return(pool, nil)
 		mockProvider.On("GetVolumes").Return(nil, errors.New("failed to get volumes"))
 
-		// Mock GetOntapRestProviderForPool
-		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
-		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
-		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		// Mock GetOntapRestProviderForPoolFastConn
+		originalGetOntapRestProviderForPoolFastConn := GetOntapRestProviderForPoolFastConn
+		defer func() { GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn }()
+		GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1231,9 +1270,9 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		mockStorage.On("BatchUpdateVolumeTieringFields", mock.Anything, mock.Anything).Return(nil)
 		mockProvider.On("GetVolumes").Return(ontapVolumes, nil)
 
-		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
-		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
-		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, p *datamodel.Pool) (vsa.Provider, error) {
+		originalGetOntapRestProviderForPoolFastConn := GetOntapRestProviderForPoolFastConn
+		defer func() { GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn }()
+		GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, p *datamodel.Pool) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1289,10 +1328,10 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(nil, errors.New("failed to get volumes"))
 		mockProvider.On("GetVolumes").Return(volumes, nil)
 
-		// Mock GetOntapRestProviderForPool
-		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
-		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
-		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		// Mock GetOntapRestProviderForPoolFastConn
+		originalGetOntapRestProviderForPoolFastConn := GetOntapRestProviderForPoolFastConn
+		defer func() { GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn }()
+		GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1368,10 +1407,10 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		mockStorage.On("BatchUpdateVolumeTieringFields", mock.Anything, mock.Anything).Return(nil)
 		mockProvider.On("GetVolumes").Return(volumes, nil)
 
-		// Mock GetOntapRestProviderForPool
-		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
-		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
-		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		// Mock GetOntapRestProviderForPoolFastConn
+		originalGetOntapRestProviderForPoolFastConn := GetOntapRestProviderForPoolFastConn
+		defer func() { GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn }()
+		GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1478,9 +1517,9 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		thresholdZero := int64(0)
 		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "test-pool-uuid", (*int64)(nil), (*int64)(nil), &thresholdZero, (*datamodel.TieringStatus)(nil)).Return(nil)
 
-		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
-		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
-		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		originalGetOntapRestProviderForPoolFastConn := GetOntapRestProviderForPoolFastConn
+		defer func() { GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn }()
+		GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1560,9 +1599,9 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		// UpdatePoolTieringConfig should NOT be called
 		// (Not adding mock expectation means test will fail if it's called)
 
-		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
-		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
-		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		originalGetOntapRestProviderForPoolFastConn := GetOntapRestProviderForPoolFastConn
+		defer func() { GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn }()
+		GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1639,9 +1678,9 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		// Mock aggregate operations - should NOT be called because threshold is not 50
 		// (Not adding mock expectations means test will fail if they're called)
 
-		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
-		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
-		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		originalGetOntapRestProviderForPoolFastConn := GetOntapRestProviderForPoolFastConn
+		defer func() { GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn }()
+		GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1715,9 +1754,9 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		// Mock aggregate operations - should NOT be called because AutoTieringConfig is nil
 		// (Not adding mock expectations means test will fail if they're called)
 
-		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
-		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
-		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		originalGetOntapRestProviderForPoolFastConn := GetOntapRestProviderForPoolFastConn
+		defer func() { GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn }()
+		GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1817,9 +1856,9 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		// UpdatePoolTieringConfig should NOT be called because aggregate update failed
 		// (Not adding mock expectation means test will fail if it's called)
 
-		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
-		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
-		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		originalGetOntapRestProviderForPoolFastConn := GetOntapRestProviderForPoolFastConn
+		defer func() { GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn }()
+		GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -1920,9 +1959,9 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		thresholdZero := int64(0)
 		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "test-pool-uuid", (*int64)(nil), (*int64)(nil), &thresholdZero, (*datamodel.TieringStatus)(nil)).Return(errors.New("database error"))
 
-		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
-		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
-		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		originalGetOntapRestProviderForPoolFastConn := GetOntapRestProviderForPoolFastConn
+		defer func() { GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn }()
+		GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2057,9 +2096,9 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		thresholdZero := int64(0)
 		mockStorage.On("UpdatePoolTieringConfig", mock.Anything, "test-pool-uuid", (*int64)(nil), (*int64)(nil), &thresholdZero, (*datamodel.TieringStatus)(nil)).Return(nil)
 
-		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
-		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
-		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		originalGetOntapRestProviderForPoolFastConn := GetOntapRestProviderForPoolFastConn
+		defer func() { GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn }()
+		GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2194,9 +2233,9 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		// (The code only updates DB if allAggregatesUpdated is true - see line 268 in sync_auto_tiering_activities.go)
 		// (Not adding mock expectation means test will fail if it's called)
 
-		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
-		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
-		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		originalGetOntapRestProviderForPoolFastConn := GetOntapRestProviderForPoolFastConn
+		defer func() { GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn }()
+		GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2254,9 +2293,9 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		// - UpdateAggregate
 		// - UpdatePoolTieringConfig
 
-		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
-		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
-		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		originalGetOntapRestProviderForPoolFastConn := GetOntapRestProviderForPoolFastConn
+		defer func() { GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn }()
+		GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2533,10 +2572,10 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 				params.TieringPolicy.CoolAccessTieringPolicy == ontaprestmodel.VolumeInlineTieringPolicyNone
 		})).Return(nil)
 
-		// Mock GetOntapRestProviderForPool
-		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
-		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
-		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		// Mock GetOntapRestProviderForPoolFastConn
+		originalGetOntapRestProviderForPoolFastConn := GetOntapRestProviderForPoolFastConn
+		defer func() { GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn }()
+		GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2582,10 +2621,10 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 				params.TieringPolicy.CoolAccessTieringPolicy == ontaprestmodel.VolumeInlineTieringPolicyAll
 		})).Return(nil)
 
-		// Mock GetOntapRestProviderForPool
-		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
-		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
-		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		// Mock GetOntapRestProviderForPoolFastConn
+		originalGetOntapRestProviderForPoolFastConn := GetOntapRestProviderForPoolFastConn
+		defer func() { GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn }()
+		GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2624,10 +2663,10 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 		mockProvider := vsa.NewMockProvider(tt)
 		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(volumes, nil)
 
-		// Mock GetOntapRestProviderForPool
-		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
-		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
-		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		// Mock GetOntapRestProviderForPoolFastConn
+		originalGetOntapRestProviderForPoolFastConn := GetOntapRestProviderForPoolFastConn
+		defer func() { GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn }()
+		GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2653,10 +2692,10 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 			},
 		}
 
-		// Mock GetOntapRestProviderForPool to return error
-		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
-		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
-		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		// Mock GetOntapRestProviderForPoolFastConn to return error
+		originalGetOntapRestProviderForPoolFastConn := GetOntapRestProviderForPoolFastConn
+		defer func() { GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn }()
+		GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
 			return nil, errors.New("failed to get provider")
 		}
 
@@ -2683,10 +2722,10 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 		mockProvider := vsa.NewMockProvider(tt)
 		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(nil, errors.New("failed to get volumes"))
 
-		// Mock GetOntapRestProviderForPool
-		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
-		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
-		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		// Mock GetOntapRestProviderForPoolFastConn
+		originalGetOntapRestProviderForPoolFastConn := GetOntapRestProviderForPoolFastConn
+		defer func() { GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn }()
+		GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2728,10 +2767,10 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(volumes, nil)
 		mockProvider.On("UpdateVolume", mock.Anything).Return(errors.New("failed to update volume"))
 
-		// Mock GetOntapRestProviderForPool
-		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
-		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
-		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+		// Mock GetOntapRestProviderForPoolFastConn
+		originalGetOntapRestProviderForPoolFastConn := GetOntapRestProviderForPoolFastConn
+		defer func() { GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn }()
+		GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
 			return mockProvider, nil
 		}
 
@@ -2739,6 +2778,35 @@ func TestAutoTierSyncActivity_ToggleHotTierBypassModeForPoolVolumes(t *testing.T
 		assert.Error(tt, err)
 		mockStorage.AssertExpectations(tt)
 		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("ToggleHotTierBypassMode_UsesRegularConnectionWhenFlagDisabled", func(tt *testing.T) {
+		originalFlag := autoTieringFastOntapConnection
+		defer func() { autoTieringFastOntapConnection = originalFlag }()
+		autoTieringFastOntapConnection = false
+
+		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.ToggleHotTierBypassModeForPoolVolumes)
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+		}
+
+		mockProvider := vsa.NewMockProvider(tt)
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return([]*datamodel.Volume{}, nil)
+
+		originalGetOntapRestProviderForPool := GetOntapRestProviderForPool
+		defer func() { GetOntapRestProviderForPool = originalGetOntapRestProviderForPool }()
+		GetOntapRestProviderForPool = func(ctx context.Context, se database.Storage, pool *datamodel.Pool) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		_, err := env.ExecuteActivity(activity.ToggleHotTierBypassModeForPoolVolumes, pool)
+		assert.NoError(tt, err)
 	})
 }
 

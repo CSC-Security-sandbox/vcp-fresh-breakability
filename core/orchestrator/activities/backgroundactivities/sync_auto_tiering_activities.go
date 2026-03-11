@@ -34,6 +34,7 @@ const (
 var (
 	AutoTierHotTierAutoResizeThresholdPercent = env.GetInt64("AUTO_TIER_HOT_TIER_AUTO_RESIZE_THRESHOLD_PERCENT", 100)
 	AutoTierHotTierAutoResizeIncreasePercent  = env.GetFloat64("AUTO_TIER_HOT_TIER_AUTO_RESIZE_INCREASE_PERCENT", 10)
+	autoTieringFastOntapConnection           = env.GetBool("AUTO_TIERING_FAST_ONTAP_CONNECTION", true)
 )
 
 type AutoTierSyncActivity struct {
@@ -46,7 +47,18 @@ func (a *AutoTierSyncActivity) UpdateAggregatesInOntap(ctx context.Context, node
 	if len(aggrNames) == 0 {
 		return nil
 	}
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if node == nil {
+		logger.Errorf("Node is nil")
+		return vsaerrors.WrapAsTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, fmt.Errorf("node is nil")))
+	}
+	var provider vsa.Provider
+	var err error
+	if autoTieringFastOntapConnection {
+		provider, err = hyperscaler.GetProviderByNodeWithFastConnection(ctx, node)
+	} else {
+		provider, err = hyperscaler.GetProviderByNode(ctx, node)
+	}
 	activity.RecordHeartbeat(ctx, "Retrieved provider for node")
 	if err != nil {
 		return vsaerrors.WrapAsTemporalApplicationError(err)
@@ -245,7 +257,13 @@ func (a *AutoTierSyncActivity) FetchAndSavePoolsTieringInfo(ctx context.Context,
 				return
 			}
 
-			provider, err := GetOntapRestProviderForPool(ctx, se, database.ConvertPoolViewToPool(pool))
+			convertedPool := database.ConvertPoolViewToPool(pool)
+			var provider vsa.Provider
+			if autoTieringFastOntapConnection {
+				provider, err = GetOntapRestProviderForPoolFastConn(ctx, se, convertedPool)
+			} else {
+				provider, err = GetOntapRestProviderForPool(ctx, se, convertedPool)
+			}
 			activity.RecordHeartbeat(ctx, fmt.Sprintf("Retrieved ONTAP provider for pool: %s", pool.UUID))
 			if err != nil || provider == nil {
 				logger.Errorf("Failed to get ONTAP rest provider for pool %v: %v", pool.UUID, err)
@@ -441,7 +459,13 @@ func (a *AutoTierSyncActivity) ToggleHotTierBypassModeForPoolVolumes(ctx context
 	se := a.SE
 	var errList []error
 
-	provider, err := GetOntapRestProviderForPool(ctx, se, pool)
+	var provider vsa.Provider
+	var err error
+	if autoTieringFastOntapConnection {
+		provider, err = GetOntapRestProviderForPoolFastConn(ctx, se, pool)
+	} else {
+		provider, err = GetOntapRestProviderForPool(ctx, se, pool)
+	}
 	activity.RecordHeartbeat(ctx, "Retrieved ONTAP provider for pool")
 	if err != nil || provider == nil {
 		logger.Errorf("Failed to get ONTAP rest provider for pool %v: %v", pool.UUID, err)

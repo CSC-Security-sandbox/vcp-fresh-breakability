@@ -252,6 +252,7 @@ workerConfig:
   autoTierHotTierAutoResizeIncreasePercent: 10
   autoTieringSyncActivityMaxAttempts: 1
   autoTieringPauseResumeActivityMaxAttempts: 3
+  autoTieringFastOntapConnection: "true"
   hardDeleteResources: "true"
   scheduleHardDelete: "false"
   replicationJobsRetryMaxAttempts: 10
