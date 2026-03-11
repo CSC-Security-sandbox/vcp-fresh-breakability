@@ -4011,6 +4011,7 @@ func TestGetBackupResourceDataForAggregation(t *testing.T) {
 		assert.Equal(tt, "agg-vault", results[0].BackupVault.Name)
 		assert.Equal(tt, int64(42), results[0].BackupVault.AccountID)
 		assert.Equal(tt, backupVault.ID, results[0].BackupVaultID)
+		assert.Nil(tt, results[0].BackupVault.BackupRegionName)
 	})
 
 	t.Run("ReturnsEmptySliceWhenNoBackups", func(tt *testing.T) {
@@ -4104,6 +4105,208 @@ func TestGetBackupResourceDataForAggregation(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.Len(tt, results, 1)
 		assert.Equal(tt, "del-backup-1", results[0].UUID)
+	})
+
+	t.Run("ReturnsBackupRegionNameFromVault", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		backupRegion := "us-east4"
+		backupVault := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "vault-uuid-region"},
+			Name:             "region-vault",
+			AccountID:        50,
+			BackupRegionName: &backupRegion,
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "region-backup-1"},
+			VolumeUUID:    "region-vol-1",
+			State:         models.LifeCycleStateAvailable,
+			BackupVaultID: backupVault.ID,
+			Attributes:    &datamodel.BackupAttributes{AccountIdentifier: "acct-region"},
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		results, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, nil)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+
+		assert.NotNil(tt, results[0].BackupVault)
+		assert.NotNil(tt, results[0].BackupVault.BackupRegionName)
+		assert.Equal(tt, "us-east4", *results[0].BackupVault.BackupRegionName)
+		assert.Equal(tt, "region-vault", results[0].BackupVault.Name)
+		assert.Equal(tt, int64(50), results[0].BackupVault.AccountID)
+	})
+
+	t.Run("ReturnsNilBackupRegionNameWhenVaultHasNoRegion", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		backupVault := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "vault-uuid-no-region"},
+			Name:             "no-region-vault",
+			AccountID:        60,
+			BackupRegionName: nil,
+		}
+		err = store.db.Create(backupVault).Error()
+		assert.NoError(tt, err)
+
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "no-region-backup-1"},
+			VolumeUUID:    "no-region-vol-1",
+			State:         models.LifeCycleStateAvailable,
+			BackupVaultID: backupVault.ID,
+			Attributes:    &datamodel.BackupAttributes{AccountIdentifier: "acct-no-region"},
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		results, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, nil)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+
+		assert.NotNil(tt, results[0].BackupVault)
+		assert.Nil(tt, results[0].BackupVault.BackupRegionName)
+	})
+
+	t.Run("ReturnsCorrectBackupRegionForMultipleVaults", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		region1 := "us-east4"
+		vault1 := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "vault-multi-1"},
+			Name:             "cross-region-vault",
+			AccountID:        70,
+			BackupRegionName: &region1,
+		}
+		err = store.db.Create(vault1).Error()
+		assert.NoError(tt, err)
+
+		vault2 := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "vault-multi-2"},
+			Name:             "local-vault",
+			AccountID:        70,
+			BackupRegionName: nil,
+		}
+		err = store.db.Create(vault2).Error()
+		assert.NoError(tt, err)
+
+		backup1 := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "multi-backup-1"},
+			VolumeUUID:    "multi-vol-1",
+			State:         models.LifeCycleStateAvailable,
+			BackupVaultID: vault1.ID,
+			Attributes:    &datamodel.BackupAttributes{AccountIdentifier: "acct-multi"},
+		}
+		backup2 := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "multi-backup-2"},
+			VolumeUUID:    "multi-vol-2",
+			State:         models.LifeCycleStateAvailable,
+			BackupVaultID: vault2.ID,
+			Attributes:    &datamodel.BackupAttributes{AccountIdentifier: "acct-multi"},
+		}
+
+		err = store.db.Create(backup1).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(backup2).Error()
+		assert.NoError(tt, err)
+
+		results, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, nil)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 2)
+
+		resultMap := make(map[string]*datamodel.Backup)
+		for i := range results {
+			resultMap[results[i].VolumeUUID] = results[i]
+		}
+
+		crossRegionResult := resultMap["multi-vol-1"]
+		assert.NotNil(tt, crossRegionResult)
+		assert.NotNil(tt, crossRegionResult.BackupVault.BackupRegionName)
+		assert.Equal(tt, "us-east4", *crossRegionResult.BackupVault.BackupRegionName)
+
+		localResult := resultMap["multi-vol-2"]
+		assert.NotNil(tt, localResult)
+		assert.Nil(tt, localResult.BackupVault.BackupRegionName)
+	})
+
+	t.Run("ReturnsEmptyBackupRegionNameForInRegionVault", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		sourceRegion := "us-central1"
+		emptyRegion := ""
+		inRegionVault := &datamodel.BackupVault{
+			BaseModel:             datamodel.BaseModel{UUID: "720e0eb2-58e9-932c-f04c-7cda16e4e61d"},
+			Name:                  "ccfe-bv1003260343148wybg",
+			AccountID:             1091,
+			BackupRegionName:      &emptyRegion,
+			SourceRegionName:      &sourceRegion,
+			LifeCycleState:        "READY",
+			LifeCycleStateDetails: "Available for use",
+			BackupVaultType:       "IN_REGION",
+			Description:           nillable.ToPointer("CCFE backup vault created by automation"),
+			ServiceType:           "GCNV",
+		}
+		err = store.db.Create(inRegionVault).Error()
+		assert.NoError(tt, err)
+
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "in-region-backup-1"},
+			VolumeUUID:    "in-region-vol-1",
+			State:         models.LifeCycleStateAvailable,
+			BackupVaultID: inRegionVault.ID,
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier: "1088371202435",
+				VolumeName:        "test-volume",
+			},
+		}
+		err = store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+
+		results, err := store.GetBackupResourceDataForAggregation(context.Background(), [][]interface{}{}, nil)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+
+		assert.NotNil(tt, results[0].BackupVault)
+		assert.Equal(tt, "ccfe-bv1003260343148wybg", results[0].BackupVault.Name)
+		assert.Equal(tt, int64(1091), results[0].BackupVault.AccountID)
+
+		// IN_REGION vaults have empty string for BackupRegionName, not nil
+		assert.NotNil(tt, results[0].BackupVault.BackupRegionName)
+		assert.Equal(tt, "", *results[0].BackupVault.BackupRegionName)
+
+		assert.Equal(tt, "in-region-vol-1", results[0].VolumeUUID)
+		assert.Equal(tt, "1088371202435", results[0].Attributes.AccountIdentifier)
 	})
 }
 

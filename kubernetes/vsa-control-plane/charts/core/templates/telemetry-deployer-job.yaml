@@ -166,6 +166,8 @@ spec:
               value: {{ .Values.telemetryDeployer.pusherServiceProject | default "netapp-au-se1-autopush-sde-tst" | quote }}
             - name: LOCAL_REGION
               value: {{ .Values.global.coreConfig.localRegion | default "us-west2" | quote }}
+            - name: VCP_PAIRED_REGIONS
+              value: {{ .Values.global.coreConfig.vcpPairedRegions | default "" | quote }}
             - name: ENABLE_VOLUME_METRICS
               value: {{ .Values.telemetryDeployer.enableVolumeMetrics | default "false" | quote }}
             - name: ENABLE_BACKUP_METRICS

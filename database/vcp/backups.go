@@ -46,8 +46,9 @@ type BackupMetricsData struct {
 	Attributes    *datamodel.BackupAttributes `gorm:"column:attributes;type:jsonb"`
 	BackupVaultID int64                       `gorm:"column:backup_vault_id"`
 	// BackupVault fields (from JOIN)
-	VaultAccountID int64  `gorm:"column:vault_account_id"`
-	VaultName      string `gorm:"column:vault_name"`
+	VaultAccountID      int64   `gorm:"column:vault_account_id"`
+	VaultName           string  `gorm:"column:vault_name"`
+	VaultBackupRegionName *string `gorm:"column:vault_backup_region_name"`
 }
 
 // createBackupChainHistoryEntry creates a new backup chain history entry
@@ -760,7 +761,8 @@ func (d *DataStoreRepository) GetBackupResourceDataForAggregation(ctx context.Co
 			backups.attributes,
 			backups.backup_vault_id,
 			backup_vaults.account_id AS vault_account_id,
-			backup_vaults.name AS vault_name
+			backup_vaults.name AS vault_name,
+			backup_vaults.backup_region_name AS vault_backup_region_name
 		`).
 		Joins("LEFT JOIN backup_vaults ON backups.backup_vault_id = backup_vaults.id").
 		Where("backups.id IN (?)", subquery)
@@ -794,8 +796,9 @@ func (d *DataStoreRepository) GetBackupResourceDataForAggregation(ctx context.Co
 				BaseModel: datamodel.BaseModel{
 					ID: data.BackupVaultID,
 				},
-				Name:      data.VaultName,
-				AccountID: data.VaultAccountID,
+				Name:             data.VaultName,
+				AccountID:        data.VaultAccountID,
+				BackupRegionName: data.VaultBackupRegionName,
 			},
 		}
 	}

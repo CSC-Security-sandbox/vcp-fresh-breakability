@@ -546,6 +546,7 @@ func getDefaultEnvVars() map[string]string {
 		// Always include the flag so callers can reliably read it even if --env-vars omits it.
 		"CLOUD_SQL_IAM_AUTH_ENABLED":      getEnvOrDefault("CLOUD_SQL_IAM_AUTH_ENABLED", "false"),
 		"ENABLE_BACKUP_HISTORY_FORMATTER": getEnvOrDefault("ENABLE_BACKUP_HISTORY_FORMATTER", "false"),
+		"VCP_PAIRED_REGIONS":              getEnvOrDefault("VCP_PAIRED_REGIONS", ""),
 	}
 }
 
