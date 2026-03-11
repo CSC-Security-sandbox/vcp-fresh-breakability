@@ -111,10 +111,17 @@ func (h Handler) V1betaGetMultipleBackups(ctx context.Context, req *gcpgenserver
 					Code:    code,
 					Message: msg,
 				}, nil
-			case *backups.V1betaGetMultipleBackupsInternalServerError:
+			case *backups.V1betaGetMultipleBackupsTooManyRequests:
 				msg := nillable.GetString(&e.Payload.Message, "")
 				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-				return &gcpgenserver.V1betaGetMultipleBackupsInternalServerError{
+				return &gcpgenserver.V1betaGetMultipleBackupsTooManyRequests{
+					Code:    code,
+					Message: msg,
+				}, nil
+			case *backups.V1betaGetMultipleBackupsNotImplemented:
+				msg := nillable.GetString(&e.Payload.Message, "")
+				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+				return &gcpgenserver.V1betaGetMultipleBackupsNotImplemented{
 					Code:    code,
 					Message: msg,
 				}, nil
@@ -366,10 +373,10 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 					Code:    code,
 					Message: msg,
 				}, nil
-			case *backups.V1betaCreateBackupInternalServerError:
+			case *backups.V1betaCreateBackupNotImplemented:
 				msg := nillable.GetString(&e.Payload.Message, "")
 				code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-				return &gcpgenserver.V1betaCreateBackupInternalServerError{
+				return &gcpgenserver.V1betaCreateBackupNotImplemented{
 					Code:    code,
 					Message: msg,
 				}, nil
@@ -515,6 +522,7 @@ func (h Handler) V1betaDeleteBackupUnderBackupVault(ctx context.Context, params 
 		AccountName:   params.ProjectNumber,
 	})
 	if err != nil {
+		// Delegate to CVP/SDE only when the backup is not found in VSA.
 		if errors.IsNotFoundErr(err) {
 			return deleteBackupToCVP(ctx, params)
 		}
@@ -555,7 +563,6 @@ func (h Handler) V1betaDeleteBackupUnderBackupVault(ctx context.Context, params 
 }
 
 func (h Handler) V1betaDescribeBackup(ctx context.Context, params gcpgenserver.V1betaDescribeBackupParams) (gcpgenserver.V1betaDescribeBackupRes, error) {
-	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 	_, _, parsingErr := utilParseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
@@ -571,10 +578,13 @@ func (h Handler) V1betaDescribeBackup(ctx context.Context, params gcpgenserver.V
 	})
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
+			// Delegate to CVP/SDE so NotFound errors are returned with proper HTTP status.
 			return getBackupsFromCVP(ctx, params)
 		}
-		logger.Error("Failed to get backup", "error", err.Error())
-		return &gcpgenserver.V1betaDescribeBackupInternalServerError{Code: 500, Message: err.Error()}, err
+		return &gcpgenserver.V1betaDescribeBackupInternalServerError{
+			Code:    500,
+			Message: err.Error(),
+		}, nil
 	}
 	resp := convertBackupDataModelToBackupsV1beta(backup)
 
@@ -608,12 +618,16 @@ func (h Handler) V1betaUpdateBackup(ctx context.Context, req *gcpgenserver.Backu
 		AccountName:   params.ProjectNumber,
 	})
 	if err != nil {
+		// Delegate to CVP/SDE only when the backup is not found in VSA
 		if errors.IsNotFoundErr(err) {
 			return updateBackupToCVP(ctx, req, params)
 		}
-
-		logger.Error("Failed to get backup", "error", err.Error())
-		return &gcpgenserver.V1betaUpdateBackupBadRequest{Code: 400, Message: err.Error()}, err
+		// For all other errors, treat as internal failures to avoid misrouting
+		logger.Error("Failed to get backup from orchestrator", "error", err.Error())
+		return &gcpgenserver.V1betaUpdateBackupInternalServerError{
+			Code:    500,
+			Message: "Internal error while fetching backup from VSA",
+		}, err
 	}
 
 	// If the request belongs to VSA, update the backup using the orchestrator
@@ -706,10 +720,24 @@ func updateBackupToCVP(ctx context.Context, req *gcpgenserver.BackupUpdateV1beta
 				Code:    code,
 				Message: msg,
 			}, nil
-		case *backups.V1betaUpdateBackupInternalServerError:
+		case *backups.V1betaUpdateBackupUnprocessableEntity:
 			msg := nillable.GetString(&e.Payload.Message, "")
 			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaUpdateBackupInternalServerError{
+			return &gcpgenserver.V1betaUpdateBackupUnprocessableEntity{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backups.V1betaUpdateBackupTooManyRequests:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaUpdateBackupTooManyRequests{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backups.V1betaUpdateBackupNotImplemented:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaUpdateBackupNotImplemented{
 				Code:    code,
 				Message: msg,
 			}, nil
@@ -1148,10 +1176,31 @@ func deleteBackupToCVP(ctx context.Context, params gcpgenserver.V1betaDeleteBack
 				Code:    code,
 				Message: msg,
 			}, nil
-		case *backups.V1betaDeleteBackupUnderBackupVaultInternalServerError:
+		case *backups.V1betaDeleteBackupUnderBackupVaultConflict:
 			msg := nillable.GetString(&e.Payload.Message, "")
 			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultInternalServerError{
+			return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultConflict{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backups.V1betaDeleteBackupUnderBackupVaultUnprocessableEntity:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultUnprocessableEntity{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backups.V1betaDeleteBackupUnderBackupVaultTooManyRequests:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultTooManyRequests{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backups.V1betaDeleteBackupUnderBackupVaultNotImplemented:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultNotImplemented{
 				Code:    code,
 				Message: msg,
 			}, nil
@@ -1226,10 +1275,17 @@ func _getBackupsFromCVP(ctx context.Context, params gcpgenserver.V1betaDescribeB
 				Code:    code,
 				Message: msg,
 			}, nil
-		case *backups.V1betaDescribeBackupInternalServerError:
+		case *backups.V1betaDescribeBackupTooManyRequests:
 			msg := nillable.GetString(&e.Payload.Message, "")
 			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDescribeBackupInternalServerError{
+			return &gcpgenserver.V1betaDescribeBackupTooManyRequests{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backups.V1betaDescribeBackupNotImplemented:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaDescribeBackupNotImplemented{
 				Code:    code,
 				Message: msg,
 			}, nil
@@ -1308,10 +1364,10 @@ func _listBackupsToCVP(ctx context.Context, params gcpgenserver.V1betaListBackup
 				Code:    code,
 				Message: msg,
 			}, nil
-		case *backups.V1betaListBackupsInternalServerError:
+		case *backups.V1betaListBackupsNotImplemented:
 			msg := nillable.GetString(&e.Payload.Message, "")
 			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaListBackupsInternalServerError{
+			return &gcpgenserver.V1betaListBackupsNotImplemented{
 				Code:    code,
 				Message: msg,
 			}, nil

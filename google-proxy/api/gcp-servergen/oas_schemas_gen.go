@@ -19836,6 +19836,10 @@ type V1betaCreateBackupVaultInternalServerError Error
 
 func (*V1betaCreateBackupVaultInternalServerError) v1betaCreateBackupVaultRes() {}
 
+type V1betaCreateBackupVaultNotImplemented Error
+
+func (*V1betaCreateBackupVaultNotImplemented) v1betaCreateBackupVaultRes() {}
+
 type V1betaCreateBackupVaultTooManyRequests Error
 
 func (*V1betaCreateBackupVaultTooManyRequests) v1betaCreateBackupVaultRes() {}
@@ -20285,6 +20289,10 @@ func (*V1betaDeleteBackupVaultNoContent) v1betaDeleteBackupVaultRes() {}
 type V1betaDeleteBackupVaultNotFound Error
 
 func (*V1betaDeleteBackupVaultNotFound) v1betaDeleteBackupVaultRes() {}
+
+type V1betaDeleteBackupVaultNotImplemented Error
+
+func (*V1betaDeleteBackupVaultNotImplemented) v1betaDeleteBackupVaultRes() {}
 
 type V1betaDeleteBackupVaultTooManyRequests Error
 
@@ -20776,6 +20784,10 @@ func (*V1betaDescribeBackupVaultInternalServerError) v1betaDescribeBackupVaultRe
 type V1betaDescribeBackupVaultNotFound Error
 
 func (*V1betaDescribeBackupVaultNotFound) v1betaDescribeBackupVaultRes() {}
+
+type V1betaDescribeBackupVaultNotImplemented Error
+
+func (*V1betaDescribeBackupVaultNotImplemented) v1betaDescribeBackupVaultRes() {}
 
 type V1betaDescribeBackupVaultTooManyRequests Error
 
@@ -21430,6 +21442,10 @@ func (s *V1betaGetMultipleBackupsOK) SetBackups(val []BackupV1beta) {
 }
 
 func (*V1betaGetMultipleBackupsOK) v1betaGetMultipleBackupsRes() {}
+
+type V1betaGetMultipleBackupsTooManyRequests Error
+
+func (*V1betaGetMultipleBackupsTooManyRequests) v1betaGetMultipleBackupsRes() {}
 
 type V1betaGetMultipleBackupsUnauthorized Error
 
@@ -23891,6 +23907,10 @@ func (*V1betaUpdateBackupVaultForbidden) v1betaUpdateBackupVaultRes() {}
 type V1betaUpdateBackupVaultInternalServerError Error
 
 func (*V1betaUpdateBackupVaultInternalServerError) v1betaUpdateBackupVaultRes() {}
+
+type V1betaUpdateBackupVaultNotImplemented Error
+
+func (*V1betaUpdateBackupVaultNotImplemented) v1betaUpdateBackupVaultRes() {}
 
 type V1betaUpdateBackupVaultTooManyRequests Error
 

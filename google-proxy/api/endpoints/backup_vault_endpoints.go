@@ -359,10 +359,12 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 				Code:    code,
 				Message: msg,
 			}, nil
-		case *backup_vault.V1betaCreateBackupVaultDefault:
+		case *backup_vault.V1betaCreateBackupVaultNotImplemented:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
 			return &gcpgenserver.V1betaCreateBackupVaultInternalServerError{
-				Code:    500,
-				Message: err.Error(),
+				Code:    code,
+				Message: msg,
 			}, nil
 		default:
 			return &gcpgenserver.V1betaCreateBackupVaultInternalServerError{
@@ -503,7 +505,14 @@ func _deleteBackupVaultInSDE(ctx context.Context, params gcpgenserver.V1betaDele
 				Code:    code,
 				Message: msg,
 			}, nil
-		case *backup_vault.V1betaDeleteBackupVaultDefault:
+		case *backup_vault.V1betaDeleteBackupVaultNotImplemented:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaDeleteBackupVaultInternalServerError{
+				Code:    code,
+				Message: msg,
+			}, nil
+		default:
 			return &gcpgenserver.V1betaDeleteBackupVaultInternalServerError{
 				Code:    500,
 				Message: err.Error(),
@@ -638,7 +647,14 @@ func (h Handler) V1betaDescribeBackupVault(ctx context.Context, params gcpgenser
 				Code:    code,
 				Message: msg,
 			}, nil
-		case *backup_vault.V1betaDescribeBackupVaultDefault:
+		case *backup_vault.V1betaDescribeBackupVaultNotImplemented:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaDescribeBackupVaultInternalServerError{
+				Code:    code,
+				Message: msg,
+			}, nil
+		default:
 			return &gcpgenserver.V1betaDescribeBackupVaultInternalServerError{
 				Code:    500,
 				Message: err.Error(),
@@ -728,7 +744,14 @@ func (h Handler) V1betaGetMultipleBackupVaults(ctx context.Context, req *gcpgens
 				Code:    code,
 				Message: msg,
 			}, nil
-		case *backup_vault.V1betaGetMultipleBackupVaultsDefault:
+		case *backup_vault.V1betaGetMultipleBackupVaultsNotImplemented:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaGetMultipleBackupVaultsNotImplemented{
+				Code:    code,
+				Message: msg,
+			}, nil
+		default:
 			return &gcpgenserver.V1betaGetMultipleBackupVaultsInternalServerError{
 				Code:    500,
 				Message: err.Error(),
@@ -776,7 +799,55 @@ func (h Handler) V1betaListBackupVaults(ctx context.Context, params gcpgenserver
 	cvpClient := createClient(logger, jwtToken)
 	cvpResponse, err := cvpClient.BackupVault.V1betaListBackupVaults(listParams)
 	if err != nil {
-		return nil, err
+		switch e := err.(type) {
+		case *backup_vault.V1betaListBackupVaultsBadRequest:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaListBackupVaultsBadRequest{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backup_vault.V1betaListBackupVaultsUnauthorized:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaListBackupVaultsUnauthorized{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backup_vault.V1betaListBackupVaultsForbidden:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaListBackupVaultsForbidden{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backup_vault.V1betaListBackupVaultsNotFound:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaListBackupVaultsNotFound{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backup_vault.V1betaListBackupVaultsTooManyRequests:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaListBackupVaultsTooManyRequests{
+				Code:    code,
+				Message: msg,
+			}, nil
+		case *backup_vault.V1betaListBackupVaultsNotImplemented:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaListBackupVaultsNotImplemented{
+				Code:    code,
+				Message: msg,
+			}, nil
+		default:
+			return &gcpgenserver.V1betaListBackupVaultsInternalServerError{
+				Code:    500,
+				Message: err.Error(),
+			}, nil
+		}
 	}
 	// Converting CVP model to gcpgenserver.BackupVaultV1beta
 	bvResponse := gcpgenserver.V1betaListBackupVaultsOK{
@@ -902,10 +973,12 @@ func _updateBackupVaultInSDE(ctx context.Context, req *gcpgenserver.BackupVaultU
 				Code:    code,
 				Message: msg,
 			}, nil
-		case *backup_vault.V1betaUpdateBackupVaultDefault:
+		case *backup_vault.V1betaUpdateBackupVaultNotImplemented:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
 			return &gcpgenserver.V1betaUpdateBackupVaultInternalServerError{
-				Code:    500,
-				Message: err.Error(),
+				Code:    code,
+				Message: msg,
 			}, nil
 		default:
 			return &gcpgenserver.V1betaUpdateBackupVaultInternalServerError{
@@ -1517,10 +1590,12 @@ func _rotateCmekBackupsInSDE(
 				Code:    code,
 				Message: msg,
 			}, nil
-		case *backup_vault.V1betaRotateCmekBackupsDefault:
-			return &gcpgenserver.V1betaRotateCmekBackupsInternalServerError{
-				Code:    500,
-				Message: err.Error(),
+		case *backup_vault.V1betaRotateCmekBackupsNotImplemented:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaRotateCmekBackupsNotImplemented{
+				Code:    code,
+				Message: msg,
 			}, nil
 		default:
 			return &gcpgenserver.V1betaRotateCmekBackupsInternalServerError{

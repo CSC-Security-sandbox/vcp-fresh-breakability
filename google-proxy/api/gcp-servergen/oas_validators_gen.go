@@ -10008,6 +10008,14 @@ func (s *V1betaCreateBackupVaultInternalServerError) Validate() error {
 	return nil
 }
 
+func (s *V1betaCreateBackupVaultNotImplemented) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *V1betaCreateBackupVaultTooManyRequests) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
@@ -10873,6 +10881,14 @@ func (s *V1betaDeleteBackupVaultInternalServerError) Validate() error {
 }
 
 func (s *V1betaDeleteBackupVaultNotFound) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDeleteBackupVaultNotImplemented) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -11766,6 +11782,14 @@ func (s *V1betaDescribeBackupVaultInternalServerError) Validate() error {
 }
 
 func (s *V1betaDescribeBackupVaultNotFound) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaDescribeBackupVaultNotImplemented) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -13045,6 +13069,14 @@ func (s *V1betaGetMultipleBackupsOK) Validate() error {
 	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *V1betaGetMultipleBackupsTooManyRequests) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -17716,6 +17748,14 @@ func (s *V1betaUpdateBackupVaultForbidden) Validate() error {
 }
 
 func (s *V1betaUpdateBackupVaultInternalServerError) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaUpdateBackupVaultNotImplemented) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err

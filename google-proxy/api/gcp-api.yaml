@@ -4347,6 +4347,8 @@ paths:
           $ref: '#/components/responses/StandardError-429'
         '500':
           $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
         default:
           description: Unexpected error
           content:
@@ -4402,6 +4404,8 @@ paths:
           $ref: '#/components/responses/StandardError-429'
         '500':
           $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
         default:
           description: Unexpected error
           content:
@@ -4447,6 +4451,8 @@ paths:
           $ref: '#/components/responses/StandardError-429'
         '500':
           $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
         default:
           description: Unexpected error
           content:
@@ -4489,6 +4495,8 @@ paths:
           $ref: '#/components/responses/StandardError-429'
         '500':
           $ref: '#/components/responses/StandardError-500'
+        '501':
+          $ref: '#/components/responses/StandardError-501'
         default:
           description: Unexpected error
           content:
@@ -5393,6 +5401,8 @@ paths:
           $ref: '#/components/responses/StandardError-403'
         '404':
           $ref: '#/components/responses/StandardError-404'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
         '500':
           $ref: '#/components/responses/StandardError-500'
         '501':

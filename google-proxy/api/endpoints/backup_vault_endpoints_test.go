@@ -722,6 +722,42 @@ func TestV1betaDescribeBackupVault(t *testing.T) {
 		// Check if the code is as expected
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDescribeBackupVaultInternalServerError).Code)
 	})
+
+	t.Run("WhenDescribeBackupVaultFailsWithNotImplemented", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
+		params := gcpgenserver.V1betaDescribeBackupVaultParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+			BackupVaultId:  "bv-1",
+		}
+		errorMessage := "Not implemented"
+		errorCode := float64(501)
+		mockError := &backup_vault.V1betaDescribeBackupVaultNotImplemented{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+		mockClient.EXPECT().
+			V1betaDescribeBackupVault(mock.Anything).
+			Return(nil, mockError)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		handler := Handler{}
+		result, err := handler.V1betaDescribeBackupVault(context.Background(), params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaDescribeBackupVaultInternalServerError).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaDescribeBackupVaultInternalServerError).Message)
+	})
 }
 
 // V1betaGetMultipleBackupVaults unittests
@@ -1177,7 +1213,45 @@ func TestV1betaGetMultipleBackupVaults(t *testing.T) {
 		assert.NotNil(t, result)
 		// Check if the code is as expected
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaGetMultipleBackupVaultsInternalServerError).Code)
-		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaGetMultipleBackupVaultsInternalServerError).Message)
+		assert.Contains(t, result.(*gcpgenserver.V1betaGetMultipleBackupVaultsInternalServerError).Message, errorMessage)
+	})
+
+	t.Run("WhenGetMultipleBackupVaultsFailsWithNotImplemented", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
+		params := gcpgenserver.V1betaGetMultipleBackupVaultsParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		req := &gcpgenserver.BackupVaultUuidListV1beta{
+			BackupVaultUuids: []string{"BV0"},
+		}
+		errorMessage := "Not implemented"
+		errorCode := float64(501)
+		mockError := &backup_vault.V1betaGetMultipleBackupVaultsNotImplemented{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+		mockClient.EXPECT().
+			V1betaGetMultipleBackupVaults(mock.Anything).
+			Return(nil, mockError)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		handler := Handler{}
+		result, err := handler.V1betaGetMultipleBackupVaults(context.Background(), req, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaGetMultipleBackupVaultsNotImplemented).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaGetMultipleBackupVaultsNotImplemented).Message)
 	})
 }
 
@@ -2708,6 +2782,56 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 		// Assert
 		assert.Nil(t, err)
 		assert.NotNil(t, result)
+		mockOrchestrator.AssertExpectations(t)
+	})
+	t.Run("WhenCreatesBackupVaultSdeNotImplementedError", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId: gcpgenserver.NewOptString("new-vault"),
+		}
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "1234567890",
+		}
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		bvName := "new-vault"
+		mockOrchestrator.On("GetBackupVaultByNameAndOwnerID", mock.Anything, bvName, "1234567890").
+			Return(nil, errors2.NewNotFoundErr("backup vault", &bvName))
+
+		mockClient.EXPECT().
+			V1betaCreateBackupVault(mock.Anything).
+			Return(nil, &backup_vault.V1betaCreateBackupVaultNotImplemented{
+				Payload: &models.Error{
+					Code:    501,
+					Message: "SDE error: NotImplemented",
+				},
+			})
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		ctx := context.Background()
+		result, err := handler.V1betaCreateBackupVault(ctx, req, params)
+
+		assert.Nil(t, err)
+		assert.NotNil(t, result)
+		internalErr, ok := result.(*gcpgenserver.V1betaCreateBackupVaultInternalServerError)
+		assert.True(t, ok)
+		assert.Equal(t, float64(501), internalErr.Code)
+		assert.Equal(t, "SDE error: NotImplemented", internalErr.Message)
 		mockOrchestrator.AssertExpectations(t)
 	})
 	t.Run("WhenCreatesBackupVaultConversionError", func(t *testing.T) {
@@ -4427,6 +4551,42 @@ func Test_updateBackupVaultInSDE(tt *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 	})
+	tt.Run("WhenUpdateBackupVaultNotImplemented", func(t *testing.T) {
+		params := gcpgenserver.V1betaUpdateBackupVaultParams{
+			LocationId:    "valid-location",
+			ProjectNumber: "1234567890",
+			BackupVaultId: "vault-id",
+		}
+		req := &gcpgenserver.BackupVaultUpdateV1beta{}
+
+		mockClient := backup_vault.NewMockClientService(t)
+		mockError := &backup_vault.V1betaUpdateBackupVaultNotImplemented{
+			Payload: &models.Error{
+				Code:    501,
+				Message: "SDE error: Not Implemented",
+			},
+		}
+
+		mockClient.On("V1betaUpdateBackupVault", mock.Anything).Return(
+			nil, mockError).Once()
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := createClient
+		defer func() {
+			createClient = originalCreateClient
+		}()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		result, err := _updateBackupVaultInSDE(context.Background(), req, params, "description")
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		internalErr, ok := result.(*gcpgenserver.V1betaUpdateBackupVaultInternalServerError)
+		assert.True(t, ok)
+		assert.Equal(t, float64(501), internalErr.Code)
+		assert.Equal(t, "SDE error: Not Implemented", internalErr.Message)
+	})
 }
 
 func TestReturnsSuccessfulDeletion(tt *testing.T) {
@@ -4717,6 +4877,42 @@ func TestReturnsSuccessfulDeletion(tt *testing.T) {
 		result, err := _deleteBackupVaultInSDE(context.Background(), params, logger)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
+	})
+	tt.Run("WhenNotImplementedError", func(t *testing.T) {
+		params := gcpgenserver.V1betaDeleteBackupVaultParams{
+			LocationId:     "valid-location",
+			ProjectNumber:  "1234567890",
+			BackupVaultId:  "vault-id",
+			XCorrelationID: gcpgenserver.NewOptString("correlation-id"),
+		}
+
+		mockClient := backup_vault.NewMockClientService(t)
+		mockError := &backup_vault.V1betaDeleteBackupVaultNotImplemented{
+			Payload: &models.Error{
+				Code:    501,
+				Message: "Not implemented",
+			},
+		}
+
+		mockClient.On("V1betaDeleteBackupVault", mock.Anything).Return(
+			nil, nil, mockError).Once()
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := cvpCreateClient
+		defer func() {
+			cvpCreateClient = originalCreateClient
+		}()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		logger := log.NewLogger()
+		result, err := _deleteBackupVaultInSDE(context.Background(), params, logger)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		internalErr, ok := result.(*gcpgenserver.V1betaDeleteBackupVaultInternalServerError)
+		assert.True(t, ok)
+		assert.Equal(t, float64(501), internalErr.Code)
+		assert.Equal(t, "Not implemented", internalErr.Message)
 	})
 }
 
@@ -6377,4 +6573,305 @@ func TestV1betaRotateCmekBackupsUnknownError(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, float64(500), internalError.Code)
 	assert.Equal(t, "unknown error", internalError.Message)
+}
+
+func TestV1betaRotateCmekBackupsNotImplemented(t *testing.T) {
+	origBackupEnabled := backupEnabled
+	defer func() { backupEnabled = origBackupEnabled }()
+	backupEnabled = true
+
+	origCmekBackupEnabled := cmekBackupEnabled
+	defer func() { cmekBackupEnabled = origCmekBackupEnabled }()
+	cmekBackupEnabled = true
+
+	origParseAndValidate := parseAndValidateRegionAndZone
+	defer func() { parseAndValidateRegionAndZone = origParseAndValidate }()
+
+	origCvpCreateClient := cvpCreateClient
+	defer func() { cvpCreateClient = origCvpCreateClient }()
+
+	params := gcpgenserver.V1betaRotateCmekBackupsParams{
+		LocationId:    "us-west1",
+		ProjectNumber: "1234567890",
+		BackupVaultId: "vault-id",
+	}
+	req := &gcpgenserver.BackupVaultRotateCMEKBackupsV1beta{
+		PrimaryKeyVersion: "projects/test-project/locations/us-west1/keyRings/test-keyring/cryptoKeys/test-key/cryptoKeyVersions/1",
+	}
+
+	parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-west1", "", nil
+	}
+
+	mockClient := backup_vault.NewMockClientService(t)
+	mockError := &backup_vault.V1betaRotateCmekBackupsNotImplemented{
+		Payload: &models.Error{
+			Code:    501,
+			Message: "Not implemented",
+		},
+	}
+
+	mockClient.EXPECT().
+		V1betaRotateCmekBackups(mock.Anything).
+		Return(nil, mockError)
+
+	cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+	vaultName := "vault-id"
+	mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "vault-id", "1234567890").
+		Return(nil, errors2.NewNotFoundErr("backup vault", &vaultName))
+	handler := Handler{Orchestrator: mockOrchestrator}
+
+	result, err := handler.V1betaRotateCmekBackups(context.Background(), req, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	notImpl, ok := result.(*gcpgenserver.V1betaRotateCmekBackupsNotImplemented)
+	assert.True(t, ok)
+	assert.Equal(t, float64(501), notImpl.Code)
+	assert.Equal(t, "Not implemented", notImpl.Message)
+}
+
+func TestV1betaListBackupVaultsErrors(t *testing.T) {
+	t.Run("WhenListBackupVaultsFailsWithBadRequest", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
+		params := gcpgenserver.V1betaListBackupVaultsParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		errorCode := float64(400)
+		errorMessage := "Bad Request"
+		mockError := &backup_vault.V1betaListBackupVaultsBadRequest{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+		mockClient.EXPECT().
+			V1betaListBackupVaults(mock.Anything).
+			Return(nil, mockError)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		handler := Handler{}
+		result, err := handler.V1betaListBackupVaults(context.Background(), params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaListBackupVaultsBadRequest).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaListBackupVaultsBadRequest).Message)
+	})
+
+	t.Run("WhenListBackupVaultsFailsWithUnauthorized", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
+		params := gcpgenserver.V1betaListBackupVaultsParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		errorCode := float64(401)
+		errorMessage := "Unauthorized"
+		mockError := &backup_vault.V1betaListBackupVaultsUnauthorized{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+		mockClient.EXPECT().
+			V1betaListBackupVaults(mock.Anything).
+			Return(nil, mockError)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		handler := Handler{}
+		result, err := handler.V1betaListBackupVaults(context.Background(), params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaListBackupVaultsUnauthorized).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaListBackupVaultsUnauthorized).Message)
+	})
+
+	t.Run("WhenListBackupVaultsFailsWithForbidden", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
+		params := gcpgenserver.V1betaListBackupVaultsParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		errorCode := float64(403)
+		errorMessage := "Forbidden"
+		mockError := &backup_vault.V1betaListBackupVaultsForbidden{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+		mockClient.EXPECT().
+			V1betaListBackupVaults(mock.Anything).
+			Return(nil, mockError)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		handler := Handler{}
+		result, err := handler.V1betaListBackupVaults(context.Background(), params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaListBackupVaultsForbidden).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaListBackupVaultsForbidden).Message)
+	})
+
+	t.Run("WhenListBackupVaultsFailsWithNotFound", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
+		params := gcpgenserver.V1betaListBackupVaultsParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		errorCode := float64(404)
+		errorMessage := "Not Found"
+		mockError := &backup_vault.V1betaListBackupVaultsNotFound{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+		mockClient.EXPECT().
+			V1betaListBackupVaults(mock.Anything).
+			Return(nil, mockError)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		handler := Handler{}
+		result, err := handler.V1betaListBackupVaults(context.Background(), params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaListBackupVaultsNotFound).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaListBackupVaultsNotFound).Message)
+	})
+
+	t.Run("WhenListBackupVaultsFailsWithTooManyRequests", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
+		params := gcpgenserver.V1betaListBackupVaultsParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		errorCode := float64(429)
+		errorMessage := "Too many requests"
+		mockError := &backup_vault.V1betaListBackupVaultsTooManyRequests{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+		mockClient.EXPECT().
+			V1betaListBackupVaults(mock.Anything).
+			Return(nil, mockError)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		handler := Handler{}
+		result, err := handler.V1betaListBackupVaults(context.Background(), params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaListBackupVaultsTooManyRequests).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaListBackupVaultsTooManyRequests).Message)
+	})
+
+	t.Run("WhenListBackupVaultsFailsWithNotImplemented", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
+		params := gcpgenserver.V1betaListBackupVaultsParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		errorCode := float64(501)
+		errorMessage := "Not implemented"
+		mockError := &backup_vault.V1betaListBackupVaultsNotImplemented{
+			Payload: &models.Error{
+				Code:    errorCode,
+				Message: errorMessage,
+			},
+		}
+		mockClient.EXPECT().
+			V1betaListBackupVaults(mock.Anything).
+			Return(nil, mockError)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		handler := Handler{}
+		result, err := handler.V1betaListBackupVaults(context.Background(), params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaListBackupVaultsNotImplemented).Code)
+		assert.Equal(t, errorMessage, result.(*gcpgenserver.V1betaListBackupVaultsNotImplemented).Message)
+	})
+
+	t.Run("WhenListBackupVaultsFailsWithDefaultError", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
+		params := gcpgenserver.V1betaListBackupVaultsParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		mockError := errors.New("unknown error")
+		mockClient.EXPECT().
+			V1betaListBackupVaults(mock.Anything).
+			Return(nil, mockError)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		handler := Handler{}
+		result, err := handler.V1betaListBackupVaults(context.Background(), params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, float64(500), result.(*gcpgenserver.V1betaListBackupVaultsInternalServerError).Code)
+		assert.Equal(t, "unknown error", result.(*gcpgenserver.V1betaListBackupVaultsInternalServerError).Message)
+	})
 }

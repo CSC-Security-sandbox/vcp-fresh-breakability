@@ -4908,6 +4908,18 @@ func TestV1betaCreateBackupVaultInternalServerError_EncodeDecode(t *testing.T) {
 	var typ2 V1betaCreateBackupVaultInternalServerError
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaCreateBackupVaultNotImplemented_EncodeDecode(t *testing.T) {
+	var typ V1betaCreateBackupVaultNotImplemented
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaCreateBackupVaultNotImplemented
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaCreateBackupVaultTooManyRequests_EncodeDecode(t *testing.T) {
 	var typ V1betaCreateBackupVaultTooManyRequests
 	typ.SetFake()
@@ -6216,6 +6228,18 @@ func TestV1betaDeleteBackupVaultNotFound_EncodeDecode(t *testing.T) {
 	var typ2 V1betaDeleteBackupVaultNotFound
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1betaDeleteBackupVaultNotImplemented_EncodeDecode(t *testing.T) {
+	var typ V1betaDeleteBackupVaultNotImplemented
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDeleteBackupVaultNotImplemented
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1betaDeleteBackupVaultTooManyRequests_EncodeDecode(t *testing.T) {
 	var typ V1betaDeleteBackupVaultTooManyRequests
 	typ.SetFake()
@@ -7522,6 +7546,18 @@ func TestV1betaDescribeBackupVaultNotFound_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaDescribeBackupVaultNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDescribeBackupVaultNotImplemented_EncodeDecode(t *testing.T) {
+	var typ V1betaDescribeBackupVaultNotImplemented
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDescribeBackupVaultNotImplemented
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaDescribeBackupVaultTooManyRequests_EncodeDecode(t *testing.T) {
@@ -9303,6 +9339,18 @@ func TestV1betaGetMultipleBackupsOK_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaGetMultipleBackupsOK
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaGetMultipleBackupsTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaGetMultipleBackupsTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaGetMultipleBackupsTooManyRequests
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaGetMultipleBackupsUnauthorized_EncodeDecode(t *testing.T) {
@@ -15411,6 +15459,18 @@ func TestV1betaUpdateBackupVaultInternalServerError_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaUpdateBackupVaultInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaUpdateBackupVaultNotImplemented_EncodeDecode(t *testing.T) {
+	var typ V1betaUpdateBackupVaultNotImplemented
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaUpdateBackupVaultNotImplemented
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaUpdateBackupVaultTooManyRequests_EncodeDecode(t *testing.T) {

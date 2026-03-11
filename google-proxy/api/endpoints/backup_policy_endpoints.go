@@ -103,12 +103,17 @@ func (h Handler) V1betaCreateBackupPolicy(ctx context.Context, req *gcpgenserver
 				Code:    code,
 				Message: msg,
 			}, nil
-		case *backup_policy.V1betaCreateBackupPolicyDefault:
+		case *backup_policy.V1betaCreateBackupPolicyNotImplemented:
 			msg := nillable.GetString(&e.Payload.Message, "")
 			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaCreateBackupPolicyInternalServerError{
+			return &gcpgenserver.V1betaCreateBackupPolicyNotImplemented{
 				Code:    code,
 				Message: msg,
+			}, nil
+		default:
+			return &gcpgenserver.V1betaCreateBackupPolicyInternalServerError{
+				Code:    500,
+				Message: err.Error(),
 			}, nil
 		}
 	}
@@ -252,12 +257,17 @@ func (h Handler) V1betaDescribeBackupPolicy(ctx context.Context, params gcpgense
 				Code:    code,
 				Message: msg,
 			}, nil
-		case *backup_policy.V1betaDescribeBackupPolicyDefault:
+		case *backup_policy.V1betaDescribeBackupPolicyNotImplemented:
 			msg := nillable.GetString(&e.Payload.Message, "")
 			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaDescribeBackupPolicyInternalServerError{
+			return &gcpgenserver.V1betaDescribeBackupPolicyNotImplemented{
 				Code:    code,
 				Message: msg,
+			}, nil
+		default:
+			return &gcpgenserver.V1betaDescribeBackupPolicyInternalServerError{
+				Code:    500,
+				Message: err.Error(),
 			}, nil
 		}
 	}
@@ -338,12 +348,17 @@ func (h Handler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *gcpge
 				Code:    code,
 				Message: msg,
 			}, nil
-		case *backup_policy.V1betaGetMultipleBackupPoliciesDefault:
+		case *backup_policy.V1betaGetMultipleBackupPoliciesNotImplemented:
 			msg := nillable.GetString(&e.Payload.Message, "")
 			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaGetMultipleBackupPoliciesInternalServerError{
+			return &gcpgenserver.V1betaGetMultipleBackupPoliciesNotImplemented{
 				Code:    code,
 				Message: msg,
+			}, nil
+		default:
+			return &gcpgenserver.V1betaGetMultipleBackupPoliciesInternalServerError{
+				Code:    500,
+				Message: err.Error(),
 			}, nil
 		}
 	}
@@ -439,12 +454,17 @@ func (h Handler) V1betaListBackupPolicies(ctx context.Context, params gcpgenserv
 				Code:    code,
 				Message: msg,
 			}, nil
-		case *backup_policy.V1betaListBackupPoliciesDefault:
+		case *backup_policy.V1betaListBackupPoliciesNotImplemented:
 			msg := nillable.GetString(&e.Payload.Message, "")
 			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
-			return &gcpgenserver.V1betaListBackupPoliciesInternalServerError{
+			return &gcpgenserver.V1betaListBackupPoliciesNotImplemented{
 				Code:    code,
 				Message: msg,
+			}, nil
+		default:
+			return &gcpgenserver.V1betaListBackupPoliciesInternalServerError{
+				Code:    500,
+				Message: err.Error(),
 			}, nil
 		}
 	}
@@ -638,11 +658,18 @@ func _updateBackupPolicyInSDE(ctx context.Context, req *gcpgenserver.BackupPolic
 				Code:    code,
 				Message: msg,
 			}
+		case *backup_policy.V1betaUpdateBackupPolicyNotImplemented:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := nillable.GetFloat64(&e.Payload.Code, 0)
+			return &gcpgenserver.V1betaUpdateBackupPolicyNotImplemented{
+				Code:    code,
+				Message: msg,
+			}
 		default:
 			logger.Errorf("Failed to update backupPolicy in SDE: %v", err)
 			return &gcpgenserver.V1betaUpdateBackupPolicyInternalServerError{
 				Code:    500,
-				Message: "Internal server error",
+				Message: err.Error(),
 			}
 		}
 	}
@@ -661,7 +688,6 @@ func _deleteBackupPolicyInSDE(ctx context.Context, params gcpgenserver.V1betaDel
 		BackupPolicyID: params.BackupPolicyId,
 		XCorrelationID: &xCorrelationID,
 	})
-
 	if err != nil {
 		switch e := err.(type) {
 		case *backup_policy.V1betaDeleteBackupPolicyBadRequest:
@@ -699,11 +725,18 @@ func _deleteBackupPolicyInSDE(ctx context.Context, params gcpgenserver.V1betaDel
 				Code:    code,
 				Message: msg,
 			}
+		case *backup_policy.V1betaDeleteBackupPolicyNotImplemented:
+			msg := nillable.GetString(&e.Payload.Message, "")
+			code := float64(nillable.GetFloat64(&e.Payload.Code, 0))
+			return &gcpgenserver.V1betaDeleteBackupPolicyNotImplemented{
+				Code:    code,
+				Message: msg,
+			}
 		default:
 			logger.Errorf("Failed to delete backup policy in SDE: %s", err.Error())
 			return &gcpgenserver.V1betaDeleteBackupPolicyInternalServerError{
 				Code:    500,
-				Message: "Internal server error",
+				Message: err.Error(),
 			}
 		}
 	}

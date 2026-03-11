@@ -6064,6 +6064,15 @@ func (s *V1betaCreateBackupVaultInternalServerError) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1betaCreateBackupVaultNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaCreateBackupVaultNotImplemented(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1betaCreateBackupVaultTooManyRequests) SetFake() {
 	var unwrapped Error
 	{
@@ -7042,6 +7051,15 @@ func (s *V1betaDeleteBackupVaultNotFound) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaDeleteBackupVaultNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDeleteBackupVaultNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDeleteBackupVaultNotImplemented(unwrapped)
 }
 
 // SetFake set fake values.
@@ -8030,6 +8048,15 @@ func (s *V1betaDescribeBackupVaultNotFound) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaDescribeBackupVaultNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDescribeBackupVaultNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDescribeBackupVaultNotImplemented(unwrapped)
 }
 
 // SetFake set fake values.
@@ -9379,6 +9406,15 @@ func (s *V1betaGetMultipleBackupsOK) SetFake() {
 			}
 		}
 	}
+}
+
+// SetFake set fake values.
+func (s *V1betaGetMultipleBackupsTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaGetMultipleBackupsTooManyRequests(unwrapped)
 }
 
 // SetFake set fake values.
@@ -14114,6 +14150,15 @@ func (s *V1betaUpdateBackupVaultInternalServerError) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaUpdateBackupVaultInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaUpdateBackupVaultNotImplemented) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaUpdateBackupVaultNotImplemented(unwrapped)
 }
 
 // SetFake set fake values.
