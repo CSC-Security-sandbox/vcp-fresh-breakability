@@ -9,6 +9,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/resource_events_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -162,7 +163,30 @@ func (s *finishProjectEventDeleteStateWorkflow) Run(ctx workflow.Context, args .
 				}
 			}
 		}
-		// TODO: Delete Active directory from VCP. As this is common resource it might have deleted in SDE handle resource delete activity.
+		// Delete Active Directory from VCP/CVP. Multiple ADs can exist per account.
+		adActivities := &active_directory_activities.ActiveDirectoryDeleteActivity{}
+		var activeDirectories []*datamodel.ActiveDirectory
+		err = workflow.ExecuteActivity(ctx, adActivities.ListActiveDirectoriesActivity, finishProjectEventParams.ProjectNumber).Get(ctx, &activeDirectories)
+		if err != nil {
+			return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrFinishProjectEventErrorListingResources,
+					fmt.Errorf("error listing Active Directories %w", err))))
+		}
+		for _, ad := range activeDirectories {
+			if ad == nil {
+				continue
+			}
+			deleteParams := &common.DeleteActiveDirectoryParams{
+				ProjectNumber:       finishProjectEventParams.ProjectNumber,
+				AccountId:           ad.AccountId,
+				ActiveDirectoryUUID: ad.UUID,
+			}
+			if err = workflow.ExecuteActivity(ctx, adActivities.DeleteVcpActiveDirectory, deleteParams).Get(ctx, nil); err != nil {
+				return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+					vsaerrors.NewVCPError(vsaerrors.ErrFinishProjectEventErrorDeletingResources,
+						fmt.Errorf("error deleting Active Directory from VCP %w", err))))
+			}
+		}
 		// Delete KMS config from VCP. As this is common resource it might have deleted in SDE handle resource delete activity.
 		kmsActivities := &kms_activities.KmsConfigActivity{}
 		var kmsConfigs []*datamodel.KmsConfig
@@ -184,83 +208,83 @@ func (s *finishProjectEventDeleteStateWorkflow) Run(ctx workflow.Context, args .
 			}
 		}
 
-	// Check if pools exist before proceeding with backup cleanup
-	poolActivity := &activities.PoolActivity{}
-	var pools []*datamodel.Pool
-	err = workflow.ExecuteActivity(ctx, poolActivity.GetPoolsByAccountName, finishProjectEventParams.ProjectNumber).Get(ctx, &pools)
-	if err != nil {
-		logger := util.GetLogger(ctx)
-		logger.Errorf("Failed to check pools for project %s: %v", finishProjectEventParams.ProjectNumber, err)
-		return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
-			vsaerrors.NewVCPError(vsaerrors.ErrFinishProjectEventErrorDeletingResources,
-				fmt.Errorf("error checking pools for backup cleanup %w", err))))
-	}
-
-	// Check if pools exist - if they do, skip backup cleanup
-	if len(pools) > 0 {
-		logger := util.GetLogger(ctx)
-		logger.Warnf("Skipping backup cleanup for project %s because pools or volumes still exist",
-			finishProjectEventParams.ProjectNumber)
-	} else {
-		// Cleanup backup resources for the project with default retry configuration
-		backupVaultActivity := &activities.BackupVaultActivity{}
-		backupPolicyActivity := &activities.BackupPolicyActivity{}
-
-		// Use default retry policy for backup activities
-		backupRetryPolicy, err := PopulateRetryPolicyParams()
+		// Check if pools exist before proceeding with backup cleanup
+		poolActivity := &activities.PoolActivity{}
+		var pools []*datamodel.Pool
+		err = workflow.ExecuteActivity(ctx, poolActivity.GetPoolsByAccountName, finishProjectEventParams.ProjectNumber).Get(ctx, &pools)
 		if err != nil {
-			return nil, ConvertToVSAError(err)
-		}
-		backupAO := workflow.ActivityOptions{
-			StartToCloseTimeout: backupRetryPolicy.StartToCloseTimeout,
-			RetryPolicy: &temporal.RetryPolicy{
-				InitialInterval:        backupRetryPolicy.InitialInterval,
-				BackoffCoefficient:     backupRetryPolicy.BackoffCoefficient,
-				MaximumInterval:        backupRetryPolicy.MaximumInterval,
-				MaximumAttempts:        int32(backupRetryPolicy.MaximumAttempts),
-				NonRetryableErrorTypes: []string{"PanicError"},
-			},
-		}
-		ctxBackup := workflow.WithActivityOptions(ctx, backupAO)
-
-		// Cleanup backup resources - try to clean up as much as possible
-		var backupCleanupErrors []error
-		logger := util.GetLogger(ctx)
-
-		// Cleanup backup vaults and their associated backups
-		err = workflow.ExecuteActivity(ctxBackup, backupVaultActivity.CleanupBackupVaultsForAccount, finishProjectEventParams.ProjectNumber).Get(ctx, nil)
-		if err != nil {
-			logger.Errorf("Failed to cleanup backup vaults for project %s: %v", finishProjectEventParams.ProjectNumber, err)
-			backupCleanupErrors = append(backupCleanupErrors, err)
-		} else {
-			logger.Infof("Successfully cleaned up backup vaults for project %s", finishProjectEventParams.ProjectNumber)
+			logger := util.GetLogger(ctx)
+			logger.Errorf("Failed to check pools for project %s: %v", finishProjectEventParams.ProjectNumber, err)
+			return nil, ConvertToVSAError(vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrFinishProjectEventErrorDeletingResources,
+					fmt.Errorf("error checking pools for backup cleanup %w", err))))
 		}
 
-		// Cleanup backup policies and their temporal schedulers
-		err = workflow.ExecuteActivity(ctxBackup, backupPolicyActivity.CleanupBackupPoliciesForAccount, finishProjectEventParams.ProjectNumber).Get(ctx, nil)
-		if err != nil {
-			logger.Errorf("Failed to cleanup backup policies for project %s: %v", finishProjectEventParams.ProjectNumber, err)
-			backupCleanupErrors = append(backupCleanupErrors, err)
+		// Check if pools exist - if they do, skip backup cleanup
+		if len(pools) > 0 {
+			logger := util.GetLogger(ctx)
+			logger.Warnf("Skipping backup cleanup for project %s because pools or volumes still exist",
+				finishProjectEventParams.ProjectNumber)
 		} else {
-			logger.Infof("Successfully cleaned up backup policies for project %s", finishProjectEventParams.ProjectNumber)
-		}
-		// Cleanup backup policies and their temporal schedulers
-		err = workflow.ExecuteActivity(ctxBackup, backupPolicyActivity.CleanupBackupPoliciesForAccount, finishProjectEventParams.ProjectNumber).Get(ctx, nil)
-		if err != nil {
-			logger.Errorf("Failed to cleanup backup policies for project %s: %v", finishProjectEventParams.ProjectNumber, err)
-			backupCleanupErrors = append(backupCleanupErrors, err)
-		} else {
-			logger.Infof("Successfully cleaned up backup policies for project %s", finishProjectEventParams.ProjectNumber)
-		}
+			// Cleanup backup resources for the project with default retry configuration
+			backupVaultActivity := &activities.BackupVaultActivity{}
+			backupPolicyActivity := &activities.BackupPolicyActivity{}
 
-		// Log summary of backup cleanup
-		if len(backupCleanupErrors) == 0 {
-			logger.Infof("Backup cleanup completed successfully for project %s", finishProjectEventParams.ProjectNumber)
-		} else {
-			logger.Warnf("Backup cleanup completed with %d errors for project %s", len(backupCleanupErrors), finishProjectEventParams.ProjectNumber)
-			// Note: We don't return error here to allow the workflow to continue with other cleanup activities
+			// Use default retry policy for backup activities
+			backupRetryPolicy, err := PopulateRetryPolicyParams()
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
+			backupAO := workflow.ActivityOptions{
+				StartToCloseTimeout: backupRetryPolicy.StartToCloseTimeout,
+				RetryPolicy: &temporal.RetryPolicy{
+					InitialInterval:        backupRetryPolicy.InitialInterval,
+					BackoffCoefficient:     backupRetryPolicy.BackoffCoefficient,
+					MaximumInterval:        backupRetryPolicy.MaximumInterval,
+					MaximumAttempts:        int32(backupRetryPolicy.MaximumAttempts),
+					NonRetryableErrorTypes: []string{"PanicError"},
+				},
+			}
+			ctxBackup := workflow.WithActivityOptions(ctx, backupAO)
+
+			// Cleanup backup resources - try to clean up as much as possible
+			var backupCleanupErrors []error
+			logger := util.GetLogger(ctx)
+
+			// Cleanup backup vaults and their associated backups
+			err = workflow.ExecuteActivity(ctxBackup, backupVaultActivity.CleanupBackupVaultsForAccount, finishProjectEventParams.ProjectNumber).Get(ctx, nil)
+			if err != nil {
+				logger.Errorf("Failed to cleanup backup vaults for project %s: %v", finishProjectEventParams.ProjectNumber, err)
+				backupCleanupErrors = append(backupCleanupErrors, err)
+			} else {
+				logger.Infof("Successfully cleaned up backup vaults for project %s", finishProjectEventParams.ProjectNumber)
+			}
+
+			// Cleanup backup policies and their temporal schedulers
+			err = workflow.ExecuteActivity(ctxBackup, backupPolicyActivity.CleanupBackupPoliciesForAccount, finishProjectEventParams.ProjectNumber).Get(ctx, nil)
+			if err != nil {
+				logger.Errorf("Failed to cleanup backup policies for project %s: %v", finishProjectEventParams.ProjectNumber, err)
+				backupCleanupErrors = append(backupCleanupErrors, err)
+			} else {
+				logger.Infof("Successfully cleaned up backup policies for project %s", finishProjectEventParams.ProjectNumber)
+			}
+			// Cleanup backup policies and their temporal schedulers
+			err = workflow.ExecuteActivity(ctxBackup, backupPolicyActivity.CleanupBackupPoliciesForAccount, finishProjectEventParams.ProjectNumber).Get(ctx, nil)
+			if err != nil {
+				logger.Errorf("Failed to cleanup backup policies for project %s: %v", finishProjectEventParams.ProjectNumber, err)
+				backupCleanupErrors = append(backupCleanupErrors, err)
+			} else {
+				logger.Infof("Successfully cleaned up backup policies for project %s", finishProjectEventParams.ProjectNumber)
+			}
+
+			// Log summary of backup cleanup
+			if len(backupCleanupErrors) == 0 {
+				logger.Infof("Backup cleanup completed successfully for project %s", finishProjectEventParams.ProjectNumber)
+			} else {
+				logger.Warnf("Backup cleanup completed with %d errors for project %s", len(backupCleanupErrors), finishProjectEventParams.ProjectNumber)
+				// Note: We don't return error here to allow the workflow to continue with other cleanup activities
+			}
 		}
-	}
 
 		err = workflow.ExecuteActivity(ctx, finishProjectEventActivity.DeleteServiceAccountsFromAccountID, finishProjectEventParams.ProjectNumber).Get(ctx, nil)
 		if err != nil {

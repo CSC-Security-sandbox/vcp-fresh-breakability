@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/resource_events_activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -58,6 +59,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
 	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
 	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
+	adActivities := &active_directory_activities.ActiveDirectoryDeleteActivity{SE: mockStorage}
 	cvp.CVP_HOST = "someHost"
 	defer func() {
 		cvp.CVP_HOST = ""
@@ -77,6 +79,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(kmsActivities.ListKmsConfigActivity)
 	s.env.RegisterActivity(kmsActivities.DeleteKmsConfig)
 	s.env.RegisterActivity(poolActivity.GetPoolsByAccountName)
+	s.env.RegisterActivity(adActivities.ListActiveDirectoriesActivity)
+	s.env.RegisterActivity(adActivities.DeleteVcpActiveDirectory)
 	s.env.RegisterActivity(backupVaultActivity.CleanupBackupVaultsForAccount)
 	s.env.RegisterActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount)
 	s.env.RegisterActivity(finishProjectEventActivity.DeleteAccountActivity)
@@ -102,9 +106,25 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	var kmsConfigs []*datamodel.KmsConfig
 	s.env.OnActivity(kmsActivities.ListKmsConfigActivity, mock.Anything, mock.Anything).Return(kmsConfigs, nil).Once()
 
+	// Mock AD activities - return two ADs and delete each
+	ad1 := &datamodel.ActiveDirectory{BaseModel: datamodel.BaseModel{UUID: "ad-uuid-1"}, AccountId: 111}
+	ad2 := &datamodel.ActiveDirectory{BaseModel: datamodel.BaseModel{UUID: "ad-uuid-2"}, AccountId: 222}
+	s.env.OnActivity(adActivities.ListActiveDirectoriesActivity, mock.Anything, "test-project-number").
+		Return([]*datamodel.ActiveDirectory{ad1, ad2}, nil).Once()
+	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.MatchedBy(func(p *commonparams.DeleteActiveDirectoryParams) bool {
+		return p.ActiveDirectoryUUID == "ad-uuid-1" && p.AccountId == 111 && p.ProjectNumber == "test-project-number"
+	})).Return(nil).Once()
+	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.MatchedBy(func(p *commonparams.DeleteActiveDirectoryParams) bool {
+		return p.ActiveDirectoryUUID == "ad-uuid-2" && p.AccountId == 222 && p.ProjectNumber == "test-project-number"
+	})).Return(nil).Once()
+
 	// Mock pool activities - return empty list (no pools exist)
 	var pools []*datamodel.Pool
 	s.env.OnActivity(poolActivity.GetPoolsByAccountName, mock.Anything, mock.Anything).Return(pools, nil).Once()
+
+	// Mock AD activities - none present
+	s.env.OnActivity(adActivities.ListActiveDirectoriesActivity, mock.Anything, "test-project-number").
+		Return([]*datamodel.ActiveDirectory{}, nil).Once()
 
 	// Mock backup cleanup activities
 	s.env.OnActivity(backupVaultActivity.CleanupBackupVaultsForAccount, mock.Anything, mock.Anything).Return(nil).Once()
@@ -156,6 +176,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
 	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
 	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
+	adActivities := &active_directory_activities.ActiveDirectoryDeleteActivity{SE: mockStorage}
 
 	// Add GetAccount mock for VolumeAndPoolRegionalCheckActivity
 	mockStorage.On("GetAccount", mock.Anything, "test-project-number").Return(&datamodel.Account{}, nil).Maybe()
@@ -165,6 +186,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(hostGroupActivities.ListHostGroups)
 	s.env.RegisterActivity(kmsActivities.ListKmsConfigActivity)
+	s.env.RegisterActivity(adActivities.ListActiveDirectoriesActivity)
+	s.env.RegisterActivity(adActivities.DeleteVcpActiveDirectory)
 	s.env.RegisterActivity(backupVaultActivity.CleanupBackupVaultsForAccount)
 	s.env.RegisterActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount)
 	s.env.RegisterActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID)
@@ -206,6 +229,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
 	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
 	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
+	adActivities := &active_directory_activities.ActiveDirectoryDeleteActivity{SE: mockStorage}
 	cvp.CVP_HOST = "someHost"
 	defer func() {
 		cvp.CVP_HOST = ""
@@ -222,6 +246,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(kmsActivities.ListKmsConfigActivity)
 	s.env.RegisterActivity(kmsActivities.DeleteKmsConfig)
 	s.env.RegisterActivity(poolActivity.GetPoolsByAccountName)
+	s.env.RegisterActivity(adActivities.ListActiveDirectoriesActivity)
+	s.env.RegisterActivity(adActivities.DeleteVcpActiveDirectory)
 	s.env.RegisterActivity(backupVaultActivity.CleanupBackupVaultsForAccount)
 	s.env.RegisterActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount)
 	s.env.RegisterActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID)
@@ -264,6 +290,19 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(kmsActivities.ListKmsConfigActivity, mock.Anything, "test-project-number").Return(kmsConfigs, nil).Once()
 	s.env.OnActivity(kmsActivities.DeleteKmsConfig, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 
+	// Mock AD activities - return ADs to delete
+	adList := []*datamodel.ActiveDirectory{
+		{BaseModel: datamodel.BaseModel{UUID: "ad-uuid-1"}, AccountId: 123456},
+		{BaseModel: datamodel.BaseModel{UUID: "ad-uuid-2"}, AccountId: 123456},
+	}
+	s.env.OnActivity(adActivities.ListActiveDirectoriesActivity, mock.Anything, "test-project-number").Return(adList, nil).Once()
+	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.MatchedBy(func(p *commonparams.DeleteActiveDirectoryParams) bool {
+		return p.ActiveDirectoryUUID == "ad-uuid-1" && p.AccountId == 123456 && p.ProjectNumber == "test-project-number"
+	})).Return(nil).Once()
+	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.MatchedBy(func(p *commonparams.DeleteActiveDirectoryParams) bool {
+		return p.ActiveDirectoryUUID == "ad-uuid-2" && p.AccountId == 123456 && p.ProjectNumber == "test-project-number"
+	})).Return(nil).Once()
+
 	s.env.OnActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID, mock.Anything, "test-project-number").Return(nil).Once()
 
 	// Mock DeleteAccountActivity
@@ -298,6 +337,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
 	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
 	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
+	adActivities := &active_directory_activities.ActiveDirectoryDeleteActivity{SE: mockStorage}
 	cvp.CVP_HOST = "someHost"
 	defer func() {
 		cvp.CVP_HOST = ""
@@ -311,6 +351,13 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(poolActivity.GetPoolsByAccountName)
 	s.env.RegisterActivity(backupVaultActivity.CleanupBackupVaultsForAccount)
 	s.env.RegisterActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount)
+	s.env.RegisterActivity(adActivities.ListActiveDirectoriesActivity)
+	s.env.RegisterActivity(adActivities.DeleteVcpActiveDirectory)
+
+	// Default AD mocks (not invoked in this failure path)
+	s.env.OnActivity(adActivities.ListActiveDirectoriesActivity, mock.Anything, "test-project-number").
+		Return([]*datamodel.ActiveDirectory{}, nil).Maybe()
+	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Mock finish project event activity to fail
 	s.env.OnActivity(finishProjectEventActivity.FinishProjectEventForSDEActivity, mock.Anything, mock.Anything).Return(nil, errors.New("SDE activity failed")).Once()
@@ -337,6 +384,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
 	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
 	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
+	adActivities := &active_directory_activities.ActiveDirectoryDeleteActivity{SE: mockStorage}
 	cvp.CVP_HOST = "someHost"
 	defer func() {
 		cvp.CVP_HOST = ""
@@ -351,6 +399,12 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(poolActivity.GetPoolsByAccountName)
 	s.env.RegisterActivity(backupVaultActivity.CleanupBackupVaultsForAccount)
 	s.env.RegisterActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount)
+	s.env.RegisterActivity(adActivities.ListActiveDirectoriesActivity)
+	s.env.RegisterActivity(adActivities.DeleteVcpActiveDirectory)
+
+	s.env.OnActivity(adActivities.ListActiveDirectoriesActivity, mock.Anything, "test-project-number").
+		Return([]*datamodel.ActiveDirectory{}, nil).Maybe()
+	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Mock finish project event activity
 	done := false
@@ -385,6 +439,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
 	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
 	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
+	adActivities := &active_directory_activities.ActiveDirectoryDeleteActivity{SE: mockStorage}
 	cvp.CVP_HOST = "someHost"
 	defer func() {
 		cvp.CVP_HOST = ""
@@ -403,6 +458,10 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(poolActivity.GetPoolsByAccountName)
 	s.env.RegisterActivity(backupVaultActivity.CleanupBackupVaultsForAccount)
 	s.env.RegisterActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount)
+	s.env.RegisterActivity(adActivities.ListActiveDirectoriesActivity)
+	s.env.RegisterActivity(adActivities.DeleteVcpActiveDirectory)
+	s.env.RegisterActivity(adActivities.ListActiveDirectoriesActivity)
+	s.env.RegisterActivity(adActivities.DeleteVcpActiveDirectory)
 	s.env.RegisterActivity(finishProjectEventActivity.DeleteAccountActivity)
 	s.env.RegisterActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID)
 	s.env.RegisterActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity)
@@ -435,6 +494,10 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	// Mock KMS activities - return empty list
 	var kmsConfigs []*datamodel.KmsConfig
 	s.env.OnActivity(kmsActivities.ListKmsConfigActivity, mock.Anything, "test-project-number").Return(kmsConfigs, nil).Once()
+
+	// Mock AD activities - empty list
+	s.env.OnActivity(adActivities.ListActiveDirectoriesActivity, mock.Anything, "test-project-number").
+		Return([]*datamodel.ActiveDirectory{}, nil).Once()
 
 	// Stub VolumeAndPoolRegionalCheckActivity to avoid real storage calls (ListPools, etc.)
 	s.env.OnActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity, mock.Anything, "test-project-number").Return(true, nil).Once()
@@ -506,6 +569,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
 	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
 	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
+	adActivities := &active_directory_activities.ActiveDirectoryDeleteActivity{SE: mockStorage}
 
 	// Register backup cleanup activities
 	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
@@ -524,7 +588,15 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(finishProjectEventActivity.HardDeleteResourcesInOrder)
 	s.env.RegisterActivity(finishProjectEventActivity.RollbackAccountStateActivity)
 	s.env.RegisterActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID)
+	s.env.RegisterActivity(adActivities.ListActiveDirectoriesActivity)
+	s.env.RegisterActivity(adActivities.DeleteVcpActiveDirectory)
+	s.env.RegisterActivity(adActivities.ListActiveDirectoriesActivity)
+	s.env.RegisterActivity(adActivities.DeleteVcpActiveDirectory)
 	s.env.RegisterActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity)
+	s.env.RegisterActivity(adActivities.ListActiveDirectoriesActivity)
+	s.env.RegisterActivity(adActivities.DeleteVcpActiveDirectory)
+	s.env.RegisterActivity(adActivities.ListActiveDirectoriesActivity)
+	s.env.RegisterActivity(adActivities.DeleteVcpActiveDirectory)
 
 	// Mock all activities to succeed
 	done := true
@@ -538,6 +610,12 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil)
 	s.env.OnActivity(kmsActivities.ListKmsConfigActivity, mock.Anything, mock.Anything).Return([]*datamodel.KmsConfig{}, nil)
 	s.env.OnActivity(poolActivity.GetPoolsByAccountName, mock.Anything, mock.Anything).Return([]*datamodel.Pool{}, nil)
+	s.env.OnActivity(adActivities.ListActiveDirectoriesActivity, mock.Anything, "test-project-number").Return([]*datamodel.ActiveDirectory{}, nil).Maybe()
+	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(adActivities.ListActiveDirectoriesActivity, mock.Anything, "test-project-number").Return([]*datamodel.ActiveDirectory{}, nil).Maybe()
+	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(adActivities.ListActiveDirectoriesActivity, mock.Anything, "test-project-number").Return([]*datamodel.ActiveDirectory{}, nil).Maybe()
+	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(backupVaultActivity.CleanupBackupVaultsForAccount, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID, mock.Anything, "test-project-number").Return(nil).Once()
@@ -575,6 +653,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity)
 	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
 	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
+	adActivities := &active_directory_activities.ActiveDirectoryDeleteActivity{SE: mockStorage}
 
 	// Register backup cleanup activities
 	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
@@ -593,6 +672,10 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(finishProjectEventActivity.HardDeleteResourcesInOrder)
 	s.env.RegisterActivity(finishProjectEventActivity.RollbackAccountStateActivity)
 	s.env.RegisterActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID)
+	s.env.RegisterActivity(adActivities.ListActiveDirectoriesActivity)
+	s.env.RegisterActivity(adActivities.DeleteVcpActiveDirectory)
+	s.env.RegisterActivity(adActivities.ListActiveDirectoriesActivity)
+	s.env.RegisterActivity(adActivities.DeleteVcpActiveDirectory)
 
 	// Mock activities - backup vault cleanup fails
 	done := true
@@ -605,6 +688,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil)
 	s.env.OnActivity(kmsActivities.ListKmsConfigActivity, mock.Anything, mock.Anything).Return([]*datamodel.KmsConfig{}, nil)
 	s.env.OnActivity(poolActivity.GetPoolsByAccountName, mock.Anything, mock.Anything).Return([]*datamodel.Pool{}, nil)
+	s.env.OnActivity(adActivities.ListActiveDirectoriesActivity, mock.Anything, "test-project-number").Return([]*datamodel.ActiveDirectory{}, nil).Maybe()
+	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(backupVaultActivity.CleanupBackupVaultsForAccount, mock.Anything, mock.Anything).Return(errors.New("backup vault cleanup failed"))
 	s.env.OnActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID, mock.Anything, "test-project-number").Return(nil).Once()
@@ -643,6 +728,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity)
 	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
 	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
+	adActivities := &active_directory_activities.ActiveDirectoryDeleteActivity{SE: mockStorage}
 
 	// Register backup cleanup activities
 	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
@@ -661,6 +747,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(finishProjectEventActivity.HardDeleteResourcesInOrder)
 	s.env.RegisterActivity(finishProjectEventActivity.RollbackAccountStateActivity)
 	s.env.RegisterActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID)
+	s.env.RegisterActivity(adActivities.ListActiveDirectoriesActivity)
+	s.env.RegisterActivity(adActivities.DeleteVcpActiveDirectory)
 
 	mockStorage.On("GetAccount", mock.Anything, "test-project-number").Return(&datamodel.Account{}, nil).Maybe()
 
@@ -676,6 +764,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil)
 	s.env.OnActivity(kmsActivities.ListKmsConfigActivity, mock.Anything, mock.Anything).Return([]*datamodel.KmsConfig{}, nil)
 	s.env.OnActivity(poolActivity.GetPoolsByAccountName, mock.Anything, mock.Anything).Return([]*datamodel.Pool{}, nil)
+	s.env.OnActivity(adActivities.ListActiveDirectoriesActivity, mock.Anything, "test-project-number").Return([]*datamodel.ActiveDirectory{}, nil).Maybe()
+	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(backupVaultActivity.CleanupBackupVaultsForAccount, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount, mock.Anything, mock.Anything).Return(errors.New("backup policy cleanup failed"))
 	s.env.OnActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID, mock.Anything, "test-project-number").Return(nil).Once()
@@ -712,6 +802,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	finishProjectEventActivity := &resource_events_activities.FinishProjectEventActivity{SE: mockStorage}
 	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
 	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
+	adActivities := &active_directory_activities.ActiveDirectoryDeleteActivity{SE: mockStorage}
 
 	// Register backup cleanup activities
 	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
@@ -731,6 +822,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(finishProjectEventActivity.RollbackAccountStateActivity)
 	s.env.RegisterActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID)
 	s.env.RegisterActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity)
+	s.env.RegisterActivity(adActivities.ListActiveDirectoriesActivity)
+	s.env.RegisterActivity(adActivities.DeleteVcpActiveDirectory)
 
 	// Mock activities - backup vault cleanup fails first time, succeeds on retry
 	done := true
@@ -742,6 +835,14 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil)
 	s.env.OnActivity(kmsActivities.ListKmsConfigActivity, mock.Anything, mock.Anything).Return([]*datamodel.KmsConfig{}, nil)
+	// Mock AD activities - return ADs to delete
+	adList := []*datamodel.ActiveDirectory{
+		{BaseModel: datamodel.BaseModel{UUID: "ad-uuid-1"}, AccountId: 123456},
+	}
+	s.env.OnActivity(adActivities.ListActiveDirectoriesActivity, mock.Anything, "test-project-number").Return(adList, nil).Once()
+	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.MatchedBy(func(p *commonparams.DeleteActiveDirectoryParams) bool {
+		return p.ActiveDirectoryUUID == "ad-uuid-1" && p.AccountId == 123456 && p.ProjectNumber == "test-project-number"
+	})).Return(nil).Once()
 	s.env.OnActivity(poolActivity.GetPoolsByAccountName, mock.Anything, mock.Anything).Return([]*datamodel.Pool{}, nil)
 
 	// First call fails, second call succeeds (testing retry policy)
@@ -790,6 +891,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
 	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
 	poolActivity := &activities.PoolActivity{SE: mockStorage}
+	adActivities := &active_directory_activities.ActiveDirectoryDeleteActivity{SE: mockStorage}
 	s.env.RegisterActivity(backupVaultActivity.CleanupBackupVaultsForAccount)
 	s.env.RegisterActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount)
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
@@ -803,6 +905,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(finishProjectEventActivity.HardDeleteResourcesInOrder)
 	s.env.RegisterActivity(finishProjectEventActivity.RollbackAccountStateActivity)
 	s.env.RegisterActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID)
+	s.env.RegisterActivity(adActivities.ListActiveDirectoriesActivity)
+	s.env.RegisterActivity(adActivities.DeleteVcpActiveDirectory)
 
 	// Mock activities - backup vault cleanup fails with non-retryable error
 	done := true
@@ -814,6 +918,14 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil)
 	s.env.OnActivity(kmsActivities.ListKmsConfigActivity, mock.Anything, mock.Anything).Return([]*datamodel.KmsConfig{}, nil)
+	// Mock AD activities - return ADs to delete
+	adList := []*datamodel.ActiveDirectory{
+		{BaseModel: datamodel.BaseModel{UUID: "ad-uuid-1"}, AccountId: 123456},
+	}
+	s.env.OnActivity(adActivities.ListActiveDirectoriesActivity, mock.Anything, "test-project-number").Return(adList, nil).Once()
+	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.MatchedBy(func(p *commonparams.DeleteActiveDirectoryParams) bool {
+		return p.ActiveDirectoryUUID == "ad-uuid-1" && p.AccountId == 123456 && p.ProjectNumber == "test-project-number"
+	})).Return(nil).Once()
 	s.env.OnActivity(poolActivity.GetPoolsByAccountName, mock.Anything, mock.Anything).Return([]*datamodel.Pool{}, nil)
 	s.env.OnActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity, mock.Anything, "test-project-number").Return(true, nil).Once()
 
@@ -856,6 +968,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
 	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
 	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
+	adActivities := &active_directory_activities.ActiveDirectoryDeleteActivity{SE: mockStorage}
 	cvp.CVP_HOST = "someHost"
 	defer func() { cvp.CVP_HOST = "" }()
 
@@ -889,6 +1002,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(poolActivity.GetPoolsByAccountName, mock.Anything, mock.Anything).Return([]*datamodel.Pool{}, nil)
 	s.env.OnActivity(backupVaultActivity.CleanupBackupVaultsForAccount, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(adActivities.ListActiveDirectoriesActivity, mock.Anything, "test-project-number").Return([]*datamodel.ActiveDirectory{}, nil).Maybe()
+	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(finishProjectEventActivity.DeleteAccountActivity, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity, mock.Anything, "test-project-number").Return(true, nil).Once()
 	// Simulate error in VerifySoftDeletedResourcesForAccount to set errRollBack
@@ -976,6 +1091,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
 	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
 	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
+	adActivities := &active_directory_activities.ActiveDirectoryDeleteActivity{SE: mockStorage}
 	cvp.CVP_HOST = "someHost"
 	defer func() {
 		cvp.CVP_HOST = ""
@@ -990,6 +1106,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(poolActivity.GetPoolsByAccountName)
 	s.env.RegisterActivity(backupVaultActivity.CleanupBackupVaultsForAccount)
 	s.env.RegisterActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount)
+	s.env.RegisterActivity(adActivities.ListActiveDirectoriesActivity)
+	s.env.RegisterActivity(adActivities.DeleteVcpActiveDirectory)
 
 	// Mock finish project event activity
 	done := true
@@ -1003,6 +1121,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 
 	// Mock ListHostGroups to fail (covers line 137)
 	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, mock.Anything).Return(nil, errors.New("list host groups failed")).Once()
+	s.env.OnActivity(adActivities.ListActiveDirectoriesActivity, mock.Anything, "test-project-number").Return([]*datamodel.ActiveDirectory{}, nil).Maybe()
+	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	params := &commonparams.FinishProjectEventParams{
 		State:          models.StateDelete,
@@ -1024,6 +1144,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	hostGroupActivities := &activities.HostGroupUpdateActivity{SE: mockStorage}
 	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
 	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
+	adActivities := &active_directory_activities.ActiveDirectoryDeleteActivity{SE: mockStorage}
 	cvp.CVP_HOST = "someHost"
 	defer func() {
 		cvp.CVP_HOST = ""
@@ -1039,6 +1160,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(poolActivity.GetPoolsByAccountName)
 	s.env.RegisterActivity(backupVaultActivity.CleanupBackupVaultsForAccount)
 	s.env.RegisterActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount)
+	s.env.RegisterActivity(adActivities.ListActiveDirectoriesActivity)
+	s.env.RegisterActivity(adActivities.DeleteVcpActiveDirectory)
 
 	done := true
 	operationName := "test-operation"
@@ -1055,6 +1178,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	}
 	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, mock.Anything).Return(hostGroups, nil).Once()
 	s.env.OnActivity(hostGroupActivities.DeleteHostGroup, mock.Anything, "hg-uuid-1", int64(123456)).Return(nil, errors.New("delete host group failed")).Once()
+	s.env.OnActivity(adActivities.ListActiveDirectoriesActivity, mock.Anything, "test-project-number").Return([]*datamodel.ActiveDirectory{}, nil).Maybe()
+	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	params := &commonparams.FinishProjectEventParams{
 		State:          models.StateDelete,
@@ -1077,6 +1202,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
 	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
 	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
+	adActivities := &active_directory_activities.ActiveDirectoryDeleteActivity{SE: mockStorage}
 	cvp.CVP_HOST = "someHost"
 	defer func() {
 		cvp.CVP_HOST = ""
@@ -1112,6 +1238,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 
 	// Mock KMS activities - fail list (covers line 157)
 	s.env.OnActivity(kmsActivities.ListKmsConfigActivity, mock.Anything, mock.Anything).Return(nil, errors.New("list kms config failed")).Once()
+	s.env.OnActivity(adActivities.ListActiveDirectoriesActivity, mock.Anything, "test-project-number").Return([]*datamodel.ActiveDirectory{}, nil).Maybe()
+	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	params := &commonparams.FinishProjectEventParams{
 		State:          models.StateDelete,
@@ -1134,6 +1262,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
 	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
 	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
+	adActivities := &active_directory_activities.ActiveDirectoryDeleteActivity{SE: mockStorage}
 	cvp.CVP_HOST = "someHost"
 	defer func() {
 		cvp.CVP_HOST = ""
@@ -1150,6 +1279,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(poolActivity.GetPoolsByAccountName)
 	s.env.RegisterActivity(backupVaultActivity.CleanupBackupVaultsForAccount)
 	s.env.RegisterActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount)
+	s.env.RegisterActivity(adActivities.ListActiveDirectoriesActivity)
+	s.env.RegisterActivity(adActivities.DeleteVcpActiveDirectory)
 
 	done := true
 	operationName := "test-operation"
@@ -1174,6 +1305,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	}
 	s.env.OnActivity(kmsActivities.ListKmsConfigActivity, mock.Anything, mock.Anything).Return(kmsConfigs, nil).Once()
 	s.env.OnActivity(kmsActivities.DeleteKmsConfig, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("delete kms config failed")).Once()
+	s.env.OnActivity(adActivities.ListActiveDirectoriesActivity, mock.Anything, "test-project-number").Return([]*datamodel.ActiveDirectory{}, nil).Maybe()
+	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	params := &commonparams.FinishProjectEventParams{
 		State:          models.StateDelete,
@@ -1196,6 +1329,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
 	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
 	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
+	adActivities := &active_directory_activities.ActiveDirectoryDeleteActivity{SE: mockStorage}
 	cvp.CVP_HOST = "someHost"
 	defer func() {
 		cvp.CVP_HOST = ""
@@ -1212,6 +1346,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(backupVaultActivity.CleanupBackupVaultsForAccount)
 	s.env.RegisterActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount)
 	s.env.RegisterActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID)
+	s.env.RegisterActivity(adActivities.ListActiveDirectoriesActivity)
+	s.env.RegisterActivity(adActivities.DeleteVcpActiveDirectory)
 
 	done := true
 	operationName := "test-operation"
@@ -1237,6 +1373,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	// Mock backup cleanup activities
 	s.env.OnActivity(backupVaultActivity.CleanupBackupVaultsForAccount, mock.Anything, mock.Anything).Return(nil).Once()
 	s.env.OnActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount, mock.Anything, mock.Anything).Return(nil).Once()
+	s.env.OnActivity(adActivities.ListActiveDirectoriesActivity, mock.Anything, "test-project-number").Return([]*datamodel.ActiveDirectory{}, nil).Maybe()
+	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Mock DeleteServiceAccountsFromAccountID to fail (covers line 226)
 	s.env.OnActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID, mock.Anything, "test-project-number").Return(errors.New("delete service accounts failed")).Once()
@@ -1268,6 +1406,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
 	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
 	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
+	adActivities := &active_directory_activities.ActiveDirectoryDeleteActivity{SE: mockStorage}
 	cvp.CVP_HOST = "someHost"
 	defer func() { cvp.CVP_HOST = "" }()
 
@@ -1288,6 +1427,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(finishProjectEventActivity.HardDeleteResourcesInOrder)
 	s.env.RegisterActivity(finishProjectEventActivity.RollbackAccountStateActivity)
 	s.env.RegisterActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID)
+	s.env.RegisterActivity(adActivities.ListActiveDirectoriesActivity)
+	s.env.RegisterActivity(adActivities.DeleteVcpActiveDirectory)
 
 	// Mock all activities to succeed except HardDeleteResourcesInOrder, which fails (covers line 259)
 	done := true
@@ -1298,6 +1439,15 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil)
 	s.env.OnActivity(kmsActivities.ListKmsConfigActivity, mock.Anything, mock.Anything).Return([]*datamodel.KmsConfig{}, nil)
+	// Mock AD activities - return ADs to delete
+	adList := []*datamodel.ActiveDirectory{
+		{BaseModel: datamodel.BaseModel{UUID: "ad-uuid-1"}, AccountId: 123456},
+	}
+	s.env.OnActivity(adActivities.ListActiveDirectoriesActivity, mock.Anything, "test-project-number").Return(adList, nil).Once()
+	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.MatchedBy(func(p *commonparams.DeleteActiveDirectoryParams) bool {
+		return p.ActiveDirectoryUUID == "ad-uuid-1" && p.AccountId == 123456 && p.ProjectNumber == "test-project-number"
+	})).Return(nil).Once()
+
 	s.env.OnActivity(poolActivity.GetPoolsByAccountName, mock.Anything, mock.Anything).Return([]*datamodel.Pool{}, nil)
 	s.env.OnActivity(backupVaultActivity.CleanupBackupVaultsForAccount, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupPolicyActivity.CleanupBackupPoliciesForAccount, mock.Anything, mock.Anything).Return(nil)
@@ -1338,6 +1488,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
 	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
 	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
+	adActivities := &active_directory_activities.ActiveDirectoryDeleteActivity{SE: mockStorage}
 
 	// Register backup cleanup activities
 	poolActivity := &activities.PoolActivity{SE: mockStorage}
@@ -1355,6 +1506,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(finishProjectEventActivity.RollbackAccountStateActivity)
 	s.env.RegisterActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID)
 	s.env.RegisterActivity(finishProjectEventActivity.VolumeAndPoolRegionalCheckActivity)
+	s.env.RegisterActivity(adActivities.ListActiveDirectoriesActivity)
+	s.env.RegisterActivity(adActivities.DeleteVcpActiveDirectory)
 
 	// Mock all activities to succeed
 	done := true
@@ -1370,7 +1523,18 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil)
 	s.env.OnActivity(kmsActivities.ListKmsConfigActivity, mock.Anything, mock.Anything).Return([]*datamodel.KmsConfig{}, nil)
-
+	// Mock AD activities - return ADs to delete
+	adList := []*datamodel.ActiveDirectory{
+		{BaseModel: datamodel.BaseModel{UUID: "ad-uuid-1"}, AccountId: 123456},
+		{BaseModel: datamodel.BaseModel{UUID: "ad-uuid-2"}, AccountId: 123456},
+	}
+	s.env.OnActivity(adActivities.ListActiveDirectoriesActivity, mock.Anything, "test-project-number").Return(adList, nil).Once()
+	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.MatchedBy(func(p *commonparams.DeleteActiveDirectoryParams) bool {
+		return p.ActiveDirectoryUUID == "ad-uuid-1" && p.AccountId == 123456 && p.ProjectNumber == "test-project-number"
+	})).Return(nil).Once()
+	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.MatchedBy(func(p *commonparams.DeleteActiveDirectoryParams) bool {
+		return p.ActiveDirectoryUUID == "ad-uuid-2" && p.AccountId == 123456 && p.ProjectNumber == "test-project-number"
+	})).Return(nil).Once()
 	// Mock pool activities - return pools (pools exist, backup cleanup should be skipped)
 	pools := []*datamodel.Pool{
 		{BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"}, AccountID: 123456},
@@ -1420,6 +1584,7 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	kmsActivities := &kms_activities.KmsConfigActivity{SE: mockStorage}
 	backupVaultActivity := &activities.BackupVaultActivity{SE: mockStorage}
 	backupPolicyActivity := &activities.BackupPolicyActivity{SE: mockStorage}
+	adActivities := &active_directory_activities.ActiveDirectoryDeleteActivity{SE: mockStorage}
 
 	// Register backup cleanup activities
 	poolActivity := &activities.PoolActivity{SE: mockStorage}
@@ -1436,6 +1601,8 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.RegisterActivity(finishProjectEventActivity.HardDeleteResourcesInOrder)
 	s.env.RegisterActivity(finishProjectEventActivity.RollbackAccountStateActivity)
 	s.env.RegisterActivity(finishProjectEventActivity.DeleteServiceAccountsFromAccountID)
+	s.env.RegisterActivity(adActivities.ListActiveDirectoriesActivity)
+	s.env.RegisterActivity(adActivities.DeleteVcpActiveDirectory)
 
 	// Mock all activities to succeed except pool check
 	done := true
@@ -1447,6 +1614,14 @@ func (s *FinishProjectEventDeleteStateTestSuite) Test_FinishProjectEventDeleteSt
 	s.env.OnActivity(finishProjectEventActivity.PollFinishProjectEventSDEOperationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(hostGroupActivities.ListHostGroups, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{}, nil)
 	s.env.OnActivity(kmsActivities.ListKmsConfigActivity, mock.Anything, mock.Anything).Return([]*datamodel.KmsConfig{}, nil)
+	// Mock AD activities - return ADs to delete
+	adList := []*datamodel.ActiveDirectory{
+		{BaseModel: datamodel.BaseModel{UUID: "ad-uuid-1"}, AccountId: 123456},
+	}
+	s.env.OnActivity(adActivities.ListActiveDirectoriesActivity, mock.Anything, "test-project-number").Return(adList, nil).Once()
+	s.env.OnActivity(adActivities.DeleteVcpActiveDirectory, mock.Anything, mock.MatchedBy(func(p *commonparams.DeleteActiveDirectoryParams) bool {
+		return p.ActiveDirectoryUUID == "ad-uuid-1" && p.AccountId == 123456 && p.ProjectNumber == "test-project-number"
+	})).Return(nil).Once()
 
 	// Mock pool activities - return error (pool check fails)
 	s.env.OnActivity(poolActivity.GetPoolsByAccountName, mock.Anything, mock.Anything).Return(nil, errors.New("pool check failed"))

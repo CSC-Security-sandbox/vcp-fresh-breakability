@@ -572,3 +572,53 @@ func TestDeleteSdeActiveDirectory(t *testing.T) {
 func boolPtr(b bool) *bool {
 	return &b
 }
+
+func TestListActiveDirectoriesActivity_Success(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	act := ActiveDirectoryDeleteActivity{SE: mockStorage}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 10}}
+	ads := []*datamodel.ActiveDirectory{
+		{BaseModel: datamodel.BaseModel{UUID: "ad-1"}, AccountId: 10},
+	}
+
+	mockStorage.On("GetAccount", ctx, "proj-123").Return(account, nil).Once()
+	mockStorage.On("ListActiveDirectories", ctx, int64(10)).Return(ads, nil).Once()
+
+	got, err := act.ListActiveDirectoriesActivity(ctx, "proj-123")
+
+	assert.NoError(t, err)
+	assert.Equal(t, ads, got)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestListActiveDirectoriesActivity_GetAccountError(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	act := ActiveDirectoryDeleteActivity{SE: mockStorage}
+
+	mockStorage.On("GetAccount", ctx, "proj-123").Return(nil, assert.AnError).Once()
+
+	got, err := act.ListActiveDirectoriesActivity(ctx, "proj-123")
+
+	assert.Error(t, err)
+	assert.Nil(t, got)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestListActiveDirectoriesActivity_ListError(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	act := ActiveDirectoryDeleteActivity{SE: mockStorage}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 10}}
+	mockStorage.On("GetAccount", ctx, "proj-123").Return(account, nil).Once()
+	mockStorage.On("ListActiveDirectories", ctx, int64(10)).Return(nil, assert.AnError).Once()
+
+	got, err := act.ListActiveDirectoriesActivity(ctx, "proj-123")
+
+	assert.Error(t, err)
+	assert.Nil(t, got)
+	mockStorage.AssertExpectations(t)
+}

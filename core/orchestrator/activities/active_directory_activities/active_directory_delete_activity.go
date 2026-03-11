@@ -5,6 +5,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -25,6 +26,27 @@ type ActiveDirectoryDeleteActivity struct {
 type CheckDeletionAllowedResult struct {
 	ADExists        bool
 	DeletionAllowed bool
+}
+
+// ListActiveDirectoriesActivity lists all Active Directories for the given project/account.
+func (a ActiveDirectoryDeleteActivity) ListActiveDirectoriesActivity(ctx context.Context, projectNumber string) ([]*datamodel.ActiveDirectory, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debug("Starting ListActiveDirectoriesActivity", "projectNumber", projectNumber)
+
+	se := a.SE
+	account, err := se.GetAccount(ctx, projectNumber)
+	if err != nil {
+		logger.Errorf("Failed to get account for project %s: %v", projectNumber, err)
+		return nil, err
+	}
+
+	ads, err := se.ListActiveDirectories(ctx, account.ID)
+	if err != nil {
+		logger.Errorf("Failed to list active directories for account %d: %v", account.ID, err)
+		return nil, err
+	}
+
+	return ads, nil
 }
 
 // CheckDeletionAllowed checks if Active Directory can be deleted
