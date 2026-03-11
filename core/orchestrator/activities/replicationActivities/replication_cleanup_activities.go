@@ -94,6 +94,41 @@ func (a *CleanupVolumeReplicationActivity) DeleteReplicationOnDestinationForClea
 	}
 }
 
+func (a *CleanupVolumeReplicationActivity) DeleteSnapmirrorSnapshotsOnDestinationForCleanup(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {
+	logger := util.GetLogger(ctx)
+	logger.Debugf("DeleteSnapmirrorSnapshotsOnDestination For cleanup")
+
+	googleProxyClient := googleproxyclient.GetGProxyClient(*result.DstBasePath, *result.DstJwtToken, logger)
+	deleteSmSnapshotsParam := &googleproxyclient.V1betaInternalDeleteVolumeSnapmirrorSnapshotParams{
+		ProjectNumber:  *result.DstProjectNumber,
+		LocationId:     result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+		VolumeId:       result.Event.ReplicationModel.ReplicationAttributes.DestinationVolumeUUID,
+		XCorrelationID: googleproxyclient.NewOptString(*result.CorrelationID),
+	}
+	res, err := googleProxyClient.Invoker.V1betaInternalDeleteVolumeSnapmirrorSnapshot(ctx, *deleteSmSnapshotsParam)
+	if err != nil {
+		return nil, errors.NewVCPError(errors.ErrDeleteSnapshot, err)
+	}
+
+	switch r := res.(type) {
+	case *googleproxyclient.OperationV1beta:
+		result.JobId = strings.Split(r.Name.Value, "/")[7]
+		return result, nil
+	case *googleproxyclient.V1betaInternalDeleteVolumeSnapmirrorSnapshotBadRequest:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalDeleteVolumeSnapmirrorSnapshotDestinationError, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalDeleteVolumeSnapmirrorSnapshotInternalServerError:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalDeleteVolumeSnapmirrorSnapshotDestinationError, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalDeleteVolumeSnapmirrorSnapshotUnauthorized:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalDeleteVolumeSnapmirrorSnapshotDestinationError, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalDeleteVolumeSnapmirrorSnapshotForbidden:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalDeleteVolumeSnapmirrorSnapshotDestinationError, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalDeleteVolumeSnapmirrorSnapshotNotFound:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalDeleteVolumeSnapmirrorSnapshotDestinationError, errors.New(r.Message))
+	default:
+		return nil, errors.NewVCPError(errors.ErrGoogleProxyInternalDeleteVolumeSnapmirrorSnapshotDestinationError, errors.New("unknown response type"))
+	}
+}
+
 func (a *CleanupVolumeReplicationActivity) GetReplicationOnDestinationForCleanup(ctx context.Context, result *replication.DeleteReplicationResult) (*replication.DeleteReplicationResult, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debugf("GetReplicationOnDestinationForCleanup")

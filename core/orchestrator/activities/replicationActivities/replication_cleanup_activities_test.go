@@ -671,6 +671,358 @@ func TestDeleteReplicationOnDestinationForCleanup(t *testing.T) {
 	})
 }
 
+func TestDeleteSnapmirrorSnapshotsOnDestinationForCleanup(t *testing.T) {
+	dstProj := "projDst"
+	dstPath := "dstPath"
+	dstToken := "dstToken"
+	correlationID := "correlation-id"
+
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		res := &googleproxyclient.OperationV1beta{
+			Name: googleproxyclient.NewOptString("projects/123/locations/us-central1/volumes/vol-uuid/operations/job-uuid"),
+		}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   "location-id",
+							DestinationVolumeUUID: "vol-uuid",
+						},
+					},
+				},
+			},
+		}
+		deleteSmSnapshotsParams := &googleproxyclient.V1betaInternalDeleteVolumeSnapmirrorSnapshotParams{
+			ProjectNumber:  *inputResult.DstProjectNumber,
+			LocationId:     inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			VolumeId:       inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationVolumeUUID,
+			XCorrelationID: googleproxyclient.NewOptString(*inputResult.CorrelationID),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalDeleteVolumeSnapmirrorSnapshot(ctx, *deleteSmSnapshotsParams).Return(res, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.DeleteSnapmirrorSnapshotsOnDestinationForCleanup(context.Background(), inputResult)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "job-uuid", result.JobId)
+	})
+
+	t.Run("WhenBadRequestError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		badRequestResp := &googleproxyclient.V1betaInternalDeleteVolumeSnapmirrorSnapshotBadRequest{
+			Message: "Bad request error message",
+		}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   "location-id",
+							DestinationVolumeUUID: "vol-uuid",
+						},
+					},
+				},
+			},
+		}
+		deleteSmSnapshotsParams := &googleproxyclient.V1betaInternalDeleteVolumeSnapmirrorSnapshotParams{
+			ProjectNumber:  *inputResult.DstProjectNumber,
+			LocationId:     inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			VolumeId:       inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationVolumeUUID,
+			XCorrelationID: googleproxyclient.NewOptString(*inputResult.CorrelationID),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalDeleteVolumeSnapmirrorSnapshot(ctx, *deleteSmSnapshotsParams).Return(badRequestResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.DeleteSnapmirrorSnapshotsOnDestinationForCleanup(context.Background(), inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Bad request error message")
+		assert.Contains(tt, err.Error(), "Error deleting volume snapmirror snapshot on destination")
+	})
+
+	t.Run("WhenInternalServerError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		internalServerErrorResp := &googleproxyclient.V1betaInternalDeleteVolumeSnapmirrorSnapshotInternalServerError{
+			Message: "Internal server error message",
+		}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   "location-id",
+							DestinationVolumeUUID: "vol-uuid",
+						},
+					},
+				},
+			},
+		}
+		deleteSmSnapshotsParams := &googleproxyclient.V1betaInternalDeleteVolumeSnapmirrorSnapshotParams{
+			ProjectNumber:  *inputResult.DstProjectNumber,
+			LocationId:     inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			VolumeId:       inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationVolumeUUID,
+			XCorrelationID: googleproxyclient.NewOptString(*inputResult.CorrelationID),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalDeleteVolumeSnapmirrorSnapshot(ctx, *deleteSmSnapshotsParams).Return(internalServerErrorResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.DeleteSnapmirrorSnapshotsOnDestinationForCleanup(context.Background(), inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Internal server error message")
+		assert.Contains(tt, err.Error(), "Error deleting volume snapmirror snapshot on destination")
+	})
+
+	t.Run("WhenUnauthorizedError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		unauthorizedResp := &googleproxyclient.V1betaInternalDeleteVolumeSnapmirrorSnapshotUnauthorized{
+			Message: "Unauthorized error message",
+		}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   "location-id",
+							DestinationVolumeUUID: "vol-uuid",
+						},
+					},
+				},
+			},
+		}
+		deleteSmSnapshotsParams := &googleproxyclient.V1betaInternalDeleteVolumeSnapmirrorSnapshotParams{
+			ProjectNumber:  *inputResult.DstProjectNumber,
+			LocationId:     inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			VolumeId:       inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationVolumeUUID,
+			XCorrelationID: googleproxyclient.NewOptString(*inputResult.CorrelationID),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalDeleteVolumeSnapmirrorSnapshot(ctx, *deleteSmSnapshotsParams).Return(unauthorizedResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.DeleteSnapmirrorSnapshotsOnDestinationForCleanup(context.Background(), inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Unauthorized error message")
+		assert.Contains(tt, err.Error(), "Error deleting volume snapmirror snapshot on destination")
+	})
+
+	t.Run("WhenForbiddenError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		forbiddenResp := &googleproxyclient.V1betaInternalDeleteVolumeSnapmirrorSnapshotForbidden{
+			Message: "Forbidden error message",
+		}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   "location-id",
+							DestinationVolumeUUID: "vol-uuid",
+						},
+					},
+				},
+			},
+		}
+		deleteSmSnapshotsParams := &googleproxyclient.V1betaInternalDeleteVolumeSnapmirrorSnapshotParams{
+			ProjectNumber:  *inputResult.DstProjectNumber,
+			LocationId:     inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			VolumeId:       inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationVolumeUUID,
+			XCorrelationID: googleproxyclient.NewOptString(*inputResult.CorrelationID),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalDeleteVolumeSnapmirrorSnapshot(ctx, *deleteSmSnapshotsParams).Return(forbiddenResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.DeleteSnapmirrorSnapshotsOnDestinationForCleanup(context.Background(), inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Forbidden error message")
+		assert.Contains(tt, err.Error(), "Error deleting volume snapmirror snapshot on destination")
+	})
+
+	t.Run("WhenNotFoundError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		notFoundResp := &googleproxyclient.V1betaInternalDeleteVolumeSnapmirrorSnapshotNotFound{
+			Message: "Not found error message",
+		}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   "location-id",
+							DestinationVolumeUUID: "vol-uuid",
+						},
+					},
+				},
+			},
+		}
+		deleteSmSnapshotsParams := &googleproxyclient.V1betaInternalDeleteVolumeSnapmirrorSnapshotParams{
+			ProjectNumber:  *inputResult.DstProjectNumber,
+			LocationId:     inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			VolumeId:       inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationVolumeUUID,
+			XCorrelationID: googleproxyclient.NewOptString(*inputResult.CorrelationID),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalDeleteVolumeSnapmirrorSnapshot(ctx, *deleteSmSnapshotsParams).Return(notFoundResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.DeleteSnapmirrorSnapshotsOnDestinationForCleanup(context.Background(), inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "Not found error message")
+		assert.Contains(tt, err.Error(), "Error deleting volume snapmirror snapshot on destination")
+	})
+
+	t.Run("WhenUnknownResponseType", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		unknownResp := &googleproxyclient.V1betaInternalDeleteVolumeSnapmirrorSnapshotTooManyRequests{}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   "location-id",
+							DestinationVolumeUUID: "vol-uuid",
+						},
+					},
+				},
+			},
+		}
+		deleteSmSnapshotsParams := &googleproxyclient.V1betaInternalDeleteVolumeSnapmirrorSnapshotParams{
+			ProjectNumber:  *inputResult.DstProjectNumber,
+			LocationId:     inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			VolumeId:       inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationVolumeUUID,
+			XCorrelationID: googleproxyclient.NewOptString(*inputResult.CorrelationID),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalDeleteVolumeSnapmirrorSnapshot(ctx, *deleteSmSnapshotsParams).Return(unknownResp, nil)
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.DeleteSnapmirrorSnapshotsOnDestinationForCleanup(context.Background(), inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, err.(*vsaerrors.CustomError).OriginalErr.Error(), "unknown response type")
+		assert.Contains(tt, err.Error(), "Error deleting volume snapmirror snapshot on destination")
+	})
+
+	t.Run("WhenGenericError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockClient := googleproxyclient.NewMockInvoker(tt)
+		mockStorage := &database.MockStorage{}
+		mc := &googleproxyclient.ProxyClient{
+			Invoker: mockClient,
+		}
+		inputResult := &replication.DeleteReplicationResult{
+			DstBasePath:      &dstPath,
+			DstProjectNumber: &dstProj,
+			DstJwtToken:      &dstToken,
+			CorrelationID:    &correlationID,
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							DestinationLocation:   "location-id",
+							DestinationVolumeUUID: "vol-uuid",
+						},
+					},
+				},
+			},
+		}
+		deleteSmSnapshotsParams := &googleproxyclient.V1betaInternalDeleteVolumeSnapmirrorSnapshotParams{
+			ProjectNumber:  *inputResult.DstProjectNumber,
+			LocationId:     inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationLocation,
+			VolumeId:       inputResult.Event.ReplicationModel.ReplicationAttributes.DestinationVolumeUUID,
+			XCorrelationID: googleproxyclient.NewOptString(*inputResult.CorrelationID),
+		}
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mc
+		}
+		mockClient.EXPECT().V1betaInternalDeleteVolumeSnapmirrorSnapshot(ctx, *deleteSmSnapshotsParams).Return(nil, errors.New("some-error"))
+		activity := CleanupVolumeReplicationActivity{SE: mockStorage}
+		result, err := activity.DeleteSnapmirrorSnapshotsOnDestinationForCleanup(context.Background(), inputResult)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "Cannot delete snapshot while snapshot is in use", err.Error())
+	})
+}
+
 func TestGetReplicationOnDestinationForCleanup(t *testing.T) {
 	dstPrj := "dstPrj"
 	dstPath := "dstPath"

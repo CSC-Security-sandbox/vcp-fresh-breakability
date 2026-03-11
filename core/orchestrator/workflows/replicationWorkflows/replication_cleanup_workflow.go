@@ -214,6 +214,16 @@ func (wf *replicationCleanupWorkflow) Run(ctx workflow.Context, args ...interfac
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
+
+		err = workflow.ExecuteActivity(ctx, replicationActivity.DeleteSnapmirrorSnapshotsOnDestinationForCleanup, &replicationResult).Get(ctx, &replicationResult)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeRemoteJobForCleanup, &replicationResult).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 	}
 
 	if !shouldSkipDehydration(replicationResult.DstReplication) {
