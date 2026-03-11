@@ -152,3 +152,9 @@ packages:
       dir: "{{.InterfaceDir}}"
     interfaces:
       MetricsRecorder:
+  github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/handlers:
+    config:
+      inpackage: True
+      dir: "{{.InterfaceDir}}"
+    interfaces:
+      OntapClient:

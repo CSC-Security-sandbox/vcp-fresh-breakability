@@ -1,9 +1,24 @@
 package handlers
 
 import (
+	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 )
+
+// quoteCLIArg quotes a CLI argument if it contains spaces (e.g. "7 years").
+// Used when building ONTAP CLI commands so arguments are safely passed.
+func quoteCLIArg(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return `""`
+	}
+	if strings.Contains(s, " ") || strings.Contains(s, "\t") {
+		return fmt.Sprintf("%q", s)
+	}
+	return s
+}
 
 // ontapFirstLoginBanner is the message ONTAP prints on first CLI login; we strip it from responses.
 const ontapFirstLoginBanner = "This is your first recorded login."
@@ -21,20 +36,11 @@ func StripOntapLoginBanner(output string) string {
 	return strings.TrimLeft(s, "\r\n")
 }
 
-// ParseCLIError attempts to extract an error message from CLI output.
-// ONTAP CLI errors often contain specific error codes and messages.
-func ParseCLIError(cliOutput string) (code string, message string) {
-	// Default values
-	code = ""
+// ParseCLIError extracts a user-facing error message from ONTAP CLI output.
+// ONTAP often uses "Error: <message>"; otherwise the full output is returned.
+func ParseCLIError(cliOutput string) (message string) {
 	message = cliOutput
-
-	// Look for common ONTAP error patterns
-	// ONTAP often returns errors in formats like:
-	// "Error: <error message>"
-	// or includes error codes in the output
-
 	if strings.Contains(strings.ToLower(cliOutput), "error") {
-		// Extract the error portion
 		lines := strings.Split(cliOutput, "\n")
 		for _, line := range lines {
 			line = strings.TrimSpace(line)
@@ -46,8 +52,17 @@ func ParseCLIError(cliOutput string) (code string, message string) {
 			}
 		}
 	}
+	return message
+}
 
-	return code, message
+// OntapCodeToInt parses an ONTAP CLI error code string to an int (e.g. for HTTP status mapping).
+// Returns 400 if the code is unparseable or contains non-numeric characters.
+func OntapCodeToInt(code string) int {
+	n, err := strconv.Atoi(strings.TrimSpace(code))
+	if err != nil {
+		return 400
+	}
+	return n
 }
 
 // IsCLISuccess checks if CLI output indicates a successful operation.

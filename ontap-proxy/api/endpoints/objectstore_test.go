@@ -145,7 +145,7 @@ func TestV1GetDestinationEndpointInfo(t *testing.T) {
 		}()
 		setupCredentialsForHandler = func(ctx context.Context, _, _ string, _ string) (context.Context, error) { return ctx, nil }
 		ensureCertificateOrPassword = func(context.Context) error { return nil }
-		newOntapClientFromContext = func(context.Context) (*handlers.OntapClient, error) { return nil, errors.New("no client") }
+		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return nil, errors.New("no client") }
 
 		res, err := handler.V1GetDestinationEndpointInfo(context.Background(), getInfo)
 		require.NoError(t, err)
@@ -375,7 +375,7 @@ func TestV1DeleteDestinationEndpoint(t *testing.T) {
 		}()
 		setupCredentialsForHandler = func(ctx context.Context, _, _ string, _ string) (context.Context, error) { return ctx, nil }
 		ensureCertificateOrPassword = func(context.Context) error { return nil }
-		newOntapClientFromContext = func(context.Context) (*handlers.OntapClient, error) { return nil, errors.New("no client") }
+		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return nil, errors.New("no client") }
 
 		res, err := handler.V1DeleteDestinationEndpoint(context.Background(), deleteEndpoint)
 		require.NoError(t, err)
@@ -644,7 +644,7 @@ func TestV1GetSnapshots(t *testing.T) {
 		}()
 		setupCredentialsForHandler = func(ctx context.Context, _, _ string, _ string) (context.Context, error) { return ctx, nil }
 		ensureCertificateOrPassword = func(context.Context) error { return nil }
-		newOntapClientFromContext = func(context.Context) (*handlers.OntapClient, error) { return nil, errors.New("no client") }
+		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return nil, errors.New("no client") }
 
 		res, err := handler.V1GetSnapshots(context.Background(), getSnapshots)
 		require.NoError(t, err)
@@ -869,7 +869,7 @@ func TestV1DeleteSnapshot(t *testing.T) {
 		}()
 		setupCredentialsForHandler = func(ctx context.Context, _, _ string, _ string) (context.Context, error) { return ctx, nil }
 		ensureCertificateOrPassword = func(context.Context) error { return nil }
-		newOntapClientFromContext = func(context.Context) (*handlers.OntapClient, error) { return nil, errors.New("no client") }
+		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return nil, errors.New("no client") }
 
 		res, err := handler.V1DeleteSnapshot(context.Background(), deleteSnapshot)
 		require.NoError(t, err)

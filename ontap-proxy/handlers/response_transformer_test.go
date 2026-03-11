@@ -9,28 +9,19 @@ import (
 func TestParseCLIError(t *testing.T) {
 	t.Run("extracts error message from Error: prefix", func(t *testing.T) {
 		output := "Error: File not found"
-
-		code, message := ParseCLIError(output)
-
-		assert.Empty(t, code)
+		message := ParseCLIError(output)
 		assert.Equal(t, "File not found", message)
 	})
 
 	t.Run("extracts error message case insensitive", func(t *testing.T) {
 		output := "error: permission denied"
-
-		code, message := ParseCLIError(output)
-
-		assert.Empty(t, code)
+		message := ParseCLIError(output)
 		assert.Equal(t, "permission denied", message)
 	})
 
 	t.Run("returns full output when no error prefix found", func(t *testing.T) {
 		output := "Something went wrong with the operation"
-
-		code, message := ParseCLIError(output)
-
-		assert.Empty(t, code)
+		message := ParseCLIError(output)
 		assert.Equal(t, output, message)
 	})
 
@@ -38,11 +29,22 @@ func TestParseCLIError(t *testing.T) {
 		output := `Command failed
 Error: Access denied
 Please check permissions`
-
-		code, message := ParseCLIError(output)
-
-		assert.Empty(t, code)
+		message := ParseCLIError(output)
 		assert.Equal(t, "Access denied", message)
+	})
+}
+
+func TestOntapCodeToInt(t *testing.T) {
+	t.Run("parses numeric code", func(t *testing.T) {
+		assert.Equal(t, 404, OntapCodeToInt("404"))
+		assert.Equal(t, 400, OntapCodeToInt("400"))
+		assert.Equal(t, 13115, OntapCodeToInt("13115"))
+	})
+	t.Run("returns 400 for unparseable", func(t *testing.T) {
+		assert.Equal(t, 400, OntapCodeToInt(""))
+		assert.Equal(t, 400, OntapCodeToInt("  "))
+		assert.Equal(t, 400, OntapCodeToInt("bad"))
+		assert.Equal(t, 400, OntapCodeToInt("4x"))
 	})
 }
 

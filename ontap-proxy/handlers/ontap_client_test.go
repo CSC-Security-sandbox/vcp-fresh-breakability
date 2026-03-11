@@ -101,7 +101,7 @@ func TestOntapClient_GetVolume(t *testing.T) {
 		defer server.Close()
 
 		// Create client with mock server
-		client := &OntapClient{
+		client := &RestOntapClient{
 			httpClient: server.Client(),
 			endpoint:   server.Listener.Addr().String(),
 			authData: &models.AuthData{
@@ -127,7 +127,7 @@ func TestOntapClient_GetVolume(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := &OntapClient{
+		client := &RestOntapClient{
 			httpClient: server.Client(),
 			endpoint:   server.Listener.Addr().String(),
 			authData: &models.AuthData{
@@ -151,7 +151,7 @@ func TestOntapClient_GetVolume(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := &OntapClient{
+		client := &RestOntapClient{
 			httpClient: server.Client(),
 			endpoint:   server.Listener.Addr().String(),
 			authData: &models.AuthData{
@@ -192,7 +192,7 @@ func TestOntapClient_ExecuteCLI(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := &OntapClient{
+		client := &RestOntapClient{
 			httpClient: server.Client(),
 			endpoint:   server.Listener.Addr().String(),
 			authData: &models.AuthData{
@@ -215,7 +215,7 @@ func TestOntapClient_ExecuteCLI(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := &OntapClient{
+		client := &RestOntapClient{
 			httpClient: server.Client(),
 			endpoint:   server.Listener.Addr().String(),
 			authData: &models.AuthData{
@@ -238,7 +238,7 @@ func TestOntapClient_ExecuteCLI(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := &OntapClient{
+		client := &RestOntapClient{
 			httpClient: server.Client(),
 			endpoint:   server.Listener.Addr().String(),
 			authData: &models.AuthData{
@@ -290,7 +290,7 @@ func TestOntapClient_GetVolume_AdditionalCases(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := &OntapClient{
+		client := &RestOntapClient{
 			httpClient: server.Client(),
 			endpoint:   server.Listener.Addr().String(),
 			authData: &models.AuthData{
@@ -309,7 +309,7 @@ func TestOntapClient_GetVolume_AdditionalCases(t *testing.T) {
 
 	t.Run("returns error when request fails due to network error", func(t *testing.T) {
 		// Create client pointing to non-existent server
-		client := &OntapClient{
+		client := &RestOntapClient{
 			httpClient: &http.Client{},
 			endpoint:   "127.0.0.1:1", // Non-routable port
 			authData: &models.AuthData{
@@ -335,7 +335,7 @@ func TestOntapClient_ExecuteCLI_AdditionalCases(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := &OntapClient{
+		client := &RestOntapClient{
 			httpClient: server.Client(),
 			endpoint:   server.Listener.Addr().String(),
 			authData: &models.AuthData{
@@ -364,7 +364,7 @@ func TestOntapClient_ExecuteCLI_AdditionalCases(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := &OntapClient{
+		client := &RestOntapClient{
 			httpClient: server.Client(),
 			endpoint:   server.Listener.Addr().String(),
 			authData: &models.AuthData{
@@ -388,7 +388,7 @@ func TestOntapClient_ExecuteCLI_AdditionalCases(t *testing.T) {
 
 	t.Run("returns error when CLI request fails due to network error", func(t *testing.T) {
 		// Create client pointing to non-existent server
-		client := &OntapClient{
+		client := &RestOntapClient{
 			httpClient: &http.Client{},
 			endpoint:   "127.0.0.1:1", // Non-routable port
 			authData: &models.AuthData{
@@ -408,7 +408,7 @@ func TestOntapClient_ExecuteCLI_AdditionalCases(t *testing.T) {
 
 func TestOntapClient_setAuthHeaders(t *testing.T) {
 	t.Run("sets basic auth for username/password auth type", func(t *testing.T) {
-		client := &OntapClient{
+		client := &RestOntapClient{
 			authData: &models.AuthData{
 				AuthType: models.USERNAME_PWD,
 				Username: "testuser",
@@ -426,7 +426,7 @@ func TestOntapClient_setAuthHeaders(t *testing.T) {
 	})
 
 	t.Run("does not set auth header for certificate auth type", func(t *testing.T) {
-		client := &OntapClient{
+		client := &RestOntapClient{
 			authData: &models.AuthData{
 				AuthType: models.USER_CERTIFICATE,
 			},
@@ -452,7 +452,7 @@ func TestOntapClient_ExecuteAPI(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := &OntapClient{
+		client := &RestOntapClient{
 			httpClient: server.Client(),
 			endpoint:   server.Listener.Addr().String(),
 			authData: &models.AuthData{
@@ -477,7 +477,7 @@ func TestOntapClient_ExecuteAPI(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := &OntapClient{
+		client := &RestOntapClient{
 			httpClient: server.Client(),
 			endpoint:   server.Listener.Addr().String(),
 			authData: &models.AuthData{
@@ -501,7 +501,7 @@ func TestOntapClient_ExecuteAPI(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := &OntapClient{
+		client := &RestOntapClient{
 			httpClient: server.Client(),
 			endpoint:   server.Listener.Addr().String(),
 			authData: &models.AuthData{
@@ -519,7 +519,7 @@ func TestOntapClient_ExecuteAPI(t *testing.T) {
 	})
 
 	t.Run("returns error when request fails", func(t *testing.T) {
-		client := &OntapClient{
+		client := &RestOntapClient{
 			httpClient: &http.Client{},
 			endpoint:   "127.0.0.1:1",
 			authData: &models.AuthData{
@@ -547,7 +547,7 @@ func TestOntapClient_ExecuteAPI(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := &OntapClient{
+		client := &RestOntapClient{
 			httpClient: server.Client(),
 			endpoint:   server.Listener.Addr().String(),
 			authData: &models.AuthData{

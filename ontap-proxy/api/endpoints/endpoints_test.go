@@ -391,7 +391,7 @@ func TestV1ClusterLicensingAccessTokensCreate(t *testing.T) {
 			return ctx, nil
 		}
 		ensureCertificateOrPassword = func(context.Context) error { return nil }
-		newOntapClientFromContext = func(context.Context) (*handlers.OntapClient, error) {
+		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) {
 			return nil, errors.New("no client")
 		}
 

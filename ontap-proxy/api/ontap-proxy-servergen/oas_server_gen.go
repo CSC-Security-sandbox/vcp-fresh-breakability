@@ -43,6 +43,17 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/cluster/licensing/access_tokens
 	V1ClusterLicensingAccessTokensCreate(ctx context.Context, req *AccessTokenRequest, params V1ClusterLicensingAccessTokensCreateParams) (V1ClusterLicensingAccessTokensCreateRes, error)
+	// V1CreateEventRetentionPolicy implements v1_createEventRetentionPolicy operation.
+	//
+	// Creates an Event Based Retention (EBR) policy for an SVM.
+	// Required properties:
+	// - name: Event retention policy name
+	// - retention_period: Retention period in ISO-8601 format (e.g., "P10Y", "P30M") or "infinite" or
+	// "unspecified"
+	// Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies
+	V1CreateEventRetentionPolicy(ctx context.Context, req *EBRPolicy, params V1CreateEventRetentionPolicyParams) (V1CreateEventRetentionPolicyRes, error)
 	// V1DeleteDestinationEndpoint implements v1_deleteDestinationEndpoint operation.
 	//
 	// Deletes all data of the specified endpoint within the object store (populated by SnapMirror).
@@ -52,6 +63,20 @@ type Handler interface {
 	//
 	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}
 	V1DeleteDestinationEndpoint(ctx context.Context, params V1DeleteDestinationEndpointParams) (V1DeleteDestinationEndpointRes, error)
+	// V1DeleteEventRetentionPolicies implements v1_deleteEventRetentionPolicies operation.
+	//
+	// Deletes multiple Event Based Retention (EBR) policies.
+	// Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
+	//
+	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies
+	V1DeleteEventRetentionPolicies(ctx context.Context, req OptV1DeleteEventRetentionPoliciesReq, params V1DeleteEventRetentionPoliciesParams) (V1DeleteEventRetentionPoliciesRes, error)
+	// V1DeleteEventRetentionPolicy implements v1_deleteEventRetentionPolicy operation.
+	//
+	// Deletes the specified Event Based Retention (EBR) policy.
+	// Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
+	//
+	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies/{policy.name}
+	V1DeleteEventRetentionPolicy(ctx context.Context, params V1DeleteEventRetentionPolicyParams) (V1DeleteEventRetentionPolicyRes, error)
 	// V1DeleteSnapshot implements v1_deleteSnapshot operation.
 	//
 	// Deletes a snapshot from the object store endpoint.
@@ -70,6 +95,13 @@ type Handler interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}
 	V1GetDestinationEndpointInfo(ctx context.Context, params V1GetDestinationEndpointInfoParams) (V1GetDestinationEndpointInfoRes, error)
+	// V1GetEventRetentionPolicy implements v1_getEventRetentionPolicy operation.
+	//
+	// Retrieves details of a specific Event Based Retention (EBR) policy by name.
+	// Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies/{policy.name}
+	V1GetEventRetentionPolicy(ctx context.Context, params V1GetEventRetentionPolicyParams) (V1GetEventRetentionPolicyRes, error)
 	// V1GetSnapshots implements v1_getSnapshots operation.
 	//
 	// Retrieves snapshot information for the specified object store endpoint.
@@ -79,6 +111,13 @@ type Handler interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots
 	V1GetSnapshots(ctx context.Context, params V1GetSnapshotsParams) (V1GetSnapshotsRes, error)
+	// V1ListEventRetentionPolicies implements v1_listEventRetentionPolicies operation.
+	//
+	// Retrieves all event retention policies for an SVM.
+	// Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies
+	V1ListEventRetentionPolicies(ctx context.Context, params V1ListEventRetentionPoliciesParams) (V1ListEventRetentionPoliciesRes, error)
 	// V1PrivateCli implements v1_privateCli operation.
 	//
 	// Executes an ONTAP CLI command through the private CLI API.
@@ -97,6 +136,20 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/private/cli
 	V1PrivateCli(ctx context.Context, req *CLIExecuteRequest, params V1PrivateCliParams) (V1PrivateCliRes, error)
+	// V1UpdateEventRetentionPolicies implements v1_updateEventRetentionPolicies operation.
+	//
+	// Updates the retention period of multiple Event Based Retention (EBR) policies.
+	// Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
+	//
+	// PATCH /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies
+	V1UpdateEventRetentionPolicies(ctx context.Context, req *V1UpdateEventRetentionPoliciesReq, params V1UpdateEventRetentionPoliciesParams) (V1UpdateEventRetentionPoliciesRes, error)
+	// V1UpdateEventRetentionPolicy implements v1_updateEventRetentionPolicy operation.
+	//
+	// Updates the retention period of an Event Based Retention (EBR) policy.
+	// Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
+	//
+	// PATCH /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies/{policy.name}
+	V1UpdateEventRetentionPolicy(ctx context.Context, req *V1UpdateEventRetentionPolicyReq, params V1UpdateEventRetentionPolicyParams) (V1UpdateEventRetentionPolicyRes, error)
 	// NewError creates *ErrorStatusCode from error returned by handler.
 	//
 	// Used for common default response.

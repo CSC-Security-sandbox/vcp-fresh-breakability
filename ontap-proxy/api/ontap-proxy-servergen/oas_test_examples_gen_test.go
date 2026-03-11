@@ -211,6 +211,42 @@ func TestCacheStatus_EncodeDecode(t *testing.T) {
 	var typ2 CacheStatus
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestEBRPolicy_EncodeDecode(t *testing.T) {
+	var typ EBRPolicy
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 EBRPolicy
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestEBRPolicyResponse_EncodeDecode(t *testing.T) {
+	var typ EBRPolicyResponse
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 EBRPolicyResponse
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestEBRPolicyResponseLinks_EncodeDecode(t *testing.T) {
+	var typ EBRPolicyResponseLinks
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 EBRPolicyResponseLinks
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestError_EncodeDecode(t *testing.T) {
 	var typ Error
 	typ.SetFake()
@@ -233,6 +269,7 @@ func TestError_Examples(t *testing.T) {
 		{Input: "{\"code\":401,\"message\":\"Unauthorized access attempt\"}"},
 		{Input: "{\"code\":403,\"message\":\"Forbidden\"}"},
 		{Input: "{\"code\":404,\"message\":\"Resource not found\"}"},
+		{Input: "{\"code\":409,\"message\":\"Resource conflict\"}"},
 		{Input: "{\"code\":429,\"message\":\"Too many requests\"}"},
 		{Input: "{\"code\":500,\"message\":\"Internal server error\"}"},
 	} {
@@ -845,6 +882,18 @@ func TestSnapmirrorObjectStoreEndpointSnapshotSnapshotState_EncodeDecode(t *test
 	var typ2 SnapmirrorObjectStoreEndpointSnapshotSnapshotState
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestSvmRef_EncodeDecode(t *testing.T) {
+	var typ SvmRef
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SvmRef
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1ClusterLicensingAccessTokensCreateBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1ClusterLicensingAccessTokensCreateBadRequest
 	typ.SetFake()
@@ -903,6 +952,66 @@ func TestV1ClusterLicensingAccessTokensCreateUnauthorized_EncodeDecode(t *testin
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1ClusterLicensingAccessTokensCreateUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateEventRetentionPolicyBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1CreateEventRetentionPolicyBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateEventRetentionPolicyBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateEventRetentionPolicyConflict_EncodeDecode(t *testing.T) {
+	var typ V1CreateEventRetentionPolicyConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateEventRetentionPolicyConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateEventRetentionPolicyForbidden_EncodeDecode(t *testing.T) {
+	var typ V1CreateEventRetentionPolicyForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateEventRetentionPolicyForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateEventRetentionPolicyInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1CreateEventRetentionPolicyInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateEventRetentionPolicyInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateEventRetentionPolicyUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1CreateEventRetentionPolicyUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateEventRetentionPolicyUnauthorized
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1DeleteDestinationEndpointAccepted_EncodeDecode(t *testing.T) {
@@ -987,6 +1096,126 @@ func TestV1DeleteDestinationEndpointUnauthorized_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1DeleteDestinationEndpointUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteEventRetentionPoliciesBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1DeleteEventRetentionPoliciesBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteEventRetentionPoliciesBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteEventRetentionPoliciesForbidden_EncodeDecode(t *testing.T) {
+	var typ V1DeleteEventRetentionPoliciesForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteEventRetentionPoliciesForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteEventRetentionPoliciesInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1DeleteEventRetentionPoliciesInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteEventRetentionPoliciesInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteEventRetentionPoliciesReq_EncodeDecode(t *testing.T) {
+	var typ V1DeleteEventRetentionPoliciesReq
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteEventRetentionPoliciesReq
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteEventRetentionPoliciesUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1DeleteEventRetentionPoliciesUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteEventRetentionPoliciesUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteEventRetentionPolicyBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1DeleteEventRetentionPolicyBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteEventRetentionPolicyBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteEventRetentionPolicyForbidden_EncodeDecode(t *testing.T) {
+	var typ V1DeleteEventRetentionPolicyForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteEventRetentionPolicyForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteEventRetentionPolicyInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1DeleteEventRetentionPolicyInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteEventRetentionPolicyInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteEventRetentionPolicyNotFound_EncodeDecode(t *testing.T) {
+	var typ V1DeleteEventRetentionPolicyNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteEventRetentionPolicyNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteEventRetentionPolicyUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1DeleteEventRetentionPolicyUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteEventRetentionPolicyUnauthorized
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1DeleteSnapshotAccepted_EncodeDecode(t *testing.T) {
@@ -1133,6 +1362,66 @@ func TestV1GetDestinationEndpointInfoUnauthorized_EncodeDecode(t *testing.T) {
 	var typ2 V1GetDestinationEndpointInfoUnauthorized
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1GetEventRetentionPolicyBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1GetEventRetentionPolicyBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetEventRetentionPolicyBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetEventRetentionPolicyForbidden_EncodeDecode(t *testing.T) {
+	var typ V1GetEventRetentionPolicyForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetEventRetentionPolicyForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetEventRetentionPolicyInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1GetEventRetentionPolicyInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetEventRetentionPolicyInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetEventRetentionPolicyNotFound_EncodeDecode(t *testing.T) {
+	var typ V1GetEventRetentionPolicyNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetEventRetentionPolicyNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetEventRetentionPolicyUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1GetEventRetentionPolicyUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetEventRetentionPolicyUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1GetSnapshotsBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1GetSnapshotsBadRequest
 	typ.SetFake()
@@ -1193,6 +1482,54 @@ func TestV1GetSnapshotsUnauthorized_EncodeDecode(t *testing.T) {
 	var typ2 V1GetSnapshotsUnauthorized
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1ListEventRetentionPoliciesBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1ListEventRetentionPoliciesBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ListEventRetentionPoliciesBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ListEventRetentionPoliciesForbidden_EncodeDecode(t *testing.T) {
+	var typ V1ListEventRetentionPoliciesForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ListEventRetentionPoliciesForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ListEventRetentionPoliciesInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1ListEventRetentionPoliciesInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ListEventRetentionPoliciesInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ListEventRetentionPoliciesUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1ListEventRetentionPoliciesUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ListEventRetentionPoliciesUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1PrivateCliBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1PrivateCliBadRequest
 	typ.SetFake()
@@ -1251,6 +1588,138 @@ func TestV1PrivateCliUnauthorized_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1PrivateCliUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateEventRetentionPoliciesBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1UpdateEventRetentionPoliciesBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateEventRetentionPoliciesBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateEventRetentionPoliciesForbidden_EncodeDecode(t *testing.T) {
+	var typ V1UpdateEventRetentionPoliciesForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateEventRetentionPoliciesForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateEventRetentionPoliciesInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1UpdateEventRetentionPoliciesInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateEventRetentionPoliciesInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateEventRetentionPoliciesReq_EncodeDecode(t *testing.T) {
+	var typ V1UpdateEventRetentionPoliciesReq
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateEventRetentionPoliciesReq
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateEventRetentionPoliciesUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1UpdateEventRetentionPoliciesUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateEventRetentionPoliciesUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateEventRetentionPolicyBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1UpdateEventRetentionPolicyBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateEventRetentionPolicyBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateEventRetentionPolicyForbidden_EncodeDecode(t *testing.T) {
+	var typ V1UpdateEventRetentionPolicyForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateEventRetentionPolicyForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateEventRetentionPolicyInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1UpdateEventRetentionPolicyInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateEventRetentionPolicyInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateEventRetentionPolicyNotFound_EncodeDecode(t *testing.T) {
+	var typ V1UpdateEventRetentionPolicyNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateEventRetentionPolicyNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateEventRetentionPolicyReq_EncodeDecode(t *testing.T) {
+	var typ V1UpdateEventRetentionPolicyReq
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateEventRetentionPolicyReq
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateEventRetentionPolicyUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1UpdateEventRetentionPolicyUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateEventRetentionPolicyUnauthorized
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestVolumeRef_EncodeDecode(t *testing.T) {

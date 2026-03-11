@@ -120,6 +120,14 @@ func setupHTTPServer(handler http.Handler) *http.Server {
 		r.Get("/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots", handler.ServeHTTP)
 		r.Delete("/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots/{snapshotId}", handler.ServeHTTP)
 
+		// Event retention (EBR) policies - CLI-based, handled by ogen server (bulk DELETE/PATCH denied via rule engine)
+		r.Get("/api/storage/snaplock/event-retention/policies", handler.ServeHTTP)
+		r.Post("/api/storage/snaplock/event-retention/policies", handler.ServeHTTP)
+		// DELETE and PATCH on collection not registered here so they fall through to passthrough and are denied by rule engine
+		r.Get("/api/storage/snaplock/event-retention/policies/*", handler.ServeHTTP)
+		r.Patch("/api/storage/snaplock/event-retention/policies/*", handler.ServeHTTP)
+		r.Delete("/api/storage/snaplock/event-retention/policies/*", handler.ServeHTTP)
+
 		// Passthrough routes (chi middleware for reverse proxy)
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.URLValidationMiddleware())

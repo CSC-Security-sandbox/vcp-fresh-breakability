@@ -185,13 +185,8 @@ func (h Handler) SnaplockFileDelete(
 		// Check if it's an ONTAP CLI error with structured response
 		var cliErr *handlers.OntapCLIError
 		if errors.As(err, &cliErr) {
-			// Parse ONTAP error code string to int
-			ontapCode := 400
-			if _, parseErr := fmt.Sscanf(cliErr.Code, "%d", &ontapCode); parseErr != nil {
-				ontapCode = 400
-			}
 			return &oasgenserver.SnaplockFileDeleteBadRequest{
-				Code:    ontapCode,
+				Code:    handlers.OntapCodeToInt(cliErr.Code),
 				Message: cliErr.Message,
 			}, nil
 		}
@@ -203,19 +198,14 @@ func (h Handler) SnaplockFileDelete(
 
 	// 6. Check CLI success
 	if !handlers.IsCLISuccess(cliResponse.Output) {
-		code, message := handlers.ParseCLIError(cliResponse.Output)
+		message := handlers.ParseCLIError(cliResponse.Output)
 		logger.WarnContext(ctx, "Snaplock delete operation failed",
 			"volumeUuid", params.VolumeUuid.String(),
 			"filePath", fullFilePath,
 			"cliOutput", cliResponse.Output,
 		)
-		// Parse code as int, default to 400 if parsing fails
-		codeInt := 400
-		if _, err := fmt.Sscanf(code, "%d", &codeInt); err != nil {
-			codeInt = 400
-		}
 		return &oasgenserver.SnaplockFileDeleteBadRequest{
-			Code:    codeInt,
+			Code:    400,
 			Message: message,
 		}, nil
 	}

@@ -366,60 +366,165 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 									}
 
-								case 't': // Prefix: "torage/snaplock/file/"
+								case 't': // Prefix: "torage/snaplock/"
 
-									if l := len("torage/snaplock/file/"); len(elem) >= l && elem[0:l] == "torage/snaplock/file/" {
+									if l := len("torage/snaplock/"); len(elem) >= l && elem[0:l] == "torage/snaplock/" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
-									// Param: "volumeUuid"
-									// Match until "/"
-									idx := strings.IndexByte(elem, '/')
-									if idx < 0 {
-										idx = len(elem)
-									}
-									args[3] = elem[:idx]
-									elem = elem[idx:]
-
 									if len(elem) == 0 {
 										break
 									}
 									switch elem[0] {
-									case '/': // Prefix: "/"
+									case 'e': // Prefix: "event-retention/policies"
 
-										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										if l := len("event-retention/policies"); len(elem) >= l && elem[0:l] == "event-retention/policies" {
 											elem = elem[l:]
 										} else {
 											break
 										}
 
-										// Param: "filePath"
-										// Leaf parameter, slashes are prohibited
-										idx := strings.IndexByte(elem, '/')
-										if idx >= 0 {
-											break
-										}
-										args[4] = elem
-										elem = ""
-
 										if len(elem) == 0 {
-											// Leaf node.
 											switch r.Method {
 											case "DELETE":
-												s.handleSnaplockFileDeleteRequest([5]string{
+												s.handleV1DeleteEventRetentionPoliciesRequest([3]string{
 													args[0],
 													args[1],
 													args[2],
-													args[3],
-													args[4],
+												}, elemIsEscaped, w, r)
+											case "GET":
+												s.handleV1ListEventRetentionPoliciesRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
+												}, elemIsEscaped, w, r)
+											case "PATCH":
+												s.handleV1UpdateEventRetentionPoliciesRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
+												}, elemIsEscaped, w, r)
+											case "POST":
+												s.handleV1CreateEventRetentionPolicyRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
 												}, elemIsEscaped, w, r)
 											default:
-												s.notAllowed(w, r, "DELETE")
+												s.notAllowed(w, r, "DELETE,GET,PATCH,POST")
 											}
 
 											return
+										}
+										switch elem[0] {
+										case '/': // Prefix: "/"
+
+											if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											// Param: "policy.name"
+											// Leaf parameter, slashes are prohibited
+											idx := strings.IndexByte(elem, '/')
+											if idx >= 0 {
+												break
+											}
+											args[3] = elem
+											elem = ""
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch r.Method {
+												case "DELETE":
+													s.handleV1DeleteEventRetentionPolicyRequest([4]string{
+														args[0],
+														args[1],
+														args[2],
+														args[3],
+													}, elemIsEscaped, w, r)
+												case "GET":
+													s.handleV1GetEventRetentionPolicyRequest([4]string{
+														args[0],
+														args[1],
+														args[2],
+														args[3],
+													}, elemIsEscaped, w, r)
+												case "PATCH":
+													s.handleV1UpdateEventRetentionPolicyRequest([4]string{
+														args[0],
+														args[1],
+														args[2],
+														args[3],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, "DELETE,GET,PATCH")
+												}
+
+												return
+											}
+
+										}
+
+									case 'f': // Prefix: "file/"
+
+										if l := len("file/"); len(elem) >= l && elem[0:l] == "file/" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										// Param: "volumeUuid"
+										// Match until "/"
+										idx := strings.IndexByte(elem, '/')
+										if idx < 0 {
+											idx = len(elem)
+										}
+										args[3] = elem[:idx]
+										elem = elem[idx:]
+
+										if len(elem) == 0 {
+											break
+										}
+										switch elem[0] {
+										case '/': // Prefix: "/"
+
+											if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											// Param: "filePath"
+											// Leaf parameter, slashes are prohibited
+											idx := strings.IndexByte(elem, '/')
+											if idx >= 0 {
+												break
+											}
+											args[4] = elem
+											elem = ""
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch r.Method {
+												case "DELETE":
+													s.handleSnaplockFileDeleteRequest([5]string{
+														args[0],
+														args[1],
+														args[2],
+														args[3],
+														args[4],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, "DELETE")
+												}
+
+												return
+											}
+
 										}
 
 									}
@@ -834,58 +939,170 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 									}
 
-								case 't': // Prefix: "torage/snaplock/file/"
+								case 't': // Prefix: "torage/snaplock/"
 
-									if l := len("torage/snaplock/file/"); len(elem) >= l && elem[0:l] == "torage/snaplock/file/" {
+									if l := len("torage/snaplock/"); len(elem) >= l && elem[0:l] == "torage/snaplock/" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
-									// Param: "volumeUuid"
-									// Match until "/"
-									idx := strings.IndexByte(elem, '/')
-									if idx < 0 {
-										idx = len(elem)
-									}
-									args[3] = elem[:idx]
-									elem = elem[idx:]
-
 									if len(elem) == 0 {
 										break
 									}
 									switch elem[0] {
-									case '/': // Prefix: "/"
+									case 'e': // Prefix: "event-retention/policies"
 
-										if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										if l := len("event-retention/policies"); len(elem) >= l && elem[0:l] == "event-retention/policies" {
 											elem = elem[l:]
 										} else {
 											break
 										}
 
-										// Param: "filePath"
-										// Leaf parameter, slashes are prohibited
-										idx := strings.IndexByte(elem, '/')
-										if idx >= 0 {
-											break
-										}
-										args[4] = elem
-										elem = ""
-
 										if len(elem) == 0 {
-											// Leaf node.
 											switch method {
 											case "DELETE":
-												r.name = SnaplockFileDeleteOperation
-												r.summary = "Privileged delete of unexpired WORM file"
-												r.operationID = "snaplockFileDelete"
-												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/file/{volumeUuid}/{filePath}"
+												r.name = V1DeleteEventRetentionPoliciesOperation
+												r.summary = "Delete multiple EBR policies"
+												r.operationID = "v1_deleteEventRetentionPolicies"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies"
 												r.args = args
-												r.count = 5
+												r.count = 3
+												return r, true
+											case "GET":
+												r.name = V1ListEventRetentionPoliciesOperation
+												r.summary = "List all Event Based Retention (EBR) policies"
+												r.operationID = "v1_listEventRetentionPolicies"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies"
+												r.args = args
+												r.count = 3
+												return r, true
+											case "PATCH":
+												r.name = V1UpdateEventRetentionPoliciesOperation
+												r.summary = "Update multiple EBR policies"
+												r.operationID = "v1_updateEventRetentionPolicies"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies"
+												r.args = args
+												r.count = 3
+												return r, true
+											case "POST":
+												r.name = V1CreateEventRetentionPolicyOperation
+												r.summary = "Create an Event Based Retention (EBR) policy"
+												r.operationID = "v1_createEventRetentionPolicy"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies"
+												r.args = args
+												r.count = 3
 												return r, true
 											default:
 												return
 											}
+										}
+										switch elem[0] {
+										case '/': // Prefix: "/"
+
+											if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											// Param: "policy.name"
+											// Leaf parameter, slashes are prohibited
+											idx := strings.IndexByte(elem, '/')
+											if idx >= 0 {
+												break
+											}
+											args[3] = elem
+											elem = ""
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch method {
+												case "DELETE":
+													r.name = V1DeleteEventRetentionPolicyOperation
+													r.summary = "Delete an EBR policy"
+													r.operationID = "v1_deleteEventRetentionPolicy"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies/{policy.name}"
+													r.args = args
+													r.count = 4
+													return r, true
+												case "GET":
+													r.name = V1GetEventRetentionPolicyOperation
+													r.summary = "Get a specific EBR policy"
+													r.operationID = "v1_getEventRetentionPolicy"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies/{policy.name}"
+													r.args = args
+													r.count = 4
+													return r, true
+												case "PATCH":
+													r.name = V1UpdateEventRetentionPolicyOperation
+													r.summary = "Update an EBR policy"
+													r.operationID = "v1_updateEventRetentionPolicy"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies/{policy.name}"
+													r.args = args
+													r.count = 4
+													return r, true
+												default:
+													return
+												}
+											}
+
+										}
+
+									case 'f': // Prefix: "file/"
+
+										if l := len("file/"); len(elem) >= l && elem[0:l] == "file/" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										// Param: "volumeUuid"
+										// Match until "/"
+										idx := strings.IndexByte(elem, '/')
+										if idx < 0 {
+											idx = len(elem)
+										}
+										args[3] = elem[:idx]
+										elem = elem[idx:]
+
+										if len(elem) == 0 {
+											break
+										}
+										switch elem[0] {
+										case '/': // Prefix: "/"
+
+											if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											// Param: "filePath"
+											// Leaf parameter, slashes are prohibited
+											idx := strings.IndexByte(elem, '/')
+											if idx >= 0 {
+												break
+											}
+											args[4] = elem
+											elem = ""
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch method {
+												case "DELETE":
+													r.name = SnaplockFileDeleteOperation
+													r.summary = "Privileged delete of unexpired WORM file"
+													r.operationID = "snaplockFileDelete"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/file/{volumeUuid}/{filePath}"
+													r.args = args
+													r.count = 5
+													return r, true
+												default:
+													return
+												}
+											}
+
 										}
 
 									}

@@ -125,6 +125,70 @@ func (s *CacheStatus) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *EBRPolicy) SetFake() {
+	{
+		{
+			s.Links.SetFake()
+		}
+	}
+	{
+		{
+			s.Name = "string"
+		}
+	}
+	{
+		{
+			s.RetentionPeriod = "string"
+		}
+	}
+	{
+		{
+			s.Svm.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *EBRPolicyResponse) SetFake() {
+	{
+		{
+			s.Links.SetFake()
+		}
+	}
+	{
+		{
+			s.NumRecords.SetFake()
+		}
+	}
+	{
+		{
+			s.Records = nil
+			for i := 0; i < 0; i++ {
+				var elem EBRPolicy
+				{
+					elem.SetFake()
+				}
+				s.Records = append(s.Records, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *EBRPolicyResponseLinks) SetFake() {
+	{
+		{
+			s.Self.SetFake()
+		}
+	}
+	{
+		{
+			s.Next.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *Error) SetFake() {
 	{
 		{
@@ -600,6 +664,15 @@ func (s *OptDateTime) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptEBRPolicyResponseLinks) SetFake() {
+	var elem EBRPolicyResponseLinks
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptFileInfo) SetFake() {
 	var elem FileInfo
 	{
@@ -843,10 +916,28 @@ func (s *OptString) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptSvmRef) SetFake() {
+	var elem SvmRef
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptUUID) SetFake() {
 	var elem uuid.UUID
 	{
 		elem = uuid.New()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptV1DeleteEventRetentionPoliciesReq) SetFake() {
+	var elem V1DeleteEventRetentionPoliciesReq
+	{
+		elem.SetFake()
 	}
 	s.SetTo(elem)
 }
@@ -1139,6 +1230,25 @@ func (s *SnapmirrorObjectStoreEndpointSnapshotSnapshotState) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *SvmRef) SetFake() {
+	{
+		{
+			s.Links.SetFake()
+		}
+	}
+	{
+		{
+			s.Name.SetFake()
+		}
+	}
+	{
+		{
+			s.UUID.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *V1ClusterLicensingAccessTokensCreateBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -1181,6 +1291,51 @@ func (s *V1ClusterLicensingAccessTokensCreateUnauthorized) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1ClusterLicensingAccessTokensCreateUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateEventRetentionPolicyBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateEventRetentionPolicyBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateEventRetentionPolicyConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateEventRetentionPolicyConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateEventRetentionPolicyForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateEventRetentionPolicyForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateEventRetentionPolicyInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateEventRetentionPolicyInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateEventRetentionPolicyUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateEventRetentionPolicyUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.
@@ -1244,6 +1399,103 @@ func (s *V1DeleteDestinationEndpointUnauthorized) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1DeleteDestinationEndpointUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteEventRetentionPoliciesBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteEventRetentionPoliciesBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteEventRetentionPoliciesForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteEventRetentionPoliciesForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteEventRetentionPoliciesInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteEventRetentionPoliciesInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteEventRetentionPoliciesReq) SetFake() {
+	{
+		{
+			s.Records = nil
+			for i := 0; i < 0; i++ {
+				var elem EBRPolicy
+				{
+					elem.SetFake()
+				}
+				s.Records = append(s.Records, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1DeleteEventRetentionPoliciesUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteEventRetentionPoliciesUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteEventRetentionPolicyBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteEventRetentionPolicyBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteEventRetentionPolicyForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteEventRetentionPolicyForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteEventRetentionPolicyInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteEventRetentionPolicyInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteEventRetentionPolicyNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteEventRetentionPolicyNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteEventRetentionPolicyUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteEventRetentionPolicyUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.
@@ -1355,6 +1607,51 @@ func (s *V1GetDestinationEndpointInfoUnauthorized) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1GetEventRetentionPolicyBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetEventRetentionPolicyBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetEventRetentionPolicyForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetEventRetentionPolicyForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetEventRetentionPolicyInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetEventRetentionPolicyInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetEventRetentionPolicyNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetEventRetentionPolicyNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetEventRetentionPolicyUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetEventRetentionPolicyUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1GetSnapshotsBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -1400,6 +1697,42 @@ func (s *V1GetSnapshotsUnauthorized) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1ListEventRetentionPoliciesBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ListEventRetentionPoliciesBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ListEventRetentionPoliciesForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ListEventRetentionPoliciesForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ListEventRetentionPoliciesInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ListEventRetentionPoliciesInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ListEventRetentionPoliciesUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ListEventRetentionPoliciesUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1PrivateCliBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -1442,6 +1775,112 @@ func (s *V1PrivateCliUnauthorized) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1PrivateCliUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateEventRetentionPoliciesBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateEventRetentionPoliciesBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateEventRetentionPoliciesForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateEventRetentionPoliciesForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateEventRetentionPoliciesInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateEventRetentionPoliciesInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateEventRetentionPoliciesReq) SetFake() {
+	{
+		{
+			s.Records = nil
+			for i := 0; i < 0; i++ {
+				var elem EBRPolicy
+				{
+					elem.SetFake()
+				}
+				s.Records = append(s.Records, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1UpdateEventRetentionPoliciesUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateEventRetentionPoliciesUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateEventRetentionPolicyBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateEventRetentionPolicyBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateEventRetentionPolicyForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateEventRetentionPolicyForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateEventRetentionPolicyInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateEventRetentionPolicyInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateEventRetentionPolicyNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateEventRetentionPolicyNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateEventRetentionPolicyReq) SetFake() {
+	{
+		{
+			s.RetentionPeriod.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1UpdateEventRetentionPolicyUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateEventRetentionPolicyUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.

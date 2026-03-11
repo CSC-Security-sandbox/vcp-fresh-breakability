@@ -17,9 +17,17 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
-// OntapClient provides methods to interact with ONTAP REST APIs.
+// OntapClient is the interface for ONTAP client operations used by endpoints.
+// Implemented by *RestOntapClient; allows substituting mocks in tests.
+type OntapClient interface {
+	GetVolume(ctx context.Context, volumeUUID string) (*VolumeInfo, error)
+	ExecuteCLI(ctx context.Context, command, privilege string) (*CLIResponse, error)
+	ExecuteAPI(ctx context.Context, method, apiPath string, body []byte) (respBody []byte, statusCode int, err error)
+}
+
+// RestOntapClient provides methods to interact with ONTAP REST APIs.
 // It reuses the connection pool from the reverse proxy for efficiency.
-type OntapClient struct {
+type RestOntapClient struct {
 	httpClient *http.Client
 	endpoint   string
 	authData   *models.AuthData
@@ -82,7 +90,7 @@ func (e *OntapCLIError) Error() string {
 // NewOntapClientFromContext creates an OntapClient using auth data from the request context.
 // The auth data is set by CredentialMiddleware and cached in the auth data cache.
 // Returns an error if auth data is not found in the context.
-func NewOntapClientFromContext(ctx context.Context) (*OntapClient, error) {
+func NewOntapClientFromContext(ctx context.Context) (OntapClient, error) {
 	cacheKey := cache.GetAuthDataKeyFromContext(ctx)
 	if cacheKey == "" {
 		return nil, fmt.Errorf("no auth data cache key found in context")
@@ -99,7 +107,7 @@ func NewOntapClientFromContext(ctx context.Context) (*OntapClient, error) {
 		return nil, fmt.Errorf("failed to get pooled client: %w", err)
 	}
 
-	return &OntapClient{
+	return &RestOntapClient{
 		httpClient: client,
 		endpoint:   endpoint,
 		authData:   authData,
@@ -108,7 +116,7 @@ func NewOntapClientFromContext(ctx context.Context) (*OntapClient, error) {
 
 // GetVolume retrieves volume information by UUID from ONTAP.
 // Returns volume name and SVM name needed for CLI commands.
-func (c *OntapClient) GetVolume(ctx context.Context, volumeUUID string) (*VolumeInfo, error) {
+func (c *RestOntapClient) GetVolume(ctx context.Context, volumeUUID string) (*VolumeInfo, error) {
 	logger := util.GetLogger(ctx)
 
 	url := fmt.Sprintf("https://%s/api/storage/volumes/%s?fields=name,svm.name,svm.uuid", c.endpoint, volumeUUID)
@@ -162,7 +170,7 @@ func (c *OntapClient) GetVolume(ctx context.Context, volumeUUID string) (*Volume
 
 // ExecuteCLI executes an ONTAP CLI command via the private CLI endpoint.
 // The command is sent as POST /api/private/cli with the specified privilege level.
-func (c *OntapClient) ExecuteCLI(ctx context.Context, command, privilege string) (*CLIResponse, error) {
+func (c *RestOntapClient) ExecuteCLI(ctx context.Context, command, privilege string) (*CLIResponse, error) {
 	logger := util.GetLogger(ctx)
 
 	url := fmt.Sprintf("https://%s/api/private/cli", c.endpoint)
@@ -243,7 +251,7 @@ func (c *OntapClient) ExecuteCLI(ctx context.Context, command, privilege string)
 // method is the HTTP method (GET, POST, PATCH, DELETE, etc.). For GET/DELETE body may be nil; for POST/PATCH body is the request body.
 // Returns the response body, status code, and an error only for transport/read failures.
 // For HTTP 4xx/5xx, err is nil and the caller should interpret statusCode and body.
-func (c *OntapClient) ExecuteAPI(ctx context.Context, method, apiPath string, body []byte) (respBody []byte, statusCode int, err error) {
+func (c *RestOntapClient) ExecuteAPI(ctx context.Context, method, apiPath string, body []byte) (respBody []byte, statusCode int, err error) {
 	var bodyReader io.Reader
 	if len(body) > 0 {
 		bodyReader = bytes.NewReader(body)
@@ -279,7 +287,7 @@ func (c *OntapClient) ExecuteAPI(ctx context.Context, method, apiPath string, bo
 
 // setAuthHeaders sets the appropriate authentication headers on the request
 // based on the auth type (certificate or basic auth).
-func (c *OntapClient) setAuthHeaders(req *http.Request) {
+func (c *RestOntapClient) setAuthHeaders(req *http.Request) {
 	// Certificate auth is handled by the TLS transport, no header needed
 	if c.authData.AuthType == models.USER_CERTIFICATE {
 		return

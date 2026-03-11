@@ -321,6 +321,128 @@ func (s *CacheStatus) SetTotalEntries(val OptInt) {
 
 func (*CacheStatus) getCacheStatusRes() {}
 
+// Event Based Retention policy.
+// Ref: #/components/schemas/EBRPolicy
+type EBRPolicy struct {
+	Links OptSelfLink `json:"_links"`
+	// EBR policy name (alphanumeric, hyphen, underscore, period only; 1-256 chars).
+	Name string `json:"name"`
+	// Retention period in ISO-8601 format (e.g., "P10Y" for 10 years, "P30M" for 30 months, "P7D" for 7
+	// days)
+	// or "infinite" or "unspecified".
+	RetentionPeriod string    `json:"retention_period"`
+	Svm             OptSvmRef `json:"svm"`
+}
+
+// GetLinks returns the value of Links.
+func (s *EBRPolicy) GetLinks() OptSelfLink {
+	return s.Links
+}
+
+// GetName returns the value of Name.
+func (s *EBRPolicy) GetName() string {
+	return s.Name
+}
+
+// GetRetentionPeriod returns the value of RetentionPeriod.
+func (s *EBRPolicy) GetRetentionPeriod() string {
+	return s.RetentionPeriod
+}
+
+// GetSvm returns the value of Svm.
+func (s *EBRPolicy) GetSvm() OptSvmRef {
+	return s.Svm
+}
+
+// SetLinks sets the value of Links.
+func (s *EBRPolicy) SetLinks(val OptSelfLink) {
+	s.Links = val
+}
+
+// SetName sets the value of Name.
+func (s *EBRPolicy) SetName(val string) {
+	s.Name = val
+}
+
+// SetRetentionPeriod sets the value of RetentionPeriod.
+func (s *EBRPolicy) SetRetentionPeriod(val string) {
+	s.RetentionPeriod = val
+}
+
+// SetSvm sets the value of Svm.
+func (s *EBRPolicy) SetSvm(val OptSvmRef) {
+	s.Svm = val
+}
+
+func (*EBRPolicy) v1CreateEventRetentionPolicyRes() {}
+func (*EBRPolicy) v1GetEventRetentionPolicyRes()    {}
+
+// Response containing list of EBR policies.
+// Ref: #/components/schemas/EBRPolicyResponse
+type EBRPolicyResponse struct {
+	Links OptEBRPolicyResponseLinks `json:"_links"`
+	// Number of records.
+	NumRecords OptInt      `json:"num_records"`
+	Records    []EBRPolicy `json:"records"`
+}
+
+// GetLinks returns the value of Links.
+func (s *EBRPolicyResponse) GetLinks() OptEBRPolicyResponseLinks {
+	return s.Links
+}
+
+// GetNumRecords returns the value of NumRecords.
+func (s *EBRPolicyResponse) GetNumRecords() OptInt {
+	return s.NumRecords
+}
+
+// GetRecords returns the value of Records.
+func (s *EBRPolicyResponse) GetRecords() []EBRPolicy {
+	return s.Records
+}
+
+// SetLinks sets the value of Links.
+func (s *EBRPolicyResponse) SetLinks(val OptEBRPolicyResponseLinks) {
+	s.Links = val
+}
+
+// SetNumRecords sets the value of NumRecords.
+func (s *EBRPolicyResponse) SetNumRecords(val OptInt) {
+	s.NumRecords = val
+}
+
+// SetRecords sets the value of Records.
+func (s *EBRPolicyResponse) SetRecords(val []EBRPolicy) {
+	s.Records = val
+}
+
+func (*EBRPolicyResponse) v1ListEventRetentionPoliciesRes() {}
+
+type EBRPolicyResponseLinks struct {
+	Self OptHref `json:"self"`
+	Next OptHref `json:"next"`
+}
+
+// GetSelf returns the value of Self.
+func (s *EBRPolicyResponseLinks) GetSelf() OptHref {
+	return s.Self
+}
+
+// GetNext returns the value of Next.
+func (s *EBRPolicyResponseLinks) GetNext() OptHref {
+	return s.Next
+}
+
+// SetSelf sets the value of Self.
+func (s *EBRPolicyResponseLinks) SetSelf(val OptHref) {
+	s.Self = val
+}
+
+// SetNext sets the value of Next.
+func (s *EBRPolicyResponseLinks) SetNext(val OptHref) {
+	s.Next = val
+}
+
 // Ref: #/components/schemas/Error
 type Error struct {
 	// Error code.
@@ -1358,6 +1480,52 @@ func (o OptDateTime) Get() (v time.Time, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptDateTime) Or(d time.Time) time.Time {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptEBRPolicyResponseLinks returns new OptEBRPolicyResponseLinks with value set to v.
+func NewOptEBRPolicyResponseLinks(v EBRPolicyResponseLinks) OptEBRPolicyResponseLinks {
+	return OptEBRPolicyResponseLinks{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptEBRPolicyResponseLinks is optional EBRPolicyResponseLinks.
+type OptEBRPolicyResponseLinks struct {
+	Value EBRPolicyResponseLinks
+	Set   bool
+}
+
+// IsSet returns true if OptEBRPolicyResponseLinks was set.
+func (o OptEBRPolicyResponseLinks) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptEBRPolicyResponseLinks) Reset() {
+	var v EBRPolicyResponseLinks
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptEBRPolicyResponseLinks) SetTo(v EBRPolicyResponseLinks) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptEBRPolicyResponseLinks) Get() (v EBRPolicyResponseLinks, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptEBRPolicyResponseLinks) Or(d EBRPolicyResponseLinks) EBRPolicyResponseLinks {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -2606,6 +2774,52 @@ func (o OptString) Or(d string) string {
 	return d
 }
 
+// NewOptSvmRef returns new OptSvmRef with value set to v.
+func NewOptSvmRef(v SvmRef) OptSvmRef {
+	return OptSvmRef{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptSvmRef is optional SvmRef.
+type OptSvmRef struct {
+	Value SvmRef
+	Set   bool
+}
+
+// IsSet returns true if OptSvmRef was set.
+func (o OptSvmRef) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptSvmRef) Reset() {
+	var v SvmRef
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptSvmRef) SetTo(v SvmRef) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptSvmRef) Get() (v SvmRef, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptSvmRef) Or(d SvmRef) SvmRef {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptUUID returns new OptUUID with value set to v.
 func NewOptUUID(v uuid.UUID) OptUUID {
 	return OptUUID{
@@ -2646,6 +2860,52 @@ func (o OptUUID) Get() (v uuid.UUID, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptUUID) Or(d uuid.UUID) uuid.UUID {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptV1DeleteEventRetentionPoliciesReq returns new OptV1DeleteEventRetentionPoliciesReq with value set to v.
+func NewOptV1DeleteEventRetentionPoliciesReq(v V1DeleteEventRetentionPoliciesReq) OptV1DeleteEventRetentionPoliciesReq {
+	return OptV1DeleteEventRetentionPoliciesReq{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptV1DeleteEventRetentionPoliciesReq is optional V1DeleteEventRetentionPoliciesReq.
+type OptV1DeleteEventRetentionPoliciesReq struct {
+	Value V1DeleteEventRetentionPoliciesReq
+	Set   bool
+}
+
+// IsSet returns true if OptV1DeleteEventRetentionPoliciesReq was set.
+func (o OptV1DeleteEventRetentionPoliciesReq) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptV1DeleteEventRetentionPoliciesReq) Reset() {
+	var v V1DeleteEventRetentionPoliciesReq
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptV1DeleteEventRetentionPoliciesReq) SetTo(v V1DeleteEventRetentionPoliciesReq) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptV1DeleteEventRetentionPoliciesReq) Get() (v V1DeleteEventRetentionPoliciesReq, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptV1DeleteEventRetentionPoliciesReq) Or(d V1DeleteEventRetentionPoliciesReq) V1DeleteEventRetentionPoliciesReq {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -3255,6 +3515,46 @@ func (s *SnapmirrorObjectStoreEndpointSnapshotSnapshotState) UnmarshalText(data 
 	}
 }
 
+// Reference to an SVM.
+// Ref: #/components/schemas/SvmRef
+type SvmRef struct {
+	Links OptSelfLink `json:"_links"`
+	// SVM name.
+	Name OptString `json:"name"`
+	// SVM UUID.
+	UUID OptString `json:"uuid"`
+}
+
+// GetLinks returns the value of Links.
+func (s *SvmRef) GetLinks() OptSelfLink {
+	return s.Links
+}
+
+// GetName returns the value of Name.
+func (s *SvmRef) GetName() OptString {
+	return s.Name
+}
+
+// GetUUID returns the value of UUID.
+func (s *SvmRef) GetUUID() OptString {
+	return s.UUID
+}
+
+// SetLinks sets the value of Links.
+func (s *SvmRef) SetLinks(val OptSelfLink) {
+	s.Links = val
+}
+
+// SetName sets the value of Name.
+func (s *SvmRef) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetUUID sets the value of UUID.
+func (s *SvmRef) SetUUID(val OptString) {
+	s.UUID = val
+}
+
 type V1ClusterLicensingAccessTokensCreateBadRequest Error
 
 func (*V1ClusterLicensingAccessTokensCreateBadRequest) v1ClusterLicensingAccessTokensCreateRes() {}
@@ -3275,6 +3575,26 @@ func (*V1ClusterLicensingAccessTokensCreateNotFound) v1ClusterLicensingAccessTok
 type V1ClusterLicensingAccessTokensCreateUnauthorized Error
 
 func (*V1ClusterLicensingAccessTokensCreateUnauthorized) v1ClusterLicensingAccessTokensCreateRes() {}
+
+type V1CreateEventRetentionPolicyBadRequest Error
+
+func (*V1CreateEventRetentionPolicyBadRequest) v1CreateEventRetentionPolicyRes() {}
+
+type V1CreateEventRetentionPolicyConflict Error
+
+func (*V1CreateEventRetentionPolicyConflict) v1CreateEventRetentionPolicyRes() {}
+
+type V1CreateEventRetentionPolicyForbidden Error
+
+func (*V1CreateEventRetentionPolicyForbidden) v1CreateEventRetentionPolicyRes() {}
+
+type V1CreateEventRetentionPolicyInternalServerError Error
+
+func (*V1CreateEventRetentionPolicyInternalServerError) v1CreateEventRetentionPolicyRes() {}
+
+type V1CreateEventRetentionPolicyUnauthorized Error
+
+func (*V1CreateEventRetentionPolicyUnauthorized) v1CreateEventRetentionPolicyRes() {}
 
 type V1DeleteDestinationEndpointAccepted ObjectStoreEndpointInfoJobLinkResponse
 
@@ -3303,6 +3623,66 @@ func (*V1DeleteDestinationEndpointOK) v1DeleteDestinationEndpointRes() {}
 type V1DeleteDestinationEndpointUnauthorized Error
 
 func (*V1DeleteDestinationEndpointUnauthorized) v1DeleteDestinationEndpointRes() {}
+
+type V1DeleteEventRetentionPoliciesBadRequest Error
+
+func (*V1DeleteEventRetentionPoliciesBadRequest) v1DeleteEventRetentionPoliciesRes() {}
+
+type V1DeleteEventRetentionPoliciesForbidden Error
+
+func (*V1DeleteEventRetentionPoliciesForbidden) v1DeleteEventRetentionPoliciesRes() {}
+
+type V1DeleteEventRetentionPoliciesInternalServerError Error
+
+func (*V1DeleteEventRetentionPoliciesInternalServerError) v1DeleteEventRetentionPoliciesRes() {}
+
+// V1DeleteEventRetentionPoliciesOK is response for V1DeleteEventRetentionPolicies operation.
+type V1DeleteEventRetentionPoliciesOK struct{}
+
+func (*V1DeleteEventRetentionPoliciesOK) v1DeleteEventRetentionPoliciesRes() {}
+
+type V1DeleteEventRetentionPoliciesReq struct {
+	Records []EBRPolicy `json:"records"`
+}
+
+// GetRecords returns the value of Records.
+func (s *V1DeleteEventRetentionPoliciesReq) GetRecords() []EBRPolicy {
+	return s.Records
+}
+
+// SetRecords sets the value of Records.
+func (s *V1DeleteEventRetentionPoliciesReq) SetRecords(val []EBRPolicy) {
+	s.Records = val
+}
+
+type V1DeleteEventRetentionPoliciesUnauthorized Error
+
+func (*V1DeleteEventRetentionPoliciesUnauthorized) v1DeleteEventRetentionPoliciesRes() {}
+
+type V1DeleteEventRetentionPolicyBadRequest Error
+
+func (*V1DeleteEventRetentionPolicyBadRequest) v1DeleteEventRetentionPolicyRes() {}
+
+type V1DeleteEventRetentionPolicyForbidden Error
+
+func (*V1DeleteEventRetentionPolicyForbidden) v1DeleteEventRetentionPolicyRes() {}
+
+type V1DeleteEventRetentionPolicyInternalServerError Error
+
+func (*V1DeleteEventRetentionPolicyInternalServerError) v1DeleteEventRetentionPolicyRes() {}
+
+type V1DeleteEventRetentionPolicyNotFound Error
+
+func (*V1DeleteEventRetentionPolicyNotFound) v1DeleteEventRetentionPolicyRes() {}
+
+// V1DeleteEventRetentionPolicyOK is response for V1DeleteEventRetentionPolicy operation.
+type V1DeleteEventRetentionPolicyOK struct{}
+
+func (*V1DeleteEventRetentionPolicyOK) v1DeleteEventRetentionPolicyRes() {}
+
+type V1DeleteEventRetentionPolicyUnauthorized Error
+
+func (*V1DeleteEventRetentionPolicyUnauthorized) v1DeleteEventRetentionPolicyRes() {}
 
 type V1DeleteSnapshotAccepted SnapmirrorObjectStoreEndpointSnapshotJobLinkResponse
 
@@ -3352,6 +3732,26 @@ type V1GetDestinationEndpointInfoUnauthorized Error
 
 func (*V1GetDestinationEndpointInfoUnauthorized) v1GetDestinationEndpointInfoRes() {}
 
+type V1GetEventRetentionPolicyBadRequest Error
+
+func (*V1GetEventRetentionPolicyBadRequest) v1GetEventRetentionPolicyRes() {}
+
+type V1GetEventRetentionPolicyForbidden Error
+
+func (*V1GetEventRetentionPolicyForbidden) v1GetEventRetentionPolicyRes() {}
+
+type V1GetEventRetentionPolicyInternalServerError Error
+
+func (*V1GetEventRetentionPolicyInternalServerError) v1GetEventRetentionPolicyRes() {}
+
+type V1GetEventRetentionPolicyNotFound Error
+
+func (*V1GetEventRetentionPolicyNotFound) v1GetEventRetentionPolicyRes() {}
+
+type V1GetEventRetentionPolicyUnauthorized Error
+
+func (*V1GetEventRetentionPolicyUnauthorized) v1GetEventRetentionPolicyRes() {}
+
 type V1GetSnapshotsBadRequest Error
 
 func (*V1GetSnapshotsBadRequest) v1GetSnapshotsRes() {}
@@ -3372,6 +3772,22 @@ type V1GetSnapshotsUnauthorized Error
 
 func (*V1GetSnapshotsUnauthorized) v1GetSnapshotsRes() {}
 
+type V1ListEventRetentionPoliciesBadRequest Error
+
+func (*V1ListEventRetentionPoliciesBadRequest) v1ListEventRetentionPoliciesRes() {}
+
+type V1ListEventRetentionPoliciesForbidden Error
+
+func (*V1ListEventRetentionPoliciesForbidden) v1ListEventRetentionPoliciesRes() {}
+
+type V1ListEventRetentionPoliciesInternalServerError Error
+
+func (*V1ListEventRetentionPoliciesInternalServerError) v1ListEventRetentionPoliciesRes() {}
+
+type V1ListEventRetentionPoliciesUnauthorized Error
+
+func (*V1ListEventRetentionPoliciesUnauthorized) v1ListEventRetentionPoliciesRes() {}
+
 type V1PrivateCliBadRequest Error
 
 func (*V1PrivateCliBadRequest) v1PrivateCliRes() {}
@@ -3391,6 +3807,81 @@ func (*V1PrivateCliNotFound) v1PrivateCliRes() {}
 type V1PrivateCliUnauthorized Error
 
 func (*V1PrivateCliUnauthorized) v1PrivateCliRes() {}
+
+type V1UpdateEventRetentionPoliciesBadRequest Error
+
+func (*V1UpdateEventRetentionPoliciesBadRequest) v1UpdateEventRetentionPoliciesRes() {}
+
+type V1UpdateEventRetentionPoliciesForbidden Error
+
+func (*V1UpdateEventRetentionPoliciesForbidden) v1UpdateEventRetentionPoliciesRes() {}
+
+type V1UpdateEventRetentionPoliciesInternalServerError Error
+
+func (*V1UpdateEventRetentionPoliciesInternalServerError) v1UpdateEventRetentionPoliciesRes() {}
+
+// V1UpdateEventRetentionPoliciesOK is response for V1UpdateEventRetentionPolicies operation.
+type V1UpdateEventRetentionPoliciesOK struct{}
+
+func (*V1UpdateEventRetentionPoliciesOK) v1UpdateEventRetentionPoliciesRes() {}
+
+type V1UpdateEventRetentionPoliciesReq struct {
+	Records []EBRPolicy `json:"records"`
+}
+
+// GetRecords returns the value of Records.
+func (s *V1UpdateEventRetentionPoliciesReq) GetRecords() []EBRPolicy {
+	return s.Records
+}
+
+// SetRecords sets the value of Records.
+func (s *V1UpdateEventRetentionPoliciesReq) SetRecords(val []EBRPolicy) {
+	s.Records = val
+}
+
+type V1UpdateEventRetentionPoliciesUnauthorized Error
+
+func (*V1UpdateEventRetentionPoliciesUnauthorized) v1UpdateEventRetentionPoliciesRes() {}
+
+type V1UpdateEventRetentionPolicyBadRequest Error
+
+func (*V1UpdateEventRetentionPolicyBadRequest) v1UpdateEventRetentionPolicyRes() {}
+
+type V1UpdateEventRetentionPolicyForbidden Error
+
+func (*V1UpdateEventRetentionPolicyForbidden) v1UpdateEventRetentionPolicyRes() {}
+
+type V1UpdateEventRetentionPolicyInternalServerError Error
+
+func (*V1UpdateEventRetentionPolicyInternalServerError) v1UpdateEventRetentionPolicyRes() {}
+
+type V1UpdateEventRetentionPolicyNotFound Error
+
+func (*V1UpdateEventRetentionPolicyNotFound) v1UpdateEventRetentionPolicyRes() {}
+
+// V1UpdateEventRetentionPolicyOK is response for V1UpdateEventRetentionPolicy operation.
+type V1UpdateEventRetentionPolicyOK struct{}
+
+func (*V1UpdateEventRetentionPolicyOK) v1UpdateEventRetentionPolicyRes() {}
+
+type V1UpdateEventRetentionPolicyReq struct {
+	// Retention period in ISO-8601 format or "infinite" or "unspecified".
+	RetentionPeriod OptString `json:"retention_period"`
+}
+
+// GetRetentionPeriod returns the value of RetentionPeriod.
+func (s *V1UpdateEventRetentionPolicyReq) GetRetentionPeriod() OptString {
+	return s.RetentionPeriod
+}
+
+// SetRetentionPeriod sets the value of RetentionPeriod.
+func (s *V1UpdateEventRetentionPolicyReq) SetRetentionPeriod(val OptString) {
+	s.RetentionPeriod = val
+}
+
+type V1UpdateEventRetentionPolicyUnauthorized Error
+
+func (*V1UpdateEventRetentionPolicyUnauthorized) v1UpdateEventRetentionPolicyRes() {}
 
 // Ref: #/components/schemas/VolumeRef
 type VolumeRef struct {

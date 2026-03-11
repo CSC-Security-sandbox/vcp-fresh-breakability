@@ -17,8 +17,20 @@ type V1ClusterLicensingAccessTokensCreateRes interface {
 	v1ClusterLicensingAccessTokensCreateRes()
 }
 
+type V1CreateEventRetentionPolicyRes interface {
+	v1CreateEventRetentionPolicyRes()
+}
+
 type V1DeleteDestinationEndpointRes interface {
 	v1DeleteDestinationEndpointRes()
+}
+
+type V1DeleteEventRetentionPoliciesRes interface {
+	v1DeleteEventRetentionPoliciesRes()
+}
+
+type V1DeleteEventRetentionPolicyRes interface {
+	v1DeleteEventRetentionPolicyRes()
 }
 
 type V1DeleteSnapshotRes interface {
@@ -29,10 +41,26 @@ type V1GetDestinationEndpointInfoRes interface {
 	v1GetDestinationEndpointInfoRes()
 }
 
+type V1GetEventRetentionPolicyRes interface {
+	v1GetEventRetentionPolicyRes()
+}
+
 type V1GetSnapshotsRes interface {
 	v1GetSnapshotsRes()
 }
 
+type V1ListEventRetentionPoliciesRes interface {
+	v1ListEventRetentionPoliciesRes()
+}
+
 type V1PrivateCliRes interface {
 	v1PrivateCliRes()
+}
+
+type V1UpdateEventRetentionPoliciesRes interface {
+	v1UpdateEventRetentionPoliciesRes()
+}
+
+type V1UpdateEventRetentionPolicyRes interface {
+	v1UpdateEventRetentionPolicyRes()
 }
