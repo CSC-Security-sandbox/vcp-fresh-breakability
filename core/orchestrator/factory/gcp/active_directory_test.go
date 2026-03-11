@@ -15,6 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	commonfactory "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory/common"
 	adHelper "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -1684,7 +1685,7 @@ func Test_convertDatastoreActiveDirectoryToModel_Success(t *testing.T) {
 		},
 	}
 
-	result := convertDatastoreActiveDirectoryToModel(ad)
+	result := commonfactory.ConvertDatastoreActiveDirectoryToModel(ad)
 
 	assert.NotNil(t, result)
 	assert.Equal(t, "test-uuid", result.UUID)
@@ -1703,7 +1704,7 @@ func Test_convertDatastoreActiveDirectoryToModel_Success(t *testing.T) {
 }
 
 func Test_convertDatastoreActiveDirectoryToModel_NilInput(t *testing.T) {
-	result := convertDatastoreActiveDirectoryToModel(nil)
+	result := commonfactory.ConvertDatastoreActiveDirectoryToModel(nil)
 	assert.Nil(t, result)
 }
 
@@ -1716,7 +1717,7 @@ func Test_convertDatastoreActiveDirectoryToModel_NilAttributes(t *testing.T) {
 		ActiveDirectoryAttributes: nil,
 	}
 
-	result := convertDatastoreActiveDirectoryToModel(ad)
+	result := commonfactory.ConvertDatastoreActiveDirectoryToModel(ad)
 
 	assert.NotNil(t, result)
 	assert.Equal(t, "test-uuid", result.UUID)
@@ -1943,7 +1944,7 @@ func Test_convertActiveDirectoryToModel_Success(t *testing.T) {
 		},
 	}
 
-	result := convertDatastoreActiveDirectoryToModel(ad)
+	result := commonfactory.ConvertDatastoreActiveDirectoryToModel(ad)
 
 	assert.NotNil(t, result)
 	assert.Equal(t, "test-uuid", result.UUID)
@@ -1971,7 +1972,7 @@ func Test_convertActiveDirectoryToModel_Success(t *testing.T) {
 }
 
 func Test_convertActiveDirectoryToModel_NilInput(t *testing.T) {
-	result := convertDatastoreActiveDirectoryToModel(nil)
+	result := commonfactory.ConvertDatastoreActiveDirectoryToModel(nil)
 	assert.Nil(t, result)
 }
 
@@ -1984,7 +1985,7 @@ func Test_convertActiveDirectoryToModel_NilAttributes(t *testing.T) {
 		ActiveDirectoryAttributes: nil,
 	}
 
-	result := convertDatastoreActiveDirectoryToModel(ad)
+	result := commonfactory.ConvertDatastoreActiveDirectoryToModel(ad)
 
 	assert.NotNil(t, result)
 	assert.Equal(t, "test-uuid", result.UUID)

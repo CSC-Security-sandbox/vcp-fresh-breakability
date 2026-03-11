@@ -13,12 +13,12 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	commonfactory "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory/common"
 	adHelper "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	customValidators "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/validator"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
@@ -146,7 +146,7 @@ func _createActiveDirectory(
 	}
 
 	if cvp.CVP_HOST == "" || utils.CreateCommonResourcesInVCP {
-		return convertDatastoreActiveDirectoryToModel(adRecord), createdJob.UUID, nil
+		return commonfactory.ConvertDatastoreActiveDirectoryToModel(adRecord), createdJob.UUID, nil
 	}
 
 	return convertActiveDirectoryParamsToModel(params), createdJob.UUID, nil
@@ -173,7 +173,7 @@ func _getActiveDirectoryVCP(
 	}
 
 	// Convert datamodel to model
-	return convertDatastoreActiveDirectoryToModel(ad), nil
+	return commonfactory.ConvertDatastoreActiveDirectoryToModel(ad), nil
 }
 
 // _getActiveDirectorySDE retrieves an Active Directory resource by UUID from SDE
@@ -255,50 +255,6 @@ func _getActiveDirectory(
 	return sdeAdModel, nil
 }
 
-// convertDatastoreActiveDirectoryToModel converts datamodel.ActiveDirectory to models.ActiveDirectory
-func convertDatastoreActiveDirectoryToModel(ad *datamodel.ActiveDirectory) *models.ActiveDirectory {
-	if ad == nil {
-		return nil
-	}
-
-	model := &models.ActiveDirectory{
-		BaseModel: models.BaseModel{
-			ID:        ad.ID,
-			UUID:      ad.UUID,
-			CreatedAt: ad.CreatedAt,
-			UpdatedAt: ad.UpdatedAt,
-		},
-		AdName:       ad.AdName,
-		Username:     ad.Username,
-		Password:     log.PasswordMask,
-		Domain:       ad.Domain,
-		DNS:          ad.DNS,
-		NetBIOS:      ad.NetBIOS,
-		State:        ad.State,
-		StateDetails: ad.StateDetails,
-	}
-
-	// Convert ActiveDirectoryAttributes if available
-	if ad.ActiveDirectoryAttributes != nil {
-		model.ActiveDirectoryAttributes = &models.ActiveDirectoryAttributes{
-			OrganizationalUnit:         ad.ActiveDirectoryAttributes.OrganizationalUnit,
-			Site:                       ad.ActiveDirectoryAttributes.Site,
-			SecurityOperators:          ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectorySeSecurityPrivilege],
-			BackupOperators:            ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectoryGroupBuiltInBackupOperators],
-			Administrators:             ad.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectoryGroupBuiltInAdministrators],
-			KdcIP:                      ad.ActiveDirectoryAttributes.KdcIP,
-			KdcHostname:                ad.ActiveDirectoryAttributes.KdcHostname,
-			AesEncryption:              ad.ActiveDirectoryAttributes.AesEncryption,
-			EncryptDCConnections:       ad.ActiveDirectoryAttributes.EncryptDCConnections,
-			LdapSigning:                ad.ActiveDirectoryAttributes.LdapSigning,
-			AllowLocalNFSUsersWithLdap: ad.ActiveDirectoryAttributes.AllowLocalNFSUsersWithLdap,
-			Description:                ad.ActiveDirectoryAttributes.Description,
-		}
-	}
-
-	return model
-}
-
 // CreateActiveDirectory is the public orchestrator method for creating an Active Directory resource.
 func (o *GCPOrchestrator) CreateActiveDirectory(
 	ctx context.Context,
@@ -335,7 +291,7 @@ func _listActiveDirectories(
 	// Convert datamodel to model
 	var result []*models.ActiveDirectory
 	for _, ad := range ads {
-		result = append(result, convertDatastoreActiveDirectoryToModel(ad))
+		result = append(result, commonfactory.ConvertDatastoreActiveDirectoryToModel(ad))
 	}
 
 	return result, nil
@@ -367,7 +323,7 @@ func _getMultipleActiveDirectories(
 	// Convert datamodel to model
 	var result []*models.ActiveDirectory
 	for _, ad := range ads {
-		result = append(result, convertDatastoreActiveDirectoryToModel(ad))
+		result = append(result, commonfactory.ConvertDatastoreActiveDirectoryToModel(ad))
 	}
 
 	return result, nil
@@ -408,7 +364,7 @@ func (o *GCPOrchestrator) GetADConfig(ctx context.Context, params *common.GetADP
 		return nil, err2
 	}
 
-	return convertDatastoreActiveDirectoryToModel(adConfig), nil
+	return commonfactory.ConvertDatastoreActiveDirectoryToModel(adConfig), nil
 }
 
 func (o *GCPOrchestrator) GetSDEActiveDirectory(ctx context.Context, getADParams *common.GetADParams) (*cvpmodels.ActiveDirectoryV1beta, error) {
