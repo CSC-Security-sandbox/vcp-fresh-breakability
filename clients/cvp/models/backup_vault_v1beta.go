@@ -118,6 +118,12 @@ type BackupVaultV1beta struct {
 	// Details about the current lifecycle state
 	// Read Only: true
 	StateDetails string `json:"stateDetails,omitempty"`
+
+	// crossProjectVault
+	//
+	// Indicates if the backup vault is a cross-project vault
+	// Read Only: true
+	CrossProjectVault *bool `json:"crossProjectVault,omitempty"`
 }
 
 // Validate validates this backup vault v1beta

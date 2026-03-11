@@ -2978,6 +2978,8 @@ type BackupVaultV1beta struct {
 	EncryptionState OptBackupVaultV1betaEncryptionState `json:"encryptionState"`
 	// KMS grant.
 	KmsGrant OptString `json:"kmsGrant"`
+	// Indicates if the backup vault is a cross-project vault.
+	CrossProjectVault OptBool `json:"crossProjectVault"`
 }
 
 // GetBackupVaultId returns the value of BackupVaultId.
@@ -3065,6 +3067,11 @@ func (s *BackupVaultV1beta) GetKmsGrant() OptString {
 	return s.KmsGrant
 }
 
+// GetCrossProjectVault returns the value of CrossProjectVault.
+func (s *BackupVaultV1beta) GetCrossProjectVault() OptBool {
+	return s.CrossProjectVault
+}
+
 // SetBackupVaultId sets the value of BackupVaultId.
 func (s *BackupVaultV1beta) SetBackupVaultId(val OptString) {
 	s.BackupVaultId = val
@@ -3148,6 +3155,11 @@ func (s *BackupVaultV1beta) SetEncryptionState(val OptBackupVaultV1betaEncryptio
 // SetKmsGrant sets the value of KmsGrant.
 func (s *BackupVaultV1beta) SetKmsGrant(val OptString) {
 	s.KmsGrant = val
+}
+
+// SetCrossProjectVault sets the value of CrossProjectVault.
+func (s *BackupVaultV1beta) SetCrossProjectVault(val OptBool) {
+	s.CrossProjectVault = val
 }
 
 func (*BackupVaultV1beta) v1betaDescribeBackupVaultRes() {}

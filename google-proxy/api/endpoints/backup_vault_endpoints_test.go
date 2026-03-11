@@ -122,6 +122,92 @@ func TestUpdateBackupVaultStateDetails_OverlaysCmekFromVCP(t *testing.T) {
 	}
 }
 
+func TestUpdateBackupVaultStateDetails_SetsCrossProjectVaultForGCBDR(t *testing.T) {
+	cvpBv := &models.BackupVaultV1beta{
+		ResourceID:    nillable.GetStringPtr("gcbdr-vault"),
+		BackupVaultID: "vault-id",
+		State:         "READY",
+		StateDetails:  "ready",
+	}
+
+	vcpBv := &mod.BackupVaultV1beta{
+		Name:                  "gcbdr-vault",
+		LifeCycleState:        "READY",
+		LifeCycleStateDetails: "ready",
+		ServiceType:           mod.ServiceTypeGCBDR,
+	}
+
+	res := updateBackupVaultStateDetails([]*mod.BackupVaultV1beta{vcpBv}, []*models.BackupVaultV1beta{cvpBv})
+	require.Len(t, res, 1)
+
+	updated := res[0]
+	require.NotNil(t, updated.CrossProjectVault)
+	assert.True(t, *updated.CrossProjectVault)
+}
+
+func TestUpdateBackupVaultStateDetails_NoCrossProjectVaultForGCNV(t *testing.T) {
+	cvpBv := &models.BackupVaultV1beta{
+		ResourceID:    nillable.GetStringPtr("gcnv-vault"),
+		BackupVaultID: "vault-id",
+		State:         "READY",
+		StateDetails:  "ready",
+	}
+
+	vcpBv := &mod.BackupVaultV1beta{
+		Name:                  "gcnv-vault",
+		LifeCycleState:        "READY",
+		LifeCycleStateDetails: "ready",
+		ServiceType:           mod.ServiceTypeGCNV,
+	}
+
+	res := updateBackupVaultStateDetails([]*mod.BackupVaultV1beta{vcpBv}, []*models.BackupVaultV1beta{cvpBv})
+	require.Len(t, res, 1)
+
+	updated := res[0]
+	assert.Nil(t, updated.CrossProjectVault)
+}
+
+func TestConvertBackupVaultV1Beta_CrossProjectVaultTrue(t *testing.T) {
+	crossProject := true
+	bv := &models.BackupVaultV1beta{
+		BackupVaultID:     "vault-id",
+		ResourceID:        nillable.GetStringPtr("gcbdr-vault"),
+		State:             "READY",
+		StateDetails:      "ready",
+		CrossProjectVault: &crossProject,
+	}
+
+	result := convertBackupVaultV1Beta(bv)
+	assert.True(t, result.CrossProjectVault.IsSet())
+	assert.True(t, result.CrossProjectVault.Value)
+}
+
+func TestConvertBackupVaultV1Beta_CrossProjectVaultFalse(t *testing.T) {
+	crossProject := false
+	bv := &models.BackupVaultV1beta{
+		BackupVaultID:     "vault-id",
+		ResourceID:        nillable.GetStringPtr("gcbdr-vault"),
+		State:             "READY",
+		StateDetails:      "ready",
+		CrossProjectVault: &crossProject,
+	}
+
+	result := convertBackupVaultV1Beta(bv)
+	assert.True(t, result.CrossProjectVault.IsSet())
+	assert.False(t, result.CrossProjectVault.Value)
+}
+func TestConvertBackupVaultV1Beta_CrossProjectVaultNotSetForNonGCBDR(t *testing.T) {
+	bv := &models.BackupVaultV1beta{
+		BackupVaultID: "vault-id",
+		ResourceID:    nillable.GetStringPtr("normal-vault"),
+		State:         "READY",
+		StateDetails:  "ready",
+	}
+
+	result := convertBackupVaultV1Beta(bv)
+	assert.False(t, result.CrossProjectVault.IsSet())
+}
+
 func TestV1betaListBackupVaultsOrchError(t *testing.T) {
 	// Create a mock client
 	origBackupEnabled := backupEnabled
@@ -313,6 +399,64 @@ func TestV1betaDescribeBackupVault(t *testing.T) {
 		if assert.True(t, bv.BackupsPrimaryKeyVersion.IsSet()) {
 			assert.Equal(t, backupsKeyVersionVcp, bv.BackupsPrimaryKeyVersion.Value)
 		}
+
+		mockOrchestrator.AssertExpectations(t)
+	})
+
+	t.Run("WhenDescribeBackupVaultSetsCrossProjectVaultForGCBDR", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
+
+		params := gcpgenserver.V1betaDescribeBackupVaultParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+			BackupVaultId:  "bv-gcbdr",
+		}
+
+		mockResponse := &backup_vault.V1betaDescribeBackupVaultOK{
+			Payload: &models.BackupVaultV1beta{
+				ResourceID:      nillable.GetStringPtr("bv-gcbdr"),
+				BackupVaultID:   "bvid-gcbdr",
+				BackupVaultType: nillable.GetStringPtr("IN_REGION"),
+				State:           "READY",
+				StateDetails:    "ready",
+			},
+		}
+
+		vcpBv := &mod.BackupVaultV1beta{
+			Name:                  "bv-gcbdr",
+			BackupVaultID:         "bvid-gcbdr",
+			LifeCycleState:        "READY",
+			LifeCycleStateDetails: "ready",
+			ServiceType:           mod.ServiceTypeGCBDR,
+		}
+
+		mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "bv-gcbdr", "12345").Return(vcpBv, nil)
+
+		mockClient.EXPECT().
+			V1betaDescribeBackupVault(mock.Anything).
+			Return(mockResponse, nil)
+
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaDescribeBackupVault(context.Background(), params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		bv := result.(*gcpgenserver.BackupVaultV1beta)
+		assert.True(t, bv.CrossProjectVault.IsSet())
+		assert.True(t, bv.CrossProjectVault.Value)
 
 		mockOrchestrator.AssertExpectations(t)
 	})
@@ -2747,6 +2891,74 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 		require.True(t, ok, "expected V1betaCreateBackupVaultInternalServerError")
 		assert.Equal(t, float64(500), internalErr.Code)
 		assert.Equal(t, "Failed to create BackupVault entry in VCP", internalErr.Message)
+		mockOrchestrator.AssertExpectations(t)
+	})
+	t.Run("WhenGCBDRVaultCreatedSuccessfully_ResponseIncludesCrossProjectVault", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:    gcpgenserver.NewOptString("gcbdr-vault"),
+			TenantProject: gcpgenserver.NewOptString("596181058421"),
+		}
+		origBackupEnabled := backupEnabled
+		origGCBDRVaultEnabled := GCBDRVaultEnabled
+		defer func() {
+			backupEnabled = origBackupEnabled
+			GCBDRVaultEnabled = origGCBDRVaultEnabled
+		}()
+		backupEnabled = true
+		GCBDRVaultEnabled = true
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "1234567890",
+		}
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		bvResponse := &models.BackupVaultV1beta{
+			BackupVaultID: "bv-uuid-gcbdr",
+			ResourceID:    nillable.GetStringPtr("gcbdr-vault"),
+			State:         "READY",
+			StateDetails:  "Available for use",
+		}
+		mockResponse := &backup_vault.V1betaCreateBackupVaultAccepted{
+			Payload: &models.OperationV1beta{
+				Name:     "operation-id",
+				Done:     nillable.GetBoolPtr(true),
+				Response: bvResponse,
+			},
+		}
+		bvName := "gcbdr-vault"
+		mockOrchestrator.On("GetBackupVaultByNameAndOwnerID", mock.Anything, bvName, "1234567890").
+			Return(nil, errors2.NewNotFoundErr("backup vault", &bvName))
+		mockOrchestrator.On("CreateBackupVaultEntryInVCPFromCVP", mock.Anything, mock.Anything, "us-east4", "1234567890", "596181058421").
+			Return(nil, nil)
+		mockClient.EXPECT().
+			V1betaCreateBackupVault(mock.Anything).
+			Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := cvpCreateClient
+		defer func() {
+			cvpCreateClient = originalCreateClient
+			utilsConvertJsonToModel = utils.ConvertJsonToModel
+		}()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		utilsConvertJsonToModel = func(data []byte, model interface{}) error {
+			return utils.ConvertJsonToModel(data, model)
+		}
+		handler := Handler{Orchestrator: mockOrchestrator}
+		ctx := context.Background()
+		result, err := handler.V1betaCreateBackupVault(ctx, req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		opResult, ok := result.(*gcpgenserver.OperationV1beta)
+		require.True(t, ok, "expected OperationV1beta response")
+		var responseMap map[string]interface{}
+		require.NoError(t, utils.ConvertJsonToModel(opResult.Response, &responseMap))
+		assert.Equal(t, true, responseMap["crossProjectVault"])
 		mockOrchestrator.AssertExpectations(t)
 	})
 }

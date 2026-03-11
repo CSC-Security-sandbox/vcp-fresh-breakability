@@ -5545,9 +5545,15 @@ func (s *BackupVaultV1beta) encodeFields(e *jx.Encoder) {
 			s.KmsGrant.Encode(e)
 		}
 	}
+	{
+		if s.CrossProjectVault.Set {
+			e.FieldStart("crossProjectVault")
+			s.CrossProjectVault.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfBackupVaultV1beta = [17]string{
+var jsonFieldsNameOfBackupVaultV1beta = [18]string{
 	0:  "backupVaultId",
 	1:  "resourceId",
 	2:  "description",
@@ -5565,6 +5571,7 @@ var jsonFieldsNameOfBackupVaultV1beta = [17]string{
 	14: "backupsPrimaryKeyVersion",
 	15: "encryptionState",
 	16: "kmsGrant",
+	17: "crossProjectVault",
 }
 
 // Decode decodes BackupVaultV1beta from json.
@@ -5747,6 +5754,16 @@ func (s *BackupVaultV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"kmsGrant\"")
+			}
+		case "crossProjectVault":
+			if err := func() error {
+				s.CrossProjectVault.Reset()
+				if err := s.CrossProjectVault.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"crossProjectVault\"")
 			}
 		default:
 			return d.Skip()

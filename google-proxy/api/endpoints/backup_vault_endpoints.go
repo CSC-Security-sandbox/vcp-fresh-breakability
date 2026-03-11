@@ -398,6 +398,8 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 				Message: "Failed to create BackupVault entry in VCP",
 			}, err
 		}
+		crossProject := true
+		data.CrossProjectVault = &crossProject
 	}
 
 	bvJSON, err := jsonMarshal(data)
@@ -659,6 +661,10 @@ func (h Handler) V1betaDescribeBackupVault(ctx context.Context, params gcpgenser
 		if vcpBackupVaultDetails.BackupsPrimaryKeyVersion != nil {
 			cvpResponse.Payload.BackupsPrimaryKeyVersion = vcpBackupVaultDetails.BackupsPrimaryKeyVersion
 		}
+		if vcpBackupVaultDetails.ServiceType == coremodels.ServiceTypeGCBDR {
+			crossProject := true
+			cvpResponse.Payload.CrossProjectVault = &crossProject
+		}
 	}
 	response := convertBackupVaultV1Beta(cvpResponse.Payload)
 	return &response, nil
@@ -814,6 +820,10 @@ func updateBackupVaultStateDetails(bvs []*coremodels.BackupVaultV1beta, cvpBvs [
 			}
 			if bv.BackupsPrimaryKeyVersion != nil {
 				cvpBv.BackupsPrimaryKeyVersion = bv.BackupsPrimaryKeyVersion
+			}
+			if bv.ServiceType == coremodels.ServiceTypeGCBDR {
+				crossProject := true
+				cvpBv.CrossProjectVault = &crossProject
 			}
 		}
 	}
@@ -1262,6 +1272,9 @@ func convertBackupVaultV1Beta(bv *models.BackupVaultV1beta) gcpgenserver.BackupV
 	}
 	if bv.EncryptionState != nil {
 		convertedBackupVault.EncryptionState = gcpgenserver.NewOptBackupVaultV1betaEncryptionState(gcpgenserver.BackupVaultV1betaEncryptionState(*bv.EncryptionState))
+	}
+	if bv.CrossProjectVault != nil {
+		convertedBackupVault.CrossProjectVault = gcpgenserver.NewOptBool(*bv.CrossProjectVault)
 	}
 	return convertedBackupVault
 }

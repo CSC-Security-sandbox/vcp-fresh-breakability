@@ -1269,6 +1269,11 @@ func (s *BackupVaultV1beta) SetFake() {
 			s.KmsGrant.SetFake()
 		}
 	}
+	{
+		{
+			s.CrossProjectVault.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.

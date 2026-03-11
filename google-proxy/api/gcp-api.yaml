@@ -13438,6 +13438,12 @@ components:
           type: string
           description: KMS grant
           x-nullable: true
+        crossProjectVault:
+          title: crossProjectVault
+          type: boolean
+          readOnly: true
+          description: Indicates if the backup vault is a cross-project vault
+          x-nullable: true
     BackupVaultInternal_v1beta:
       type: object
       title: BackupVaultInternal
