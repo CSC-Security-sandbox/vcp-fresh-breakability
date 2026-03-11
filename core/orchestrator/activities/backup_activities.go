@@ -275,10 +275,12 @@ func (b *BackupActivity) CreatingSnapshotActivity(ctx context.Context, backupAct
 			return backupActivitiesContext, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 		}
 	} else {
-		dbSnapshot, err = b.SE.CreatingSnapshot(ctx, snapshot)
-		if err != nil {
-			logger.Errorf("Failed to create snapshot in database. Error: %v", err)
-			return backupActivitiesContext, err
+		if !backupActivitiesContext.IsExpertMode {
+			dbSnapshot, err = b.SE.CreatingSnapshot(ctx, snapshot)
+			if err != nil {
+				logger.Errorf("Failed to create snapshot in database. Error: %v", err)
+				return backupActivitiesContext, err
+			}
 		}
 	}
 	backupActivitiesContext.DbSnapshot = dbSnapshot
@@ -1400,19 +1402,26 @@ func (b *BackupActivity) PollTransferStatusWithHistoryCheckActivity(ctx context.
 }
 
 // CreateBackupMetadataIfFirstBackupActivity creates a BackupMetadata entry if this is the first backup for the volume
-func (b *BackupActivity) CreateBackupMetadataIfFirstBackupActivity(ctx context.Context, volume *datamodel.Volume) error {
+func (b *BackupActivity) CreateBackupMetadataIfFirstBackupActivity(ctx context.Context, volume *datamodel.Volume, isExpertMode bool) error {
 	logger := util.GetLogger(ctx)
 
+	var volumeUUID string
+	if isExpertMode {
+		volumeUUID = volume.VolumeAttributes.ExternalUUID
+	} else {
+		volumeUUID = volume.UUID
+	}
+
 	// Get all backups for this volume
-	backups, err := b.SE.GetBackupsByVolumeUUID(ctx, volume.UUID)
+	backups, err := b.SE.GetBackupsByVolumeUUID(ctx, volumeUUID)
 	if err != nil {
-		logger.Errorf("Failed to get backups for volume %s: %v", volume.UUID, err)
+		logger.Errorf("Failed to get backups for volume %s: %v", volumeUUID, err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	// Check if this is the first backup (count should be 1 since we just created one)
 	if len(backups) == 1 {
-		logger.Infof("This is the first backup for volume %s, creating BackupMetadata entry", volume.UUID)
+		logger.Infof("This is the first backup for volume %s, creating BackupMetadata entry", volumeUUID)
 
 		// Extract labels from volume
 		var labels *datamodel.JSONB
@@ -1425,19 +1434,19 @@ func (b *BackupActivity) CreateBackupMetadataIfFirstBackupActivity(ctx context.C
 
 		// Create BackupMetadata entry with volume labels
 		backupMetadata := &datamodel.BackupMetadata{
-			VolumeUUID: volume.UUID,
+			VolumeUUID: volumeUUID,
 			Labels:     labels,
 		}
 
 		_, err := b.SE.CreateBackupMetadata(ctx, backupMetadata)
 		if err != nil {
-			logger.Errorf("Failed to create BackupMetadata for volume %s: %v", volume.UUID, err)
+			logger.Errorf("Failed to create BackupMetadata for volume %s: %v", volumeUUID, err)
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 
-		logger.Infof("Successfully created BackupMetadata entry for volume %s with labels", volume.UUID)
+		logger.Infof("Successfully created BackupMetadata entry for volume %s with labels", volumeUUID)
 	} else {
-		logger.Infof("Volume %s already has %d backups, skipping BackupMetadata creation", volume.UUID, len(backups))
+		logger.Infof("Volume %s already has %d backups, skipping BackupMetadata creation", volumeUUID, len(backups))
 	}
 
 	return nil
@@ -2240,4 +2249,158 @@ func (a BackupActivity) DetachBackupVaultFromVolume(ctx context.Context, volume 
 
 	logger.Infof("Successfully detached backup vault %s from expert mode volume %s", backupVault.UUID, expertModeVolume.UUID)
 	return nil
+}
+
+// CleanupOldExpertModeSnapshotActivity cleans up older expert mode snapshots for a volume, keeping only the latest one
+func (a BackupActivity) CleanupOldExpertModeSnapshotActivity(ctx context.Context, volume *datamodel.Volume, node *models.Node) error {
+	logger := util.GetLogger(ctx)
+
+	// Get all expert mode Backups for this volume, ordered by creation time (newest first)
+	backups, err := a.SE.GetExpertModeBackupsByVolumeExternalUUID(ctx, volume.VolumeAttributes.ExternalUUID)
+	if err != nil {
+		logger.Errorf("Failed to get expert mode backups for volume %s: %v", volume.Name, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// If we have more than 1 backup, delete the older ones (skip the first one which is the latest)
+	if len(backups) > 1 {
+		logger.Infof("Found %d expert mode backup snapshots for volume %s, cleaning up %d older backup snapshots",
+			len(backups), volume.Name, len(backups)-1)
+
+		// Process older backup snapshots (skip the first one which is the latest)
+		for i := 1; i < len(backups); i++ {
+			backup := backups[i]
+
+			if backup.Attributes == nil {
+				logger.Warnf("Skipping backup %s for volume %s: nil Attributes", backup.Name, volume.Name)
+				continue
+			}
+			if backup.Attributes.SnapshotID == "" {
+				logger.Warnf("Skipping backup %s for volume %s: empty SnapshotID", backup.Name, volume.Name)
+				continue
+			}
+
+			logger.Infof("Deleting older expert mode snapshot %s for volume %s", backup.Name, volume.Name)
+
+			err = a.DeleteBackupSnapshot(ctx, node, backup.Attributes.SnapshotID, volume.VolumeAttributes.ExternalUUID)
+			if err != nil {
+				logger.Errorf("Failed to delete backup snapshot %s from ONTAP: %v", backup.Name, err)
+				continue
+			}
+			logger.Infof("Successfully deleted older expert mode backup snapshot %s for volume %s", backup.Name, volume.Name)
+		}
+	} else {
+		logger.Infof("No cleanup needed for volume %s - found %d expert mode backup snapshots", volume.Name, len(backups))
+	}
+
+	return nil
+}
+
+// GetVolumeProtocolsFromOntapActivity determines the protocols of an expert mode volume
+// by inspecting the volume's NAS/SAN properties from ONTAP rather than SVM-level services.
+func (b *BackupActivity) GetVolumeProtocolsFromOntapActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
+	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "GetVolumeProtocolsFromOntapActivity in progress")
+
+	volume := backupActivitiesContext.BackupWorkflowInit.Volume
+	node := backupActivitiesContext.Node
+
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to get provider: %w", err))
+	}
+
+	var svmName string
+	if volume.Svm.Name == "" {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("volume SVM name is empty"))
+	} else {
+		svmName = volume.Svm.Name
+	}
+	var protocols []string
+
+	nasDetails, err := provider.GetVolumeNASDetails(volume.VolumeAttributes.ExternalUUID)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to get volume NAS details: %w", err))
+	}
+
+	isNasVolume := nasDetails.NASPath != "" || nasDetails.ExportPolicyName != "" || nasDetails.SecurityStyle != ""
+
+	if isNasVolume {
+		if nasDetails.ExportPolicyName != "" {
+			rawProtocols, err := provider.GetExportPolicyProtocols(nasDetails.ExportPolicyName, svmName)
+			if err != nil {
+				logger.Warnf("Failed to get export policy protocols for %s: %v", nasDetails.ExportPolicyName, err)
+			} else {
+				protocols = append(protocols, mapAndDeduplicateProtocols(rawProtocols)...)
+			}
+		}
+
+		if (nasDetails.SecurityStyle == "ntfs" || nasDetails.SecurityStyle == "mixed" || nasDetails.SecurityStyle == "unified") && !containsProtocol(protocols, utils.ProtocolSMB) {
+			protocols = append(protocols, utils.ProtocolSMB)
+		}
+	} else {
+		_, lunErr := provider.LunList(vsa.LunGetParams{
+			SvmName:    svmName,
+			VolumeName: volume.Name,
+		})
+		if lunErr == nil {
+			protocols = append(protocols, utils.ProtocolISCSI)
+		} else if strings.Contains(lunErr.Error(), "lun not found") {
+			logger.Infof("No LUNs found on volume %s, not a SAN volume", volume.Name)
+		} else {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to list LUNs for volume %s: %w", volume.Name, lunErr))
+		}
+	}
+
+	if len(protocols) == 0 {
+		protocols = append(protocols, utils.ProtocolUnspecified)
+	}
+
+	logger.Infof("Determined protocols for expert mode volume %s: %v", volume.Name, protocols)
+	backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.Protocols = protocols
+
+	return backupActivitiesContext, nil
+}
+
+// mapAndDeduplicateProtocols takes raw ONTAP export policy protocol strings and maps them
+// to our proxy constants, deduplicating the results.
+func mapAndDeduplicateProtocols(rawProtocols []string) []string {
+	seen := make(map[string]bool)
+	var protocols []string
+	for _, raw := range rawProtocols {
+		for _, mapped := range mapOntapExportProtocol(raw) {
+			if !seen[mapped] {
+				seen[mapped] = true
+				protocols = append(protocols, mapped)
+			}
+		}
+	}
+	return protocols
+}
+
+// mapOntapExportProtocol maps an ONTAP export policy rule protocol value to proxy protocol constants.
+func mapOntapExportProtocol(ontapProto string) []string {
+	switch ontapProto {
+	case "nfs3":
+		return []string{utils.ProtocolNFSv3}
+	case "nfs4":
+		return []string{utils.ProtocolNFSv4}
+	case "nfs":
+		return []string{utils.ProtocolNFSv3, utils.ProtocolNFSv4}
+	case "cifs":
+		return []string{utils.ProtocolSMB}
+	case "any":
+		return []string{utils.ProtocolNFSv3, utils.ProtocolNFSv4, utils.ProtocolSMB}
+	default:
+		return nil
+	}
+}
+
+func containsProtocol(protocols []string, target string) bool {
+	for _, p := range protocols {
+		if p == target {
+			return true
+		}
+	}
+	return false
 }

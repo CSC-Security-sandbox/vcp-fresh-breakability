@@ -41,6 +41,7 @@ type Provider interface {
 	DeleteFlexCacheVolume(volumeUUID, name string) (*OntapAsyncResponse, error)
 	GetVolume(params GetVolumeParams) (*VolumeResponse, error)
 	GetVolumeForExpertMode(params GetVolumeParams) (*VolumeResponse, error)
+	GetVolumeNASDetails(volumeUUID string) (*VolumeNASDetails, error)
 	GetVolumeEncryptionStatus(params GetVolumeParams) (*VolumeResponse, error)
 	GetVolumes() ([]*Volume, error)
 	UpdateVolume(params UpdateVolumeParams) error
@@ -130,6 +131,7 @@ type Provider interface {
 	DeleteQoSGroupPolicy(params DeleteQoSGroupPolicyParams) error
 	CreateExportPolicy(params *ExportPolicy) error
 	UpdateExportPolicyRules(params UpdateExportPolicyRulesParams) error
+	GetExportPolicyProtocols(policyName, svmName string) ([]string, error)
 	DeleteExportPolicy(params *ExportPolicy) error
 	CreateSecurityLogForwarding(params CreateSecurityLogForwardingParams) (*CreateSecurityLogForwardingResponse, error)
 	GetSecurityLogForwarding(params GetSecurityLogForwardingParams) error

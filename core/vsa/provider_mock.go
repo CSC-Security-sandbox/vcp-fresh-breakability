@@ -3044,6 +3044,65 @@ func (_c *MockProvider_GetClusterPeer_Call) RunAndReturn(run func(string) (*Clus
 	return _c
 }
 
+// GetExportPolicyProtocols provides a mock function with given fields: policyName, svmName
+func (_m *MockProvider) GetExportPolicyProtocols(policyName string, svmName string) ([]string, error) {
+	ret := _m.Called(policyName, svmName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetExportPolicyProtocols")
+	}
+
+	var r0 []string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string) ([]string, error)); ok {
+		return rf(policyName, svmName)
+	}
+	if rf, ok := ret.Get(0).(func(string, string) []string); ok {
+		r0 = rf(policyName, svmName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(policyName, svmName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetExportPolicyProtocols_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetExportPolicyProtocols'
+type MockProvider_GetExportPolicyProtocols_Call struct {
+	*mock.Call
+}
+
+// GetExportPolicyProtocols is a helper method to define mock.On call
+//   - policyName string
+//   - svmName string
+func (_e *MockProvider_Expecter) GetExportPolicyProtocols(policyName interface{}, svmName interface{}) *MockProvider_GetExportPolicyProtocols_Call {
+	return &MockProvider_GetExportPolicyProtocols_Call{Call: _e.mock.On("GetExportPolicyProtocols", policyName, svmName)}
+}
+
+func (_c *MockProvider_GetExportPolicyProtocols_Call) Run(run func(policyName string, svmName string)) *MockProvider_GetExportPolicyProtocols_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetExportPolicyProtocols_Call) Return(_a0 []string, _a1 error) *MockProvider_GetExportPolicyProtocols_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetExportPolicyProtocols_Call) RunAndReturn(run func(string, string) ([]string, error)) *MockProvider_GetExportPolicyProtocols_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetInterclusterLIFs provides a mock function with given fields: servicePolicyName
 func (_m *MockProvider) GetInterclusterLIFs(servicePolicyName string) ([]*InterclusterLif, error) {
 	ret := _m.Called(servicePolicyName)
@@ -4260,6 +4319,64 @@ func (_c *MockProvider_GetVolumeForExpertMode_Call) Return(_a0 *VolumeResponse, 
 }
 
 func (_c *MockProvider_GetVolumeForExpertMode_Call) RunAndReturn(run func(GetVolumeParams) (*VolumeResponse, error)) *MockProvider_GetVolumeForExpertMode_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetVolumeNASDetails provides a mock function with given fields: volumeUUID
+func (_m *MockProvider) GetVolumeNASDetails(volumeUUID string) (*VolumeNASDetails, error) {
+	ret := _m.Called(volumeUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVolumeNASDetails")
+	}
+
+	var r0 *VolumeNASDetails
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (*VolumeNASDetails, error)); ok {
+		return rf(volumeUUID)
+	}
+	if rf, ok := ret.Get(0).(func(string) *VolumeNASDetails); ok {
+		r0 = rf(volumeUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*VolumeNASDetails)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(volumeUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetVolumeNASDetails_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumeNASDetails'
+type MockProvider_GetVolumeNASDetails_Call struct {
+	*mock.Call
+}
+
+// GetVolumeNASDetails is a helper method to define mock.On call
+//   - volumeUUID string
+func (_e *MockProvider_Expecter) GetVolumeNASDetails(volumeUUID interface{}) *MockProvider_GetVolumeNASDetails_Call {
+	return &MockProvider_GetVolumeNASDetails_Call{Call: _e.mock.On("GetVolumeNASDetails", volumeUUID)}
+}
+
+func (_c *MockProvider_GetVolumeNASDetails_Call) Run(run func(volumeUUID string)) *MockProvider_GetVolumeNASDetails_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetVolumeNASDetails_Call) Return(_a0 *VolumeNASDetails, _a1 error) *MockProvider_GetVolumeNASDetails_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetVolumeNASDetails_Call) RunAndReturn(run func(string) (*VolumeNASDetails, error)) *MockProvider_GetVolumeNASDetails_Call {
 	_c.Call.Return(run)
 	return _c
 }

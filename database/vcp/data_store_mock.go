@@ -7137,6 +7137,65 @@ func (_c *MockDataStore_GetEligibleVolumes_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
+// GetExpertModeBackupsByVolumeExternalUUID provides a mock function with given fields: ctx, volumeExternalUUID
+func (_m *MockDataStore) GetExpertModeBackupsByVolumeExternalUUID(ctx context.Context, volumeExternalUUID string) ([]*datamodel.Backup, error) {
+	ret := _m.Called(ctx, volumeExternalUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetExpertModeBackupsByVolumeExternalUUID")
+	}
+
+	var r0 []*datamodel.Backup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]*datamodel.Backup, error)); ok {
+		return rf(ctx, volumeExternalUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) []*datamodel.Backup); ok {
+		r0 = rf(ctx, volumeExternalUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Backup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, volumeExternalUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetExpertModeBackupsByVolumeExternalUUID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetExpertModeBackupsByVolumeExternalUUID'
+type MockDataStore_GetExpertModeBackupsByVolumeExternalUUID_Call struct {
+	*mock.Call
+}
+
+// GetExpertModeBackupsByVolumeExternalUUID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeExternalUUID string
+func (_e *MockDataStore_Expecter) GetExpertModeBackupsByVolumeExternalUUID(ctx interface{}, volumeExternalUUID interface{}) *MockDataStore_GetExpertModeBackupsByVolumeExternalUUID_Call {
+	return &MockDataStore_GetExpertModeBackupsByVolumeExternalUUID_Call{Call: _e.mock.On("GetExpertModeBackupsByVolumeExternalUUID", ctx, volumeExternalUUID)}
+}
+
+func (_c *MockDataStore_GetExpertModeBackupsByVolumeExternalUUID_Call) Run(run func(ctx context.Context, volumeExternalUUID string)) *MockDataStore_GetExpertModeBackupsByVolumeExternalUUID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetExpertModeBackupsByVolumeExternalUUID_Call) Return(_a0 []*datamodel.Backup, _a1 error) *MockDataStore_GetExpertModeBackupsByVolumeExternalUUID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetExpertModeBackupsByVolumeExternalUUID_Call) RunAndReturn(run func(context.Context, string) ([]*datamodel.Backup, error)) *MockDataStore_GetExpertModeBackupsByVolumeExternalUUID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetExpertModePoolUsedCapacityAndVolumeCount provides a mock function with given fields: ctx, poolID
 func (_m *MockDataStore) GetExpertModePoolUsedCapacityAndVolumeCount(ctx context.Context, poolID int64) (*ExpertModePoolCapacity, error) {
 	ret := _m.Called(ctx, poolID)

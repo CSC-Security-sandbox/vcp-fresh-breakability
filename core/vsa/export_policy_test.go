@@ -2147,3 +2147,252 @@ func TestDeleteExportPolicy_DeleteFailure(t *testing.T) {
 	assert.Contains(t, err.Error(), expectedError.Error())
 	mockNASClient.AssertExpectations(t)
 }
+
+func TestGetExportPolicyProtocols(t *testing.T) {
+	t.Run("WhenGetOntapClientFails_ThenReturnError", func(t *testing.T) {
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return nil, errors.New("connection refused")
+		}
+
+		rc := &OntapRestProvider{Logger: log.NewLogger()}
+		protocols, err := rc.GetExportPolicyProtocols("test-policy", "test-svm")
+
+		assert.Nil(t, protocols)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get ONTAP client")
+		assert.Contains(t, err.Error(), "connection refused")
+	})
+
+	t.Run("WhenExportPolicyGetFails_ThenReturnError", func(t *testing.T) {
+		mockNASClient := new(MockNASClient)
+		mockRESTClient := &MockRESTClientForNAS{nasClient: mockNASClient}
+
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockRESTClient, nil
+		}
+
+		mockNASClient.On("ExportPolicyGet", mock.MatchedBy(func(params *ontapRest.ExportPolicyGetParams) bool {
+			return *params.Name == "test-policy" && *params.SvmName == "test-svm"
+		})).Return(nil, errors.New("policy not found"))
+
+		rc := &OntapRestProvider{Logger: log.NewLogger()}
+		protocols, err := rc.GetExportPolicyProtocols("test-policy", "test-svm")
+
+		assert.Nil(t, protocols)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "policy not found")
+		mockNASClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenPassesCorrectParams_ThenFieldsContainRulesProtocols", func(t *testing.T) {
+		mockNASClient := new(MockNASClient)
+		mockRESTClient := &MockRESTClientForNAS{nasClient: mockNASClient}
+
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockRESTClient, nil
+		}
+
+		mockNASClient.On("ExportPolicyGet", mock.MatchedBy(func(params *ontapRest.ExportPolicyGetParams) bool {
+			return *params.Name == "my-policy" &&
+				*params.SvmName == "my-svm" &&
+				len(params.Fields) == 1 &&
+				params.Fields[0] == "rules.protocols"
+		})).Return(&ontapRest.ExportPolicy{
+			ExportPolicy: ontaprestmodels.ExportPolicy{},
+		}, nil)
+
+		rc := &OntapRestProvider{Logger: log.NewLogger()}
+		_, err := rc.GetExportPolicyProtocols("my-policy", "my-svm")
+
+		assert.NoError(t, err)
+		mockNASClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenSingleRuleSingleProtocol_ThenReturnProtocol", func(t *testing.T) {
+		mockNASClient := new(MockNASClient)
+		mockRESTClient := &MockRESTClientForNAS{nasClient: mockNASClient}
+
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockRESTClient, nil
+		}
+
+		nfs3 := "nfs3"
+		mockNASClient.On("ExportPolicyGet", mock.Anything).Return(&ontapRest.ExportPolicy{
+			ExportPolicy: ontaprestmodels.ExportPolicy{
+				ExportPolicyInlineRules: []*ontaprestmodels.ExportRules{
+					{Protocols: []*string{&nfs3}},
+				},
+			},
+		}, nil)
+
+		rc := &OntapRestProvider{Logger: log.NewLogger()}
+		protocols, err := rc.GetExportPolicyProtocols("policy", "svm")
+
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"nfs3"}, protocols)
+	})
+
+	t.Run("WhenSingleRuleMultipleProtocols_ThenReturnAll", func(t *testing.T) {
+		mockNASClient := new(MockNASClient)
+		mockRESTClient := &MockRESTClientForNAS{nasClient: mockNASClient}
+
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockRESTClient, nil
+		}
+
+		nfs3 := "nfs3"
+		cifs := "cifs"
+		mockNASClient.On("ExportPolicyGet", mock.Anything).Return(&ontapRest.ExportPolicy{
+			ExportPolicy: ontaprestmodels.ExportPolicy{
+				ExportPolicyInlineRules: []*ontaprestmodels.ExportRules{
+					{Protocols: []*string{&nfs3, &cifs}},
+				},
+			},
+		}, nil)
+
+		rc := &OntapRestProvider{Logger: log.NewLogger()}
+		protocols, err := rc.GetExportPolicyProtocols("policy", "svm")
+
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"nfs3", "cifs"}, protocols)
+	})
+
+	t.Run("WhenMultipleRulesMultipleProtocols_ThenReturnAllFlattened", func(t *testing.T) {
+		mockNASClient := new(MockNASClient)
+		mockRESTClient := &MockRESTClientForNAS{nasClient: mockNASClient}
+
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockRESTClient, nil
+		}
+
+		nfs3 := "nfs3"
+		nfs4 := "nfs4"
+		cifs := "cifs"
+		mockNASClient.On("ExportPolicyGet", mock.Anything).Return(&ontapRest.ExportPolicy{
+			ExportPolicy: ontaprestmodels.ExportPolicy{
+				ExportPolicyInlineRules: []*ontaprestmodels.ExportRules{
+					{Protocols: []*string{&nfs3}},
+					{Protocols: []*string{&nfs4, &cifs}},
+				},
+			},
+		}, nil)
+
+		rc := &OntapRestProvider{Logger: log.NewLogger()}
+		protocols, err := rc.GetExportPolicyProtocols("policy", "svm")
+
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"nfs3", "nfs4", "cifs"}, protocols)
+	})
+
+	t.Run("WhenNoRules_ThenReturnNil", func(t *testing.T) {
+		mockNASClient := new(MockNASClient)
+		mockRESTClient := &MockRESTClientForNAS{nasClient: mockNASClient}
+
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockRESTClient, nil
+		}
+
+		mockNASClient.On("ExportPolicyGet", mock.Anything).Return(&ontapRest.ExportPolicy{
+			ExportPolicy: ontaprestmodels.ExportPolicy{
+				ExportPolicyInlineRules: []*ontaprestmodels.ExportRules{},
+			},
+		}, nil)
+
+		rc := &OntapRestProvider{Logger: log.NewLogger()}
+		protocols, err := rc.GetExportPolicyProtocols("policy", "svm")
+
+		assert.NoError(t, err)
+		assert.Nil(t, protocols)
+	})
+
+	t.Run("WhenRulesHaveNilProtocolPointers_ThenSkipNils", func(t *testing.T) {
+		mockNASClient := new(MockNASClient)
+		mockRESTClient := &MockRESTClientForNAS{nasClient: mockNASClient}
+
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockRESTClient, nil
+		}
+
+		nfs3 := "nfs3"
+		mockNASClient.On("ExportPolicyGet", mock.Anything).Return(&ontapRest.ExportPolicy{
+			ExportPolicy: ontaprestmodels.ExportPolicy{
+				ExportPolicyInlineRules: []*ontaprestmodels.ExportRules{
+					{Protocols: []*string{nil, &nfs3, nil}},
+				},
+			},
+		}, nil)
+
+		rc := &OntapRestProvider{Logger: log.NewLogger()}
+		protocols, err := rc.GetExportPolicyProtocols("policy", "svm")
+
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"nfs3"}, protocols)
+	})
+
+	t.Run("WhenRulesHaveEmptyProtocolSlice_ThenReturnNil", func(t *testing.T) {
+		mockNASClient := new(MockNASClient)
+		mockRESTClient := &MockRESTClientForNAS{nasClient: mockNASClient}
+
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockRESTClient, nil
+		}
+
+		mockNASClient.On("ExportPolicyGet", mock.Anything).Return(&ontapRest.ExportPolicy{
+			ExportPolicy: ontaprestmodels.ExportPolicy{
+				ExportPolicyInlineRules: []*ontaprestmodels.ExportRules{
+					{Protocols: []*string{}},
+					{Protocols: []*string{}},
+				},
+			},
+		}, nil)
+
+		rc := &OntapRestProvider{Logger: log.NewLogger()}
+		protocols, err := rc.GetExportPolicyProtocols("policy", "svm")
+
+		assert.NoError(t, err)
+		assert.Nil(t, protocols)
+	})
+
+	t.Run("WhenRulesHaveOnlyNilProtocolPointers_ThenReturnNil", func(t *testing.T) {
+		mockNASClient := new(MockNASClient)
+		mockRESTClient := &MockRESTClientForNAS{nasClient: mockNASClient}
+
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+			return mockRESTClient, nil
+		}
+
+		mockNASClient.On("ExportPolicyGet", mock.Anything).Return(&ontapRest.ExportPolicy{
+			ExportPolicy: ontaprestmodels.ExportPolicy{
+				ExportPolicyInlineRules: []*ontaprestmodels.ExportRules{
+					{Protocols: []*string{nil, nil}},
+				},
+			},
+		}, nil)
+
+		rc := &OntapRestProvider{Logger: log.NewLogger()}
+		protocols, err := rc.GetExportPolicyProtocols("policy", "svm")
+
+		assert.NoError(t, err)
+		assert.Nil(t, protocols)
+	})
+}

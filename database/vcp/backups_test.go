@@ -3974,9 +3974,9 @@ func TestGetBackupResourceDataForAggregation(t *testing.T) {
 		assert.NoError(tt, err)
 
 		backup1 := &datamodel.Backup{
-			BaseModel:  datamodel.BaseModel{UUID: "agg-backup-1"},
-			VolumeUUID: "vol-uuid-agg-1",
-			State:      models.LifeCycleStateAvailable,
+			BaseModel:     datamodel.BaseModel{UUID: "agg-backup-1"},
+			VolumeUUID:    "vol-uuid-agg-1",
+			State:         models.LifeCycleStateAvailable,
 			BackupVaultID: backupVault.ID,
 			Attributes: &datamodel.BackupAttributes{
 				AccountIdentifier: "acct-agg",
@@ -3984,9 +3984,9 @@ func TestGetBackupResourceDataForAggregation(t *testing.T) {
 			},
 		}
 		backup2 := &datamodel.Backup{
-			BaseModel:  datamodel.BaseModel{UUID: "agg-backup-2"},
-			VolumeUUID: "vol-uuid-agg-1",
-			State:      models.LifeCycleStateAvailable,
+			BaseModel:     datamodel.BaseModel{UUID: "agg-backup-2"},
+			VolumeUUID:    "vol-uuid-agg-1",
+			State:         models.LifeCycleStateAvailable,
 			BackupVaultID: backupVault.ID,
 			Attributes: &datamodel.BackupAttributes{
 				AccountIdentifier: "acct-agg",
@@ -6302,5 +6302,142 @@ func TestGetBackupsByBackupVaultUUIDAndFilter(t *testing.T) {
 		// Try to list backups for non-existent vault
 		_, err = store.GetBackupsByBackupVaultUUIDAndFilter(ctx, "non-existent-vault", nil)
 		assert.Error(tt, err)
+	})
+}
+
+func TestGetExpertModeBackupsByVolumeExternalUUID(t *testing.T) {
+	setupStoreAndVault := func(tt *testing.T) (*DataStoreRepository, *datamodel.BackupVault) {
+		tt.Helper()
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		vault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"},
+			Name:      "test-vault",
+		}
+		err = store.db.Create(vault).Error()
+		assert.NoError(tt, err)
+		return store, vault
+	}
+
+	createBackup := func(tt *testing.T, store *DataStoreRepository, vaultID int64, volumeUUID, name, state string) *datamodel.Backup {
+		tt.Helper()
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: name + "-uuid"},
+			Name:          name,
+			VolumeUUID:    volumeUUID,
+			State:         state,
+			BackupVaultID: vaultID,
+		}
+		err := store.db.Create(backup).Error()
+		assert.NoError(tt, err)
+		return backup
+	}
+
+	t.Run("ReturnsBackupsForVolume", func(tt *testing.T) {
+		store, vault := setupStoreAndVault(tt)
+
+		createBackup(tt, store, vault.ID, "ext-vol-1", "backup-1", models.LifeCycleStateREADY)
+		createBackup(tt, store, vault.ID, "ext-vol-1", "backup-2", models.LifeCycleStateCreating)
+
+		results, err := store.GetExpertModeBackupsByVolumeExternalUUID(context.Background(), "ext-vol-1")
+
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 2)
+	})
+
+	t.Run("ExcludesErrorStateBackups", func(tt *testing.T) {
+		store, vault := setupStoreAndVault(tt)
+
+		createBackup(tt, store, vault.ID, "ext-vol-2", "good-backup", models.LifeCycleStateREADY)
+		createBackup(tt, store, vault.ID, "ext-vol-2", "error-backup", models.LifeCycleStateError)
+
+		results, err := store.GetExpertModeBackupsByVolumeExternalUUID(context.Background(), "ext-vol-2")
+
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+		assert.Equal(tt, "good-backup", results[0].Name)
+	})
+
+	t.Run("OrdersByCreatedAtDescending", func(tt *testing.T) {
+		store, vault := setupStoreAndVault(tt)
+
+		b1 := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "oldest-uuid", CreatedAt: time.Now().Add(-2 * time.Hour)},
+			Name:          "oldest",
+			VolumeUUID:    "ext-vol-3",
+			State:         models.LifeCycleStateREADY,
+			BackupVaultID: vault.ID,
+		}
+		err := store.db.Create(b1).Error()
+		assert.NoError(tt, err)
+
+		b2 := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "newest-uuid", CreatedAt: time.Now()},
+			Name:          "newest",
+			VolumeUUID:    "ext-vol-3",
+			State:         models.LifeCycleStateREADY,
+			BackupVaultID: vault.ID,
+		}
+		err = store.db.Create(b2).Error()
+		assert.NoError(tt, err)
+
+		results, err := store.GetExpertModeBackupsByVolumeExternalUUID(context.Background(), "ext-vol-3")
+
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 2)
+		assert.Equal(tt, "newest", results[0].Name)
+		assert.Equal(tt, "oldest", results[1].Name)
+	})
+
+	t.Run("DoesNotReturnBackupsFromOtherVolumes", func(tt *testing.T) {
+		store, vault := setupStoreAndVault(tt)
+
+		createBackup(tt, store, vault.ID, "ext-vol-4", "my-backup", models.LifeCycleStateREADY)
+		createBackup(tt, store, vault.ID, "ext-vol-other", "other-backup", models.LifeCycleStateREADY)
+
+		results, err := store.GetExpertModeBackupsByVolumeExternalUUID(context.Background(), "ext-vol-4")
+
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+		assert.Equal(tt, "my-backup", results[0].Name)
+	})
+
+	t.Run("ReturnsEmptyWhenNoBackups", func(tt *testing.T) {
+		store, _ := setupStoreAndVault(tt)
+
+		results, err := store.GetExpertModeBackupsByVolumeExternalUUID(context.Background(), "nonexistent-vol")
+
+		assert.NoError(tt, err)
+		assert.Empty(tt, results)
+	})
+
+	t.Run("ReturnsEmptyWhenAllBackupsAreError", func(tt *testing.T) {
+		store, vault := setupStoreAndVault(tt)
+
+		createBackup(tt, store, vault.ID, "ext-vol-5", "err-1", models.LifeCycleStateError)
+		createBackup(tt, store, vault.ID, "ext-vol-5", "err-2", models.LifeCycleStateError)
+
+		results, err := store.GetExpertModeBackupsByVolumeExternalUUID(context.Background(), "ext-vol-5")
+
+		assert.NoError(tt, err)
+		assert.Empty(tt, results)
+	})
+
+	t.Run("ReturnsErrorOnDBFailure", func(tt *testing.T) {
+		store, _ := setupStoreAndVault(tt)
+
+		sqlDB, err := store.db.GORM().DB()
+		assert.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		results, err := store.GetExpertModeBackupsByVolumeExternalUUID(context.Background(), "any-vol")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, results)
 	})
 }

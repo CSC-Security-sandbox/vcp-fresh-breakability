@@ -1672,3 +1672,7 @@ func (s *PersistenceStore) UpdateExpertModeVolumeFields(ctx context.Context, vol
 func (s *PersistenceStore) ListExpertModeVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.ExpertModeVolumes, error) {
 	return s.dataStore.ListExpertModeVolumesByPoolID(ctx, poolID)
 }
+
+func (s *PersistenceStore) GetExpertModeBackupsByVolumeExternalUUID(ctx context.Context, volumeExternalUUID string) ([]*datamodel.Backup, error) {
+	return s.dataStore.GetExpertModeBackupsByVolumeExternalUUID(ctx, volumeExternalUUID)
+}

@@ -604,6 +604,38 @@ func (rc *OntapRestProvider) UpdateVolumeEnableEncryption(params UpdateVolumePar
 	return client.Poll(job.JobUUID)
 }
 
+// GetVolumeNASDetails fetches NAS-related properties (path, security style, export policy name)
+// for a volume identified by its UUID.
+func (rc *OntapRestProvider) GetVolumeNASDetails(volumeUUID string) (*VolumeNASDetails, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+	vol, err := client.Storage().VolumeGet(&ontapRest.VolumeGetParams{
+		UUID: volumeUUID,
+		BaseParams: ontapRest.BaseParams{
+			Fields: []string{"nas.path", "nas.security_style", "nas.export_policy"},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	result := &VolumeNASDetails{}
+	if vol != nil && vol.Nas != nil {
+		if vol.Nas.Path != nil {
+			result.NASPath = *vol.Nas.Path
+		}
+		if vol.Nas.SecurityStyle != nil {
+			result.SecurityStyle = *vol.Nas.SecurityStyle
+		}
+		if vol.Nas.ExportPolicy != nil && vol.Nas.ExportPolicy.Name != nil {
+			result.ExportPolicyName = *vol.Nas.ExportPolicy.Name
+		}
+	}
+	return result, nil
+}
+
 func (rc *OntapRestProvider) GetVolumeEncryptionStatus(params GetVolumeParams) (*VolumeResponse, error) {
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {

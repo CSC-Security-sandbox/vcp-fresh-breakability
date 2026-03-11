@@ -1172,3 +1172,16 @@ func (d *DataStoreRepository) ListBackupChainHistoriesWithPagination(ctx context
 
 	return results, nil
 }
+
+func (d *DataStoreRepository) GetExpertModeBackupsByVolumeExternalUUID(ctx context.Context, volumeExternalUUID string) ([]*datamodel.Backup, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var backups []*datamodel.Backup
+
+	err := db.Where("volume_uuid = ? AND state != ?", volumeExternalUUID, models.LifeCycleStateError).
+		Order("created_at DESC").
+		Find(&backups).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return backups, nil
+}

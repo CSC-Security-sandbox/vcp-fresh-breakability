@@ -4046,3 +4046,232 @@ func TestGetVolumeForExpertMode(t *testing.T) {
 		mockClient.AssertExpectations(tt)
 	})
 }
+
+func TestGetVolumeNASDetails(t *testing.T) {
+	t.Run("WhenGetOntapClientFails_ThenReturnError", func(t *testing.T) {
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("connection refused")
+		}
+
+		rc := &OntapRestProvider{}
+		result, err := rc.GetVolumeNASDetails("vol-uuid")
+
+		assert.Nil(t, result)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "connection refused")
+	})
+
+	t.Run("WhenVolumeGetFails_ThenReturnError", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		mockStorage.On("VolumeGet", mock.MatchedBy(func(params *ontaprest.VolumeGetParams) bool {
+			return params.UUID == "vol-uuid"
+		})).Return(nil, errors.New("volume not found"))
+
+		rc := &OntapRestProvider{}
+		result, err := rc.GetVolumeNASDetails("vol-uuid")
+
+		assert.Nil(t, result)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "volume not found")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("WhenPassesCorrectParams_ThenFieldsContainNasFields", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		mockStorage.On("VolumeGet", mock.MatchedBy(func(params *ontaprest.VolumeGetParams) bool {
+			return params.UUID == "vol-uuid" &&
+				len(params.Fields) == 3 &&
+				params.Fields[0] == "nas.path" &&
+				params.Fields[1] == "nas.security_style" &&
+				params.Fields[2] == "nas.export_policy"
+		})).Return(&ontaprest.Volume{Volume: models.Volume{}}, nil)
+
+		rc := &OntapRestProvider{}
+		_, err := rc.GetVolumeNASDetails("vol-uuid")
+
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("WhenVolumeHasAllNasFields_ThenReturnPopulatedDetails", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		mockStorage.On("VolumeGet", mock.Anything).Return(&ontaprest.Volume{
+			Volume: models.Volume{
+				Nas: &models.VolumeInlineNas{
+					Path:          nillable.ToPointer("/vol/test"),
+					SecurityStyle: nillable.ToPointer("mixed"),
+					ExportPolicy: &models.VolumeInlineNasInlineExportPolicy{
+						Name: nillable.ToPointer("my-policy"),
+					},
+				},
+			},
+		}, nil)
+
+		rc := &OntapRestProvider{}
+		result, err := rc.GetVolumeNASDetails("vol-uuid")
+
+		assert.NoError(t, err)
+		assert.Equal(t, "/vol/test", result.NASPath)
+		assert.Equal(t, "mixed", result.SecurityStyle)
+		assert.Equal(t, "my-policy", result.ExportPolicyName)
+	})
+
+	t.Run("WhenVolumeHasNoNas_ThenReturnEmptyDetails", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		mockStorage.On("VolumeGet", mock.Anything).Return(&ontaprest.Volume{
+			Volume: models.Volume{},
+		}, nil)
+
+		rc := &OntapRestProvider{}
+		result, err := rc.GetVolumeNASDetails("vol-uuid")
+
+		assert.NoError(t, err)
+		assert.Equal(t, "", result.NASPath)
+		assert.Equal(t, "", result.SecurityStyle)
+		assert.Equal(t, "", result.ExportPolicyName)
+	})
+
+	t.Run("WhenVolumeIsNil_ThenReturnEmptyDetails", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		mockStorage.On("VolumeGet", mock.Anything).Return((*ontaprest.Volume)(nil), nil)
+
+		rc := &OntapRestProvider{}
+		result, err := rc.GetVolumeNASDetails("vol-uuid")
+
+		assert.NoError(t, err)
+		assert.Equal(t, "", result.NASPath)
+		assert.Equal(t, "", result.SecurityStyle)
+		assert.Equal(t, "", result.ExportPolicyName)
+	})
+
+	t.Run("WhenNasPathOnly_ThenOnlyPathPopulated", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		mockStorage.On("VolumeGet", mock.Anything).Return(&ontaprest.Volume{
+			Volume: models.Volume{
+				Nas: &models.VolumeInlineNas{
+					Path: nillable.ToPointer("/vol/data"),
+				},
+			},
+		}, nil)
+
+		rc := &OntapRestProvider{}
+		result, err := rc.GetVolumeNASDetails("vol-uuid")
+
+		assert.NoError(t, err)
+		assert.Equal(t, "/vol/data", result.NASPath)
+		assert.Equal(t, "", result.SecurityStyle)
+		assert.Equal(t, "", result.ExportPolicyName)
+	})
+
+	t.Run("WhenSecurityStyleOnly_ThenOnlyStylePopulated", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		mockStorage.On("VolumeGet", mock.Anything).Return(&ontaprest.Volume{
+			Volume: models.Volume{
+				Nas: &models.VolumeInlineNas{
+					SecurityStyle: nillable.ToPointer("ntfs"),
+				},
+			},
+		}, nil)
+
+		rc := &OntapRestProvider{}
+		result, err := rc.GetVolumeNASDetails("vol-uuid")
+
+		assert.NoError(t, err)
+		assert.Equal(t, "", result.NASPath)
+		assert.Equal(t, "ntfs", result.SecurityStyle)
+		assert.Equal(t, "", result.ExportPolicyName)
+	})
+
+	t.Run("WhenExportPolicyHasNilName_ThenExportPolicyNameEmpty", func(t *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+
+		origFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = origFunc }()
+		getOntapClientFunc = func(ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+
+		mockStorage.On("VolumeGet", mock.Anything).Return(&ontaprest.Volume{
+			Volume: models.Volume{
+				Nas: &models.VolumeInlineNas{
+					Path:         nillable.ToPointer("/vol/test"),
+					ExportPolicy: &models.VolumeInlineNasInlineExportPolicy{},
+				},
+			},
+		}, nil)
+
+		rc := &OntapRestProvider{}
+		result, err := rc.GetVolumeNASDetails("vol-uuid")
+
+		assert.NoError(t, err)
+		assert.Equal(t, "/vol/test", result.NASPath)
+		assert.Equal(t, "", result.ExportPolicyName)
+	})
+}

@@ -677,7 +677,8 @@ func (wf *createScheduledBackupWorkflow) RunScheduledBackupWithContext(ctx workf
 	}
 
 	// Create BackupMetadata entry if this is the first backup for the volume
-	err = workflow.ExecuteActivity(ctx, backupActivities.CreateBackupMetadataIfFirstBackupActivity, volume).Get(ctx, nil)
+	// TODO: we should check and update the false to isExpertMode flag once we have the expert mode logic in place.
+	err = workflow.ExecuteActivity(ctx, backupActivities.CreateBackupMetadataIfFirstBackupActivity, volume, false).Get(ctx, nil)
 	if err != nil {
 		// Log the error but don't fail the entire backup workflow
 		wf.Logger.Errorf("Failed to create BackupMetadata for volume %s: %v", volume.UUID, err)

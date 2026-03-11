@@ -221,6 +221,35 @@ func (rc *OntapRestProvider) UpdateExportPolicyRules(params UpdateExportPolicyRu
 	return nil
 }
 
+// GetExportPolicyProtocols fetches the export policy by name and SVM, returning
+// the raw ONTAP protocol strings from all rules (e.g. "nfs3", "nfs4", "cifs", "any").
+func (rc *OntapRestProvider) GetExportPolicyProtocols(policyName, svmName string) ([]string, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ONTAP client: %w", err)
+	}
+	exportPolicy, err := client.NAS().ExportPolicyGet(&ontapRest.ExportPolicyGetParams{
+		Name:    &policyName,
+		SvmName: &svmName,
+		BaseParams: ontapRest.BaseParams{
+			Fields: []string{"rules.protocols"},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var protocols []string
+	for _, rule := range exportPolicy.ExportPolicyInlineRules {
+		for _, p := range rule.Protocols {
+			if p != nil {
+				protocols = append(protocols, *p)
+			}
+		}
+	}
+	return protocols, nil
+}
+
 func (rc *OntapRestProvider) DeleteExportPolicy(params *ExportPolicy) error {
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {

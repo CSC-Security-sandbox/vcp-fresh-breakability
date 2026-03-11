@@ -22,6 +22,7 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	hyperscalergoogle "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	utilerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -7416,7 +7417,7 @@ func TestCreateBackupMetadataIfFirstBackupActivity_Success(t *testing.T) {
 	})).Return(expectedBackupMetadata, nil)
 
 	// Act
-	err := activity.CreateBackupMetadataIfFirstBackupActivity(ctx, volume)
+	err := activity.CreateBackupMetadataIfFirstBackupActivity(ctx, volume, false)
 
 	// Assert
 	assert.Nil(t, err)
@@ -7444,7 +7445,7 @@ func TestCreateBackupMetadataIfFirstBackupActivity_NotFirstBackup(t *testing.T) 
 	mockStorage.On("GetBackupsByVolumeUUID", ctx, volume.UUID).Return(backups, nil)
 
 	// Act
-	err := activity.CreateBackupMetadataIfFirstBackupActivity(ctx, volume)
+	err := activity.CreateBackupMetadataIfFirstBackupActivity(ctx, volume, false)
 
 	// Assert
 	assert.Nil(t, err)
@@ -7476,7 +7477,7 @@ func TestCreateBackupMetadataIfFirstBackupActivity_NoLabels(t *testing.T) {
 	})).Return(&datamodel.BackupMetadata{}, nil)
 
 	// Act
-	err := activity.CreateBackupMetadataIfFirstBackupActivity(ctx, volume)
+	err := activity.CreateBackupMetadataIfFirstBackupActivity(ctx, volume, false)
 
 	// Assert
 	assert.Nil(t, err)
@@ -7497,7 +7498,7 @@ func TestCreateBackupMetadataIfFirstBackupActivity_GetBackupsError(t *testing.T)
 	mockStorage.On("GetBackupsByVolumeUUID", ctx, volume.UUID).Return(nil, errors.New("database error"))
 
 	// Act
-	err := activity.CreateBackupMetadataIfFirstBackupActivity(ctx, volume)
+	err := activity.CreateBackupMetadataIfFirstBackupActivity(ctx, volume, false)
 
 	// Assert
 	assert.Error(t, err)
@@ -7528,7 +7529,7 @@ func TestCreateBackupMetadataIfFirstBackupActivity_CreateBackupMetadataError(t *
 	mockStorage.On("CreateBackupMetadata", ctx, mock.Anything).Return(nil, errors.New("create error"))
 
 	// Act
-	err := activity.CreateBackupMetadataIfFirstBackupActivity(ctx, volume)
+	err := activity.CreateBackupMetadataIfFirstBackupActivity(ctx, volume, false)
 
 	// Assert
 	assert.Error(t, err)
@@ -12748,4 +12749,744 @@ func TestCheckAndAttachBackupVaultToVolume_GCBDR_SuccessfulCrossProjectPermissio
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	mockStorage.AssertExpectations(t)
+}
+
+func TestCleanupOldExpertModeSnapshotActivity(t *testing.T) {
+	t.Run("WhenGetExpertModeBackupsFails_ThenReturnError", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		act := BackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "vol-ext-uuid",
+			},
+		}
+		node := &models.Node{}
+
+		mockStorage.On("GetExpertModeBackupsByVolumeExternalUUID", ctx, "vol-ext-uuid").
+			Return(nil, errors.New("db connection error"))
+
+		err := act.CleanupOldExpertModeSnapshotActivity(ctx, volume, node)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "db connection error")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("WhenNoBackupsFound_ThenNoCleanupNeeded", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		act := BackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "vol-ext-uuid",
+			},
+		}
+		node := &models.Node{}
+
+		mockStorage.On("GetExpertModeBackupsByVolumeExternalUUID", ctx, "vol-ext-uuid").
+			Return([]*datamodel.Backup{}, nil)
+
+		err := act.CleanupOldExpertModeSnapshotActivity(ctx, volume, node)
+
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("WhenSingleBackupFound_ThenNoCleanupNeeded", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		act := BackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "vol-ext-uuid",
+			},
+		}
+		node := &models.Node{}
+
+		backups := []*datamodel.Backup{
+			{Name: "backup-latest", Attributes: &datamodel.BackupAttributes{SnapshotID: "snap-1"}},
+		}
+		mockStorage.On("GetExpertModeBackupsByVolumeExternalUUID", ctx, "vol-ext-uuid").
+			Return(backups, nil)
+
+		err := act.CleanupOldExpertModeSnapshotActivity(ctx, volume, node)
+
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("WhenMultipleBackups_ThenDeleteOlderOnesSuccessfully", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := new(vsa.MockProvider)
+		act := BackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "vol-ext-uuid",
+			},
+		}
+		node := &models.Node{}
+
+		backups := []*datamodel.Backup{
+			{Name: "backup-latest", Attributes: &datamodel.BackupAttributes{SnapshotID: "snap-latest"}},
+			{Name: "backup-old-1", Attributes: &datamodel.BackupAttributes{SnapshotID: "snap-old-1"}},
+			{Name: "backup-old-2", Attributes: &datamodel.BackupAttributes{SnapshotID: "snap-old-2"}},
+		}
+		mockStorage.On("GetExpertModeBackupsByVolumeExternalUUID", ctx, "vol-ext-uuid").
+			Return(backups, nil)
+
+		mockProvider.On("DeleteSnapshot", "snap-old-1", "vol-ext-uuid").Return(nil)
+		mockProvider.On("DeleteSnapshot", "snap-old-2", "vol-ext-uuid").Return(nil)
+
+		err := act.CleanupOldExpertModeSnapshotActivity(ctx, volume, node)
+
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenDeleteSnapshotFails_ThenContinueAndReturnNil", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := new(vsa.MockProvider)
+		act := BackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "vol-ext-uuid",
+			},
+		}
+		node := &models.Node{}
+
+		backups := []*datamodel.Backup{
+			{Name: "backup-latest", Attributes: &datamodel.BackupAttributes{SnapshotID: "snap-latest"}},
+			{Name: "backup-old-1", Attributes: &datamodel.BackupAttributes{SnapshotID: "snap-old-1"}},
+			{Name: "backup-old-2", Attributes: &datamodel.BackupAttributes{SnapshotID: "snap-old-2"}},
+		}
+		mockStorage.On("GetExpertModeBackupsByVolumeExternalUUID", ctx, "vol-ext-uuid").
+			Return(backups, nil)
+
+		mockProvider.On("DeleteSnapshot", "snap-old-1", "vol-ext-uuid").Return(errors.New("ONTAP unavailable"))
+		mockProvider.On("DeleteSnapshot", "snap-old-2", "vol-ext-uuid").Return(nil)
+
+		err := act.CleanupOldExpertModeSnapshotActivity(ctx, volume, node)
+
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenAllDeletesFail_ThenContinueAndReturnNil", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := new(vsa.MockProvider)
+		act := BackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "vol-ext-uuid",
+			},
+		}
+		node := &models.Node{}
+
+		backups := []*datamodel.Backup{
+			{Name: "backup-latest", Attributes: &datamodel.BackupAttributes{SnapshotID: "snap-latest"}},
+			{Name: "backup-old-1", Attributes: &datamodel.BackupAttributes{SnapshotID: "snap-old-1"}},
+			{Name: "backup-old-2", Attributes: &datamodel.BackupAttributes{SnapshotID: "snap-old-2"}},
+		}
+		mockStorage.On("GetExpertModeBackupsByVolumeExternalUUID", ctx, "vol-ext-uuid").
+			Return(backups, nil)
+
+		mockProvider.On("DeleteSnapshot", "snap-old-1", "vol-ext-uuid").Return(errors.New("ONTAP error 1"))
+		mockProvider.On("DeleteSnapshot", "snap-old-2", "vol-ext-uuid").Return(errors.New("ONTAP error 2"))
+
+		err := act.CleanupOldExpertModeSnapshotActivity(ctx, volume, node)
+
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenGetProviderByNodeFails_ThenDeleteSnapshotFailsAndContinues", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		act := BackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("provider unavailable")
+		}
+
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "vol-ext-uuid",
+			},
+		}
+		node := &models.Node{}
+
+		backups := []*datamodel.Backup{
+			{Name: "backup-latest", Attributes: &datamodel.BackupAttributes{SnapshotID: "snap-latest"}},
+			{Name: "backup-old-1", Attributes: &datamodel.BackupAttributes{SnapshotID: "snap-old-1"}},
+		}
+		mockStorage.On("GetExpertModeBackupsByVolumeExternalUUID", ctx, "vol-ext-uuid").
+			Return(backups, nil)
+
+		err := act.CleanupOldExpertModeSnapshotActivity(ctx, volume, node)
+
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("WhenBackupHasNilAttributes_ThenSkipAndContinue", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := new(vsa.MockProvider)
+		act := BackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "vol-ext-uuid",
+			},
+		}
+		node := &models.Node{}
+
+		backups := []*datamodel.Backup{
+			{Name: "backup-latest", Attributes: &datamodel.BackupAttributes{SnapshotID: "snap-latest"}},
+			{Name: "backup-nil-attrs", Attributes: nil},
+			{Name: "backup-old-valid", Attributes: &datamodel.BackupAttributes{SnapshotID: "snap-old-valid"}},
+		}
+		mockStorage.On("GetExpertModeBackupsByVolumeExternalUUID", ctx, "vol-ext-uuid").
+			Return(backups, nil)
+
+		mockProvider.On("DeleteSnapshot", "snap-old-valid", "vol-ext-uuid").Return(nil)
+
+		err := act.CleanupOldExpertModeSnapshotActivity(ctx, volume, node)
+
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenBackupHasEmptySnapshotID_ThenSkipAndContinue", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockProvider := new(vsa.MockProvider)
+		act := BackupActivity{SE: mockStorage}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		volume := &datamodel.Volume{
+			Name: "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "vol-ext-uuid",
+			},
+		}
+		node := &models.Node{}
+
+		backups := []*datamodel.Backup{
+			{Name: "backup-latest", Attributes: &datamodel.BackupAttributes{SnapshotID: "snap-latest"}},
+			{Name: "backup-empty-snap", Attributes: &datamodel.BackupAttributes{SnapshotID: ""}},
+			{Name: "backup-old-valid", Attributes: &datamodel.BackupAttributes{SnapshotID: "snap-old-valid"}},
+		}
+		mockStorage.On("GetExpertModeBackupsByVolumeExternalUUID", ctx, "vol-ext-uuid").
+			Return(backups, nil)
+
+		mockProvider.On("DeleteSnapshot", "snap-old-valid", "vol-ext-uuid").Return(nil)
+
+		err := act.CleanupOldExpertModeSnapshotActivity(ctx, volume, node)
+
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+		mockProvider.AssertExpectations(t)
+	})
+}
+
+func TestGetVolumeProtocolsFromOntapActivity(t *testing.T) {
+	makeVolume := func() *datamodel.Volume {
+		return &datamodel.Volume{
+			Name: "test-vol",
+			Svm:  &datamodel.Svm{Name: "test-svm"},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "vol-ext-uuid",
+			},
+		}
+	}
+
+	makeState := func(volume *datamodel.Volume) *BackupActivitiesContext {
+		return &BackupActivitiesContext{
+			BackupWorkflowInit: &BackupWorkflowInput{
+				Backup: &datamodel.Backup{
+					Attributes: &datamodel.BackupAttributes{},
+				},
+				Volume: volume,
+			},
+			Node: &models.Node{},
+		}
+	}
+
+	t.Run("WhenGetProviderByNodeFails_ThenReturnError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("provider unavailable")
+		}
+
+		state := makeState(makeVolume())
+
+		_, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get provider")
+	})
+
+	t.Run("WhenGetVolumeNASDetailsFails_ThenReturnError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		state := makeState(makeVolume())
+
+		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
+			Return(nil, errors.New("ontap error"))
+
+		_, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get volume NAS details")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenNasVolumeWithNfs3ExportPolicy_ThenProtocolsContainNFSV3", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		state := makeState(makeVolume())
+
+		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
+			Return(&vsa.VolumeNASDetails{NASPath: "/vol/test", ExportPolicyName: "test-policy"}, nil)
+		mockProvider.On("GetExportPolicyProtocols", "test-policy", "test-svm").
+			Return([]string{"nfs3"}, nil)
+
+		encodedValue, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
+
+		assert.NoError(t, err)
+		var result *BackupActivitiesContext
+		err = encodedValue.Get(&result)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{utils.ProtocolNFSv3}, result.BackupWorkflowInit.Backup.Attributes.Protocols)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenNasVolumeWithNfsExportPolicy_ThenProtocolsContainNFSV3AndNFSV4", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		state := makeState(makeVolume())
+
+		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
+			Return(&vsa.VolumeNASDetails{NASPath: "/vol/test", ExportPolicyName: "default"}, nil)
+		mockProvider.On("GetExportPolicyProtocols", "default", "test-svm").
+			Return([]string{"nfs"}, nil)
+
+		encodedValue, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
+
+		assert.NoError(t, err)
+		var result *BackupActivitiesContext
+		err = encodedValue.Get(&result)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{utils.ProtocolNFSv3, utils.ProtocolNFSv4}, result.BackupWorkflowInit.Backup.Attributes.Protocols)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenNasVolumeWithNtfsSecurityStyle_ThenProtocolsContainSMB", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		state := makeState(makeVolume())
+
+		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
+			Return(&vsa.VolumeNASDetails{SecurityStyle: "ntfs"}, nil)
+
+		encodedValue, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
+
+		assert.NoError(t, err)
+		var result *BackupActivitiesContext
+		err = encodedValue.Get(&result)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{utils.ProtocolSMB}, result.BackupWorkflowInit.Backup.Attributes.Protocols)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenNasVolumeWithMixedSecurityStyleAndNfs3Export_ThenProtocolsContainNFSV3AndSMB", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		state := makeState(makeVolume())
+
+		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
+			Return(&vsa.VolumeNASDetails{NASPath: "/vol/test", SecurityStyle: "mixed", ExportPolicyName: "test-policy"}, nil)
+		mockProvider.On("GetExportPolicyProtocols", "test-policy", "test-svm").
+			Return([]string{"nfs3"}, nil)
+
+		encodedValue, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
+
+		assert.NoError(t, err)
+		var result *BackupActivitiesContext
+		err = encodedValue.Get(&result)
+		assert.NoError(t, err)
+		assert.Contains(t, result.BackupWorkflowInit.Backup.Attributes.Protocols, utils.ProtocolNFSv3)
+		assert.Contains(t, result.BackupWorkflowInit.Backup.Attributes.Protocols, utils.ProtocolSMB)
+		assert.Len(t, result.BackupWorkflowInit.Backup.Attributes.Protocols, 2)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenNasVolumeWithCifsExportAndMixedStyle_ThenSMBNotDuplicated", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		state := makeState(makeVolume())
+
+		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
+			Return(&vsa.VolumeNASDetails{NASPath: "/vol/test", SecurityStyle: "mixed", ExportPolicyName: "cifs-policy"}, nil)
+		mockProvider.On("GetExportPolicyProtocols", "cifs-policy", "test-svm").
+			Return([]string{"cifs"}, nil)
+
+		encodedValue, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
+
+		assert.NoError(t, err)
+		var result *BackupActivitiesContext
+		err = encodedValue.Get(&result)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{utils.ProtocolSMB}, result.BackupWorkflowInit.Backup.Attributes.Protocols)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenNonNasVolumeWithLuns_ThenProtocolsContainISCSI", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		state := makeState(makeVolume())
+
+		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
+			Return(&vsa.VolumeNASDetails{}, nil)
+		mockProvider.On("LunList", vsa.LunGetParams{SvmName: "test-svm", VolumeName: "test-vol"}).
+			Return([]*vsa.LunResponse{{}}, nil)
+
+		encodedValue, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
+
+		assert.NoError(t, err)
+		var result *BackupActivitiesContext
+		err = encodedValue.Get(&result)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{utils.ProtocolISCSI}, result.BackupWorkflowInit.Backup.Attributes.Protocols)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenNonNasVolumeWithoutLuns_ThenProtocolsContainUnspecified", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		state := makeState(makeVolume())
+
+		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
+			Return(&vsa.VolumeNASDetails{}, nil)
+		mockProvider.On("LunList", vsa.LunGetParams{SvmName: "test-svm", VolumeName: "test-vol"}).
+			Return(nil, errors.New("lun not found: svm=test-svm, volume=test-vol, lun="))
+
+		encodedValue, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
+
+		assert.NoError(t, err)
+		var result *BackupActivitiesContext
+		err = encodedValue.Get(&result)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{utils.ProtocolUnspecified}, result.BackupWorkflowInit.Backup.Attributes.Protocols)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenNonNasVolumeAndLunListFailsWithApiError_ThenReturnError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		state := makeState(makeVolume())
+
+		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
+			Return(&vsa.VolumeNASDetails{}, nil)
+		mockProvider.On("LunList", vsa.LunGetParams{SvmName: "test-svm", VolumeName: "test-vol"}).
+			Return(nil, errors.New("ONTAP REST API connection refused"))
+
+		_, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to list LUNs for volume test-vol")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenGetExportPolicyProtocolsFails_ThenFallsBackToSecurityStyleDetection", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		state := makeState(makeVolume())
+
+		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
+			Return(&vsa.VolumeNASDetails{NASPath: "/vol/test", SecurityStyle: "ntfs", ExportPolicyName: "test-policy"}, nil)
+		mockProvider.On("GetExportPolicyProtocols", "test-policy", "test-svm").
+			Return(nil, errors.New("export policy not found"))
+
+		encodedValue, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
+
+		assert.NoError(t, err)
+		var result *BackupActivitiesContext
+		err = encodedValue.Get(&result)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{utils.ProtocolSMB}, result.BackupWorkflowInit.Backup.Attributes.Protocols)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenNasVolumeWithUnifiedSecurityStyleOnly_ThenProtocolsContainSMB", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		state := makeState(makeVolume())
+
+		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
+			Return(&vsa.VolumeNASDetails{SecurityStyle: "unified"}, nil)
+
+		encodedValue, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
+
+		assert.NoError(t, err)
+		var result *BackupActivitiesContext
+		err = encodedValue.Get(&result)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{utils.ProtocolSMB}, result.BackupWorkflowInit.Backup.Attributes.Protocols)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenNasVolumeWithAnyExportProtocol_ThenProtocolsContainAll", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		state := makeState(makeVolume())
+
+		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
+			Return(&vsa.VolumeNASDetails{NASPath: "/vol/test", ExportPolicyName: "any-policy"}, nil)
+		mockProvider.On("GetExportPolicyProtocols", "any-policy", "test-svm").
+			Return([]string{"any"}, nil)
+
+		encodedValue, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
+
+		assert.NoError(t, err)
+		var result *BackupActivitiesContext
+		err = encodedValue.Get(&result)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{utils.ProtocolNFSv3, utils.ProtocolNFSv4, utils.ProtocolSMB},
+			result.BackupWorkflowInit.Backup.Attributes.Protocols)
+		mockProvider.AssertExpectations(t)
+	})
+}
+
+func TestMapOntapExportProtocol(t *testing.T) {
+	t.Run("WhenNfs3_ThenReturnNFSV3", func(t *testing.T) {
+		assert.Equal(t, []string{utils.ProtocolNFSv3}, mapOntapExportProtocol("nfs3"))
+	})
+
+	t.Run("WhenNfs4_ThenReturnNFSV4", func(t *testing.T) {
+		assert.Equal(t, []string{utils.ProtocolNFSv4}, mapOntapExportProtocol("nfs4"))
+	})
+
+	t.Run("WhenNfs_ThenReturnNFSV3AndNFSV4", func(t *testing.T) {
+		assert.Equal(t, []string{utils.ProtocolNFSv3, utils.ProtocolNFSv4}, mapOntapExportProtocol("nfs"))
+	})
+
+	t.Run("WhenCifs_ThenReturnSMB", func(t *testing.T) {
+		assert.Equal(t, []string{utils.ProtocolSMB}, mapOntapExportProtocol("cifs"))
+	})
+
+	t.Run("WhenAny_ThenReturnAllProtocols", func(t *testing.T) {
+		assert.Equal(t, []string{utils.ProtocolNFSv3, utils.ProtocolNFSv4, utils.ProtocolSMB}, mapOntapExportProtocol("any"))
+	})
+
+	t.Run("WhenUnknown_ThenReturnNil", func(t *testing.T) {
+		assert.Nil(t, mapOntapExportProtocol("unknown"))
+	})
+}
+
+func TestContainsProtocol(t *testing.T) {
+	t.Run("WhenProtocolExists_ThenReturnTrue", func(t *testing.T) {
+		assert.True(t, containsProtocol([]string{"NFSV3", "SMB"}, "SMB"))
+	})
+
+	t.Run("WhenProtocolDoesNotExist_ThenReturnFalse", func(t *testing.T) {
+		assert.False(t, containsProtocol([]string{"NFSV3", "SMB"}, "ISCSI"))
+	})
+
+	t.Run("WhenEmptySlice_ThenReturnFalse", func(t *testing.T) {
+		assert.False(t, containsProtocol([]string{}, "SMB"))
+	})
 }

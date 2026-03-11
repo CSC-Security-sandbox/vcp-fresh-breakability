@@ -204,7 +204,7 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		backupAttributes = datamodel.BackupAttributes{
 			VolumeName:          expertModeVol.Name,
 			AccountIdentifier:   account.Name,
-			Protocols:           []string{}, // TODO: Expert mode volumes don't have protocols in VolumeAttributes
+			Protocols:           []string{}, // Expert mode volume protocols will fetch from ONTAP during workflow execution.
 			UseExistingSnapshot: params.UseExistingSnapshot,
 		}
 		volumeID = expertModeVol.ID

@@ -236,6 +236,12 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}
+
+			// Get volume protocols from ONTAP for expert mode volumes
+			err = workflow.ExecuteActivity(ctx, backupActivity.GetVolumeProtocolsFromOntapActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
 		}
 		backupActivitiesContext.IsExpertMode = params.IsExpertModeVolume
 
@@ -271,9 +277,11 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 
 		defer func() {
 			// Update snapshot details in DB
-			err = workflow.ExecuteActivity(ctx, backupActivity.UpdateSnapshotActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
-			if err != nil {
-				util.GetLogger(ctx).Errorf("Failed to Update Snapshot State: %v", err)
+			if !backupActivitiesContext.IsExpertMode {
+				err = workflow.ExecuteActivity(ctx, backupActivity.UpdateSnapshotActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+				if err != nil {
+					util.GetLogger(ctx).Errorf("Failed to Update Snapshot State: %v", err)
+				}
 			}
 		}()
 
@@ -394,6 +402,13 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 			// Log the error but don't fail the entire backup workflow
 			wf.Logger.Errorf("Failed to cleanup older backup snapshots for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
 		}
+	} else {
+		// cleanup expertmode backup snapshot from ontap, no snapshot metadata/entry in DB for expert mode backups snapshots
+		err = workflow.ExecuteActivity(ctx, backupActivity.CleanupOldExpertModeSnapshotActivity, backupActivitiesContext.BackupWorkflowInit.Volume, backupActivitiesContext.Node).Get(ctx, nil)
+		if err != nil {
+			// Log the error but don't fail the entire backup workflow
+			wf.Logger.Errorf("Failed to cleanup older expert mode backup snapshots for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
+		}
 	}
 
 	// Hydrate snapshot to CCFE if not expert mode
@@ -414,7 +429,7 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 	}
 
 	// Create BackupMetadata entry if this is the first backup for the volume
-	err = workflow.ExecuteActivity(ctx, backupActivity.CreateBackupMetadataIfFirstBackupActivity, backupActivitiesContext.BackupWorkflowInit.Volume).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, backupActivity.CreateBackupMetadataIfFirstBackupActivity, backupActivitiesContext.BackupWorkflowInit.Volume, backupActivitiesContext.IsExpertMode).Get(ctx, nil)
 	if err != nil {
 		// Log the error but don't fail the entire backup workflow
 		wf.Logger.Errorf("Failed to create BackupMetadata for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.UUID, err)

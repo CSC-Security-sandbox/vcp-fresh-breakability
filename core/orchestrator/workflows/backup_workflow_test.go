@@ -311,7 +311,7 @@ func TestBackupWorkflow(t *testing.T) {
 		},
 		Node: &models.Node{EndpointAddress: "127.0.0.1"},
 	}, nil)
-	env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
@@ -789,7 +789,7 @@ func TestBackupWorkflowSnapmirrorTransferPolling(t *testing.T) {
 		Node: &models.Node{EndpointAddress: "127.0.0.1"},
 	}, nil)
 	env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
 	env.ExecuteWorkflow(CreateBackupWorkflow, params, backup, backupVault, volume)
@@ -2437,15 +2437,9 @@ func TestCreateBackupWorkflowEdgeCases(t *testing.T) {
 			},
 			Node: &models.Node{EndpointAddress: "127.0.0.1"},
 		}, nil)
-		env.OnActivity("CreateRemoteBackupFromVCPActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{
-			BackupWorkflowInit: &activities.BackupWorkflowInput{
-				Backup:      backup,
-				BackupVault: backupVault,
-				Volume:      volume,
-			},
-		}, nil)
+		env.OnActivity("CreateRemoteBackupFromVCPActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(CreateBackupWorkflow, params, backup, backupVault, volume)
@@ -2890,7 +2884,7 @@ func TestBackupWorkflowSnapmirrorTransferWaitTimeCap(t *testing.T) {
 		},
 	}, nil)
 	env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// Mock rollback activities in case workflow fails
 	env.OnActivity("UpdateBackupError", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
@@ -3227,7 +3221,7 @@ func TestBackupWorkflowGetObjectStoreEndpointActivityFailure(t *testing.T) {
 		},
 		Node: &models.Node{EndpointAddress: "127.0.0.1"},
 	}, nil)
-	env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
@@ -3500,7 +3494,7 @@ func TestBackupWorkflowHydrationWithGetLocation(t *testing.T) {
 	}, nil)
 	env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("HydrateSnapshotToCCFEActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute the workflow
 	env.ExecuteWorkflow(CreateBackupWorkflow, params, backup, backupVault, volume)
@@ -3909,7 +3903,7 @@ func TestCreateBackupWorkflowWithContinueAsNew(t *testing.T) {
 			},
 			Node: &models.Node{EndpointAddress: "127.0.0.1"},
 		}, nil)
-		env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
@@ -4328,14 +4322,9 @@ func TestCreateBackupWorkflowWithRetryPolicy(t *testing.T) {
 			},
 			Node: &models.Node{EndpointAddress: "127.0.0.1"},
 		}, nil)
-		env.OnActivity("CreateRemoteBackupFromVCPActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{
-			BackupWorkflowInit: &activities.BackupWorkflowInput{
-				Backup:      backup,
-				BackupVault: backupVault,
-				Volume:      volume,
-			},
-		}, nil)
-		env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything).Return(nil)
+
+		env.OnActivity("CreateRemoteBackupFromVCPActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// Mock rollback activities in case workflow fails
 		env.OnActivity("UpdateBackupError", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -4638,15 +4627,9 @@ func TestCreateBackupWorkflowWithContext(t *testing.T) {
 			},
 			Node: &models.Node{EndpointAddress: "127.0.0.1"},
 		}, nil)
-		env.OnActivity("CreateRemoteBackupFromVCPActivity", mock.Anything, mock.Anything).Return(&activities.BackupActivitiesContext{
-			BackupWorkflowInit: &activities.BackupWorkflowInput{
-				Backup:      backup,
-				BackupVault: backupVault,
-				Volume:      volume,
-			},
-		}, nil)
+		env.OnActivity("CreateRemoteBackupFromVCPActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		// Mock rollback activities in case workflow fails
 		env.OnActivity("UpdateBackupError", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
@@ -5475,7 +5458,7 @@ func TestBackupWorkflow_CreateBackupMetadataIfFirstBackupActivityFailure(t *test
 		},
 	}, nil)
 	// Mock CreateBackupMetadataIfFirstBackupActivity to return an error
-	env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything).Return(errors.New("failed to create backup metadata"))
+	env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to create backup metadata"))
 	env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// Mock rollback activities in case workflow fails
 	env.OnActivity("UpdateBackupError", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -6028,7 +6011,7 @@ func TestCreateBackupWorkflowWithContext_ExpertModeVolume(t *testing.T) {
 		env.OnActivity("UpdateBackupSizeActivity", mock.Anything, mock.Anything).Return(backupActivitiesContext, nil).Maybe()
 		env.OnActivity("CreateRemoteBackupFromVCPActivity", mock.Anything, mock.Anything).Return(backupActivitiesContext, nil).Maybe()
 		env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
-		env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateBackupError", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
@@ -6078,6 +6061,7 @@ func TestCreateBackupWorkflowWithContext_ExpertModeVolume(t *testing.T) {
 		env.OnActivity("GetNode", mock.Anything, pool.ID).Return(dbNodes, nil)
 		env.OnActivity("CheckAndAttachBackupVaultToVolume", mock.Anything, mock.Anything, params.LocationID).Return(backupActivitiesContext, nil)
 		env.OnActivity("GetVolumesAndConstituentCountActivity", mock.Anything, mock.Anything).Return(backupActivitiesContext, nil)
+		env.OnActivity("GetVolumeProtocolsFromOntapActivity", mock.Anything, mock.Anything).Return(backupActivitiesContext, nil).Maybe()
 		env.OnActivity("PrepareObjectStoreActivity", mock.Anything, mock.Anything).Return(backupActivitiesContext, nil).Maybe()
 		env.OnActivity("GetOrCreateObjectStoreActivity", mock.Anything, mock.Anything).Return(backupActivitiesContext, nil).Maybe()
 		env.OnActivity("PrepareSnapmirrorActivity", mock.Anything, mock.Anything).Return(backupActivitiesContext, nil).Maybe()
@@ -6233,6 +6217,7 @@ func TestCreateBackupWorkflowWithContext_ExpertModeVolume(t *testing.T) {
 		env.OnActivity("CheckAndAttachBackupVaultToVolume", mock.Anything, mock.Anything, params.LocationID).Return(backupActivitiesContext, nil)
 		// GetSnapshotNameByUUIDActivity should NOT be called when SnapshotID is empty
 		env.OnActivity("GetVolumesAndConstituentCountActivity", mock.Anything, mock.Anything).Return(backupActivitiesContext, nil)
+		env.OnActivity("GetVolumeProtocolsFromOntapActivity", mock.Anything, mock.Anything).Return(backupActivitiesContext, nil).Maybe()
 		env.OnActivity("PrepareObjectStoreActivity", mock.Anything, mock.Anything).Return(backupActivitiesContext, nil).Maybe()
 		env.OnActivity("GetOrCreateObjectStoreActivity", mock.Anything, mock.Anything).Return(backupActivitiesContext, nil).Maybe()
 		env.OnActivity("PrepareSnapmirrorActivity", mock.Anything, mock.Anything).Return(backupActivitiesContext, nil).Maybe()
@@ -6252,7 +6237,7 @@ func TestCreateBackupWorkflowWithContext_ExpertModeVolume(t *testing.T) {
 		env.OnActivity("CreateRemoteBackupFromVCPActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("HydrateSnapshotToCCFEActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
-		env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		// Execute workflow
@@ -6329,6 +6314,7 @@ func TestCreateBackupWorkflowWithContext_ExpertModeVolume(t *testing.T) {
 		env.OnActivity("CheckAndAttachBackupVaultToVolume", mock.Anything, mock.Anything, params.LocationID).Return(backupActivitiesContext, nil)
 		env.OnActivity("GetSnapshotNameByUUIDActivity", mock.Anything, backupActivitiesContext).Return(expectedContext, nil).Once()
 		env.OnActivity("GetVolumesAndConstituentCountActivity", mock.Anything, mock.Anything).Return(expectedContext, nil)
+		env.OnActivity("GetVolumeProtocolsFromOntapActivity", mock.Anything, mock.Anything).Return(expectedContext, nil).Maybe()
 		env.OnActivity("PrepareObjectStoreActivity", mock.Anything, mock.Anything).Return(expectedContext, nil).Maybe()
 		env.OnActivity("GetOrCreateObjectStoreActivity", mock.Anything, mock.Anything).Return(expectedContext, nil).Maybe()
 		env.OnActivity("PrepareSnapmirrorActivity", mock.Anything, mock.Anything).Return(expectedContext, nil).Maybe()
@@ -6361,7 +6347,7 @@ func TestCreateBackupWorkflowWithContext_ExpertModeVolume(t *testing.T) {
 		env.OnActivity("CreateRemoteBackupFromVCPActivity", mock.Anything, mock.Anything).Return(expectedContext, nil).Maybe()
 		env.OnActivity("CleanupOldBackupSnapshotsActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("HydrateSnapshotToCCFEActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
-		env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("CreateBackupMetadataIfFirstBackupActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateBackupError", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 

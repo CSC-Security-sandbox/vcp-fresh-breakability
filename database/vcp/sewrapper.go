@@ -5224,3 +5224,19 @@ func (re *retryEngine) ListExpertModeVolumesByPoolID(ctx context.Context, poolID
 	})
 	return var0, err
 }
+
+func (re *retryEngine) GetExpertModeBackupsByVolumeExternalUUID(ctx context.Context, volumeExternalUUID string) ([]*datamodel.Backup, error) {
+	var var0 []*datamodel.Backup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetExpertModeBackupsByVolumeExternalUUID(ctx, volumeExternalUUID)
+		if err != nil {
+			re.logError("GetExpertModeBackupsByVolumeExternalUUID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}

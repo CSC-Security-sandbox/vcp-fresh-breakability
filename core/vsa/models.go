@@ -502,6 +502,12 @@ type GetVolumeParams struct {
 	SnapshotDirectory bool
 }
 
+type VolumeNASDetails struct {
+	NASPath          string
+	ExportPolicyName string
+	SecurityStyle    string
+}
+
 type IgroupCreateParams struct {
 	IgroupName string
 	SvmName    string

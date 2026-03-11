@@ -2,11 +2,12 @@ package utils
 
 // Supported protocol constants (from proxy swagger)
 const (
-	ProtocolNFS   = "NFS"
-	ProtocolNFSv3 = "NFSV3"
-	ProtocolNFSv4 = "NFSV4"
-	ProtocolSMB   = "SMB"
-	ProtocolISCSI = "ISCSI"
+	ProtocolNFS         = "NFS"
+	ProtocolNFSv3       = "NFSV3"
+	ProtocolNFSv4       = "NFSV4"
+	ProtocolSMB         = "SMB"
+	ProtocolISCSI       = "ISCSI"
+	ProtocolUnspecified = "PROTOCOL_UNSPECIFIED"
 )
 
 // ONTAP layer protocol values
