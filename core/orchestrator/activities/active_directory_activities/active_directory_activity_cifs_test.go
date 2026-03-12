@@ -436,6 +436,7 @@ func TestMapCreateCIFSServerError(t *testing.T) {
 		{"msDS-SupportedEncryptionTypes Insufficient access", errors.New("msDS-SupportedEncryptionTypes and Insufficient access"), vsaerrors.ErrADAESEncryptionSettingsInvalid, true},
 		{"Failed to bind service principal name on LIF", errors.New("Failed to bind service principal name on LIF"), vsaerrors.ErrADKDCUnreachable, true},
 		{"KDC Unreachable Details", errors.New("KDC Unreachable Details"), vsaerrors.ErrADKDCUnreachable, true},
+		{"KRB5_KDC_UNREACH", errors.New("KRB5_KDC_UNREACH"), vsaerrors.ErrADKDCUnreachable, true},
 		{"Cannot find any domain controllers", errors.New("Cannot find any domain controllers"), vsaerrors.ErrADDomainControllersUnreachable, true},
 		{"no server available SecD", errors.New("no server available SecD"), vsaerrors.ErrADDomainControllersUnreachable, true},
 		{"RESULT_ERROR_LDAPSERVER_SERVER_DOWN", errors.New("RESULT_ERROR_LDAPSERVER_SERVER_DOWN Can't contact LDAP server"), vsaerrors.ErrADLDAPUnreachable, true},

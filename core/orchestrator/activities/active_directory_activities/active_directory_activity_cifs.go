@@ -57,7 +57,7 @@ func mapCreateCIFSServerError(err error) (trackingID int, ok bool) {
 		(strings.Contains(s, "msDS-SupportedEncryptionTypes") && strings.Contains(s, "Insufficient access")) {
 		return vsaerrors.ErrADAESEncryptionSettingsInvalid, true
 	}
-	if strings.Contains(s, "Failed to bind service principal name on LIF") || strings.Contains(s, "KDC Unreachable Details") {
+	if strings.Contains(s, "Failed to bind service principal name on LIF") || strings.Contains(s, "KDC Unreachable Details") || strings.Contains(s, "KRB5_KDC_UNREACH") {
 		return vsaerrors.ErrADKDCUnreachable, true
 	}
 	if strings.Contains(s, "Cannot find any domain controllers") || (strings.Contains(s, "no server available") && strings.Contains(s, "SecD")) {
