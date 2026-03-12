@@ -109,6 +109,9 @@ func (h Handler) V1PrivateCli(
 		}, nil
 	}
 
+	// Add backend metrics context so OntapClient records to ontap_proxy_backend_* (same as passthrough)
+	ctx = middleware.AddBackendMetricsToContext(ctx, params.ProjectNumber, params.PoolId.String(), "/api/private/cli")
+
 	// External validators require auth data from context
 	if cli.HasExternalValidator(rule) {
 		allowed, reason := cli.EvaluateExternalValidator(ctx, rule, cliCmd)

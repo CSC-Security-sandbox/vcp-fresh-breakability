@@ -502,8 +502,20 @@ func (pat *PooledAuthTransport) RoundTrip(req *http.Request) (*http.Response, er
 
 	logCurlCommand(newReq, selectedEndpoint)
 
-	// Execute request using pooled connection
-	return client.Do(newReq)
+	// Run backend request; start time is stored on the outgoing request so ModifyResponse can record metrics after ProcessResponseModification.
+	start := time.Now()
+	newReq = newReq.WithContext(middleware.AddBackendRequestStartToContext(newReq.Context(), start))
+	resp, err := client.Do(newReq)
+	if err != nil {
+		// No response — record metrics here (ModifyResponse is not called when transport fails).
+		duration := time.Since(start).Seconds()
+		projectID, poolID, path := middleware.GetBackendMetricsFromContext(req.Context())
+		method := req.Method
+		middleware.RecordBackendRequest(req.Context(), method, projectID, poolID, path, 0)
+		middleware.RecordBackendDuration(req.Context(), duration, method, projectID, poolID, path, 0)
+		return nil, err
+	}
+	return resp, nil
 }
 
 // configureRequestAuthentication configures authentication for the request
@@ -543,7 +555,7 @@ func BuildOntapRESTProxy() *httputil.ReverseProxy {
 			req.URL.Path = ontapPath
 		},
 		Transport:      NewPooledAuthTransport(),
-		ModifyResponse: middleware.ProcessResponseModification,
+		ModifyResponse: middleware.ProcessResponseAndRecordBackendMetrics,
 		ErrorHandler:   handleProxyError,
 	}
 
@@ -554,6 +566,12 @@ func BuildOntapRESTProxy() *httputil.ReverseProxy {
 func handleProxyError(w http.ResponseWriter, r *http.Request, err error) {
 	logger := util.GetLogger(r.Context())
 	logger.ErrorContext(r.Context(), "Error handling request", "error", err, "path", r.URL.Path)
+
+	// Record backend error metric (same rule as ProcessResponseAndRecordBackendMetrics: actual status when we have response, classified error otherwise)
+	projectID, poolID, path := middleware.GetBackendMetricsFromContext(r.Context())
+	if code := middleware.BackendErrorCodeForMetric(0, err); code != "" {
+		middleware.RecordBackendError(r.Context(), r.Method, projectID, poolID, path, code)
+	}
 
 	if strings.Contains(err.Error(), "context canceled") {
 		utils.WriteErrorResponse(w, http.StatusGatewayTimeout, "Request timeout - ONTAP cluster not responding")

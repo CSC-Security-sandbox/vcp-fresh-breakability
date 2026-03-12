@@ -6,13 +6,157 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
 )
+
+// mockBackendMetricsRecorder captures backend metric calls for tests. Avoids process-wide Prometheus/OTel state.
+type mockBackendMetricsRecorder struct {
+	mu sync.Mutex
+
+	RecordBackendRequestCalls   []struct{ Method, ProjectID, PoolID, Path string; StatusCode int }
+	RecordBackendDurationCalls  []struct{ Duration float64; Method, ProjectID, PoolID, Path string; StatusCode int }
+	RecordBackendErrorCalls     []struct{ Method, ProjectID, PoolID, Path, ErrorCode string }
+}
+
+func (m *mockBackendMetricsRecorder) RecordBackendRequest(_ context.Context, method, projectID, poolID, path string, statusCode int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.RecordBackendRequestCalls = append(m.RecordBackendRequestCalls, struct{ Method, ProjectID, PoolID, Path string; StatusCode int }{method, projectID, poolID, path, statusCode})
+}
+
+func (m *mockBackendMetricsRecorder) RecordBackendDuration(_ context.Context, durationSec float64, method, projectID, poolID, path string, statusCode int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.RecordBackendDurationCalls = append(m.RecordBackendDurationCalls, struct{ Duration float64; Method, ProjectID, PoolID, Path string; StatusCode int }{durationSec, method, projectID, poolID, path, statusCode})
+}
+
+func (m *mockBackendMetricsRecorder) RecordBackendError(_ context.Context, method, projectID, poolID, path, errorCode string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.RecordBackendErrorCalls = append(m.RecordBackendErrorCalls, struct{ Method, ProjectID, PoolID, Path, ErrorCode string }{method, projectID, poolID, path, errorCode})
+}
+
+func TestOntapClient_GetVolume_RecordsBackendMetrics(t *testing.T) {
+	t.Run("WhenSuccessRecordsBackendRequestTotalAndRequestDurationSeconds", func(t *testing.T) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(VolumeInfo{UUID: "u", Name: "v", SVM: struct {
+				Name string `json:"name"`
+				UUID string `json:"uuid"`
+			}{Name: "svm", UUID: "s"}})
+		}))
+		defer server.Close()
+
+		rec := &mockBackendMetricsRecorder{}
+		client := &RestOntapClient{
+			httpClient:      server.Client(),
+			endpoint:        server.Listener.Addr().String(),
+			authData:        &models.AuthData{AuthType: models.USERNAME_PWD, Username: "u", Password: "p"},
+			backendRecorder: rec,
+		}
+		ctx := middleware.AddBackendMetricsToContext(context.Background(), "proj-1", "pool-1", "/api/storage/volumes")
+
+		_, err := client.GetVolume(ctx, "uuid")
+		require.NoError(t, err)
+
+		require.GreaterOrEqual(t, len(rec.RecordBackendRequestCalls), 1)
+		require.GreaterOrEqual(t, len(rec.RecordBackendDurationCalls), 1)
+		assert.Equal(t, "GET", rec.RecordBackendRequestCalls[0].Method)
+		assert.Equal(t, "proj-1", rec.RecordBackendRequestCalls[0].ProjectID)
+		assert.Equal(t, "pool-1", rec.RecordBackendRequestCalls[0].PoolID)
+		assert.Equal(t, "/api/storage/volumes", rec.RecordBackendRequestCalls[0].Path)
+		assert.Equal(t, 200, rec.RecordBackendRequestCalls[0].StatusCode)
+	})
+
+	t.Run("WhenErrorOr4xxRecordsBackendErrorsTotal", func(t *testing.T) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		rec := &mockBackendMetricsRecorder{}
+		client := &RestOntapClient{
+			httpClient:      server.Client(),
+			endpoint:        server.Listener.Addr().String(),
+			authData:        &models.AuthData{AuthType: models.USERNAME_PWD, Username: "u", Password: "p"},
+			backendRecorder: rec,
+		}
+		ctx := middleware.AddBackendMetricsToContext(context.Background(), "proj-2", "pool-2", "/api/storage/volumes")
+
+		_, err := client.GetVolume(ctx, "missing")
+		assert.Error(t, err)
+
+		require.GreaterOrEqual(t, len(rec.RecordBackendErrorCalls), 1)
+		assert.Equal(t, "GET", rec.RecordBackendErrorCalls[0].Method)
+		assert.Equal(t, "proj-2", rec.RecordBackendErrorCalls[0].ProjectID)
+		assert.Equal(t, "pool-2", rec.RecordBackendErrorCalls[0].PoolID)
+		assert.Equal(t, "/api/storage/volumes", rec.RecordBackendErrorCalls[0].Path)
+		assert.Equal(t, "404", rec.RecordBackendErrorCalls[0].ErrorCode)
+	})
+}
+
+func TestOntapClient_ExecuteCLI_RecordsBackendMetrics(t *testing.T) {
+	t.Run("WhenSuccessRecordsBackendRequestTotalAndRequestDurationSeconds", func(t *testing.T) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(CLIResponse{Output: "ok"})
+		}))
+		defer server.Close()
+
+		rec := &mockBackendMetricsRecorder{}
+		client := &RestOntapClient{
+			httpClient:      server.Client(),
+			endpoint:        server.Listener.Addr().String(),
+			authData:        &models.AuthData{AuthType: models.USERNAME_PWD, Username: "u", Password: "p"},
+			backendRecorder: rec,
+		}
+		ctx := middleware.AddBackendMetricsToContext(context.Background(), "proj-3", "pool-3", "/api/private/cli")
+
+		_, err := client.ExecuteCLI(ctx, "version", "admin")
+		require.NoError(t, err)
+
+		require.GreaterOrEqual(t, len(rec.RecordBackendRequestCalls), 1)
+		assert.Equal(t, "POST", rec.RecordBackendRequestCalls[0].Method)
+		assert.Equal(t, "proj-3", rec.RecordBackendRequestCalls[0].ProjectID)
+		assert.Equal(t, "pool-3", rec.RecordBackendRequestCalls[0].PoolID)
+		assert.Equal(t, "/api/private/cli", rec.RecordBackendRequestCalls[0].Path)
+		assert.Equal(t, 200, rec.RecordBackendRequestCalls[0].StatusCode)
+	})
+
+	t.Run("When4xxResponseRecordsBackendErrorsTotal", func(t *testing.T) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"error": {"message": "bad"}}`))
+		}))
+		defer server.Close()
+
+		rec := &mockBackendMetricsRecorder{}
+		client := &RestOntapClient{
+			httpClient:      server.Client(),
+			endpoint:        server.Listener.Addr().String(),
+			authData:        &models.AuthData{AuthType: models.USERNAME_PWD, Username: "u", Password: "p"},
+			backendRecorder: rec,
+		}
+		ctx := middleware.AddBackendMetricsToContext(context.Background(), "proj-4", "pool-4", "/api/private/cli")
+
+		_, err := client.ExecuteCLI(ctx, "invalid", "admin")
+		assert.Error(t, err)
+
+		require.GreaterOrEqual(t, len(rec.RecordBackendErrorCalls), 1)
+		assert.Equal(t, "POST", rec.RecordBackendErrorCalls[0].Method)
+		assert.Equal(t, "proj-4", rec.RecordBackendErrorCalls[0].ProjectID)
+		assert.Equal(t, "pool-4", rec.RecordBackendErrorCalls[0].PoolID)
+		assert.Equal(t, "/api/private/cli", rec.RecordBackendErrorCalls[0].Path)
+		assert.Equal(t, "400", rec.RecordBackendErrorCalls[0].ErrorCode)
+	})
+}
 
 func TestNewOntapClientFromContext(t *testing.T) {
 	t.Run("returns error when cache key not in context", func(t *testing.T) {

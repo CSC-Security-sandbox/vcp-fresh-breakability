@@ -99,3 +99,20 @@ func TestProcessResponseModification(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
+
+func TestProcessResponseAndRecordBackendMetrics(t *testing.T) {
+	t.Run("WhenResponseIsNil_ShouldReturnNil", func(t *testing.T) {
+		err := ProcessResponseAndRecordBackendMetrics(nil)
+		assert.NoError(t, err)
+	})
+
+	t.Run("WhenRequestIsNil_ShouldReturnNil", func(t *testing.T) {
+		resp := &http.Response{
+			StatusCode: 200,
+			Request:    nil,
+			Body:       io.NopCloser(bytes.NewBufferString("")),
+		}
+		err := ProcessResponseAndRecordBackendMetrics(resp)
+		assert.NoError(t, err)
+	})
+}

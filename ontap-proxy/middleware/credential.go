@@ -63,6 +63,8 @@ func CredentialMiddleware() func(http.Handler) http.Handler {
 				handleCredentialError(w, err)
 				return
 			}
+			// Add backend metrics context (same labels as top-level for correlation)
+			ctx = AddBackendMetricsToContext(ctx, poolDetails.ProjectNumber, poolDetails.PoolID, normalizePath(r.URL.Path))
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

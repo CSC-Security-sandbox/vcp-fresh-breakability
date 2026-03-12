@@ -1,7 +1,9 @@
 package middleware
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -44,6 +46,9 @@ func resetMetricsState(t *testing.T) {
 	ontapProxyRequestsTotal = nil
 	ontapProxyRequestDurationSeconds = nil
 	ontapProxyErrorsTotal = nil
+	ontapProxyBackendRequestsTotal = nil
+	ontapProxyBackendRequestDurationSeconds = nil
+	ontapProxyBackendErrorsTotal = nil
 	meter = nil
 
 	// Set a noop meter provider to clear global state
@@ -84,6 +89,285 @@ func setupTestMetrics(t *testing.T) promclient.Gatherer {
 
 	// Return the custom registry as gatherer
 	return testRegistry
+}
+
+func TestClassifyBackendError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected string
+	}{
+		{"nil", nil, BackendErrorUnknown},
+		{"connection refused", &errWithMessage{"connection refused"}, BackendErrorTransport},
+		{"context canceled", &errWithMessage{"context canceled"}, BackendErrorTransport},
+		{"deadline exceeded", &errWithMessage{"context deadline exceeded"}, BackendErrorTransport},
+		{"timeout", &errWithMessage{"read timeout"}, BackendErrorTransport},
+		{"no such host", &errWithMessage{"no such host"}, BackendErrorTransport},
+		{"tls handshake", &errWithMessage{"tls: handshake failure"}, BackendErrorTransport},
+		{"other", &errWithMessage{"something else"}, BackendErrorTransport},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ClassifyBackendError(tt.err)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+func TestBackendErrorCodeForMetric(t *testing.T) {
+	tests := []struct {
+		name       string
+		statusCode int
+		err        error
+		expected   string
+	}{
+		{"http 404 wins over err", 404, &errWithMessage{"connection refused"}, "404"},
+		{"http 500", 500, nil, "500"},
+		{"http 400", 400, nil, "400"},
+		{"no response, transport err", 0, &errWithMessage{"connection refused"}, BackendErrorTransport},
+		{"no response, nil err", 0, nil, ""},
+		{"success 200 no err", 200, nil, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := BackendErrorCodeForMetric(tt.statusCode, tt.err)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+func TestStatusClass(t *testing.T) {
+	tests := []struct {
+		statusCode int
+		expected   string
+	}{
+		{200, "2xx"},
+		{201, "2xx"},
+		{204, "2xx"},
+		{299, "2xx"},
+		{400, "4xx"},
+		{401, "4xx"},
+		{404, "4xx"},
+		{499, "4xx"},
+		{500, "5xx"},
+		{502, "5xx"},
+		{503, "5xx"},
+		{599, "5xx"},
+		{0, "unknown"},
+		{199, "unknown"},
+		{300, "unknown"},
+		{600, "unknown"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.expected+"_"+strconv.Itoa(tt.statusCode), func(t *testing.T) {
+			got := StatusClass(tt.statusCode)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+type errWithMessage struct{ msg string }
+
+func (e *errWithMessage) Error() string { return e.msg }
+
+func TestGetBackendMetricsFromContext(t *testing.T) {
+	t.Run("empty context returns unknown", func(t *testing.T) {
+		p, po, path := GetBackendMetricsFromContext(context.Background())
+		assert.Equal(t, "unknown", p)
+		assert.Equal(t, "unknown", po)
+		assert.Equal(t, "unknown", path)
+	})
+	t.Run("values from context", func(t *testing.T) {
+		ctx := context.Background()
+		ctx = AddBackendMetricsToContext(ctx, "proj-1", "pool-1", "/api/storage/volumes")
+		p, po, path := GetBackendMetricsFromContext(ctx)
+		assert.Equal(t, "proj-1", p)
+		assert.Equal(t, "pool-1", po)
+		assert.Equal(t, "/api/storage/volumes", path)
+	})
+	t.Run("empty values become unknown", func(t *testing.T) {
+		ctx := AddBackendMetricsToContext(context.Background(), "", "", "")
+		p, po, path := GetBackendMetricsFromContext(ctx)
+		assert.Equal(t, "unknown", p)
+		assert.Equal(t, "unknown", po)
+		assert.Equal(t, "unknown", path)
+	})
+}
+
+func TestAddBackendRequestStartToContext_GetBackendRequestStartFromContext(t *testing.T) {
+	t.Run("empty context returns false", func(t *testing.T) {
+		_, ok := GetBackendRequestStartFromContext(context.Background())
+		assert.False(t, ok)
+	})
+	t.Run("value set in context is returned", func(t *testing.T) {
+		start := time.Now()
+		ctx := AddBackendRequestStartToContext(context.Background(), start)
+		got, ok := GetBackendRequestStartFromContext(ctx)
+		assert.True(t, ok)
+		assert.False(t, got.IsZero())
+		assert.True(t, got.Equal(start))
+	})
+	t.Run("wrong type in context returns false", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), ontapMetricsBackendStartKey, "not-a-time")
+		_, ok := GetBackendRequestStartFromContext(ctx)
+		assert.False(t, ok)
+	})
+}
+
+// TestRecordBackendRequest_Duration_Error_WithMetrics verifies RecordBackendRequest, RecordBackendDuration,
+// and RecordBackendError record when metrics are initialized (covers Add/Record bodies and status_code branch).
+func TestRecordBackendRequest_Duration_Error_WithMetrics(t *testing.T) {
+	gatherer := setupTestMetrics(t)
+	require.NoError(t, InitMetrics())
+
+	ctx := context.Background()
+	method := "GET"
+	projectID := "proj-1"
+	poolID := "pool-1"
+	path := "/api/storage/volumes"
+
+	RecordBackendRequest(ctx, method, projectID, poolID, path, 200)
+	RecordBackendDuration(ctx, 0.1, method, projectID, poolID, path, 200)
+	RecordBackendRequest(ctx, method, projectID, poolID, path, 404)
+	RecordBackendDuration(ctx, 0.2, method, projectID, poolID, path, 404)
+	RecordBackendError(ctx, method, projectID, poolID, path, "404")
+
+	mfs, err := gatherer.Gather()
+	require.NoError(t, err)
+
+	var reqMF, durMF, errMF *dto.MetricFamily
+	for _, mf := range mfs {
+		switch mf.GetName() {
+		case "ontap_proxy_backend_requests_total":
+			reqMF = mf
+		case "ontap_proxy_backend_request_duration_seconds":
+			durMF = mf
+		case "ontap_proxy_backend_errors_total":
+			errMF = mf
+		}
+	}
+	require.NotNil(t, reqMF)
+	require.NotNil(t, durMF)
+	require.NotNil(t, errMF)
+
+	// Should have 2xx and 4xx in requests (status_code branch: exact codes 200, 404)
+	var has200, has404 bool
+	for _, m := range reqMF.Metric {
+		for _, lp := range m.Label {
+			if *lp.Name == "status_code" {
+				if *lp.Value == "200" {
+					has200 = true
+				}
+				if *lp.Value == "404" {
+					has404 = true
+				}
+			}
+		}
+	}
+	assert.True(t, has200)
+	assert.True(t, has404)
+	assert.GreaterOrEqual(t, len(errMF.Metric), 1)
+}
+
+// TestRecordBackendRequest_Duration_Error_WhenNil ensures Record* no-op when metrics are not initialized (nil).
+func TestRecordBackendRequest_Duration_Error_WhenNil(t *testing.T) {
+	resetMetricsState(t)
+	// Do not call InitMetrics so backend metric vars remain nil.
+
+	ctx := context.Background()
+	RecordBackendRequest(ctx, "GET", "p", "pool", "/path", 200)
+	RecordBackendDuration(ctx, 0.5, "GET", "p", "pool", "/path", 500)
+	RecordBackendError(ctx, "POST", "p", "pool", "/path", BackendErrorTransport)
+	// No panic; early return when metric is nil. error_code for transport errors is "500".
+}
+
+// TestProcessResponseAndRecordBackendMetrics_RecordsMetrics verifies that ProcessResponseAndRecordBackendMetrics
+// records backend_requests_total, backend_request_duration_seconds, and backend_errors_total for 4xx
+// when the response has request context with start time and backend metrics labels (simulates ModifyResponse path).
+func TestProcessResponseAndRecordBackendMetrics_RecordsMetrics(t *testing.T) {
+	gatherer := setupTestMetrics(t)
+	require.NoError(t, InitMetrics())
+
+	start := time.Now().Add(-100 * time.Millisecond) // 100ms ago
+	ctx := context.Background()
+	ctx = AddBackendRequestStartToContext(ctx, start)
+	ctx = AddBackendMetricsToContext(ctx, "proj-1", "pool-1", "/api/storage/volumes")
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req = req.WithContext(ctx)
+	resp := &http.Response{
+		StatusCode: http.StatusNotFound,
+		Request:    req,
+		Body:       io.NopCloser(bytes.NewBufferString("")),
+	}
+
+	err := ProcessResponseAndRecordBackendMetrics(resp)
+	require.NoError(t, err)
+
+	mfs, err := gatherer.Gather()
+	require.NoError(t, err)
+
+	var reqMF, errMF *dto.MetricFamily
+	for _, mf := range mfs {
+		switch mf.GetName() {
+		case "ontap_proxy_backend_requests_total":
+			reqMF = mf
+		case "ontap_proxy_backend_errors_total":
+			errMF = mf
+		}
+	}
+	require.NotNil(t, reqMF)
+	require.NotNil(t, errMF)
+
+	// Should have one request with status_code 404
+	var countReq float64
+	for _, m := range reqMF.Metric {
+		for _, lp := range m.Label {
+			if *lp.Name == "status_code" && *lp.Value == "404" {
+				if m.Counter != nil {
+					countReq += m.Counter.GetValue()
+				}
+				break
+			}
+		}
+	}
+	assert.GreaterOrEqual(t, countReq, 1.0)
+	assert.GreaterOrEqual(t, len(errMF.Metric), 1)
+}
+
+// TestProcessResponseAndRecordBackendMetrics_WhenNoStartInContext_DoesNotRecord verifies that when the
+// response's request context has no start time, ProcessResponseAndRecordBackendMetrics returns without
+// recording (so no panic and no new backend metrics from this call).
+func TestProcessResponseAndRecordBackendMetrics_WhenNoStartInContext_DoesNotRecord(t *testing.T) {
+	gatherer := setupTestMetrics(t)
+	require.NoError(t, InitMetrics())
+
+	// Context has backend labels but no start time
+	ctx := AddBackendMetricsToContext(context.Background(), "proj-1", "pool-1", "/path")
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req = req.WithContext(ctx)
+	resp := &http.Response{
+		StatusCode: 200,
+		Request:    req,
+		Body:       io.NopCloser(bytes.NewBufferString("")),
+	}
+
+	err := ProcessResponseAndRecordBackendMetrics(resp)
+	require.NoError(t, err)
+
+	// Gather and ensure we have no backend_requests_total for this request (we didn't add start, so nothing recorded)
+	mfs, _ := gatherer.Gather()
+	var totalBackendReqs float64
+	for _, mf := range mfs {
+		if mf.GetName() == "ontap_proxy_backend_requests_total" {
+			for _, m := range mf.Metric {
+				if m.Counter != nil {
+					totalBackendReqs += m.Counter.GetValue()
+				}
+			}
+			break
+		}
+	}
+	assert.Equal(t, 0.0, totalBackendReqs)
 }
 
 func TestNormalizePath(t *testing.T) {

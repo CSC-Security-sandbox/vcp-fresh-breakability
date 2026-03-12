@@ -128,6 +128,9 @@ func (h Handler) SnaplockFileDelete(
 		}, nil
 	}
 
+	// Add backend metrics context so OntapClient records to ontap_proxy_backend_* (same as passthrough)
+	ctx = middleware.AddBackendMetricsToContext(ctx, params.ProjectNumber, params.PoolId.String(), "/api/storage/snaplock/file")
+
 	// 3. Get ONTAP client (uses auth data from context)
 	ontapClient, err := handlers.NewOntapClientFromContext(ctx)
 	if err != nil {

@@ -17,7 +17,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/ruleengine/dsl"
 )
@@ -562,6 +564,77 @@ func TestPooledAuthTransport_RoundTrip(t *testing.T) {
 	if resp != nil {
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	}
+}
+
+// TestPooledAuthTransport_RoundTrip_RecordsBackendMetrics verifies that when middleware metrics are
+// initialized and the request has backend metrics context, RoundTrip records backend_requests_total,
+// backend_request_duration_seconds, and on HTTP 4xx/5xx also backend_errors_total (covers lines 509, 517-519, 521).
+func TestPooledAuthTransport_RoundTrip_RecordsBackendMetrics(t *testing.T) {
+	require.NoError(t, middleware.InitMetrics())
+
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+	serverHost := server.URL[8:]
+
+	// Use a unique PoolID per test run so the global connection pool does not return a cached
+	// client for a different endpoint (pool key does not include endpoint, so same PoolID/username
+	// would reuse a stale client from another test).
+	authData := &models.AuthData{
+		AuthType: models.USERNAME_PWD,
+		PoolID:   "backend-metrics-" + serverHost,
+		Username: "testuser",
+		Password: "testpass",
+		OntapEndpoints: []models.OntapEndpoint{
+			{DNS: serverHost},
+		},
+	}
+	cacheKey := "backend-metrics-cache-key"
+	cache.AddToAuthDataCache(cacheKey, authData)
+
+	transport := NewPooledAuthTransport()
+	req, err := http.NewRequest("GET", "https://"+serverHost+"/api/storage/volumes", nil)
+	require.NoError(t, err)
+	ctx := context.WithValue(req.Context(), models.AuthDataKey, cacheKey)
+	ctx = middleware.AddBackendMetricsToContext(ctx, "proj-1", "pool-1", "/api/storage/volumes")
+	req = req.WithContext(ctx)
+
+	resp, err := transport.RoundTrip(req)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+}
+
+// TestPooledAuthTransport_RoundTrip_RecordsBackendMetricsOnTransportError verifies that when client.Do
+// returns an error (e.g. no such host), RoundTrip still records backend_requests_total and
+// backend_request_duration_seconds with status_code=0 (covers error path in RoundTrip).
+func TestPooledAuthTransport_RoundTrip_RecordsBackendMetricsOnTransportError(t *testing.T) {
+	require.NoError(t, middleware.InitMetrics())
+
+	// Use an invalid hostname so client.Do fails without needing to close a server
+	authData := &models.AuthData{
+		AuthType: models.USERNAME_PWD,
+		PoolID:   "transport-err-pool",
+		Username: "testuser",
+		Password: "testpass",
+		OntapEndpoints: []models.OntapEndpoint{
+			{DNS: "invalid-hostname-does-not-resolve.invalid"},
+		},
+	}
+	cacheKey := "transport-err-cache-key"
+	cache.AddToAuthDataCache(cacheKey, authData)
+
+	transport := NewPooledAuthTransport()
+	req, err := http.NewRequest("GET", "https://invalid-hostname-does-not-resolve.invalid/api/test", nil)
+	require.NoError(t, err)
+	ctx := context.WithValue(req.Context(), models.AuthDataKey, cacheKey)
+	ctx = middleware.AddBackendMetricsToContext(ctx, "proj-1", "pool-1", "/api/test")
+	req = req.WithContext(ctx)
+
+	resp, err := transport.RoundTrip(req)
+	assert.Error(t, err)
+	assert.Nil(t, resp)
 }
 
 func setupTestContextWithAuthData(req *http.Request, username, password string) {

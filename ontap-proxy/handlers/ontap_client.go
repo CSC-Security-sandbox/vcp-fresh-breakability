@@ -10,12 +10,21 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/reverseproxy"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
+
+// BackendMetricsRecorder records backend request/duration/error metrics. Production uses middleware; tests can inject a mock.
+type BackendMetricsRecorder interface {
+	RecordBackendRequest(ctx context.Context, method, projectID, poolID, path string, statusCode int)
+	RecordBackendDuration(ctx context.Context, durationSec float64, method, projectID, poolID, path string, statusCode int)
+	RecordBackendError(ctx context.Context, method, projectID, poolID, path, errorCode string)
+}
 
 // OntapClient is the interface for ONTAP client operations used by endpoints.
 // Implemented by *RestOntapClient; allows substituting mocks in tests.
@@ -28,13 +37,14 @@ type OntapClient interface {
 // RestOntapClient provides methods to interact with ONTAP REST APIs.
 // It reuses the connection pool from the reverse proxy for efficiency.
 type RestOntapClient struct {
-	httpClient *http.Client
-	endpoint   string
-	authData   *models.AuthData
+	httpClient      *http.Client
+	endpoint        string
+	authData        *models.AuthData
+	backendRecorder BackendMetricsRecorder // nil: use middleware; set in tests to mock and avoid global metrics state
 }
 
 // VolumeInfo represents the volume information retrieved from ONTAP.
-// Used to get volume name and SVM name for CLI commands.
+// Used to get volume name and SVM name needed for CLI commands.
 type VolumeInfo struct {
 	UUID string `json:"uuid"`
 	Name string `json:"name"`
@@ -114,6 +124,36 @@ func NewOntapClientFromContext(ctx context.Context) (OntapClient, error) {
 	}, nil
 }
 
+// recordBackendMetrics records backend request/duration/error metrics for ogen-handled API calls.
+// Uses the same metrics as the reverse proxy (ontap_proxy_backend_*). Call after each httpClient.Do.
+// Best-effort: we never panic or fail the request; if recording panics we log and continue.
+func (c *RestOntapClient) recordBackendMetrics(ctx context.Context, method string, start time.Time, resp *http.Response, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			util.GetLogger(ctx).ErrorContext(ctx, "Backend metrics recording panicked; request still succeeded", "panic", r)
+		}
+	}()
+	projectID, poolID, path := middleware.GetBackendMetricsFromContext(ctx)
+	duration := time.Since(start).Seconds()
+	statusCode := 0
+	if resp != nil {
+		statusCode = resp.StatusCode
+	}
+	if c.backendRecorder != nil {
+		c.backendRecorder.RecordBackendRequest(ctx, method, projectID, poolID, path, statusCode)
+		c.backendRecorder.RecordBackendDuration(ctx, duration, method, projectID, poolID, path, statusCode)
+		if code := middleware.BackendErrorCodeForMetric(statusCode, err); code != "" {
+			c.backendRecorder.RecordBackendError(ctx, method, projectID, poolID, path, code)
+		}
+		return
+	}
+	middleware.RecordBackendRequest(ctx, method, projectID, poolID, path, statusCode)
+	middleware.RecordBackendDuration(ctx, duration, method, projectID, poolID, path, statusCode)
+	if code := middleware.BackendErrorCodeForMetric(statusCode, err); code != "" {
+		middleware.RecordBackendError(ctx, method, projectID, poolID, path, code)
+	}
+}
+
 // GetVolume retrieves volume information by UUID from ONTAP.
 // Returns volume name and SVM name needed for CLI commands.
 func (c *RestOntapClient) GetVolume(ctx context.Context, volumeUUID string) (*VolumeInfo, error) {
@@ -134,7 +174,9 @@ func (c *RestOntapClient) GetVolume(ctx context.Context, volumeUUID string) (*Vo
 		"endpoint", c.endpoint,
 	)
 
+	start := time.Now()
 	resp, err := c.httpClient.Do(req)
+	c.recordBackendMetrics(ctx, http.MethodGet, start, resp, err)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
@@ -201,7 +243,9 @@ func (c *RestOntapClient) ExecuteCLI(ctx context.Context, command, privilege str
 		// Note: Be careful not to log sensitive commands
 	)
 
+	start := time.Now()
 	resp, err := c.httpClient.Do(req)
+	c.recordBackendMetrics(ctx, http.MethodPost, start, resp, err)
 	if err != nil {
 		return nil, fmt.Errorf("CLI request failed: %w", err)
 	}
@@ -267,7 +311,9 @@ func (c *RestOntapClient) ExecuteAPI(ctx context.Context, method, apiPath string
 		req.Header.Set("Content-Type", "application/json")
 	}
 
+	start := time.Now()
 	resp, err := c.httpClient.Do(req)
+	c.recordBackendMetrics(ctx, method, start, resp, err)
 	if err != nil {
 		return nil, 0, fmt.Errorf("request failed: %w", err)
 	}
