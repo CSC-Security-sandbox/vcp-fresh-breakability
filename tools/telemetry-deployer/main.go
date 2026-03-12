@@ -547,6 +547,7 @@ func getDefaultEnvVars() map[string]string {
 		"CLOUD_SQL_IAM_AUTH_ENABLED":      getEnvOrDefault("CLOUD_SQL_IAM_AUTH_ENABLED", "false"),
 		"ENABLE_BACKUP_HISTORY_FORMATTER": getEnvOrDefault("ENABLE_BACKUP_HISTORY_FORMATTER", "false"),
 		"VCP_PAIRED_REGIONS":              getEnvOrDefault("VCP_PAIRED_REGIONS", ""),
+		"PROXY_CLIENT_TRANSPORT_SCHEMA":   getEnvOrDefault("PROXY_CLIENT_TRANSPORT_SCHEMA", "https"),
 	}
 }
 
