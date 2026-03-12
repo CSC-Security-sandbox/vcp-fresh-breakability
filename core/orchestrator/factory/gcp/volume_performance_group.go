@@ -34,10 +34,13 @@ func (o *GCPOrchestrator) CreateVolumePerformanceGroup(ctx context.Context, para
 	}
 
 	// Validate pool exists and belongs to account
-	pool, err := se.DescribePool(ctx, params.PoolID, account.ID)
+	pool, err := se.GetPool(ctx, params.PoolID, account.ID)
 	if err != nil {
 		logger.Error("Failed to fetch pool for the given pool ID and account", "error", err)
 		return nil, err
+	}
+	if pool.State != models.LifeCycleStateREADY {
+		return nil, customerrors.NewUserInputValidationErr("pool is not in a ready state")
 	}
 	if pool.QosType != utils.QosTypeManual {
 		return nil, customerrors.NewUserInputValidationErr("VPGs can only be created in pools with manual QoS type")
@@ -93,7 +96,7 @@ func (o *GCPOrchestrator) ListVolumePerformanceGroups(ctx context.Context, param
 	}
 
 	// Validate pool exists and belongs to account
-	pool, err := se.DescribePool(ctx, params.PoolID, account.ID)
+	pool, err := se.GetPool(ctx, params.PoolID, account.ID)
 	if err != nil {
 		logger.Error("Failed to fetch pool for the given pool ID and account", "error", err)
 		return nil, err
@@ -136,7 +139,7 @@ func (o *GCPOrchestrator) GetVolumePerformanceGroup(ctx context.Context, params 
 	}
 
 	// Validate pool exists and belongs to account
-	pool, err := se.DescribePool(ctx, params.PoolID, account.ID)
+	pool, err := se.GetPool(ctx, params.PoolID, account.ID)
 	if err != nil {
 		logger.Error("Failed to fetch pool for the given pool ID and account", "error", err)
 		return nil, err
@@ -256,7 +259,7 @@ func (o *GCPOrchestrator) UpdateVolumePerformanceGroup(ctx context.Context, para
 	}
 
 	// Validate pool exists and belongs to account
-	pool, err := se.DescribePool(ctx, params.PoolID, account.ID)
+	pool, err := se.GetPool(ctx, params.PoolID, account.ID)
 	if err != nil {
 		logger.Error("Failed to fetch pool for VPG update", "error", err)
 		return nil, "", err
@@ -339,7 +342,7 @@ func (o *GCPOrchestrator) DeleteVolumePerformanceGroup(ctx context.Context, para
 		return nil, err
 	}
 
-	poolView, err := se.DescribePool(ctx, params.PoolID, account.ID)
+	poolView, err := se.GetPool(ctx, params.PoolID, account.ID)
 	if err != nil {
 		logger.Error("Failed to fetch pool for VPG delete", "error", err)
 		return nil, err

@@ -33,6 +33,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		pool := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				State:     models.LifeCycleStateREADY,
 				QosType:   utils.QosTypeManual,
 			},
 		}
@@ -52,7 +53,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
 		mockStorage.On("CreateVolumePerformanceGroup", ctx, mock.MatchedBy(func(vpg *datamodel.VolumePerformanceGroup) bool {
 			return vpg != nil && vpg.Name == "test-vpg" && vpg.PoolID == 1 && vpg.ThroughputMibps == 100 &&
 				vpg.Iops == 1000 && !vpg.IsShared && !vpg.IsAutoGen
@@ -91,6 +92,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		pool := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				State:     models.LifeCycleStateREADY,
 				QosType:   utils.QosTypeManual,
 			},
 		}
@@ -110,7 +112,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
 		mockStorage.On("CreateVolumePerformanceGroup", ctx, mock.Anything).Return(createdVPG, nil)
 		mockStorage.On("DeleteVolumePerformanceGroup", ctx, createdVPG).Return(nil)
 		mockTemporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, "vpg-uuid-1").Return(nil, errors.New("workflow start failed"))
@@ -157,7 +159,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		assert.Equal(tt, "account not found", err.Error())
 	})
 
-	t.Run("ReturnsErrorWhenDescribePoolFails", func(tt *testing.T) {
+	t.Run("ReturnsErrorWhenGetPoolFails", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
 		orchestrator := &GCPOrchestrator{storage: mockStorage, temporal: mockTemporal}
@@ -172,7 +174,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(nil, errors.New("pool not found"))
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(nil, errors.New("pool not found"))
 
 		params := &common.CreateVolumePerformanceGroupParams{
 			AccountName:     "test-account",
@@ -190,6 +192,47 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 
+	t.Run("ReturnsErrorWhenPoolNotReady", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		orchestrator := &GCPOrchestrator{storage: mockStorage, temporal: mockTemporal}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				State:     "DELETING",
+				QosType:   utils.QosTypeManual,
+			},
+		}
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+
+		params := &common.CreateVolumePerformanceGroupParams{
+			AccountName:     "test-account",
+			PoolID:          "test-pool-id",
+			Name:            "test-vpg",
+			ThroughputMibps: 100,
+			Iops:            1000,
+			IsShared:        false,
+		}
+
+		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.True(tt, utilErrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "pool is not in a ready state")
+		mockStorage.AssertExpectations(tt)
+	})
+
 	t.Run("ReturnsErrorWhenPoolQosTypeIsNotManual", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
@@ -202,6 +245,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		pool := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				State:     models.LifeCycleStateREADY,
 				QosType:   utils.QosTypeAuto, // Not manual
 			},
 		}
@@ -211,7 +255,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
 
 		params := &common.CreateVolumePerformanceGroupParams{
 			AccountName:     "test-account",
@@ -241,6 +285,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		pool := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				State:     models.LifeCycleStateREADY,
 				QosType:   utils.QosTypeManual,
 			},
 		}
@@ -250,7 +295,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
 		mockStorage.On("CreateVolumePerformanceGroup", ctx, mock.Anything).Return(nil, errors.New("db create failed"))
 
 		params := &common.CreateVolumePerformanceGroupParams{
@@ -281,6 +326,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		pool := &datamodel.PoolView{
 			Pool: datamodel.Pool{
 				BaseModel: datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				State:     models.LifeCycleStateREADY,
 				QosType:   utils.QosTypeManual,
 			},
 		}
@@ -299,7 +345,7 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
 		mockStorage.On("CreateVolumePerformanceGroup", ctx, mock.Anything).Return(createdVPG, nil)
 		mockTemporal.EXPECT().ExecuteWorkflow(ctx, mock.Anything, mock.Anything, "vpg-uuid-1").Return(nil, errors.New("workflow start failed"))
 		// Defer runs and tries to delete VPG; delete also fails (covers logger.Error in defer)
@@ -374,7 +420,7 @@ func TestListVolumePerformanceGroups(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
 		mockStorage.On("ListVolumePerformanceGroupsByPoolID", ctx, int64(1)).Return(vpgs, nil)
 
 		params := &common.ListVolumePerformanceGroupsParams{
@@ -417,7 +463,7 @@ func TestListVolumePerformanceGroups(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
 		mockStorage.On("ListVolumePerformanceGroupsByPoolID", ctx, int64(1)).Return([]*datamodel.VolumePerformanceGroup{}, nil)
 
 		params := &common.ListVolumePerformanceGroupsParams{
@@ -472,7 +518,7 @@ func TestListVolumePerformanceGroups(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
 		mockStorage.On("ListVolumePerformanceGroupsByPoolID", ctx, int64(1)).Return(vpgs, nil)
 
 		params := &common.ListVolumePerformanceGroupsParams{
@@ -523,7 +569,7 @@ func TestListVolumePerformanceGroups(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(nil, errors.New("pool not found"))
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(nil, errors.New("pool not found"))
 
 		params := &common.ListVolumePerformanceGroupsParams{
 			AccountName: "test-account",
@@ -534,6 +580,34 @@ func TestListVolumePerformanceGroups(t *testing.T) {
 		assert.Error(tt, err)
 		assert.Nil(tt, result)
 		assert.Contains(tt, err.Error(), "pool not found")
+	})
+
+	t.Run("ReturnsNotFoundErrWhenPoolDeletedOrNonExistent", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		orchestrator := &GCPOrchestrator{storage: mockStorage}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.On("GetPool", ctx, "deleted-pool-id", int64(1)).Return(nil, utilErrors.NewNotFoundErr("pool", nil))
+
+		params := &common.ListVolumePerformanceGroupsParams{
+			AccountName: "test-account",
+			PoolID:      "deleted-pool-id",
+		}
+
+		result, err := orchestrator.ListVolumePerformanceGroups(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.True(tt, utilErrors.IsNotFoundErr(err))
 	})
 
 	t.Run("ReturnsErrorWhenListVPGsFails", func(tt *testing.T) {
@@ -556,7 +630,7 @@ func TestListVolumePerformanceGroups(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
 		mockStorage.On("ListVolumePerformanceGroupsByPoolID", ctx, int64(1)).Return(nil, errors.New("list vpgs failed"))
 
 		params := &common.ListVolumePerformanceGroupsParams{
@@ -602,7 +676,7 @@ func TestGetVolumePerformanceGroup(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
 
 		params := &common.GetVolumePerformanceGroupParams{
@@ -641,7 +715,7 @@ func TestGetVolumePerformanceGroup(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(nil, errors.New("vpg not found"))
 
 		params := &common.GetVolumePerformanceGroupParams{
@@ -684,7 +758,7 @@ func TestGetVolumePerformanceGroup(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
 
 		params := &common.GetVolumePerformanceGroupParams{
@@ -736,7 +810,7 @@ func TestGetVolumePerformanceGroup(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(nil, errors.New("pool not found"))
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(nil, errors.New("pool not found"))
 
 		params := &common.GetVolumePerformanceGroupParams{
 			AccountName:              "test-account",
@@ -778,7 +852,7 @@ func TestGetVolumePerformanceGroup(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
 
 		params := &common.GetVolumePerformanceGroupParams{
@@ -1055,7 +1129,7 @@ func TestUpdateVolumePerformanceGroup(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(nil, errors.New("pool not found"))
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(nil, errors.New("pool not found"))
 
 		throughput := int64(200)
 		params := &common.UpdateVolumePerformanceGroupParams{
@@ -1084,7 +1158,7 @@ func TestUpdateVolumePerformanceGroup(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
 
 		params := &common.UpdateVolumePerformanceGroupParams{
 			AccountName:              "test-account",
@@ -1111,7 +1185,7 @@ func TestUpdateVolumePerformanceGroup(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(nil, errors.New("vpg not found"))
 
 		params := &common.UpdateVolumePerformanceGroupParams{
@@ -1143,7 +1217,7 @@ func TestUpdateVolumePerformanceGroup(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
 
 		params := &common.UpdateVolumePerformanceGroupParams{
@@ -1176,7 +1250,7 @@ func TestUpdateVolumePerformanceGroup(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
 
 		params := &common.UpdateVolumePerformanceGroupParams{
@@ -1217,7 +1291,7 @@ func TestUpdateVolumePerformanceGroup(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
 		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(1), nil)
 
@@ -1270,7 +1344,7 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetPool", ctx, "pool-id", int64(1)).Return(poolView, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
 		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
 		mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(svm, nil)
@@ -1305,7 +1379,7 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetPool", ctx, "pool-id", int64(1)).Return(poolView, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
 		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(2), nil)
 
@@ -1335,7 +1409,7 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetPool", ctx, "pool-id", int64(1)).Return(poolView, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(nil, utilErrors.NewNotFoundErr("vpg", nil))
 
 		o := &GCPOrchestrator{storage: mockStorage}
@@ -1364,7 +1438,7 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetPool", ctx, "pool-id", int64(1)).Return(poolView, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
 
 		o := &GCPOrchestrator{storage: mockStorage}
@@ -1413,7 +1487,7 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 
-		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetPool", ctx, "pool-id", int64(1)).Return(poolView, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
 		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
 		mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(svm, nil)
@@ -1435,7 +1509,7 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 		mockProvider.AssertNotCalled(tt, "DeleteQoSGroupPolicy")
 	})
 
-	t.Run("ReturnsErrorWhenDescribePoolFails", func(tt *testing.T) {
+	t.Run("ReturnsErrorWhenGetPoolFails", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "test-account"}
 		originalGetAccountWithName := getAccountWithName
@@ -1443,7 +1517,7 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 			return account, nil
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
-		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(nil, errors.New("pool not found"))
+		mockStorage.On("GetPool", ctx, "pool-id", int64(1)).Return(nil, errors.New("pool not found"))
 		o := &GCPOrchestrator{storage: mockStorage}
 		params := &common.DeleteVolumePerformanceGroupParams{
 			AccountName: "test-account", PoolID: "pool-id", VolumePerformanceGroupID: "vpg-uuid",
@@ -1464,7 +1538,7 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 			return account, nil
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
-		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetPool", ctx, "pool-id", int64(1)).Return(poolView, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(nil, errors.New("db error"))
 		o := &GCPOrchestrator{storage: mockStorage}
 		params := &common.DeleteVolumePerformanceGroupParams{
@@ -1487,7 +1561,7 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 			return account, nil
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
-		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetPool", ctx, "pool-id", int64(1)).Return(poolView, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
 		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), errors.New("db error"))
 		o := &GCPOrchestrator{storage: mockStorage}
@@ -1511,7 +1585,7 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 			return account, nil
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
-		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetPool", ctx, "pool-id", int64(1)).Return(poolView, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
 		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
 		mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(nil, errors.New("svm not found"))
@@ -1537,7 +1611,7 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 			return account, nil
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
-		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetPool", ctx, "pool-id", int64(1)).Return(poolView, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
 		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
 		mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(svm, nil)
@@ -1564,7 +1638,7 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 			return account, nil
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
-		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetPool", ctx, "pool-id", int64(1)).Return(poolView, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
 		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
 		mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(svm, nil)
@@ -1601,7 +1675,7 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 		originalCreateNode := hyperscaler.CreateNodeForProvider
 		hyperscaler.CreateNodeForProvider = func(hyperscaler.NodeProviderInput) *models.Node { return nil }
 		defer func() { hyperscaler.CreateNodeForProvider = originalCreateNode }()
-		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetPool", ctx, "pool-id", int64(1)).Return(poolView, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
 		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
 		mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(svm, nil)
@@ -1639,7 +1713,7 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 			return account, nil
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
-		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetPool", ctx, "pool-id", int64(1)).Return(poolView, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
 		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
 		mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(svm, nil)
@@ -1680,7 +1754,7 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 			return account, nil
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
-		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetPool", ctx, "pool-id", int64(1)).Return(poolView, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
 		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
 		mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(svm, nil)
@@ -1723,7 +1797,7 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 			return account, nil
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
-		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetPool", ctx, "pool-id", int64(1)).Return(poolView, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
 		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
 		mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(svm, nil)
@@ -1767,7 +1841,7 @@ func TestDeleteVolumePerformanceGroup(t *testing.T) {
 			return account, nil
 		}
 		defer func() { getAccountWithName = originalGetAccountWithName }()
-		mockStorage.On("DescribePool", ctx, "pool-id", int64(1)).Return(poolView, nil)
+		mockStorage.On("GetPool", ctx, "pool-id", int64(1)).Return(poolView, nil)
 		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-uuid").Return(vpg, nil)
 		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
 		mockStorage.On("GetSvmForPoolID", ctx, int64(1)).Return(svm, nil)

@@ -41,7 +41,13 @@ func (h Handler) V1betaCreateVolumePerformanceGroup(ctx context.Context, req *gc
 	volumePerformanceGroup, err := h.Orchestrator.CreateVolumePerformanceGroup(ctx, createParams)
 	if err != nil {
 		logger.Error("Failed to create volume performance group", "error", err.Error())
-		if errors.IsUserInputValidationErr(err) || errors.IsBadRequestErr(err) || errors.IsNotFoundErr(err) {
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaCreateVolumePerformanceGroupNotFound{
+				Code:    http.StatusNotFound,
+				Message: err.Error(),
+			}, nil
+		}
+		if errors.IsUserInputValidationErr(err) || errors.IsBadRequestErr(err) {
 			return &gcpgenserver.V1betaCreateVolumePerformanceGroupBadRequest{
 				Code:    http.StatusBadRequest,
 				Message: err.Error(),
