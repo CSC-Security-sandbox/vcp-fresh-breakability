@@ -1148,6 +1148,65 @@ func TestFindOptimalVMs_CapacityNotCappedAtLine93(t *testing.T) {
 	}
 }
 
+// TestProductAdvertisedLimits_LargeCapacityPool validates that the production VMRS config
+// (config/vmrs_gcp.yaml) can satisfy the publicly documented Google Cloud NetApp Volumes
+// performance limits for Large Capacity (Flex Unified) pools with 6 HA pairs.
+//
+// This test intentionally loads the PRODUCTION config, not a testdata fixture.
+// A failure here means a config change broke a publicly advertised product limit.
+//
+// Limits tested (derived from production scaling factors × largest VM per-node perf):
+//
+//	6 HA pairs  (iops_factor=4.8, throughput_factor=4.8):
+//	  advertised Max IOPS:       750,000  (160,000 × 4.8 = 768,000 headroom)
+//	  advertised Max Throughput: 22 GiB/s / 22,528 MiB/s (5,120 × 4.8 = 24,576 headroom)
+//
+// See: https://cloud.google.com/netapp-volumes/docs/configure-and-use/storage-pools/overview
+// Jira: VSCP-4955 (root cause: scaling factor 4.0 → ceiling 625K IOPS, below 750K limit)
+func TestProductAdvertisedLimits_LargeCapacityPool(t *testing.T) {
+	cfg, err := config.LoadConfig("../../../config/vmrs_gcp.yaml")
+	assert.NoError(t, err, "production vmrs_gcp.yaml must load without error")
+	if err != nil {
+		t.FailNow()
+	}
+
+	dm := NewLeastCostLargeVolumeClusterDecisionMaker(cfg)
+
+	cases := []struct {
+		name        string
+		haPairs     int
+		desiredIOPS int64
+		desiredMiBs int64
+	}{
+		// 6 HA pairs — publicly advertised limits
+		// iops_factor=4.8: ceiling = 160,000 × 4.8 = 768,000 → advertised 750,000
+		// throughput_factor=4.8: ceiling = 5,120 × 4.8 = 24,576 MiB/s → advertised 22,528
+		{"6HAPairs_MaxAdvertisedIOPS", 6, 750_000, 1_000},
+		{"6HAPairs_MaxAdvertisedThroughput", 6, 100_000, 22_528}, // 22 GiB/s = 22*1024
+		{"6HAPairs_BothMaxLimits", 6, 750_000, 22_528},
+	}
+
+	_lVHaPair := LVHaPair
+	defer func() { LVHaPair = _lVHaPair }()
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			LVHaPair = tc.haPairs
+			req := vmrs.CustomerRequestedPerformance{
+				DesiredIOPS:             tc.desiredIOPS,
+				DesiredThroughputInMiBs: tc.desiredMiBs,
+				DesiredCapacityInGiB:    102_400, // 100 TiB — valid large capacity pool size
+			}
+			decision, err := dm.FindOptimalVMs(cfg, req, nil)
+			assert.NoError(t, err,
+				"production config must satisfy limit for %d HA pairs — %d IOPS / %d MiB/s; "+
+					"if this fails, check non_linear_scaling_active_passive factors in config/vmrs_gcp.yaml",
+				tc.haPairs, tc.desiredIOPS, tc.desiredMiBs)
+			assert.NotNil(t, decision, "must return a valid VM decision")
+		})
+	}
+}
+
 // TestFindOptimalVMs_CapacityNotCappedAtLine108 verifies that capacity is NOT capped with min()
 // at line 108 (limits.DesiredCapacityInGiB in storage pool requirements)
 func TestFindOptimalVMs_CapacityNotCappedAtLine108(t *testing.T) {

@@ -130,6 +130,23 @@ This runbook template provides a structured approach to debugging alerts, ensuri
     - Config file valid?
     - Quotas and instance types available?
     - Service account bindings correct?
+- **VMRS/VLM — Large Capacity Pool Limit Exceeded (`IdentifyVMs` failure):**
+    - **Error signature:** `"Failed to identify optimal VMs"` / `"no suitable VM type found for cluster requirements"` from the `IdentifyVMs` activity in `CreatePoolWorkflow`.
+    - **Scope:** Large Capacity (Flex Unified) pools only. Regular pools use a different decision maker and are not affected.
+    - **All regions equally affected** — this is a code/config limitation, not region-specific.
+    - **How to identify from logs:**
+        1. Search correlation ID in GCP Logging.
+        2. Find activity `IdentifyVMs` with `ERROR` severity.
+        3. Log message contains: `"no suitable VM type found for cluster requirements"`. Compare the customer's requested IOPS/throughput against the ceilings table below to determine if the scaling factor is the bottleneck.
+    - **Current ceilings** (`config/vmrs_gcp.yaml`, `non_linear_scaling_active_passive`):
+
+      | HA Pairs | IOPS Factor | Max IOPS | Throughput Factor | Max Throughput |
+      |----------|-------------|----------|-------------------|----------------|
+      | 6        | 4.8         | 750,000  | 4.8               | ~24,576 MiB/s  |
+
+    - **Resolution:** Customer must retry after a fix is deployed that raises the scaling factors. The fix requires a code change to `config/vmrs_gcp.yaml` and a new deployment.
+    - **Regression guard:** `TestProductAdvertisedLimits_LargeCapacityPool` in `core/vmrs/decision/least_cost_large_volume_cluster_test.go` will fail at PR time if scaling factors are ever lowered below product limits.
+    - **Reference:** VSCP-4955, VSCP-4923 (fix: VSCP-4688 / PR #2955, deployed in `26022.0.0-RC.15`).
 - **ONTAP Version Fetch:**
     - Network reachability from worker to ONTAP nodes?
     - Credentials and certificates valid?
@@ -167,6 +184,7 @@ This runbook template provides a structured approach to debugging alerts, ensuri
 | SA/IAM errors                  | Permissions                   | Grant required roles                        |
 | GCS/Secret errors              | API/billing                   | Enable APIs, check billing                  |
 | Pool stuck in CREATING         | Workflow failure              | Inspect logs, retry or cleanup              |
+| `IdentifyVMs` activity failure | VMRS limit exceeded (Large Capacity only) | Check requested IOPS vs ceiling in table above; fix requires scaling factor update in `vmrs_gcp.yaml` |
 
 ---
 
