@@ -269,6 +269,12 @@
     "retriable": false,
     "http_code": 400
   },
+  "3010": {
+    "description": "Consumer network specified does not exist in the project",
+    "message": "The specified network does not exist. If using Shared VPC, ensure the network path uses the host project number, not the service project number.",
+    "retriable": false,
+    "http_code": 400
+  },
   "4001": {
     "description": "VSA Cluster Provisioning Error",
     "message": "An internal error occurred.",

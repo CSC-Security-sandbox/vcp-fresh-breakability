@@ -19,6 +19,7 @@ var (
 	GlobalRegion                        = "global"
 	serviceNetworkingConnectionErrorMsg = "Please create Service Networking connection with service"
 	ipExhaustionErrorMsg                = "Couldn't find free blocks in allocated IP ranges. Please allocate new ranges for this service provider"
+	consumerNetworkNotFoundErrorMsg     = "does not exist"
 
 	waitTimeoutMinutes         = time.Minute * time.Duration(env.GetInt("GCP_LRO_TIMEOUT_MINUTES", 20))
 	minimumTenantNetworkSize   = env.GetInt64("DATA_SUBNET_CIDR_BLOCK", int64(28))
@@ -391,6 +392,9 @@ func (gcpService *GcpServices) GetServiceNetOpStatus(operationName string) (*mod
 		} else if strings.Contains(err.Error(), ipExhaustionErrorMsg) {
 			gcpService.Logger.Errorf("GetServiceNetOpStatus failed with IP Exhaustion error: %v", err.Error())
 			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPCustomerIPExhaustion, err))
+		} else if strings.Contains(err.Error(), consumerNetworkNotFoundErrorMsg) {
+			gcpService.Logger.Errorf("GetServiceNetOpStatus failed: consumer network not found: %v", err.Error())
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPConsumerNetworkNotFound, err))
 		}
 		return nil, err
 	}

@@ -2703,6 +2703,58 @@ func Test_GetServiceNetOpStatus(t *testing.T) {
 		assert.True(tt, appErr.NonRetryable())
 		assert.Contains(tt, err.Error(), "Couldn't find free blocks in allocated IP ranges")
 	})
+	t.Run("Error_ConsumerNetworkNotFound", func(tt *testing.T) {
+		operationName := "operations/operation-network-not-found"
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			if strings.Contains(req.URL.Path, "operations/operation-network-not-found") {
+				response := &servicenetworking.Operation{
+					Name: operationName,
+					Done: true,
+					Error: &servicenetworking.Status{
+						// Exact GCP error message format from real incident (VSCP-4952)
+						Message: "Consumer project '420072370072' network 'wf-gcp-gb-vpchost-prod-network' does not exist.\nHelp Token: AerXPhWXSrbR8nxn58cQGE3gkoCzfXATkVH_3Oo0BSOGwblGC6DsNO0-xYWcSQnnDe4nIOwbILh2snbGqEhGJpMawRAIDHnV9JekpgLspPh4Ek2O",
+					},
+				}
+				responseJson, _ := json.Marshal(response)
+				rw.WriteHeader(http.StatusOK)
+				_, _ = rw.Write(responseJson)
+				return
+			}
+			rw.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		serviceNetworkingEndpoint = server.URL
+		ctx := context.Background()
+
+		networkingService, err := servicenetworking.NewService(ctx, option.WithEndpoint(server.URL), option.WithoutAuthentication())
+		if err != nil {
+			tt.Fatalf("Failed to create networking service: %v", err)
+		}
+
+		gcpService := &GcpServices{
+			AdminGCPService: &AdminGCPService{
+				networkingService: networkingService,
+			},
+			Ctx:    ctx,
+			Logger: util.GetLogger(ctx),
+		}
+
+		result, err := gcpService.GetServiceNetOpStatus(operationName)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		// Verify it's a non-retryable temporal application error
+		var appErr *temporal.ApplicationError
+		assert.True(tt, errors.As(err, &appErr))
+		assert.True(tt, appErr.NonRetryable())
+		// Verify the tracking ID is ErrGCPConsumerNetworkNotFound (3010)
+		var trackingID int
+		_ = appErr.Details(&trackingID)
+		assert.Equal(tt, vsaerrors.ErrGCPConsumerNetworkNotFound, trackingID)
+		// Verify customer-facing message indicates network not found (not a generic 500)
+		assert.Contains(tt, err.Error(), "The specified network does not exist")
+	})
 }
 
 func Test_GetZones(t *testing.T) {
