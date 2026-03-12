@@ -26,6 +26,7 @@ gcpSmcSecretVersionName: ""
 gcpHydrateEnabled: true
 gcpHydrateAuthServiceAccount: ""
 gcpAuthServiceAccount: ""
+jwtTtlMinutes: "60"
 gcpHydrateBaseUrl: ""
 proxyClientTransportSchema: "https"
 vcpPairedRegions: ""

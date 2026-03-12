@@ -34,6 +34,7 @@ data:
   GCP_HYDRATE_ENABLED: "{{ index .Values "gcpHydrateEnabled" }}"
   GCP_HYDRATE_AUTH_SERVICE_ACCOUNT: "{{ index .Values "gcpHydrateAuthServiceAccount" }}"
   GCP_AUTH_SERVICE_ACCOUNT: "{{ index .Values "gcpAuthServiceAccount" }}"
+  JWT_TTL_MINUTES: "{{ index .Values "jwtTtlMinutes" }}"
   GCP_HYDRATE_BASE_URL: "{{ index .Values "gcpHydrateBaseUrl" }}"
   PROXY_CLIENT_TRANSPORT_SCHEMA: "{{ index .Values "proxyClientTransportSchema" }}"
   VCP_PAIRED_REGIONS: "{{ index .Values "vcpPairedRegions" }}"
