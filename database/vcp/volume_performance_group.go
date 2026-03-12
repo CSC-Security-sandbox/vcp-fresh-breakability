@@ -122,7 +122,6 @@ func createVolumePerformanceGroup(db *gorm.DB, vpg *datamodel.VolumePerformanceG
 	vpg.CreatedAt = now
 	vpg.UpdatedAt = now
 
-	// Attempt to create the VPG
 	if err := db.Create(vpg).Error; err != nil {
 		return nil, err
 	}

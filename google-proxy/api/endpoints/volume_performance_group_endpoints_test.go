@@ -231,6 +231,58 @@ func TestV1betaCreateVolumePerformanceGroup(t *testing.T) {
 		assert.Equal(tt, int64(1000), vpgRes.Iops)
 		assert.Equal(tt, "vpg-uuid-123", vpgRes.VolumePerformanceGroupId)
 	})
+
+	t.Run("WhenSuccessful_IsSharedFalse", func(tt *testing.T) {
+		origEnableMqos := enableMqos
+		origEnableVpgEndpoints := enableVpgEndpoints
+		defer func() {
+			enableMqos = origEnableMqos
+			enableVpgEndpoints = origEnableVpgEndpoints
+		}()
+		enableMqos = true
+		enableVpgEndpoints = true
+
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		ctx := context.Background()
+		req := &gcpgenserver.VolumePerformanceGroupCreateV1beta{
+			ResourceId:      "vpg-not-shared",
+			ThroughputMibps: 200,
+			Iops:            2000,
+			IsShared:        false,
+		}
+		params := gcpgenserver.V1betaCreateVolumePerformanceGroupParams{
+			ProjectNumber: "12345",
+			LocationId:    "us-central1",
+			PoolId:        "pool-id",
+		}
+
+		expectedVPG := &models.VolumePerformanceGroup{
+			BaseModel: models.BaseModel{
+				UUID: "vpg-uuid-not-shared",
+			},
+			Name:            "vpg-not-shared",
+			ThroughputMibps: 200,
+			Iops:            2000,
+			IsShared:        false,
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		mockOrchestrator.EXPECT().CreateVolumePerformanceGroup(mock.Anything, mock.MatchedBy(func(p *common.CreateVolumePerformanceGroupParams) bool {
+			return p != nil && !p.IsShared && p.Name == "vpg-not-shared"
+		})).Return(expectedVPG, nil)
+		res, err := handler.V1betaCreateVolumePerformanceGroup(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, res)
+		vpgRes, ok := res.(*gcpgenserver.VolumePerformanceGroupV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, "vpg-not-shared", vpgRes.ResourceId)
+		assert.Equal(tt, "pool-id", vpgRes.PoolId)
+		assert.False(tt, vpgRes.IsShared, "IsShared should be false in API response")
+		assert.Equal(tt, int64(200), vpgRes.ThroughputMibps)
+		assert.Equal(tt, int64(2000), vpgRes.Iops)
+		assert.Equal(tt, "vpg-uuid-not-shared", vpgRes.VolumePerformanceGroupId)
+	})
 }
 
 func TestV1betaListVolumePerformanceGroups(t *testing.T) {

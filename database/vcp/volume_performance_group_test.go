@@ -37,6 +37,41 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		assert.NotNil(tt, created)
 	})
 
+	t.Run("WhenIsSharedFalse_PersistsCorrectly", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		assert.NoError(tt, ClearInMemoryDB(store.db.GORM()))
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-vpg-shared-false"}, Name: "acct-vpg-shared-false"}
+		assert.NoError(tt, store.db.Create(account).Error())
+		pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-vpg-shared-false"}, Name: "pool-vpg-shared-false", AccountID: account.ID, Account: account}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel:        datamodel.BaseModel{UUID: "row-uuid-vpg-shared-false"},
+			PoolID:           pool.ID,
+			Name:             "vpg-not-shared",
+			IsShared:         false,
+			IsAutoGen:        false,
+			ThroughputMibps:  64,
+			Iops:             1000,
+			OntapQosPolicyID: "ontap-qos-policy-uuid-shared-false",
+		}
+		created, err := store.CreateVolumePerformanceGroup(context.Background(), vpg)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, created)
+		assert.False(tt, created.IsShared, "IsShared should be false on the returned create result")
+
+		got, err := store.GetVolumePerformanceGroupByUUID(context.Background(), "row-uuid-vpg-shared-false")
+		assert.NoError(tt, err)
+		assert.False(tt, got.IsShared, "IsShared should be false after reading back from DB")
+		assert.Equal(tt, "vpg-not-shared", got.Name)
+		assert.Equal(tt, int64(64), got.ThroughputMibps)
+		assert.Equal(tt, int64(1000), got.Iops)
+	})
+
 	t.Run("WhenVPGWithSameNameExists", func(tt *testing.T) {
 		db, err := SetupTestDB()
 		assert.NoError(tt, err)

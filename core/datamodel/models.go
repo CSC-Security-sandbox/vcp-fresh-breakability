@@ -335,7 +335,7 @@ type VolumePerformanceGroup struct {
 	Name             string `gorm:"column:name"`
 	PoolID           int64  `gorm:"column:pool_id"`
 	Pool             *Pool  `gorm:"ForeignKey:PoolID;AssociationForeignKey:ID;constraint:OnDelete:CASCADE,OnUpdate:RESTRICT;"`
-	IsShared         bool   `gorm:"column:is_shared;not null;default:true"`
+	IsShared         bool   `gorm:"column:is_shared;not null"`
 	IsAutoGen        bool   `gorm:"column:is_auto_gen;not null;default:false"`
 	ThroughputMibps  int64  `gorm:"column:throughput_mibps"`
 	Iops             int64  `gorm:"column:iops"`

@@ -96,6 +96,60 @@ func TestCreateVolumePerformanceGroupWorkflow_Success(t *testing.T) {
 	assert.Equal(t, qosPolicyID, result.OntapQosPolicyID)
 }
 
+func TestCreateVolumePerformanceGroupWorkflow_Success_IsSharedFalse(t *testing.T) {
+	env := setupVPGWorkflowEnv(t)
+
+	vpgUUID := "vpg-uuid-not-shared"
+	poolID := int64(1)
+	vpg := &datamodel.VolumePerformanceGroup{
+		BaseModel:       datamodel.BaseModel{UUID: vpgUUID},
+		Name:            "test-vpg-not-shared",
+		PoolID:          poolID,
+		ThroughputMibps: 200,
+		Iops:            2000,
+		IsShared:        false,
+	}
+	pool := &datamodel.Pool{
+		BaseModel:       datamodel.BaseModel{ID: poolID},
+		DeploymentName:  "test-deployment",
+		PoolCredentials: &datamodel.PoolCredentials{Password: "pw"},
+	}
+	dbNodes := []*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, EndpointAddress: "127.0.0.1"},
+	}
+	qosPolicyID := "ontap-qos-policy-id-not-shared"
+	vpgUpdated := &datamodel.VolumePerformanceGroup{
+		BaseModel:        datamodel.BaseModel{UUID: vpgUUID},
+		Name:             "test-vpg-not-shared",
+		PoolID:           poolID,
+		ThroughputMibps:  200,
+		Iops:             2000,
+		IsShared:         false,
+		OntapQosPolicyID: qosPolicyID,
+	}
+
+	isOntapHealthy := true
+	env.OnActivity("GetVolumePerformanceGroupByUUID", mock.Anything, vpgUUID).Return(vpg, nil).Once()
+	env.OnActivity("GetPoolBySvmPoolId", mock.Anything, poolID).Return(pool, nil)
+	env.OnActivity("GetNode", mock.Anything, poolID).Return(dbNodes, nil)
+	env.OnActivity("GetOntapClusterHealth", mock.Anything, mock.Anything).Return(&isOntapHealthy, nil)
+	env.OnActivity("CreateQoSPolicyInONTAP", mock.Anything, vpg, mock.Anything).Return(qosPolicyID, nil)
+	env.OnActivity("UpdateVPGWithOntapID", mock.Anything, vpgUUID, qosPolicyID).Return(nil)
+	env.OnActivity("GetVolumePerformanceGroupByUUID", mock.Anything, vpgUUID).Return(vpgUpdated, nil).Once()
+
+	env.ExecuteWorkflow(CreateVolumePerformanceGroupWorkflow, vpgUUID)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	var result *datamodel.VolumePerformanceGroup
+	err := env.GetWorkflowResult(&result)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, vpgUUID, result.UUID)
+	assert.False(t, result.IsShared, "IsShared should be false in workflow result")
+	assert.Equal(t, qosPolicyID, result.OntapQosPolicyID)
+}
+
 func TestCreateVolumePerformanceGroupWorkflow_GetVPGByUUIDFails(t *testing.T) {
 	env := setupVPGWorkflowEnv(t)
 
