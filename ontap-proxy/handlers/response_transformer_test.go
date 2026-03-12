@@ -8,14 +8,12 @@ import (
 
 func TestParseCLIError(t *testing.T) {
 	t.Run("extracts error message from Error: prefix", func(t *testing.T) {
-		output := "Error: File not found"
-		message := ParseCLIError(output)
+		message := ParseCLIError("Error: File not found")
 		assert.Equal(t, "File not found", message)
 	})
 
 	t.Run("extracts error message case insensitive", func(t *testing.T) {
-		output := "error: permission denied"
-		message := ParseCLIError(output)
+		message := ParseCLIError("error: permission denied")
 		assert.Equal(t, "permission denied", message)
 	})
 
@@ -58,6 +56,9 @@ func TestIsCLISuccess(t *testing.T) {
 			{"simple success", "OK"},
 			{"deleted successfully", "Deleted successfully"},
 			{"operation completed", "Operation completed"},
+			{"status details no error", "Operation Status: Completed\n             Status Details: No error\n"},
+			{"number of files failed zero", "Number of Files Processed: 0\n     Number of Files Failed: 0\n    Number of Files Skipped: 0\n           Operation Status: Completed\n"},
+			{"list output with operation state Failed", "Operation ID   Vserver   Volume          Operation Status\n-------------- --------- --------------- ----------------\n16842760       svm1      snaplock_vol1    Completed\n16842761       svm1      snaplock_vol1    Failed\n2 entries were displayed.\n"},
 		}
 
 		for _, tc := range testCases {

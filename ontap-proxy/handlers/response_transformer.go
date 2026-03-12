@@ -37,7 +37,8 @@ func StripOntapLoginBanner(output string) string {
 }
 
 // ParseCLIError extracts a user-facing error message from ONTAP CLI output.
-// ONTAP often uses "Error: <message>"; otherwise the full output is returned.
+// It looks for an "Error: <message>" line; otherwise returns the full output.
+// Use the message for HTTP response bodies and for 404 detection (e.g. "not found", "does not exist").
 func ParseCLIError(cliOutput string) (message string) {
 	message = cliOutput
 	if strings.Contains(strings.ToLower(cliOutput), "error") {
@@ -69,21 +70,52 @@ func OntapCodeToInt(code string) int {
 func IsCLISuccess(cliOutput string) bool {
 	output := strings.ToLower(cliOutput)
 
-	// Check for common failure indicators
+	// Real errors are lines starting with "Error:"; ignore "No error" / "Status Details: No error".
+	if hasErrorLine(cliOutput) {
+		return false
+	}
+
+	// "failed" indicates failure only when it's a clear failure phrase (e.g. "Operation failed"), not when
+	// it's the value of Operation Status in a successful list/show (e.g. "Operation Status: Failed").
+	if hasFailedLine(cliOutput) {
+		return false
+	}
+
+	// Other failure indicators (substring match is safe for these)
 	failureIndicators := []string{
-		"error",
-		"failed",
 		"not found",
 		"permission denied",
 		"access denied",
 		"invalid",
 	}
-
 	for _, indicator := range failureIndicators {
 		if strings.Contains(output, indicator) {
 			return false
 		}
 	}
-
 	return true
+}
+
+// hasErrorLine returns true if output contains a line that starts with "Error:" (case-insensitive).
+func hasErrorLine(output string) bool {
+	for _, line := range strings.Split(output, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(strings.ToLower(line)), "error:") {
+			return true
+		}
+	}
+	return false
+}
+
+// hasFailedLine returns true if output contains a line with a clear failure phrase (e.g. "Operation failed",
+// "Command failed", "failed to"). Used so that a successful list/show output that includes an operation in
+// state "Failed" (e.g. "Operation Status: Failed") is not misclassified as CLI failure.
+func hasFailedLine(output string) bool {
+	lower := strings.ToLower(output)
+	for _, line := range strings.Split(lower, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.Contains(line, "operation failed") || strings.Contains(line, "command failed") || strings.Contains(line, "failed to") {
+			return true
+		}
+	}
+	return false
 }

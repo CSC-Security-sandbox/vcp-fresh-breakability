@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRetentionPeriodAPIToCLI(t *testing.T) {
@@ -300,4 +301,150 @@ Event Retention Period: 5 years
 	assert.Len(t, rows, 1)
 	assert.Equal(t, "my-policy", rows[0].Name)
 	assert.Equal(t, "P5Y", rows[0].RetentionPeriod)
+}
+
+// Exact ONTAP default table format from real CLI (Operation ID first; Vserver and Volume one token when single space between).
+const sampleOperationsShowOutputOntapFormat = `
+Info: Use 'exit' command to return.
+
+
+Operation ID   Vserver         Volume          Operation Status
+-------------- --------------- --------------- ----------------
+16842753       gcnv-dfcb696927b4c65-svm-01 snaplock_vol1 Completed
+16842754       gcnv-dfcb696927b4c65-svm-01 snaplock_vol1 Completed
+16842755       gcnv-dfcb696927b4c65-svm-01 snaplock_vol1 Completed
+16842756       gcnv-dfcb696927b4c65-svm-01 snaplock_vol1 Completed
+4 entries were displayed.
+
+`
+
+func TestParseEventRetentionOperationShowOutput_OntapDefaultTable(t *testing.T) {
+	rows, err := ParseEventRetentionOperationShowOutput(sampleOperationsShowOutputOntapFormat)
+	assert.NoError(t, err)
+	require.Len(t, rows, 4)
+	assert.Equal(t, int64(16842753), rows[0].OperationID)
+	assert.Equal(t, "gcnv-dfcb696927b4c65-svm-01", rows[0].Vserver)
+	assert.Equal(t, "snaplock_vol1", rows[0].VolumeName)
+	assert.Equal(t, "completed", rows[0].State)
+	assert.Equal(t, int64(16842756), rows[3].OperationID)
+	assert.Equal(t, "completed", rows[3].State)
+}
+
+// Two-part split: only one run of 2+ spaces (after operation ID), rest is "vserver volume state".
+const sampleOperationsShowOutputTwoPartSplit = `
+Operation ID   Vserver         Volume          Operation Status
+-------------- --------------- --------------- ----------------
+16842753       gcnv-dfcb696927b4c65-svm-01 snaplock_vol1 Completed
+16842754       gcnv-dfcb696927b4c65-svm-01 snaplock_vol1 Completed
+2 entries were displayed.
+`
+
+func TestParseEventRetentionOperationShowOutput_TwoPartSplit(t *testing.T) {
+	rows, err := ParseEventRetentionOperationShowOutput(sampleOperationsShowOutputTwoPartSplit)
+	assert.NoError(t, err)
+	require.Len(t, rows, 2)
+	assert.Equal(t, int64(16842753), rows[0].OperationID)
+	assert.Equal(t, "gcnv-dfcb696927b4c65-svm-01", rows[0].Vserver)
+	assert.Equal(t, "snaplock_vol1", rows[0].VolumeName)
+	assert.Equal(t, "completed", rows[0].State)
+}
+
+// Key-value output (snaplock event-retention show -operation-id N -instance).
+// Keys match parseEventRetentionOperationKeyValueOutput switch (e.g. "Operation Id", "Policy Name").
+const sampleOperationShowKeyValueOutput = `
+Vserver: svm1
+Operation Id: 16842754
+State: in_progress
+Path: /
+Policy Name: p1day
+Volume Name: vol1
+Num Files Processed: 10
+Num Files Failed: 0
+Num Files Skipped: 1
+Num Inodes Ignored: 2
+`
+
+func TestParseEventRetentionOperationShowOutput_KeyValue(t *testing.T) {
+	rows, err := ParseEventRetentionOperationShowOutput(sampleOperationShowKeyValueOutput)
+	assert.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Equal(t, int64(16842754), rows[0].OperationID)
+	assert.Equal(t, "svm1", rows[0].Vserver)
+	assert.Equal(t, "in_progress", rows[0].State)
+	assert.Equal(t, "/", rows[0].Path)
+	assert.Equal(t, "p1day", rows[0].PolicyName)
+	assert.Equal(t, "vol1", rows[0].VolumeName)
+	assert.Equal(t, int64(10), rows[0].NumFilesProcessed)
+	assert.Equal(t, int64(0), rows[0].NumFilesFailed)
+	assert.Equal(t, int64(1), rows[0].NumFilesSkipped)
+	assert.Equal(t, int64(2), rows[0].NumInodesIgnored)
+}
+
+func TestParseEventRetentionOperationShowOutput_InvalidReturnsError(t *testing.T) {
+	_, err := ParseEventRetentionOperationShowOutput("garbage with no table or key-value")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "could not find table separator")
+}
+
+func TestBuildEventRetentionOperationCommands(t *testing.T) {
+	t.Run("show_list", func(t *testing.T) {
+		cmd := BuildEventRetentionOperationShowCommand(0)
+		assert.Contains(t, cmd, "snaplock event-retention show")
+		assert.NotContains(t, cmd, "-operation-id")
+	})
+	t.Run("show_single", func(t *testing.T) {
+		cmd := BuildEventRetentionOperationShowCommand(16842754)
+		assert.Contains(t, cmd, "snaplock event-retention show")
+		assert.Contains(t, cmd, "-operation-id 16842754")
+	})
+	t.Run("apply", func(t *testing.T) {
+		cmd := BuildEventRetentionOperationApplyCommand("vol1", "p1day", "/")
+		assert.Contains(t, cmd, "snaplock event-retention apply")
+		assert.Contains(t, cmd, "-volume")
+		assert.Contains(t, cmd, "-policy-name")
+		assert.Contains(t, cmd, "-path")
+	})
+	t.Run("abort", func(t *testing.T) {
+		cmd := BuildEventRetentionOperationAbortCommand(16842754)
+		assert.Contains(t, cmd, "snaplock event-retention abort")
+		assert.Contains(t, cmd, "-operation-id 16842754")
+	})
+}
+
+// Table with 3 parts: Operation ID, "vserver volume", state.
+const sampleOperationsShowOutputThreeParts = `
+Operation ID   Vserver         Volume          Operation Status
+-------------- --------------- --------------- ----------------
+16842760       svm1 vol1       Completed
+1 entries were displayed.
+`
+
+func TestParseEventRetentionOperationShowOutput_ThreeParts(t *testing.T) {
+	rows, err := ParseEventRetentionOperationShowOutput(sampleOperationsShowOutputThreeParts)
+	assert.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Equal(t, int64(16842760), rows[0].OperationID)
+	assert.Equal(t, "svm1", rows[0].Vserver)
+	assert.Equal(t, "vol1", rows[0].VolumeName)
+	assert.Equal(t, "completed", rows[0].State)
+}
+
+// Format B: Vserver first, then Operation Id, State, Path, etc.
+const sampleOperationsShowOutputFormatB = `
+Vserver   Operation Id   State        Path   Policy   Volume
+--------- -------------- ----------- ------ -------- -------
+svm1      16842761       completed   /      p1day    vol1
+1 entries were displayed.
+`
+
+func TestParseEventRetentionOperationShowOutput_FormatB(t *testing.T) {
+	rows, err := ParseEventRetentionOperationShowOutput(sampleOperationsShowOutputFormatB)
+	assert.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Equal(t, int64(16842761), rows[0].OperationID)
+	assert.Equal(t, "svm1", rows[0].Vserver)
+	assert.Equal(t, "completed", rows[0].State)
+	assert.Equal(t, "/", rows[0].Path)
+	assert.Equal(t, "p1day", rows[0].PolicyName)
+	assert.Equal(t, "vol1", rows[0].VolumeName)
 }

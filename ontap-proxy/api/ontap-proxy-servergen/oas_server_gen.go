@@ -32,6 +32,13 @@ type Handler interface {
 	//
 	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/file/{volumeUuid}/{filePath}
 	SnaplockFileDelete(ctx context.Context, params SnaplockFileDeleteParams) (SnaplockFileDeleteRes, error)
+	// V1AbortEventRetentionOperation implements v1_abortEventRetentionOperation operation.
+	//
+	// Aborts an ongoing Event Based Retention (EBR) operation.
+	// Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
+	//
+	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/operations/{id}
+	V1AbortEventRetentionOperation(ctx context.Context, params V1AbortEventRetentionOperationParams) (V1AbortEventRetentionOperationRes, error)
 	// V1ClusterLicensingAccessTokensCreate implements v1_clusterLicensingAccessTokensCreate operation.
 	//
 	// Generates SM-C access token (same as ONTAP REST POST /api/cluster/licensing/access_tokens).
@@ -43,6 +50,13 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/cluster/licensing/access_tokens
 	V1ClusterLicensingAccessTokensCreate(ctx context.Context, req *AccessTokenRequest, params V1ClusterLicensingAccessTokensCreateParams) (V1ClusterLicensingAccessTokensCreateRes, error)
+	// V1CreateEventRetentionOperation implements v1_createEventRetentionOperation operation.
+	//
+	// Starts an EBR operation to apply an Event Based Retention policy to a path on a volume.
+	// Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/operations
+	V1CreateEventRetentionOperation(ctx context.Context, req *EBROperationCreate, params V1CreateEventRetentionOperationParams) (V1CreateEventRetentionOperationRes, error)
 	// V1CreateEventRetentionPolicy implements v1_createEventRetentionPolicy operation.
 	//
 	// Creates an Event Based Retention (EBR) policy for an SVM.
@@ -63,13 +77,6 @@ type Handler interface {
 	//
 	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}
 	V1DeleteDestinationEndpoint(ctx context.Context, params V1DeleteDestinationEndpointParams) (V1DeleteDestinationEndpointRes, error)
-	// V1DeleteEventRetentionPolicies implements v1_deleteEventRetentionPolicies operation.
-	//
-	// Deletes multiple Event Based Retention (EBR) policies.
-	// Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
-	//
-	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies
-	V1DeleteEventRetentionPolicies(ctx context.Context, req OptV1DeleteEventRetentionPoliciesReq, params V1DeleteEventRetentionPoliciesParams) (V1DeleteEventRetentionPoliciesRes, error)
 	// V1DeleteEventRetentionPolicy implements v1_deleteEventRetentionPolicy operation.
 	//
 	// Deletes the specified Event Based Retention (EBR) policy.
@@ -95,6 +102,13 @@ type Handler interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}
 	V1GetDestinationEndpointInfo(ctx context.Context, params V1GetDestinationEndpointInfoParams) (V1GetDestinationEndpointInfoRes, error)
+	// V1GetEventRetentionOperation implements v1_getEventRetentionOperation operation.
+	//
+	// Retrieves a single Event Based Retention (EBR) operation by ID.
+	// Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/operations/{id}
+	V1GetEventRetentionOperation(ctx context.Context, params V1GetEventRetentionOperationParams) (V1GetEventRetentionOperationRes, error)
 	// V1GetEventRetentionPolicy implements v1_getEventRetentionPolicy operation.
 	//
 	// Retrieves details of a specific Event Based Retention (EBR) policy by name.
@@ -111,6 +125,13 @@ type Handler interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots
 	V1GetSnapshots(ctx context.Context, params V1GetSnapshotsParams) (V1GetSnapshotsRes, error)
+	// V1ListEventRetentionOperations implements v1_listEventRetentionOperations operation.
+	//
+	// Retrieves a list of Event Based Retention (EBR) operations.
+	// Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/operations
+	V1ListEventRetentionOperations(ctx context.Context, params V1ListEventRetentionOperationsParams) (V1ListEventRetentionOperationsRes, error)
 	// V1ListEventRetentionPolicies implements v1_listEventRetentionPolicies operation.
 	//
 	// Retrieves all event retention policies for an SVM.
@@ -136,13 +157,6 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/private/cli
 	V1PrivateCli(ctx context.Context, req *CLIExecuteRequest, params V1PrivateCliParams) (V1PrivateCliRes, error)
-	// V1UpdateEventRetentionPolicies implements v1_updateEventRetentionPolicies operation.
-	//
-	// Updates the retention period of multiple Event Based Retention (EBR) policies.
-	// Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
-	//
-	// PATCH /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies
-	V1UpdateEventRetentionPolicies(ctx context.Context, req *V1UpdateEventRetentionPoliciesReq, params V1UpdateEventRetentionPoliciesParams) (V1UpdateEventRetentionPoliciesRes, error)
 	// V1UpdateEventRetentionPolicy implements v1_updateEventRetentionPolicy operation.
 	//
 	// Updates the retention period of an Event Based Retention (EBR) policy.

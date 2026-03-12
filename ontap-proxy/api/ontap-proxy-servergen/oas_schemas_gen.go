@@ -321,6 +321,309 @@ func (s *CacheStatus) SetTotalEntries(val OptInt) {
 
 func (*CacheStatus) getCacheStatusRes() {}
 
+// Event Based Retention (EBR) operation.
+// Ref: #/components/schemas/EBROperation
+type EBROperation struct {
+	// Operation ID.
+	ID OptInt64 `json:"id"`
+	// Operation state (e.g. in_progress, completed, failed, aborting).
+	State OptString `json:"state"`
+	// Path relative to volume root.
+	Path   OptString       `json:"path"`
+	Policy OptEBRPolicyRef `json:"policy"`
+	// Volume reference.
+	Volume OptEBROperationVolume `json:"volume"`
+	Svm    OptSvmRef             `json:"svm"`
+	// Number of files processed.
+	NumFilesProcessed OptInt64 `json:"num_files_processed"`
+	// Number of files failed.
+	NumFilesFailed OptInt64 `json:"num_files_failed"`
+	// Number of files skipped.
+	NumFilesSkipped OptInt64 `json:"num_files_skipped"`
+	// Number of inodes ignored.
+	NumInodesIgnored OptInt64 `json:"num_inodes_ignored"`
+}
+
+// GetID returns the value of ID.
+func (s *EBROperation) GetID() OptInt64 {
+	return s.ID
+}
+
+// GetState returns the value of State.
+func (s *EBROperation) GetState() OptString {
+	return s.State
+}
+
+// GetPath returns the value of Path.
+func (s *EBROperation) GetPath() OptString {
+	return s.Path
+}
+
+// GetPolicy returns the value of Policy.
+func (s *EBROperation) GetPolicy() OptEBRPolicyRef {
+	return s.Policy
+}
+
+// GetVolume returns the value of Volume.
+func (s *EBROperation) GetVolume() OptEBROperationVolume {
+	return s.Volume
+}
+
+// GetSvm returns the value of Svm.
+func (s *EBROperation) GetSvm() OptSvmRef {
+	return s.Svm
+}
+
+// GetNumFilesProcessed returns the value of NumFilesProcessed.
+func (s *EBROperation) GetNumFilesProcessed() OptInt64 {
+	return s.NumFilesProcessed
+}
+
+// GetNumFilesFailed returns the value of NumFilesFailed.
+func (s *EBROperation) GetNumFilesFailed() OptInt64 {
+	return s.NumFilesFailed
+}
+
+// GetNumFilesSkipped returns the value of NumFilesSkipped.
+func (s *EBROperation) GetNumFilesSkipped() OptInt64 {
+	return s.NumFilesSkipped
+}
+
+// GetNumInodesIgnored returns the value of NumInodesIgnored.
+func (s *EBROperation) GetNumInodesIgnored() OptInt64 {
+	return s.NumInodesIgnored
+}
+
+// SetID sets the value of ID.
+func (s *EBROperation) SetID(val OptInt64) {
+	s.ID = val
+}
+
+// SetState sets the value of State.
+func (s *EBROperation) SetState(val OptString) {
+	s.State = val
+}
+
+// SetPath sets the value of Path.
+func (s *EBROperation) SetPath(val OptString) {
+	s.Path = val
+}
+
+// SetPolicy sets the value of Policy.
+func (s *EBROperation) SetPolicy(val OptEBRPolicyRef) {
+	s.Policy = val
+}
+
+// SetVolume sets the value of Volume.
+func (s *EBROperation) SetVolume(val OptEBROperationVolume) {
+	s.Volume = val
+}
+
+// SetSvm sets the value of Svm.
+func (s *EBROperation) SetSvm(val OptSvmRef) {
+	s.Svm = val
+}
+
+// SetNumFilesProcessed sets the value of NumFilesProcessed.
+func (s *EBROperation) SetNumFilesProcessed(val OptInt64) {
+	s.NumFilesProcessed = val
+}
+
+// SetNumFilesFailed sets the value of NumFilesFailed.
+func (s *EBROperation) SetNumFilesFailed(val OptInt64) {
+	s.NumFilesFailed = val
+}
+
+// SetNumFilesSkipped sets the value of NumFilesSkipped.
+func (s *EBROperation) SetNumFilesSkipped(val OptInt64) {
+	s.NumFilesSkipped = val
+}
+
+// SetNumInodesIgnored sets the value of NumInodesIgnored.
+func (s *EBROperation) SetNumInodesIgnored(val OptInt64) {
+	s.NumInodesIgnored = val
+}
+
+func (*EBROperation) v1CreateEventRetentionOperationRes() {}
+func (*EBROperation) v1GetEventRetentionOperationRes()    {}
+
+// Request body to create (apply) an EBR operation.
+// Ref: #/components/schemas/EBROperationCreate
+type EBROperationCreate struct {
+	// Path relative to volume root (e.g. "/" for all files).
+	Path   string                   `json:"path"`
+	Policy EBROperationCreatePolicy `json:"policy"`
+	// Volume (provide name or uuid).
+	Volume OptEBROperationCreateVolume `json:"volume"`
+}
+
+// GetPath returns the value of Path.
+func (s *EBROperationCreate) GetPath() string {
+	return s.Path
+}
+
+// GetPolicy returns the value of Policy.
+func (s *EBROperationCreate) GetPolicy() EBROperationCreatePolicy {
+	return s.Policy
+}
+
+// GetVolume returns the value of Volume.
+func (s *EBROperationCreate) GetVolume() OptEBROperationCreateVolume {
+	return s.Volume
+}
+
+// SetPath sets the value of Path.
+func (s *EBROperationCreate) SetPath(val string) {
+	s.Path = val
+}
+
+// SetPolicy sets the value of Policy.
+func (s *EBROperationCreate) SetPolicy(val EBROperationCreatePolicy) {
+	s.Policy = val
+}
+
+// SetVolume sets the value of Volume.
+func (s *EBROperationCreate) SetVolume(val OptEBROperationCreateVolume) {
+	s.Volume = val
+}
+
+type EBROperationCreatePolicy struct {
+	// EBR policy name to apply (alphanumeric, hyphen, underscore, period only; 1-256 chars).
+	Name string `json:"name"`
+}
+
+// GetName returns the value of Name.
+func (s *EBROperationCreatePolicy) GetName() string {
+	return s.Name
+}
+
+// SetName sets the value of Name.
+func (s *EBROperationCreatePolicy) SetName(val string) {
+	s.Name = val
+}
+
+// Volume (provide name or uuid).
+type EBROperationCreateVolume struct {
+	// Volume name.
+	Name OptString `json:"name"`
+	// Volume UUID.
+	UUID OptUUID `json:"uuid"`
+}
+
+// GetName returns the value of Name.
+func (s *EBROperationCreateVolume) GetName() OptString {
+	return s.Name
+}
+
+// GetUUID returns the value of UUID.
+func (s *EBROperationCreateVolume) GetUUID() OptUUID {
+	return s.UUID
+}
+
+// SetName sets the value of Name.
+func (s *EBROperationCreateVolume) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetUUID sets the value of UUID.
+func (s *EBROperationCreateVolume) SetUUID(val OptUUID) {
+	s.UUID = val
+}
+
+// Response containing list of EBR operations.
+// Ref: #/components/schemas/EBROperationResponse
+type EBROperationResponse struct {
+	Links OptEBROperationResponseLinks `json:"_links"`
+	// Number of records.
+	NumRecords OptInt         `json:"num_records"`
+	Records    []EBROperation `json:"records"`
+}
+
+// GetLinks returns the value of Links.
+func (s *EBROperationResponse) GetLinks() OptEBROperationResponseLinks {
+	return s.Links
+}
+
+// GetNumRecords returns the value of NumRecords.
+func (s *EBROperationResponse) GetNumRecords() OptInt {
+	return s.NumRecords
+}
+
+// GetRecords returns the value of Records.
+func (s *EBROperationResponse) GetRecords() []EBROperation {
+	return s.Records
+}
+
+// SetLinks sets the value of Links.
+func (s *EBROperationResponse) SetLinks(val OptEBROperationResponseLinks) {
+	s.Links = val
+}
+
+// SetNumRecords sets the value of NumRecords.
+func (s *EBROperationResponse) SetNumRecords(val OptInt) {
+	s.NumRecords = val
+}
+
+// SetRecords sets the value of Records.
+func (s *EBROperationResponse) SetRecords(val []EBROperation) {
+	s.Records = val
+}
+
+func (*EBROperationResponse) v1ListEventRetentionOperationsRes() {}
+
+type EBROperationResponseLinks struct {
+	Self OptHref `json:"self"`
+	Next OptHref `json:"next"`
+}
+
+// GetSelf returns the value of Self.
+func (s *EBROperationResponseLinks) GetSelf() OptHref {
+	return s.Self
+}
+
+// GetNext returns the value of Next.
+func (s *EBROperationResponseLinks) GetNext() OptHref {
+	return s.Next
+}
+
+// SetSelf sets the value of Self.
+func (s *EBROperationResponseLinks) SetSelf(val OptHref) {
+	s.Self = val
+}
+
+// SetNext sets the value of Next.
+func (s *EBROperationResponseLinks) SetNext(val OptHref) {
+	s.Next = val
+}
+
+// Volume reference.
+type EBROperationVolume struct {
+	// Volume name.
+	Name OptString `json:"name"`
+	// Volume UUID.
+	UUID OptUUID `json:"uuid"`
+}
+
+// GetName returns the value of Name.
+func (s *EBROperationVolume) GetName() OptString {
+	return s.Name
+}
+
+// GetUUID returns the value of UUID.
+func (s *EBROperationVolume) GetUUID() OptUUID {
+	return s.UUID
+}
+
+// SetName sets the value of Name.
+func (s *EBROperationVolume) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetUUID sets the value of UUID.
+func (s *EBROperationVolume) SetUUID(val OptUUID) {
+	s.UUID = val
+}
+
 // Event Based Retention policy.
 // Ref: #/components/schemas/EBRPolicy
 type EBRPolicy struct {
@@ -376,6 +679,46 @@ func (s *EBRPolicy) SetSvm(val OptSvmRef) {
 
 func (*EBRPolicy) v1CreateEventRetentionPolicyRes() {}
 func (*EBRPolicy) v1GetEventRetentionPolicyRes()    {}
+
+// Reference to an EBR policy.
+// Ref: #/components/schemas/EBRPolicyRef
+type EBRPolicyRef struct {
+	Links OptSelfLink `json:"_links"`
+	// Policy name (alphanumeric, hyphen, underscore, period only; 1-256 chars).
+	Name OptString `json:"name"`
+	// Retention period.
+	RetentionPeriod OptString `json:"retention_period"`
+}
+
+// GetLinks returns the value of Links.
+func (s *EBRPolicyRef) GetLinks() OptSelfLink {
+	return s.Links
+}
+
+// GetName returns the value of Name.
+func (s *EBRPolicyRef) GetName() OptString {
+	return s.Name
+}
+
+// GetRetentionPeriod returns the value of RetentionPeriod.
+func (s *EBRPolicyRef) GetRetentionPeriod() OptString {
+	return s.RetentionPeriod
+}
+
+// SetLinks sets the value of Links.
+func (s *EBRPolicyRef) SetLinks(val OptSelfLink) {
+	s.Links = val
+}
+
+// SetName sets the value of Name.
+func (s *EBRPolicyRef) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetRetentionPeriod sets the value of RetentionPeriod.
+func (s *EBRPolicyRef) SetRetentionPeriod(val OptString) {
+	s.RetentionPeriod = val
+}
 
 // Response containing list of EBR policies.
 // Ref: #/components/schemas/EBRPolicyResponse
@@ -1480,6 +1823,190 @@ func (o OptDateTime) Get() (v time.Time, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptDateTime) Or(d time.Time) time.Time {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptEBROperationCreateVolume returns new OptEBROperationCreateVolume with value set to v.
+func NewOptEBROperationCreateVolume(v EBROperationCreateVolume) OptEBROperationCreateVolume {
+	return OptEBROperationCreateVolume{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptEBROperationCreateVolume is optional EBROperationCreateVolume.
+type OptEBROperationCreateVolume struct {
+	Value EBROperationCreateVolume
+	Set   bool
+}
+
+// IsSet returns true if OptEBROperationCreateVolume was set.
+func (o OptEBROperationCreateVolume) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptEBROperationCreateVolume) Reset() {
+	var v EBROperationCreateVolume
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptEBROperationCreateVolume) SetTo(v EBROperationCreateVolume) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptEBROperationCreateVolume) Get() (v EBROperationCreateVolume, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptEBROperationCreateVolume) Or(d EBROperationCreateVolume) EBROperationCreateVolume {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptEBROperationResponseLinks returns new OptEBROperationResponseLinks with value set to v.
+func NewOptEBROperationResponseLinks(v EBROperationResponseLinks) OptEBROperationResponseLinks {
+	return OptEBROperationResponseLinks{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptEBROperationResponseLinks is optional EBROperationResponseLinks.
+type OptEBROperationResponseLinks struct {
+	Value EBROperationResponseLinks
+	Set   bool
+}
+
+// IsSet returns true if OptEBROperationResponseLinks was set.
+func (o OptEBROperationResponseLinks) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptEBROperationResponseLinks) Reset() {
+	var v EBROperationResponseLinks
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptEBROperationResponseLinks) SetTo(v EBROperationResponseLinks) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptEBROperationResponseLinks) Get() (v EBROperationResponseLinks, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptEBROperationResponseLinks) Or(d EBROperationResponseLinks) EBROperationResponseLinks {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptEBROperationVolume returns new OptEBROperationVolume with value set to v.
+func NewOptEBROperationVolume(v EBROperationVolume) OptEBROperationVolume {
+	return OptEBROperationVolume{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptEBROperationVolume is optional EBROperationVolume.
+type OptEBROperationVolume struct {
+	Value EBROperationVolume
+	Set   bool
+}
+
+// IsSet returns true if OptEBROperationVolume was set.
+func (o OptEBROperationVolume) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptEBROperationVolume) Reset() {
+	var v EBROperationVolume
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptEBROperationVolume) SetTo(v EBROperationVolume) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptEBROperationVolume) Get() (v EBROperationVolume, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptEBROperationVolume) Or(d EBROperationVolume) EBROperationVolume {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptEBRPolicyRef returns new OptEBRPolicyRef with value set to v.
+func NewOptEBRPolicyRef(v EBRPolicyRef) OptEBRPolicyRef {
+	return OptEBRPolicyRef{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptEBRPolicyRef is optional EBRPolicyRef.
+type OptEBRPolicyRef struct {
+	Value EBRPolicyRef
+	Set   bool
+}
+
+// IsSet returns true if OptEBRPolicyRef was set.
+func (o OptEBRPolicyRef) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptEBRPolicyRef) Reset() {
+	var v EBRPolicyRef
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptEBRPolicyRef) SetTo(v EBRPolicyRef) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptEBRPolicyRef) Get() (v EBRPolicyRef, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptEBRPolicyRef) Or(d EBRPolicyRef) EBRPolicyRef {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -2866,52 +3393,6 @@ func (o OptUUID) Or(d uuid.UUID) uuid.UUID {
 	return d
 }
 
-// NewOptV1DeleteEventRetentionPoliciesReq returns new OptV1DeleteEventRetentionPoliciesReq with value set to v.
-func NewOptV1DeleteEventRetentionPoliciesReq(v V1DeleteEventRetentionPoliciesReq) OptV1DeleteEventRetentionPoliciesReq {
-	return OptV1DeleteEventRetentionPoliciesReq{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptV1DeleteEventRetentionPoliciesReq is optional V1DeleteEventRetentionPoliciesReq.
-type OptV1DeleteEventRetentionPoliciesReq struct {
-	Value V1DeleteEventRetentionPoliciesReq
-	Set   bool
-}
-
-// IsSet returns true if OptV1DeleteEventRetentionPoliciesReq was set.
-func (o OptV1DeleteEventRetentionPoliciesReq) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptV1DeleteEventRetentionPoliciesReq) Reset() {
-	var v V1DeleteEventRetentionPoliciesReq
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptV1DeleteEventRetentionPoliciesReq) SetTo(v V1DeleteEventRetentionPoliciesReq) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptV1DeleteEventRetentionPoliciesReq) Get() (v V1DeleteEventRetentionPoliciesReq, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptV1DeleteEventRetentionPoliciesReq) Or(d V1DeleteEventRetentionPoliciesReq) V1DeleteEventRetentionPoliciesReq {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
 // NewOptVolumeRef returns new OptVolumeRef with value set to v.
 func NewOptVolumeRef(v VolumeRef) OptVolumeRef {
 	return OptVolumeRef{
@@ -3555,6 +4036,31 @@ func (s *SvmRef) SetUUID(val OptString) {
 	s.UUID = val
 }
 
+type V1AbortEventRetentionOperationBadRequest Error
+
+func (*V1AbortEventRetentionOperationBadRequest) v1AbortEventRetentionOperationRes() {}
+
+type V1AbortEventRetentionOperationForbidden Error
+
+func (*V1AbortEventRetentionOperationForbidden) v1AbortEventRetentionOperationRes() {}
+
+type V1AbortEventRetentionOperationInternalServerError Error
+
+func (*V1AbortEventRetentionOperationInternalServerError) v1AbortEventRetentionOperationRes() {}
+
+type V1AbortEventRetentionOperationNotFound Error
+
+func (*V1AbortEventRetentionOperationNotFound) v1AbortEventRetentionOperationRes() {}
+
+// V1AbortEventRetentionOperationOK is response for V1AbortEventRetentionOperation operation.
+type V1AbortEventRetentionOperationOK struct{}
+
+func (*V1AbortEventRetentionOperationOK) v1AbortEventRetentionOperationRes() {}
+
+type V1AbortEventRetentionOperationUnauthorized Error
+
+func (*V1AbortEventRetentionOperationUnauthorized) v1AbortEventRetentionOperationRes() {}
+
 type V1ClusterLicensingAccessTokensCreateBadRequest Error
 
 func (*V1ClusterLicensingAccessTokensCreateBadRequest) v1ClusterLicensingAccessTokensCreateRes() {}
@@ -3575,6 +4081,26 @@ func (*V1ClusterLicensingAccessTokensCreateNotFound) v1ClusterLicensingAccessTok
 type V1ClusterLicensingAccessTokensCreateUnauthorized Error
 
 func (*V1ClusterLicensingAccessTokensCreateUnauthorized) v1ClusterLicensingAccessTokensCreateRes() {}
+
+type V1CreateEventRetentionOperationBadRequest Error
+
+func (*V1CreateEventRetentionOperationBadRequest) v1CreateEventRetentionOperationRes() {}
+
+type V1CreateEventRetentionOperationForbidden Error
+
+func (*V1CreateEventRetentionOperationForbidden) v1CreateEventRetentionOperationRes() {}
+
+type V1CreateEventRetentionOperationInternalServerError Error
+
+func (*V1CreateEventRetentionOperationInternalServerError) v1CreateEventRetentionOperationRes() {}
+
+type V1CreateEventRetentionOperationNotFound Error
+
+func (*V1CreateEventRetentionOperationNotFound) v1CreateEventRetentionOperationRes() {}
+
+type V1CreateEventRetentionOperationUnauthorized Error
+
+func (*V1CreateEventRetentionOperationUnauthorized) v1CreateEventRetentionOperationRes() {}
 
 type V1CreateEventRetentionPolicyBadRequest Error
 
@@ -3623,41 +4149,6 @@ func (*V1DeleteDestinationEndpointOK) v1DeleteDestinationEndpointRes() {}
 type V1DeleteDestinationEndpointUnauthorized Error
 
 func (*V1DeleteDestinationEndpointUnauthorized) v1DeleteDestinationEndpointRes() {}
-
-type V1DeleteEventRetentionPoliciesBadRequest Error
-
-func (*V1DeleteEventRetentionPoliciesBadRequest) v1DeleteEventRetentionPoliciesRes() {}
-
-type V1DeleteEventRetentionPoliciesForbidden Error
-
-func (*V1DeleteEventRetentionPoliciesForbidden) v1DeleteEventRetentionPoliciesRes() {}
-
-type V1DeleteEventRetentionPoliciesInternalServerError Error
-
-func (*V1DeleteEventRetentionPoliciesInternalServerError) v1DeleteEventRetentionPoliciesRes() {}
-
-// V1DeleteEventRetentionPoliciesOK is response for V1DeleteEventRetentionPolicies operation.
-type V1DeleteEventRetentionPoliciesOK struct{}
-
-func (*V1DeleteEventRetentionPoliciesOK) v1DeleteEventRetentionPoliciesRes() {}
-
-type V1DeleteEventRetentionPoliciesReq struct {
-	Records []EBRPolicy `json:"records"`
-}
-
-// GetRecords returns the value of Records.
-func (s *V1DeleteEventRetentionPoliciesReq) GetRecords() []EBRPolicy {
-	return s.Records
-}
-
-// SetRecords sets the value of Records.
-func (s *V1DeleteEventRetentionPoliciesReq) SetRecords(val []EBRPolicy) {
-	s.Records = val
-}
-
-type V1DeleteEventRetentionPoliciesUnauthorized Error
-
-func (*V1DeleteEventRetentionPoliciesUnauthorized) v1DeleteEventRetentionPoliciesRes() {}
 
 type V1DeleteEventRetentionPolicyBadRequest Error
 
@@ -3732,6 +4223,26 @@ type V1GetDestinationEndpointInfoUnauthorized Error
 
 func (*V1GetDestinationEndpointInfoUnauthorized) v1GetDestinationEndpointInfoRes() {}
 
+type V1GetEventRetentionOperationBadRequest Error
+
+func (*V1GetEventRetentionOperationBadRequest) v1GetEventRetentionOperationRes() {}
+
+type V1GetEventRetentionOperationForbidden Error
+
+func (*V1GetEventRetentionOperationForbidden) v1GetEventRetentionOperationRes() {}
+
+type V1GetEventRetentionOperationInternalServerError Error
+
+func (*V1GetEventRetentionOperationInternalServerError) v1GetEventRetentionOperationRes() {}
+
+type V1GetEventRetentionOperationNotFound Error
+
+func (*V1GetEventRetentionOperationNotFound) v1GetEventRetentionOperationRes() {}
+
+type V1GetEventRetentionOperationUnauthorized Error
+
+func (*V1GetEventRetentionOperationUnauthorized) v1GetEventRetentionOperationRes() {}
+
 type V1GetEventRetentionPolicyBadRequest Error
 
 func (*V1GetEventRetentionPolicyBadRequest) v1GetEventRetentionPolicyRes() {}
@@ -3772,6 +4283,22 @@ type V1GetSnapshotsUnauthorized Error
 
 func (*V1GetSnapshotsUnauthorized) v1GetSnapshotsRes() {}
 
+type V1ListEventRetentionOperationsBadRequest Error
+
+func (*V1ListEventRetentionOperationsBadRequest) v1ListEventRetentionOperationsRes() {}
+
+type V1ListEventRetentionOperationsForbidden Error
+
+func (*V1ListEventRetentionOperationsForbidden) v1ListEventRetentionOperationsRes() {}
+
+type V1ListEventRetentionOperationsInternalServerError Error
+
+func (*V1ListEventRetentionOperationsInternalServerError) v1ListEventRetentionOperationsRes() {}
+
+type V1ListEventRetentionOperationsUnauthorized Error
+
+func (*V1ListEventRetentionOperationsUnauthorized) v1ListEventRetentionOperationsRes() {}
+
 type V1ListEventRetentionPoliciesBadRequest Error
 
 func (*V1ListEventRetentionPoliciesBadRequest) v1ListEventRetentionPoliciesRes() {}
@@ -3807,41 +4334,6 @@ func (*V1PrivateCliNotFound) v1PrivateCliRes() {}
 type V1PrivateCliUnauthorized Error
 
 func (*V1PrivateCliUnauthorized) v1PrivateCliRes() {}
-
-type V1UpdateEventRetentionPoliciesBadRequest Error
-
-func (*V1UpdateEventRetentionPoliciesBadRequest) v1UpdateEventRetentionPoliciesRes() {}
-
-type V1UpdateEventRetentionPoliciesForbidden Error
-
-func (*V1UpdateEventRetentionPoliciesForbidden) v1UpdateEventRetentionPoliciesRes() {}
-
-type V1UpdateEventRetentionPoliciesInternalServerError Error
-
-func (*V1UpdateEventRetentionPoliciesInternalServerError) v1UpdateEventRetentionPoliciesRes() {}
-
-// V1UpdateEventRetentionPoliciesOK is response for V1UpdateEventRetentionPolicies operation.
-type V1UpdateEventRetentionPoliciesOK struct{}
-
-func (*V1UpdateEventRetentionPoliciesOK) v1UpdateEventRetentionPoliciesRes() {}
-
-type V1UpdateEventRetentionPoliciesReq struct {
-	Records []EBRPolicy `json:"records"`
-}
-
-// GetRecords returns the value of Records.
-func (s *V1UpdateEventRetentionPoliciesReq) GetRecords() []EBRPolicy {
-	return s.Records
-}
-
-// SetRecords sets the value of Records.
-func (s *V1UpdateEventRetentionPoliciesReq) SetRecords(val []EBRPolicy) {
-	s.Records = val
-}
-
-type V1UpdateEventRetentionPoliciesUnauthorized Error
-
-func (*V1UpdateEventRetentionPoliciesUnauthorized) v1UpdateEventRetentionPoliciesRes() {}
 
 type V1UpdateEventRetentionPolicyBadRequest Error
 

@@ -125,6 +125,156 @@ func (s *CacheStatus) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *EBROperation) SetFake() {
+	{
+		{
+			s.ID.SetFake()
+		}
+	}
+	{
+		{
+			s.State.SetFake()
+		}
+	}
+	{
+		{
+			s.Path.SetFake()
+		}
+	}
+	{
+		{
+			s.Policy.SetFake()
+		}
+	}
+	{
+		{
+			s.Volume.SetFake()
+		}
+	}
+	{
+		{
+			s.Svm.SetFake()
+		}
+	}
+	{
+		{
+			s.NumFilesProcessed.SetFake()
+		}
+	}
+	{
+		{
+			s.NumFilesFailed.SetFake()
+		}
+	}
+	{
+		{
+			s.NumFilesSkipped.SetFake()
+		}
+	}
+	{
+		{
+			s.NumInodesIgnored.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *EBROperationCreate) SetFake() {
+	{
+		{
+			s.Path = "string"
+		}
+	}
+	{
+		{
+			s.Policy.SetFake()
+		}
+	}
+	{
+		{
+			s.Volume.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *EBROperationCreatePolicy) SetFake() {
+	{
+		{
+			s.Name = "string"
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *EBROperationCreateVolume) SetFake() {
+	{
+		{
+			s.Name.SetFake()
+		}
+	}
+	{
+		{
+			s.UUID.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *EBROperationResponse) SetFake() {
+	{
+		{
+			s.Links.SetFake()
+		}
+	}
+	{
+		{
+			s.NumRecords.SetFake()
+		}
+	}
+	{
+		{
+			s.Records = nil
+			for i := 0; i < 0; i++ {
+				var elem EBROperation
+				{
+					elem.SetFake()
+				}
+				s.Records = append(s.Records, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *EBROperationResponseLinks) SetFake() {
+	{
+		{
+			s.Self.SetFake()
+		}
+	}
+	{
+		{
+			s.Next.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *EBROperationVolume) SetFake() {
+	{
+		{
+			s.Name.SetFake()
+		}
+	}
+	{
+		{
+			s.UUID.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *EBRPolicy) SetFake() {
 	{
 		{
@@ -144,6 +294,25 @@ func (s *EBRPolicy) SetFake() {
 	{
 		{
 			s.Svm.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *EBRPolicyRef) SetFake() {
+	{
+		{
+			s.Links.SetFake()
+		}
+	}
+	{
+		{
+			s.Name.SetFake()
+		}
+	}
+	{
+		{
+			s.RetentionPeriod.SetFake()
 		}
 	}
 }
@@ -664,6 +833,42 @@ func (s *OptDateTime) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptEBROperationCreateVolume) SetFake() {
+	var elem EBROperationCreateVolume
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptEBROperationResponseLinks) SetFake() {
+	var elem EBROperationResponseLinks
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptEBROperationVolume) SetFake() {
+	var elem EBROperationVolume
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptEBRPolicyRef) SetFake() {
+	var elem EBRPolicyRef
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptEBRPolicyResponseLinks) SetFake() {
 	var elem EBRPolicyResponseLinks
 	{
@@ -929,15 +1134,6 @@ func (s *OptUUID) SetFake() {
 	var elem uuid.UUID
 	{
 		elem = uuid.New()
-	}
-	s.SetTo(elem)
-}
-
-// SetFake set fake values.
-func (s *OptV1DeleteEventRetentionPoliciesReq) SetFake() {
-	var elem V1DeleteEventRetentionPoliciesReq
-	{
-		elem.SetFake()
 	}
 	s.SetTo(elem)
 }
@@ -1249,6 +1445,51 @@ func (s *SvmRef) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1AbortEventRetentionOperationBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1AbortEventRetentionOperationBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1AbortEventRetentionOperationForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1AbortEventRetentionOperationForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1AbortEventRetentionOperationInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1AbortEventRetentionOperationInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1AbortEventRetentionOperationNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1AbortEventRetentionOperationNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1AbortEventRetentionOperationUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1AbortEventRetentionOperationUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1ClusterLicensingAccessTokensCreateBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -1291,6 +1532,51 @@ func (s *V1ClusterLicensingAccessTokensCreateUnauthorized) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1ClusterLicensingAccessTokensCreateUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateEventRetentionOperationBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateEventRetentionOperationBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateEventRetentionOperationForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateEventRetentionOperationForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateEventRetentionOperationInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateEventRetentionOperationInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateEventRetentionOperationNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateEventRetentionOperationNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateEventRetentionOperationUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateEventRetentionOperationUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.
@@ -1399,58 +1685,6 @@ func (s *V1DeleteDestinationEndpointUnauthorized) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1DeleteDestinationEndpointUnauthorized(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1DeleteEventRetentionPoliciesBadRequest) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1DeleteEventRetentionPoliciesBadRequest(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1DeleteEventRetentionPoliciesForbidden) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1DeleteEventRetentionPoliciesForbidden(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1DeleteEventRetentionPoliciesInternalServerError) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1DeleteEventRetentionPoliciesInternalServerError(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1DeleteEventRetentionPoliciesReq) SetFake() {
-	{
-		{
-			s.Records = nil
-			for i := 0; i < 0; i++ {
-				var elem EBRPolicy
-				{
-					elem.SetFake()
-				}
-				s.Records = append(s.Records, elem)
-			}
-		}
-	}
-}
-
-// SetFake set fake values.
-func (s *V1DeleteEventRetentionPoliciesUnauthorized) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1DeleteEventRetentionPoliciesUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.
@@ -1607,6 +1841,51 @@ func (s *V1GetDestinationEndpointInfoUnauthorized) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1GetEventRetentionOperationBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetEventRetentionOperationBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetEventRetentionOperationForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetEventRetentionOperationForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetEventRetentionOperationInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetEventRetentionOperationInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetEventRetentionOperationNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetEventRetentionOperationNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetEventRetentionOperationUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetEventRetentionOperationUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1GetEventRetentionPolicyBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -1697,6 +1976,42 @@ func (s *V1GetSnapshotsUnauthorized) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1ListEventRetentionOperationsBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ListEventRetentionOperationsBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ListEventRetentionOperationsForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ListEventRetentionOperationsForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ListEventRetentionOperationsInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ListEventRetentionOperationsInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ListEventRetentionOperationsUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ListEventRetentionOperationsUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1ListEventRetentionPoliciesBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -1775,58 +2090,6 @@ func (s *V1PrivateCliUnauthorized) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1PrivateCliUnauthorized(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1UpdateEventRetentionPoliciesBadRequest) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1UpdateEventRetentionPoliciesBadRequest(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1UpdateEventRetentionPoliciesForbidden) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1UpdateEventRetentionPoliciesForbidden(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1UpdateEventRetentionPoliciesInternalServerError) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1UpdateEventRetentionPoliciesInternalServerError(unwrapped)
-}
-
-// SetFake set fake values.
-func (s *V1UpdateEventRetentionPoliciesReq) SetFake() {
-	{
-		{
-			s.Records = nil
-			for i := 0; i < 0; i++ {
-				var elem EBRPolicy
-				{
-					elem.SetFake()
-				}
-				s.Records = append(s.Records, elem)
-			}
-		}
-	}
-}
-
-// SetFake set fake values.
-func (s *V1UpdateEventRetentionPoliciesUnauthorized) SetFake() {
-	var unwrapped Error
-	{
-		unwrapped.SetFake()
-	}
-	*s = V1UpdateEventRetentionPoliciesUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.

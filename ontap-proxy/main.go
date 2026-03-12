@@ -128,6 +128,12 @@ func setupHTTPServer(handler http.Handler) *http.Server {
 		r.Patch("/api/storage/snaplock/event-retention/policies/*", handler.ServeHTTP)
 		r.Delete("/api/storage/snaplock/event-retention/policies/*", handler.ServeHTTP)
 
+		// Event retention (EBR) operations - CLI-based, handled by ogen server
+		r.Get("/api/storage/snaplock/event-retention/operations", handler.ServeHTTP)
+		r.Post("/api/storage/snaplock/event-retention/operations", handler.ServeHTTP)
+		r.Get("/api/storage/snaplock/event-retention/operations/*", handler.ServeHTTP)
+		r.Delete("/api/storage/snaplock/event-retention/operations/*", handler.ServeHTTP)
+
 		// Passthrough routes (chi middleware for reverse proxy)
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.URLValidationMiddleware())

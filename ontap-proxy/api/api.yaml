@@ -352,6 +352,162 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/operations:
+    get:
+      operationId: v1_listEventRetentionOperations
+      summary: List EBR operations
+      description: |
+        Retrieves a list of Event Based Retention (EBR) operations.
+        Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
+      tags:
+        - snaplock
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/poolIdPathParameter'
+      responses:
+        '200':
+          description: List of EBR operations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EBROperationResponse'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      operationId: v1_createEventRetentionOperation
+      summary: Apply EBR policy (create operation)
+      description: |
+        Starts an EBR operation to apply an Event Based Retention policy to a path on a volume.
+        Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
+      tags:
+        - snaplock
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/poolIdPathParameter'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EBROperationCreate'
+      responses:
+        '201':
+          description: EBR operation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EBROperation'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/operations/{id}:
+    get:
+      operationId: v1_getEventRetentionOperation
+      summary: Get one EBR operation
+      description: |
+        Retrieves a single Event Based Retention (EBR) operation by ID.
+        Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
+      tags:
+        - snaplock
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - name: id
+          in: path
+          required: true
+          description: EBR operation ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: EBR operation details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EBROperation'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      operationId: v1_abortEventRetentionOperation
+      summary: Abort EBR operation
+      description: |
+        Aborts an ongoing Event Based Retention (EBR) operation.
+        Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
+      tags:
+        - snaplock
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - name: id
+          in: path
+          required: true
+          description: EBR operation ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Operation aborted
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/private/cli:
     post:
       operationId: v1_privateCli
@@ -1170,6 +1326,112 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/EBRPolicy'
+    EBROperation:
+      type: object
+      title: EBROperation
+      description: Event Based Retention (EBR) operation
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Operation ID
+          example: 16842754
+        state:
+          type: string
+          description: Operation state (e.g. in_progress, completed, failed, aborting)
+          example: "in_progress"
+        path:
+          type: string
+          description: Path relative to volume root
+          example: "/"
+        policy:
+          $ref: '#/components/schemas/EBRPolicyRef'
+        volume:
+          type: object
+          description: Volume reference
+          properties:
+            name:
+              type: string
+              description: Volume name
+              example: "vol1"
+            uuid:
+              type: string
+              format: uuid
+              description: Volume UUID
+        svm:
+          $ref: '#/components/schemas/SvmRef'
+        num_files_processed:
+          type: integer
+          format: int64
+          description: Number of files processed
+        num_files_failed:
+          type: integer
+          format: int64
+          description: Number of files failed
+        num_files_skipped:
+          type: integer
+          format: int64
+          description: Number of files skipped
+        num_inodes_ignored:
+          type: integer
+          format: int64
+          description: Number of inodes ignored
+    EBROperationResponse:
+      type: object
+      title: EBROperationResponse
+      description: Response containing list of EBR operations
+      properties:
+        _links:
+          type: object
+          properties:
+            self:
+              $ref: '#/components/schemas/Href'
+            next:
+              $ref: '#/components/schemas/Href'
+        num_records:
+          type: integer
+          description: Number of records
+          example: 1
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/EBROperation'
+    EBROperationCreate:
+      type: object
+      title: EBROperationCreate
+      description: Request body to create (apply) an EBR operation
+      required:
+        - path
+        - policy
+      properties:
+        path:
+          type: string
+          description: Path relative to volume root (e.g. "/" for all files)
+          example: "/"
+        policy:
+          type: object
+          required:
+            - name
+          properties:
+            name:
+              type: string
+              description: EBR policy name to apply (alphanumeric, hyphen, underscore, period only; 1-256 chars)
+              minLength: 1
+              maxLength: 256
+              pattern: '^[a-zA-Z0-9_.-]+$'
+              example: "p1day"
+        volume:
+          type: object
+          description: Volume (provide name or uuid)
+          properties:
+            name:
+              type: string
+              description: Volume name
+              example: "vol1"
+            uuid:
+              type: string
+              format: uuid
+              description: Volume UUID
     SvmRef:
       type: object
       title: SvmRef

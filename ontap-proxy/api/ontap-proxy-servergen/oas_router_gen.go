@@ -378,93 +378,167 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										break
 									}
 									switch elem[0] {
-									case 'e': // Prefix: "event-retention/policies"
+									case 'e': // Prefix: "event-retention/"
 
-										if l := len("event-retention/policies"); len(elem) >= l && elem[0:l] == "event-retention/policies" {
+										if l := len("event-retention/"); len(elem) >= l && elem[0:l] == "event-retention/" {
 											elem = elem[l:]
 										} else {
 											break
 										}
 
 										if len(elem) == 0 {
-											switch r.Method {
-											case "DELETE":
-												s.handleV1DeleteEventRetentionPoliciesRequest([3]string{
-													args[0],
-													args[1],
-													args[2],
-												}, elemIsEscaped, w, r)
-											case "GET":
-												s.handleV1ListEventRetentionPoliciesRequest([3]string{
-													args[0],
-													args[1],
-													args[2],
-												}, elemIsEscaped, w, r)
-											case "PATCH":
-												s.handleV1UpdateEventRetentionPoliciesRequest([3]string{
-													args[0],
-													args[1],
-													args[2],
-												}, elemIsEscaped, w, r)
-											case "POST":
-												s.handleV1CreateEventRetentionPolicyRequest([3]string{
-													args[0],
-													args[1],
-													args[2],
-												}, elemIsEscaped, w, r)
-											default:
-												s.notAllowed(w, r, "DELETE,GET,PATCH,POST")
-											}
-
-											return
+											break
 										}
 										switch elem[0] {
-										case '/': // Prefix: "/"
+										case 'o': // Prefix: "operations"
 
-											if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+											if l := len("operations"); len(elem) >= l && elem[0:l] == "operations" {
 												elem = elem[l:]
 											} else {
 												break
 											}
 
-											// Param: "policy.name"
-											// Leaf parameter, slashes are prohibited
-											idx := strings.IndexByte(elem, '/')
-											if idx >= 0 {
-												break
-											}
-											args[3] = elem
-											elem = ""
-
 											if len(elem) == 0 {
-												// Leaf node.
 												switch r.Method {
-												case "DELETE":
-													s.handleV1DeleteEventRetentionPolicyRequest([4]string{
-														args[0],
-														args[1],
-														args[2],
-														args[3],
-													}, elemIsEscaped, w, r)
 												case "GET":
-													s.handleV1GetEventRetentionPolicyRequest([4]string{
+													s.handleV1ListEventRetentionOperationsRequest([3]string{
 														args[0],
 														args[1],
 														args[2],
-														args[3],
 													}, elemIsEscaped, w, r)
-												case "PATCH":
-													s.handleV1UpdateEventRetentionPolicyRequest([4]string{
+												case "POST":
+													s.handleV1CreateEventRetentionOperationRequest([3]string{
 														args[0],
 														args[1],
 														args[2],
-														args[3],
 													}, elemIsEscaped, w, r)
 												default:
-													s.notAllowed(w, r, "DELETE,GET,PATCH")
+													s.notAllowed(w, r, "GET,POST")
 												}
 
 												return
+											}
+											switch elem[0] {
+											case '/': // Prefix: "/"
+
+												if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												// Param: "id"
+												// Leaf parameter, slashes are prohibited
+												idx := strings.IndexByte(elem, '/')
+												if idx >= 0 {
+													break
+												}
+												args[3] = elem
+												elem = ""
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch r.Method {
+													case "DELETE":
+														s.handleV1AbortEventRetentionOperationRequest([4]string{
+															args[0],
+															args[1],
+															args[2],
+															args[3],
+														}, elemIsEscaped, w, r)
+													case "GET":
+														s.handleV1GetEventRetentionOperationRequest([4]string{
+															args[0],
+															args[1],
+															args[2],
+															args[3],
+														}, elemIsEscaped, w, r)
+													default:
+														s.notAllowed(w, r, "DELETE,GET")
+													}
+
+													return
+												}
+
+											}
+
+										case 'p': // Prefix: "policies"
+
+											if l := len("policies"); len(elem) >= l && elem[0:l] == "policies" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												switch r.Method {
+												case "GET":
+													s.handleV1ListEventRetentionPoliciesRequest([3]string{
+														args[0],
+														args[1],
+														args[2],
+													}, elemIsEscaped, w, r)
+												case "POST":
+													s.handleV1CreateEventRetentionPolicyRequest([3]string{
+														args[0],
+														args[1],
+														args[2],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, "GET,POST")
+												}
+
+												return
+											}
+											switch elem[0] {
+											case '/': // Prefix: "/"
+
+												if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												// Param: "policy.name"
+												// Leaf parameter, slashes are prohibited
+												idx := strings.IndexByte(elem, '/')
+												if idx >= 0 {
+													break
+												}
+												args[3] = elem
+												elem = ""
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch r.Method {
+													case "DELETE":
+														s.handleV1DeleteEventRetentionPolicyRequest([4]string{
+															args[0],
+															args[1],
+															args[2],
+															args[3],
+														}, elemIsEscaped, w, r)
+													case "GET":
+														s.handleV1GetEventRetentionPolicyRequest([4]string{
+															args[0],
+															args[1],
+															args[2],
+															args[3],
+														}, elemIsEscaped, w, r)
+													case "PATCH":
+														s.handleV1UpdateEventRetentionPolicyRequest([4]string{
+															args[0],
+															args[1],
+															args[2],
+															args[3],
+														}, elemIsEscaped, w, r)
+													default:
+														s.notAllowed(w, r, "DELETE,GET,PATCH")
+													}
+
+													return
+												}
+
 											}
 
 										}
@@ -951,100 +1025,172 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										break
 									}
 									switch elem[0] {
-									case 'e': // Prefix: "event-retention/policies"
+									case 'e': // Prefix: "event-retention/"
 
-										if l := len("event-retention/policies"); len(elem) >= l && elem[0:l] == "event-retention/policies" {
+										if l := len("event-retention/"); len(elem) >= l && elem[0:l] == "event-retention/" {
 											elem = elem[l:]
 										} else {
 											break
 										}
 
 										if len(elem) == 0 {
-											switch method {
-											case "DELETE":
-												r.name = V1DeleteEventRetentionPoliciesOperation
-												r.summary = "Delete multiple EBR policies"
-												r.operationID = "v1_deleteEventRetentionPolicies"
-												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies"
-												r.args = args
-												r.count = 3
-												return r, true
-											case "GET":
-												r.name = V1ListEventRetentionPoliciesOperation
-												r.summary = "List all Event Based Retention (EBR) policies"
-												r.operationID = "v1_listEventRetentionPolicies"
-												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies"
-												r.args = args
-												r.count = 3
-												return r, true
-											case "PATCH":
-												r.name = V1UpdateEventRetentionPoliciesOperation
-												r.summary = "Update multiple EBR policies"
-												r.operationID = "v1_updateEventRetentionPolicies"
-												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies"
-												r.args = args
-												r.count = 3
-												return r, true
-											case "POST":
-												r.name = V1CreateEventRetentionPolicyOperation
-												r.summary = "Create an Event Based Retention (EBR) policy"
-												r.operationID = "v1_createEventRetentionPolicy"
-												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies"
-												r.args = args
-												r.count = 3
-												return r, true
-											default:
-												return
-											}
+											break
 										}
 										switch elem[0] {
-										case '/': // Prefix: "/"
+										case 'o': // Prefix: "operations"
 
-											if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+											if l := len("operations"); len(elem) >= l && elem[0:l] == "operations" {
 												elem = elem[l:]
 											} else {
 												break
 											}
 
-											// Param: "policy.name"
-											// Leaf parameter, slashes are prohibited
-											idx := strings.IndexByte(elem, '/')
-											if idx >= 0 {
-												break
-											}
-											args[3] = elem
-											elem = ""
-
 											if len(elem) == 0 {
-												// Leaf node.
 												switch method {
-												case "DELETE":
-													r.name = V1DeleteEventRetentionPolicyOperation
-													r.summary = "Delete an EBR policy"
-													r.operationID = "v1_deleteEventRetentionPolicy"
-													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies/{policy.name}"
-													r.args = args
-													r.count = 4
-													return r, true
 												case "GET":
-													r.name = V1GetEventRetentionPolicyOperation
-													r.summary = "Get a specific EBR policy"
-													r.operationID = "v1_getEventRetentionPolicy"
-													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies/{policy.name}"
+													r.name = V1ListEventRetentionOperationsOperation
+													r.summary = "List EBR operations"
+													r.operationID = "v1_listEventRetentionOperations"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/operations"
 													r.args = args
-													r.count = 4
+													r.count = 3
 													return r, true
-												case "PATCH":
-													r.name = V1UpdateEventRetentionPolicyOperation
-													r.summary = "Update an EBR policy"
-													r.operationID = "v1_updateEventRetentionPolicy"
-													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies/{policy.name}"
+												case "POST":
+													r.name = V1CreateEventRetentionOperationOperation
+													r.summary = "Apply EBR policy (create operation)"
+													r.operationID = "v1_createEventRetentionOperation"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/operations"
 													r.args = args
-													r.count = 4
+													r.count = 3
 													return r, true
 												default:
 													return
 												}
+											}
+											switch elem[0] {
+											case '/': // Prefix: "/"
+
+												if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												// Param: "id"
+												// Leaf parameter, slashes are prohibited
+												idx := strings.IndexByte(elem, '/')
+												if idx >= 0 {
+													break
+												}
+												args[3] = elem
+												elem = ""
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch method {
+													case "DELETE":
+														r.name = V1AbortEventRetentionOperationOperation
+														r.summary = "Abort EBR operation"
+														r.operationID = "v1_abortEventRetentionOperation"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/operations/{id}"
+														r.args = args
+														r.count = 4
+														return r, true
+													case "GET":
+														r.name = V1GetEventRetentionOperationOperation
+														r.summary = "Get one EBR operation"
+														r.operationID = "v1_getEventRetentionOperation"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/operations/{id}"
+														r.args = args
+														r.count = 4
+														return r, true
+													default:
+														return
+													}
+												}
+
+											}
+
+										case 'p': // Prefix: "policies"
+
+											if l := len("policies"); len(elem) >= l && elem[0:l] == "policies" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												switch method {
+												case "GET":
+													r.name = V1ListEventRetentionPoliciesOperation
+													r.summary = "List all Event Based Retention (EBR) policies"
+													r.operationID = "v1_listEventRetentionPolicies"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies"
+													r.args = args
+													r.count = 3
+													return r, true
+												case "POST":
+													r.name = V1CreateEventRetentionPolicyOperation
+													r.summary = "Create an Event Based Retention (EBR) policy"
+													r.operationID = "v1_createEventRetentionPolicy"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies"
+													r.args = args
+													r.count = 3
+													return r, true
+												default:
+													return
+												}
+											}
+											switch elem[0] {
+											case '/': // Prefix: "/"
+
+												if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												// Param: "policy.name"
+												// Leaf parameter, slashes are prohibited
+												idx := strings.IndexByte(elem, '/')
+												if idx >= 0 {
+													break
+												}
+												args[3] = elem
+												elem = ""
+
+												if len(elem) == 0 {
+													// Leaf node.
+													switch method {
+													case "DELETE":
+														r.name = V1DeleteEventRetentionPolicyOperation
+														r.summary = "Delete an EBR policy"
+														r.operationID = "v1_deleteEventRetentionPolicy"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies/{policy.name}"
+														r.args = args
+														r.count = 4
+														return r, true
+													case "GET":
+														r.name = V1GetEventRetentionPolicyOperation
+														r.summary = "Get a specific EBR policy"
+														r.operationID = "v1_getEventRetentionPolicy"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies/{policy.name}"
+														r.args = args
+														r.count = 4
+														return r, true
+													case "PATCH":
+														r.name = V1UpdateEventRetentionPolicyOperation
+														r.summary = "Update an EBR policy"
+														r.operationID = "v1_updateEventRetentionPolicy"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies/{policy.name}"
+														r.args = args
+														r.count = 4
+														return r, true
+													default:
+														return
+													}
+												}
+
 											}
 
 										}

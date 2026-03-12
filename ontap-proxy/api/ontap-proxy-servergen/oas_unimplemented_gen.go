@@ -46,6 +46,16 @@ func (UnimplementedHandler) SnaplockFileDelete(ctx context.Context, params Snapl
 	return r, ht.ErrNotImplemented
 }
 
+// V1AbortEventRetentionOperation implements v1_abortEventRetentionOperation operation.
+//
+// Aborts an ongoing Event Based Retention (EBR) operation.
+// Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
+//
+// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/operations/{id}
+func (UnimplementedHandler) V1AbortEventRetentionOperation(ctx context.Context, params V1AbortEventRetentionOperationParams) (r V1AbortEventRetentionOperationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1ClusterLicensingAccessTokensCreate implements v1_clusterLicensingAccessTokensCreate operation.
 //
 // Generates SM-C access token (same as ONTAP REST POST /api/cluster/licensing/access_tokens).
@@ -57,6 +67,16 @@ func (UnimplementedHandler) SnaplockFileDelete(ctx context.Context, params Snapl
 //
 // POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/cluster/licensing/access_tokens
 func (UnimplementedHandler) V1ClusterLicensingAccessTokensCreate(ctx context.Context, req *AccessTokenRequest, params V1ClusterLicensingAccessTokensCreateParams) (r V1ClusterLicensingAccessTokensCreateRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1CreateEventRetentionOperation implements v1_createEventRetentionOperation operation.
+//
+// Starts an EBR operation to apply an Event Based Retention policy to a path on a volume.
+// Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/operations
+func (UnimplementedHandler) V1CreateEventRetentionOperation(ctx context.Context, req *EBROperationCreate, params V1CreateEventRetentionOperationParams) (r V1CreateEventRetentionOperationRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -83,16 +103,6 @@ func (UnimplementedHandler) V1CreateEventRetentionPolicy(ctx context.Context, re
 //
 // DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}
 func (UnimplementedHandler) V1DeleteDestinationEndpoint(ctx context.Context, params V1DeleteDestinationEndpointParams) (r V1DeleteDestinationEndpointRes, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// V1DeleteEventRetentionPolicies implements v1_deleteEventRetentionPolicies operation.
-//
-// Deletes multiple Event Based Retention (EBR) policies.
-// Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
-//
-// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies
-func (UnimplementedHandler) V1DeleteEventRetentionPolicies(ctx context.Context, req OptV1DeleteEventRetentionPoliciesReq, params V1DeleteEventRetentionPoliciesParams) (r V1DeleteEventRetentionPoliciesRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -130,6 +140,16 @@ func (UnimplementedHandler) V1GetDestinationEndpointInfo(ctx context.Context, pa
 	return r, ht.ErrNotImplemented
 }
 
+// V1GetEventRetentionOperation implements v1_getEventRetentionOperation operation.
+//
+// Retrieves a single Event Based Retention (EBR) operation by ID.
+// Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/operations/{id}
+func (UnimplementedHandler) V1GetEventRetentionOperation(ctx context.Context, params V1GetEventRetentionOperationParams) (r V1GetEventRetentionOperationRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1GetEventRetentionPolicy implements v1_getEventRetentionPolicy operation.
 //
 // Retrieves details of a specific Event Based Retention (EBR) policy by name.
@@ -149,6 +169,16 @@ func (UnimplementedHandler) V1GetEventRetentionPolicy(ctx context.Context, param
 //
 // GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots
 func (UnimplementedHandler) V1GetSnapshots(ctx context.Context, params V1GetSnapshotsParams) (r V1GetSnapshotsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1ListEventRetentionOperations implements v1_listEventRetentionOperations operation.
+//
+// Retrieves a list of Event Based Retention (EBR) operations.
+// Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
+//
+// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/operations
+func (UnimplementedHandler) V1ListEventRetentionOperations(ctx context.Context, params V1ListEventRetentionOperationsParams) (r V1ListEventRetentionOperationsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -180,16 +210,6 @@ func (UnimplementedHandler) V1ListEventRetentionPolicies(ctx context.Context, pa
 //
 // POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/private/cli
 func (UnimplementedHandler) V1PrivateCli(ctx context.Context, req *CLIExecuteRequest, params V1PrivateCliParams) (r V1PrivateCliRes, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// V1UpdateEventRetentionPolicies implements v1_updateEventRetentionPolicies operation.
-//
-// Updates the retention period of multiple Event Based Retention (EBR) policies.
-// Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
-//
-// PATCH /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies
-func (UnimplementedHandler) V1UpdateEventRetentionPolicies(ctx context.Context, req *V1UpdateEventRetentionPoliciesReq, params V1UpdateEventRetentionPoliciesParams) (r V1UpdateEventRetentionPoliciesRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
