@@ -10,7 +10,18 @@ data:
     #!/bin/sh
     set -e
 
+    POLL_INTERVAL=10
+    MAX_WAIT=900
+    START_TIME=$(date +%s)
+
     log() { echo "[namespace-setup] $*"; }
+
+    check_timeout() {
+      if [ $(( $(date +%s) - START_TIME )) -ge $MAX_WAIT ]; then
+        log "ERROR: Timed out after ${MAX_WAIT}s — $1"
+        exit 1
+      fi
+    }
 
     # --- Istio helpers ---
 
@@ -27,12 +38,54 @@ data:
       curl -sf -X POST http://localhost:15000/quitquitquit || true
     }
 
-    # --- Archival helper ---
-    # Returns the current archival state (enabled/disabled) for a given namespace and field.
+    # --- Frontend readiness ---
+
+    wait_for_frontend() {
+      log "Waiting for Temporal frontend..."
+      until temporal operator cluster health > /dev/null 2>&1; do
+        check_timeout "Frontend not reachable."
+        log "  Frontend not ready. Retrying in ${POLL_INTERVAL}s..."
+        sleep "$POLL_INTERVAL"
+      done
+      log "Frontend is reachable."
+    }
+
+    # --- Archival helpers ---
 
     archival_state() {
       temporal operator namespace describe -n "$1" 2>&1 \
         | grep -i "$2" | awk '{print $NF}' | tr '[:upper:]' '[:lower:]'
+    }
+
+    # Runs update command, then verifies archival state(s) match what was
+    # requested. Accepts one or two field/expected pairs before a "--" separator.
+    # Usage: verify_archival <ns> <field> <expected> [<field2> <expected2>] -- <cmd...>
+    verify_archival() {
+      ns="$1"; field1="$2"; expected1="$3"; shift 3
+      field2=""; expected2=""
+      if [ "$1" != "--" ]; then
+        field2="$1"; expected2="$2"; shift 2
+      fi
+      shift
+      while true; do
+        if "$@"; then
+          sleep 2
+          actual1=$(archival_state "$ns" "$field1")
+          actual2=""
+          [ -n "$field2" ] && actual2=$(archival_state "$ns" "$field2")
+          if [ "$actual1" = "$expected1" ] && { [ -z "$field2" ] || [ "$actual2" = "$expected2" ]; }; then
+            log "  Verified: $field1=$expected1"
+            [ -n "$field2" ] && log "  Verified: $field2=$expected2"
+            return 0
+          fi
+          [ "$actual1" != "$expected1" ] && log "  $field1='$actual1' (expected '$expected1'). Server config may not be loaded yet. Retrying in ${POLL_INTERVAL}s..."
+          [ -n "$field2" ] && [ "$actual2" != "$expected2" ] && log "  $field2='$actual2' (expected '$expected2'). Retrying in ${POLL_INTERVAL}s..."
+        else
+          log "  Update command failed (server may be restarting). Retrying in ${POLL_INTERVAL}s..."
+        fi
+        check_timeout "$field1 on $ns is not '$expected1'. Cluster-level archival may not be enabled."
+        sleep "$POLL_INTERVAL"
+      done
     }
 
     # ==============================
@@ -42,6 +95,8 @@ data:
     {{- if $.Values.schema.istio.enabled }}
     wait_for_istio
     {{- end }}
+
+    wait_for_frontend
 
     {{- range $namespace := $.Values.server.config.namespaces.namespace }}
 
@@ -96,9 +151,17 @@ data:
 
     {{- end }}
 
-    # Step 5: Run the update
+    # Step 5: Run the update (with archival verification if applicable)
     log "Updating: $*"
+    {{- $hasHistory := and $namespace.archival $namespace.archival.history $namespace.archival.history.state -}}
+    {{- $hasVisibility := and $namespace.archival $namespace.archival.visibility $namespace.archival.visibility.state -}}
+    {{- if or $hasHistory $hasVisibility }}
+    verify_archival {{ $namespace.name }}
+    {{- if $hasHistory }} HistoryArchivalState {{ $namespace.archival.history.state }}{{ end }}
+    {{- if $hasVisibility }} VisibilityArchivalState {{ $namespace.archival.visibility.state }}{{ end }} -- "$@"
+    {{- else }}
     "$@"
+    {{- end }}
 
     log "{{ $namespace.name }} done."
     {{- end }}
