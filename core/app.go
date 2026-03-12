@@ -19,8 +19,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/tasks"
@@ -56,10 +56,10 @@ const (
 	workflowSupervisorCronExpression     = "0 */5 * * * *"
 	workflowSupervisorLockTimeoutSeconds = 300
 
-	leakedResourcesMonitoringJobType                = "LEAKED_RESOURCES_MONITORING"
+	leakedResourcesMonitoringJobType               = "LEAKED_RESOURCES_MONITORING"
 	leakedResourcesMonitoringCronExpressionDefault = "0 0 0 * * *" // once per day at midnight (sec min hour day month dow)
-	leakedResourcesMonitoringLockTimeoutSeconds     = 3600
-	leakedResourcesMonitoringRunTimeoutSeconds      = 30 * 60       // max time for one pipeline run; prevents stuck CCFE/DB from holding lock
+	leakedResourcesMonitoringLockTimeoutSeconds    = 3600
+	leakedResourcesMonitoringRunTimeoutSeconds     = 30 * 60 // max time for one pipeline run; prevents stuck CCFE/DB from holding lock
 )
 
 func main() {
@@ -295,7 +295,7 @@ func startBackgroundTaskScheduler(ctx context.Context, se database.Storage, temp
 
 	// Schedule leaked resources monitoring when enabled (LEAKED_RESOURCES_MONITORING_ENABLED, default true).
 	// When enabled: default once per day at midnight; override via LEAKED_RESOURCES_MONITORING_CRON_EXPRESSION.
-	if env.GetBool("LEAKED_RESOURCES_MONITORING_ENABLED", true) {
+	if env.GetBool("LEAKED_RESOURCES_MONITORING_ENABLED", false) {
 		leakedResourcesCronExpr := env.GetString("LEAKED_RESOURCES_MONITORING_CRON_EXPRESSION", leakedResourcesMonitoringCronExpressionDefault)
 		logger.InfoContext(ctx, "Leaked resources monitoring cron", "expression", leakedResourcesCronExpr)
 		leakedResourcesErr := cronScheduler.AddFunc(leakedResourcesCronExpr, func() { runLockedLeakedResourcesMonitoringTask(ctx, se, logger) })
