@@ -66,12 +66,12 @@ func TestHybridCreateJobForHybridDeleteVolume(t *testing.T) {
 		result := &replication.DeleteReplicationResult{
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
-					AccountID: 1,
 					ReplicationModel: &datamodel.VolumeReplication{
 						ReplicationAttributes: &datamodel.ReplicationDetails{
 							DestinationLocation:   "us-central1",
 							DestinationVolumeUUID: "dest-vol-uuid",
 						},
+						AccountID: 1,
 					},
 				},
 			},
@@ -100,12 +100,12 @@ func TestHybridCreateJobForHybridDeleteVolume(t *testing.T) {
 		result := &replication.DeleteReplicationResult{
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
-					AccountID: 1,
 					ReplicationModel: &datamodel.VolumeReplication{
 						ReplicationAttributes: &datamodel.ReplicationDetails{
 							DestinationLocation:   "us-central1",
 							DestinationVolumeUUID: "dest-vol-uuid",
 						},
+						AccountID: 1,
 					},
 				},
 			},
@@ -147,12 +147,12 @@ func TestHybridCreateJobForHybridDeleteVolume(t *testing.T) {
 		result := &replication.DeleteReplicationResult{
 			Event: &replication.DeleteReplicationEvent{
 				CommonReplicationEventParams: replication.CommonReplicationEventParams{
-					AccountID: 2,
 					ReplicationModel: &datamodel.VolumeReplication{
 						ReplicationAttributes: &datamodel.ReplicationDetails{
 							DestinationLocation:   "us-east1",
 							DestinationVolumeUUID: "another-vol-uuid",
 						},
+						AccountID: 1,
 					},
 				},
 			},
@@ -170,7 +170,11 @@ func TestHybridCreateJobForHybridDeleteVolume(t *testing.T) {
 		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
 			return job.Type == "FORCE_DELETE_VOLUME" &&
 				job.State == string(models.JobsStateNEW) &&
-				job.AccountID.Int64 == int64(2)
+				job.AccountID.Int64 == int64(1) &&
+				job.AccountID.Valid == true &&
+				job.ResourceName == fmt.Sprintf("projects/%s/locations/%s/volumes/%s", dstProjectNumber, "us-east1", "another-vol-uuid") &&
+				job.JobAttributes != nil &&
+				job.JobAttributes.ResourceUUID == "another-vol-uuid"
 		})).Return(createdJob, nil)
 
 		job, err := activity.CreateJobForHybridDeleteVolume(ctx, result, "FORCE_DELETE_VOLUME")

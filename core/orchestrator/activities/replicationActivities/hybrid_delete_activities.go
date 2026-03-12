@@ -38,7 +38,7 @@ func (a *HybridDeleteVolumeReplicationActivity) CreateJobForHybridDeleteVolume(c
 		replicationModel.ReplicationAttributes.DestinationVolumeUUID)
 
 	job := &datamodel.Job{
-		AccountID:     sql.NullInt64{Int64: result.Event.AccountID, Valid: true},
+		AccountID:     sql.NullInt64{Int64: result.Event.ReplicationModel.AccountID, Valid: true},
 		Type:          jobType,
 		State:         string(models.JobsStateNEW),
 		ResourceName:  resourceName,
