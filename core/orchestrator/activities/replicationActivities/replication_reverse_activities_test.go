@@ -1640,6 +1640,314 @@ func TestCleanupOldReplication(t *testing.T) {
 	})
 }
 
+func TestDeleteNewReplicationOnSrc(t *testing.T) {
+	makeResult := func() *replication.ReverseReplicationResult {
+		srcBasePath := "https://src-base-path.example.com"
+		srcJwtToken := "src-jwt-token"
+		srcProjectNumber := "src-project-number"
+		return &replication.ReverseReplicationResult{
+			SrcBasePath:      &srcBasePath,
+			SrcJwtToken:      &srcJwtToken,
+			SrcProjectNumber: &srcProjectNumber,
+			Event: &replication.ReverseReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: nillable.GetStringPtr("test-xcorrelation-id"),
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation:        "src-location",
+							SourceReplicationUUID: "src-replication-uuid",
+						},
+					},
+				},
+			},
+		}
+	}
+
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+		result := makeResult()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(tt)
+		mockClient := &googleproxyclient.ProxyClient{Invoker: mockInvoker}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockClient
+		}
+
+		resp := &googleproxyclient.VolumeReplicationInternalV1beta{}
+		mockInvoker.On("V1betaInternalDeleteVolumeReplication", ctx, mock.Anything).Return(resp, nil)
+
+		err := activity.DeleteNewReplicationOnSrc(ctx, result)
+		assert.NoError(tt, err)
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenNotFoundResponse", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+		result := makeResult()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(tt)
+		mockClient := &googleproxyclient.ProxyClient{Invoker: mockInvoker}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockClient
+		}
+
+		notFoundResp := &googleproxyclient.V1betaInternalDeleteVolumeReplicationNotFound{}
+		mockInvoker.On("V1betaInternalDeleteVolumeReplication", ctx, mock.Anything).Return(notFoundResp, nil)
+
+		err := activity.DeleteNewReplicationOnSrc(ctx, result)
+		assert.NoError(tt, err)
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenInvokerError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+		result := makeResult()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(tt)
+		mockClient := &googleproxyclient.ProxyClient{Invoker: mockInvoker}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockClient
+		}
+
+		mockInvoker.On("V1betaInternalDeleteVolumeReplication", ctx, mock.Anything).Return(nil, errors.New("api error"))
+
+		err := activity.DeleteNewReplicationOnSrc(ctx, result)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Failed to cleanup volume replication after reverse")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenBadRequestResponse", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+		result := makeResult()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(tt)
+		mockClient := &googleproxyclient.ProxyClient{Invoker: mockInvoker}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockClient
+		}
+
+		badRequestResp := &googleproxyclient.V1betaInternalDeleteVolumeReplicationBadRequest{Message: "invalid request"}
+		mockInvoker.On("V1betaInternalDeleteVolumeReplication", ctx, mock.Anything).Return(badRequestResp, nil)
+
+		err := activity.DeleteNewReplicationOnSrc(ctx, result)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Failed to cleanup volume replication after reverse")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenInternalServerErrorResponse", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+		result := makeResult()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(tt)
+		mockClient := &googleproxyclient.ProxyClient{Invoker: mockInvoker}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockClient
+		}
+
+		internalErrResp := &googleproxyclient.V1betaInternalDeleteVolumeReplicationInternalServerError{Message: "internal error"}
+		mockInvoker.On("V1betaInternalDeleteVolumeReplication", ctx, mock.Anything).Return(internalErrResp, nil)
+
+		err := activity.DeleteNewReplicationOnSrc(ctx, result)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Failed to cleanup volume replication after reverse")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUnauthorizedResponse", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+		result := makeResult()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(tt)
+		mockClient := &googleproxyclient.ProxyClient{Invoker: mockInvoker}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockClient
+		}
+
+		unauthorizedResp := &googleproxyclient.V1betaInternalDeleteVolumeReplicationUnauthorized{Message: "unauthorized"}
+		mockInvoker.On("V1betaInternalDeleteVolumeReplication", ctx, mock.Anything).Return(unauthorizedResp, nil)
+
+		err := activity.DeleteNewReplicationOnSrc(ctx, result)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Failed to cleanup volume replication after reverse")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenForbiddenResponse", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+		result := makeResult()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(tt)
+		mockClient := &googleproxyclient.ProxyClient{Invoker: mockInvoker}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockClient
+		}
+
+		forbiddenResp := &googleproxyclient.V1betaInternalDeleteVolumeReplicationForbidden{Message: "forbidden"}
+		mockInvoker.On("V1betaInternalDeleteVolumeReplication", ctx, mock.Anything).Return(forbiddenResp, nil)
+
+		err := activity.DeleteNewReplicationOnSrc(ctx, result)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Failed to cleanup volume replication after reverse")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUnknownResponseType", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+		result := makeResult()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(tt)
+		mockClient := &googleproxyclient.ProxyClient{Invoker: mockInvoker}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockClient
+		}
+
+		// Return a type that doesn't match any case in the switch (hits default branch)
+		unknownResp := &googleproxyclient.V1betaInternalDeleteVolumeReplicationConflict{}
+		mockInvoker.On("V1betaInternalDeleteVolumeReplication", ctx, mock.Anything).Return(unknownResp, nil)
+
+		err := activity.DeleteNewReplicationOnSrc(ctx, result)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Failed to cleanup volume replication after reverse")
+		mockInvoker.AssertExpectations(tt)
+	})
+}
+
+func TestRevertVolumeReplicationAttributesSrc(t *testing.T) {
+	makeResult := func() *replication.ReverseReplicationResult {
+		srcBasePath := "https://src-base-path.example.com"
+		srcJwtToken := "src-jwt-token"
+		srcProjectNumber := "src-project-number"
+		return &replication.ReverseReplicationResult{
+			SrcBasePath:      &srcBasePath,
+			SrcJwtToken:      &srcJwtToken,
+			SrcProjectNumber: &srcProjectNumber,
+			Event: &replication.ReverseReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					XCorrelationID: nillable.GetStringPtr("test-xcorrelation-id"),
+					ReplicationModel: &datamodel.VolumeReplication{
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							SourceLocation:             "src-location",
+							SourceReplicationUUID:      "src-replication-uuid",
+							SourceHostName:             "src-host",
+							SourceSvmName:              "src-svm",
+							SourceVolumeName:           "src-volume",
+							SourceVolumeUUID:           "src-volume-uuid",
+							SourcePoolUUID:             "src-pool-uuid",
+							DestinationHostName:        "dest-host",
+							DestinationSvmName:         "dest-svm",
+							DestinationVolumeName:      "dest-volume",
+							DestinationVolumeUUID:      "dest-volume-uuid",
+							DestinationPoolUUID:        "dest-pool-uuid",
+						},
+					},
+				},
+			},
+		}
+	}
+
+	t.Run("WhenSuccessful", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+		result := makeResult()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(tt)
+		mockClient := &googleproxyclient.ProxyClient{Invoker: mockInvoker}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockClient
+		}
+
+		resp := &googleproxyclient.OperationV1beta{}
+		mockInvoker.On("V1betaInternalUpdateVolumeReplicationAttributes", ctx, mock.Anything, mock.Anything).Return(resp, nil)
+
+		err := activity.RevertVolumeReplicationAttributesSrc(ctx, result)
+		assert.NoError(tt, err)
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenInvokerError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+		result := makeResult()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(tt)
+		mockClient := &googleproxyclient.ProxyClient{Invoker: mockInvoker}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockClient
+		}
+
+		mockInvoker.On("V1betaInternalUpdateVolumeReplicationAttributes", ctx, mock.Anything, mock.Anything).Return(nil, errors.New("api error"))
+
+		err := activity.RevertVolumeReplicationAttributesSrc(ctx, result)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Failed to update volume replication details")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUnexpectedResponseType", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		activity := ReverseVolumeReplicationActivity{SE: mockStorage}
+		result := makeResult()
+
+		mockInvoker := googleproxyclient.NewMockInvoker(tt)
+		mockClient := &googleproxyclient.ProxyClient{Invoker: mockInvoker}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockClient
+		}
+
+		// Return a type that is not *OperationV1beta so the activity returns "unexpected response type"
+		unexpectedResp := &googleproxyclient.V1betaInternalUpdateVolumeReplicationAttributesBadRequest{}
+		mockInvoker.On("V1betaInternalUpdateVolumeReplicationAttributes", ctx, mock.Anything, mock.Anything).Return(unexpectedResp, nil)
+
+		err := activity.RevertVolumeReplicationAttributesSrc(ctx, result)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Failed to update volume replication details")
+		mockInvoker.AssertExpectations(tt)
+	})
+}
+
 func TestReleaseReplicationOnOldSrc(t *testing.T) {
 	t.Run("WhenSuccessful", func(tt *testing.T) {
 		ctx := context.Background()

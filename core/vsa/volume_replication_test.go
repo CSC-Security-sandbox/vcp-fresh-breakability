@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/client/snapmirror"
 	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/priv/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -182,7 +183,6 @@ func TestCreateVolumeReplication(t *testing.T) {
 	}
 	var snapmirrorEmptyList []*ontaprest.SnapmirrorRelationship
 
-	listParams := &ontaprest.SnapmirrorRelationshipListParams{}
 	createParams := &ontaprest.SnapmirrorRelationshipCreateParams{
 		SourcePath:      volumeReplicationCreateParams.VolumeReplication.SourcePath(),
 		DestinationPath: volumeReplicationCreateParams.VolumeReplication.DestinationPath(),
@@ -251,7 +251,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
 		mockStorageClient.On("VolumeGet", volumeGetParams).Return(&dstVolume, nil).Times(1)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipListDestinations", mock.Anything).Return(snapmirrorEmptyList, nil).Times(1)
-		mockSnapmirrorClient.On("SnapmirrorRelationshipList", listParams).Return(snapmirrorEmptyList, nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipList", mock.Anything).Return(snapmirrorEmptyList, nil).Times(2)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipCreate", createParams).Return(nil, nil, expectedError).Times(1)
 		volumeReplication, err := ontapProvider.CreateVolumeReplication(&volumeReplicationCreateParams)
 		assert.Equal(tt, expectedError, err)
@@ -271,7 +271,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
 		mockStorageClient.On("VolumeGet", volumeGetParams).Return(&dstVolume, nil).Times(1)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipListDestinations", mock.Anything).Return(snapmirrorEmptyList, nil).Times(1)
-		mockSnapmirrorClient.On("SnapmirrorRelationshipList", listParams).Return(snapmirrorEmptyList, nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipList", mock.Anything).Return(snapmirrorEmptyList, nil).Times(2)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipCreate", createParams).Return(nil, jobAccepted, nil).Times(1)
 		mockClient.On("Poll", jobAccepted.JobUUID).Return(expectedError).Times(1)
 
@@ -293,9 +293,10 @@ func TestCreateVolumeReplication(t *testing.T) {
 		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
 		mockStorageClient.On("VolumeGet", volumeGetParams).Return(&dstVolume, nil).Times(1)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipListDestinations", mock.Anything).Return(snapmirrorEmptyList, nil).Times(1)
-		mockSnapmirrorClient.On("SnapmirrorRelationshipList", listParams).Return(snapmirrorEmptyList, nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipList", mock.Anything).Return(snapmirrorEmptyList, nil).Times(2)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipCreate", createParams).Return(snapmirror, jobAccepted, nil).Times(1)
 		mockClient.On("Poll", jobAccepted.JobUUID).Return(nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(snapmirror, nil).Times(1)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipResyncOrInitializeOrResume", snapmirror.UUID.String()).Return(nil, nil, expectedError).Times(1)
 
 		volumeReplication, err := provider.CreateVolumeReplication(&volumeReplicationCreateParams)
@@ -316,9 +317,10 @@ func TestCreateVolumeReplication(t *testing.T) {
 		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
 		mockStorageClient.On("VolumeGet", volumeGetParams).Return(&dstVolume, nil).Times(1)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipListDestinations", mock.Anything).Return(snapmirrorEmptyList, nil).Times(1)
-		mockSnapmirrorClient.On("SnapmirrorRelationshipList", listParams).Return(snapmirrorEmptyList, nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipList", mock.Anything).Return(snapmirrorEmptyList, nil).Times(2)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipCreate", createParams).Return(snapmirror, jobAccepted, nil).Times(1)
 		mockClient.On("Poll", jobAccepted.JobUUID).Return(nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(snapmirror, nil).Times(1)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipResyncOrInitializeOrResume", snapmirror.UUID.String()).Return(nil, jobAccepted, nil).Times(1)
 		mockClient.On("Poll", jobAccepted.JobUUID).Return(expectedError).Times(1)
 
@@ -340,7 +342,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
 		mockStorageClient.On("VolumeGet", volumeGetParams).Return(&dstVolume, nil).Times(1)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipListDestinations", mock.Anything).Return(snapmirrorEmptyList, nil).Times(1)
-		mockSnapmirrorClient.On("SnapmirrorRelationshipList", listParams).Return(snapmirrorEmptyList, nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipList", mock.Anything).Return(snapmirrorEmptyList, nil).Times(2)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipCreate", createParams).Return(snapmirror, jobAccepted, nil).Times(1)
 		mockClient.On("Poll", jobAccepted.JobUUID).Return(nil).Times(1)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipResyncOrInitializeOrResume", snapmirror.UUID.String()).Return(nil, jobAccepted, nil).Times(1)
@@ -366,7 +368,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
 		mockStorageClient.On("VolumeGet", volumeGetParams).Return(&dstVolume, nil).Times(1)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipListDestinations", mock.Anything).Return(snapmirrorEmptyList, nil).Times(1)
-		mockSnapmirrorClient.On("SnapmirrorRelationshipList", listParams).Return(snapmirrorEmptyList, nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipList", mock.Anything).Return(snapmirrorEmptyList, nil).Times(2)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipCreate", createParams).Return(snapmirror, jobAccepted, nil).Times(1)
 		mockClient.On("Poll", jobAccepted.JobUUID).Return(nil).Times(1)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipResyncOrInitializeOrResume", snapmirror.UUID.String()).Return(nil, jobAccepted, nil).Times(1)
@@ -394,12 +396,12 @@ func TestCreateVolumeReplication(t *testing.T) {
 		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
 		mockStorageClient.On("VolumeGet", volumeGetParams).Return(&dstVolume, nil).Times(1)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipListDestinations", mock.Anything).Return(snapmirrorEmptyList, nil).Times(1)
-		mockSnapmirrorClient.On("SnapmirrorRelationshipList", listParams).Return(snapmirrorEmptyList, nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipList", mock.Anything).Return(snapmirrorEmptyList, nil).Times(2)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipCreate", createParams).Return(snapmirror, jobAccepted, nil).Times(1)
 		mockClient.On("Poll", jobAccepted.JobUUID).Return(nil).Times(1)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipResyncOrInitializeOrResume", snapmirror.UUID.String()).Return(nil, jobAccepted, nil).Times(1)
 		mockClient.On("Poll", jobAccepted.JobUUID).Return(nil).Times(1)
-		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(snapmirror, nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(snapmirror, nil).Times(2)
 		mockStorageClient.On("VolumeGet", &ontaprest.VolumeGetParams{BaseParams: ontaprest.BaseParams{Fields: []string{"language"}}, UUID: *dstVolume.UUID}).Return(nil, expectedError).Times(1)
 
 		volumeReplication, err := provider.CreateVolumeReplication(&volumeReplicationCreateParams)
@@ -420,13 +422,12 @@ func TestCreateVolumeReplication(t *testing.T) {
 		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
 		mockStorageClient.On("VolumeGet", volumeGetParams).Return(&dstVolume, nil).Times(1)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipListDestinations", mock.Anything).Return(snapmirrorEmptyList, nil).Times(1)
-		mockSnapmirrorClient.On("SnapmirrorRelationshipList", listParams).Return(snapmirrorEmptyList, nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipList", mock.Anything).Return(snapmirrorEmptyList, nil).Times(2)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipCreate", createParams).Return(snapmirror, jobAccepted, nil).Times(1)
 		mockClient.On("Poll", jobAccepted.JobUUID).Return(nil).Times(1)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipResyncOrInitializeOrResume", snapmirror.UUID.String()).Return(nil, jobAccepted, nil).Times(1)
 		mockClient.On("Poll", jobAccepted.JobUUID).Return(nil).Times(1)
-		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(snapmirror, nil).Times(1)
-		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(snapmirror, nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(snapmirror, nil)
 
 		volumeReplication, err := provider.CreateVolumeReplication(&volumeReplicationCreateParams)
 		assert.NoError(tt, err)
@@ -449,12 +450,12 @@ func TestCreateVolumeReplication(t *testing.T) {
 		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
 		mockStorageClient.On("VolumeGet", volumeGetParams).Return(&dstVolume, nil).Times(1)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipListDestinations", mock.Anything).Return(snapmirrorEmptyList, nil).Times(1)
-		mockSnapmirrorClient.On("SnapmirrorRelationshipList", listParams).Return(snapmirrorEmptyList, nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipList", mock.Anything).Return(snapmirrorEmptyList, nil).Times(2)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipCreate", createParams).Return(snapmirror, jobAccepted, nil).Times(1)
 		mockClient.On("Poll", jobAccepted.JobUUID).Return(nil).Times(1)
 		mockSnapmirrorClient.On("SnapmirrorRelationshipResyncOrInitializeOrResume", snapmirror.UUID.String()).Return(nil, jobAccepted, nil).Times(1)
 		mockClient.On("Poll", jobAccepted.JobUUID).Return(nil).Times(1)
-		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(snapmirror, nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(snapmirror, nil).Times(2)
 		mockStorageClient.On("VolumeGet", &ontaprest.VolumeGetParams{BaseParams: ontaprest.BaseParams{Fields: []string{"language"}}, UUID: *dstVolume.UUID}).Return(&dstVolume, nil).Times(1)
 
 		volumeReplication, err := provider.CreateVolumeReplication(&volumeReplicationCreateParams)
@@ -464,6 +465,185 @@ func TestCreateVolumeReplication(t *testing.T) {
 		assert.NotEmpty(tt, volumeReplication)
 
 		dstVolume.Language = nil
+	})
+
+	t.Run("WhenValidateCreateSnapmirrorFails", func(tt *testing.T) {
+		peeringErr := errors.New("svm peering failed")
+		doEnsureSvmPeering = func(provider *OntapRestProvider, params *CreateVolumeReplicationParams) error {
+			return peeringErr
+		}
+		defer func() { doEnsureSvmPeering = ensureSvmPeering }()
+
+		mockClient := new(ontaprest.MockRESTClient)
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		provider := &OntapRestProvider{}
+
+		volumeReplication, err := provider.CreateVolumeReplication(&volumeReplicationCreateParams)
+		assert.Error(tt, err)
+		assert.Nil(tt, volumeReplication)
+		assert.Contains(tt, err.Error(), "svm peering failed")
+	})
+
+	t.Run("WhenCreateVsaVolumeReplicationReturnsFlexGroupGeometryMismatch", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorageClient := new(ontaprest.MockStorageClient)
+		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		doEnsureSvmPeering = func(provider *OntapRestProvider, params *CreateVolumeReplicationParams) error {
+			return nil
+		}
+		provider := &OntapRestProvider{}
+		flexGroupErr := errors.New(flexGroupGeometryMismatchMsg)
+
+		mockClient.On("Storage").Return(mockStorageClient)
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockStorageClient.On("VolumeGet", volumeGetParams).Return(&dstVolume, nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipListDestinations", mock.Anything).Return(snapmirrorEmptyList, nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipList", mock.Anything).Return(snapmirrorEmptyList, nil).Times(2)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipList", mock.MatchedBy(func(p *ontaprest.SnapmirrorRelationshipListParams) bool {
+			return p != nil && p.SourcePath == volumeReplicationCreateParams.VolumeReplication.SourcePath() && p.DestinationPath == volumeReplicationCreateParams.VolumeReplication.DestinationPath()
+		})).Return(snapmirrorEmptyList, nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipCreate", createParams).Return(nil, nil, flexGroupErr).Times(1)
+
+		volumeReplication, err := provider.CreateVolumeReplication(&volumeReplicationCreateParams)
+		assert.Error(tt, err)
+		assert.Nil(tt, volumeReplication)
+		customErr := vsaerrors.ExtractCustomError(err)
+		assert.NotNil(tt, customErr, "expected CustomError (FlexGroup geometry mismatch)")
+		assert.True(tt, customErr.IsError(vsaerrors.ErrFlexGroupGeometryMismatchForReplication), "expected ErrFlexGroupGeometryMismatchForReplication")
+	})
+
+	t.Run("WhenCreateVsaVolumeReplicationReturnsOtherError", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorageClient := new(ontaprest.MockStorageClient)
+		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		doEnsureSvmPeering = func(provider *OntapRestProvider, params *CreateVolumeReplicationParams) error {
+			return nil
+		}
+		provider := &OntapRestProvider{}
+		underlyingErr := errors.New("snapmirror create failed")
+
+		mockClient.On("Storage").Return(mockStorageClient)
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockStorageClient.On("VolumeGet", volumeGetParams).Return(&dstVolume, nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipListDestinations", mock.Anything).Return(snapmirrorEmptyList, nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipList", mock.Anything).Return(snapmirrorEmptyList, nil).Times(2)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipList", mock.MatchedBy(func(p *ontaprest.SnapmirrorRelationshipListParams) bool {
+			return p != nil && p.SourcePath == volumeReplicationCreateParams.VolumeReplication.SourcePath() && p.DestinationPath == volumeReplicationCreateParams.VolumeReplication.DestinationPath()
+		})).Return(snapmirrorEmptyList, nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipCreate", createParams).Return(nil, nil, underlyingErr).Times(1)
+
+		volumeReplication, err := provider.CreateVolumeReplication(&volumeReplicationCreateParams)
+		assert.Error(tt, err)
+		assert.Nil(tt, volumeReplication)
+		assert.Contains(tt, err.Error(), "snapmirror create failed")
+	})
+
+	t.Run("WhenExistingRelationship_UsesExistingAndResyncs", func(tt *testing.T) {
+		mockClient := new(ontaprest.MockRESTClient)
+		mockStorageClient := new(ontaprest.MockStorageClient)
+		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		doEnsureSvmPeering = func(provider *OntapRestProvider, params *CreateVolumeReplicationParams) error {
+			return nil
+		}
+		provider := &OntapRestProvider{}
+		volumeReplicationCreateParams.ReverseResync = true
+
+		existingList := []*ontaprest.SnapmirrorRelationship{snapmirror}
+		mockClient.On("Storage").Return(mockStorageClient)
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockStorageClient.On("VolumeGet", volumeGetParams).Return(&dstVolume, nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipListDestinations", mock.Anything).Return(snapmirrorEmptyList, nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipList", mock.Anything).Return(snapmirrorEmptyList, nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipList", mock.MatchedBy(func(p *ontaprest.SnapmirrorRelationshipListParams) bool {
+			return p != nil && p.SourcePath == volumeReplicationCreateParams.VolumeReplication.SourcePath() && p.DestinationPath == volumeReplicationCreateParams.VolumeReplication.DestinationPath()
+		})).Return(existingList, nil).Times(1)
+		// No SnapmirrorRelationshipCreate - use existing relationship
+		mockSnapmirrorClient.On("SnapmirrorRelationshipResyncOrInitializeOrResume", snapmirror.UUID.String()).Return(nil, jobAccepted, nil).Times(1)
+		mockClient.On("Poll", jobAccepted.JobUUID).Return(nil).Times(1)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipGet", getParams).Return(snapmirror, nil).Times(2)
+
+		volumeReplication, err := provider.CreateVolumeReplication(&volumeReplicationCreateParams)
+		assert.NoError(tt, err)
+		assert.NotEmpty(tt, volumeReplication)
+
+		volumeReplicationCreateParams.ReverseResync = false
+	})
+}
+
+func TestCreateVsaVolumeReplication(t *testing.T) {
+	dstVolumeUUID := "dst-uuid"
+	volumeReplicationCreateParams := CreateVolumeReplicationParams{
+		VolumeReplication: &VolumeReplication{
+			Volume: &Volume{ExternalUUID: dstVolumeUUID},
+			ReplicationPolicy:     "MirrorAllSnapshots",
+			ReplicationSchedule:   VolumeReplicationScheduleDaily,
+			SourceSVMName:         "srcsvm",
+			SourceVolumeName:      "srcvol",
+			DestinationSVMName:    "dstsvm",
+			DestinationVolumeName: "dstvol",
+		},
+	}
+	provider := &OntapRestProvider{}
+	originalGetOntapClientFunc := getOntapClientFunc
+	originalDoCreateSchedule := doCreateVolumeReplicationScheduleIfNeeded
+	defer func() {
+		getOntapClientFunc = originalGetOntapClientFunc
+		doCreateVolumeReplicationScheduleIfNeeded = originalDoCreateSchedule
+	}()
+
+	t.Run("WhenCreateVolumeReplicationScheduleIfNeededFails", func(tt *testing.T) {
+		scheduleErr := errors.New("schedule creation failed")
+		doCreateVolumeReplicationScheduleIfNeeded = func(p *OntapRestProvider, schedule string) error {
+			return scheduleErr
+		}
+		replication, err := createVsaVolumeReplication(provider, &volumeReplicationCreateParams, false)
+		assert.Error(tt, err)
+		assert.Nil(tt, replication)
+		assert.Equal(tt, scheduleErr, err)
+	})
+
+	t.Run("WhenGetOntapClientFails", func(tt *testing.T) {
+		doCreateVolumeReplicationScheduleIfNeeded = func(p *OntapRestProvider, schedule string) error {
+			return nil
+		}
+		clientErr := errors.New("client init failed")
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, clientErr
+		}
+		replication, err := createVsaVolumeReplication(provider, &volumeReplicationCreateParams, false)
+		assert.Error(tt, err)
+		assert.Nil(tt, replication)
+		assert.Equal(tt, clientErr, err)
+	})
+
+	t.Run("WhenSnapmirrorListFails", func(tt *testing.T) {
+		doCreateVolumeReplicationScheduleIfNeeded = func(p *OntapRestProvider, schedule string) error {
+			return nil
+		}
+		mockClient := new(ontaprest.MockRESTClient)
+		mockSnapmirrorClient := new(ontaprest.MockSnapmirrorClient)
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		listErr := errors.New("list failed")
+		mockClient.On("Snapmirror").Return(mockSnapmirrorClient)
+		mockSnapmirrorClient.On("SnapmirrorRelationshipList", mock.Anything).Return(nil, listErr).Times(1)
+
+		replication, err := createVsaVolumeReplication(provider, &volumeReplicationCreateParams, false)
+		assert.Error(tt, err)
+		assert.Nil(tt, replication)
+		assert.Equal(tt, listErr, err)
 	})
 }
 

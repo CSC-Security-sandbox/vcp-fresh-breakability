@@ -233,6 +233,109 @@ func convertToReversedAttributes(originalAttrs *datamodel.ReplicationDetails) *g
 	return updateRequest
 }
 
+func convertToOriginalAttributes(originalAttrs *datamodel.ReplicationDetails) *googleproxyclient.VolumeReplicationInternalV1beta {
+	return &googleproxyclient.VolumeReplicationInternalV1beta{
+		SourceHostName:   originalAttrs.SourceHostName,
+		SourceServerName: originalAttrs.SourceSvmName,
+		SourceVolumeName: originalAttrs.SourceVolumeName,
+		SourceVolumeUuid: googleproxyclient.OptString{
+			Value: originalAttrs.SourceVolumeUUID,
+			Set:   originalAttrs.SourceVolumeUUID != "",
+		},
+		SourcePoolUuid: googleproxyclient.OptString{
+			Value: originalAttrs.SourcePoolUUID,
+			Set:   originalAttrs.SourcePoolUUID != "",
+		},
+		DestinationHostName:   originalAttrs.DestinationHostName,
+		DestinationServerName: originalAttrs.DestinationSvmName,
+		DestinationVolumeName: originalAttrs.DestinationVolumeName,
+		DestinationVolumeUuid: googleproxyclient.OptString{
+			Value: originalAttrs.DestinationVolumeUUID,
+			Set:   originalAttrs.DestinationVolumeUUID != "",
+		},
+		DestinationPoolUuid: googleproxyclient.OptString{
+			Value: originalAttrs.DestinationPoolUUID,
+			Set:   originalAttrs.DestinationPoolUUID != "",
+		},
+	}
+}
+
+// DeleteNewReplicationOnSrc deletes the new replication created by ReverseAndResumeReplication on the source side.
+// Used as a rollback activity when subsequent steps fail after the reverse replication is created.
+func (a *ReverseVolumeReplicationActivity) DeleteNewReplicationOnSrc(ctx context.Context, result *replication.ReverseReplicationResult) error {
+	logger := util.GetLogger(ctx)
+	logger.Info("Rollback: deleting new replication on source created by reverse")
+
+	googleProxyClient := googleproxyclient.GetGProxyClient(*result.SrcBasePath, *result.SrcJwtToken, logger)
+
+	deleteParams := &googleproxyclient.V1betaInternalDeleteVolumeReplicationParams{
+		ProjectNumber:       *result.SrcProjectNumber,
+		LocationId:          result.Event.ReplicationModel.ReplicationAttributes.SourceLocation,
+		VolumeReplicationId: result.Event.ReplicationModel.ReplicationAttributes.SourceReplicationUUID,
+		XCorrelationID:      googleproxyclient.NewOptString(*result.Event.XCorrelationID),
+		CleanupAfterReverse: googleproxyclient.NewOptBool(true),
+	}
+
+	res, err := googleProxyClient.Invoker.V1betaInternalDeleteVolumeReplication(ctx, *deleteParams)
+	if err != nil {
+		return errors.NewVCPError(errors.ErrCleanupVolumeReplicationAfterReverse, err)
+	}
+
+	switch r := res.(type) {
+	case *googleproxyclient.VolumeReplicationInternalV1beta:
+		logger.Info("Rollback: successfully deleted new replication on source")
+		return nil
+	case *googleproxyclient.V1betaInternalDeleteVolumeReplicationNotFound:
+		logger.Info("Rollback: replication already deleted on source, skipping")
+		return nil
+	case *googleproxyclient.V1betaInternalDeleteVolumeReplicationBadRequest:
+		return errors.NewVCPError(errors.ErrCleanupVolumeReplicationAfterReverse, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalDeleteVolumeReplicationInternalServerError:
+		return errors.NewVCPError(errors.ErrCleanupVolumeReplicationAfterReverse, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalDeleteVolumeReplicationUnauthorized:
+		return errors.NewVCPError(errors.ErrCleanupVolumeReplicationAfterReverse, errors.New(r.Message))
+	case *googleproxyclient.V1betaInternalDeleteVolumeReplicationForbidden:
+		return errors.NewVCPError(errors.ErrCleanupVolumeReplicationAfterReverse, errors.New(r.Message))
+	default:
+		return errors.NewVCPError(errors.ErrCleanupVolumeReplicationAfterReverse, errors.New("unknown response type"))
+	}
+}
+
+// RevertVolumeReplicationAttributesSrc reverts the attribute changes made by UpdateVolumeReplicationAttributesSrc
+// by restoring the original (pre-reverse) attributes on the source side.
+func (a *ReverseVolumeReplicationActivity) RevertVolumeReplicationAttributesSrc(ctx context.Context, result *replication.ReverseReplicationResult) error {
+	logger := util.GetLogger(ctx)
+	logger.Info("Rollback: reverting volume replication attributes on source")
+
+	googleProxyClient := googleproxyclient.GetGProxyClient(*result.SrcBasePath, *result.SrcJwtToken, logger)
+
+	originalAttrs := result.Event.ReplicationModel.ReplicationAttributes
+	revertRequest := convertToOriginalAttributes(originalAttrs)
+	revertRequest.SetVolumeReplicationUuid(googleproxyclient.NewOptString(originalAttrs.SourceReplicationUUID))
+	revertRequest.SetEndpointType(googleproxyclient.VolumeReplicationInternalV1betaEndpointTypeSrc)
+
+	revertParams := googleproxyclient.V1betaInternalUpdateVolumeReplicationAttributesParams{
+		ProjectNumber:       *result.SrcProjectNumber,
+		LocationId:          originalAttrs.SourceLocation,
+		VolumeReplicationId: originalAttrs.SourceReplicationUUID,
+		XCorrelationID:      googleproxyclient.NewOptString(*result.Event.CommonReplicationEventParams.XCorrelationID),
+	}
+
+	res, err := googleProxyClient.Invoker.V1betaInternalUpdateVolumeReplicationAttributes(ctx, revertRequest, revertParams)
+	if err != nil {
+		logger.Error("Rollback: failed to revert volume replication attributes on source", "error", err)
+		return errors.NewVCPError(errors.ErrGoogleProxyUpdateReplicationAttributes, err)
+	}
+
+	if _, ok := res.(*googleproxyclient.OperationV1beta); ok {
+		logger.Info("Rollback: successfully reverted volume replication attributes on source")
+		return nil
+	}
+
+	logger.Warn("Rollback: unexpected response from revert volume replication attributes")
+	return errors.NewVCPError(errors.ErrGoogleProxyUpdateReplicationAttributes, errors.New("unexpected response type"))
+}
+
 // DescribeRemoteJobOnDst describes remote jobs for reverse operations
 func (a *ReverseVolumeReplicationActivity) DescribeRemoteJobOnDst(ctx context.Context, result *replication.ReverseReplicationResult) error {
 	// Describe the reverse job if it exists

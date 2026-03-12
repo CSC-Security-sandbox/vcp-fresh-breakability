@@ -100,7 +100,7 @@ func (wf *ReverseReplicationWorkflow) Setup(ctx workflow.Context, input interfac
 	})
 }
 
-func (wf *ReverseReplicationWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
+func (wf *ReverseReplicationWorkflow) Run(ctx workflow.Context, args ...interface{}) (result interface{}, customErr *vsaerrors.CustomError) {
 	event := args[0].(*replication.ReverseReplicationEvent)
 	params := args[1].(*commonparams.ReverseAndResumeReplicationParams)
 	replicationActivity := &replicationActivities.ReverseVolumeReplicationActivity{}
@@ -166,10 +166,20 @@ func (wf *ReverseReplicationWorkflow) Run(ctx workflow.Context, args ...interfac
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	rollbackManager := commonparams.NewRollbackManager()
+	defer func() {
+		if customErr != nil {
+			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+			rollbackManager.ExecuteRollback(disconnectedCtx, customErr)
+		}
+	}()
+
 	err = workflow.ExecuteActivity(ctx, replicationActivity.ReverseAndResumeReplication, &reverseResult, params).Get(ctx, &reverseResult)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
+
+	rollbackManager.AddActivity(replicationActivity.DeleteNewReplicationOnSrc, &reverseResult)
 
 	err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeRemoteJobOnSrc, &reverseResult).Get(ctx, nil)
 	if err != nil {
@@ -186,6 +196,7 @@ func (wf *ReverseReplicationWorkflow) Run(ctx workflow.Context, args ...interfac
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
+	rollbackManager.AddActivity(replicationActivity.RevertVolumeReplicationAttributesSrc, &reverseResult)
 
 	// Update the database on the current destination (which becomes the new source after reverse)
 	err = workflow.ExecuteActivity(ctx, replicationActivity.UpdateVolumeReplicationAttributesDst, &reverseResult).Get(ctx, &reverseResult)

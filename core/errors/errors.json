@@ -1721,6 +1721,12 @@
     "retriable": false,
     "http_code": 400
   },
+  "6228": {
+    "description": "FlexGroup geometry mismatch between source and destination for volume replication",
+    "message": "Invalid CV count. Geometry of the source FlexGroup does not match that of the destination FlexGroup",
+    "retriable": false,
+    "http_code": 400
+  },
   "8001": {
     "description": "Kms key rotation failure",
     "message": "Error rotating kms key",

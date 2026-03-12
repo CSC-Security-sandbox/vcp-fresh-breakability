@@ -127,6 +127,8 @@ func createVolumeReplicationSchedule(provider *OntapRestProvider, schedule strin
 	return nil
 }
 
+const flexGroupGeometryMismatchMsg = "Geometry of the source FlexGroup does not match that of the destination FlexGroup"
+
 // CreateVolumeReplication creates the Volume Replication for the provider's owner
 func (rc *OntapRestProvider) CreateVolumeReplication(params *CreateVolumeReplicationParams) (*VolumeReplication, error) {
 	initialize, err := validateCreateSnapmirror(rc, params)
@@ -134,7 +136,14 @@ func (rc *OntapRestProvider) CreateVolumeReplication(params *CreateVolumeReplica
 		return nil, err
 	}
 
-	return createVsaVolumeReplication(rc, params, initialize)
+	replication, err := createVsaVolumeReplication(rc, params, initialize)
+	if err != nil {
+		if strings.Contains(err.Error(), flexGroupGeometryMismatchMsg) {
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrFlexGroupGeometryMismatchForReplication, err))
+		}
+		return nil, err
+	}
+	return replication, nil
 }
 
 func createVsaVolumeReplication(provider *OntapRestProvider, params *CreateVolumeReplicationParams, isInitialize bool) (*VolumeReplication, error) {
@@ -154,16 +163,38 @@ func createVsaVolumeReplication(provider *OntapRestProvider, params *CreateVolum
 	if err != nil {
 		return nil, err
 	}
-	snapmirror, job, err := client.Snapmirror().SnapmirrorRelationshipCreate(createParams)
-	if err != nil {
-		return nil, err
+
+	// Check if a snapmirror relationship already exists for this source and destination
+	listParams := &ontaprest.SnapmirrorRelationshipListParams{
+		SourcePath:      createParams.SourcePath,
+		DestinationPath: createParams.DestinationPath,
 	}
-	err = waitForJobIfNeeded(provider, job)
+	existingList, err := client.Snapmirror().SnapmirrorRelationshipList(listParams)
 	if err != nil {
 		return nil, err
 	}
 
-	_, job, err = client.Snapmirror().SnapmirrorRelationshipResyncOrInitializeOrResume(snapmirror.UUID.String())
+	var snapmirror *ontaprest.SnapmirrorRelationship
+	if len(existingList) > 0 {
+		// Use existing relationship
+		snapmirror = existingList[0]
+	} else {
+		// Create new relationship
+		createdSm, job, createErr := client.Snapmirror().SnapmirrorRelationshipCreate(createParams)
+		if createErr != nil {
+			return nil, createErr
+		}
+		err = waitForJobIfNeeded(provider, job)
+		if err != nil {
+			return nil, err
+		}
+		snapmirror, err = client.Snapmirror().SnapmirrorRelationshipGet(&ontaprest.SnapmirrorRelationshipGetParams{UUID: createdSm.UUID.String()})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	_, job, err := client.Snapmirror().SnapmirrorRelationshipResyncOrInitializeOrResume(snapmirror.UUID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -310,7 +341,7 @@ func waitForSnapmirrorState(provider *OntapRestProvider, retryInterval time.Dura
 		if err != nil {
 			return
 		}
-		if *snapmirror.State == mirrorState {
+		if snapmirror.State != nil && *snapmirror.State == mirrorState {
 			break
 		}
 
@@ -470,8 +501,8 @@ func (rc *OntapRestProvider) DeleteVolumeReplication(params *DeleteVolumeReplica
 
 // validateAndDeleteVolumeReplication validates and destroys Volume Replication
 func validateAndDeleteVolumeReplication(provider *OntapRestProvider, mirrorState, relationshipStatus, snapmirrorUUID string, params *DeleteVolumeReplicationParams) error {
-	if mirrorState == SnapmirrorStateMirrored ||
-		(mirrorState == SnapmirrorStateUninitialized && relationshipStatus == SnapMirrorRelationshipStatusTransferring) {
+	if !params.VolumeReplication.IsCleanup && (mirrorState == SnapmirrorStateMirrored ||
+		(mirrorState == SnapmirrorStateUninitialized && relationshipStatus == SnapMirrorRelationshipStatusTransferring)) {
 		return errors.NewConflictErr("Cannot delete a relationship in the current mirror state")
 	}
 

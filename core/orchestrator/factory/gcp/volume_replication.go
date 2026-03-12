@@ -78,7 +78,7 @@ var (
 	utilGetVolumeUriFromCcfeUri       = utils.GetVolumeUriFromCcfeUri
 	convertLabelsMapToJSONB           = utils.ConvertLabelsMapToJSONB
 
-	WorkflowGlobalTimeoutForReplicationMinutes = env.GetInt("WORKFLOW_GLOBAL_TIMEOUT_FOR_REPLICATION_MINUTES", 10)
+	WorkflowGlobalTimeoutForReplicationMinutes = env.GetInt("WORKFLOW_GLOBAL_TIMEOUT_FOR_REPLICATION_MINUTES", 20)
 )
 
 const (

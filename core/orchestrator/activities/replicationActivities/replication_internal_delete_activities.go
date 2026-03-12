@@ -53,6 +53,7 @@ func (a *InternalVolumeReplicationDeleteActivity) CleanupReplicationAfterReverse
 		ReplicationSchedule:   replication.ReplicationAttributes.ReplicationSchedule,
 		DestinationVolumeName: replication.ReplicationAttributes.SourceVolumeName,
 		RelationshipID:        replication.ReplicationAttributes.ExternalUUID,
+		IsCleanup:             true,
 	}
 	vsaDeleteVolumeReplicationParams := &vsa.DeleteVolumeReplicationParams{
 		VolumeReplication: volumeRep,

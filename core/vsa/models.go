@@ -642,6 +642,7 @@ type VolumeReplication struct {
 	CurrentTransferError          string
 	ProgressLastUpdated           *time.Time
 	TransferUUID                  string
+	IsCleanup                     bool
 }
 
 // SnapmirrorDestination describes SnapmirrorDestination information retrieved from ONTAP
