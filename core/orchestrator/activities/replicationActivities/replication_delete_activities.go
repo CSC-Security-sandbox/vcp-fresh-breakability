@@ -458,6 +458,9 @@ func (a *DeleteVolumeReplicationActivity) DeHydrateDestinationVolume(ctx context
 	if hydrationEnabled {
 		err := deHydrateVolume(ctx, convertVolumeV1BetaToVolumeModelForCleanup(*result.DstVolume, result.Event.ReplicationModel.ReplicationAttributes.DestinationLocation), *result.DstProjectNumber)
 		if err != nil {
+			if strings.Contains(err.Error(), "has nested resources") {
+				return nil, errors.WrapAsTemporalApplicationError(errors.NewVCPError(errors.ErrDeHydrateVolume, err))
+			}
 			return nil, errors.WrapAsNonRetryableTemporalApplicationError(errors.NewVCPError(errors.ErrDeHydrateVolume, err))
 		}
 	}

@@ -135,6 +135,7 @@ const (
 	JobTypeDeleteActiveDirectory                    JobType = "DELETE_ACTIVE_DIRECTORY"
 	JobTypeSplitVolume                              JobType = "SPLIT_CLONE_VOLUME"
 	JobTypeCreateHybridReplication                  JobType = "CREATE_HYBRID_REPLICATION"
+	JobTypeHybridReplicationDeleteVolume            JobType = "HYBRID_REPLICATION_DELETE_VOLUME"
 	JobTypeHybridReplicationEstablishPeering        JobType = "HYBRID_REPLICATION_ESTABLISH_PEERING"
 	JobTypeHybridReplicationInternalEstablish       JobType = "HYBRID_REPLICATION_INTERNAL_ESTABLISH"
 	JobTypeReverseHybridReplicationInternal         JobType = "HYBRID_REPLICATION_INTERNAL_REVERSE"

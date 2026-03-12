@@ -2118,31 +2118,26 @@ func _deleteReplication(ctx context.Context, se database.Storage, temporal clien
 		}
 	}()
 
+	var workflowFunc interface{}
 	if isCleanUp {
-		_, err = temporal.ExecuteWorkflow(ctx,
-			client.StartWorkflowOptions{
-				TaskQueue:             workflowengine.CustomerTaskQueue,
-				ID:                    createdJob.WorkflowID,
-				WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-				WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
-			},
-			replicationWorkflows.ReplicationCleanupWorkflow,
-			params,
-			&event,
-		)
+		workflowFunc = replicationWorkflows.ReplicationCleanupWorkflow
+	} else if event.ReplicationModel != nil && event.ReplicationModel.HybridReplicationAttributes != nil {
+		workflowFunc = replicationWorkflows.HybridReplicationDeleteWorkflow
 	} else {
-		_, err = temporal.ExecuteWorkflow(ctx,
-			client.StartWorkflowOptions{
-				TaskQueue:             workflowengine.CustomerTaskQueue,
-				ID:                    createdJob.WorkflowID,
-				WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-				WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
-			},
-			replicationWorkflows.ReplicationDeleteWorkflow,
-			params,
-			&event,
-		)
+		workflowFunc = replicationWorkflows.ReplicationDeleteWorkflow
 	}
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+		},
+		workflowFunc,
+		params,
+		&event,
+	)
 
 	if err != nil {
 		logger.Error("Failed to execute workflow", "error", err)
