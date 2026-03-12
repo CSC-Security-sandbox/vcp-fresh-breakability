@@ -24,14 +24,15 @@ func (m *mockCCFEPoolLister) ListStoragePools(ctx context.Context, projectID, lo
 	return args.Get(0).([]string), args.Error(1)
 }
 
-func poolView(id int64, uuid, name, projectID, primaryZone string) *datamodel.PoolView {
+func poolView(id int64, uuid, name, projectID, primaryZone string, isRegionalHA bool) *datamodel.PoolView {
 	return &datamodel.PoolView{
 		Pool: datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: id, UUID: uuid},
 			Name:      name,
 			Account:   &datamodel.Account{Name: projectID},
 			PoolAttributes: &datamodel.PoolAttributes{
-				PrimaryZone: primaryZone,
+				PrimaryZone:   primaryZone,
+				IsRegionalHA:  isRegionalHA,
 			},
 		},
 	}
@@ -89,7 +90,7 @@ func TestPoolDetector_Detect_CCFEReturnsNil_SkipsPair(t *testing.T) {
 	ctx := context.Background()
 	storage := database.NewMockStorage(t)
 	pools := []*datamodel.PoolView{
-		poolView(1, "pool-uuid", "pool-name", "proj1", "us-central1-a"),
+		poolView(1, "pool-uuid", "pool-name", "proj1", "us-central1-a", false),
 	}
 	storage.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
 	ccfe := &mockCCFEPoolLister{}
@@ -106,7 +107,7 @@ func TestPoolDetector_Detect_InCCFENotInVCP(t *testing.T) {
 	ctx := context.Background()
 	storage := database.NewMockStorage(t)
 	pools := []*datamodel.PoolView{
-		poolView(1, "pool-uuid", "vcp-only-pool", "proj1", "us-central1-a"),
+		poolView(1, "pool-uuid", "vcp-only-pool", "proj1", "us-central1-a", false),
 	}
 	storage.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
 	ccfe := &mockCCFEPoolLister{}
@@ -128,8 +129,8 @@ func TestPoolDetector_Detect_InVCPNotInCCFE(t *testing.T) {
 	ctx := context.Background()
 	storage := database.NewMockStorage(t)
 	pools := []*datamodel.PoolView{
-		poolView(1, "pool-uuid-1", "vcp-pool-1", "proj1", "us-central1-a"),
-		poolView(2, "pool-uuid-2", "vcp-pool-2", "proj1", "us-central1-a"),
+		poolView(1, "pool-uuid-1", "vcp-pool-1", "proj1", "us-central1-a", false),
+		poolView(2, "pool-uuid-2", "vcp-pool-2", "proj1", "us-central1-a", false),
 	}
 	storage.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
 	ccfe := &mockCCFEPoolLister{}
@@ -152,7 +153,7 @@ func TestPoolDetector_Detect_CCFEFails_SkipsPair(t *testing.T) {
 	ctx := context.Background()
 	storage := database.NewMockStorage(t)
 	pools := []*datamodel.PoolView{
-		poolView(1, "pool-uuid", "pool-name", "proj1", "us-central1-a"),
+		poolView(1, "pool-uuid", "pool-name", "proj1", "us-central1-a", false),
 	}
 	storage.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
 	ccfe := &mockCCFEPoolLister{}
@@ -169,7 +170,7 @@ func TestPoolDetector_Detect_NoLeaks_SameInBoth(t *testing.T) {
 	ctx := context.Background()
 	storage := database.NewMockStorage(t)
 	pools := []*datamodel.PoolView{
-		poolView(1, "pool-uuid", "pool-name", "proj1", "us-central1-a"),
+		poolView(1, "pool-uuid", "pool-name", "proj1", "us-central1-a", false),
 	}
 	storage.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
 	ccfe := &mockCCFEPoolLister{}
@@ -181,17 +182,57 @@ func TestPoolDetector_Detect_NoLeaks_SameInBoth(t *testing.T) {
 	assert.Empty(t, records)
 }
 
+// TestPoolDetector_Detect_RegionalPool_PrimaryZoneIsZone_CallsCCFEWithRegion ensures that when a regional HA
+// pool has PrimaryZone stored as a zone string (e.g. us-central1-a), CCFE is called with the derived region
+// (us-central1), not the zone. This is the typical real-world case for regional pools.
+func TestPoolDetector_Detect_RegionalPool_PrimaryZoneIsZone_CallsCCFEWithRegion(t *testing.T) {
+	ctx := context.Background()
+	storage := database.NewMockStorage(t)
+	pools := []*datamodel.PoolView{
+		poolView(1, "pool-uuid", "regional-pool", "proj1", "us-central1-a", true), // IsRegionalHA=true, PrimaryZone is zone
+	}
+	storage.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
+	ccfe := &mockCCFEPoolLister{}
+	ccfe.On("ListStoragePools", ctx, "proj1", "us-central1").Return([]string{"regional-pool"}, nil)
+
+	d := NewPoolDetector(ccfe)
+	records, err := d.Detect(ctx, storage)
+	assert.NoError(t, err)
+	assert.Empty(t, records)
+	ccfe.AssertExpectations(t)
+}
+
 // TestPoolDetector_Detect_RegionalPool_UseRegionAsLocation ensures pools with PrimaryZone as a region
 // (e.g. us-central1 with no zone suffix) trigger CCFE list with region as location.
 func TestPoolDetector_Detect_RegionalPool_UseRegionAsLocation(t *testing.T) {
 	ctx := context.Background()
 	storage := database.NewMockStorage(t)
 	pools := []*datamodel.PoolView{
-		poolView(1, "pool-uuid", "regional-pool", "proj1", "us-central1"), // region only, no zone
+		poolView(1, "pool-uuid", "regional-pool", "proj1", "us-central1", true),
 	}
 	storage.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
 	ccfe := &mockCCFEPoolLister{}
 	ccfe.On("ListStoragePools", ctx, "proj1", "us-central1").Return([]string{"regional-pool"}, nil)
+
+	d := NewPoolDetector(ccfe)
+	records, err := d.Detect(ctx, storage)
+	assert.NoError(t, err)
+	assert.Empty(t, records)
+	ccfe.AssertExpectations(t)
+}
+
+// TestPoolDetector_Detect_ZonalPool_PrimaryZoneRegionOnly_UsesRegionAsFallback ensures a zonal pool
+// (IsRegionalHA=false) with PrimaryZone as region-only (e.g. us-central1) still gets a CCFE call using
+// region as location fallback when zone parses empty.
+func TestPoolDetector_Detect_ZonalPool_PrimaryZoneRegionOnly_UsesRegionAsFallback(t *testing.T) {
+	ctx := context.Background()
+	storage := database.NewMockStorage(t)
+	pools := []*datamodel.PoolView{
+		poolView(1, "pool-uuid", "zonal-pool", "proj1", "us-central1", false), // zone parses empty, fallback to region
+	}
+	storage.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
+	ccfe := &mockCCFEPoolLister{}
+	ccfe.On("ListStoragePools", ctx, "proj1", "us-central1").Return([]string{"zonal-pool"}, nil)
 
 	d := NewPoolDetector(ccfe)
 	records, err := d.Detect(ctx, storage)
@@ -206,8 +247,8 @@ func TestPoolDetector_Detect_ZonalAndRegional_SeparateGroups(t *testing.T) {
 	ctx := context.Background()
 	storage := database.NewMockStorage(t)
 	pools := []*datamodel.PoolView{
-		poolView(1, "uuid-zonal", "zonal-pool", "proj1", "australia-southeast1-a"),
-		poolView(2, "uuid-regional", "regional-pool", "proj1", "australia-southeast1"),
+		poolView(1, "uuid-zonal", "zonal-pool", "proj1", "australia-southeast1-a", false),
+		poolView(2, "uuid-regional", "regional-pool", "proj1", "australia-southeast1", true),
 	}
 	storage.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
 	ccfe := &mockCCFEPoolLister{}

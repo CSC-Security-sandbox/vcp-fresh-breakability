@@ -40,9 +40,9 @@ func (d *PoolDetector) Name() string {
 }
 
 // Detect implements model.Detector. It lists pools from VCP, builds (projectID, location) pairs where
-// location is the zone (for zonal pools) or region (for regional pools), and for each pair compares
-// with CCFE to produce leak records (in_ccfe_not_in_vcp, in_vcp_not_in_ccfe). This covers both
-// regional (locations/{region}/pools) and zonal (locations/{zone}/pools) lists.
+// location is the region for regional pools (IsRegionalHA) or zone for zonal pools, and for each pair
+// compares with CCFE to produce leak records (in_ccfe_not_in_vcp, in_vcp_not_in_ccfe). Uses
+// IsRegionalHA + ParseRegionAndZone so CCFE is called with region vs zone explicitly.
 func (d *PoolDetector) Detect(ctx context.Context, storage database.Storage) ([]model.LeakRecord, error) {
 	logger := util.GetLogger(ctx)
 	var records []model.LeakRecord
@@ -56,8 +56,7 @@ func (d *PoolDetector) Detect(ctx context.Context, storage database.Storage) ([]
 		return records, nil
 	}
 
-	// Group pools by (projectID, location). Location is zone when PrimaryZone is a zone (e.g. australia-southeast1-a),
-	// or region when PrimaryZone is a region (e.g. australia-southeast1), so CCFE is queried with the same scope as the list API.
+	// Group pools by (projectID, location). Use region for regional pools (IsRegionalHA) and zone for zonal pools.
 	type projectLocation struct {
 		projectID string
 		location  string
@@ -72,10 +71,17 @@ func (d *PoolDetector) Detect(ctx context.Context, storage database.Storage) ([]
 			logger.Debugf("pool %s: skip invalid primary_zone %q: %v", p.UUID, p.PoolAttributes.PrimaryZone, err)
 			continue
 		}
-		// Use zone as location when this is a zonal pool (zone != ""); otherwise use region for regional pools.
-		location := zone
-		if location == "" {
+		var location string
+		if p.PoolAttributes.IsRegionalHA {
 			location = region
+		} else {
+			location = zone
+			if location == "" {
+				location = region
+			}
+		}
+		if location == "" {
+			continue
 		}
 		key := projectLocation{projectID: p.Account.Name, location: location}
 		groups[key] = append(groups[key], p)
