@@ -575,6 +575,24 @@ func TestParseCLICommand_EdgeCases(t *testing.T) {
 			t.Error("Expected -force to be a flag")
 		}
 	})
+
+	// Parser does not split on semicolon; composite "set diag; volume create" is one command.
+	// The endpoint rejects any input containing ";" outright (composite commands not allowed).
+	t.Run("WhenCompositeWithSemicolon_ShouldParseAsSingleCommand", func(t *testing.T) {
+		cmd, err := ParseCLICommand("set diag; volume create -vserver vs1 -volume vol1 -size 100g")
+		if err != nil {
+			t.Fatalf("ParseCLICommand() unexpected error: %v", err)
+		}
+		// Semicolon is not a token separator; "diag;" is one token, so FullCommand includes the rest
+		if cmd.FullCommand != "set diag; volume create" {
+			t.Errorf("FullCommand = %q, want %q", cmd.FullCommand, "set diag; volume create")
+		}
+		// "set diag" pattern does not match (no prefix "set diag "); endpoint rejects composites by containing ";"
+		rule, found := MatchCLIRule(cmd)
+		if found && rule.Pattern == "set diag" {
+			t.Error("Parsed composite should not match 'set diag' rule")
+		}
+	})
 }
 
 func TestExtractCommandTokens(t *testing.T) {

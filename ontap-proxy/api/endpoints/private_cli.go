@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 	"unicode/utf8"
 
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/api/ontap-proxy-servergen"
@@ -58,6 +59,13 @@ func (h Handler) V1PrivateCli(
 		return &oasgenserver.V1PrivateCliBadRequest{
 			Code:    400,
 			Message: "CLI command input contains disallowed characters",
+		}, nil
+	}
+
+	if strings.Contains(req.Input, ";") {
+		return &oasgenserver.V1PrivateCliBadRequest{
+			Code:    400,
+			Message: "Composite commands are not allowed",
 		}, nil
 	}
 

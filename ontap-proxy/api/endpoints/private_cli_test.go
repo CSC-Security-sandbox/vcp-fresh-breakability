@@ -108,6 +108,44 @@ func TestV1PrivateCli_Validation(t *testing.T) {
 		require.True(t, ok, "Expected V1PrivateCliBadRequest for denied command, got %T", res)
 		assert.Equal(t, 400, badReq.Code)
 	})
+
+	t.Run("composite commands rejected outright", func(t *testing.T) {
+		req := &oasgenserver.CLIExecuteRequest{
+			Input: "set diag; volume create -vserver vs1 -volume vol1 -size 100g",
+		}
+		params := oasgenserver.V1PrivateCliParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			PoolId:        poolId,
+		}
+
+		res, err := h.V1PrivateCli(ctx, req, params)
+		require.NoError(t, err)
+
+		badReq, ok := res.(*oasgenserver.V1PrivateCliBadRequest)
+		require.True(t, ok, "Expected V1PrivateCliBadRequest for composite command, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Equal(t, "Composite commands are not allowed", badReq.Message)
+	})
+
+	t.Run("composite with allowed commands only still rejected", func(t *testing.T) {
+		req := &oasgenserver.CLIExecuteRequest{
+			Input: "volume show -vserver vs1; volume show -vserver vs1",
+		}
+		params := oasgenserver.V1PrivateCliParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			PoolId:        poolId,
+		}
+
+		res, err := h.V1PrivateCli(ctx, req, params)
+		require.NoError(t, err)
+
+		badReq, ok := res.(*oasgenserver.V1PrivateCliBadRequest)
+		require.True(t, ok, "Expected V1PrivateCliBadRequest for any composite command, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Equal(t, "Composite commands are not allowed", badReq.Message)
+	})
 }
 
 func TestV1PrivateCli_RuleMatching(t *testing.T) {

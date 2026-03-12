@@ -316,5 +316,13 @@ func GetProxyRules() map[string]Rule {
 			DELETE: Deny{Name: "Bulk delete of event retention policies is not allowed"},
 			PATCH:  Deny{Name: "Bulk update of event retention policies is not allowed"},
 		},
+
+		// Cluster counter tables - block all (performance/diagnostic data; ONTAP REST counter_table_collection_get, counter_table_get, rows)
+		"/api/cluster/counter/tables/*": {
+			GET:    Deny{Name: "Cluster counter tables not allowed"},
+			POST:   DenyAll{},
+			PATCH:  DenyAll{},
+			DELETE: DenyAll{},
+		},
 	}
 }

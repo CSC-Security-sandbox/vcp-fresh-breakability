@@ -68,6 +68,70 @@ func TestGetProxyRules(t *testing.T) {
 		assert.True(t, ok, "Should have rule for /api/storage/aggregates")
 		assert.NotNil(t, rule.GET)
 	})
+
+	t.Run("ShouldContainClusterCounterTablesRule", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule, ok := rules["/api/cluster/counter/tables/*"]
+		assert.True(t, ok, "Should have rule for /api/cluster/counter/tables/*")
+		assert.NotNil(t, rule.GET)
+		assert.NotNil(t, rule.POST)
+		assert.NotNil(t, rule.PATCH)
+		assert.NotNil(t, rule.DELETE)
+	})
+}
+
+func TestClusterCounterTablesRule(t *testing.T) {
+	t.Run("WhenGET_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/cluster/counter/tables/*"]
+		req := httptest.NewRequest(http.MethodGet, "/api/cluster/counter/tables", nil)
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "GET should be denied for cluster counter tables")
+		assert.Contains(t, reason, "Cluster counter tables not allowed")
+	})
+
+	t.Run("WhenPOST_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/cluster/counter/tables/*"]
+		req := httptest.NewRequest(http.MethodPost, "/api/cluster/counter/tables", nil)
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "POST should be denied for cluster counter tables")
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenPATCH_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/cluster/counter/tables/*"]
+		req := httptest.NewRequest(http.MethodPatch, "/api/cluster/counter/tables/qos_detail", nil)
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "PATCH should be denied for cluster counter tables")
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenDELETE_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/cluster/counter/tables/*"]
+		req := httptest.NewRequest(http.MethodDelete, "/api/cluster/counter/tables/wafl/rows/123", nil)
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "DELETE should be denied for cluster counter tables")
+		assert.NotEmpty(t, reason)
+	})
 }
 
 func TestPrivateCLIVolumeRule(t *testing.T) {

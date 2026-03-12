@@ -115,6 +115,29 @@ func TestRuleEngineMiddleware(t *testing.T) {
 		assert.Contains(t, w.Body.String(), "Aggregate creation not allowed")
 	})
 
+	t.Run("WhenClusterCounterTablesGET_ShouldDenyWithReason", func(t *testing.T) {
+		originalExtract := extractOntapPathUtil
+		extractOntapPathUtil = func(fullPath string) string {
+			return "/api/cluster/counter/tables"
+		}
+		defer func() { extractOntapPathUtil = originalExtract }()
+
+		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		})
+
+		middleware := RuleEngineMiddleware()
+		handler := middleware(nextHandler)
+
+		req := httptest.NewRequest(http.MethodGet, "/ontap/api/cluster/counter/tables", nil)
+		w := httptest.NewRecorder()
+
+		handler.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.Contains(t, w.Body.String(), "Cluster counter tables not allowed")
+	})
+
 	t.Run("WhenActionInContext_ShouldBeRetrievable", func(t *testing.T) {
 		// Setup
 		originalExtract := extractOntapPathUtil
@@ -199,6 +222,38 @@ func TestFindMatchingRule(t *testing.T) {
 
 		// Verify
 		assert.False(t, found)
+	})
+
+	t.Run("WhenClusterCounterTablesBasePath_ShouldMatchWildcardRule", func(t *testing.T) {
+		originalExtract := extractOntapPathUtil
+		extractOntapPathUtil = func(fullPath string) string {
+			return "/api/cluster/counter/tables"
+		}
+		defer func() { extractOntapPathUtil = originalExtract }()
+
+		logger := util.GetLogger(context.Background())
+
+		rule, path, found := findMatchingRule("/ontap/api/cluster/counter/tables", logger)
+
+		assert.True(t, found)
+		assert.Equal(t, "/api/cluster/counter/tables/*", path)
+		assert.NotNil(t, rule.GET)
+	})
+
+	t.Run("WhenClusterCounterTablesSubPath_ShouldMatchWildcardRule", func(t *testing.T) {
+		originalExtract := extractOntapPathUtil
+		extractOntapPathUtil = func(fullPath string) string {
+			return "/api/cluster/counter/tables/qos_detail/rows"
+		}
+		defer func() { extractOntapPathUtil = originalExtract }()
+
+		logger := util.GetLogger(context.Background())
+
+		rule, path, found := findMatchingRule("/ontap/api/cluster/counter/tables/qos_detail/rows", logger)
+
+		assert.True(t, found)
+		assert.Equal(t, "/api/cluster/counter/tables/*", path)
+		assert.NotNil(t, rule.GET)
 	})
 }
 

@@ -244,6 +244,12 @@ var cliRules = []CLIRule{
 		Allow:   false,
 		Reason:  "Disk operations not allowed",
 	},
+	// Diagnostic settings - block "set diag"
+	{
+		Pattern: "set diag",
+		Allow:   false,
+		Reason:  "Diagnostic settings not allowed",
+	},
 }
 
 // GetCLIRules returns the list of CLI rules.

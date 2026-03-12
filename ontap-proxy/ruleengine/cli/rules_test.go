@@ -146,6 +146,35 @@ func TestMatchCLIRule(t *testing.T) {
 		}
 	})
 
+	t.Run("set diag command - denied", func(t *testing.T) {
+		tests := []struct {
+			name  string
+			input string
+		}{
+			{"bare set diag", "set diag"},
+			{"set diag with args", "set diag -confirm"},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				cmd, err := ParseCLICommand(tt.input)
+				if err != nil {
+					t.Fatalf("Failed to parse command: %v", err)
+				}
+
+				rule, found := MatchCLIRule(cmd)
+				if !found {
+					t.Fatal("Expected to find a matching rule for set diag")
+				}
+				if rule.Allow {
+					t.Error("set diag should be denied")
+				}
+				if rule.Reason != "Diagnostic settings not allowed" {
+					t.Errorf("Reason = %q, want %q", rule.Reason, "Diagnostic settings not allowed")
+				}
+			})
+		}
+	})
+
 	t.Run("nil command", func(t *testing.T) {
 		rule, found := MatchCLIRule(nil)
 
@@ -208,6 +237,33 @@ func TestEvaluateRule(t *testing.T) {
 		}
 		if reason != "System commands not allowed" {
 			t.Errorf("Reason = %q, want %q", reason, "System commands not allowed")
+		}
+	})
+
+	t.Run("set diag denied rule returns reason", func(t *testing.T) {
+		rules := GetCLIRules()
+		var rule *CLIRule
+		for i := range rules {
+			if rules[i].Pattern == "set diag" {
+				rule = &rules[i]
+				break
+			}
+		}
+		if rule == nil {
+			t.Fatal("set diag rule not found")
+		}
+		cmd, err := ParseCLICommand("set diag")
+		if err != nil {
+			t.Fatalf("ParseCLICommand: %v", err)
+		}
+
+		allowed, reason := EvaluateRule(rule, cmd)
+
+		if allowed {
+			t.Error("set diag should be denied")
+		}
+		if reason != "Diagnostic settings not allowed" {
+			t.Errorf("Reason = %q, want %q", reason, "Diagnostic settings not allowed")
 		}
 	})
 
@@ -715,6 +771,28 @@ func TestVolumeShowFootprintDenied(t *testing.T) {
 		}
 		if rule.Reason != "not allowed" {
 			t.Errorf("Reason = %q, want %q", rule.Reason, "not allowed")
+		}
+		if len(rule.RemoveFields) != 0 {
+			t.Errorf("Denied rule should have no RemoveFields, got %d", len(rule.RemoveFields))
+		}
+	})
+
+	t.Run("WhenSetDiagRule_ShouldBeDenied", func(t *testing.T) {
+		var rule *CLIRule
+		for i := range rules {
+			if rules[i].Pattern == "set diag" {
+				rule = &rules[i]
+				break
+			}
+		}
+		if rule == nil {
+			t.Fatal("set diag rule not found")
+		}
+		if rule.Allow {
+			t.Error("set diag should be denied")
+		}
+		if rule.Reason != "Diagnostic settings not allowed" {
+			t.Errorf("Reason = %q, want %q", rule.Reason, "Diagnostic settings not allowed")
 		}
 		if len(rule.RemoveFields) != 0 {
 			t.Errorf("Denied rule should have no RemoveFields, got %d", len(rule.RemoveFields))
