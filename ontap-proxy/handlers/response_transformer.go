@@ -2,9 +2,10 @@ package handlers
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/utils"
 )
 
 // quoteCLIArg quotes a CLI argument if it contains spaces (e.g. "7 years").
@@ -20,20 +21,9 @@ func quoteCLIArg(s string) string {
 	return s
 }
 
-// ontapFirstLoginBanner is the message ONTAP prints on first CLI login; we strip it from responses.
-const ontapFirstLoginBanner = "This is your first recorded login."
-
-// ontapFirstLoginBannerRe matches a line containing only the first-login banner (with optional surrounding whitespace).
-var ontapFirstLoginBannerRe = regexp.MustCompile(`(?m)^\s*` + regexp.QuoteMeta(ontapFirstLoginBanner) + `\s*[\r\n]*`)
-
-// StripOntapLoginBanner removes the ONTAP "first recorded login" message from CLI output
-// so it is not shown in API responses. Handles any amount of surrounding newlines or whitespace.
+// StripOntapLoginBanner delegates to utils.StripOntapLoginBanner for backward compatibility.
 func StripOntapLoginBanner(output string) string {
-	if output == "" {
-		return output
-	}
-	s := ontapFirstLoginBannerRe.ReplaceAllString(output, "")
-	return strings.TrimLeft(s, "\r\n")
+	return utils.StripOntapLoginBanner(output)
 }
 
 // ParseCLIError extracts a user-facing error message from ONTAP CLI output.
@@ -66,56 +56,47 @@ func OntapCodeToInt(code string) int {
 	return n
 }
 
+// ParseSnaplockAbortError parses the output of `snaplock legal-hold abort` and returns
+// a user-facing message. Recognizes ONTAP messages like "SnapLock legal-hold operation is complete"
+// and returns a short message; otherwise falls back to ParseCLIError.
+func ParseSnaplockAbortError(cliOutput string) string {
+	lower := strings.ToLower(strings.TrimSpace(cliOutput))
+	if strings.Contains(lower, "operation is complete") {
+		return "SnapLock legal-hold operation is complete; abort only applies to in-progress operations"
+	}
+	if strings.Contains(lower, "not found") {
+		return "SnapLock legal-hold operation not found"
+	}
+	msg := ParseCLIError(cliOutput)
+	if msg != "" {
+		return msg
+	}
+	return cliOutput
+}
+
 // IsCLISuccess checks if CLI output indicates a successful operation.
 func IsCLISuccess(cliOutput string) bool {
-	output := strings.ToLower(cliOutput)
+	lines := strings.Split(cliOutput, "\n")
 
-	// Real errors are lines starting with "Error:"; ignore "No error" / "Status Details: No error".
-	if hasErrorLine(cliOutput) {
-		return false
-	}
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		lower := strings.ToLower(trimmed)
 
-	// "failed" indicates failure only when it's a clear failure phrase (e.g. "Operation failed"), not when
-	// it's the value of Operation Status in a successful list/show (e.g. "Operation Status: Failed").
-	if hasFailedLine(cliOutput) {
-		return false
-	}
-
-	// Other failure indicators (substring match is safe for these)
-	failureIndicators := []string{
-		"not found",
-		"permission denied",
-		"access denied",
-		"invalid",
-	}
-	for _, indicator := range failureIndicators {
-		if strings.Contains(output, indicator) {
+		// Prefix checks: line start indicates error (avoids "Number of Files Failed: 0" etc.)
+		if strings.HasPrefix(lower, "error:") ||
+			strings.HasPrefix(lower, "failed") ||
+			strings.HasPrefix(lower, "invalid") {
+			return false
+		}
+		// Contains checks: common error phrases anywhere in line
+		if strings.Contains(lower, "not found") ||
+			strings.Contains(lower, "permission denied") ||
+			strings.Contains(lower, "access denied") ||
+			strings.Contains(lower, "operation failed") ||
+			strings.Contains(lower, "command failed") {
 			return false
 		}
 	}
+
 	return true
-}
-
-// hasErrorLine returns true if output contains a line that starts with "Error:" (case-insensitive).
-func hasErrorLine(output string) bool {
-	for _, line := range strings.Split(output, "\n") {
-		if strings.HasPrefix(strings.TrimSpace(strings.ToLower(line)), "error:") {
-			return true
-		}
-	}
-	return false
-}
-
-// hasFailedLine returns true if output contains a line with a clear failure phrase (e.g. "Operation failed",
-// "Command failed", "failed to"). Used so that a successful list/show output that includes an operation in
-// state "Failed" (e.g. "Operation Status: Failed") is not misclassified as CLI failure.
-func hasFailedLine(output string) bool {
-	lower := strings.ToLower(output)
-	for _, line := range strings.Split(lower, "\n") {
-		line = strings.TrimSpace(line)
-		if strings.Contains(line, "operation failed") || strings.Contains(line, "command failed") || strings.Contains(line, "failed to") {
-			return true
-		}
-	}
-	return false
 }

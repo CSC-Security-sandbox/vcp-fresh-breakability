@@ -9,7 +9,7 @@ tags:
   - name: health
     description: Health check operations
   - name: snaplock
-    description: SnapLock file operations and event retention
+    description: SnapLock file, litigation operations and event retention
   - name: cli
     description: ONTAP CLI command execution
   - name: licensing
@@ -336,6 +336,279 @@ paths:
       responses:
         '200':
           description: Policy deleted successfully
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/litigations:
+    get:
+      operationId: v1_snaplockLitigationCollectionGet
+      summary: List SnapLock litigations
+      description: |
+        Retrieves the list of litigations under the SVM.
+        Uses ONTAP CLI `snaplock legal-hold show` per volume (with -instance) to gather litigation records.
+      tags:
+        - snaplock
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/poolIdPathParameter'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnaplockLitigationListResponse'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      operationId: v1_snaplockLitigationBegin
+      summary: Start a SnapLock legal hold (litigation)
+      description: |
+        Starts a legal hold on a path in a SnapLock volume.
+        Uses ONTAP CLI `snaplock legal-hold begin`. Required properties: litigation_name, path, volume_uuid.
+      tags:
+        - snaplock
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/poolIdPathParameter'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SnaplockLitigationBeginRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnaplockLitigationResponse'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/litigations/{litigationId}:
+    get:
+      operationId: v1_snaplockLitigationGet
+      summary: Get a SnapLock litigation
+      description: |
+        Retrieves the litigation for the given litigation ID (volumeUuid:litigationName).
+        Uses ONTAP CLI `snaplock legal-hold show -vserver -volume -litigation-name -instance`.
+      tags:
+        - snaplock
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/litigationIdPathParameter'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnaplockLitigationResponse'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      operationId: v1_snaplockLitigationEnd
+      summary: End a SnapLock legal hold (litigation)
+      description: |
+        Ends the legal hold for all files under the specified litigation (litigation ID is volumeUuid:litigationName).
+        Uses ONTAP CLI `snaplock legal-hold end`.
+      tags:
+        - snaplock
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/litigationIdPathParameter'
+      responses:
+        '200':
+          description: OK
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/litigations/{litigationId}/operations:
+    post:
+      operationId: v1_snaplockLitigationOperationCreate
+      summary: Create SnapLock legal-hold operation (begin or end)
+      description: |
+        Creates or removes legal-hold for the specified path on an existing litigation.
+        Body type "begin" = add legal-hold on path; "end" = remove legal-hold on path.
+        Uses ONTAP CLI `snaplock legal-hold begin` or `snaplock legal-hold end`.
+      tags:
+        - snaplock
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/litigationIdPathParameter'
+        - name: return_records
+          in: query
+          description: The default is false. If set to true, the records are returned.
+          required: false
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SnaplockLegalHoldOperationRequest'
+      responses:
+        '201':
+          description: Created
+          headers:
+            Location:
+              description: Useful for tracking the resource location
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnaplockLegalHoldOperationResponse'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/litigations/{litigationId}/operations/{operationId}:
+    get:
+      operationId: v1_snaplockLitigationOperationGet
+      summary: Get SnapLock legal-hold operation status
+      description: |
+        Retrieves the status of the legal-hold operation for the specified operation ID.
+        Uses ONTAP CLI `snaplock legal-hold show -operation-id <id> -instance`.
+      tags:
+        - snaplock
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/litigationIdPathParameter'
+        - $ref: '#/components/parameters/operationIdPathParameter'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnaplockLegalHoldOperationResponse'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      operationId: v1_snaplockLitigationOperationAbort
+      summary: Abort SnapLock legal-hold operation
+      description: |
+        Aborts an ongoing legal-hold operation. Does not rollback changes already made.
+        Uses ONTAP CLI `snaplock legal-hold abort`.
+      tags:
+        - snaplock
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/litigationIdPathParameter'
+        - $ref: '#/components/parameters/operationIdPathParameter'
+      responses:
+        '200':
+          description: OK
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -859,6 +1132,24 @@ components:
         type: string
         format: uuid
         example: "04fb1ddb-2947-4eb0-af09-3eb6dc538926"
+    litigationIdPathParameter:
+      name: litigationId
+      in: path
+      description: Litigation ID (volumeUuid:litigationName, e.g. f8a67b60-4461-11e9-b327-0050568ebef5:l1). Must be URL-encoded if containing special characters.
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        example: "f8a67b60-4461-11e9-b327-0050568ebef5:l1"
+    operationIdPathParameter:
+      name: operationId
+      in: path
+      description: Operation ID (e.g. from begin/end operation response)
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        example: "16908292"
   schemas:
     Health:
       type: object
@@ -1183,6 +1474,223 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SnapmirrorObjectStoreEndpointSnapshot'
+    # Request/response schemas aligned with ONTAP REST api/storage/snaplock/litigations (snaplock_litigation, snaplock_litigation_response, snaplock_legal_hold_operation).
+    SnaplockLitigationBeginRequest:
+      type: object
+      title: SnaplockLitigationBeginRequest
+      description: |
+        Request body for starting a SnapLock litigation (legal hold).
+        Aligns with ONTAP POST /api/storage/snaplock/litigations (snaplock_litigation).
+        Proxy accepts litigation_name, path, volume_uuid (volume.uuid in ONTAP).
+      required:
+        - litigation_name
+        - path
+        - volume_uuid
+      properties:
+        litigation_name:
+          type: string
+          minLength: 1
+          description: Specifies the legal-hold litigation name (ONTAP name)
+          example: "litigation-001"
+        path:
+          type: string
+          description: Specifies the path on which legal-hold operation has to be applied (e.g. /dir1 or /)
+          example: "/dir1"
+        volume_uuid:
+          type: string
+          format: uuid
+          description: Unique identifier for the volume (ONTAP volume.uuid). Corresponds to instance-uuid in CLI.
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    SnaplockLitigationResponse:
+      type: object
+      title: SnaplockLitigationResponse
+      description: SnapLock litigation record. Same structure as ONTAP snaplock_litigation.
+      properties:
+        _links:
+          type: object
+          description: Links for the litigation (read-only)
+          properties:
+            self:
+              $ref: '#/components/schemas/Href'
+        id:
+          type: string
+          description: Specifies the litigation ID (volume_uuid:litigation_name). Read-only.
+        name:
+          type: string
+          description: Specifies the legal-hold litigation name
+          example: "lit1"
+        path:
+          type: string
+          description: Specifies the path on which legal-hold operation is applied
+          example: "/dir1"
+        svm:
+          type: object
+          description: SVM, applies only to SVM-scoped objects. Read-only.
+          properties:
+            _links:
+              type: object
+              properties:
+                self:
+                  $ref: '#/components/schemas/Href'
+            name:
+              type: string
+              description: The name of the SVM
+              example: "svm1"
+            uuid:
+              type: string
+              description: The unique identifier of the SVM
+              example: "02c9e252-41be-11e9-81d5-00a0986138f7"
+        volume:
+          type: object
+          description: Volume reference. Read-only.
+          properties:
+            _links:
+              type: object
+              properties:
+                self:
+                  $ref: '#/components/schemas/Href'
+            name:
+              type: string
+              description: The name of the volume
+              example: "volume1"
+            uuid:
+              type: string
+              description: Unique identifier for the volume (instance-uuid)
+              example: "028baa66-41bd-11e9-81d5-00a0986138f7"
+        operations:
+          type: array
+          description: List of legal-hold operations for this litigation. Read-only.
+          items:
+            $ref: '#/components/schemas/SnaplockLegalHoldOperationResponse'
+    SnaplockLitigationListRecord:
+      type: object
+      title: SnaplockLitigationListRecord
+      description: |
+        One row from list; matches CLI "snaplock legal-hold show" table (Operation, Operation ID, Vserver, Volume, Status).
+        Use for GET /litigations (list) only.
+      properties:
+        id:
+          type: string
+          description: Litigation ID (volume_uuid:litigation_name). Read-only.
+          example: "47e1d46f-1cbf-11f1-a9c9-c3ccd0d4d151:litigation-001"
+        name:
+          type: string
+          description: Legal-hold litigation name
+          example: "litigation-001"
+        path:
+          type: string
+          description: Path on which legal-hold is applied
+          example: "/"
+        operation:
+          type: string
+          description: Operation type
+          enum: [begin, end]
+          example: "begin"
+        operation_id:
+          type: integer
+          description: Operation ID from ONTAP
+          example: 16842754
+        vserver:
+          type: string
+          description: Vserver name
+          example: "gcnv-fbc248f62e293c2-svm-01"
+        volume:
+          type: string
+          description: Volume name
+          example: "snaplock_vol_ss_comp"
+        status:
+          type: string
+          description: Operation status
+          enum: [in_progress, failed, aborting, completed]
+          example: "completed"
+    SnaplockLitigationListResponse:
+      type: object
+      title: SnaplockLitigationListResponse
+      description: List of SnapLock litigations. Matches CLI "snaplock legal-hold show" table (one record per operation row).
+      properties:
+        _links:
+          type: object
+          description: Links for the collection (read-only)
+          properties:
+            next:
+              $ref: '#/components/schemas/Href'
+            self:
+              $ref: '#/components/schemas/Href'
+        num_records:
+          type: integer
+          description: Number of records
+          example: 1
+        records:
+          type: array
+          description: List of litigation rows (one per operation; matches CLI table)
+          items:
+            $ref: '#/components/schemas/SnaplockLitigationListRecord'
+    SnaplockLegalHoldOperationRequest:
+      type: object
+      title: SnaplockLegalHoldOperationRequest
+      description: |
+        Request body for creating a legal-hold operation (begin or end).
+        Same as ONTAP POST /api/storage/snaplock/litigations/{id}/operations (snaplock_legal_hold_operation).
+      required: [type, path]
+      properties:
+        type:
+          type: string
+          description: Specifies the type of legal-hold operation
+          enum: [begin, end]
+        path:
+          type: string
+          description: Specifies the path on which legal-hold operation is applied
+          minLength: 1
+          example: "/dir1"
+    SnaplockLegalHoldOperationResponse:
+      type: object
+      title: SnaplockLegalHoldOperationResponse
+      description: SnapLock legal-hold operation status. Same structure as ONTAP snaplock_legal_hold_operation.
+      properties:
+        _links:
+          type: object
+          description: Links for the operation (read-only)
+          properties:
+            self:
+              $ref: '#/components/schemas/Href'
+        id:
+          type: integer
+          description: Operation ID. Read-only.
+          example: 16842759
+        state:
+          type: string
+          description: Specifies the status of legal-hold operation
+          enum: [in_progress, failed, aborting, completed]
+          example: "completed"
+        path:
+          type: string
+          description: Specifies the path on which legal-hold operation is applied
+          example: "/dir1"
+        type:
+          type: string
+          description: Specifies the type of legal-hold operation
+          enum: [begin, end]
+          example: "begin"
+        num_files_processed:
+          type: string
+          description: Specifies the number of files on which legal-hold operation was successful
+          example: "30"
+        num_files_failed:
+          type: string
+          description: Specifies the number of files on which legal-hold operation failed
+          example: "0"
+        num_files_skipped:
+          type: string
+          description: Specifies the number of files on which legal-hold begin was skipped (already under hold)
+          example: "10"
+        num_inodes_ignored:
+          type: string
+          description: Specifies the number of inodes on which the operation was not attempted (not regular files)
+          example: "10"
+        status_details:
+          type: string
+          description: Status details from ONTAP (e.g. failure reason such as "No such litigation")
+          example: "Failed to setup legal-hold operation on path /vol/vol1. Reason: No such litigation."
     SnaplockFileRetentionJobLinkResponse:
       type: object
       title: SnaplockFileRetentionJobLinkResponse

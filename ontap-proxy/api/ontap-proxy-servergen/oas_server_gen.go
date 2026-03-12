@@ -157,6 +157,58 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/private/cli
 	V1PrivateCli(ctx context.Context, req *CLIExecuteRequest, params V1PrivateCliParams) (V1PrivateCliRes, error)
+	// V1SnaplockLitigationBegin implements v1_snaplockLitigationBegin operation.
+	//
+	// Starts a legal hold on a path in a SnapLock volume.
+	// Uses ONTAP CLI `snaplock legal-hold begin`. Required properties: litigation_name, path,
+	// volume_uuid.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/litigations
+	V1SnaplockLitigationBegin(ctx context.Context, req *SnaplockLitigationBeginRequest, params V1SnaplockLitigationBeginParams) (V1SnaplockLitigationBeginRes, error)
+	// V1SnaplockLitigationCollectionGet implements v1_snaplockLitigationCollectionGet operation.
+	//
+	// Retrieves the list of litigations under the SVM.
+	// Uses ONTAP CLI `snaplock legal-hold show` per volume (with -instance) to gather litigation records.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/litigations
+	V1SnaplockLitigationCollectionGet(ctx context.Context, params V1SnaplockLitigationCollectionGetParams) (V1SnaplockLitigationCollectionGetRes, error)
+	// V1SnaplockLitigationEnd implements v1_snaplockLitigationEnd operation.
+	//
+	// Ends the legal hold for all files under the specified litigation (litigation ID is
+	// volumeUuid:litigationName).
+	// Uses ONTAP CLI `snaplock legal-hold end`.
+	//
+	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/litigations/{litigationId}
+	V1SnaplockLitigationEnd(ctx context.Context, params V1SnaplockLitigationEndParams) (V1SnaplockLitigationEndRes, error)
+	// V1SnaplockLitigationGet implements v1_snaplockLitigationGet operation.
+	//
+	// Retrieves the litigation for the given litigation ID (volumeUuid:litigationName).
+	// Uses ONTAP CLI `snaplock legal-hold show -vserver -volume -litigation-name -instance`.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/litigations/{litigationId}
+	V1SnaplockLitigationGet(ctx context.Context, params V1SnaplockLitigationGetParams) (V1SnaplockLitigationGetRes, error)
+	// V1SnaplockLitigationOperationAbort implements v1_snaplockLitigationOperationAbort operation.
+	//
+	// Aborts an ongoing legal-hold operation. Does not rollback changes already made.
+	// Uses ONTAP CLI `snaplock legal-hold abort`.
+	//
+	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/litigations/{litigationId}/operations/{operationId}
+	V1SnaplockLitigationOperationAbort(ctx context.Context, params V1SnaplockLitigationOperationAbortParams) (V1SnaplockLitigationOperationAbortRes, error)
+	// V1SnaplockLitigationOperationCreate implements v1_snaplockLitigationOperationCreate operation.
+	//
+	// Creates or removes legal-hold for the specified path on an existing litigation.
+	// Body type "begin" = add legal-hold on path; "end" = remove legal-hold on path.
+	// Uses ONTAP CLI `snaplock legal-hold begin` or `snaplock legal-hold end`.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/litigations/{litigationId}/operations
+	V1SnaplockLitigationOperationCreate(ctx context.Context, req *SnaplockLegalHoldOperationRequest, params V1SnaplockLitigationOperationCreateParams) (V1SnaplockLitigationOperationCreateRes, error)
+	// V1SnaplockLitigationOperationGet implements v1_snaplockLitigationOperationGet operation.
+	//
+	// Retrieves the status of the legal-hold operation for the specified operation ID.
+	// Uses ONTAP CLI `snaplock legal-hold show -operation-id <id> -instance`.
+	//
+	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/litigations/{litigationId}/operations/{operationId}
+	V1SnaplockLitigationOperationGet(ctx context.Context, params V1SnaplockLitigationOperationGetParams) (V1SnaplockLitigationOperationGetRes, error)
 	// V1UpdateEventRetentionPolicy implements v1_updateEventRetentionPolicy operation.
 	//
 	// Updates the retention period of an Event Based Retention (EBR) policy.

@@ -32,6 +32,7 @@ type OntapClient interface {
 	GetVolume(ctx context.Context, volumeUUID string) (*VolumeInfo, error)
 	ExecuteCLI(ctx context.Context, command, privilege string) (*CLIResponse, error)
 	ExecuteAPI(ctx context.Context, method, apiPath string, body []byte) (respBody []byte, statusCode int, err error)
+	ListVolumesWithSvm(ctx context.Context, maxRecords int) ([]VolumeInfo, error)
 }
 
 // RestOntapClient provides methods to interact with ONTAP REST APIs.
@@ -122,6 +123,45 @@ func NewOntapClientFromContext(ctx context.Context) (OntapClient, error) {
 		endpoint:   endpoint,
 		authData:   authData,
 	}, nil
+}
+
+// volumeListResponse is the ONTAP REST response for GET /api/storage/volumes (list).
+type volumeListResponse struct {
+	Records []VolumeInfo `json:"records"`
+}
+
+// ListVolumesWithSvm returns volumes with name, uuid, and svm.name for discovery.
+// Used to run CLI "snaplock legal-hold show" per volume when listing litigations.
+func (c *RestOntapClient) ListVolumesWithSvm(ctx context.Context, maxRecords int) ([]VolumeInfo, error) {
+	if maxRecords <= 0 {
+		maxRecords = 1000
+	}
+	urlStr := fmt.Sprintf("https://%s/api/storage/volumes?fields=name,uuid,svm.name&max_records=%d", c.endpoint, maxRecords)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlStr, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	c.setAuthHeaders(req)
+	req.Header.Set("Accept", "application/json")
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("volume list request failed: %w", err)
+	}
+	defer func() {
+		if resp.Body != nil {
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+		}
+	}()
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("ONTAP error (status %d): %s", resp.StatusCode, string(body))
+	}
+	var list volumeListResponse
+	if err := json.NewDecoder(resp.Body).Decode(&list); err != nil {
+		return nil, fmt.Errorf("failed to parse volume list: %w", err)
+	}
+	return list.Records, nil
 }
 
 // recordBackendMetrics records backend request/duration/error metrics for ogen-handled API calls.
@@ -329,6 +369,61 @@ func (c *RestOntapClient) ExecuteAPI(ctx context.Context, method, apiPath string
 		return nil, resp.StatusCode, fmt.Errorf("failed to read response: %w", err)
 	}
 	return respBody, resp.StatusCode, nil
+}
+
+// SnaplockLitigationBeginRequest is the body for ONTAP POST /api/storage/snaplock/litigations
+type SnaplockLitigationBeginRequest struct {
+	Name   string `json:"name"`
+	Path   string `json:"path"`
+	Volume struct {
+		UUID string `json:"uuid,omitempty"`
+		Name string `json:"name,omitempty"`
+	} `json:"volume"`
+}
+
+// SnaplockLitigationGetResponse matches api.yaml SnaplockLitigationResponse (id, name, path, svm, volume, operations).
+type SnaplockLitigationGetResponse struct {
+	ID         string                               `json:"id"`
+	Name       string                               `json:"name"`
+	Path       string                               `json:"path"`
+	Svm        *SnaplockLitigationGetResponseSvm    `json:"svm,omitempty"`
+	Volume     *SnaplockLitigationGetResponseVol    `json:"volume,omitempty"`
+	Operations []SnaplockLitigationGetOperationItem `json:"operations,omitempty"`
+}
+
+// SnaplockLitigationGetOperationItem matches one item of SnaplockLegalHoldOperationResponse for JSON.
+type SnaplockLitigationGetOperationItem struct {
+	ID                int    `json:"id"`
+	State             string `json:"state"`
+	Path              string `json:"path,omitempty"`
+	Type              string `json:"type,omitempty"`
+	NumFilesProcessed string `json:"num_files_processed,omitempty"`
+	NumFilesFailed    string `json:"num_files_failed,omitempty"`
+	NumFilesSkipped   string `json:"num_files_skipped,omitempty"`
+	NumInodesIgnored  string `json:"num_inodes_ignored,omitempty"`
+}
+
+type SnaplockLitigationGetResponseSvm struct {
+	Name string `json:"name,omitempty"`
+	UUID string `json:"uuid,omitempty"`
+}
+
+type SnaplockLitigationGetResponseVol struct {
+	Name string `json:"name,omitempty"`
+	UUID string `json:"uuid,omitempty"`
+}
+
+// SnaplockOperationGetResponse is the JSON shape for SnaplockLitigationOperationGet (id, state, path, type, num_files_*, status_details).
+type SnaplockOperationGetResponse struct {
+	ID                int    `json:"id"`
+	State             string `json:"state"`
+	Path              string `json:"path"`
+	Type              string `json:"type"`
+	NumFilesProcessed string `json:"num_files_processed,omitempty"`
+	NumFilesFailed    string `json:"num_files_failed,omitempty"`
+	NumFilesSkipped   string `json:"num_files_skipped,omitempty"`
+	NumInodesIgnored  string `json:"num_inodes_ignored,omitempty"`
+	StatusDetails     string `json:"status_details,omitempty"`
 }
 
 // setAuthHeaders sets the appropriate authentication headers on the request

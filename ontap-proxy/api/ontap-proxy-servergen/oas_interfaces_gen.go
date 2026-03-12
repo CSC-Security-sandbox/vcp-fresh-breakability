@@ -69,6 +69,34 @@ type V1PrivateCliRes interface {
 	v1PrivateCliRes()
 }
 
+type V1SnaplockLitigationBeginRes interface {
+	v1SnaplockLitigationBeginRes()
+}
+
+type V1SnaplockLitigationCollectionGetRes interface {
+	v1SnaplockLitigationCollectionGetRes()
+}
+
+type V1SnaplockLitigationEndRes interface {
+	v1SnaplockLitigationEndRes()
+}
+
+type V1SnaplockLitigationGetRes interface {
+	v1SnaplockLitigationGetRes()
+}
+
+type V1SnaplockLitigationOperationAbortRes interface {
+	v1SnaplockLitigationOperationAbortRes()
+}
+
+type V1SnaplockLitigationOperationCreateRes interface {
+	v1SnaplockLitigationOperationCreateRes()
+}
+
+type V1SnaplockLitigationOperationGetRes interface {
+	v1SnaplockLitigationOperationGetRes()
+}
+
 type V1UpdateEventRetentionPolicyRes interface {
 	v1UpdateEventRetentionPolicyRes()
 }

@@ -3071,6 +3071,512 @@ func (o OptSelfLink) Or(d SelfLink) SelfLink {
 	return d
 }
 
+// NewOptSnaplockLegalHoldOperationResponseLinks returns new OptSnaplockLegalHoldOperationResponseLinks with value set to v.
+func NewOptSnaplockLegalHoldOperationResponseLinks(v SnaplockLegalHoldOperationResponseLinks) OptSnaplockLegalHoldOperationResponseLinks {
+	return OptSnaplockLegalHoldOperationResponseLinks{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptSnaplockLegalHoldOperationResponseLinks is optional SnaplockLegalHoldOperationResponseLinks.
+type OptSnaplockLegalHoldOperationResponseLinks struct {
+	Value SnaplockLegalHoldOperationResponseLinks
+	Set   bool
+}
+
+// IsSet returns true if OptSnaplockLegalHoldOperationResponseLinks was set.
+func (o OptSnaplockLegalHoldOperationResponseLinks) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptSnaplockLegalHoldOperationResponseLinks) Reset() {
+	var v SnaplockLegalHoldOperationResponseLinks
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptSnaplockLegalHoldOperationResponseLinks) SetTo(v SnaplockLegalHoldOperationResponseLinks) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptSnaplockLegalHoldOperationResponseLinks) Get() (v SnaplockLegalHoldOperationResponseLinks, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptSnaplockLegalHoldOperationResponseLinks) Or(d SnaplockLegalHoldOperationResponseLinks) SnaplockLegalHoldOperationResponseLinks {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptSnaplockLegalHoldOperationResponseState returns new OptSnaplockLegalHoldOperationResponseState with value set to v.
+func NewOptSnaplockLegalHoldOperationResponseState(v SnaplockLegalHoldOperationResponseState) OptSnaplockLegalHoldOperationResponseState {
+	return OptSnaplockLegalHoldOperationResponseState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptSnaplockLegalHoldOperationResponseState is optional SnaplockLegalHoldOperationResponseState.
+type OptSnaplockLegalHoldOperationResponseState struct {
+	Value SnaplockLegalHoldOperationResponseState
+	Set   bool
+}
+
+// IsSet returns true if OptSnaplockLegalHoldOperationResponseState was set.
+func (o OptSnaplockLegalHoldOperationResponseState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptSnaplockLegalHoldOperationResponseState) Reset() {
+	var v SnaplockLegalHoldOperationResponseState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptSnaplockLegalHoldOperationResponseState) SetTo(v SnaplockLegalHoldOperationResponseState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptSnaplockLegalHoldOperationResponseState) Get() (v SnaplockLegalHoldOperationResponseState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptSnaplockLegalHoldOperationResponseState) Or(d SnaplockLegalHoldOperationResponseState) SnaplockLegalHoldOperationResponseState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptSnaplockLegalHoldOperationResponseType returns new OptSnaplockLegalHoldOperationResponseType with value set to v.
+func NewOptSnaplockLegalHoldOperationResponseType(v SnaplockLegalHoldOperationResponseType) OptSnaplockLegalHoldOperationResponseType {
+	return OptSnaplockLegalHoldOperationResponseType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptSnaplockLegalHoldOperationResponseType is optional SnaplockLegalHoldOperationResponseType.
+type OptSnaplockLegalHoldOperationResponseType struct {
+	Value SnaplockLegalHoldOperationResponseType
+	Set   bool
+}
+
+// IsSet returns true if OptSnaplockLegalHoldOperationResponseType was set.
+func (o OptSnaplockLegalHoldOperationResponseType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptSnaplockLegalHoldOperationResponseType) Reset() {
+	var v SnaplockLegalHoldOperationResponseType
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptSnaplockLegalHoldOperationResponseType) SetTo(v SnaplockLegalHoldOperationResponseType) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptSnaplockLegalHoldOperationResponseType) Get() (v SnaplockLegalHoldOperationResponseType, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptSnaplockLegalHoldOperationResponseType) Or(d SnaplockLegalHoldOperationResponseType) SnaplockLegalHoldOperationResponseType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptSnaplockLitigationListRecordOperation returns new OptSnaplockLitigationListRecordOperation with value set to v.
+func NewOptSnaplockLitigationListRecordOperation(v SnaplockLitigationListRecordOperation) OptSnaplockLitigationListRecordOperation {
+	return OptSnaplockLitigationListRecordOperation{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptSnaplockLitigationListRecordOperation is optional SnaplockLitigationListRecordOperation.
+type OptSnaplockLitigationListRecordOperation struct {
+	Value SnaplockLitigationListRecordOperation
+	Set   bool
+}
+
+// IsSet returns true if OptSnaplockLitigationListRecordOperation was set.
+func (o OptSnaplockLitigationListRecordOperation) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptSnaplockLitigationListRecordOperation) Reset() {
+	var v SnaplockLitigationListRecordOperation
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptSnaplockLitigationListRecordOperation) SetTo(v SnaplockLitigationListRecordOperation) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptSnaplockLitigationListRecordOperation) Get() (v SnaplockLitigationListRecordOperation, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptSnaplockLitigationListRecordOperation) Or(d SnaplockLitigationListRecordOperation) SnaplockLitigationListRecordOperation {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptSnaplockLitigationListRecordStatus returns new OptSnaplockLitigationListRecordStatus with value set to v.
+func NewOptSnaplockLitigationListRecordStatus(v SnaplockLitigationListRecordStatus) OptSnaplockLitigationListRecordStatus {
+	return OptSnaplockLitigationListRecordStatus{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptSnaplockLitigationListRecordStatus is optional SnaplockLitigationListRecordStatus.
+type OptSnaplockLitigationListRecordStatus struct {
+	Value SnaplockLitigationListRecordStatus
+	Set   bool
+}
+
+// IsSet returns true if OptSnaplockLitigationListRecordStatus was set.
+func (o OptSnaplockLitigationListRecordStatus) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptSnaplockLitigationListRecordStatus) Reset() {
+	var v SnaplockLitigationListRecordStatus
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptSnaplockLitigationListRecordStatus) SetTo(v SnaplockLitigationListRecordStatus) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptSnaplockLitigationListRecordStatus) Get() (v SnaplockLitigationListRecordStatus, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptSnaplockLitigationListRecordStatus) Or(d SnaplockLitigationListRecordStatus) SnaplockLitigationListRecordStatus {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptSnaplockLitigationListResponseLinks returns new OptSnaplockLitigationListResponseLinks with value set to v.
+func NewOptSnaplockLitigationListResponseLinks(v SnaplockLitigationListResponseLinks) OptSnaplockLitigationListResponseLinks {
+	return OptSnaplockLitigationListResponseLinks{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptSnaplockLitigationListResponseLinks is optional SnaplockLitigationListResponseLinks.
+type OptSnaplockLitigationListResponseLinks struct {
+	Value SnaplockLitigationListResponseLinks
+	Set   bool
+}
+
+// IsSet returns true if OptSnaplockLitigationListResponseLinks was set.
+func (o OptSnaplockLitigationListResponseLinks) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptSnaplockLitigationListResponseLinks) Reset() {
+	var v SnaplockLitigationListResponseLinks
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptSnaplockLitigationListResponseLinks) SetTo(v SnaplockLitigationListResponseLinks) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptSnaplockLitigationListResponseLinks) Get() (v SnaplockLitigationListResponseLinks, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptSnaplockLitigationListResponseLinks) Or(d SnaplockLitigationListResponseLinks) SnaplockLitigationListResponseLinks {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptSnaplockLitigationResponseLinks returns new OptSnaplockLitigationResponseLinks with value set to v.
+func NewOptSnaplockLitigationResponseLinks(v SnaplockLitigationResponseLinks) OptSnaplockLitigationResponseLinks {
+	return OptSnaplockLitigationResponseLinks{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptSnaplockLitigationResponseLinks is optional SnaplockLitigationResponseLinks.
+type OptSnaplockLitigationResponseLinks struct {
+	Value SnaplockLitigationResponseLinks
+	Set   bool
+}
+
+// IsSet returns true if OptSnaplockLitigationResponseLinks was set.
+func (o OptSnaplockLitigationResponseLinks) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptSnaplockLitigationResponseLinks) Reset() {
+	var v SnaplockLitigationResponseLinks
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptSnaplockLitigationResponseLinks) SetTo(v SnaplockLitigationResponseLinks) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptSnaplockLitigationResponseLinks) Get() (v SnaplockLitigationResponseLinks, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptSnaplockLitigationResponseLinks) Or(d SnaplockLitigationResponseLinks) SnaplockLitigationResponseLinks {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptSnaplockLitigationResponseSvm returns new OptSnaplockLitigationResponseSvm with value set to v.
+func NewOptSnaplockLitigationResponseSvm(v SnaplockLitigationResponseSvm) OptSnaplockLitigationResponseSvm {
+	return OptSnaplockLitigationResponseSvm{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptSnaplockLitigationResponseSvm is optional SnaplockLitigationResponseSvm.
+type OptSnaplockLitigationResponseSvm struct {
+	Value SnaplockLitigationResponseSvm
+	Set   bool
+}
+
+// IsSet returns true if OptSnaplockLitigationResponseSvm was set.
+func (o OptSnaplockLitigationResponseSvm) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptSnaplockLitigationResponseSvm) Reset() {
+	var v SnaplockLitigationResponseSvm
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptSnaplockLitigationResponseSvm) SetTo(v SnaplockLitigationResponseSvm) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptSnaplockLitigationResponseSvm) Get() (v SnaplockLitigationResponseSvm, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptSnaplockLitigationResponseSvm) Or(d SnaplockLitigationResponseSvm) SnaplockLitigationResponseSvm {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptSnaplockLitigationResponseSvmLinks returns new OptSnaplockLitigationResponseSvmLinks with value set to v.
+func NewOptSnaplockLitigationResponseSvmLinks(v SnaplockLitigationResponseSvmLinks) OptSnaplockLitigationResponseSvmLinks {
+	return OptSnaplockLitigationResponseSvmLinks{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptSnaplockLitigationResponseSvmLinks is optional SnaplockLitigationResponseSvmLinks.
+type OptSnaplockLitigationResponseSvmLinks struct {
+	Value SnaplockLitigationResponseSvmLinks
+	Set   bool
+}
+
+// IsSet returns true if OptSnaplockLitigationResponseSvmLinks was set.
+func (o OptSnaplockLitigationResponseSvmLinks) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptSnaplockLitigationResponseSvmLinks) Reset() {
+	var v SnaplockLitigationResponseSvmLinks
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptSnaplockLitigationResponseSvmLinks) SetTo(v SnaplockLitigationResponseSvmLinks) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptSnaplockLitigationResponseSvmLinks) Get() (v SnaplockLitigationResponseSvmLinks, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptSnaplockLitigationResponseSvmLinks) Or(d SnaplockLitigationResponseSvmLinks) SnaplockLitigationResponseSvmLinks {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptSnaplockLitigationResponseVolume returns new OptSnaplockLitigationResponseVolume with value set to v.
+func NewOptSnaplockLitigationResponseVolume(v SnaplockLitigationResponseVolume) OptSnaplockLitigationResponseVolume {
+	return OptSnaplockLitigationResponseVolume{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptSnaplockLitigationResponseVolume is optional SnaplockLitigationResponseVolume.
+type OptSnaplockLitigationResponseVolume struct {
+	Value SnaplockLitigationResponseVolume
+	Set   bool
+}
+
+// IsSet returns true if OptSnaplockLitigationResponseVolume was set.
+func (o OptSnaplockLitigationResponseVolume) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptSnaplockLitigationResponseVolume) Reset() {
+	var v SnaplockLitigationResponseVolume
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptSnaplockLitigationResponseVolume) SetTo(v SnaplockLitigationResponseVolume) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptSnaplockLitigationResponseVolume) Get() (v SnaplockLitigationResponseVolume, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptSnaplockLitigationResponseVolume) Or(d SnaplockLitigationResponseVolume) SnaplockLitigationResponseVolume {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptSnaplockLitigationResponseVolumeLinks returns new OptSnaplockLitigationResponseVolumeLinks with value set to v.
+func NewOptSnaplockLitigationResponseVolumeLinks(v SnaplockLitigationResponseVolumeLinks) OptSnaplockLitigationResponseVolumeLinks {
+	return OptSnaplockLitigationResponseVolumeLinks{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptSnaplockLitigationResponseVolumeLinks is optional SnaplockLitigationResponseVolumeLinks.
+type OptSnaplockLitigationResponseVolumeLinks struct {
+	Value SnaplockLitigationResponseVolumeLinks
+	Set   bool
+}
+
+// IsSet returns true if OptSnaplockLitigationResponseVolumeLinks was set.
+func (o OptSnaplockLitigationResponseVolumeLinks) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptSnaplockLitigationResponseVolumeLinks) Reset() {
+	var v SnaplockLitigationResponseVolumeLinks
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptSnaplockLitigationResponseVolumeLinks) SetTo(v SnaplockLitigationResponseVolumeLinks) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptSnaplockLitigationResponseVolumeLinks) Get() (v SnaplockLitigationResponseVolumeLinks, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptSnaplockLitigationResponseVolumeLinks) Or(d SnaplockLitigationResponseVolumeLinks) SnaplockLitigationResponseVolumeLinks {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptSnapmirrorObjectStoreEndpointSnapshotLinks returns new OptSnapmirrorObjectStoreEndpointSnapshotLinks with value set to v.
 func NewOptSnapmirrorObjectStoreEndpointSnapshotLinks(v SnapmirrorObjectStoreEndpointSnapshotLinks) OptSnapmirrorObjectStoreEndpointSnapshotLinks {
 	return OptSnapmirrorObjectStoreEndpointSnapshotLinks{
@@ -3600,6 +4106,874 @@ func (s *SnaplockFileRetentionJobLinkResponse) SetRecords(val []SnaplockFileRete
 }
 
 func (*SnaplockFileRetentionJobLinkResponse) snaplockFileDeleteRes() {}
+
+// Request body for creating a legal-hold operation (begin or end).
+// Same as ONTAP POST /api/storage/snaplock/litigations/{id}/operations
+// (snaplock_legal_hold_operation).
+// Ref: #/components/schemas/SnaplockLegalHoldOperationRequest
+type SnaplockLegalHoldOperationRequest struct {
+	// Specifies the type of legal-hold operation.
+	Type SnaplockLegalHoldOperationRequestType `json:"type"`
+	// Specifies the path on which legal-hold operation is applied.
+	Path string `json:"path"`
+}
+
+// GetType returns the value of Type.
+func (s *SnaplockLegalHoldOperationRequest) GetType() SnaplockLegalHoldOperationRequestType {
+	return s.Type
+}
+
+// GetPath returns the value of Path.
+func (s *SnaplockLegalHoldOperationRequest) GetPath() string {
+	return s.Path
+}
+
+// SetType sets the value of Type.
+func (s *SnaplockLegalHoldOperationRequest) SetType(val SnaplockLegalHoldOperationRequestType) {
+	s.Type = val
+}
+
+// SetPath sets the value of Path.
+func (s *SnaplockLegalHoldOperationRequest) SetPath(val string) {
+	s.Path = val
+}
+
+// Specifies the type of legal-hold operation.
+type SnaplockLegalHoldOperationRequestType string
+
+const (
+	SnaplockLegalHoldOperationRequestTypeBegin SnaplockLegalHoldOperationRequestType = "begin"
+	SnaplockLegalHoldOperationRequestTypeEnd   SnaplockLegalHoldOperationRequestType = "end"
+)
+
+// AllValues returns all SnaplockLegalHoldOperationRequestType values.
+func (SnaplockLegalHoldOperationRequestType) AllValues() []SnaplockLegalHoldOperationRequestType {
+	return []SnaplockLegalHoldOperationRequestType{
+		SnaplockLegalHoldOperationRequestTypeBegin,
+		SnaplockLegalHoldOperationRequestTypeEnd,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SnaplockLegalHoldOperationRequestType) MarshalText() ([]byte, error) {
+	switch s {
+	case SnaplockLegalHoldOperationRequestTypeBegin:
+		return []byte(s), nil
+	case SnaplockLegalHoldOperationRequestTypeEnd:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SnaplockLegalHoldOperationRequestType) UnmarshalText(data []byte) error {
+	switch SnaplockLegalHoldOperationRequestType(data) {
+	case SnaplockLegalHoldOperationRequestTypeBegin:
+		*s = SnaplockLegalHoldOperationRequestTypeBegin
+		return nil
+	case SnaplockLegalHoldOperationRequestTypeEnd:
+		*s = SnaplockLegalHoldOperationRequestTypeEnd
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// SnapLock legal-hold operation status. Same structure as ONTAP snaplock_legal_hold_operation.
+// Ref: #/components/schemas/SnaplockLegalHoldOperationResponse
+type SnaplockLegalHoldOperationResponse struct {
+	// Links for the operation (read-only).
+	Links OptSnaplockLegalHoldOperationResponseLinks `json:"_links"`
+	// Operation ID. Read-only.
+	ID OptInt `json:"id"`
+	// Specifies the status of legal-hold operation.
+	State OptSnaplockLegalHoldOperationResponseState `json:"state"`
+	// Specifies the path on which legal-hold operation is applied.
+	Path OptString `json:"path"`
+	// Specifies the type of legal-hold operation.
+	Type OptSnaplockLegalHoldOperationResponseType `json:"type"`
+	// Specifies the number of files on which legal-hold operation was successful.
+	NumFilesProcessed OptString `json:"num_files_processed"`
+	// Specifies the number of files on which legal-hold operation failed.
+	NumFilesFailed OptString `json:"num_files_failed"`
+	// Specifies the number of files on which legal-hold begin was skipped (already under hold).
+	NumFilesSkipped OptString `json:"num_files_skipped"`
+	// Specifies the number of inodes on which the operation was not attempted (not regular files).
+	NumInodesIgnored OptString `json:"num_inodes_ignored"`
+	// Status details from ONTAP (e.g. failure reason such as "No such litigation").
+	StatusDetails OptString `json:"status_details"`
+}
+
+// GetLinks returns the value of Links.
+func (s *SnaplockLegalHoldOperationResponse) GetLinks() OptSnaplockLegalHoldOperationResponseLinks {
+	return s.Links
+}
+
+// GetID returns the value of ID.
+func (s *SnaplockLegalHoldOperationResponse) GetID() OptInt {
+	return s.ID
+}
+
+// GetState returns the value of State.
+func (s *SnaplockLegalHoldOperationResponse) GetState() OptSnaplockLegalHoldOperationResponseState {
+	return s.State
+}
+
+// GetPath returns the value of Path.
+func (s *SnaplockLegalHoldOperationResponse) GetPath() OptString {
+	return s.Path
+}
+
+// GetType returns the value of Type.
+func (s *SnaplockLegalHoldOperationResponse) GetType() OptSnaplockLegalHoldOperationResponseType {
+	return s.Type
+}
+
+// GetNumFilesProcessed returns the value of NumFilesProcessed.
+func (s *SnaplockLegalHoldOperationResponse) GetNumFilesProcessed() OptString {
+	return s.NumFilesProcessed
+}
+
+// GetNumFilesFailed returns the value of NumFilesFailed.
+func (s *SnaplockLegalHoldOperationResponse) GetNumFilesFailed() OptString {
+	return s.NumFilesFailed
+}
+
+// GetNumFilesSkipped returns the value of NumFilesSkipped.
+func (s *SnaplockLegalHoldOperationResponse) GetNumFilesSkipped() OptString {
+	return s.NumFilesSkipped
+}
+
+// GetNumInodesIgnored returns the value of NumInodesIgnored.
+func (s *SnaplockLegalHoldOperationResponse) GetNumInodesIgnored() OptString {
+	return s.NumInodesIgnored
+}
+
+// GetStatusDetails returns the value of StatusDetails.
+func (s *SnaplockLegalHoldOperationResponse) GetStatusDetails() OptString {
+	return s.StatusDetails
+}
+
+// SetLinks sets the value of Links.
+func (s *SnaplockLegalHoldOperationResponse) SetLinks(val OptSnaplockLegalHoldOperationResponseLinks) {
+	s.Links = val
+}
+
+// SetID sets the value of ID.
+func (s *SnaplockLegalHoldOperationResponse) SetID(val OptInt) {
+	s.ID = val
+}
+
+// SetState sets the value of State.
+func (s *SnaplockLegalHoldOperationResponse) SetState(val OptSnaplockLegalHoldOperationResponseState) {
+	s.State = val
+}
+
+// SetPath sets the value of Path.
+func (s *SnaplockLegalHoldOperationResponse) SetPath(val OptString) {
+	s.Path = val
+}
+
+// SetType sets the value of Type.
+func (s *SnaplockLegalHoldOperationResponse) SetType(val OptSnaplockLegalHoldOperationResponseType) {
+	s.Type = val
+}
+
+// SetNumFilesProcessed sets the value of NumFilesProcessed.
+func (s *SnaplockLegalHoldOperationResponse) SetNumFilesProcessed(val OptString) {
+	s.NumFilesProcessed = val
+}
+
+// SetNumFilesFailed sets the value of NumFilesFailed.
+func (s *SnaplockLegalHoldOperationResponse) SetNumFilesFailed(val OptString) {
+	s.NumFilesFailed = val
+}
+
+// SetNumFilesSkipped sets the value of NumFilesSkipped.
+func (s *SnaplockLegalHoldOperationResponse) SetNumFilesSkipped(val OptString) {
+	s.NumFilesSkipped = val
+}
+
+// SetNumInodesIgnored sets the value of NumInodesIgnored.
+func (s *SnaplockLegalHoldOperationResponse) SetNumInodesIgnored(val OptString) {
+	s.NumInodesIgnored = val
+}
+
+// SetStatusDetails sets the value of StatusDetails.
+func (s *SnaplockLegalHoldOperationResponse) SetStatusDetails(val OptString) {
+	s.StatusDetails = val
+}
+
+func (*SnaplockLegalHoldOperationResponse) v1SnaplockLitigationOperationGetRes() {}
+
+// SnaplockLegalHoldOperationResponseHeaders wraps SnaplockLegalHoldOperationResponse with response headers.
+type SnaplockLegalHoldOperationResponseHeaders struct {
+	Location OptString
+	Response SnaplockLegalHoldOperationResponse
+}
+
+// GetLocation returns the value of Location.
+func (s *SnaplockLegalHoldOperationResponseHeaders) GetLocation() OptString {
+	return s.Location
+}
+
+// GetResponse returns the value of Response.
+func (s *SnaplockLegalHoldOperationResponseHeaders) GetResponse() SnaplockLegalHoldOperationResponse {
+	return s.Response
+}
+
+// SetLocation sets the value of Location.
+func (s *SnaplockLegalHoldOperationResponseHeaders) SetLocation(val OptString) {
+	s.Location = val
+}
+
+// SetResponse sets the value of Response.
+func (s *SnaplockLegalHoldOperationResponseHeaders) SetResponse(val SnaplockLegalHoldOperationResponse) {
+	s.Response = val
+}
+
+func (*SnaplockLegalHoldOperationResponseHeaders) v1SnaplockLitigationOperationCreateRes() {}
+
+// Links for the operation (read-only).
+type SnaplockLegalHoldOperationResponseLinks struct {
+	Self OptHref `json:"self"`
+}
+
+// GetSelf returns the value of Self.
+func (s *SnaplockLegalHoldOperationResponseLinks) GetSelf() OptHref {
+	return s.Self
+}
+
+// SetSelf sets the value of Self.
+func (s *SnaplockLegalHoldOperationResponseLinks) SetSelf(val OptHref) {
+	s.Self = val
+}
+
+// Specifies the status of legal-hold operation.
+type SnaplockLegalHoldOperationResponseState string
+
+const (
+	SnaplockLegalHoldOperationResponseStateInProgress SnaplockLegalHoldOperationResponseState = "in_progress"
+	SnaplockLegalHoldOperationResponseStateFailed     SnaplockLegalHoldOperationResponseState = "failed"
+	SnaplockLegalHoldOperationResponseStateAborting   SnaplockLegalHoldOperationResponseState = "aborting"
+	SnaplockLegalHoldOperationResponseStateCompleted  SnaplockLegalHoldOperationResponseState = "completed"
+)
+
+// AllValues returns all SnaplockLegalHoldOperationResponseState values.
+func (SnaplockLegalHoldOperationResponseState) AllValues() []SnaplockLegalHoldOperationResponseState {
+	return []SnaplockLegalHoldOperationResponseState{
+		SnaplockLegalHoldOperationResponseStateInProgress,
+		SnaplockLegalHoldOperationResponseStateFailed,
+		SnaplockLegalHoldOperationResponseStateAborting,
+		SnaplockLegalHoldOperationResponseStateCompleted,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SnaplockLegalHoldOperationResponseState) MarshalText() ([]byte, error) {
+	switch s {
+	case SnaplockLegalHoldOperationResponseStateInProgress:
+		return []byte(s), nil
+	case SnaplockLegalHoldOperationResponseStateFailed:
+		return []byte(s), nil
+	case SnaplockLegalHoldOperationResponseStateAborting:
+		return []byte(s), nil
+	case SnaplockLegalHoldOperationResponseStateCompleted:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SnaplockLegalHoldOperationResponseState) UnmarshalText(data []byte) error {
+	switch SnaplockLegalHoldOperationResponseState(data) {
+	case SnaplockLegalHoldOperationResponseStateInProgress:
+		*s = SnaplockLegalHoldOperationResponseStateInProgress
+		return nil
+	case SnaplockLegalHoldOperationResponseStateFailed:
+		*s = SnaplockLegalHoldOperationResponseStateFailed
+		return nil
+	case SnaplockLegalHoldOperationResponseStateAborting:
+		*s = SnaplockLegalHoldOperationResponseStateAborting
+		return nil
+	case SnaplockLegalHoldOperationResponseStateCompleted:
+		*s = SnaplockLegalHoldOperationResponseStateCompleted
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Specifies the type of legal-hold operation.
+type SnaplockLegalHoldOperationResponseType string
+
+const (
+	SnaplockLegalHoldOperationResponseTypeBegin SnaplockLegalHoldOperationResponseType = "begin"
+	SnaplockLegalHoldOperationResponseTypeEnd   SnaplockLegalHoldOperationResponseType = "end"
+)
+
+// AllValues returns all SnaplockLegalHoldOperationResponseType values.
+func (SnaplockLegalHoldOperationResponseType) AllValues() []SnaplockLegalHoldOperationResponseType {
+	return []SnaplockLegalHoldOperationResponseType{
+		SnaplockLegalHoldOperationResponseTypeBegin,
+		SnaplockLegalHoldOperationResponseTypeEnd,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SnaplockLegalHoldOperationResponseType) MarshalText() ([]byte, error) {
+	switch s {
+	case SnaplockLegalHoldOperationResponseTypeBegin:
+		return []byte(s), nil
+	case SnaplockLegalHoldOperationResponseTypeEnd:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SnaplockLegalHoldOperationResponseType) UnmarshalText(data []byte) error {
+	switch SnaplockLegalHoldOperationResponseType(data) {
+	case SnaplockLegalHoldOperationResponseTypeBegin:
+		*s = SnaplockLegalHoldOperationResponseTypeBegin
+		return nil
+	case SnaplockLegalHoldOperationResponseTypeEnd:
+		*s = SnaplockLegalHoldOperationResponseTypeEnd
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Request body for starting a SnapLock litigation (legal hold).
+// Aligns with ONTAP POST /api/storage/snaplock/litigations (snaplock_litigation).
+// Proxy accepts litigation_name, path, volume_uuid (volume.uuid in ONTAP).
+// Ref: #/components/schemas/SnaplockLitigationBeginRequest
+type SnaplockLitigationBeginRequest struct {
+	// Specifies the legal-hold litigation name (ONTAP name).
+	LitigationName string `json:"litigation_name"`
+	// Specifies the path on which legal-hold operation has to be applied (e.g. /dir1 or /).
+	Path string `json:"path"`
+	// Unique identifier for the volume (ONTAP volume.uuid). Corresponds to instance-uuid in CLI.
+	VolumeUUID uuid.UUID `json:"volume_uuid"`
+}
+
+// GetLitigationName returns the value of LitigationName.
+func (s *SnaplockLitigationBeginRequest) GetLitigationName() string {
+	return s.LitigationName
+}
+
+// GetPath returns the value of Path.
+func (s *SnaplockLitigationBeginRequest) GetPath() string {
+	return s.Path
+}
+
+// GetVolumeUUID returns the value of VolumeUUID.
+func (s *SnaplockLitigationBeginRequest) GetVolumeUUID() uuid.UUID {
+	return s.VolumeUUID
+}
+
+// SetLitigationName sets the value of LitigationName.
+func (s *SnaplockLitigationBeginRequest) SetLitigationName(val string) {
+	s.LitigationName = val
+}
+
+// SetPath sets the value of Path.
+func (s *SnaplockLitigationBeginRequest) SetPath(val string) {
+	s.Path = val
+}
+
+// SetVolumeUUID sets the value of VolumeUUID.
+func (s *SnaplockLitigationBeginRequest) SetVolumeUUID(val uuid.UUID) {
+	s.VolumeUUID = val
+}
+
+// One row from list; matches CLI "snaplock legal-hold show" table (Operation, Operation ID, Vserver,
+// Volume, Status).
+// Use for GET /litigations (list) only.
+// Ref: #/components/schemas/SnaplockLitigationListRecord
+type SnaplockLitigationListRecord struct {
+	// Litigation ID (volume_uuid:litigation_name). Read-only.
+	ID OptString `json:"id"`
+	// Legal-hold litigation name.
+	Name OptString `json:"name"`
+	// Path on which legal-hold is applied.
+	Path OptString `json:"path"`
+	// Operation type.
+	Operation OptSnaplockLitigationListRecordOperation `json:"operation"`
+	// Operation ID from ONTAP.
+	OperationID OptInt `json:"operation_id"`
+	// Vserver name.
+	Vserver OptString `json:"vserver"`
+	// Volume name.
+	Volume OptString `json:"volume"`
+	// Operation status.
+	Status OptSnaplockLitigationListRecordStatus `json:"status"`
+}
+
+// GetID returns the value of ID.
+func (s *SnaplockLitigationListRecord) GetID() OptString {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *SnaplockLitigationListRecord) GetName() OptString {
+	return s.Name
+}
+
+// GetPath returns the value of Path.
+func (s *SnaplockLitigationListRecord) GetPath() OptString {
+	return s.Path
+}
+
+// GetOperation returns the value of Operation.
+func (s *SnaplockLitigationListRecord) GetOperation() OptSnaplockLitigationListRecordOperation {
+	return s.Operation
+}
+
+// GetOperationID returns the value of OperationID.
+func (s *SnaplockLitigationListRecord) GetOperationID() OptInt {
+	return s.OperationID
+}
+
+// GetVserver returns the value of Vserver.
+func (s *SnaplockLitigationListRecord) GetVserver() OptString {
+	return s.Vserver
+}
+
+// GetVolume returns the value of Volume.
+func (s *SnaplockLitigationListRecord) GetVolume() OptString {
+	return s.Volume
+}
+
+// GetStatus returns the value of Status.
+func (s *SnaplockLitigationListRecord) GetStatus() OptSnaplockLitigationListRecordStatus {
+	return s.Status
+}
+
+// SetID sets the value of ID.
+func (s *SnaplockLitigationListRecord) SetID(val OptString) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *SnaplockLitigationListRecord) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetPath sets the value of Path.
+func (s *SnaplockLitigationListRecord) SetPath(val OptString) {
+	s.Path = val
+}
+
+// SetOperation sets the value of Operation.
+func (s *SnaplockLitigationListRecord) SetOperation(val OptSnaplockLitigationListRecordOperation) {
+	s.Operation = val
+}
+
+// SetOperationID sets the value of OperationID.
+func (s *SnaplockLitigationListRecord) SetOperationID(val OptInt) {
+	s.OperationID = val
+}
+
+// SetVserver sets the value of Vserver.
+func (s *SnaplockLitigationListRecord) SetVserver(val OptString) {
+	s.Vserver = val
+}
+
+// SetVolume sets the value of Volume.
+func (s *SnaplockLitigationListRecord) SetVolume(val OptString) {
+	s.Volume = val
+}
+
+// SetStatus sets the value of Status.
+func (s *SnaplockLitigationListRecord) SetStatus(val OptSnaplockLitigationListRecordStatus) {
+	s.Status = val
+}
+
+// Operation type.
+type SnaplockLitigationListRecordOperation string
+
+const (
+	SnaplockLitigationListRecordOperationBegin SnaplockLitigationListRecordOperation = "begin"
+	SnaplockLitigationListRecordOperationEnd   SnaplockLitigationListRecordOperation = "end"
+)
+
+// AllValues returns all SnaplockLitigationListRecordOperation values.
+func (SnaplockLitigationListRecordOperation) AllValues() []SnaplockLitigationListRecordOperation {
+	return []SnaplockLitigationListRecordOperation{
+		SnaplockLitigationListRecordOperationBegin,
+		SnaplockLitigationListRecordOperationEnd,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SnaplockLitigationListRecordOperation) MarshalText() ([]byte, error) {
+	switch s {
+	case SnaplockLitigationListRecordOperationBegin:
+		return []byte(s), nil
+	case SnaplockLitigationListRecordOperationEnd:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SnaplockLitigationListRecordOperation) UnmarshalText(data []byte) error {
+	switch SnaplockLitigationListRecordOperation(data) {
+	case SnaplockLitigationListRecordOperationBegin:
+		*s = SnaplockLitigationListRecordOperationBegin
+		return nil
+	case SnaplockLitigationListRecordOperationEnd:
+		*s = SnaplockLitigationListRecordOperationEnd
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Operation status.
+type SnaplockLitigationListRecordStatus string
+
+const (
+	SnaplockLitigationListRecordStatusInProgress SnaplockLitigationListRecordStatus = "in_progress"
+	SnaplockLitigationListRecordStatusFailed     SnaplockLitigationListRecordStatus = "failed"
+	SnaplockLitigationListRecordStatusAborting   SnaplockLitigationListRecordStatus = "aborting"
+	SnaplockLitigationListRecordStatusCompleted  SnaplockLitigationListRecordStatus = "completed"
+)
+
+// AllValues returns all SnaplockLitigationListRecordStatus values.
+func (SnaplockLitigationListRecordStatus) AllValues() []SnaplockLitigationListRecordStatus {
+	return []SnaplockLitigationListRecordStatus{
+		SnaplockLitigationListRecordStatusInProgress,
+		SnaplockLitigationListRecordStatusFailed,
+		SnaplockLitigationListRecordStatusAborting,
+		SnaplockLitigationListRecordStatusCompleted,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s SnaplockLitigationListRecordStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case SnaplockLitigationListRecordStatusInProgress:
+		return []byte(s), nil
+	case SnaplockLitigationListRecordStatusFailed:
+		return []byte(s), nil
+	case SnaplockLitigationListRecordStatusAborting:
+		return []byte(s), nil
+	case SnaplockLitigationListRecordStatusCompleted:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *SnaplockLitigationListRecordStatus) UnmarshalText(data []byte) error {
+	switch SnaplockLitigationListRecordStatus(data) {
+	case SnaplockLitigationListRecordStatusInProgress:
+		*s = SnaplockLitigationListRecordStatusInProgress
+		return nil
+	case SnaplockLitigationListRecordStatusFailed:
+		*s = SnaplockLitigationListRecordStatusFailed
+		return nil
+	case SnaplockLitigationListRecordStatusAborting:
+		*s = SnaplockLitigationListRecordStatusAborting
+		return nil
+	case SnaplockLitigationListRecordStatusCompleted:
+		*s = SnaplockLitigationListRecordStatusCompleted
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// List of SnapLock litigations. Matches CLI "snaplock legal-hold show" table (one record per
+// operation row).
+// Ref: #/components/schemas/SnaplockLitigationListResponse
+type SnaplockLitigationListResponse struct {
+	// Links for the collection (read-only).
+	Links OptSnaplockLitigationListResponseLinks `json:"_links"`
+	// Number of records.
+	NumRecords OptInt `json:"num_records"`
+	// List of litigation rows (one per operation; matches CLI table).
+	Records []SnaplockLitigationListRecord `json:"records"`
+}
+
+// GetLinks returns the value of Links.
+func (s *SnaplockLitigationListResponse) GetLinks() OptSnaplockLitigationListResponseLinks {
+	return s.Links
+}
+
+// GetNumRecords returns the value of NumRecords.
+func (s *SnaplockLitigationListResponse) GetNumRecords() OptInt {
+	return s.NumRecords
+}
+
+// GetRecords returns the value of Records.
+func (s *SnaplockLitigationListResponse) GetRecords() []SnaplockLitigationListRecord {
+	return s.Records
+}
+
+// SetLinks sets the value of Links.
+func (s *SnaplockLitigationListResponse) SetLinks(val OptSnaplockLitigationListResponseLinks) {
+	s.Links = val
+}
+
+// SetNumRecords sets the value of NumRecords.
+func (s *SnaplockLitigationListResponse) SetNumRecords(val OptInt) {
+	s.NumRecords = val
+}
+
+// SetRecords sets the value of Records.
+func (s *SnaplockLitigationListResponse) SetRecords(val []SnaplockLitigationListRecord) {
+	s.Records = val
+}
+
+func (*SnaplockLitigationListResponse) v1SnaplockLitigationCollectionGetRes() {}
+
+// Links for the collection (read-only).
+type SnaplockLitigationListResponseLinks struct {
+	Next OptHref `json:"next"`
+	Self OptHref `json:"self"`
+}
+
+// GetNext returns the value of Next.
+func (s *SnaplockLitigationListResponseLinks) GetNext() OptHref {
+	return s.Next
+}
+
+// GetSelf returns the value of Self.
+func (s *SnaplockLitigationListResponseLinks) GetSelf() OptHref {
+	return s.Self
+}
+
+// SetNext sets the value of Next.
+func (s *SnaplockLitigationListResponseLinks) SetNext(val OptHref) {
+	s.Next = val
+}
+
+// SetSelf sets the value of Self.
+func (s *SnaplockLitigationListResponseLinks) SetSelf(val OptHref) {
+	s.Self = val
+}
+
+// SnapLock litigation record. Same structure as ONTAP snaplock_litigation.
+// Ref: #/components/schemas/SnaplockLitigationResponse
+type SnaplockLitigationResponse struct {
+	// Links for the litigation (read-only).
+	Links OptSnaplockLitigationResponseLinks `json:"_links"`
+	// Specifies the litigation ID (volume_uuid:litigation_name). Read-only.
+	ID OptString `json:"id"`
+	// Specifies the legal-hold litigation name.
+	Name OptString `json:"name"`
+	// Specifies the path on which legal-hold operation is applied.
+	Path OptString `json:"path"`
+	// SVM, applies only to SVM-scoped objects. Read-only.
+	Svm OptSnaplockLitigationResponseSvm `json:"svm"`
+	// Volume reference. Read-only.
+	Volume OptSnaplockLitigationResponseVolume `json:"volume"`
+	// List of legal-hold operations for this litigation. Read-only.
+	Operations []SnaplockLegalHoldOperationResponse `json:"operations"`
+}
+
+// GetLinks returns the value of Links.
+func (s *SnaplockLitigationResponse) GetLinks() OptSnaplockLitigationResponseLinks {
+	return s.Links
+}
+
+// GetID returns the value of ID.
+func (s *SnaplockLitigationResponse) GetID() OptString {
+	return s.ID
+}
+
+// GetName returns the value of Name.
+func (s *SnaplockLitigationResponse) GetName() OptString {
+	return s.Name
+}
+
+// GetPath returns the value of Path.
+func (s *SnaplockLitigationResponse) GetPath() OptString {
+	return s.Path
+}
+
+// GetSvm returns the value of Svm.
+func (s *SnaplockLitigationResponse) GetSvm() OptSnaplockLitigationResponseSvm {
+	return s.Svm
+}
+
+// GetVolume returns the value of Volume.
+func (s *SnaplockLitigationResponse) GetVolume() OptSnaplockLitigationResponseVolume {
+	return s.Volume
+}
+
+// GetOperations returns the value of Operations.
+func (s *SnaplockLitigationResponse) GetOperations() []SnaplockLegalHoldOperationResponse {
+	return s.Operations
+}
+
+// SetLinks sets the value of Links.
+func (s *SnaplockLitigationResponse) SetLinks(val OptSnaplockLitigationResponseLinks) {
+	s.Links = val
+}
+
+// SetID sets the value of ID.
+func (s *SnaplockLitigationResponse) SetID(val OptString) {
+	s.ID = val
+}
+
+// SetName sets the value of Name.
+func (s *SnaplockLitigationResponse) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetPath sets the value of Path.
+func (s *SnaplockLitigationResponse) SetPath(val OptString) {
+	s.Path = val
+}
+
+// SetSvm sets the value of Svm.
+func (s *SnaplockLitigationResponse) SetSvm(val OptSnaplockLitigationResponseSvm) {
+	s.Svm = val
+}
+
+// SetVolume sets the value of Volume.
+func (s *SnaplockLitigationResponse) SetVolume(val OptSnaplockLitigationResponseVolume) {
+	s.Volume = val
+}
+
+// SetOperations sets the value of Operations.
+func (s *SnaplockLitigationResponse) SetOperations(val []SnaplockLegalHoldOperationResponse) {
+	s.Operations = val
+}
+
+func (*SnaplockLitigationResponse) v1SnaplockLitigationBeginRes() {}
+func (*SnaplockLitigationResponse) v1SnaplockLitigationGetRes()   {}
+
+// Links for the litigation (read-only).
+type SnaplockLitigationResponseLinks struct {
+	Self OptHref `json:"self"`
+}
+
+// GetSelf returns the value of Self.
+func (s *SnaplockLitigationResponseLinks) GetSelf() OptHref {
+	return s.Self
+}
+
+// SetSelf sets the value of Self.
+func (s *SnaplockLitigationResponseLinks) SetSelf(val OptHref) {
+	s.Self = val
+}
+
+// SVM, applies only to SVM-scoped objects. Read-only.
+type SnaplockLitigationResponseSvm struct {
+	Links OptSnaplockLitigationResponseSvmLinks `json:"_links"`
+	// The name of the SVM.
+	Name OptString `json:"name"`
+	// The unique identifier of the SVM.
+	UUID OptString `json:"uuid"`
+}
+
+// GetLinks returns the value of Links.
+func (s *SnaplockLitigationResponseSvm) GetLinks() OptSnaplockLitigationResponseSvmLinks {
+	return s.Links
+}
+
+// GetName returns the value of Name.
+func (s *SnaplockLitigationResponseSvm) GetName() OptString {
+	return s.Name
+}
+
+// GetUUID returns the value of UUID.
+func (s *SnaplockLitigationResponseSvm) GetUUID() OptString {
+	return s.UUID
+}
+
+// SetLinks sets the value of Links.
+func (s *SnaplockLitigationResponseSvm) SetLinks(val OptSnaplockLitigationResponseSvmLinks) {
+	s.Links = val
+}
+
+// SetName sets the value of Name.
+func (s *SnaplockLitigationResponseSvm) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetUUID sets the value of UUID.
+func (s *SnaplockLitigationResponseSvm) SetUUID(val OptString) {
+	s.UUID = val
+}
+
+type SnaplockLitigationResponseSvmLinks struct {
+	Self OptHref `json:"self"`
+}
+
+// GetSelf returns the value of Self.
+func (s *SnaplockLitigationResponseSvmLinks) GetSelf() OptHref {
+	return s.Self
+}
+
+// SetSelf sets the value of Self.
+func (s *SnaplockLitigationResponseSvmLinks) SetSelf(val OptHref) {
+	s.Self = val
+}
+
+// Volume reference. Read-only.
+type SnaplockLitigationResponseVolume struct {
+	Links OptSnaplockLitigationResponseVolumeLinks `json:"_links"`
+	// The name of the volume.
+	Name OptString `json:"name"`
+	// Unique identifier for the volume (instance-uuid).
+	UUID OptString `json:"uuid"`
+}
+
+// GetLinks returns the value of Links.
+func (s *SnaplockLitigationResponseVolume) GetLinks() OptSnaplockLitigationResponseVolumeLinks {
+	return s.Links
+}
+
+// GetName returns the value of Name.
+func (s *SnaplockLitigationResponseVolume) GetName() OptString {
+	return s.Name
+}
+
+// GetUUID returns the value of UUID.
+func (s *SnaplockLitigationResponseVolume) GetUUID() OptString {
+	return s.UUID
+}
+
+// SetLinks sets the value of Links.
+func (s *SnaplockLitigationResponseVolume) SetLinks(val OptSnaplockLitigationResponseVolumeLinks) {
+	s.Links = val
+}
+
+// SetName sets the value of Name.
+func (s *SnaplockLitigationResponseVolume) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetUUID sets the value of UUID.
+func (s *SnaplockLitigationResponseVolume) SetUUID(val OptString) {
+	s.UUID = val
+}
+
+type SnaplockLitigationResponseVolumeLinks struct {
+	Self OptHref `json:"self"`
+}
+
+// GetSelf returns the value of Self.
+func (s *SnaplockLitigationResponseVolumeLinks) GetSelf() OptHref {
+	return s.Self
+}
+
+// SetSelf sets the value of Self.
+func (s *SnaplockLitigationResponseVolumeLinks) SetSelf(val OptHref) {
+	s.Self = val
+}
 
 // Snapshot for an object store endpoint. Aligned with ontap-rest
 // snapmirror_object_store_endpoint_snapshot.
@@ -4334,6 +5708,158 @@ func (*V1PrivateCliNotFound) v1PrivateCliRes() {}
 type V1PrivateCliUnauthorized Error
 
 func (*V1PrivateCliUnauthorized) v1PrivateCliRes() {}
+
+type V1SnaplockLitigationBeginBadRequest Error
+
+func (*V1SnaplockLitigationBeginBadRequest) v1SnaplockLitigationBeginRes() {}
+
+type V1SnaplockLitigationBeginForbidden Error
+
+func (*V1SnaplockLitigationBeginForbidden) v1SnaplockLitigationBeginRes() {}
+
+type V1SnaplockLitigationBeginInternalServerError Error
+
+func (*V1SnaplockLitigationBeginInternalServerError) v1SnaplockLitigationBeginRes() {}
+
+type V1SnaplockLitigationBeginNotFound Error
+
+func (*V1SnaplockLitigationBeginNotFound) v1SnaplockLitigationBeginRes() {}
+
+type V1SnaplockLitigationBeginUnauthorized Error
+
+func (*V1SnaplockLitigationBeginUnauthorized) v1SnaplockLitigationBeginRes() {}
+
+type V1SnaplockLitigationCollectionGetBadRequest Error
+
+func (*V1SnaplockLitigationCollectionGetBadRequest) v1SnaplockLitigationCollectionGetRes() {}
+
+type V1SnaplockLitigationCollectionGetForbidden Error
+
+func (*V1SnaplockLitigationCollectionGetForbidden) v1SnaplockLitigationCollectionGetRes() {}
+
+type V1SnaplockLitigationCollectionGetInternalServerError Error
+
+func (*V1SnaplockLitigationCollectionGetInternalServerError) v1SnaplockLitigationCollectionGetRes() {}
+
+type V1SnaplockLitigationCollectionGetNotFound Error
+
+func (*V1SnaplockLitigationCollectionGetNotFound) v1SnaplockLitigationCollectionGetRes() {}
+
+type V1SnaplockLitigationCollectionGetUnauthorized Error
+
+func (*V1SnaplockLitigationCollectionGetUnauthorized) v1SnaplockLitigationCollectionGetRes() {}
+
+type V1SnaplockLitigationEndBadRequest Error
+
+func (*V1SnaplockLitigationEndBadRequest) v1SnaplockLitigationEndRes() {}
+
+type V1SnaplockLitigationEndForbidden Error
+
+func (*V1SnaplockLitigationEndForbidden) v1SnaplockLitigationEndRes() {}
+
+type V1SnaplockLitigationEndInternalServerError Error
+
+func (*V1SnaplockLitigationEndInternalServerError) v1SnaplockLitigationEndRes() {}
+
+type V1SnaplockLitigationEndNotFound Error
+
+func (*V1SnaplockLitigationEndNotFound) v1SnaplockLitigationEndRes() {}
+
+// V1SnaplockLitigationEndOK is response for V1SnaplockLitigationEnd operation.
+type V1SnaplockLitigationEndOK struct{}
+
+func (*V1SnaplockLitigationEndOK) v1SnaplockLitigationEndRes() {}
+
+type V1SnaplockLitigationEndUnauthorized Error
+
+func (*V1SnaplockLitigationEndUnauthorized) v1SnaplockLitigationEndRes() {}
+
+type V1SnaplockLitigationGetBadRequest Error
+
+func (*V1SnaplockLitigationGetBadRequest) v1SnaplockLitigationGetRes() {}
+
+type V1SnaplockLitigationGetForbidden Error
+
+func (*V1SnaplockLitigationGetForbidden) v1SnaplockLitigationGetRes() {}
+
+type V1SnaplockLitigationGetInternalServerError Error
+
+func (*V1SnaplockLitigationGetInternalServerError) v1SnaplockLitigationGetRes() {}
+
+type V1SnaplockLitigationGetNotFound Error
+
+func (*V1SnaplockLitigationGetNotFound) v1SnaplockLitigationGetRes() {}
+
+type V1SnaplockLitigationGetUnauthorized Error
+
+func (*V1SnaplockLitigationGetUnauthorized) v1SnaplockLitigationGetRes() {}
+
+type V1SnaplockLitigationOperationAbortBadRequest Error
+
+func (*V1SnaplockLitigationOperationAbortBadRequest) v1SnaplockLitigationOperationAbortRes() {}
+
+type V1SnaplockLitigationOperationAbortForbidden Error
+
+func (*V1SnaplockLitigationOperationAbortForbidden) v1SnaplockLitigationOperationAbortRes() {}
+
+type V1SnaplockLitigationOperationAbortInternalServerError Error
+
+func (*V1SnaplockLitigationOperationAbortInternalServerError) v1SnaplockLitigationOperationAbortRes() {
+}
+
+type V1SnaplockLitigationOperationAbortNotFound Error
+
+func (*V1SnaplockLitigationOperationAbortNotFound) v1SnaplockLitigationOperationAbortRes() {}
+
+// V1SnaplockLitigationOperationAbortOK is response for V1SnaplockLitigationOperationAbort operation.
+type V1SnaplockLitigationOperationAbortOK struct{}
+
+func (*V1SnaplockLitigationOperationAbortOK) v1SnaplockLitigationOperationAbortRes() {}
+
+type V1SnaplockLitigationOperationAbortUnauthorized Error
+
+func (*V1SnaplockLitigationOperationAbortUnauthorized) v1SnaplockLitigationOperationAbortRes() {}
+
+type V1SnaplockLitigationOperationCreateBadRequest Error
+
+func (*V1SnaplockLitigationOperationCreateBadRequest) v1SnaplockLitigationOperationCreateRes() {}
+
+type V1SnaplockLitigationOperationCreateForbidden Error
+
+func (*V1SnaplockLitigationOperationCreateForbidden) v1SnaplockLitigationOperationCreateRes() {}
+
+type V1SnaplockLitigationOperationCreateInternalServerError Error
+
+func (*V1SnaplockLitigationOperationCreateInternalServerError) v1SnaplockLitigationOperationCreateRes() {
+}
+
+type V1SnaplockLitigationOperationCreateNotFound Error
+
+func (*V1SnaplockLitigationOperationCreateNotFound) v1SnaplockLitigationOperationCreateRes() {}
+
+type V1SnaplockLitigationOperationCreateUnauthorized Error
+
+func (*V1SnaplockLitigationOperationCreateUnauthorized) v1SnaplockLitigationOperationCreateRes() {}
+
+type V1SnaplockLitigationOperationGetBadRequest Error
+
+func (*V1SnaplockLitigationOperationGetBadRequest) v1SnaplockLitigationOperationGetRes() {}
+
+type V1SnaplockLitigationOperationGetForbidden Error
+
+func (*V1SnaplockLitigationOperationGetForbidden) v1SnaplockLitigationOperationGetRes() {}
+
+type V1SnaplockLitigationOperationGetInternalServerError Error
+
+func (*V1SnaplockLitigationOperationGetInternalServerError) v1SnaplockLitigationOperationGetRes() {}
+
+type V1SnaplockLitigationOperationGetNotFound Error
+
+func (*V1SnaplockLitigationOperationGetNotFound) v1SnaplockLitigationOperationGetRes() {}
+
+type V1SnaplockLitigationOperationGetUnauthorized Error
+
+func (*V1SnaplockLitigationOperationGetUnauthorized) v1SnaplockLitigationOperationGetRes() {}
 
 type V1UpdateEventRetentionPolicyBadRequest Error
 

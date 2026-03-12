@@ -46,6 +46,28 @@ func TestOntapCodeToInt(t *testing.T) {
 	})
 }
 
+func TestParseSnaplockAbortError(t *testing.T) {
+	t.Run("operation is complete returns short message", func(t *testing.T) {
+		output := `Error: command failed: SnapLock legal-hold operation is complete. Run "snaplock legal-hold show -operation-id 16842766 -instance" to view the status of operation.`
+		msg := ParseSnaplockAbortError(output)
+		assert.Equal(t, "SnapLock legal-hold operation is complete; abort only applies to in-progress operations", msg)
+	})
+	t.Run("not found returns short message", func(t *testing.T) {
+		output := "Error: operation 999 not found"
+		msg := ParseSnaplockAbortError(output)
+		assert.Equal(t, "SnapLock legal-hold operation not found", msg)
+	})
+	t.Run("other error uses ParseCLIError", func(t *testing.T) {
+		output := "Error: permission denied"
+		msg := ParseSnaplockAbortError(output)
+		assert.Equal(t, "permission denied", msg)
+	})
+	t.Run("empty output returns as-is", func(t *testing.T) {
+		msg := ParseSnaplockAbortError("")
+		assert.Empty(t, msg)
+	})
+}
+
 func TestIsCLISuccess(t *testing.T) {
 	t.Run("returns true for success messages", func(t *testing.T) {
 		testCases := []struct {
@@ -56,6 +78,21 @@ func TestIsCLISuccess(t *testing.T) {
 			{"simple success", "OK"},
 			{"deleted successfully", "Deleted successfully"},
 			{"operation completed", "Operation completed"},
+			{"snaplock legal-hold show with No error and Number of Files Failed", `Info: Use 'exit' command to return.
+
+                      Vserver: gcnv-fbc248f62e293c2-svm-01
+                       Volume: snaplock_vol_ss_comp
+                 Operation ID: 16842754
+              Litigation Name: litigation-001
+                         Path: /
+               Operation Type: begin
+                       Status: Completed
+    Number of Files Processed: 5
+       Number of Files Failed: 0
+      Number of Files Skipped: 0
+     Number of Inodes Ignored: 0
+               Status Details: No error
+`},
 			{"status details no error", "Operation Status: Completed\n             Status Details: No error\n"},
 			{"number of files failed zero", "Number of Files Processed: 0\n     Number of Files Failed: 0\n    Number of Files Skipped: 0\n           Operation Status: Completed\n"},
 			{"list output with operation state Failed", "Operation ID   Vserver   Volume          Operation Status\n-------------- --------- --------------- ----------------\n16842760       svm1      snaplock_vol1    Completed\n16842761       svm1      snaplock_vol1    Failed\n2 entries were displayed.\n"},

@@ -601,6 +601,148 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 										}
 
+									case 'l': // Prefix: "litigations"
+
+										if l := len("litigations"); len(elem) >= l && elem[0:l] == "litigations" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											switch r.Method {
+											case "GET":
+												s.handleV1SnaplockLitigationCollectionGetRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
+												}, elemIsEscaped, w, r)
+											case "POST":
+												s.handleV1SnaplockLitigationBeginRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, "GET,POST")
+											}
+
+											return
+										}
+										switch elem[0] {
+										case '/': // Prefix: "/"
+
+											if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											// Param: "litigationId"
+											// Match until "/"
+											idx := strings.IndexByte(elem, '/')
+											if idx < 0 {
+												idx = len(elem)
+											}
+											args[3] = elem[:idx]
+											elem = elem[idx:]
+
+											if len(elem) == 0 {
+												switch r.Method {
+												case "DELETE":
+													s.handleV1SnaplockLitigationEndRequest([4]string{
+														args[0],
+														args[1],
+														args[2],
+														args[3],
+													}, elemIsEscaped, w, r)
+												case "GET":
+													s.handleV1SnaplockLitigationGetRequest([4]string{
+														args[0],
+														args[1],
+														args[2],
+														args[3],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, "DELETE,GET")
+												}
+
+												return
+											}
+											switch elem[0] {
+											case '/': // Prefix: "/operations"
+
+												if l := len("/operations"); len(elem) >= l && elem[0:l] == "/operations" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													switch r.Method {
+													case "POST":
+														s.handleV1SnaplockLitigationOperationCreateRequest([4]string{
+															args[0],
+															args[1],
+															args[2],
+															args[3],
+														}, elemIsEscaped, w, r)
+													default:
+														s.notAllowed(w, r, "POST")
+													}
+
+													return
+												}
+												switch elem[0] {
+												case '/': // Prefix: "/"
+
+													if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+														elem = elem[l:]
+													} else {
+														break
+													}
+
+													// Param: "operationId"
+													// Leaf parameter, slashes are prohibited
+													idx := strings.IndexByte(elem, '/')
+													if idx >= 0 {
+														break
+													}
+													args[4] = elem
+													elem = ""
+
+													if len(elem) == 0 {
+														// Leaf node.
+														switch r.Method {
+														case "DELETE":
+															s.handleV1SnaplockLitigationOperationAbortRequest([5]string{
+																args[0],
+																args[1],
+																args[2],
+																args[3],
+																args[4],
+															}, elemIsEscaped, w, r)
+														case "GET":
+															s.handleV1SnaplockLitigationOperationGetRequest([5]string{
+																args[0],
+																args[1],
+																args[2],
+																args[3],
+																args[4],
+															}, elemIsEscaped, w, r)
+														default:
+															s.notAllowed(w, r, "DELETE,GET")
+														}
+
+														return
+													}
+
+												}
+
+											}
+
+										}
+
 									}
 
 								}
@@ -1247,6 +1389,147 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 												default:
 													return
 												}
+											}
+
+										}
+
+									case 'l': // Prefix: "litigations"
+
+										if l := len("litigations"); len(elem) >= l && elem[0:l] == "litigations" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											switch method {
+											case "GET":
+												r.name = V1SnaplockLitigationCollectionGetOperation
+												r.summary = "List SnapLock litigations"
+												r.operationID = "v1_snaplockLitigationCollectionGet"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/litigations"
+												r.args = args
+												r.count = 3
+												return r, true
+											case "POST":
+												r.name = V1SnaplockLitigationBeginOperation
+												r.summary = "Start a SnapLock legal hold (litigation)"
+												r.operationID = "v1_snaplockLitigationBegin"
+												r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/litigations"
+												r.args = args
+												r.count = 3
+												return r, true
+											default:
+												return
+											}
+										}
+										switch elem[0] {
+										case '/': // Prefix: "/"
+
+											if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											// Param: "litigationId"
+											// Match until "/"
+											idx := strings.IndexByte(elem, '/')
+											if idx < 0 {
+												idx = len(elem)
+											}
+											args[3] = elem[:idx]
+											elem = elem[idx:]
+
+											if len(elem) == 0 {
+												switch method {
+												case "DELETE":
+													r.name = V1SnaplockLitigationEndOperation
+													r.summary = "End a SnapLock legal hold (litigation)"
+													r.operationID = "v1_snaplockLitigationEnd"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/litigations/{litigationId}"
+													r.args = args
+													r.count = 4
+													return r, true
+												case "GET":
+													r.name = V1SnaplockLitigationGetOperation
+													r.summary = "Get a SnapLock litigation"
+													r.operationID = "v1_snaplockLitigationGet"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/litigations/{litigationId}"
+													r.args = args
+													r.count = 4
+													return r, true
+												default:
+													return
+												}
+											}
+											switch elem[0] {
+											case '/': // Prefix: "/operations"
+
+												if l := len("/operations"); len(elem) >= l && elem[0:l] == "/operations" {
+													elem = elem[l:]
+												} else {
+													break
+												}
+
+												if len(elem) == 0 {
+													switch method {
+													case "POST":
+														r.name = V1SnaplockLitigationOperationCreateOperation
+														r.summary = "Create SnapLock legal-hold operation (begin or end)"
+														r.operationID = "v1_snaplockLitigationOperationCreate"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/litigations/{litigationId}/operations"
+														r.args = args
+														r.count = 4
+														return r, true
+													default:
+														return
+													}
+												}
+												switch elem[0] {
+												case '/': // Prefix: "/"
+
+													if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+														elem = elem[l:]
+													} else {
+														break
+													}
+
+													// Param: "operationId"
+													// Leaf parameter, slashes are prohibited
+													idx := strings.IndexByte(elem, '/')
+													if idx >= 0 {
+														break
+													}
+													args[4] = elem
+													elem = ""
+
+													if len(elem) == 0 {
+														// Leaf node.
+														switch method {
+														case "DELETE":
+															r.name = V1SnaplockLitigationOperationAbortOperation
+															r.summary = "Abort SnapLock legal-hold operation"
+															r.operationID = "v1_snaplockLitigationOperationAbort"
+															r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/litigations/{litigationId}/operations/{operationId}"
+															r.args = args
+															r.count = 5
+															return r, true
+														case "GET":
+															r.name = V1SnaplockLitigationOperationGetOperation
+															r.summary = "Get SnapLock legal-hold operation status"
+															r.operationID = "v1_snaplockLitigationOperationGet"
+															r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/litigations/{litigationId}/operations/{operationId}"
+															r.args = args
+															r.count = 5
+															return r, true
+														default:
+															return
+														}
+													}
+
+												}
+
 											}
 
 										}

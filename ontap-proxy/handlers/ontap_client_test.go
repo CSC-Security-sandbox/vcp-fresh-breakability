@@ -708,3 +708,108 @@ func TestOntapClient_ExecuteAPI(t *testing.T) {
 		assert.Equal(t, []byte(`{"ok":true}`), respBody)
 	})
 }
+
+func TestOntapClient_ListVolumesWithSvm(t *testing.T) {
+	t.Run("When_maxRecords_positive_returns_volumes", func(t *testing.T) {
+		var vol1, vol2 VolumeInfo
+		vol1.UUID, vol1.Name = "vol-1", "vol1"
+		vol1.SVM.Name, vol1.SVM.UUID = "svm1", "svm-uuid-1"
+		vol2.UUID, vol2.Name = "vol-2", "vol2"
+		vol2.SVM.Name, vol2.SVM.UUID = "svm1", "svm-uuid-1"
+		expectedRecords := []VolumeInfo{vol1, vol2}
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodGet, r.Method)
+			assert.Contains(t, r.URL.Path, "/api/storage/volumes")
+			assert.Contains(t, r.URL.RawQuery, "fields=name,uuid,svm.name")
+			assert.Contains(t, r.URL.RawQuery, "max_records=500")
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(struct {
+				Records []VolumeInfo `json:"records"`
+			}{Records: expectedRecords})
+		}))
+		defer server.Close()
+
+		client := &RestOntapClient{
+			httpClient: server.Client(),
+			endpoint:   server.Listener.Addr().String(),
+			authData:   &models.AuthData{AuthType: models.USERNAME_PWD, Username: "u", Password: "p"},
+		}
+
+		volumes, err := client.ListVolumesWithSvm(context.Background(), 500)
+		require.NoError(t, err)
+		require.Len(t, volumes, 2)
+		assert.Equal(t, expectedRecords[0].UUID, volumes[0].UUID)
+		assert.Equal(t, expectedRecords[1].Name, volumes[1].Name)
+	})
+
+	t.Run("When_maxRecords_zero_or_negative_uses_default_1000", func(t *testing.T) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Contains(t, r.URL.RawQuery, "max_records=1000")
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"records":[]}`))
+		}))
+		defer server.Close()
+
+		client := &RestOntapClient{
+			httpClient: server.Client(),
+			endpoint:   server.Listener.Addr().String(),
+			authData:   &models.AuthData{AuthType: models.USERNAME_PWD, Username: "u", Password: "p"},
+		}
+
+		volumes, err := client.ListVolumesWithSvm(context.Background(), 0)
+		require.NoError(t, err)
+		assert.Empty(t, volumes)
+	})
+
+	t.Run("When_ONTAP_returns_4xx_returns_error", func(t *testing.T) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"error":{"message":"Forbidden"}}`))
+		}))
+		defer server.Close()
+
+		client := &RestOntapClient{
+			httpClient: server.Client(),
+			endpoint:   server.Listener.Addr().String(),
+			authData:   &models.AuthData{AuthType: models.USERNAME_PWD, Username: "u", Password: "p"},
+		}
+
+		volumes, err := client.ListVolumesWithSvm(context.Background(), 100)
+		assert.Nil(t, volumes)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "ONTAP error")
+		assert.Contains(t, err.Error(), "403")
+	})
+
+	t.Run("When_JSON_invalid_returns_error", func(t *testing.T) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{invalid`))
+		}))
+		defer server.Close()
+
+		client := &RestOntapClient{
+			httpClient: server.Client(),
+			endpoint:   server.Listener.Addr().String(),
+			authData:   &models.AuthData{AuthType: models.USERNAME_PWD, Username: "u", Password: "p"},
+		}
+
+		volumes, err := client.ListVolumesWithSvm(context.Background(), 100)
+		assert.Nil(t, volumes)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "parse volume list")
+	})
+
+	t.Run("When_request_fails_returns_error", func(t *testing.T) {
+		client := &RestOntapClient{
+			httpClient: &http.Client{},
+			endpoint:   "127.0.0.1:1",
+			authData:   &models.AuthData{AuthType: models.USERNAME_PWD, Username: "u", Password: "p"},
+		}
+
+		volumes, err := client.ListVolumesWithSvm(context.Background(), 100)
+		assert.Nil(t, volumes)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "volume list request failed")
+	})
+}

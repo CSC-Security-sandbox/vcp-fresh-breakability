@@ -894,6 +894,338 @@ func TestSnaplockFileRetentionJobLinkResponse_EncodeDecode(t *testing.T) {
 	var typ2 SnaplockFileRetentionJobLinkResponse
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestSnaplockLegalHoldOperationRequest_EncodeDecode(t *testing.T) {
+	var typ SnaplockLegalHoldOperationRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockLegalHoldOperationRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnaplockLegalHoldOperationRequestType_EncodeDecode(t *testing.T) {
+	var typ SnaplockLegalHoldOperationRequestType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockLegalHoldOperationRequestType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnaplockLegalHoldOperationResponse_EncodeDecode(t *testing.T) {
+	var typ SnaplockLegalHoldOperationResponse
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockLegalHoldOperationResponse
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnaplockLegalHoldOperationResponseLinks_EncodeDecode(t *testing.T) {
+	var typ SnaplockLegalHoldOperationResponseLinks
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockLegalHoldOperationResponseLinks
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnaplockLegalHoldOperationResponseState_EncodeDecode(t *testing.T) {
+	var typ SnaplockLegalHoldOperationResponseState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockLegalHoldOperationResponseState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestSnaplockLegalHoldOperationResponseState_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"completed\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ SnaplockLegalHoldOperationResponseState
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 SnaplockLegalHoldOperationResponseState
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestSnaplockLegalHoldOperationResponseType_EncodeDecode(t *testing.T) {
+	var typ SnaplockLegalHoldOperationResponseType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockLegalHoldOperationResponseType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestSnaplockLegalHoldOperationResponseType_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"begin\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ SnaplockLegalHoldOperationResponseType
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 SnaplockLegalHoldOperationResponseType
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestSnaplockLitigationBeginRequest_EncodeDecode(t *testing.T) {
+	var typ SnaplockLitigationBeginRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockLitigationBeginRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnaplockLitigationListRecord_EncodeDecode(t *testing.T) {
+	var typ SnaplockLitigationListRecord
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockLitigationListRecord
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnaplockLitigationListRecordOperation_EncodeDecode(t *testing.T) {
+	var typ SnaplockLitigationListRecordOperation
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockLitigationListRecordOperation
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestSnaplockLitigationListRecordOperation_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"begin\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ SnaplockLitigationListRecordOperation
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 SnaplockLitigationListRecordOperation
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestSnaplockLitigationListRecordStatus_EncodeDecode(t *testing.T) {
+	var typ SnaplockLitigationListRecordStatus
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockLitigationListRecordStatus
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestSnaplockLitigationListRecordStatus_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"completed\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ SnaplockLitigationListRecordStatus
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 SnaplockLitigationListRecordStatus
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestSnaplockLitigationListResponse_EncodeDecode(t *testing.T) {
+	var typ SnaplockLitigationListResponse
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockLitigationListResponse
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnaplockLitigationListResponseLinks_EncodeDecode(t *testing.T) {
+	var typ SnaplockLitigationListResponseLinks
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockLitigationListResponseLinks
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnaplockLitigationResponse_EncodeDecode(t *testing.T) {
+	var typ SnaplockLitigationResponse
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockLitigationResponse
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnaplockLitigationResponseLinks_EncodeDecode(t *testing.T) {
+	var typ SnaplockLitigationResponseLinks
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockLitigationResponseLinks
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnaplockLitigationResponseSvm_EncodeDecode(t *testing.T) {
+	var typ SnaplockLitigationResponseSvm
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockLitigationResponseSvm
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnaplockLitigationResponseSvmLinks_EncodeDecode(t *testing.T) {
+	var typ SnaplockLitigationResponseSvmLinks
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockLitigationResponseSvmLinks
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnaplockLitigationResponseVolume_EncodeDecode(t *testing.T) {
+	var typ SnaplockLitigationResponseVolume
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockLitigationResponseVolume
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestSnaplockLitigationResponseVolumeLinks_EncodeDecode(t *testing.T) {
+	var typ SnaplockLitigationResponseVolumeLinks
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 SnaplockLitigationResponseVolumeLinks
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestSnapmirrorObjectStoreEndpointSnapshot_EncodeDecode(t *testing.T) {
 	var typ SnapmirrorObjectStoreEndpointSnapshot
 	typ.SetFake()
@@ -1852,6 +2184,426 @@ func TestV1PrivateCliUnauthorized_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1PrivateCliUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationBeginBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationBeginBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationBeginBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationBeginForbidden_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationBeginForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationBeginForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationBeginInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationBeginInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationBeginInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationBeginNotFound_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationBeginNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationBeginNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationBeginUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationBeginUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationBeginUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationCollectionGetBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationCollectionGetBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationCollectionGetBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationCollectionGetForbidden_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationCollectionGetForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationCollectionGetForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationCollectionGetInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationCollectionGetInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationCollectionGetInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationCollectionGetNotFound_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationCollectionGetNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationCollectionGetNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationCollectionGetUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationCollectionGetUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationCollectionGetUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationEndBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationEndBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationEndBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationEndForbidden_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationEndForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationEndForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationEndInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationEndInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationEndInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationEndNotFound_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationEndNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationEndNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationEndUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationEndUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationEndUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationGetBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationGetBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationGetBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationGetForbidden_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationGetForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationGetForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationGetInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationGetInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationGetInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationGetNotFound_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationGetNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationGetNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationGetUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationGetUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationGetUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationOperationAbortBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationOperationAbortBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationOperationAbortBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationOperationAbortForbidden_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationOperationAbortForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationOperationAbortForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationOperationAbortInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationOperationAbortInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationOperationAbortInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationOperationAbortNotFound_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationOperationAbortNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationOperationAbortNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationOperationAbortUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationOperationAbortUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationOperationAbortUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationOperationCreateBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationOperationCreateBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationOperationCreateBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationOperationCreateForbidden_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationOperationCreateForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationOperationCreateForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationOperationCreateInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationOperationCreateInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationOperationCreateInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationOperationCreateNotFound_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationOperationCreateNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationOperationCreateNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationOperationCreateUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationOperationCreateUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationOperationCreateUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationOperationGetBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationOperationGetBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationOperationGetBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationOperationGetForbidden_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationOperationGetForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationOperationGetForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationOperationGetInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationOperationGetInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationOperationGetInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationOperationGetNotFound_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationOperationGetNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationOperationGetNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1SnaplockLitigationOperationGetUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1SnaplockLitigationOperationGetUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1SnaplockLitigationOperationGetUnauthorized
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1UpdateEventRetentionPolicyBadRequest_EncodeDecode(t *testing.T) {

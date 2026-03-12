@@ -108,6 +108,16 @@ func setupHTTPServer(handler http.Handler) *http.Server {
 		// Snaplock file delete - delegated to ogen server which handles auth internally
 		r.Delete("/api/storage/snaplock/file/{volumeUuid}/*", handler.ServeHTTP)
 
+		// Snaplock litigation (legal hold) REST APIs - delegated to ogen server
+		r.Get("/api/storage/snaplock/litigations", handler.ServeHTTP)
+		r.Post("/api/storage/snaplock/litigations", handler.ServeHTTP)
+		r.Get("/api/storage/snaplock/litigations/{litigationId}", handler.ServeHTTP)
+		r.Delete("/api/storage/snaplock/litigations/{litigationId}", handler.ServeHTTP)
+
+		r.Post("/api/storage/snaplock/litigations/{litigationId}/operations", handler.ServeHTTP)
+		r.Get("/api/storage/snaplock/litigations/{litigationId}/operations/{operationId}", handler.ServeHTTP)
+		r.Delete("/api/storage/snaplock/litigations/{litigationId}/operations/{operationId}", handler.ServeHTTP)
+
 		// CLI execute - delegated to ogen server which handles auth and CLI rules internally
 		r.Post("/api/private/cli", handler.ServeHTTP)
 

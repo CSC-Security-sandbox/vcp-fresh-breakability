@@ -1076,6 +1076,105 @@ func (s *OptSelfLink) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptSnaplockLegalHoldOperationResponseLinks) SetFake() {
+	var elem SnaplockLegalHoldOperationResponseLinks
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptSnaplockLegalHoldOperationResponseState) SetFake() {
+	var elem SnaplockLegalHoldOperationResponseState
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptSnaplockLegalHoldOperationResponseType) SetFake() {
+	var elem SnaplockLegalHoldOperationResponseType
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptSnaplockLitigationListRecordOperation) SetFake() {
+	var elem SnaplockLitigationListRecordOperation
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptSnaplockLitigationListRecordStatus) SetFake() {
+	var elem SnaplockLitigationListRecordStatus
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptSnaplockLitigationListResponseLinks) SetFake() {
+	var elem SnaplockLitigationListResponseLinks
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptSnaplockLitigationResponseLinks) SetFake() {
+	var elem SnaplockLitigationResponseLinks
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptSnaplockLitigationResponseSvm) SetFake() {
+	var elem SnaplockLitigationResponseSvm
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptSnaplockLitigationResponseSvmLinks) SetFake() {
+	var elem SnaplockLitigationResponseSvmLinks
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptSnaplockLitigationResponseVolume) SetFake() {
+	var elem SnaplockLitigationResponseVolume
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptSnaplockLitigationResponseVolumeLinks) SetFake() {
+	var elem SnaplockLitigationResponseVolumeLinks
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptSnapmirrorObjectStoreEndpointSnapshotLinks) SetFake() {
 	var elem SnapmirrorObjectStoreEndpointSnapshotLinks
 	{
@@ -1262,6 +1361,322 @@ func (s *SnaplockFileRetentionJobLinkResponse) SetFake() {
 				}
 				s.Records = append(s.Records, elem)
 			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SnaplockLegalHoldOperationRequest) SetFake() {
+	{
+		{
+			s.Type.SetFake()
+		}
+	}
+	{
+		{
+			s.Path = "string"
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SnaplockLegalHoldOperationRequestType) SetFake() {
+	*s = SnaplockLegalHoldOperationRequestTypeBegin
+}
+
+// SetFake set fake values.
+func (s *SnaplockLegalHoldOperationResponse) SetFake() {
+	{
+		{
+			s.Links.SetFake()
+		}
+	}
+	{
+		{
+			s.ID.SetFake()
+		}
+	}
+	{
+		{
+			s.State.SetFake()
+		}
+	}
+	{
+		{
+			s.Path.SetFake()
+		}
+	}
+	{
+		{
+			s.Type.SetFake()
+		}
+	}
+	{
+		{
+			s.NumFilesProcessed.SetFake()
+		}
+	}
+	{
+		{
+			s.NumFilesFailed.SetFake()
+		}
+	}
+	{
+		{
+			s.NumFilesSkipped.SetFake()
+		}
+	}
+	{
+		{
+			s.NumInodesIgnored.SetFake()
+		}
+	}
+	{
+		{
+			s.StatusDetails.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SnaplockLegalHoldOperationResponseLinks) SetFake() {
+	{
+		{
+			s.Self.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SnaplockLegalHoldOperationResponseState) SetFake() {
+	*s = SnaplockLegalHoldOperationResponseStateInProgress
+}
+
+// SetFake set fake values.
+func (s *SnaplockLegalHoldOperationResponseType) SetFake() {
+	*s = SnaplockLegalHoldOperationResponseTypeBegin
+}
+
+// SetFake set fake values.
+func (s *SnaplockLitigationBeginRequest) SetFake() {
+	{
+		{
+			s.LitigationName = "string"
+		}
+	}
+	{
+		{
+			s.Path = "string"
+		}
+	}
+	{
+		{
+			s.VolumeUUID = uuid.New()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SnaplockLitigationListRecord) SetFake() {
+	{
+		{
+			s.ID.SetFake()
+		}
+	}
+	{
+		{
+			s.Name.SetFake()
+		}
+	}
+	{
+		{
+			s.Path.SetFake()
+		}
+	}
+	{
+		{
+			s.Operation.SetFake()
+		}
+	}
+	{
+		{
+			s.OperationID.SetFake()
+		}
+	}
+	{
+		{
+			s.Vserver.SetFake()
+		}
+	}
+	{
+		{
+			s.Volume.SetFake()
+		}
+	}
+	{
+		{
+			s.Status.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SnaplockLitigationListRecordOperation) SetFake() {
+	*s = SnaplockLitigationListRecordOperationBegin
+}
+
+// SetFake set fake values.
+func (s *SnaplockLitigationListRecordStatus) SetFake() {
+	*s = SnaplockLitigationListRecordStatusInProgress
+}
+
+// SetFake set fake values.
+func (s *SnaplockLitigationListResponse) SetFake() {
+	{
+		{
+			s.Links.SetFake()
+		}
+	}
+	{
+		{
+			s.NumRecords.SetFake()
+		}
+	}
+	{
+		{
+			s.Records = nil
+			for i := 0; i < 0; i++ {
+				var elem SnaplockLitigationListRecord
+				{
+					elem.SetFake()
+				}
+				s.Records = append(s.Records, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SnaplockLitigationListResponseLinks) SetFake() {
+	{
+		{
+			s.Next.SetFake()
+		}
+	}
+	{
+		{
+			s.Self.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SnaplockLitigationResponse) SetFake() {
+	{
+		{
+			s.Links.SetFake()
+		}
+	}
+	{
+		{
+			s.ID.SetFake()
+		}
+	}
+	{
+		{
+			s.Name.SetFake()
+		}
+	}
+	{
+		{
+			s.Path.SetFake()
+		}
+	}
+	{
+		{
+			s.Svm.SetFake()
+		}
+	}
+	{
+		{
+			s.Volume.SetFake()
+		}
+	}
+	{
+		{
+			s.Operations = nil
+			for i := 0; i < 0; i++ {
+				var elem SnaplockLegalHoldOperationResponse
+				{
+					elem.SetFake()
+				}
+				s.Operations = append(s.Operations, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SnaplockLitigationResponseLinks) SetFake() {
+	{
+		{
+			s.Self.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SnaplockLitigationResponseSvm) SetFake() {
+	{
+		{
+			s.Links.SetFake()
+		}
+	}
+	{
+		{
+			s.Name.SetFake()
+		}
+	}
+	{
+		{
+			s.UUID.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SnaplockLitigationResponseSvmLinks) SetFake() {
+	{
+		{
+			s.Self.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SnaplockLitigationResponseVolume) SetFake() {
+	{
+		{
+			s.Links.SetFake()
+		}
+	}
+	{
+		{
+			s.Name.SetFake()
+		}
+	}
+	{
+		{
+			s.UUID.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SnaplockLitigationResponseVolumeLinks) SetFake() {
+	{
+		{
+			s.Self.SetFake()
 		}
 	}
 }
@@ -2090,6 +2505,321 @@ func (s *V1PrivateCliUnauthorized) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1PrivateCliUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationBeginBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationBeginBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationBeginForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationBeginForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationBeginInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationBeginInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationBeginNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationBeginNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationBeginUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationBeginUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationCollectionGetBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationCollectionGetBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationCollectionGetForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationCollectionGetForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationCollectionGetInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationCollectionGetInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationCollectionGetNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationCollectionGetNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationCollectionGetUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationCollectionGetUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationEndBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationEndBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationEndForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationEndForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationEndInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationEndInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationEndNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationEndNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationEndUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationEndUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationGetBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationGetBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationGetForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationGetForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationGetInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationGetInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationGetNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationGetNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationGetUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationGetUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationOperationAbortBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationOperationAbortBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationOperationAbortForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationOperationAbortForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationOperationAbortInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationOperationAbortInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationOperationAbortNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationOperationAbortNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationOperationAbortUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationOperationAbortUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationOperationCreateBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationOperationCreateBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationOperationCreateForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationOperationCreateForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationOperationCreateInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationOperationCreateInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationOperationCreateNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationOperationCreateNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationOperationCreateUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationOperationCreateUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationOperationGetBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationOperationGetBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationOperationGetForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationOperationGetForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationOperationGetInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationOperationGetInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationOperationGetNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationOperationGetNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1SnaplockLitigationOperationGetUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1SnaplockLitigationOperationGetUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.

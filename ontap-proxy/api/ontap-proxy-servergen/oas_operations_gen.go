@@ -23,5 +23,12 @@ const (
 	V1ListEventRetentionOperationsOperation       OperationName = "V1ListEventRetentionOperations"
 	V1ListEventRetentionPoliciesOperation         OperationName = "V1ListEventRetentionPolicies"
 	V1PrivateCliOperation                         OperationName = "V1PrivateCli"
+	V1SnaplockLitigationBeginOperation            OperationName = "V1SnaplockLitigationBegin"
+	V1SnaplockLitigationCollectionGetOperation    OperationName = "V1SnaplockLitigationCollectionGet"
+	V1SnaplockLitigationEndOperation              OperationName = "V1SnaplockLitigationEnd"
+	V1SnaplockLitigationGetOperation              OperationName = "V1SnaplockLitigationGet"
+	V1SnaplockLitigationOperationAbortOperation   OperationName = "V1SnaplockLitigationOperationAbort"
+	V1SnaplockLitigationOperationCreateOperation  OperationName = "V1SnaplockLitigationOperationCreate"
+	V1SnaplockLitigationOperationGetOperation     OperationName = "V1SnaplockLitigationOperationGet"
 	V1UpdateEventRetentionPolicyOperation         OperationName = "V1UpdateEventRetentionPolicy"
 )

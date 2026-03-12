@@ -310,10 +310,10 @@ func TestParseSizeString(t *testing.T) {
 		{" 5gb ", 5 * 1024 * 1024 * 1024},
 		{"invalid", 0},
 		{"", 0},
-		{"10x", 0}, // unknown unit
+		{"10x", 0},  // unknown unit
 		{"+10g", 0}, // leading + not allowed
 		{"-10g", 0}, // leading - not allowed
-		{"-10", 0}, // negative size not allowed
+		{"-10", 0},  // negative size not allowed
 		{"10.5g", 10.5 * 1024 * 1024 * 1024},
 		{"1.5MB", 1.5 * 1024 * 1024},
 		{"1p", 1 * 1024 * 1024 * 1024 * 1024 * 1024},
@@ -377,5 +377,191 @@ func TestParseOntapErrorBody(t *testing.T) {
 		code, message := ParseOntapErrorBody(body)
 		assert.Equal(t, 500, code)
 		assert.Equal(t, fallback, message)
+	})
+}
+
+func TestStripOntapLoginBanner(t *testing.T) {
+	t.Run("When_output_empty_returns_unchanged", func(t *testing.T) {
+		got := StripOntapLoginBanner("")
+		assert.Equal(t, "", got)
+	})
+	t.Run("When_banner_present_strips_banner", func(t *testing.T) {
+		output := "\n\n" + OntapFirstLoginBanner + "\n\nVserver   Volume\n"
+		got := StripOntapLoginBanner(output)
+		assert.NotContains(t, got, OntapFirstLoginBanner)
+		assert.Contains(t, got, "Vserver   Volume")
+	})
+	t.Run("When_no_banner_returns_unchanged", func(t *testing.T) {
+		output := "Vserver   Volume\n--------- -----\n"
+		got := StripOntapLoginBanner(output)
+		assert.Equal(t, output, got)
+	})
+}
+
+func TestParseSnaplockLegalHoldShowInstanceOutput(t *testing.T) {
+	t.Run("When_single_block_returns_one_record", func(t *testing.T) {
+		output := "Vserver: vs1\nLitigation Name: lit1\nPath: /dir1\n"
+		records, err := ParseSnaplockLegalHoldShowInstanceOutput(output)
+		require.NoError(t, err)
+		require.Len(t, records, 1)
+		assert.Equal(t, "lit1", records[0].Name)
+		assert.Equal(t, "/dir1", records[0].Path)
+	})
+	t.Run("When_name_missing_path_defaults_to_slash", func(t *testing.T) {
+		output := "Vserver: vs1\nLitigation Name: mylit\n"
+		records, err := ParseSnaplockLegalHoldShowInstanceOutput(output)
+		require.NoError(t, err)
+		require.Len(t, records, 1)
+		assert.Equal(t, "mylit", records[0].Name)
+		assert.Equal(t, "/", records[0].Path)
+	})
+	t.Run("When_duplicate_name_dedupes", func(t *testing.T) {
+		output := "Vserver: vs1\nLitigation Name: lit1\nPath: /p1\n\nVserver: vs1\nLitigation Name: lit1\nPath: /p2\n"
+		records, err := ParseSnaplockLegalHoldShowInstanceOutput(output)
+		require.NoError(t, err)
+		require.Len(t, records, 1)
+		assert.Equal(t, "lit1", records[0].Name)
+	})
+
+	t.Run("When_no_vserver_line_treats_whole_output_as_one_block", func(t *testing.T) {
+		output := "Litigation Name: standalone\nPath: /only\n"
+		records, err := ParseSnaplockLegalHoldShowInstanceOutput(output)
+		require.NoError(t, err)
+		require.Len(t, records, 1)
+		assert.Equal(t, "standalone", records[0].Name)
+		assert.Equal(t, "/only", records[0].Path)
+	})
+
+	t.Run("When_block_has_no_litigation_name_skips_block", func(t *testing.T) {
+		output := "Vserver: vs1\nPath: /no-name\n\nVserver: vs1\nLitigation Name: lit1\nPath: /p1\n"
+		records, err := ParseSnaplockLegalHoldShowInstanceOutput(output)
+		require.NoError(t, err)
+		require.Len(t, records, 1)
+		assert.Equal(t, "lit1", records[0].Name)
+		assert.Equal(t, "/p1", records[0].Path)
+	})
+}
+
+func TestParseOperationIDFromBeginEndOutput(t *testing.T) {
+	t.Run("When_operation_id_present_returns_id_and_true", func(t *testing.T) {
+		output := "some text -operation-id 16908292 more text"
+		id, ok := ParseOperationIDFromBeginEndOutput(output)
+		require.True(t, ok)
+		assert.Equal(t, 16908292, id)
+	})
+	t.Run("When_no_operation_id_returns_zero_and_false", func(t *testing.T) {
+		id, ok := ParseOperationIDFromBeginEndOutput("no id here")
+		assert.False(t, ok)
+		assert.Equal(t, 0, id)
+	})
+
+	t.Run("When_operation_id_overflows_returns_zero_and_false", func(t *testing.T) {
+		output := " -operation-id 99999999999999999999 "
+		id, ok := ParseOperationIDFromBeginEndOutput(output)
+		assert.False(t, ok)
+		assert.Equal(t, 0, id)
+	})
+}
+
+func TestParseSnaplockLegalHoldShowOperationOutput(t *testing.T) {
+	t.Run("When_valid_block_returns_record", func(t *testing.T) {
+		output := "Vserver: vs1\nOperation ID: 16908292\nLitigation Name: lit1\nPath: /dir1\nOperation Type: begin\nStatus: In-Progress\n"
+		rec, err := ParseSnaplockLegalHoldShowOperationOutput(output)
+		require.NoError(t, err)
+		require.NotNil(t, rec)
+		assert.Equal(t, 16908292, rec.OperationID)
+		assert.Equal(t, "In-Progress", rec.Status)
+		assert.Equal(t, "/dir1", rec.Path)
+		assert.Equal(t, "begin", rec.OperationType)
+	})
+	t.Run("When_empty_output_returns_nil_nil", func(t *testing.T) {
+		rec, err := ParseSnaplockLegalHoldShowOperationOutput("")
+		require.NoError(t, err)
+		assert.Nil(t, rec)
+	})
+	t.Run("When_no_operation_id_in_block_returns_nil_nil", func(t *testing.T) {
+		output := "Vserver: vs1\nLitigation Name: lit1\n"
+		rec, err := ParseSnaplockLegalHoldShowOperationOutput(output)
+		require.NoError(t, err)
+		assert.Nil(t, rec)
+	})
+	t.Run("When_whitespace_only_output_returns_nil_nil", func(t *testing.T) {
+		rec, err := ParseSnaplockLegalHoldShowOperationOutput("   \n  ")
+		require.NoError(t, err)
+		assert.Nil(t, rec)
+	})
+
+	t.Run("When_vserver_only_then_whitespace_uses_output_as_single_block", func(t *testing.T) {
+		output := "Vserver: \n\n\n"
+		rec, err := ParseSnaplockLegalHoldShowOperationOutput(output)
+		require.NoError(t, err)
+		assert.Nil(t, rec) // no Operation ID in block
+	})
+
+	t.Run("When_operation_id_overflows_returns_nil_nil", func(t *testing.T) {
+		output := "Vserver: vs1\nOperation ID: 99999999999999999999\nPath: /x\n"
+		rec, err := ParseSnaplockLegalHoldShowOperationOutput(output)
+		require.NoError(t, err)
+		assert.Nil(t, rec)
+	})
+}
+
+func TestParseSnaplockLegalHoldShowInstanceOutputToOperations(t *testing.T) {
+	t.Run("When_multiple_blocks_returns_all_operations", func(t *testing.T) {
+		output := "Vserver: vs1\nOperation ID: 1\nLitigation Name: lit1\nPath: /p1\nStatus: Completed\n\nVserver: vs1\nOperation ID: 2\nLitigation Name: lit1\nPath: /p2\nStatus: In-Progress\n"
+		ops := ParseSnaplockLegalHoldShowInstanceOutputToOperations(output)
+		require.Len(t, ops, 2)
+		assert.Equal(t, 1, ops[0].OperationID)
+		assert.Equal(t, "lit1", ops[0].LitigationName)
+		assert.Equal(t, 2, ops[1].OperationID)
+	})
+	t.Run("When_empty_output_returns_empty_slice", func(t *testing.T) {
+		ops := ParseSnaplockLegalHoldShowInstanceOutputToOperations("")
+		assert.Empty(t, ops)
+	})
+
+	t.Run("When_vserver_only_then_whitespace_uses_output_as_block", func(t *testing.T) {
+		ops := ParseSnaplockLegalHoldShowInstanceOutputToOperations("Vserver: \n\n\n")
+		assert.Empty(t, ops) // no Operation ID in block
+	})
+
+	t.Run("When_block_has_overflow_operation_id_skips_block", func(t *testing.T) {
+		output := "Vserver: vs1\nOperation ID: 99999999999999999999\nLitigation Name: lit1\n\nVserver: vs1\nOperation ID: 2\nLitigation Name: lit2\nPath: /p2\n"
+		ops := ParseSnaplockLegalHoldShowInstanceOutputToOperations(output)
+		require.Len(t, ops, 1)
+		assert.Equal(t, 2, ops[0].OperationID)
+		assert.Equal(t, "lit2", ops[0].LitigationName)
+	})
+
+	t.Run("When_block_has_litigation_name_and_operation_id_returns_record", func(t *testing.T) {
+		output := "Vserver: vs1\nOperation ID: 42\nLitigation Name: mylit\nPath: /p\nStatus: Completed\nOperation Type: end\n"
+		ops := ParseSnaplockLegalHoldShowInstanceOutputToOperations(output)
+		require.Len(t, ops, 1)
+		assert.Equal(t, 42, ops[0].OperationID)
+		assert.Equal(t, "mylit", ops[0].LitigationName)
+		assert.Equal(t, "/p", ops[0].Path)
+		assert.Equal(t, "Completed", ops[0].Status)
+		assert.Equal(t, "end", ops[0].OperationType)
+	})
+}
+
+func TestMapOperationStatusToState(t *testing.T) {
+	t.Run("When_status_completed_returns_completed", func(t *testing.T) {
+		assert.Equal(t, "completed", MapOperationStatusToState("Completed"))
+	})
+	t.Run("When_status_in_progress_returns_in_progress", func(t *testing.T) {
+		assert.Equal(t, "in_progress", MapOperationStatusToState("In-Progress"))
+	})
+	t.Run("When_status_failed_returns_failed", func(t *testing.T) {
+		assert.Equal(t, "failed", MapOperationStatusToState("Failed"))
+	})
+	t.Run("When_status_aborting_returns_aborting", func(t *testing.T) {
+		assert.Equal(t, "aborting", MapOperationStatusToState("Aborting"))
+	})
+	t.Run("When_status_unknown_returns_in_progress", func(t *testing.T) {
+		assert.Equal(t, "in_progress", MapOperationStatusToState("unknown"))
+	})
+	t.Run("When_status_whitespace_returns_in_progress", func(t *testing.T) {
+		assert.Equal(t, "in_progress", MapOperationStatusToState("  "))
 	})
 }

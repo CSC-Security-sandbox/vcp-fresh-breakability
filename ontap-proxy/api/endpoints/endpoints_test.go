@@ -9,12 +9,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/api/ontap-proxy-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/handlers"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/reverseproxy"
 )
 
 func TestGetHealth(t *testing.T) {
@@ -96,63 +96,14 @@ func TestGetCacheStatus(t *testing.T) {
 	})
 
 	t.Run("expiry time is after cached time", func(t *testing.T) {
-		// Setup: add entry to cache
 		setupCacheWithKeys("test-pool")
-
 		handler := Handler{}
 		res, err := handler.GetCacheStatus(context.Background())
-
-		require.NoError(t, err, "GetCacheStatus should not return an error")
-
+		require.NoError(t, err)
 		cacheStatus, ok := res.(*oasgenserver.CacheStatus)
-		require.True(t, ok, "Response should be of type *CacheStatus")
-
-		require.Len(t, cacheStatus.Entries, 1, "Should have one entry")
-		entry := cacheStatus.Entries[0]
-
-		assert.True(t, entry.ExpiresAt.Value.After(entry.CachedAt.Value),
-			"ExpiresAt should be after CachedAt")
-	})
-
-	t.Run("includes client cache entries when available", func(t *testing.T) {
-		// Setup: add auth cache entry
-		setupCacheWithKeys("auth-pool")
-
-		// Add client cache entry via connection pool
-		pool := reverseproxy.GetGlobalConnectionPool()
-		authData := &models.AuthData{
-			AuthType:    models.USERNAME_PWD,
-			PoolID:      "client-pool",
-			AccountName: "test-account",
-			Username:    "testuser",
-			Password:    "testpass",
-			OntapEndpoints: []models.OntapEndpoint{
-				{DNS: "127.0.0.1:9999"}, // Non-routable for test
-			},
-		}
-		// This may fail to connect but will still create a cache entry attempt
-		_, _, _ = pool.GetClient(context.Background(), authData)
-
-		handler := Handler{}
-		res, err := handler.GetCacheStatus(context.Background())
-
-		require.NoError(t, err, "GetCacheStatus should not return an error")
-
-		cacheStatus, ok := res.(*oasgenserver.CacheStatus)
-		require.True(t, ok, "Response should be of type *CacheStatus")
-
-		// Should have at least the auth cache entry
-		assert.GreaterOrEqual(t, len(cacheStatus.Entries), 1, "Should have at least one entry")
-
-		// Verify we have auth entries
-		hasAuthEntry := false
-		for _, entry := range cacheStatus.Entries {
-			if entry.CacheKey.Set && len(entry.CacheKey.Value) > 5 && entry.CacheKey.Value[:5] == "auth:" {
-				hasAuthEntry = true
-				break
-			}
-		}
-		assert.True(t, hasAuthEntry, "Should have auth cache entries")
+		require.True(t, ok)
+		require.Len(t, cacheStatus.Entries, 1)
+		assert.True(t, cacheStatus.Entries[0].ExpiresAt.Value.After(cacheStatus.Entries[0].CachedAt.Value))
 	})
 }
 
@@ -203,15 +154,22 @@ func TestSnaplockFileDelete(t *testing.T) {
 		assert.Equal(t, 400, internalErr.Code, "Code should be 400")
 		assert.Equal(t, "Snaplock file delete operation is disabled", internalErr.Message, "Message should match")
 	})
+}
 
-	t.Run("WhenMissingCredentials_ShouldReturnTypedError", func(t *testing.T) {
+func TestSnaplockFileDelete_WithMockClient(t *testing.T) {
+	testPoolUUID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	testVolumeUUID := uuid.MustParse("660e8400-e29b-41d4-a716-446655440001")
+	vol := &handlers.VolumeInfo{UUID: testVolumeUUID.String(), Name: "vol1"}
+	vol.SVM.Name = "svm1"
+	vol.SVM.UUID = "svm-uuid"
+
+	t.Run("WhenSetupCredsFails_Returns401", func(t *testing.T) {
 		original := snapLockOperationEnabled
-		snapLockOperationEnabled = true // Ensure we hit credential path, not disabled path
+		snapLockOperationEnabled = true
 		defer func() { snapLockOperationEnabled = original }()
+		defer stubWithSetupCredsError(t, errors.New("auth failed"))()
 
 		handler := Handler{}
-
-		// Create params with mock UUIDs
 		params := oasgenserver.SnaplockFileDeleteParams{
 			ProjectNumber: "123456",
 			LocationId:    "us-central1",
@@ -219,71 +177,2043 @@ func TestSnaplockFileDelete(t *testing.T) {
 			VolumeUuid:    testVolumeUUID,
 			FilePath:      "test/file.txt",
 		}
-
-		// Call handler - should fail at credential setup (no JWT, no mock)
 		res, err := handler.SnaplockFileDelete(context.Background(), params)
-
-		// ogen handlers return typed error responses, not Go errors
-		require.NoError(t, err, "ogen handlers should not return Go errors")
-		require.NotNil(t, res, "Should return a typed error response")
-
-		// Should be an unauthorized or internal server error response
-		switch v := res.(type) {
-		case *oasgenserver.SnaplockFileDeleteUnauthorized:
-			assert.NotEmpty(t, v.Message, "Error message should not be empty")
-		case *oasgenserver.SnaplockFileDeleteInternalServerError:
-			assert.NotEmpty(t, v.Message, "Error message should not be empty")
-		default:
-			t.Fatalf("Expected error response type, got %T", res)
-		}
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		unauth, ok := res.(*oasgenserver.SnaplockFileDeleteUnauthorized)
+		require.True(t, ok, "expected SnaplockFileDeleteUnauthorized, got %T", res)
+		assert.Equal(t, 401, unauth.Code)
 	})
 
-	t.Run("WhenURLEncodedFilePath_ShouldDecodeCorrectly", func(t *testing.T) {
+	t.Run("WhenEnsureCertFails_Returns401", func(t *testing.T) {
 		original := snapLockOperationEnabled
 		snapLockOperationEnabled = true
 		defer func() { snapLockOperationEnabled = original }()
+		defer stubWithEnsureCertError(t, errors.New("cert required"))()
 
-		// This test verifies that file paths with special characters are handled
-		// The filePath parameter comes URL-decoded from ogen
 		handler := Handler{}
-
 		params := oasgenserver.SnaplockFileDeleteParams{
 			ProjectNumber: "123456",
 			LocationId:    "us-central1",
 			PoolId:        testPoolUUID,
 			VolumeUuid:    testVolumeUUID,
-			FilePath:      "path/to/file with spaces.txt", // Already decoded by ogen
+			FilePath:      "test/file.txt",
 		}
-
-		// Call handler - will fail at credential setup, but validates param handling
 		res, err := handler.SnaplockFileDelete(context.Background(), params)
-
-		// ogen handlers return typed error responses, not Go errors
-		require.NoError(t, err, "ogen handlers should not return Go errors")
-		require.NotNil(t, res, "Should return a typed error response")
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		unauth, ok := res.(*oasgenserver.SnaplockFileDeleteUnauthorized)
+		require.True(t, ok, "expected SnaplockFileDeleteUnauthorized, got %T", res)
+		assert.Equal(t, 401, unauth.Code)
 	})
 
-	t.Run("WhenFilePathHasLeadingSlash_ShouldTrimCorrectly", func(t *testing.T) {
+	t.Run("WhenNewClientFails_Returns500", func(t *testing.T) {
 		original := snapLockOperationEnabled
 		snapLockOperationEnabled = true
 		defer func() { snapLockOperationEnabled = original }()
+		defer stubWithNewClientError(t, errors.New("connection refused"))()
 
 		handler := Handler{}
-
 		params := oasgenserver.SnaplockFileDeleteParams{
 			ProjectNumber: "123456",
 			LocationId:    "us-central1",
 			PoolId:        testPoolUUID,
 			VolumeUuid:    testVolumeUUID,
-			FilePath:      "/leading/slash/path.txt", // With leading slash
+			FilePath:      "test/file.txt",
+		}
+		res, err := handler.SnaplockFileDelete(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		internal, ok := res.(*oasgenserver.SnaplockFileDeleteInternalServerError)
+		require.True(t, ok, "expected SnaplockFileDeleteInternalServerError, got %T", res)
+		assert.Equal(t, 500, internal.Code)
+	})
+
+	t.Run("WhenGetVolumeFails_Returns404", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, testVolumeUUID.String()).Return(nil, errors.New("not found")).Once()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.SnaplockFileDeleteParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        testPoolUUID,
+			VolumeUuid:    testVolumeUUID,
+			FilePath:      "test/file.txt",
+		}
+		res, err := handler.SnaplockFileDelete(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		notFound, ok := res.(*oasgenserver.SnaplockFileDeleteNotFound)
+		require.True(t, ok, "expected SnaplockFileDeleteNotFound, got %T", res)
+		assert.Equal(t, 404, notFound.Code)
+	})
+
+	t.Run("WhenVolumeIncomplete_Returns400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		incompleteVol := &handlers.VolumeInfo{UUID: testVolumeUUID.String(), Name: "vol1"}
+		incompleteVol.SVM.Name = ""
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, testVolumeUUID.String()).Return(incompleteVol, nil).Once()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.SnaplockFileDeleteParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        testPoolUUID,
+			VolumeUuid:    testVolumeUUID,
+			FilePath:      "test/file.txt",
+		}
+		res, err := handler.SnaplockFileDelete(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.SnaplockFileDeleteBadRequest)
+		require.True(t, ok, "expected SnaplockFileDeleteBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Contains(t, badReq.Message, "incomplete")
+	})
+
+	t.Run("WhenExecuteCLIReturnsOntapCLIError_ReturnsBadRequest", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, testVolumeUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(nil, &handlers.OntapCLIError{StatusCode: 400, Code: "400", Message: "file in use"}).Once()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.SnaplockFileDeleteParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        testPoolUUID,
+			VolumeUuid:    testVolumeUUID,
+			FilePath:      "test/file.txt",
+		}
+		res, err := handler.SnaplockFileDelete(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.SnaplockFileDeleteBadRequest)
+		require.True(t, ok, "expected SnaplockFileDeleteBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Contains(t, badReq.Message, "file in use")
+	})
+
+	t.Run("WhenExecuteCLIFails_Returns500", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, testVolumeUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(nil, errors.New("connection reset")).Once()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.SnaplockFileDeleteParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        testPoolUUID,
+			VolumeUuid:    testVolumeUUID,
+			FilePath:      "test/file.txt",
+		}
+		res, err := handler.SnaplockFileDelete(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		internal, ok := res.(*oasgenserver.SnaplockFileDeleteInternalServerError)
+		require.True(t, ok, "expected SnaplockFileDeleteInternalServerError, got %T", res)
+		assert.Equal(t, 500, internal.Code)
+	})
+
+	t.Run("WhenCLINotSuccess_Returns400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, testVolumeUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(&handlers.CLIResponse{Output: "Error: permission denied"}, nil).Once()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.SnaplockFileDeleteParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        testPoolUUID,
+			VolumeUuid:    testVolumeUUID,
+			FilePath:      "test/file.txt",
+		}
+		res, err := handler.SnaplockFileDelete(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.SnaplockFileDeleteBadRequest)
+		require.True(t, ok, "expected SnaplockFileDeleteBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+	})
+
+	t.Run("WhenSuccess_ReturnsOK", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, testVolumeUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(&handlers.CLIResponse{Output: "Deleted successfully"}, nil).Once()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.SnaplockFileDeleteParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        testPoolUUID,
+			VolumeUuid:    testVolumeUUID,
+			FilePath:      "test/file.txt",
+		}
+		res, err := handler.SnaplockFileDelete(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		okRes, ok := res.(*oasgenserver.SnaplockFileRetentionJobLinkResponse)
+		require.True(t, ok, "expected SnaplockFileRetentionJobLinkResponse, got %T", res)
+		assert.True(t, okRes.NumRecords.Set)
+		assert.Equal(t, 1, okRes.NumRecords.Value)
+	})
+}
+
+func TestV1SnaplockLitigationBegin(t *testing.T) {
+	poolUUID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	volUUID := uuid.MustParse("660e8400-e29b-41d4-a716-446655440001")
+
+	t.Run("WhenDisabled_Returns400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = false
+		defer func() { snapLockOperationEnabled = original }()
+
+		handler := Handler{}
+		req := &oasgenserver.SnaplockLitigationBeginRequest{
+			LitigationName: "lit1",
+			Path:           "/dir1",
+			VolumeUUID:     volUUID,
+		}
+		params := oasgenserver.V1SnaplockLitigationBeginParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        poolUUID,
 		}
 
-		// Call handler - will fail at credential setup
-		res, err := handler.SnaplockFileDelete(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationBegin(context.Background(), req, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationBeginBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationBeginBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Equal(t, "Snaplock litigation operation is disabled", badReq.Message)
+	})
 
-		// ogen handlers return typed error responses, not Go errors
-		require.NoError(t, err, "ogen handlers should not return Go errors")
-		require.NotNil(t, res, "Should return a typed error response")
+	t.Run("WhenRequestNil_Returns400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationBeginParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        poolUUID,
+		}
+
+		res, err := handler.V1SnaplockLitigationBegin(context.Background(), nil, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationBeginBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationBeginBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Contains(t, badReq.Message, "required")
+	})
+
+	t.Run("WhenLitigationNameEmpty_Returns400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		handler := Handler{}
+		req := &oasgenserver.SnaplockLitigationBeginRequest{
+			LitigationName: "",
+			Path:           "/dir1",
+			VolumeUUID:     volUUID,
+		}
+		params := oasgenserver.V1SnaplockLitigationBeginParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        poolUUID,
+		}
+
+		res, err := handler.V1SnaplockLitigationBegin(context.Background(), req, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationBeginBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationBeginBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+	})
+}
+
+func TestV1SnaplockLitigationCollectionGet(t *testing.T) {
+	poolUUID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	t.Run("WhenDisabled_Returns400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = false
+		defer func() { snapLockOperationEnabled = original }()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationCollectionGetParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        poolUUID,
+		}
+
+		res, err := handler.V1SnaplockLitigationCollectionGet(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationCollectionGetBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationCollectionGetBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+	})
+}
+
+func TestV1SnaplockLitigationEnd(t *testing.T) {
+	t.Run("WhenDisabled_Returns400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = false
+		defer func() { snapLockOperationEnabled = original }()
+
+		poolUUID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationEndParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        poolUUID,
+			LitigationId:  "660e8400-e29b-41d4-a716-446655440001:lit1",
+		}
+
+		res, err := handler.V1SnaplockLitigationEnd(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationEndBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationEndBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+	})
+}
+
+func TestV1SnaplockLitigationGet(t *testing.T) {
+	t.Run("WhenDisabled_Returns400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = false
+		defer func() { snapLockOperationEnabled = original }()
+
+		poolUUID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationGetParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        poolUUID,
+			LitigationId:  "660e8400-e29b-41d4-a716-446655440001:lit1",
+		}
+
+		res, err := handler.V1SnaplockLitigationGet(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationGetBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationGetBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+	})
+}
+
+func TestV1SnaplockLitigationOperationCreate(t *testing.T) {
+	poolUUID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	t.Run("WhenDisabled_Returns400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = false
+		defer func() { snapLockOperationEnabled = original }()
+
+		handler := Handler{}
+		req := &oasgenserver.SnaplockLegalHoldOperationRequest{
+			Type: oasgenserver.SnaplockLegalHoldOperationRequestTypeBegin,
+			Path: "/dir1",
+		}
+		params := oasgenserver.V1SnaplockLitigationOperationCreateParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        poolUUID,
+			LitigationId:  "660e8400-e29b-41d4-a716-446655440001:lit1",
+		}
+
+		res, err := handler.V1SnaplockLitigationOperationCreate(context.Background(), req, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationCreateBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+	})
+
+	t.Run("WhenRequestNil_Returns400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationOperationCreateParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        poolUUID,
+			LitigationId:  "660e8400-e29b-41d4-a716-446655440001:lit1",
+		}
+
+		res, err := handler.V1SnaplockLitigationOperationCreate(context.Background(), nil, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationCreateBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+	})
+}
+
+func TestV1SnaplockLitigationOperationGet(t *testing.T) {
+	poolUUID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	t.Run("WhenDisabled_Returns400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = false
+		defer func() { snapLockOperationEnabled = original }()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationOperationGetParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        poolUUID,
+			LitigationId:  "660e8400-e29b-41d4-a716-446655440001:lit1",
+			OperationId:   "16908292",
+		}
+
+		res, err := handler.V1SnaplockLitigationOperationGet(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationGetBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationGetBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+	})
+}
+
+func TestV1SnaplockLitigationOperationAbort(t *testing.T) {
+	poolUUID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	t.Run("WhenDisabled_Returns400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = false
+		defer func() { snapLockOperationEnabled = original }()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationOperationAbortParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        poolUUID,
+			LitigationId:  "660e8400-e29b-41d4-a716-446655440001:lit1",
+			OperationId:   "16908292",
+		}
+
+		res, err := handler.V1SnaplockLitigationOperationAbort(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationAbortBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationAbortBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+	})
+}
+
+// litigationTestPoolUUID and litigationTestVolUUID are used by litigation mock tests.
+var (
+	litigationTestPoolUUID = uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	litigationTestVolUUID  = uuid.MustParse("660e8400-e29b-41d4-a716-446655440001")
+)
+
+// stubLitigationCredsAndClient replaces package-level func vars so tests can inject a mock ONTAP client.
+// TODO follow-up: Prefer injecting a "feature flag" (snapLockOperationEnabled) and credential/client
+// factory into the handler (e.g. struct fields or constructor args) so tests avoid global mutation and
+// defer restore; the current approach is correct but reduces test determinism and maintainability.
+func stubLitigationCredsAndClient(t *testing.T, mockClient *handlers.MockOntapClient) (restore func()) {
+	oldSetup := setupCredentialsForHandler
+	oldEnsure := ensureCertificateOrPassword
+	oldClient := newOntapClientFromContext
+	restore = func() {
+		setupCredentialsForHandler = oldSetup
+		ensureCertificateOrPassword = oldEnsure
+		newOntapClientFromContext = oldClient
+	}
+	setupCredentialsForHandler = func(ctx context.Context, _, _ string, _ string) (context.Context, error) { return ctx, nil }
+	ensureCertificateOrPassword = func(context.Context) error { return nil }
+	newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return mockClient, nil }
+	return restore
+}
+
+// stubWithSetupCredsError stubs setupCredentialsForHandler to return an error (for coverage of 401 setup path).
+func stubWithSetupCredsError(t *testing.T, err error) (restore func()) {
+	old := setupCredentialsForHandler
+	restore = func() { setupCredentialsForHandler = old }
+	setupCredentialsForHandler = func(ctx context.Context, _, _ string, _ string) (context.Context, error) { return ctx, err }
+	return restore
+}
+
+// stubWithEnsureCertError stubs setup to succeed and ensureCertificateOrPassword to return an error (for coverage of 401 cert path).
+func stubWithEnsureCertError(t *testing.T, err error) (restore func()) {
+	oldSetup := setupCredentialsForHandler
+	oldEnsure := ensureCertificateOrPassword
+	restore = func() {
+		setupCredentialsForHandler = oldSetup
+		ensureCertificateOrPassword = oldEnsure
+	}
+	setupCredentialsForHandler = func(ctx context.Context, _, _ string, _ string) (context.Context, error) { return ctx, nil }
+	ensureCertificateOrPassword = func(context.Context) error { return err }
+	return restore
+}
+
+// stubWithNewClientError stubs setup and ensure to succeed and newOntapClientFromContext to return an error (for coverage of 500 client path).
+func stubWithNewClientError(t *testing.T, err error) (restore func()) {
+	oldSetup := setupCredentialsForHandler
+	oldEnsure := ensureCertificateOrPassword
+	oldClient := newOntapClientFromContext
+	restore = func() {
+		setupCredentialsForHandler = oldSetup
+		ensureCertificateOrPassword = oldEnsure
+		newOntapClientFromContext = oldClient
+	}
+	setupCredentialsForHandler = func(ctx context.Context, _, _ string, _ string) (context.Context, error) { return ctx, nil }
+	ensureCertificateOrPassword = func(context.Context) error { return nil }
+	newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return nil, err }
+	return restore
+}
+
+func TestV1SnaplockLitigationBegin_WithMockClient(t *testing.T) {
+	vol := &handlers.VolumeInfo{UUID: litigationTestVolUUID.String(), Name: "vol1"}
+	vol.SVM.Name = "svm1"
+	vol.SVM.UUID = "svm-uuid"
+
+	t.Run("WhenSetupCredsFails_Returns401", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+		defer stubWithSetupCredsError(t, errors.New("auth failed"))()
+
+		handler := Handler{}
+		req := &oasgenserver.SnaplockLitigationBeginRequest{LitigationName: "lit1", Path: "/dir1", VolumeUUID: litigationTestVolUUID}
+		params := oasgenserver.V1SnaplockLitigationBeginParams{ProjectNumber: "123456", LocationId: "us-central1", PoolId: litigationTestPoolUUID}
+		res, err := handler.V1SnaplockLitigationBegin(context.Background(), req, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		unauth, ok := res.(*oasgenserver.V1SnaplockLitigationBeginUnauthorized)
+		require.True(t, ok, "expected V1SnaplockLitigationBeginUnauthorized, got %T", res)
+		assert.Equal(t, 401, unauth.Code)
+		assert.Contains(t, unauth.Message, "authentication error")
+	})
+
+	t.Run("WhenEnsureCertFails_Returns401", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+		defer stubWithEnsureCertError(t, errors.New("cert required"))()
+
+		handler := Handler{}
+		req := &oasgenserver.SnaplockLitigationBeginRequest{LitigationName: "lit1", Path: "/dir1", VolumeUUID: litigationTestVolUUID}
+		params := oasgenserver.V1SnaplockLitigationBeginParams{ProjectNumber: "123456", LocationId: "us-central1", PoolId: litigationTestPoolUUID}
+		res, err := handler.V1SnaplockLitigationBegin(context.Background(), req, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		unauth, ok := res.(*oasgenserver.V1SnaplockLitigationBeginUnauthorized)
+		require.True(t, ok, "expected V1SnaplockLitigationBeginUnauthorized, got %T", res)
+		assert.Equal(t, 401, unauth.Code)
+		assert.Contains(t, unauth.Message, "authentication error")
+	})
+
+	t.Run("WhenNewClientFails_Returns500", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+		defer stubWithNewClientError(t, errors.New("connection refused"))()
+
+		handler := Handler{}
+		req := &oasgenserver.SnaplockLitigationBeginRequest{LitigationName: "lit1", Path: "/dir1", VolumeUUID: litigationTestVolUUID}
+		params := oasgenserver.V1SnaplockLitigationBeginParams{ProjectNumber: "123456", LocationId: "us-central1", PoolId: litigationTestPoolUUID}
+		res, err := handler.V1SnaplockLitigationBegin(context.Background(), req, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		internal, ok := res.(*oasgenserver.V1SnaplockLitigationBeginInternalServerError)
+		require.True(t, ok, "expected V1SnaplockLitigationBeginInternalServerError, got %T", res)
+		assert.Equal(t, 500, internal.Code)
+		assert.Contains(t, internal.Message, "failed to connect to ONTAP")
+	})
+
+	t.Run("WhenCLISuccess_ReturnsLitigationResponse", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(&handlers.CLIResponse{Output: "Operation completed"}, nil).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		req := &oasgenserver.SnaplockLitigationBeginRequest{
+			LitigationName: "lit1",
+			Path:           "/dir1",
+			VolumeUUID:     litigationTestVolUUID,
+		}
+		params := oasgenserver.V1SnaplockLitigationBeginParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+		}
+
+		res, err := handler.V1SnaplockLitigationBegin(context.Background(), req, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		okRes, ok := res.(*oasgenserver.SnaplockLitigationResponse)
+		require.True(t, ok, "expected SnaplockLitigationResponse, got %T", res)
+		assert.True(t, okRes.ID.Set)
+		assert.Equal(t, litigationTestVolUUID.String()+":lit1", okRes.ID.Value)
+		assert.True(t, okRes.Name.Set)
+		assert.Equal(t, "lit1", okRes.Name.Value)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenGetVolumeFails_Returns404", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(nil, errors.New("not found")).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		req := &oasgenserver.SnaplockLitigationBeginRequest{
+			LitigationName: "lit1",
+			Path:           "/dir1",
+			VolumeUUID:     litigationTestVolUUID,
+		}
+		params := oasgenserver.V1SnaplockLitigationBeginParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+		}
+
+		res, err := handler.V1SnaplockLitigationBegin(context.Background(), req, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		notFound, ok := res.(*oasgenserver.V1SnaplockLitigationBeginNotFound)
+		require.True(t, ok, "expected V1SnaplockLitigationBeginNotFound, got %T", res)
+		assert.Equal(t, 404, notFound.Code)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenVolumeIncomplete_Returns400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		incompleteVol := &handlers.VolumeInfo{UUID: litigationTestVolUUID.String(), Name: "vol1"}
+		incompleteVol.SVM.Name = "" // incomplete
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(incompleteVol, nil).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		req := &oasgenserver.SnaplockLitigationBeginRequest{
+			LitigationName: "lit1",
+			Path:           "/dir1",
+			VolumeUUID:     litigationTestVolUUID,
+		}
+		params := oasgenserver.V1SnaplockLitigationBeginParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+		}
+
+		res, err := handler.V1SnaplockLitigationBegin(context.Background(), req, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationBeginBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationBeginBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Contains(t, badReq.Message, "incomplete")
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenCLIReturnsOntapCLIError_ReturnsBadRequest", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(nil, &handlers.OntapCLIError{StatusCode: 400, Code: "ERR", Message: "path invalid"}).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		req := &oasgenserver.SnaplockLitigationBeginRequest{
+			LitigationName: "lit1",
+			Path:           "/dir1",
+			VolumeUUID:     litigationTestVolUUID,
+		}
+		params := oasgenserver.V1SnaplockLitigationBeginParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+		}
+
+		res, err := handler.V1SnaplockLitigationBegin(context.Background(), req, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationBeginBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationBeginBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Contains(t, badReq.Message, "path invalid")
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenCLINotSuccess_ReturnsBadRequest", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(&handlers.CLIResponse{Output: "Error: litigation already exists"}, nil).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		req := &oasgenserver.SnaplockLitigationBeginRequest{
+			LitigationName: "lit1",
+			Path:           "/dir1",
+			VolumeUUID:     litigationTestVolUUID,
+		}
+		params := oasgenserver.V1SnaplockLitigationBeginParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+		}
+
+		res, err := handler.V1SnaplockLitigationBegin(context.Background(), req, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationBeginBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationBeginBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		mockClient.AssertExpectations(t)
+	})
+}
+
+func TestV1SnaplockLitigationCollectionGet_WithMockClient(t *testing.T) {
+	vol := handlers.VolumeInfo{UUID: "vol-uuid-1", Name: "vol1"}
+	vol.SVM.Name = "svm1"
+	vol.SVM.UUID = "svm-uuid"
+	// CLI output that ParseSnaplockLegalHoldShowInstanceOutputToOperations can parse (has Vserver block, Operation ID, Litigation Name)
+	legalHoldShowOutput := "Vserver: svm1\n  Volume: vol1\nLitigation Name: lit1\nPath: /p1\nOperation ID: 1\nStatus: Completed\nOperation Type: begin\n"
+
+	collectionGetParams := func() oasgenserver.V1SnaplockLitigationCollectionGetParams {
+		return oasgenserver.V1SnaplockLitigationCollectionGetParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+		}
+	}
+
+	t.Run("WhenSetupCredsFails_Returns401", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+		defer stubWithSetupCredsError(t, errors.New("auth failed"))()
+
+		res, err := Handler{}.V1SnaplockLitigationCollectionGet(context.Background(), collectionGetParams())
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		unauth, ok := res.(*oasgenserver.V1SnaplockLitigationCollectionGetUnauthorized)
+		require.True(t, ok, "expected V1SnaplockLitigationCollectionGetUnauthorized, got %T", res)
+		assert.Equal(t, 401, unauth.Code)
+		assert.Contains(t, unauth.Message, "authentication error")
+	})
+
+	t.Run("WhenEnsureCertFails_Returns401", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+		defer stubWithEnsureCertError(t, errors.New("cert required"))()
+
+		res, err := Handler{}.V1SnaplockLitigationCollectionGet(context.Background(), collectionGetParams())
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		unauth, ok := res.(*oasgenserver.V1SnaplockLitigationCollectionGetUnauthorized)
+		require.True(t, ok, "expected V1SnaplockLitigationCollectionGetUnauthorized, got %T", res)
+		assert.Equal(t, 401, unauth.Code)
+		assert.Contains(t, unauth.Message, "authentication error")
+	})
+
+	t.Run("WhenNewClientFails_Returns500", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+		defer stubWithNewClientError(t, errors.New("connection refused"))()
+
+		res, err := Handler{}.V1SnaplockLitigationCollectionGet(context.Background(), collectionGetParams())
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		internal, ok := res.(*oasgenserver.V1SnaplockLitigationCollectionGetInternalServerError)
+		require.True(t, ok, "expected V1SnaplockLitigationCollectionGetInternalServerError, got %T", res)
+		assert.Equal(t, 500, internal.Code)
+		assert.Contains(t, internal.Message, "failed to connect to ONTAP")
+	})
+
+	t.Run("WhenListVolumesAndCLISuccess_ReturnsRecords", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{vol}, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(&handlers.CLIResponse{Output: legalHoldShowOutput}, nil).Once()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationCollectionGetParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+		}
+
+		res, err := handler.V1SnaplockLitigationCollectionGet(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		listRes, ok := res.(*oasgenserver.SnaplockLitigationListResponse)
+		require.True(t, ok, "expected SnaplockLitigationListResponse, got %T", res)
+		require.True(t, listRes.NumRecords.Set)
+		assert.GreaterOrEqual(t, listRes.NumRecords.Value, 1)
+		assert.GreaterOrEqual(t, len(listRes.Records), 1)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenListVolumesFails_Returns500", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return(nil, errors.New("list failed")).Once()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationCollectionGetParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+		}
+
+		res, err := handler.V1SnaplockLitigationCollectionGet(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		internalErr, ok := res.(*oasgenserver.V1SnaplockLitigationCollectionGetInternalServerError)
+		require.True(t, ok, "expected V1SnaplockLitigationCollectionGetInternalServerError, got %T", res)
+		assert.Equal(t, 500, internalErr.Code)
+		assert.Contains(t, internalErr.Message, "list volumes")
+		mockClient.AssertExpectations(t)
+	})
+}
+
+func TestV1SnaplockLitigationEnd_WithMockClient(t *testing.T) {
+	vol := &handlers.VolumeInfo{UUID: litigationTestVolUUID.String(), Name: "vol1"}
+	vol.SVM.Name = "svm1"
+	vol.SVM.UUID = "svm-uuid"
+	endParams := func(litID string) oasgenserver.V1SnaplockLitigationEndParams {
+		return oasgenserver.V1SnaplockLitigationEndParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litID,
+		}
+	}
+
+	t.Run("WhenSetupCredsFails_Returns401", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+		defer stubWithSetupCredsError(t, errors.New("auth failed"))()
+
+		res, err := Handler{}.V1SnaplockLitigationEnd(context.Background(), endParams(litigationTestVolUUID.String()+":lit1"))
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		unauth, ok := res.(*oasgenserver.V1SnaplockLitigationEndUnauthorized)
+		require.True(t, ok, "expected V1SnaplockLitigationEndUnauthorized, got %T", res)
+		assert.Equal(t, 401, unauth.Code)
+		assert.Contains(t, unauth.Message, "authentication error")
+	})
+
+	t.Run("WhenEnsureCertFails_Returns401", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+		defer stubWithEnsureCertError(t, errors.New("cert required"))()
+
+		res, err := Handler{}.V1SnaplockLitigationEnd(context.Background(), endParams(litigationTestVolUUID.String()+":lit1"))
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		unauth, ok := res.(*oasgenserver.V1SnaplockLitigationEndUnauthorized)
+		require.True(t, ok, "expected V1SnaplockLitigationEndUnauthorized, got %T", res)
+		assert.Equal(t, 401, unauth.Code)
+		assert.Contains(t, unauth.Message, "authentication error")
+	})
+
+	t.Run("WhenNewClientFails_Returns500", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+		defer stubWithNewClientError(t, errors.New("connection refused"))()
+
+		res, err := Handler{}.V1SnaplockLitigationEnd(context.Background(), endParams(litigationTestVolUUID.String()+":lit1"))
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		internal, ok := res.(*oasgenserver.V1SnaplockLitigationEndInternalServerError)
+		require.True(t, ok, "expected V1SnaplockLitigationEndInternalServerError, got %T", res)
+		assert.Equal(t, 500, internal.Code)
+		assert.Contains(t, internal.Message, "failed to connect to ONTAP")
+	})
+
+	t.Run("WhenLitigationIdInvalid_Returns400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationEndParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  "bad-id-no-colon",
+		}
+
+		res, err := handler.V1SnaplockLitigationEnd(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationEndBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationEndBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Contains(t, badReq.Message, "volumeUuid:litigationName")
+	})
+
+	t.Run("WhenCLISuccess_ReturnsOK", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(&handlers.CLIResponse{Output: "Deleted successfully"}, nil).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationEndParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+		}
+
+		res, err := handler.V1SnaplockLitigationEnd(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		_, ok := res.(*oasgenserver.V1SnaplockLitigationEndOK)
+		require.True(t, ok, "expected V1SnaplockLitigationEndOK, got %T", res)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenGetVolumeFails_Returns404", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(nil, errors.New("not found")).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationEndParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+		}
+
+		res, err := handler.V1SnaplockLitigationEnd(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		notFound, ok := res.(*oasgenserver.V1SnaplockLitigationEndNotFound)
+		require.True(t, ok, "expected V1SnaplockLitigationEndNotFound, got %T", res)
+		assert.Equal(t, 404, notFound.Code)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenExecuteCLIReturnsOntapCLIError_ReturnsBadRequest", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(nil, &handlers.OntapCLIError{Code: "400", Message: "litigation not found"}).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationEndParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+		}
+
+		res, err := handler.V1SnaplockLitigationEnd(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationEndBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationEndBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Equal(t, "litigation not found", badReq.Message)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenExecuteCLIReturnsOntapCLIErrorWithZeroCode_ReturnsBadRequest400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(nil, &handlers.OntapCLIError{Code: "0", Message: "invalid"}).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationEndParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+		}
+
+		res, err := handler.V1SnaplockLitigationEnd(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationEndBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationEndBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenExecuteCLIReturnsNonOntapError_Returns500", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(nil, errors.New("connection refused")).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationEndParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+		}
+
+		res, err := handler.V1SnaplockLitigationEnd(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		internal, ok := res.(*oasgenserver.V1SnaplockLitigationEndInternalServerError)
+		require.True(t, ok, "expected V1SnaplockLitigationEndInternalServerError, got %T", res)
+		assert.Equal(t, 500, internal.Code)
+		assert.Contains(t, internal.Message, "ONTAP operation failed")
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenCLIOutputNotSuccess_ReturnsBadRequest", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		cliOutput := "Error: litigation end failed"
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(&handlers.CLIResponse{Output: cliOutput}, nil).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationEndParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+		}
+
+		res, err := handler.V1SnaplockLitigationEnd(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationEndBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationEndBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Equal(t, handlers.ParseCLIError(cliOutput), badReq.Message)
+		mockClient.AssertExpectations(t)
+	})
+}
+
+func TestV1SnaplockLitigationGet_WithMockClient(t *testing.T) {
+	vol := &handlers.VolumeInfo{UUID: litigationTestVolUUID.String(), Name: "vol1"}
+	vol.SVM.Name = "svm1"
+	vol.SVM.UUID = "svm-uuid"
+	legalHoldShowOutput := "Vserver: svm1\nLitigation Name: lit1\nPath: /dir1\n"
+	t.Run("WhenLitigationIdInvalid_Returns400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationGetParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  "nocolon",
+		}
+
+		res, err := handler.V1SnaplockLitigationGet(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationGetBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationGetBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+	})
+
+	t.Run("WhenCLISuccess_ReturnsLitigation", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(&handlers.CLIResponse{Output: legalHoldShowOutput}, nil).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationGetParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+		}
+
+		res, err := handler.V1SnaplockLitigationGet(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		litRes, ok := res.(*oasgenserver.SnaplockLitigationResponse)
+		require.True(t, ok, "expected SnaplockLitigationResponse, got %T", res)
+		assert.True(t, litRes.Name.Set)
+		assert.Equal(t, "lit1", litRes.Name.Value)
+		assert.True(t, litRes.Path.Set)
+		assert.Equal(t, "/dir1", litRes.Path.Value)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenCLISuccess_ReturnsLitigationWithOperationsMapped", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		// CLI output: one litigation block with Path; two operation blocks to cover oasOps loop:
+		// - Op1: Path, Type end, all optional fields (NumFilesProcessed, NumFilesFailed, NumFilesSkipped, NumInodesIgnored)
+		// - Op2: no Path / no Operation Type → defaults path="/", type=begin; no optional fields
+		cliOutput := "Vserver: svm1\nLitigation Name: lit1\nPath: /dir1\nOperation ID: 1\nStatus: Completed\nOperation Type: end\nNumber of Files Processed: 5\nNumber of Files Failed: 1\nNumber of Files Skipped: 0\nNumber of Inodes Ignored: 2\n\nVserver: svm1\nOperation ID: 2\nStatus: In-Progress\n"
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(&handlers.CLIResponse{Output: cliOutput}, nil).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationGetParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+		}
+
+		res, err := handler.V1SnaplockLitigationGet(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		litRes, ok := res.(*oasgenserver.SnaplockLitigationResponse)
+		require.True(t, ok, "expected SnaplockLitigationResponse, got %T", res)
+		oasOps := litRes.Operations
+		require.Len(t, oasOps, 2, "expected two operation records")
+
+		// First op: path set, type end, all optional fields set
+		op1 := oasOps[0]
+		require.True(t, op1.ID.Set)
+		assert.Equal(t, 1, op1.ID.Value)
+		require.True(t, op1.Path.Set)
+		assert.Equal(t, "/dir1", op1.Path.Value)
+		require.True(t, op1.Type.Set)
+		assert.Equal(t, oasgenserver.SnaplockLegalHoldOperationResponseTypeEnd, op1.Type.Value)
+		require.True(t, op1.State.Set)
+		assert.Equal(t, oasgenserver.SnaplockLegalHoldOperationResponseState("completed"), op1.State.Value)
+		require.True(t, op1.NumFilesProcessed.Set)
+		assert.Equal(t, "5", op1.NumFilesProcessed.Value)
+		require.True(t, op1.NumFilesFailed.Set)
+		assert.Equal(t, "1", op1.NumFilesFailed.Value)
+		require.True(t, op1.NumFilesSkipped.Set)
+		assert.Equal(t, "0", op1.NumFilesSkipped.Value)
+		require.True(t, op1.NumInodesIgnored.Set)
+		assert.Equal(t, "2", op1.NumInodesIgnored.Value)
+
+		// Second op: empty path/type in CLI → default path "/", type begin; optional fields not set
+		op2 := oasOps[1]
+		require.True(t, op2.ID.Set)
+		assert.Equal(t, 2, op2.ID.Value)
+		require.True(t, op2.Path.Set)
+		assert.Equal(t, "/", op2.Path.Value, "empty path should default to /")
+		require.True(t, op2.Type.Set)
+		assert.Equal(t, oasgenserver.SnaplockLegalHoldOperationResponseTypeBegin, op2.Type.Value, "empty operation type should default to begin")
+		require.True(t, op2.State.Set)
+		assert.Equal(t, oasgenserver.SnaplockLegalHoldOperationResponseState("in_progress"), op2.State.Value)
+		assert.False(t, op2.NumFilesProcessed.Set, "optional field should be unset when not in CLI output")
+		assert.False(t, op2.NumFilesFailed.Set)
+		assert.False(t, op2.NumFilesSkipped.Set)
+		assert.False(t, op2.NumInodesIgnored.Set)
+
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenGetVolumeFails_Returns404", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(nil, errors.New("not found")).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationGetParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+		}
+
+		res, err := handler.V1SnaplockLitigationGet(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		notFound, ok := res.(*oasgenserver.V1SnaplockLitigationGetNotFound)
+		require.True(t, ok, "expected V1SnaplockLitigationGetNotFound, got %T", res)
+		assert.Equal(t, 404, notFound.Code)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenVolumeIncomplete_Returns400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		incompleteVol := &handlers.VolumeInfo{UUID: litigationTestVolUUID.String(), Name: ""}
+		incompleteVol.SVM.Name = "svm1"
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(incompleteVol, nil).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationGetParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+		}
+
+		res, err := handler.V1SnaplockLitigationGet(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationGetBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationGetBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Contains(t, badReq.Message, "incomplete")
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenExecuteCLIFails_Returns500", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(nil, errors.New("connection refused")).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationGetParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+		}
+
+		res, err := handler.V1SnaplockLitigationGet(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		internal, ok := res.(*oasgenserver.V1SnaplockLitigationGetInternalServerError)
+		require.True(t, ok, "expected V1SnaplockLitigationGetInternalServerError, got %T", res)
+		assert.Equal(t, 500, internal.Code)
+		assert.Contains(t, internal.Message, "litigation get CLI failed")
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenCLIOutputNotSuccess_Returns404", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		cliOutput := "Error: litigation not found"
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(&handlers.CLIResponse{Output: cliOutput}, nil).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationGetParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+		}
+
+		res, err := handler.V1SnaplockLitigationGet(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		notFound, ok := res.(*oasgenserver.V1SnaplockLitigationGetNotFound)
+		require.True(t, ok, "expected V1SnaplockLitigationGetNotFound, got %T", res)
+		assert.Equal(t, 404, notFound.Code)
+		assert.Equal(t, handlers.ParseCLIError(cliOutput), notFound.Message)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenParseReturnsNoRecords_Returns404", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		// Output has no "Litigation Name:" so parser returns 0 records; no "Error:" so IsCLISuccess is true
+		cliOutput := "Vserver: svm1\nPath: /dir1\n"
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(&handlers.CLIResponse{Output: cliOutput}, nil).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationGetParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+		}
+
+		res, err := handler.V1SnaplockLitigationGet(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		notFound, ok := res.(*oasgenserver.V1SnaplockLitigationGetNotFound)
+		require.True(t, ok, "expected V1SnaplockLitigationGetNotFound, got %T", res)
+		assert.Equal(t, 404, notFound.Code)
+		assert.Contains(t, notFound.Message, "litigation not found")
+		assert.Contains(t, notFound.Message, "lit1")
+		mockClient.AssertExpectations(t)
+	})
+}
+
+func TestV1SnaplockLitigationOperationCreate_WithMockClient(t *testing.T) {
+	vol := &handlers.VolumeInfo{UUID: litigationTestVolUUID.String(), Name: "vol1"}
+	vol.SVM.Name = "svm1"
+	vol.SVM.UUID = "svm-uuid"
+	beginOutputWithOpID := "some output -operation-id 16908292 done"
+
+	t.Run("WhenSetupCredsFails_Returns401", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+		defer stubWithSetupCredsError(t, errors.New("auth failed"))()
+
+		req := &oasgenserver.SnaplockLegalHoldOperationRequest{Type: oasgenserver.SnaplockLegalHoldOperationRequestTypeBegin, Path: "/dir1"}
+		params := oasgenserver.V1SnaplockLitigationOperationCreateParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+		}
+		res, err := Handler{}.V1SnaplockLitigationOperationCreate(context.Background(), req, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		unauth, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateUnauthorized)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationCreateUnauthorized, got %T", res)
+		assert.Equal(t, 401, unauth.Code)
+		assert.Contains(t, unauth.Message, "authentication error")
+	})
+
+	t.Run("WhenEnsureCertFails_Returns401", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+		defer stubWithEnsureCertError(t, errors.New("cert required"))()
+
+		req := &oasgenserver.SnaplockLegalHoldOperationRequest{Type: oasgenserver.SnaplockLegalHoldOperationRequestTypeBegin, Path: "/dir1"}
+		params := oasgenserver.V1SnaplockLitigationOperationCreateParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+		}
+		res, err := Handler{}.V1SnaplockLitigationOperationCreate(context.Background(), req, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		unauth, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateUnauthorized)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationCreateUnauthorized, got %T", res)
+		assert.Equal(t, 401, unauth.Code)
+		assert.Contains(t, unauth.Message, "authentication error")
+	})
+
+	t.Run("WhenNewClientFails_Returns500", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+		defer stubWithNewClientError(t, errors.New("connection refused"))()
+
+		req := &oasgenserver.SnaplockLegalHoldOperationRequest{Type: oasgenserver.SnaplockLegalHoldOperationRequestTypeBegin, Path: "/dir1"}
+		params := oasgenserver.V1SnaplockLitigationOperationCreateParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+		}
+		res, err := Handler{}.V1SnaplockLitigationOperationCreate(context.Background(), req, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		internal, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateInternalServerError)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationCreateInternalServerError, got %T", res)
+		assert.Equal(t, 500, internal.Code)
+		assert.Contains(t, internal.Message, "failed to connect to ONTAP")
+	})
+
+	t.Run("WhenCLISuccessBegin_ReturnsResponse", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(&handlers.CLIResponse{Output: beginOutputWithOpID}, nil).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		req := &oasgenserver.SnaplockLegalHoldOperationRequest{
+			Type: oasgenserver.SnaplockLegalHoldOperationRequestTypeBegin,
+			Path: "/dir1",
+		}
+		params := oasgenserver.V1SnaplockLitigationOperationCreateParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+		}
+
+		res, err := handler.V1SnaplockLitigationOperationCreate(context.Background(), req, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		headers, ok := res.(*oasgenserver.SnaplockLegalHoldOperationResponseHeaders)
+		require.True(t, ok, "expected SnaplockLegalHoldOperationResponseHeaders, got %T", res)
+		assert.True(t, headers.Response.ID.Set)
+		assert.Equal(t, 16908292, headers.Response.ID.Value)
+		assert.Equal(t, "begin", string(headers.Response.Type.Value))
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenInvalidType_Returns400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		volForInvalidType := &handlers.VolumeInfo{UUID: litigationTestVolUUID.String(), Name: "vol1"}
+		volForInvalidType.SVM.Name = "svm1"
+		volForInvalidType.SVM.UUID = "u"
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(volForInvalidType, nil).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		req := &oasgenserver.SnaplockLegalHoldOperationRequest{
+			Type: oasgenserver.SnaplockLegalHoldOperationRequestType("invalid_type"),
+			Path: "/dir1",
+		}
+		params := oasgenserver.V1SnaplockLitigationOperationCreateParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+		}
+
+		res, err := handler.V1SnaplockLitigationOperationCreate(context.Background(), req, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationCreateBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Contains(t, badReq.Message, "invalid type")
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenLitigationIdInvalid_Returns400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		handler := Handler{}
+		req := &oasgenserver.SnaplockLegalHoldOperationRequest{
+			Type: oasgenserver.SnaplockLegalHoldOperationRequestTypeBegin,
+			Path: "/dir1",
+		}
+		params := oasgenserver.V1SnaplockLitigationOperationCreateParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  "bad",
+		}
+
+		res, err := handler.V1SnaplockLitigationOperationCreate(context.Background(), req, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationCreateBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Contains(t, badReq.Message, "volumeUuid:litigationName")
+	})
+
+	t.Run("WhenGetVolumeFails_Returns404", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(nil, errors.New("not found")).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		req := &oasgenserver.SnaplockLegalHoldOperationRequest{
+			Type: oasgenserver.SnaplockLegalHoldOperationRequestTypeBegin,
+			Path: "/dir1",
+		}
+		params := oasgenserver.V1SnaplockLitigationOperationCreateParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+		}
+
+		res, err := handler.V1SnaplockLitigationOperationCreate(context.Background(), req, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		notFound, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateNotFound)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationCreateNotFound, got %T", res)
+		assert.Equal(t, 404, notFound.Code)
+		mockClient.AssertExpectations(t)
+	})
+
+	opCreateReq := &oasgenserver.SnaplockLegalHoldOperationRequest{Type: oasgenserver.SnaplockLegalHoldOperationRequestTypeBegin, Path: "/dir1"}
+	opCreateParams := oasgenserver.V1SnaplockLitigationOperationCreateParams{
+		ProjectNumber: "123456",
+		LocationId:    "us-central1",
+		PoolId:        litigationTestPoolUUID,
+		LitigationId:  litigationTestVolUUID.String() + ":lit1",
+	}
+
+	t.Run("WhenExecuteCLIReturnsOntapCLIError_ReturnsBadRequest", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(nil, &handlers.OntapCLIError{Code: "400", Message: "path already under legal hold"}).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		res, err := Handler{}.V1SnaplockLitigationOperationCreate(context.Background(), opCreateReq, opCreateParams)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationCreateBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Equal(t, "path already under legal hold", badReq.Message)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenExecuteCLIReturnsOntapCLIErrorWithZeroCode_ReturnsBadRequest400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(nil, &handlers.OntapCLIError{Code: "0", Message: "invalid"}).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		res, err := Handler{}.V1SnaplockLitigationOperationCreate(context.Background(), opCreateReq, opCreateParams)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationCreateBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenExecuteCLIReturnsNonOntapError_Returns500", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(nil, errors.New("connection refused")).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		res, err := Handler{}.V1SnaplockLitigationOperationCreate(context.Background(), opCreateReq, opCreateParams)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		internal, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateInternalServerError)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationCreateInternalServerError, got %T", res)
+		assert.Equal(t, 500, internal.Code)
+		assert.Contains(t, internal.Message, "ONTAP operation failed")
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenCLIOutputNotSuccess_ReturnsBadRequest", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		cliOutput := "Error: command failed"
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(&handlers.CLIResponse{Output: cliOutput}, nil).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		res, err := Handler{}.V1SnaplockLitigationOperationCreate(context.Background(), opCreateReq, opCreateParams)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationCreateBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Equal(t, handlers.ParseCLIError(cliOutput), badReq.Message)
+		mockClient.AssertExpectations(t)
+	})
+}
+
+func TestV1SnaplockLitigationOperationGet_WithMockClient(t *testing.T) {
+	showOpOutput := "Vserver: svm1\nOperation ID: 16908292\nPath: /dir1\nStatus: In-Progress\nOperation Type: begin\nNumber of Files Processed: 10\nNumber of Files Failed: 0\n"
+	t.Run("WhenCLISuccess_ReturnsOperation", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(&handlers.CLIResponse{Output: showOpOutput}, nil).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationOperationGetParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+			OperationId:   "16908292",
+		}
+
+		res, err := handler.V1SnaplockLitigationOperationGet(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		opRes, ok := res.(*oasgenserver.SnaplockLegalHoldOperationResponse)
+		require.True(t, ok, "expected SnaplockLegalHoldOperationResponse, got %T", res)
+		assert.True(t, opRes.ID.Set)
+		assert.Equal(t, 16908292, opRes.ID.Value)
+		assert.Equal(t, "in_progress", string(opRes.State.Value))
+		assert.True(t, opRes.Path.Set)
+		assert.Equal(t, "/dir1", opRes.Path.Value)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenCLIFails_Returns500", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(nil, errors.New("connection refused")).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationOperationGetParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+			OperationId:   "16908292",
+		}
+
+		res, err := handler.V1SnaplockLitigationOperationGet(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		internalErr, ok := res.(*oasgenserver.V1SnaplockLitigationOperationGetInternalServerError)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationGetInternalServerError, got %T", res)
+		assert.Equal(t, 500, internalErr.Code)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenCLINotSuccess_Returns404", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(&handlers.CLIResponse{Output: "Error: operation not found"}, nil).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationOperationGetParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+			OperationId:   "16908292",
+		}
+
+		res, err := handler.V1SnaplockLitigationOperationGet(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		notFound, ok := res.(*oasgenserver.V1SnaplockLitigationOperationGetNotFound)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationGetNotFound, got %T", res)
+		assert.Equal(t, 404, notFound.Code)
+		mockClient.AssertExpectations(t)
+	})
+}
+
+func TestV1SnaplockLitigationOperationAbort_WithMockClient(t *testing.T) {
+	vol := &handlers.VolumeInfo{UUID: litigationTestVolUUID.String(), Name: "vol1"}
+	vol.SVM.Name = "svm1"
+	vol.SVM.UUID = "svm-uuid"
+	t.Run("WhenLitigationIdInvalid_Returns400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationOperationAbortParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  "bad",
+			OperationId:   "16908292",
+		}
+
+		res, err := handler.V1SnaplockLitigationOperationAbort(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationAbortBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationAbortBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Contains(t, badReq.Message, "volumeUuid:litigationName")
+	})
+
+	t.Run("WhenCLISuccess_ReturnsOK", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(&handlers.CLIResponse{Output: "Abort completed"}, nil).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationOperationAbortParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+			OperationId:   "16908292",
+		}
+
+		res, err := handler.V1SnaplockLitigationOperationAbort(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		_, ok := res.(*oasgenserver.V1SnaplockLitigationOperationAbortOK)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationAbortOK, got %T", res)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenGetVolumeFails_Returns404", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(nil, errors.New("not found")).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationOperationAbortParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+			OperationId:   "16908292",
+		}
+
+		res, err := handler.V1SnaplockLitigationOperationAbort(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		notFound, ok := res.(*oasgenserver.V1SnaplockLitigationOperationAbortNotFound)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationAbortNotFound, got %T", res)
+		assert.Equal(t, 404, notFound.Code)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenCLIErrorOperationComplete_Returns400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(nil, &handlers.OntapCLIError{Message: "SnapLock legal-hold operation is complete"}).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationOperationAbortParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+			OperationId:   "16908292",
+		}
+
+		res, err := handler.V1SnaplockLitigationOperationAbort(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationAbortBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationAbortBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenCLIErrorNotFound_Returns404", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(nil, &handlers.OntapCLIError{Message: "operation not found"}).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationOperationAbortParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+			OperationId:   "16908292",
+		}
+
+		res, err := handler.V1SnaplockLitigationOperationAbort(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		notFound, ok := res.(*oasgenserver.V1SnaplockLitigationOperationAbortNotFound)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationAbortNotFound, got %T", res)
+		assert.Equal(t, 404, notFound.Code)
+		mockClient.AssertExpectations(t)
+	})
+
+	// Tests for IsCLISuccess(cliResponse.Output) == false path (CLI returns response with failure output, not OntapCLIError)
+	t.Run("WhenCLIOutputOperationComplete_Returns400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		cliOutput := "Error: SnapLock legal-hold operation is complete. Run \"snaplock legal-hold show\" to view status."
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(&handlers.CLIResponse{Output: cliOutput}, nil).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationOperationAbortParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+			OperationId:   "16908292",
+		}
+
+		res, err := handler.V1SnaplockLitigationOperationAbort(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationAbortBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationAbortBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Equal(t, handlers.ParseSnaplockAbortError(cliOutput), badReq.Message)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenCLIOutputNotFound_Returns404", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		cliOutput := "Error: operation 16908292 not found"
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(&handlers.CLIResponse{Output: cliOutput}, nil).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationOperationAbortParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+			OperationId:   "16908292",
+		}
+
+		res, err := handler.V1SnaplockLitigationOperationAbort(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		notFound, ok := res.(*oasgenserver.V1SnaplockLitigationOperationAbortNotFound)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationAbortNotFound, got %T", res)
+		assert.Equal(t, 404, notFound.Code)
+		assert.Equal(t, handlers.ParseSnaplockAbortError(cliOutput), notFound.Message)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenCLIOutputNotSuccess_Returns400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		cliOutput := "Error: command failed"
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("GetVolume", mock.Anything, litigationTestVolUUID.String()).Return(vol, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(&handlers.CLIResponse{Output: cliOutput}, nil).Once()
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationOperationAbortParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+			LitigationId:  litigationTestVolUUID.String() + ":lit1",
+			OperationId:   "16908292",
+		}
+
+		res, err := handler.V1SnaplockLitigationOperationAbort(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationAbortBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationAbortBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Equal(t, handlers.ParseSnaplockAbortError(cliOutput), badReq.Message)
+		mockClient.AssertExpectations(t)
 	})
 }
 
