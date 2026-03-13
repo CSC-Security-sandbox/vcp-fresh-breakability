@@ -3,7 +3,6 @@ package middleware
 import (
 	"context"
 	"net/http"
-	"regexp"
 	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
@@ -15,11 +14,8 @@ import (
 )
 
 var (
-	extractOntapPathUtil = ontapproxyutils.ExtractOntapPath
+	extractOntapPath = ontapproxyutils.ExtractOntapPath
 )
-
-// uuidPattern is a compiled regex pattern for matching UUIDs in URL paths
-var uuidPattern = regexp.MustCompile(`/[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}`)
 
 // RuleEngineMiddleware creates a middleware that applies DSL-based rules to requests.
 // It matches the request path to rules, validates access, and attaches the action to context
@@ -77,7 +73,7 @@ func RuleEngineMiddleware() func(http.Handler) http.Handler {
 	}
 }
 
-// findMatchingRule extracts the ONTAP path and finds the matching rule
+// findMatchingRule extracts the ONTAP path (with UUIDs normalized) and finds the matching rule
 // Returns: (rule, matchedPath, found)
 func findMatchingRule(requestPath string, logger log.Logger) (dsl.Rule, string, bool) {
 	path := extractOntapPath(requestPath)
@@ -107,18 +103,3 @@ func findMatchingRule(requestPath string, logger log.Logger) (dsl.Rule, string, 
 	return dsl.Rule{}, "", false
 }
 
-func extractOntapPath(fullPath string) string {
-	ontapPath := extractOntapPathUtil(fullPath)
-	if ontapPath == "" {
-		return ""
-	}
-
-	normalizedPath := normalizeUUIDs(ontapPath)
-	return normalizedPath
-}
-
-// normalizeUUIDs replaces UUID-like patterns in the path with {uuid} placeholders
-func normalizeUUIDs(path string) string {
-	path = uuidPattern.ReplaceAllString(path, "/{uuid}")
-	return path
-}

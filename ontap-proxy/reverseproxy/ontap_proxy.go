@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	extractOntapPath              = utils.ExtractOntapPath
+	extractOntapPath              = utils.ExtractOntapPathRaw
 	testOntapEndpointReachability = _testOntapEndpointReachability
 
 	// Environment variable values

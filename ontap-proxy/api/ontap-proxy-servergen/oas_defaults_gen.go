@@ -3,26 +3,6 @@
 package ontapserver
 
 // setDefaults set default value of fields.
-func (s *AccessTokenInfo) setDefaults() {
-	{
-		val := int64(604800)
-		s.ExpiresIn.SetTo(val)
-	}
-	{
-		val := AccessTokenInfoTokenType("bearer")
-		s.TokenType.SetTo(val)
-	}
-}
-
-// setDefaults set default value of fields.
-func (s *AccessTokenRequest) setDefaults() {
-	{
-		val := AccessTokenRequestGrantType("client_credentials")
-		s.GrantType.SetTo(val)
-	}
-}
-
-// setDefaults set default value of fields.
 func (s *CLIExecuteRequest) setDefaults() {
 	{
 		val := CLIExecuteRequestPrivilege("admin")

@@ -17,10 +17,6 @@ type V1AbortEventRetentionOperationRes interface {
 	v1AbortEventRetentionOperationRes()
 }
 
-type V1ClusterLicensingAccessTokensCreateRes interface {
-	v1ClusterLicensingAccessTokensCreateRes()
-}
-
 type V1CreateEventRetentionOperationRes interface {
 	v1CreateEventRetentionOperationRes()
 }
@@ -29,20 +25,8 @@ type V1CreateEventRetentionPolicyRes interface {
 	v1CreateEventRetentionPolicyRes()
 }
 
-type V1DeleteDestinationEndpointRes interface {
-	v1DeleteDestinationEndpointRes()
-}
-
 type V1DeleteEventRetentionPolicyRes interface {
 	v1DeleteEventRetentionPolicyRes()
-}
-
-type V1DeleteSnapshotRes interface {
-	v1DeleteSnapshotRes()
-}
-
-type V1GetDestinationEndpointInfoRes interface {
-	v1GetDestinationEndpointInfoRes()
 }
 
 type V1GetEventRetentionOperationRes interface {
@@ -51,10 +35,6 @@ type V1GetEventRetentionOperationRes interface {
 
 type V1GetEventRetentionPolicyRes interface {
 	v1GetEventRetentionPolicyRes()
-}
-
-type V1GetSnapshotsRes interface {
-	v1GetSnapshotsRes()
 }
 
 type V1ListEventRetentionOperationsRes interface {

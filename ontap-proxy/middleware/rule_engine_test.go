@@ -15,11 +15,11 @@ import (
 func TestRuleEngineMiddleware(t *testing.T) {
 	t.Run("WhenNoRuleMatch_ShouldPassThrough", func(t *testing.T) {
 		// Setup
-		originalExtract := extractOntapPathUtil
-		extractOntapPathUtil = func(fullPath string) string {
+		originalExtract := extractOntapPath
+		extractOntapPath = func(fullPath string) string {
 			return "/api/unknown/path"
 		}
-		defer func() { extractOntapPathUtil = originalExtract }()
+		defer func() { extractOntapPath = originalExtract }()
 
 		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
@@ -40,11 +40,11 @@ func TestRuleEngineMiddleware(t *testing.T) {
 
 	t.Run("WhenRuleMatchesAndAllows_ShouldPassThrough", func(t *testing.T) {
 		// Setup
-		originalExtract := extractOntapPathUtil
-		extractOntapPathUtil = func(fullPath string) string {
+		originalExtract := extractOntapPath
+		extractOntapPath = func(fullPath string) string {
 			return "/api/storage/aggregates"
 		}
-		defer func() { extractOntapPathUtil = originalExtract }()
+		defer func() { extractOntapPath = originalExtract }()
 
 		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
@@ -65,11 +65,11 @@ func TestRuleEngineMiddleware(t *testing.T) {
 
 	t.Run("WhenNoRuleForPrivatePath_ShouldPassThrough", func(t *testing.T) {
 		// Setup - /api/private/something has no rule; only explicit private CLI paths are configured
-		originalExtract := extractOntapPathUtil
-		extractOntapPathUtil = func(fullPath string) string {
+		originalExtract := extractOntapPath
+		extractOntapPath = func(fullPath string) string {
 			return "/api/private/something"
 		}
-		defer func() { extractOntapPathUtil = originalExtract }()
+		defer func() { extractOntapPath = originalExtract }()
 
 		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
@@ -90,11 +90,11 @@ func TestRuleEngineMiddleware(t *testing.T) {
 
 	t.Run("WhenDenyActionConfigured_ShouldReturnBadRequestWithReason", func(t *testing.T) {
 		// Setup
-		originalExtract := extractOntapPathUtil
-		extractOntapPathUtil = func(fullPath string) string {
+		originalExtract := extractOntapPath
+		extractOntapPath = func(fullPath string) string {
 			return "/api/storage/aggregates"
 		}
-		defer func() { extractOntapPathUtil = originalExtract }()
+		defer func() { extractOntapPath = originalExtract }()
 
 		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
@@ -116,11 +116,11 @@ func TestRuleEngineMiddleware(t *testing.T) {
 	})
 
 	t.Run("WhenClusterCounterTablesGET_ShouldDenyWithReason", func(t *testing.T) {
-		originalExtract := extractOntapPathUtil
-		extractOntapPathUtil = func(fullPath string) string {
+		originalExtract := extractOntapPath
+		extractOntapPath = func(fullPath string) string {
 			return "/api/cluster/counter/tables"
 		}
-		defer func() { extractOntapPathUtil = originalExtract }()
+		defer func() { extractOntapPath = originalExtract }()
 
 		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
@@ -140,11 +140,11 @@ func TestRuleEngineMiddleware(t *testing.T) {
 
 	t.Run("WhenActionInContext_ShouldBeRetrievable", func(t *testing.T) {
 		// Setup
-		originalExtract := extractOntapPathUtil
-		extractOntapPathUtil = func(fullPath string) string {
+		originalExtract := extractOntapPath
+		extractOntapPath = func(fullPath string) string {
 			return "/api/storage/aggregates"
 		}
-		defer func() { extractOntapPathUtil = originalExtract }()
+		defer func() { extractOntapPath = originalExtract }()
 
 		actionFound := false
 		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -173,11 +173,11 @@ func TestRuleEngineMiddleware(t *testing.T) {
 func TestFindMatchingRule(t *testing.T) {
 	t.Run("WhenExactMatch_ShouldReturnRule", func(t *testing.T) {
 		// Setup
-		originalExtract := extractOntapPathUtil
-		extractOntapPathUtil = func(fullPath string) string {
+		originalExtract := extractOntapPath
+		extractOntapPath = func(fullPath string) string {
 			return "/api/storage/aggregates"
 		}
-		defer func() { extractOntapPathUtil = originalExtract }()
+		defer func() { extractOntapPath = originalExtract }()
 
 		logger := util.GetLogger(context.Background())
 
@@ -192,11 +192,11 @@ func TestFindMatchingRule(t *testing.T) {
 
 	t.Run("WhenPrivatePathWithNoExactRule_ShouldReturnNotFound", func(t *testing.T) {
 		// Setup - no catch-all for /api/private/*; only explicit private CLI paths have rules
-		originalExtract := extractOntapPathUtil
-		extractOntapPathUtil = func(fullPath string) string {
+		originalExtract := extractOntapPath
+		extractOntapPath = func(fullPath string) string {
 			return "/api/private/nested/path"
 		}
-		defer func() { extractOntapPathUtil = originalExtract }()
+		defer func() { extractOntapPath = originalExtract }()
 
 		logger := util.GetLogger(context.Background())
 
@@ -209,11 +209,11 @@ func TestFindMatchingRule(t *testing.T) {
 
 	t.Run("WhenNoMatch_ShouldReturnNotFound", func(t *testing.T) {
 		// Setup
-		originalExtract := extractOntapPathUtil
-		extractOntapPathUtil = func(fullPath string) string {
+		originalExtract := extractOntapPath
+		extractOntapPath = func(fullPath string) string {
 			return "/api/unknown/path"
 		}
-		defer func() { extractOntapPathUtil = originalExtract }()
+		defer func() { extractOntapPath = originalExtract }()
 
 		logger := util.GetLogger(context.Background())
 
@@ -225,11 +225,11 @@ func TestFindMatchingRule(t *testing.T) {
 	})
 
 	t.Run("WhenClusterCounterTablesBasePath_ShouldMatchWildcardRule", func(t *testing.T) {
-		originalExtract := extractOntapPathUtil
-		extractOntapPathUtil = func(fullPath string) string {
+		originalExtract := extractOntapPath
+		extractOntapPath = func(fullPath string) string {
 			return "/api/cluster/counter/tables"
 		}
-		defer func() { extractOntapPathUtil = originalExtract }()
+		defer func() { extractOntapPath = originalExtract }()
 
 		logger := util.GetLogger(context.Background())
 
@@ -241,11 +241,11 @@ func TestFindMatchingRule(t *testing.T) {
 	})
 
 	t.Run("WhenClusterCounterTablesSubPath_ShouldMatchWildcardRule", func(t *testing.T) {
-		originalExtract := extractOntapPathUtil
-		extractOntapPathUtil = func(fullPath string) string {
+		originalExtract := extractOntapPath
+		extractOntapPath = func(fullPath string) string {
 			return "/api/cluster/counter/tables/qos_detail/rows"
 		}
-		defer func() { extractOntapPathUtil = originalExtract }()
+		defer func() { extractOntapPath = originalExtract }()
 
 		logger := util.GetLogger(context.Background())
 
@@ -254,31 +254,5 @@ func TestFindMatchingRule(t *testing.T) {
 		assert.True(t, found)
 		assert.Equal(t, "/api/cluster/counter/tables/*", path)
 		assert.NotNil(t, rule.GET)
-	})
-}
-
-func TestNormalizeUUIDs(t *testing.T) {
-	t.Run("WhenPathContainsUUID_ShouldReplaceWithPlaceholder", func(t *testing.T) {
-		path := "/api/storage/volumes/550e8400-e29b-41d4-a716-446655440000"
-
-		result := normalizeUUIDs(path)
-
-		assert.Equal(t, "/api/storage/volumes/{uuid}", result)
-	})
-
-	t.Run("WhenPathContainsMultipleUUIDs_ShouldReplaceAll", func(t *testing.T) {
-		path := "/api/storage/volumes/550e8400-e29b-41d4-a716-446655440000/snapshots/660e8400-e29b-41d4-a716-446655440001"
-
-		result := normalizeUUIDs(path)
-
-		assert.Equal(t, "/api/storage/volumes/{uuid}/snapshots/{uuid}", result)
-	})
-
-	t.Run("WhenPathHasNoUUID_ShouldReturnUnchanged", func(t *testing.T) {
-		path := "/api/storage/volumes"
-
-		result := normalizeUUIDs(path)
-
-		assert.Equal(t, "/api/storage/volumes", result)
 	})
 }

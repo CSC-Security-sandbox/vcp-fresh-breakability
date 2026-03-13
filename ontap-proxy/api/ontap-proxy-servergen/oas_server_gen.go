@@ -39,17 +39,6 @@ type Handler interface {
 	//
 	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/operations/{id}
 	V1AbortEventRetentionOperation(ctx context.Context, params V1AbortEventRetentionOperationParams) (V1AbortEventRetentionOperationRes, error)
-	// V1ClusterLicensingAccessTokensCreate implements v1_clusterLicensingAccessTokensCreate operation.
-	//
-	// Generates SM-C access token (same as ONTAP REST POST /api/cluster/licensing/access_tokens).
-	// This operation:
-	// 1. Fetches admin credentials for the pool
-	// 2. Forwards the request body to ONTAP POST /api/cluster/licensing/access_tokens
-	// 3. Returns the access token information from ONTAP
-	// Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
-	//
-	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/cluster/licensing/access_tokens
-	V1ClusterLicensingAccessTokensCreate(ctx context.Context, req *AccessTokenRequest, params V1ClusterLicensingAccessTokensCreateParams) (V1ClusterLicensingAccessTokensCreateRes, error)
 	// V1CreateEventRetentionOperation implements v1_createEventRetentionOperation operation.
 	//
 	// Starts an EBR operation to apply an Event Based Retention policy to a path on a volume.
@@ -68,15 +57,6 @@ type Handler interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies
 	V1CreateEventRetentionPolicy(ctx context.Context, req *EBRPolicy, params V1CreateEventRetentionPolicyParams) (V1CreateEventRetentionPolicyRes, error)
-	// V1DeleteDestinationEndpoint implements v1_deleteDestinationEndpoint operation.
-	//
-	// Deletes all data of the specified endpoint within the object store (populated by SnapMirror).
-	// Proxies to ONTAP DELETE
-	// /api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}.
-	// Depends on an existing SnapMirror relationship.
-	//
-	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}
-	V1DeleteDestinationEndpoint(ctx context.Context, params V1DeleteDestinationEndpointParams) (V1DeleteDestinationEndpointRes, error)
 	// V1DeleteEventRetentionPolicy implements v1_deleteEventRetentionPolicy operation.
 	//
 	// Deletes the specified Event Based Retention (EBR) policy.
@@ -84,24 +64,6 @@ type Handler interface {
 	//
 	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies/{policy.name}
 	V1DeleteEventRetentionPolicy(ctx context.Context, params V1DeleteEventRetentionPolicyParams) (V1DeleteEventRetentionPolicyRes, error)
-	// V1DeleteSnapshot implements v1_deleteSnapshot operation.
-	//
-	// Deletes a snapshot from the object store endpoint.
-	// Proxies to ONTAP DELETE
-	// /api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots/{snapshotId}.
-	// Depends on an existing SnapMirror relationship.
-	//
-	// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots/{snapshotId}
-	V1DeleteSnapshot(ctx context.Context, params V1DeleteSnapshotParams) (V1DeleteSnapshotRes, error)
-	// V1GetDestinationEndpointInfo implements v1_getDestinationEndpointInfo operation.
-	//
-	// Retrieves information for the specified SnapMirror object store destination endpoint.
-	// Proxies to ONTAP GET
-	// /api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}.
-	// Depends on an existing SnapMirror relationship (created via POST /api/snapmirror/relationships).
-	//
-	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}
-	V1GetDestinationEndpointInfo(ctx context.Context, params V1GetDestinationEndpointInfoParams) (V1GetDestinationEndpointInfoRes, error)
 	// V1GetEventRetentionOperation implements v1_getEventRetentionOperation operation.
 	//
 	// Retrieves a single Event Based Retention (EBR) operation by ID.
@@ -116,15 +78,6 @@ type Handler interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies/{policy.name}
 	V1GetEventRetentionPolicy(ctx context.Context, params V1GetEventRetentionPolicyParams) (V1GetEventRetentionPolicyRes, error)
-	// V1GetSnapshots implements v1_getSnapshots operation.
-	//
-	// Retrieves snapshot information for the specified object store endpoint.
-	// Proxies to ONTAP GET
-	// /api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots.
-	// Depends on an existing SnapMirror relationship.
-	//
-	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots
-	V1GetSnapshots(ctx context.Context, params V1GetSnapshotsParams) (V1GetSnapshotsRes, error)
 	// V1ListEventRetentionOperations implements v1_listEventRetentionOperations operation.
 	//
 	// Retrieves a list of Event Based Retention (EBR) operations.

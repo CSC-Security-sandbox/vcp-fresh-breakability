@@ -34,17 +34,38 @@ const (
 var (
 	fetchCredentialsFunc = coreapi.FetchCredentials
 	poolUriRegex         = "^/v1beta/projects/([^/]+)/locations/([^/]+)/pools/([^/]+)"
+	smcOperationEnabled  = env.GetBool("SMC_OPERATION_ENABLED", false)
 )
+
+// adminCredentialPaths are normalized ONTAP paths (UUIDs as {uuid}) that require admin credentials.
+var adminCredentialPaths = map[string]struct{}{
+	// SnapMirror relationships
+	"/api/snapmirror/relationships":                         {},
+	"/api/snapmirror/relationships/{uuid}":                  {},
+	"/api/snapmirror/relationships/{uuid}/transfers":        {},
+	"/api/snapmirror/relationships/{uuid}/transfers/{uuid}": {},
+	"/api/snapmirror/relationships/{uuid}/restore":          {},
+	// Cluster licensing access token (SM-C)
+	"/api/cluster/licensing/access_tokens": {},
+	// SnapMirror object-store APIs
+	"/api/snapmirror/object-stores/{uuid}":                                   {},
+	"/api/snapmirror/object-stores/{uuid}/endpoints/{uuid}":                  {},
+	"/api/snapmirror/object-stores/{uuid}/endpoints/{uuid}/snapshots":        {},
+	"/api/snapmirror/object-stores/{uuid}/endpoints/{uuid}/snapshots/{uuid}": {},
+}
 
 func CredentialMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			logger := util.GetLogger(r.Context())
 
-			// Passthrough routes always use gcnvadmin credentials.
-			// Admin operations (snaplock, EBR, litigation) are handled by ogen handlers
-			// which call SetupCredentialsForHandler() directly with CredentialTypeAdmin.
-			poolDetails, err := extractPoolDetailsFromRequest(r, CredentialTypeExpertModeUser)
+			// Passthrough routes use gcnvadmin by default. When SMC is enabled, use admin for
+			// SnapMirror relationships, access-token, and object-store APIs.
+			credentialType := CredentialTypeExpertModeUser
+			if smcOperationEnabled && isAdminCredentialPath(ontapproxyutils.ExtractOntapPath(r.URL.Path)) {
+				credentialType = CredentialTypeAdmin
+			}
+			poolDetails, err := extractPoolDetailsFromRequest(r, credentialType)
 			if err != nil {
 				logger.ErrorContext(r.Context(), "Failed to extract pool details", "error", err, "path", r.URL.Path)
 				// Check if this is an IAM role validation error vs URI validation error
@@ -192,6 +213,12 @@ func determineUserNameFromRBAC(ctx context.Context, req *http.Request) (string, 
 	default:
 		return roleUserName, nil
 	}
+}
+
+// isAdminCredentialPath returns true if the normalized ONTAP path exactly matches an entry in adminCredentialPaths.
+func isAdminCredentialPath(ontapPath string) bool {
+	_, ok := adminCredentialPaths[ontapPath]
+	return ok
 }
 
 func extractPoolDetailsFromRequest(req *http.Request, credentialType string) (*models.PoolDetails, error) {

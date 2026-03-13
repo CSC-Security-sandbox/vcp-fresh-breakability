@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	coreapiclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/core-api"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
@@ -486,6 +487,95 @@ func TestCredentialMiddleware_ErrorDistinction(t *testing.T) {
 
 		// Should succeed (200 OK) when validation is disabled
 		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
+
+func TestCredentialMiddleware_AdminPathUsesAdminCredentials(t *testing.T) {
+	// Verify that when the request path is an admin path (exact normalized match),
+	// the middleware selects admin credentials (poolDetails.UserName == admin).
+	originalFetch := fetchCredentialsFunc
+	defer func() { fetchCredentialsFunc = originalFetch }()
+
+	var capturedPoolDetails *models.PoolDetails
+	fetchCredentialsFunc = func(ctx context.Context, poolDetails *models.PoolDetails, jwtToken string, logger log.Logger) (*coreapiclient.OntapCredentialsV1, error) {
+		capturedPoolDetails = poolDetails
+		return mockFetchCredentials(ctx, poolDetails, jwtToken, logger)
+	}
+
+	t.Run("admin path selects admin user when SMC enabled", func(t *testing.T) {
+		old := smcOperationEnabled
+		smcOperationEnabled = true
+		defer func() { smcOperationEnabled = old }()
+
+		capturedPoolDetails = nil
+		req := httptest.NewRequest("GET", "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/snapmirror/relationships", nil)
+		w := httptest.NewRecorder()
+		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
+		CredentialMiddleware()(next).ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		require.NotNil(t, capturedPoolDetails, "fetchCredentials should have been called")
+		assert.Equal(t, AdminUserName, capturedPoolDetails.UserName, "admin path should use admin credentials when SMC enabled")
+	})
+
+	t.Run("admin path uses expert user when SMC disabled", func(t *testing.T) {
+		old := smcOperationEnabled
+		smcOperationEnabled = false
+		defer func() { smcOperationEnabled = old }()
+
+		capturedPoolDetails = nil
+		req := httptest.NewRequest("GET", "/v1beta/projects/9997/locations/us-central1/pools/smc-off-pool/ontap/api/snapmirror/relationships", nil)
+		w := httptest.NewRecorder()
+		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
+		CredentialMiddleware()(next).ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		require.NotNil(t, capturedPoolDetails, "fetchCredentials should have been called")
+		assert.NotEqual(t, AdminUserName, capturedPoolDetails.UserName, "admin path should use expert user when SMC disabled")
+	})
+
+	t.Run("non-admin path does not select admin user", func(t *testing.T) {
+		// SMC can be true or false; non-admin path should never get admin credentials
+		old := smcOperationEnabled
+		smcOperationEnabled = true
+		defer func() { smcOperationEnabled = old }()
+
+		capturedPoolDetails = nil
+		// Use a unique project/pool to avoid cache hit from other tests so fetchCredentials is called
+		req := httptest.NewRequest("GET", "/v1beta/projects/9998/locations/us-central1/pools/non-admin-pool/ontap/api/storage/volumes", nil)
+		w := httptest.NewRecorder()
+		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
+		CredentialMiddleware()(next).ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		require.NotNil(t, capturedPoolDetails, "fetchCredentials should have been called")
+		assert.NotEqual(t, AdminUserName, capturedPoolDetails.UserName, "non-admin path should not use admin credentials")
+	})
+}
+
+func TestIsAdminCredentialPath(t *testing.T) {
+	t.Run("SnapMirror relationships use admin (normalized paths)", func(t *testing.T) {
+		assert.True(t, isAdminCredentialPath("/api/snapmirror/relationships"))
+		assert.True(t, isAdminCredentialPath("/api/snapmirror/relationships/{uuid}"))
+		assert.True(t, isAdminCredentialPath("/api/snapmirror/relationships/{uuid}/transfers"))
+		assert.True(t, isAdminCredentialPath("/api/snapmirror/relationships/{uuid}/transfers/{uuid}"))
+		assert.True(t, isAdminCredentialPath("/api/snapmirror/relationships/{uuid}/restore"))
+	})
+	t.Run("access_tokens uses admin", func(t *testing.T) {
+		assert.True(t, isAdminCredentialPath("/api/cluster/licensing/access_tokens"))
+	})
+	t.Run("object-stores use admin (normalized paths)", func(t *testing.T) {
+		assert.True(t, isAdminCredentialPath("/api/snapmirror/object-stores/{uuid}"))
+		assert.True(t, isAdminCredentialPath("/api/snapmirror/object-stores/{uuid}/endpoints/{uuid}"))
+		assert.True(t, isAdminCredentialPath("/api/snapmirror/object-stores/{uuid}/endpoints/{uuid}/snapshots"))
+		assert.True(t, isAdminCredentialPath("/api/snapmirror/object-stores/{uuid}/endpoints/{uuid}/snapshots/{uuid}"))
+	})
+	t.Run("other paths do not use admin", func(t *testing.T) {
+		assert.False(t, isAdminCredentialPath("/api/storage/volumes"))
+		assert.False(t, isAdminCredentialPath("/api/snapmirror/policies"))
+		assert.False(t, isAdminCredentialPath("/api/other/snapmirror/relationships"))
+		assert.False(t, isAdminCredentialPath("/api/cluster/licensing/licenses"))
+		assert.False(t, isAdminCredentialPath(""))
 	})
 }
 

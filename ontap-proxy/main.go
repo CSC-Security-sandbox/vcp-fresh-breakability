@@ -121,15 +121,6 @@ func setupHTTPServer(handler http.Handler) *http.Server {
 		// CLI execute - delegated to ogen server which handles auth and CLI rules internally
 		r.Post("/api/private/cli", handler.ServeHTTP)
 
-		// Cluster licensing access token API (SM-C) uses admin credentials and is handled by ogen server
-		r.Post("/api/cluster/licensing/access_tokens", handler.ServeHTTP)
-
-		// SnapMirror object store APIs - admin credentials, handled by ogen server
-		r.Get("/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}", handler.ServeHTTP)
-		r.Delete("/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}", handler.ServeHTTP)
-		r.Get("/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots", handler.ServeHTTP)
-		r.Delete("/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots/{snapshotId}", handler.ServeHTTP)
-
 		// Event retention (EBR) policies - CLI-based, handled by ogen server (bulk DELETE/PATCH denied via rule engine)
 		r.Get("/api/storage/snaplock/event-retention/policies", handler.ServeHTTP)
 		r.Post("/api/storage/snaplock/event-retention/policies", handler.ServeHTTP)

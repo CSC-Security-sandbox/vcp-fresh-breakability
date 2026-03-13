@@ -58,9 +58,9 @@ func TestExtractOntapPath(t *testing.T) {
 			expected: "/api/storage/qtrees",
 		},
 		{
-			name:     "ONTAP API path with UUID",
+			name:     "ONTAP API path with UUID returns normalized path",
 			fullPath: "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/volumes/550e8400-e29b-41d4-a716-446655440000",
-			expected: "/api/storage/volumes/550e8400-e29b-41d4-a716-446655440000",
+			expected: "/api/storage/volumes/{uuid}",
 		},
 		{
 			name:     "ONTAP API path with nested paths",
@@ -88,6 +88,38 @@ func TestExtractOntapPath(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := ExtractOntapPath(tt.fullPath)
 			assert.Equal(t, tt.expected, result, "ExtractOntapPath(%q) = %q, want %q", tt.fullPath, result, tt.expected)
+		})
+	}
+}
+
+func TestExtractOntapPathRaw(t *testing.T) {
+	// Raw path keeps UUIDs as-is (used when forwarding to ONTAP)
+	t.Run("path with UUID is not normalized", func(t *testing.T) {
+		fullPath := "/v1beta/projects/1234/locations/us-central1/pools/my-pool/ontap/api/storage/volumes/550e8400-e29b-41d4-a716-446655440000"
+		result := ExtractOntapPathRaw(fullPath)
+		assert.Equal(t, "/api/storage/volumes/550e8400-e29b-41d4-a716-446655440000", result)
+	})
+	t.Run("path without ontap returns empty", func(t *testing.T) {
+		result := ExtractOntapPathRaw("/v1beta/projects/1234/pools/my-pool")
+		assert.Equal(t, "", result)
+	})
+}
+
+func TestNormalizeUUIDs(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		expected string
+	}{
+		{"single UUID", "/api/storage/volumes/550e8400-e29b-41d4-a716-446655440000", "/api/storage/volumes/{uuid}"},
+		{"multiple UUIDs", "/api/storage/volumes/550e8400-e29b-41d4-a716-446655440000/snapshots/660e8400-e29b-41d4-a716-446655440001", "/api/storage/volumes/{uuid}/snapshots/{uuid}"},
+		{"no UUID", "/api/storage/volumes", "/api/storage/volumes"},
+		{"non-UUID segment unchanged", "/api/storage/volumes/12345/snapshots", "/api/storage/volumes/12345/snapshots"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := NormalizeUUIDs(tt.path)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }

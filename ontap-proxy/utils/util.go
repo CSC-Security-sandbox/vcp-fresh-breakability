@@ -36,6 +36,9 @@ var (
 	snaplockOperationIDFromBeginEndRe = regexp.MustCompile(`-operation-id\s+(\d+)`)
 )
 
+// uuidPattern matches UUID-like segments in URL paths (8-4-4-4-12 hex).
+var uuidPattern = regexp.MustCompile(`/[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}`)
+
 // ontapErrorResponse matches the ONTAP REST API error response JSON (same shape as handlers.OntapErrorResponse).
 type ontapErrorResponse struct {
 	Error *ontapError `json:"error,omitempty"`
@@ -67,7 +70,8 @@ type OperationStatusRecord struct {
 	StatusDetails     string
 }
 
-func ExtractOntapPath(fullPath string) string {
+// extractOntapPathRaw returns the path segment after OntapAPISegment, without normalization.
+func extractOntapPathRaw(fullPath string) string {
 	parts := strings.Split(fullPath, "/")
 
 	ontapApiIndex := -1
@@ -82,8 +86,29 @@ func ExtractOntapPath(fullPath string) string {
 		return ""
 	}
 
-	ontapPath := "/" + strings.Join(parts[ontapApiIndex+1:], "/")
-	return ontapPath
+	return "/" + strings.Join(parts[ontapApiIndex+1:], "/")
+}
+
+// ExtractOntapPath returns the ONTAP path from the full request path with UUIDs normalized to {uuid}
+// for stable path matching (e.g. credential and rule engine). Use ExtractOntapPathRaw when forwarding
+// the path to ONTAP.
+func ExtractOntapPath(fullPath string) string {
+	ontapPath := extractOntapPathRaw(fullPath)
+	if ontapPath == "" {
+		return ""
+	}
+	return NormalizeUUIDs(ontapPath)
+}
+
+// ExtractOntapPathRaw returns the ONTAP path from the full request path without normalization.
+// Use this when setting the request path sent to ONTAP (e.g. in the reverse proxy).
+func ExtractOntapPathRaw(fullPath string) string {
+	return extractOntapPathRaw(fullPath)
+}
+
+// NormalizeUUIDs replaces UUID-like path segments with {uuid} for stable matching.
+func NormalizeUUIDs(path string) string {
+	return uuidPattern.ReplaceAllString(path, "/{uuid}")
 }
 
 // WriteErrorResponse writes a JSON error response with code and message to the ResponseWriter.

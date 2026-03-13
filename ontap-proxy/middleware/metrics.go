@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	ontapproxyutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/utils"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -327,7 +328,7 @@ func normalizePath(path string) string {
 	normalized := ontapPath
 
 	// Step 1: Replace UUIDs with {uuid}
-	normalized = uuidPattern.ReplaceAllString(normalized, "/{uuid}")
+	normalized = ontapproxyutils.NormalizeUUIDs(normalized)
 
 	// Step 2: Replace numeric IDs in API paths with {id}
 	normalized = numericIDPattern.ReplaceAllString(normalized, "/{id}")
@@ -368,7 +369,7 @@ func normalizeFullPath(path string) string {
 	normalized = poolIDPattern.ReplaceAllString(normalized, "/pools/{pool}")
 
 	// Replace UUIDs with {uuid}
-	normalized = uuidPattern.ReplaceAllString(normalized, "/{uuid}")
+	normalized = ontapproxyutils.NormalizeUUIDs(normalized)
 
 	// Replace numeric IDs in API paths with {id}
 	if strings.Contains(normalized, "/api/") {

@@ -56,20 +56,6 @@ func (UnimplementedHandler) V1AbortEventRetentionOperation(ctx context.Context, 
 	return r, ht.ErrNotImplemented
 }
 
-// V1ClusterLicensingAccessTokensCreate implements v1_clusterLicensingAccessTokensCreate operation.
-//
-// Generates SM-C access token (same as ONTAP REST POST /api/cluster/licensing/access_tokens).
-// This operation:
-// 1. Fetches admin credentials for the pool
-// 2. Forwards the request body to ONTAP POST /api/cluster/licensing/access_tokens
-// 3. Returns the access token information from ONTAP
-// Requires the caller to have netapp.googleapis.com/ontapModeAdmin permission.
-//
-// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/cluster/licensing/access_tokens
-func (UnimplementedHandler) V1ClusterLicensingAccessTokensCreate(ctx context.Context, req *AccessTokenRequest, params V1ClusterLicensingAccessTokensCreateParams) (r V1ClusterLicensingAccessTokensCreateRes, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
 // V1CreateEventRetentionOperation implements v1_createEventRetentionOperation operation.
 //
 // Starts an EBR operation to apply an Event Based Retention policy to a path on a volume.
@@ -94,18 +80,6 @@ func (UnimplementedHandler) V1CreateEventRetentionPolicy(ctx context.Context, re
 	return r, ht.ErrNotImplemented
 }
 
-// V1DeleteDestinationEndpoint implements v1_deleteDestinationEndpoint operation.
-//
-// Deletes all data of the specified endpoint within the object store (populated by SnapMirror).
-// Proxies to ONTAP DELETE
-// /api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}.
-// Depends on an existing SnapMirror relationship.
-//
-// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}
-func (UnimplementedHandler) V1DeleteDestinationEndpoint(ctx context.Context, params V1DeleteDestinationEndpointParams) (r V1DeleteDestinationEndpointRes, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
 // V1DeleteEventRetentionPolicy implements v1_deleteEventRetentionPolicy operation.
 //
 // Deletes the specified Event Based Retention (EBR) policy.
@@ -113,30 +87,6 @@ func (UnimplementedHandler) V1DeleteDestinationEndpoint(ctx context.Context, par
 //
 // DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies/{policy.name}
 func (UnimplementedHandler) V1DeleteEventRetentionPolicy(ctx context.Context, params V1DeleteEventRetentionPolicyParams) (r V1DeleteEventRetentionPolicyRes, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// V1DeleteSnapshot implements v1_deleteSnapshot operation.
-//
-// Deletes a snapshot from the object store endpoint.
-// Proxies to ONTAP DELETE
-// /api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots/{snapshotId}.
-// Depends on an existing SnapMirror relationship.
-//
-// DELETE /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots/{snapshotId}
-func (UnimplementedHandler) V1DeleteSnapshot(ctx context.Context, params V1DeleteSnapshotParams) (r V1DeleteSnapshotRes, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// V1GetDestinationEndpointInfo implements v1_getDestinationEndpointInfo operation.
-//
-// Retrieves information for the specified SnapMirror object store destination endpoint.
-// Proxies to ONTAP GET
-// /api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}.
-// Depends on an existing SnapMirror relationship (created via POST /api/snapmirror/relationships).
-//
-// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}
-func (UnimplementedHandler) V1GetDestinationEndpointInfo(ctx context.Context, params V1GetDestinationEndpointInfoParams) (r V1GetDestinationEndpointInfoRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -157,18 +107,6 @@ func (UnimplementedHandler) V1GetEventRetentionOperation(ctx context.Context, pa
 //
 // GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/event-retention/policies/{policy.name}
 func (UnimplementedHandler) V1GetEventRetentionPolicy(ctx context.Context, params V1GetEventRetentionPolicyParams) (r V1GetEventRetentionPolicyRes, _ error) {
-	return r, ht.ErrNotImplemented
-}
-
-// V1GetSnapshots implements v1_getSnapshots operation.
-//
-// Retrieves snapshot information for the specified object store endpoint.
-// Proxies to ONTAP GET
-// /api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots.
-// Depends on an existing SnapMirror relationship.
-//
-// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/snapmirror/object-stores/{objectStoreId}/endpoints/{destinationEndpointId}/snapshots
-func (UnimplementedHandler) V1GetSnapshots(ctx context.Context, params V1GetSnapshotsParams) (r V1GetSnapshotsRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
