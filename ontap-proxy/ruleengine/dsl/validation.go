@@ -11,6 +11,50 @@ import (
 // - (false, "reason") if the condition fails, with a specific reason
 type Condition func(r *http.Request) (bool, string)
 
+// checkTwoFieldsExist normalizes fieldA and fieldB and reports whether each exists in data.
+func checkTwoFieldsExist(data map[string]interface{}, fieldA, fieldB string) (hasA, hasB bool) {
+	pathA := normalizeJSONPath(fieldA)
+	pathB := normalizeJSONPath(fieldB)
+	return fieldExists(data, pathA), fieldExists(data, pathB)
+}
+
+// HasExactlyOneOf creates a condition that checks that exactly one of the two fields exists.
+// Fails with missingReason if neither exists, or bothReason if both exist.
+// Uses cached parsed body from context if available.
+func HasExactlyOneOf(fieldA, fieldB, missingReason, bothReason string) Condition {
+	return func(r *http.Request) (bool, string) {
+		data, parseErr := GetParsedBody(r)
+		if parseErr != "" {
+			return false, parseErr
+		}
+		hasA, hasB := checkTwoFieldsExist(data, fieldA, fieldB)
+		if hasA && hasB {
+			return false, bothReason
+		}
+		if !hasA && !hasB {
+			return false, missingReason
+		}
+		return true, ""
+	}
+}
+
+// HasAtMostOneOf creates a condition that checks that at most one of the two fields exists.
+// Fails with bothReason only when both exist; passes when zero or one is present.
+// Uses cached parsed body from context if available.
+func HasAtMostOneOf(fieldA, fieldB, bothReason string) Condition {
+	return func(r *http.Request) (bool, string) {
+		data, parseErr := GetParsedBody(r)
+		if parseErr != "" {
+			return false, parseErr
+		}
+		hasA, hasB := checkTwoFieldsExist(data, fieldA, fieldB)
+		if hasA && hasB {
+			return false, bothReason
+		}
+		return true, ""
+	}
+}
+
 // HasFields creates a condition that checks if the request body contains the specified fields.
 // Returns a failure reason listing which fields are missing.
 // Uses cached parsed body from context if available.

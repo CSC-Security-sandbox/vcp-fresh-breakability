@@ -26,17 +26,18 @@ var (
 )
 
 type VolumeRequestFields struct {
-	VolumeName  string
-	SizeInBytes float64
-	SvmUuid     coreapi.OptString
-	SvmName     coreapi.OptString
+	VolumeName   string
+	SizeInBytes  float64
+	SizeProvided bool // true when "size" or "space.size" was present in the request (so 0 can mean "invalid" not "absent")
+	SvmUuid      coreapi.OptString
+	SvmName      coreapi.OptString
 }
 
 func parseVolumeRequestFields(requestBody map[string]interface{}) VolumeRequestFields {
 	fields := VolumeRequestFields{}
 	if requestBody != nil {
 		fields.VolumeName, _ = requestBody["name"].(string)
-		fields.SizeInBytes = parseSize(requestBody["size"])
+		fields.SizeInBytes, fields.SizeProvided = parseSizeFromVolumeBody(requestBody)
 		if svm, ok := requestBody["svm"].(map[string]interface{}); ok {
 			if uuid, ok := svm["uuid"].(string); ok && uuid != "" {
 				fields.SvmUuid = coreapi.NewOptString(uuid)
@@ -47,6 +48,63 @@ func parseVolumeRequestFields(requestBody map[string]interface{}) VolumeRequestF
 		}
 	}
 	return fields
+}
+
+// getSizeRawFromVolumeBody returns the raw size value and the JSON path it came from
+// ("size", "space.size", or "" if neither is present). Single place for body-walk logic.
+func getSizeRawFromVolumeBody(requestBody map[string]interface{}) (raw interface{}, fieldPath string) {
+	if requestBody == nil {
+		return nil, ""
+	}
+	if raw, ok := requestBody["size"]; ok {
+		return raw, "size"
+	}
+	if space, ok := requestBody["space"].(map[string]interface{}); ok && space != nil {
+		if raw, ok := space["size"]; ok {
+			return raw, "space.size"
+		}
+	}
+	return nil, ""
+}
+
+// parseSizeFromVolumeBody returns size in bytes from "size" or "space.size", and whether
+// either field was present. When found is false, size is 0 and callers must not treat that
+// as "invalid size" (e.g. on PATCH, neither size nor space.size may be present).
+// When found is true, size may still be 0 meaning the provided value was invalid.
+func parseSizeFromVolumeBody(requestBody map[string]interface{}) (size float64, found bool) {
+	raw, path := getSizeRawFromVolumeBody(requestBody)
+	if path == "" {
+		return 0, false
+	}
+	if raw == nil {
+		return 0, true
+	}
+	return parseSize(raw), true
+}
+
+// getSizeValueFromVolumeBody returns the raw size value (for error messages) from "size" or "space.size".
+func getSizeValueFromVolumeBody(requestBody map[string]interface{}) interface{} {
+	raw, path := getSizeRawFromVolumeBody(requestBody)
+	if path == "" {
+		return nil
+	}
+	return raw
+}
+
+// hasSpaceSize returns true if request body contains space.size.
+func hasSpaceSize(requestBody map[string]interface{}) bool {
+	_, path := getSizeRawFromVolumeBody(requestBody)
+	return path == "space.size"
+}
+
+// getSizeFieldPath returns the JSON path that supplied the size value ("size" or "space.size")
+// so error messages match the client's input.
+func getSizeFieldPath(requestBody map[string]interface{}) string {
+	_, path := getSizeRawFromVolumeBody(requestBody)
+	if path != "" {
+		return path
+	}
+	return "size"
 }
 
 func _validateVolumeCreation(r *http.Request) (bool, string) {
@@ -67,10 +125,11 @@ func _validateVolumeCreation(r *http.Request) (bool, string) {
 
 	fields := parseVolumeRequestFields(requestBody)
 
-	// Reject invalid size (parsed to 0)
-	if fields.SizeInBytes == 0 {
-		orig := requestBody["size"]
-		return false, fmt.Sprintf("\"%v\" is an invalid value for field \"size\"", orig)
+	// Reject invalid size only when a size field was provided and parsed to 0
+	if fields.SizeProvided && fields.SizeInBytes == 0 {
+		orig := getSizeValueFromVolumeBody(requestBody)
+		fieldPath := getSizeFieldPath(requestBody)
+		return false, fmt.Sprintf("\"%v\" is an invalid value for field \"%s\"", orig, fieldPath)
 	}
 
 	expertVolumeRequest := &coreapi.ExpertModeVolumeV1{
@@ -110,14 +169,16 @@ func _validateVolumeModification(r *http.Request) (bool, string) {
 	fields := parseVolumeRequestFields(requestBody)
 	volumeUUID := extractVolumeUUIDFromRequest(r)
 
-	// Trigger reconcile only if name or size is being modified
+	// Trigger reconcile only if name or size is being modified (size may be top-level or space.size)
 	_, nameExists := requestBody["name"]
-	sizeValue, sizeExists := requestBody["size"]
+	_, topLevelSizeExists := requestBody["size"]
+	spaceSizeExists := hasSpaceSize(requestBody)
+	sizeExists := topLevelSizeExists || spaceSizeExists
 
-	if sizeExists {
-		if fields.SizeInBytes == 0 {
-			return false, fmt.Sprintf("\"%v\" is an invalid value for field \"size\"", sizeValue)
-		}
+	if fields.SizeProvided && fields.SizeInBytes == 0 {
+		orig := getSizeValueFromVolumeBody(requestBody)
+		fieldPath := getSizeFieldPath(requestBody)
+		return false, fmt.Sprintf("\"%v\" is an invalid value for field \"%s\"", orig, fieldPath)
 	}
 
 	if !nameExists && !sizeExists {

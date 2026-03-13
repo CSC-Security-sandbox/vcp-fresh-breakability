@@ -484,7 +484,36 @@ func TestStorageVolumesRule(t *testing.T) {
 		assert.True(t, allowed, "POST with snaplock.type=compliance should be allowed (snaplock type not validated); got reason: %s", reason)
 	})
 
-	t.Run("WhenPOSTWithoutSizeField_ShouldDeny", func(t *testing.T) {
+	t.Run("WhenPOSTWithSpaceSizeOnly_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/volumes"]
+		body := bytes.NewBufferString(`{"name": "test-volume", "space": {"size": 1073741824}}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/storage/volumes", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "POST with name and space.size (no top-level size) should be allowed")
+	})
+
+	t.Run("WhenPOSTWithBothSizeAndSpaceSize_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/volumes"]
+		body := bytes.NewBufferString(`{"size": 1073741824, "name": "test-volume", "space": {"size": 2147483648}}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/storage/volumes", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "POST with both 'size' and 'space.size' should be denied")
+		assert.Contains(t, reason, "use one or the other")
+	})
+
+	t.Run("WhenPOSTWithoutSizeOrSpaceSize_ShouldDeny", func(t *testing.T) {
 		rules := GetProxyRules()
 		rule := rules["/api/storage/volumes"]
 		body := bytes.NewBufferString(`{"name": "test-volume"}`)
@@ -495,7 +524,7 @@ func TestStorageVolumesRule(t *testing.T) {
 
 		assert.NotNil(t, action)
 		allowed, reason := action.ShouldAllow(req)
-		assert.False(t, allowed, "POST without 'size' field should be denied")
+		assert.False(t, allowed, "POST without 'size' or 'space.size' should be denied")
 		assert.NotEmpty(t, reason)
 	})
 
@@ -637,6 +666,21 @@ func TestStorageVolumesUUIDRule(t *testing.T) {
 		assert.NotNil(t, action)
 		allowed, _ := action.ShouldAllow(req)
 		assert.True(t, allowed, "PATCH with only comment should be allowed")
+	})
+
+	t.Run("WhenPATCHWithBothSizeAndSpaceSize_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/volumes/{uuid}"]
+		body := bytes.NewBufferString(`{"size": 2147483648, "space": {"size": 3221225472}}`)
+		req := httptest.NewRequest(http.MethodPatch, "/api/storage/volumes/550e8400-e29b-41d4-a716-446655440000", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "PATCH with both 'size' and 'space.size' should be denied")
+		assert.Contains(t, reason, "use one or the other")
 	})
 
 	t.Run("WhenDELETE_ShouldAllow", func(t *testing.T) {

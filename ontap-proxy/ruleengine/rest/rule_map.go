@@ -43,7 +43,12 @@ func GetProxyRules() map[string]Rule {
 				Name: "Volume creation validation",
 				// All conditions return (bool, reason) - And() returns the first failure reason
 				Condition: And(
-					HasFields("size", "name"),
+					HasFields("name"),
+					HasExactlyOneOf(
+						"size", "space.size",
+						"missing required field(s): size or space.size",
+						"cannot specify both 'size' and 'space.size'; use one or the other",
+					),
 					IfPresentThenValue("guarantee.type", "none"),
 					IfPresentThenEquals("space.logical_space.enforcement", true),
 					IfPresentThenEquals("space.logical_space.reporting", true),
@@ -123,6 +128,7 @@ func GetProxyRules() map[string]Rule {
 			PATCH: When{
 				Name: "Volume modification validation",
 				Condition: And(
+					HasAtMostOneOf("size", "space.size", "cannot specify both 'size' and 'space.size'; use one or the other"),
 					IfPresentThenValue("guarantee.type", "none"),
 					IfPresentThenEquals("space.logical_space.enforcement", true),
 					validateVolumeModification,

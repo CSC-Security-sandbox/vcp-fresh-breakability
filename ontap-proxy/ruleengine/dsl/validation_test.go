@@ -104,6 +104,127 @@ func TestHasFields(t *testing.T) {
 	})
 }
 
+func TestHasExactlyOneOf(t *testing.T) {
+	missingReason := "missing required field(s): size or space.size"
+	bothReason := "cannot specify both 'size' and 'space.size'; use one or the other"
+
+	t.Run("WhenExactlySize_ShouldReturnTrue", func(t *testing.T) {
+		condition := HasExactlyOneOf("size", "space.size", missingReason, bothReason)
+		req := createRequestWithBody(`{"size": 1024}`)
+
+		result, reason := condition(req)
+
+		assert.True(t, result)
+		assert.Empty(t, reason)
+	})
+
+	t.Run("WhenExactlySpaceSize_ShouldReturnTrue", func(t *testing.T) {
+		condition := HasExactlyOneOf("size", "space.size", missingReason, bothReason)
+		req := createRequestWithBody(`{"space": {"size": 2048}}`)
+
+		result, reason := condition(req)
+
+		assert.True(t, result)
+		assert.Empty(t, reason)
+	})
+
+	t.Run("WhenBothPresent_ShouldReturnFalseWithBothReason", func(t *testing.T) {
+		condition := HasExactlyOneOf("size", "space.size", missingReason, bothReason)
+		req := createRequestWithBody(`{"size": 1024, "space": {"size": 2048}}`)
+
+		result, reason := condition(req)
+
+		assert.False(t, result)
+		assert.Equal(t, bothReason, reason)
+	})
+
+	t.Run("WhenNeitherPresent_ShouldReturnFalseWithMissingReason", func(t *testing.T) {
+		condition := HasExactlyOneOf("size", "space.size", missingReason, bothReason)
+		req := createRequestWithBody(`{"name": "vol1"}`)
+
+		result, reason := condition(req)
+
+		assert.False(t, result)
+		assert.Equal(t, missingReason, reason)
+	})
+}
+
+func TestHasAtMostOneOf(t *testing.T) {
+	bothReason := "cannot specify both 'size' and 'space.size'; use one or the other"
+
+	t.Run("WhenNeitherPresent_ShouldReturnTrue", func(t *testing.T) {
+		condition := HasAtMostOneOf("size", "space.size", bothReason)
+		req := createRequestWithBody(`{"name": "vol1"}`)
+
+		result, reason := condition(req)
+
+		assert.True(t, result)
+		assert.Empty(t, reason)
+	})
+
+	t.Run("WhenOnlySize_ShouldReturnTrue", func(t *testing.T) {
+		condition := HasAtMostOneOf("size", "space.size", bothReason)
+		req := createRequestWithBody(`{"size": 1024}`)
+
+		result, reason := condition(req)
+
+		assert.True(t, result)
+		assert.Empty(t, reason)
+	})
+
+	t.Run("WhenOnlySpaceSize_ShouldReturnTrue", func(t *testing.T) {
+		condition := HasAtMostOneOf("size", "space.size", bothReason)
+		req := createRequestWithBody(`{"space": {"size": 2048}}`)
+
+		result, reason := condition(req)
+
+		assert.True(t, result)
+		assert.Empty(t, reason)
+	})
+
+	t.Run("WhenBothPresent_ShouldReturnFalseWithBothReason", func(t *testing.T) {
+		condition := HasAtMostOneOf("size", "space.size", bothReason)
+		req := createRequestWithBody(`{"size": 1024, "space": {"size": 2048}}`)
+
+		result, reason := condition(req)
+
+		assert.False(t, result)
+		assert.Equal(t, bothReason, reason)
+	})
+}
+
+func TestCheckTwoFieldsExist(t *testing.T) {
+	t.Run("WhenOnlyFirstFieldExists_ReturnsTrueFalse", func(t *testing.T) {
+		data := map[string]interface{}{"size": float64(1024)}
+		hasA, hasB := checkTwoFieldsExist(data, "size", "space.size")
+		assert.True(t, hasA)
+		assert.False(t, hasB)
+	})
+	t.Run("WhenOnlySecondFieldExists_ReturnsFalseTrue", func(t *testing.T) {
+		data := map[string]interface{}{"space": map[string]interface{}{"size": float64(2048)}}
+		hasA, hasB := checkTwoFieldsExist(data, "size", "space.size")
+		assert.False(t, hasA)
+		assert.True(t, hasB)
+	})
+	t.Run("WhenBothExist_ReturnsTrueTrue", func(t *testing.T) {
+		data := map[string]interface{}{"size": float64(1024), "space": map[string]interface{}{"size": float64(2048)}}
+		hasA, hasB := checkTwoFieldsExist(data, "size", "space.size")
+		assert.True(t, hasA)
+		assert.True(t, hasB)
+	})
+	t.Run("WhenNeitherExists_ReturnsFalseFalse", func(t *testing.T) {
+		data := map[string]interface{}{"name": "vol1"}
+		hasA, hasB := checkTwoFieldsExist(data, "size", "space.size")
+		assert.False(t, hasA)
+		assert.False(t, hasB)
+	})
+	t.Run("WhenDataNil_ReturnsFalseFalse", func(t *testing.T) {
+		hasA, hasB := checkTwoFieldsExist(nil, "size", "space.size")
+		assert.False(t, hasA)
+		assert.False(t, hasB)
+	})
+}
+
 func TestHasFieldValue(t *testing.T) {
 	t.Run("WhenFieldHasExpectedValue_ShouldReturnTrue", func(t *testing.T) {
 		condition := HasFieldValue("type", "volume")
