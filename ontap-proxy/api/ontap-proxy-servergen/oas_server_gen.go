@@ -160,8 +160,8 @@ type Handler interface {
 	// V1SnaplockLitigationBegin implements v1_snaplockLitigationBegin operation.
 	//
 	// Starts a legal hold on a path in a SnapLock volume.
-	// Uses ONTAP CLI `snaplock legal-hold begin`. Required properties: litigation_name, path,
-	// volume_uuid.
+	// Uses ONTAP CLI `snaplock legal-hold begin`. Required: litigation_name, path, volume (provide
+	// volume.name or volume.uuid).
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/litigations
 	V1SnaplockLitigationBegin(ctx context.Context, req *SnaplockLitigationBeginRequest, params V1SnaplockLitigationBeginParams) (V1SnaplockLitigationBeginRes, error)

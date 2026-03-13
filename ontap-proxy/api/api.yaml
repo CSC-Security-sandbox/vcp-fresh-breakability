@@ -393,7 +393,7 @@ paths:
       summary: Start a SnapLock legal hold (litigation)
       description: |
         Starts a legal hold on a path in a SnapLock volume.
-        Uses ONTAP CLI `snaplock legal-hold begin`. Required properties: litigation_name, path, volume_uuid.
+        Uses ONTAP CLI `snaplock legal-hold begin`. Required: litigation_name, path, volume (provide volume.name or volume.uuid).
       tags:
         - snaplock
       parameters:
@@ -1481,11 +1481,11 @@ components:
       description: |
         Request body for starting a SnapLock litigation (legal hold).
         Aligns with ONTAP POST /api/storage/snaplock/litigations (snaplock_litigation).
-        Proxy accepts litigation_name, path, volume_uuid (volume.uuid in ONTAP).
+        Proxy accepts litigation_name, path, and volume (provide name or uuid), same pattern as EBROperationCreate.
       required:
         - litigation_name
         - path
-        - volume_uuid
+        - volume
       properties:
         litigation_name:
           type: string
@@ -1496,11 +1496,19 @@ components:
           type: string
           description: Specifies the path on which legal-hold operation has to be applied (e.g. /dir1 or /)
           example: "/dir1"
-        volume_uuid:
-          type: string
-          format: uuid
-          description: Unique identifier for the volume (ONTAP volume.uuid). Corresponds to instance-uuid in CLI.
-          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        volume:
+          type: object
+          description: Volume (provide name or uuid)
+          properties:
+            name:
+              type: string
+              description: Volume name
+              example: "vol1"
+            uuid:
+              type: string
+              format: uuid
+              description: Volume UUID (ONTAP volume.uuid). Corresponds to instance-uuid in CLI.
+              example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
     SnaplockLitigationResponse:
       type: object
       title: SnaplockLitigationResponse
@@ -1514,7 +1522,7 @@ components:
               $ref: '#/components/schemas/Href'
         id:
           type: string
-          description: Specifies the litigation ID (volume_uuid:litigation_name). Read-only.
+          description: Specifies the litigation ID (volume.uuid:litigation_name). Read-only.
         name:
           type: string
           description: Specifies the legal-hold litigation name
@@ -1571,7 +1579,7 @@ components:
       properties:
         id:
           type: string
-          description: Litigation ID (volume_uuid:litigation_name). Read-only.
+          description: Litigation ID (volume.uuid:litigation_name). Read-only.
           example: "47e1d46f-1cbf-11f1-a9c9-c3ccd0d4d151:litigation-001"
         name:
           type: string

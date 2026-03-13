@@ -18,6 +18,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
+const snaplockIAMRoleRequiredMessage = "user is not authorized for this operation"
+
 var (
 	snapLockOperationEnabled   = env.GetBool("SNAPLOCK_OPERATION_ENABLED", false)
 	privateCliOperationEnabled = env.GetBool("PRIVATE_CLI_OPERATION_ENABLED", false)
@@ -94,6 +96,13 @@ func (h Handler) SnaplockFileDelete(
 		return &oasgenserver.SnaplockFileDeleteBadRequest{
 			Code:    400,
 			Message: "Snaplock file delete operation is disabled",
+		}, nil
+	}
+
+	if !middleware.IsIAMRoleHeaderSnaplockExistInContext(ctx, middleware.PrivilegedDeleteRole) {
+		return &oasgenserver.SnaplockFileDeleteForbidden{
+			Code:    http.StatusForbidden,
+			Message: snaplockIAMRoleRequiredMessage,
 		}, nil
 	}
 
@@ -348,10 +357,32 @@ func (h Handler) V1SnaplockLitigationBegin(
 		}, nil
 	}
 
-	if req == nil || req.LitigationName == "" || req.Path == "" {
+	if !middleware.IsIAMRoleHeaderSnaplockExistInContext(ctx, middleware.ManageSnaplockRole) {
+		return &oasgenserver.V1SnaplockLitigationBeginForbidden{
+			Code:    http.StatusForbidden,
+			Message: snaplockIAMRoleRequiredMessage,
+		}, nil
+	}
+
+	if req == nil || strings.TrimSpace(req.LitigationName) == "" || strings.TrimSpace(req.Path) == "" {
 		return &oasgenserver.V1SnaplockLitigationBeginBadRequest{
 			Code:    400,
-			Message: "litigation_name, path, and volume_uuid are required",
+			Message: "litigation_name, path, and volume (name or uuid) are required",
+		}, nil
+	}
+	var volumeName string
+	var volumeUUID string
+	vol := req.Volume
+	if vol.Name.IsSet() && strings.TrimSpace(vol.Name.Value) != "" {
+		volumeName = strings.TrimSpace(vol.Name.Value)
+	}
+	if vol.UUID.IsSet() {
+		volumeUUID = vol.UUID.Value.String()
+	}
+	if volumeName == "" && volumeUUID == "" {
+		return &oasgenserver.V1SnaplockLitigationBeginBadRequest{
+			Code:    400,
+			Message: "volume (name or uuid) is required",
 		}, nil
 	}
 
@@ -360,7 +391,8 @@ func (h Handler) V1SnaplockLitigationBegin(
 		"poolId", params.PoolId.String(),
 		"litigationName", req.LitigationName,
 		"path", req.Path,
-		"volumeUuid", req.VolumeUUID.String(),
+		"volumeName", volumeName,
+		"volumeUuid", volumeUUID,
 	)
 
 	ctx, err := setupCredentialsForHandler(ctx, params.ProjectNumber, params.PoolId.String(), middleware.CredentialTypeAdmin)
@@ -389,13 +421,39 @@ func (h Handler) V1SnaplockLitigationBegin(
 		}, nil
 	}
 
-	volumeInfo, err := ontapClient.GetVolume(ctx, req.VolumeUUID.String())
-	if err != nil {
-		logger.ErrorContext(ctx, "Failed to get volume info", "volumeUuid", req.VolumeUUID.String(), "error", err)
-		return &oasgenserver.V1SnaplockLitigationBeginNotFound{
-			Code:    404,
-			Message: fmt.Sprintf("volume not found: %s", err.Error()),
-		}, nil
+	// Resolve to volume info: by UUID (GetVolume) or by name (ListVolumesWithSvm), same pattern as EBROperationCreate.
+	var volumeInfo *handlers.VolumeInfo
+	if volumeUUID != "" {
+		info, err := ontapClient.GetVolume(ctx, volumeUUID)
+		if err != nil {
+			logger.ErrorContext(ctx, "Failed to get volume info", "volumeUuid", volumeUUID, "error", err)
+			return &oasgenserver.V1SnaplockLitigationBeginNotFound{
+				Code:    404,
+				Message: fmt.Sprintf("volume not found: %s", err.Error()),
+			}, nil
+		}
+		volumeInfo = info
+	} else {
+		volumes, err := ontapClient.ListVolumesWithSvm(ctx, 1000)
+		if err != nil {
+			logger.ErrorContext(ctx, "Failed to list volumes", "error", err)
+			return &oasgenserver.V1SnaplockLitigationBeginInternalServerError{
+				Code:    500,
+				Message: fmt.Sprintf("failed to list volumes: %s", err.Error()),
+			}, nil
+		}
+		for i := range volumes {
+			if volumes[i].Name == volumeName {
+				volumeInfo = &volumes[i]
+				break
+			}
+		}
+		if volumeInfo == nil {
+			return &oasgenserver.V1SnaplockLitigationBeginNotFound{
+				Code:    404,
+				Message: fmt.Sprintf("volume not found: %s", volumeName),
+			}, nil
+		}
 	}
 	if volumeInfo.Name == "" || volumeInfo.SVM.Name == "" {
 		return &oasgenserver.V1SnaplockLitigationBeginBadRequest{
@@ -403,6 +461,7 @@ func (h Handler) V1SnaplockLitigationBegin(
 			Message: "volume information is incomplete",
 		}, nil
 	}
+	volumeUUID = volumeInfo.UUID
 
 	cliCommand := handlers.BuildSnaplockLegalHoldBeginCommand(req.LitigationName, volumeInfo.Name, req.Path, volumeInfo.SVM.Name)
 	cliResponse, err := ontapClient.ExecuteCLI(ctx, cliCommand, handlers.SnaplockPrivilegeLevel)
@@ -436,7 +495,7 @@ func (h Handler) V1SnaplockLitigationBegin(
 	}
 
 	return &oasgenserver.SnaplockLitigationResponse{
-		ID:   oasgenserver.NewOptString(req.VolumeUUID.String() + ":" + req.LitigationName),
+		ID:   oasgenserver.NewOptString(volumeUUID + ":" + req.LitigationName),
 		Name: oasgenserver.NewOptString(req.LitigationName),
 		Path: oasgenserver.NewOptString(req.Path),
 	}, nil
@@ -454,6 +513,13 @@ func (h Handler) V1SnaplockLitigationCollectionGet(
 		return &oasgenserver.V1SnaplockLitigationCollectionGetBadRequest{
 			Code:    400,
 			Message: "Snaplock litigation operation is disabled",
+		}, nil
+	}
+
+	if !middleware.IsIAMRoleHeaderSnaplockExistInContext(ctx, middleware.ManageSnaplockRole) {
+		return &oasgenserver.V1SnaplockLitigationCollectionGetForbidden{
+			Code:    http.StatusForbidden,
+			Message: snaplockIAMRoleRequiredMessage,
 		}, nil
 	}
 
@@ -569,6 +635,13 @@ func (h Handler) V1SnaplockLitigationEnd(
 		}, nil
 	}
 
+	if !middleware.IsIAMRoleHeaderSnaplockExistInContext(ctx, middleware.ManageSnaplockRole) {
+		return &oasgenserver.V1SnaplockLitigationEndForbidden{
+			Code:    http.StatusForbidden,
+			Message: snaplockIAMRoleRequiredMessage,
+		}, nil
+	}
+
 	parts := strings.SplitN(params.LitigationId, ":", 2)
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 		return &oasgenserver.V1SnaplockLitigationEndBadRequest{
@@ -671,6 +744,13 @@ func (h Handler) V1SnaplockLitigationGet(
 		return &oasgenserver.V1SnaplockLitigationGetBadRequest{
 			Code:    400,
 			Message: "Snaplock litigation operation is disabled",
+		}, nil
+	}
+
+	if !middleware.IsIAMRoleHeaderSnaplockExistInContext(ctx, middleware.ManageSnaplockRole) {
+		return &oasgenserver.V1SnaplockLitigationGetForbidden{
+			Code:    http.StatusForbidden,
+			Message: snaplockIAMRoleRequiredMessage,
 		}, nil
 	}
 
@@ -831,6 +911,13 @@ func (h Handler) V1SnaplockLitigationOperationCreate(
 		}, nil
 	}
 
+	if !middleware.IsIAMRoleHeaderSnaplockExistInContext(ctx, middleware.ManageSnaplockRole) {
+		return &oasgenserver.V1SnaplockLitigationOperationCreateForbidden{
+			Code:    http.StatusForbidden,
+			Message: snaplockIAMRoleRequiredMessage,
+		}, nil
+	}
+
 	if req == nil || strings.TrimSpace(req.Path) == "" {
 		return &oasgenserver.V1SnaplockLitigationOperationCreateBadRequest{
 			Code:    400,
@@ -956,6 +1043,13 @@ func (h Handler) V1SnaplockLitigationOperationGet(
 		}, nil
 	}
 
+	if !middleware.IsIAMRoleHeaderSnaplockExistInContext(ctx, middleware.ManageSnaplockRole) {
+		return &oasgenserver.V1SnaplockLitigationOperationGetForbidden{
+			Code:    http.StatusForbidden,
+			Message: snaplockIAMRoleRequiredMessage,
+		}, nil
+	}
+
 	ctx, err := setupCredentialsForHandler(ctx, params.ProjectNumber, params.PoolId.String(), middleware.CredentialTypeAdmin)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to setup credentials", "error", err)
@@ -1044,6 +1138,13 @@ func (h Handler) V1SnaplockLitigationOperationAbort(
 		return &oasgenserver.V1SnaplockLitigationOperationAbortBadRequest{
 			Code:    400,
 			Message: "Snaplock litigation operation is disabled",
+		}, nil
+	}
+
+	if !middleware.IsIAMRoleHeaderSnaplockExistInContext(ctx, middleware.ManageSnaplockRole) {
+		return &oasgenserver.V1SnaplockLitigationOperationAbortForbidden{
+			Code:    http.StatusForbidden,
+			Message: snaplockIAMRoleRequiredMessage,
 		}, nil
 	}
 

@@ -1471,7 +1471,21 @@ func (s *SnaplockLitigationBeginRequest) SetFake() {
 	}
 	{
 		{
-			s.VolumeUUID = uuid.New()
+			s.Volume.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *SnaplockLitigationBeginRequestVolume) SetFake() {
+	{
+		{
+			s.Name.SetFake()
+		}
+	}
+	{
+		{
+			s.UUID.SetFake()
 		}
 	}
 }

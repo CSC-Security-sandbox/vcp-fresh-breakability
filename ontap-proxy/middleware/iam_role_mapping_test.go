@@ -2,10 +2,13 @@ package middleware
 
 import (
 	"context"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 )
 
 func TestGetIAMRoleFromHeader(t *testing.T) {
@@ -168,5 +171,62 @@ func TestLoadIAMRoleMappingConfig(t *testing.T) {
 
 		// Should return the same map instance
 		assert.Equal(t, config1, config2)
+	})
+}
+
+func TestGetIAMRoleFromContext(t *testing.T) {
+	t.Run("WhenContextHasNoHeaders_ReturnsEmpty", func(t *testing.T) {
+		ctx := context.Background()
+		role := GetIAMRoleFromContext(ctx)
+		assert.Equal(t, "", role)
+	})
+
+	t.Run("WhenContextHasWrongKeyType_ReturnsEmpty", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), utilsmiddleware.HeaderContextKey, "not-header")
+		role := GetIAMRoleFromContext(ctx)
+		assert.Equal(t, "", role)
+	})
+
+	t.Run("WhenContextHasNilHeaders_ReturnsEmpty", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), utilsmiddleware.HeaderContextKey, (http.Header)(nil))
+		role := GetIAMRoleFromContext(ctx)
+		assert.Equal(t, "", role)
+	})
+
+	t.Run("WhenContextHasHeadersWithRole_ReturnsRole", func(t *testing.T) {
+		headers := make(http.Header)
+		headers.Set(IAMRoleHeader, ManageSnaplockRole)
+		ctx := context.WithValue(context.Background(), utilsmiddleware.HeaderContextKey, headers)
+		role := GetIAMRoleFromContext(ctx)
+		assert.Equal(t, ManageSnaplockRole, role)
+	})
+
+	t.Run("WhenContextHasHeadersWithWhitespace_ReturnsTrimmed", func(t *testing.T) {
+		headers := make(http.Header)
+		headers.Set(IAMRoleHeader, "  "+ManageSnaplockRole+"  ")
+		ctx := context.WithValue(context.Background(), utilsmiddleware.HeaderContextKey, headers)
+		role := GetIAMRoleFromContext(ctx)
+		assert.Equal(t, ManageSnaplockRole, role)
+	})
+}
+
+func TestIsIAMRoleHeaderSnaplockExistInContext(t *testing.T) {
+	t.Run("WhenRoleMatches_ReturnsTrue", func(t *testing.T) {
+		headers := make(http.Header)
+		headers.Set(IAMRoleHeader, ManageSnaplockRole)
+		ctx := context.WithValue(context.Background(), utilsmiddleware.HeaderContextKey, headers)
+		require.True(t, IsIAMRoleHeaderSnaplockExistInContext(ctx, ManageSnaplockRole))
+	})
+
+	t.Run("WhenRoleDoesNotMatch_ReturnsFalse", func(t *testing.T) {
+		headers := make(http.Header)
+		headers.Set(IAMRoleHeader, "other.role")
+		ctx := context.WithValue(context.Background(), utilsmiddleware.HeaderContextKey, headers)
+		require.False(t, IsIAMRoleHeaderSnaplockExistInContext(ctx, ManageSnaplockRole))
+	})
+
+	t.Run("WhenContextHasNoHeaders_ReturnsFalse", func(t *testing.T) {
+		ctx := context.Background()
+		require.False(t, IsIAMRoleHeaderSnaplockExistInContext(ctx, ManageSnaplockRole))
 	})
 }

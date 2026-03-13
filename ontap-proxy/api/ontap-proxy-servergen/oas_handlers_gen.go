@@ -2819,8 +2819,8 @@ func (s *Server) handleV1PrivateCliRequest(args [3]string, argsEscaped bool, w h
 // handleV1SnaplockLitigationBeginRequest handles v1_snaplockLitigationBegin operation.
 //
 // Starts a legal hold on a path in a SnapLock volume.
-// Uses ONTAP CLI `snaplock legal-hold begin`. Required properties: litigation_name, path,
-// volume_uuid.
+// Uses ONTAP CLI `snaplock legal-hold begin`. Required: litigation_name, path, volume (provide
+// volume.name or volume.uuid).
 //
 // POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/ontap/api/storage/snaplock/litigations
 func (s *Server) handleV1SnaplockLitigationBeginRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {

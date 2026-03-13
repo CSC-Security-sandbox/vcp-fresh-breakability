@@ -8,12 +8,16 @@ import (
 	"sync"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 const (
 	// IAMRoleHeader is the HTTP header name for IAM role
 	IAMRoleHeader = "x-google-iam-role"
+
+	ManageSnaplockRole   = "netapp.ontap.manageSnaplock"
+	PrivilegedDeleteRole = "netapp.ontap.privilegedDelete"
 )
 
 var (
@@ -92,4 +96,19 @@ func GetRBACUserFromRequest(ctx context.Context, req *http.Request) string {
 		return ""
 	}
 	return MapIAMRoleToRBACUser(ctx, iamRole)
+}
+
+// GetIAMRoleFromContext returns the IAM role from headers stored in context by auth middleware.
+// Use this in ogen handlers to validate x-google-iam-role.
+func GetIAMRoleFromContext(ctx context.Context) string {
+	headers, ok := ctx.Value(utilsmiddleware.HeaderContextKey).(http.Header)
+	if !ok || headers == nil {
+		return ""
+	}
+	return strings.TrimSpace(headers.Get(IAMRoleHeader))
+}
+
+// IsIAMRoleHeaderSnaplockExistInContext returns true if the IAM role from context equals role.
+func IsIAMRoleHeaderSnaplockExistInContext(ctx context.Context, role string) bool {
+	return GetIAMRoleFromContext(ctx) == role
 }

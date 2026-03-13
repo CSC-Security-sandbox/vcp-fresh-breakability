@@ -6962,15 +6962,15 @@ func (s *SnaplockLitigationBeginRequest) encodeFields(e *jx.Encoder) {
 		e.Str(s.Path)
 	}
 	{
-		e.FieldStart("volume_uuid")
-		json.EncodeUUID(e, s.VolumeUUID)
+		e.FieldStart("volume")
+		s.Volume.Encode(e)
 	}
 }
 
 var jsonFieldsNameOfSnaplockLitigationBeginRequest = [3]string{
 	0: "litigation_name",
 	1: "path",
-	2: "volume_uuid",
+	2: "volume",
 }
 
 // Decode decodes SnaplockLitigationBeginRequest from json.
@@ -7006,17 +7006,15 @@ func (s *SnaplockLitigationBeginRequest) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"path\"")
 			}
-		case "volume_uuid":
+		case "volume":
 			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
-				v, err := json.DecodeUUID(d)
-				s.VolumeUUID = v
-				if err != nil {
+				if err := s.Volume.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"volume_uuid\"")
+				return errors.Wrap(err, "decode field \"volume\"")
 			}
 		default:
 			return d.Skip()
@@ -7070,6 +7068,86 @@ func (s *SnaplockLitigationBeginRequest) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *SnaplockLitigationBeginRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *SnaplockLitigationBeginRequestVolume) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *SnaplockLitigationBeginRequestVolume) encodeFields(e *jx.Encoder) {
+	{
+		if s.Name.Set {
+			e.FieldStart("name")
+			s.Name.Encode(e)
+		}
+	}
+	{
+		if s.UUID.Set {
+			e.FieldStart("uuid")
+			s.UUID.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfSnaplockLitigationBeginRequestVolume = [2]string{
+	0: "name",
+	1: "uuid",
+}
+
+// Decode decodes SnaplockLitigationBeginRequestVolume from json.
+func (s *SnaplockLitigationBeginRequestVolume) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode SnaplockLitigationBeginRequestVolume to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "name":
+			if err := func() error {
+				s.Name.Reset()
+				if err := s.Name.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "uuid":
+			if err := func() error {
+				s.UUID.Reset()
+				if err := s.UUID.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"uuid\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode SnaplockLitigationBeginRequestVolume")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *SnaplockLitigationBeginRequestVolume) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *SnaplockLitigationBeginRequestVolume) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

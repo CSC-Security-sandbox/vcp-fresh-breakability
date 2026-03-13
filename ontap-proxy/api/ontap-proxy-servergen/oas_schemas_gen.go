@@ -4450,15 +4450,16 @@ func (s *SnaplockLegalHoldOperationResponseType) UnmarshalText(data []byte) erro
 
 // Request body for starting a SnapLock litigation (legal hold).
 // Aligns with ONTAP POST /api/storage/snaplock/litigations (snaplock_litigation).
-// Proxy accepts litigation_name, path, volume_uuid (volume.uuid in ONTAP).
+// Proxy accepts litigation_name, path, and volume (provide name or uuid), same pattern as
+// EBROperationCreate.
 // Ref: #/components/schemas/SnaplockLitigationBeginRequest
 type SnaplockLitigationBeginRequest struct {
 	// Specifies the legal-hold litigation name (ONTAP name).
 	LitigationName string `json:"litigation_name"`
 	// Specifies the path on which legal-hold operation has to be applied (e.g. /dir1 or /).
 	Path string `json:"path"`
-	// Unique identifier for the volume (ONTAP volume.uuid). Corresponds to instance-uuid in CLI.
-	VolumeUUID uuid.UUID `json:"volume_uuid"`
+	// Volume (provide name or uuid).
+	Volume SnaplockLitigationBeginRequestVolume `json:"volume"`
 }
 
 // GetLitigationName returns the value of LitigationName.
@@ -4471,9 +4472,9 @@ func (s *SnaplockLitigationBeginRequest) GetPath() string {
 	return s.Path
 }
 
-// GetVolumeUUID returns the value of VolumeUUID.
-func (s *SnaplockLitigationBeginRequest) GetVolumeUUID() uuid.UUID {
-	return s.VolumeUUID
+// GetVolume returns the value of Volume.
+func (s *SnaplockLitigationBeginRequest) GetVolume() SnaplockLitigationBeginRequestVolume {
+	return s.Volume
 }
 
 // SetLitigationName sets the value of LitigationName.
@@ -4486,9 +4487,37 @@ func (s *SnaplockLitigationBeginRequest) SetPath(val string) {
 	s.Path = val
 }
 
-// SetVolumeUUID sets the value of VolumeUUID.
-func (s *SnaplockLitigationBeginRequest) SetVolumeUUID(val uuid.UUID) {
-	s.VolumeUUID = val
+// SetVolume sets the value of Volume.
+func (s *SnaplockLitigationBeginRequest) SetVolume(val SnaplockLitigationBeginRequestVolume) {
+	s.Volume = val
+}
+
+// Volume (provide name or uuid).
+type SnaplockLitigationBeginRequestVolume struct {
+	// Volume name.
+	Name OptString `json:"name"`
+	// Volume UUID (ONTAP volume.uuid). Corresponds to instance-uuid in CLI.
+	UUID OptUUID `json:"uuid"`
+}
+
+// GetName returns the value of Name.
+func (s *SnaplockLitigationBeginRequestVolume) GetName() OptString {
+	return s.Name
+}
+
+// GetUUID returns the value of UUID.
+func (s *SnaplockLitigationBeginRequestVolume) GetUUID() OptUUID {
+	return s.UUID
+}
+
+// SetName sets the value of Name.
+func (s *SnaplockLitigationBeginRequestVolume) SetName(val OptString) {
+	s.Name = val
+}
+
+// SetUUID sets the value of UUID.
+func (s *SnaplockLitigationBeginRequestVolume) SetUUID(val OptUUID) {
+	s.UUID = val
 }
 
 // One row from list; matches CLI "snaplock legal-hold show" table (Operation, Operation ID, Vserver,
@@ -4496,7 +4525,7 @@ func (s *SnaplockLitigationBeginRequest) SetVolumeUUID(val uuid.UUID) {
 // Use for GET /litigations (list) only.
 // Ref: #/components/schemas/SnaplockLitigationListRecord
 type SnaplockLitigationListRecord struct {
-	// Litigation ID (volume_uuid:litigation_name). Read-only.
+	// Litigation ID (volume.uuid:litigation_name). Read-only.
 	ID OptString `json:"id"`
 	// Legal-hold litigation name.
 	Name OptString `json:"name"`
@@ -4767,7 +4796,7 @@ func (s *SnaplockLitigationListResponseLinks) SetSelf(val OptHref) {
 type SnaplockLitigationResponse struct {
 	// Links for the litigation (read-only).
 	Links OptSnaplockLitigationResponseLinks `json:"_links"`
-	// Specifies the litigation ID (volume_uuid:litigation_name). Read-only.
+	// Specifies the litigation ID (volume.uuid:litigation_name). Read-only.
 	ID OptString `json:"id"`
 	// Specifies the legal-hold litigation name.
 	Name OptString `json:"name"`

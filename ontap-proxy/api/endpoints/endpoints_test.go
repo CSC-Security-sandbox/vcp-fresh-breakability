@@ -14,7 +14,9 @@ import (
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/api/ontap-proxy-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/cache"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/handlers"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
+	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 )
 
 func TestGetHealth(t *testing.T) {
@@ -126,9 +128,69 @@ func setupCacheWithKeys(keys ...string) {
 	}
 }
 
+// contextWithSnaplockIAMRequest returns a context with headers (as auth middleware sets) and ManageSnaplockRole.
+func contextWithSnaplockIAMRequest(t *testing.T) context.Context {
+	t.Helper()
+	return contextWithSnaplockIAMRequestForRole(t, middleware.ManageSnaplockRole)
+}
+
+// contextWithSnaplockIAMRequestForRole returns a context with the IAM role header set, mirroring auth middleware.
+func contextWithSnaplockIAMRequestForRole(t *testing.T, role string) context.Context {
+	t.Helper()
+	headers := make(http.Header)
+	headers.Set(middleware.IAMRoleHeader, role)
+	return context.WithValue(context.Background(), utilsmiddleware.HeaderContextKey, headers)
+}
+
 func TestSnaplockFileDelete(t *testing.T) {
 	testPoolUUID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 	testVolumeUUID := uuid.MustParse("660e8400-e29b-41d4-a716-446655440001")
+
+	t.Run("WhenMissingIAMRole_Returns403", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		handler := Handler{}
+		params := oasgenserver.SnaplockFileDeleteParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        testPoolUUID,
+			VolumeUuid:    testVolumeUUID,
+			FilePath:      "test/file.txt",
+		}
+		res, err := handler.SnaplockFileDelete(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		forbidden, ok := res.(*oasgenserver.SnaplockFileDeleteForbidden)
+		require.True(t, ok, "expected SnaplockFileDeleteForbidden, got %T", res)
+		assert.Equal(t, 403, forbidden.Code)
+		assert.Equal(t, snaplockIAMRoleRequiredMessage, forbidden.Message)
+	})
+
+	t.Run("WhenWrongIAMRole_Returns403", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+		// File delete requires PrivilegedDeleteRole; use ManageSnaplockRole so IAM check fails
+		ctx := contextWithSnaplockIAMRequestForRole(t, middleware.ManageSnaplockRole)
+
+		handler := Handler{}
+		params := oasgenserver.SnaplockFileDeleteParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        testPoolUUID,
+			VolumeUuid:    testVolumeUUID,
+			FilePath:      "test/file.txt",
+		}
+		res, err := handler.SnaplockFileDelete(ctx, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		forbidden, ok := res.(*oasgenserver.SnaplockFileDeleteForbidden)
+		require.True(t, ok, "expected SnaplockFileDeleteForbidden, got %T", res)
+		assert.Equal(t, 403, forbidden.Code)
+		assert.Equal(t, snaplockIAMRoleRequiredMessage, forbidden.Message)
+	})
 
 	t.Run("WhenSnapLockOperationDisabled_ShouldReturn400", func(t *testing.T) {
 		original := snapLockOperationEnabled
@@ -144,7 +206,7 @@ func TestSnaplockFileDelete(t *testing.T) {
 			FilePath:      "test/file.txt",
 		}
 
-		res, err := handler.SnaplockFileDelete(context.Background(), params)
+		res, err := handler.SnaplockFileDelete(contextWithSnaplockIAMRequestForRole(t, middleware.PrivilegedDeleteRole), params)
 
 		require.NoError(t, err, "SnaplockFileDelete should not return a Go error")
 		require.NotNil(t, res, "Response should not be nil")
@@ -177,7 +239,7 @@ func TestSnaplockFileDelete_WithMockClient(t *testing.T) {
 			VolumeUuid:    testVolumeUUID,
 			FilePath:      "test/file.txt",
 		}
-		res, err := handler.SnaplockFileDelete(context.Background(), params)
+		res, err := handler.SnaplockFileDelete(contextWithSnaplockIAMRequestForRole(t, middleware.PrivilegedDeleteRole), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		unauth, ok := res.(*oasgenserver.SnaplockFileDeleteUnauthorized)
@@ -199,7 +261,7 @@ func TestSnaplockFileDelete_WithMockClient(t *testing.T) {
 			VolumeUuid:    testVolumeUUID,
 			FilePath:      "test/file.txt",
 		}
-		res, err := handler.SnaplockFileDelete(context.Background(), params)
+		res, err := handler.SnaplockFileDelete(contextWithSnaplockIAMRequestForRole(t, middleware.PrivilegedDeleteRole), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		unauth, ok := res.(*oasgenserver.SnaplockFileDeleteUnauthorized)
@@ -221,7 +283,7 @@ func TestSnaplockFileDelete_WithMockClient(t *testing.T) {
 			VolumeUuid:    testVolumeUUID,
 			FilePath:      "test/file.txt",
 		}
-		res, err := handler.SnaplockFileDelete(context.Background(), params)
+		res, err := handler.SnaplockFileDelete(contextWithSnaplockIAMRequestForRole(t, middleware.PrivilegedDeleteRole), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		internal, ok := res.(*oasgenserver.SnaplockFileDeleteInternalServerError)
@@ -246,7 +308,7 @@ func TestSnaplockFileDelete_WithMockClient(t *testing.T) {
 			VolumeUuid:    testVolumeUUID,
 			FilePath:      "test/file.txt",
 		}
-		res, err := handler.SnaplockFileDelete(context.Background(), params)
+		res, err := handler.SnaplockFileDelete(contextWithSnaplockIAMRequestForRole(t, middleware.PrivilegedDeleteRole), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		notFound, ok := res.(*oasgenserver.SnaplockFileDeleteNotFound)
@@ -273,7 +335,7 @@ func TestSnaplockFileDelete_WithMockClient(t *testing.T) {
 			VolumeUuid:    testVolumeUUID,
 			FilePath:      "test/file.txt",
 		}
-		res, err := handler.SnaplockFileDelete(context.Background(), params)
+		res, err := handler.SnaplockFileDelete(contextWithSnaplockIAMRequestForRole(t, middleware.PrivilegedDeleteRole), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.SnaplockFileDeleteBadRequest)
@@ -301,7 +363,7 @@ func TestSnaplockFileDelete_WithMockClient(t *testing.T) {
 			VolumeUuid:    testVolumeUUID,
 			FilePath:      "test/file.txt",
 		}
-		res, err := handler.SnaplockFileDelete(context.Background(), params)
+		res, err := handler.SnaplockFileDelete(contextWithSnaplockIAMRequestForRole(t, middleware.PrivilegedDeleteRole), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.SnaplockFileDeleteBadRequest)
@@ -329,7 +391,7 @@ func TestSnaplockFileDelete_WithMockClient(t *testing.T) {
 			VolumeUuid:    testVolumeUUID,
 			FilePath:      "test/file.txt",
 		}
-		res, err := handler.SnaplockFileDelete(context.Background(), params)
+		res, err := handler.SnaplockFileDelete(contextWithSnaplockIAMRequestForRole(t, middleware.PrivilegedDeleteRole), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		internal, ok := res.(*oasgenserver.SnaplockFileDeleteInternalServerError)
@@ -356,7 +418,7 @@ func TestSnaplockFileDelete_WithMockClient(t *testing.T) {
 			VolumeUuid:    testVolumeUUID,
 			FilePath:      "test/file.txt",
 		}
-		res, err := handler.SnaplockFileDelete(context.Background(), params)
+		res, err := handler.SnaplockFileDelete(contextWithSnaplockIAMRequestForRole(t, middleware.PrivilegedDeleteRole), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.SnaplockFileDeleteBadRequest)
@@ -383,7 +445,7 @@ func TestSnaplockFileDelete_WithMockClient(t *testing.T) {
 			VolumeUuid:    testVolumeUUID,
 			FilePath:      "test/file.txt",
 		}
-		res, err := handler.SnaplockFileDelete(context.Background(), params)
+		res, err := handler.SnaplockFileDelete(contextWithSnaplockIAMRequestForRole(t, middleware.PrivilegedDeleteRole), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		okRes, ok := res.(*oasgenserver.SnaplockFileRetentionJobLinkResponse)
@@ -397,6 +459,30 @@ func TestV1SnaplockLitigationBegin(t *testing.T) {
 	poolUUID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 	volUUID := uuid.MustParse("660e8400-e29b-41d4-a716-446655440001")
 
+	t.Run("WhenMissingIAMRole_Returns403", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+		handler := Handler{}
+		req := &oasgenserver.SnaplockLitigationBeginRequest{
+			LitigationName: "lit1",
+			Path:           "/dir1",
+			Volume:         oasgenserver.SnaplockLitigationBeginRequestVolume{UUID: oasgenserver.NewOptUUID(volUUID)},
+		}
+		params := oasgenserver.V1SnaplockLitigationBeginParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        poolUUID,
+		}
+		res, err := handler.V1SnaplockLitigationBegin(context.Background(), req, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		forbidden, ok := res.(*oasgenserver.V1SnaplockLitigationBeginForbidden)
+		require.True(t, ok, "expected V1SnaplockLitigationBeginForbidden, got %T", res)
+		assert.Equal(t, 403, forbidden.Code)
+		assert.Equal(t, snaplockIAMRoleRequiredMessage, forbidden.Message)
+	})
+
 	t.Run("WhenDisabled_Returns400", func(t *testing.T) {
 		original := snapLockOperationEnabled
 		snapLockOperationEnabled = false
@@ -406,7 +492,7 @@ func TestV1SnaplockLitigationBegin(t *testing.T) {
 		req := &oasgenserver.SnaplockLitigationBeginRequest{
 			LitigationName: "lit1",
 			Path:           "/dir1",
-			VolumeUUID:     volUUID,
+			Volume:         oasgenserver.SnaplockLitigationBeginRequestVolume{UUID: oasgenserver.NewOptUUID(volUUID)},
 		}
 		params := oasgenserver.V1SnaplockLitigationBeginParams{
 			ProjectNumber: "123456",
@@ -414,7 +500,7 @@ func TestV1SnaplockLitigationBegin(t *testing.T) {
 			PoolId:        poolUUID,
 		}
 
-		res, err := handler.V1SnaplockLitigationBegin(context.Background(), req, params)
+		res, err := handler.V1SnaplockLitigationBegin(contextWithSnaplockIAMRequest(t), req, params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationBeginBadRequest)
@@ -435,7 +521,7 @@ func TestV1SnaplockLitigationBegin(t *testing.T) {
 			PoolId:        poolUUID,
 		}
 
-		res, err := handler.V1SnaplockLitigationBegin(context.Background(), nil, params)
+		res, err := handler.V1SnaplockLitigationBegin(contextWithSnaplockIAMRequest(t), nil, params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationBeginBadRequest)
@@ -453,7 +539,7 @@ func TestV1SnaplockLitigationBegin(t *testing.T) {
 		req := &oasgenserver.SnaplockLitigationBeginRequest{
 			LitigationName: "",
 			Path:           "/dir1",
-			VolumeUUID:     volUUID,
+			Volume:         oasgenserver.SnaplockLitigationBeginRequestVolume{UUID: oasgenserver.NewOptUUID(volUUID)},
 		}
 		params := oasgenserver.V1SnaplockLitigationBeginParams{
 			ProjectNumber: "123456",
@@ -461,17 +547,62 @@ func TestV1SnaplockLitigationBegin(t *testing.T) {
 			PoolId:        poolUUID,
 		}
 
-		res, err := handler.V1SnaplockLitigationBegin(context.Background(), req, params)
+		res, err := handler.V1SnaplockLitigationBegin(contextWithSnaplockIAMRequest(t), req, params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationBeginBadRequest)
 		require.True(t, ok, "expected V1SnaplockLitigationBeginBadRequest, got %T", res)
 		assert.Equal(t, 400, badReq.Code)
 	})
+
+	t.Run("WhenVolumeEmpty_Returns400", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		handler := Handler{}
+		req := &oasgenserver.SnaplockLitigationBeginRequest{
+			LitigationName: "lit1",
+			Path:           "/dir1",
+			Volume:         oasgenserver.SnaplockLitigationBeginRequestVolume{}, // neither name nor uuid
+		}
+		params := oasgenserver.V1SnaplockLitigationBeginParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        poolUUID,
+		}
+
+		res, err := handler.V1SnaplockLitigationBegin(contextWithSnaplockIAMRequest(t), req, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationBeginBadRequest)
+		require.True(t, ok, "expected V1SnaplockLitigationBeginBadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Contains(t, badReq.Message, "volume (name or uuid) is required")
+	})
 }
 
 func TestV1SnaplockLitigationCollectionGet(t *testing.T) {
 	poolUUID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	t.Run("WhenMissingIAMRole_Returns403", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationCollectionGetParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        poolUUID,
+		}
+		res, err := handler.V1SnaplockLitigationCollectionGet(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		forbidden, ok := res.(*oasgenserver.V1SnaplockLitigationCollectionGetForbidden)
+		require.True(t, ok, "expected V1SnaplockLitigationCollectionGetForbidden, got %T", res)
+		assert.Equal(t, 403, forbidden.Code)
+		assert.Equal(t, snaplockIAMRoleRequiredMessage, forbidden.Message)
+	})
 
 	t.Run("WhenDisabled_Returns400", func(t *testing.T) {
 		original := snapLockOperationEnabled
@@ -485,7 +616,7 @@ func TestV1SnaplockLitigationCollectionGet(t *testing.T) {
 			PoolId:        poolUUID,
 		}
 
-		res, err := handler.V1SnaplockLitigationCollectionGet(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationCollectionGet(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationCollectionGetBadRequest)
@@ -495,12 +626,33 @@ func TestV1SnaplockLitigationCollectionGet(t *testing.T) {
 }
 
 func TestV1SnaplockLitigationEnd(t *testing.T) {
+	poolUUID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	t.Run("WhenMissingIAMRole_Returns403", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationEndParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        poolUUID,
+			LitigationId:  "660e8400-e29b-41d4-a716-446655440001:lit1",
+		}
+		res, err := handler.V1SnaplockLitigationEnd(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		forbidden, ok := res.(*oasgenserver.V1SnaplockLitigationEndForbidden)
+		require.True(t, ok, "expected V1SnaplockLitigationEndForbidden, got %T", res)
+		assert.Equal(t, 403, forbidden.Code)
+		assert.Equal(t, snaplockIAMRoleRequiredMessage, forbidden.Message)
+	})
+
 	t.Run("WhenDisabled_Returns400", func(t *testing.T) {
 		original := snapLockOperationEnabled
 		snapLockOperationEnabled = false
 		defer func() { snapLockOperationEnabled = original }()
 
-		poolUUID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		handler := Handler{}
 		params := oasgenserver.V1SnaplockLitigationEndParams{
 			ProjectNumber: "123456",
@@ -509,7 +661,7 @@ func TestV1SnaplockLitigationEnd(t *testing.T) {
 			LitigationId:  "660e8400-e29b-41d4-a716-446655440001:lit1",
 		}
 
-		res, err := handler.V1SnaplockLitigationEnd(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationEnd(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationEndBadRequest)
@@ -519,12 +671,33 @@ func TestV1SnaplockLitigationEnd(t *testing.T) {
 }
 
 func TestV1SnaplockLitigationGet(t *testing.T) {
+	poolUUID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	t.Run("WhenMissingIAMRole_Returns403", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationGetParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        poolUUID,
+			LitigationId:  "660e8400-e29b-41d4-a716-446655440001:lit1",
+		}
+		res, err := handler.V1SnaplockLitigationGet(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		forbidden, ok := res.(*oasgenserver.V1SnaplockLitigationGetForbidden)
+		require.True(t, ok, "expected V1SnaplockLitigationGetForbidden, got %T", res)
+		assert.Equal(t, 403, forbidden.Code)
+		assert.Equal(t, snaplockIAMRoleRequiredMessage, forbidden.Message)
+	})
+
 	t.Run("WhenDisabled_Returns400", func(t *testing.T) {
 		original := snapLockOperationEnabled
 		snapLockOperationEnabled = false
 		defer func() { snapLockOperationEnabled = original }()
 
-		poolUUID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 		handler := Handler{}
 		params := oasgenserver.V1SnaplockLitigationGetParams{
 			ProjectNumber: "123456",
@@ -533,7 +706,7 @@ func TestV1SnaplockLitigationGet(t *testing.T) {
 			LitigationId:  "660e8400-e29b-41d4-a716-446655440001:lit1",
 		}
 
-		res, err := handler.V1SnaplockLitigationGet(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationGet(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationGetBadRequest)
@@ -544,6 +717,30 @@ func TestV1SnaplockLitigationGet(t *testing.T) {
 
 func TestV1SnaplockLitigationOperationCreate(t *testing.T) {
 	poolUUID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	t.Run("WhenMissingIAMRole_Returns403", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+		handler := Handler{}
+		req := &oasgenserver.SnaplockLegalHoldOperationRequest{
+			Type: oasgenserver.SnaplockLegalHoldOperationRequestTypeBegin,
+			Path: "/dir1",
+		}
+		params := oasgenserver.V1SnaplockLitigationOperationCreateParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        poolUUID,
+			LitigationId:  "660e8400-e29b-41d4-a716-446655440001:lit1",
+		}
+		res, err := handler.V1SnaplockLitigationOperationCreate(context.Background(), req, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		forbidden, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateForbidden)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationCreateForbidden, got %T", res)
+		assert.Equal(t, 403, forbidden.Code)
+		assert.Equal(t, snaplockIAMRoleRequiredMessage, forbidden.Message)
+	})
 
 	t.Run("WhenDisabled_Returns400", func(t *testing.T) {
 		original := snapLockOperationEnabled
@@ -562,7 +759,7 @@ func TestV1SnaplockLitigationOperationCreate(t *testing.T) {
 			LitigationId:  "660e8400-e29b-41d4-a716-446655440001:lit1",
 		}
 
-		res, err := handler.V1SnaplockLitigationOperationCreate(context.Background(), req, params)
+		res, err := handler.V1SnaplockLitigationOperationCreate(contextWithSnaplockIAMRequest(t), req, params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateBadRequest)
@@ -583,7 +780,7 @@ func TestV1SnaplockLitigationOperationCreate(t *testing.T) {
 			LitigationId:  "660e8400-e29b-41d4-a716-446655440001:lit1",
 		}
 
-		res, err := handler.V1SnaplockLitigationOperationCreate(context.Background(), nil, params)
+		res, err := handler.V1SnaplockLitigationOperationCreate(contextWithSnaplockIAMRequest(t), nil, params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateBadRequest)
@@ -594,6 +791,27 @@ func TestV1SnaplockLitigationOperationCreate(t *testing.T) {
 
 func TestV1SnaplockLitigationOperationGet(t *testing.T) {
 	poolUUID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	t.Run("WhenMissingIAMRole_Returns403", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationOperationGetParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        poolUUID,
+			LitigationId:  "660e8400-e29b-41d4-a716-446655440001:lit1",
+			OperationId:   "16908292",
+		}
+		res, err := handler.V1SnaplockLitigationOperationGet(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		forbidden, ok := res.(*oasgenserver.V1SnaplockLitigationOperationGetForbidden)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationGetForbidden, got %T", res)
+		assert.Equal(t, 403, forbidden.Code)
+		assert.Equal(t, snaplockIAMRoleRequiredMessage, forbidden.Message)
+	})
 
 	t.Run("WhenDisabled_Returns400", func(t *testing.T) {
 		original := snapLockOperationEnabled
@@ -609,7 +827,7 @@ func TestV1SnaplockLitigationOperationGet(t *testing.T) {
 			OperationId:   "16908292",
 		}
 
-		res, err := handler.V1SnaplockLitigationOperationGet(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationOperationGet(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationGetBadRequest)
@@ -620,6 +838,27 @@ func TestV1SnaplockLitigationOperationGet(t *testing.T) {
 
 func TestV1SnaplockLitigationOperationAbort(t *testing.T) {
 	poolUUID := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+
+	t.Run("WhenMissingIAMRole_Returns403", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+		handler := Handler{}
+		params := oasgenserver.V1SnaplockLitigationOperationAbortParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        poolUUID,
+			LitigationId:  "660e8400-e29b-41d4-a716-446655440001:lit1",
+			OperationId:   "16908292",
+		}
+		res, err := handler.V1SnaplockLitigationOperationAbort(context.Background(), params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		forbidden, ok := res.(*oasgenserver.V1SnaplockLitigationOperationAbortForbidden)
+		require.True(t, ok, "expected V1SnaplockLitigationOperationAbortForbidden, got %T", res)
+		assert.Equal(t, 403, forbidden.Code)
+		assert.Equal(t, snaplockIAMRoleRequiredMessage, forbidden.Message)
+	})
 
 	t.Run("WhenDisabled_Returns400", func(t *testing.T) {
 		original := snapLockOperationEnabled
@@ -635,7 +874,7 @@ func TestV1SnaplockLitigationOperationAbort(t *testing.T) {
 			OperationId:   "16908292",
 		}
 
-		res, err := handler.V1SnaplockLitigationOperationAbort(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationOperationAbort(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationAbortBadRequest)
@@ -718,9 +957,9 @@ func TestV1SnaplockLitigationBegin_WithMockClient(t *testing.T) {
 		defer stubWithSetupCredsError(t, errors.New("auth failed"))()
 
 		handler := Handler{}
-		req := &oasgenserver.SnaplockLitigationBeginRequest{LitigationName: "lit1", Path: "/dir1", VolumeUUID: litigationTestVolUUID}
+		req := &oasgenserver.SnaplockLitigationBeginRequest{LitigationName: "lit1", Path: "/dir1", Volume: oasgenserver.SnaplockLitigationBeginRequestVolume{UUID: oasgenserver.NewOptUUID(litigationTestVolUUID)}}
 		params := oasgenserver.V1SnaplockLitigationBeginParams{ProjectNumber: "123456", LocationId: "us-central1", PoolId: litigationTestPoolUUID}
-		res, err := handler.V1SnaplockLitigationBegin(context.Background(), req, params)
+		res, err := handler.V1SnaplockLitigationBegin(contextWithSnaplockIAMRequest(t), req, params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		unauth, ok := res.(*oasgenserver.V1SnaplockLitigationBeginUnauthorized)
@@ -736,9 +975,9 @@ func TestV1SnaplockLitigationBegin_WithMockClient(t *testing.T) {
 		defer stubWithEnsureCertError(t, errors.New("cert required"))()
 
 		handler := Handler{}
-		req := &oasgenserver.SnaplockLitigationBeginRequest{LitigationName: "lit1", Path: "/dir1", VolumeUUID: litigationTestVolUUID}
+		req := &oasgenserver.SnaplockLitigationBeginRequest{LitigationName: "lit1", Path: "/dir1", Volume: oasgenserver.SnaplockLitigationBeginRequestVolume{UUID: oasgenserver.NewOptUUID(litigationTestVolUUID)}}
 		params := oasgenserver.V1SnaplockLitigationBeginParams{ProjectNumber: "123456", LocationId: "us-central1", PoolId: litigationTestPoolUUID}
-		res, err := handler.V1SnaplockLitigationBegin(context.Background(), req, params)
+		res, err := handler.V1SnaplockLitigationBegin(contextWithSnaplockIAMRequest(t), req, params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		unauth, ok := res.(*oasgenserver.V1SnaplockLitigationBeginUnauthorized)
@@ -754,9 +993,9 @@ func TestV1SnaplockLitigationBegin_WithMockClient(t *testing.T) {
 		defer stubWithNewClientError(t, errors.New("connection refused"))()
 
 		handler := Handler{}
-		req := &oasgenserver.SnaplockLitigationBeginRequest{LitigationName: "lit1", Path: "/dir1", VolumeUUID: litigationTestVolUUID}
+		req := &oasgenserver.SnaplockLitigationBeginRequest{LitigationName: "lit1", Path: "/dir1", Volume: oasgenserver.SnaplockLitigationBeginRequestVolume{UUID: oasgenserver.NewOptUUID(litigationTestVolUUID)}}
 		params := oasgenserver.V1SnaplockLitigationBeginParams{ProjectNumber: "123456", LocationId: "us-central1", PoolId: litigationTestPoolUUID}
-		res, err := handler.V1SnaplockLitigationBegin(context.Background(), req, params)
+		res, err := handler.V1SnaplockLitigationBegin(contextWithSnaplockIAMRequest(t), req, params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		internal, ok := res.(*oasgenserver.V1SnaplockLitigationBeginInternalServerError)
@@ -781,7 +1020,7 @@ func TestV1SnaplockLitigationBegin_WithMockClient(t *testing.T) {
 		req := &oasgenserver.SnaplockLitigationBeginRequest{
 			LitigationName: "lit1",
 			Path:           "/dir1",
-			VolumeUUID:     litigationTestVolUUID,
+			Volume:         oasgenserver.SnaplockLitigationBeginRequestVolume{UUID: oasgenserver.NewOptUUID(litigationTestVolUUID)},
 		}
 		params := oasgenserver.V1SnaplockLitigationBeginParams{
 			ProjectNumber: "123456",
@@ -789,7 +1028,7 @@ func TestV1SnaplockLitigationBegin_WithMockClient(t *testing.T) {
 			PoolId:        litigationTestPoolUUID,
 		}
 
-		res, err := handler.V1SnaplockLitigationBegin(context.Background(), req, params)
+		res, err := handler.V1SnaplockLitigationBegin(contextWithSnaplockIAMRequest(t), req, params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		okRes, ok := res.(*oasgenserver.SnaplockLitigationResponse)
@@ -815,7 +1054,7 @@ func TestV1SnaplockLitigationBegin_WithMockClient(t *testing.T) {
 		req := &oasgenserver.SnaplockLitigationBeginRequest{
 			LitigationName: "lit1",
 			Path:           "/dir1",
-			VolumeUUID:     litigationTestVolUUID,
+			Volume:         oasgenserver.SnaplockLitigationBeginRequestVolume{UUID: oasgenserver.NewOptUUID(litigationTestVolUUID)},
 		}
 		params := oasgenserver.V1SnaplockLitigationBeginParams{
 			ProjectNumber: "123456",
@@ -823,7 +1062,7 @@ func TestV1SnaplockLitigationBegin_WithMockClient(t *testing.T) {
 			PoolId:        litigationTestPoolUUID,
 		}
 
-		res, err := handler.V1SnaplockLitigationBegin(context.Background(), req, params)
+		res, err := handler.V1SnaplockLitigationBegin(contextWithSnaplockIAMRequest(t), req, params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		notFound, ok := res.(*oasgenserver.V1SnaplockLitigationBeginNotFound)
@@ -848,7 +1087,7 @@ func TestV1SnaplockLitigationBegin_WithMockClient(t *testing.T) {
 		req := &oasgenserver.SnaplockLitigationBeginRequest{
 			LitigationName: "lit1",
 			Path:           "/dir1",
-			VolumeUUID:     litigationTestVolUUID,
+			Volume:         oasgenserver.SnaplockLitigationBeginRequestVolume{UUID: oasgenserver.NewOptUUID(litigationTestVolUUID)},
 		}
 		params := oasgenserver.V1SnaplockLitigationBeginParams{
 			ProjectNumber: "123456",
@@ -856,7 +1095,7 @@ func TestV1SnaplockLitigationBegin_WithMockClient(t *testing.T) {
 			PoolId:        litigationTestPoolUUID,
 		}
 
-		res, err := handler.V1SnaplockLitigationBegin(context.Background(), req, params)
+		res, err := handler.V1SnaplockLitigationBegin(contextWithSnaplockIAMRequest(t), req, params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationBeginBadRequest)
@@ -882,7 +1121,7 @@ func TestV1SnaplockLitigationBegin_WithMockClient(t *testing.T) {
 		req := &oasgenserver.SnaplockLitigationBeginRequest{
 			LitigationName: "lit1",
 			Path:           "/dir1",
-			VolumeUUID:     litigationTestVolUUID,
+			Volume:         oasgenserver.SnaplockLitigationBeginRequestVolume{UUID: oasgenserver.NewOptUUID(litigationTestVolUUID)},
 		}
 		params := oasgenserver.V1SnaplockLitigationBeginParams{
 			ProjectNumber: "123456",
@@ -890,7 +1129,7 @@ func TestV1SnaplockLitigationBegin_WithMockClient(t *testing.T) {
 			PoolId:        litigationTestPoolUUID,
 		}
 
-		res, err := handler.V1SnaplockLitigationBegin(context.Background(), req, params)
+		res, err := handler.V1SnaplockLitigationBegin(contextWithSnaplockIAMRequest(t), req, params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationBeginBadRequest)
@@ -916,7 +1155,7 @@ func TestV1SnaplockLitigationBegin_WithMockClient(t *testing.T) {
 		req := &oasgenserver.SnaplockLitigationBeginRequest{
 			LitigationName: "lit1",
 			Path:           "/dir1",
-			VolumeUUID:     litigationTestVolUUID,
+			Volume:         oasgenserver.SnaplockLitigationBeginRequestVolume{UUID: oasgenserver.NewOptUUID(litigationTestVolUUID)},
 		}
 		params := oasgenserver.V1SnaplockLitigationBeginParams{
 			ProjectNumber: "123456",
@@ -924,12 +1163,114 @@ func TestV1SnaplockLitigationBegin_WithMockClient(t *testing.T) {
 			PoolId:        litigationTestPoolUUID,
 		}
 
-		res, err := handler.V1SnaplockLitigationBegin(context.Background(), req, params)
+		res, err := handler.V1SnaplockLitigationBegin(contextWithSnaplockIAMRequest(t), req, params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationBeginBadRequest)
 		require.True(t, ok, "expected V1SnaplockLitigationBeginBadRequest, got %T", res)
 		assert.Equal(t, 400, badReq.Code)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenVolumeNameOnly_ListVolumesSuccess_ReturnsLitigationResponse", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		volByName := handlers.VolumeInfo{UUID: litigationTestVolUUID.String(), Name: "vol1"}
+		volByName.SVM.Name = "svm1"
+		volByName.SVM.UUID = "svm-uuid"
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{volByName}, nil).Once()
+		mockClient.On("ExecuteCLI", mock.Anything, mock.Anything, handlers.SnaplockPrivilegeLevel).
+			Return(&handlers.CLIResponse{Output: "Operation completed"}, nil).Once()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		req := &oasgenserver.SnaplockLitigationBeginRequest{
+			LitigationName: "lit1",
+			Path:           "/dir1",
+			Volume:         oasgenserver.SnaplockLitigationBeginRequestVolume{Name: oasgenserver.NewOptString("vol1")},
+		}
+		params := oasgenserver.V1SnaplockLitigationBeginParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+		}
+
+		res, err := handler.V1SnaplockLitigationBegin(contextWithSnaplockIAMRequest(t), req, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		okRes, ok := res.(*oasgenserver.SnaplockLitigationResponse)
+		require.True(t, ok, "expected SnaplockLitigationResponse, got %T", res)
+		assert.True(t, okRes.ID.Set)
+		assert.Equal(t, litigationTestVolUUID.String()+":lit1", okRes.ID.Value)
+		assert.Equal(t, "lit1", okRes.Name.Value)
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenVolumeNameOnly_VolumeNotFoundInList_Returns404", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		otherVol := handlers.VolumeInfo{UUID: "other-uuid", Name: "other_vol"}
+		otherVol.SVM.Name = "svm1"
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{otherVol}, nil).Once()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		req := &oasgenserver.SnaplockLitigationBeginRequest{
+			LitigationName: "lit1",
+			Path:           "/dir1",
+			Volume:         oasgenserver.SnaplockLitigationBeginRequestVolume{Name: oasgenserver.NewOptString("nonexistent")},
+		}
+		params := oasgenserver.V1SnaplockLitigationBeginParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+		}
+
+		res, err := handler.V1SnaplockLitigationBegin(contextWithSnaplockIAMRequest(t), req, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		notFound, ok := res.(*oasgenserver.V1SnaplockLitigationBeginNotFound)
+		require.True(t, ok, "expected V1SnaplockLitigationBeginNotFound, got %T", res)
+		assert.Equal(t, 404, notFound.Code)
+		assert.Contains(t, notFound.Message, "volume not found")
+		assert.Contains(t, notFound.Message, "nonexistent")
+		mockClient.AssertExpectations(t)
+	})
+
+	t.Run("WhenVolumeNameOnly_ListVolumesFails_Returns500", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = true
+		defer func() { snapLockOperationEnabled = original }()
+
+		mockClient := &handlers.MockOntapClient{}
+		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return(nil, errors.New("list failed")).Once()
+		defer stubLitigationCredsAndClient(t, mockClient)()
+
+		handler := Handler{}
+		req := &oasgenserver.SnaplockLitigationBeginRequest{
+			LitigationName: "lit1",
+			Path:           "/dir1",
+			Volume:         oasgenserver.SnaplockLitigationBeginRequestVolume{Name: oasgenserver.NewOptString("vol1")},
+		}
+		params := oasgenserver.V1SnaplockLitigationBeginParams{
+			ProjectNumber: "123456",
+			LocationId:    "us-central1",
+			PoolId:        litigationTestPoolUUID,
+		}
+
+		res, err := handler.V1SnaplockLitigationBegin(contextWithSnaplockIAMRequest(t), req, params)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		internal, ok := res.(*oasgenserver.V1SnaplockLitigationBeginInternalServerError)
+		require.True(t, ok, "expected V1SnaplockLitigationBeginInternalServerError, got %T", res)
+		assert.Equal(t, 500, internal.Code)
+		assert.Contains(t, internal.Message, "failed to list volumes")
 		mockClient.AssertExpectations(t)
 	})
 }
@@ -955,7 +1296,7 @@ func TestV1SnaplockLitigationCollectionGet_WithMockClient(t *testing.T) {
 		defer func() { snapLockOperationEnabled = original }()
 		defer stubWithSetupCredsError(t, errors.New("auth failed"))()
 
-		res, err := Handler{}.V1SnaplockLitigationCollectionGet(context.Background(), collectionGetParams())
+		res, err := Handler{}.V1SnaplockLitigationCollectionGet(contextWithSnaplockIAMRequest(t), collectionGetParams())
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		unauth, ok := res.(*oasgenserver.V1SnaplockLitigationCollectionGetUnauthorized)
@@ -970,7 +1311,7 @@ func TestV1SnaplockLitigationCollectionGet_WithMockClient(t *testing.T) {
 		defer func() { snapLockOperationEnabled = original }()
 		defer stubWithEnsureCertError(t, errors.New("cert required"))()
 
-		res, err := Handler{}.V1SnaplockLitigationCollectionGet(context.Background(), collectionGetParams())
+		res, err := Handler{}.V1SnaplockLitigationCollectionGet(contextWithSnaplockIAMRequest(t), collectionGetParams())
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		unauth, ok := res.(*oasgenserver.V1SnaplockLitigationCollectionGetUnauthorized)
@@ -985,7 +1326,7 @@ func TestV1SnaplockLitigationCollectionGet_WithMockClient(t *testing.T) {
 		defer func() { snapLockOperationEnabled = original }()
 		defer stubWithNewClientError(t, errors.New("connection refused"))()
 
-		res, err := Handler{}.V1SnaplockLitigationCollectionGet(context.Background(), collectionGetParams())
+		res, err := Handler{}.V1SnaplockLitigationCollectionGet(contextWithSnaplockIAMRequest(t), collectionGetParams())
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		internal, ok := res.(*oasgenserver.V1SnaplockLitigationCollectionGetInternalServerError)
@@ -1012,7 +1353,7 @@ func TestV1SnaplockLitigationCollectionGet_WithMockClient(t *testing.T) {
 			PoolId:        litigationTestPoolUUID,
 		}
 
-		res, err := handler.V1SnaplockLitigationCollectionGet(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationCollectionGet(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		listRes, ok := res.(*oasgenserver.SnaplockLitigationListResponse)
@@ -1039,7 +1380,7 @@ func TestV1SnaplockLitigationCollectionGet_WithMockClient(t *testing.T) {
 			PoolId:        litigationTestPoolUUID,
 		}
 
-		res, err := handler.V1SnaplockLitigationCollectionGet(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationCollectionGet(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		internalErr, ok := res.(*oasgenserver.V1SnaplockLitigationCollectionGetInternalServerError)
@@ -1069,7 +1410,7 @@ func TestV1SnaplockLitigationEnd_WithMockClient(t *testing.T) {
 		defer func() { snapLockOperationEnabled = original }()
 		defer stubWithSetupCredsError(t, errors.New("auth failed"))()
 
-		res, err := Handler{}.V1SnaplockLitigationEnd(context.Background(), endParams(litigationTestVolUUID.String()+":lit1"))
+		res, err := Handler{}.V1SnaplockLitigationEnd(contextWithSnaplockIAMRequest(t), endParams(litigationTestVolUUID.String()+":lit1"))
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		unauth, ok := res.(*oasgenserver.V1SnaplockLitigationEndUnauthorized)
@@ -1084,7 +1425,7 @@ func TestV1SnaplockLitigationEnd_WithMockClient(t *testing.T) {
 		defer func() { snapLockOperationEnabled = original }()
 		defer stubWithEnsureCertError(t, errors.New("cert required"))()
 
-		res, err := Handler{}.V1SnaplockLitigationEnd(context.Background(), endParams(litigationTestVolUUID.String()+":lit1"))
+		res, err := Handler{}.V1SnaplockLitigationEnd(contextWithSnaplockIAMRequest(t), endParams(litigationTestVolUUID.String()+":lit1"))
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		unauth, ok := res.(*oasgenserver.V1SnaplockLitigationEndUnauthorized)
@@ -1099,7 +1440,7 @@ func TestV1SnaplockLitigationEnd_WithMockClient(t *testing.T) {
 		defer func() { snapLockOperationEnabled = original }()
 		defer stubWithNewClientError(t, errors.New("connection refused"))()
 
-		res, err := Handler{}.V1SnaplockLitigationEnd(context.Background(), endParams(litigationTestVolUUID.String()+":lit1"))
+		res, err := Handler{}.V1SnaplockLitigationEnd(contextWithSnaplockIAMRequest(t), endParams(litigationTestVolUUID.String()+":lit1"))
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		internal, ok := res.(*oasgenserver.V1SnaplockLitigationEndInternalServerError)
@@ -1121,7 +1462,7 @@ func TestV1SnaplockLitigationEnd_WithMockClient(t *testing.T) {
 			LitigationId:  "bad-id-no-colon",
 		}
 
-		res, err := handler.V1SnaplockLitigationEnd(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationEnd(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationEndBadRequest)
@@ -1150,7 +1491,7 @@ func TestV1SnaplockLitigationEnd_WithMockClient(t *testing.T) {
 			LitigationId:  litigationTestVolUUID.String() + ":lit1",
 		}
 
-		res, err := handler.V1SnaplockLitigationEnd(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationEnd(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		_, ok := res.(*oasgenserver.V1SnaplockLitigationEndOK)
@@ -1176,7 +1517,7 @@ func TestV1SnaplockLitigationEnd_WithMockClient(t *testing.T) {
 			LitigationId:  litigationTestVolUUID.String() + ":lit1",
 		}
 
-		res, err := handler.V1SnaplockLitigationEnd(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationEnd(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		notFound, ok := res.(*oasgenserver.V1SnaplockLitigationEndNotFound)
@@ -1205,7 +1546,7 @@ func TestV1SnaplockLitigationEnd_WithMockClient(t *testing.T) {
 			LitigationId:  litigationTestVolUUID.String() + ":lit1",
 		}
 
-		res, err := handler.V1SnaplockLitigationEnd(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationEnd(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationEndBadRequest)
@@ -1235,7 +1576,7 @@ func TestV1SnaplockLitigationEnd_WithMockClient(t *testing.T) {
 			LitigationId:  litigationTestVolUUID.String() + ":lit1",
 		}
 
-		res, err := handler.V1SnaplockLitigationEnd(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationEnd(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationEndBadRequest)
@@ -1264,7 +1605,7 @@ func TestV1SnaplockLitigationEnd_WithMockClient(t *testing.T) {
 			LitigationId:  litigationTestVolUUID.String() + ":lit1",
 		}
 
-		res, err := handler.V1SnaplockLitigationEnd(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationEnd(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		internal, ok := res.(*oasgenserver.V1SnaplockLitigationEndInternalServerError)
@@ -1295,7 +1636,7 @@ func TestV1SnaplockLitigationEnd_WithMockClient(t *testing.T) {
 			LitigationId:  litigationTestVolUUID.String() + ":lit1",
 		}
 
-		res, err := handler.V1SnaplockLitigationEnd(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationEnd(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationEndBadRequest)
@@ -1324,7 +1665,7 @@ func TestV1SnaplockLitigationGet_WithMockClient(t *testing.T) {
 			LitigationId:  "nocolon",
 		}
 
-		res, err := handler.V1SnaplockLitigationGet(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationGet(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationGetBadRequest)
@@ -1352,7 +1693,7 @@ func TestV1SnaplockLitigationGet_WithMockClient(t *testing.T) {
 			LitigationId:  litigationTestVolUUID.String() + ":lit1",
 		}
 
-		res, err := handler.V1SnaplockLitigationGet(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationGet(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		litRes, ok := res.(*oasgenserver.SnaplockLitigationResponse)
@@ -1388,7 +1729,7 @@ func TestV1SnaplockLitigationGet_WithMockClient(t *testing.T) {
 			LitigationId:  litigationTestVolUUID.String() + ":lit1",
 		}
 
-		res, err := handler.V1SnaplockLitigationGet(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationGet(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		litRes, ok := res.(*oasgenserver.SnaplockLitigationResponse)
@@ -1451,7 +1792,7 @@ func TestV1SnaplockLitigationGet_WithMockClient(t *testing.T) {
 			LitigationId:  litigationTestVolUUID.String() + ":lit1",
 		}
 
-		res, err := handler.V1SnaplockLitigationGet(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationGet(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		notFound, ok := res.(*oasgenserver.V1SnaplockLitigationGetNotFound)
@@ -1480,7 +1821,7 @@ func TestV1SnaplockLitigationGet_WithMockClient(t *testing.T) {
 			LitigationId:  litigationTestVolUUID.String() + ":lit1",
 		}
 
-		res, err := handler.V1SnaplockLitigationGet(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationGet(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationGetBadRequest)
@@ -1510,7 +1851,7 @@ func TestV1SnaplockLitigationGet_WithMockClient(t *testing.T) {
 			LitigationId:  litigationTestVolUUID.String() + ":lit1",
 		}
 
-		res, err := handler.V1SnaplockLitigationGet(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationGet(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		internal, ok := res.(*oasgenserver.V1SnaplockLitigationGetInternalServerError)
@@ -1541,7 +1882,7 @@ func TestV1SnaplockLitigationGet_WithMockClient(t *testing.T) {
 			LitigationId:  litigationTestVolUUID.String() + ":lit1",
 		}
 
-		res, err := handler.V1SnaplockLitigationGet(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationGet(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		notFound, ok := res.(*oasgenserver.V1SnaplockLitigationGetNotFound)
@@ -1573,7 +1914,7 @@ func TestV1SnaplockLitigationGet_WithMockClient(t *testing.T) {
 			LitigationId:  litigationTestVolUUID.String() + ":lit1",
 		}
 
-		res, err := handler.V1SnaplockLitigationGet(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationGet(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		notFound, ok := res.(*oasgenserver.V1SnaplockLitigationGetNotFound)
@@ -1604,7 +1945,7 @@ func TestV1SnaplockLitigationOperationCreate_WithMockClient(t *testing.T) {
 			PoolId:        litigationTestPoolUUID,
 			LitigationId:  litigationTestVolUUID.String() + ":lit1",
 		}
-		res, err := Handler{}.V1SnaplockLitigationOperationCreate(context.Background(), req, params)
+		res, err := Handler{}.V1SnaplockLitigationOperationCreate(contextWithSnaplockIAMRequest(t), req, params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		unauth, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateUnauthorized)
@@ -1626,7 +1967,7 @@ func TestV1SnaplockLitigationOperationCreate_WithMockClient(t *testing.T) {
 			PoolId:        litigationTestPoolUUID,
 			LitigationId:  litigationTestVolUUID.String() + ":lit1",
 		}
-		res, err := Handler{}.V1SnaplockLitigationOperationCreate(context.Background(), req, params)
+		res, err := Handler{}.V1SnaplockLitigationOperationCreate(contextWithSnaplockIAMRequest(t), req, params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		unauth, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateUnauthorized)
@@ -1648,7 +1989,7 @@ func TestV1SnaplockLitigationOperationCreate_WithMockClient(t *testing.T) {
 			PoolId:        litigationTestPoolUUID,
 			LitigationId:  litigationTestVolUUID.String() + ":lit1",
 		}
-		res, err := Handler{}.V1SnaplockLitigationOperationCreate(context.Background(), req, params)
+		res, err := Handler{}.V1SnaplockLitigationOperationCreate(contextWithSnaplockIAMRequest(t), req, params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		internal, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateInternalServerError)
@@ -1681,7 +2022,7 @@ func TestV1SnaplockLitigationOperationCreate_WithMockClient(t *testing.T) {
 			LitigationId:  litigationTestVolUUID.String() + ":lit1",
 		}
 
-		res, err := handler.V1SnaplockLitigationOperationCreate(context.Background(), req, params)
+		res, err := handler.V1SnaplockLitigationOperationCreate(contextWithSnaplockIAMRequest(t), req, params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		headers, ok := res.(*oasgenserver.SnaplockLegalHoldOperationResponseHeaders)
@@ -1717,7 +2058,7 @@ func TestV1SnaplockLitigationOperationCreate_WithMockClient(t *testing.T) {
 			LitigationId:  litigationTestVolUUID.String() + ":lit1",
 		}
 
-		res, err := handler.V1SnaplockLitigationOperationCreate(context.Background(), req, params)
+		res, err := handler.V1SnaplockLitigationOperationCreate(contextWithSnaplockIAMRequest(t), req, params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateBadRequest)
@@ -1744,7 +2085,7 @@ func TestV1SnaplockLitigationOperationCreate_WithMockClient(t *testing.T) {
 			LitigationId:  "bad",
 		}
 
-		res, err := handler.V1SnaplockLitigationOperationCreate(context.Background(), req, params)
+		res, err := handler.V1SnaplockLitigationOperationCreate(contextWithSnaplockIAMRequest(t), req, params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateBadRequest)
@@ -1775,7 +2116,7 @@ func TestV1SnaplockLitigationOperationCreate_WithMockClient(t *testing.T) {
 			LitigationId:  litigationTestVolUUID.String() + ":lit1",
 		}
 
-		res, err := handler.V1SnaplockLitigationOperationCreate(context.Background(), req, params)
+		res, err := handler.V1SnaplockLitigationOperationCreate(contextWithSnaplockIAMRequest(t), req, params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		notFound, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateNotFound)
@@ -1804,7 +2145,7 @@ func TestV1SnaplockLitigationOperationCreate_WithMockClient(t *testing.T) {
 		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
 		defer stubLitigationCredsAndClient(t, mockClient)()
 
-		res, err := Handler{}.V1SnaplockLitigationOperationCreate(context.Background(), opCreateReq, opCreateParams)
+		res, err := Handler{}.V1SnaplockLitigationOperationCreate(contextWithSnaplockIAMRequest(t), opCreateReq, opCreateParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateBadRequest)
@@ -1826,7 +2167,7 @@ func TestV1SnaplockLitigationOperationCreate_WithMockClient(t *testing.T) {
 		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
 		defer stubLitigationCredsAndClient(t, mockClient)()
 
-		res, err := Handler{}.V1SnaplockLitigationOperationCreate(context.Background(), opCreateReq, opCreateParams)
+		res, err := Handler{}.V1SnaplockLitigationOperationCreate(contextWithSnaplockIAMRequest(t), opCreateReq, opCreateParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateBadRequest)
@@ -1847,7 +2188,7 @@ func TestV1SnaplockLitigationOperationCreate_WithMockClient(t *testing.T) {
 		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
 		defer stubLitigationCredsAndClient(t, mockClient)()
 
-		res, err := Handler{}.V1SnaplockLitigationOperationCreate(context.Background(), opCreateReq, opCreateParams)
+		res, err := Handler{}.V1SnaplockLitigationOperationCreate(contextWithSnaplockIAMRequest(t), opCreateReq, opCreateParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		internal, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateInternalServerError)
@@ -1870,7 +2211,7 @@ func TestV1SnaplockLitigationOperationCreate_WithMockClient(t *testing.T) {
 		mockClient.On("ListVolumesWithSvm", mock.Anything, 1000).Return([]handlers.VolumeInfo{}, nil).Maybe()
 		defer stubLitigationCredsAndClient(t, mockClient)()
 
-		res, err := Handler{}.V1SnaplockLitigationOperationCreate(context.Background(), opCreateReq, opCreateParams)
+		res, err := Handler{}.V1SnaplockLitigationOperationCreate(contextWithSnaplockIAMRequest(t), opCreateReq, opCreateParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationCreateBadRequest)
@@ -1903,7 +2244,7 @@ func TestV1SnaplockLitigationOperationGet_WithMockClient(t *testing.T) {
 			OperationId:   "16908292",
 		}
 
-		res, err := handler.V1SnaplockLitigationOperationGet(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationOperationGet(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		opRes, ok := res.(*oasgenserver.SnaplockLegalHoldOperationResponse)
@@ -1936,7 +2277,7 @@ func TestV1SnaplockLitigationOperationGet_WithMockClient(t *testing.T) {
 			OperationId:   "16908292",
 		}
 
-		res, err := handler.V1SnaplockLitigationOperationGet(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationOperationGet(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		internalErr, ok := res.(*oasgenserver.V1SnaplockLitigationOperationGetInternalServerError)
@@ -1965,7 +2306,7 @@ func TestV1SnaplockLitigationOperationGet_WithMockClient(t *testing.T) {
 			OperationId:   "16908292",
 		}
 
-		res, err := handler.V1SnaplockLitigationOperationGet(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationOperationGet(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		notFound, ok := res.(*oasgenserver.V1SnaplockLitigationOperationGetNotFound)
@@ -1993,7 +2334,7 @@ func TestV1SnaplockLitigationOperationAbort_WithMockClient(t *testing.T) {
 			OperationId:   "16908292",
 		}
 
-		res, err := handler.V1SnaplockLitigationOperationAbort(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationOperationAbort(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationAbortBadRequest)
@@ -2023,7 +2364,7 @@ func TestV1SnaplockLitigationOperationAbort_WithMockClient(t *testing.T) {
 			OperationId:   "16908292",
 		}
 
-		res, err := handler.V1SnaplockLitigationOperationAbort(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationOperationAbort(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		_, ok := res.(*oasgenserver.V1SnaplockLitigationOperationAbortOK)
@@ -2050,7 +2391,7 @@ func TestV1SnaplockLitigationOperationAbort_WithMockClient(t *testing.T) {
 			OperationId:   "16908292",
 		}
 
-		res, err := handler.V1SnaplockLitigationOperationAbort(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationOperationAbort(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		notFound, ok := res.(*oasgenserver.V1SnaplockLitigationOperationAbortNotFound)
@@ -2080,7 +2421,7 @@ func TestV1SnaplockLitigationOperationAbort_WithMockClient(t *testing.T) {
 			OperationId:   "16908292",
 		}
 
-		res, err := handler.V1SnaplockLitigationOperationAbort(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationOperationAbort(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationAbortBadRequest)
@@ -2110,7 +2451,7 @@ func TestV1SnaplockLitigationOperationAbort_WithMockClient(t *testing.T) {
 			OperationId:   "16908292",
 		}
 
-		res, err := handler.V1SnaplockLitigationOperationAbort(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationOperationAbort(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		notFound, ok := res.(*oasgenserver.V1SnaplockLitigationOperationAbortNotFound)
@@ -2142,7 +2483,7 @@ func TestV1SnaplockLitigationOperationAbort_WithMockClient(t *testing.T) {
 			OperationId:   "16908292",
 		}
 
-		res, err := handler.V1SnaplockLitigationOperationAbort(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationOperationAbort(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationAbortBadRequest)
@@ -2174,7 +2515,7 @@ func TestV1SnaplockLitigationOperationAbort_WithMockClient(t *testing.T) {
 			OperationId:   "16908292",
 		}
 
-		res, err := handler.V1SnaplockLitigationOperationAbort(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationOperationAbort(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		notFound, ok := res.(*oasgenserver.V1SnaplockLitigationOperationAbortNotFound)
@@ -2206,7 +2547,7 @@ func TestV1SnaplockLitigationOperationAbort_WithMockClient(t *testing.T) {
 			OperationId:   "16908292",
 		}
 
-		res, err := handler.V1SnaplockLitigationOperationAbort(context.Background(), params)
+		res, err := handler.V1SnaplockLitigationOperationAbort(contextWithSnaplockIAMRequest(t), params)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1SnaplockLitigationOperationAbortBadRequest)
