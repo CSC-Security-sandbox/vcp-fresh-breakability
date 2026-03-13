@@ -20,6 +20,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"go.temporal.io/sdk/temporal"
 )
 
 func TestGetSrcBasePathDelete(t *testing.T) {
@@ -5845,10 +5846,10 @@ func TestDeHydrateDestinationVolumeReplication(t *testing.T) {
 					ReplicationModel: &datamodel.VolumeReplication{
 						Name: "replication-name",
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							EndpointType:        database.VolumeReplicationEndpointTypeSource,
-							SourceLocation:      "us-central1",
-							SourceVolumeName:    "src-volume",
-							DestinationLocation: "us-east4",
+							EndpointType:          database.VolumeReplicationEndpointTypeSource,
+							SourceLocation:        "us-central1",
+							SourceVolumeName:      "src-volume",
+							DestinationLocation:   "us-east4",
 							DestinationVolumeName: "dst-volume",
 						},
 					},
@@ -5890,10 +5891,10 @@ func TestDeHydrateDestinationVolumeReplication(t *testing.T) {
 					ReplicationModel: &datamodel.VolumeReplication{
 						Name: "replication-name",
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							EndpointType:        database.VolumeReplicationEndpointTypeSource,
-							SourceLocation:      "us-central1",
-							SourceVolumeName:    "src-volume",
-							DestinationLocation: "us-east4",
+							EndpointType:          database.VolumeReplicationEndpointTypeSource,
+							SourceLocation:        "us-central1",
+							SourceVolumeName:      "src-volume",
+							DestinationLocation:   "us-east4",
 							DestinationVolumeName: "dst-volume",
 						},
 					},
@@ -5939,10 +5940,10 @@ func TestDeHydrateDestinationVolumeReplication(t *testing.T) {
 					ReplicationModel: &datamodel.VolumeReplication{
 						Name: "replication-name",
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							EndpointType:        database.VolumeReplicationEndpointTypeDestination,
-							SourceLocation:      "us-central1",
-							SourceVolumeName:    "src-volume",
-							DestinationLocation: "us-east4",
+							EndpointType:          database.VolumeReplicationEndpointTypeDestination,
+							SourceLocation:        "us-central1",
+							SourceVolumeName:      "src-volume",
+							DestinationLocation:   "us-east4",
 							DestinationVolumeName: "dst-volume",
 						},
 					},
@@ -5988,10 +5989,10 @@ func TestDeHydrateDestinationVolumeReplication(t *testing.T) {
 					ReplicationModel: &datamodel.VolumeReplication{
 						Name: "replication-name",
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							EndpointType:        database.VolumeReplicationEndpointTypeSource,
-							SourceLocation:      "us-central1",
-							SourceVolumeName:    "src-volume",
-							DestinationLocation: "us-east4",
+							EndpointType:          database.VolumeReplicationEndpointTypeSource,
+							SourceLocation:        "us-central1",
+							SourceVolumeName:      "src-volume",
+							DestinationLocation:   "us-east4",
 							DestinationVolumeName: "dst-volume",
 						},
 					},
@@ -6011,6 +6012,56 @@ func TestDeHydrateDestinationVolumeReplication(t *testing.T) {
 		res, err := activity.DeHydrateDestinationVolumeReplication(ctx, result)
 		assert.Error(tt, err)
 		assert.Nil(tt, res)
+		var appErr *temporal.ApplicationError
+		assert.True(tt, vsaerrors.As(err, &appErr), "Expected Temporal ApplicationError")
+		assert.True(tt, appErr.NonRetryable(), "Expected non-retryable error for generic dehydration error")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenDeHydrateVolumeReplicationErrorWithResourceExtractionFailure", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		originalHydrationEnabled := hydrationEnabled
+		hydrationEnabled = true
+		defer func() {
+			hydrationEnabled = originalHydrationEnabled
+		}()
+
+		activity := DeleteVolumeReplicationActivity{SE: mockStorage}
+		result := &replication.DeleteReplicationResult{
+			Event: &replication.DeleteReplicationEvent{
+				CommonReplicationEventParams: replication.CommonReplicationEventParams{
+					SourceProjectNumber:      "src-proj",
+					DestinationProjectNumber: "dst-proj",
+					ReplicationModel: &datamodel.VolumeReplication{
+						Name: "replication-name",
+						ReplicationAttributes: &datamodel.ReplicationDetails{
+							EndpointType:          database.VolumeReplicationEndpointTypeSource,
+							SourceLocation:        "us-central1",
+							SourceVolumeName:      "src-volume",
+							DestinationLocation:   "us-east4",
+							DestinationVolumeName: "dst-volume",
+						},
+					},
+				},
+			},
+		}
+
+		originalDeHydrateVolumeReplication := deHydrateVolumeReplication
+		defer func() {
+			deHydrateVolumeReplication = originalDeHydrateVolumeReplication
+		}()
+
+		deHydrateVolumeReplication = func(ctx context.Context, createReplicationResponse models.VolumeReplication, project string) error {
+			return errors.New("rpc error: code = Internal desc = Unable to extract the resource from the request.")
+		}
+
+		res, err := activity.DeHydrateDestinationVolumeReplication(ctx, result)
+		assert.Error(tt, err)
+		assert.Nil(tt, res)
+		var appErr *temporal.ApplicationError
+		assert.True(tt, vsaerrors.As(err, &appErr), "Expected Temporal ApplicationError")
+		assert.False(tt, appErr.NonRetryable(), "Expected retryable error for resource extraction failure")
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -6032,10 +6083,10 @@ func TestDeHydrateDestinationVolumeReplication(t *testing.T) {
 					ReplicationModel: &datamodel.VolumeReplication{
 						Name: "replication-name",
 						ReplicationAttributes: &datamodel.ReplicationDetails{
-							EndpointType:        database.VolumeReplicationEndpointTypeSource,
-							SourceLocation:      "us-central1",
-							SourceVolumeName:    "src-volume",
-							DestinationLocation: "us-east4",
+							EndpointType:          database.VolumeReplicationEndpointTypeSource,
+							SourceLocation:        "us-central1",
+							SourceVolumeName:      "src-volume",
+							DestinationLocation:   "us-east4",
 							DestinationVolumeName: "dst-volume",
 						},
 					},

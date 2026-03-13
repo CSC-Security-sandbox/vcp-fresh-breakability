@@ -200,7 +200,7 @@ func TestGetSignedJwtToken(t *testing.T) {
 		expectedTime := time.Now()
 		projectNumber := "123"
 		projectNumberInt := int64(123)
-		ttl := 20 * time.Minute
+		ttl := 60 * time.Minute
 		payload := JwtPayload{
 			Subject:    "",
 			Issuer:     "",
@@ -240,7 +240,7 @@ func TestGetSignedJwtToken(t *testing.T) {
 		expectedTime := time.Now()
 		projectNumberInt := int64(123)
 		projectNumber := "123"
-		ttl := 20 * time.Minute
+		ttl := 60 * time.Minute
 		payload := JwtPayload{
 			Subject:    "",
 			Issuer:     "",
@@ -339,7 +339,7 @@ func TestGetSignedJwtToken(t *testing.T) {
 		expectedTime := time.Now()
 		projectNumber := "123"
 		projectNumberInt := int64(123)
-		ttl := 20 * time.Minute
+		ttl := 60 * time.Minute
 		payload := JwtPayload{
 			Subject:    "",
 			Issuer:     "",
@@ -387,7 +387,7 @@ func TestGetSignedJwtToken(t *testing.T) {
 		expectedTime := time.Now()
 		projectNumber := "123"
 		projectNumberInt := int64(123)
-		ttl := 20 * time.Minute
+		ttl := 60 * time.Minute
 		payload := JwtPayload{
 			Subject:    "",
 			Issuer:     "",

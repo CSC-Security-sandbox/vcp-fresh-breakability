@@ -42,7 +42,7 @@ func _getSignedJwtToken(projectNumber string) (string, error) {
 
 	ctx := context.Background()
 	timeAtStart := timeNow()
-	ttl := time.Duration(env.GetInt("JWT_TTL_MINUTES", 20)) * time.Minute
+	ttl := time.Duration(env.GetInt("JWT_TTL_MINUTES", 60)) * time.Minute
 	serviceAccount := env.GetString("GCP_AUTH_SERVICE_ACCOUNT", "")
 	serviceUrl := env.GetString("GCP_SERVICE_URL", "")
 	isIntegrationTest := env.GetString("INTEGRATION_TEST", "")

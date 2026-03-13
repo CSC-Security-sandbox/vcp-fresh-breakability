@@ -706,6 +706,9 @@ func (a *DeleteVolumeReplicationActivity) DeHydrateDestinationVolumeReplication(
 		}
 		err = deHydrateVolumeReplication(ctx, convertVolumeReplicationV1BetaToVolumeModel(result.Event.ReplicationModel.Name, remoteLocation, remoteVolume), remoteProject)
 		if err != nil {
+			if strings.Contains(err.Error(), "Unable to extract the resource from the request") {
+				return nil, errors.WrapAsTemporalApplicationError(errors.NewVCPError(errors.ErrDeHydrateVolumeReplication, err))
+			}
 			return nil, errors.WrapAsNonRetryableTemporalApplicationError(errors.NewVCPError(errors.ErrDeHydrateVolumeReplication, err))
 		}
 	}
