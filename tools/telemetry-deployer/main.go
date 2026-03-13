@@ -475,7 +475,7 @@ func getDefaultEnvVars() map[string]string {
 	}
 
 	return map[string]string{
-		"ENV":                                        getEnvOrDefault("ENV", "local"),
+		"ENV":                                        getEnvOrDefault("ENV", ""),
 		"GCP_PROXY_PORT":                             getEnvOrDefault("GCP_PROXY_PORT", "8090"),
 		"DB_TYPE":                                    getEnvOrDefault("DB_TYPE", "postgres"),
 		"DB_HOST":                                    getEnvOrDefault("DB_HOST", "127.0.0.1"),
@@ -548,6 +548,8 @@ func getDefaultEnvVars() map[string]string {
 		"ENABLE_BACKUP_HISTORY_FORMATTER": getEnvOrDefault("ENABLE_BACKUP_HISTORY_FORMATTER", "false"),
 		"VCP_PAIRED_REGIONS":              getEnvOrDefault("VCP_PAIRED_REGIONS", ""),
 		"PROXY_CLIENT_TRANSPORT_SCHEMA":   getEnvOrDefault("PROXY_CLIENT_TRANSPORT_SCHEMA", "https"),
+		"GCP_AUTH_SERVICE_ACCOUNT":        getEnvOrDefault("GCP_AUTH_SERVICE_ACCOUNT", ""),
+		"GCP_SERVICE_URL":                 getEnvOrDefault("GCP_SERVICE_URL", "https://cloudvolumesgcp-api.netapp.com"),
 	}
 }
 

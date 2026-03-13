@@ -170,6 +170,10 @@ spec:
               value: {{ .Values.global.coreConfig.vcpPairedRegions | default "" | quote }}
             - name: PROXY_CLIENT_TRANSPORT_SCHEMA
               value: {{ .Values.global.coreConfig.proxyClientTransportSchema | default "https" | quote }}
+            - name: GCP_AUTH_SERVICE_ACCOUNT
+              value: {{ .Values.global.coreConfig.gcpAuthServiceAccount | default "" | quote }}
+            - name: GCP_SERVICE_URL
+              value: {{ .Values.global.coreConfig.gcpServiceUrl | default "https://cloudvolumesgcp-api.netapp.com" | quote }}
             - name: ENABLE_VOLUME_METRICS
               value: {{ .Values.telemetryDeployer.enableVolumeMetrics | default "false" | quote }}
             - name: ENABLE_BACKUP_METRICS
