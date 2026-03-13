@@ -213,6 +213,7 @@ func PostBlockVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, n
 func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, node *models.Node) (*datamodel.Volume, error) {
 	// Configure activity options for child workflow
 	volumeActivity := &activities.VolumeCreateActivity{}
+	volumeDeleteActivity := &activities.VolumeDeleteActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
 		return nil, err
@@ -240,11 +241,11 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 	}
 
 	if !*isOntapClusterHealthy {
-		// Update volume state in DB to DELETED when the ONTAP Health check fails
-		err := workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeStateInDB, dbVolume.UUID, models.LifeCycleStateDeleted, models.LifeCycleStateDeletedDetails).Get(ctx, nil)
+		// Delete Volume in DB when the ONTAP Health check fails
+		err := workflow.ExecuteActivity(ctx, volumeDeleteActivity.DeleteVolume, dbVolume).Get(ctx, nil)
 		if err != nil {
-			log.Errorf("Failed to update volume state in DB to Deleted: %v", err)
-			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrUpdateVolume, fmt.Errorf("failed to update volume state in DB to Deleted")))
+			log.Errorf("Failed to delete volume: %v", err)
+			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrDeleteVolume, fmt.Errorf("failed to delete volume")))
 		}
 		log.Errorf("ONTAP cluster is not available. Cluster is down.")
 		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrOntapClusterNotAvailable, fmt.Errorf("ONTAP cluster is down")))

@@ -42,6 +42,7 @@ type UnitTestSuite struct {
 	commonActivity       *activities.CommonActivities
 	kmsConfigActivity    *kms_activities.KmsConfigActivity
 	volumeCreateActivity *activities.VolumeCreateActivity
+	volumeDeleteActivity *activities.VolumeDeleteActivity
 	vpgActivity          *activities.VolumePerformanceGroupActivity
 	poolActivity         *activities.PoolActivity
 }
@@ -82,6 +83,7 @@ func (s *UnitTestSuite) setupTestWorkflowEnv(t *testing.T) {
 	s.commonActivity = &commonActivity
 	s.kmsConfigActivity = &kmsConfigActivity
 	s.volumeCreateActivity = &volumeCreateActivity
+	s.volumeDeleteActivity = &volumeDeleteActivity
 	s.poolActivity = &poolActivity
 
 	// Create and store VPG activity for use in tests
@@ -179,7 +181,6 @@ func (s *UnitTestSuite) setupTestWorkflowEnv(t *testing.T) {
 	// that return volumes with all necessary fields (Pool, Account, Svm, VolumeAttributes, etc.)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeAttributesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
-	s.env.OnActivity(volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
@@ -744,6 +745,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_Failure_UpdateVolumeDetails() 
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
 		Pool: &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: int64(1)},
@@ -776,7 +778,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_Failure_UpdateVolumeDetails() 
 	s.env.OnActivity("CreateLunMap", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(
 		errors.New("failed to update volume details"))
-
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(errors.New("failed to delete volume"))
 	// Execute workflow
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
@@ -952,6 +954,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_GetBackupPolicyError() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
 		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
 			SecretID: "",
@@ -991,7 +994,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_GetBackupPolicyError() {
 	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CheckIfBackupPolicyExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(false, errors.New("failed to check backup policy exists in VCP"))
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(errors.New("failed to delete volume"))
 	// Execute workflow
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
@@ -1008,6 +1011,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateBackupPolicyFetchedFromS
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
 		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
 			SecretID: "",
@@ -1025,6 +1029,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateBackupPolicyFetchedFromS
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
 	s.env.RegisterActivity(volumeCreateActivity.InitiateSplitForVolume)
+	s.env.RegisterActivity(volumeDeleteActivity.DeleteVolume)
 
 	// Mock activities
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1050,6 +1055,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateBackupPolicyFetchedFromS
 	s.env.OnActivity(volumeCreateActivity.CreateBackupPolicyFetchedFromSDE, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to check backup policy in SDE"))
 	s.env.OnActivity(volumeCreateActivity.GetAggregatesFromOntap, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(errors.New("failed to delete volume"))
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
@@ -1067,6 +1073,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateBackupPolicyScheduleErro
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
 	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
 		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
@@ -1085,7 +1092,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateBackupPolicyScheduleErro
 	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
 	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
 	s.env.RegisterActivity(volumeCreateActivity.InitiateSplitForVolume)
-
+	s.env.RegisterActivity(volumeDeleteActivity.DeleteVolume)
 	// Mock activities
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
@@ -1115,6 +1122,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateBackupPolicyScheduleErro
 	s.env.OnActivity(volumeCreateActivity.CreateBackupPolicySchedule, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to create backup policy schedule"))
 	s.env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInVCP, mock.Anything, mock.Anything).Return(&datamodel.BackupPolicy{}, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(errors.New("failed to delete volume"))
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
@@ -1133,6 +1141,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_PauseBackupPolicyScheduleError
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
 	volume := &datamodel.Volume{
 		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
 			SecretID: "",
@@ -1184,6 +1193,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_PauseBackupPolicyScheduleError
 	s.env.OnActivity(backupPolicyActivity.DeleteBackupPolicySchedule, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupPolicyActivity.DeleteBackupPolicyInVCP, mock.Anything, mock.Anything).Return(&datamodel.BackupPolicy{}, nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(errors.New("failed to delete volume"))
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
@@ -2154,10 +2164,13 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_OntapClusterDown() {
 	// Mock HasNasLifInVLMConfig to return true since vlmConfig has NAS LIF configured
 	s.env.OnActivity(poolActivity.HasNasLifInVLMConfig, mock.Anything, mock.Anything).Return(true, nil)
 	volumeCreateActivity := s.volumeCreateActivity
+	volumeDeleteActivity := s.volumeDeleteActivity
 	s.env.RegisterActivity(volumeCreateActivity.CreateExportPolicyInOntap)
 	s.env.OnActivity(volumeCreateActivity.CreateExportPolicyInOntap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.RegisterActivity(volumeCreateActivity.GetOntapClusterHealth)
 	s.env.OnActivity(volumeCreateActivity.GetOntapClusterHealth, mock.Anything, mock.Anything).Return(isOntapClusterHealthy, nil)
+	s.env.RegisterActivity(volumeDeleteActivity.DeleteVolume)
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute the workflow
 	s.env.ExecuteWorkflow(PreFileVolumeWorkflow, volume, node)
@@ -2166,6 +2179,77 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_OntapClusterDown() {
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
 	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "ONTAP cluster is not available. Cluster is down.")
+}
+
+func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_DeleteVolumeFails() {
+	// Test PreFileVolumeWorkflow when Ontap Cluster is Down
+	mockStorage := database.NewMockStorage(s.T())
+	poolActivity := activities.PoolActivity{SE: mockStorage}
+	isOntapClusterHealthy := new(bool)
+	*isOntapClusterHealthy = false
+
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "password",
+				SecretID:      "",
+				CertificateID: "",
+			},
+			BuildInfo: &datamodel.PoolBuildInfo{
+				OntapVersion: "9.18.1",
+			}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{Protocols: []string{utils.ProtocolNFSv3}},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+
+	// Enable file protocols for testing
+	utils.SetFileProtocolSupportedForTesting(true)
+	defer utils.SetFileProtocolSupportedForTesting(false)
+
+	// Register activities
+	s.env.RegisterActivity(poolActivity.ParseVlmConfig)
+	s.env.RegisterActivity(poolActivity.HasNasLifInVLMConfig)
+	s.env.RegisterActivity(poolActivity.GetOnTapCredentials)
+	s.env.RegisterActivity(poolActivity.MarshalVLMConfig)
+	s.env.RegisterActivity(poolActivity.UpdatePoolFields)
+
+	// Mock ParseVlmConfig to return a VLMConfig with NAS LIF already configured
+	vlmConfig := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			DevFlags: vlm.DevFlags{
+				EnableIlbSupport: true,
+			},
+		},
+		Svm: map[string]vlm.SvmConfig{
+			"svm_test": {
+				SVMLIFs: vlm.SvmLIFConfigs{
+					vlm.LIFTypeIlbNas: {
+						{Name: "ilbnas-lif-1"},
+					},
+				},
+			},
+		},
+	}
+	s.env.OnActivity(poolActivity.ParseVlmConfig, mock.Anything, mock.Anything).Return(vlmConfig, nil)
+	// Mock HasNasLifInVLMConfig to return true since vlmConfig has NAS LIF configured
+	s.env.OnActivity(poolActivity.HasNasLifInVLMConfig, mock.Anything, mock.Anything).Return(true, nil)
+	volumeCreateActivity := s.volumeCreateActivity
+	volumeDeleteActivity := s.volumeDeleteActivity
+	s.env.RegisterActivity(volumeCreateActivity.CreateExportPolicyInOntap)
+	s.env.OnActivity(volumeCreateActivity.CreateExportPolicyInOntap, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.RegisterActivity(volumeCreateActivity.GetOntapClusterHealth)
+	s.env.OnActivity(volumeCreateActivity.GetOntapClusterHealth, mock.Anything, mock.Anything).Return(isOntapClusterHealthy, nil)
+	s.env.RegisterActivity(volumeDeleteActivity.DeleteVolume)
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(errors.New("failed to delete volume"))
+
+	// Execute the workflow
+	s.env.ExecuteWorkflow(PreFileVolumeWorkflow, volume, node)
+
+	// Assert workflow completed with error (failed to delete volume)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "Failed to delete volume")
 }
 
 func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_Success() {
@@ -4569,6 +4653,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_CreateVolumeInO
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
 	isOntapClusterHealthy := new(bool)
 	*isOntapClusterHealthy = true
 
@@ -4654,7 +4739,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_NFS_FileVolume_CreateVolumeInO
 	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create volume in ONTAP"))
 	s.env.OnActivity(volumeCreateActivity.GetOntapClusterHealth, mock.Anything, mock.Anything).Return(isOntapClusterHealthy, nil)
-
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(errors.New("failed to delete volume"))
 	// Execute workflow
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
@@ -5718,6 +5803,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateVolumeInONTAPError() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
 
 	volume := &datamodel.Volume{
 		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
@@ -5738,7 +5824,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateVolumeInONTAPError() {
 	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to create volume in ONTAP"))
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(errors.New("failed to delete volume"))
 	// Execute workflow
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
 
@@ -5828,6 +5914,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_PostChildWorkflowError() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
 
 	volume := &datamodel.Volume{
 		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)},
@@ -5852,6 +5939,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_PostChildWorkflowError() {
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.LunSizeUpdateValidation, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateClonedVolumeBeforeSplit, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(errors.New("failed to delete volume"))
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
@@ -6015,6 +6103,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_RestoreSnapshot_UpdateVolumeAu
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeAutoTieringPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update auto tiering policy"))
 	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(errors.New("failed to delete volume"))
 
 	// Act
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume)
@@ -6762,6 +6851,7 @@ func (s *UnitTestSuite) Test_UpdateRemoteBackupVaultDetailsInVCP_Error() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
 
 	volume := &datamodel.Volume{
 		Account:   &datamodel.Account{Name: "project-123"},
@@ -6793,6 +6883,7 @@ func (s *UnitTestSuite) Test_UpdateRemoteBackupVaultDetailsInVCP_Error() {
 	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{}, nil)
 	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(errors.New("failed to delete volume"))
 
 	// Mock child workflow
 	s.env.OnWorkflow("PostBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
@@ -6826,7 +6917,6 @@ func (s *UnitTestSuite) Test_UpdateRemoteBackupVaultDetailsInVCP_Error() {
 	s.env.OnActivity(volumeCreateActivity.UpdateBackupVaultWithBucketDetails, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update remote backup vault"))
 
 	// Mock cleanup activities that will be called due to error
-	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything).Return(nil)
@@ -8316,6 +8406,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationAfterCreateSnapsho
 	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
 	s.env.RegisterActivity(volumeDeleteActivity.DeleteVolumeInONTAP)
 	s.env.RegisterActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(volumeDeleteActivity.DeleteVolume)
 
 	// Mock child workflows
 	s.env.OnWorkflow(PreBlockVolumeWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
@@ -8342,6 +8433,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationAfterCreateSnapsho
 	// Mock cleanup activities
 	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(errors.New("failed to delete volume"))
 
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume)
 
@@ -8408,7 +8500,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationBeforePostWorkflow
 	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
 	s.env.RegisterActivity(volumeDeleteActivity.DeleteVolumeInONTAP)
 	s.env.RegisterActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP)
-
+	s.env.RegisterActivity(volumeDeleteActivity.DeleteVolume)
 	// Mock child workflows
 	s.env.OnWorkflow(PreBlockVolumeWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnWorkflow(PostBlockVolumeWorkflow, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil).Maybe()
@@ -8433,6 +8525,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationBeforePostWorkflow
 	// Mock cleanup activities
 	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(errors.New("failed to delete volume"))
 
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume)
 
@@ -8460,7 +8553,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationBeforeBackupPolicy
 	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
 	s.env.RegisterActivity(volumeDeleteActivity.DeleteVolumeInONTAP)
 	s.env.RegisterActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP)
-
+	s.env.RegisterActivity(volumeDeleteActivity.DeleteVolume)
 	// Mock child workflows
 	s.env.OnWorkflow(PreBlockVolumeWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnWorkflow(PostBlockVolumeWorkflow, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil).Maybe()
@@ -8486,6 +8579,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationBeforeBackupPolicy
 	// Mock cleanup activities
 	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(errors.New("failed to delete volume"))
 
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume)
 
@@ -8509,6 +8603,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationBeforeUpdateVolume
 	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
 	s.env.RegisterActivity(volumeDeleteActivity.DeleteVolumeInONTAP)
 	s.env.RegisterActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(volumeDeleteActivity.DeleteVolume)
 
 	// Mock child workflows - send cancellation signal immediately after PostBlockVolumeWorkflow completes, before UpdateVolumeDetails (covers line 1141)
 	s.env.OnWorkflow(PreBlockVolumeWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
@@ -8534,6 +8629,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CancellationBeforeUpdateVolume
 	// Mock cleanup activities
 	s.env.OnActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(volumeDeleteActivity.DeleteVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(errors.New("failed to delete volume"))
 
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume)
 
@@ -8554,6 +8650,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UpdateVolumeStateInDBErrorInDe
 	volumeDeleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
 	s.env.RegisterActivity(volumeDeleteActivity.DeleteVolumeInONTAP)
 	s.env.RegisterActivity(volumeDeleteActivity.DeleteSnapshotPolicyInONTAP)
+	s.env.RegisterActivity(volumeDeleteActivity.DeleteVolume)
 
 	s.env.OnWorkflow(PreBlockVolumeWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
 	s.env.OnWorkflow(PostBlockVolumeWorkflow, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil).Maybe()
@@ -8574,6 +8671,7 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UpdateVolumeStateInDBErrorInDe
 	s.env.OnActivity(s.volumeCreateActivity.GetOntapClusterHealth, mock.Anything, mock.Anything).Return(true, nil)
 	// GetVolumeByVolumeID takes (ctx, volumeID) - 2 arguments
 	s.env.OnActivity(s.volumeCreateActivity.GetVolumeByVolumeID, mock.Anything, mock.Anything).Return(&datamodel.Volume{State: models.LifeCycleStateREADY}, nil)
+	s.env.OnActivity(volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(errors.New("failed to delete volume"))
 
 	s.env.ExecuteWorkflow(CreateVolumeWorkflow, params, volume)
 
