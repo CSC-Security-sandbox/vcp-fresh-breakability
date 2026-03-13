@@ -2,6 +2,9 @@ package active_directory_activities
 
 import (
 	"context"
+	"net/http"
+	"testing"
+
 	"github.com/go-openapi/runtime"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -17,8 +20,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	"net/http"
-	"testing"
 )
 
 type fakeInternalADClient struct {
@@ -55,7 +56,12 @@ func buildAuthContext() context.Context {
 
 func TestPushActiveDirectoryPasswordActivity(t *testing.T) {
 	originalCvpClient := CvpClient
-	defer func() { CvpClient = originalCvpClient }()
+	originalGetSignedJwtToken := getSignedJwtToken
+	defer func() {
+		CvpClient = originalCvpClient
+		getSignedJwtToken = originalGetSignedJwtToken
+	}()
+	getSignedJwtToken = func(string) (string, error) { return "test-token", nil }
 
 	t.Run("ReturnsErrorWhenADIsNil", func(tt *testing.T) {
 		activity := ActiveDirectorySyncActivity{}
@@ -67,6 +73,23 @@ func TestPushActiveDirectoryPasswordActivity(t *testing.T) {
 			ActiveDirectory:   nil,
 		})
 		assert.Error(tt, err)
+	})
+
+	t.Run("ReturnsErrorWhenTokenFetchFails", func(tt *testing.T) {
+		orig := getSignedJwtToken
+		getSignedJwtToken = func(string) (string, error) { return "", assert.AnError }
+		defer func() { getSignedJwtToken = orig }()
+		activity := ActiveDirectorySyncActivity{}
+		params := &SyncActiveDirectoryParams{
+			ActiveDirectoryID: "ad-id",
+			AccountName:       "acct",
+			LocationID:        "loc",
+			XCorrelationID:    "corr",
+			ActiveDirectory:   &models.ActiveDirectory{AdName: "ad-name"},
+		}
+		_, err := activity.PushActiveDirectoryPasswordActivity(buildAuthContext(), params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "signed token")
 	})
 
 	t.Run("ReturnsErrorOnCvpFailure", func(tt *testing.T) {
@@ -84,6 +107,26 @@ func TestPushActiveDirectoryPasswordActivity(t *testing.T) {
 		}
 		_, err := activity.PushActiveDirectoryPasswordActivity(buildAuthContext(), params)
 		assert.Error(tt, err)
+	})
+
+	t.Run("ReturnsRetryableErrorOnConflict", func(tt *testing.T) {
+		CvpClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return cvpapi.Cvp{InternalActiveDirectories: fakeInternalADClient{
+				err: &internal_active_directories.V1betaPushActiveDirectoryPasswordConflict{},
+			}}
+		}
+		activity := ActiveDirectorySyncActivity{}
+		params := &SyncActiveDirectoryParams{
+			ActiveDirectoryID: "ad-id",
+			AccountName:       "acct",
+			LocationID:        "loc",
+			XCorrelationID:    "corr",
+			ActiveDirectory:   &models.ActiveDirectory{AdName: "ad-name"},
+		}
+		_, err := activity.PushActiveDirectoryPasswordActivity(buildAuthContext(), params)
+		assert.Error(tt, err)
+		customErr := vsaerrors.ExtractCustomError(err)
+		assert.True(tt, customErr.IsError(vsaerrors.ErrADSyncADOperationInProgress))
 	})
 
 	t.Run("ReturnsErrorOnEmptyResponse", func(tt *testing.T) {
@@ -155,7 +198,12 @@ func TestPushActiveDirectoryPasswordActivity(t *testing.T) {
 
 func TestPollPushPasswordOperationActivity(t *testing.T) {
 	originalCvpClient := CvpClient
-	defer func() { CvpClient = originalCvpClient }()
+	originalGetSignedJwtToken := getSignedJwtToken
+	defer func() {
+		CvpClient = originalCvpClient
+		getSignedJwtToken = originalGetSignedJwtToken
+	}()
+	getSignedJwtToken = func(string) (string, error) { return "test-token", nil }
 
 	t.Run("ReturnsWhenOperationIsNil", func(tt *testing.T) {
 		activity := ActiveDirectorySyncActivity{}
@@ -176,6 +224,21 @@ func TestPollPushPasswordOperationActivity(t *testing.T) {
 		done := false
 		err := activity.PollPushPasswordOperationActivity(buildAuthContext(), &SyncActiveDirectoryParams{}, &cvpModels.OperationV1beta{Done: &done})
 		assert.Error(tt, err)
+	})
+
+	t.Run("ReturnsErrorWhenTokenFetchFails", func(tt *testing.T) {
+		orig := getSignedJwtToken
+		getSignedJwtToken = func(string) (string, error) { return "", assert.AnError }
+		defer func() { getSignedJwtToken = orig }()
+		activity := ActiveDirectorySyncActivity{}
+		notDone := false
+		err := activity.PollPushPasswordOperationActivity(buildAuthContext(), &SyncActiveDirectoryParams{
+			AccountName:    "acct",
+			LocationID:     "loc",
+			XCorrelationID: "corr",
+		}, &cvpModels.OperationV1beta{Done: &notDone, Name: "operations/test-op"})
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "signed token")
 	})
 
 	t.Run("ReturnsErrorWhenPollReturnsError", func(tt *testing.T) {
@@ -223,7 +286,12 @@ func TestPollPushPasswordOperationActivity(t *testing.T) {
 
 func TestPollSdeCreateADActivity_OperationCompletedWithError(t *testing.T) {
 	originalCvpClient := CvpClient
-	defer func() { CvpClient = originalCvpClient }()
+	originalGetSignedJwtToken := getSignedJwtToken
+	defer func() {
+		CvpClient = originalCvpClient
+		getSignedJwtToken = originalGetSignedJwtToken
+	}()
+	getSignedJwtToken = func(string) (string, error) { return "test-token", nil }
 
 	done := true
 	code := float64(409)
@@ -243,8 +311,8 @@ func TestPollSdeCreateADActivity_OperationCompletedWithError(t *testing.T) {
 		XCorrelationID: "corr",
 	}, &cvpModels.OperationV1beta{Done: &notDone, Name: "operations/test-op"})
 	assert.Error(t, err)
-	customErr := vsaerrors.ExtractCustomError(err)
-	assert.True(t, customErr.IsError(vsaerrors.ErrCVPConflict))
+	// Activity returns non-retryable error when operation completes with error (e.g. 409 conflict)
+	assert.Contains(t, err.Error(), "synchronizing Active Directory")
 }
 
 func TestCreateActiveDirectoryInVCPActivity(t *testing.T) {

@@ -416,6 +416,11 @@ const (
 
 	// Active Directory specific errors (14000-14199)
 	ErrActiveDirectoryDeleteErrorDueToInUseByPool = 14000
+	ErrADSyncSDECommunicationFailure              = 14001
+	ErrADSyncVCPPersistenceFailure                = 14002
+	ErrADSyncValidationFailure                    = 14003
+	ErrADSyncADOperationInProgress                = 14004
+	ErrADSyncPollOperationFailure                 = 14005
 
 	// CVP/SDE Error Codes (14200-14399) - Errors returned by CVP (cloud-volumes-proxy) / SDE to VCP, mapped by HTTP status.
 	ErrCVPBadRequest          = 14200

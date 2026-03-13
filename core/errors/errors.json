@@ -2189,6 +2189,36 @@
     "retriable": false,
     "http_code": 409
   },
+  "14001": {
+    "description": "SDE/CVP backend communication failure during AD sync",
+    "message": "An internal error occurred while synchronizing Active Directory credentials. Please retry the operation.",
+    "retriable": true,
+    "http_code": 500
+  },
+  "14002": {
+    "description": "VCP database write failure during AD sync",
+    "message": "An internal error occurred while saving Active Directory configuration. Please retry the operation.",
+    "retriable": true,
+    "http_code": 500
+  },
+  "14003": {
+    "description": "Unexpected nil/empty input during AD sync",
+    "message": "Active Directory synchronization encountered an unexpected configuration error.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "14004": {
+    "description": "Another Active Directory operation is in progress for this account (SDE/CVS allows only one at a time)",
+    "message": "Another Active Directory operation is in progress. Please try again in a few minutes.",
+    "retriable": true,
+    "http_code": 409
+  },
+  "14005": {
+    "description": "Failed to poll CVP/SDE for Active Directory operation status",
+    "message": "An error occurred while checking the status of the Active Directory operation. Please retry the operation.",
+    "retriable": false,
+    "http_code": 500
+  },
   "14200": {
     "description": "CVP returned Bad Request",
     "message": "An error occurred while processing the request",

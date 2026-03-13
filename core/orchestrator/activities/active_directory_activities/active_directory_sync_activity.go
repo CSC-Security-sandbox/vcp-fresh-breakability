@@ -3,6 +3,8 @@ package active_directory_activities
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/internal_active_directories"
@@ -47,7 +49,8 @@ func (a ActiveDirectorySyncActivity) PushActiveDirectoryPasswordActivity(ctx con
 
 	if params.ActiveDirectory == nil {
 		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
-			customerrors.New("ActiveDirectory model is nil"),
+			vsaerrors.NewVCPError(vsaerrors.ErrADSyncValidationFailure,
+				fmt.Errorf("ActiveDirectory cannot be empty")),
 		)
 	}
 
@@ -68,8 +71,14 @@ func (a ActiveDirectorySyncActivity) PushActiveDirectoryPasswordActivity(ctx con
 		SdeProjectID:      env.SecretManagerProjectID,
 	}
 
-	// Create CVP client
-	jwtToken := utils.GetCVPJWTFromContext(ctx)
+	// Create CVP client with fresh token to avoid expiration during long-running or retried workflows
+	jwtToken, err := getSignedJwtToken(params.AccountName)
+	if err != nil {
+		logger.Errorf("Failed to get signed JWT token: %v", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrGetSignedToken, err),
+		)
+	}
 	cvpClient := CvpClient(logger, jwtToken)
 
 	// Prepare API parameters
@@ -84,14 +93,27 @@ func (a ActiveDirectorySyncActivity) PushActiveDirectoryPasswordActivity(ctx con
 	// Call CVP API
 	response, err := cvpClient.InternalActiveDirectories.V1betaPushActiveDirectoryPassword(pushPasswordParams)
 	if err != nil {
+		var conflictErr *internal_active_directories.V1betaPushActiveDirectoryPasswordConflict
+		if errors.As(err, &conflictErr) {
+			logger.Warn("CVP returned 409: Active Directory operation already in progress, will retry")
+			return nil, vsaerrors.WrapAsTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrADSyncADOperationInProgress,
+					fmt.Errorf("SDE returned 409: %v", err)),
+			)
+		}
+
 		logger.Errorf("Failed to push Active Directory password to CVP: %v", err)
-		return nil, WrapCvpError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrADSyncSDECommunicationFailure,
+				fmt.Errorf("failed to push Active Directory password to SDE: %v", err)),
+		)
 	}
 
 	if response == nil || response.Payload == nil {
 		logger.Error("Empty response from CVP push Active Directory password")
 		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
-			customerrors.New("empty response from CVP push Active Directory password"),
+			vsaerrors.NewVCPError(vsaerrors.ErrADSyncValidationFailure,
+				fmt.Errorf("empty response from CVP push Active Directory password")),
 		)
 	}
 
@@ -117,7 +139,11 @@ func (a ActiveDirectorySyncActivity) PollPushPasswordOperationActivity(ctx conte
 		logger.Info("Operation already completed synchronously, skipping poll")
 		if operation.Error != nil {
 			logger.Errorf("Operation completed with error: %v", operation.Error)
-			return WrapCvpError(NewOperationError(int(operation.Error.Code), operation.Error.Message))
+			// Mask CVP error to a generic error for internal api
+			return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrADSyncSDECommunicationFailure,
+					fmt.Errorf("SDE push password operation failed: %s", operation.Error.Message)),
+			)
 		}
 		return nil
 	}
@@ -126,12 +152,19 @@ func (a ActiveDirectorySyncActivity) PollPushPasswordOperationActivity(ctx conte
 	if operation.Name == "" {
 		logger.Error("Operation name is empty, cannot poll")
 		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
-			customerrors.New("operation name is nil"),
+			vsaerrors.NewVCPError(vsaerrors.ErrADSyncValidationFailure,
+				fmt.Errorf("operation name is empty")),
 		)
 	}
 
 	logger.Debugf("Polling async operation: %s", operation.Name)
-	jwtToken := utils.GetAuthTokenFromContext(ctx)
+	jwtToken, err := getSignedJwtToken(params.AccountName)
+	if err != nil {
+		logger.Errorf("Failed to get signed JWT token for PollPushPasswordOperationActivity: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrGetSignedToken, err),
+		)
+	}
 	cvpClient := CvpClient(logger, jwtToken)
 
 	// Extract the operation UUID
@@ -151,7 +184,7 @@ func (a ActiveDirectorySyncActivity) PollPushPasswordOperationActivity(ctx conte
 	if err != nil {
 		logger.Errorf("Failed to poll CVP operation %s: %v", operationUUID, err)
 		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
-			vsaerrors.NewVCPError(vsaerrors.ErrCVPClientHandleResourceEventError, err),
+			vsaerrors.NewVCPError(vsaerrors.ErrADSyncPollOperationFailure, err),
 		)
 	}
 
@@ -161,7 +194,10 @@ func (a ActiveDirectorySyncActivity) PollPushPasswordOperationActivity(ctx conte
 	if res.Done != nil && *res.Done {
 		if res.Error != nil {
 			logger.Errorf("Operation %s failed with error: %v", operationUUID, res.Error)
-			return WrapCvpError(NewOperationError(int(res.Error.Code), res.Error.Message))
+			return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrADSyncSDECommunicationFailure,
+					fmt.Errorf("SDE push password operation failed: %s", res.Error.Message)),
+			)
 		}
 		logger.Infof("Operation %s completed successfully", operationUUID)
 		return nil
@@ -180,7 +216,8 @@ func (a ActiveDirectorySyncActivity) CreateActiveDirectoryInVCPActivity(ctx cont
 
 	if params.ActiveDirectory == nil {
 		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
-			customerrors.New("ActiveDirectory model is nil"),
+			vsaerrors.NewVCPError(vsaerrors.ErrADSyncValidationFailure,
+				fmt.Errorf("ActiveDirectory model is nil")),
 		)
 	}
 
