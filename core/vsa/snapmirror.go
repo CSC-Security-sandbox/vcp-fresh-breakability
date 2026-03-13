@@ -13,7 +13,13 @@ func (rc *OntapRestProvider) SnapmirrorRelationshipCreate(params *commonparams.S
 	if err != nil {
 		return nil, err
 	}
-	_, job, err := client.Snapmirror().SnapmirrorRelationshipCreate(&ontapRest.SnapmirrorRelationshipCreateParams{SourcePath: params.SourcePath, DestinationPath: params.DestinationPath, AccessToken: smcToken, IsRestore: params.IsRestore, SourceUUID: params.SourceUUID})
+	_, job, err := client.Snapmirror().SnapmirrorRelationshipCreate(&ontapRest.SnapmirrorRelationshipCreateParams{
+		SourcePath:      params.SourcePath,
+		DestinationPath: params.DestinationPath,
+		AccessToken:     smcToken,
+		IsRestore:       params.IsRestore,
+		SourceUUID:      params.SourceUUID,
+	})
 	if err != nil {
 		return nil, err
 	}

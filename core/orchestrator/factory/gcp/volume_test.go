@@ -14402,6 +14402,278 @@ func TestUpdateVolume(t *testing.T) {
 		assert.Nil(tt, volume)
 		assert.Equal(tt, err.Error(), "cannot remove backup vault as backup policy is associated to the volume")
 	})
+
+	// Vault-switching flag ON branches (lines 2358-2395, 2416-2418)
+	t.Run("WhenEnableBackupVaultSwitching_BackupInProgress_ReturnsError", func(tt *testing.T) {
+		orig := utils.EnableBackupVaultSwitching
+		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		backupVaultId := ""
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", DataProtection: &models.UpdateDataProtection{
+			BackupVaultID: &backupVaultId,
+		}}
+		dbVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes: int64(1024 * 1024 * 1024),
+			Name:        "vol",
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
+			Account:     &datamodel.Account{Name: "acc"},
+			DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-1"},
+			State:        "READY",
+		}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
+		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, "vid").Return(true, nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := updateVolume(ctx, se, temporal, param, false)
+		assert.Error(tt, err)
+		assert.Nil(tt, volume)
+		assert.Contains(tt, err.Error(), "backup operation on the volume is currently in progress")
+	})
+	t.Run("WhenEnableBackupVaultSwitching_RemovingVaultWithPolicyAttached_ReturnsError", func(tt *testing.T) {
+		orig := utils.EnableBackupVaultSwitching
+		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		backupVaultId := ""
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", DataProtection: &models.UpdateDataProtection{
+			BackupVaultID: &backupVaultId,
+		}}
+		dbVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes: int64(1024 * 1024 * 1024),
+			Name:        "vol",
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
+			Account:     &datamodel.Account{Name: "acc"},
+			DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-1", BackupPolicyID: "policy-1"},
+			State:        "READY",
+		}
+		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, ServiceType: activities.GCBDRServiceType}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
+		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, "vid").Return(false, nil)
+		se.On("GetBackupVault", ctx, "vault-1").Return(currentVault, nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := updateVolume(ctx, se, temporal, param, false)
+		assert.Error(tt, err)
+		assert.Nil(tt, volume)
+		assert.Contains(tt, err.Error(), "Cannot remove backup vault while a backup policy is attached")
+	})
+	t.Run("WhenEnableBackupVaultSwitching_DetachWithNoBackups_DoesNotSetBackupVaultIDInParams", func(tt *testing.T) {
+		orig := utils.EnableBackupVaultSwitching
+		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		backupVaultId := ""
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", DataProtection: &models.UpdateDataProtection{
+			BackupVaultID: &backupVaultId,
+		}}
+		dbVolume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes: int64(1024 * 1024 * 1024),
+			Name:        "vol",
+			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a", IsRegionalHA: false}},
+			Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acc"},
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+			DataProtection:   &datamodel.DataProtection{BackupVaultID: "vault-1"},
+			State:            "READY",
+		}
+		dbVolume.AccountID = 1
+		job := &datamodel.Job{WorkflowID: "wid"}
+
+		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, ServiceType: activities.GCBDRServiceType}
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", int64(1)).Return(poolView, nil)
+		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, "vid").Return(false, nil)
+		se.On("GetBackupVault", ctx, "vault-1").Return(currentVault, nil)
+		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "vault-1", mock.Anything, mock.Anything).Return([]*datamodel.Backup{}, nil)
+		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
+		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+		volume, _, err := updateVolume(ctx, se, temporal, param, false)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volume)
+		// When flag is on, _updateVolume does not set BackupVaultID here; workflow will handle it (line 2416-2418).
+		assert.Equal(tt, "vault-1", volume.DataProtection.BackupVaultID)
+	})
+	t.Run("WhenEnableBackupVaultSwitching_CurrentVaultNotGCBDR_ReturnsError", func(tt *testing.T) {
+		orig := utils.EnableBackupVaultSwitching
+		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		backupVaultId := ""
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", DataProtection: &models.UpdateDataProtection{
+			BackupVaultID: &backupVaultId,
+		}}
+		dbVolume := &datamodel.Volume{
+			BaseModel:      datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes:    int64(1024 * 1024 * 1024),
+			Name:           "vol",
+			Pool:           &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
+			Account:        &datamodel.Account{Name: "acc", BaseModel: datamodel.BaseModel{ID: 1}},
+			DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-1"},
+			State:          "READY",
+		}
+		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, ServiceType: "GCNV"}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
+		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, "vid").Return(false, nil)
+		se.On("GetBackupVault", ctx, "vault-1").Return(currentVault, nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := updateVolume(ctx, se, temporal, param, false)
+		assert.Error(tt, err)
+		assert.Nil(tt, volume)
+		assert.Contains(tt, err.Error(), "Backup vault switching is only allowed for GCBDR backup vaults")
+		assert.Contains(tt, err.Error(), "current backup vault is not a GCBDR vault")
+	})
+	t.Run("WhenEnableBackupVaultSwitching_TargetVaultNotGCBDR_ReturnsError", func(tt *testing.T) {
+		orig := utils.EnableBackupVaultSwitching
+		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		newVaultID := "vault-2"
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", DataProtection: &models.UpdateDataProtection{
+			BackupVaultID: &newVaultID,
+		}}
+		dbVolume := &datamodel.Volume{
+			BaseModel:      datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes:    int64(1024 * 1024 * 1024),
+			Name:           "vol",
+			Pool:           &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
+			Account:        &datamodel.Account{Name: "acc", BaseModel: datamodel.BaseModel{ID: 1}},
+			DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-1"},
+			State:          "READY",
+		}
+		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, ServiceType: activities.GCBDRServiceType}
+		newVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-2"}, ServiceType: "GCNV"}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
+		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, "vid").Return(false, nil)
+		se.On("GetBackupVault", ctx, "vault-1").Return(currentVault, nil)
+		se.On("GetBackupVault", ctx, "vault-2").Return(newVault, nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := updateVolume(ctx, se, temporal, param, false)
+		assert.Error(tt, err)
+		assert.Nil(tt, volume)
+		assert.Contains(tt, err.Error(), "Backup vault switching is only allowed between GCBDR backup vaults")
+		assert.Contains(tt, err.Error(), "target backup vault is not a GCBDR vault")
+	})
+	t.Run("WhenEnableBackupVaultSwitching_IsBackupInCreatingorDeletingStateByVolumeReturnsError", func(tt *testing.T) {
+		orig := utils.EnableBackupVaultSwitching
+		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		newVaultID := "vault-2"
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", DataProtection: &models.UpdateDataProtection{
+			BackupVaultID: &newVaultID,
+		}}
+		dbVolume := &datamodel.Volume{
+			BaseModel:      datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes:    int64(1024 * 1024 * 1024),
+			Name:           "vol",
+			Pool:           &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
+			Account:        &datamodel.Account{Name: "acc", BaseModel: datamodel.BaseModel{ID: 1}},
+			DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-1"},
+			State:          "READY",
+		}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
+		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, "vid").Return(false, errors2.New("database error"))
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := updateVolume(ctx, se, temporal, param, false)
+		assert.Error(tt, err)
+		assert.Nil(tt, volume)
+		assert.Equal(tt, "database error", err.Error())
+	})
+	t.Run("WhenEnableBackupVaultSwitching_GetBackupVaultCurrentReturnsError", func(tt *testing.T) {
+		orig := utils.EnableBackupVaultSwitching
+		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		newVaultID := "vault-2"
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", DataProtection: &models.UpdateDataProtection{
+			BackupVaultID: &newVaultID,
+		}}
+		dbVolume := &datamodel.Volume{
+			BaseModel:      datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes:    int64(1024 * 1024 * 1024),
+			Name:           "vol",
+			Pool:           &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
+			Account:        &datamodel.Account{Name: "acc", BaseModel: datamodel.BaseModel{ID: 1}},
+			DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-1"},
+			State:          "READY",
+		}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
+		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, "vid").Return(false, nil)
+		se.On("GetBackupVault", ctx, "vault-1").Return((*datamodel.BackupVault)(nil), errors2.New("get vault failed"))
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := updateVolume(ctx, se, temporal, param, false)
+		assert.Error(tt, err)
+		assert.Nil(tt, volume)
+		assert.Equal(tt, "get vault failed", err.Error())
+	})
+	t.Run("WhenEnableBackupVaultSwitching_VaultChangeWithBackupPolicyButScheduledBackupEnabledNil_ReturnsError", func(tt *testing.T) {
+		orig := utils.EnableBackupVaultSwitching
+		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		newVaultID := "vault-2"
+		backupPolicyID := "policy-1"
+		param := &common.UpdateVolumeParams{AccountName: "acc", VolumeId: "vid", QuotaInBytes: int64(2 * 1024 * 1024 * 1024), Name: "vol", DataProtection: &models.UpdateDataProtection{
+			BackupVaultID:          &newVaultID,
+			BackupPolicyId:         &backupPolicyID,
+			ScheduledBackupEnabled: nil,
+		}}
+		dbVolume := &datamodel.Volume{
+			BaseModel:      datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes:    int64(1024 * 1024 * 1024),
+			Name:           "vol",
+			Pool:           &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
+			Account:        &datamodel.Account{Name: "acc", BaseModel: datamodel.BaseModel{ID: 1}},
+			DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-1"},
+			State:          "READY",
+		}
+		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, ServiceType: activities.GCBDRServiceType}
+		newVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-2"}, ServiceType: activities.GCBDRServiceType}
+
+		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
+		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
+		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, "vid").Return(false, nil)
+		se.On("GetBackupVault", ctx, "vault-1").Return(currentVault, nil)
+		se.On("GetBackupVault", ctx, "vault-2").Return(newVault, nil)
+		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "vault-1", dbVolume.Account.ID, mock.Anything).Return([]*datamodel.Backup{}, nil)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		volume, _, err := updateVolume(ctx, se, temporal, param, false)
+		assert.Error(tt, err)
+		assert.Nil(tt, volume)
+		assert.Contains(tt, err.Error(), "scheduled backups needs to be enabled/disabled when a backup policy is assigned to a volume")
+	})
 	t.Run("WhenUpdateVolumeFailsWithAttachingBackupPolicyOnDataProtectedVolume", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		se := &database.MockStorage{}

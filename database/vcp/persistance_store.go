@@ -1054,6 +1054,10 @@ func (s *PersistenceStore) GetBackupVault(ctx context.Context, backupVaultId str
 	return s.dataStore.GetBackupVault(ctx, backupVaultId)
 }
 
+func (s *PersistenceStore) GetBackupVaultById(ctx context.Context, backupVaultId int64) (*datamodel.BackupVault, error) {
+	return s.dataStore.GetBackupVaultById(ctx, backupVaultId)
+}
+
 func (s *PersistenceStore) IsBackupInCreatingorDeletingStateByVolume(ctx context.Context, volumeUUID string) (bool, error) {
 	return s.dataStore.IsBackupInCreatingorDeletingStateByVolume(ctx, volumeUUID)
 }
@@ -1112,6 +1116,10 @@ func (s *PersistenceStore) IsLatestBackup(ctx context.Context, backupUUID, volum
 
 func (s *PersistenceStore) IsLatestBackupAnyState(ctx context.Context, backupUUID, volumeUUID string) (bool, error) {
 	return s.dataStore.IsLatestBackupAnyState(ctx, backupUUID, volumeUUID)
+}
+
+func (s *PersistenceStore) IsLatestBackupInVault(ctx context.Context, backupUUID, volumeUUID string, backupVaultID int64) (bool, error) {
+	return s.dataStore.IsLatestBackupInVault(ctx, backupUUID, volumeUUID, backupVaultID)
 }
 
 func (s *PersistenceStore) BackupCountByVolumeID(ctx context.Context, volumeUUID string) (int64, error) {
@@ -1310,12 +1318,32 @@ func (s *PersistenceStore) GetBackupCountByVolumeUUIDs(ctx context.Context, volu
 	return s.dataStore.GetBackupCountByVolumeUUIDs(ctx, volumeUUIDs, conditions)
 }
 
+func (s *PersistenceStore) GetBackupCountByVolumeAndVault(ctx context.Context, volumeUUID string, backupVaultID int64) (int64, error) {
+	return s.dataStore.GetBackupCountByVolumeAndVault(ctx, volumeUUID, backupVaultID)
+}
+
+func (s *PersistenceStore) GetDistinctBackupVaultIDsByVolumeUUID(ctx context.Context, volumeUUID string) ([]int64, error) {
+	return s.dataStore.GetDistinctBackupVaultIDsByVolumeUUID(ctx, volumeUUID)
+}
+
 func (s *PersistenceStore) GetBackupsByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error) {
 	return s.dataStore.GetBackupsByVolumeUUID(ctx, volumeUUID)
 }
 
 func (s *PersistenceStore) UpdateBackupLatestLogicalBackupSizeByVolume(ctx context.Context, volumeUUID, excludeBackupUUID string) error {
 	return s.dataStore.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, volumeUUID, excludeBackupUUID)
+}
+
+func (s *PersistenceStore) GetLatestBackupByVolumeUUID(ctx context.Context, volumeUUID string) (*datamodel.Backup, error) {
+	return s.dataStore.GetLatestBackupByVolumeUUID(ctx, volumeUUID)
+}
+
+func (s *PersistenceStore) GetLatestBackupByVolumeAndVault(ctx context.Context, volumeUUID string, backupVaultID int64) (*datamodel.Backup, error) {
+	return s.dataStore.GetLatestBackupByVolumeAndVault(ctx, volumeUUID, backupVaultID)
+}
+
+func (s *PersistenceStore) GetLatestBackupsPerVaultByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error) {
+	return s.dataStore.GetLatestBackupsPerVaultByVolumeUUID(ctx, volumeUUID)
 }
 
 func (s *PersistenceStore) UpdateLatestBackupLogicalSize(ctx context.Context, volumeUUID string, newLogicalSize int64) error {

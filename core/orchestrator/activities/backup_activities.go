@@ -215,7 +215,8 @@ func (b *BackupActivity) PrepareSnapmirrorActivity(ctx context.Context, backupAc
 	return backupActivitiesContext, nil
 }
 
-// CreateSnapmirrorRelationshipActivity creates snapmirror relationship
+// CreateSnapmirrorRelationshipActivity creates snapmirror relationship.
+// Always lets ONTAP create a new destination endpoint; the returned DestinationUUID is persisted in the backup record.
 func (b *BackupActivity) CreateSnapmirrorRelationshipActivity(ctx context.Context, backupActivitiesContext *BackupActivitiesContext) (*BackupActivitiesContext, error) {
 	snapmirrorParams := &commonparams.SnapmirrorRelationshipParams{
 		SourcePath:      backupActivitiesContext.SmSourcePath,
@@ -230,7 +231,7 @@ func (b *BackupActivity) CreateSnapmirrorRelationshipActivity(ctx context.Contex
 	}
 
 	backupActivitiesContext.SnapmirrorRelationship = snapmirrorRelationship
-	if snapmirrorRelationship != nil && snapmirrorRelationship.DestinationUUID != nil {
+	if snapmirrorRelationship != nil && !nillable.IsNilOrEmpty(snapmirrorRelationship.DestinationUUID) {
 		backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.EndpointUUID = *snapmirrorRelationship.DestinationUUID
 	} else {
 		return backupActivitiesContext, vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("DestinationUUID not found in snapmirror relationship"))
@@ -509,6 +510,34 @@ func (a *BackupActivity) UpdateVolumeLatestLogicalBackupSize(ctx context.Context
 	}
 	logger.Infof("Successfully updated logical size %d for volume %s",
 		logicalSize, volume.Name)
+	return nil
+}
+
+// SetGlobalLatestBackupLogicalSizeActivity sets the latest backup (across vaults) for the volume to the given size.
+// Used after delete when vault switching is on so the remaining "latest" backup shows the summed chain bytes.
+// If no backup exists (e.g. last backup deleted), returns nil without error.
+func (a *BackupActivity) SetGlobalLatestBackupLogicalSizeActivity(ctx context.Context, volumeUUID string, size int64) error {
+	logger := util.GetLogger(ctx)
+	latest, err := a.SE.GetLatestBackupByVolumeUUID(ctx, volumeUUID)
+	if err != nil {
+		if vsaerrors.Is(err, gorm.ErrRecordNotFound) {
+			return nil // no backup left
+		}
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	if latest == nil {
+		return nil
+	}
+	err = a.SE.UpdateBackupFields(ctx, latest.UUID, map[string]interface{}{"latest_logical_backup_size": size})
+	if err != nil {
+		logger.Errorf("Failed to set latest backup chain bytes for volume %s: %v", volumeUUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	// Zero all other backups for this volume so only the latest (across vaults) holds the sum.
+	if err := a.SE.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, volumeUUID, latest.UUID); err != nil {
+		logger.Warnf("Failed to zero other backups' logical size for volume %s: %v", volumeUUID, err)
+		// Non-fatal; latest row is already set
+	}
 	return nil
 }
 
@@ -880,6 +909,11 @@ func (a BackupActivity) GetBackupVault(ctx context.Context, backupVaultUUID stri
 func (a BackupActivity) GetBackupCountByVolumeUUID(ctx context.Context, volumeUUID string) (int64, error) {
 	se := a.SE
 	return se.BackupCountByVolumeID(ctx, volumeUUID)
+}
+
+func (a BackupActivity) GetBackupCountByVolumeAndVault(ctx context.Context, volumeUUID string, backupVaultID int64) (int64, error) {
+	se := a.SE
+	return se.GetBackupCountByVolumeAndVault(ctx, volumeUUID, backupVaultID)
 }
 
 // DeleteSnapshotFromObjectStore Enhanced DeleteSnapshotFromObjectStore with idempotency
@@ -1338,6 +1372,19 @@ func (b *BackupActivity) IsLatestBackupAnyStateActivity(ctx context.Context, bac
 	isLatest, err := b.SE.IsLatestBackupAnyState(ctx, backupUUID, volumeUUID)
 	if err != nil {
 		logger.Errorf("Failed to check if backup is latest: %v", err)
+		return false, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return isLatest, nil
+}
+
+// IsLatestBackupInVaultActivity checks if a backup is the latest for its volume in the given vault regardless of state
+func (b *BackupActivity) IsLatestBackupInVaultActivity(ctx context.Context, backupUUID, volumeUUID string, backupVaultID int64) (bool, error) {
+	logger := util.GetLogger(ctx)
+
+	isLatest, err := b.SE.IsLatestBackupInVault(ctx, backupUUID, volumeUUID, backupVaultID)
+	if err != nil {
+		logger.Errorf("Failed to check if backup is latest in vault: %v", err)
 		return false, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 

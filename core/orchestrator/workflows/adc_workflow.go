@@ -7,9 +7,11 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
@@ -28,6 +30,9 @@ var (
 	adcMaxCloudRunAttempts         = 20
 	adcWorkflowHeartbeatTimeoutSec = env.GetUint64("ADC_WORKFLOW_HEARTBEAT_TIMEOUT_SEC", 600)
 )
+
+// AdcSizeWorkflowTimeout is the timeout for the ADCSizeWorkflow child (deploy + all-vaults size + cleanup).
+const AdcSizeWorkflowTimeout = 1 * time.Hour
 
 // Progressive sleep phase constants
 const (
@@ -397,13 +402,21 @@ func (wf *AdcWF) Run(ctx workflow.Context, args ...interface{}) (_ interface{}, 
 		},
 	})
 
-	// Check if backup is latest and update logical size if needed
+	// Check if backup is latest and update logical size if needed (per-vault when backup vault switching is enabled)
 	var isLatestBackup bool
-	err = workflow.ExecuteActivity(logicalSizeCtx, backupActivity.IsLatestBackupAnyStateActivity, backup.UUID, backup.VolumeUUID).Get(logicalSizeCtx, &isLatestBackup)
+	if utils.EnableBackupVaultSwitching {
+		err = workflow.ExecuteActivity(logicalSizeCtx, backupActivity.IsLatestBackupInVaultActivity, backup.UUID, backup.VolumeUUID, backup.BackupVaultID).Get(logicalSizeCtx, &isLatestBackup)
+	} else {
+		err = workflow.ExecuteActivity(logicalSizeCtx, backupActivity.IsLatestBackupAnyStateActivity, backup.UUID, backup.VolumeUUID).Get(logicalSizeCtx, &isLatestBackup)
+	}
 	if err != nil {
 		log.Warnf("Skipping logical size calculation due to error: %v", err)
 	} else if !isLatestBackup {
-		err = workflow.ExecuteActivity(logicalSizeCtx, adcActivity.FetchLogicalSizeAndUpdateActivity, backup.VolumeUUID, adcParams, serviceURL).Get(logicalSizeCtx, nil)
+		if utils.EnableBackupVaultSwitching {
+			err = workflow.ExecuteActivity(logicalSizeCtx, adcActivity.FetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity, backup.VolumeUUID, adcParams, serviceURL, backup.BackupVaultID).Get(logicalSizeCtx, nil)
+		} else {
+			err = workflow.ExecuteActivity(logicalSizeCtx, adcActivity.FetchLogicalSizeAndUpdateActivity, backup.VolumeUUID, adcParams, serviceURL).Get(logicalSizeCtx, nil)
+		}
 		if err != nil {
 			log.Warnf("Failed to update logical size after 3 attempts: %v", err)
 		}
@@ -455,6 +468,161 @@ func (wf *AdcWF) Run(ctx workflow.Context, args ...interface{}) (_ interface{}, 
 
 	log.Infof("ADC workflow completed successfully for %s", backup.Name)
 	return nil, nil
+}
+
+// ADCSizeWFParams is the input for ADCSizeWorkflow.
+type ADCSizeWFParams struct {
+	VolumeUUID string
+	Node       *models.Node
+}
+
+// ADCSizeWorkflow deploys ADC to Cloud Run, computes summed logical backup size (active vault from endpoint,
+// detached vaults via ADC sequentially), cleans up Cloud Run, and returns the size.
+// Used as a child workflow when vault switching is on so detached vault chain bytes are calculated.
+func ADCSizeWorkflow(ctx workflow.Context, params *ADCSizeWFParams) (summedSize int64, err error) {
+	if params == nil {
+		return 0, vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError, fmt.Errorf("ADCSizeWFParams is required"))
+	}
+	log := util.GetLogger(ctx)
+	adcActivity := &activities.ADCActivity{}
+
+	retryPolicy, err := PopulateRetryPolicyParams()
+	if err != nil {
+		return 0, ConvertToVSAError(err)
+	}
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		HeartbeatTimeout:    time.Duration(adcWorkflowHeartbeatTimeoutSec) * time.Second,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:        retryPolicy.InitialInterval,
+			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			MaximumInterval:        retryPolicy.MaximumInterval,
+			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
+			NonRetryableErrorTypes: []string{"PanicError"},
+		},
+	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	rollbackManager := common.NewRollbackManager()
+	defer func() {
+		if err != nil {
+			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+			rollbackManager.ExecuteRollback(disconnectedCtx, err)
+		}
+	}()
+
+	var saTimestamp string
+	if err = workflow.ExecuteActivity(ctx, adcActivity.GenerateResourceTimestamp).Get(ctx, &saTimestamp); err != nil {
+		log.Errorf("Failed to generate resource timestamp: %v", err)
+		return 0, ConvertToVSAError(err)
+	}
+
+	cloudRunConfig := &hyperscalermodels.CloudRunServiceConfig{
+		ProjectID:   adcProjectID,
+		LocationID:  adcRegion,
+		ServiceName: fmt.Sprintf("adc-size-%s", saTimestamp),
+		Image:       adcImage,
+		Description: fmt.Sprintf("ADC Cloud Run service for size calculation volume %s", params.VolumeUUID),
+		Labels: map[string]string{
+			"app":        "adc",
+			"component":  "backup-size",
+			"managed-by": "vsa-control-plane",
+		},
+		Annotations: map[string]string{
+			"description": "ADC service for backup size calculation",
+		},
+		Ingress: "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER",
+		EnvVars: map[string]string{
+			"RUN_REST":           "1",
+			"REST_PORT":          "80",
+			"PROVIDER":           "GoogleCloud",
+			"LOG_LEVEL":          "2",
+			"DISABLE_VERIFY_SSL": "0",
+			"ENABLE_COPY":        "1",
+			"LOG_TO_CONSOLE":     "1",
+			"CA_FILE":            "adc-cert.crt",
+			"CERT_PATH":          "/home/ADC/cert/",
+		},
+		VolumeMounts: []hyperscalermodels.VolumeMount{
+			{Name: "adc-cert", MountPath: "/home/ADC/cert"},
+		},
+		Volumes: []hyperscalermodels.Volume{
+			{
+				Name:       "adc-cert",
+				VolumeType: "secret",
+				Source: hyperscalermodels.VolumeSource{
+					SecretName: adcCertSecret,
+					Items: []hyperscalermodels.SecretItem{
+						{Path: "adc-cert.crt", Version: "latest"},
+					},
+				},
+			},
+		},
+	}
+
+	var cloudRunResponse *hyperscalermodels.CloudRunOperationResponse
+	if err = workflow.ExecuteActivity(ctx, adcActivity.DeployADCCloudRunService, cloudRunConfig).Get(ctx, &cloudRunResponse); err != nil {
+		log.Errorf("Failed to deploy ADC Cloud Run service: %v", err)
+		return 0, ConvertToVSAError(err)
+	}
+	rollbackManager.AddActivity(adcActivity.CleanupADCCloudRunService, adcProjectID, adcRegion, cloudRunConfig.ServiceName)
+
+	var isReady bool
+	attempts := 0
+	for !isReady && attempts < adcMaxCloudRunAttempts {
+		if err = workflow.ExecuteActivity(ctx, adcActivity.CheckOperationStatus, cloudRunResponse.OperationName).Get(ctx, &isReady); err != nil {
+			log.Errorf("Failed to check Cloud Run operation status: %v", err)
+			return 0, ConvertToVSAError(err)
+		}
+		if !isReady {
+			attempts++
+			if err = workflow.Sleep(ctx, time.Second*10); err != nil {
+				return 0, ConvertToVSAError(fmt.Errorf("failed to sleep during Cloud Run deployment: %w", err))
+			}
+		}
+	}
+	if !isReady {
+		return 0, ConvertToVSAError(fmt.Errorf("cloud run service deployment timed out after %d attempts", adcMaxCloudRunAttempts))
+	}
+
+	var serviceURL string
+	if err = workflow.ExecuteActivity(ctx, adcActivity.GetADCServiceURL, adcProjectID, adcRegion, cloudRunConfig.ServiceName).Get(ctx, &serviceURL); err != nil {
+		log.Errorf("Failed to get ADC service URL: %v", err)
+		return 0, ConvertToVSAError(err)
+	}
+
+	if err = workflow.Sleep(ctx, time.Second*60); err != nil {
+		log.Errorf("Failed to sleep after ADC service deployment: %v", err)
+		return 0, ConvertToVSAError(err)
+	}
+
+	if err = workflow.ExecuteActivity(ctx, adcActivity.GetSummedLogicalBackupSizeAllVaultsActivity, params.VolumeUUID, params.Node, serviceURL).Get(ctx, &summedSize); err != nil {
+		log.Errorf("Failed to get summed logical backup size: %v", err)
+		return 0, ConvertToVSAError(err)
+	}
+
+	var cleanupResponse *hyperscalermodels.CloudRunOperationResponse
+	if err = workflow.ExecuteActivity(ctx, adcActivity.CleanupADCCloudRunService, adcProjectID, adcRegion, cloudRunConfig.ServiceName).Get(ctx, &cleanupResponse); err != nil {
+		log.Errorf("Failed to cleanup ADC Cloud Run service: %v", err)
+		return summedSize, nil // return computed size even if cleanup fails
+	}
+	var cleanupReady bool
+	cleanupAttempts := 0
+	for !cleanupReady && cleanupAttempts < adcMaxCloudRunAttempts {
+		if err := workflow.ExecuteActivity(ctx, adcActivity.CheckOperationStatus, cleanupResponse.OperationName).Get(ctx, &cleanupReady); err != nil {
+			log.Errorf("Failed to check Cloud Run cleanup status: %v", err)
+			break
+		}
+		if !cleanupReady {
+			cleanupAttempts++
+			_ = workflow.Sleep(ctx, time.Second*10)
+		}
+	}
+	if !cleanupReady {
+		log.Warnf("Cloud Run service cleanup timed out after %d attempts", adcMaxCloudRunAttempts)
+	}
+
+	return summedSize, nil
 }
 
 // calculateProgressiveSleepDuration calculates sleep duration based on elapsed time

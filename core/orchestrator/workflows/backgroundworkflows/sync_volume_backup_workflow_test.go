@@ -17,6 +17,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -29,11 +30,12 @@ import (
 
 func TestSyncLatestBackupLogicalSizeWorkflow(t *testing.T) {
 	tests := []struct {
-		name                string
-		featureFlagEnabled  bool
-		mockSetup           func(*testsuite.TestWorkflowEnvironment)
-		expectedError       bool
-		expectedWorkflowErr string
+		name                 string
+		featureFlagEnabled   bool
+		enableVaultSwitching bool
+		mockSetup            func(*testsuite.TestWorkflowEnvironment)
+		expectedError        bool
+		expectedWorkflowErr  string
 	}{
 		{
 			name:               "Success - Feature flag disabled, workflow skips execution",
@@ -102,6 +104,31 @@ func TestSyncLatestBackupLogicalSizeWorkflow(t *testing.T) {
 			mockSetup: func(env *testsuite.TestWorkflowEnvironment) {
 				// Mock GetVolumeLatestBackupMapActivity returning empty map
 				env.OnActivity("GetVolumeLatestBackupMapActivity", mock.Anything).Return(map[int64]*datamodel.VolumeLatestBackup{}, nil)
+			},
+			expectedError: false,
+		},
+		{
+			name:                 "Success - Backup vault switching enabled (summed sync skipped; TODO handle detached vaults later)",
+			featureFlagEnabled:   true,
+			enableVaultSwitching: true,
+			mockSetup: func(env *testsuite.TestWorkflowEnvironment) {
+				volumeBackupMap := map[int64]*datamodel.VolumeLatestBackup{
+					1: {
+						Volume: &datamodel.Volume{
+							BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-uuid-1"},
+							Name:      "test-volume-1",
+						},
+						LatestBackup: &datamodel.Backup{
+							BaseModel: datamodel.BaseModel{UUID: "backup-uuid-1"},
+							Name:      "test-backup-1",
+							Attributes: &datamodel.BackupAttributes{
+								ObjectStoreUUID: "obj-uuid-1",
+								EndpointUUID:    "ep-uuid-1",
+							},
+						},
+					},
+				}
+				env.OnActivity("GetVolumeLatestBackupMapActivity", mock.Anything).Return(volumeBackupMap, nil)
 			},
 			expectedError: false,
 		},
@@ -285,6 +312,12 @@ func TestSyncLatestBackupLogicalSizeWorkflow(t *testing.T) {
 			defer func() {
 				getBackupLogicalSizeSyncEnabled = originalGetter
 			}()
+
+			if tt.enableVaultSwitching {
+				orig := utils.EnableBackupVaultSwitching
+				defer utils.SetEnableBackupVaultSwitchingForTest(orig)
+				utils.SetEnableBackupVaultSwitchingForTest(true)
+			}
 
 			// Setup test workflow environment
 			var ts testsuite.WorkflowTestSuite

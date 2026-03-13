@@ -644,8 +644,22 @@ func (wf *createScheduledBackupWorkflow) RunScheduledBackupWithContext(ctx workf
 		}
 	}
 
-	// Update backup size fields in both backup and volume tables
-	err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.UpdateBackupSize, backup, volume).Get(ctx, nil)
+	// Update backup size fields in both backup and volume tables.
+	// When vault switching is on, run ADCSizeWorkflow to get full sum (including detached vaults via ADC), then pass it to UpdateBackupSize.
+	var precomputedChainBytes int64 = backgroundactivities.PrecomputedChainBytesNotSet
+	if utils.EnableBackupVaultSwitching && scheduledBackupContext.Node != nil {
+		adcSizeCtx := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
+			WorkflowExecutionTimeout: workflows.AdcSizeWorkflowTimeout,
+		})
+		adcSizeParams := &workflows.ADCSizeWFParams{
+			VolumeUUID: volume.UUID,
+			Node:       scheduledBackupContext.Node,
+		}
+		if err := workflow.ExecuteChildWorkflow(adcSizeCtx, workflows.ADCSizeWorkflow, adcSizeParams).Get(adcSizeCtx, &precomputedChainBytes); err != nil {
+			wf.Logger.Errorf("Failed to get summed logical backup size via ADCSizeWorkflow for volume %s: %v", volume.Name, err)
+		}
+	}
+	err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.UpdateBackupSize, backup, volume, precomputedChainBytes).Get(ctx, nil)
 	if err != nil {
 		wf.Logger.Errorf("Failed to update backup size fields for volume %s: %v", volume.Name, err)
 	}

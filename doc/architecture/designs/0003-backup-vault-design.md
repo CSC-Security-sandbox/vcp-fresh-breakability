@@ -9,6 +9,7 @@
 6. [API Design](#api-design)
 7. [Workflow Architecture](#workflow-architecture)
 8. [Storage Integration](#storage-integration)
+9. [Backup Vault Switching: Chain Bytes and Multiple Endpoints](#backup-vault-switching-chain-bytes-and-multiple-endpoints)
 
 ## Overview
 
@@ -729,7 +730,44 @@ Based on the code analysis, the following indexes are defined:
 | `jobs` | `(state)` | Job state filtering |
 | `jobs` | `(account_id)` | Job filtering by account |
 
+## Backup Vault Switching: Chain Bytes and Multiple Endpoints
 
+When **backup vault switching** is enabled (`ENABLE_BACKUP_VAULT_SWITCHING`), a volume can have backups in **multiple vaults** (multiple endpoints). Chain bytes (logical backup size) are handled as follows.
+
+### Where Chain Bytes Are Stored
+
+| Location | What is stored |
+|----------|----------------|
+| **Volume** | `data_protection.BackupChainBytes` = **sum** of logical sizes across all vault endpoints for that volume. |
+| **Backup (single row)** | Only the **latest backup across all vaults** (by id) has non-zero `latest_logical_backup_size`; that value is the **sum**. All other backups for the volume have `latest_logical_backup_size = 0`. |
+| **Backup chain history** | `backup_chain_history.size` = same **sum** (per volume, time-series). |
+
+So the “latest” backup is the single most recent backup for the volume **across vaults**, and it is the only backup row that holds the chain bytes; that value is the summed size from all endpoints.
+
+### How the Sum Is Computed
+
+The sum is **always computed from live endpoint data** (object-store endpoint info), not from existing DB values:
+
+1. **Backup create (ADC / ad-hoc)**  
+   After finishing the backup, the workflow fetches logical size from **each vault’s** latest backup endpoint (`GetObjectStoreEndpointInfo` per vault), sums them, then updates volume, backup chain history, and the single latest backup row (and zeros all other backup rows for the volume).
+
+2. **Scheduled backup**  
+   Same: fetch from each vault endpoint via `getSummedLogicalBackupSizeFromEndpoints`, then set volume, backup chain history, and the global latest backup to the sum and zero all other backups for the volume.
+
+3. **Sync workflow**  
+   For each volume, fetch logical size from each vault’s endpoint (latest backup per vault), sum, then set volume `BackupChainBytes`, backup chain history, and the **single** latest backup (across vaults) to that sum; zero all other backups for the volume with `UpdateBackupLatestLogicalBackupSizeByVolume`.
+
+4. **Backup delete**  
+   After delete, the new sum is computed by **fetching from all remaining vault endpoints** (`GetSummedLogicalBackupSizeFromEndpointsActivity`), not by reading from DB. Then volume and the (new) latest backup are updated with that sum.
+
+### Implementation Steps (Checklist)
+
+- [x] **DB layer**: `GetLatestBackupByVolumeUUID`, `GetLatestBackupsPerVaultByVolumeUUID`, `UpdateBackupLatestLogicalBackupSizeByVolume`; wire in interface, persistence, sewrapper, mocks.
+- [x] **Backup create**: When flag on, compute sum from endpoints (`getSummedLogicalBackupSizeFromEndpoints`), set only the **latest backup across vaults** to the sum, zero all other backups for the volume (`UpdateBackupLatestLogicalBackupSizeByVolume`); update volume and backup chain history with sum.
+- [x] **Scheduled backup**: Same as backup create—compute sum from endpoints, set global latest backup to sum, zero all others; update volume.
+- [x] **Sync workflow**: When flag on, compute sum from endpoints; set volume and backup chain history to sum; set only the latest backup (across vaults) to sum and zero all others (no per-vault backup sizes stored).
+- [x] **Backup delete**: When flag on, recompute sum via `GetSummedLogicalBackupSizeFromEndpointsActivity` (from endpoints), then update volume and the global latest backup with that sum.
+- [x] **Only latest backup holds size**: No per-vault “latest” backup rows hold size; only the single latest backup across vaults holds the summed chain bytes; calculation uses both (all) endpoints, not DB values for other vaults.
 
 
 

@@ -24,6 +24,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"go.temporal.io/sdk/temporal"
+	"go.temporal.io/sdk/testsuite"
 )
 
 func TestCreateScheduledBackup(t *testing.T) {
@@ -678,7 +679,7 @@ func TestUpdateBackupSize(t *testing.T) {
 		mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "volume-uuid", "backup-uuid").Return(nil).Once()
 		mockStorage.On("UpdateVolumeFields", ctx, "volume-uuid", mock.Anything).Return(nil).Once()
 
-		err := activity.UpdateBackupSize(ctx, backup, volume)
+		err := activity.UpdateBackupSize(ctx, backup, volume, PrecomputedChainBytesNotSet)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 	})
@@ -705,7 +706,7 @@ func TestUpdateBackupSize(t *testing.T) {
 		// UpdateBackupLatestLogicalBackupSizeByVolume should NOT be called when LatestLogicalBackupSize == 0
 		mockStorage.On("UpdateVolumeFields", ctx, "volume-uuid", mock.Anything).Return(nil).Once()
 
-		err := activity.UpdateBackupSize(ctx, backup, volume)
+		err := activity.UpdateBackupSize(ctx, backup, volume, PrecomputedChainBytesNotSet)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 	})
@@ -728,7 +729,7 @@ func TestUpdateBackupSize(t *testing.T) {
 		// Mock UpdateBackup call to fail
 		mockStorage.On("FinishBackup", ctx, backup).Return(nil, errors.New("database error")).Once()
 
-		err := activity.UpdateBackupSize(ctx, backup, volume)
+		err := activity.UpdateBackupSize(ctx, backup, volume, PrecomputedChainBytesNotSet)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "database error")
 		mockStorage.AssertExpectations(t)
@@ -755,7 +756,7 @@ func TestUpdateBackupSize(t *testing.T) {
 		// Mock UpdateBackupLatestLogicalBackupSizeByVolume call to fail
 		mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "volume-uuid", "backup-uuid").Return(errors.New("reset error")).Once()
 
-		err := activity.UpdateBackupSize(ctx, backup, volume)
+		err := activity.UpdateBackupSize(ctx, backup, volume, PrecomputedChainBytesNotSet)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "reset error")
 		mockStorage.AssertExpectations(t)
@@ -785,7 +786,7 @@ func TestUpdateBackupSize(t *testing.T) {
 
 		mockStorage.On("UpdateVolumeFields", ctx, "volume-uuid", mock.Anything).Return(errors.New("volume update error")).Once()
 
-		err := activity.UpdateBackupSize(ctx, backup, volume)
+		err := activity.UpdateBackupSize(ctx, backup, volume, PrecomputedChainBytesNotSet)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "volume update error")
 		mockStorage.AssertExpectations(t)
@@ -813,9 +814,174 @@ func TestUpdateBackupSize(t *testing.T) {
 		// UpdateBackupLatestLogicalBackupSizeByVolume should NOT be called when LatestLogicalBackupSize == 0
 		mockStorage.On("UpdateVolumeFields", ctx, "volume-uuid", mock.Anything).Return(errors.New("volume update error")).Once()
 
-		err := activity.UpdateBackupSize(ctx, backup, volume)
+		err := activity.UpdateBackupSize(ctx, backup, volume, PrecomputedChainBytesNotSet)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "volume update error")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("UpdateBackupSizeWithVaultSwitchingEnabled_AllVaults", func(t *testing.T) {
+		origFlag := utils.EnableBackupVaultSwitching
+		defer utils.SetEnableBackupVaultSwitchingForTest(origFlag)
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+		env.RegisterActivity(&activity)
+
+		backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "backup-uuid"}, VolumeUUID: "volume-uuid"}
+		poolID := int64(1)
+		vaultUUID := "vault-uuid-1"
+		accountID := int64(100)
+		volume := &datamodel.Volume{
+			BaseModel:       datamodel.BaseModel{UUID: "volume-uuid"},
+			PoolID:          poolID,
+			AccountID:       accountID,
+			DataProtection:  &datamodel.DataProtection{BackupVaultID: vaultUUID},
+			Pool:            &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: poolID}, DeploymentName: "dep", PoolCredentials: &datamodel.PoolCredentials{}},
+		}
+		latestBackup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "latest-uuid"}, VolumeUUID: "volume-uuid"}
+
+		mockStorage.On("FinishBackup", mock.Anything, backup).Return(backup, nil).Once()
+		mockStorage.On("GetLatestBackupByVolumeUUID", mock.Anything, "volume-uuid").Return(latestBackup, nil).Once()
+		// When PrecomputedChainBytesNotSet and backup has no LatestLogicalBackupSize, chainBytes is 0.
+		mockStorage.On("UpdateBackupFields", mock.Anything, "latest-uuid", mock.MatchedBy(func(updates map[string]interface{}) bool {
+			v, ok := updates["latest_logical_backup_size"].(int64)
+			return ok && v == 0
+		})).Return(nil).Once()
+		mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", mock.Anything, "volume-uuid", "latest-uuid").Return(nil).Once()
+		mockStorage.On("UpdateVolumeFields", mock.Anything, "volume-uuid", mock.Anything).Return(nil).Once()
+
+		_, err := env.ExecuteActivity(activity.UpdateBackupSize, backup, volume, PrecomputedChainBytesNotSet)
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	// UpdateBackupSizeWithVaultSwitchingEnabled_ADCSizeFailed_FallbackToBackupSize: when ADCSizeWorkflow failed,
+	// precomputedChainBytes is PrecomputedChainBytesNotSet (-1); activity must use backup.LatestLogicalBackupSize so we don't record 0.
+	t.Run("UpdateBackupSizeWithVaultSwitchingEnabled_ADCSizeFailed_FallbackToBackupSize", func(t *testing.T) {
+		origFlag := utils.EnableBackupVaultSwitching
+		defer utils.SetEnableBackupVaultSwitchingForTest(origFlag)
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+
+		fallbackSize := int64(1024000)
+		backup := &datamodel.Backup{
+			BaseModel:               datamodel.BaseModel{UUID: "backup-uuid"},
+			VolumeUUID:              "volume-uuid",
+			LatestLogicalBackupSize: fallbackSize,
+		}
+		volume := &datamodel.Volume{
+			BaseModel:      datamodel.BaseModel{UUID: "volume-uuid"},
+			DataProtection: &datamodel.DataProtection{BackupVaultID: "v1"},
+		}
+		latestBackup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "latest-uuid"}, VolumeUUID: "volume-uuid"}
+
+		mockStorage.On("FinishBackup", ctx, backup).Return(backup, nil).Once()
+		mockStorage.On("GetLatestBackupByVolumeUUID", ctx, "volume-uuid").Return(latestBackup, nil).Once()
+		mockStorage.On("UpdateBackupFields", ctx, "latest-uuid", mock.MatchedBy(func(updates map[string]interface{}) bool {
+			v, ok := updates["latest_logical_backup_size"].(int64)
+			return ok && v == fallbackSize
+		})).Return(nil).Once()
+		mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "volume-uuid", "latest-uuid").Return(nil).Once()
+		mockStorage.On("UpdateVolumeFields", ctx, "volume-uuid", mock.MatchedBy(func(updates map[string]interface{}) bool {
+			dp, ok := updates["data_protection"].(*datamodel.DataProtection)
+			return ok && dp != nil && dp.BackupChainBytes != nil && *dp.BackupChainBytes == fallbackSize
+		})).Return(nil).Once()
+
+		err := activity.UpdateBackupSize(ctx, backup, volume, PrecomputedChainBytesNotSet)
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("UpdateBackupSizeWithVaultSwitchingEnabled_PrecomputedChainBytes", func(t *testing.T) {
+		origFlag := utils.EnableBackupVaultSwitching
+		defer utils.SetEnableBackupVaultSwitchingForTest(origFlag)
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+
+		backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "backup-uuid"}, VolumeUUID: "volume-uuid"}
+		volume := &datamodel.Volume{
+			BaseModel:      datamodel.BaseModel{UUID: "volume-uuid"},
+			DataProtection: &datamodel.DataProtection{BackupVaultID: "v1"},
+		}
+		latestBackup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "latest-uuid"}, VolumeUUID: "volume-uuid"}
+		precomputed := int64(12345)
+
+		mockStorage.On("FinishBackup", ctx, backup).Return(backup, nil).Once()
+		mockStorage.On("GetLatestBackupByVolumeUUID", ctx, "volume-uuid").Return(latestBackup, nil).Once()
+		mockStorage.On("UpdateBackupFields", ctx, "latest-uuid", mock.MatchedBy(func(updates map[string]interface{}) bool {
+			v, ok := updates["latest_logical_backup_size"].(int64)
+			return ok && v == precomputed
+		})).Return(nil).Once()
+		mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "volume-uuid", "latest-uuid").Return(nil).Once()
+		mockStorage.On("UpdateVolumeFields", ctx, "volume-uuid", mock.Anything).Return(nil).Once()
+
+		err := activity.UpdateBackupSize(ctx, backup, volume, precomputed)
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("UpdateBackupSizeWithVaultSwitchingEnabled_UpdateBackupFieldsFails_WarnsOnly", func(t *testing.T) {
+		origFlag := utils.EnableBackupVaultSwitching
+		defer utils.SetEnableBackupVaultSwitchingForTest(origFlag)
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+
+		backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "backup-uuid"}, VolumeUUID: "volume-uuid"}
+		volume := &datamodel.Volume{
+			BaseModel:      datamodel.BaseModel{UUID: "volume-uuid"},
+			DataProtection: &datamodel.DataProtection{BackupVaultID: "v1"},
+		}
+		latestBackup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "latest-uuid"}, VolumeUUID: "volume-uuid"}
+
+		mockStorage.On("FinishBackup", ctx, backup).Return(backup, nil).Once()
+		mockStorage.On("GetLatestBackupByVolumeUUID", ctx, "volume-uuid").Return(latestBackup, nil).Once()
+		mockStorage.On("UpdateBackupFields", ctx, "latest-uuid", mock.Anything).Return(errors.New("update backup fields failed")).Once()
+		mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "volume-uuid", "latest-uuid").Return(nil).Once()
+		mockStorage.On("UpdateVolumeFields", ctx, "volume-uuid", mock.Anything).Return(nil).Once()
+
+		err := activity.UpdateBackupSize(ctx, backup, volume, 0)
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("UpdateBackupSizeWithVaultSwitchingEnabled_UpdateBackupLatestLogicalBackupSizeByVolumeFails", func(t *testing.T) {
+		origFlag := utils.EnableBackupVaultSwitching
+		defer utils.SetEnableBackupVaultSwitchingForTest(origFlag)
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+
+		backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "backup-uuid"}, VolumeUUID: "volume-uuid"}
+		volume := &datamodel.Volume{
+			BaseModel:      datamodel.BaseModel{UUID: "volume-uuid"},
+			DataProtection: &datamodel.DataProtection{BackupVaultID: "v1"},
+		}
+		latestBackup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "latest-uuid"}, VolumeUUID: "volume-uuid"}
+
+		mockStorage.On("FinishBackup", ctx, backup).Return(backup, nil).Once()
+		mockStorage.On("GetLatestBackupByVolumeUUID", ctx, "volume-uuid").Return(latestBackup, nil).Once()
+		mockStorage.On("UpdateBackupFields", ctx, "latest-uuid", mock.Anything).Return(nil).Once()
+		mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "volume-uuid", "latest-uuid").Return(errors.New("zero other backups failed")).Once()
+
+		err := activity.UpdateBackupSize(ctx, backup, volume, 0)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "zero other backups failed")
 		mockStorage.AssertExpectations(t)
 	})
 }

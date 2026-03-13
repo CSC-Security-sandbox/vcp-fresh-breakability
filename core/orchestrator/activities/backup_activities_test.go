@@ -1475,6 +1475,38 @@ func TestGetBackupCountByVolumeUUID(t *testing.T) {
 	})
 }
 
+func TestGetBackupCountByVolumeAndVault(t *testing.T) {
+	t.Run("onSuccess", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		activity := BackupActivity{SE: store}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		volumeUUID := "test-volume-uuid"
+		backupVaultID := int64(10)
+		expectedCount := int64(2)
+
+		store.On("GetBackupCountByVolumeAndVault", ctx, volumeUUID, backupVaultID).Return(expectedCount, nil)
+
+		count, err := activity.GetBackupCountByVolumeAndVault(ctx, volumeUUID, backupVaultID)
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedCount, count)
+	})
+	t.Run("onDBFailure", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		activity := BackupActivity{SE: store}
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+		volumeUUID := "test-volume-uuid"
+		backupVaultID := int64(10)
+
+		store.On("GetBackupCountByVolumeAndVault", ctx, volumeUUID, backupVaultID).Return(int64(0), errors.New("db error"))
+
+		count, err := activity.GetBackupCountByVolumeAndVault(ctx, volumeUUID, backupVaultID)
+
+		assert.Error(t, err)
+		assert.Equal(t, int64(0), count)
+	})
+}
+
 func TestDeleteSnapshotFromObjectStore(t *testing.T) {
 	t.Run("onSuccessWithJob", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
@@ -2986,6 +3018,187 @@ func TestCreateSnapmirrorRelationshipActivity_WithNilDestinationUUID(t *testing.
 		}
 	}
 	assert.Contains(t, err.Error(), "An internal error occurred.")
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCreateSnapmirrorRelationshipActivity_GetLatestBackupByVolumeAndVaultError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	originalGetSmcLicenseFromCloud := GetSmcLicenseFromCloud
+	originalGenerateTokenForNode := GenerateTokenForNode
+	defer func() {
+		hyperscaler.GetProviderByNode = originalGetProviderByNode
+		GetSmcLicenseFromCloud = originalGetSmcLicenseFromCloud
+		GenerateTokenForNode = originalGenerateTokenForNode
+	}()
+	mockProvider := new(vsa.MockProvider)
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	GetSmcLicenseFromCloud = func(ctx context.Context) (string, error) {
+		return "mock-license", nil
+	}
+	GenerateTokenForNode = func(ctx context.Context, node *models.Node, clientSecret *string) (*string, error) {
+		token := "mock-token"
+		return &token, nil
+	}
+
+	state := &BackupActivitiesContext{
+		BackupWorkflowInit: &BackupWorkflowInput{
+			Backup:      &datamodel.Backup{Name: "test-backup", Attributes: &datamodel.BackupAttributes{}},
+			BackupVault: &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 100}},
+			Volume:      &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vol-uuid"}, VolumeAttributes: &datamodel.VolumeAttributes{}},
+		},
+		Node:              &models.Node{},
+		SmSourcePath:      "svm:vol",
+		SmDestinationPath: "bucket:/objstore/vol-uuid",
+	}
+
+	expectedSnapmirror := &ontap_rest.SnapmirrorRelationship{
+		SnapmirrorRelationship: oModels.SnapmirrorRelationship{
+			UUID:        nillable.ToPointer(strfmt.UUID("sm-uuid")),
+			Destination: &oModels.SnapmirrorEndpoint{UUID: nillable.ToPointer(strfmt.UUID("dest-uuid"))},
+		},
+	}
+
+	mockProvider.On("SnapmirrorRelationshipGet", state.SmDestinationPath, state.SmSourcePath).Return(nil, utilerrors.NewNotFoundErr("not found", nil))
+	mockProvider.On("SnapmirrorRelationshipCreate", mock.MatchedBy(func(params *commonparams.SnapmirrorRelationshipParams) bool {
+		return params != nil
+	}), mock.Anything).Return(expectedSnapmirror, nil)
+
+	encodedValue, err := env.ExecuteActivity(activity.CreateSnapmirrorRelationshipActivity, state)
+	assert.NoError(t, err)
+	var result *BackupActivitiesContext
+	err = encodedValue.Get(&result)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	mockProvider.AssertExpectations(t)
+}
+
+// TestCreateSnapmirrorRelationshipActivity_NeverPassesDestinationUUID verifies that Create is always called
+// and the backup gets the destination UUID from the response.
+func TestCreateSnapmirrorRelationshipActivity_NeverPassesDestinationUUID(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	originalGetSmcLicenseFromCloud := GetSmcLicenseFromCloud
+	originalGenerateTokenForNode := GenerateTokenForNode
+	defer func() {
+		hyperscaler.GetProviderByNode = originalGetProviderByNode
+		GetSmcLicenseFromCloud = originalGetSmcLicenseFromCloud
+		GenerateTokenForNode = originalGenerateTokenForNode
+	}()
+	mockProvider := new(vsa.MockProvider)
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	GetSmcLicenseFromCloud = func(ctx context.Context) (string, error) {
+		return "mock-license", nil
+	}
+	GenerateTokenForNode = func(ctx context.Context, node *models.Node, clientSecret *string) (*string, error) {
+		token := "mock-token"
+		return &token, nil
+	}
+
+	state := &BackupActivitiesContext{
+		BackupWorkflowInit: &BackupWorkflowInput{
+			Backup:      &datamodel.Backup{Name: "test-backup", Attributes: &datamodel.BackupAttributes{}},
+			BackupVault: &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 100, UUID: "vault-uuid"}},
+			Volume:      &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vol-uuid"}, VolumeAttributes: &datamodel.VolumeAttributes{}},
+		},
+		Node:              &models.Node{},
+		SmSourcePath:      "svm:vol",
+		SmDestinationPath: "bucket:/objstore/vol-uuid",
+	}
+
+	expectedSnapmirror := &ontap_rest.SnapmirrorRelationship{
+		SnapmirrorRelationship: oModels.SnapmirrorRelationship{
+			UUID:        nillable.ToPointer(strfmt.UUID("sm-uuid")),
+			Destination: &oModels.SnapmirrorEndpoint{UUID: nillable.ToPointer(strfmt.UUID("new-dest-uuid"))},
+		},
+	}
+
+	mockProvider.On("SnapmirrorRelationshipGet", state.SmDestinationPath, state.SmSourcePath).Return(nil, utilerrors.NewNotFoundErr("not found", nil))
+	mockProvider.On("SnapmirrorRelationshipCreate", mock.MatchedBy(func(params *commonparams.SnapmirrorRelationshipParams) bool {
+		return params != nil
+	}), mock.Anything).Return(expectedSnapmirror, nil)
+
+	encodedValue, err := env.ExecuteActivity(activity.CreateSnapmirrorRelationshipActivity, state)
+	assert.NoError(t, err)
+	var result *BackupActivitiesContext
+	err = encodedValue.Get(&result)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "new-dest-uuid", result.BackupWorkflowInit.Backup.Attributes.EndpointUUID)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCreateSnapmirrorRelationshipActivity_NoPreviousBackup_DestinationUUIDNil(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+	env.RegisterActivity(&activity)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	originalGetSmcLicenseFromCloud := GetSmcLicenseFromCloud
+	originalGenerateTokenForNode := GenerateTokenForNode
+	defer func() {
+		hyperscaler.GetProviderByNode = originalGetProviderByNode
+		GetSmcLicenseFromCloud = originalGetSmcLicenseFromCloud
+		GenerateTokenForNode = originalGenerateTokenForNode
+	}()
+	mockProvider := new(vsa.MockProvider)
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	GetSmcLicenseFromCloud = func(ctx context.Context) (string, error) {
+		return "mock-license", nil
+	}
+	GenerateTokenForNode = func(ctx context.Context, node *models.Node, clientSecret *string) (*string, error) {
+		token := "mock-token"
+		return &token, nil
+	}
+
+	state := &BackupActivitiesContext{
+		BackupWorkflowInit: &BackupWorkflowInput{
+			Backup:      &datamodel.Backup{Name: "test-backup", Attributes: &datamodel.BackupAttributes{}},
+			BackupVault: &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 100}},
+			Volume:      &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "vol-uuid"}, VolumeAttributes: &datamodel.VolumeAttributes{}},
+		},
+		Node:              &models.Node{},
+		SmSourcePath:      "svm:vol",
+		SmDestinationPath: "bucket:/objstore/vol-uuid",
+	}
+
+	expectedSnapmirror := &ontap_rest.SnapmirrorRelationship{
+		SnapmirrorRelationship: oModels.SnapmirrorRelationship{
+			UUID:        nillable.ToPointer(strfmt.UUID("sm-uuid")),
+			Destination: &oModels.SnapmirrorEndpoint{UUID: nillable.ToPointer(strfmt.UUID("dest-uuid"))},
+		},
+	}
+
+	mockProvider.On("SnapmirrorRelationshipGet", state.SmDestinationPath, state.SmSourcePath).Return(nil, utilerrors.NewNotFoundErr("not found", nil))
+	mockProvider.On("SnapmirrorRelationshipCreate", mock.MatchedBy(func(params *commonparams.SnapmirrorRelationshipParams) bool {
+		return params != nil
+	}), mock.Anything).Return(expectedSnapmirror, nil)
+
+	encodedValue, err := env.ExecuteActivity(activity.CreateSnapmirrorRelationshipActivity, state)
+	assert.NoError(t, err)
+	var result *BackupActivitiesContext
+	err = encodedValue.Get(&result)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "dest-uuid", result.BackupWorkflowInit.Backup.Attributes.EndpointUUID)
 	mockProvider.AssertExpectations(t)
 }
 
@@ -6566,6 +6779,161 @@ func TestIsLatestBackupAnyStateActivity_NotLatest(t *testing.T) {
 	// Assertions
 	assert.Nil(t, err)
 	assert.Equal(t, expectedIsLatest, isLatest)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestIsLatestBackupAnyStateInVaultActivity_Success(t *testing.T) {
+	ctx := context.Background()
+	backupUUID := "backup-uuid"
+	volumeUUID := "volume-uuid"
+	backupVaultID := int64(5)
+	expectedIsLatest := true
+
+	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("IsLatestBackupInVault", ctx, backupUUID, volumeUUID, backupVaultID).Return(expectedIsLatest, nil)
+
+	activity := BackupActivity{SE: mockStorage}
+
+	isLatest, err := activity.IsLatestBackupInVaultActivity(ctx, backupUUID, volumeUUID, backupVaultID)
+
+	assert.Nil(t, err)
+	assert.True(t, isLatest)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestIsLatestBackupAnyStateInVaultActivity_DatabaseError(t *testing.T) {
+	ctx := context.Background()
+	backupUUID := "backup-uuid"
+	volumeUUID := "volume-uuid"
+	backupVaultID := int64(5)
+
+	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("IsLatestBackupInVault", ctx, backupUUID, volumeUUID, backupVaultID).Return(false, errors.New("db error"))
+
+	activity := BackupActivity{SE: mockStorage}
+
+	isLatest, err := activity.IsLatestBackupInVaultActivity(ctx, backupUUID, volumeUUID, backupVaultID)
+
+	assert.NotNil(t, err)
+	assert.False(t, isLatest)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestIsLatestBackupAnyStateInVaultActivity_NotLatest(t *testing.T) {
+	ctx := context.Background()
+	backupUUID := "backup-uuid"
+	volumeUUID := "volume-uuid"
+	backupVaultID := int64(5)
+
+	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("IsLatestBackupInVault", ctx, backupUUID, volumeUUID, backupVaultID).Return(false, nil)
+
+	activity := BackupActivity{SE: mockStorage}
+
+	isLatest, err := activity.IsLatestBackupInVaultActivity(ctx, backupUUID, volumeUUID, backupVaultID)
+
+	assert.Nil(t, err)
+	assert.False(t, isLatest)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestSetGlobalLatestBackupLogicalSizeActivity_Success(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volumeUUID := "vol-uuid"
+	size := int64(2048)
+	latestBackup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "latest-backup-uuid"}}
+
+	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("GetLatestBackupByVolumeUUID", ctx, volumeUUID).Return(latestBackup, nil)
+	mockStorage.On("UpdateBackupFields", ctx, latestBackup.UUID, map[string]interface{}{"latest_logical_backup_size": size}).Return(nil)
+	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, volumeUUID, latestBackup.UUID).Return(nil)
+
+	activity := BackupActivity{SE: mockStorage}
+	err := activity.SetGlobalLatestBackupLogicalSizeActivity(ctx, volumeUUID, size)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestSetGlobalLatestBackupLogicalSizeActivity_NoBackup_ErrRecordNotFound(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volumeUUID := "vol-uuid"
+
+	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("GetLatestBackupByVolumeUUID", ctx, volumeUUID).Return(nil, gorm.ErrRecordNotFound)
+
+	activity := BackupActivity{SE: mockStorage}
+	err := activity.SetGlobalLatestBackupLogicalSizeActivity(ctx, volumeUUID, 1024)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockStorage.AssertNotCalled(t, "UpdateBackupFields")
+}
+
+func TestSetGlobalLatestBackupLogicalSizeActivity_NoBackup_LatestNil(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volumeUUID := "vol-uuid"
+
+	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("GetLatestBackupByVolumeUUID", ctx, volumeUUID).Return(nil, nil)
+
+	activity := BackupActivity{SE: mockStorage}
+	err := activity.SetGlobalLatestBackupLogicalSizeActivity(ctx, volumeUUID, 1024)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockStorage.AssertNotCalled(t, "UpdateBackupFields")
+}
+
+func TestSetGlobalLatestBackupLogicalSizeActivity_GetLatestError(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volumeUUID := "vol-uuid"
+
+	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("GetLatestBackupByVolumeUUID", ctx, volumeUUID).Return(nil, errors.New("db error"))
+
+	activity := BackupActivity{SE: mockStorage}
+	err := activity.SetGlobalLatestBackupLogicalSizeActivity(ctx, volumeUUID, 1024)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "db error")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestSetGlobalLatestBackupLogicalSizeActivity_UpdateBackupFieldsFailure(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volumeUUID := "vol-uuid"
+	size := int64(2048)
+	latestBackup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "latest-backup-uuid"}}
+
+	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("GetLatestBackupByVolumeUUID", ctx, volumeUUID).Return(latestBackup, nil)
+	mockStorage.On("UpdateBackupFields", ctx, latestBackup.UUID, map[string]interface{}{"latest_logical_backup_size": size}).Return(errors.New("update failed"))
+
+	activity := BackupActivity{SE: mockStorage}
+	err := activity.SetGlobalLatestBackupLogicalSizeActivity(ctx, volumeUUID, size)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "update failed")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestSetGlobalLatestBackupLogicalSizeActivity_UpdateBackupLatestLogicalBackupSizeByVolumeFailure(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	volumeUUID := "vol-uuid"
+	size := int64(2048)
+	latestBackup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "latest-backup-uuid"}}
+
+	mockStorage := database.NewMockStorage(t)
+	mockStorage.On("GetLatestBackupByVolumeUUID", ctx, volumeUUID).Return(latestBackup, nil)
+	mockStorage.On("UpdateBackupFields", ctx, latestBackup.UUID, map[string]interface{}{"latest_logical_backup_size": size}).Return(nil)
+	mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, volumeUUID, latestBackup.UUID).Return(errors.New("zero others failed"))
+
+	activity := BackupActivity{SE: mockStorage}
+	err := activity.SetGlobalLatestBackupLogicalSizeActivity(ctx, volumeUUID, size)
+
+	// Non-fatal: success is still returned
+	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }
 

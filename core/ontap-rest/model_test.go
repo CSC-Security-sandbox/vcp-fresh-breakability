@@ -4607,3 +4607,21 @@ func TestQosPolicyDeleteCollectionParamsToONTAP(t *testing.T) {
 		assert.NotNil(tt, otParams.ReturnTimeout)
 	})
 }
+
+func TestSnapmirrorRelationshipCreateParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := snapmirrorRelationshipCreateParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+	t.Run("WhenDestinationPathSet_SetsDestinationPath", func(tt *testing.T) {
+		params := &SnapmirrorRelationshipCreateParams{
+			DestinationPath: "/dest/path",
+			SourcePath:      "svm:vol",
+		}
+		otParams := snapmirrorRelationshipCreateParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Info)
+		assert.NotNil(tt, otParams.Info.Destination)
+		assert.Equal(tt, "/dest/path", *otParams.Info.Destination.Path)
+	})
+}

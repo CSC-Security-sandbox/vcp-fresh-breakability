@@ -2367,19 +2367,65 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	if params.DataProtection != nil {
 		// If backup vault is already attached to the volume and the backup vault is changed or removed
 		if dbVolume.DataProtection != nil && dbVolume.DataProtection.BackupVaultID != "" && params.DataProtection.BackupVaultID != nil && (*params.DataProtection.BackupVaultID == "" || *params.DataProtection.BackupVaultID != dbVolume.DataProtection.BackupVaultID) {
-			// If backup policy is already assigned to the volume, we should not be able to remove the backup vault from the volume
-			if dbVolume.DataProtection.BackupPolicyID != "" {
-				return nil, "", customerrors.NewUserInputValidationErr("cannot remove backup vault as backup policy is associated to the volume")
+			if utils.EnableBackupVaultSwitching {
+				backupInProgress, err := se.IsBackupInCreatingorDeletingStateByVolume(ctx, dbVolume.UUID)
+				if err != nil {
+					return nil, "", err
+				}
+				if backupInProgress {
+					return nil, "", customerrors.NewUserInputValidationErr("A backup operation on the volume is currently in progress. Please wait for it to complete before changing or removing the backup vault")
+				}
+				// Switching is only allowed between GCBDR backup vaults (service type must be GCBDR)
+				currentVault, err := se.GetBackupVault(ctx, dbVolume.DataProtection.BackupVaultID)
+				if err != nil && !customerrors.IsNotFoundErr(err) {
+					return nil, "", err
+				}
+				if currentVault != nil && currentVault.ServiceType != activities.GCBDRServiceType {
+					return nil, "", customerrors.NewUserInputValidationErr("Backup vault switching is only allowed for GCBDR backup vaults. The current backup vault is not a GCBDR vault.")
+				}
+				if *params.DataProtection.BackupVaultID == "" {
+					// Removing vault: block if backup policy is attached
+					if dbVolume.DataProtection.BackupPolicyID != "" {
+						return nil, "", customerrors.NewUserInputValidationErr("Cannot remove backup vault while a backup policy is attached. Detach the backup policy first, then remove the backup vault.")
+					}
+				} else {
+					// Changing to another vault: new vault must also be GCBDR
+					newVault, err := se.GetBackupVault(ctx, *params.DataProtection.BackupVaultID)
+					if err != nil && !customerrors.IsNotFoundErr(err) {
+						return nil, "", err
+					}
+					if newVault != nil && newVault.ServiceType != activities.GCBDRServiceType {
+						return nil, "", customerrors.NewUserInputValidationErr("Backup vault switching is only allowed between GCBDR backup vaults. The target backup vault is not a GCBDR vault.")
+					}
+				}
+			} else {
+				// Flag off: block when backup policy is attached (change or remove)
+				if dbVolume.DataProtection.BackupPolicyID != "" {
+					return nil, "", customerrors.NewUserInputValidationErr("cannot remove backup vault as backup policy is associated to the volume")
+				}
 			}
 			filters := [][]interface{}{{"volume_uuid = ?", dbVolume.UUID}}
 			backups, err := se.GetBackupsByBackupVaultOwnerIDAndFilter(ctx, dbVolume.DataProtection.BackupVaultID, dbVolume.Account.ID, filters)
 			if err != nil {
 				return nil, "", err
 			}
-			if len(backups) > 0 {
+			// When flag is enabled, allow both switch and detach when backups exist (policy blocks detach above when needed).
+			// When flag is disabled, keep current behaviour (block change or remove when backups exist).
+			if len(backups) > 0 && !utils.EnableBackupVaultSwitching {
 				return nil, "", customerrors.NewUserInputValidationErr("cannot remove backup vault as there are backups associated with it")
 			}
-			dbVolume.DataProtection.BackupVaultID = *params.DataProtection.BackupVaultID
+			// When flag is on, do not set BackupVaultID here; the volume update workflow will delete
+			// snapmirror for the current vault, then set and persist the new BackupVaultID.
+			if !utils.EnableBackupVaultSwitching {
+				dbVolume.DataProtection.BackupVaultID = *params.DataProtection.BackupVaultID
+			}
+			// Apply other DataProtection params (policy, schedule, KMS) so they are not dropped on vault change/remove.
+			dbVolume.DataProtection.BackupPolicyID = nillable.GetString(params.DataProtection.BackupPolicyId, dbVolume.DataProtection.BackupPolicyID)
+			dbVolume.DataProtection.ScheduledBackupEnabled = params.DataProtection.ScheduledBackupEnabled
+			dbVolume.DataProtection.KmsGrant = params.DataProtection.KmsGrant
+			if dbVolume.DataProtection.BackupPolicyID != "" && params.DataProtection.ScheduledBackupEnabled == nil {
+				return nil, "", customerrors.NewUserInputValidationErr("scheduled backups needs to be enabled/disabled when a backup policy is assigned to a volume")
+			}
 		} else {
 			if dbVolume.DataProtection == nil {
 				dbVolume.DataProtection = &datamodel.DataProtection{}

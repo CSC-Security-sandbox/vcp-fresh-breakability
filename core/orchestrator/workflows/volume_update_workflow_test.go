@@ -19,6 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
@@ -124,6 +125,142 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_Success() {
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Nil(s.T(), s.env.GetWorkflowError())
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_BackupVaultSwitching_DeleteSnapmirrorAndUpdateVaultID() {
+	origFlag := utils.EnableBackupVaultSwitching
+	defer utils.SetEnableBackupVaultSwitchingForTest(origFlag)
+	utils.SetEnableBackupVaultSwitchingForTest(true)
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(commonActivity.GetOntapJob)
+	s.env.RegisterActivity(updateActivity.GetVolumeFromONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateLun)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil)
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, "job-uuid", mock.Anything).Return(&vsa.OntapJob{State: "success", UUID: "job-uuid"}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{ExternalUUID: "ext-uuid", Name: "vol"},
+		AvailableSpace:   1000, Size: 1000, State: "online",
+	}, nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{ProviderResponse: vsa.ProviderResponse{Name: "/vol/vol1/lun1"}}, nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	emptyVaultID := ""
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{}},
+		Account:           &datamodel.Account{Name: "test_account"},
+		SizeInBytes:       1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{IsDataProtection: false},
+		DataProtection:   &datamodel.DataProtection{BackupVaultID: "old-vault-uuid"},
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes:   2000,
+		DataProtection: &models.UpdateDataProtection{BackupVaultID: &emptyVaultID},
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_BackupVaultSwitching_DeleteSnapmirrorInONTAPFails() {
+	origFlag := utils.EnableBackupVaultSwitching
+	defer utils.SetEnableBackupVaultSwitchingForTest(origFlag)
+	utils.SetEnableBackupVaultSwitchingForTest(true)
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("delete snapmirror failed"))
+
+	emptyVaultID := ""
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{}},
+		Account:           &datamodel.Account{Name: "test_account"},
+		SizeInBytes:       1000,
+		VolumeAttributes:  &datamodel.VolumeAttributes{IsDataProtection: false},
+		DataProtection:   &datamodel.DataProtection{BackupVaultID: "old-vault-uuid"},
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes:   2000,
+		DataProtection: &models.UpdateDataProtection{BackupVaultID: &emptyVaultID},
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_BackupVaultSwitching_WaitForONTAPJobFails() {
+	origFlag := utils.EnableBackupVaultSwitching
+	defer utils.SetEnableBackupVaultSwitchingForTest(origFlag)
+	utils.SetEnableBackupVaultSwitchingForTest(true)
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	deleteActivity := activities.VolumeDeleteActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(commonActivity.GetNode)
+	s.env.RegisterActivity(commonActivity.GetOntapJob)
+	s.env.RegisterActivity(updateActivity.GetVolumeFromONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateLun)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(deleteActivity.DeleteSnapmirrorInONTAP)
+
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(deleteActivity.DeleteSnapmirrorInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil)
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, "job-uuid", mock.Anything).Return(nil, errors.New("get ontap job failed"))
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{ExternalUUID: "ext-uuid", Name: "vol"},
+		AvailableSpace:   1000, Size: 1000, State: "online",
+	}, nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{ProviderResponse: vsa.ProviderResponse{Name: "/vol/vol1/lun1"}}, nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	emptyVaultID := ""
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{}},
+		Account:           &datamodel.Account{Name: "test_account"},
+		SizeInBytes:       1000,
+		VolumeAttributes:  &datamodel.VolumeAttributes{IsDataProtection: false},
+		DataProtection:   &datamodel.DataProtection{BackupVaultID: "old-vault-uuid"},
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes:   2000,
+		DataProtection: &models.UpdateDataProtection{BackupVaultID: &emptyVaultID},
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
 }
 
 func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UpdateFlexCacheVolumeInONTAP_Success() {

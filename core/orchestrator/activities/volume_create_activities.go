@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	cvpapi "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_policy"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/volumes"

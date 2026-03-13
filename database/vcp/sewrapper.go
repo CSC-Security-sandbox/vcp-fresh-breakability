@@ -3215,6 +3215,22 @@ func (re *retryEngine) GetBackupVault(ctx context.Context, backupVaultId string)
 	return var0, err
 }
 
+func (re *retryEngine) GetBackupVaultById(ctx context.Context, backupVaultId int64) (*datamodel.BackupVault, error) {
+	var var0 *datamodel.BackupVault
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetBackupVaultById(ctx, backupVaultId)
+		if err != nil {
+			re.logError("GetBackupVaultById", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) UpdateBackupVaultState(ctx context.Context, bv *datamodel.BackupVault, state, stateDetails string) (*datamodel.BackupVault, error) {
 	var var0 *datamodel.BackupVault
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -3726,6 +3742,22 @@ func (re *retryEngine) IsLatestBackupAnyState(ctx context.Context, backupUUID, v
 	return var0, err
 }
 
+func (re *retryEngine) IsLatestBackupInVault(ctx context.Context, backupUUID, volumeUUID string, backupVaultID int64) (bool, error) {
+	var var0 bool
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.IsLatestBackupInVault(ctx, backupUUID, volumeUUID, backupVaultID)
+		if err != nil {
+			re.logError("IsLatestBackupInVault", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) BackupCountByVolumeID(ctx context.Context, volumeUUID string) (int64, error) {
 	var var0 int64
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -3790,6 +3822,38 @@ func (re *retryEngine) GetBackupCountByVolumeUUIDs(ctx context.Context, volumeUU
 	return var0, err
 }
 
+func (re *retryEngine) GetBackupCountByVolumeAndVault(ctx context.Context, volumeUUID string, backupVaultID int64) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetBackupCountByVolumeAndVault(ctx, volumeUUID, backupVaultID)
+		if err != nil {
+			re.logError("GetBackupCountByVolumeAndVault", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetDistinctBackupVaultIDsByVolumeUUID(ctx context.Context, volumeUUID string) ([]int64, error) {
+	var var0 []int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetDistinctBackupVaultIDsByVolumeUUID(ctx, volumeUUID)
+		if err != nil {
+			re.logError("GetDistinctBackupVaultIDsByVolumeUUID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetBackupsByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error) {
 	var var0 []*datamodel.Backup
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -3819,6 +3883,54 @@ func (re *retryEngine) UpdateBackupLatestLogicalBackupSizeByVolume(ctx context.C
 		return true, err
 	})
 	return err
+}
+
+func (re *retryEngine) GetLatestBackupByVolumeUUID(ctx context.Context, volumeUUID string) (*datamodel.Backup, error) {
+	var var0 *datamodel.Backup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetLatestBackupByVolumeUUID(ctx, volumeUUID)
+		if err != nil {
+			re.logError("GetLatestBackupByVolumeUUID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetLatestBackupByVolumeAndVault(ctx context.Context, volumeUUID string, backupVaultID int64) (*datamodel.Backup, error) {
+	var var0 *datamodel.Backup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetLatestBackupByVolumeAndVault(ctx, volumeUUID, backupVaultID)
+		if err != nil {
+			re.logError("GetLatestBackupByVolumeAndVault", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetLatestBackupsPerVaultByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error) {
+	var var0 []*datamodel.Backup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetLatestBackupsPerVaultByVolumeUUID(ctx, volumeUUID)
+		if err != nil {
+			re.logError("GetLatestBackupsPerVaultByVolumeUUID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
 }
 
 func (re *retryEngine) UpdateBackupChainHistory(ctx context.Context, volumeUUID string, newSize int64) error {

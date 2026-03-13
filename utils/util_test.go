@@ -4224,3 +4224,14 @@ func TestExtractSnapshotNameFromCVPBackup(t *testing.T) {
 		})
 	}
 }
+
+func TestSetEnableBackupVaultSwitchingForTest(t *testing.T) {
+	orig := EnableBackupVaultSwitching
+	defer SetEnableBackupVaultSwitchingForTest(orig)
+
+	SetEnableBackupVaultSwitchingForTest(true)
+	assert.True(t, EnableBackupVaultSwitching)
+
+	SetEnableBackupVaultSwitchingForTest(false)
+	assert.False(t, EnableBackupVaultSwitching)
+}

@@ -22,6 +22,8 @@ import (
 const (
 	backupTypeSCHEDULED       = "SCHEDULED"
 	scheduledBackupNameFormat = "%s-scheduled-backup-%s-%s"
+	// PrecomputedChainBytesNotSet is passed to UpdateBackupSize when the caller has not precomputed chain bytes (e.g. workflow did not run ADCSizeWorkflow).
+	PrecomputedChainBytesNotSet int64 = -1
 )
 
 // ScheduledBackupActivity represents activities related to scheduled backups.
@@ -235,7 +237,9 @@ func (j *ScheduledBackupActivity) UpdateBackupState(ctx context.Context, backup 
 	return updated, nil
 }
 
-func (j *ScheduledBackupActivity) UpdateBackupSize(ctx context.Context, backup *datamodel.Backup, volume *datamodel.Volume) error {
+// UpdateBackupSize updates backup and volume size fields. When vault switching is on and precomputedChainBytes >= 0,
+// that value is used (e.g. from ADCSizeWorkflow).
+func (j *ScheduledBackupActivity) UpdateBackupSize(ctx context.Context, backup *datamodel.Backup, volume *datamodel.Volume, precomputedChainBytes int64) error {
 	logger := util.GetLogger(ctx)
 	se := j.SE
 
@@ -245,19 +249,35 @@ func (j *ScheduledBackupActivity) UpdateBackupSize(ctx context.Context, backup *
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	// Set LatestLogicalBackupSize to 0 for all previous backups of the same volume in a single query
-	// This ensures that only the latest backup has the correct size
-	// Update only if the latest logical backup size is not zero for the current backup
-	if backup.LatestLogicalBackupSize != 0 {
-		err = se.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, volume.UUID, backup.UUID)
-		if err != nil {
-			logger.Errorf("Failed to reset LatestLogicalBackupSize for previous backups of volume %s: %v", volume.UUID, err)
-			return vsaerrors.WrapAsTemporalApplicationError(err)
+	var chainBytes int64
+	if utils.EnableBackupVaultSwitching {
+		if precomputedChainBytes >= 0 {
+			chainBytes = precomputedChainBytes
+		} else {
+			// ADCSizeWorkflow failed or was not run: fall back to this backup's size so we don't record 0 and lose actual size.
+			chainBytes = backup.LatestLogicalBackupSize
 		}
+		latestBackup, latestErr := se.GetLatestBackupByVolumeUUID(ctx, volume.UUID)
+		if latestErr == nil && latestBackup != nil {
+			if updateErr := se.UpdateBackupFields(ctx, latestBackup.UUID, map[string]interface{}{"latest_logical_backup_size": chainBytes}); updateErr != nil {
+				logger.Warnf("Failed to set latest backup chain bytes for volume %s: %v", volume.UUID, updateErr)
+			}
+			if err := se.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, volume.UUID, latestBackup.UUID); err != nil {
+				logger.Errorf("Failed to zero other backups for volume %s: %v", volume.UUID, err)
+				return vsaerrors.WrapAsTemporalApplicationError(err)
+			}
+		}
+	} else {
+		if backup.LatestLogicalBackupSize != 0 {
+			err = se.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, volume.UUID, backup.UUID)
+			if err != nil {
+				logger.Errorf("Failed to reset LatestLogicalBackupSize for previous backups of volume %s: %v", volume.UUID, err)
+				return vsaerrors.WrapAsTemporalApplicationError(err)
+			}
+		}
+		chainBytes = backup.LatestLogicalBackupSize
 	}
-
-	// Update the volume's LatestLogicalBackupSize field
-	volume.DataProtection.BackupChainBytes = &backup.LatestLogicalBackupSize
+	volume.DataProtection.BackupChainBytes = &chainBytes
 	updates := map[string]interface{}{
 		"data_protection": volume.DataProtection,
 	}

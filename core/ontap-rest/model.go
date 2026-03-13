@@ -3484,10 +3484,12 @@ func snapmirrorRelationshipCreateParamsToONTAP(params *SnapmirrorRelationshipCre
 		srcUUID = nillable.ToPointer(strfmt.UUID(*params.SourceUUID))
 	}
 
+	dest := &models.SnapmirrorEndpoint{
+		Path: &params.DestinationPath,
+	}
+
 	sm := &models.SnapmirrorRelationship{
-		Destination: &models.SnapmirrorEndpoint{
-			Path: &params.DestinationPath,
-		},
+		Destination: dest,
 		Source: &models.SnapmirrorSourceEndpoint{
 			Path: &params.SourcePath,
 			UUID: srcUUID,

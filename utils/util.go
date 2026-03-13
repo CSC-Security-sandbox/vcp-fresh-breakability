@@ -107,6 +107,7 @@ var (
 	immutableBackupEnabled                 = env.GetBool("IMMUTABLE_BACKUP_ENABLED", false)
 	crossRegionBackupEnabled               = env.GetBool("CROSS_REGION_BACKUP_ENABLED", false)
 	RestoreVolumeBufferEnabled             = env.GetBool("RESTORE_VOLUME_BUFFER_ENABLED", false)
+	EnableBackupVaultSwitching             = env.GetBool("ENABLE_BACKUP_VAULT_SWITCHING", false)
 	enableKerberos                         = env.GetBool("ENABLE_KERBEROS", false)
 
 	// Will match ONTAP version strings like "9.7.1", "9.8.2P3", "10.1.0", "10.3.1P2", etc.
@@ -1273,6 +1274,12 @@ func IsCrossRegionBackupEnabled() bool {
 // This should only be used in tests
 func SetCrossRegionBackupEnabledForTest(enabled bool) {
 	crossRegionBackupEnabled = enabled
+}
+
+// SetEnableBackupVaultSwitchingForTest allows tests to override the backup vault switching feature flag
+// This should only be used in tests
+func SetEnableBackupVaultSwitchingForTest(enabled bool) {
+	EnableBackupVaultSwitching = enabled
 }
 
 // GetSourceVolumePathFromBackup gets the source volume path from a backup object

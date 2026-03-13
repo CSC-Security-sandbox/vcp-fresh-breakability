@@ -99,7 +99,7 @@ func (wf *SyncLatestBackupLogicalSizeToVolumeAndBackupWF) Run(ctx workflow.Conte
 	logger.Infof("Found %d volumes to sync", len(volumeBackupMap))
 
 	for volumeID, volumeBackup := range volumeBackupMap {
-		// Get object store endpoint info
+		// Get object store endpoint info (single latest per volume)
 		var objStoreEndpointInfo *vsa.SmObjectStoreEndpointt
 		err = workflow.ExecuteActivity(ctx, syncActivity.GetObjectStoreEndpointInfoActivity, volumeBackup).Get(ctx, &objStoreEndpointInfo)
 		if err != nil {

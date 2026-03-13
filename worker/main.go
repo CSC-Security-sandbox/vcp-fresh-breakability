@@ -274,6 +274,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterWorkflow(replicationWorkflows.UpdateVolumeReplicationWorkflow)
 	worker.RegisterWorkflow(workflows.CreateBackupWorkflow)
 	worker.RegisterWorkflow(workflows.ADCWorkflow)
+	worker.RegisterWorkflow(workflows.ADCSizeWorkflow)
 	worker.RegisterWorkflow(workflows.RestoreFilesFromBackupWorkflow)
 	worker.RegisterWorkflow(expertmodeworkflows.RestoreForOntapModeVolumeWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.GetMultipleReplicationsInternalWorkflow)

@@ -2042,6 +2042,229 @@ func TestGetBackupCountByVolumeUUIDs(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestGetBackupCountByVolumeAndVault(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	// Create backup vaults
+	vault1 := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"},
+		Name:      "vault-1",
+	}
+	vault2 := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "vault-uuid-2"},
+		Name:      "vault-2",
+	}
+	err = store.db.Create(vault1).Error()
+	assert.NoError(t, err)
+	err = store.db.Create(vault2).Error()
+	assert.NoError(t, err)
+
+	// Create backups: volume1 has 2 in vault1, 1 in vault2; volume2 has 1 in vault1
+	backups := []*datamodel.Backup{
+		{BaseModel: datamodel.BaseModel{UUID: "b1"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{UUID: "b2"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{UUID: "b3"}, VolumeUUID: "vol-1", BackupVaultID: vault2.ID, State: models.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{UUID: "b4"}, VolumeUUID: "vol-2", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{UUID: "b5"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateDeleted},
+	}
+	for _, b := range backups {
+		err = store.db.Create(b).Error()
+		assert.NoError(t, err)
+	}
+
+	// vol-1 + vault1: 2 available (b5 deleted is excluded)
+	count, err := store.GetBackupCountByVolumeAndVault(context.Background(), "vol-1", vault1.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(2), count)
+
+	// vol-1 + vault2: 1
+	count, err = store.GetBackupCountByVolumeAndVault(context.Background(), "vol-1", vault2.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(1), count)
+
+	// vol-2 + vault1: 1
+	count, err = store.GetBackupCountByVolumeAndVault(context.Background(), "vol-2", vault1.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(1), count)
+
+	// No backups for this volume+vault
+	count, err = store.GetBackupCountByVolumeAndVault(context.Background(), "vol-2", vault2.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(0), count)
+}
+
+func TestGetBackupCountByVolumeAndVault_ReturnsErrorWhenDBFails(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	sqlDB, err := store.db.GORM().DB()
+	assert.NoError(t, err)
+	_ = sqlDB.Close()
+	_, err = store.GetBackupCountByVolumeAndVault(context.Background(), "vol-1", 1)
+	assert.Error(t, err)
+}
+
+func TestGetDistinctBackupVaultIDsByVolumeUUID_ReturnsErrorWhenDBFails(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	sqlDB, err := store.db.GORM().DB()
+	assert.NoError(t, err)
+	_ = sqlDB.Close()
+	_, err = store.GetDistinctBackupVaultIDsByVolumeUUID(context.Background(), "vol-1")
+	assert.Error(t, err)
+}
+
+func TestGetLatestBackupByVolumeUUID_ReturnsErrorWhenDBFails(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	sqlDB, err := store.db.GORM().DB()
+	assert.NoError(t, err)
+	_ = sqlDB.Close()
+	_, err = store.GetLatestBackupByVolumeUUID(context.Background(), "vol-1")
+	assert.Error(t, err)
+}
+
+func TestGetLatestBackupByVolumeAndVault(t *testing.T) {
+	db, err := SetupTestDB()
+	require.NoError(t, err)
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	err = ClearInMemoryDB(store.db.GORM())
+	require.NoError(t, err)
+
+	vault1 := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"}, Name: "vault-1"}
+	vault2 := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-uuid-2"}, Name: "vault-2"}
+	require.NoError(t, store.db.Create(vault1).Error())
+	require.NoError(t, store.db.Create(vault2).Error())
+
+	// vol-1 vault1: two backups, latest by id is b2
+	b1 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b1", ID: 1}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable}
+	b2 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b2", ID: 2}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable}
+	b3 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b3", ID: 3}, VolumeUUID: "vol-1", BackupVaultID: vault2.ID, State: models.LifeCycleStateAvailable}
+	require.NoError(t, store.db.Create(b1).Error())
+	require.NoError(t, store.db.Create(b2).Error())
+	require.NoError(t, store.db.Create(b3).Error())
+
+	latest, err := store.GetLatestBackupByVolumeAndVault(context.Background(), "vol-1", vault1.ID)
+	require.NoError(t, err)
+	assert.NotNil(t, latest)
+	assert.Equal(t, "b2", latest.UUID)
+
+	latest, err = store.GetLatestBackupByVolumeAndVault(context.Background(), "vol-1", vault2.ID)
+	require.NoError(t, err)
+	assert.NotNil(t, latest)
+	assert.Equal(t, "b3", latest.UUID)
+
+	_, err = store.GetLatestBackupByVolumeAndVault(context.Background(), "vol-none", vault1.ID)
+	assert.Error(t, err)
+}
+
+func TestGetLatestBackupsPerVaultByVolumeUUID(t *testing.T) {
+	db, err := SetupTestDB()
+	require.NoError(t, err)
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	err = ClearInMemoryDB(store.db.GORM())
+	require.NoError(t, err)
+
+	vault1 := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"}, Name: "vault-1"}
+	vault2 := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-uuid-2"}, Name: "vault-2"}
+	require.NoError(t, store.db.Create(vault1).Error())
+	require.NoError(t, store.db.Create(vault2).Error())
+
+	b1 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b1", ID: 1}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable}
+	b2 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b2", ID: 2}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable}
+	b3 := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "b3", ID: 3}, VolumeUUID: "vol-1", BackupVaultID: vault2.ID, State: models.LifeCycleStateAvailable}
+	require.NoError(t, store.db.Create(b1).Error())
+	require.NoError(t, store.db.Create(b2).Error())
+	require.NoError(t, store.db.Create(b3).Error())
+
+	perVault, err := store.GetLatestBackupsPerVaultByVolumeUUID(context.Background(), "vol-1")
+	require.NoError(t, err)
+	assert.Len(t, perVault, 2)
+	uuids := []string{perVault[0].UUID, perVault[1].UUID}
+	assert.Contains(t, uuids, "b2")
+	assert.Contains(t, uuids, "b3")
+
+	perVault, err = store.GetLatestBackupsPerVaultByVolumeUUID(context.Background(), "vol-none")
+	require.NoError(t, err)
+	assert.Empty(t, perVault)
+}
+
+func TestGetLatestBackupsPerVaultByVolumeUUID_ReturnsErrorWhenDBFails(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	sqlDB, err := store.db.GORM().DB()
+	assert.NoError(t, err)
+	_ = sqlDB.Close()
+	_, err = store.GetLatestBackupsPerVaultByVolumeUUID(context.Background(), "vol-1")
+	assert.Error(t, err)
+}
+
+func TestGetDistinctBackupVaultIDsByVolumeUUID(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	vault1 := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"},
+		Name:      "vault-1",
+	}
+	vault2 := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{UUID: "vault-uuid-2"},
+		Name:      "vault-2",
+	}
+	err = store.db.Create(vault1).Error()
+	assert.NoError(t, err)
+	err = store.db.Create(vault2).Error()
+	assert.NoError(t, err)
+
+	backups := []*datamodel.Backup{
+		{BaseModel: datamodel.BaseModel{UUID: "b1"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{UUID: "b2"}, VolumeUUID: "vol-1", BackupVaultID: vault2.ID, State: models.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{UUID: "b3"}, VolumeUUID: "vol-2", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable},
+		{BaseModel: datamodel.BaseModel{UUID: "b4"}, VolumeUUID: "vol-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateDeleted},
+	}
+	for _, b := range backups {
+		err = store.db.Create(b).Error()
+		assert.NoError(t, err)
+	}
+
+	// vol-1: distinct vaults with available backups are vault1, vault2 (b4 is deleted so not counted)
+	ids, err := store.GetDistinctBackupVaultIDsByVolumeUUID(context.Background(), "vol-1")
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []int64{vault1.ID, vault2.ID}, ids)
+
+	// vol-2: only vault1
+	ids, err = store.GetDistinctBackupVaultIDsByVolumeUUID(context.Background(), "vol-2")
+	assert.NoError(t, err)
+	assert.Equal(t, []int64{vault1.ID}, ids)
+
+	// vol with no backups
+	ids, err = store.GetDistinctBackupVaultIDsByVolumeUUID(context.Background(), "vol-none")
+	assert.NoError(t, err)
+	assert.Empty(t, ids)
+}
+
 func TestGetBackupsByVolumeUUID(t *testing.T) {
 	t.Run("ReturnsBackupsSuccessfully", func(tt *testing.T) {
 		db, err := SetupTestDB()
@@ -2385,6 +2608,138 @@ func TestIsLatestBackupAnyState(t *testing.T) {
 		isLatest, err := store.IsLatestBackupAnyState(context.Background(), "backup-uuid-1", "volume-uuid-1")
 		assert.NoError(tt, err)
 		assert.True(tt, isLatest)
+	})
+}
+
+func TestIsLatestBackupAnyStateInVault(t *testing.T) {
+	t.Run("ReturnsTrueWhenBackupIsLatestInVault", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		vault1 := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"}, Name: "vault1"}
+		vault2 := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-uuid-2"}, Name: "vault2"}
+		err = store.db.Create(vault1).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(vault2).Error()
+		assert.NoError(tt, err)
+
+		// Vault1: backup1 (older), backup2 (latest in vault1)
+		backup1 := &datamodel.Backup{
+			BaseModel:  datamodel.BaseModel{UUID: "backup-uuid-1", CreatedAt: time.Now().Add(-2 * time.Hour)},
+			VolumeUUID: "volume-uuid-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable,
+		}
+		backup2 := &datamodel.Backup{
+			BaseModel:  datamodel.BaseModel{UUID: "backup-uuid-2", CreatedAt: time.Now().Add(-1 * time.Hour)},
+			VolumeUUID: "volume-uuid-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable,
+		}
+		err = store.db.Create(backup1).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(backup2).Error()
+		assert.NoError(tt, err)
+
+		isLatest, err := store.IsLatestBackupInVault(context.Background(), "backup-uuid-2", "volume-uuid-1", vault1.ID)
+		assert.NoError(tt, err)
+		assert.True(tt, isLatest)
+	})
+
+	t.Run("ReturnsFalseWhenBackupIsNotLatestInVault", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		vault1 := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"}, Name: "vault1"}
+		err = store.db.Create(vault1).Error()
+		assert.NoError(tt, err)
+
+		backup1 := &datamodel.Backup{
+			BaseModel:  datamodel.BaseModel{UUID: "backup-uuid-1", CreatedAt: time.Now().Add(-2 * time.Hour)},
+			VolumeUUID: "volume-uuid-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable,
+		}
+		backup2 := &datamodel.Backup{
+			BaseModel:  datamodel.BaseModel{UUID: "backup-uuid-2", CreatedAt: time.Now().Add(-1 * time.Hour)},
+			VolumeUUID: "volume-uuid-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable,
+		}
+		err = store.db.Create(backup1).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(backup2).Error()
+		assert.NoError(tt, err)
+
+		isLatest, err := store.IsLatestBackupInVault(context.Background(), "backup-uuid-1", "volume-uuid-1", vault1.ID)
+		assert.NoError(tt, err)
+		assert.False(tt, isLatest)
+	})
+
+	t.Run("ReturnsFalseWhenNoBackupsExistInVault", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		vault1 := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"}, Name: "vault1"}
+		err = store.db.Create(vault1).Error()
+		assert.NoError(tt, err)
+
+		isLatest, err := store.IsLatestBackupInVault(context.Background(), "backup-uuid-1", "volume-uuid-1", vault1.ID)
+		assert.Error(tt, err)
+		assert.False(tt, isLatest)
+	})
+
+	t.Run("ScopesByVault", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		vault1 := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"}, Name: "vault1"}
+		vault2 := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-uuid-2"}, Name: "vault2"}
+		err = store.db.Create(vault1).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(vault2).Error()
+		assert.NoError(tt, err)
+
+		backupV1 := &datamodel.Backup{
+			BaseModel:  datamodel.BaseModel{UUID: "backup-v1", CreatedAt: time.Now().Add(-1 * time.Hour)},
+			VolumeUUID: "volume-uuid-1", BackupVaultID: vault1.ID, State: models.LifeCycleStateAvailable,
+		}
+		backupV2 := &datamodel.Backup{
+			BaseModel:  datamodel.BaseModel{UUID: "backup-v2", CreatedAt: time.Now().Add(-30 * time.Minute)},
+			VolumeUUID: "volume-uuid-1", BackupVaultID: vault2.ID, State: models.LifeCycleStateAvailable,
+		}
+		err = store.db.Create(backupV1).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(backupV2).Error()
+		assert.NoError(tt, err)
+
+		// Each is latest in its own vault
+		isLatest1, err := store.IsLatestBackupInVault(context.Background(), "backup-v1", "volume-uuid-1", vault1.ID)
+		assert.NoError(tt, err)
+		assert.True(tt, isLatest1)
+		isLatest2, err := store.IsLatestBackupInVault(context.Background(), "backup-v2", "volume-uuid-1", vault2.ID)
+		assert.NoError(tt, err)
+		assert.True(tt, isLatest2)
+		// backup-v1 is not latest in vault2
+		isLatestV2Wrong, err := store.IsLatestBackupInVault(context.Background(), "backup-v1", "volume-uuid-1", vault2.ID)
+		assert.NoError(tt, err)
+		assert.False(tt, isLatestV2Wrong)
 	})
 }
 

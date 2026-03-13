@@ -146,6 +146,24 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		OntapCredentials: volume.Pool.PoolCredentials,
 	})
 
+	// when flag is on and vault is changed or removed, delete snapmirror for the
+	// current vault, then set volume.DataProtection.BackupVaultID to the new value (or empty). The orchestrator
+	// leaves BackupVaultID unchanged so this workflow receives the volume with the old vault ID.
+	if utils.EnableBackupVaultSwitching && params.DataProtection != nil && params.DataProtection.BackupVaultID != nil &&
+		volume.DataProtection != nil && volume.DataProtection.BackupVaultID != "" &&
+		(*params.DataProtection.BackupVaultID == "" || *params.DataProtection.BackupVaultID != volume.DataProtection.BackupVaultID) {
+		var ontapAsyncResponse *vsa.OntapAsyncResponse
+		err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSnapmirrorInONTAP, volume, &node).Get(ctx, &ontapAsyncResponse)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		err = WaitForONTAPJob(ctx, ontapAsyncResponse, node, time.Minute*10)
+		if err != nil {
+			return nil, ConvertToVSAError(fmt.Errorf("failed to delete snapmirror: %w", err))
+		}
+		volume.DataProtection.BackupVaultID = *params.DataProtection.BackupVaultID
+	}
+
 	// Update the snapshot policy if it is provided in the params
 	if params.SnapshotPolicy != nil && params.SnapshotPolicy.Name != "" && !volume.VolumeAttributes.IsDataProtection {
 		updatingPolicy := populateSnapshotPolicyFromParams(params.SnapshotPolicy)

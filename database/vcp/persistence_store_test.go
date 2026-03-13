@@ -3105,6 +3105,51 @@ func TestPersistenceStore_UpdatePendingResourceDeletion(t *testing.T) {
 	}
 }
 
+// TestPersistenceStore_BackupVaultAndBackupDelegateMethods tests PersistenceStore wrapper methods that delegate to dataStore (lines 1058, 1122, 1322, 1326, 1338, 1342, 1346).
+func TestPersistenceStore_BackupVaultAndBackupDelegateMethods(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+
+	// GetBackupVaultById - wrapper at 1058
+	_, _ = store.GetBackupVaultById(ctx, 0)
+
+	// IsLatestBackupInVault - wrapper at 1122
+	_, _ = store.IsLatestBackupInVault(ctx, "backup-uuid", "volume-uuid", 0)
+
+	// GetBackupCountByVolumeAndVault - wrapper at 1322
+	count, err := store.GetBackupCountByVolumeAndVault(ctx, "volume-uuid", 0)
+	assert.NoError(t, err)
+	assert.GreaterOrEqual(t, count, int64(0))
+
+	// GetDistinctBackupVaultIDsByVolumeUUID - wrapper at 1326
+	ids, err := store.GetDistinctBackupVaultIDsByVolumeUUID(ctx, "volume-uuid")
+	assert.NoError(t, err)
+	assert.NotNil(t, ids)
+
+	// UpdateBackupLatestLogicalBackupSizeByVolume - wrapper at 1334
+	_ = store.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, "volume-uuid", "exclude-backup-uuid")
+
+	// GetLatestBackupByVolumeUUID - wrapper at 1337-1338
+	_, _ = store.GetLatestBackupByVolumeUUID(ctx, "volume-uuid")
+
+	// GetLatestBackupByVolumeAndVault - wrapper at 1342
+	_, _ = store.GetLatestBackupByVolumeAndVault(ctx, "volume-uuid", 0)
+
+	// GetLatestBackupsPerVaultByVolumeUUID - wrapper at 1346
+	backups, err := store.GetLatestBackupsPerVaultByVolumeUUID(ctx, "volume-uuid")
+	assert.NoError(t, err)
+	// backups may be nil or empty slice when no data
+	_ = backups
+}
+
 // TestPersistenceStore_GetResourcesCount tests the GetResourcesCount wrapper method
 func TestPersistenceStore_GetResourcesCount(t *testing.T) {
 	logger := log.NewLogger()

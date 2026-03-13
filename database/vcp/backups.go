@@ -571,7 +571,7 @@ func (d *DataStoreRepository) IsLatestBackupAnyState(ctx context.Context, backup
 	db := d.db.GORM().WithContext(ctx)
 	backup := &datamodel.Backup{}
 	// get backup by id under a volume (any state)
-	err := db.Where("volume_uuid = ?", volumeUUID).Order("id desc").First(&backup).Error
+	err := db.Where("volume_uuid = ?", volumeUUID).Last(&backup).Error
 	if err != nil {
 		return false, err
 	}
@@ -580,6 +580,17 @@ func (d *DataStoreRepository) IsLatestBackupAnyState(ctx context.Context, backup
 		return true, nil
 	}
 	return false, nil
+}
+
+// IsLatestBackupInVault IsLatestBackupAnyStateInVault checks if a backup is the latest for its volume in the given vault regardless of state
+func (d *DataStoreRepository) IsLatestBackupInVault(ctx context.Context, backupUUID, volumeUUID string, backupVaultID int64) (bool, error) {
+	db := d.db.GORM().WithContext(ctx)
+	backup := &datamodel.Backup{}
+	err := db.Where("volume_uuid = ? AND backup_vault_id = ?", volumeUUID, backupVaultID).Last(&backup).Error
+	if err != nil {
+		return false, err
+	}
+	return backup.UUID == backupUUID, nil
 }
 
 func (d *DataStoreRepository) BackupCountByVolumeID(ctx context.Context, volumeUUID string) (int64, error) {
@@ -687,6 +698,35 @@ func (d *DataStoreRepository) GetBackupCountByVolumeUUIDs(ctx context.Context, v
 	return backupsCountByVolume, nil
 }
 
+// GetBackupCountByVolumeAndVault returns the count of backups for the given volume and backup vault,
+// excluding backups in deleted state (and soft-deleted rows).
+func (d *DataStoreRepository) GetBackupCountByVolumeAndVault(ctx context.Context, volumeUUID string, backupVaultID int64) (int64, error) {
+	var count int64
+	db := d.db.GORM().WithContext(ctx)
+	err := db.Model(&datamodel.Backup{}).
+		Where("volume_uuid = ? AND backup_vault_id = ? AND state != ?", volumeUUID, backupVaultID, models.LifeCycleStateDeleted).
+		Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// GetDistinctBackupVaultIDsByVolumeUUID returns distinct backup_vault_id values for backups
+// that belong to the given volume and are in available state (not deleted, not soft-deleted).
+func (d *DataStoreRepository) GetDistinctBackupVaultIDsByVolumeUUID(ctx context.Context, volumeUUID string) ([]int64, error) {
+	var ids []int64
+	db := d.db.GORM().WithContext(ctx)
+	err := db.Model(&datamodel.Backup{}).
+		Where("volume_uuid = ? AND state = ?", volumeUUID, models.LifeCycleStateAvailable).
+		Distinct("backup_vault_id").
+		Pluck("backup_vault_id", &ids).Error
+	if err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
 func (d *DataStoreRepository) GetBackupsByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error) {
 	db := d.db.GORM().WithContext(ctx)
 	var backups []*datamodel.Backup
@@ -716,6 +756,50 @@ func (d *DataStoreRepository) UpdateBackupLatestLogicalBackupSizeByVolume(ctx co
 	}
 
 	return nil
+}
+
+// GetLatestBackupByVolumeUUID returns the single latest backup (by id) for the volume across all vaults.
+// Used when vault switching is on to set the "latest backup" (across vaults) latest_logical_backup_size to the summed chain bytes.
+func (d *DataStoreRepository) GetLatestBackupByVolumeUUID(ctx context.Context, volumeUUID string) (*datamodel.Backup, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var b datamodel.Backup
+	err := db.Where("volume_uuid = ? AND state = ?", volumeUUID, models.LifeCycleStateAvailable).Last(&b).Error
+	if err != nil {
+		return nil, err
+	}
+	return &b, nil
+}
+
+// GetLatestBackupByVolumeAndVault returns the latest backup (by id) for the given volume and backup vault with state Available.
+// Used when resolving destination endpoint UUID for reattach so the current vault is considered even if not yet in distinct list.
+func (d *DataStoreRepository) GetLatestBackupByVolumeAndVault(ctx context.Context, volumeUUID string, backupVaultID int64) (*datamodel.Backup, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var b datamodel.Backup
+	err := db.Where("volume_uuid = ? AND backup_vault_id = ? AND state = ?", volumeUUID, backupVaultID, models.LifeCycleStateAvailable).Last(&b).Error
+	if err != nil {
+		return nil, err
+	}
+	return &b, nil
+}
+
+// GetLatestBackupsPerVaultByVolumeUUID returns the latest backup (by id) per backup_vault_id for the given volume.
+// Used by sync when vault switching is on to fetch logical size from each vault's endpoint and sum.
+func (d *DataStoreRepository) GetLatestBackupsPerVaultByVolumeUUID(ctx context.Context, volumeUUID string) ([]*datamodel.Backup, error) {
+	vaultIDs, err := d.GetDistinctBackupVaultIDsByVolumeUUID(ctx, volumeUUID)
+	if err != nil {
+		return nil, err
+	}
+	db := d.db.GORM().WithContext(ctx)
+	var out []*datamodel.Backup
+	for _, vaultID := range vaultIDs {
+		var b datamodel.Backup
+		err = db.Where("volume_uuid = ? AND backup_vault_id = ? AND state = ?", volumeUUID, vaultID, models.LifeCycleStateAvailable).Last(&b).Error
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, &b)
+	}
+	return out, nil
 }
 
 // GetBackupMetrics retrieves backup logical size metrics grouped by volume UUID with pagination
@@ -830,9 +914,7 @@ func (d *DataStoreRepository) UpdateLatestBackupLogicalSize(ctx context.Context,
 
 	// Find the latest backup for the volume (by id)
 	var latestBackup datamodel.Backup
-	err = tx.Where("volume_uuid = ? AND state = ?", volumeUUID, models.LifeCycleStateAvailable).
-		Order("id desc").
-		First(&latestBackup).Error
+	err = tx.Where("volume_uuid = ? AND state = ?", volumeUUID, models.LifeCycleStateAvailable).Last(&latestBackup).Error
 	if err != nil {
 		return err
 	}
@@ -1121,8 +1203,9 @@ func (d *DataStoreRepository) GetBackupWithVaultByUUID(ctx context.Context, back
 	return &backup, nil
 }
 
-// UpdateBackupChainHistory updates the backup chain history with a new size for the active backup
-// It marks the current active entry as deleted and creates a new entry with the updated size
+// UpdateBackupChainHistory updates the backup chain history with a new size for the active backup.
+// It marks the current active entry as deleted and creates a new entry with the updated size.
+// When vault switching is on, newSize is the summed chain bytes across all vaults (same as volume BackupChainBytes).
 func (d *DataStoreRepository) UpdateBackupChainHistory(ctx context.Context, volumeUUID string, newSize int64) error {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)
