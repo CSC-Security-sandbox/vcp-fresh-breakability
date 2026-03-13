@@ -1515,8 +1515,11 @@ func determineRQuota(ctx context.Context, se database.Storage, volumeDetails *da
 	}
 
 	if isDeleteAction {
-		// For delete: RQuota should be disabled only if this is the last quota rule in the SVM
-		rquotaRequired := quotaCountUnderSVM == 1
+		// For delete: the delete workflow uses !isRQuotaEnabled to decide whether to disable rquota
+		// on the SVM. We want to disable rquota only when this IS the last NFS quota rule (count==1).
+		// Returning !(count==1) makes the value false when last (triggering !false=true in workflow)
+		// and true when not last (triggering !true=false → no action), matching the workflow logic.
+		rquotaRequired := !(quotaCountUnderSVM == 1)
 		logger.Infof("RQuota determination for delete on volume %s (SvmID=%d): quotaCountUnderSVM=%d, rquotaRequired=%t",
 			volumeDetails.UUID, volumeDetails.SvmID, quotaCountUnderSVM, rquotaRequired)
 		return rquotaRequired, nil

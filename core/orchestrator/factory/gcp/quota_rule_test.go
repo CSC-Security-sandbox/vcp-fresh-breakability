@@ -1348,10 +1348,11 @@ func TestDetermineRQuota(t *testing.T) {
 			},
 		}
 
-		// For delete action on SMB volume, RQuota should be true
+		// Non-NFS delete returns true so !isRQuotaEnabled=false in the delete workflow,
+		// meaning UpdateRQuotaOnSvm is NOT called — rquota is left unchanged (correct).
 		rquotaRequired, err := determineRQuota(context.Background(), mockStore, volume, true)
 		assert.NoError(tt, err)
-		assert.True(tt, rquotaRequired) // Should return true for delete action even if not NFS
+		assert.True(tt, rquotaRequired)
 	})
 
 	t.Run("WhenVolumeHasNilProtocolsAndIsDeleteAction", func(tt *testing.T) {
@@ -1364,9 +1365,10 @@ func TestDetermineRQuota(t *testing.T) {
 			},
 		}
 
+		// Nil protocols treated as non-NFS: returns true → delete workflow skips UpdateRQuotaOnSvm.
 		rquotaRequired, err := determineRQuota(context.Background(), mockStore, volume, true)
 		assert.NoError(tt, err)
-		assert.True(tt, rquotaRequired) // Should return true for delete action even if protocols are nil
+		assert.True(tt, rquotaRequired)
 	})
 
 	t.Run("WhenVolumeHasNilVolumeAttributesAndIsDeleteAction", func(tt *testing.T) {
@@ -1377,9 +1379,10 @@ func TestDetermineRQuota(t *testing.T) {
 			VolumeAttributes: nil,
 		}
 
+		// Nil VolumeAttributes treated as non-NFS: returns true → delete workflow skips UpdateRQuotaOnSvm.
 		rquotaRequired, err := determineRQuota(context.Background(), mockStore, volume, true)
 		assert.NoError(tt, err)
-		assert.True(tt, rquotaRequired) // Should return true for delete action even if VolumeAttributes is nil
+		assert.True(tt, rquotaRequired)
 	})
 
 	t.Run("WhenDeleteActionAndLastQuotaRuleInSVM", func(tt *testing.T) {
@@ -1392,13 +1395,13 @@ func TestDetermineRQuota(t *testing.T) {
 			},
 		}
 
-		// Mock GetQuotaRuleCountBySvmID to return 1 (last quota rule in SVM)
+		// count=1 → !(1==1) = false → delete workflow: !false=true → UpdateRQuotaOnSvm(false) called → rquota disabled ✓
 		mockStore.EXPECT().GetQuotaRuleCountBySvmID(context.Background(), volume.SvmID).
 			Return(int64(1), nil)
 
 		rquotaRequired, err := determineRQuota(context.Background(), mockStore, volume, true)
 		assert.NoError(tt, err)
-		assert.True(tt, rquotaRequired)
+		assert.False(tt, rquotaRequired)
 	})
 
 	t.Run("WhenDeleteActionAndNotLastQuotaRuleInSVM", func(tt *testing.T) {
@@ -1411,13 +1414,110 @@ func TestDetermineRQuota(t *testing.T) {
 			},
 		}
 
-		// Mock GetQuotaRuleCountBySvmID to return 2 (not last quota rule in SVM)
+		// count=2 → !(2==1) = true → delete workflow: !true=false → UpdateRQuotaOnSvm NOT called → rquota stays enabled ✓
 		mockStore.EXPECT().GetQuotaRuleCountBySvmID(context.Background(), volume.SvmID).
 			Return(int64(2), nil)
 
 		rquotaRequired, err := determineRQuota(context.Background(), mockStore, volume, true)
 		assert.NoError(tt, err)
-		assert.False(tt, rquotaRequired)
+		assert.True(tt, rquotaRequired)
+	})
+
+	// --- Dual-protocol (NFS + SMB) volume tests ---
+
+	t.Run("WhenDualProtocolNFSv3AndSMBVolumeIsFirstQuotaRuleInSVM", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		// Dual-protocol: both NFSv3 and SMB present. NFS presence means RQuota applies.
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "dual-volume-uuid-1"},
+			SvmID:     1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{utils.ProtocolNFSv3, utils.ProtocolSMB},
+			},
+		}
+
+		// First quota rule in SVM: count = 0 → rquota must be enabled.
+		mockStore.EXPECT().GetQuotaRuleCountBySvmID(context.Background(), volume.SvmID).
+			Return(int64(0), nil)
+
+		rquotaRequired, err := determineRQuota(context.Background(), mockStore, volume, false)
+		assert.NoError(tt, err)
+		assert.True(tt, rquotaRequired, "RQuota must be enabled for dual-protocol (NFS+SMB) volume when it is the first quota rule in the SVM")
+	})
+
+	t.Run("WhenDualProtocolNFSv4AndSMBVolumeIsFirstQuotaRuleInSVM", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "dual-volume-uuid-2"},
+			SvmID:     1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{utils.ProtocolNFSv4, utils.ProtocolSMB},
+			},
+		}
+
+		mockStore.EXPECT().GetQuotaRuleCountBySvmID(context.Background(), volume.SvmID).
+			Return(int64(0), nil)
+
+		rquotaRequired, err := determineRQuota(context.Background(), mockStore, volume, false)
+		assert.NoError(tt, err)
+		assert.True(tt, rquotaRequired, "RQuota must be enabled for dual-protocol (NFS+SMB) volume when it is the first quota rule in the SVM")
+	})
+
+	t.Run("WhenDualProtocolNFSv3AndSMBVolumeIsNotFirstQuotaRuleInSVM", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "dual-volume-uuid-3"},
+			SvmID:     1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{utils.ProtocolNFSv3, utils.ProtocolSMB},
+			},
+		}
+
+		// SVM already has NFS quota rules; RQuota was already enabled by the first rule's workflow.
+		mockStore.EXPECT().GetQuotaRuleCountBySvmID(context.Background(), volume.SvmID).
+			Return(int64(2), nil)
+
+		rquotaRequired, err := determineRQuota(context.Background(), mockStore, volume, false)
+		assert.NoError(tt, err)
+		assert.False(tt, rquotaRequired, "RQuota must NOT be enabled again for dual-protocol volume when other NFS quota rules already exist in the SVM")
+	})
+
+	t.Run("WhenDeleteActionAndDualProtocolVolumeIsLastQuotaRuleInSVM", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "dual-volume-uuid-4"},
+			SvmID:     1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{utils.ProtocolNFSv3, utils.ProtocolSMB},
+			},
+		}
+
+		// count=1 → !(1==1)=false → delete workflow: !false=true → UpdateRQuotaOnSvm(false) → rquota disabled ✓
+		mockStore.EXPECT().GetQuotaRuleCountBySvmID(context.Background(), volume.SvmID).
+			Return(int64(1), nil)
+
+		rquotaRequired, err := determineRQuota(context.Background(), mockStore, volume, true)
+		assert.NoError(tt, err)
+		assert.False(tt, rquotaRequired, "Last quota rule in SVM: returns false so !false=true triggers UpdateRQuotaOnSvm(false)")
+	})
+
+	t.Run("WhenDeleteActionAndDualProtocolVolumeIsNotLastQuotaRuleInSVM", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "dual-volume-uuid-5"},
+			SvmID:     1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{utils.ProtocolNFSv3, utils.ProtocolSMB},
+			},
+		}
+
+		// count=3 → !(3==1)=true → delete workflow: !true=false → UpdateRQuotaOnSvm NOT called → rquota stays enabled ✓
+		mockStore.EXPECT().GetQuotaRuleCountBySvmID(context.Background(), volume.SvmID).
+			Return(int64(3), nil)
+
+		rquotaRequired, err := determineRQuota(context.Background(), mockStore, volume, true)
+		assert.NoError(tt, err)
+		assert.True(tt, rquotaRequired, "Not last quota rule in SVM: returns true so !true=false skips UpdateRQuotaOnSvm")
 	})
 }
 
