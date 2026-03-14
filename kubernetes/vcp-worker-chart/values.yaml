@@ -126,6 +126,8 @@ workerConfig:
   enableVsaCertificateRotation: "false"
   enableVsaExpiredCertificatesRotation: "false"
   certificateRotationThresholdPercentage: "75"
+  # Comma-separated pool states eligible for certificate/password rotation (default: READY,DEGRADED)
+  certificateRotationPoolStates: "READY,DEGRADED"
   immutableBackupEnabled: "false"
   crossRegionBackupEnabled: "false"
   enableBackupVaultSwitching: "false"

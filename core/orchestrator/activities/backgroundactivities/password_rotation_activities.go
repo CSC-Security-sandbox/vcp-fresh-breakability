@@ -426,7 +426,7 @@ func (a *RotateVcpToVsaCertificateActivity) ListPoolsWithPasswordAuth(ctx contex
 	logger.Debugf("Listing pools with password authentication (offset=%d, limit=%d)", offset, limit)
 
 	authTypeValue := fmt.Sprintf("%d", env.USERNAME_PWD_SEC_MGR)
-	readyStates := []string{"READY", "DEGRADED"}
+	readyStates := env.GetCertificateRotationPoolStates()
 	filter := dbutils.CreateFilterWithConditions(
 		dbutils.NewFilterCondition("pool_credentials->>'auth_type'", "=", authTypeValue),
 		dbutils.NewFilterCondition("state", "in", readyStates),

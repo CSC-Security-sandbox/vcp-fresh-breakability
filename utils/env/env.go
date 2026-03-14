@@ -303,6 +303,27 @@ func GetCertificateRotationThresholdPercentage() float64 {
 	return threshold
 }
 
+// GetCertificateRotationPoolStates reads CERTIFICATE_ROTATION_POOL_STATES as a comma-separated list of pool states
+// (e.g. "READY,DEGRADED"). Pools in these states are eligible for certificate/password rotation.
+// Default: "READY,DEGRADED"
+func GetCertificateRotationPoolStates() []string {
+	raw := GetString("CERTIFICATE_ROTATION_POOL_STATES", "READY,DEGRADED")
+	if raw == "" {
+		return []string{"READY", "DEGRADED"}
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if s := strings.TrimSpace(p); s != "" {
+			out = append(out, s)
+		}
+	}
+	if len(out) == 0 {
+		return []string{"READY", "DEGRADED"}
+	}
+	return out
+}
+
 // GetBoolFromEnvIfNil returns the specified boolean if non-nil.
 // If nil, returns the boolean representation of the specified environment variable.
 // If the environment variable is not set or is not valid, returns the specified default.

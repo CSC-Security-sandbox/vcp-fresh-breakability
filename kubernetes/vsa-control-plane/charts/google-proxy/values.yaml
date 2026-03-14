@@ -92,6 +92,7 @@ maxCustomIops: "160000"
 maxCustomThroughput: "5120"
 iopsPerMibps: "16"
 deleteResourcesCronExpression: "0 0 * * *" # DELETE_RESOURCES job configuration
+certificateRotationCronExpression: "0 0 * * *" # ROTATE_VSA_CERTIFICATE_AND_PASSWORD job configuration (default: daily at midnight)
 waitForTemporalEnabled: false
 metricsDbCleanupEnabled: false
 volumeRefreshIntervalMinutes: "5"

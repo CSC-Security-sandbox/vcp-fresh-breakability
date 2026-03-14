@@ -22,7 +22,7 @@ func (a *RotateVcpToVsaCertificateActivity) CertificateNeedsRotation(ctx context
 	logger := util.GetLogger(ctx)
 	logger.Debugf("Checking if certificate needs rotation for pool: %s", poolUUID)
 
-	readyStates := []string{"READY", "DEGRADED"}
+	readyStates := env.GetCertificateRotationPoolStates()
 	filter := dbutils.CreateFilterWithConditions(
 		dbutils.NewFilterCondition("uuid", "=", poolUUID),
 		dbutils.NewFilterCondition("state", "in", readyStates),
@@ -63,7 +63,7 @@ func (a *RotateVcpToVsaCertificateActivity) ListPoolsWithCertificateAuth(ctx con
 	logger.Debugf("Listing pools with certificate authentication (offset=%d, limit=%d)", offset, limit)
 
 	authTypeValue := fmt.Sprintf("%d", env.USER_CERTIFICATE)
-	readyStates := []string{"READY", "DEGRADED"}
+	readyStates := env.GetCertificateRotationPoolStates()
 	filter := dbutils.CreateFilterWithConditions(
 		dbutils.NewFilterCondition("pool_credentials->>'auth_type'", "=", authTypeValue),
 		dbutils.NewFilterCondition("state", "in", readyStates),

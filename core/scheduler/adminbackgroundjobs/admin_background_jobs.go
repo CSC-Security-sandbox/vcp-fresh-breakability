@@ -46,6 +46,13 @@ func LoadJobSpecs() error {
 		}
 	}
 
+	// Override ROTATE_VSA_CERTIFICATE_AND_PASSWORD cron expression from environment variable if set
+	if certRotationSpec, exists := adminJobSpecs["ROTATE_VSA_CERTIFICATE_AND_PASSWORD"]; exists {
+		if envCronExpr := env.GetString("CERTIFICATE_ROTATION_CRON_EXPRESSION", ""); envCronExpr != "" {
+			certRotationSpec.CronExpression = envCronExpr
+		}
+	}
+
 	// Remove the SYNC_AUTO_TIERING_POOLS job spec if auto tiering feature is not enabled.
 	if !env.GetBool("AUTO_TIERING_ENABLED", false) {
 		delete(adminJobSpecs, "SYNC_VSA_AUTO_TIERING")

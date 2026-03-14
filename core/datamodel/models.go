@@ -75,11 +75,12 @@ func (emc *ExpertModeCredentials) Scan(value interface{}) error {
 }
 
 type ExpertModeCredential struct {
-	SecretID      string `json:"secret_id"`
-	CertificateID string `json:"certificate_id"`
-	Password      string `json:"password"`
-	Username      string `json:"username"`
-	AuthType      int    `json:"auth_type"`
+	SecretID          string `json:"secret_id"`
+	CertificateID     string `json:"certificate_id"`
+	CertificateIDNew  string `json:"certificate_id_new"`
+	Password          string `json:"password"`
+	Username          string `json:"username"`
+	AuthType          int    `json:"auth_type"`
 }
 
 // Value implements the driver.Valuer interface for GORM

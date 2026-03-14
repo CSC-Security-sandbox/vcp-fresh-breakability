@@ -105,6 +105,59 @@ func TestLoadJobSpecs(t *testing.T) {
 
 		adminJobSpecs = make(map[string]*datamodel.AdminJobSpec) // Reset for next test
 	})
+
+	t.Run("WhenCERTIFICATE_ROTATION_CRON_EXPRESSION_IsSet", func(tt *testing.T) {
+		err := os.Setenv("CERTIFICATE_ROTATION_CRON_EXPRESSION", "0 3 * * *")
+		assert.NoError(tt, err)
+		defer func() {
+			_ = os.Unsetenv("CERTIFICATE_ROTATION_CRON_EXPRESSION")
+		}()
+
+		data = []byte(`{"ROTATE_VSA_CERTIFICATE_AND_PASSWORD": {"jobType": "ROTATE_VSA_CERTIFICATE_AND_PASSWORD", "cronExpression": "0 0 * * *", "state": "CREATING"}}`)
+		err = LoadJobSpecs()
+		assert.NoError(tt, err)
+		assert.Len(tt, adminJobSpecs, 1)
+
+		spec, exists := adminJobSpecs["ROTATE_VSA_CERTIFICATE_AND_PASSWORD"]
+		assert.True(tt, exists)
+		assert.Equal(tt, "0 3 * * *", spec.CronExpression)
+
+		adminJobSpecs = make(map[string]*datamodel.AdminJobSpec)
+	})
+
+	t.Run("WhenCERTIFICATE_ROTATION_CRON_EXPRESSION_IsNotSet", func(tt *testing.T) {
+		_ = os.Unsetenv("CERTIFICATE_ROTATION_CRON_EXPRESSION")
+
+		data = []byte(`{"ROTATE_VSA_CERTIFICATE_AND_PASSWORD": {"jobType": "ROTATE_VSA_CERTIFICATE_AND_PASSWORD", "cronExpression": "0 0 * * *", "state": "CREATING"}}`)
+		err := LoadJobSpecs()
+		assert.NoError(tt, err)
+		assert.Len(tt, adminJobSpecs, 1)
+
+		spec, exists := adminJobSpecs["ROTATE_VSA_CERTIFICATE_AND_PASSWORD"]
+		assert.True(tt, exists)
+		assert.Equal(tt, "0 0 * * *", spec.CronExpression)
+
+		adminJobSpecs = make(map[string]*datamodel.AdminJobSpec)
+	})
+
+	t.Run("WhenCERTIFICATE_ROTATION_CRON_EXPRESSION_IsEmpty", func(tt *testing.T) {
+		err := os.Setenv("CERTIFICATE_ROTATION_CRON_EXPRESSION", "")
+		assert.NoError(tt, err)
+		defer func() {
+			_ = os.Unsetenv("CERTIFICATE_ROTATION_CRON_EXPRESSION")
+		}()
+
+		data = []byte(`{"ROTATE_VSA_CERTIFICATE_AND_PASSWORD": {"jobType": "ROTATE_VSA_CERTIFICATE_AND_PASSWORD", "cronExpression": "0 0 * * *", "state": "CREATING"}}`)
+		err = LoadJobSpecs()
+		assert.NoError(tt, err)
+		assert.Len(tt, adminJobSpecs, 1)
+
+		spec, exists := adminJobSpecs["ROTATE_VSA_CERTIFICATE_AND_PASSWORD"]
+		assert.True(tt, exists)
+		assert.Equal(tt, "0 0 * * *", spec.CronExpression)
+
+		adminJobSpecs = make(map[string]*datamodel.AdminJobSpec)
+	})
 }
 
 func TestLaunchJobManagerWorkflow(t *testing.T) {

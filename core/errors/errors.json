@@ -1797,43 +1797,43 @@
     "description": "Certificate rotation failed",
     "message": "Failed to rotate certificate for VSA cluster",
     "retriable": true,
-    "http_code": 500
+    "http_code": 503
   },
   "8502": {
     "description": "Password rotation failed",
     "message": "Failed to rotate password for VSA cluster",
     "retriable": true,
-    "http_code": 500
+    "http_code": 503
   },
   "8503": {
     "description": "Certificate generation failed",
     "message": "Failed to generate new certificate for VSA cluster",
     "retriable": true,
-    "http_code": 500
+    "http_code": 503
   },
   "8504": {
     "description": "Certificate installation failed",
     "message": "Failed to install certificate on VSA cluster",
     "retriable": true,
-    "http_code": 500
+    "http_code": 503
   },
   "8505": {
     "description": "Certificate connectivity test failed",
     "message": "New certificate failed connectivity test with VSA cluster",
     "retriable": true,
-    "http_code": 500
+    "http_code": 503
   },
   "8506": {
     "description": "Certificate revocation failed",
     "message": "Failed to revoke old certificate",
     "retriable": true,
-    "http_code": 500
+    "http_code": 503
   },
   "8507": {
     "description": "Password connectivity test failed",
     "message": "Password connectivity test failed with VSA cluster",
     "retriable": true,
-    "http_code": 500
+    "http_code": 503
   },
   "8508": {
     "description": "Password update failed",
@@ -1857,7 +1857,7 @@
     "description": "Pool has no nodes",
     "message": "Pool has no associated nodes for rotation",
     "retriable": false,
-    "http_code": 500
+    "http_code": 409
   },
   "8512": {
     "description": "Pool credentials missing",
@@ -1869,13 +1869,13 @@
     "description": "Certificate cache update failed",
     "message": "Failed to update certificate cache",
     "retriable": true,
-    "http_code": 500
+    "http_code": 503
   },
   "8514": {
     "description": "Password cache update failed",
     "message": "Failed to update password cache",
     "retriable": true,
-    "http_code": 500
+    "http_code": 503
   },
   "8515": {
     "description": "Rotation rollback failed",
@@ -1887,55 +1887,55 @@
     "description": "Certificate needs rotation check failed",
     "message": "Failed to check if certificate needs rotation",
     "retriable": true,
-    "http_code": 500
+    "http_code": 503
   },
   "8517": {
     "description": "Password secret creation failed",
     "message": "Failed to create new password secret",
     "retriable": true,
-    "http_code": 500
+    "http_code": 503
   },
   "8518": {
     "description": "Password secret deletion failed",
     "message": "Failed to delete old password secret",
     "retriable": true,
-    "http_code": 500
+    "http_code": 503
   },
   "8519": {
     "description": "Certificate ID swap failed",
     "message": "Failed to swap certificate IDs in database",
     "retriable": true,
-    "http_code": 500
+    "http_code": 503
   },
   "8520": {
     "description": "Password secret ID swap failed",
     "message": "Failed to swap password secret IDs in database",
     "retriable": true,
-    "http_code": 500
+    "http_code": 503
   },
   "8521": {
     "description": "VSA cluster password update failed",
     "message": "Failed to update password on VSA cluster nodes",
     "retriable": true,
-    "http_code": 500
+    "http_code": 503
   },
   "8522": {
     "description": "VSA cluster certificate installation failed",
     "message": "Failed to install certificate on VSA cluster nodes",
     "retriable": true,
-    "http_code": 500
+    "http_code": 503
   },
   "8523": {
     "description": "Pool connectivity failed with no staged credential available",
     "message": "Connectivity failed with current credential and no staged credential available for fallback",
     "retriable": false,
-    "http_code": 500
+    "http_code": 503
   },
   "8524": {
     "description": "Rotation resource cleanup failed",
     "message": "Failed to cleanup rotation resources",
     "retriable": true,
-    "http_code": 500
+    "http_code": 503
   },
   "8525": {
     "description": "ONTAP password history policy violation",
@@ -1947,7 +1947,7 @@
     "description": "Certificate staging failed",
     "message": "Failed to stage certificate for rotation",
     "retriable": true,
-    "http_code": 500
+    "http_code": 503
   },
   "8527": {
     "description": "Password authorization failed",

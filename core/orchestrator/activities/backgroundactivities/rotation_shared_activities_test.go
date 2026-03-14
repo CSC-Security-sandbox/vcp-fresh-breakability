@@ -14,6 +14,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -5228,6 +5229,379 @@ func TestRotateVcpToVsaCertificateActivity_updatePoolCertificateIDNew(t *testing
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "has no credentials")
 		mockSE.AssertExpectations(tt)
+	})
+}
+
+// Tests for expert mode certificate rotation helpers and rotateExpertModeCertificate
+
+func TestRotateVcpToVsaCertificateActivity_cloneExpertModeCredentials(t *testing.T) {
+	t.Run("cloneExpertModeCredentials_Nil", func(tt *testing.T) {
+		activity := &RotateVcpToVsaCertificateActivity{}
+		got := activity.cloneExpertModeCredentials(nil)
+		assert.Nil(tt, got)
+	})
+
+	t.Run("cloneExpertModeCredentials_EmptySlice", func(tt *testing.T) {
+		activity := &RotateVcpToVsaCertificateActivity{}
+		emc := &datamodel.ExpertModeCredentials{ExpertModeCredential: []*datamodel.ExpertModeCredential{}}
+		got := activity.cloneExpertModeCredentials(emc)
+		assert.NotNil(tt, got)
+		assert.Len(tt, got.ExpertModeCredential, 0)
+	})
+
+	t.Run("cloneExpertModeCredentials_CopiesAllFieldsIncludingCertificateIDNew", func(tt *testing.T) {
+		activity := &RotateVcpToVsaCertificateActivity{}
+		emc := &datamodel.ExpertModeCredentials{
+			ExpertModeCredential: []*datamodel.ExpertModeCredential{
+				{
+					SecretID:         "s1",
+					CertificateID:    "c1",
+					CertificateIDNew: "c1-new",
+					Password:         "p",
+					Username:         "u",
+					AuthType:         env.USER_CERTIFICATE,
+				},
+			},
+		}
+		got := activity.cloneExpertModeCredentials(emc)
+		require.Len(tt, got.ExpertModeCredential, 1)
+		assert.Equal(tt, "s1", got.ExpertModeCredential[0].SecretID)
+		assert.Equal(tt, "c1", got.ExpertModeCredential[0].CertificateID)
+		assert.Equal(tt, "c1-new", got.ExpertModeCredential[0].CertificateIDNew)
+		assert.Equal(tt, "p", got.ExpertModeCredential[0].Password)
+		assert.Equal(tt, "u", got.ExpertModeCredential[0].Username)
+		assert.Equal(tt, env.USER_CERTIFICATE, got.ExpertModeCredential[0].AuthType)
+	})
+}
+
+func TestRotateVcpToVsaCertificateActivity_updateExpertModeCertificateIDNew(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("updateExpertModeCertificateIDNew_Success", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
+		poolUUID := "pool-uuid"
+		pool := &datamodel.Pool{
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{CertificateID: "old-cert", Username: "user", AuthType: env.USER_CERTIFICATE},
+				},
+			},
+		}
+		mockSE.On("UpdatePoolFields", ctx, poolUUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
+			emc, ok := updates["expert_mode_credentials"].(*datamodel.ExpertModeCredentials)
+			return ok && emc != nil && len(emc.ExpertModeCredential) == 1 &&
+				emc.ExpertModeCredential[0].CertificateIDNew == "new-cert-id" &&
+				emc.ExpertModeCredential[0].CertificateID == "old-cert"
+		})).Return(nil)
+
+		err := activity.updateExpertModeCertificateIDNew(ctx, poolUUID, pool, 0, "new-cert-id")
+		assert.NoError(tt, err)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("updateExpertModeCertificateIDNew_InvalidIndex", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
+		pool := &datamodel.Pool{
+			ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+				ExpertModeCredential: []*datamodel.ExpertModeCredential{
+					{CertificateID: "old-cert"},
+				},
+			},
+		}
+		err := activity.updateExpertModeCertificateIDNew(ctx, "pool-uuid", pool, 1, "new-cert-id")
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "invalid expert mode credential index")
+		mockSE.AssertNotCalled(tt, "UpdatePoolFields")
+	})
+
+	t.Run("updateExpertModeCertificateIDNew_NilExpertModeCredentials", func(tt *testing.T) {
+		activity := &RotateVcpToVsaCertificateActivity{SE: database.NewMockStorage(t)}
+		err := activity.updateExpertModeCertificateIDNew(ctx, "pool-uuid", &datamodel.Pool{}, 0, "new-cert-id")
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "invalid expert mode credential index")
+	})
+}
+
+func TestRotateVcpToVsaCertificateActivity_swapExpertModeCertificateIDs(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("swapExpertModeCertificateIDs_Success", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
+		poolUUID := "pool-uuid"
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+					ExpertModeCredential: []*datamodel.ExpertModeCredential{
+						{CertificateID: "old-active", CertificateIDNew: "new-staged", Username: "u", AuthType: env.USER_CERTIFICATE},
+					},
+				},
+			},
+		}
+		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolView}, nil)
+		mockSE.On("UpdatePoolFields", ctx, poolUUID, mock.MatchedBy(func(updates map[string]interface{}) bool {
+			emc, ok := updates["expert_mode_credentials"].(*datamodel.ExpertModeCredentials)
+			return ok && emc != nil && len(emc.ExpertModeCredential) == 1 &&
+				emc.ExpertModeCredential[0].CertificateID == "new-staged" &&
+				emc.ExpertModeCredential[0].CertificateIDNew == "old-active"
+		})).Return(nil)
+
+		err := activity.swapExpertModeCertificateIDs(ctx, poolUUID, 0)
+		assert.NoError(tt, err)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("swapExpertModeCertificateIDs_EmptyCertificateIDNew", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
+		poolView := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				ExpertModeCredentials: &datamodel.ExpertModeCredentials{
+					ExpertModeCredential: []*datamodel.ExpertModeCredential{
+						{CertificateID: "old-active", CertificateIDNew: "", Username: "u"},
+					},
+				},
+			},
+		}
+		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{poolView}, nil)
+
+		err := activity.swapExpertModeCertificateIDs(ctx, "pool-uuid", 0)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "certificate_id_new is empty")
+		mockSE.AssertNotCalled(tt, "UpdatePoolFields")
+	})
+
+	t.Run("swapExpertModeCertificateIDs_PoolNotFound", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
+		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{}, nil)
+
+		err := activity.swapExpertModeCertificateIDs(ctx, "pool-uuid", 0)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "not found")
+		mockSE.AssertNotCalled(tt, "UpdatePoolFields")
+	})
+}
+
+func TestRotateVcpToVsaCertificateActivity_rotateExpertModeCertificate(t *testing.T) {
+	ctx := context.Background()
+
+	ontapPoolView := func(expertCreds *datamodel.ExpertModeCredentials) *datamodel.PoolView {
+		return &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:       datamodel.BaseModel{UUID: "pool-uuid"},
+				APIAccessMode:   common.ONTAPMode,
+				DeploymentName:  "deploy-1",
+				PoolCredentials: &datamodel.PoolCredentials{CaURI: "ca-uri", CertificateID: "pool-cert"},
+				ExpertModeCredentials: expertCreds,
+			},
+		}
+	}
+
+	t.Run("rotateExpertModeCertificate_GetPoolContextError", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
+		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return(nil, errors.New("db error"))
+
+		err := activity.rotateExpertModeCertificate(ctx, "pool-uuid")
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "get pool context")
+	})
+
+	t.Run("rotateExpertModeCertificate_NotONTAPMode_NoOp", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
+		pv := ontapPoolView(&datamodel.ExpertModeCredentials{
+			ExpertModeCredential: []*datamodel.ExpertModeCredential{{CertificateID: "c1", AuthType: env.USER_CERTIFICATE}},
+		})
+		pv.Pool.APIAccessMode = "GCP" // not ONTAP
+		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{pv}, nil)
+
+		err := activity.rotateExpertModeCertificate(ctx, "pool-uuid")
+		assert.NoError(tt, err)
+		mockSE.AssertNumberOfCalls(tt, "ListPools", 1)
+		mockSE.AssertNotCalled(tt, "UpdatePoolFields")
+	})
+
+	t.Run("rotateExpertModeCertificate_NoExpertCredentials_NoOp", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
+		pv := ontapPoolView(nil)
+		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{pv}, nil)
+
+		err := activity.rotateExpertModeCertificate(ctx, "pool-uuid")
+		assert.NoError(tt, err)
+		mockSE.AssertNotCalled(tt, "UpdatePoolFields")
+	})
+
+	t.Run("rotateExpertModeCertificate_NilPoolCredentials_Error", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
+		pv := ontapPoolView(&datamodel.ExpertModeCredentials{
+			ExpertModeCredential: []*datamodel.ExpertModeCredential{{CertificateID: "c1", AuthType: env.USER_CERTIFICATE}},
+		})
+		pv.Pool.PoolCredentials = nil
+		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{pv}, nil)
+
+		err := activity.rotateExpertModeCertificate(ctx, "pool-uuid")
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "pool credentials required")
+	})
+
+	t.Run("rotateExpertModeCertificate_GCPServiceError", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
+		pv := ontapPoolView(&datamodel.ExpertModeCredentials{
+			ExpertModeCredential: []*datamodel.ExpertModeCredential{{CertificateID: "c1", Username: "u", AuthType: env.USER_CERTIFICATE}},
+		})
+		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{pv}, nil)
+
+		orig := getGcpServiceForCerts
+		defer func() { getGcpServiceForCerts = orig }()
+		getGcpServiceForCerts = func(context.Context) (*google.GcpServices, error) { return nil, errors.New("gcp error") }
+
+		err := activity.rotateExpertModeCertificate(ctx, "pool-uuid")
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "get GCP service")
+	})
+
+	t.Run("rotateExpertModeCertificate_Step25_RevokesCertificateIDNew", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
+		pv := ontapPoolView(&datamodel.ExpertModeCredentials{
+			ExpertModeCredential: []*datamodel.ExpertModeCredential{
+				{CertificateID: "active-cert", CertificateIDNew: "staged-from-last-run", Username: "u", AuthType: env.USER_CERTIFICATE},
+			},
+		})
+		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{pv}, nil)
+
+		revokeCalled := false
+		origRevoke := revokeCertificateAndDeleteFromCacheAndSecretManager
+		defer func() { revokeCertificateAndDeleteFromCacheAndSecretManager = origRevoke }()
+		revokeCertificateAndDeleteFromCacheAndSecretManager = func(_ hyperscaler2.GoogleServices, creds *datamodel.PoolCredentials) error {
+			if creds != nil && creds.CertificateID == "staged-from-last-run" {
+				revokeCalled = true
+			}
+			return nil
+		}
+
+		origGCP := getGcpServiceForCerts
+		origNeeds := getCertificateFromCacheOrSecretManager
+		defer func() {
+			getGcpServiceForCerts = origGCP
+			getCertificateFromCacheOrSecretManager = origNeeds
+		}()
+		getGcpServiceForCerts = func(context.Context) (*google.GcpServices, error) { return &google.GcpServices{}, nil }
+		validCertPEM := generateTestCertificate(time.Now().Add(-1*time.Hour), time.Now().Add(24*365*time.Hour))
+		common.AddToCertAuthCache("active-cert", &models.Certificate{SignedCertificate: validCertPEM})
+		defer common.RemoveFromCertAuthCache("active-cert")
+		getCertificateFromCacheOrSecretManager = func(ctx context.Context, creds *datamodel.PoolCredentials) (*models.Certificate, error) {
+			return &models.Certificate{SignedCertificate: validCertPEM}, nil
+		}
+
+		err := activity.rotateExpertModeCertificate(ctx, "pool-uuid")
+		assert.NoError(tt, err)
+		assert.True(tt, revokeCalled, "Step 2.5 should revoke certificate_id_new (staged-from-last-run)")
+	})
+
+	t.Run("rotateExpertModeCertificate_NoRotationNeeded_SkipsStagingAndSwap", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
+		pv := ontapPoolView(&datamodel.ExpertModeCredentials{
+			ExpertModeCredential: []*datamodel.ExpertModeCredential{
+				{CertificateID: "current-cert", Username: "u", AuthType: env.USER_CERTIFICATE},
+			},
+		})
+		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{pv}, nil)
+
+		validCertPEM := generateTestCertificate(time.Now().Add(-1*time.Hour), time.Now().Add(24*365*time.Hour))
+		common.AddToCertAuthCache("current-cert", &models.Certificate{SignedCertificate: validCertPEM})
+		defer common.RemoveFromCertAuthCache("current-cert")
+
+		origGCP := getGcpServiceForCerts
+		origGetCert := getCertificateFromCacheOrSecretManager
+		defer func() {
+			getGcpServiceForCerts = origGCP
+			getCertificateFromCacheOrSecretManager = origGetCert
+		}()
+		getGcpServiceForCerts = func(context.Context) (*google.GcpServices, error) { return &google.GcpServices{}, nil }
+		getCertificateFromCacheOrSecretManager = func(ctx context.Context, creds *datamodel.PoolCredentials) (*models.Certificate, error) {
+			return &models.Certificate{SignedCertificate: validCertPEM}, nil
+		}
+
+		err := activity.rotateExpertModeCertificate(ctx, "pool-uuid")
+		assert.NoError(tt, err)
+		mockSE.AssertNotCalled(tt, "UpdatePoolFields")
+	})
+
+	t.Run("rotateExpertModeCertificate_OldCertNotRevokedImmediately_AfterSwap", func(tt *testing.T) {
+		// Asserts that we do NOT revoke the old (just-swapped-out) cert in the same run; it is revoked in next run via Step 2.5.
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
+		pv := ontapPoolView(&datamodel.ExpertModeCredentials{
+			ExpertModeCredential: []*datamodel.ExpertModeCredential{
+				{CertificateID: "old-active", Username: "expert-user", AuthType: env.USER_CERTIFICATE},
+			},
+		})
+		pvAfterStage := &datamodel.PoolView{Pool: pv.Pool}
+		// ListPools: 1) initial GetPoolContext, 2) re-fetch at start of loop iteration (multi-cred fix), 3) swapExpertModeCertificateIDs
+		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{pv}, nil).Once()
+		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{pv}, nil).Once()
+		mockSE.On("UpdatePoolFields", ctx, "pool-uuid", mock.Anything).Run(func(args mock.Arguments) {
+			updates := args.Get(2).(map[string]interface{})
+			if emc, ok := updates["expert_mode_credentials"].(*datamodel.ExpertModeCredentials); ok && emc != nil {
+				pvAfterStage.Pool.ExpertModeCredentials = emc
+			}
+		}).Return(nil).Twice()
+		mockSE.On("ListPools", ctx, mock.AnythingOfType("*utils.Filter")).Return([]*datamodel.PoolView{pvAfterStage}, nil).Once()
+
+		origGCP := getGcpServiceForCerts
+		origGen := generateAndCreateCertificateForVSACluster
+		origGetCert := getCertificateFromCacheOrSecretManager
+		defer func() {
+			getGcpServiceForCerts = origGCP
+			generateAndCreateCertificateForVSACluster = origGen
+			getCertificateFromCacheOrSecretManager = origGetCert
+		}()
+		getGcpServiceForCerts = func(context.Context) (*google.GcpServices, error) { return &google.GcpServices{}, nil }
+		generateAndCreateCertificateForVSACluster = func(_ hyperscaler2.GoogleServices, _ string, _ string, _ *datamodel.PoolCredentials, _ bool) (*hyperscalermodels.CustomCertificateResponse, error) {
+			return &hyperscalermodels.CustomCertificateResponse{
+				Certificate: &hyperscalermodels.CustomCertificate{},
+				Secret:      &hyperscalermodels.CustomSecret{},
+			}, nil
+		}
+		getCertificateFromCacheOrSecretManager = func(ctx context.Context, creds *datamodel.PoolCredentials) (*models.Certificate, error) {
+			if creds != nil && creds.CertificateID == "old-active" {
+				return nil, nil
+			}
+			return &models.Certificate{SignedCertificate: generateTestCertificate(time.Now(), time.Now().Add(time.Hour))}, nil
+		}
+
+		revokeCalledForOldActive := false
+		origRevoke := revokeCertificateAndDeleteFromCacheAndSecretManager
+		origGetCertByID := hyperscaler2.GetCertificateAndPrivateKeyByID
+		defer func() {
+			revokeCertificateAndDeleteFromCacheAndSecretManager = origRevoke
+			hyperscaler2.GetCertificateAndPrivateKeyByID = origGetCertByID
+		}()
+		revokeCertificateAndDeleteFromCacheAndSecretManager = func(_ hyperscaler2.GoogleServices, creds *datamodel.PoolCredentials) error {
+			if creds != nil && creds.CertificateID == "old-active" {
+				revokeCalledForOldActive = true
+			}
+			return nil
+		}
+		hyperscaler2.GetCertificateAndPrivateKeyByID = func(hyperscaler2.GoogleServices, string, string, string, string, string) (*hyperscalermodels.CustomCertificateResponse, error) {
+			return &hyperscalermodels.CustomCertificateResponse{
+				Certificate: &hyperscalermodels.CustomCertificate{PemCertificate: "test", PemCertificateChain: nil, SubjectCommonName: "cn"},
+				Secret:      &hyperscalermodels.CustomSecret{SecretVersion: &hyperscalermodels.CustomSecretVersion{Value: "key"}},
+			}, nil
+		}
+
+		err := activity.rotateExpertModeCertificate(ctx, "pool-uuid")
+		assert.NoError(tt, err)
+		assert.False(tt, revokeCalledForOldActive, "old active cert must not be revoked in same run; it is revoked in next run via Step 2.5")
 	})
 }
 

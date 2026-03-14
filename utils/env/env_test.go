@@ -2449,6 +2449,41 @@ func TestGetCertificateRotationThresholdPercentage(t *testing.T) {
 	})
 }
 
+func TestGetCertificateRotationPoolStates(t *testing.T) {
+	key := "CERTIFICATE_ROTATION_POOL_STATES"
+	defer func() {
+		_ = os.Unsetenv(key)
+	}()
+
+	t.Run("WhenValueIsSet_ReturnsTrimmedStates", func(tt *testing.T) {
+		err := os.Setenv(key, "READY, DEGRADED , UPDATING")
+		assert.NoError(tt, err)
+		result := GetCertificateRotationPoolStates()
+		assert.Equal(tt, []string{"READY", "DEGRADED", "UPDATING"}, result)
+	})
+
+	t.Run("WhenEnvironmentVariableIsNotSet_UseDefault", func(tt *testing.T) {
+		err := os.Unsetenv(key)
+		assert.NoError(tt, err)
+		result := GetCertificateRotationPoolStates()
+		assert.Equal(tt, []string{"READY", "DEGRADED"}, result)
+	})
+
+	t.Run("WhenValueIsEmpty_UseDefault", func(tt *testing.T) {
+		err := os.Setenv(key, "")
+		assert.NoError(tt, err)
+		result := GetCertificateRotationPoolStates()
+		assert.Equal(tt, []string{"READY", "DEGRADED"}, result)
+	})
+
+	t.Run("WhenValueHasOnlySpacesAndCommas_UseDefault", func(tt *testing.T) {
+		err := os.Setenv(key, " , , ")
+		assert.NoError(tt, err)
+		result := GetCertificateRotationPoolStates()
+		assert.Equal(tt, []string{"READY", "DEGRADED"}, result)
+	})
+}
+
 func TestValidateCertificateLifetime(t *testing.T) {
 	key1 := "CERTIFICATE_LIFETIME"
 	key2 := "MINIMUM_CERTIFICATE_LIFETIME"

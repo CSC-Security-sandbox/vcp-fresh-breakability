@@ -425,7 +425,213 @@ func (a *RotateVcpToVsaCertificateActivity) RotatePoolCertificateWithContext(ctx
 
 	logger.Infof("Certificate rotation completed successfully for pool %s (%s)", poolUUID, pool.Name)
 	safeRecordHeartbeat(ctx, "Certificate rotation completed successfully")
+
+	// Rotate expert mode certificate for ONTAP mode pools (client-auth cert used for expert mode API)
+	if pool.APIAccessMode == common.ONTAPMode {
+		safeRecordHeartbeat(ctx, "Starting expert mode certificate rotation check")
+		if errExpert := a.rotateExpertModeCertificate(ctx, poolUUID); errExpert != nil {
+			logger.Warnf("Expert mode certificate rotation failed for pool %s (non-fatal): %v", poolUUID, errExpert)
+			// Do not fail the overall rotation; pool certificate rotation already succeeded
+		} else {
+			logger.Infof("Expert mode certificate rotation completed for pool %s", poolUUID)
+		}
+	}
+
 	return nil
+}
+
+// rotateExpertModeCertificate rotates the certificate used for expert mode (ONTAP mode pools) when it needs rotation.
+// It uses the same certificate_id_new / certificate_id staging and swap pattern as the main pool credentials.
+func (a *RotateVcpToVsaCertificateActivity) rotateExpertModeCertificate(ctx context.Context, poolUUID string) error {
+	logger := util.GetLogger(ctx)
+	safeRecordHeartbeat(ctx, "Re-fetching pool for expert mode certificate rotation")
+
+	poolContext, err := a.GetPoolContext(ctx, poolUUID)
+	if err != nil || poolContext == nil || poolContext.Pool == nil {
+		return fmt.Errorf("get pool context: %w", err)
+	}
+	pool := poolContext.Pool
+
+	if pool.APIAccessMode != common.ONTAPMode {
+		return nil
+	}
+	if pool.ExpertModeCredentials == nil || len(pool.ExpertModeCredentials.ExpertModeCredential) == 0 {
+		return nil
+	}
+	if pool.PoolCredentials == nil {
+		return fmt.Errorf("pool credentials required for expert mode rotation")
+	}
+
+	caURI := pool.PoolCredentials.GetCaURIWithFallback()
+	gcpService, err := getGcpServiceForCerts(ctx)
+	if err != nil {
+		return fmt.Errorf("get GCP service: %w", err)
+	}
+
+	// Step 2.5 (expert): Revoke any previously staged certificate (certificate_id_new) from a prior rotation
+	for _, cred := range pool.ExpertModeCredentials.ExpertModeCredential {
+		if cred == nil || cred.AuthType != env.USER_CERTIFICATE || cred.CertificateIDNew == "" {
+			continue
+		}
+		logger.Infof("Revoking previous staged expert mode certificate: %s", cred.CertificateIDNew)
+		oldStaged := &datamodel.PoolCredentials{CertificateID: cred.CertificateIDNew, CaURI: caURI}
+		if errRev := revokeCertificateAndDeleteFromCacheAndSecretManager(gcpService, oldStaged); errRev != nil {
+			logger.Warnf("Failed to revoke previous staged expert certificate %s: %v", cred.CertificateIDNew, errRev)
+		}
+	}
+
+	for i, cred := range pool.ExpertModeCredentials.ExpertModeCredential {
+		if cred == nil || cred.AuthType != env.USER_CERTIFICATE || cred.CertificateID == "" {
+			continue
+		}
+
+		// Re-fetch pool so ExpertModeCredentials reflects prior iterations' updates (staging/swap).
+		// Otherwise updateExpertModeCertificateIDNew would clone stale credentials and overwrite
+		// certificate_id_new for earlier credentials when updating the current one.
+		poolContext, err = a.GetPoolContext(ctx, poolUUID)
+		if err != nil || poolContext == nil || poolContext.Pool == nil {
+			return fmt.Errorf("get pool context for expert credential %d: %w", i, err)
+		}
+		pool = poolContext.Pool
+		if pool.ExpertModeCredentials == nil || i >= len(pool.ExpertModeCredentials.ExpertModeCredential) {
+			return fmt.Errorf("invalid expert mode credential index %d", i)
+		}
+		cred = pool.ExpertModeCredentials.ExpertModeCredential[i]
+		if cred == nil {
+			continue
+		}
+
+		needsRotation, err := a.certificateNeedsRotation(ctx, pool, cred.CertificateID)
+		if err != nil {
+			// Treat fetch/check failure as needs rotation so we replace expired or unreachable expert certs (e.g. revoked, deleted, or expired and not in cache).
+			logger.Warnf("Expert mode cert needs-rotation check failed for pool %s cert %s (treating as needs rotation): %v", poolUUID, cred.CertificateID, err)
+			needsRotation = true
+		}
+		if !needsRotation {
+			logger.Debugf("Expert mode certificate %s for pool %s does not need rotation", cred.CertificateID, poolUUID)
+			continue
+		}
+
+		safeRecordHeartbeat(ctx, fmt.Sprintf("Rotating expert mode certificate %s for pool %s", cred.CertificateID, poolUUID))
+		timestamp := time.Now().Format("20060102-150405")
+		newCertID := fmt.Sprintf("%s-cert-%s-%s", pool.DeploymentName, cred.Username, timestamp)
+
+		newExpertPoolCredentials := &datamodel.PoolCredentials{
+			CertificateID: newCertID,
+			CaURI:         caURI,
+		}
+		newCertResponse, err := generateAndCreateCertificateForVSACluster(gcpService, pool.DeploymentName, cred.Username, newExpertPoolCredentials, false)
+		if err != nil {
+			return fmt.Errorf("generate expert mode certificate %s: %w", newCertID, err)
+		}
+		_ = newCertResponse
+
+		// Stage: set certificate_id_new = newCertID (keep certificate_id as current)
+		if err := a.updateExpertModeCertificateIDNew(ctx, poolUUID, pool, i, newCertID); err != nil {
+			_ = revokeCertificateAndDeleteFromCacheAndSecretManager(gcpService, newExpertPoolCredentials)
+			return fmt.Errorf("stage expert mode certificate_id_new: %w", err)
+		}
+
+		// Swap: certificate_id <- newCertID, certificate_id_new <- old certificate_id
+		if err := a.swapExpertModeCertificateIDs(ctx, poolUUID, i); err != nil {
+			// Rollback staged cert
+			_ = revokeCertificateAndDeleteFromCacheAndSecretManager(gcpService, newExpertPoolCredentials)
+			return fmt.Errorf("swap expert mode certificate IDs: %w", err)
+		}
+
+		oldCertID := cred.CertificateID
+		// Ensure cache has new cert and never serves old cert after swap (otherwise expert mode can get invalid cert).
+		if err := a.updateCertificateCache(ctx, newCertID); err != nil {
+			logger.Warnf("Failed to update certificate cache for expert mode cert %s: %v", newCertID, err)
+		}
+		removeFromCertAuthCache(oldCertID)
+		logger.Infof("Rotated expert mode certificate for pool %s: %s -> %s", poolUUID, oldCertID, newCertID)
+	}
+
+	return nil
+}
+
+// updateExpertModeCertificateIDNew stages the new expert mode certificate ID in certificate_id_new for the given credential index.
+func (a *RotateVcpToVsaCertificateActivity) updateExpertModeCertificateIDNew(ctx context.Context, poolUUID string, pool *datamodel.Pool, credIndex int, newCertificateID string) error {
+	logger := util.GetLogger(ctx)
+	if pool.ExpertModeCredentials == nil || credIndex >= len(pool.ExpertModeCredentials.ExpertModeCredential) {
+		return fmt.Errorf("invalid expert mode credential index %d", credIndex)
+	}
+
+	updatedExpert := a.cloneExpertModeCredentials(pool.ExpertModeCredentials)
+	updatedExpert.ExpertModeCredential[credIndex].CertificateIDNew = newCertificateID
+	// Preserve existing certificate_id (active cert unchanged until swap)
+	updates := map[string]interface{}{
+		"expert_mode_credentials": updatedExpert,
+	}
+	if err := a.SE.UpdatePoolFields(ctx, poolUUID, updates); err != nil {
+		logger.Errorf("Failed to stage expert mode certificate_id_new: %v", err)
+		return err
+	}
+	return nil
+}
+
+// swapExpertModeCertificateIDs swaps certificate_id and certificate_id_new for the given expert mode credential index.
+func (a *RotateVcpToVsaCertificateActivity) swapExpertModeCertificateIDs(ctx context.Context, poolUUID string, credIndex int) error {
+	logger := util.GetLogger(ctx)
+	filter := dbutils.CreateFilterWithConditions(
+		dbutils.NewFilterCondition("uuid", "=", poolUUID),
+	)
+	poolViews, err := a.SE.ListPools(ctx, filter)
+	if err != nil || len(poolViews) == 0 {
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("pool %s not found", poolUUID)
+	}
+	pool := ConvertPoolViewToPool(poolViews[0])
+	if pool.ExpertModeCredentials == nil || credIndex >= len(pool.ExpertModeCredentials.ExpertModeCredential) {
+		return fmt.Errorf("invalid expert mode credential index %d", credIndex)
+	}
+
+	cred := pool.ExpertModeCredentials.ExpertModeCredential[credIndex]
+	oldCertID := cred.CertificateID
+	newCertIDFromDB := cred.CertificateIDNew
+	if newCertIDFromDB == "" {
+		return fmt.Errorf("expert mode certificate_id_new is empty, cannot swap")
+	}
+
+	updatedExpert := a.cloneExpertModeCredentials(pool.ExpertModeCredentials)
+	updatedExpert.ExpertModeCredential[credIndex].CertificateID = newCertIDFromDB
+	updatedExpert.ExpertModeCredential[credIndex].CertificateIDNew = oldCertID
+
+	updates := map[string]interface{}{
+		"expert_mode_credentials": updatedExpert,
+	}
+	if err := a.SE.UpdatePoolFields(ctx, poolUUID, updates); err != nil {
+		logger.Errorf("Failed to swap expert mode certificate IDs: %v", err)
+		return err
+	}
+	return nil
+}
+
+// cloneExpertModeCredentials returns a deep copy of expert_mode_credentials for in-place updates.
+func (a *RotateVcpToVsaCertificateActivity) cloneExpertModeCredentials(emc *datamodel.ExpertModeCredentials) *datamodel.ExpertModeCredentials {
+	if emc == nil {
+		return nil
+	}
+	out := &datamodel.ExpertModeCredentials{
+		ExpertModeCredential: make([]*datamodel.ExpertModeCredential, len(emc.ExpertModeCredential)),
+	}
+	for i, c := range emc.ExpertModeCredential {
+		if c == nil {
+			continue
+		}
+		out.ExpertModeCredential[i] = &datamodel.ExpertModeCredential{
+			SecretID:         c.SecretID,
+			CertificateID:    c.CertificateID,
+			CertificateIDNew: c.CertificateIDNew,
+			Password:         c.Password,
+			Username:         c.Username,
+			AuthType:         c.AuthType,
+		}
+	}
+	return out
 }
 
 // extractSecretNameFromPath extracts just the secret name from a full GCP Secret Manager path

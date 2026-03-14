@@ -39,6 +39,7 @@ data:
   PROXY_CLIENT_TRANSPORT_SCHEMA: "{{ index .Values "proxyClientTransportSchema" }}"
   VCP_PAIRED_REGIONS: "{{ index .Values "vcpPairedRegions" }}"
   DELETE_RESOURCES_CRON_EXPRESSION: "{{ index .Values "deleteResourcesCronExpression" }}"
+  CERTIFICATE_ROTATION_CRON_EXPRESSION: "{{ index .Values "certificateRotationCronExpression" }}"
   LOGGER_LEVEL: "{{ index .Values "loggerLevel" }}"
   CVP_HOST: "{{ index .Values "cvpHost" }}"
   CORE_API_HOST: "{{ index .Values "coreApi" "host" }}"
