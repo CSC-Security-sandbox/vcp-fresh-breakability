@@ -829,7 +829,8 @@ func (a *RotateVcpToVsaCertificateActivity) installCertificateOnVSA(ctx context.
 	}
 	logger.Info("Certificate installation via REST API completed successfully", "certificateID", cert.CertificateID)
 
-	// Now configure SSL to use the new certificate
+	// Now configure SSL to use the new certificate.
+	// Use the same CA name ONTAP derives from the PEM when installing (issuer CN), so "security ssl modify" finds the cert.
 	logger.Debug("Configuring SSL to use the new certificate")
 
 	// Check if serial number is available
@@ -838,8 +839,14 @@ func (a *RotateVcpToVsaCertificateActivity) installCertificateOnVSA(ctx context.
 		return fmt.Errorf("certificate serial number is empty, cannot configure SSL")
 	}
 
-	// Check if CA name is available
-	if cert.CaName == "" {
+	caForSSL := deriveCANameFromPEM(cert.PemCertificate)
+	if caForSSL == "" {
+		caForSSL = cert.CaName
+		logger.Debugf("Using certificate CaName for SSL modify (PEM-derived CA empty, fallback): %q", caForSSL)
+	} else {
+		logger.Debugf("Using PEM-derived issuer CN for SSL modify (same as install): %q", caForSSL)
+	}
+	if caForSSL == "" {
 		logger.Warnf("Certificate CA name is empty, cannot configure SSL. Certificate ID: %s", cert.CertificateID)
 		return fmt.Errorf("certificate CA name is empty, cannot configure SSL")
 	}
@@ -847,7 +854,7 @@ func (a *RotateVcpToVsaCertificateActivity) installCertificateOnVSA(ctx context.
 	sslParams := vsa.ModifySSLParams{
 		SvmName:       vserverName,
 		ServerEnabled: true,
-		CA:            cert.CaName,
+		CA:            caForSSL,
 		Serial:        strings.ToUpper(cert.SerialNumber),
 	}
 
@@ -1094,7 +1101,8 @@ func (a *RotateVcpToVsaCertificateActivity) installCertificateOnVSAWithPasswordA
 	}
 	logger.Info("Certificate installation via REST API (password auth) completed successfully", "certificateID", cert.CertificateID)
 
-	// Now configure SSL to use the new certificate
+	// Now configure SSL to use the new certificate.
+	// Use the same CA name ONTAP derives from the PEM when installing (issuer CN), so "security ssl modify" finds the cert.
 	logger.Debug("Configuring SSL to use the new certificate")
 
 	// Check if serial number is available
@@ -1103,8 +1111,14 @@ func (a *RotateVcpToVsaCertificateActivity) installCertificateOnVSAWithPasswordA
 		return fmt.Errorf("certificate serial number is empty, cannot configure SSL")
 	}
 
-	// Check if CA name is available
-	if cert.CaName == "" {
+	caForSSL := deriveCANameFromPEM(cert.PemCertificate)
+	if caForSSL == "" {
+		caForSSL = cert.CaName
+		logger.Debugf("Using certificate CaName for SSL modify (PEM-derived CA empty, fallback): %q", caForSSL)
+	} else {
+		logger.Debugf("Using PEM-derived issuer CN for SSL modify (same as install): %q", caForSSL)
+	}
+	if caForSSL == "" {
 		logger.Warnf("Certificate CA name is empty, cannot configure SSL. Certificate ID: %s", cert.CertificateID)
 		return fmt.Errorf("certificate CA name is empty, cannot configure SSL")
 	}
@@ -1112,7 +1126,7 @@ func (a *RotateVcpToVsaCertificateActivity) installCertificateOnVSAWithPasswordA
 	sslParams := vsa.ModifySSLParams{
 		SvmName:       vserverName,
 		ServerEnabled: true,
-		CA:            cert.CaName,
+		CA:            caForSSL,
 		Serial:        strings.ToUpper(cert.SerialNumber),
 	}
 
@@ -1203,6 +1217,25 @@ func parseCertificateExpiration(pemCertificate string) (time.Time, error) {
 	}
 
 	return cert.NotAfter, nil
+}
+
+// deriveCANameFromPEM extracts the issuer Common Name from the certificate PEM.
+// This is the same CA name ONTAP derives when it installs the cert (from the chain in the PEM),
+// and should be used for "security ssl modify" so the CLI finds the cert.
+// Returns empty string if parsing fails or issuer CN is empty.
+func deriveCANameFromPEM(pemCertificate string) string {
+	if pemCertificate == "" {
+		return ""
+	}
+	block, _ := pem.Decode([]byte(pemCertificate))
+	if block == nil {
+		return ""
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(cert.Issuer.CommonName)
 }
 
 // certificateNeedsRotation determines if a certificate needs to be rotated

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
 	"math/big"
@@ -156,6 +157,37 @@ func BenchmarkParseCertificateExpiration(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, _ = parseCertificateExpiration(pemCert)
 	}
+}
+
+func TestDeriveCANameFromPEM(t *testing.T) {
+	t.Run("EmptyPEM_ReturnsEmpty", func(tt *testing.T) {
+		got := deriveCANameFromPEM("")
+		assert.Empty(tt, got)
+	})
+	t.Run("InvalidPEM_ReturnsEmpty", func(tt *testing.T) {
+		got := deriveCANameFromPEM("not-a-valid-pem")
+		assert.Empty(tt, got)
+	})
+	t.Run("ValidPEM_WithIssuerCN_ReturnsIssuerCN", func(tt *testing.T) {
+		// Create a leaf cert signed by a CA; leaf's Issuer will have CommonName from CA's Subject
+		issuerCN := "vsa-intermediate-us-c1"
+		caCert := &x509.Certificate{
+			SerialNumber: big.NewInt(1),
+			Subject:      pkix.Name{CommonName: issuerCN},
+			NotBefore:    time.Now().Add(-time.Hour),
+			NotAfter:     time.Now().Add(24 * time.Hour),
+		}
+		leafCert := &x509.Certificate{
+			SerialNumber: big.NewInt(2),
+			NotBefore:    time.Now().Add(-time.Hour),
+			NotAfter:     time.Now().Add(24 * time.Hour),
+		}
+		certDER, err := x509.CreateCertificate(rand.Reader, leafCert, caCert, &testPrivateKey.PublicKey, testPrivateKey)
+		require.NoError(tt, err)
+		pemCert := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER}))
+		got := deriveCANameFromPEM(pemCert)
+		assert.Equal(tt, issuerCN, got)
+	})
 }
 
 func TestRotateVcpToVsaCertificateActivity_checkPoolHasNodes(t *testing.T) {
