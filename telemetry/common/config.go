@@ -57,6 +57,7 @@ type TelemetryConfig struct {
 	EnableLargeVolumesBilling                    bool // When true, enables billing for Large Volumes pools (CRR/Backup/AutoTiering)
 	EnableBackupVaultMetrics                     bool
 	EnableBackupHistoryFormatter                 bool
+	EnableATVolumeBasedPoolBilling                   bool
 }
 
 type MetricItem struct {
@@ -114,6 +115,7 @@ func LoadConfig() *TelemetryConfig {
 	counterBackfillLimitMinutes := env.GetInt("COUNTER_BACKFILL_LIMIT_MINUTES", 60)
 	targetMinute := env.GetInt("TARGET_MINUTE", 15)
 	enableLargeVolumesBilling := env.GetBool("ENABLE_LARGE_VOLUMES_BILLING", false)
+	enableATVolumeBasedPoolBilling := env.GetBool("ENABLE_AT_VOLUME_BASED_POOL_BILLING", true)
 
 	return &TelemetryConfig{
 		PerformanceRootUrl:                           performanceRootURL,
@@ -158,6 +160,7 @@ func LoadConfig() *TelemetryConfig {
 		IntervalBackfillLimitMinutes:                 intervalBackfillLimitMinutes,
 		CounterBackfillLimitMinutes:                  counterBackfillLimitMinutes,
 		EnableLargeVolumesBilling:                    enableLargeVolumesBilling,
+		EnableATVolumeBasedPoolBilling:                   enableATVolumeBasedPoolBilling,
 	}
 }
 

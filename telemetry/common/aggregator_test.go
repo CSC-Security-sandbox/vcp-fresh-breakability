@@ -895,3 +895,34 @@ func TestCounterDelta_EdgeCasesAllMetricTypes(t *testing.T) {
 		assert.InDelta(t, 0.003, got, 0.0001, "Expected correct handling of tiny increments")
 	})
 }
+
+func TestCounterDelta_VolumeATRawMetrics(t *testing.T) {
+	logger := util.GetLogger(context.Background())
+	now := time.Now()
+
+	t.Run("CoolTierDataWriteSizeRaw volume skips any decrease", func(t *testing.T) {
+		metrics := []datamodel2.HydratedMetrics{
+			{MetricTimestamp: now.Add(-15 * time.Minute), Quantity: 1000},
+			{MetricTimestamp: now.Add(-10 * time.Minute), Quantity: 2000},
+			{MetricTimestamp: now.Add(-5 * time.Minute), Quantity: 1500},
+			{MetricTimestamp: now, Quantity: 3000},
+		}
+		got, lastVal := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.CoolTierDataWriteSizeRaw, "vol-write-test")
+		assert.InDelta(t, 2000.0, got, 0.001, "Should skip decrease from 2000->1500 and compute (2000-1000)+(3000-2000)")
+		assert.NotNil(t, lastVal)
+		assert.Equal(t, 3000.0, *lastVal)
+	})
+
+	t.Run("CoolTierDataReadSizeRaw volume skips only decrease to zero", func(t *testing.T) {
+		metrics := []datamodel2.HydratedMetrics{
+			{MetricTimestamp: now.Add(-15 * time.Minute), Quantity: 1000},
+			{MetricTimestamp: now.Add(-10 * time.Minute), Quantity: 2000},
+			{MetricTimestamp: now.Add(-5 * time.Minute), Quantity: 0},
+			{MetricTimestamp: now, Quantity: 3000},
+		}
+		got, lastVal := CounterDelta(hydratedMetricsToDataPoints(metrics), logger, metadata.CoolTierDataReadSizeRaw, "vol-read-test")
+		assert.InDelta(t, 2000.0, got, 0.001, "Should skip 2000->0 and compute deltas for increasing values")
+		assert.NotNil(t, lastVal)
+		assert.Equal(t, 3000.0, *lastVal)
+	})
+}

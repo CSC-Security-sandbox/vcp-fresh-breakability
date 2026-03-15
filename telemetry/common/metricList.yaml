@@ -54,6 +54,12 @@ metrics:
   - metric: pool_cloud_bin_operation_size_raw
     resourceType: custom.googleapis.com
     metricType: usage
+  - metric: wafl_volume_client_protocol_reads_raw
+    resourceType: custom.googleapis.com
+    metricType: usage
+  - metric: wafl_volume_cloud_bin_operation_size_raw
+    resourceType: custom.googleapis.com
+    metricType: usage
   - metric: pool_capacity_tier_logical_footprint
     resourceType: custom.googleapis.com
     metricType: usage

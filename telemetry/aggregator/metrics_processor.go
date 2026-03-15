@@ -38,7 +38,6 @@ type ResourceKey struct {
 	DeploymentName string
 	ConsumerID     string
 }
-
 type CounterAggregationCacheResourceKey struct {
 	ResourceUUID string
 	MeasuredType metadata.MeasuredType
@@ -70,10 +69,12 @@ type VolumeReplicationInfo struct {
 }
 
 type ResourceCollection struct {
-	PoolData              map[ResourceKey]ResourceData
-	VolumeData            map[ResourceKey]ResourceData
-	BackupData            map[ResourceKey]ResourceData
-	VolumeReplicationData map[ResourceKey]ResourceData
+	PoolData                 map[ResourceKey]ResourceData
+	VolumeData               map[ResourceKey]ResourceData
+	BackupData               map[ResourceKey]ResourceData
+	VolumeReplicationData    map[ResourceKey]ResourceData
+	VolumeToDeploymentName   map[string]string
+	DeploymentNameToPoolName map[string]string
 }
 
 type BillingProvider struct {
@@ -137,74 +138,91 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 	}
 	logger.Debugf("Counter cache loaded with %d entries: %v", len(counterCache), counterCache)
 
-	// Process each job definition
-	for key, jobDef := range common.DefaultAggregationJobDefinitions {
-		// Skip auto-tiering billing metrics if disabled
-		if !p.config.EnableAutoTieringBillingMetrics && isAutoTieringBillingMetric(key.MeasuredType) {
-			continue
-		}
+	// Process job definitions in two passes:
+	// Pass 1: all jobs except pool-level AT aggregation (which depends on volume-level records in aggregatedRecords)
+	// Pass 2: pool-level AT aggregation only (volume records now available in aggregatedRecords)
+	for pass := 0; pass < 2; pass++ {
+		for key, jobDef := range common.DefaultAggregationJobDefinitions {
+			isPoolLevelATJob := p.config.EnableATVolumeBasedPoolBilling &&
+				isPoolResourceType(key.ResourceType) &&
+				(key.MeasuredType == metadata.CoolTierDataReadSizeRaw || key.MeasuredType == metadata.CoolTierDataWriteSizeRaw)
 
-		var metrics []datamodel2.HydratedMetrics
-		var err error
-
-		if jobDef.AggregationType == common.IntegralAggregation || jobDef.AggregationType == common.CounterAggregation {
-			// For counter aggregation and integral aggregation, we need:
-			// 1. All records from current aggregation window
-			// 2. Only the latest record from previous period (closest to aggregation start)
-			// 3. Only the earliest record from next period (closest to aggregation end)
-			if p.config.EnableBackupHistoryFormatter && key.ResourceType == metadata.Backup && key.MeasuredType == metadata.BackupLogicalSize {
-				metrics, err = p.fetchBackupHistoryMetrics(ctx, aggregationStartTime, aggregationEndTime, jobDef.TimeSeriesFormatter.GetBackfillLimit(), resourceCollection)
-			} else {
-				metrics, err = p.fetchMetricsForCounterAndIntegralAggregation(ctx, aggregationStartTime, aggregationEndTime, key.ResourceType.String(), key.MeasuredType.String(), jobDef.TimeSeriesFormatter.GetBackfillLimit())
-			}
-
-			if err != nil {
-				logger.Error("Failed to list metrics from source", "error", err.Error())
+			if (pass == 0 && isPoolLevelATJob) || (pass == 1 && !isPoolLevelATJob) {
 				continue
 			}
-		} else {
-			// For Sum/First aggregation, fetch only records within the exact aggregation window
-			metrics, err = p.fetchMetricsWithinWindow(ctx, aggregationStartTime, aggregationEndTime, key.ResourceType.String(), key.MeasuredType.String())
-			if err != nil {
-				logger.Error("Failed to list hydrated metrics", "error", err.Error())
+
+			// Skip auto-tiering billing metrics if disabled
+			if !p.config.EnableAutoTieringBillingMetrics && isAutoTieringBillingMetric(key.MeasuredType) {
 				continue
 			}
-		}
-		logger.Debugf("Fetched %d metrics for aggregation - ResourceType: %s, MeasuredType: %s",
-			len(metrics), key.ResourceType.String(), key.MeasuredType.String())
-		// Group metrics by resource
-		resourceGroups := p.groupMetricsByResource(metrics)
 
-		// Process each resource group
-		for resourceIdentifier, resourceMetrics := range resourceGroups {
-			// Skip auto-tiering billing metrics for pools that don't meet criteria
-			if isAutoTieringBillingMetric(key.MeasuredType) {
-				if shouldSkip, reason := p.shouldSkipAutoTieringMetric(resourceIdentifier, resourceCollection, key.MeasuredType); shouldSkip {
-					logger.Debugf("Skipping auto-tiering metric %s for pool %s - %s",
-						key.MeasuredType, resourceIdentifier.ResourceName, reason)
+			var metrics []datamodel2.HydratedMetrics
+			var err error
+
+			if jobDef.AggregationType == common.IntegralAggregation || jobDef.AggregationType == common.CounterAggregation {
+				// For counter aggregation and integral aggregation, we need:
+				// 1. All records from current aggregation window
+				// 2. Only the latest record from previous period (closest to aggregation start)
+				// 3. Only the earliest record from next period (closest to aggregation end)
+				if p.config.EnableBackupHistoryFormatter && key.ResourceType == metadata.Backup && key.MeasuredType == metadata.BackupLogicalSize {
+					metrics, err = p.fetchBackupHistoryMetrics(ctx, aggregationStartTime, aggregationEndTime, jobDef.TimeSeriesFormatter.GetBackfillLimit(), resourceCollection)
+				} else {
+					metrics, err = p.fetchMetricsForCounterAndIntegralAggregation(ctx, aggregationStartTime, aggregationEndTime, key.ResourceType.String(), key.MeasuredType.String(), jobDef.TimeSeriesFormatter.GetBackfillLimit())
+				}
+
+				if err != nil {
+					logger.Error("Failed to list metrics from source", "error", err.Error())
 					continue
 				}
+			} else {
+				if p.config.EnableATVolumeBasedPoolBilling && (key.ResourceType == metadata.VolumePool || key.ResourceType == metadata.VolumePoolRegionalHA) && (key.MeasuredType == metadata.CoolTierDataReadSizeRaw || key.MeasuredType == metadata.CoolTierDataWriteSizeRaw) {
+					metrics, _ = p.fetchHistoricalVolumeSizeMetrics(ctx, aggregationStartTime, aggregationEndTime, jobDef.TimeSeriesFormatter.GetBackfillLimit(), key.MeasuredType, key.ResourceType, resourceCollection, aggregatedRecords)
+				} else {
+					// For Sum/First aggregation, fetch only records within the exact aggregation window
+					metrics, err = p.fetchMetricsWithinWindow(ctx, aggregationStartTime, aggregationEndTime, key.ResourceType.String(), key.MeasuredType.String())
+					if err != nil {
+						logger.Error("Failed to list hydrated metrics", "error", err.Error())
+						continue
+					}
+				}
 			}
+			logger.Debugf("Fetched %d metrics for aggregation - ResourceType: %s, MeasuredType: %s",
+				len(metrics), key.ResourceType.String(), key.MeasuredType.String())
+			// Group metrics by resource
+			resourceGroups := p.groupMetricsByResource(metrics)
 
-			// Inject metricsDB into CounterMetricsFormatter if applicable
-			if counterFormatter, ok := jobDef.TimeSeriesFormatter.(*common.CounterMetricsFormatter); ok {
-				counterFormatter.MetricsDB = p.metricsDB
-			}
+			// Process each resource group
+			for resourceIdentifier, resourceMetrics := range resourceGroups {
+				// Skip auto-tiering billing metrics for pools that don't meet criteria
+				if isAutoTieringBillingMetric(key.MeasuredType) && isPoolResourceType(key.ResourceType) {
+					if shouldSkip, reason := p.shouldSkipAutoTieringMetric(resourceIdentifier, resourceCollection, key.MeasuredType); shouldSkip {
+						logger.Debugf("Skipping auto-tiering metric %s for pool %s - %s",
+							key.MeasuredType, resourceIdentifier.ResourceName, reason)
+						continue
+					}
+				}
 
-			// Format the raw metrics into time series using the job definition's formatter.
-			// The formatter groups metrics by metadata changes and applies trimming logic based on
-			// aggregation type (Counter/Integral/etc). For counter metrics, it includes the last
-			// datapoint from the previous period for delta calculation. For integral metrics, it
-			// may include the first datapoint from the next period. Returns a slice of TimeSeries,
-			// where each TimeSeries represents a continuous period with consistent metadata.
-			series := jobDef.TimeSeriesFormatter.Format(ctx, logger, resourceMetrics, aggregationStartTime, aggregationEndTime)
+				// Inject metricsDB into CounterMetricsFormatter if applicable
+				if counterFormatter, ok := jobDef.TimeSeriesFormatter.(*common.CounterMetricsFormatter); ok {
+					counterFormatter.MetricsDB = p.metricsDB
+				}
 
-			// loop through each series and process metrics
-			for _, metricseries := range series {
-				logger.Debugf("Collected timeseries %s, %s, %v for resource %s and customer id %s ", metricseries.AggregationStart, metricseries.AggregationEnd, metricseries.DataPoints, resourceIdentifier.ResourceName, resourceIdentifier.ConsumerID)
-				if err := p.processMetricsWithJobDef(ctx, resourceIdentifier, metricseries, jobDef, metricseries.AggregationStart, metricseries.AggregationEnd, resourceCollection, &aggregatedRecords, counterCache, logger); err != nil {
-					logger.Errorf("Failed to process metrics for resource %s and customer id %s : %v", resourceIdentifier.ResourceName, resourceIdentifier.ConsumerID, err)
-					continue
+				// Format the raw metrics into time series using the job definition's formatter.
+				// The formatter groups metrics by metadata changes and applies trimming logic based on
+				// aggregation type (Counter/Integral/etc). For counter metrics, it includes the last
+				// datapoint from the previous period for delta calculation. For integral metrics, it
+				// may include the first datapoint from the next period. Returns a slice of TimeSeries,
+				// where each TimeSeries represents a continuous period with consistent metadata.
+
+				series := jobDef.TimeSeriesFormatter.Format(ctx, logger, resourceMetrics, aggregationStartTime, aggregationEndTime)
+
+				// loop through each series and process metrics
+				for _, metricseries := range series {
+					logger.Debugf("Collected timeseries %s, %s, %v for resource %s and customer id %s ", metricseries.AggregationStart, metricseries.AggregationEnd, metricseries.DataPoints, resourceIdentifier.ResourceName, resourceIdentifier.ConsumerID)
+					if err := p.processMetricsWithJobDef(ctx, resourceIdentifier, metricseries, jobDef, metricseries.AggregationStart, metricseries.AggregationEnd, resourceCollection, &aggregatedRecords, counterCache, logger); err != nil {
+						logger.Errorf("Failed to process metrics for resource %s and customer id %s : %v", resourceIdentifier.ResourceName, resourceIdentifier.ConsumerID, err)
+						continue
+					}
 				}
 			}
 		}
@@ -268,6 +286,23 @@ func (p *BillingProvider) applyDataSourceAndFormatterOverrides(logger log.Logger
 			}
 			common.DefaultAggregationJobDefinitions[key] = jobDef
 		}
+
+		// Override aggregation type for pool-level auto-tiering metrics when EnableATVolumeBasedPoolBilling is enabled
+		if p.config.EnableATVolumeBasedPoolBilling &&
+			(key.ResourceType == metadata.VolumePool || key.ResourceType == metadata.VolumePoolRegionalHA) &&
+			(key.MeasuredType == metadata.CoolTierDataReadSizeRaw || key.MeasuredType == metadata.CoolTierDataWriteSizeRaw) {
+			// Change to SumAggregation for pool-level metrics
+			jobDef.AggregationType = common.SumAggregation
+			// Use appropriate formatter for Sum aggregation
+			jobDef.TimeSeriesFormatter = &common.SampledMetricsFormatter{
+				Mode:          common.Point,
+				BackfillLimit: 60 * time.Minute,
+			}
+			if logger != nil {
+				logger.Debugf("Overridden aggregation type to SumAggregation for pool-level metric %s/%s", key.ResourceType, key.MeasuredType)
+			}
+			common.DefaultAggregationJobDefinitions[key] = jobDef
+		}
 	}
 }
 
@@ -278,24 +313,26 @@ func (p *BillingProvider) fetchResourceData(ctx context.Context, aggregationStar
 
 	// Create a new ResourceCollection for this aggregation cycle
 	resourceCollection := &ResourceCollection{
-		PoolData:              make(map[ResourceKey]ResourceData),
-		VolumeData:            make(map[ResourceKey]ResourceData),
-		VolumeReplicationData: make(map[ResourceKey]ResourceData),
-		BackupData:            make(map[ResourceKey]ResourceData),
+		PoolData:                 make(map[ResourceKey]ResourceData),
+		VolumeData:               make(map[ResourceKey]ResourceData),
+		VolumeReplicationData:    make(map[ResourceKey]ResourceData),
+		BackupData:               make(map[ResourceKey]ResourceData),
+		VolumeToDeploymentName:   make(map[string]string),
+		DeploymentNameToPoolName: make(map[string]string),
 	}
 
 	var poolsDataError, volumeDataError, backupDataError, volumeReplicationDataError error
-
-	// Fetch pool labels
-	if err := p.fetchPoolData(ctx, aggregationStartTime, resourceCollection); err != nil {
-		logger.Errorf("Failed to fetch pool resource data: %v", err)
-		poolsDataError = err
-	}
 
 	// Fetch volume labels
 	if err := p.fetchVolumeData(ctx, aggregationStartTime, resourceCollection); err != nil {
 		logger.Errorf("Failed to fetch volume labels: %v", err)
 		volumeDataError = err
+	}
+
+	// Fetch pool labels
+	if err := p.fetchPoolData(ctx, aggregationStartTime, resourceCollection); err != nil {
+		logger.Errorf("Failed to fetch pool resource data: %v", err)
+		poolsDataError = err
 	}
 
 	// Fetch backup data only if backup billing is enabled
@@ -427,6 +464,7 @@ func (p *BillingProvider) fetchPoolData(ctx context.Context, aggregationStartTim
 				ConsumerID:     accountName,
 			}
 			resourceCollection.PoolData[id] = poolResourceData
+			resourceCollection.DeploymentNameToPoolName[pool.DeploymentName] = pool.Name
 		}
 
 		totalProcessed += len(pools)
@@ -512,6 +550,7 @@ func (p *BillingProvider) fetchVolumeData(ctx context.Context, aggregationStartT
 				ConsumerID:     accountName,
 			}
 			resourceCollection.VolumeData[id] = volumeResourceData
+			resourceCollection.VolumeToDeploymentName[volume.UUID] = deploymentName
 		}
 
 		totalProcessed += len(volumes)
@@ -1036,6 +1075,9 @@ func (p *BillingProvider) groupMetricsByResource(metrics []datamodel2.HydratedMe
 					if v, ok := extra["backup_region_name"]; ok {
 						resMeta.SetBackupRegionName(v)
 					}
+					if v, ok := extra["pool_name"]; ok {
+						resMeta.SetPoolName(v)
+					}
 				}
 			}
 			hydratedMetric := entity.HydratedMetric{
@@ -1411,6 +1453,10 @@ func setServiceLevelForCRR(schedule string) string {
 	}
 }
 
+func isPoolResourceType(rt metadata.ResourceType) bool {
+	return rt == metadata.VolumePool || rt == metadata.VolumePoolRegionalHA
+}
+
 // isAutoTieringBillingMetric returns true if the measured type is an auto-tiering billing metric
 func isAutoTieringBillingMetric(measuredType metadata.MeasuredType) bool {
 	switch measuredType {
@@ -1543,4 +1589,61 @@ func (p *BillingProvider) calculateCounterDeltaWithAggregatedHistory(ctx context
 	logger.Debugf("No previous aggregated counter value found for resource %s, measured type %s, using standard CounterDelta", resourceUUID, measuredType)
 	aggregate, lastCounter := common.CounterDelta(dataPoints, logger, measuredType, resourceUUID)
 	return aggregate, lastCounter
+}
+
+// fetchHistoricalVolumeSizeMetrics fetches aggregated volume size metrics from aggregated_usages table
+// for pool-level auto-tiering billing when EnableATVolumeBasedPoolBilling is enabled.
+// This aggregates volume-level metrics to pool-level by summing volumes within each pool.
+func (p *BillingProvider) fetchHistoricalVolumeSizeMetrics(ctx context.Context, aggregationStartTime, aggregationEndTime time.Time, backfillLimit time.Duration, measuredType metadata.MeasuredType, resourceType metadata.ResourceType, resourceCollection *ResourceCollection, aggregatedRecords []datamodel2.AggregatedUsage) ([]datamodel2.HydratedMetrics, error) {
+	logger := util.GetLogger(ctx)
+
+	queryResourceType := metadata.Volume
+	if resourceType == metadata.VolumePoolRegionalHA {
+		queryResourceType = metadata.VolumeRegionalHA
+	}
+
+	var allRecords []datamodel2.AggregatedUsage
+	for _, record := range aggregatedRecords {
+		// Match the conditions: measured_type, resource_type, aggregation window, and is_billable
+		if record.MeasuredType == measuredType &&
+			record.ResourceType == queryResourceType &&
+			!record.AggregationStart.Before(aggregationStartTime.UTC()) &&
+			!record.AggregationEnd.After(aggregationEndTime.UTC()) &&
+			!record.IsBillable {
+			allRecords = append(allRecords, record)
+		}
+	}
+
+	logger.Infof("Fetched %d volume-level auto-tiering aggregated records for pool-level aggregation", len(allRecords))
+
+	var metrics []datamodel2.HydratedMetrics
+
+	for _, record := range allRecords {
+		deploymentName := resourceCollection.VolumeToDeploymentName[record.ResourceUUID]
+		if deploymentName == "" {
+			logger.Warnf("No deployment name found for volume with ResourceUUID %s, skipping record", record.ResourceUUID)
+			continue
+		}
+		poolName := resourceCollection.DeploymentNameToPoolName[deploymentName]
+		if poolName == "" {
+			logger.Warnf("No pool name found for volume with ResourceUUID %s in deployment %s, skipping record", record.ResourceUUID, deploymentName)
+			continue
+		}
+		if record.VendorCustomerID == nil || record.RegionName == nil {
+			logger.Warnf("Missing VendorCustomerID or RegionName for volume with ResourceUUID %s, skipping record", record.ResourceUUID)
+			continue
+		}
+		metrics = append(metrics, datamodel2.HydratedMetrics{
+			MetricTimestamp: aggregationEndTime.Add(-1 * time.Minute), // Use a timestamp before the aggregation end time to ensure it falls within the window
+			MeasuredType:    measuredType,
+			ConsumerID:      *record.VendorCustomerID,
+			ResourceType:    resourceType,
+			ResourceName:    poolName,
+			Location:        *record.RegionName,
+			Quantity:        record.Quantity * 1024 * 1024, // converting back to bytes so processMetricsWithJobDef's BytesToMiB yields the correct result
+			DeploymentName:  deploymentName,
+		})
+	}
+
+	return metrics, nil
 }

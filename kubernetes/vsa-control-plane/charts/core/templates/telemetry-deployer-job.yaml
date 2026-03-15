@@ -202,6 +202,8 @@ spec:
               value: {{ .Values.telemetryDeployer.enableONTAPModeAutoTieringBilling | default "false" | quote }}
             - name: ENABLE_FILES_AUTO_TIERING_BILLING
               value: {{ .Values.telemetryDeployer.enableFilesAutoTieringBilling | default "false" | quote }}
+            - name: ENABLE_AT_VOLUME_BASED_POOL_BILLING
+              value: {{ .Values.telemetryDeployer.enableATVolumeBasedPoolBilling | default "true" | quote }}
             - name: ENABLE_FILES_REPLICATION_BILLING_METRICS
               value: {{ .Values.telemetryDeployer.enableFilesReplicationBillingMetrics | default "false" | quote }}
             - name: ENABLE_CROSS_REGION_BACKUP_BILLING_METRICS

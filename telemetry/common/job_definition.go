@@ -1,8 +1,9 @@
 package common
 
 import (
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 	"time"
+
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
 )
 
 // AggregationJobDefinition is a description of an aggregation job that cvt is expected to run.
@@ -154,6 +155,38 @@ var DefaultAggregationJobDefinitions = map[metadata.CombinedKeyResourceTypeMeasu
 		AggregationType: IntegralAggregation,
 		IsBillable:      true,
 		SKU:             BillingMetricNameVolumeBackupManagementUsage,
+		TimeSeriesFormatter: &SampledMetricsFormatter{
+			Mode:          Interval,
+			BackfillLimit: 60 * time.Minute,
+		},
+	},
+	{ResourceType: metadata.Volume, MeasuredType: metadata.CoolTierDataReadSizeRaw}: {
+		AggregationType: CounterAggregation,
+		IsBillable:      false,
+		TimeSeriesFormatter: &SampledMetricsFormatter{
+			Mode:          Interval,
+			BackfillLimit: 60 * time.Minute,
+		},
+	},
+	{ResourceType: metadata.VolumeRegionalHA, MeasuredType: metadata.CoolTierDataReadSizeRaw}: {
+		AggregationType: CounterAggregation,
+		IsBillable:      false,
+		TimeSeriesFormatter: &SampledMetricsFormatter{
+			Mode:          Interval,
+			BackfillLimit: 60 * time.Minute,
+		},
+	},
+	{ResourceType: metadata.Volume, MeasuredType: metadata.CoolTierDataWriteSizeRaw}: {
+		AggregationType: CounterAggregation,
+		IsBillable:      false,
+		TimeSeriesFormatter: &SampledMetricsFormatter{
+			Mode:          Interval,
+			BackfillLimit: 60 * time.Minute,
+		},
+	},
+	{ResourceType: metadata.VolumeRegionalHA, MeasuredType: metadata.CoolTierDataWriteSizeRaw}: {
+		AggregationType: CounterAggregation,
+		IsBillable:      false,
 		TimeSeriesFormatter: &SampledMetricsFormatter{
 			Mode:          Interval,
 			BackfillLimit: 60 * time.Minute,

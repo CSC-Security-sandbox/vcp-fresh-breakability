@@ -93,6 +93,8 @@ func init() {
 	CombinedKeyResourceTypeMeasuredTypeMap["pool_cloud_bin_operation_size"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: CoolTierDataWriteSize}
 	CombinedKeyResourceTypeMeasuredTypeMap["pool_client_protocol_reads_raw"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: CoolTierDataReadSizeRaw}
 	CombinedKeyResourceTypeMeasuredTypeMap["pool_cloud_bin_operation_size_raw"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: CoolTierDataWriteSizeRaw}
+	CombinedKeyResourceTypeMeasuredTypeMap["wafl_volume_client_protocol_reads_raw"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: CoolTierDataReadSizeRaw}
+	CombinedKeyResourceTypeMeasuredTypeMap["wafl_volume_cloud_bin_operation_size_raw"] = CombinedKeyResourceTypeMeasuredType{ResourceType: Volume, MeasuredType: CoolTierDataWriteSizeRaw}
 	CombinedKeyResourceTypeMeasuredTypeMap["pool_capacity_tier_logical_footprint"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: PoolCapacityTierLogicalFootprint}
 	CombinedKeyResourceTypeMeasuredTypeMap["pool_hot_tier_provisioned_size"] = CombinedKeyResourceTypeMeasuredType{ResourceType: VolumePool, MeasuredType: PoolHotTierProvisionedSize}
 	CombinedKeyResourceTypeMeasuredTypeMap["cmek_backup_rotation_state"] = CombinedKeyResourceTypeMeasuredType{ResourceType: BackupVault, MeasuredType: CMEKBackupKeyRotationState}

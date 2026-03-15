@@ -123,3 +123,11 @@ func Test_SetsSourceRegionNameCorrectly(t *testing.T) {
 	assert.NotNil(t, metadata.SourceRegionName)
 	assert.Equal(t, region, *metadata.SourceRegionName)
 }
+
+func Test_SetsPoolNameCorrectly(t *testing.T) {
+	metadata := ResourceMetadata{}
+	poolName := "test-pool"
+	metadata.SetPoolName(poolName)
+	assert.NotNil(t, metadata.PoolName)
+	assert.Equal(t, poolName, *metadata.PoolName)
+}

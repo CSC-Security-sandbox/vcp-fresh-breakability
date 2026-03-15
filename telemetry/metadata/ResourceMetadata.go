@@ -19,6 +19,7 @@ type ResourceMetadata struct {
 	DeletedAt           *time.Time
 	BackupRegionName    *string
 	SourceRegionName    *string
+	PoolName            *string
 }
 
 func (m *ResourceMetadata) SetResourceUUID(uuid string) {
@@ -75,4 +76,8 @@ func (m *ResourceMetadata) SetBackupRegionName(region string) {
 
 func (m *ResourceMetadata) SetSourceRegionName(region string) {
 	m.SourceRegionName = &region
+}
+
+func (m *ResourceMetadata) SetPoolName(name string) {
+	m.PoolName = &name
 }

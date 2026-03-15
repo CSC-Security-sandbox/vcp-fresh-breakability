@@ -127,3 +127,31 @@ func TestAutoTieringRegionalHAJobDefinitions(t *testing.T) {
 		})
 	}
 }
+
+func TestVolumeATRawJobDefinitions(t *testing.T) {
+	volumeATRawMetrics := []metadata.MeasuredType{
+		metadata.CoolTierDataReadSizeRaw,
+		metadata.CoolTierDataWriteSizeRaw,
+	}
+
+	resourceTypes := []metadata.ResourceType{
+		metadata.Volume,
+		metadata.VolumeRegionalHA,
+	}
+
+	for _, measuredType := range volumeATRawMetrics {
+		for _, resourceType := range resourceTypes {
+			t.Run(string(resourceType)+"/"+string(measuredType), func(t *testing.T) {
+				key := metadata.CombinedKeyResourceTypeMeasuredType{
+					ResourceType: resourceType,
+					MeasuredType: measuredType,
+				}
+				jobDef, exists := DefaultAggregationJobDefinitions[key]
+				assert.True(t, exists, "Job definition should exist for %s/%s", resourceType, measuredType)
+				assert.Equal(t, CounterAggregation, jobDef.AggregationType, "Should be CounterAggregation")
+				assert.False(t, jobDef.IsBillable, "Should not be billable")
+				assert.Empty(t, jobDef.SKU, "Should have no SKU")
+			})
+		}
+	}
+}

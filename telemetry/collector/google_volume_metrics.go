@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -166,10 +167,15 @@ func (g *GoogleVolumeMetricsProvider) CollectProjectMetrics(ctx context.Context,
 				continue
 			}
 
-			// Filter for "put" operations on pool_cloud_bin_operation_size_raw for billing
-			if metric.Metric == "pool_cloud_bin_operation_size_raw" && resp.Metric.Labels["metric"] != "put" {
-				continue
-			}
+		// Filter for "put" operations on pool_cloud_bin_operation_size_raw for billing
+		if metric.Metric == "pool_cloud_bin_operation_size_raw" && resp.Metric.Labels["metric"] != "put" {
+			continue
+		}
+
+		// Filter for "put" operations on wafl_volume_cloud_bin_operation_size_raw for billing
+		if metric.Metric == "wafl_volume_cloud_bin_operation_size_raw" && resp.Metric.Labels["metric"] != "put" {
+			continue
+		}
 
 			if metrics := setupHydratedMetrics(measuredType, resourceType, projectID, resp, timestamp); metrics != nil {
 				projectResults = append(projectResults, *metrics)
@@ -241,7 +247,21 @@ func setupHydratedMetrics(measuredType metadata.MeasuredType, resourceType metad
 		// TODO: need to update this to replication name
 		hydrateMetrics.ResourceName = resp.Metric.Labels["relationship_id"]
 	}
+
+	if isVolumeATRawMetric(resourceType, measuredType) {
+		if poolName := resp.Metric.Labels["pool_name"]; poolName != "" {
+			extra := map[string]string{"pool_name": poolName}
+			if b, err := json.Marshal(extra); err == nil {
+				hydrateMetrics.Metadata = b
+			}
+		}
+	}
+
 	return &hydrateMetrics
+}
+
+func isVolumeATRawMetric(rt metadata.ResourceType, mt metadata.MeasuredType) bool {
+	return rt == metadata.Volume && (mt == metadata.CoolTierDataReadSizeRaw || mt == metadata.CoolTierDataWriteSizeRaw)
 }
 
 func extractValue(Value *monitoringpb.TypedValue) float64 {

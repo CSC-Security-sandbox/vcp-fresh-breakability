@@ -225,12 +225,50 @@ func TestApplyDataSourceAndFormatterOverrides_UsesHistoricalFormatter(t *testing
 		},
 	}
 
-	provider.applyDataSourceAndFormatterOverrides(nil)
+	logger := util.GetLogger(context.Background())
+	provider.applyDataSourceAndFormatterOverrides(logger)
 
 	updated := common.DefaultAggregationJobDefinitions[key]
 	formatter, ok := updated.TimeSeriesFormatter.(*common.HistoricalMetricsFormatter)
 	require.True(t, ok, "expected HistoricalMetricsFormatter for backup logical size")
 	assert.Equal(t, 5*time.Minute, formatter.GetBackfillLimit())
+}
+
+func TestApplyDataSourceAndFormatterOverrides_OverridesPoolATMetrics(t *testing.T) {
+	original := make(map[metadata.CombinedKeyResourceTypeMeasuredType]common.AggregationJobDefinition, len(common.DefaultAggregationJobDefinitions))
+	for key, value := range common.DefaultAggregationJobDefinitions {
+		original[key] = value
+	}
+	defer func() {
+		common.DefaultAggregationJobDefinitions = original
+	}()
+
+	provider := &BillingProvider{
+		config: &common.TelemetryConfig{
+			EnableATVolumeBasedPoolBilling: true,
+		},
+	}
+
+	logger := util.GetLogger(context.Background())
+	provider.applyDataSourceAndFormatterOverrides(logger)
+
+	poolATKeys := []metadata.CombinedKeyResourceTypeMeasuredType{
+		{ResourceType: metadata.VolumePool, MeasuredType: metadata.CoolTierDataReadSizeRaw},
+		{ResourceType: metadata.VolumePool, MeasuredType: metadata.CoolTierDataWriteSizeRaw},
+		{ResourceType: metadata.VolumePoolRegionalHA, MeasuredType: metadata.CoolTierDataReadSizeRaw},
+		{ResourceType: metadata.VolumePoolRegionalHA, MeasuredType: metadata.CoolTierDataWriteSizeRaw},
+	}
+
+	for _, key := range poolATKeys {
+		updated, exists := common.DefaultAggregationJobDefinitions[key]
+		if !exists {
+			continue
+		}
+		assert.Equal(t, common.SumAggregation, updated.AggregationType,
+			"expected SumAggregation for %s/%s", key.ResourceType, key.MeasuredType)
+		_, ok := updated.TimeSeriesFormatter.(*common.SampledMetricsFormatter)
+		assert.True(t, ok, "expected SampledMetricsFormatter for %s/%s", key.ResourceType, key.MeasuredType)
+	}
 }
 
 func TestFetchBackupHistoryMetrics_PopulatesFields(t *testing.T) {
@@ -5806,4 +5844,275 @@ func TestGroupMetricsByResource_NilMetadata_NoBackupRegionName(t *testing.T) {
 		assert.Len(t, hydratedMetrics, 1)
 		assert.Nil(t, hydratedMetrics[0].Metadata.BackupRegionName)
 	}
+}
+
+func TestGroupMetricsByResource_ParsesPoolName(t *testing.T) {
+	processor := &BillingProvider{}
+	now := time.Now()
+
+	extraJSON := []byte(`{"pool_name":"my-parent-pool"}`)
+
+	t.Run("pool_name extracted from metadata JSON", func(t *testing.T) {
+		metrics := []datamodel2.HydratedMetrics{
+			{
+				ResourceName:    "vol-1",
+				DeploymentName:  "deployment1",
+				ConsumerID:      "customer1",
+				ResourceType:    metadata.Volume,
+				MeasuredType:    metadata.CoolTierDataWriteSizeRaw,
+				Quantity:        2048,
+				MetricTimestamp: now,
+				Metadata:        extraJSON,
+			},
+		}
+
+		groups := processor.groupMetricsByResource(metrics)
+		assert.Len(t, groups, 1)
+
+		for _, hydratedMetrics := range groups {
+			assert.Len(t, hydratedMetrics, 1)
+			assert.NotNil(t, hydratedMetrics[0].Metadata.PoolName)
+			assert.Equal(t, "my-parent-pool", *hydratedMetrics[0].Metadata.PoolName)
+		}
+	})
+
+	t.Run("nil metadata results in nil pool_name", func(t *testing.T) {
+		metrics := []datamodel2.HydratedMetrics{
+			{
+				ResourceName:    "vol-2",
+				DeploymentName:  "deployment1",
+				ConsumerID:      "customer1",
+				ResourceType:    metadata.Volume,
+				MeasuredType:    metadata.CoolTierDataReadSizeRaw,
+				Quantity:        1024,
+				MetricTimestamp: now,
+				Metadata:        nil,
+			},
+		}
+
+		groups := processor.groupMetricsByResource(metrics)
+		assert.Len(t, groups, 1)
+
+		for _, hydratedMetrics := range groups {
+			assert.Len(t, hydratedMetrics, 1)
+			assert.Nil(t, hydratedMetrics[0].Metadata.PoolName)
+		}
+	})
+
+	t.Run("metadata with both pool_name and backup_region_name", func(t *testing.T) {
+		bothJSON := []byte(`{"pool_name":"parent-pool","backup_region_name":"eu-west1"}`)
+		metrics := []datamodel2.HydratedMetrics{
+			{
+				ResourceName:    "vol-3",
+				DeploymentName:  "deployment1",
+				ConsumerID:      "customer1",
+				ResourceType:    metadata.Volume,
+				MeasuredType:    metadata.CoolTierDataWriteSizeRaw,
+				Quantity:        512,
+				MetricTimestamp: now,
+				Metadata:        bothJSON,
+			},
+		}
+
+		groups := processor.groupMetricsByResource(metrics)
+		assert.Len(t, groups, 1)
+
+		for _, hydratedMetrics := range groups {
+			assert.Len(t, hydratedMetrics, 1)
+			assert.NotNil(t, hydratedMetrics[0].Metadata.PoolName)
+			assert.Equal(t, "parent-pool", *hydratedMetrics[0].Metadata.PoolName)
+			assert.NotNil(t, hydratedMetrics[0].Metadata.BackupRegionName)
+			assert.Equal(t, "eu-west1", *hydratedMetrics[0].Metadata.BackupRegionName)
+		}
+	})
+}
+
+func TestFetchHistoricalVolumeSizeMetrics(t *testing.T) {
+	ctx := context.Background()
+	aggregationStart := time.Date(2026, 3, 12, 10, 0, 0, 0, time.UTC)
+	aggregationEnd := time.Date(2026, 3, 12, 11, 0, 0, 0, time.UTC)
+
+	vendorID1 := "customer-1"
+	vendorID2 := "customer-2"
+	region := "us-central1"
+
+	resourceCollection := &ResourceCollection{
+		VolumeToDeploymentName:   map[string]string{"vol-uuid-1": "dep-1", "vol-uuid-2": "dep-1", "vol-uuid-orphan": "dep-unknown"},
+		DeploymentNameToPoolName: map[string]string{"dep-1": "pool-A"},
+	}
+
+	aggregatedRecords := []datamodel2.AggregatedUsage{
+		{
+			ResourceUUID:     "vol-uuid-1",
+			MeasuredType:     metadata.CoolTierDataWriteSizeRaw,
+			ResourceType:     metadata.Volume,
+			AggregationStart: aggregationStart,
+			AggregationEnd:   aggregationEnd,
+			Quantity:         10,
+			VendorCustomerID: &vendorID1,
+			RegionName:       &region,
+			IsBillable:       false,
+		},
+		{
+			ResourceUUID:     "vol-uuid-2",
+			MeasuredType:     metadata.CoolTierDataWriteSizeRaw,
+			ResourceType:     metadata.Volume,
+			AggregationStart: aggregationStart,
+			AggregationEnd:   aggregationEnd,
+			Quantity:         20,
+			VendorCustomerID: &vendorID2,
+			RegionName:       &region,
+			IsBillable:       false,
+		},
+		{
+			ResourceUUID:     "vol-uuid-1",
+			MeasuredType:     metadata.CoolTierDataWriteSizeRaw,
+			ResourceType:     metadata.Volume,
+			AggregationStart: aggregationStart,
+			AggregationEnd:   aggregationEnd,
+			Quantity:         5,
+			VendorCustomerID: &vendorID1,
+			RegionName:       &region,
+			IsBillable:       true,
+		},
+		{
+			ResourceUUID:     "vol-uuid-1",
+			MeasuredType:     metadata.CoolTierDataReadSizeRaw,
+			ResourceType:     metadata.Volume,
+			AggregationStart: aggregationStart,
+			AggregationEnd:   aggregationEnd,
+			Quantity:         99,
+			VendorCustomerID: &vendorID1,
+			RegionName:       &region,
+			IsBillable:       false,
+		},
+	}
+
+	provider := &BillingProvider{config: &common.TelemetryConfig{}}
+
+	t.Run("filters matching records and maps to pool-level metrics", func(t *testing.T) {
+		metrics, err := provider.fetchHistoricalVolumeSizeMetrics(ctx, aggregationStart, aggregationEnd, 0,
+			metadata.CoolTierDataWriteSizeRaw, metadata.VolumePool, resourceCollection, aggregatedRecords)
+
+		require.NoError(t, err)
+		assert.Len(t, metrics, 2)
+		for _, m := range metrics {
+			assert.Equal(t, metadata.VolumePool, m.ResourceType)
+			assert.Equal(t, "pool-A", m.ResourceName)
+			assert.Equal(t, "dep-1", m.DeploymentName)
+			assert.Equal(t, metadata.CoolTierDataWriteSizeRaw, m.MeasuredType)
+		}
+	})
+
+	t.Run("VolumePoolRegionalHA maps query to VolumeRegionalHA", func(t *testing.T) {
+		haRecords := []datamodel2.AggregatedUsage{
+			{
+				ResourceUUID:     "vol-uuid-1",
+				MeasuredType:     metadata.CoolTierDataWriteSizeRaw,
+				ResourceType:     metadata.VolumeRegionalHA,
+				AggregationStart: aggregationStart,
+				AggregationEnd:   aggregationEnd,
+				Quantity:         7,
+				VendorCustomerID: &vendorID1,
+				RegionName:       &region,
+				IsBillable:       false,
+			},
+		}
+		metrics, err := provider.fetchHistoricalVolumeSizeMetrics(ctx, aggregationStart, aggregationEnd, 0,
+			metadata.CoolTierDataWriteSizeRaw, metadata.VolumePoolRegionalHA, resourceCollection, haRecords)
+
+		require.NoError(t, err)
+		require.Len(t, metrics, 1)
+		assert.Equal(t, metadata.VolumePoolRegionalHA, metrics[0].ResourceType)
+		assert.Equal(t, 7*1024*1024, int(metrics[0].Quantity))
+	})
+
+	t.Run("skips records with missing deployment name", func(t *testing.T) {
+		noDepRecords := []datamodel2.AggregatedUsage{
+			{
+				ResourceUUID:     "vol-no-dep",
+				MeasuredType:     metadata.CoolTierDataWriteSizeRaw,
+				ResourceType:     metadata.Volume,
+				AggregationStart: aggregationStart,
+				AggregationEnd:   aggregationEnd,
+				Quantity:         1,
+				VendorCustomerID: &vendorID1,
+				RegionName:       &region,
+				IsBillable:       false,
+			},
+		}
+		metrics, err := provider.fetchHistoricalVolumeSizeMetrics(ctx, aggregationStart, aggregationEnd, 0,
+			metadata.CoolTierDataWriteSizeRaw, metadata.VolumePool, resourceCollection, noDepRecords)
+
+		require.NoError(t, err)
+		assert.Empty(t, metrics)
+	})
+
+	t.Run("skips records with missing pool name", func(t *testing.T) {
+		noPoolRecords := []datamodel2.AggregatedUsage{
+			{
+				ResourceUUID:     "vol-uuid-orphan",
+				MeasuredType:     metadata.CoolTierDataWriteSizeRaw,
+				ResourceType:     metadata.Volume,
+				AggregationStart: aggregationStart,
+				AggregationEnd:   aggregationEnd,
+				Quantity:         1,
+				VendorCustomerID: &vendorID1,
+				RegionName:       &region,
+				IsBillable:       false,
+			},
+		}
+		metrics, err := provider.fetchHistoricalVolumeSizeMetrics(ctx, aggregationStart, aggregationEnd, 0,
+			metadata.CoolTierDataWriteSizeRaw, metadata.VolumePool, resourceCollection, noPoolRecords)
+
+		require.NoError(t, err)
+		assert.Empty(t, metrics)
+	})
+
+	t.Run("skips records with nil VendorCustomerID or RegionName", func(t *testing.T) {
+		nilFieldRecords := []datamodel2.AggregatedUsage{
+			{
+				ResourceUUID:     "vol-uuid-1",
+				MeasuredType:     metadata.CoolTierDataWriteSizeRaw,
+				ResourceType:     metadata.Volume,
+				AggregationStart: aggregationStart,
+				AggregationEnd:   aggregationEnd,
+				Quantity:         10,
+				VendorCustomerID: nil,
+				RegionName:       &region,
+				IsBillable:       false,
+			},
+			{
+				ResourceUUID:     "vol-uuid-2",
+				MeasuredType:     metadata.CoolTierDataWriteSizeRaw,
+				ResourceType:     metadata.Volume,
+				AggregationStart: aggregationStart,
+				AggregationEnd:   aggregationEnd,
+				Quantity:         20,
+				VendorCustomerID: &vendorID2,
+				RegionName:       nil,
+				IsBillable:       false,
+			},
+		}
+		metrics, err := provider.fetchHistoricalVolumeSizeMetrics(ctx, aggregationStart, aggregationEnd, 0,
+			metadata.CoolTierDataWriteSizeRaw, metadata.VolumePool, resourceCollection, nilFieldRecords)
+
+		require.NoError(t, err)
+		assert.Empty(t, metrics)
+	})
+
+	t.Run("returns empty for no matching records", func(t *testing.T) {
+		metrics, err := provider.fetchHistoricalVolumeSizeMetrics(ctx, aggregationStart, aggregationEnd, 0,
+			metadata.CoolTierDataWriteSizeRaw, metadata.VolumePool, resourceCollection, []datamodel2.AggregatedUsage{})
+
+		require.NoError(t, err)
+		assert.Empty(t, metrics)
+	})
+}
+
+func TestIsPoolResourceType(t *testing.T) {
+	assert.True(t, isPoolResourceType(metadata.VolumePool))
+	assert.True(t, isPoolResourceType(metadata.VolumePoolRegionalHA))
+	assert.False(t, isPoolResourceType(metadata.Volume))
+	assert.False(t, isPoolResourceType(metadata.Backup))
 }

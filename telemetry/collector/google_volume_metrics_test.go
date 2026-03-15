@@ -1572,6 +1572,75 @@ func TestGoogleVolumeMetricsProvider_PoolCloudBinOperationSizeRawFiltering(t *te
 	mockIterator.AssertExpectations(t)
 }
 
+func TestGoogleVolumeMetricsProvider_WaflVolumeCloudBinOperationSizeRawFiltering(t *testing.T) {
+	ctx := context.Background()
+	logger := log.NewLogger()
+	projectID := "test-project-wafl-raw-filtering"
+	timestamp := time.Now()
+
+	mockClient := new(MockMonitoringClient)
+	mockIterator := new(MockTimeSeriesIterator)
+
+	testMetrics := []common.MetricItem{
+		{Metric: "wafl_volume_cloud_bin_operation_size_raw", ResourceType: "custom.googleapis.com", MetricType: "usage"},
+	}
+
+	provider := &GoogleVolumeMetricsProvider{
+		client:    mockClient,
+		metrics:   testMetrics,
+		startTime: timestamp.Add(-5 * time.Minute),
+		endTime:   timestamp,
+	}
+
+	putTimeSeries := &monitoringpb.TimeSeries{
+		Metric: &metric.Metric{
+			Type: "custom.googleapis.com/wafl_volume_cloud_bin_operation_size_raw",
+			Labels: map[string]string{
+				"metric":          "put",
+				"volume":          "test-volume-1",
+				"project":         projectID,
+				"datacenter":      "us-central1",
+				"deployment_name": "test-deployment",
+			},
+		},
+		Points: []*monitoringpb.Point{
+			{Value: &monitoringpb.TypedValue{Value: &monitoringpb.TypedValue_Int64Value{Int64Value: 2048}}},
+		},
+	}
+
+	getTimeSeries := &monitoringpb.TimeSeries{
+		Metric: &metric.Metric{
+			Type: "custom.googleapis.com/wafl_volume_cloud_bin_operation_size_raw",
+			Labels: map[string]string{
+				"metric":          "get",
+				"volume":          "test-volume-2",
+				"project":         projectID,
+				"datacenter":      "us-central1",
+				"deployment_name": "test-deployment",
+			},
+		},
+		Points: []*monitoringpb.Point{
+			{Value: &monitoringpb.TypedValue{Value: &monitoringpb.TypedValue_Int64Value{Int64Value: 4096}}},
+		},
+	}
+
+	mockIterator.On("Next").Return(putTimeSeries, nil).Once()
+	mockIterator.On("Next").Return(getTimeSeries, nil).Once()
+	mockIterator.On("Next").Return(nil, iterator.Done).Once()
+
+	mockClient.On("ListTimeSeries", ctx, mock.Anything).Return(mockIterator)
+
+	result, err := provider.CollectProjectMetrics(ctx, logger, projectID, timestamp)
+
+	assert.NoError(t, err)
+	assert.Len(t, result, 1, "Only 'put' operation should be collected for wafl_volume_cloud_bin_operation_size_raw")
+	assert.Equal(t, metadata.CoolTierDataWriteSizeRaw, result[0].MeasuredType)
+	assert.Equal(t, float64(2048), result[0].Quantity)
+
+	mockClient.AssertExpectations(t)
+	mockIterator.AssertExpectations(t)
+}
+
 // TestGoogleVolumeMetricsProvider_PoolClientProtocolReadsRaw tests that pool_client_protocol_reads_raw
 // metrics are collected without filtering (no "put" filter required for read metrics)
 func TestGoogleVolumeMetricsProvider_PoolClientProtocolReadsRaw(t *testing.T) {
@@ -1844,5 +1913,122 @@ func TestSetupHydratedMetrics_EmptyResourceName(t *testing.T) {
 
 		result := setupHydratedMetrics(metadata.CoolTierDataWriteSizeRaw, metadata.VolumePool, projectID, resp, timestamp)
 		assert.Nil(t, result, "Should return nil for empty string pool_name label")
+	})
+}
+
+func TestSetupHydratedMetrics_VolumeATRawMetric_StoresPoolNameInMetadata(t *testing.T) {
+	projectID := "test-project"
+	timestamp := time.Now()
+
+	t.Run("volume write raw metric stores pool_name in metadata", func(t *testing.T) {
+		resp := &monitoringpb.TimeSeries{
+			Metric: &metric.Metric{
+				Type: "custom.googleapis.com/wafl_volume_cloud_bin_operation_size_raw",
+				Labels: map[string]string{
+					"volume":          "test-volume",
+					"project":         projectID,
+					"datacenter":      "us-central1",
+					"deployment_name": "dep-1",
+					"pool_name":       "parent-pool",
+				},
+			},
+			Points: []*monitoringpb.Point{
+				{
+					Value: &monitoringpb.TypedValue{
+						Value: &monitoringpb.TypedValue_Int64Value{Int64Value: 2048},
+					},
+				},
+			},
+		}
+
+		result := setupHydratedMetrics(metadata.CoolTierDataWriteSizeRaw, metadata.Volume, projectID, resp, timestamp)
+
+		assert.NotNil(t, result)
+		assert.Equal(t, "test-volume", result.ResourceName)
+		assert.Equal(t, metadata.Volume, result.ResourceType)
+		assert.NotNil(t, result.Metadata)
+		assert.Contains(t, string(result.Metadata), `"pool_name":"parent-pool"`)
+	})
+
+	t.Run("volume read raw metric stores pool_name in metadata", func(t *testing.T) {
+		resp := &monitoringpb.TimeSeries{
+			Metric: &metric.Metric{
+				Type: "custom.googleapis.com/wafl_volume_client_protocol_reads_raw",
+				Labels: map[string]string{
+					"volume":          "test-volume-2",
+					"project":         projectID,
+					"datacenter":      "us-central1",
+					"deployment_name": "dep-1",
+					"pool_name":       "parent-pool-2",
+				},
+			},
+			Points: []*monitoringpb.Point{
+				{
+					Value: &monitoringpb.TypedValue{
+						Value: &monitoringpb.TypedValue_Int64Value{Int64Value: 1024},
+					},
+				},
+			},
+		}
+
+		result := setupHydratedMetrics(metadata.CoolTierDataReadSizeRaw, metadata.Volume, projectID, resp, timestamp)
+
+		assert.NotNil(t, result)
+		assert.Equal(t, "test-volume-2", result.ResourceName)
+		assert.NotNil(t, result.Metadata)
+		assert.Contains(t, string(result.Metadata), `"pool_name":"parent-pool-2"`)
+	})
+
+	t.Run("pool-level raw metric does NOT store pool_name in metadata", func(t *testing.T) {
+		resp := &monitoringpb.TimeSeries{
+			Metric: &metric.Metric{
+				Type: "custom.googleapis.com/pool_cloud_bin_operation_size_raw",
+				Labels: map[string]string{
+					"pool_name":       "test-pool",
+					"project":         projectID,
+					"datacenter":      "us-central1",
+					"deployment_name": "dep-1",
+				},
+			},
+			Points: []*monitoringpb.Point{
+				{
+					Value: &monitoringpb.TypedValue{
+						Value: &monitoringpb.TypedValue_Int64Value{Int64Value: 1024},
+					},
+				},
+			},
+		}
+
+		result := setupHydratedMetrics(metadata.CoolTierDataWriteSizeRaw, metadata.VolumePool, projectID, resp, timestamp)
+
+		assert.NotNil(t, result)
+		assert.Equal(t, "test-pool", result.ResourceName)
+		assert.Nil(t, result.Metadata, "Pool-level metrics should not have pool_name metadata")
+	})
+
+	t.Run("volume raw metric with missing pool_name has nil metadata", func(t *testing.T) {
+		resp := &monitoringpb.TimeSeries{
+			Metric: &metric.Metric{
+				Type: "custom.googleapis.com/wafl_volume_cloud_bin_operation_size_raw",
+				Labels: map[string]string{
+					"volume":          "test-volume",
+					"project":         projectID,
+					"datacenter":      "us-central1",
+					"deployment_name": "dep-1",
+				},
+			},
+			Points: []*monitoringpb.Point{
+				{
+					Value: &monitoringpb.TypedValue{
+						Value: &monitoringpb.TypedValue_Int64Value{Int64Value: 512},
+					},
+				},
+			},
+		}
+
+		result := setupHydratedMetrics(metadata.CoolTierDataWriteSizeRaw, metadata.Volume, projectID, resp, timestamp)
+
+		assert.NotNil(t, result)
+		assert.Nil(t, result.Metadata, "Metadata should be nil when pool_name label is missing")
 	})
 }
