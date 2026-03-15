@@ -15056,3 +15056,176 @@ func TestUpdateBackupVaultWithBucketDetails_FallbackRejectsNonGCBDRVault(t *test
 	mockStorage.AssertExpectations(t)
 	mockStorage.AssertNotCalled(t, "UpdateBackupVault", mock.Anything, mock.Anything)
 }
+
+// =============================================================================
+// BuildRestoreJobPayloadAttributes tests
+// =============================================================================
+
+func TestBuildRestoreJobPayloadAttributes_AllFieldsPopulated(t *testing.T) {
+	region := "us-west2"
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"},
+		Account:   &datamodel.Account{Name: "acct-primary"},
+		Pool:      &datamodel.Pool{DeploymentName: "deploy-primary"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols:      []string{"NFSV3", "NFSV4"},
+			AccountName:    "acct-fallback",
+			DeploymentName: "deploy-fallback",
+		},
+	}
+	backupVault := &datamodel.BackupVault{
+		BackupVaultType:  activities.CrossRegionBackupType,
+		BackupRegionName: &region,
+	}
+	backup := &datamodel.Backup{SizeInBytes: 9999}
+
+	attrs := activities.BuildRestoreJobPayloadAttributes(volume, backupVault, backup)
+
+	assert.Equal(t, "vol-uuid-1", attrs["volume_uuid"])
+	assert.Equal(t, int64(9999), attrs["backup_size_in_bytes"])
+	assert.Equal(t, "acct-primary", attrs["account_name"])
+	assert.Equal(t, "NFSV3,NFSV4", attrs["protocols"])
+	assert.Equal(t, "deploy-primary", attrs["deployment_name"])
+	assert.Equal(t, activities.CrossRegionBackupType, attrs["backup_vault_type"])
+	assert.Equal(t, "us-west2", attrs["backup_region_name"])
+}
+
+func TestBuildRestoreJobPayloadAttributes_AccountNameFromVolumeAttributes(t *testing.T) {
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-2"},
+		Account:   nil,
+		Pool:      &datamodel.Pool{DeploymentName: "deploy"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols:   []string{"ISCSI"},
+			AccountName: "acct-from-attrs",
+		},
+	}
+	backupVault := &datamodel.BackupVault{BackupVaultType: "IN_REGION"}
+	backup := &datamodel.Backup{SizeInBytes: 100}
+
+	attrs := activities.BuildRestoreJobPayloadAttributes(volume, backupVault, backup)
+
+	assert.Equal(t, "acct-from-attrs", attrs["account_name"])
+}
+
+func TestBuildRestoreJobPayloadAttributes_AccountNameFallback_EmptyAccountName(t *testing.T) {
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-3"},
+		Account:   &datamodel.Account{Name: ""},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			AccountName: "acct-fallback",
+		},
+	}
+	backupVault := &datamodel.BackupVault{BackupVaultType: "IN_REGION"}
+	backup := &datamodel.Backup{SizeInBytes: 50}
+
+	attrs := activities.BuildRestoreJobPayloadAttributes(volume, backupVault, backup)
+
+	assert.Equal(t, "acct-fallback", attrs["account_name"])
+}
+
+func TestBuildRestoreJobPayloadAttributes_NoAccountName(t *testing.T) {
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-4"},
+	}
+	backupVault := &datamodel.BackupVault{BackupVaultType: "IN_REGION"}
+	backup := &datamodel.Backup{SizeInBytes: 10}
+
+	attrs := activities.BuildRestoreJobPayloadAttributes(volume, backupVault, backup)
+
+	_, exists := attrs["account_name"]
+	assert.False(t, exists)
+}
+
+func TestBuildRestoreJobPayloadAttributes_DeploymentNameFromVolumeAttributes(t *testing.T) {
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-5"},
+		Pool:      nil,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols:      []string{"NFSV3"},
+			DeploymentName: "deploy-from-attrs",
+		},
+	}
+	backupVault := &datamodel.BackupVault{BackupVaultType: "IN_REGION"}
+	backup := &datamodel.Backup{SizeInBytes: 200}
+
+	attrs := activities.BuildRestoreJobPayloadAttributes(volume, backupVault, backup)
+
+	assert.Equal(t, "deploy-from-attrs", attrs["deployment_name"])
+}
+
+func TestBuildRestoreJobPayloadAttributes_DeploymentNameFallback_EmptyPoolName(t *testing.T) {
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-6"},
+		Pool:      &datamodel.Pool{DeploymentName: ""},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			DeploymentName: "deploy-fallback",
+		},
+	}
+	backupVault := &datamodel.BackupVault{BackupVaultType: "IN_REGION"}
+	backup := &datamodel.Backup{SizeInBytes: 300}
+
+	attrs := activities.BuildRestoreJobPayloadAttributes(volume, backupVault, backup)
+
+	assert.Equal(t, "deploy-fallback", attrs["deployment_name"])
+}
+
+func TestBuildRestoreJobPayloadAttributes_NoDeploymentName(t *testing.T) {
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-7"},
+		Pool:      nil,
+	}
+	backupVault := &datamodel.BackupVault{BackupVaultType: "IN_REGION"}
+	backup := &datamodel.Backup{SizeInBytes: 400}
+
+	attrs := activities.BuildRestoreJobPayloadAttributes(volume, backupVault, backup)
+
+	_, exists := attrs["deployment_name"]
+	assert.False(t, exists)
+}
+
+func TestBuildRestoreJobPayloadAttributes_NoProtocols(t *testing.T) {
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-8"},
+	}
+	backupVault := &datamodel.BackupVault{BackupVaultType: "IN_REGION"}
+	backup := &datamodel.Backup{SizeInBytes: 500}
+
+	attrs := activities.BuildRestoreJobPayloadAttributes(volume, backupVault, backup)
+
+	_, exists := attrs["protocols"]
+	assert.False(t, exists)
+}
+
+func TestBuildRestoreJobPayloadAttributes_NilBackupRegionName(t *testing.T) {
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-9"},
+	}
+	backupVault := &datamodel.BackupVault{
+		BackupVaultType:  activities.CrossRegionBackupType,
+		BackupRegionName: nil,
+	}
+	backup := &datamodel.Backup{SizeInBytes: 600}
+
+	attrs := activities.BuildRestoreJobPayloadAttributes(volume, backupVault, backup)
+
+	assert.Equal(t, activities.CrossRegionBackupType, attrs["backup_vault_type"])
+	_, exists := attrs["backup_region_name"]
+	assert.False(t, exists)
+}
+
+func TestBuildRestoreJobPayloadAttributes_EmptyProtocols(t *testing.T) {
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid-10"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{},
+		},
+	}
+	backupVault := &datamodel.BackupVault{BackupVaultType: "IN_REGION"}
+	backup := &datamodel.Backup{SizeInBytes: 700}
+
+	attrs := activities.BuildRestoreJobPayloadAttributes(volume, backupVault, backup)
+
+	_, exists := attrs["protocols"]
+	assert.False(t, exists)
+}

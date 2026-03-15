@@ -2216,6 +2216,17 @@ func TestMetricsProcessor_ProcessPerformanceMetrics_CrossRegionRestoreBillingWit
 		State:        "DONE",
 		ResourceName: "crr-vol",
 		AccountID:    sql.NullInt64{Int64: 100, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{
+			PayloadAttributes: map[string]interface{}{
+				"volume_uuid":          "crr-vol-uuid",
+				"backup_size_in_bytes": float64(5000),
+				"account_name":         "crr-ok-account",
+				"deployment_name":      "crr-deploy",
+				"protocols":            "NFSV3",
+				"backup_vault_type":    "CROSS_REGION",
+				"backup_region_name":   "us-west2",
+			},
+		},
 	}
 
 	telemetryStore.On("GetRestoreTimestamp", mock.Anything).Return(nil, nil)

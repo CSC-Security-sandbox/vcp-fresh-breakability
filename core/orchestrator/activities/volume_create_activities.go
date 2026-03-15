@@ -2560,6 +2560,10 @@ func (a VolumeCreateActivity) CreateRestoreWorkflow(ctx context.Context, createV
 		AccountID:     sql.NullInt64{Int64: volume.Account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID:      volume.UUID,
+			PayloadAttributes: BuildRestoreJobPayloadAttributes(volume, backupVault, backup),
+		},
 	}
 
 	createdJob, err := se.CreateJob(ctx, job)
@@ -2590,6 +2594,36 @@ func (a VolumeCreateActivity) CreateRestoreWorkflow(ctx context.Context, createV
 	}
 
 	return nil
+}
+
+func BuildRestoreJobPayloadAttributes(volume *datamodel.Volume, backupVault *datamodel.BackupVault, backup *datamodel.Backup) map[string]interface{} {
+	attrs := map[string]interface{}{
+		"volume_uuid":          volume.UUID,
+		"backup_size_in_bytes": backup.SizeInBytes,
+	}
+
+	if volume.Account != nil && volume.Account.Name != "" {
+		attrs["account_name"] = volume.Account.Name
+	} else if volume.VolumeAttributes != nil && volume.VolumeAttributes.AccountName != "" {
+		attrs["account_name"] = volume.VolumeAttributes.AccountName
+	}
+
+	if volume.VolumeAttributes != nil && len(volume.VolumeAttributes.Protocols) > 0 {
+		attrs["protocols"] = strings.Join(volume.VolumeAttributes.Protocols, ",")
+	}
+
+	if volume.Pool != nil && volume.Pool.DeploymentName != "" {
+		attrs["deployment_name"] = volume.Pool.DeploymentName
+	} else if volume.VolumeAttributes != nil && volume.VolumeAttributes.DeploymentName != "" {
+		attrs["deployment_name"] = volume.VolumeAttributes.DeploymentName
+	}
+
+	attrs["backup_vault_type"] = backupVault.BackupVaultType
+	if backupVault.BackupRegionName != nil {
+		attrs["backup_region_name"] = *backupVault.BackupRegionName
+	}
+
+	return attrs
 }
 
 func (a VolumeCreateActivity) UpdateVolumeAttributesInDB(ctx context.Context, volumeUUID string, volumeAttributes *datamodel.VolumeAttributes) error {

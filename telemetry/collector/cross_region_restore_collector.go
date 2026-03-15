@@ -4,31 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"strings"
 	"time"
 
-	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
-	orchcommon "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	metricsdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	vcpdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	common "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	datamodel2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	"gorm.io/gorm"
-)
-
-var (
-	getGProxyClient       = googleproxyclient.GetGProxyClient
-	getRemoteRegionConfig = orchcommon.GetRemoteRegionConfig
 )
 
 type CrossRegionRestoreBillingResult struct {
@@ -191,64 +180,76 @@ func processRestoreJob(
 		return createSfrCrossRegionRestoreMetrics(ctx, vcpDB, config, job, timestamp)
 	}
 
-	return createCrossRegionRestoreMetrics(ctx, vcpDB, config, job, timestamp)
+	return createCrossRegionRestoreMetrics(ctx, config, job, timestamp)
 }
 
 // createCrossRegionRestoreMetrics handles full volume restore billing (RESTORE_BACKUP).
-func createCrossRegionRestoreMetrics(
-	ctx context.Context,
-	vcpDB vcpdb.Storage,
-	config *common.TelemetryConfig,
-	job *datamodel.Job,
-	timestamp time.Time,
-) *datamodel2.HydratedMetrics {
+func createCrossRegionRestoreMetrics(ctx context.Context, config *common.TelemetryConfig, job *datamodel.Job, timestamp time.Time) *datamodel2.HydratedMetrics {
 	logger := util.GetLogger(ctx)
 
-	volume, err := getRestoredVolume(ctx, vcpDB, job)
-	if err != nil || volume == nil {
-		logger.Warn("Volume not found for restore job", "jobUUID", job.UUID, "resourceName", job.ResourceName, "error", err)
+	if job.JobAttributes == nil || job.JobAttributes.PayloadAttributes == nil {
+		logger.Warn("Skipping restore job with missing payload attributes", "jobUUID", job.UUID)
 		return nil
 	}
 
-	backup, err := FetchSourceBackupForRestoredVolumeUsingIDOrBackupPath(ctx, vcpDB, volume, job, config)
-	if err != nil || backup == nil {
-		if err != nil {
-			logger.Warn("Failed to fetch source backup for restore job",
-				"jobUUID", job.UUID, "volumeUUID", volume.UUID, "error", err)
-		} else {
-			logger.Debug("No source backup found for restore job",
-				"jobUUID", job.UUID, "volumeUUID", volume.UUID)
-		}
+	attrs := job.JobAttributes.PayloadAttributes
+	backupVaultType, _ := attrs["backup_vault_type"].(string)
+	backupRegionName, _ := attrs["backup_region_name"].(string)
+	protocolsStr, _ := attrs["protocols"].(string)
+	volumeUUID, _ := attrs["volume_uuid"].(string)
+	accountName, _ := attrs["account_name"].(string)
+	deploymentName, _ := attrs["deployment_name"].(string)
+
+	var backupSizeInBytes int64
+	switch v := attrs["backup_size_in_bytes"].(type) {
+	case float64:
+		backupSizeInBytes = int64(v)
+	case int64:
+		backupSizeInBytes = v
+	default:
+		logger.Warn("Skipping restore job: backup_size_in_bytes missing or not a numeric type", "jobUUID", job.UUID)
 		return nil
 	}
 
-	if !isCrossRegionRestore(backup, config) {
-		logger.Debug("Skipping non-cross-region restore", "jobUUID", job.UUID, "backupUUID", backup.UUID)
+	if backupVaultType != activities.CrossRegionBackupType {
+		logger.Debug("Skipping non-cross-region restore", "jobUUID", job.UUID, "backupVaultType", backupVaultType)
 		return nil
 	}
-
-	if volume.VolumeAttributes == nil || volume.VolumeAttributes.Protocols == nil {
-		logger.Debug("Skipping CRB restore billing metric with missing volume protocols", "jobUUID", job.UUID, "volumeUUID", volume.UUID)
+	if backupRegionName == "" || backupRegionName == config.RegionName {
+		logger.Debug("Skipping restore: backup region is same as local or empty", "jobUUID", job.UUID)
 		return nil
 	}
-
-	isSANProtocol := utils.IsSanProtocols(volume.VolumeAttributes.Protocols)
-	if !isSANProtocol && !config.EnableFilesBackupBilling {
-		logger.Debug("Skipping CRB restore billing metric as file billing is disabled", "jobUUID", job.UUID, "volumeUUID", volume.UUID)
+	if protocolsStr == "" {
+		logger.Debug("Skipping CRB restore billing metric with missing protocols", "jobUUID", job.UUID)
 		return nil
 	}
-
-	if backup.SizeInBytes <= 0 {
-		logger.Debug("Skipping restore with zero backup size", "jobUUID", job.UUID, "backupUUID", backup.UUID)
+	if !utils.IsSanProtocols(strings.Split(protocolsStr, ",")) && !config.EnableFilesBackupBilling {
+		logger.Debug("Skipping CRB restore billing metric as file billing is disabled", "jobUUID", job.UUID)
 		return nil
 	}
+	if backupSizeInBytes <= 0 {
+		logger.Debug("Skipping restore with zero backup size", "jobUUID", job.UUID)
+		return nil
+	}
+	if deploymentName == "" {
+		deploymentName = EmptyDeploymentName
+	}
 
-	restoreMetadata := assembleMetadata(volume, backup, config)
-	accountName := getVolumeAccountName(volume)
+	restoreMetadata := metadata.ResourceMetadata{}
+	restoreMetadata.SetResourceUUID(volumeUUID)
+	restoreMetadata.SetResourceType(metadata.Volume)
+	restoreMetadata.SetResourceName(job.ResourceName)
+	restoreMetadata.SetResourceDisplayName(job.ResourceName)
+	restoreMetadata.SetRegionName(config.RegionName)
+	restoreMetadata.SetSizeInBytes(backupSizeInBytes)
+	restoreMetadata.SetAccountName(accountName)
+	restoreMetadata.SetDeploymentName(deploymentName)
+	restoreMetadata.SetBackupRegionName(backupRegionName)
+	restoreMetadata.SetSourceRegionName(config.RegionName)
 
 	logger.Debug("Generating cross-region restore billing metric",
-		"jobUUID", job.UUID, "volumeUUID", volume.UUID, "backupUUID", backup.UUID,
-		"sizeInBytes", backup.SizeInBytes, "accountName", accountName)
+		"jobUUID", job.UUID, "volumeUUID", volumeUUID,
+		"sizeInBytes", backupSizeInBytes, "accountName", accountName)
 
 	hm := setupHydratedMetricsDataModel(
 		metadata.CbsCrossRegionVolumeRestoreTransferBytes,
@@ -256,7 +257,7 @@ func createCrossRegionRestoreMetrics(
 		accountName,
 		restoreMetadata,
 		timestamp,
-		float64(backup.SizeInBytes),
+		float64(backupSizeInBytes),
 	)
 	setRegionMetadataForBilling(hm, restoreMetadata)
 	return hm
@@ -294,21 +295,8 @@ func createSfrCrossRegionRestoreMetrics(
 
 	backup, err := vcpDB.GetBackupWithVaultByUUID(ctx, sfrMetadata.BackupUUID)
 	if err != nil || backup == nil {
-		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-			logger.Warn("Backup lookup failed for SFR restore", "jobUUID", job.UUID, "backupUUID", sfrMetadata.BackupUUID, "error", err)
-			return nil
-		}
-		backup, err = FetchSourceBackupForRestoredVolumeUsingIDOrBackupPath(ctx, vcpDB, volume, job, config)
-		if err != nil || backup == nil {
-			if err != nil {
-				logger.Warn("Failed to fetch source backup for SFR restore",
-					"jobUUID", job.UUID, "volumeUUID", volume.UUID, "error", err)
-			} else {
-				logger.Debug("No source backup found for SFR restore",
-					"jobUUID", job.UUID, "volumeUUID", volume.UUID)
-			}
-			return nil
-		}
+		logger.Warn("Backup not found for SFR restore", "jobUUID", job.UUID, "backupUUID", sfrMetadata.BackupUUID, "error", err)
+		return nil
 	}
 
 	if !isCrossRegionRestore(backup, config) {
@@ -359,290 +347,6 @@ func isCrossRegionRestore(backup *datamodel.Backup, config *common.TelemetryConf
 		return false
 	}
 	return *backup.BackupVault.BackupRegionName != config.RegionName
-}
-
-// FetchSourceBackupForRestoredVolumeUsingIDOrBackupPath finds the backup associated with a restored volume.
-func FetchSourceBackupForRestoredVolumeUsingIDOrBackupPath(ctx context.Context, vcpDB vcpdb.Storage, volume *datamodel.Volume, job *datamodel.Job, config *common.TelemetryConfig) (*datamodel.Backup, error) {
-	logger := util.GetLogger(ctx)
-
-	if volume.VolumeAttributes == nil {
-		logger.Debug("Volume has no attributes, cannot find source backup for volumeUUID", "volumeUUID", volume.UUID)
-		return nil, nil
-	}
-
-	if volume.VolumeAttributes.RestoredBackupID != "" {
-		backup, err := vcpDB.GetBackupWithVaultByUUID(ctx, volume.VolumeAttributes.RestoredBackupID)
-		if err == nil && backup != nil {
-			return backup, nil
-		}
-		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) && !strings.Contains(err.Error(), "not found") {
-			logger.Warn("Failed to find backup by RestoredBackupID",
-				"jobUUID", job.UUID, "volumeUUID", volume.UUID,
-				"restoredBackupID", volume.VolumeAttributes.RestoredBackupID, "error", err)
-			return nil, err
-		}
-		logger.Debug("Backup not found by RestoredBackupID, falling back to RestoredBackupPath",
-			"jobUUID", job.UUID, "volumeUUID", volume.UUID,
-			"restoredBackupID", volume.VolumeAttributes.RestoredBackupID)
-	}
-
-	if volume.VolumeAttributes.RestoredBackupPath != "" {
-		logger.Debug("Finding backup via RestoredBackupPath",
-			"jobUUID", job.UUID, "volumeUUID", volume.UUID,
-			"restoredBackupPath", volume.VolumeAttributes.RestoredBackupPath)
-		return FetchSourceBackupByResourcePath(ctx, volume, job, config)
-	}
-
-	logger.Debug("No RestoredBackupID or RestoredBackupPath on volume, skipping",
-		"jobUUID", job.UUID, "volumeUUID", volume.UUID)
-	return nil, nil
-}
-
-// FetchSourceBackupByResourcePath parses backupPath from RestoredBackupPath and looks up the backup and vault by name.
-// Expected path format: projects/{project}/locations/{location}/backupVaults/{vault}/backups/{backup}
-func FetchSourceBackupByResourcePath(ctx context.Context, volume *datamodel.Volume, job *datamodel.Job, config *common.TelemetryConfig) (*datamodel.Backup, error) {
-	logger := util.GetLogger(ctx)
-	path := volume.VolumeAttributes.RestoredBackupPath
-
-	vaultName, vaultResourcePath, backupName, err := parseRestoredBackupPath(path)
-	if err != nil {
-		logger.Warn("Failed to parse RestoredBackupPath", "jobUUID", job.UUID, "path", path, "error", err)
-		return nil, err
-	}
-
-	projectNumber := volume.VolumeAttributes.AccountName
-	if projectNumber == "" {
-		projectNumber = fmt.Sprintf("%d", job.AccountID.Int64)
-	}
-
-	backup, err := getBackupFromBackupVaultResourcePath(ctx, config, vaultName, vaultResourcePath, backupName, projectNumber, logger)
-	if err != nil {
-		logger.Warn("Backup fetch failed",
-			"jobUUID", job.UUID, "vaultName", vaultName, "backupName", backupName, "error", err)
-	}
-	return backup, err
-}
-
-// getBackupFromBackupVaultResourcePath calls the local google-proxy to resolve a backup vault and backup.
-// The google-proxy V1betaListBackupVaults endpoint returns merged results from both VCP DB and
-// CVP/SDE, so this single call covers all vault sources. The vault is matched by its resource name
-// or its destination backup vault name/path for cross-region vault references.
-func getBackupFromBackupVaultResourcePath(ctx context.Context, config *common.TelemetryConfig, vaultName, vaultResourcePath, backupName, projectNumber string, logger log.Logger) (*datamodel.Backup, error) {
-	basePath, jwtToken, err := getRemoteRegionConfig(config.RegionName, projectNumber)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get region config for google-proxy: %w", err)
-	}
-
-	proxyClient := getGProxyClient(basePath, jwtToken, logger)
-
-	vaultsRes, err := proxyClient.Invoker.V1betaListBackupVaults(ctx, googleproxyclient.V1betaListBackupVaultsParams{
-		ProjectNumber: projectNumber,
-		LocationId:    config.RegionName,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("google-proxy ListBackupVaults failed: %w", err)
-	}
-
-	var backupVaults []googleproxyclient.BackupVaultV1beta
-	switch r := vaultsRes.(type) {
-	case *googleproxyclient.V1betaListBackupVaultsOK:
-		backupVaults = r.BackupVaults
-	default:
-		return nil, fmt.Errorf("google-proxy ListBackupVaults unexpected response: %T", vaultsRes)
-	}
-
-	bv, err := findVaultByNameOrCrossRegionVaultName(backupVaults, vaultName, vaultResourcePath, config.RegionName)
-	if err != nil {
-		logger.Warn("Failed to find backup vault", "vaultName", vaultName, "backupName", backupName, "error", err)
-		return nil, err
-	}
-
-	// List backups in the backup vault, filtered by backup name
-	backupsRes, err := proxyClient.Invoker.V1betaListBackups(ctx, googleproxyclient.V1betaListBackupsParams{
-		ProjectNumber: projectNumber,
-		LocationId:    config.RegionName,
-		BackupVaultId: bv.UUID,
-		BackupName:    googleproxyclient.NewOptString(backupName),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("google-proxy ListBackups failed for vault %s: %w", bv.UUID, err)
-	}
-
-	var backupsList []googleproxyclient.BackupV1beta
-	switch r := backupsRes.(type) {
-	case *googleproxyclient.V1betaListBackupsOK:
-		backupsList = r.Backups
-	default:
-		return nil, fmt.Errorf("google-proxy ListBackups unexpected response: %T", backupsRes)
-	}
-
-	for _, b := range backupsList {
-		if b.ResourceId.Value == backupName {
-			return convertGProxyBackupToDataModel(b, bv), nil
-		}
-	}
-
-	return nil, fmt.Errorf("backup %q not found in vault %s", backupName, bv.UUID)
-}
-
-// findVaultByNameOrCrossRegionVaultName searches backup vaults for one matching by resource name
-// or by destination backup vault name/path. The cross_region_backup_vault_name field stores
-// the full resource path, so we match against both the short vault name and the full path.
-func findVaultByNameOrCrossRegionVaultName(vaults []googleproxyclient.BackupVaultV1beta, vaultName, vaultResourcePath, region string) (*datamodel.BackupVault, error) {
-	for _, bv := range vaults {
-		if matchesVaultName(bv, vaultName, vaultResourcePath) {
-			return convertGProxyVaultToDataModel(bv, region), nil
-		}
-	}
-	return nil, fmt.Errorf("backup vault %q not found via google-proxy", vaultName)
-}
-
-func matchesVaultName(bv googleproxyclient.BackupVaultV1beta, vaultName, vaultResourcePath string) bool {
-	if bv.ResourceId == vaultName {
-		return true
-	}
-	if bv.DestinationBackupVault.IsSet() {
-		dest := bv.DestinationBackupVault.Value
-		if dest == vaultName || (vaultResourcePath != "" && dest == vaultResourcePath) {
-			return true
-		}
-	}
-	return false
-}
-
-// convertGProxyBackupToDataModel converts a google-proxy BackupV1beta to data model.Backup.
-func convertGProxyBackupToDataModel(b googleproxyclient.BackupV1beta, vault *datamodel.BackupVault) *datamodel.Backup {
-	var sizeInBytes int64
-	if b.VolumeUsageBytes.IsSet() {
-		sizeInBytes = b.VolumeUsageBytes.Value
-	} else if b.BackupChainBytes.IsSet() {
-		sizeInBytes = b.BackupChainBytes.Value
-	}
-
-	var latestLogicalBackupSize int64
-	if b.BackupChainBytes.IsSet() {
-		latestLogicalBackupSize = b.BackupChainBytes.Value
-	}
-
-	var createdAt time.Time
-	if b.Created.IsSet() {
-		createdAt = b.Created.Value
-	}
-
-	var attributes *datamodel.BackupAttributes
-	if b.BucketName.IsSet() || b.SnapshotName.IsSet() {
-		attributes = &datamodel.BackupAttributes{
-			BucketName:   b.BucketName.Value,
-			SnapshotName: b.SnapshotName.Value,
-		}
-		if b.SourceVolume.IsSet() {
-			attributes.VolumeName = b.SourceVolume.Value
-		}
-	}
-
-	return &datamodel.Backup{
-		BaseModel: datamodel.BaseModel{
-			UUID:      b.BackupId.Value,
-			CreatedAt: createdAt,
-			UpdatedAt: createdAt,
-		},
-		Name:                    b.ResourceId.Value,
-		Description:             b.Description.Value,
-		State:                   string(b.State.Value),
-		Type:                    string(b.BackupType.Value),
-		VolumeUUID:              b.VolumeId.Value,
-		SizeInBytes:             sizeInBytes,
-		LatestLogicalBackupSize: latestLogicalBackupSize,
-		Attributes:              attributes,
-		BackupVault:             vault,
-		BackupVaultID:           vault.ID,
-	}
-}
-
-// convertGProxyVaultToDataModel converts a google-proxy BackupVaultV1beta to datamodel.BackupVault.
-func convertGProxyVaultToDataModel(bv googleproxyclient.BackupVaultV1beta, locationID string) *datamodel.BackupVault {
-	var backupRegion, sourceRegion, crossRegionBackupVaultName *string
-	var backupVaultType string
-
-	if bv.BackupRegion.IsSet() {
-		backupRegion = nillable.ToPointer(bv.BackupRegion.Value)
-	}
-	if bv.BackupVaultType.IsSet() {
-		backupVaultType = string(bv.BackupVaultType.Value)
-	}
-
-	// SourceRegion is nil in SDE for IN_REGION vaults; set only for CROSS_REGION vaults.
-	if bv.SourceRegion.IsSet() {
-		sourceRegion = nillable.ToPointer(bv.SourceRegion.Value)
-	} else {
-		sourceRegion = nillable.ToPointer(locationID)
-	}
-
-	if bv.DestinationBackupVault.IsSet() {
-		crossRegionBackupVaultName = nillable.ToPointer(bv.DestinationBackupVault.Value)
-	}
-
-	var createdAt time.Time
-	if bv.CreatedAt.IsSet() {
-		createdAt = bv.CreatedAt.Value
-	}
-
-	vault := &datamodel.BackupVault{
-		BaseModel: datamodel.BaseModel{
-			UUID:      bv.BackupVaultId.Value,
-			CreatedAt: createdAt,
-			UpdatedAt: createdAt,
-		},
-		Name:                       bv.ResourceId,
-		BackupRegionName:           backupRegion,
-		SourceRegionName:           sourceRegion,
-		LifeCycleState:             string(bv.State.Value),
-		LifeCycleStateDetails:      bv.StateDetails.Value,
-		BackupVaultType:            backupVaultType,
-		CrossRegionBackupVaultName: crossRegionBackupVaultName,
-		ServiceType:                models.ServiceTypeGCNV,
-	}
-
-	return vault
-}
-
-// parseRestoredBackupPath extracts vault name, vault resource path, and backup name from a resource path.
-// Expected format: projects/{project}/locations/{location}/backupVaults/{vault}/backups/{backup}
-// vaultResourcePath is the full path up to the vault: projects/{project}/locations/{location}/backupVaults/{vault}
-func parseRestoredBackupPath(path string) (vaultName, vaultResourcePath, backupName string, err error) {
-	parts := strings.Split(path, "/")
-	var vaultIdx, backupIdx int
-	for i, p := range parts {
-		if p == "backupVaults" && i+1 < len(parts) {
-			vaultIdx = i + 1
-		}
-		if p == "backups" && i+1 < len(parts) {
-			backupIdx = i + 1
-		}
-	}
-	if vaultIdx == 0 || backupIdx == 0 {
-		return "", "", "", fmt.Errorf("cannot parse backup path: %s", path)
-	}
-	return parts[vaultIdx], strings.Join(parts[:vaultIdx+1], "/"), parts[backupIdx], nil
-}
-
-// getRestoredVolume looks up the volume by name and account ID from the restore job.
-// Uses ListVolumesWithPagination (Unscoped) so deleted volumes are included —
-// the restore transfer is billable regardless of whether the volume was later deleted.
-func getRestoredVolume(ctx context.Context, vcpDB vcpdb.Storage, job *datamodel.Job) (*datamodel.Volume, error) {
-	conditions := [][]interface{}{
-		{"name = ? AND account_id = ?", job.ResourceName, job.AccountID.Int64},
-	}
-	pagination := &dbutils.Pagination{Offset: 0, Limit: 1}
-
-	volumes, err := vcpDB.ListVolumesWithPagination(ctx, conditions, pagination)
-	if err != nil {
-		return nil, err
-	}
-	if len(volumes) == 0 {
-		return nil, nil
-	}
-	return volumes[0], nil
 }
 
 // getSfrRestoredVolume looks up the volume by UUID for SFR billing.
