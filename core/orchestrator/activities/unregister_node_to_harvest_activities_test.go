@@ -192,6 +192,75 @@ func TestValidateAndGetNodes_FailWithNoNodeGroupMap(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
+// TestGetNodeGroupMapping_LargePoolMultiHADisabled_SkipsNodeWithNoMap covers the scenario where
+// we have more than 2 nodes and multi-HA pair registration is disabled (large pool). When
+// GetNodeNodeGroupMapByNodeID returns NotFound for a node, the activity continues to the next
+// node instead of failing, since only 2 nodes are registered at a time.
+func TestGetNodeGroupMapping_LargePoolMultiHADisabled_SkipsNodeWithNoMap(t *testing.T) {
+	oldValue := enableMultiHaPairRegistration
+	enableMultiHaPairRegistration = false
+	defer func() { enableMultiHaPairRegistration = oldValue }()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}
+
+	// Create 3 nodes (large pool: len > 2)
+	createdAt := time.Now()
+	nodesInfo := []*datamodel.Node{
+		{
+			BaseModel: datamodel.BaseModel{ID: 0, CreatedAt: createdAt, UpdatedAt: createdAt, UUID: "node-0"},
+			State:     models.LifeCycleStateDeleted,
+		},
+		{
+			BaseModel: datamodel.BaseModel{ID: 1, CreatedAt: createdAt, UpdatedAt: createdAt, UUID: "node-1"},
+			State:     models.LifeCycleStateDeleted,
+		},
+		{
+			BaseModel: datamodel.BaseModel{ID: 2, CreatedAt: createdAt, UpdatedAt: createdAt, UUID: "node-2"},
+			State:     models.LifeCycleStateDeleted,
+		},
+	}
+
+	// Node 0 and 2 have mappings; node 1 has no mapping (NotFound) and should be skipped
+	nodeGroupMap0 := &datamodel.NodeNodeGroupMap{
+		BaseModel:  datamodel.BaseModel{ID: 10, CreatedAt: createdAt, UpdatedAt: createdAt, UUID: "ngm-0"},
+		NodeID:     0,
+		NodeGroupID: 100,
+		NodeGroup:   &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{ID: 100}, Name: "group-0", LeaseName: "lease-0"},
+	}
+	nodeGroupMap2 := &datamodel.NodeNodeGroupMap{
+		BaseModel:  datamodel.BaseModel{ID: 12, CreatedAt: createdAt, UpdatedAt: createdAt, UUID: "ngm-2"},
+		NodeID:     2,
+		NodeGroupID: 102,
+		NodeGroup:   &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{ID: 102}, Name: "group-2", LeaseName: "lease-2"},
+	}
+
+	notFoundErr := vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, errors.NewNotFoundErr("nodeGroupMap", nil))
+
+	mockStorage.On("GetNodeNodeGroupMapByNodeID", mock.Anything, int64(0)).Return(nodeGroupMap0, nil)
+	mockStorage.On("GetNodeNodeGroupMapByNodeID", mock.Anything, int64(1)).Return(nil, notFoundErr)
+	mockStorage.On("GetNodeNodeGroupMapByNodeID", mock.Anything, int64(2)).Return(nodeGroupMap2, nil)
+
+	testActParams := &UnRegisterNodeFromHarvestActivityParams{
+		Nodes: nodesInfo,
+	}
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.GetNodeGroupMapping)
+
+	result, err := env.ExecuteActivity(activity.GetNodeGroupMapping, testActParams)
+	assert.NoError(t, err)
+
+	var mappings []*datamodel.NodeNodeGroupMap
+	err = result.Get(&mappings)
+	assert.NoError(t, err)
+	assert.Len(t, mappings, 2, "expected 2 mappings (node 1 skipped due to no nodeGroupMap)")
+	assert.Equal(t, int64(0), mappings[0].NodeID)
+	assert.Equal(t, int64(2), mappings[1].NodeID)
+	mockStorage.AssertExpectations(t)
+}
+
 func TestGetNodeGroupMapping_DeletedNodeGroup(t *testing.T) {
 	mockStorage := database.NewMockStorage(t)
 	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}

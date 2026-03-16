@@ -93,6 +93,11 @@ func (unRegisterNodeToHarvest *UnRegisterNodeFromHarvestActivity) GetNodeGroupMa
 		nodeGroupMap, err := se.GetNodeNodeGroupMapByNodeID(dbHbCtx, node.ID)
 		if err != nil {
 			if errors.IsNotFoundErr(err) {
+				// If we have Large Pool and multi-HA pair registration is disabled, then only 2 nodes are
+				// registered at a time, so if no nodeGroupMap is found for a node, then continue to the next node
+				if len(activityParams.Nodes) > 2 && !enableMultiHaPairRegistration {
+					continue
+				}
 				logger.Errorf("no nodegroupmap info found for node ID %d", node.ID)
 				return nil, temporal.NewNonRetryableApplicationError(err.Error(), UnRegisterNodeGroupMapNotAvailable, err)
 			}
