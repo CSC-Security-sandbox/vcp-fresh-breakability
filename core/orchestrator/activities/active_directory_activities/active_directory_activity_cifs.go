@@ -33,61 +33,6 @@ func _getOntapRestProvider(ctx context.Context, node *models.Node) (*vsa.OntapRe
 	return ontapProvider, nil
 }
 
-// mapCreateCIFSServerError maps ONTAP CIFS/AD join errors to VCP tracking IDs.
-// Order matters: more specific (e.g. credential) checks first. Returns (trackingID, true) if matched.
-func mapCreateCIFSServerError(err error) (trackingID int, ok bool) {
-	if err == nil {
-		return 0, false
-	}
-	s := err.Error()
-	if strings.Contains(s, "Invalid Credentials") || strings.Contains(s, "KRB5KDC_ERR_PREAUTH_FAILED") {
-		return vsaerrors.ErrADInvalidCredentials, true
-	}
-	if strings.Contains(s, "does not match password stored in Active Directory") {
-		return vsaerrors.ErrADPasswordNotInSync, true
-	}
-	if strings.Contains(s, "Invalid credentials were given") || strings.Contains(s, "Username format not supported") ||
-		strings.Contains(s, "Reason: Invalid credentials.") {
-		return vsaerrors.ErrADIncorrectUsername, true
-	}
-	if strings.Contains(s, "Clients credentials have been revoked") || strings.Contains(s, "credentials have been revoked") {
-		return vsaerrors.ErrADUserDisabled, true
-	}
-	if strings.Contains(s, "KDC has no support for encryption type") ||
-		(strings.Contains(s, "msDS-SupportedEncryptionTypes") && strings.Contains(s, "Insufficient access")) {
-		return vsaerrors.ErrADAESEncryptionSettingsInvalid, true
-	}
-	if strings.Contains(s, "Failed to bind service principal name on LIF") || strings.Contains(s, "KDC Unreachable Details") || strings.Contains(s, "KRB5_KDC_UNREACH") {
-		return vsaerrors.ErrADKDCUnreachable, true
-	}
-	if strings.Contains(s, "Cannot find any domain controllers") || (strings.Contains(s, "no server available") && strings.Contains(s, "SecD")) {
-		return vsaerrors.ErrADDomainControllersUnreachable, true
-	}
-	if strings.Contains(s, "RESULT_ERROR_LDAPSERVER_SERVER_DOWN") && strings.Contains(s, "Can't contact LDAP server") {
-		return vsaerrors.ErrADLDAPUnreachable, true
-	}
-	if strings.Contains(s, "ou not found") || strings.Contains(s, "Lookup of organizational_unit failed") {
-		return vsaerrors.ErrADInvalidOU, true
-	}
-	if strings.Contains(s, "insufficient access rights") || strings.Contains(s, "insufficient privilege") ||
-		strings.Contains(s, "LDAP constraint") {
-		return vsaerrors.ErrADInsufficientPermission, true
-	}
-	if strings.Contains(s, "cannot find the indicated default site") {
-		return vsaerrors.ErrADDefaultSiteInvalid, true
-	}
-	if strings.Contains(s, "Unable to connect to NetLogon") || strings.Contains(s, "RESULT_ERROR_SPINCLIENT") {
-		return vsaerrors.ErrADNetLogonError, true
-	}
-	if strings.Contains(s, "Operation timed out") && strings.Contains(s, "domain controllers") {
-		return vsaerrors.ErrADLDAPNetworkIssue, true
-	}
-	if strings.Contains(s, "Unable to connect to any") && strings.Contains(s, "domain controllers") {
-		return vsaerrors.ErrADLDAPNetworkIssue, true
-	}
-	return 0, false
-}
-
 // GetOrCreateCifsServiceResult contains the result of GetOrCreateCifsService
 type GetOrCreateCifsServiceResult struct {
 	FQDN            string // FQDN if service was created, empty if service existed
@@ -137,10 +82,7 @@ func (a ActiveDirectoryActivity) CreateOrModifyADDNS(ctx context.Context, node *
 		})
 		if err != nil {
 			logger.Error("failed to create DNS", "error", err.Error(), "domains", domainsSlice, "dnsServers", dnsServersSlice, "svmUUID", externalSVMUUID)
-			if strings.Contains(err.Error(), "cannot be reached") {
-				return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrDNSServerUnreachable, err))
-			}
-			return vsaerrors.WrapAsTemporalApplicationError(err)
+			return vsaerrors.WrapOntapError(err, vsaerrors.DomainDNS)
 		}
 		return nil
 	}
@@ -155,7 +97,7 @@ func (a ActiveDirectoryActivity) CreateOrModifyADDNS(ctx context.Context, node *
 		NameServers: dnsServersSlice,
 	}); err != nil {
 		logger.Error("failed to modify DNS", "error", err.Error(), "domains", domainsSlice, "dnsServers", dnsServersSlice)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return vsaerrors.WrapOntapError(err, vsaerrors.DomainDNS)
 	}
 
 	activity.RecordHeartbeat(ctx, "Finished CreateOrModifyADDNS activity")
@@ -170,7 +112,7 @@ func (a ActiveDirectoryActivity) GetCifsService(ctx context.Context, node *model
 
 	cifs, err := ontapProvider.GetCIFSService(svmName, externalSVMUUID)
 	if err != nil {
-		return nil, err
+		return nil, vsaerrors.WrapOntapError(err, vsaerrors.DomainSMB)
 	}
 	return cifs, nil
 }
@@ -214,17 +156,14 @@ func (a ActiveDirectoryActivity) GetOrCreateCifsService(ctx context.Context, nod
 	if err != nil {
 		if !utilerrors.IsNotFoundErr(err) {
 			logger.Error("failed to get CIFS service", "error", err.Error())
-			return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+			return nil, vsaerrors.WrapOntapError(err, vsaerrors.DomainSMB)
 		}
 
 		logger.Info("CIFS service not found, creating new CIFS service", "svm", externalSVMUUID)
 		fqdn, createErr := ontapProvider.CreateAndSetupCIFSServer(client, ad, externalSVMUUID, svmName)
 		if createErr != nil {
 			logger.Error("failed to createAndSetupCIFSServer", "error", createErr.Error())
-			if trackingID, ok := mapCreateCIFSServerError(createErr); ok {
-				return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(trackingID, createErr))
-			}
-			return nil, vsaerrors.WrapAsTemporalApplicationError(createErr)
+			return nil, vsaerrors.WrapOntapError(createErr, vsaerrors.DomainAD)
 		}
 		return &GetOrCreateCifsServiceResult{FQDN: fqdn, NeedsDDNS: false}, nil
 	}
@@ -271,7 +210,7 @@ func (a ActiveDirectoryActivity) DdnsModify(ctx context.Context, node *models.No
 		},
 	}); err != nil {
 		logger.Error("failed to update DDNS", "error", err.Error(), "fqdn", fqdn)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return vsaerrors.WrapOntapError(err, vsaerrors.DomainDNS)
 	}
 
 	activity.RecordHeartbeat(ctx, "Finished DDnsModify activity")
@@ -305,7 +244,7 @@ func (a ActiveDirectoryActivity) CreateJunctionPathForCifsShare(ctx context.Cont
 			logger.Infof("CIFS share already exists for SVM  %s", svmName)
 		} else {
 			logger.Error("failed to create junction path for CIFS share", "error", err.Error())
-			return vsaerrors.WrapAsTemporalApplicationError(err)
+			return vsaerrors.WrapOntapError(err, vsaerrors.DomainSMB)
 		}
 	}
 	activity.RecordHeartbeat(ctx, "Finished CreateJunctionPathForCifsShare activity")

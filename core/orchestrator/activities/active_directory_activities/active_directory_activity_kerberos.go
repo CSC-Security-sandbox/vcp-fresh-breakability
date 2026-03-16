@@ -21,12 +21,12 @@ func (a ActiveDirectoryActivity) CreateNameMappingForKerberosActivity(ctx contex
 	ontapProvider, err := getOntapRestProvider(ctx, node)
 	if err != nil {
 		logger.Error("Failed to get ONTAP client", "error", err.Error())
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return vsaerrors.WrapOntapError(err, vsaerrors.DomainKerberos)
 	}
 
 	if err := ontapProvider.CreateNameMappingForKerberos(externalSVMUUID, domain); err != nil {
 		logger.Error("Failed to create name mapping for Kerberos", "error", err.Error())
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return vsaerrors.WrapOntapError(err, vsaerrors.DomainKerberos)
 	}
 
 	logger.Info("Successfully created name mapping for Kerberos")
@@ -62,12 +62,12 @@ func (a ActiveDirectoryActivity) CreateKerberosRealmActivity(ctx context.Context
 	ontapProvider, err := getOntapRestProvider(ctx, node)
 	if err != nil {
 		logger.Error("Failed to get ONTAP client", "error", err.Error())
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return vsaerrors.WrapOntapError(err, vsaerrors.DomainKerberos)
 	}
 
 	if err := ontapProvider.CreateKerberosRealm(realmParams); err != nil {
 		logger.Error("Failed to create Kerberos realm", "error", err.Error())
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return vsaerrors.WrapOntapError(err, vsaerrors.DomainKerberos)
 	}
 
 	logger.Info("Successfully created Kerberos realm", "realm", realmParams.Realm)
@@ -103,7 +103,7 @@ func (a ActiveDirectoryActivity) EnableKerberosOnInterfaceActivity(ctx context.C
 	ontapProvider, err := getOntapRestProvider(ctx, node)
 	if err != nil {
 		logger.Error("Failed to get ONTAP client", "error", err.Error())
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return vsaerrors.WrapOntapError(err, vsaerrors.DomainKerberos)
 	}
 
 	// Generate SPN
@@ -116,12 +116,12 @@ func (a ActiveDirectoryActivity) EnableKerberosOnInterfaceActivity(ctx context.C
 	kerberosInterfaces, err := ontapProvider.GetKerberosInterfaces(externalSVMUUID, svmName, dataLifName)
 	if err != nil {
 		logger.Error("Failed to get Kerberos interface", "error", err.Error(), "dataLifName", dataLifName)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return vsaerrors.WrapOntapError(err, vsaerrors.DomainKerberos)
 	}
 
 	if kerberosInterfaces == nil || len(kerberosInterfaces) == 0 {
 		logger.Error("No Kerberos interface found for data LIF", "dataLifName", dataLifName)
-		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("no Kerberos interface found for data LIF: %s", dataLifName))
+		return vsaerrors.WrapOntapError(fmt.Errorf("no Kerberos interface found for data LIF: %s", dataLifName), vsaerrors.DomainKerberos)
 	}
 
 	// Check if Kerberos is already enabled
@@ -134,14 +134,14 @@ func (a ActiveDirectoryActivity) EnableKerberosOnInterfaceActivity(ctx context.C
 	// Check if interface UUID is available
 	if netif.Interface == nil || netif.Interface.UUID == nil {
 		logger.Error("Interface UUID not found for data LIF", "dataLifName", dataLifName)
-		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("interface UUID not found for data LIF: %s", dataLifName))
+		return vsaerrors.WrapOntapError(fmt.Errorf("interface UUID not found for data LIF: %s", dataLifName), vsaerrors.DomainKerberos)
 	}
 
 	// Decrypt password
 	decryptedPassword, err := utils.DecryptPassword(ad.Password)
 	if err != nil {
 		logger.Error("Failed to decrypt AD password", "error", err.Error())
-		return vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to decrypt AD password: %w", err))
+		return vsaerrors.WrapOntapError(fmt.Errorf("failed to decrypt AD password: %w", err), vsaerrors.DomainKerberos)
 	}
 
 	// Enable Kerberos on interface
@@ -165,7 +165,7 @@ func (a ActiveDirectoryActivity) EnableKerberosOnInterfaceActivity(ctx context.C
 		return nil
 	} else if err != nil {
 		logger.Error("Failed to enable Kerberos on interface", "error", err.Error(), "dataLifName", dataLifName)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return vsaerrors.WrapOntapError(err, vsaerrors.DomainKerberos)
 	}
 
 	logger.Info("Successfully enabled Kerberos on interface", "dataLifName", dataLifName)

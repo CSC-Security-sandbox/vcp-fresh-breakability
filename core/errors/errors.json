@@ -457,79 +457,283 @@
   },
   "5020": {
     "description": "Active Directory invalid credentials",
-    "message": "Active Directory credentials are invalid. Verify the username and password in your Active Directory configuration.",
+    "message": "The password specified in the Active Directory policy is invalid. Please update your Active Directory policy with a correct password.",
     "retriable": false,
     "http_code": 400
   },
   "5021": {
     "description": "Active Directory KDC unreachable",
-    "message": "Invalid KDC IP or clock skew error b/w DC and CIFS server, please correct the KDC IP or set appropriate time(use NTP) on DC",
+    "message": "Cannot reach Kerberos Key Distribution Center (KDC) or clock skew too high. Make sure your KDC IP is reachable and time is kept in sync using NTP. In Active Directory, domain controllers act as KDCs.",
     "retriable": false,
     "http_code": 400
   },
   "5022": {
     "description": "Active Directory domain controllers unreachable",
-    "message": "Unable to reach Active Directory domain controllers. Verify network and domain controller configuration.",
+    "message": "Failed to create the Active Directory machine account. DNS-based domain controller discovery did not return a domain controller. Verify the domain name, the Active Directory site and the DNS IP specified. Make sure your DNS contains the required _ldap and _kerberos entries.",
     "retriable": false,
     "http_code": 400
   },
   "5023": {
     "description": "Active Directory LDAP server unreachable",
-    "message": "Unable to contact LDAP server. Verify LDAP server configuration and connectivity.",
+    "message": "The LDAP server is unreachable. Possible reasons beyond network connectivity problems might be LDAP search timeouts or wrong credential. Verify Active Directory credentials for correctness. Make sure latency to the LDAP server is not too high.",
     "retriable": false,
     "http_code": 400
   },
   "5024": {
     "description": "Active Directory invalid organizational unit",
-    "message": "The specified organizational unit was not found. Verify the OU path in your Active Directory configuration.",
+    "message": "Failed to create the Active Directory machine account. Specified Organisational Unit (OU) does not exist. Please specify a valid OU in your Active Directory policy.",
     "retriable": false,
     "http_code": 400
   },
   "5025": {
     "description": "Active Directory insufficient permission",
-    "message": "The supplied user has insufficient privilege to perform the Active Directory operation. Verify domain join permissions.",
+    "message": "The user specified in your Active Directory policy has insufficient permission to join the service to the domain in the specified Organisational Unit. Please consult documentation on required permissions.",
     "retriable": false,
     "http_code": 400
   },
   "5026": {
     "description": "Active Directory incorrect username",
-    "message": "Invalid credentials or username format. Use either \"user\" or \"user@ad.domain\" format.",
+    "message": "Failed to create the Active Directory machine account due to unknown username in the Active Directory policy credentials. Please specify a valid username.",
     "retriable": false,
     "http_code": 400
   },
   "5027": {
     "description": "Active Directory user disabled",
-    "message": "The Active Directory user account has been disabled or credentials have been revoked.",
+    "message": "The user account specified in your Active Directory policy is disabled and cannot be used to join the domain. Enable the account in Active Directory or specify a valid user in your Active Directory policy.",
     "retriable": false,
     "http_code": 400
   },
   "5028": {
     "description": "Active Directory AES encryption settings invalid",
-    "message": "KDC has no support for the required encryption type. Verify AES encryption settings.",
+    "message": "The user account used to join the domain uses an unsupported Kerberos encryption type. Please allow AES encryption in the user account settings.",
     "retriable": false,
     "http_code": 400
   },
   "5029": {
     "description": "Active Directory default site invalid",
-    "message": "The indicated default site was not found. Verify Active Directory site configuration.",
+    "message": "Failed to modify the SMB server. Cannot find the indicated default site. Verify that the site exists on the domain.",
     "retriable": false,
     "http_code": 400
   },
   "5030": {
     "description": "Active Directory NetLogon error",
-    "message": "Unable to connect to NetLogon service. Verify network and domain controller configuration.",
+    "message": "Unable to connect to NETLOGON service on TCP port 445 on domain controller. Please check if the NETLOGON service is running on the domain controller and the firewall allows access from NetApp Volumes to port 445/TCP.",
     "retriable": false,
     "http_code": 400
   },
   "5031": {
     "description": "Active Directory password not in sync",
-    "message": "CIFS server account password does not match password stored in Active Directory.",
+    "message": "Failed to create the Active Directory machine account: Active Directory computer account password is out of sync. Please contact customer support.",
     "retriable": false,
     "http_code": 400
   },
   "5032": {
     "description": "Active Directory LDAP network issue",
-    "message": "Unable to connect to domain controllers within the timeout. Verify network connectivity and firewall settings.",
+    "message": "Discovered domain controller(s), but cannot connect to any of them due to network/firewall issue. Please fix networking.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5033": {
+    "description": "Active Directory default site validation failed",
+    "message": "Failed to modify the SMB server. Cannot find any domain controllers for the specified Active Directory site.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5034": {
+    "description": "Active Directory LDAP server not identified",
+    "message": "Failed to create the Active Directory machine account: Domain controller discovery didn't identify an LDAP server to use.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "5035": {
+    "description": "Active Directory unable to start TLS",
+    "message": "Unable to start TLS as Server is unavailable - Ensure Azure ADDS is not being used or LDAP service is running on the Active Directory machine.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5036": {
+    "description": "Active Directory stale cache cleanup",
+    "message": "Failed to join AD domain: cached domain data substantially different from the new domain. Please contact support.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5037": {
+    "description": "Active Directory CIFS server update in progress",
+    "message": "Active Directory policy update already in progress. Try again later.",
+    "retriable": false,
+    "http_code": 409
+  },
+  "5038": {
+    "description": "Active Directory user resolution failed",
+    "message": "Unable to resolve the specified user in the Active Directory domain. Make sure that this user exists in the AD before adding it to the group.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5039": {
+    "description": "Active Directory LDAP search timeout",
+    "message": "The LDAP server search timed-out. This may indicate too high latency to your LDAP server or an overloaded LDAP server.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5040": {
+    "description": "Active Directory LDAP bind failed",
+    "message": "SASL bind to LDAP failed. The pointer (PTR) record of the AD domain controller might be missing on the DNS server. You need to create a reverse lookup zone on the DNS server, and then add a PTR record of the AD host machine in that reverse lookup zone.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5041": {
+    "description": "Active Directory machine account does not exist",
+    "message": "Active Directory computer account could not be found. Machine account password update failed. Please contact support.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5042": {
+    "description": "Unable to connect to LSA service",
+    "message": "The SMB/LSA service is not reachable on any DNS-discovered domain controller. This indicates a routing or firewall issue. Make sure NetApp Volume can connect to TCP port 445 on at least two domain controllers.",
+    "retriable": true,
+    "http_code": 400
+  },
+  "5043": {
+    "description": "Active Directory password update failed",
+    "message": "Active directory server is not accessible, verify and retry the operation.",
+    "retriable": true,
+    "http_code": 400
+  },
+  "5044": {
+    "description": "Invalid KDC IP address",
+    "message": "An invalid value was specified for the KDC IP address. Verify that the KDC IP is a valid IPv4 address.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5045": {
+    "description": "SRV record lookup failed",
+    "message": "Active directory site name is not found in domain.",
+    "retriable": true,
+    "http_code": 400
+  },
+  "5046": {
+    "description": "DNS resolution failed for all servers",
+    "message": "One or more of the IP addresses specified is not reachable, please ensure the running LDAP server IP addresses are provided.",
+    "retriable": true,
+    "http_code": 400
+  },
+  "5047": {
+    "description": "Unable to contact DNS to discover domain",
+    "message": "The DNS specified does not exist or cannot be reached. Verify that the network configuration is correct and that DNS servers are available.",
+    "retriable": true,
+    "http_code": 400
+  },
+  "5048": {
+    "description": "LDAP User DN not available",
+    "message": "UserDN specified in the LDAP client configuration is not available. Please pass valid existing UserDN in correct order.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5049": {
+    "description": "LDAP Group DN not available",
+    "message": "GroupDN specified in the LDAP client configuration is not available. Please pass valid existing GroupDN in correct order.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5050": {
+    "description": "LDAP User DN validation failed",
+    "message": "Validation of UserDN specified in the LDAP client configuration failed. Please pass UserDN including DC value.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5051": {
+    "description": "LDAP Group DN validation failed",
+    "message": "Validation of GroupDN specified in the LDAP client configuration failed. Please pass GroupDN including DC value.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5052": {
+    "description": "LDAP configuration is invalid",
+    "message": "Unable to validate the LDAP client configuration from LDAP server, please check connectivity or LDAP settings under AD/LDAP connection.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5053": {
+    "description": "LDAP configuration validation failed",
+    "message": "Required certificate is not provided or LDAP/DNS server IP or port is invalid or CN host does not match certificate CN. Please validate LDAP configuration and retry.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5054": {
+    "description": "LDAP certificate error",
+    "message": "Required CA certificate is not installed or Azure ADDS(unsupported) is used as LDAP server.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5055": {
+    "description": "LDAP invalid bind credentials",
+    "message": "The specified LDAP bind password or bind DN is invalid. Verify the LDAP bind credentials.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5056": {
+    "description": "CIFS server name conflicts with NetBIOS name",
+    "message": "The CIFS server name must be different from the NetBIOS name of the home domain.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5057": {
+    "description": "CIFS server already exists on SVM",
+    "message": "Only one CIFS server is supported per SVM. A CIFS server already exists on this SVM.",
+    "retriable": false,
+    "http_code": 409
+  },
+  "5058": {
+    "description": "Operation disallowed - aggregate not home",
+    "message": "This operation is not allowed on an aggregate that is not home. The aggregate may be relocated or undergoing maintenance.",
+    "retriable": true,
+    "http_code": 503
+  },
+  "5059": {
+    "description": "Operation disallowed - giveback in progress",
+    "message": "This operation is not allowed while a storage failover giveback is in progress. Please retry after the giveback completes.",
+    "retriable": true,
+    "http_code": 503
+  },
+  "5060": {
+    "description": "ONTAP node is offline",
+    "message": "An ONTAP cluster node is offline. Please verify the health of the cluster before retrying.",
+    "retriable": true,
+    "http_code": 503
+  },
+  "5061": {
+    "description": "Active Directory domain controller unreachable",
+    "message": "The DNS specified in the AD policy does not exist or is incorrect. Verify domain of DNS specified and try again.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5101": {
+    "description": "Unclassified LDAP error",
+    "message": "An error occurred during LDAP configuration. Please verify your settings and try again.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5102": {
+    "description": "Unclassified SMB/CIFS error",
+    "message": "An error occurred during SMB/CIFS configuration. Please verify your settings and try again.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5103": {
+    "description": "Unclassified DNS error",
+    "message": "An error occurred during DNS configuration. Please verify your settings and try again.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5104": {
+    "description": "Unclassified Active Directory error",
+    "message": "An error occurred during Active Directory configuration. Please verify your settings and try again.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5105": {
+    "description": "Unclassified Kerberos error",
+    "message": "An error occurred during Kerberos configuration. Please verify your settings and try again.",
     "retriable": false,
     "http_code": 400
   },

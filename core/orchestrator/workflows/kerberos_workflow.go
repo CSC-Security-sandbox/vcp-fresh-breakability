@@ -21,7 +21,7 @@ func EnsureKerberosConfigWorkflow(ctx workflow.Context, node *models.Node, ad *v
 	activeDirectoryActivity := &active_directory_activities.ActiveDirectoryActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return ConvertToVSAError(err)
+		return WrapErrorForChildWorkflow(err)
 	}
 
 	// Set activity options
@@ -41,7 +41,7 @@ func EnsureKerberosConfigWorkflow(ctx workflow.Context, node *models.Node, ad *v
 	err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.CreateNameMappingForKerberosActivity, &node, externalSVMUUID, ad.Domain).Get(ctx, nil)
 	if err != nil {
 		log.Error("Failed to create name mapping for Kerberos", "error", err)
-		return ConvertToVSAError(err)
+		return WrapErrorForChildWorkflow(err)
 	}
 
 	// Step 2: Check if Kerberos realm exists
@@ -51,7 +51,7 @@ func EnsureKerberosConfigWorkflow(ctx workflow.Context, node *models.Node, ad *v
 	err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.CheckKerberosRealmExistsActivity, &node, externalSVMUUID, realm).Get(ctx, &realmExists)
 	if err != nil {
 		log.Error("Failed to check Kerberos realm", "error", err)
-		return ConvertToVSAError(err)
+		return WrapErrorForChildWorkflow(err)
 	}
 
 	// Step 3: Create Kerberos realm if it doesn't exist
@@ -61,7 +61,7 @@ func EnsureKerberosConfigWorkflow(ctx workflow.Context, node *models.Node, ad *v
 		if kdcIP == "" {
 			err = fmt.Errorf("KDC IP is required for Kerberos realm creation but not found in Active Directory")
 			log.Error("KDC IP missing", "error", err)
-			return ConvertToVSAError(err)
+			return WrapErrorForChildWorkflow(err)
 		}
 
 		realmKdcPort := vsa.RealmKdcPort
@@ -88,7 +88,7 @@ func EnsureKerberosConfigWorkflow(ctx workflow.Context, node *models.Node, ad *v
 		err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.CreateKerberosRealmActivity, &node, externalSVMUUID, realmParams).Get(ctx, nil)
 		if err != nil {
 			log.Error("Failed to create Kerberos realm", "error", err)
-			return ConvertToVSAError(err)
+			return WrapErrorForChildWorkflow(err)
 		}
 		log.Info("Successfully created Kerberos realm", "realm", realm)
 	} else {
@@ -100,7 +100,7 @@ func EnsureKerberosConfigWorkflow(ctx workflow.Context, node *models.Node, ad *v
 	err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.CreateOrModifyADDNS, &node, &ad, svmName, externalSVMUUID).Get(ctx, nil)
 	if err != nil {
 		log.Error("Failed to create or modify AD DNS", "error", err)
-		return ConvertToVSAError(err)
+		return WrapErrorForChildWorkflow(err)
 	}
 
 	// Step 5: Get or create CIFS service to get FQDN
@@ -109,7 +109,7 @@ func EnsureKerberosConfigWorkflow(ctx workflow.Context, node *models.Node, ad *v
 	err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.GetOrCreateCifsService, &node, &ad, svmName, externalSVMUUID).Get(ctx, &cifsServiceResult)
 	if err != nil {
 		log.Error("Failed to get or create CIFS service", "error", err)
-		return ConvertToVSAError(err)
+		return WrapErrorForChildWorkflow(err)
 	}
 
 	var fqdn string
@@ -120,7 +120,7 @@ func EnsureKerberosConfigWorkflow(ctx workflow.Context, node *models.Node, ad *v
 	} else {
 		err = fmt.Errorf("unable to determine FQDN for Kerberos configuration")
 		log.Error("Unable to determine FQDN", "error", err)
-		return ConvertToVSAError(err)
+		return WrapErrorForChildWorkflow(err)
 	}
 	log.Info("FQDN determined", "fqdn", fqdn)
 
@@ -130,7 +130,7 @@ func EnsureKerberosConfigWorkflow(ctx workflow.Context, node *models.Node, ad *v
 	err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.GetDataLifsForSVMActivity, &node, externalSVMUUID, svmName).Get(ctx, &dataLifs)
 	if err != nil {
 		log.Error("Failed to get data LIFs for SVM", "error", err, "svm", externalSVMUUID)
-		return ConvertToVSAError(err)
+		return WrapErrorForChildWorkflow(err)
 	}
 
 	if len(dataLifs) == 0 {
@@ -149,13 +149,13 @@ func EnsureKerberosConfigWorkflow(ctx workflow.Context, node *models.Node, ad *v
 			if dataLif.IP == nil || dataLif.IP.Address == nil {
 				err = fmt.Errorf("IP address not found for NAS LIF: %s", actualLifName)
 				log.Error("IP address missing", "error", err, "nasLifName", actualLifName)
-				return ConvertToVSAError(err)
+				return WrapErrorForChildWorkflow(err)
 			}
 			nasLifIP := string(*dataLif.IP.Address)
 			err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.EnableKerberosOnInterfaceActivity, &node, externalSVMUUID, svmName, actualLifName, nasLifIP, fqdn, realm, &ad).Get(ctx, nil)
 			if err != nil {
 				log.Error("Failed to enable Kerberos on interface", "error", err, "dataLif", actualLifName)
-				return ConvertToVSAError(err)
+				return WrapErrorForChildWorkflow(err)
 			}
 			log.Info("Successfully enabled Kerberos on interface", "dataLif", actualLifName)
 		}

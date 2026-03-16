@@ -18,6 +18,7 @@ import (
 	utilerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/testsuite"
 )
 
@@ -417,49 +418,6 @@ func TestCreateJunctionPathForCifsShare_WithSMBShareProperties(t *testing.T) {
 	mockClient.AssertExpectations(t)
 }
 
-func TestMapCreateCIFSServerError(t *testing.T) {
-	tests := []struct {
-		name       string
-		err        error
-		wantID     int
-		wantMatch  bool
-	}{
-		{"nil error", nil, 0, false},
-		{"Invalid Credentials", errors.New("Invalid Credentials"), vsaerrors.ErrADInvalidCredentials, true},
-		{"KRB5KDC_ERR_PREAUTH_FAILED", errors.New("KRB5KDC_ERR_PREAUTH_FAILED"), vsaerrors.ErrADInvalidCredentials, true},
-		{"password not in sync", errors.New("does not match password stored in Active Directory"), vsaerrors.ErrADPasswordNotInSync, true},
-		{"Invalid credentials were given", errors.New("Invalid credentials were given"), vsaerrors.ErrADIncorrectUsername, true},
-		{"Username format not supported", errors.New("Username format not supported"), vsaerrors.ErrADIncorrectUsername, true},
-		{"Reason: Invalid credentials.", errors.New("Reason: Invalid credentials."), vsaerrors.ErrADIncorrectUsername, true},
-		{"credentials have been revoked", errors.New("Clients credentials have been revoked"), vsaerrors.ErrADUserDisabled, true},
-		{"KDC has no support for encryption type", errors.New("KDC has no support for encryption type"), vsaerrors.ErrADAESEncryptionSettingsInvalid, true},
-		{"msDS-SupportedEncryptionTypes Insufficient access", errors.New("msDS-SupportedEncryptionTypes and Insufficient access"), vsaerrors.ErrADAESEncryptionSettingsInvalid, true},
-		{"Failed to bind service principal name on LIF", errors.New("Failed to bind service principal name on LIF"), vsaerrors.ErrADKDCUnreachable, true},
-		{"KDC Unreachable Details", errors.New("KDC Unreachable Details"), vsaerrors.ErrADKDCUnreachable, true},
-		{"KRB5_KDC_UNREACH", errors.New("KRB5_KDC_UNREACH"), vsaerrors.ErrADKDCUnreachable, true},
-		{"Cannot find any domain controllers", errors.New("Cannot find any domain controllers"), vsaerrors.ErrADDomainControllersUnreachable, true},
-		{"no server available SecD", errors.New("no server available SecD"), vsaerrors.ErrADDomainControllersUnreachable, true},
-		{"RESULT_ERROR_LDAPSERVER_SERVER_DOWN", errors.New("RESULT_ERROR_LDAPSERVER_SERVER_DOWN Can't contact LDAP server"), vsaerrors.ErrADLDAPUnreachable, true},
-		{"ou not found", errors.New("ou not found"), vsaerrors.ErrADInvalidOU, true},
-		{"Lookup of organizational_unit failed", errors.New("Lookup of organizational_unit failed"), vsaerrors.ErrADInvalidOU, true},
-		{"insufficient access rights", errors.New("insufficient access rights"), vsaerrors.ErrADInsufficientPermission, true},
-		{"insufficient privilege", errors.New("insufficient privilege"), vsaerrors.ErrADInsufficientPermission, true},
-		{"LDAP constraint", errors.New("LDAP constraint"), vsaerrors.ErrADInsufficientPermission, true},
-		{"cannot find the indicated default site", errors.New("cannot find the indicated default site"), vsaerrors.ErrADDefaultSiteInvalid, true},
-		{"Unable to connect to NetLogon", errors.New("Unable to connect to NetLogon"), vsaerrors.ErrADNetLogonError, true},
-		{"RESULT_ERROR_SPINCLIENT", errors.New("RESULT_ERROR_SPINCLIENT"), vsaerrors.ErrADNetLogonError, true},
-		{"Operation timed out domain controllers", errors.New("Operation timed out domain controllers"), vsaerrors.ErrADLDAPNetworkIssue, true},
-		{"Unable to connect to any domain controllers", errors.New("Unable to connect to any domain controllers"), vsaerrors.ErrADLDAPNetworkIssue, true},
-		{"unmapped error", errors.New("some other error"), 0, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotID, gotMatch := mapCreateCIFSServerError(tt.err)
-			assert.Equal(t, tt.wantID, gotID)
-			assert.Equal(t, tt.wantMatch, gotMatch)
-		})
-	}
-}
 
 func TestGetOntapRestProvider_GetProviderByNodeError(t *testing.T) {
 	ctx := context.Background()
@@ -752,6 +710,44 @@ func TestCreateOrModifyADDNS_DNSModifyError(t *testing.T) {
 	mockNameSvc.AssertExpectations(t)
 }
 
+func TestCreateOrModifyADDNS_DnsModifyError_DNSServerUnreachable(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockClient := new(ontapRest.MockRESTClient)
+	mockNameSvc := new(ontapRest.MockNameServicesClient)
+	mockClient.On("NameServices").Return(mockNameSvc).Times(2)
+
+	existing := &ontapRest.DNS{
+		DNS: ontaprestmodels.DNS{
+			Servers: ontaprestmodels.NameServersArrayInline{strPtr("1.1.1.1")},
+			Domains: ontaprestmodels.DNSDomainsArrayInline{strPtr("old.example.com")},
+		},
+	}
+	mockNameSvc.On("DNSGet", mock.Anything).Return(existing, nil).Once()
+
+	dnsUnreachableErr := errors.New(`The DNS specified for SVM "gcnv-test-svm-01" cannot be reached. Reason: 10.150.0.2: Operation timed out`)
+	mockNameSvc.On("DNSModify", mock.Anything).Return(dnsUnreachableErr).Once()
+
+	ctx := context.Background()
+	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{})
+	defer cleanup()
+
+	activity := ActiveDirectoryActivity{}
+	env.RegisterActivity(activity.CreateOrModifyADDNS)
+
+	ad := &vsa.ActiveDirectory{DNS: "10.150.0.2", Domain: "example.com"}
+	_, err := env.ExecuteActivity(activity.CreateOrModifyADDNS, &models.Node{}, ad, "svm", "svm-uuid")
+
+	require.Error(t, err)
+	customErr := vsaerrors.ExtractCustomError(err)
+	require.NotNil(t, customErr)
+	assert.Equal(t, vsaerrors.ErrDNSServerUnreachable, customErr.TrackingID)
+	assert.Equal(t, "The DNS IP address specified in your Active Directory policy cannot be reached. Make sure the DNS IP is correct and the firewall on your DNS server allows access.", customErr.Error())
+	mockClient.AssertExpectations(t)
+	mockNameSvc.AssertExpectations(t)
+}
+
 func TestGetOrCreateCifsService_GetOntapRestProviderError(t *testing.T) {
 	testSuite := &testsuite.WorkflowTestSuite{}
 	env := testSuite.NewTestActivityEnvironment()
@@ -961,7 +957,7 @@ func TestGetOrCreateCifsService_CreateAndSetupCIFSServerError_InvalidCredentials
 	customErr := vsaerrors.ExtractCustomError(err)
 	require.NotNil(t, customErr)
 	assert.Equal(t, vsaerrors.ErrADInvalidCredentials, customErr.TrackingID)
-	assert.Equal(t, "Active Directory credentials are invalid. Verify the username and password in your Active Directory configuration.", customErr.Error())
+	assert.Equal(t, "The password specified in the Active Directory policy is invalid. Please update your Active Directory policy with a correct password.", customErr.Error())
 	mockNas.AssertExpectations(t)
 	mockClient.AssertExpectations(t)
 }
@@ -1000,7 +996,7 @@ func TestGetOrCreateCifsService_CreateAndSetupCIFSServerError_PreauthFailed(t *t
 	customErr := vsaerrors.ExtractCustomError(err)
 	require.NotNil(t, customErr)
 	assert.Equal(t, vsaerrors.ErrADInvalidCredentials, customErr.TrackingID)
-	assert.Equal(t, "Active Directory credentials are invalid. Verify the username and password in your Active Directory configuration.", customErr.Error())
+	assert.Equal(t, "The password specified in the Active Directory policy is invalid. Please update your Active Directory policy with a correct password.", customErr.Error())
 	mockNas.AssertExpectations(t)
 	mockClient.AssertExpectations(t)
 }
@@ -1201,4 +1197,33 @@ func TestCreateJunctionPathForCifsShare_CreateRESTClientError(t *testing.T) {
 
 	_, err := env.ExecuteActivity(activity.CreateJunctionPathForCifsShare, &models.Node{}, "svm", "/junction", []string{})
 	require.Error(t, err)
+}
+
+func TestGetCifsService_GetCIFSServiceError(t *testing.T) {
+	ctx := context.Background()
+	mockClient := new(ontapRest.MockRESTClient)
+	mockNas := new(ontapRest.MockNASClient)
+	mockClient.On("NAS").Return(mockNas).Once()
+
+	mockNas.On("CifsServiceGet", mock.Anything).Return(nil, errors.New("cifs service unavailable")).Once()
+
+	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{})
+	defer cleanup()
+
+	activity := ActiveDirectoryActivity{}
+	cifs, err := activity.GetCifsService(ctx, &models.Node{}, "svm-name", "svm-uuid")
+
+	require.Error(t, err)
+	assert.Nil(t, cifs)
+	var appErr *temporal.ApplicationError
+	if assert.True(t, errors.As(err, &appErr)) {
+		var tid int
+		var origMsg string
+		if assert.NoError(t, appErr.Details(&tid, &origMsg)) {
+			assert.Equal(t, vsaerrors.ErrSMBUnclassified, tid)
+			assert.Contains(t, origMsg, "cifs service unavailable")
+		}
+	}
+	mockClient.AssertExpectations(t)
+	mockNas.AssertExpectations(t)
 }

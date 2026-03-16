@@ -2395,10 +2395,18 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_LDAP_Enabled_SVMUpdateFails(
 	// Execute the workflow
 	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node)
 
-	// Assert workflow completed successfully
+	// Assert workflow completed with error
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
-	assert.ErrorContains(s.T(), s.env.GetWorkflowError(), "Failed to update SVM Active Directory association during PostFileVolumeWorkflow")
+	var appErr *temporal.ApplicationError
+	if assert.True(s.T(), errors.As(s.env.GetWorkflowError(), &appErr)) {
+		var trackingID int
+		var originalMsg string
+		if assert.NoError(s.T(), appErr.Details(&trackingID, &originalMsg)) {
+			assert.Equal(s.T(), vsaerrors.ErrInternalServerError, trackingID)
+			assert.Contains(s.T(), originalMsg, "Failed to update SVM Active Directory association during PostFileVolumeWorkflow")
+		}
+	}
 }
 
 func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_Kerberos_PoolNil() {
@@ -2450,6 +2458,324 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_LDAP_PoolNil() {
 		},
 	}
 	node := &models.Node{EndpointAddress: "127.0.0.1"}
+
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_PostFileVolumeWorkflowForSMB_RetryPolicyError() {
+	origTimeout := StartToCloseTimeout
+	StartToCloseTimeout = "invalid"
+	defer func() { StartToCloseTimeout = origTimeout }()
+
+	volume := &datamodel.Volume{
+		Name:             "vol-smb",
+		PoolID:           int64(42),
+		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
+		VolumeAttributes: &datamodel.VolumeAttributes{},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflowForSMB, volume, node)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_RetryPolicyError() {
+	origTimeout := StartToCloseTimeout
+	StartToCloseTimeout = "invalid"
+	defer func() { StartToCloseTimeout = origTimeout }()
+
+	utils.SetFileProtocolSupportedForTesting(true)
+	defer utils.SetFileProtocolSupportedForTesting(false)
+
+	volume := &datamodel.Volume{
+		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{Protocols: []string{utils.ProtocolNFSv3}},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_Kerberos_GetSVMError() {
+	originalEnableKerberos := enableKerberos
+	defer func() { enableKerberos = originalEnableKerberos }()
+	enableKerberos = true
+
+	utils.SetFileProtocolSupportedForTesting(true)
+	defer utils.SetFileProtocolSupportedForTesting(false)
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
+		PoolID:    123,
+		Pool:      &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolNFSv4},
+			FileProperties: &datamodel.FileProperties{
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportRules: []*datamodel.ExportRule{{Kerberos5ReadWrite: true}},
+				},
+			},
+		},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+
+	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(nil, errors.New("svm not found")).Once()
+
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_Kerberos_GetADError() {
+	originalEnableKerberos := enableKerberos
+	defer func() { enableKerberos = originalEnableKerberos }()
+	enableKerberos = true
+
+	utils.SetFileProtocolSupportedForTesting(true)
+	defer utils.SetFileProtocolSupportedForTesting(false)
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	svm := &datamodel.Svm{
+		BaseModel:  datamodel.BaseModel{UUID: "svm-uuid"},
+		Name:       "svm-name",
+		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-external-uuid"},
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
+		PoolID:    123,
+		Pool:      &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolNFSv4},
+			FileProperties: &datamodel.FileProperties{
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportRules: []*datamodel.ExportRule{{Kerberos5ReadWrite: true}},
+				},
+			},
+		},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+
+	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(svm, nil).Once()
+	s.env.OnActivity(adActivity.GetActiveDirectoryForPool, mock.Anything, mock.Anything).Return(nil, errors.New("AD not found")).Once()
+
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_Kerberos_WorkflowError() {
+	originalEnableKerberos := enableKerberos
+	defer func() { enableKerberos = originalEnableKerberos }()
+	enableKerberos = true
+
+	utils.SetFileProtocolSupportedForTesting(true)
+	defer utils.SetFileProtocolSupportedForTesting(false)
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	svm := &datamodel.Svm{
+		BaseModel:  datamodel.BaseModel{UUID: "svm-uuid"},
+		Name:       "svm-name",
+		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-external-uuid"},
+	}
+	activeDirectory := &vsa.ActiveDirectory{UUID: "ad-uuid"}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
+		PoolID:    123,
+		Pool:      &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{utils.ProtocolNFSv4},
+			FileProperties: &datamodel.FileProperties{
+				ExportPolicy: &datamodel.ExportPolicy{
+					ExportRules: []*datamodel.ExportRule{{Kerberos5ReadWrite: true}},
+				},
+			},
+		},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+
+	s.env.RegisterWorkflow(EnsureKerberosConfigWorkflow)
+	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(svm, nil).Once()
+	s.env.OnActivity(adActivity.GetActiveDirectoryForPool, mock.Anything, mock.Anything).Return(activeDirectory, nil).Once()
+	s.env.OnWorkflow(EnsureKerberosConfigWorkflow, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("kerberos config failed"))
+
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_LDAP_GetSVMError() {
+	originalEnableLdap := enableLdap
+	defer func() { enableLdap = originalEnableLdap }()
+	enableLdap = true
+
+	utils.SetFileProtocolSupportedForTesting(true)
+	defer utils.SetFileProtocolSupportedForTesting(false)
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
+		PoolID:    123,
+		Pool: &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: int64(1)},
+			PoolAttributes: &datamodel.PoolAttributes{LdapEnabled: true},
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{Protocols: []string{utils.ProtocolNFSv3}},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+
+	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(nil, errors.New("svm not found")).Once()
+
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_LDAP_GetADError() {
+	originalEnableLdap := enableLdap
+	defer func() { enableLdap = originalEnableLdap }()
+	enableLdap = true
+
+	utils.SetFileProtocolSupportedForTesting(true)
+	defer utils.SetFileProtocolSupportedForTesting(false)
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	svm := &datamodel.Svm{
+		BaseModel:  datamodel.BaseModel{UUID: "svm-uuid"},
+		Name:       "svm-name",
+		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-external-uuid"},
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
+		PoolID:    123,
+		Pool: &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: int64(1)},
+			PoolAttributes: &datamodel.PoolAttributes{LdapEnabled: true},
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{Protocols: []string{utils.ProtocolNFSv3}},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+
+	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(svm, nil).Once()
+	s.env.OnActivity(adActivity.GetActiveDirectoryForPool, mock.Anything, mock.Anything).Return(nil, errors.New("AD not found")).Once()
+
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_LDAP_CIFSShareError() {
+	originalEnableLdap := enableLdap
+	defer func() { enableLdap = originalEnableLdap }()
+	enableLdap = true
+
+	utils.SetFileProtocolSupportedForTesting(true)
+	defer utils.SetFileProtocolSupportedForTesting(false)
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	svm := &datamodel.Svm{
+		BaseModel:  datamodel.BaseModel{UUID: "svm-uuid"},
+		Name:       "svm-name",
+		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-external-uuid"},
+	}
+	activeDirectory := &vsa.ActiveDirectory{UUID: "ad-uuid"}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
+		PoolID:    123,
+		Pool: &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: int64(1)},
+			PoolAttributes: &datamodel.PoolAttributes{LdapEnabled: true},
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols:      []string{utils.ProtocolNFSv3},
+			FileProperties: &datamodel.FileProperties{JunctionPath: "/vol/test"},
+		},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+
+	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(svm, nil).Once()
+	s.env.OnActivity(adActivity.GetActiveDirectoryForPool, mock.Anything, mock.Anything).Return(activeDirectory, nil).Once()
+	s.env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("dns failed")).Once()
+
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_LDAP_ConfigureLdapError() {
+	originalEnableLdap := enableLdap
+	defer func() { enableLdap = originalEnableLdap }()
+	enableLdap = true
+
+	utils.SetFileProtocolSupportedForTesting(true)
+	defer utils.SetFileProtocolSupportedForTesting(false)
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+	volumeActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	svm := &datamodel.Svm{
+		BaseModel:  datamodel.BaseModel{UUID: "svm-uuid"},
+		Name:       "svm-name",
+		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-external-uuid"},
+	}
+	activeDirectory := &vsa.ActiveDirectory{UUID: "ad-uuid"}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
+		PoolID:    123,
+		Pool: &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: int64(1)},
+			PoolAttributes: &datamodel.PoolAttributes{LdapEnabled: true},
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols:      []string{utils.ProtocolNFSv3},
+			FileProperties: &datamodel.FileProperties{JunctionPath: "/vol/test"},
+		},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+
+	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(svm, nil).Once()
+	s.env.OnActivity(adActivity.GetActiveDirectoryForPool, mock.Anything, mock.Anything).Return(activeDirectory, nil).Once()
+	s.env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+	s.env.OnActivity(adActivity.GetOrCreateCifsService, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&active_directory_activities.GetOrCreateCifsServiceResult{FQDN: "fqdn.example.com"}, nil).Once()
+	s.env.OnActivity(volumeActivity.ConfigureLdap, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("ldap config failed")).Once()
 
 	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node)
 

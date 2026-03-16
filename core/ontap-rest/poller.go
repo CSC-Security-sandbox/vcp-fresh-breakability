@@ -2,6 +2,7 @@ package ontap_rest
 
 import (
 	"context"
+	stderrors "errors"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/cluster"
@@ -117,6 +118,12 @@ func (p *poller) Poll(UUID string) error {
 	close(done) // Stop heartbeat goroutine
 	if err != nil {
 		p.logger.Errorf("Failed to poll job with UUID %s, error: %v", UUID, err)
+		// Extract the original ONTAP error from the Temporal error chain so
+		// callers (e.g. error classifiers) can inspect the real failure reason.
+		var appErr *t.ApplicationError
+		if stderrors.As(err, &appErr) {
+			return errors.New(appErr.Message())
+		}
 		return errors.New("failed to poll ontap-rest job")
 	}
 

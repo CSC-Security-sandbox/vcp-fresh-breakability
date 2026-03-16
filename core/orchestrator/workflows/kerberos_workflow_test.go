@@ -7,14 +7,34 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	ontaprestmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/testsuite"
 )
 
 // setupTestWorkflowEnvironment and overrideActiveDirectoryActivityFactory are defined in ensure_cifs_share_workflow_test.go
+
+// extractOriginalErrMsg extracts the original error message from a workflow error
+// that was wrapped via WrapErrorForChildWorkflow → WrapAsTemporalApplicationError.
+// The details layout is: [trackingID int, originalErrMsg string].
+func extractOriginalErrMsg(t *testing.T, workflowErr error) string {
+	t.Helper()
+	var appErr *temporal.ApplicationError
+	if !errors.As(workflowErr, &appErr) {
+		t.Fatalf("expected temporal.ApplicationError, got %T", workflowErr)
+	}
+	var trackingID int
+	var originalMsg string
+	if err := appErr.Details(&trackingID, &originalMsg); err != nil {
+		t.Fatalf("failed to extract details from ApplicationError: %v", err)
+	}
+	assert.Equal(t, vsaerrors.ErrInternalServerError, trackingID)
+	return originalMsg
+}
 
 func TestEnsureKerberosConfigWorkflow_Success(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite
@@ -252,7 +272,7 @@ func TestEnsureKerberosConfigWorkflow_Errors(t *testing.T) {
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
-		assert.Contains(t, env.GetWorkflowError().Error(), "KDC IP is required")
+		assert.Equal(t, "KDC IP is required for Kerberos realm creation but not found in Active Directory", extractOriginalErrMsg(t, env.GetWorkflowError()))
 		env.AssertExpectations(t)
 	})
 
@@ -366,7 +386,7 @@ func TestEnsureKerberosConfigWorkflow_Errors(t *testing.T) {
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
-		assert.Contains(t, env.GetWorkflowError().Error(), "unable to determine FQDN")
+		assert.Equal(t, "unable to determine FQDN for Kerberos configuration", extractOriginalErrMsg(t, env.GetWorkflowError()))
 		env.AssertExpectations(t)
 	})
 
@@ -446,8 +466,28 @@ func TestEnsureKerberosConfigWorkflow_Errors(t *testing.T) {
 
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
-		assert.Contains(t, env.GetWorkflowError().Error(), "IP address not found")
+		assert.Equal(t, "IP address not found for NAS LIF: test-svm-ilbnas", extractOriginalErrMsg(t, env.GetWorkflowError()))
 		env.AssertExpectations(t)
+	})
+
+	t.Run("error_populate_retry_policy", func(t *testing.T) {
+		env := ts.NewTestWorkflowEnvironment()
+		setupTestWorkflowEnvironment(t, env)
+
+		adActivity := &active_directory_activities.ActiveDirectoryActivity{}
+		restoreFactory := overrideActiveDirectoryActivityFactory(adActivity)
+		defer restoreFactory()
+
+		env.RegisterWorkflow(EnsureKerberosConfigWorkflow)
+
+		origTimeout := StartToCloseTimeout
+		StartToCloseTimeout = "invalid"
+		defer func() { StartToCloseTimeout = origTimeout }()
+
+		env.ExecuteWorkflow(EnsureKerberosConfigWorkflow, node, ad, svmName, externalSVMUUID)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
 	})
 
 	t.Run("error_enable_kerberos_on_interface", func(t *testing.T) {
@@ -500,4 +540,3 @@ func TestEnsureKerberosConfigWorkflow_Errors(t *testing.T) {
 		env.AssertExpectations(t)
 	})
 }
-

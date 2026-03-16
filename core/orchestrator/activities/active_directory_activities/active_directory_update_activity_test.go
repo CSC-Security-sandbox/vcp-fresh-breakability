@@ -2,6 +2,7 @@ package active_directory_activities
 
 import (
 	"context"
+	stderrors "errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,15 +11,18 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"go.temporal.io/sdk/temporal"
 )
 
 var mockUpdatePasswordSecret = func(ctx context.Context, password string, secretID string) error {
@@ -2337,4 +2341,30 @@ func TestPropagateAdChangeIdToPool_UpdateError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "db error")
 	storage.AssertExpectations(t)
+}
+
+func TestUpdateAdCredentialsForSvm_UpdateFails(t *testing.T) {
+	ctx := context.Background()
+	mockClient := new(ontapRest.MockRESTClient)
+
+	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{})
+	defer cleanup()
+
+	params := vsa.UpdateActiveDirectoryCredentialsParams{
+		NewCredentials: &vsa.ActiveDirectory{DNS: "10.0.0.2"},
+	}
+
+	activity := ActiveDirectoryActivity{}
+	err := activity.UpdateAdCredentialsForSvm(ctx, &models.Node{}, params, "svm-name", "", ontapRest.CifsService{})
+
+	assert.Error(t, err)
+	var appErr *temporal.ApplicationError
+	if assert.True(t, stderrors.As(err, &appErr)) {
+		var tid int
+		var origMsg string
+		if assert.NoError(t, appErr.Details(&tid, &origMsg)) {
+			assert.Equal(t, vsaerrors.ErrADUnclassified, tid)
+			assert.Contains(t, origMsg, "Error determining server for update")
+		}
+	}
 }

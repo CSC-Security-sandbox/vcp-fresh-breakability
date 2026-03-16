@@ -418,7 +418,7 @@ func (a ActiveDirectoryActivity) UpdateAdCredentialsForSvm(ctx context.Context, 
 	err = ontapProvider.UpdateActiveDirectoryCredentials(params, cifs, svmName, externalSVMUUID)
 	if err != nil {
 		logger.Error("failed to update CIFS service credentials", "error", err.Error())
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return vsaerrors.WrapOntapError(err, vsaerrors.DomainAD)
 	}
 	return nil
 }

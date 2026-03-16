@@ -19,6 +19,7 @@ import (
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/testsuite"
 	"gorm.io/gorm"
 )
@@ -1595,9 +1596,13 @@ func TestMountVolume(t *testing.T) {
 		// ExecuteActivity automatically provides the context as the first parameter
 		_, err := env.ExecuteActivity(mountVolumeWrapper, replication, node)
 
-		// Verify results - should fail with CIFS share creation error
+		// Verify results - should fail with CIFS share creation error (classified as SMB domain error)
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "failed to create CIFS share")
+		var appErr *temporal.ApplicationError
+		if assert.True(tt, errors.As(err, &appErr)) {
+			expected := errors2.GetErrorMessageByTrackingID(errors2.ErrSMBUnclassified).Message
+			assert.Equal(tt, expected, appErr.Message())
+		}
 		mockProvider.AssertExpectations(tt)
 		mockClient.AssertExpectations(tt)
 		mockNAS.AssertExpectations(tt)

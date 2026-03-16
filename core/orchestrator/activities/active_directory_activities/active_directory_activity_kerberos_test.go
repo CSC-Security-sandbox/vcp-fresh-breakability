@@ -9,12 +9,14 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	ontaprestmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	utilerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"go.temporal.io/sdk/temporal"
 )
 
 func TestCreateNameMappingForKerberosActivity_Success(t *testing.T) {
@@ -90,7 +92,15 @@ func TestCreateNameMappingForKerberosActivity_GetOntapProviderError(t *testing.T
 	err := activity.CreateNameMappingForKerberosActivity(ctx, &models.Node{}, "svm-uuid", "example.com")
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to get provider")
+	var appErr *temporal.ApplicationError
+	if assert.True(t, errors.As(err, &appErr)) {
+		var tid int
+		var origMsg string
+		if assert.NoError(t, appErr.Details(&tid, &origMsg)) {
+			assert.Equal(t, vsaerrors.ErrKerberosUnclassified, tid)
+			assert.Contains(t, origMsg, "failed to get provider")
+		}
+	}
 }
 
 func TestCreateNameMappingForKerberosActivity_CreateError(t *testing.T) {
@@ -412,7 +422,15 @@ func TestEnableKerberosOnInterfaceActivity_NoInterfaceFound(t *testing.T) {
 	err := activity.EnableKerberosOnInterfaceActivity(ctx, &models.Node{}, "svm-uuid", "svm-name", "lif-name", "192.168.1.10", "server.example.com", "EXAMPLE.COM", ad)
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no Kerberos interface found")
+	var appErr1 *temporal.ApplicationError
+	if assert.True(t, errors.As(err, &appErr1)) {
+		var tid int
+		var origMsg string
+		if assert.NoError(t, appErr1.Details(&tid, &origMsg)) {
+			assert.Equal(t, vsaerrors.ErrKerberosUnclassified, tid)
+			assert.Contains(t, origMsg, "no Kerberos interface found")
+		}
+	}
 	mockClient.AssertExpectations(t)
 	mockNas.AssertExpectations(t)
 }
@@ -444,7 +462,15 @@ func TestEnableKerberosOnInterfaceActivity_NoInterfaceUUID(t *testing.T) {
 	err := activity.EnableKerberosOnInterfaceActivity(ctx, &models.Node{}, "svm-uuid", "svm-name", "lif-name", "192.168.1.10", "server.example.com", "EXAMPLE.COM", ad)
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "interface UUID not found")
+	var appErr2 *temporal.ApplicationError
+	if assert.True(t, errors.As(err, &appErr2)) {
+		var tid int
+		var origMsg string
+		if assert.NoError(t, appErr2.Details(&tid, &origMsg)) {
+			assert.Equal(t, vsaerrors.ErrKerberosUnclassified, tid)
+			assert.Contains(t, origMsg, "interface UUID not found")
+		}
+	}
 	mockClient.AssertExpectations(t)
 	mockNas.AssertExpectations(t)
 }
@@ -487,7 +513,15 @@ func TestEnableKerberosOnInterfaceActivity_DecryptPasswordError(t *testing.T) {
 	err := activity.EnableKerberosOnInterfaceActivity(ctx, &models.Node{}, "svm-uuid", "svm-name", "lif-name", "192.168.1.10", "server.example.com", "EXAMPLE.COM", ad)
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to decrypt AD password")
+	var appErr3 *temporal.ApplicationError
+	if assert.True(t, errors.As(err, &appErr3)) {
+		var tid int
+		var origMsg string
+		if assert.NoError(t, appErr3.Details(&tid, &origMsg)) {
+			assert.Equal(t, vsaerrors.ErrKerberosUnclassified, tid)
+			assert.Contains(t, origMsg, "failed to decrypt AD password")
+		}
+	}
 	mockClient.AssertExpectations(t)
 	mockNas.AssertExpectations(t)
 }
@@ -577,6 +611,84 @@ func TestEnableKerberosOnInterfaceActivity_ModifyError(t *testing.T) {
 	err := activity.EnableKerberosOnInterfaceActivity(ctx, &models.Node{}, "svm-uuid", "svm-name", "lif-name", "192.168.1.10", "server.example.com", "EXAMPLE.COM", ad)
 
 	require.Error(t, err)
+	mockClient.AssertExpectations(t)
+	mockNas.AssertExpectations(t)
+}
+
+func TestCreateKerberosRealmActivity_GetOntapProviderError(t *testing.T) {
+	ctx := context.Background()
+	originalGetter := getOntapRestProvider
+	defer func() { getOntapRestProvider = originalGetter }()
+
+	getOntapRestProvider = func(context.Context, *models.Node) (*vsa.OntapRestProvider, error) {
+		return nil, errors.New("provider unavailable")
+	}
+
+	activity := ActiveDirectoryActivity{}
+	err := activity.CreateKerberosRealmActivity(ctx, &models.Node{}, "svm-uuid", vsa.KerberosRealmCreateParams{})
+
+	require.Error(t, err)
+	var appErr *temporal.ApplicationError
+	if assert.True(t, errors.As(err, &appErr)) {
+		var tid int
+		var origMsg string
+		if assert.NoError(t, appErr.Details(&tid, &origMsg)) {
+			assert.Equal(t, vsaerrors.ErrKerberosUnclassified, tid)
+			assert.Contains(t, origMsg, "provider unavailable")
+		}
+	}
+}
+
+func TestEnableKerberosOnInterfaceActivity_GetOntapProviderError(t *testing.T) {
+	ctx := context.Background()
+	originalGetter := getOntapRestProvider
+	defer func() { getOntapRestProvider = originalGetter }()
+
+	getOntapRestProvider = func(context.Context, *models.Node) (*vsa.OntapRestProvider, error) {
+		return nil, errors.New("provider unavailable")
+	}
+
+	activity := ActiveDirectoryActivity{}
+	ad := &vsa.ActiveDirectory{Password: log.Secret("pw"), Username: "admin"}
+	err := activity.EnableKerberosOnInterfaceActivity(ctx, &models.Node{}, "svm-uuid", "svm-name", "lif-name", "192.168.1.10", "server.example.com", "EXAMPLE.COM", ad)
+
+	require.Error(t, err)
+	var appErr *temporal.ApplicationError
+	if assert.True(t, errors.As(err, &appErr)) {
+		var tid int
+		var origMsg string
+		if assert.NoError(t, appErr.Details(&tid, &origMsg)) {
+			assert.Equal(t, vsaerrors.ErrKerberosUnclassified, tid)
+			assert.Contains(t, origMsg, "provider unavailable")
+		}
+	}
+}
+
+func TestEnableKerberosOnInterfaceActivity_GetKerberosInterfacesError(t *testing.T) {
+	ctx := context.Background()
+	mockClient := new(ontapRest.MockRESTClient)
+	mockNas := new(ontapRest.MockNASClient)
+	mockClient.On("NAS").Return(mockNas).Once()
+
+	mockNas.On("KerberosInterfaceCollectionGet", mock.Anything).Return(nil, errors.New("interfaces unavailable")).Once()
+
+	cleanup := setupOntapProvider(t, ctx, mockClient, vsa.TestHooks{})
+	defer cleanup()
+
+	activity := ActiveDirectoryActivity{}
+	ad := &vsa.ActiveDirectory{Password: log.Secret("pw"), Username: "admin"}
+	err := activity.EnableKerberosOnInterfaceActivity(ctx, &models.Node{}, "svm-uuid", "svm-name", "lif-name", "192.168.1.10", "server.example.com", "EXAMPLE.COM", ad)
+
+	require.Error(t, err)
+	var appErr *temporal.ApplicationError
+	if assert.True(t, errors.As(err, &appErr)) {
+		var tid int
+		var origMsg string
+		if assert.NoError(t, appErr.Details(&tid, &origMsg)) {
+			assert.Equal(t, vsaerrors.ErrKerberosUnclassified, tid)
+			assert.Contains(t, origMsg, "interfaces unavailable")
+		}
+	}
 	mockClient.AssertExpectations(t)
 	mockNas.AssertExpectations(t)
 }

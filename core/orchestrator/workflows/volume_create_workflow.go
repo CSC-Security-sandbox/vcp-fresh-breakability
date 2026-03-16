@@ -392,7 +392,7 @@ func PostFileVolumeWorkflowForSMB(ctx workflow.Context, dbVolume *datamodel.Volu
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
 		log.Error("Failed to populate retry policy params during PostFileVolumeWorkflowForSMB with error: ", err)
-		return nil, err
+		return nil, WrapErrorForChildWorkflow(err)
 	}
 
 	ao := getActivityOptionsForEnsureCIFSShareVolumeActivity(retryPolicy)
@@ -569,7 +569,7 @@ func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 	volumeActivity := &activities.VolumeCreateActivity{}
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
-		return nil, err
+		return nil, WrapErrorForChildWorkflow(err)
 	}
 	ao := workflow.ActivityOptions{
 		StartToCloseTimeout: time.Duration(volumeStartToCloseTimeoutSec) * time.Second,
@@ -612,21 +612,21 @@ func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 		if dbVolume.Pool == nil {
 			err = fmt.Errorf("pool details not loaded for volume %s", dbVolume.UUID)
 			log.Error("Pool details missing during PostFileVolumeWorkflow with error: ", err)
-			return nil, ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, err))
+			return nil, WrapErrorForChildWorkflow(vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, err))
 		}
 
 		var dbSvm *datamodel.Svm
 		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetSVM, &dbVolume.PoolID).Get(ctx, &dbSvm)
 		if err != nil {
 			log.Error("Failed to get SVM info during PostFileVolumeWorkflow with error: ", err)
-			return nil, ConvertToVSAError(err)
+			return nil, WrapErrorForChildWorkflow(err)
 		}
 
 		var activeDirectory *vsa.ActiveDirectory
 		err = workflow.ExecuteActivity(ctx, active_directory_activities.ActiveDirectoryActivity.GetActiveDirectoryForPool, &dbVolume.PoolID).Get(ctx, &activeDirectory)
 		if err != nil {
 			log.Error("Failed to get active directory during PostFileVolumeWorkflow with error: ", err)
-			return nil, ConvertToVSAError(err)
+			return nil, WrapErrorForChildWorkflow(err)
 		}
 
 		// Configure Kerberos for NFSv4 using workflow
@@ -637,7 +637,7 @@ func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 		err = workflow.ExecuteChildWorkflow(kerberosChildCtx, EnsureKerberosConfigWorkflow, node, activeDirectory, dbSvm.Name, dbSvm.SvmDetails.ExternalUUID).Get(kerberosChildCtx, nil)
 		if err != nil {
 			log.Error("Failed to configure Kerberos during PostFileVolumeWorkflow with error: ", err)
-			return nil, ConvertToVSAError(err)
+			return nil, WrapErrorForChildWorkflow(err)
 		}
 		log.Info("Successfully configured Kerberos for NFSv4 volume", "volume", dbVolume.Name)
 	}
@@ -646,7 +646,7 @@ func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 		if dbVolume.Pool == nil {
 			err = fmt.Errorf("pool details not loaded for volume %s", dbVolume.UUID)
 			log.Error("Pool details missing during PostFileVolumeWorkflow with error: ", err)
-			return nil, ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, err))
+			return nil, WrapErrorForChildWorkflow(vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, err))
 		}
 
 		ldapEnabled := false
@@ -659,26 +659,26 @@ func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 			err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetSVM, &dbVolume.PoolID).Get(ctx, &dbSvm)
 			if err != nil {
 				log.Error("Failed to get SVM info during PostFileVolumeWorkflow with error: ", err)
-				return nil, ConvertToVSAError(err)
+				return nil, WrapErrorForChildWorkflow(err)
 			}
 
 			var activeDirectory *vsa.ActiveDirectory
 			err = workflow.ExecuteActivity(ctx, active_directory_activities.ActiveDirectoryActivity.GetActiveDirectoryForPool, &dbVolume.PoolID).Get(ctx, &activeDirectory)
 			if err != nil {
 				log.Error("Failed to get active directory during PostFileVolumeWorkflow with error: ", err)
-				return nil, ConvertToVSAError(err)
+				return nil, WrapErrorForChildWorkflow(err)
 			}
 
 			fqdn, err := EnsureCIFSShareWorkflow(ctx, dbVolume, node, activeDirectory, dbSvm.Name, dbSvm.SvmDetails.ExternalUUID)
 			if err != nil {
 				log.Error("Failed to create cifs share during PostFileVolumeWorkflow with error: ", err)
-				return nil, ConvertToVSAError(err)
+				return nil, WrapErrorForChildWorkflow(err)
 			}
 
 			err = workflow.ExecuteActivity(ctx, volumeActivity.ConfigureLdap, dbVolume, node).Get(ctx, nil)
 			if err != nil {
 				log.Error("Failed to configure Ldap with error: ", err)
-				return nil, ConvertToVSAError(err)
+				return nil, WrapErrorForChildWorkflow(err)
 			}
 
 			if fqdn != "" && dbVolume.VolumeAttributes != nil && dbVolume.VolumeAttributes.FileProperties != nil {
@@ -691,7 +691,7 @@ func PostFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, no
 				err = workflow.ExecuteActivity(ctx, activities.CommonActivities.UpdateSvmActiveDirectory, params).Get(ctx, &updatedSvm)
 				if err != nil {
 					log.Error("Failed to update SVM Active Directory association during PostFileVolumeWorkflow with error: ", err)
-					return nil, ConvertToVSAError(err)
+					return nil, WrapErrorForChildWorkflow(err)
 				}
 				dbSvm = updatedSvm
 			}

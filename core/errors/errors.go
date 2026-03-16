@@ -139,6 +139,42 @@ const (
 	ErrADNetLogonError                 = 5030
 	ErrADPasswordNotInSync             = 5031
 	ErrADLDAPNetworkIssue              = 5032
+	ErrADDefaultSiteValidationFailed   = 5033
+	ErrADLDAPServerNotIdentified       = 5034
+	ErrADUnableToStartTLS              = 5035
+	ErrADStaleCacheCleanup             = 5036
+	ErrADUpdateInProgress              = 5037
+	ErrADUserResolutionFailed          = 5038
+	ErrADLDAPSearchTimeout             = 5039
+	ErrADLDAPBindFailed                = 5040
+	ErrADMachineAccountNotFound        = 5041
+	ErrADLSAServiceUnreachable         = 5042
+	ErrADPasswordUpdateFailed          = 5043
+	ErrADInvalidKdcIP                  = 5044
+	ErrADSRVRecordLookupFailed         = 5045
+	ErrDNSResolutionFailed             = 5046
+	ErrDNSContactFailed                = 5047
+	ErrLDAPUserDNNotAvailable          = 5048
+	ErrLDAPGroupDNNotAvailable         = 5049
+	ErrLDAPUserDNInvalid               = 5050
+	ErrLDAPGroupDNInvalid              = 5051
+	ErrLDAPInvalidConfiguration        = 5052
+	ErrLDAPConfigValidationFailed      = 5053
+	ErrLDAPCertificateError            = 5054
+	ErrLDAPInvalidBindCredentials      = 5055
+	ErrSMBNetBIOSNameConflict          = 5056
+	ErrSMBCIFSServerAlreadyExists      = 5057
+	ErrONTAPAggregateNotHome           = 5058
+	ErrONTAPGivebackInProgress         = 5059
+	ErrONTAPNodeOffline                = 5060
+	ErrADDCUnreachable                 = 5061
+
+	// Unclassified ONTAP errors per domain (fallback when no rule matches)
+	ErrLDAPUnclassified     = 5101
+	ErrSMBUnclassified      = 5102
+	ErrDNSUnclassified      = 5103
+	ErrADUnclassified       = 5104
+	ErrKerberosUnclassified = 5105
 
 	ErrIamClientNotFoundError      = 6020
 	ErrFailedToParseProjectNumber  = 6021

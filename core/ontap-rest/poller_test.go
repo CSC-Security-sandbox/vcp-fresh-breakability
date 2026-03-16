@@ -3,9 +3,6 @@ package ontap_rest
 import (
 	"context"
 	"errors"
-	"go.temporal.io/sdk/client"
-	"go.temporal.io/sdk/testsuite"
-	"go.temporal.io/sdk/workflow"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -17,6 +14,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
+	"go.temporal.io/sdk/client"
+	temporalsdk "go.temporal.io/sdk/temporal"
+	"go.temporal.io/sdk/testsuite"
+	"go.temporal.io/sdk/workflow"
 )
 
 func TestPollOntapJob_Workflow_Success(t *testing.T) {
@@ -407,6 +408,73 @@ func TestPoll_PollOntapJobWorkflow_FutureError(t *testing.T) {
 
 	require.True(t, env.IsWorkflowCompleted())
 	require.Error(t, env.GetWorkflowError())
+}
+
+type appErrFuture struct {
+	msg string
+}
+
+func (f *appErrFuture) GetID() string    { return "" }
+func (f *appErrFuture) GetRunID() string { return "" }
+func (f *appErrFuture) GetWithOptions(_ context.Context, _ interface{}, _ client.WorkflowRunGetOptions) error {
+	return nil
+}
+func (f *appErrFuture) Get(_ context.Context, _ interface{}) error {
+	return temporalsdk.NewApplicationError(f.msg, "NonRetryableErr", nil)
+}
+
+func TestPoll_PollOntapJobWorkflow_FutureApplicationError_PreservesOriginalMessage(t *testing.T) {
+	var suite testsuite.WorkflowTestSuite
+	env := suite.NewTestWorkflowEnvironment()
+	mockTemp := workflow_engine.NewMockTemporalTestClient(t)
+
+	origFetchTemporalClient := fetchTemporalClient
+	fetchTemporalClient = func(ctx context.Context) client.Client {
+		return mockTemp
+	}
+	origRecordHeartbeat := recordHeartbeat
+	recordHeartbeat = func(_ context.Context, _ ...interface{}) {}
+	defer func() {
+		fetchTemporalClient = origFetchTemporalClient
+		recordHeartbeat = origRecordHeartbeat
+	}()
+
+	const ontapErrMsg = "Failed to create the Active Directory machine account. Reason: Unable to connect to any domain controllers."
+	mockTemp.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&appErrFuture{msg: ontapErrMsg}, nil)
+
+	env.RegisterActivity(activityTest)
+	env.ExecuteWorkflow(workflowTest, RESTClientParams{}, "job-uuid")
+
+	require.True(t, env.IsWorkflowCompleted())
+	err := env.GetWorkflowError()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), ontapErrMsg)
+}
+
+func TestPoll_PollOntapJobWorkflow_FutureNonApplicationError_FallsBack(t *testing.T) {
+	var suite testsuite.WorkflowTestSuite
+	env := suite.NewTestWorkflowEnvironment()
+	mockTemp := workflow_engine.NewMockTemporalTestClient(t)
+
+	origFetchTemporalClient := fetchTemporalClient
+	fetchTemporalClient = func(ctx context.Context) client.Client {
+		return mockTemp
+	}
+	defer func() {
+		fetchTemporalClient = origFetchTemporalClient
+	}()
+
+	mockFut := &mockFuture{error: true}
+	mockTemp.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mockFut, nil)
+
+	env.RegisterActivity(activityTest)
+	env.ExecuteWorkflow(workflowTest, RESTClientParams{}, "job-uuid")
+
+	require.True(t, env.IsWorkflowCompleted())
+	err := env.GetWorkflowError()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to poll ontap-rest job")
 }
 
 func TestPoll_PollOntapJobWorkflow_NotActivityContextError(t *testing.T) {
