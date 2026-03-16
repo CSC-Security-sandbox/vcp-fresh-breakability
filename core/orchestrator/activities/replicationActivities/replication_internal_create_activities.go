@@ -13,7 +13,19 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/activity"
 )
+
+// safeRecordHeartbeat safely records a heartbeat only if the context is an activity context.
+// This prevents panics when the function is called from non-activity contexts (e.g., unit tests).
+func safeRecordHeartbeat(ctx context.Context, details ...interface{}) {
+	defer func() {
+		if r := recover(); r != nil {
+			// Ignore panic - we're not in an activity context
+		}
+	}()
+	activity.RecordHeartbeat(ctx, details...)
+}
 
 type InternalVolumeReplicationActivity struct {
 	SE database.Storage
@@ -22,21 +34,26 @@ type InternalVolumeReplicationActivity struct {
 func (a *InternalVolumeReplicationActivity) CreateVolumeReplicationInternal(ctx context.Context, params *common.CreateVolumeReplicationInternalParams, node *models.Node, volumeExternalUUID string) (*vsa.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debug("CreateVolumeReplicationInternal")
+	safeRecordHeartbeat(ctx, "CreateVolumeReplicationInternal started")
 
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
+	safeRecordHeartbeat(ctx, "Got provider, creating volume replication on ONTAP")
+
 	vsaCreateVolumeReplicationParams := prepareCreateVolumeReplicationParamsVSA(params, volumeExternalUUID)
 	res, err := provider.CreateVolumeReplication(vsaCreateVolumeReplicationParams)
 	if err != nil {
 		logger.Error("Failed to create volume replication", "error", err)
 		return nil, err
 	}
+	safeRecordHeartbeat(ctx, "CreateVolumeReplicationInternal completed")
 	return res, nil
 }
 
 func (a *InternalVolumeReplicationActivity) UpdateVolumeReplicationDetails(ctx context.Context, replication *datamodel.VolumeReplication, replicationCreateResponseONTAP *vsa.VolumeReplication, params *common.UpdateVolumeReplicationInternalParams) error {
+	safeRecordHeartbeat(ctx, "UpdateVolumeReplicationDetails started")
 	se := a.SE
 	logger := util.GetLogger(ctx)
 
@@ -71,7 +88,7 @@ func (a *InternalVolumeReplicationActivity) UpdateVolumeReplicationDetails(ctx c
 		return err
 	}
 	logger.Debug("Successfully updated VolumeReplicationDetails after creation on ONTAP")
-
+	safeRecordHeartbeat(ctx, "UpdateVolumeReplicationDetails completed")
 	return nil
 }
 
@@ -98,6 +115,7 @@ func prepareCreateVolumeReplicationParamsVSA(params *common.CreateVolumeReplicat
 }
 
 func (a *InternalVolumeReplicationActivity) HydrateReplicationCreate(ctx context.Context, replicationDb *datamodel.VolumeReplication, accountName string) error {
+	safeRecordHeartbeat(ctx, "HydrateReplicationCreate started")
 	logger := util.GetLogger(ctx)
 	if hydrationEnabled {
 		logger.Debug("HydrateReplicationCreate")
@@ -107,6 +125,7 @@ func (a *InternalVolumeReplicationActivity) HydrateReplicationCreate(ctx context
 			return vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrHydrateVolumeReplicationCreate, err))
 		}
 	}
+	safeRecordHeartbeat(ctx, "HydrateReplicationCreate completed")
 	return nil
 }
 

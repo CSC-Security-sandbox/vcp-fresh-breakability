@@ -148,6 +148,7 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(replicationActivity.ListSnapmirrorDestinationsForHybridReverse)
+		env.RegisterActivity(replicationActivity.SetReplicationToErrorForReverseHybrid)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		result := &replication.ReverseHybridReplicationResult{
@@ -173,6 +174,7 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2)
 		env.OnActivity("ListSnapmirrorDestinationsForHybridReverse", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+		env.OnActivity("SetReplicationToErrorForReverseHybrid", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(ReverseHybridReplicationPollWorkflow, result)
 
@@ -197,6 +199,7 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 		env.RegisterActivity(replicationActivity.ListSnapmirrorDestinationsForHybridReverse)
 		env.RegisterActivity(replicationActivity.HydrateReplicationSateAndTypeForReverseHybridReplication)
 		env.RegisterActivity(replicationActivity.UpdateReplicationStateForHybridReverse)
+		env.RegisterActivity(replicationActivity.SetReplicationToErrorForReverseHybrid)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		result := &replication.ReverseHybridReplicationResult{
@@ -224,6 +227,7 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 		env.OnActivity("ListSnapmirrorDestinationsForHybridReverse", mock.Anything, mock.Anything).Return(result, nil)
 		env.OnActivity("HydrateReplicationSateAndTypeForReverseHybridReplication", mock.Anything, mock.Anything).Return(result, nil)
 		env.OnActivity("UpdateReplicationStateForHybridReverse", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+		env.OnActivity("SetReplicationToErrorForReverseHybrid", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(ReverseHybridReplicationPollWorkflow, result)
 
@@ -252,6 +256,7 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 		env.RegisterActivity(replicationActivity.GetDstBasePathForHybridReverse)
 		env.RegisterActivity(replicationActivity.GetSignedDstTokenForHybridReverse)
 		env.RegisterActivity(updateAttrActivity.UpdateSrcVolumeReplication)
+		env.RegisterActivity(replicationActivity.SetReplicationToErrorForReverseHybrid)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		dstBasePath := "https://test-base-path"
@@ -313,6 +318,7 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 		env.OnActivity("GetDstBasePathForHybridReverse", mock.Anything, mock.Anything).Return(resultWithBasePath, nil)
 		env.OnActivity("GetSignedDstTokenForHybridReverse", mock.Anything, mock.Anything).Return(resultWithToken, nil)
 		env.OnActivity("UpdateSrcVolumeReplication", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+		env.OnActivity("SetReplicationToErrorForReverseHybrid", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(ReverseHybridReplicationPollWorkflow, result)
 
@@ -343,6 +349,7 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 		env.RegisterActivity(updateAttrActivity.UpdateSrcVolumeReplication)
 		env.RegisterActivity(replicationActivity.CleanupOldReplicationForHybridReverse)
 		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnDstForHybridReverse)
+		env.RegisterActivity(replicationActivity.SetReplicationToErrorForReverseHybrid)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		dstBasePath := "https://test-base-path"
@@ -413,6 +420,7 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 		env.OnActivity("GetSignedDstTokenForHybridReverse", mock.Anything, mock.Anything).Return(resultWithToken, nil)
 		env.OnActivity("UpdateSrcVolumeReplication", mock.Anything, mock.Anything).Return(updateAttrResult, nil)
 		env.OnActivity("CleanupOldReplicationForHybridReverse", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+		env.OnActivity("SetReplicationToErrorForReverseHybrid", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(ReverseHybridReplicationPollWorkflow, result)
 
@@ -443,6 +451,7 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 		env.RegisterActivity(updateAttrActivity.UpdateSrcVolumeReplication)
 		env.RegisterActivity(replicationActivity.CleanupOldReplicationForHybridReverse)
 		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnDstForHybridReverse)
+		env.RegisterActivity(replicationActivity.SetReplicationToErrorForReverseHybrid)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
 		dstBasePath := "https://test-base-path"
@@ -524,6 +533,7 @@ func TestReverseHybridReplicationPollWorkflow(t *testing.T) {
 		env.OnActivity("UpdateSrcVolumeReplication", mock.Anything, mock.Anything).Return(updateAttrResult, nil)
 		env.OnActivity("CleanupOldReplicationForHybridReverse", mock.Anything, mock.Anything).Return(resultWithJobId, nil)
 		env.OnActivity("DescribeRemoteJobOnDstForHybridReverse", mock.Anything, mock.Anything).Return(assert.AnError)
+		env.OnActivity("SetReplicationToErrorForReverseHybrid", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(ReverseHybridReplicationPollWorkflow, result)
 

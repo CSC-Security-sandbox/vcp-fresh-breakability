@@ -70,11 +70,12 @@ func (wf *reverseHybridFallbackReplicationWorkflow) Setup(ctx workflow.Context, 
 	})
 }
 
-func (wf *reverseHybridFallbackReplicationWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
+func (wf *reverseHybridFallbackReplicationWorkflow) Run(ctx workflow.Context, args ...interface{}) (_ interface{}, customErr *vsaerrors.CustomError) {
 	logger := util.GetLogger(ctx)
 	result := args[0].(*replication.ReverseHybridReplicationResult)
 	params := args[1].(*commonparams.ReverseAndResumeReplicationParams)
 	replicationActivity := &replicationActivities.ReverseVolumeReplicationActivity{}
+	reverseHybridActivity := &replicationActivities.ReverseHybridReplicationActivity{}
 	updateAttrActivity := &replicationActivities.UpdateVolumeReplicationAttributesActivity{}
 
 	retryPolicy, err := workflows.PopulateRetryPolicyParams()
@@ -96,6 +97,19 @@ func (wf *reverseHybridFallbackReplicationWorkflow) Run(ctx workflow.Context, ar
 	ao1.RetryPolicy.MaximumAttempts = int32(ReplicationJobsRetryMaxAttempts)
 
 	ctx1 := workflow.WithActivityOptions(ctx, ao1)
+
+	rollbackManager := commonparams.NewRollbackManager()
+	defer func() {
+		if customErr != nil {
+			if result != nil && result.DbVolReplication != nil {
+				if updateErr := workflow.ExecuteActivity(ctx, reverseHybridActivity.SetReplicationToErrorForReverseHybrid, result.DbVolReplication, customErr.Error(), result.IsSrcForHybridReplication).Get(ctx, nil); updateErr != nil {
+					wf.Logger.Errorf("Failed to update volume replication state in DB to error: %v", updateErr)
+				}
+			}
+			disconnectedCtx, _ := workflow.NewDisconnectedContext(ctx)
+			rollbackManager.ExecuteRollback(disconnectedCtx, customErr)
+		}
+	}()
 
 	reverseResult := replication.ReverseReplicationResult{
 		Event:            result.Event,
@@ -122,6 +136,8 @@ func (wf *reverseHybridFallbackReplicationWorkflow) Run(ctx workflow.Context, ar
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}
+
+	rollbackManager.AddActivity(replicationActivity.DeleteNewReplicationOnSrc, &reverseResult)
 
 	// DescribeRemoteJobOnSrc (after ReverseAndResumeReplication)
 	err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeRemoteJobOnSrc, &reverseResult).Get(ctx, nil)

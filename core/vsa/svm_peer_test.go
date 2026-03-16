@@ -1,6 +1,7 @@
 package vsa
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,6 +11,22 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
+
+// TestSafeRecordHeartbeat_DoesNotPanicOutsideActivityContext verifies that safeRecordHeartbeat
+// does not panic when called with a non-activity context (e.g. in unit tests). This allows
+// AcceptSvmPeering and CreateSvmPeering to be exercised without a Temporal activity context.
+func TestSafeRecordHeartbeat_DoesNotPanicOutsideActivityContext(t *testing.T) {
+	t.Run("WithNilContext", func(tt *testing.T) {
+		assert.NotPanics(tt, func() {
+			safeRecordHeartbeat(nil, "test heartbeat")
+		})
+	})
+	t.Run("WithBackgroundContext", func(tt *testing.T) {
+		assert.NotPanics(tt, func() {
+			safeRecordHeartbeat(context.Background(), "test heartbeat")
+		})
+	})
+}
 
 func TestGetSvmPeer(t *testing.T) {
 	localSVMName := "local-svm"

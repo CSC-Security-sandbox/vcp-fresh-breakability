@@ -146,6 +146,88 @@ func TestReverseHybridReplicationActivity_SetHybridReplicationVariablesReverse(t
 	})
 }
 
+func TestReverseHybridReplicationActivity_SetReplicationToErrorForReverseHybrid(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("WhenReplicationIsNil", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := ReverseHybridReplicationActivity{SE: mockStorage}
+
+		err := activity.SetReplicationToErrorForReverseHybrid(ctx, nil, "some error", false)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertNotCalled(tt, "UpdateVolumeReplication")
+	})
+
+	t.Run("WhenIsSrcForHybridReplicationTrue_SetsExternalManagedAndReverse", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := ReverseHybridReplicationActivity{SE: mockStorage}
+
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "rep-uuid"},
+			Name:      "test-replication",
+		}
+
+		mockStorage.On("UpdateVolumeReplication", ctx, mock.MatchedBy(func(r *datamodel.VolumeReplication) bool {
+			return r.State == models.LifeCycleStateError &&
+				r.StateDetails != "" &&
+				r.HybridReplicationAttributes != nil &&
+				r.HybridReplicationAttributes.Status == models.HybridReplicationStatusExternalManaged &&
+				r.HybridReplicationAttributes.HybridReplicationUserCommands == nil &&
+				r.HybridReplicationAttributes.HybridReplicationType != nil &&
+				*r.HybridReplicationAttributes.HybridReplicationType == string(models.HybridReplicationParametersReplicationTypeREVERSE)
+		})).Return(nil)
+
+		err := activity.SetReplicationToErrorForReverseHybrid(ctx, replication, "test error", true)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenIsSrcForHybridReplicationFalse_SetsPeeredAndOnprem", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := ReverseHybridReplicationActivity{SE: mockStorage}
+
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "rep-uuid"},
+			Name:      "test-replication",
+		}
+
+		mockStorage.On("UpdateVolumeReplication", ctx, mock.MatchedBy(func(r *datamodel.VolumeReplication) bool {
+			return r.State == models.LifeCycleStateError &&
+				r.StateDetails != "" &&
+				r.HybridReplicationAttributes != nil &&
+				r.HybridReplicationAttributes.Status == models.HybridReplicationStatusPeered &&
+				r.HybridReplicationAttributes.HybridReplicationUserCommands == nil &&
+				r.HybridReplicationAttributes.HybridReplicationType != nil &&
+				*r.HybridReplicationAttributes.HybridReplicationType == string(models.HybridReplicationParametersReplicationTypeONPREM)
+		})).Return(nil)
+
+		err := activity.SetReplicationToErrorForReverseHybrid(ctx, replication, "test error", false)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateVolumeReplicationFails_ReturnsError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		activity := ReverseHybridReplicationActivity{SE: mockStorage}
+
+		replication := &datamodel.VolumeReplication{
+			BaseModel: datamodel.BaseModel{UUID: "rep-uuid"},
+			Name:      "test-replication",
+		}
+
+		mockStorage.On("UpdateVolumeReplication", ctx, mock.Anything).Return(errors.New("db error"))
+
+		err := activity.SetReplicationToErrorForReverseHybrid(ctx, replication, "test error", false)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "db error")
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
 func TestReverseHybridReplicationActivity_CheckClusterPeerHealthForHybridReverse(t *testing.T) {
 	t.Run("WhenSuccess", func(tt *testing.T) {
 		originalGetProviderByNode := hyperscaler.GetProviderByNode

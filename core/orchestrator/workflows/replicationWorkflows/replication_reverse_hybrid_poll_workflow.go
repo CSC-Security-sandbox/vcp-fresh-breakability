@@ -75,10 +75,19 @@ func (wf *reverseHybridReplicationPollWorkflow) Setup(ctx workflow.Context, inpu
 	})
 }
 
-func (wf *reverseHybridReplicationPollWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
+func (wf *reverseHybridReplicationPollWorkflow) Run(ctx workflow.Context, args ...interface{}) (_ interface{}, customErr *vsaerrors.CustomError) {
 	result := args[0].(*replication.ReverseHybridReplicationResult)
 	logger := util.GetLogger(ctx)
 	logger.Infof("Running ReverseHybridReplicationPollWorkflow for replication %s", result.DbVolReplication.UUID)
+
+	defer func() {
+		if customErr != nil && result != nil && result.DbVolReplication != nil {
+			replicationActivity := &replicationActivities.ReverseHybridReplicationActivity{}
+			if updateErr := workflow.ExecuteActivity(ctx, replicationActivity.SetReplicationToErrorForReverseHybrid, result.DbVolReplication, customErr.Error(), result.IsSrcForHybridReplication).Get(ctx, nil); updateErr != nil {
+				wf.Logger.Errorf("Failed to update volume replication state in DB to error: %v", updateErr)
+			}
+		}
+	}()
 
 	replicationActivity := &replicationActivities.ReverseHybridReplicationActivity{}
 	updateAttrActivity := &replicationActivities.UpdateVolumeReplicationAttributesActivity{}
@@ -92,7 +101,7 @@ func (wf *reverseHybridReplicationPollWorkflow) Run(ctx workflow.Context, args .
 	maxAttempts := int32(reverseHybridReplicationMaxRetries)
 	activityRetryMaxInterval, parseError := time.ParseDuration(remoteResyncPollMaxInterval)
 	if parseError != nil {
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError, parseError)
+		return nil, workflows.ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError, parseError))
 	}
 
 	// Create activity options with retry policy for ListSnapmirrorDestinations

@@ -1,6 +1,7 @@
 package vsa
 
 import (
+	"context"
 	"time"
 
 	ontaprestmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
@@ -8,7 +9,19 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
+	"go.temporal.io/sdk/activity"
 )
+
+// safeRecordHeartbeat safely records a heartbeat only if the context is an activity context.
+// This prevents panics when the function is called from non-activity contexts (e.g., unit tests).
+func safeRecordHeartbeat(ctx context.Context, details ...interface{}) {
+	defer func() {
+		if r := recover(); r != nil {
+			// Ignore panic - we're not in an activity context
+		}
+	}()
+	activity.RecordHeartbeat(ctx, details...)
+}
 
 var (
 	svmPeerTimeoutMinutes      = env.GetUint64("SVM_PEER_TIMEOUT", 5)
@@ -178,6 +191,7 @@ func (rc *OntapRestProvider) CreateSvmPeering(srcClusterName, srcSVMName, dstSVM
 	timeOut := time.Now().Add(time.Duration(svmPeerTimeoutMinutes) * time.Minute)
 	svmPeerUUID := ""
 	for time.Now().Before(timeOut) {
+		safeRecordHeartbeat(rc.ClientParams.Ctx, "Waiting for SVM peer to be authorized by source SVM")
 		// Destination is local, Source is remote
 		svmPeer, err = rc.GetSVMPeer(&dstSVMName, &srcSVMName)
 		if err != nil && !errors.IsNotFoundErr(err) {
@@ -213,6 +227,7 @@ func (rc *OntapRestProvider) CreateSvmPeering(srcClusterName, srcSVMName, dstSVM
 func (rc *OntapRestProvider) AcceptSvmPeering(srcSVMName, dstSVMName string) error {
 	timeOut := time.Now().Add(time.Duration(svmPeerTimeoutMinutes) * time.Minute)
 	for time.Now().Before(timeOut) {
+		safeRecordHeartbeat(rc.ClientParams.Ctx, "Waiting for SVM peer to accept")
 		// Source is local, Destination is remote
 		svmPeer, err := rc.GetSVMPeer(&srcSVMName, &dstSVMName)
 		if err != nil {

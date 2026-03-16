@@ -346,6 +346,7 @@ workerConfig:
   retryMaxInterval: "5m"
   retryBackoffCoefficient: "2.0"
   startToCloseTimeoutForReplicationActivities: 300
+  startToCloseTimeoutForReplicationCreateActivities: 600
   backoffCoefficientForReplicationActivities: 1.5
   startToCloseTimeoutForHyperscaler: "5m"
 

@@ -357,6 +357,38 @@ func (a *ReverseHybridReplicationActivity) ListSnapmirrorDestinationsForHybridRe
 	return result, nil
 }
 
+// SetReplicationToErrorForReverseHybrid updates the replication row to error state
+// when the reverse hybrid replication poll workflow fails: State, StateDetails, and HybridReplicationAttributes
+// (Status, StatusDetails, HybridReplicationUserCommands, HybridReplicationType).
+func (a *ReverseHybridReplicationActivity) SetReplicationToErrorForReverseHybrid(ctx context.Context, replication *datamodel.VolumeReplication, errorMessage string, isSrcForHybridReplication bool) error {
+	if replication == nil {
+		return nil
+	}
+	replicationToUpdate := *replication
+	replicationToUpdate.State = models.LifeCycleStateError
+	replicationToUpdate.StateDetails = fmt.Sprintf("Reverse was not successful: %s", errorMessage)
+
+	if replicationToUpdate.HybridReplicationAttributes == nil {
+		replicationToUpdate.HybridReplicationAttributes = &datamodel.HybridReplicationAttribute{}
+	}
+	replicationToUpdate.HybridReplicationAttributes.StatusDetails = replicationToUpdate.StateDetails
+	replicationToUpdate.HybridReplicationAttributes.HybridReplicationUserCommands = nil
+	if isSrcForHybridReplication {
+		replicationToUpdate.HybridReplicationAttributes.Status = models.HybridReplicationStatusExternalManaged
+		hybridType := string(models.HybridReplicationParametersReplicationTypeREVERSE)
+		replicationToUpdate.HybridReplicationAttributes.HybridReplicationType = &hybridType
+	} else {
+		replicationToUpdate.HybridReplicationAttributes.Status = models.HybridReplicationStatusPeered
+		hybridType := string(models.HybridReplicationParametersReplicationTypeONPREM)
+		replicationToUpdate.HybridReplicationAttributes.HybridReplicationType = &hybridType
+	}
+
+	if err := a.SE.UpdateVolumeReplication(ctx, &replicationToUpdate); err != nil {
+		return err
+	}
+	return nil
+}
+
 // UpdateReplicationStateForHybridReverse updates replication state based on snapmirror status
 func (a *ReverseHybridReplicationActivity) UpdateReplicationStateForHybridReverse(ctx context.Context, result *replication.ReverseHybridReplicationResult) (*replication.ReverseHybridReplicationResult, error) {
 	logger := util.GetLogger(ctx)

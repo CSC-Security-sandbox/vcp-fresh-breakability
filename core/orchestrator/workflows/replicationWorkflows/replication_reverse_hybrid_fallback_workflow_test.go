@@ -168,9 +168,11 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		}
 		mockStorage := database.NewMockStorage(tt)
 		replicationActivity := replicationActivities.ReverseVolumeReplicationActivity{SE: mockStorage}
+		reverseHybridActivity := replicationActivities.ReverseHybridReplicationActivity{SE: mockStorage}
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(replicationActivity.GetSrcBasePathReverse)
+		env.RegisterActivity(reverseHybridActivity.SetReplicationToErrorForReverseHybrid)
 		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
@@ -202,6 +204,7 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSrcBasePathReverse", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+		env.OnActivity("SetReplicationToErrorForReverseHybrid", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(ReverseHybridFallbackReplicationWorkflow, params, hybridReverseResult)
 
@@ -221,10 +224,12 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		}
 		mockStorage := database.NewMockStorage(tt)
 		replicationActivity := replicationActivities.ReverseVolumeReplicationActivity{SE: mockStorage}
+		reverseHybridActivity := replicationActivities.ReverseHybridReplicationActivity{SE: mockStorage}
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(replicationActivity.GetSrcBasePathReverse)
 		env.RegisterActivity(replicationActivity.GetSignedSrcTokenReverse)
+		env.RegisterActivity(reverseHybridActivity.SetReplicationToErrorForReverseHybrid)
 		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
@@ -268,6 +273,7 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetSrcBasePathReverse", mock.Anything, mock.Anything).Return(&reverseResultWithBasePath, nil)
 		env.OnActivity("GetSignedSrcTokenReverse", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+		env.OnActivity("SetReplicationToErrorForReverseHybrid", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(ReverseHybridFallbackReplicationWorkflow, params, hybridReverseResult)
 
@@ -287,12 +293,14 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		}
 		mockStorage := database.NewMockStorage(tt)
 		replicationActivity := replicationActivities.ReverseVolumeReplicationActivity{SE: mockStorage}
+		reverseHybridActivity := replicationActivities.ReverseHybridReplicationActivity{SE: mockStorage}
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(replicationActivity.GetSrcBasePathReverse)
 		env.RegisterActivity(replicationActivity.GetSignedSrcTokenReverse)
 		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnSrc)
 		env.RegisterActivity(replicationActivity.HydrateReplicationSateAndTypeForReverseFallbackHybridReplication)
+		env.RegisterActivity(reverseHybridActivity.SetReplicationToErrorForReverseHybrid)
 		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
@@ -340,6 +348,7 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		env.OnActivity("GetSrcBasePathReverse", mock.Anything, mock.Anything).Return(&reverseResultWithBasePath, nil)
 		env.OnActivity("GetSignedSrcTokenReverse", mock.Anything, mock.Anything).Return(&reverseResultWithToken, nil)
 		env.OnActivity("DescribeRemoteJobOnSrc", mock.Anything, mock.Anything).Return(assert.AnError)
+		env.OnActivity("SetReplicationToErrorForReverseHybrid", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(ReverseHybridFallbackReplicationWorkflow, params, hybridReverseResult)
 
@@ -359,6 +368,7 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		}
 		mockStorage := database.NewMockStorage(tt)
 		replicationActivity := replicationActivities.ReverseVolumeReplicationActivity{SE: mockStorage}
+		reverseHybridActivity := replicationActivities.ReverseHybridReplicationActivity{SE: mockStorage}
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(replicationActivity.GetSrcBasePathReverse)
@@ -366,6 +376,7 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnSrc)
 		env.RegisterActivity(replicationActivity.HydrateReplicationSateAndTypeForReverseFallbackHybridReplication)
 		env.RegisterActivity(replicationActivity.ReverseAndResumeReplication)
+		env.RegisterActivity(reverseHybridActivity.SetReplicationToErrorForReverseHybrid)
 		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
@@ -415,6 +426,7 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		env.OnActivity("DescribeRemoteJobOnSrc", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("HydrateReplicationSateAndTypeForReverseFallbackHybridReplication", mock.Anything, mock.Anything).Return(&reverseResultWithToken, nil)
 		env.OnActivity("ReverseAndResumeReplication", mock.Anything, mock.Anything, mock.Anything).Return(nil, assert.AnError)
+		env.OnActivity("SetReplicationToErrorForReverseHybrid", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(ReverseHybridFallbackReplicationWorkflow, params, hybridReverseResult)
 
@@ -434,6 +446,7 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		}
 		mockStorage := database.NewMockStorage(tt)
 		replicationActivity := replicationActivities.ReverseVolumeReplicationActivity{SE: mockStorage}
+		reverseHybridActivity := replicationActivities.ReverseHybridReplicationActivity{SE: mockStorage}
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(replicationActivity.GetSrcBasePathReverse)
@@ -441,6 +454,8 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnSrc)
 		env.RegisterActivity(replicationActivity.HydrateReplicationSateAndTypeForReverseFallbackHybridReplication)
 		env.RegisterActivity(replicationActivity.ReverseAndResumeReplication)
+		env.RegisterActivity(replicationActivity.DeleteNewReplicationOnSrc)
+		env.RegisterActivity(reverseHybridActivity.SetReplicationToErrorForReverseHybrid)
 		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
@@ -494,6 +509,8 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		env.OnActivity("HydrateReplicationSateAndTypeForReverseFallbackHybridReplication", mock.Anything, mock.Anything).Return(&reverseResultWithJobId, nil)
 		env.OnActivity("ReverseAndResumeReplication", mock.Anything, mock.Anything, mock.Anything).Return(&reverseResultWithJobId, nil)
 		env.OnActivity("DescribeRemoteJobOnSrc", mock.Anything, mock.Anything).Return(assert.AnError).Once()
+		env.OnActivity("DeleteNewReplicationOnSrc", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("SetReplicationToErrorForReverseHybrid", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(ReverseHybridFallbackReplicationWorkflow, params, hybridReverseResult)
 
@@ -514,6 +531,7 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		replicationActivity := replicationActivities.ReverseVolumeReplicationActivity{SE: mockStorage}
 		updateAttrActivity := replicationActivities.UpdateVolumeReplicationAttributesActivity{SE: mockStorage}
+		reverseHybridActivity := replicationActivities.ReverseHybridReplicationActivity{SE: mockStorage}
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(replicationActivity.GetSrcBasePathReverse)
@@ -521,8 +539,10 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnSrc)
 		env.RegisterActivity(replicationActivity.HydrateReplicationSateAndTypeForReverseFallbackHybridReplication)
 		env.RegisterActivity(replicationActivity.ReverseAndResumeReplication)
+		env.RegisterActivity(replicationActivity.DeleteNewReplicationOnSrc)
 		env.RegisterActivity(updateAttrActivity.GetSnapmirrorDetailsFromOntap)
 		env.RegisterActivity(updateAttrActivity.UpdateDstVolumeReplication)
+		env.RegisterActivity(reverseHybridActivity.SetReplicationToErrorForReverseHybrid)
 		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
@@ -584,6 +604,8 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 			},
 		}
 		env.OnActivity("GetSnapmirrorDetailsFromOntap", mock.Anything, mock.Anything).Return(updateAttrResult, assert.AnError)
+		env.OnActivity("DeleteNewReplicationOnSrc", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("SetReplicationToErrorForReverseHybrid", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(ReverseHybridFallbackReplicationWorkflow, params, hybridReverseResult)
 
@@ -604,6 +626,7 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		replicationActivity := replicationActivities.ReverseVolumeReplicationActivity{SE: mockStorage}
 		updateAttrActivity := replicationActivities.UpdateVolumeReplicationAttributesActivity{SE: mockStorage}
+		reverseHybridActivity := replicationActivities.ReverseHybridReplicationActivity{SE: mockStorage}
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(replicationActivity.GetSrcBasePathReverse)
@@ -611,8 +634,10 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnSrc)
 		env.RegisterActivity(replicationActivity.HydrateReplicationSateAndTypeForReverseFallbackHybridReplication)
 		env.RegisterActivity(replicationActivity.ReverseAndResumeReplication)
+		env.RegisterActivity(replicationActivity.DeleteNewReplicationOnSrc)
 		env.RegisterActivity(updateAttrActivity.GetSnapmirrorDetailsFromOntap)
 		env.RegisterActivity(updateAttrActivity.UpdateDstVolumeReplication)
+		env.RegisterActivity(reverseHybridActivity.SetReplicationToErrorForReverseHybrid)
 		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
@@ -676,6 +701,8 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		env.OnActivity("GetSnapmirrorDetailsFromOntap", mock.Anything, mock.Anything).Return(updateAttrResult, nil)
 		env.OnActivity("UpdateDstVolumeReplication", mock.Anything, mock.Anything).Return(updateAttrResult, nil)
 		env.OnActivity("DescribeRemoteJobOnSrc", mock.Anything, mock.Anything).Return(assert.AnError).Once()
+		env.OnActivity("DeleteNewReplicationOnSrc", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("SetReplicationToErrorForReverseHybrid", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(ReverseHybridFallbackReplicationWorkflow, params, hybridReverseResult)
 
@@ -696,6 +723,7 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		replicationActivity := replicationActivities.ReverseVolumeReplicationActivity{SE: mockStorage}
 		updateAttrActivity := replicationActivities.UpdateVolumeReplicationAttributesActivity{SE: mockStorage}
+		reverseHybridActivity := replicationActivities.ReverseHybridReplicationActivity{SE: mockStorage}
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(replicationActivity.GetSrcBasePathReverse)
@@ -703,9 +731,11 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnSrc)
 		env.RegisterActivity(replicationActivity.HydrateReplicationSateAndTypeForReverseFallbackHybridReplication)
 		env.RegisterActivity(replicationActivity.ReverseAndResumeReplication)
+		env.RegisterActivity(replicationActivity.DeleteNewReplicationOnSrc)
 		env.RegisterActivity(updateAttrActivity.GetSnapmirrorDetailsFromOntap)
 		env.RegisterActivity(updateAttrActivity.UpdateDstVolumeReplication)
 		env.RegisterActivity(replicationActivity.SetVolumeReplicationStatusToOnpremReplication)
+		env.RegisterActivity(reverseHybridActivity.SetReplicationToErrorForReverseHybrid)
 		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
@@ -769,6 +799,8 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		env.OnActivity("GetSnapmirrorDetailsFromOntap", mock.Anything, mock.Anything).Return(updateAttrResult, nil)
 		env.OnActivity("UpdateDstVolumeReplication", mock.Anything, mock.Anything).Return(updateAttrResult, nil)
 		env.OnActivity("SetVolumeReplicationStatusToOnpremReplication", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+		env.OnActivity("DeleteNewReplicationOnSrc", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("SetReplicationToErrorForReverseHybrid", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(ReverseHybridFallbackReplicationWorkflow, params, hybridReverseResult)
 
@@ -789,6 +821,7 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		replicationActivity := replicationActivities.ReverseVolumeReplicationActivity{SE: mockStorage}
 		updateAttrActivity := replicationActivities.UpdateVolumeReplicationAttributesActivity{SE: mockStorage}
+		reverseHybridActivity := replicationActivities.ReverseHybridReplicationActivity{SE: mockStorage}
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(replicationActivity.GetSrcBasePathReverse)
@@ -796,10 +829,12 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnSrc)
 		env.RegisterActivity(replicationActivity.HydrateReplicationSateAndTypeForReverseFallbackHybridReplication)
 		env.RegisterActivity(replicationActivity.ReverseAndResumeReplication)
+		env.RegisterActivity(replicationActivity.DeleteNewReplicationOnSrc)
 		env.RegisterActivity(updateAttrActivity.GetSnapmirrorDetailsFromOntap)
 		env.RegisterActivity(updateAttrActivity.UpdateDstVolumeReplication)
 		env.RegisterActivity(replicationActivity.SetVolumeReplicationStatusToOnpremReplication)
 		env.RegisterActivity(replicationActivity.ReleaseReplicationOnOldSrc)
+		env.RegisterActivity(reverseHybridActivity.SetReplicationToErrorForReverseHybrid)
 		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
@@ -891,6 +926,8 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		env.OnActivity("UpdateDstVolumeReplication", mock.Anything, mock.Anything).Return(updateAttrResult, nil)
 		env.OnActivity("SetVolumeReplicationStatusToOnpremReplication", mock.Anything, mock.Anything).Return(&reverseResultWithJobId, nil)
 		env.OnActivity("ReleaseReplicationOnOldSrc", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+		env.OnActivity("DeleteNewReplicationOnSrc", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("SetReplicationToErrorForReverseHybrid", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(ReverseHybridFallbackReplicationWorkflow, params, hybridReverseResult)
 
@@ -911,6 +948,7 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		replicationActivity := replicationActivities.ReverseVolumeReplicationActivity{SE: mockStorage}
 		updateAttrActivity := replicationActivities.UpdateVolumeReplicationAttributesActivity{SE: mockStorage}
+		reverseHybridActivity := replicationActivities.ReverseHybridReplicationActivity{SE: mockStorage}
 		commonActivity := activities.CommonActivities{SE: mockStorage}
 		env.SetHeader(mockHeader)
 		env.RegisterActivity(replicationActivity.GetSrcBasePathReverse)
@@ -918,11 +956,13 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		env.RegisterActivity(replicationActivity.DescribeRemoteJobOnSrc)
 		env.RegisterActivity(replicationActivity.HydrateReplicationSateAndTypeForReverseFallbackHybridReplication)
 		env.RegisterActivity(replicationActivity.ReverseAndResumeReplication)
+		env.RegisterActivity(replicationActivity.DeleteNewReplicationOnSrc)
 		env.RegisterActivity(updateAttrActivity.GetSnapmirrorDetailsFromOntap)
 		env.RegisterActivity(updateAttrActivity.UpdateDstVolumeReplication)
 		env.RegisterActivity(replicationActivity.SetVolumeReplicationStatusToOnpremReplication)
 		env.RegisterActivity(replicationActivity.ReleaseReplicationOnOldSrc)
 		env.RegisterActivity(replicationActivity.MountReplicationAfterReverse)
+		env.RegisterActivity(reverseHybridActivity.SetReplicationToErrorForReverseHybrid)
 		env.RegisterActivity(commonActivity.GetJob)
 		env.RegisterActivity(commonActivity.UpdateJobStatus)
 
@@ -1016,6 +1056,8 @@ func TestReverseHybridFallbackReplicationWorkflow(t *testing.T) {
 		env.OnActivity("SetVolumeReplicationStatusToOnpremReplication", mock.Anything, mock.Anything).Return(&reverseResultWithJobId, nil)
 		env.OnActivity("ReleaseReplicationOnOldSrc", mock.Anything, mock.Anything).Return(&reverseResultWithJobId, nil)
 		env.OnActivity("MountReplicationAfterReverse", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+		env.OnActivity("DeleteNewReplicationOnSrc", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("SetReplicationToErrorForReverseHybrid", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(ReverseHybridFallbackReplicationWorkflow, params, hybridReverseResult)
 

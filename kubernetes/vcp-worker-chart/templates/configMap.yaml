@@ -287,6 +287,7 @@ data:
   START_TO_CLOSE_WORKFLOW_TIMEOUT: {{$.Values.workerConfig.startToCloseTimeout | quote }}
   START_TO_CLOSE_WORKFLOW_TIMEOUT_CMEK_BACKUP_ROTATE : {{$.Values.workerConfig.startToCloseTimeoutCmekBackupRotate | quote }}
   START_TO_CLOSE_TIMEOUT_FOR_REPLICATION_ACTIVITIES: {{$.Values.workerConfig.startToCloseTimeoutForReplicationActivities | quote }}
+  START_TO_CLOSE_TIMEOUT_FOR_REPLICATION_CREATE_ACTIVITIES: {{$.Values.workerConfig.startToCloseTimeoutForReplicationCreateActivities | quote }}
   START_TO_CLOSE_WORKFLOW_TIMEOUT_DATA_SUBNET_CREATE: {{$.Values.workerConfig.startToCloseTimeoutDataSubnetCreate | quote }}
   START_TO_CLOSE_WORKFLOW_TIMEOUT_DATA_SUBNET_DELETE: {{$.Values.workerConfig.startToCloseTimeoutDataSubnetDelete | quote }}
   START_TO_CLOSE_TIMEOUT_DATA_SUBNET_ACTIVITIES: {{$.Values.workerConfig.startToCloseTimeoutDataSubnetActivities | quote }}

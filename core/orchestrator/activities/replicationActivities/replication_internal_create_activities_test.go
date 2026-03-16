@@ -17,6 +17,21 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
+// TestSafeRecordHeartbeat_DoesNotPanicOutsideActivityContext verifies that safeRecordHeartbeat
+// does not panic when called with a non-activity context (e.g. in unit tests).
+func TestSafeRecordHeartbeat_DoesNotPanicOutsideActivityContext(t *testing.T) {
+	t.Run("WithNilContext", func(tt *testing.T) {
+		assert.NotPanics(tt, func() {
+			safeRecordHeartbeat(nil, "test heartbeat")
+		})
+	})
+	t.Run("WithBackgroundContext", func(tt *testing.T) {
+		assert.NotPanics(tt, func() {
+			safeRecordHeartbeat(context.Background(), "test heartbeat")
+		})
+	})
+}
+
 func TestCreateVolumeReplicationInternal(t *testing.T) {
 	t.Run("WhenGetProviderByNodeError", func(tt *testing.T) {
 		mockProvider := new(vsa.MockProvider)
