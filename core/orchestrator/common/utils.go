@@ -8,6 +8,8 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -228,4 +230,33 @@ func HandleCancellationAndRollback(
 	}
 
 	return false
+}
+
+// ConvertDatastoreOperationToModel converts a datamodel.Job from storage to a models.Job for API responses.
+func ConvertDatastoreOperationToModel(job *datamodel.Job) *models.Job {
+	if job == nil {
+		return nil
+	}
+	modelJob := &models.Job{
+		BaseModel: models.BaseModel{
+			ID:        job.ID,
+			UUID:      job.UUID,
+			CreatedAt: job.CreatedAt,
+			UpdatedAt: job.UpdatedAt,
+			DeletedAt: utils.DeletedAtOrNil(job.DeletedAt),
+		},
+		CorrelationID: job.CorrelationID,
+		TrackingID:    job.TrackingID,
+		Type:          models.JobType(job.Type),
+		State:         models.JobState(job.State),
+		JobAttributes: &models.JobAttributes{},
+		ResourceName:  job.ResourceName,
+		ErrorDetails:  []byte(job.ErrorDetails),
+	}
+
+	if job.JobAttributes != nil {
+		modelJob.JobAttributes.ResourceUUID = job.JobAttributes.ResourceUUID
+		modelJob.JobAttributes.PoolUUID = job.JobAttributes.PoolUUID
+	}
+	return modelJob
 }

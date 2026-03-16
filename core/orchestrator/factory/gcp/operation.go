@@ -3,10 +3,9 @@ package gcp
 import (
 	"context"
 
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
@@ -35,7 +34,7 @@ func (o *GCPOrchestrator) GetJob(ctx context.Context, operationId string) (*mode
 	if err != nil {
 		return nil, err
 	}
-	return convertDatastoreOperationToModel(job), nil
+	return common.ConvertDatastoreOperationToModel(job), nil
 }
 
 func (o *GCPOrchestrator) GetReplicationJobs(ctx context.Context, projectName, poolUUID string) ([]*models.Job, error) {
@@ -61,35 +60,10 @@ func (o *GCPOrchestrator) GetReplicationJobs(ctx context.Context, projectName, p
 		// If poolUUID is empty, return all replication jobs
 		// Otherwise, filter by the specified poolUUID
 		if poolUUID == "" || (job.JobAttributes != nil && job.JobAttributes.PoolUUID == poolUUID) {
-			jobs = append(jobs, convertDatastoreOperationToModel(job))
+			jobs = append(jobs, common.ConvertDatastoreOperationToModel(job))
 		}
 	}
 	return jobs, nil
-}
-
-func convertDatastoreOperationToModel(job *datamodel.Job) *models.Job {
-	modelJob := &models.Job{
-		BaseModel: models.BaseModel{
-			ID:        job.ID,
-			UUID:      job.UUID,
-			CreatedAt: job.CreatedAt,
-			UpdatedAt: job.UpdatedAt,
-			DeletedAt: utils.DeletedAtOrNil(job.DeletedAt),
-		},
-		CorrelationID: job.CorrelationID,
-		TrackingID:    job.TrackingID,
-		Type:          models.JobType(job.Type),
-		State:         models.JobState(job.State),
-		JobAttributes: &models.JobAttributes{},
-		ResourceName:  job.ResourceName,
-		ErrorDetails:  []byte(job.ErrorDetails),
-	}
-
-	if job.JobAttributes != nil {
-		modelJob.JobAttributes.ResourceUUID = job.JobAttributes.ResourceUUID
-		modelJob.JobAttributes.PoolUUID = job.JobAttributes.PoolUUID
-	}
-	return modelJob
 }
 
 func (o *GCPOrchestrator) GetJobByResourceUUID(ctx context.Context, resourceUUID string, jobType string) (*models.Job, error) {
@@ -97,5 +71,5 @@ func (o *GCPOrchestrator) GetJobByResourceUUID(ctx context.Context, resourceUUID
 	if err != nil {
 		return nil, err
 	}
-	return convertDatastoreOperationToModel(job), err
+	return common.ConvertDatastoreOperationToModel(job), err
 }

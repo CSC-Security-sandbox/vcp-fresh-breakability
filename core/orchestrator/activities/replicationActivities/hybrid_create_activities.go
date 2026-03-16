@@ -54,10 +54,11 @@ func (a *HybridReplicationActivity) CreateJobForHybridReplication(ctx context.Co
 	}
 	// The job state is set to PROCESSING here because the workflow itself is creating the job
 	job := &datamodel.Job{
-		AccountID:     sql.NullInt64{Int64: replicationResult.DestinationVolume.AccountID, Valid: true},
-		Type:          jobType,
-		State:         string(models.JobsStateNEW),
-		JobAttributes: &datamodel.JobAttributes{ResourceUUID: replicationResult.DestinationVolume.UUID},
+		AccountID: sql.NullInt64{Int64: replicationResult.DestinationVolume.AccountID, Valid: true},
+		Type:      jobType,
+		State:     string(models.JobsStateNEW),
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: replicationResult.DestinationVolume.UUID,
+			PoolUUID: replicationResult.DestinationVolume.Pool.UUID},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
 	}

@@ -3,12 +3,15 @@ package common
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	gorm "gorm.io/gorm"
 )
 
 func TestValidateBackupPolicyRetentionLimits(t *testing.T) {
@@ -1101,5 +1104,112 @@ func TestGetRemoteRegionConfig(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "https://vcp-west.example.com", basePath)
 		assert.Equal(t, expectedToken, jwtToken)
+	})
+}
+
+func TestConvertDatastoreOperationToModel(t *testing.T) {
+	t.Run("ReturnsNilWhenJobIsNil", func(t *testing.T) {
+		got := ConvertDatastoreOperationToModel(nil)
+		assert.Nil(t, got)
+	})
+
+	t.Run("ConvertsMinimalJobWithNilJobAttributes", func(t *testing.T) {
+		created := time.Date(2024, 1, 2, 10, 0, 0, 0, time.UTC)
+		updated := time.Date(2024, 1, 3, 10, 0, 0, 0, time.UTC)
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:        42,
+				UUID:      "job-uuid",
+				CreatedAt: created,
+				UpdatedAt: updated,
+				DeletedAt: nil,
+			},
+			CorrelationID: "corr-1",
+			TrackingID:    100,
+			Type:          "CREATE_VOLUME",
+			State:         "PROCESSING",
+			ResourceName:  "projects/p/locations/loc/volumes/vol",
+			ErrorDetails:  "some error",
+			JobAttributes: nil,
+		}
+		got := ConvertDatastoreOperationToModel(job)
+		assert.NotNil(t, got)
+		assert.Equal(t, int64(42), got.ID)
+		assert.Equal(t, "job-uuid", got.UUID)
+		assert.Equal(t, created, got.CreatedAt)
+		assert.Equal(t, updated, got.UpdatedAt)
+		assert.Nil(t, got.DeletedAt)
+		assert.Equal(t, "corr-1", got.CorrelationID)
+		assert.Equal(t, 100, got.TrackingID)
+		assert.Equal(t, models.JobType("CREATE_VOLUME"), got.Type)
+		assert.Equal(t, models.JobState("PROCESSING"), got.State)
+		assert.Equal(t, "projects/p/locations/loc/volumes/vol", got.ResourceName)
+		assert.Equal(t, []byte("some error"), got.ErrorDetails)
+		assert.NotNil(t, got.JobAttributes)
+		assert.Empty(t, got.JobAttributes.ResourceUUID)
+		assert.Empty(t, got.JobAttributes.PoolUUID)
+	})
+
+	t.Run("ConvertsJobWithJobAttributes", func(t *testing.T) {
+		job := &datamodel.Job{
+			BaseModel:     datamodel.BaseModel{ID: 1, UUID: "j1", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+			CorrelationID: "c1",
+			TrackingID:    1,
+			Type:          "CREATE_VOLUME_REPLICATION",
+			State:         "NEW",
+			ResourceName:  "projects/p/locations/loc/volumes/v/replications/r",
+			ErrorDetails:  "",
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: "vol-uuid",
+				PoolUUID:     "pool-uuid",
+			},
+		}
+		got := ConvertDatastoreOperationToModel(job)
+		assert.NotNil(t, got)
+		assert.Equal(t, int64(1), got.ID)
+		assert.Equal(t, "j1", got.UUID)
+		assert.Equal(t, models.JobType("CREATE_VOLUME_REPLICATION"), got.Type)
+		assert.Equal(t, models.JobState("NEW"), got.State)
+		assert.NotNil(t, got.JobAttributes)
+		assert.Equal(t, "vol-uuid", got.JobAttributes.ResourceUUID)
+		assert.Equal(t, "pool-uuid", got.JobAttributes.PoolUUID)
+	})
+
+	t.Run("ConvertsDeletedAtWhenValid", func(t *testing.T) {
+		deletedTime := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:        1,
+				UUID:      "job-uuid",
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				DeletedAt: &gorm.DeletedAt{Time: deletedTime, Valid: true},
+			},
+			Type:          "CREATE_VOLUME",
+			State:         "DONE",
+			JobAttributes: &datamodel.JobAttributes{},
+		}
+		got := ConvertDatastoreOperationToModel(job)
+		assert.NotNil(t, got)
+		assert.Equal(t, int64(1), got.ID)
+		assert.NotNil(t, got.DeletedAt)
+		assert.Equal(t, deletedTime, *got.DeletedAt)
+	})
+
+	t.Run("ConvertsDeletedAtNilWhenDeletedAtInvalid", func(t *testing.T) {
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{
+				ID:        1,
+				UUID:      "job-uuid",
+				DeletedAt: &gorm.DeletedAt{Valid: false},
+			},
+			Type:          "CREATE_VOLUME",
+			State:         "NEW",
+			JobAttributes: &datamodel.JobAttributes{},
+		}
+		got := ConvertDatastoreOperationToModel(job)
+		assert.NotNil(t, got)
+		assert.Equal(t, int64(1), got.ID)
+		assert.Nil(t, got.DeletedAt)
 	})
 }

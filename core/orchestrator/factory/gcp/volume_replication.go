@@ -435,6 +435,20 @@ func _establishReplicationPeering(ctx context.Context, se database.Storage, temp
 	}
 	ccfeURI := replication.GetCCFEURI(params.AccountName, location, params.VolumeResourceId, params.ReplicationResourceId)
 
+	// check for duplicate jobs
+	existingJob, err := se.CheckAndFetchDuplicateJobs(ctx, string(models.JobTypeHybridReplicationEstablishPeering), utils.GetCoRelationIDFromContext(ctx))
+	if err != nil {
+		return nil, "", err
+	}
+	if existingJob != nil {
+		replication, err := se.GetVolumeReplication(ctx, existingJob.JobAttributes.ResourceUUID)
+		if err != nil {
+			logger.Error("Failed to get replication from database", "error", err)
+			return nil, "", err
+		}
+		return convertDataStoreReplicationToModel(replication), existingJob.UUID, nil
+	}
+
 	dstReplication, err := verifyEstablishPeering(ctx, params, se, account.ID, ccfeURI)
 	if err != nil {
 		return nil, "", err
@@ -468,11 +482,13 @@ func _establishReplicationPeering(ctx context.Context, se database.Storage, temp
 	}
 
 	job := &datamodel.Job{
-		Type:         string(models.JobTypeHybridReplicationEstablishPeering),
-		State:        string(models.JobsStateNEW),
-		ResourceName: ccfeURI,
-		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
-		JobAttributes: &datamodel.JobAttributes{ResourceUUID: replicationResult.DestinationVolume.UUID,
+		Type:          string(models.JobTypeHybridReplicationEstablishPeering),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  ccfeURI,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: replicationResult.DbVolReplication.UUID,
 			PoolUUID: replicationResult.DbVolReplication.ReplicationAttributes.DestinationPoolUUID},
 	}
 

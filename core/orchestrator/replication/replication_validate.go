@@ -33,6 +33,7 @@ var (
 	ValidateReplicationParams       = _validateReplicationParams
 	ValidateCreateReplicationParams = _validateCreateReplicationParams
 	ValidateReplicationResourceId   = _validateReplicationResourceId
+	CheckActiveReplicationJobs      = _checkActiveReplicationJobs
 	ValidateLabels                  = _validateLabels
 	internalUtilGetCCFEURI          = GetCCFEURI
 	utilsParseProjectNumberFromURI  = utils.ParseProjectNumberFromURI
@@ -662,6 +663,47 @@ func _hybridReplicationJobsInProcess(ctx context.Context, se database.Storage, a
 	}
 	logger.Infof("No active replication jobs found for pool %s, proceeding with hybrid replication volume creation", poolUUID)
 	return "", nil
+}
+
+// checkActiveReplicationJobs checks for active replication jobs for the given account and pool
+// to prevent conflicts during hybrid replication volume creation
+func _checkActiveReplicationJobs(ctx context.Context, se database.Storage, accountID int64, poolUUID string, ccfeUri string) error {
+	// Define replication job types to check for
+	// Create filter conditions for replication jobs
+	logger := util.GetLogger(ctx)
+	filter := utils2.CreateFilterWithConditions(
+		utils2.NewFilterCondition("account_id", "=", accountID),
+		utils2.NewFilterCondition("type", "in", replicationJobTypes),
+		utils2.NewFilterCondition("state", "in", activeJobStates),
+	)
+
+	// Get jobs matching the filter conditions
+	dbJobs, err := se.GetJobsWithCondition(ctx, *filter)
+	if err != nil {
+		logger.Errorf("Failed to get replication jobs with conditions: %v. Error: %v", filter, err)
+		return err
+	}
+	var jobs []*coreModels.Job
+
+	// Check for active replication jobs for this specific pool
+	for _, job := range dbJobs {
+		if job.JobAttributes != nil && job.JobAttributes.PoolUUID == poolUUID {
+			logger.Warnf("Active replication job found for pool %s: job_type=%s, job_state=%s, job_uuid=%s",
+				poolUUID, job.Type, job.State, job.UUID)
+			jobs = append(jobs, common.ConvertDatastoreOperationToModel(job))
+		}
+	}
+	for _, j := range jobs {
+		if j.Type == coreModels.JobTypeCreateHybridReplication || j.Type == coreModels.JobTypeHybridReplicationEstablishPeering {
+			// this make sure only one hybrid replication creation is in progress for a pool
+			return utilErrors.NewUserInputValidationErr("There is an active replication operation in progress for this pool. Please wait until the operation has finished and try again later.")
+		} else if j.ResourceName == ccfeUri {
+			// this make sure no other operation is in progress for this replication
+			return utilErrors.NewUserInputValidationErr("Another operation against this replication is in progress. Please wait until the operation has finished and try again later.")
+		}
+	}
+	logger.Infof("No active replication jobs found for pool %s, proceeding with hybrid replication volume creation", poolUUID)
+	return nil
 }
 
 // _createReplicationObjects return a dummy replication objects for expectedResponseCreateReplication endpoint to return

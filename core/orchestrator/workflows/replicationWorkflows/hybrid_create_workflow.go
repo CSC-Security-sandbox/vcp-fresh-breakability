@@ -97,10 +97,10 @@ func (wf *createHybridReplicationWorkflow) Run(ctx workflow.Context, args ...int
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: time.Duration(workflows.StartToCloseTimeoutForReplicationActivities) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
-			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			BackoffCoefficient:     workflows.BackoffCoefficientForReplicationActivities,
 			MaximumInterval:        retryPolicy.MaximumInterval,
 			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
 			NonRetryableErrorTypes: []string{"PanicError"},
@@ -279,10 +279,10 @@ func (wf *createEstablishPeeringWorkflow) Run(ctx workflow.Context, args ...inte
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: time.Duration(workflows.StartToCloseTimeoutForReplicationActivities) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
-			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			BackoffCoefficient:     workflows.BackoffCoefficientForReplicationActivities,
 			MaximumInterval:        retryPolicy.MaximumInterval,
 			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
 			NonRetryableErrorTypes: []string{"PanicError"},
@@ -355,7 +355,7 @@ func (wf *createEstablishPeeringWorkflow) Run(ctx workflow.Context, args ...inte
 	ctx = workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 		TaskQueue:             workflowengine.CustomerTaskQueue,
 		WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
-		WorkflowRunTimeout:    workflowengine.GetWorkflowGlobalTimeout(),
+		WorkflowRunTimeout:    *workflowengine.GetRevertVolumeWorkflowTimeout(),
 		ParentClosePolicy:     enums.PARENT_CLOSE_POLICY_ABANDON,
 		WorkflowID:            internalEstablishJob.WorkflowID,
 	})
@@ -432,10 +432,10 @@ func (wf *createInternalEstablishWorkflow) Run(ctx workflow.Context, args ...int
 		return nil, workflows.ConvertToVSAError(err)
 	}
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		StartToCloseTimeout: time.Duration(workflows.StartToCloseTimeoutForReplicationActivities) * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
-			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+			BackoffCoefficient:     workflows.BackoffCoefficientForReplicationActivities,
 			MaximumInterval:        retryPolicy.MaximumInterval,
 			MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
 			NonRetryableErrorTypes: []string{"PanicError"},

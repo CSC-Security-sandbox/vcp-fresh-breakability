@@ -2708,6 +2708,180 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 		// The error should be from ValidateLabels function
 		assert.Contains(tt, err.Error(), "Label key is required")
 	})
+
+	// Test lines 1387-1396 in volume.go: ccfeReplicationUri construction and CheckActiveReplicationJobs call.
+	t.Run("HybridReplication_CheckActiveReplicationJobs_WhenNoActiveJobs_Succeeds", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "proj"}
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			SizeInBytes: 100 * utils.GiBInBytes,
+			Network:     "default",
+		}
+		poolView := &datamodel.PoolView{Pool: *pool, QuotaInBytes: 0}
+		params := &common.CreateVolumeParams{
+			AccountName: "proj",
+			Region:      "us-west1",
+			Name:        "vol-1",
+			PoolID:      pool.UUID,
+			QuotaInBytes: 1024 * 1024 * 1024,
+			Protocols:   []string{utils.ProtocolNFSv3},
+			Network:     "default",
+			HybridReplicationParameters: &models.HybridReplicationParameters{
+				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationSchedule: "0 0 * * *",
+				PeerClusterName:     "peer-cluster",
+				PeerVolumeName:      "peer-vol",
+				PeerSvmName:         "peer-svm",
+				PeerIPAddresses:    []string{"192.168.1.1"},
+				ResourceID:          "repl-1",
+			},
+		}
+		mockStorage.On("GetVolumeReplicationCountByPeerDetails", ctx, params.AccountName, "peer-svm", "peer-vol").Return(int64(0), nil)
+		mockStorage.On("GetAccount", ctx, "proj").Return(account, nil)
+		mockStorage.On("GetVolumeReplicationByProjectId", ctx, account.ID).Return([]*datamodel.VolumeReplication{}, nil)
+		mockStorage.On("GetJobsWithCondition", ctx, mock.Anything).Return([]*datamodel.Job{}, nil)
+		// After CheckActiveReplicationJobs passes, validation continues; mock next step so we only assert we passed lines 1387-1396.
+		svmErr := errors2.New("svm not found")
+		mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(nil, svmErr)
+		err := _validateCreateVolumeParams(ctx, mockStorage, params, poolView)
+		assert.Error(tt, err)
+		assert.Equal(tt, svmErr, err, "error should be from GetSvmForPoolID after passing CheckActiveReplicationJobs")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("HybridReplication_CheckActiveReplicationJobs_WhenActiveJobSamePool_ReturnsError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "proj"}
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			SizeInBytes: 100 * utils.GiBInBytes,
+		}
+		poolView := &datamodel.PoolView{Pool: *pool, QuotaInBytes: 0}
+		params := &common.CreateVolumeParams{
+			AccountName: "proj",
+			Region:      "us-west1",
+			Name:        "vol-1",
+			PoolID:      pool.UUID,
+			QuotaInBytes: 1024 * 1024 * 1024,
+			Protocols:   []string{utils.ProtocolNFSv3},
+			HybridReplicationParameters: &models.HybridReplicationParameters{
+				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationSchedule: "0 0 * * *",
+				PeerClusterName:     "peer-cluster",
+				PeerVolumeName:      "peer-vol",
+				PeerSvmName:         "peer-svm",
+				PeerIPAddresses:    []string{"192.168.1.1"},
+				ResourceID:          "repl-1",
+			},
+		}
+		activeJob := &datamodel.Job{
+			BaseModel:     datamodel.BaseModel{UUID: "job-1"},
+			Type:          string(models.JobTypeCreateHybridReplication),
+			State:         string(models.JobsStatePROCESSING),
+			ResourceName:  "other-uri",
+			JobAttributes: &datamodel.JobAttributes{PoolUUID: pool.UUID},
+		}
+		mockStorage.On("GetVolumeReplicationCountByPeerDetails", ctx, params.AccountName, "peer-svm", "peer-vol").Return(int64(0), nil)
+		mockStorage.On("GetAccount", ctx, "proj").Return(account, nil)
+		mockStorage.On("GetVolumeReplicationByProjectId", ctx, account.ID).Return([]*datamodel.VolumeReplication{}, nil)
+		mockStorage.On("GetJobsWithCondition", ctx, mock.Anything).Return([]*datamodel.Job{activeJob}, nil)
+		err := _validateCreateVolumeParams(ctx, mockStorage, params, poolView)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "There is an active replication operation in progress for this pool")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("HybridReplication_CheckActiveReplicationJobs_WhenActiveJobSameReplication_ReturnsError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "proj"}
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			SizeInBytes: 100 * utils.GiBInBytes,
+		}
+		poolView := &datamodel.PoolView{Pool: *pool, QuotaInBytes: 0}
+		params := &common.CreateVolumeParams{
+			AccountName: "proj",
+			Region:      "us-west1",
+			Name:        "vol-1",
+			PoolID:      pool.UUID,
+			QuotaInBytes: 1024 * 1024 * 1024,
+			Protocols:   []string{utils.ProtocolNFSv3},
+			HybridReplicationParameters: &models.HybridReplicationParameters{
+				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationSchedule: "0 0 * * *",
+				PeerClusterName:     "peer-cluster",
+				PeerVolumeName:      "peer-vol",
+				PeerSvmName:         "peer-svm",
+				PeerIPAddresses:    []string{"192.168.1.1"},
+				ResourceID:          "repl-1",
+			},
+		}
+		activeJob := &datamodel.Job{
+			BaseModel:     datamodel.BaseModel{UUID: "job-2"},
+			Type:          string(models.JobTypeCreateVolumeReplication),
+			State:         string(models.JobsStateNEW),
+			ResourceName:  "projects/proj/locations/us-west1/volumes/vol-1/replications/repl-1",
+			JobAttributes: &datamodel.JobAttributes{PoolUUID: pool.UUID},
+		}
+		mockStorage.On("GetVolumeReplicationCountByPeerDetails", ctx, params.AccountName, "peer-svm", "peer-vol").Return(int64(0), nil)
+		mockStorage.On("GetAccount", ctx, "proj").Return(account, nil)
+		mockStorage.On("GetVolumeReplicationByProjectId", ctx, account.ID).Return([]*datamodel.VolumeReplication{}, nil)
+		mockStorage.On("GetJobsWithCondition", ctx, mock.Anything).Return([]*datamodel.Job{activeJob}, nil)
+		err := _validateCreateVolumeParams(ctx, mockStorage, params, poolView)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Another operation against this replication is in progress")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("HybridReplication_CheckActiveReplicationJobs_WhenGetJobsWithConditionFails_ReturnsError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "proj"}
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			SizeInBytes: 100 * utils.GiBInBytes,
+		}
+		poolView := &datamodel.PoolView{Pool: *pool, QuotaInBytes: 0}
+		params := &common.CreateVolumeParams{
+			AccountName: "proj",
+			Region:      "us-west1",
+			Name:        "vol-1",
+			PoolID:      pool.UUID,
+			QuotaInBytes: 1024 * 1024 * 1024,
+			Protocols:   []string{utils.ProtocolNFSv3},
+			HybridReplicationParameters: &models.HybridReplicationParameters{
+				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
+				ReplicationSchedule: "0 0 * * *",
+				PeerClusterName:     "peer-cluster",
+				PeerVolumeName:      "peer-vol",
+				PeerSvmName:         "peer-svm",
+				PeerIPAddresses:    []string{"192.168.1.1"},
+				ResourceID:          "repl-1",
+			},
+		}
+		dbErr := errors2.New("database error")
+		mockStorage.On("GetVolumeReplicationCountByPeerDetails", ctx, params.AccountName, "peer-svm", "peer-vol").Return(int64(0), nil)
+		mockStorage.On("GetAccount", ctx, "proj").Return(account, nil)
+		mockStorage.On("GetVolumeReplicationByProjectId", ctx, account.ID).Return([]*datamodel.VolumeReplication{}, nil)
+		mockStorage.On("GetJobsWithCondition", ctx, mock.Anything).Return(([]*datamodel.Job)(nil), dbErr)
+		err := _validateCreateVolumeParams(ctx, mockStorage, params, poolView)
+		assert.Error(tt, err)
+		assert.Equal(tt, dbErr, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
 	t.Run("CloneSharedBytes_SnapshotNotFound", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
@@ -7116,6 +7290,188 @@ func Test_createVolume_WithSnapshotPolicy(t *testing.T) {
 	assert.Equal(tt, []int{2, 3}, volume.SnapshotPolicy.Schedules[0].Schedule.DaysOfWeek)
 	assert.Equal(tt, []int{4}, volume.SnapshotPolicy.Schedules[0].Schedule.Hours)
 	assert.Equal(tt, []int{30}, volume.SnapshotPolicy.Schedules[0].Schedule.Minutes)
+}
+
+// Test_createVolume_WithAutoTieringPolicy covers lines 446-460 in volume.go: when params.AutoTieringPolicy
+// is set, volumeObj.AutoTieringEnabled and volumeObj.AutoTieringPolicy are populated from params.
+func Test_createVolume_WithAutoTieringPolicy(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+		Name:      "test-account",
+	}
+	pool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+		AccountID:        account.ID,
+		Account:          account,
+		State:            models.LifeCycleStateREADY,
+		SizeInBytes:      100 * utils.TiBInBytes,
+		AllowAutoTiering: true,
+		VendorID:         "/projects/p/locations/us-west1/pools/pool-uuid",
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:  "us-west1-a",
+			IsRegionalHA: false,
+		},
+	}
+	cloudWriteModeEnabled := true
+	params := &common.CreateVolumeParams{
+		AccountName:   account.Name,
+		Name:          "test-volume",
+		PoolID:        pool.UUID,
+		QuotaInBytes:  1073741824,
+		Protocols:     []string{utils.ProtocolISCSI},
+		Zone:          "us-west1-a",
+		BlockProperties: &common.BlockPropertiesRequest{OSType: "LINUX"},
+		AutoTieringPolicy: &common.AutoTieringPolicy{
+			AutoTieringEnabled:       true,
+			TieringPolicy:            "AUTO",
+			CoolingThresholdDays:     31,
+			RetrievalPolicy:          "ON_READ",
+			HotTierBypassModeEnabled: true,
+			CloudWriteModeEnabled:    &cloudWriteModeEnabled,
+		},
+	}
+	poolView := &datamodel.PoolView{
+		Pool:       *pool,
+		Throughput: 0,
+		Iops:       0,
+	}
+
+	mockStorage.On("GetAccount", ctx, account.Name).Return(account, nil)
+	mockStorage.On("GetPool", ctx, pool.UUID, account.ID).Return(poolView, nil)
+	mockStorage.On("GetPoolByID", ctx, pool.ID).Return(pool, nil).Maybe()
+	mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil).Maybe()
+	mockStorage.On("GetMultipleHostGroups", mock.Anything, mock.Anything, account.ID).
+		Return([]*datamodel.HostGroup{}, nil).Maybe()
+	mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, pool.Account.ID, params.Zone, false).
+		Return(nil, customerrors.NewNotFoundErr("volume", nil))
+	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		AccountID: pool.AccountID,
+		Name:      "node-1",
+		State:     models.LifeCycleStateREADY,
+	}, {
+		BaseModel: datamodel.BaseModel{ID: 2},
+		AccountID: pool.AccountID,
+		Name:      "node-2",
+		State:     models.LifeCycleStateREADY,
+	}}, nil)
+	mockStorage.On("GetLifForNode", ctx, int64(1), pool.AccountID).Return(&datamodel.Lif{Name: "lif-1"}, nil)
+	mockStorage.On("GetLifForNode", ctx, int64(2), pool.AccountID).Return(&datamodel.Lif{Name: "lif-2"}, nil)
+	mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(&datamodel.Svm{
+		Name:  "svm-1",
+		State: models.LifeCycleStateREADY,
+	}, nil)
+
+	var capturedVolume *datamodel.Volume
+	mockStorage.On("CreateVolume", ctx, mock.AnythingOfType("*datamodel.Volume")).
+		Run(func(args mock.Arguments) {
+			capturedVolume = args.Get(1).(*datamodel.Volume)
+		}).
+		Return(&datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Account:   account,
+			AccountID: account.ID,
+			Pool:      pool,
+			PoolID:    pool.ID,
+		}, nil)
+	mockStorage.On("DeleteVolume", ctx, "volume-uuid").Return(&datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "volume-uuid"}}, nil)
+	mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors2.New("job create error"))
+
+	_, _, err := _createVolume(ctx, mockStorage, mockTemporal, params)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "job create error", "expected CreateJob to fail so we can assert volume passed to CreateVolume")
+	if capturedVolume == nil {
+		t.Fatal("CreateVolume was not called; validation or earlier step may have failed")
+	}
+
+	// Assert lines 446-460: volumeObj populated from params.AutoTieringPolicy
+	assert.True(t, capturedVolume.AutoTieringEnabled, "AutoTieringEnabled should be set from params")
+	assert.NotNil(t, capturedVolume.AutoTieringPolicy)
+	assert.Equal(t, "AUTO", capturedVolume.AutoTieringPolicy.TieringPolicy)
+	assert.Equal(t, int32(31), capturedVolume.AutoTieringPolicy.CoolingThresholdDays)
+	assert.Equal(t, "ON_READ", capturedVolume.AutoTieringPolicy.RetrievalPolicy)
+	assert.True(t, capturedVolume.AutoTieringPolicy.HotTierBypassModeEnabled)
+	assert.NotNil(t, capturedVolume.AutoTieringPolicy.CloudWriteModeEnabled)
+	assert.True(t, *capturedVolume.AutoTieringPolicy.CloudWriteModeEnabled)
+}
+
+func Test_createVolume_WithAutoTieringPolicy_NilPolicyNotSet(t *testing.T) {
+	// When params.AutoTieringPolicy is nil, volumeObj should not have AutoTieringPolicy set (block 448-457 skipped).
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+		Name:      "test-account",
+	}
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+		AccountID:   account.ID,
+		Account:     account,
+		State:       models.LifeCycleStateREADY,
+		SizeInBytes: 100 * utils.TiBInBytes,
+		VendorID:    "/projects/p/locations/us-west1/pools/pool-uuid",
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:  "us-west1-a",
+			IsRegionalHA: false,
+		},
+	}
+	params := &common.CreateVolumeParams{
+		AccountName:       account.Name,
+		Name:              "test-volume",
+		PoolID:            pool.UUID,
+		QuotaInBytes:      1073741824,
+		Protocols:         []string{utils.ProtocolISCSI},
+		Zone:              "us-west1-a",
+		BlockProperties:   &common.BlockPropertiesRequest{OSType: "LINUX"},
+		AutoTieringPolicy: nil,
+	}
+	poolView := &datamodel.PoolView{Pool: *pool, Throughput: 0, Iops: 0}
+
+	mockStorage.On("GetAccount", ctx, account.Name).Return(account, nil)
+	mockStorage.On("GetPool", ctx, pool.UUID, account.ID).Return(poolView, nil)
+	mockStorage.On("GetPoolByID", ctx, pool.ID).Return(pool, nil).Maybe()
+	mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil).Maybe()
+	mockStorage.On("GetMultipleHostGroups", mock.Anything, mock.Anything, account.ID).
+		Return([]*datamodel.HostGroup{}, nil).Maybe()
+	mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, pool.Account.ID, params.Zone, false).
+		Return(nil, customerrors.NewNotFoundErr("volume", nil))
+	mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{{
+		BaseModel: datamodel.BaseModel{ID: 1}, AccountID: pool.AccountID, Name: "node-1", State: models.LifeCycleStateREADY,
+	}, {
+		BaseModel: datamodel.BaseModel{ID: 2}, AccountID: pool.AccountID, Name: "node-2", State: models.LifeCycleStateREADY,
+	}}, nil)
+	mockStorage.On("GetLifForNode", ctx, int64(1), pool.AccountID).Return(&datamodel.Lif{Name: "lif-1"}, nil)
+	mockStorage.On("GetLifForNode", ctx, int64(2), pool.AccountID).Return(&datamodel.Lif{Name: "lif-2"}, nil)
+	mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(&datamodel.Svm{Name: "svm-1", State: models.LifeCycleStateREADY}, nil)
+
+	var capturedVolume *datamodel.Volume
+	mockStorage.On("CreateVolume", ctx, mock.AnythingOfType("*datamodel.Volume")).
+		Run(func(args mock.Arguments) {
+			capturedVolume = args.Get(1).(*datamodel.Volume)
+		}).
+		Return(&datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Account:   account, AccountID: account.ID, Pool: pool, PoolID: pool.ID,
+		}, nil)
+	mockStorage.On("DeleteVolume", ctx, "volume-uuid").Return(&datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "volume-uuid"}}, nil)
+	mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors2.New("job create error"))
+
+	_, _, err := _createVolume(ctx, mockStorage, mockTemporal, params)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "job create error")
+	if capturedVolume == nil {
+		t.Fatal("CreateVolume was not called")
+	}
+	assert.False(t, capturedVolume.AutoTieringEnabled)
+	assert.Nil(t, capturedVolume.AutoTieringPolicy)
 }
 
 func TestCreateVolume_SMBDefaultSecurityStyle(t *testing.T) {

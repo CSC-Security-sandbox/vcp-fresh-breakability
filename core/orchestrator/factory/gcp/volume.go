@@ -243,6 +243,22 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		}
 	}
 
+	if hp := params.HybridReplicationParameters; hp != nil {
+		// check for duplicate jobs
+		existingJob, err := se.CheckAndFetchDuplicateJobs(ctx, string(models.JobTypeCreateHybridReplication), utils.GetCoRelationIDFromContext(ctx))
+		if err != nil {
+			return nil, "", err
+		}
+		if existingJob != nil {
+			vol, err := se.GetVolume(ctx, existingJob.JobAttributes.ResourceUUID)
+			if err != nil {
+				logger.Error("Failed to get volume from database", "error", err)
+				return nil, "", err
+			}
+			return convertDatastoreVolumeToModel(vol, nil), existingJob.UUID, nil
+		}
+	}
+
 	err = validateCreateVolumeParams(ctx, se, params, pool)
 	if err != nil {
 		return nil, "", err
@@ -1365,6 +1381,18 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		err = replication.ValidateReplicationResourceId(ctx, params.AccountName, params.HybridReplicationParameters.ResourceID, params.Name, se)
 		if err != nil {
 			return vsaerrors.NewVCPError(vsaerrors.ErrValidateCreateResourceIdInUse, err)
+		}
+
+		// Check for active replication jobs to prevent conflicts
+		ccfeReplicationUri := fmt.Sprintf("projects/%s/locations/%s/volumes/%s/replications/%s",
+			params.AccountName,
+			params.Region,
+			params.Name,
+			hp.ResourceID)
+
+		err = replication.CheckActiveReplicationJobs(ctx, se, pool.AccountID, pool.UUID, ccfeReplicationUri)
+		if err != nil {
+			return err
 		}
 	}
 

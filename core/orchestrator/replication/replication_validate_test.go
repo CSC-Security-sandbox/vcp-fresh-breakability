@@ -83,6 +83,110 @@ func Test_getReplicationJobs(t *testing.T) {
 	})
 }
 
+func Test_checkActiveReplicationJobs(t *testing.T) {
+	ctx := context.Background()
+	accountID := int64(1)
+	poolUUID := "pool-uuid-123"
+	ccfeURI := "projects/p1/locations/loc1/volumes/vol-1/replications/repl-1"
+
+	t.Run("NoActiveJobs_Success", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		mockStorage.On("GetJobsWithCondition", ctx, mock.Anything).Return([]*datamodel.Job{}, nil)
+		err := _checkActiveReplicationJobs(ctx, mockStorage, accountID, poolUUID, ccfeURI)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("JobsForOtherPool_NoError", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		otherPoolJob := &datamodel.Job{
+			BaseModel:     datamodel.BaseModel{UUID: "job-1"},
+			Type:          string(coreModels.JobTypeCreateVolumeReplication),
+			State:         string(coreModels.JobsStatePROCESSING),
+			ResourceName:  ccfeURI,
+			JobAttributes: &datamodel.JobAttributes{PoolUUID: "other-pool-uuid"},
+		}
+		mockStorage.On("GetJobsWithCondition", ctx, mock.Anything).Return([]*datamodel.Job{otherPoolJob}, nil)
+		err := _checkActiveReplicationJobs(ctx, mockStorage, accountID, poolUUID, ccfeURI)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("GetJobsWithCondition_ReturnsError", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		dbErr := errors.New("database error")
+		mockStorage.On("GetJobsWithCondition", ctx, mock.Anything).Return([]*datamodel.Job(nil), dbErr)
+		err := _checkActiveReplicationJobs(ctx, mockStorage, accountID, poolUUID, ccfeURI)
+		assert.Error(tt, err)
+		assert.Equal(tt, dbErr, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ActiveCreateHybridReplicationJob_ReturnsPoolError", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		job := &datamodel.Job{
+			BaseModel:     datamodel.BaseModel{UUID: "job-1"},
+			Type:          string(coreModels.JobTypeCreateHybridReplication),
+			State:         string(coreModels.JobsStatePROCESSING),
+			ResourceName:  "some-other-uri",
+			JobAttributes: &datamodel.JobAttributes{PoolUUID: poolUUID},
+		}
+		mockStorage.On("GetJobsWithCondition", ctx, mock.Anything).Return([]*datamodel.Job{job}, nil)
+		err := _checkActiveReplicationJobs(ctx, mockStorage, accountID, poolUUID, ccfeURI)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "There is an active replication operation in progress for this pool")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ActiveEstablishPeeringJob_ReturnsPoolError", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		job := &datamodel.Job{
+			BaseModel:     datamodel.BaseModel{UUID: "job-2"},
+			Type:          string(coreModels.JobTypeHybridReplicationEstablishPeering),
+			State:         string(coreModels.JobsStateNEW),
+			ResourceName:  "some-uri",
+			JobAttributes: &datamodel.JobAttributes{PoolUUID: poolUUID},
+		}
+		mockStorage.On("GetJobsWithCondition", ctx, mock.Anything).Return([]*datamodel.Job{job}, nil)
+		err := _checkActiveReplicationJobs(ctx, mockStorage, accountID, poolUUID, ccfeURI)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "There is an active replication operation in progress for this pool")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ActiveJobSameReplication_ReturnsReplicationError", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		job := &datamodel.Job{
+			BaseModel:     datamodel.BaseModel{UUID: "job-3"},
+			Type:          string(coreModels.JobTypeCreateVolumeReplication),
+			State:         string(coreModels.JobsStatePROCESSING),
+			ResourceName:  ccfeURI,
+			JobAttributes: &datamodel.JobAttributes{PoolUUID: poolUUID},
+		}
+		mockStorage.On("GetJobsWithCondition", ctx, mock.Anything).Return([]*datamodel.Job{job}, nil)
+		err := _checkActiveReplicationJobs(ctx, mockStorage, accountID, poolUUID, ccfeURI)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Another operation against this replication is in progress")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ActiveJobSamePoolDifferentReplication_ReturnsReplicationErrorWhenResourceMatches", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		job := &datamodel.Job{
+			BaseModel:     datamodel.BaseModel{UUID: "job-4"},
+			Type:          string(coreModels.JobTypeUpdateVolumeReplication),
+			State:         string(coreModels.JobsStatePROCESSING),
+			ResourceName:  ccfeURI,
+			JobAttributes: &datamodel.JobAttributes{PoolUUID: poolUUID},
+		}
+		mockStorage.On("GetJobsWithCondition", ctx, mock.Anything).Return([]*datamodel.Job{job}, nil)
+		err := _checkActiveReplicationJobs(ctx, mockStorage, accountID, poolUUID, ccfeURI)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Another operation against this replication is in progress")
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
 func Test_replicationJobInProcess(t *testing.T) {
 	ctx := context.Background()
 	srcBasePath := "srcBasePath"

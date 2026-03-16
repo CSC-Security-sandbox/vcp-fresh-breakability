@@ -152,7 +152,7 @@ func _performMountCheck(ctx context.Context, se database.Storage, temporal clien
 		logger.Error("Failed to start MountJob Workflow: ", "error", err)
 		return nil, err
 	}
-	return convertDatastoreOperationToModel(createdJob), nil
+	return common.ConvertDatastoreOperationToModel(createdJob), nil
 }
 
 // UpdateVolumeReplicationAttributes updates volume replication attributes in the database
@@ -238,7 +238,7 @@ func updateVolumeReplicationAttributes(ctx context.Context, se database.Storage,
 		"volumeReplicationId", params.VolumeReplicationId,
 		"workflowId", createdJob.WorkflowID)
 
-	return convertDatastoreOperationToModel(createdJob), nil
+	return common.ConvertDatastoreOperationToModel(createdJob), nil
 }
 
 func (o *GCPOrchestrator) UpdateVolumeReplicationState(ctx context.Context, params models.UpdateVolumeReplicationStateParams) (*models.VolumeReplication, error) {

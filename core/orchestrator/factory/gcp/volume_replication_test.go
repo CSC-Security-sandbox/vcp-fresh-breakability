@@ -12058,6 +12058,8 @@ func TestEstablishReplicationPeering(t *testing.T) {
 			}, nil
 		}
 
+		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, "HYBRID_REPLICATION_ESTABLISH_PEERING", mock.Anything).Return((*datamodel.Job)(nil), nil)
+
 		verifyEstablishPeering = func(ctx context.Context, params *commonparams.EstablishReplicationPeeringParams, se database.Storage, accountID int64, ccfeURI string) (*datamodel.VolumeReplication, error) {
 			return nil, errors.New("replication not found")
 		}
@@ -12078,6 +12080,145 @@ func TestEstablishReplicationPeering(t *testing.T) {
 		_, _, err := _establishReplicationPeering(ctx, mockStorage, mockTemporal, params)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "replication not found", err.Error())
+	})
+
+	t.Run("WhenCheckAndFetchDuplicateJobsReturnsError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		originalGetAccountWithName := getAccountWithName
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			}, nil
+		}
+
+		dbErr := errors.New("database error")
+		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, "HYBRID_REPLICATION_ESTABLISH_PEERING", mock.Anything).Return((*datamodel.Job)(nil), dbErr)
+
+		params := &commonparams.EstablishReplicationPeeringParams{
+			AccountName:           "test-account",
+			Region:                "us-central1",
+			Zone:                  "",
+			VolumeResourceId:      "volume-123",
+			ReplicationResourceId: "replication-123",
+			CorrelationId:         "corr-123",
+			PeerVolumeName:        "peer-volume",
+			PeerClusterName:       "peer-cluster",
+			PeerSvmName:           "peer-svm",
+			PeerIPAddresses:       []string{"10.0.0.1"},
+		}
+
+		_, _, err := _establishReplicationPeering(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Equal(tt, dbErr, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenDuplicateJobExists", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		originalGetAccountWithName := getAccountWithName
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			}, nil
+		}
+
+		existingJob := &datamodel.Job{
+			BaseModel:     datamodel.BaseModel{UUID: "existing-job-uuid"},
+			JobAttributes: &datamodel.JobAttributes{ResourceUUID: "replication-123"},
+		}
+		existingReplication := &datamodel.VolumeReplication{
+			BaseModel:     datamodel.BaseModel{UUID: "replication-123"},
+			Name:          "test-replication",
+			State:         models.LifeCycleStateUpdating,
+			StateDetails:  models.LifeCycleStateUpdatingDetails,
+			ReplicationAttributes: &datamodel.ReplicationDetails{},
+		}
+
+		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, "HYBRID_REPLICATION_ESTABLISH_PEERING", mock.Anything).Return(existingJob, nil)
+		mockStorage.On("GetVolumeReplication", ctx, "replication-123").Return(existingReplication, nil)
+
+		params := &commonparams.EstablishReplicationPeeringParams{
+			AccountName:           "test-account",
+			Region:                "us-central1",
+			Zone:                  "",
+			VolumeResourceId:      "volume-123",
+			ReplicationResourceId: "replication-123",
+			CorrelationId:         "corr-123",
+			PeerVolumeName:        "peer-volume",
+			PeerClusterName:       "peer-cluster",
+			PeerSvmName:           "peer-svm",
+			PeerIPAddresses:       []string{"10.0.0.1"},
+		}
+
+		volumeReplication, jobUUID, err := _establishReplicationPeering(ctx, mockStorage, mockTemporal, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volumeReplication)
+		assert.Equal(tt, "replication-123", volumeReplication.UUID)
+		assert.Equal(tt, "existing-job-uuid", jobUUID)
+		assert.Equal(tt, models.LifeCycleStateUpdating, volumeReplication.State)
+		assert.Equal(tt, models.LifeCycleStateUpdatingDetails, volumeReplication.StateDetails)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenDuplicateJobExistsAndGetVolumeReplicationFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(t)
+
+		originalGetAccountWithName := getAccountWithName
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-account",
+			}, nil
+		}
+
+		existingJob := &datamodel.Job{
+			BaseModel:     datamodel.BaseModel{UUID: "existing-job-uuid"},
+			JobAttributes: &datamodel.JobAttributes{ResourceUUID: "replication-123"},
+		}
+
+		getReplicationErr := errors.New("failed to get replication from database")
+		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, "HYBRID_REPLICATION_ESTABLISH_PEERING", mock.Anything).Return(existingJob, nil)
+		mockStorage.On("GetVolumeReplication", ctx, "replication-123").Return((*datamodel.VolumeReplication)(nil), getReplicationErr)
+
+		params := &commonparams.EstablishReplicationPeeringParams{
+			AccountName:           "test-account",
+			Region:                "us-central1",
+			Zone:                  "",
+			VolumeResourceId:      "volume-123",
+			ReplicationResourceId: "replication-123",
+			CorrelationId:         "corr-123",
+			PeerVolumeName:        "peer-volume",
+			PeerClusterName:       "peer-cluster",
+			PeerSvmName:           "peer-svm",
+			PeerIPAddresses:       []string{"10.0.0.1"},
+		}
+
+		_, _, err := _establishReplicationPeering(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Equal(tt, getReplicationErr, err)
+		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("WhenCheckActiveReplicationJobsReturnsError", func(tt *testing.T) {
@@ -12102,6 +12243,8 @@ func TestEstablishReplicationPeering(t *testing.T) {
 				Name:      "test-account",
 			}, nil
 		}
+
+		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, "HYBRID_REPLICATION_ESTABLISH_PEERING", mock.Anything).Return((*datamodel.Job)(nil), nil)
 
 		dstReplication := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
@@ -12167,6 +12310,8 @@ func TestEstablishReplicationPeering(t *testing.T) {
 				Name:      "test-account",
 			}, nil
 		}
+
+		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, "HYBRID_REPLICATION_ESTABLISH_PEERING", mock.Anything).Return((*datamodel.Job)(nil), nil)
 
 		dstReplication := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
@@ -12235,6 +12380,8 @@ func TestEstablishReplicationPeering(t *testing.T) {
 			}, nil
 		}
 
+		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, "HYBRID_REPLICATION_ESTABLISH_PEERING", mock.Anything).Return((*datamodel.Job)(nil), nil)
+
 		dstReplication := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
 			Name:      "test-replication",
@@ -12302,6 +12449,8 @@ func TestEstablishReplicationPeering(t *testing.T) {
 				Name:      "test-account",
 			}, nil
 		}
+
+		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, "HYBRID_REPLICATION_ESTABLISH_PEERING", mock.Anything).Return((*datamodel.Job)(nil), nil)
 
 		dstReplication := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
@@ -12380,6 +12529,8 @@ func TestEstablishReplicationPeering(t *testing.T) {
 			}, nil
 		}
 
+		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, "HYBRID_REPLICATION_ESTABLISH_PEERING", mock.Anything).Return((*datamodel.Job)(nil), nil)
+
 		dstReplication := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
 			Name:      "test-replication",
@@ -12456,6 +12607,8 @@ func TestEstablishReplicationPeering(t *testing.T) {
 				Name:      "test-account",
 			}, nil
 		}
+
+		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, "HYBRID_REPLICATION_ESTABLISH_PEERING", mock.Anything).Return((*datamodel.Job)(nil), nil)
 
 		dstReplication := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{UUID: "replication-123"},
@@ -12536,6 +12689,8 @@ func TestEstablishReplicationPeering(t *testing.T) {
 				Name:      "test-account",
 			}, nil
 		}
+
+		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, "HYBRID_REPLICATION_ESTABLISH_PEERING", mock.Anything).Return((*datamodel.Job)(nil), nil)
 
 		dstReplication := &datamodel.VolumeReplication{
 			BaseModel: datamodel.BaseModel{UUID: "replication-123"},

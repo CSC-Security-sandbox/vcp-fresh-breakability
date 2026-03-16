@@ -518,6 +518,7 @@ func TestHybridReplicationActivity_CreateJobForEstablishReplicationWorkflow(t *t
 				BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid", ID: 456},
 				Name:      "test-volume",
 				AccountID: 123,
+				Pool:      &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"}},
 			},
 			DestinationProjectNumber: "test-project",
 			DestinationRegion:        "us-central1",
@@ -531,7 +532,7 @@ func TestHybridReplicationActivity_CreateJobForEstablishReplicationWorkflow(t *t
 			Type:          string(models.JobTypeCreateVolume),
 			State:         string(models.JobsStateNEW),
 			ResourceName:  "test-volume",
-			JobAttributes: &datamodel.JobAttributes{ResourceUUID: "test-volume-uuid"},
+			JobAttributes: &datamodel.JobAttributes{ResourceUUID: "test-volume-uuid", PoolUUID: "test-pool-uuid"},
 		}
 
 		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
@@ -539,7 +540,9 @@ func TestHybridReplicationActivity_CreateJobForEstablishReplicationWorkflow(t *t
 				job.Type == string(models.JobTypeCreateVolume) &&
 				job.State == string(models.JobsStateNEW) &&
 				job.ResourceName == "test-volume" &&
-				job.JobAttributes.ResourceUUID == "test-volume-uuid"
+				job.JobAttributes != nil &&
+				job.JobAttributes.ResourceUUID == "test-volume-uuid" &&
+				job.JobAttributes.PoolUUID == "test-pool-uuid"
 		})).Return(expectedJob, nil)
 
 		result, err := activity.CreateJobForHybridReplication(ctx, replicationResult, string(models.JobTypeCreateVolume))
@@ -559,6 +562,7 @@ func TestHybridReplicationActivity_CreateJobForEstablishReplicationWorkflow(t *t
 				BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid", ID: 456},
 				Name:      "test-volume",
 				AccountID: 123,
+				Pool:      &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"}},
 			},
 			DestinationProjectNumber: "test-project",
 			DestinationRegion:        "us-central1",
@@ -572,7 +576,7 @@ func TestHybridReplicationActivity_CreateJobForEstablishReplicationWorkflow(t *t
 			Type:          string(models.JobTypeHybridReplicationEstablishPeering),
 			State:         string(models.JobsStateNEW),
 			ResourceName:  "projects/test-project/locations/us-central1/volumes/test-volume/replications/test-replication-id",
-			JobAttributes: &datamodel.JobAttributes{ResourceUUID: "test-volume-uuid"},
+			JobAttributes: &datamodel.JobAttributes{ResourceUUID: "test-volume-uuid", PoolUUID: "test-pool-uuid"},
 		}
 
 		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
@@ -580,7 +584,9 @@ func TestHybridReplicationActivity_CreateJobForEstablishReplicationWorkflow(t *t
 				job.Type == string(models.JobTypeHybridReplicationEstablishPeering) &&
 				job.State == string(models.JobsStateNEW) &&
 				job.ResourceName == "projects/test-project/locations/us-central1/volumes/test-volume/replications/test-replication-id" &&
-				job.JobAttributes.ResourceUUID == "test-volume-uuid"
+				job.JobAttributes != nil &&
+				job.JobAttributes.ResourceUUID == "test-volume-uuid" &&
+				job.JobAttributes.PoolUUID == "test-pool-uuid"
 		})).Return(expectedJob, nil)
 
 		result, err := activity.CreateJobForHybridReplication(ctx, replicationResult, string(models.JobTypeHybridReplicationEstablishPeering))
@@ -600,6 +606,7 @@ func TestHybridReplicationActivity_CreateJobForEstablishReplicationWorkflow(t *t
 				BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid", ID: 456},
 				Name:      "test-volume",
 				AccountID: 123,
+				Pool:      &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"}},
 			},
 			DestinationProjectNumber: "test-project",
 			DestinationRegion:        "us-central1",
@@ -628,6 +635,7 @@ func TestHybridReplicationActivity_CreateJobForEstablishReplicationWorkflow(t *t
 				BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid", ID: 456},
 				Name:      "test-volume",
 				AccountID: 123,
+				Pool:      &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"}},
 			},
 			DestinationProjectNumber: "test-project",
 			DestinationRegion:        "us-central1",
@@ -642,7 +650,7 @@ func TestHybridReplicationActivity_CreateJobForEstablishReplicationWorkflow(t *t
 			Type:          string(models.JobTypeHybridReplicationEstablishPeering),
 			State:         string(models.JobsStateNEW),
 			ResourceName:  "projects/test-project/locations/us-central1-a/volumes/test-volume/replications/test-replication-id",
-			JobAttributes: &datamodel.JobAttributes{ResourceUUID: "test-volume-uuid"},
+			JobAttributes: &datamodel.JobAttributes{ResourceUUID: "test-volume-uuid", PoolUUID: "test-pool-uuid"},
 		}
 
 		mockStorage.On("CreateJob", ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
@@ -650,7 +658,9 @@ func TestHybridReplicationActivity_CreateJobForEstablishReplicationWorkflow(t *t
 				job.Type == string(models.JobTypeHybridReplicationEstablishPeering) &&
 				job.State == string(models.JobsStateNEW) &&
 				job.ResourceName == "projects/test-project/locations/us-central1-a/volumes/test-volume/replications/test-replication-id" &&
-				job.JobAttributes.ResourceUUID == "test-volume-uuid"
+				job.JobAttributes != nil &&
+				job.JobAttributes.ResourceUUID == "test-volume-uuid" &&
+				job.JobAttributes.PoolUUID == "test-pool-uuid"
 		})).Return(expectedJob, nil)
 
 		result, err := activity.CreateJobForHybridReplication(ctx, replicationResult, string(models.JobTypeHybridReplicationEstablishPeering))
