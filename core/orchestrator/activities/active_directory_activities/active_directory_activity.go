@@ -225,6 +225,10 @@ func (a ActiveDirectoryActivity) buildNewCredentials(ctx context.Context, params
 		newCredentials.LdapSigning = params.LdapSigning
 	}
 
+	if params.AllowLocalNFSUsersWithLdap != nil {
+		newCredentials.AllowLocalNFSUsersWithLdap = params.AllowLocalNFSUsersWithLdap
+	}
+
 	return newCredentials
 }
 

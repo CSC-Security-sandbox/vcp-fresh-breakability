@@ -941,6 +941,22 @@ func TestUpdateAllowLocalNFSUsersWithLdap_Success(t *testing.T) {
 	mockNAS.AssertExpectations(t)
 }
 
+func TestUpdateAllowLocalNFSUsersWithLdap_Failure(t *testing.T) {
+	adu, mockREST := setupMockUpdater(t)
+	mockNAS := &ontapRest.MockNASClient{}
+	mockREST.On("NAS").Return(mockNAS)
+
+	mockNAS.On("NfsModify", mock.MatchedBy(func(params *ontapRest.NfsModifyParams) bool {
+		return params.AllowLocalNFSUsersWithLdap != nil
+	})).Return(vsaerrors.New("nfs modify failed"))
+
+	err := adu.UpdateAllowLocalNFSUsersWithLdap()
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "nfs modify failed")
+	mockNAS.AssertExpectations(t)
+}
+
 // ============================================================================
 // UpdateLDAPOverTLS Tests
 // ============================================================================
@@ -1508,6 +1524,135 @@ func TestUpdateActiveDirectoryCredentials_DNSNotEnabled(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "DNS is not enabled")
+}
+
+func TestUpdateActiveDirectoryCredentials_AllowLocalNFSUsersWithLdapUpdate(t *testing.T) {
+	logger := log.NewLogger()
+	provider := &OntapRestProvider{Logger: logger}
+	mockREST := &ontapRest.MockRESTClient{}
+	mockNAS := &ontapRest.MockNASClient{}
+	params := buildTestUpdateCredentialsParams()
+	// Only AllowLocalNFSUsersWithLdap differs so only that update path is taken
+	params.NewCredentials.DNS = params.OldCredentials.DNS
+	params.NewCredentials.ServerRootCaCertificate = params.OldCredentials.ServerRootCaCertificate
+	params.NewCredentials.LdapOverTLS = params.OldCredentials.LdapOverTLS
+	params.NewCredentials.NetBIOS = params.OldCredentials.NetBIOS
+	params.NewCredentials.Site = params.OldCredentials.Site
+	params.NewCredentials.Users = params.OldCredentials.Users
+	params.NewCredentials.AesEncryption = params.OldCredentials.AesEncryption
+	params.NewCredentials.LdapSigning = params.OldCredentials.LdapSigning
+	params.NewCredentials.EncryptDCConnections = params.OldCredentials.EncryptDCConnections
+	params.NewCredentials.KdcIP = params.OldCredentials.KdcIP
+	params.NewCredentials.AdName = params.OldCredentials.AdName
+	params.OldCredentials.AllowLocalNFSUsersWithLdap = nillable.ToPointer(false)
+	params.NewCredentials.AllowLocalNFSUsersWithLdap = nillable.ToPointer(true)
+
+	cifsName := "CIFSSERVER"
+	cifs := ontapRest.CifsService{
+		CifsService: models.CifsService{
+			Name: &cifsName,
+			AdDomain: &models.AdDomain{
+				Fqdn: nillable.ToPointer("old.domain.com"),
+			},
+		},
+	}
+
+	originalFunc := getOntapClientFunc
+	t.Cleanup(func() { getOntapClientFunc = originalFunc })
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockREST, nil
+	}
+
+	originalDecrypt := decryptPassword
+	t.Cleanup(func() { decryptPassword = originalDecrypt })
+	decryptPassword = func(password log.Secret) (*string, error) {
+		return (*string)(&password), nil
+	}
+
+	originalIsDDNS := isDDNSEnabled
+	t.Cleanup(func() { isDDNSEnabled = originalIsDDNS })
+	isDDNSEnabled = func(_ log.Logger, _ ontapRest.RESTClient, _ string) bool {
+		return true
+	}
+
+	mockSVM := &ontapRest.MockSVMClient{}
+	mockREST.On("SVM").Return(mockSVM)
+	mockSVM.On("SvmGet", mock.Anything).Return(&ontapRest.Svm{}, nil)
+
+	mockREST.On("NAS").Return(mockNAS)
+	mockNAS.On("NfsModify", mock.MatchedBy(func(params *ontapRest.NfsModifyParams) bool {
+		return params.AllowLocalNFSUsersWithLdap != nil && *params.AllowLocalNFSUsersWithLdap == false
+	})).Return(nil)
+
+	err := provider.UpdateActiveDirectoryCredentials(params, cifs, "svm-name", "svm-uuid")
+
+	assert.NoError(t, err)
+	mockNAS.AssertExpectations(t)
+}
+
+func TestUpdateActiveDirectoryCredentials_AllowLocalNFSUsersWithLdapUpdateError(t *testing.T) {
+	logger := log.NewLogger()
+	provider := &OntapRestProvider{Logger: logger}
+	mockREST := &ontapRest.MockRESTClient{}
+	mockNAS := &ontapRest.MockNASClient{}
+	params := buildTestUpdateCredentialsParams()
+	// Only AllowLocalNFSUsersWithLdap differs
+	params.NewCredentials.DNS = params.OldCredentials.DNS
+	params.NewCredentials.ServerRootCaCertificate = params.OldCredentials.ServerRootCaCertificate
+	params.NewCredentials.LdapOverTLS = params.OldCredentials.LdapOverTLS
+	params.NewCredentials.NetBIOS = params.OldCredentials.NetBIOS
+	params.NewCredentials.Site = params.OldCredentials.Site
+	params.NewCredentials.Users = params.OldCredentials.Users
+	params.NewCredentials.AesEncryption = params.OldCredentials.AesEncryption
+	params.NewCredentials.LdapSigning = params.OldCredentials.LdapSigning
+	params.NewCredentials.EncryptDCConnections = params.OldCredentials.EncryptDCConnections
+	params.NewCredentials.KdcIP = params.OldCredentials.KdcIP
+	params.NewCredentials.AdName = params.OldCredentials.AdName
+	params.OldCredentials.AllowLocalNFSUsersWithLdap = nillable.ToPointer(false)
+	params.NewCredentials.AllowLocalNFSUsersWithLdap = nillable.ToPointer(true)
+
+	cifsName := "CIFSSERVER"
+	cifs := ontapRest.CifsService{
+		CifsService: models.CifsService{
+			Name: &cifsName,
+			AdDomain: &models.AdDomain{
+				Fqdn: nillable.ToPointer("old.domain.com"),
+			},
+		},
+	}
+
+	originalFunc := getOntapClientFunc
+	t.Cleanup(func() { getOntapClientFunc = originalFunc })
+	getOntapClientFunc = func(params ontapRest.RESTClientParams) (ontapRest.RESTClient, error) {
+		return mockREST, nil
+	}
+
+	originalDecrypt := decryptPassword
+	t.Cleanup(func() { decryptPassword = originalDecrypt })
+	decryptPassword = func(password log.Secret) (*string, error) {
+		return (*string)(&password), nil
+	}
+
+	originalIsDDNS := isDDNSEnabled
+	t.Cleanup(func() { isDDNSEnabled = originalIsDDNS })
+	isDDNSEnabled = func(_ log.Logger, _ ontapRest.RESTClient, _ string) bool {
+		return true
+	}
+
+	mockSVM := &ontapRest.MockSVMClient{}
+	mockREST.On("SVM").Return(mockSVM)
+	mockSVM.On("SvmGet", mock.Anything).Return(&ontapRest.Svm{}, nil)
+
+	mockREST.On("NAS").Return(mockNAS)
+	mockNAS.On("NfsModify", mock.MatchedBy(func(params *ontapRest.NfsModifyParams) bool {
+		return params.AllowLocalNFSUsersWithLdap != nil
+	})).Return(vsaerrors.New("nfs modify allow local users failed"))
+
+	err := provider.UpdateActiveDirectoryCredentials(params, cifs, "svm-name", "svm-uuid")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "nfs modify allow local users failed")
+	mockNAS.AssertExpectations(t)
 }
 
 func TestUpdateActiveDirectoryCredentials_LoadCIFSServerError(t *testing.T) {

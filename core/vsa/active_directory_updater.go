@@ -103,7 +103,7 @@ func (provider *OntapRestProvider) UpdateActiveDirectoryCredentials(params Updat
 	updateAesEncryption := forceUpdate || params.NewCredentials.AesEncryption != nil && (params.OldCredentials.AesEncryption == nil || *params.NewCredentials.AesEncryption != *params.OldCredentials.AesEncryption)
 	updateLdapSigning := forceUpdate || params.NewCredentials.LdapSigning != nil && (params.OldCredentials.LdapSigning == nil || *params.NewCredentials.LdapSigning != *params.OldCredentials.LdapSigning)
 	updateServerCaCertificate := forceUpdate || params.NewCredentials.ServerRootCaCertificate != nil && *params.NewCredentials.ServerRootCaCertificate != nillable.GetString(params.OldCredentials.ServerRootCaCertificate, "")
-	updateAllowLocalNFSUsersWithLdap := forceUpdate || params.NewCredentials.AllowLocalNFSUsersWithLdap != nil && *params.NewCredentials.AllowLocalNFSUsersWithLdap != nillable.GetBool(params.OldCredentials.AllowLocalNFSUsersWithLdap, false)
+	updateAllowLocalNFSUsersWithLdap := forceUpdate || params.NewCredentials.AllowLocalNFSUsersWithLdap != nil && (params.OldCredentials.AllowLocalNFSUsersWithLdap == nil || *params.NewCredentials.AllowLocalNFSUsersWithLdap != *params.OldCredentials.AllowLocalNFSUsersWithLdap)
 	updateLdapOverTLS := forceUpdate || params.NewCredentials.LdapOverTLS != nil && *params.NewCredentials.LdapOverTLS != *params.OldCredentials.LdapOverTLS
 	encryptDCConnections := forceUpdate || params.NewCredentials.EncryptDCConnections != nil && *params.NewCredentials.EncryptDCConnections != *params.OldCredentials.EncryptDCConnections
 	updateKdcIP := forceUpdate || params.NewCredentials.KdcIP != params.OldCredentials.KdcIP
@@ -132,6 +132,13 @@ func (provider *OntapRestProvider) UpdateActiveDirectoryCredentials(params Updat
 	// update LDAP over TLS on CIFS server and on LDAP client
 	if updateLdapOverTLS && params.NewCredentials.LdapOverTLS != nil {
 		err = adu.UpdateLDAPOverTLS()
+		if err != nil {
+			return err
+		}
+	}
+
+	if updateAllowLocalNFSUsersWithLdap && params.NewCredentials.AllowLocalNFSUsersWithLdap != nil {
+		err = adu.UpdateAllowLocalNFSUsersWithLdap()
 		if err != nil {
 			return err
 		}
