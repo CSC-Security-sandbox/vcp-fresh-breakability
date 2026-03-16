@@ -2,6 +2,7 @@ package leakedresources
 
 import (
 	"context"
+	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/model"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -25,8 +26,17 @@ func (LogReporter) Report(ctx context.Context, records []model.LeakRecord) error
 	}
 	logger.Warnf("Leaked resources monitoring: found %d leaked resource(s)", len(records))
 	for _, r := range records {
-		logger.Warnf("  Leaked %s: id=%s name=%s project=%s region=%s reason=%s",
-			r.ResourceType, r.ResourceID, r.ResourceName, r.ProjectID, r.Region, r.Reason)
+		msg := "  Leaked %s: id=%s name=%s project=%s region=%s reason=%s"
+		args := []interface{}{r.ResourceType, r.ResourceID, r.ResourceName, r.ProjectID, r.Region, r.Reason}
+		if len(r.Extra) > 0 {
+			parts := make([]string, 0, len(r.Extra))
+			for k, v := range r.Extra {
+				parts = append(parts, k+"="+v)
+			}
+			msg += " %s"
+			args = append(args, strings.Join(parts, " "))
+		}
+		logger.Warnf(msg, args...)
 	}
 	return nil
 }
