@@ -253,6 +253,7 @@ workerConfig:
   consecutiveUpdatePoolTimeGapAllowedMinutes: 240
   autoTierHotTierAutoResizeThresholdPercent: 100
   autoTierHotTierAutoResizeIncreasePercent: 10
+  allowAutogrowForHTBypassVolumeContainingPool: false
   autoTieringSyncActivityMaxAttempts: 1
   autoTieringPauseResumeActivityMaxAttempts: 3
   autoTieringFastOntapConnection: "true"

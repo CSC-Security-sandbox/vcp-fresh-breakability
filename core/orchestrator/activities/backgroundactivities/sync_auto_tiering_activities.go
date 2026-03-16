@@ -24,17 +24,19 @@ import (
 )
 
 const (
-	PoolConsumptionHotTier  = "hotTier"
-	PoolConsumptionColdTier = "coldTier"
-	PoolsToPauseKey         = "poolsToPause"
-	PoolsToResumeKey        = "poolsToResume"
-	PoolsToAutoResizeKey    = "poolsToAutoResize"
+	PoolConsumptionHotTier              = "hotTier"
+	PoolConsumptionColdTier             = "coldTier"
+	PoolConsumptionHotTierForAutoResize = "hotTierForAutoResize"
+	PoolsToPauseKey                     = "poolsToPause"
+	PoolsToResumeKey                    = "poolsToResume"
+	PoolsToAutoResizeKey                = "poolsToAutoResize"
 )
 
 var (
-	AutoTierHotTierAutoResizeThresholdPercent = env.GetInt64("AUTO_TIER_HOT_TIER_AUTO_RESIZE_THRESHOLD_PERCENT", 100)
-	AutoTierHotTierAutoResizeIncreasePercent  = env.GetFloat64("AUTO_TIER_HOT_TIER_AUTO_RESIZE_INCREASE_PERCENT", 10)
-	autoTieringFastOntapConnection           = env.GetBool("AUTO_TIERING_FAST_ONTAP_CONNECTION", true)
+	AutoTierHotTierAutoResizeThresholdPercent    = env.GetInt64("AUTO_TIER_HOT_TIER_AUTO_RESIZE_THRESHOLD_PERCENT", 100)
+	AutoTierHotTierAutoResizeIncreasePercent     = env.GetFloat64("AUTO_TIER_HOT_TIER_AUTO_RESIZE_INCREASE_PERCENT", 10)
+    autoTieringFastOntapConnection               = env.GetBool("AUTO_TIERING_FAST_ONTAP_CONNECTION", true)
+	AllowAutogrowForHTBypassVolumeContainingPool = env.GetBool("ALLOW_AUTOGROW_FOR_HTBYPASS_VOLUME_CONTAINING_POOL", false)
 )
 
 type AutoTierSyncActivity struct {
@@ -160,24 +162,34 @@ func (a *AutoTierSyncActivity) SegregatePools(ctx context.Context, pools []*data
 				// Conditions:
 				// 1. Auto-resize flag is enabled.
 				// 2. Pool is not eligible for pausing AT, since resizing will definitely exceed the logical pool size.
-				// 3. No volumes in the pool have bypass mode enabled.
-				// 4. Hot tier usage exceeds the defined threshold percentage.
-				// 5. New hot tier provisioned size + cold tier consumption < logical pool size.
-				// 6. Pool is in READY state.
+				// 3. Hot tier usage exceeds the defined threshold percentage.
+				// 4. New hot tier provisioned size + cold tier consumption < logical pool size.
+				// 5. Pool is in READY state.
+				// 6. When feature flag is disabled: No volumes in the pool have bypass mode enabled.
+				//    When feature flag is enabled: Uses adjusted hot tier consumption (excludes bypass-enabled volumes)
+				//    to avoid false positives from temporary spikes.
 				if pool.AutoTieringConfig.EnableHotTierAutoResize && pool.AutoTieringConfig.HotTierSizeInBytes != 0 && pool.State == models.LifeCycleStateREADY {
-					exists, err := checkPoolVolumesWithBypassModeEnabled(ctx, se, pool)
-					activity.RecordHeartbeat(ctx, fmt.Sprintf("Checked pool volumes for bypass mode: %s", pool.UUID))
-					if err != nil {
-						logger.Errorf("Failed to check pool volumes for bypass mode, poolUUID: %s, error: %v", pool.UUID, err)
-						return
+					// Use different hot tier consumption based on feature flag
+					hotTierForUsageCalc := poolConsumption[PoolConsumptionHotTier]
+					if AllowAutogrowForHTBypassVolumeContainingPool {
+						// When flag is enabled, use adjusted consumption that excludes bypass volumes
+						hotTierForUsageCalc = poolConsumption[PoolConsumptionHotTierForAutoResize]
+					} else {
+						// When flag is disabled, check if any volume has bypass mode enabled and skip the pool if so
+						exists, err := checkPoolVolumesWithBypassModeEnabled(ctx, se, pool)
+						activity.RecordHeartbeat(ctx, fmt.Sprintf("Checked pool volumes for bypass mode: %s", pool.UUID))
+						if err != nil {
+							logger.Errorf("Failed to check pool volumes for bypass mode, poolUUID: %s, error: %v", pool.UUID, err)
+							return
+						}
+
+						if exists {
+							logger.Infof("Skipping hot tier autoresize for pool with volumes having bypass mode enabled, poolUUID: %s", pool.UUID)
+							return
+						}
 					}
 
-					if exists {
-						logger.Infof("Skipping hot tier autoresize for pool with volumes having bypass mode enabled, poolUUID: %s", pool.UUID)
-						return
-					}
-
-					usagePercent := (int64(poolConsumption[PoolConsumptionHotTier]) * 100) / pool.AutoTieringConfig.HotTierSizeInBytes
+					usagePercent := (int64(hotTierForUsageCalc) * 100) / pool.AutoTieringConfig.HotTierSizeInBytes
 					// We are increasing the hot tier size by 10%. The result is in round off GiB.
 					newHotTierSizeInBytes := int64(float64(pool.AutoTieringConfig.HotTierSizeInBytes)*(1+0.01*AutoTierHotTierAutoResizeIncreasePercent)/(1<<30)) * (1 << 30)
 
@@ -200,6 +212,8 @@ func (a *AutoTierSyncActivity) SegregatePools(ctx context.Context, pools []*data
 	}, nil
 }
 
+// checkPoolVolumesWithBypassModeEnabled checks if any volume in the pool has hot tier bypass mode enabled.
+// Used when the feature flag is disabled to skip pools with bypass-enabled volumes from auto-resize.
 func checkPoolVolumesWithBypassModeEnabled(ctx context.Context, se database.Storage, pool *datamodel.PoolView) (bool, error) {
 	logger := util.GetLogger(ctx)
 	if pool.APIAccessMode == common.ONTAPMode {
@@ -309,7 +323,7 @@ func (a *AutoTierSyncActivity) FetchAndSavePoolsTieringInfo(ctx context.Context,
 			}
 
 			// Get DB volumes and calculate hot/cold tier consumption (ONTAP vs non-ONTAP use different volume types; persistence only for non-ONTAP)
-			var hotTierConsumption, coldTierConsumption int64
+			var hotTierConsumption, coldTierConsumption, hotTierConsumptionForAutoResize int64
 			var calcErr error
 			if pool.APIAccessMode == common.ONTAPMode {
 				dbVolumes, err := se.ListExpertModeVolumesByPoolID(ctx, pool.ID)
@@ -331,7 +345,7 @@ func (a *AutoTierSyncActivity) FetchAndSavePoolsTieringInfo(ctx context.Context,
 					}
 					return v.UUID, true
 				}
-				hotTierConsumption, coldTierConsumption, calcErr = calculateAndUpdateHotColdTierConsumption(ctx, ontapVolumes, int64(len(dbVolumes)), getDBUUID, false, nil)
+				hotTierConsumption, coldTierConsumption, hotTierConsumptionForAutoResize, calcErr = calculateAndUpdateHotColdTierConsumption(ctx, ontapVolumes, int64(len(dbVolumes)), getDBUUID, nil, false, nil)
 			} else {
 				dbVolumes, err := se.GetVolumesByPoolID(ctx, pool.ID)
 				if err != nil {
@@ -352,7 +366,19 @@ func (a *AutoTierSyncActivity) FetchAndSavePoolsTieringInfo(ctx context.Context,
 					}
 					return v.UUID, true
 				}
-				hotTierConsumption, coldTierConsumption, calcErr = calculateAndUpdateHotColdTierConsumption(ctx, ontapVolumes, int64(len(dbVolumes)), getDBUUID, true, se)
+				// Only exclude bypass-enabled volumes from hot tier consumption when the feature flag is enabled.
+				// When the flag is disabled, we use the old behavior where bypass volumes block auto-resize entirely.
+				var shouldExcludeFromHTConsumption shouldExcludeFromHTConsumptionFunc
+				if AllowAutogrowForHTBypassVolumeContainingPool {
+					shouldExcludeFromHTConsumption = func(extUUID string) bool {
+						v, ok := dbVolumeMap[extUUID]
+						if !ok || v == nil || v.AutoTieringPolicy == nil {
+							return false
+						}
+						return v.AutoTieringEnabled && v.AutoTieringPolicy.HotTierBypassModeEnabled
+					}
+				}
+				hotTierConsumption, coldTierConsumption, hotTierConsumptionForAutoResize, calcErr = calculateAndUpdateHotColdTierConsumption(ctx, ontapVolumes, int64(len(dbVolumes)), getDBUUID, shouldExcludeFromHTConsumption, true, se)
 			}
 			if calcErr != nil {
 				logger.Errorf("Failed to calculate hot/cold tier consumption for the pool: %s, %v", pool.UUID, calcErr)
@@ -364,8 +390,9 @@ func (a *AutoTierSyncActivity) FetchAndSavePoolsTieringInfo(ctx context.Context,
 
 			mu.Lock()
 			poolsConsumptionsMap[pool.UUID] = map[string]float64{
-				PoolConsumptionHotTier:  float64(hotTierConsumption),
-				PoolConsumptionColdTier: float64(coldTierConsumption),
+				PoolConsumptionHotTier:              float64(hotTierConsumption),
+				PoolConsumptionColdTier:             float64(coldTierConsumption),
+				PoolConsumptionHotTierForAutoResize: float64(hotTierConsumptionForAutoResize),
 			}
 			mu.Unlock()
 		}(poolIdentifier)
@@ -380,19 +407,29 @@ func (a *AutoTierSyncActivity) FetchAndSavePoolsTieringInfo(ctx context.Context,
 // Used to unify hot/cold tier consumption logic for both Volume and ExpertModeVolumes.
 type getDBVolumeUUIDFunc func(externalUUID string) (dbUUID string, ok bool)
 
+// shouldExcludeFromHTConsumptionFunc checks if a volume should be excluded from hot tier consumption calculation.
+// Used to exclude bypass-enabled volumes from hot tier consumption to avoid false positives in auto-resize decisions
+// (bypass volumes temporarily spike hot tier usage as data first goes to hot tier before moving to cold tier).
+type shouldExcludeFromHTConsumptionFunc func(externalUUID string) bool
+
 // calculateAndUpdateHotColdTierConsumption computes hot/cold tier consumption from ONTAP volumes.
 // When persistTieringToDB is true, tiering fields are bulk-updated via se; for ONTAP mode pools
 // pass false (expert mode volumes do not use this update path).
+// When shouldExcludeFromHTConsumption is provided and returns true, the volume's hot tier footprint is
+// excluded from the adjusted hot tier consumption (used for auto-resize decisions to avoid triggers from temporary spikes).
+// Returns: totalHotTier (for DB storage), coldTier, adjustedHotTier (for auto-resize decisions), error
 func calculateAndUpdateHotColdTierConsumption(
 	ctx context.Context,
 	ontapVolumes []*vsa.Volume,
 	expectedVolCount int64,
 	getDBVolumeUUID getDBVolumeUUIDFunc,
+	shouldExcludeFromHTConsumption shouldExcludeFromHTConsumptionFunc,
 	persistTieringToDB bool,
 	se database.Storage,
-) (int64, int64, error) {
+) (int64, int64, int64, error) {
 	logger := util.GetLogger(ctx)
 	hotTierConsumption := int64(0)
+	hotTierConsumptionForAutoResize := int64(0)
 	coldTierConsumption := int64(0)
 	volCount := 0
 	tieringUpdates := make(map[string]datamodel.VolumeTieringUpdate)
@@ -436,6 +473,11 @@ func calculateAndUpdateHotColdTierConsumption(
 
 		coldTierConsumption += int64(logicalColdTierConsumption)
 		hotTierConsumption += int64(hotTierFootprint)
+		// Exclude bypass-enabled volumes from auto-resize hot tier calculation to avoid false positives
+		// (bypass volumes temporarily spike hot tier usage as data goes to hot tier first)
+		if shouldExcludeFromHTConsumption == nil || !shouldExcludeFromHTConsumption(*volume.UUID) {
+			hotTierConsumptionForAutoResize += int64(hotTierFootprint)
+		}
 	}
 
 	if volCount != int(expectedVolCount) {
@@ -450,7 +492,7 @@ func calculateAndUpdateHotColdTierConsumption(
 		}
 	}
 
-	return hotTierConsumption, coldTierConsumption, nil
+	return hotTierConsumption, coldTierConsumption, hotTierConsumptionForAutoResize, nil
 }
 
 func (a *AutoTierSyncActivity) ToggleHotTierBypassModeForPoolVolumes(ctx context.Context, pool *datamodel.Pool) error {

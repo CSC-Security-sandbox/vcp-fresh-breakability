@@ -363,16 +363,19 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 
 		poolConsumptionsMap := map[string]map[string]float64{
 			"pool-to-pause-uuid": {
-				PoolConsumptionHotTier:  500000000000, // 500GB
-				PoolConsumptionColdTier: 600000000000, // 600GB - will exceed pool size
+				PoolConsumptionHotTier:              500000000000, // 500GB
+				PoolConsumptionColdTier:             600000000000, // 600GB - will exceed pool size
+				PoolConsumptionHotTierForAutoResize: 500000000000,
 			},
 			"pool-to-resume-uuid": {
-				PoolConsumptionHotTier:  200000000000, // 200GB
-				PoolConsumptionColdTier: 100000000000, // 100GB - under pool size
+				PoolConsumptionHotTier:              200000000000, // 200GB
+				PoolConsumptionColdTier:             100000000000, // 100GB - under pool size
+				PoolConsumptionHotTierForAutoResize: 200000000000,
 			},
 			"pool-to-autoresize-uuid": {
-				PoolConsumptionHotTier:  500000000000, // 100% of 500GB hot tier
-				PoolConsumptionColdTier: 50000000000,  // 50GB
+				PoolConsumptionHotTier:              500000000000, // 100% of 500GB hot tier
+				PoolConsumptionColdTier:             50000000000,  // 50GB
+				PoolConsumptionHotTierForAutoResize: 500000000000,
 			},
 		}
 
@@ -429,6 +432,9 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 		mockStorage.On("GetPool", mock.Anything, "pool-to-resume-uuid", int64(124)).Return(resumePool, nil)
 		mockStorage.On("GetPool", mock.Anything, "pool-to-autoresize-uuid", int64(125)).Return(autoResizePool, nil)
 		mockStorage.On("GetPool", mock.Anything, "pool-not-ready-uuid", int64(126)).Return(notReadyPool, nil)
+
+		// When flag is disabled (default), checkPoolVolumesWithBypassModeEnabled is called for pools eligible for auto-resize.
+		// Mock GetVolumesByPoolID to return no bypass volumes so auto-resize proceeds.
 		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(3)).Return([]*datamodel.Volume{}, nil)
 
 		encodedValue, err := env.ExecuteActivity(activity.SegregatePools, pools, poolConsumptionsMap)
@@ -641,59 +647,9 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 
-	t.Run("SegregatePoolsCheckBypassModeFailed", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		activity := AutoTierSyncActivity{SE: mockStorage}
-
-		// Create Temporal test environment for activity context
-		testSuite := &testsuite.WorkflowTestSuite{}
-		env := testSuite.NewTestActivityEnvironment()
-		env.RegisterActivity(activity.SegregatePools)
-
-		pools := []*database.PoolIdentifier{
-			{
-				UUID:      "bypass-check-failed-pool-uuid",
-				AccountID: 123,
-				Name:      "bypass-check-failed-pool",
-			},
-		}
-
-		poolConsumptionsMap := map[string]map[string]float64{
-			"bypass-check-failed-pool-uuid": {
-				PoolConsumptionHotTier:  450000000000, // 90% of 500GB hot tier
-				PoolConsumptionColdTier: 50000000000,  // 50GB
-			},
-		}
-
-		bypassCheckFailedPool := &datamodel.PoolView{
-			Pool: datamodel.Pool{
-				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "bypass-check-failed-pool-uuid"},
-				AllowAutoTiering: true,
-				State:            models.LifeCycleStateREADY,
-				SizeInBytes:      1000000000000, // 1TB
-				AutoTieringConfig: &datamodel.AutoTieringConfig{
-					HotTierSizeInBytes:      500000000000, // 500GB
-					TieringStatus:           datamodel.TieringStatusResumed,
-					EnableHotTierAutoResize: true,
-				},
-			},
-		}
-
-		mockStorage.On("GetPool", mock.Anything, "bypass-check-failed-pool-uuid", int64(123)).Return(bypassCheckFailedPool, nil)
-		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(nil, errors.New("failed to get volumes"))
-
-		encodedValue, err := env.ExecuteActivity(activity.SegregatePools, pools, poolConsumptionsMap)
-		assert.NoError(tt, err)
-		var result map[string][]*database.PoolIdentifier
-		err = encodedValue.Get(&result)
-		assert.NoError(tt, err)
-		assert.Len(tt, result[PoolsToPauseKey], 0)
-		assert.Len(tt, result[PoolsToResumeKey], 0)
-		assert.Len(tt, result[PoolsToAutoResizeKey], 0)
-		mockStorage.AssertExpectations(tt)
-	})
-
 	t.Run("SegregatePoolsWithBypassModeDisabled", func(tt *testing.T) {
+		// Test when feature flag is disabled (default) and volumes don't have bypass mode enabled
+		// In this case, checkPoolVolumesWithBypassModeEnabled is called and returns false
 		mockStorage := database.NewMockStorage(tt)
 		activity := AutoTierSyncActivity{SE: mockStorage}
 
@@ -712,8 +668,9 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 
 		poolConsumptionsMap := map[string]map[string]float64{
 			"bypass-disabled-pool-uuid": {
-				PoolConsumptionHotTier:  500000000000, // 100% of 500GB hot tier
-				PoolConsumptionColdTier: 50000000000,  // 50GB
+				PoolConsumptionHotTier:              500000000000, // 100% of 500GB hot tier
+				PoolConsumptionColdTier:             50000000000,  // 50GB
+				PoolConsumptionHotTierForAutoResize: 500000000000,
 			},
 		}
 
@@ -732,7 +689,14 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 		}
 
 		mockStorage.On("GetPool", mock.Anything, "bypass-disabled-pool-uuid", int64(123)).Return(bypassDisabledPool, nil)
-		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return([]*datamodel.Volume{}, nil)
+		// When feature flag is disabled (default), checkPoolVolumesWithBypassModeEnabled is called.
+		// Return volumes without bypass mode enabled.
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return([]*datamodel.Volume{
+			{
+				AutoTieringEnabled: true,
+				AutoTieringPolicy:  &datamodel.AutoTieringPolicy{HotTierBypassModeEnabled: false},
+			},
+		}, nil)
 
 		encodedValue, err := env.ExecuteActivity(activity.SegregatePools, pools, poolConsumptionsMap)
 		assert.NoError(tt, err)
@@ -741,7 +705,8 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.Len(tt, result[PoolsToPauseKey], 0)
 		assert.Len(tt, result[PoolsToResumeKey], 0)
-		assert.Len(tt, result[PoolsToAutoResizeKey], 1) // Should auto-resize when bypass mode is disabled (false)
+		// Should auto-resize since no bypass volumes found
+		assert.Len(tt, result[PoolsToAutoResizeKey], 1)
 		assert.Equal(tt, "bypass-disabled-pool-uuid", result[PoolsToAutoResizeKey][0].UUID)
 		mockStorage.AssertExpectations(tt)
 	})
@@ -765,8 +730,9 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 
 		poolConsumptionsMap := map[string]map[string]float64{
 			"low-usage-pool-uuid": {
-				PoolConsumptionHotTier:  300000000000, // 300GB - 60% of 500GB hot tier (below 80% threshold)
-				PoolConsumptionColdTier: 50000000000,  // 50GB
+				PoolConsumptionHotTier:              300000000000, // 300GB - 60% of 500GB hot tier (below 80% threshold)
+				PoolConsumptionColdTier:             50000000000,  // 50GB
+				PoolConsumptionHotTierForAutoResize: 300000000000,
 			},
 		}
 
@@ -785,6 +751,7 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 		}
 
 		mockStorage.On("GetPool", mock.Anything, "low-usage-pool-uuid", int64(123)).Return(lowUsagePool, nil)
+		// When feature flag is disabled (default), checkPoolVolumesWithBypassModeEnabled is called for pools eligible for auto-resize
 		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return([]*datamodel.Volume{}, nil)
 
 		encodedValue, err := env.ExecuteActivity(activity.SegregatePools, pools, poolConsumptionsMap)
@@ -797,88 +764,317 @@ func TestAutoTierSyncActivity_SegregatePools(t *testing.T) {
 		assert.Len(tt, result[PoolsToAutoResizeKey], 0) // Should not auto-resize due to low usage
 		mockStorage.AssertExpectations(tt)
 	})
-}
 
-func TestCheckPoolVolumesWithBypassModeEnabled(t *testing.T) {
-	ctx := context.TODO()
-
-	t.Run("CheckPoolVolumesWithBypassModeEnabledSuccessWithoutBypassVolume", func(tt *testing.T) {
+	t.Run("SegregatePoolsSkipsPoolWithBypassVolumes_FlagDisabled", func(tt *testing.T) {
+		// Test when feature flag is disabled (default) and pool has volumes with bypass mode enabled
+		// In this case, the pool should be skipped from auto-resize (old behavior)
 		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
 
-		pool := &datamodel.PoolView{
-			Pool: datamodel.Pool{
-				BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+		// Save original flag value and ensure it's disabled
+		originalFlag := AllowAutogrowForHTBypassVolumeContainingPool
+		AllowAutogrowForHTBypassVolumeContainingPool = false
+		defer func() { AllowAutogrowForHTBypassVolumeContainingPool = originalFlag }()
+
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.SegregatePools)
+
+		pools := []*database.PoolIdentifier{
+			{
+				UUID:      "bypass-pool-uuid",
+				AccountID: 123,
+				Name:      "bypass-pool",
 			},
 		}
 
-		volumes := []*datamodel.Volume{
-			{BaseModel: datamodel.BaseModel{ID: 1}},
-			{BaseModel: datamodel.BaseModel{ID: 2}},
+		poolConsumptionsMap := map[string]map[string]float64{
+			"bypass-pool-uuid": {
+				PoolConsumptionHotTier:              500000000000, // 100% of 500GB hot tier
+				PoolConsumptionColdTier:             50000000000,
+				PoolConsumptionHotTierForAutoResize: 100000000000, // Lower since bypass volumes excluded
+			},
 		}
 
-		mockStorage.On("GetVolumesByPoolID", ctx, pool.ID).Return(volumes, nil)
+		bypassPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "bypass-pool-uuid"},
+				AllowAutoTiering: true,
+				State:            models.LifeCycleStateREADY,
+				SizeInBytes:      1000000000000,
+				AutoTieringConfig: &datamodel.AutoTieringConfig{
+					HotTierSizeInBytes:      500000000000,
+					TieringStatus:           datamodel.TieringStatusResumed,
+					EnableHotTierAutoResize: true,
+				},
+			},
+		}
 
-		result, err := checkPoolVolumesWithBypassModeEnabled(ctx, mockStorage, pool)
+		mockStorage.On("GetPool", mock.Anything, "bypass-pool-uuid", int64(123)).Return(bypassPool, nil)
+		// When flag is disabled, checkPoolVolumesWithBypassModeEnabled is called.
+		// Return a volume with bypass mode enabled - pool should be skipped
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return([]*datamodel.Volume{
+			{
+				AutoTieringEnabled: true,
+				AutoTieringPolicy:  &datamodel.AutoTieringPolicy{HotTierBypassModeEnabled: true},
+			},
+		}, nil)
+
+		encodedValue, err := env.ExecuteActivity(activity.SegregatePools, pools, poolConsumptionsMap)
 		assert.NoError(tt, err)
-		assert.False(tt, result)
+		var result map[string][]*database.PoolIdentifier
+		err = encodedValue.Get(&result)
+		assert.NoError(tt, err)
+		assert.Len(tt, result[PoolsToPauseKey], 0)
+		assert.Len(tt, result[PoolsToResumeKey], 0)
+		// Should NOT auto-resize since bypass volumes present and flag is disabled
+		assert.Len(tt, result[PoolsToAutoResizeKey], 0)
 		mockStorage.AssertExpectations(tt)
 	})
 
-	t.Run("CheckPoolVolumesWithBypassModeEnabledSuccessWithBypassVolume", func(tt *testing.T) {
+	t.Run("SegregatePoolsIncludesPoolWithBypassVolumes_FlagEnabled", func(tt *testing.T) {
+		// Test when feature flag is enabled and pool has volumes with bypass mode enabled
+		// In this case, the pool should still be considered for auto-resize using adjusted hot tier consumption
 		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
 
-		pool := &datamodel.PoolView{
-			Pool: datamodel.Pool{
-				BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+		// Enable the feature flag
+		originalFlag := AllowAutogrowForHTBypassVolumeContainingPool
+		AllowAutogrowForHTBypassVolumeContainingPool = true
+		defer func() { AllowAutogrowForHTBypassVolumeContainingPool = originalFlag }()
+
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.SegregatePools)
+
+		pools := []*database.PoolIdentifier{
+			{
+				UUID:      "bypass-pool-uuid",
+				AccountID: 123,
+				Name:      "bypass-pool",
 			},
 		}
 
-		volumes := []*datamodel.Volume{
-			{BaseModel: datamodel.BaseModel{ID: 1}, AutoTieringEnabled: true, AutoTieringPolicy: &datamodel.AutoTieringPolicy{
-				HotTierBypassModeEnabled: true,
-			}},
-			{BaseModel: datamodel.BaseModel{ID: 2}},
+		poolConsumptionsMap := map[string]map[string]float64{
+			"bypass-pool-uuid": {
+				PoolConsumptionHotTier:              500000000000, // 100% of 500GB hot tier
+				PoolConsumptionColdTier:             50000000000,
+				PoolConsumptionHotTierForAutoResize: 500000000000, // Exceeds threshold so should auto-resize
+			},
 		}
 
-		mockStorage.On("GetVolumesByPoolID", ctx, pool.ID).Return(volumes, nil)
+		bypassPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "bypass-pool-uuid"},
+				AllowAutoTiering: true,
+				State:            models.LifeCycleStateREADY,
+				SizeInBytes:      1000000000000,
+				AutoTieringConfig: &datamodel.AutoTieringConfig{
+					HotTierSizeInBytes:      500000000000,
+					TieringStatus:           datamodel.TieringStatusResumed,
+					EnableHotTierAutoResize: true,
+				},
+			},
+		}
 
-		result, err := checkPoolVolumesWithBypassModeEnabled(ctx, mockStorage, pool)
+		mockStorage.On("GetPool", mock.Anything, "bypass-pool-uuid", int64(123)).Return(bypassPool, nil)
+		// When flag is enabled, checkPoolVolumesWithBypassModeEnabled is NOT called.
+		// No need to mock GetVolumesByPoolID for bypass check
+
+		encodedValue, err := env.ExecuteActivity(activity.SegregatePools, pools, poolConsumptionsMap)
 		assert.NoError(tt, err)
-		assert.True(tt, result)
+		var result map[string][]*database.PoolIdentifier
+		err = encodedValue.Get(&result)
+		assert.NoError(tt, err)
+		assert.Len(tt, result[PoolsToPauseKey], 0)
+		assert.Len(tt, result[PoolsToResumeKey], 0)
+		// Should auto-resize using adjusted hot tier consumption (bypass volumes excluded in FetchAndSavePoolsTieringInfo)
+		assert.Len(tt, result[PoolsToAutoResizeKey], 1)
+		assert.Equal(tt, "bypass-pool-uuid", result[PoolsToAutoResizeKey][0].UUID)
 		mockStorage.AssertExpectations(tt)
 	})
 
-	t.Run("CheckPoolVolumesWithBypassModeEnabled_GetVolumesFailed", func(tt *testing.T) {
+	t.Run("SegregatePoolsAutoResize_FlagEnabled_CalculatesNewHotTierSize", func(tt *testing.T) {
+		// Test case: Verifies newHotTierSizeInBytes calculation
+		// when flag is enabled and pool meets auto-resize conditions with lower threshold
 		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
 
-		pool := &datamodel.PoolView{
-			Pool: datamodel.Pool{
-				BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
+		// Enable the feature flag to use the adjusted consumption path
+		originalFlag := AllowAutogrowForHTBypassVolumeContainingPool
+		AllowAutogrowForHTBypassVolumeContainingPool = true
+		defer func() { AllowAutogrowForHTBypassVolumeContainingPool = originalFlag }()
+
+		// Save and restore threshold - set to a value that allows trigger at 90%
+		originalThreshold := AutoTierHotTierAutoResizeThresholdPercent
+		AutoTierHotTierAutoResizeThresholdPercent = 80
+		defer func() { AutoTierHotTierAutoResizeThresholdPercent = originalThreshold }()
+
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.SegregatePools)
+
+		pools := []*database.PoolIdentifier{
+			{UUID: "autoresize-calc-pool-uuid", AccountID: 123, Name: "autoresize-calc-pool"},
+		}
+
+		// Hot tier size: 100GB, consumption: 90GB (90% >= 80% threshold)
+		// New hot tier size after 10% increase: ~110GB rounded to GiB
+		// Total after resize: ~110GB + 50GB = ~160GB < 500GB pool size
+		poolConsumptionsMap := map[string]map[string]float64{
+			"autoresize-calc-pool-uuid": {
+				PoolConsumptionHotTier:              90000000000,
+				PoolConsumptionColdTier:             50000000000,
+				PoolConsumptionHotTierForAutoResize: 90000000000, // 90% of 100GB hot tier
 			},
 		}
 
-		mockStorage.On("GetVolumesByPoolID", ctx, pool.ID).Return(nil, errors.New("failed to get volumes"))
+		autoResizePool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "autoresize-calc-pool-uuid"},
+				AllowAutoTiering: true,
+				State:            models.LifeCycleStateREADY,
+				SizeInBytes:      500000000000, // 500GB pool
+				AutoTieringConfig: &datamodel.AutoTieringConfig{
+					HotTierSizeInBytes:      100000000000, // 100GB hot tier
+					TieringStatus:           datamodel.TieringStatusResumed,
+					EnableHotTierAutoResize: true,
+				},
+			},
+		}
 
-		result, err := checkPoolVolumesWithBypassModeEnabled(ctx, mockStorage, pool)
-		assert.Error(tt, err)
-		assert.False(tt, result)
+		mockStorage.On("GetPool", mock.Anything, "autoresize-calc-pool-uuid", int64(123)).Return(autoResizePool, nil)
+
+		encodedValue, err := env.ExecuteActivity(activity.SegregatePools, pools, poolConsumptionsMap)
+		assert.NoError(tt, err)
+		var result map[string][]*database.PoolIdentifier
+		err = encodedValue.Get(&result)
+		assert.NoError(tt, err)
+		assert.Len(tt, result[PoolsToPauseKey], 0)
+		assert.Len(tt, result[PoolsToResumeKey], 0)
+		// Pool should be added to auto-resize list, confirming newHotTierSizeInBytes was calculated
+		assert.Len(tt, result[PoolsToAutoResizeKey], 1)
+		assert.Equal(tt, "autoresize-calc-pool-uuid", result[PoolsToAutoResizeKey][0].UUID)
 		mockStorage.AssertExpectations(tt)
 	})
 
-	t.Run("CheckPoolVolumesWithBypassModeEnabled_ONTAPMode_SkipsCheck", func(tt *testing.T) {
+	t.Run("SegregatePoolsAutoResize_NewHotTierExceedsPoolSize", func(tt *testing.T) {
+		// Test case: Verifies line 184 condition is false when newHotTierSizeInBytes + coldTier >= poolSize
+		// This confirms newHotTierSizeInBytes was calculated but pool was NOT added due to size constraint
 		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
 
-		pool := &datamodel.PoolView{
-			Pool: datamodel.Pool{
-				BaseModel:     datamodel.BaseModel{ID: 1, UUID: "test-pool-uuid"},
-				APIAccessMode: common.ONTAPMode,
+		originalFlag := AllowAutogrowForHTBypassVolumeContainingPool
+		AllowAutogrowForHTBypassVolumeContainingPool = true
+		defer func() { AllowAutogrowForHTBypassVolumeContainingPool = originalFlag }()
+
+		originalThreshold := AutoTierHotTierAutoResizeThresholdPercent
+		AutoTierHotTierAutoResizeThresholdPercent = 80
+		defer func() { AutoTierHotTierAutoResizeThresholdPercent = originalThreshold }()
+
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.SegregatePools)
+
+		pools := []*database.PoolIdentifier{
+			{UUID: "exceeds-size-pool-uuid", AccountID: 123, Name: "exceeds-size-pool"},
+		}
+
+		// Hot tier: 400GB at 100% usage, cold tier: 565GB
+		// New hot tier after 10% increase: 400GB * 1.1 / 1GiB = 409 GiB = 439162699776 bytes (~409 GiB)
+		// 439162699776 + 565000000000 = 1004162699776 > 1000000000000 pool size
+		// So auto-resize should NOT happen
+		poolConsumptionsMap := map[string]map[string]float64{
+			"exceeds-size-pool-uuid": {
+				PoolConsumptionHotTier:              400000000000, // 400GB
+				PoolConsumptionColdTier:             565000000000, // 565GB - ensures total exceeds pool size
+				PoolConsumptionHotTierForAutoResize: 400000000000, // 100% usage
 			},
 		}
 
-		// GetVolumesByPoolID must not be called when pool is in ONTAP mode
-		result, err := checkPoolVolumesWithBypassModeEnabled(ctx, mockStorage, pool)
+		exceedsSizePool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "exceeds-size-pool-uuid"},
+				AllowAutoTiering: true,
+				State:            models.LifeCycleStateREADY,
+				SizeInBytes:      1000000000000, // 1TB pool
+				AutoTieringConfig: &datamodel.AutoTieringConfig{
+					HotTierSizeInBytes:      400000000000, // 400GB hot tier
+					TieringStatus:           datamodel.TieringStatusResumed,
+					EnableHotTierAutoResize: true,
+				},
+			},
+		}
+
+		mockStorage.On("GetPool", mock.Anything, "exceeds-size-pool-uuid", int64(123)).Return(exceedsSizePool, nil)
+
+		encodedValue, err := env.ExecuteActivity(activity.SegregatePools, pools, poolConsumptionsMap)
 		assert.NoError(tt, err)
-		assert.False(tt, result)
+		var result map[string][]*database.PoolIdentifier
+		err = encodedValue.Get(&result)
+		assert.NoError(tt, err)
+		// Pool is NOT paused because HotTierSizeInBytes + ColdTier (400GB + 565GB = 965GB) < 1TB
+		// But it's also NOT in resume since TieringStatus is already Resumed
+		assert.Len(tt, result[PoolsToPauseKey], 0)
+		assert.Len(tt, result[PoolsToResumeKey], 0)
+		// Should NOT auto-resize because newHotTierSizeInBytes + coldTier >= poolSize
+		// (409 GiB + 565GB = ~1004GB > 1TB)
+		assert.Len(tt, result[PoolsToAutoResizeKey], 0)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("SegregatePoolsCheckBypassModeError", func(tt *testing.T) {
+		// Test case: error when checkPoolVolumesWithBypassModeEnabled fails
+		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Ensure feature flag is disabled so checkPoolVolumesWithBypassModeEnabled is called
+		originalFlag := AllowAutogrowForHTBypassVolumeContainingPool
+		AllowAutogrowForHTBypassVolumeContainingPool = false
+		defer func() { AllowAutogrowForHTBypassVolumeContainingPool = originalFlag }()
+
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.SegregatePools)
+
+		pools := []*database.PoolIdentifier{
+			{UUID: "bypass-error-pool-uuid", AccountID: 123, Name: "bypass-error-pool"},
+		}
+
+		poolConsumptionsMap := map[string]map[string]float64{
+			"bypass-error-pool-uuid": {
+				PoolConsumptionHotTier:  450000000000, // 90% of 500GB hot tier
+				PoolConsumptionColdTier: 50000000000,  // 50GB
+			},
+		}
+
+		bypassErrorPool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:        datamodel.BaseModel{ID: 1, UUID: "bypass-error-pool-uuid"},
+				AllowAutoTiering: true,
+				State:            models.LifeCycleStateREADY,
+				SizeInBytes:      1000000000000, // 1TB
+				AutoTieringConfig: &datamodel.AutoTieringConfig{
+					HotTierSizeInBytes:      500000000000, // 500GB
+					TieringStatus:           datamodel.TieringStatusResumed,
+					EnableHotTierAutoResize: true,
+				},
+			},
+		}
+
+		mockStorage.On("GetPool", mock.Anything, "bypass-error-pool-uuid", int64(123)).Return(bypassErrorPool, nil)
+		// Return error when checking bypass mode
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(1)).Return(nil, errors.New("failed to get volumes"))
+
+		encodedValue, err := env.ExecuteActivity(activity.SegregatePools, pools, poolConsumptionsMap)
+		assert.NoError(tt, err)
+		var result map[string][]*database.PoolIdentifier
+		err = encodedValue.Get(&result)
+		assert.NoError(tt, err)
+		// Pool should not be in any list due to error
+		assert.Len(tt, result[PoolsToPauseKey], 0)
+		assert.Len(tt, result[PoolsToResumeKey], 0)
+		assert.Len(tt, result[PoolsToAutoResizeKey], 0)
 		mockStorage.AssertExpectations(tt)
 	})
 }
@@ -955,6 +1151,124 @@ func TestAutoTierSyncActivity_FetchAndSavePoolsTieringInfo(t *testing.T) {
 		assert.Contains(tt, result, "test-pool-uuid")
 		assert.Equal(tt, float64(100000000000), result["test-pool-uuid"][PoolConsumptionColdTier])
 		assert.Equal(tt, float64(50000000000), result["test-pool-uuid"][PoolConsumptionHotTier])
+		// Verify PoolConsumptionHotTierForAutoResize is set (covers line 377)
+		assert.Equal(tt, float64(50000000000), result["test-pool-uuid"][PoolConsumptionHotTierForAutoResize])
+		mockStorage.AssertExpectations(tt)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("FetchAndSavePoolsTieringInfo_VerifiesAllConsumptionFields_WithBypassFlag", func(tt *testing.T) {
+		// Test case: shouldExcludeFromHTConsumption function when flag is enabled
+		mockStorage := database.NewMockStorage(tt)
+		activity := AutoTierSyncActivity{SE: mockStorage}
+
+		// Enable the feature flag to trigger the shouldExcludeFromHTConsumption function
+		originalFlag := AllowAutogrowForHTBypassVolumeContainingPool
+		AllowAutogrowForHTBypassVolumeContainingPool = true
+		defer func() { AllowAutogrowForHTBypassVolumeContainingPool = originalFlag }()
+
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FetchAndSavePoolsTieringInfo)
+
+		pools := []*database.PoolIdentifier{
+			{UUID: "consumption-pool-uuid", AccountID: 456, Name: "consumption-pool"},
+		}
+
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:        datamodel.BaseModel{ID: 10, UUID: "consumption-pool-uuid"},
+				AllowAutoTiering: true,
+				State:            models.LifeCycleStateREADY,
+			},
+		}
+
+		// Include volumes with bypass mode to exercise shouldExcludeFromHTConsumption
+		dbVolumes := []*datamodel.Volume{
+			{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "vol-1-uuid"},
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID: "ext-vol-1-uuid",
+				},
+				AutoTieringEnabled: true,
+				AutoTieringPolicy: &datamodel.AutoTieringPolicy{
+					HotTierBypassModeEnabled: true, // This volume has bypass mode enabled
+				},
+			},
+			{
+				BaseModel: datamodel.BaseModel{ID: 2, UUID: "vol-2-uuid"},
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					ExternalUUID: "ext-vol-2-uuid",
+				},
+				AutoTieringEnabled: false, // This volume does not have bypass mode
+			},
+		}
+
+		volumes := []*vsa.Volume{
+			{
+				Volume: ontaprestmodel.Volume{
+					UUID:      nillable.ToPointer("ext-vol-1-uuid"),
+					IsSvmRoot: nillable.ToPointer(false),
+					Space: &ontaprestmodel.VolumeInlineSpace{
+						CapacityTierFootprint:    nillable.ToPointer(int64(200000000000)), // 200GB cold
+						PerformanceTierFootprint: nillable.ToPointer(int64(100000000000)), // 100GB hot
+						LogicalSpace: &ontaprestmodel.VolumeInlineSpaceInlineLogicalSpace{
+							Used: nillable.ToPointer(int64(300000000000)),
+						},
+					},
+				},
+			},
+			{
+				Volume: ontaprestmodel.Volume{
+					UUID:      nillable.ToPointer("ext-vol-2-uuid"),
+					IsSvmRoot: nillable.ToPointer(false),
+					Space: &ontaprestmodel.VolumeInlineSpace{
+						CapacityTierFootprint:    nillable.ToPointer(int64(150000000000)), // 150GB cold
+						PerformanceTierFootprint: nillable.ToPointer(int64(75000000000)),  // 75GB hot
+						LogicalSpace: &ontaprestmodel.VolumeInlineSpaceInlineLogicalSpace{
+							Used: nillable.ToPointer(int64(225000000000)),
+						},
+					},
+				},
+			},
+		}
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage.On("GetPool", mock.Anything, "consumption-pool-uuid", int64(456)).Return(pool, nil)
+		mockStorage.On("GetVolumesByPoolID", mock.Anything, int64(10)).Return(dbVolumes, nil)
+		mockStorage.On("BatchUpdateVolumeTieringFields", mock.Anything, mock.Anything).Return(nil)
+		mockProvider.On("GetVolumes").Return(volumes, nil)
+
+		originalGetOntapRestProviderForPoolFastConn := GetOntapRestProviderForPoolFastConn
+		defer func() { GetOntapRestProviderForPoolFastConn = originalGetOntapRestProviderForPoolFastConn }()
+		GetOntapRestProviderForPoolFastConn = func(ctx context.Context, se database.Storage, p *datamodel.Pool) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		encodedValue, err := env.ExecuteActivity(activity.FetchAndSavePoolsTieringInfo, pools)
+		assert.NoError(tt, err)
+		var result map[string]map[string]float64
+		err = encodedValue.Get(&result)
+		assert.NoError(tt, err)
+
+		// Verify the pool is in the result map
+		assert.Contains(tt, result, "consumption-pool-uuid")
+		poolResult := result["consumption-pool-uuid"]
+
+		// Verify all three consumption fields are present and correct
+		// PoolConsumptionHotTier
+		assert.Contains(tt, poolResult, PoolConsumptionHotTier)
+		assert.Equal(tt, float64(175000000000), poolResult[PoolConsumptionHotTier]) // 100GB + 75GB
+
+		// PoolConsumptionColdTier
+		assert.Contains(tt, poolResult, PoolConsumptionColdTier)
+		assert.Equal(tt, float64(350000000000), poolResult[PoolConsumptionColdTier]) // 200GB + 150GB
+
+		// PoolConsumptionHotTierForAutoResize (with bypass exclusion)
+		// ext-vol-1-uuid has bypass mode enabled, so its 100GB is excluded; only ext-vol-2-uuid's 75GB is counted
+		assert.Contains(tt, poolResult, PoolConsumptionHotTierForAutoResize)
+		assert.Equal(tt, float64(75000000000), poolResult[PoolConsumptionHotTierForAutoResize]) // Only ext-vol-2 (75GB), ext-vol-1 excluded
+
 		mockStorage.AssertExpectations(tt)
 		mockProvider.AssertExpectations(tt)
 	})
@@ -2321,7 +2635,8 @@ func callCalculateAndUpdateHotColdTierConsumptionWithStorage(ctx context.Context
 		}
 		return v.UUID, true
 	}
-	return calculateAndUpdateHotColdTierConsumption(ctx, volumes, expectedVolCount, getDBUUID, true, mockStorage)
+	hotTier, coldTier, _, err := calculateAndUpdateHotColdTierConsumption(ctx, volumes, expectedVolCount, getDBUUID, nil, true, mockStorage)
+	return hotTier, coldTier, err
 }
 
 func TestCalculateAndUpdateHotColdTierConsumption(t *testing.T) {
