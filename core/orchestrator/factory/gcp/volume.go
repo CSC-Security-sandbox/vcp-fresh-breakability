@@ -90,8 +90,22 @@ const (
 		"Please increase the volume size to at least %.0f GB with this SnapReserve or reduce the SnapReserve percentage to continue."
 	DefaultUnixPermissionsOctal = "0770"
 	UnixSecurityStyle           = "unix"
-	NtfsSecurityStyle           = "ntfs"
+	NtfsSecurityStyle           = "ntfs" // lower-case for persistence and ONTAP REST (enum: ntfs/unix/mixed)
 )
+
+// securityStyleForAPIResponse maps stored lower-case security style (ONTAP convention) to GCNV Swagger enum casing for API responses.
+func securityStyleForAPIResponse(stored string) string {
+	switch strings.ToLower(stored) {
+	case "ntfs":
+		return "NTFS"
+	case "unix":
+		return "UNIX"
+	case "mixed":
+		return "MIXED"
+	default:
+		return stored
+	}
+}
 
 // convertExportRulesToDatamodel converts a slice of models.ExportRule to a slice of datamodel.ExportRule
 func convertExportRulesToDatamodel(modelRules []*models.ExportRule) []*datamodel.ExportRule {
@@ -2001,7 +2015,7 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 		}
 		if attributes.FileProperties.SecurityStyle != "" {
 			ensureFileProps()
-			res.FileProperties.SecurityStyle = attributes.FileProperties.SecurityStyle
+			res.FileProperties.SecurityStyle = securityStyleForAPIResponse(attributes.FileProperties.SecurityStyle)
 		}
 		if attributes.FileProperties.UnixPermissions != "" {
 			ensureFileProps()

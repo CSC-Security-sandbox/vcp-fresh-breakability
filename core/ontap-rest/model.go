@@ -2566,7 +2566,8 @@ func volumeCreateParamsToONTAP(params *VolumeCreateParams) *storage.VolumeCreate
 		ConstituentsPerAggregate: params.ConstituentsPerAggregate,
 	}
 	if params.SecurityStyle != "" {
-		vol.Nas.SecurityStyle = &params.SecurityStyle
+		normalized := strings.ToLower(params.SecurityStyle)
+		vol.Nas.SecurityStyle = &normalized
 	}
 	if params.UnixPermissions != nil {
 		if unixPermissions, err := strconv.Atoi(*params.UnixPermissions); err == nil {

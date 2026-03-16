@@ -2723,20 +2723,20 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 		}
 		poolView := &datamodel.PoolView{Pool: *pool, QuotaInBytes: 0}
 		params := &common.CreateVolumeParams{
-			AccountName: "proj",
-			Region:      "us-west1",
-			Name:        "vol-1",
-			PoolID:      pool.UUID,
+			AccountName:  "proj",
+			Region:       "us-west1",
+			Name:         "vol-1",
+			PoolID:       pool.UUID,
 			QuotaInBytes: 1024 * 1024 * 1024,
-			Protocols:   []string{utils.ProtocolNFSv3},
-			Network:     "default",
+			Protocols:    []string{utils.ProtocolNFSv3},
+			Network:      "default",
 			HybridReplicationParameters: &models.HybridReplicationParameters{
 				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
 				ReplicationSchedule: "0 0 * * *",
 				PeerClusterName:     "peer-cluster",
 				PeerVolumeName:      "peer-vol",
 				PeerSvmName:         "peer-svm",
-				PeerIPAddresses:    []string{"192.168.1.1"},
+				PeerIPAddresses:     []string{"192.168.1.1"},
 				ResourceID:          "repl-1",
 			},
 		}
@@ -2765,19 +2765,19 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 		}
 		poolView := &datamodel.PoolView{Pool: *pool, QuotaInBytes: 0}
 		params := &common.CreateVolumeParams{
-			AccountName: "proj",
-			Region:      "us-west1",
-			Name:        "vol-1",
-			PoolID:      pool.UUID,
+			AccountName:  "proj",
+			Region:       "us-west1",
+			Name:         "vol-1",
+			PoolID:       pool.UUID,
 			QuotaInBytes: 1024 * 1024 * 1024,
-			Protocols:   []string{utils.ProtocolNFSv3},
+			Protocols:    []string{utils.ProtocolNFSv3},
 			HybridReplicationParameters: &models.HybridReplicationParameters{
 				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
 				ReplicationSchedule: "0 0 * * *",
 				PeerClusterName:     "peer-cluster",
 				PeerVolumeName:      "peer-vol",
 				PeerSvmName:         "peer-svm",
-				PeerIPAddresses:    []string{"192.168.1.1"},
+				PeerIPAddresses:     []string{"192.168.1.1"},
 				ResourceID:          "repl-1",
 			},
 		}
@@ -2810,19 +2810,19 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 		}
 		poolView := &datamodel.PoolView{Pool: *pool, QuotaInBytes: 0}
 		params := &common.CreateVolumeParams{
-			AccountName: "proj",
-			Region:      "us-west1",
-			Name:        "vol-1",
-			PoolID:      pool.UUID,
+			AccountName:  "proj",
+			Region:       "us-west1",
+			Name:         "vol-1",
+			PoolID:       pool.UUID,
 			QuotaInBytes: 1024 * 1024 * 1024,
-			Protocols:   []string{utils.ProtocolNFSv3},
+			Protocols:    []string{utils.ProtocolNFSv3},
 			HybridReplicationParameters: &models.HybridReplicationParameters{
 				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
 				ReplicationSchedule: "0 0 * * *",
 				PeerClusterName:     "peer-cluster",
 				PeerVolumeName:      "peer-vol",
 				PeerSvmName:         "peer-svm",
-				PeerIPAddresses:    []string{"192.168.1.1"},
+				PeerIPAddresses:     []string{"192.168.1.1"},
 				ResourceID:          "repl-1",
 			},
 		}
@@ -2855,19 +2855,19 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 		}
 		poolView := &datamodel.PoolView{Pool: *pool, QuotaInBytes: 0}
 		params := &common.CreateVolumeParams{
-			AccountName: "proj",
-			Region:      "us-west1",
-			Name:        "vol-1",
-			PoolID:      pool.UUID,
+			AccountName:  "proj",
+			Region:       "us-west1",
+			Name:         "vol-1",
+			PoolID:       pool.UUID,
 			QuotaInBytes: 1024 * 1024 * 1024,
-			Protocols:   []string{utils.ProtocolNFSv3},
+			Protocols:    []string{utils.ProtocolNFSv3},
 			HybridReplicationParameters: &models.HybridReplicationParameters{
 				ReplicationType:     models.HybridReplicationParametersReplicationTypeONPREM,
 				ReplicationSchedule: "0 0 * * *",
 				PeerClusterName:     "peer-cluster",
 				PeerVolumeName:      "peer-vol",
 				PeerSvmName:         "peer-svm",
-				PeerIPAddresses:    []string{"192.168.1.1"},
+				PeerIPAddresses:     []string{"192.168.1.1"},
 				ResourceID:          "repl-1",
 			},
 		}
@@ -7319,12 +7319,12 @@ func Test_createVolume_WithAutoTieringPolicy(t *testing.T) {
 	}
 	cloudWriteModeEnabled := true
 	params := &common.CreateVolumeParams{
-		AccountName:   account.Name,
-		Name:          "test-volume",
-		PoolID:        pool.UUID,
-		QuotaInBytes:  1073741824,
-		Protocols:     []string{utils.ProtocolISCSI},
-		Zone:          "us-west1-a",
+		AccountName:     account.Name,
+		Name:            "test-volume",
+		PoolID:          pool.UUID,
+		QuotaInBytes:    1073741824,
+		Protocols:       []string{utils.ProtocolISCSI},
+		Zone:            "us-west1-a",
 		BlockProperties: &common.BlockPropertiesRequest{OSType: "LINUX"},
 		AutoTieringPolicy: &common.AutoTieringPolicy{
 			AutoTieringEnabled:       true,
@@ -7474,8 +7474,27 @@ func Test_createVolume_WithAutoTieringPolicy_NilPolicyNotSet(t *testing.T) {
 	assert.Nil(t, capturedVolume.AutoTieringPolicy)
 }
 
+func TestSecurityStyleForAPIResponse(t *testing.T) {
+	t.Run("maps ntfs to NTFS", func(tt *testing.T) {
+		assert.Equal(tt, "NTFS", securityStyleForAPIResponse("ntfs"))
+	})
+	t.Run("maps unix to UNIX", func(tt *testing.T) {
+		assert.Equal(tt, "UNIX", securityStyleForAPIResponse("unix"))
+	})
+	t.Run("maps mixed to MIXED", func(tt *testing.T) {
+		assert.Equal(tt, "MIXED", securityStyleForAPIResponse("mixed"))
+	})
+	t.Run("maps uppercase input to Swagger casing", func(tt *testing.T) {
+		assert.Equal(tt, "NTFS", securityStyleForAPIResponse("NTFS"))
+		assert.Equal(tt, "UNIX", securityStyleForAPIResponse("UNIX"))
+	})
+	t.Run("returns unknown values as-is", func(tt *testing.T) {
+		assert.Equal(tt, "custom", securityStyleForAPIResponse("custom"))
+	})
+}
+
 func TestCreateVolume_SMBDefaultSecurityStyle(t *testing.T) {
-	t.Run("Sets Ntfs SecurityStyle when FileProperties is nil and protocol is SMB", func(tt *testing.T) {
+	t.Run("Sets NTFS SecurityStyle when FileProperties is nil and protocol is SMB", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -7623,10 +7642,10 @@ func TestCreateVolume_SMBDefaultSecurityStyle(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, volume)
 		assert.NotNil(tt, volume.FileProperties)
-		assert.Equal(tt, "ntfs", volume.FileProperties.SecurityStyle)
+		assert.Equal(tt, "NTFS", volume.FileProperties.SecurityStyle)
 	})
 
-	t.Run("Sets NtfsSecurityStyle when FileProperties exists but SecurityStyle is empty and protocol is SMB", func(tt *testing.T) {
+	t.Run("Sets NTFS SecurityStyle when FileProperties exists but SecurityStyle is empty and protocol is SMB", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -7777,7 +7796,7 @@ func TestCreateVolume_SMBDefaultSecurityStyle(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, volume)
 		assert.NotNil(tt, volume.FileProperties)
-		assert.Equal(tt, "ntfs", volume.FileProperties.SecurityStyle)
+		assert.Equal(tt, "NTFS", volume.FileProperties.SecurityStyle)
 	})
 
 	t.Run("Does not override SecurityStyle when FileProperties has SecurityStyle set and protocol is SMB", func(tt *testing.T) {
@@ -14772,13 +14791,13 @@ func TestUpdateVolume(t *testing.T) {
 			BackupVaultID: &backupVaultId,
 		}}
 		dbVolume := &datamodel.Volume{
-			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: int64(1024 * 1024 * 1024),
-			Name:        "vol",
-			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
-			Account:     &datamodel.Account{Name: "acc"},
+			BaseModel:      datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes:    int64(1024 * 1024 * 1024),
+			Name:           "vol",
+			Pool:           &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
+			Account:        &datamodel.Account{Name: "acc"},
 			DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-1"},
-			State:        "READY",
+			State:          "READY",
 		}
 
 		se.On("GetVolume", ctx, "vid").Return(dbVolume, nil)
@@ -14802,13 +14821,13 @@ func TestUpdateVolume(t *testing.T) {
 			BackupVaultID: &backupVaultId,
 		}}
 		dbVolume := &datamodel.Volume{
-			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: int64(1024 * 1024 * 1024),
-			Name:        "vol",
-			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
-			Account:     &datamodel.Account{Name: "acc"},
+			BaseModel:      datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes:    int64(1024 * 1024 * 1024),
+			Name:           "vol",
+			Pool:           &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool"},
+			Account:        &datamodel.Account{Name: "acc"},
 			DataProtection: &datamodel.DataProtection{BackupVaultID: "vault-1", BackupPolicyID: "policy-1"},
-			State:        "READY",
+			State:          "READY",
 		}
 		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-1"}, ServiceType: activities.GCBDRServiceType}
 
@@ -14834,11 +14853,11 @@ func TestUpdateVolume(t *testing.T) {
 			BackupVaultID: &backupVaultId,
 		}}
 		dbVolume := &datamodel.Volume{
-			BaseModel:   datamodel.BaseModel{UUID: "vid"},
-			SizeInBytes: int64(1024 * 1024 * 1024),
-			Name:        "vol",
-			Pool:        &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a", IsRegionalHA: false}},
-			Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acc"},
+			BaseModel:        datamodel.BaseModel{UUID: "vid"},
+			SizeInBytes:      int64(1024 * 1024 * 1024),
+			Name:             "vol",
+			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "1"}, Name: "pool", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a", IsRegionalHA: false}},
+			Account:          &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acc"},
 			VolumeAttributes: &datamodel.VolumeAttributes{},
 			DataProtection:   &datamodel.DataProtection{BackupVaultID: "vault-1"},
 			State:            "READY",
@@ -20029,13 +20048,48 @@ func TestConvertDatastoreVolumeToModelFileProperties(t *testing.T) {
 			},
 		}
 
-		// Test conversion with SecurityStyle
+		// Test conversion with SecurityStyle (stored lower-case, response uses Swagger enum casing)
 		result := convertDatastoreVolumeToModel(volume, &ipAddress)
 
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, result.FileProperties)
 		assert.Equal(tt, "/test-path", result.FileProperties.JunctionPath)
-		assert.Equal(tt, "unix", result.FileProperties.SecurityStyle)
+		assert.Equal(tt, "UNIX", result.FileProperties.SecurityStyle)
+	})
+
+	t.Run("SMB default securityStyle is returned with Swagger enum casing (NTFS) in response", func(tt *testing.T) {
+		ipAddress := []string{"192.168.1.100"}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test-account",
+		}
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test-pool",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
+		}
+		// Stored value is lower-case (ONTAP convention); API response must use Swagger enum casing.
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test-smb-default-security-style",
+			Account:   account,
+			Pool:      pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CreationToken: "test-token",
+				Protocols:     []string{utils.ProtocolSMB},
+				FileProperties: &datamodel.FileProperties{
+					JunctionPath:  "/test-path",
+					SecurityStyle: NtfsSecurityStyle, // "ntfs" - lower-case for persistence/ONTAP
+				},
+			},
+		}
+		result := convertDatastoreVolumeToModel(volume, &ipAddress)
+		assert.NotNil(tt, result)
+		assert.NotNil(tt, result.FileProperties)
+		assert.Equal(tt, "NTFS", result.FileProperties.SecurityStyle, "SMB default securityStyle must be returned with GCNV Swagger enum casing (NTFS) in API response")
 	})
 }
 
