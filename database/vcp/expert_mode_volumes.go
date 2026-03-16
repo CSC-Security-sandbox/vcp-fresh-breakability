@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"gorm.io/gorm"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -9,7 +10,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	"gorm.io/gorm"
 )
 
 // ExpertModePoolCapacity represents the total size and volume count for expert mode volumes in a pool

@@ -140,6 +140,44 @@ func TestCreateExpertModeVolume(t *testing.T) {
 		temporal.AssertExpectations(tt)
 	})
 
+	t.Run("Success_WithSvmUuid_EnableAutoPoolScaling_TriggersPoolScaling", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger, store, account, pool, svm := setupStore(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		originalAutoScaling := enableAutoPoolScaling
+		enableAutoPoolScaling = true
+		defer func() { enableAutoPoolScaling = originalAutoScaling }()
+
+		params := &commonparams.ExpertModeVolumeParams{
+			PoolUUID:    pool.UUID,
+			Action:      "post",
+			VolumeName:  "my-expert-volume-autoscaling",
+			SizeInBytes: 1099511627776,
+			Style:       "flexvol",
+			SvmUuid:     "660e8400-e29b-41d4-a716-446655440001",
+			SvmName:     "",
+		}
+
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+		orch := &GCPOrchestrator{storage: store, temporal: temporal}
+		err := orch.CreateExpertModeVolume(ctx, params)
+
+		assert.NoError(tt, err)
+
+		var createdVolume datamodel.ExpertModeVolumes
+		err = store.DB().Where("name = ?", params.VolumeName).First(&createdVolume).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, params.VolumeName, createdVolume.Name)
+		assert.Equal(tt, pool.ID, createdVolume.PoolID)
+		assert.Equal(tt, account.ID, createdVolume.AccountID)
+		assert.Equal(tt, svm.ID, createdVolume.SvmID)
+
+		mockLogger.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
 	t.Run("Success_WithSvmName", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		mockLogger, store, _, pool, svm := setupStore(tt)
@@ -834,6 +872,37 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.Equal(tt, string(models.JobTypeDeleteExpertModeVolume), job.Type)
 		assert.Equal(tt, string(models.JobsStateNEW), job.State)
+
+		mockLogger.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Success_VolumeDeleted_EnableAutoPoolScaling_TriggersPoolScaling", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger, store, _, _, _, volume := setupStore(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		originalAutoScaling := enableAutoPoolScaling
+		enableAutoPoolScaling = true
+		defer func() { enableAutoPoolScaling = originalAutoScaling }()
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			AccountName: "test_account",
+			PoolUUID:    "550e8400-e29b-41d4-a716-446655440000",
+		}
+
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+		orch := &GCPOrchestrator{storage: store, temporal: temporal}
+		err := orch.DeleteExpertModeVolume(ctx, params)
+
+		assert.NoError(tt, err)
+
+		var updatedVolume datamodel.ExpertModeVolumes
+		err = store.DB().Where("uuid = ?", volume.UUID).First(&updatedVolume).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, models.LifeCycleStateDeleting, updatedVolume.State)
 
 		mockLogger.AssertExpectations(tt)
 		temporal.AssertExpectations(tt)

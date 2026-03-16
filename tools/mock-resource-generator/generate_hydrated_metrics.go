@@ -17,6 +17,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/connection"
 	metricsdb "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
@@ -1337,7 +1338,7 @@ func insertResourcesIntoVCP(ctx context.Context, vcpDB database.Storage, resourc
 			logger.Warnf("Failed to batch query volume counts: %v, falling back to individual queries", err)
 			// Fallback to individual queries
 			for poolName, pool := range poolMap {
-				volumeCount, err := vcpDB.GetVolumeCountByPoolID(ctx, pool.ID)
+				volumeCount, err := vcpDB.GetVolumeCountByPoolID(ctx, pool.ID, pool.APIAccessMode == commonparams.ONTAPMode)
 				if err != nil {
 					logger.Warnf("Failed to get volume count for pool %s (ID: %d): %v, assuming 0", poolName, pool.ID, err)
 					poolVolumeCounts[pool.ID] = 0

@@ -448,7 +448,16 @@ func TestGetVolumeCountByPoolID_Persistence_Store(t *testing.T) {
 	store, _ := SetupStorageForTest(logger)
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
-	_, err := store.GetVolumeCountByPoolID(ctx, 0)
+	_, err := store.GetVolumeCountByPoolID(ctx, 0, false)
+	assert.NoError(t, err)
+}
+
+func TestGetVolumeCountByPoolID_Persistence_Store_OntapMode(t *testing.T) {
+	logger := log.NewLogger()
+	store, _ := SetupStorageForTest(logger)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	_, err := store.GetVolumeCountByPoolID(ctx, 0, true)
 	assert.NoError(t, err)
 }
 

@@ -946,11 +946,11 @@ func (re *retryEngine) DereferenceVPGFromDeletedVolumes(ctx context.Context, vpg
 	return err
 }
 
-func (re *retryEngine) GetVolumeCountByPoolID(ctx context.Context, poolID int64) (int64, error) {
+func (re *retryEngine) GetVolumeCountByPoolID(ctx context.Context, poolID int64, isOntapMode bool) (int64, error) {
 	var var0 int64
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.GetVolumeCountByPoolID(ctx, poolID)
+		var0, err = re.dataStore.GetVolumeCountByPoolID(ctx, poolID, isOntapMode)
 		if err != nil {
 			re.logError("GetVolumeCountByPoolID", err)
 			if !dbutils.IsTransientErr(err) {

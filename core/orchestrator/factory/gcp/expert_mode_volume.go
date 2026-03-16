@@ -268,7 +268,11 @@ func _createExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 		logger.Error("Failed to start volume reconciliation workflow", "workflowID", createdJob.WorkflowID, "error", err)
 		return err
 	}
-
+	if enableAutoPoolScaling {
+		dbPool := database.ConvertPoolViewToPool(dbPoolView)
+		logger.Infof("Triggering pool scaling for ONTAP mode pool %s after volume creation", dbPool.Name)
+		checkAndTriggerPoolScalingIfNeeded(ctx, se, temporal, dbPool, false)
+	}
 	return nil
 }
 
@@ -391,7 +395,11 @@ func _deleteExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 		logger.Error("Failed to start volume deletion reconciliation workflow", "workflowID", createdJob.WorkflowID, "error", err)
 		return err
 	}
-
+	if enableAutoPoolScaling {
+		dbPool := database.ConvertPoolViewToPool(dbPoolView)
+		logger.Infof("Triggering pool scaling for ONTAP mode pool %s after volume deletion", dbPool.Name)
+		checkAndTriggerPoolScalingIfNeeded(ctx, se, temporal, dbPool, true)
+	}
 	return nil
 }
 

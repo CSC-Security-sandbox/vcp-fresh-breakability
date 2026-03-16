@@ -63,7 +63,8 @@ var (
 	updateVolumeStatus                   = _updateVolumeStatus
 	convertDatastoreVolumeToModel        = _convertDatastoreVolumeToModel
 	checkAndCancelCreateWorkflowIfNeeded = _checkAndCancelCreateWorkflowIfNeeded
-	minPrimeNumberConfigAllowed          = 7
+
+	minPrimeNumberConfigAllowed = 7
 
 	envIsLocalEnv                              = env.IsLocalEnv
 	cvpCreateClient                            = cvp.CreateClient
@@ -3235,9 +3236,10 @@ func checkAndTriggerPoolScalingIfNeeded(ctx context.Context, se database.Storage
 		logger.Warnf("Pool not in ready state poolID: %s, state: %s", pool.UUID, pool.State)
 		return
 	}
+	isOntapMode := pool.APIAccessMode == common.ONTAPMode
 
 	// Get current volume count for the pool
-	currentVolumeCount, err := se.GetVolumeCountByPoolID(ctx, pool.ID)
+	currentVolumeCount, err := se.GetVolumeCountByPoolID(ctx, pool.ID, isOntapMode)
 	if err != nil {
 		logger.Error("Failed to get volume count for pool", "poolID", pool.ID, "error", err)
 		return

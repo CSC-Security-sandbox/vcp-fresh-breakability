@@ -406,6 +406,11 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 
+	// ONTAP mode pools use the smallest instance type (c3-standard-4-lssd). 0 volumes present when pool is created
+	if params.Mode == common.ONTAPMode {
+		vlmConfig.Deployment.VSAInstanceType = "c3-standard-4-lssd"
+	}
+
 	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
