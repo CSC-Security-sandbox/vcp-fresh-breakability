@@ -129,6 +129,7 @@ data:
   SNAPSHOT_API_SYNC_MODE: {{index .Values "snapshotApiSyncMode" | toString | quote}}
   SYNC_SNAPSHOT_ONTAP_JOB_POLL_TIMEOUT_MILLISECONDS: {{ index .Values "syncSnapshotOntapJobPollTimeoutMilliseconds" | quote }}
   SYNC_SNAPSHOT_ONTAP_JOB_POLL_INTERVAL_MILLISECONDS: {{ index .Values "syncSnapshotOntapJobPollIntervalMilliseconds" | quote }}
+  MAX_APP_CONSISTENT_SNAPSHOT_COUNT: {{ index .Values "maxAppConsistentSnapshotCount" | quote }}
   CA_POOL_NAME: {{ index .Values "caPoolName" | quote }}
   CA_NAME: {{ index .Values "caName" | quote }}
   CA_POOL_DEPLOYED_PROJECT_ID: {{ index .Values "caPoolDeployedProjectId" | quote }}

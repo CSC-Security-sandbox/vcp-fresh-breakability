@@ -105,6 +105,7 @@ enableAutoPoolScaling: true
 snapshotApiSyncMode: false
 syncSnapshotOntapJobPollTimeoutMilliseconds: 40000
 syncSnapshotOntapJobPollIntervalMilliseconds: 2000
+maxAppConsistentSnapshotCount: "10"
 caName: "20250718-pn6-boa"
 caPoolName: "vsa-pool-ca"
 caPoolDeployedProjectId: "266893635349"

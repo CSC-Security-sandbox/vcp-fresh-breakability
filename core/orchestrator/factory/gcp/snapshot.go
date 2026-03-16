@@ -45,6 +45,8 @@ var (
 	listSnapshots                   = _listSnapshots
 	deleteSnapshots                 = _deleteSnapshots
 	ConvertDatastoreSnapshotToModel = _convertDatastoreSnapshotToModel
+
+	maxAppConsistentSnapshotCount = env.GetInt64("MAX_APP_CONSISTENT_SNAPSHOT_COUNT", 10)
 )
 
 const (
@@ -91,8 +93,8 @@ func _createSnapshot(ctx context.Context, se database.Storage, temporal client.C
 		appConsistentSnaps, err := se.GetAppConsistentSnapshotsForVolume(ctx, account.ID, volume.ID)
 		if err != nil {
 			return nil, "", err
-		} else if len(appConsistentSnaps) == 1 {
-			return nil, "", customerrors.NewConflictErr("Volume already has an app consistent snapshot")
+		} else if int64(len(appConsistentSnaps)) >= maxAppConsistentSnapshotCount {
+			return nil, "", customerrors.NewConflictErr(fmt.Sprintf("Volume already has the maximum number of app consistent snapshots (%d)", maxAppConsistentSnapshotCount))
 		}
 	}
 

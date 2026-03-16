@@ -226,6 +226,11 @@ func TestGCPOrchestrator_CreateSnapshot(t *testing.T) {
 	})
 
 	t.Run("WhenSnapshotCreationFailsAsVolumeHasAppConsistentSnapshot", func(tt *testing.T) {
+		// Mock max to 1 so 2nd app-consistent snapshot fails; reset after test
+		origMax := maxAppConsistentSnapshotCount
+		maxAppConsistentSnapshotCount = 1
+		defer func() { maxAppConsistentSnapshotCount = origMax }()
+
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -263,6 +268,7 @@ func TestGCPOrchestrator_CreateSnapshot(t *testing.T) {
 			tt.Fatalf("Failed to create volume: %v", err)
 		}
 
+		// One existing app-consistent snapshot; with max=1, 2nd should fail
 		existingSnapshot := &datamodel.Snapshot{
 			BaseModel:       datamodel.BaseModel{UUID: "another-test-snapshot-uuid"},
 			Name:            "another_test_snapshot",
@@ -288,8 +294,86 @@ func TestGCPOrchestrator_CreateSnapshot(t *testing.T) {
 		}
 
 		snapshot, _, err := orch.CreateSnapshot(ctx, params)
-		assert.Error(tt, err, "Volume already has an app consistent snapshot")
-		assert.Nil(tt, snapshot, "Expected snapshot to be created")
+		assert.Error(tt, err)
+		assert.Nil(tt, snapshot)
+		assert.Contains(tt, err.Error(), "maximum number of app consistent snapshots (1)")
+	})
+
+	t.Run("WhenAppConsistentSnapshotCreationSucceedsWhenUnderMaxLimit", func(tt *testing.T) {
+		// Mock max to 10 so 2nd app-consistent snapshot is allowed
+		origMax := maxAppConsistentSnapshotCount
+		maxAppConsistentSnapshotCount = 10
+		defer func() { maxAppConsistentSnapshotCount = origMax }()
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		orch := GCPOrchestrator{
+			storage:  store,
+			temporal: temporal,
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		// One existing app-consistent snapshot; with max=10, 2nd is allowed
+		existingSnapshot := &datamodel.Snapshot{
+			BaseModel:       datamodel.BaseModel{UUID: "another-test-snapshot-uuid"},
+			Name:            "another_test_snapshot",
+			Description:     "desc",
+			AccountID:       account.ID,
+			VolumeID:        volume.ID,
+			Account:         account,
+			Volume:          volume,
+			State:           models.LifeCycleStateREADY,
+			IsAppConsistent: true,
+		}
+		err = store.DB().Create(existingSnapshot).Error
+		assert.NoError(tt, err)
+
+		params := &common.CreateSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    volume.UUID,
+				AccountName: account.Name,
+			},
+			Name:            "test_snapshot_under_limit",
+			IsAppConsistent: true,
+			Description:     "test",
+		}
+
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+		snapshot, _, err := orch.CreateSnapshot(ctx, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, snapshot)
+		assert.Equal(tt, "test_snapshot_under_limit", snapshot.Name)
+		assert.Equal(tt, "test-volume-uuid", snapshot.VolumeUUID)
 	})
 
 	t.Run("WhenSnapshotCreationFailsDueToOwnershipCheck", func(tt *testing.T) {
