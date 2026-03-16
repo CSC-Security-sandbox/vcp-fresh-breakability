@@ -115,7 +115,7 @@ func (a ActiveDirectoryUpdateActivity) UpdateVcpActiveDirectory(ctx context.Cont
 		return nil
 	}
 
-	updatedAd := convertUpdateParamsToModel(params, oldAd)
+	updatedAd := convertUpdateParamsToModel(params, oldDbAd)
 	if params.Password != nil {
 		decryptedPassword, decryptErr := utils.DecryptPassword(log.Secret(*params.Password))
 		if decryptErr != nil {
@@ -281,7 +281,7 @@ func (a ActiveDirectoryUpdateActivity) UpdateSdeActiveDirectory(ctx context.Cont
 }
 
 // convertUpdateParamsToModel converts UpdateActiveDirectoryParams to a model, merging with oldAd
-func convertUpdateParamsToModel(params *common.UpdateActiveDirectoryParams, oldAd *models.ActiveDirectory) *datamodel.ActiveDirectory {
+func convertUpdateParamsToModel(params *common.UpdateActiveDirectoryParams, oldAd *datamodel.ActiveDirectory) *datamodel.ActiveDirectory {
 	ad := &datamodel.ActiveDirectory{
 		BaseModel: datamodel.BaseModel{
 			UUID:      oldAd.UUID,
@@ -296,9 +296,9 @@ func convertUpdateParamsToModel(params *common.UpdateActiveDirectoryParams, oldA
 			OrganizationalUnit: oldAd.ActiveDirectoryAttributes.OrganizationalUnit,
 			Site:               oldAd.ActiveDirectoryAttributes.Site,
 			AdUsers: map[string][]string{
-				utils.ActiveDirectorySeSecurityPrivilege:         oldAd.ActiveDirectoryAttributes.SecurityOperators,
-				utils.ActiveDirectoryGroupBuiltInBackupOperators: oldAd.ActiveDirectoryAttributes.BackupOperators,
-				utils.ActiveDirectoryGroupBuiltInAdministrators:  oldAd.ActiveDirectoryAttributes.Administrators,
+				utils.ActiveDirectorySeSecurityPrivilege:         oldAd.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectorySeSecurityPrivilege],
+				utils.ActiveDirectoryGroupBuiltInBackupOperators: oldAd.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectoryGroupBuiltInBackupOperators],
+				utils.ActiveDirectoryGroupBuiltInAdministrators:  oldAd.ActiveDirectoryAttributes.AdUsers[utils.ActiveDirectoryGroupBuiltInAdministrators],
 			},
 			KdcIP:                      oldAd.ActiveDirectoryAttributes.KdcIP,
 			KdcHostname:                oldAd.ActiveDirectoryAttributes.KdcHostname,

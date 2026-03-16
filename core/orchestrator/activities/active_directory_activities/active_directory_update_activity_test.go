@@ -161,6 +161,9 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_Success_SetsInUs
 		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-ad-uuid"},
 		AdName:    "test-ad",
 		AccountId: 123,
+		ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+			AdUsers: map[string][]string{},
+		},
 	}
 
 	account := &datamodel.Account{
@@ -207,6 +210,9 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_PersistsPassedSt
 		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-ad-uuid"},
 		AdName:    "test-ad",
 		AccountId: 123,
+		ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+			AdUsers: map[string][]string{},
+		},
 	}
 
 	account := &datamodel.Account{
@@ -2045,6 +2051,9 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_PasswordDecrypti
 			AdName:         "test-ad",
 			AccountId:      123,
 			CredentialPath: "old-credential-path",
+			ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+				AdUsers: map[string][]string{},
+			},
 		}
 
 		// Mock DecryptPassword
@@ -2124,6 +2133,9 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_PasswordDecrypti
 			AdName:         "test-ad",
 			AccountId:      123,
 			CredentialPath: "old-credential-path",
+			ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+				AdUsers: map[string][]string{},
+			},
 		}
 
 		// Mock DecryptPassword to fail
@@ -2188,6 +2200,9 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_PasswordDecrypti
 			AdName:         "test-ad",
 			AccountId:      123,
 			CredentialPath: "old-credential-path",
+			ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+				AdUsers: map[string][]string{},
+			},
 		}
 
 		// Mock DecryptPassword
@@ -2259,6 +2274,9 @@ func TestActiveDirectoryUpdateActivity_UpdateVcpActiveDirectory_PasswordDecrypti
 			AdName:         "test-ad",
 			AccountId:      123,
 			CredentialPath: "old-credential-path",
+			ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+				AdUsers: map[string][]string{},
+			},
 		}
 
 		mockAccount := &datamodel.Account{

@@ -2094,7 +2094,7 @@ func TestUpdateActiveDirectory_Success(t *testing.T) {
 	mockStorage.On("UpdateActiveDirectory", mock.Anything, mock.Anything).Return(adRecord, nil)
 
 	origCheckIfDomainUpdateAllowed := checkIfDomainUpdateAllowed
-	checkIfDomainUpdateAllowed = func(ctx context.Context, se database.Storage, ad *models.ActiveDirectory, accountID int64) error {
+	checkIfDomainUpdateAllowed = func(ctx context.Context, se database.Storage, ad *models.ActiveDirectory) error {
 		return nil
 	}
 	defer func() { checkIfDomainUpdateAllowed = origCheckIfDomainUpdateAllowed }()
@@ -2160,7 +2160,7 @@ func TestUpdateActiveDirectory_DomainUpdateNotAllowed(t *testing.T) {
 
 	// Mock checkIfDomainUpdateAllowed to return error
 	origCheckIfDomainUpdateAllowed := checkIfDomainUpdateAllowed
-	checkIfDomainUpdateAllowed = func(ctx context.Context, se database.Storage, ad *models.ActiveDirectory, accountID int64) error {
+	checkIfDomainUpdateAllowed = func(ctx context.Context, se database.Storage, ad *models.ActiveDirectory) error {
 		return customerrors.NewUserInputValidationErr("domain update not allowed: active directory has associated volumes")
 	}
 	defer func() { checkIfDomainUpdateAllowed = origCheckIfDomainUpdateAllowed }()
@@ -2342,7 +2342,7 @@ func TestUpdateActiveDirectory_JobCreationFailed(t *testing.T) {
 	defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
 
 	origCheckIfDomainUpdateAllowed := checkIfDomainUpdateAllowed
-	checkIfDomainUpdateAllowed = func(ctx context.Context, se database.Storage, ad *models.ActiveDirectory, accountID int64) error {
+	checkIfDomainUpdateAllowed = func(ctx context.Context, se database.Storage, ad *models.ActiveDirectory) error {
 		return nil
 	}
 	defer func() { checkIfDomainUpdateAllowed = origCheckIfDomainUpdateAllowed }()
@@ -2412,7 +2412,7 @@ func TestUpdateActiveDirectory_WorkflowStartFailed(t *testing.T) {
 	defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
 
 	origCheckIfDomainUpdateAllowed := checkIfDomainUpdateAllowed
-	checkIfDomainUpdateAllowed = func(ctx context.Context, se database.Storage, ad *models.ActiveDirectory, accountID int64) error {
+	checkIfDomainUpdateAllowed = func(ctx context.Context, se database.Storage, ad *models.ActiveDirectory) error {
 		return nil
 	}
 	defer func() { checkIfDomainUpdateAllowed = origCheckIfDomainUpdateAllowed }()
@@ -2479,7 +2479,7 @@ func TestUpdateActiveDirectory_Success_WithCVPHost(t *testing.T) {
 	defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
 
 	origCheckIfDomainUpdateAllowed := checkIfDomainUpdateAllowed
-	checkIfDomainUpdateAllowed = func(ctx context.Context, se database.Storage, ad *models.ActiveDirectory, accountID int64) error {
+	checkIfDomainUpdateAllowed = func(ctx context.Context, se database.Storage, ad *models.ActiveDirectory) error {
 		return nil
 	}
 	defer func() { checkIfDomainUpdateAllowed = origCheckIfDomainUpdateAllowed }()
@@ -2567,7 +2567,7 @@ func TestUpdateActiveDirectory_ADRecordNotFoundInDB(t *testing.T) {
 	defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
 
 	origCheckIfDomainUpdateAllowed := checkIfDomainUpdateAllowed
-	checkIfDomainUpdateAllowed = func(ctx context.Context, se database.Storage, ad *models.ActiveDirectory, accountID int64) error {
+	checkIfDomainUpdateAllowed = func(ctx context.Context, se database.Storage, ad *models.ActiveDirectory) error {
 		return nil
 	}
 	defer func() { checkIfDomainUpdateAllowed = origCheckIfDomainUpdateAllowed }()
@@ -2682,6 +2682,418 @@ func TestOrchestratorUpdateActiveDirectory_Error(t *testing.T) {
 	assert.Nil(t, ad)
 	assert.Empty(t, jobUUID)
 	assert.Contains(t, err.Error(), "update failed")
+}
+
+// --- New tests for _updateActiveDirectory behaviors ---
+
+func TestUpdateActiveDirectory_NilADFromGetActiveDirectory(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	params := &common.UpdateActiveDirectoryParams{
+		AccountId:         "123",
+		ActiveDirectoryId: "ad-uuid-123",
+		LocationId:        "us-central1",
+		XCorrelationId:    "test-correlation-id",
+		Username:          nillable.GetStringPtr("admin@test.local"),
+	}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 123}, Name: "test-account"}
+
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "", nil
+	}
+	defer func() { utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+	originalGetOrCreateAccount := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+
+	// Return nil ad with no error — the nil check should catch this and return NotFound
+	originalGetActiveDirectory := getActiveDirectory
+	getActiveDirectory = func(ctx context.Context, params *common.GetADParams, se database.Storage) (*models.ActiveDirectory, error) {
+		return nil, nil
+	}
+	defer func() { getActiveDirectory = originalGetActiveDirectory }()
+
+	ad, jobUUID, err := _updateActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ad)
+	assert.Empty(t, jobUUID)
+	assert.True(t, customerrors.IsNotFoundErr(err))
+}
+
+func TestUpdateActiveDirectory_DomainSkippedWhenDomainSame(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	params := &common.UpdateActiveDirectoryParams{
+		AccountId:         "123",
+		ActiveDirectoryId: "ad-uuid-123",
+		LocationId:        "us-central1",
+		XCorrelationId:    "test-correlation-id",
+		Domain:            nillable.GetStringPtr("same-domain.local"),
+	}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 123}, Name: "test-account"}
+	existingAD := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{UUID: "ad-uuid-123"},
+		AdName:    "test-ad",
+		Domain:    "same-domain.local",
+		State:     models.LifeCycleStateREADY,
+	}
+	createdJob := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid-123"},
+		WorkflowID: "workflow-id-123",
+	}
+
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "", nil
+	}
+	defer func() { utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+	originalGetOrCreateAccount := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+
+	originalGetActiveDirectory := getActiveDirectory
+	getActiveDirectory = func(ctx context.Context, params *common.GetADParams, se database.Storage) (*models.ActiveDirectory, error) {
+		return existingAD, nil
+	}
+	defer func() { getActiveDirectory = originalGetActiveDirectory }()
+
+	// Domain check should be SKIPPED because domain is unchanged
+	domainCheckCalled := false
+	origCheckIfDomainUpdateAllowed := checkIfDomainUpdateAllowed
+	checkIfDomainUpdateAllowed = func(ctx context.Context, se database.Storage, ad *models.ActiveDirectory) error {
+		domainCheckCalled = true
+		return customerrors.NewBadRequestErr("should not be called")
+	}
+	defer func() { checkIfDomainUpdateAllowed = origCheckIfDomainUpdateAllowed }()
+
+	mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(createdJob, nil)
+
+	originalWorkflowExecute := workflowsExecuteWorkflowSequentially
+	workflowsExecuteWorkflowSequentially = func(client client.Client, ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, childOptions workflow.ChildWorkflowOptions, args ...interface{}) error {
+		return nil
+	}
+	defer func() { workflowsExecuteWorkflowSequentially = originalWorkflowExecute }()
+
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "https://sde.example.com"
+	originalCreateCommon := utils.CreateCommonResourcesInVCP
+	utils.CreateCommonResourcesInVCP = false
+	defer func() {
+		cvp.CVP_HOST = originalCVPHost
+		utils.CreateCommonResourcesInVCP = originalCreateCommon
+	}()
+
+	ad, jobUUID, err := _updateActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, ad)
+	assert.Equal(t, "job-uuid-123", jobUUID)
+	assert.False(t, domainCheckCalled, "domain check should be skipped when domain is unchanged")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateActiveDirectory_DomainCheckReceivesAdWithId(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	params := &common.UpdateActiveDirectoryParams{
+		AccountId:         "123",
+		ActiveDirectoryId: "ad-uuid-123",
+		LocationId:        "us-central1",
+		XCorrelationId:    "test-correlation-id",
+		Domain:            nillable.GetStringPtr("new-domain.local"),
+	}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 123}, Name: "test-account"}
+	// Merged AD with ID set from VCP (used for domain check and workflow)
+	adWithID := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{UUID: "ad-uuid-123", ID: 42},
+		AdName:    "test-ad",
+		Domain:    "old-domain.local",
+		State:     models.LifeCycleStateREADY,
+	}
+
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "", nil
+	}
+	defer func() { utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+	originalGetOrCreateAccount := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+
+	originalGetActiveDirectory := getActiveDirectory
+	getActiveDirectory = func(ctx context.Context, params *common.GetADParams, se database.Storage) (*models.ActiveDirectory, error) {
+		return adWithID, nil
+	}
+	defer func() { getActiveDirectory = originalGetActiveDirectory }()
+
+	var receivedAD *models.ActiveDirectory
+	origCheckIfDomainUpdateAllowed := checkIfDomainUpdateAllowed
+	checkIfDomainUpdateAllowed = func(ctx context.Context, se database.Storage, ad *models.ActiveDirectory) error {
+		receivedAD = ad
+		return nil
+	}
+	defer func() { checkIfDomainUpdateAllowed = origCheckIfDomainUpdateAllowed }()
+
+	createdJob := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid-123"},
+		WorkflowID: "workflow-id-123",
+	}
+	mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(createdJob, nil)
+
+	originalWorkflowExecute := workflowsExecuteWorkflowSequentially
+	workflowsExecuteWorkflowSequentially = func(client client.Client, ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, childOptions workflow.ChildWorkflowOptions, args ...interface{}) error {
+		return nil
+	}
+	defer func() { workflowsExecuteWorkflowSequentially = originalWorkflowExecute }()
+
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "https://sde.example.com"
+	originalCreateCommon := utils.CreateCommonResourcesInVCP
+	utils.CreateCommonResourcesInVCP = false
+	defer func() {
+		cvp.CVP_HOST = originalCVPHost
+		utils.CreateCommonResourcesInVCP = originalCreateCommon
+	}()
+
+	ad, _, err := _updateActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, ad)
+	assert.NotNil(t, receivedAD, "checkIfDomainUpdateAllowed should have been called")
+	assert.Equal(t, int64(42), receivedAD.ID, "checkIfDomainUpdateAllowed should receive ad with VCP ID for GetSVMsUsingActiveDirectory")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateActiveDirectory_AdPassedToWorkflow(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	params := &common.UpdateActiveDirectoryParams{
+		AccountId:         "123",
+		ActiveDirectoryId: "ad-uuid-123",
+		LocationId:        "us-central1",
+		XCorrelationId:    "test-correlation-id",
+		Username:          nillable.GetStringPtr("admin@test.local"),
+	}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 123}, Name: "test-account"}
+	adWithID := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{UUID: "ad-uuid-123", ID: 42},
+		AdName:    "test-ad",
+		Domain:    "test.local",
+		State:     models.LifeCycleStateREADY,
+	}
+
+	createdJob := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid-123"},
+		WorkflowID: "workflow-id-123",
+	}
+
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "", nil
+	}
+	defer func() { utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+	originalGetOrCreateAccount := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+
+	originalGetActiveDirectory := getActiveDirectory
+	getActiveDirectory = func(ctx context.Context, params *common.GetADParams, se database.Storage) (*models.ActiveDirectory, error) {
+		return adWithID, nil
+	}
+	defer func() { getActiveDirectory = originalGetActiveDirectory }()
+
+	mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(createdJob, nil)
+
+	// Capture the AD model passed to the workflow
+	var workflowADArg *models.ActiveDirectory
+	originalWorkflowExecute := workflowsExecuteWorkflowSequentially
+	workflowsExecuteWorkflowSequentially = func(c client.Client, ctx context.Context, options client.StartWorkflowOptions, wf interface{}, childOptions workflow.ChildWorkflowOptions, args ...interface{}) error {
+		if len(args) >= 2 {
+			if adArg, ok := args[1].(*models.ActiveDirectory); ok {
+				workflowADArg = adArg
+			}
+		}
+		return nil
+	}
+	defer func() { workflowsExecuteWorkflowSequentially = originalWorkflowExecute }()
+
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "https://sde.example.com"
+	originalCreateCommon := utils.CreateCommonResourcesInVCP
+	utils.CreateCommonResourcesInVCP = false
+	defer func() {
+		cvp.CVP_HOST = originalCVPHost
+		utils.CreateCommonResourcesInVCP = originalCreateCommon
+	}()
+
+	ad, _, err := _updateActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, ad)
+	assert.NotNil(t, workflowADArg, "workflow should receive an AD argument")
+	assert.Equal(t, adWithID, workflowADArg, "workflow should receive the merged ad with ID set")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateActiveDirectory_DomainUpdateComparesAgainstVcpAdDomain(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	params := &common.UpdateActiveDirectoryParams{
+		AccountId:         "123",
+		ActiveDirectoryId: "ad-uuid-123",
+		LocationId:        "us-central1",
+		XCorrelationId:    "test-correlation-id",
+		Domain:            nillable.GetStringPtr("merged.local"),
+	}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 123}, Name: "test-account"}
+	// mergedAD.Domain differs from params.Domain so domain check is triggered
+	mergedAD := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{UUID: "ad-uuid-123", ID: 42},
+		AdName:    "test-ad",
+		Domain:    "different-vcp.local",
+		State:     models.LifeCycleStateREADY,
+	}
+
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "", nil
+	}
+	defer func() { utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+	originalGetOrCreateAccount := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+
+	originalGetActiveDirectory := getActiveDirectory
+	getActiveDirectory = func(ctx context.Context, params *common.GetADParams, se database.Storage) (*models.ActiveDirectory, error) {
+		return mergedAD, nil
+	}
+	defer func() { getActiveDirectory = originalGetActiveDirectory }()
+
+	// mergedAD.Domain != params.Domain so checkIfDomainUpdateAllowed is called
+	domainCheckCalled := false
+	origCheckIfDomainUpdateAllowed := checkIfDomainUpdateAllowed
+	checkIfDomainUpdateAllowed = func(ctx context.Context, se database.Storage, ad *models.ActiveDirectory) error {
+		domainCheckCalled = true
+		return customerrors.NewBadRequestErr("domain cannot be updated")
+	}
+	defer func() { checkIfDomainUpdateAllowed = origCheckIfDomainUpdateAllowed }()
+
+	ad, jobUUID, err := _updateActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ad)
+	assert.Empty(t, jobUUID)
+	assert.True(t, domainCheckCalled, "domain check should be called when ad.Domain differs from params.Domain")
+	assert.Contains(t, err.Error(), "domain cannot be updated")
+}
+
+func TestUpdateActiveDirectory_NoDomainParam_SkipsDomainCheck(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	mockTemporal := mocks.NewClient(t)
+
+	params := &common.UpdateActiveDirectoryParams{
+		AccountId:         "123",
+		ActiveDirectoryId: "ad-uuid-123",
+		LocationId:        "us-central1",
+		XCorrelationId:    "test-correlation-id",
+		Username:          nillable.GetStringPtr("new-admin@test.local"),
+	}
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 123}, Name: "test-account"}
+	existingAD := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{UUID: "ad-uuid-123"},
+		AdName:    "test-ad",
+		Domain:    "test.local",
+		State:     models.LifeCycleStateREADY,
+	}
+
+	createdJob := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid-123"},
+		WorkflowID: "workflow-id-123",
+	}
+
+	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+	utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+		return "us-central1", "", nil
+	}
+	defer func() { utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+	originalGetOrCreateAccount := getOrCreateAccount
+	getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+
+	originalGetActiveDirectory := getActiveDirectory
+	getActiveDirectory = func(ctx context.Context, params *common.GetADParams, se database.Storage) (*models.ActiveDirectory, error) {
+		return existingAD, nil
+	}
+	defer func() { getActiveDirectory = originalGetActiveDirectory }()
+
+	domainCheckCalled := false
+	origCheckIfDomainUpdateAllowed := checkIfDomainUpdateAllowed
+	checkIfDomainUpdateAllowed = func(ctx context.Context, se database.Storage, ad *models.ActiveDirectory) error {
+		domainCheckCalled = true
+		return nil
+	}
+	defer func() { checkIfDomainUpdateAllowed = origCheckIfDomainUpdateAllowed }()
+
+	mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(createdJob, nil)
+
+	originalWorkflowExecute := workflowsExecuteWorkflowSequentially
+	workflowsExecuteWorkflowSequentially = func(client client.Client, ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, childOptions workflow.ChildWorkflowOptions, args ...interface{}) error {
+		return nil
+	}
+	defer func() { workflowsExecuteWorkflowSequentially = originalWorkflowExecute }()
+
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "https://sde.example.com"
+	originalCreateCommon := utils.CreateCommonResourcesInVCP
+	utils.CreateCommonResourcesInVCP = false
+	defer func() {
+		cvp.CVP_HOST = originalCVPHost
+		utils.CreateCommonResourcesInVCP = originalCreateCommon
+	}()
+
+	ad, _, err := _updateActiveDirectory(ctx, mockStorage, mockTemporal, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, ad)
+	assert.False(t, domainCheckCalled, "domain check should be skipped when params.Domain is nil")
+	mockStorage.AssertExpectations(t)
 }
 
 // Delete Active Directory Tests
@@ -3036,10 +3448,9 @@ func Test_checkIfDomainUpdateAllowed_Success_NoSVMs(t *testing.T) {
 		Domain:    "test.example.com",
 	}
 
-	// Mock GetSVMsUsingActiveDirectory to return empty list
 	mockStorage.On("GetSVMsUsingActiveDirectory", mock.Anything, int64(123)).Return([]*datamodel.Svm{}, nil)
 
-	err := _checkIfDomainUpdateAllowed(ctx, mockStorage, ad, 1)
+	err := _checkIfDomainUpdateAllowed(ctx, mockStorage, ad)
 
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
@@ -3060,10 +3471,9 @@ func Test_checkIfDomainUpdateAllowed_Error_SVMsInUse(t *testing.T) {
 		{BaseModel: datamodel.BaseModel{ID: 2, UUID: "svm-uuid-2"}},
 	}
 
-	// Mock GetSVMsUsingActiveDirectory to return SVMs
 	mockStorage.On("GetSVMsUsingActiveDirectory", mock.Anything, int64(123)).Return(svms, nil)
 
-	err := _checkIfDomainUpdateAllowed(ctx, mockStorage, ad, 1)
+	err := _checkIfDomainUpdateAllowed(ctx, mockStorage, ad)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Active Directory domain cannot be updated while it is in use")
@@ -3080,17 +3490,16 @@ func Test_checkIfDomainUpdateAllowed_Error_DatabaseError(t *testing.T) {
 		Domain:    "test.example.com",
 	}
 
-	// Mock GetSVMsUsingActiveDirectory to return error
 	mockStorage.On("GetSVMsUsingActiveDirectory", mock.Anything, int64(123)).Return(nil, errors.New("database connection error"))
 
-	err := _checkIfDomainUpdateAllowed(ctx, mockStorage, ad, 1)
+	err := _checkIfDomainUpdateAllowed(ctx, mockStorage, ad)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "database connection error")
 	mockStorage.AssertExpectations(t)
 }
 
-func Test_checkIfDomainUpdateAllowed_Success_SingleSVMInUse(t *testing.T) {
+func Test_checkIfDomainUpdateAllowed_Error_SingleSVMInUse(t *testing.T) {
 	ctx := context.Background()
 	mockStorage := database.NewMockStorage(t)
 
@@ -3104,258 +3513,69 @@ func Test_checkIfDomainUpdateAllowed_Success_SingleSVMInUse(t *testing.T) {
 		{BaseModel: datamodel.BaseModel{ID: 10, UUID: "svm-uuid-10"}},
 	}
 
-	// Mock GetSVMsUsingActiveDirectory to return single SVM
 	mockStorage.On("GetSVMsUsingActiveDirectory", mock.Anything, int64(456)).Return(svms, nil)
 
-	err := _checkIfDomainUpdateAllowed(ctx, mockStorage, ad, 1)
+	err := _checkIfDomainUpdateAllowed(ctx, mockStorage, ad)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Active Directory domain cannot be updated while it is in use")
 	mockStorage.AssertExpectations(t)
 }
 
-func Test_checkIfDomainUpdateAllowed_Error_NilActiveDirectory(t *testing.T) {
+func Test_checkIfDomainUpdateAllowed_Error_ZeroID(t *testing.T) {
 	ctx := context.Background()
 	mockStorage := database.NewMockStorage(t)
 
-	// Mock GetSVMsUsingActiveDirectory to handle zero ID
 	mockStorage.On("GetSVMsUsingActiveDirectory", mock.Anything, int64(0)).Return(nil, errors.New("invalid active directory ID"))
 
-	err := _checkIfDomainUpdateAllowed(ctx, mockStorage, &models.ActiveDirectory{}, 1)
+	err := _checkIfDomainUpdateAllowed(ctx, mockStorage, &models.ActiveDirectory{})
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid active directory ID")
 	mockStorage.AssertExpectations(t)
 }
 
-// --- CVP path tests: when CVP_HOST is set and CreateCommonResourcesInVCP is false,
-// _checkIfDomainUpdateAllowed resolves VCP DB id via GetActiveDirectoryByNameAndAccountID ---
-
-func Test_checkIfDomainUpdateAllowed_CVPPath_ADFoundInVCP_NoSVMs_Success(t *testing.T) {
+func Test_checkIfDomainUpdateAllowed_UsesOldAdID_Directly(t *testing.T) {
 	ctx := context.Background()
 	mockStorage := database.NewMockStorage(t)
 
-	originalCVPHost := cvp.CVP_HOST
-	originalCreateCommon := utils.CreateCommonResourcesInVCP
-	cvp.CVP_HOST = "https://cvp.example.com"
-	utils.CreateCommonResourcesInVCP = false
-	defer func() {
-		cvp.CVP_HOST = originalCVPHost
-		utils.CreateCommonResourcesInVCP = originalCreateCommon
-	}()
-
-	// SDE model has ID=0 (from CVP response)
-	ad := &models.ActiveDirectory{
-		BaseModel: models.BaseModel{ID: 0},
-		AdName:    "sde-ad-name",
-		Domain:    "old.example.com",
-	}
-	accountID := int64(42)
-	vcpDBID := int64(999)
-	dbAD := &datamodel.ActiveDirectory{
-		BaseModel: datamodel.BaseModel{ID: vcpDBID},
-		AdName:    "sde-ad-name",
-	}
-
-	mockStorage.On("GetActiveDirectoryByNameAndAccountID", ctx, "sde-ad-name", accountID).Return(dbAD, nil)
-	mockStorage.On("GetSVMsUsingActiveDirectory", mock.Anything, vcpDBID).Return([]*datamodel.Svm{}, nil)
-
-	err := _checkIfDomainUpdateAllowed(ctx, mockStorage, ad, accountID)
-
-	assert.NoError(t, err)
-	mockStorage.AssertExpectations(t)
-}
-
-func Test_checkIfDomainUpdateAllowed_CVPPath_ADFoundInVCP_SVMsInUse_ReturnsError(t *testing.T) {
-	ctx := context.Background()
-	mockStorage := database.NewMockStorage(t)
-
-	originalCVPHost := cvp.CVP_HOST
-	originalCreateCommon := utils.CreateCommonResourcesInVCP
-	cvp.CVP_HOST = "https://cvp.example.com"
-	utils.CreateCommonResourcesInVCP = false
-	defer func() {
-		cvp.CVP_HOST = originalCVPHost
-		utils.CreateCommonResourcesInVCP = originalCreateCommon
-	}()
-
-	ad := &models.ActiveDirectory{
-		BaseModel: models.BaseModel{ID: 0},
-		AdName:    "sde-ad-name",
-		Domain:    "old.example.com",
-	}
-	accountID := int64(42)
-	vcpDBID := int64(888)
-	dbAD := &datamodel.ActiveDirectory{
-		BaseModel: datamodel.BaseModel{ID: vcpDBID},
-		AdName:    "sde-ad-name",
-	}
-	svms := []*datamodel.Svm{
-		{BaseModel: datamodel.BaseModel{ID: 1, UUID: "svm-1"}},
-	}
-
-	mockStorage.On("GetActiveDirectoryByNameAndAccountID", ctx, "sde-ad-name", accountID).Return(dbAD, nil)
-	mockStorage.On("GetSVMsUsingActiveDirectory", mock.Anything, vcpDBID).Return(svms, nil)
-
-	err := _checkIfDomainUpdateAllowed(ctx, mockStorage, ad, accountID)
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Active Directory domain cannot be updated while it is in use")
-	mockStorage.AssertExpectations(t)
-}
-
-func Test_checkIfDomainUpdateAllowed_CVPPath_ADNotFoundInVCP_NotFoundErr_AllowsUpdate(t *testing.T) {
-	ctx := context.Background()
-	mockStorage := database.NewMockStorage(t)
-
-	originalCVPHost := cvp.CVP_HOST
-	originalCreateCommon := utils.CreateCommonResourcesInVCP
-	cvp.CVP_HOST = "https://cvp.example.com"
-	utils.CreateCommonResourcesInVCP = false
-	defer func() {
-		cvp.CVP_HOST = originalCVPHost
-		utils.CreateCommonResourcesInVCP = originalCreateCommon
-	}()
-
-	ad := &models.ActiveDirectory{
-		BaseModel: models.BaseModel{ID: 0},
-		AdName:    "sde-only-ad",
-		Domain:    "old.example.com",
-	}
-	accountID := int64(42)
-	notFoundErr := customerrors.NewNotFoundErr("ActiveDirectory", nil)
-
-	mockStorage.On("GetActiveDirectoryByNameAndAccountID", ctx, "sde-only-ad", accountID).Return(nil, notFoundErr)
-	// GetSVMsUsingActiveDirectory must not be called when AD not in VCP (we return nil early)
-
-	err := _checkIfDomainUpdateAllowed(ctx, mockStorage, ad, accountID)
-
-	assert.NoError(t, err)
-	mockStorage.AssertExpectations(t)
-}
-
-func Test_checkIfDomainUpdateAllowed_CVPPath_ADNotInVCP_NilResult_AllowsUpdate(t *testing.T) {
-	ctx := context.Background()
-	mockStorage := database.NewMockStorage(t)
-
-	originalCVPHost := cvp.CVP_HOST
-	originalCreateCommon := utils.CreateCommonResourcesInVCP
-	cvp.CVP_HOST = "https://cvp.example.com"
-	utils.CreateCommonResourcesInVCP = false
-	defer func() {
-		cvp.CVP_HOST = originalCVPHost
-		utils.CreateCommonResourcesInVCP = originalCreateCommon
-	}()
-
-	ad := &models.ActiveDirectory{
-		BaseModel: models.BaseModel{ID: 0},
-		AdName:    "sde-only-ad",
-		Domain:    "old.example.com",
-	}
-	accountID := int64(42)
-	// DB returns (nil, nil) when record not found (no error)
-	mockStorage.On("GetActiveDirectoryByNameAndAccountID", ctx, "sde-only-ad", accountID).Return(nil, nil)
-
-	err := _checkIfDomainUpdateAllowed(ctx, mockStorage, ad, accountID)
-
-	assert.NoError(t, err)
-	mockStorage.AssertExpectations(t)
-}
-
-func Test_checkIfDomainUpdateAllowed_CVPPath_GetADByNameAndAccountReturnsError_PropagatesError(t *testing.T) {
-	ctx := context.Background()
-	mockStorage := database.NewMockStorage(t)
-
-	originalCVPHost := cvp.CVP_HOST
-	originalCreateCommon := utils.CreateCommonResourcesInVCP
-	cvp.CVP_HOST = "https://cvp.example.com"
-	utils.CreateCommonResourcesInVCP = false
-	defer func() {
-		cvp.CVP_HOST = originalCVPHost
-		utils.CreateCommonResourcesInVCP = originalCreateCommon
-	}()
-
-	ad := &models.ActiveDirectory{
-		BaseModel: models.BaseModel{ID: 0},
-		AdName:    "sde-ad-name",
-		Domain:    "old.example.com",
-	}
-	accountID := int64(42)
-	dbErr := errors.New("database connection failed")
-
-	mockStorage.On("GetActiveDirectoryByNameAndAccountID", ctx, "sde-ad-name", accountID).Return(nil, dbErr)
-
-	err := _checkIfDomainUpdateAllowed(ctx, mockStorage, ad, accountID)
-
-	assert.Error(t, err)
-	assert.Equal(t, dbErr, err)
-	mockStorage.AssertExpectations(t)
-}
-
-func Test_checkIfDomainUpdateAllowed_CVPPath_ADFoundInVCP_GetSVMsReturnsError_PropagatesError(t *testing.T) {
-	ctx := context.Background()
-	mockStorage := database.NewMockStorage(t)
-
-	originalCVPHost := cvp.CVP_HOST
-	originalCreateCommon := utils.CreateCommonResourcesInVCP
-	cvp.CVP_HOST = "https://cvp.example.com"
-	utils.CreateCommonResourcesInVCP = false
-	defer func() {
-		cvp.CVP_HOST = originalCVPHost
-		utils.CreateCommonResourcesInVCP = originalCreateCommon
-	}()
-
-	ad := &models.ActiveDirectory{
-		BaseModel: models.BaseModel{ID: 0},
-		AdName:    "sde-ad-name",
-		Domain:    "old.example.com",
-	}
-	accountID := int64(42)
-	vcpDBID := int64(777)
-	dbAD := &datamodel.ActiveDirectory{
-		BaseModel: datamodel.BaseModel{ID: vcpDBID},
-		AdName:    "sde-ad-name",
-	}
-	svmErr := errors.New("failed to list SVMs")
-
-	mockStorage.On("GetActiveDirectoryByNameAndAccountID", ctx, "sde-ad-name", accountID).Return(dbAD, nil)
-	mockStorage.On("GetSVMsUsingActiveDirectory", mock.Anything, vcpDBID).Return(nil, svmErr)
-
-	err := _checkIfDomainUpdateAllowed(ctx, mockStorage, ad, accountID)
-
-	assert.Error(t, err)
-	assert.Equal(t, svmErr, err)
-	mockStorage.AssertExpectations(t)
-}
-
-// VCP-only path: when CVP_HOST is empty or CreateCommonResourcesInVCP is true, use oldAd.ID only (no GetActiveDirectoryByNameAndAccountID).
-func Test_checkIfDomainUpdateAllowed_VCPOnlyPath_UsesOldAdID(t *testing.T) {
-	ctx := context.Background()
-	mockStorage := database.NewMockStorage(t)
-
-	originalCVPHost := cvp.CVP_HOST
-	originalCreateCommon := utils.CreateCommonResourcesInVCP
-	cvp.CVP_HOST = ""
-	utils.CreateCommonResourcesInVCP = true
-	defer func() {
-		cvp.CVP_HOST = originalCVPHost
-		utils.CreateCommonResourcesInVCP = originalCreateCommon
-	}()
-
-	adID := int64(123)
+	adID := int64(999)
 	ad := &models.ActiveDirectory{
 		BaseModel: models.BaseModel{ID: adID},
 		AdName:    "vcp-ad",
 		Domain:    "vcp.example.com",
 	}
-	accountID := int64(1)
 
-	// Only GetSVMsUsingActiveDirectory should be called, with ad.ID (123), not GetActiveDirectoryByNameAndAccountID
 	mockStorage.On("GetSVMsUsingActiveDirectory", mock.Anything, adID).Return([]*datamodel.Svm{}, nil)
 
-	err := _checkIfDomainUpdateAllowed(ctx, mockStorage, ad, accountID)
+	err := _checkIfDomainUpdateAllowed(ctx, mockStorage, ad)
 
 	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func Test_checkIfDomainUpdateAllowed_MultipleSVMs(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	ad := &models.ActiveDirectory{
+		BaseModel: models.BaseModel{ID: 789},
+		AdName:    "multi-svm-ad",
+		Domain:    "multi.example.com",
+	}
+
+	svms := []*datamodel.Svm{
+		{BaseModel: datamodel.BaseModel{ID: 1, UUID: "svm-uuid-1"}},
+		{BaseModel: datamodel.BaseModel{ID: 2, UUID: "svm-uuid-2"}},
+		{BaseModel: datamodel.BaseModel{ID: 3, UUID: "svm-uuid-3"}},
+	}
+
+	mockStorage.On("GetSVMsUsingActiveDirectory", mock.Anything, int64(789)).Return(svms, nil)
+
+	err := _checkIfDomainUpdateAllowed(ctx, mockStorage, ad)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Active Directory domain cannot be updated while it is in use")
 	mockStorage.AssertExpectations(t)
 }
 

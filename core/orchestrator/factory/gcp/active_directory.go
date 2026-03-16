@@ -251,7 +251,12 @@ func _getActiveDirectory(
 	// Compare states and select the higher priority state
 	adHelper.CompareADStateHierarchy(sdeAdModel, vcpAd)
 
-	// Return VCP model with merged state
+	// Set the ID to the ID from VCP AD as it will be used in AD update flow for fetching associated SVMs
+	if vcpAd != nil {
+		sdeAdModel.ID = vcpAd.ID
+	}
+
+	// Return the merged AD model with reconciled state and a nil error.
 	return sdeAdModel, nil
 }
 
@@ -495,9 +500,14 @@ func _updateActiveDirectory(
 		return nil, "", err
 	}
 
+	// If AD not found, return not found error immediately without creating a job
+	if ad == nil {
+		return nil, "", customerrors.NewNotFoundErr("ActiveDirectory", &params.ActiveDirectoryId)
+	}
+
 	if params.Domain != nil && *params.Domain != ad.Domain {
 		// Check if domain update is allowed
-		err = checkIfDomainUpdateAllowed(ctx, se, ad, account.ID)
+		err = checkIfDomainUpdateAllowed(ctx, se, ad)
 		if err != nil {
 			return nil, "", err
 		}
@@ -561,29 +571,12 @@ func _updateActiveDirectory(
 	return ad, createdJob.UUID, nil
 }
 
-func _checkIfDomainUpdateAllowed(ctx context.Context, se database.Storage, oldAd *models.ActiveDirectory, accountID int64) error {
+func _checkIfDomainUpdateAllowed(ctx context.Context, se database.Storage, oldAd *models.ActiveDirectory) error {
 	logger := util.GetLogger(ctx)
 
-	adID := oldAd.ID
-	if !(cvp.CVP_HOST == "" || utils.CreateCommonResourcesInVCP) {
-		dbAD, err := se.GetActiveDirectoryByNameAndAccountID(ctx, oldAd.AdName, accountID)
-		if err != nil {
-			if customerrors.IsNotFoundErr(err) {
-				logger.Info("Active Directory not found in VCP database during domain update check", "ad_name", oldAd.AdName, "account_id", accountID)
-				return nil
-			}
-			return err
-		}
-		if dbAD == nil {
-			// AD only in SDE, no VCP record to restrict
-			return nil
-		}
-		adID = dbAD.ID
-	}
-
-	svms, err := se.GetSVMsUsingActiveDirectory(ctx, adID)
+	svms, err := se.GetSVMsUsingActiveDirectory(ctx, oldAd.ID)
 	if err != nil {
-		logger.Error("Failed to check SVMs using Active Directory", "error", err, "active_directory_id", adID)
+		logger.Error("Failed to check SVMs using Active Directory", "error", err, "active_directory_id", oldAd.ID)
 		return err
 	}
 

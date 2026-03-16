@@ -565,6 +565,51 @@ func Test_getActiveDirectory_SDEMode_StateComparison(t *testing.T) {
 	mockSe.AssertExpectations(t)
 }
 
+func Test_getActiveDirectory_SDEMode_SetsIDFromVCP(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	adUUID := "550e8400-e29b-41d4-a716-446655440007"
+
+	originalCVPHost := cvp.CVP_HOST
+	originalCreateCommon := utils.CreateCommonResourcesInVCP
+	cvp.CVP_HOST = "https://sde.example.com"
+	utils.CreateCommonResourcesInVCP = false
+	defer func() {
+		cvp.CVP_HOST = originalCVPHost
+		utils.CreateCommonResourcesInVCP = originalCreateCommon
+	}()
+
+	originalGetActiveDirectorySde := getActiveDirectorySde
+	sdeAD := &models.ActiveDirectory{
+		BaseModel:    models.BaseModel{UUID: adUUID},
+		AdName:       "test-ad",
+		State:        "READY",
+		StateDetails: "SDE ready",
+	}
+	getActiveDirectorySde = func(ctx context.Context, params *common.GetADParams) (*models.ActiveDirectory, error) {
+		return sdeAD, nil
+	}
+	defer func() { getActiveDirectorySde = originalGetActiveDirectorySde }()
+
+	vcpID := int64(99)
+	vcpADFromDB := &datamodel.ActiveDirectory{
+		BaseModel:      datamodel.BaseModel{UUID: adUUID, ID: vcpID},
+		AdName:         "test-ad",
+		State:          "READY",
+		StateDetails:   "VCP ready",
+		CredentialPath: "path/to/secret",
+	}
+	mockSe.On("GetActiveDirectoryByUuidAndAccountId", mock.Anything, adUUID, int64(0)).Return(vcpADFromDB, nil)
+
+	params := makeDescribeADParams("test-project", "us-central1", adUUID)
+	ad, err := _getActiveDirectory(ctx, params, mockSe)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, ad)
+	assert.Equal(t, vcpID, ad.ID, "merged AD must have ID set from VCP for domain check and GetSvmsForAd")
+	mockSe.AssertExpectations(t)
+}
+
 func Test_getActiveDirectory_SDEMode_SDEFetchError(t *testing.T) {
 	ctx := context.Background()
 	mockSe := new(database.MockStorage)

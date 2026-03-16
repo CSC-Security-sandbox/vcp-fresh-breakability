@@ -569,7 +569,7 @@ func PushAdUpdatesToSVMWorkflow(ctx workflow.Context, oldAd *models.ActiveDirect
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
-	// Step 1: Fetch SMVs associated with the Active Directory
+	// Step 1: Fetch SVMs associated with the Active Directory
 	var svms []*datamodel.Svm
 	err = workflow.ExecuteActivity(ctx, activeDirectoryActivity.GetSvmsForAd, oldAd.ID).Get(ctx, &svms)
 	if err != nil {
