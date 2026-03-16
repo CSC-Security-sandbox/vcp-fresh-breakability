@@ -594,7 +594,7 @@ func (h Handler) V1betaGetBackupConfigsForPool(ctx context.Context, params gcpge
 	}
 
 	// Get backup configs for the pool
-	backupConfigs, err := h.Orchestrator.GetBackupConfigsForPool(ctx, params.PoolId, params.ProjectNumber)
+	backupConfigs, err := h.Orchestrator.GetBackupConfigsForPool(ctx, params.PoolId, params.ProjectNumber, params.LocationId)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
 			logger.Info("Pool not found", "poolId", params.PoolId)
@@ -617,13 +617,18 @@ func (h Handler) V1betaGetBackupConfigsForPool(ctx context.Context, params gcpge
 	responseConfigs := make([]gcpgenserver.VolumeBackupConfigV1beta, 0, len(backupConfigs))
 	for _, config := range backupConfigs {
 		apiConfig := gcpgenserver.VolumeBackupConfigV1beta{
-			VolumeId: gcpgenserver.NewOptString(config.VolumeID),
+			VolumeId: gcpgenserver.NewOptString(config.VolumeResourceID),
 		}
 
-		if config.BackupVaultID != nil {
-			apiConfig.BackupConfig = gcpgenserver.NewOptBackupConfigV1beta(gcpgenserver.BackupConfigV1beta{
-				BackupVaultId: gcpgenserver.NewOptNilString(*config.BackupVaultID),
-			})
+		if config.BackupVaultPath != nil || config.BackupPolicyPath != nil {
+			bc := gcpgenserver.BackupConfigV1beta{}
+			if config.BackupVaultPath != nil {
+				bc.BackupVaultId = gcpgenserver.NewOptNilString(*config.BackupVaultPath)
+			}
+			if config.BackupPolicyPath != nil {
+				bc.BackupPolicyId = gcpgenserver.NewOptNilString(*config.BackupPolicyPath)
+			}
+			apiConfig.BackupConfig = gcpgenserver.NewOptBackupConfigV1beta(bc)
 		}
 
 		responseConfigs = append(responseConfigs, apiConfig)

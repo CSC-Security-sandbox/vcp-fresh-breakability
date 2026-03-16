@@ -3307,9 +3307,9 @@ func (_c *MockOrchestratorFactory_GetBackupByExternalUUID_Call) RunAndReturn(run
 	return _c
 }
 
-// GetBackupConfigsForPool provides a mock function with given fields: ctx, poolID, accountName
-func (_m *MockOrchestratorFactory) GetBackupConfigsForPool(ctx context.Context, poolID string, accountName string) ([]*models.ExpertModeVolumeBackupConfig, error) {
-	ret := _m.Called(ctx, poolID, accountName)
+// GetBackupConfigsForPool provides a mock function with given fields: ctx, poolID, accountName, locationId
+func (_m *MockOrchestratorFactory) GetBackupConfigsForPool(ctx context.Context, poolID string, accountName string, locationId string) ([]*models.ExpertModeVolumeBackupConfig, error) {
+	ret := _m.Called(ctx, poolID, accountName, locationId)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetBackupConfigsForPool")
@@ -3317,19 +3317,19 @@ func (_m *MockOrchestratorFactory) GetBackupConfigsForPool(ctx context.Context, 
 
 	var r0 []*models.ExpertModeVolumeBackupConfig
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) ([]*models.ExpertModeVolumeBackupConfig, error)); ok {
-		return rf(ctx, poolID, accountName)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) ([]*models.ExpertModeVolumeBackupConfig, error)); ok {
+		return rf(ctx, poolID, accountName, locationId)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) []*models.ExpertModeVolumeBackupConfig); ok {
-		r0 = rf(ctx, poolID, accountName)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) []*models.ExpertModeVolumeBackupConfig); ok {
+		r0 = rf(ctx, poolID, accountName, locationId)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*models.ExpertModeVolumeBackupConfig)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
-		r1 = rf(ctx, poolID, accountName)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, poolID, accountName, locationId)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -3346,13 +3346,14 @@ type MockOrchestratorFactory_GetBackupConfigsForPool_Call struct {
 //   - ctx context.Context
 //   - poolID string
 //   - accountName string
-func (_e *MockOrchestratorFactory_Expecter) GetBackupConfigsForPool(ctx interface{}, poolID interface{}, accountName interface{}) *MockOrchestratorFactory_GetBackupConfigsForPool_Call {
-	return &MockOrchestratorFactory_GetBackupConfigsForPool_Call{Call: _e.mock.On("GetBackupConfigsForPool", ctx, poolID, accountName)}
+//   - locationId string
+func (_e *MockOrchestratorFactory_Expecter) GetBackupConfigsForPool(ctx interface{}, poolID interface{}, accountName interface{}, locationId interface{}) *MockOrchestratorFactory_GetBackupConfigsForPool_Call {
+	return &MockOrchestratorFactory_GetBackupConfigsForPool_Call{Call: _e.mock.On("GetBackupConfigsForPool", ctx, poolID, accountName, locationId)}
 }
 
-func (_c *MockOrchestratorFactory_GetBackupConfigsForPool_Call) Run(run func(ctx context.Context, poolID string, accountName string)) *MockOrchestratorFactory_GetBackupConfigsForPool_Call {
+func (_c *MockOrchestratorFactory_GetBackupConfigsForPool_Call) Run(run func(ctx context.Context, poolID string, accountName string, locationId string)) *MockOrchestratorFactory_GetBackupConfigsForPool_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string))
 	})
 	return _c
 }
@@ -3362,7 +3363,7 @@ func (_c *MockOrchestratorFactory_GetBackupConfigsForPool_Call) Return(_a0 []*mo
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_GetBackupConfigsForPool_Call) RunAndReturn(run func(context.Context, string, string) ([]*models.ExpertModeVolumeBackupConfig, error)) *MockOrchestratorFactory_GetBackupConfigsForPool_Call {
+func (_c *MockOrchestratorFactory_GetBackupConfigsForPool_Call) RunAndReturn(run func(context.Context, string, string, string) ([]*models.ExpertModeVolumeBackupConfig, error)) *MockOrchestratorFactory_GetBackupConfigsForPool_Call {
 	_c.Call.Return(run)
 	return _c
 }

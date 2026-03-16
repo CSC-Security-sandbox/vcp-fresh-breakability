@@ -8470,20 +8470,20 @@ func TestV1betaGetBackupConfigsForPool(t *testing.T) {
 			return "us-west1", "us-west1-a", nil
 		}
 
-		backupVaultID1 := "backup-vault-1"
-		backupVaultID2 := "backup-vault-2"
+		backupVaultPath1 := "projects/test-project/locations/us-west1-a/backupVaults/backup-vault-1"
+		backupVaultPath2 := "projects/test-project/locations/us-west1-a/backupVaults/backup-vault-2"
 		expectedConfigs := []*models.ExpertModeVolumeBackupConfig{
 			{
-				VolumeID:      "volume-uuid-1",
-				BackupVaultID: &backupVaultID1,
+				VolumeResourceID: "volume-uuid-1",
+				BackupVaultPath:  &backupVaultPath1,
 			},
 			{
-				VolumeID:      "volume-uuid-2",
-				BackupVaultID: &backupVaultID2,
+				VolumeResourceID: "volume-uuid-2",
+				BackupVaultPath:  &backupVaultPath2,
 			},
 		}
 
-		mockOrchestrator.EXPECT().GetBackupConfigsForPool(mock.Anything, "pool-uuid-123", "test-project").
+		mockOrchestrator.EXPECT().GetBackupConfigsForPool(mock.Anything, "pool-uuid-123", "test-project", "us-west1-a").
 			Return(expectedConfigs, nil).Once()
 
 		handler := Handler{Orchestrator: mockOrchestrator}
@@ -8499,12 +8499,12 @@ func TestV1betaGetBackupConfigsForPool(t *testing.T) {
 		// Verify first config
 		assert.Equal(tt, "volume-uuid-1", okResp.BackupConfigs[0].VolumeId.Value)
 		assert.True(tt, okResp.BackupConfigs[0].BackupConfig.IsSet())
-		assert.Equal(tt, "backup-vault-1", okResp.BackupConfigs[0].BackupConfig.Value.BackupVaultId.Value)
+		assert.Equal(tt, "projects/test-project/locations/us-west1-a/backupVaults/backup-vault-1", okResp.BackupConfigs[0].BackupConfig.Value.BackupVaultId.Value)
 
 		// Verify second config
 		assert.Equal(tt, "volume-uuid-2", okResp.BackupConfigs[1].VolumeId.Value)
 		assert.True(tt, okResp.BackupConfigs[1].BackupConfig.IsSet())
-		assert.Equal(tt, "backup-vault-2", okResp.BackupConfigs[1].BackupConfig.Value.BackupVaultId.Value)
+		assert.Equal(tt, "projects/test-project/locations/us-west1-a/backupVaults/backup-vault-2", okResp.BackupConfigs[1].BackupConfig.Value.BackupVaultId.Value)
 
 		mockOrchestrator.AssertExpectations(tt)
 	})
@@ -8529,19 +8529,19 @@ func TestV1betaGetBackupConfigsForPool(t *testing.T) {
 			return "us-west1", "us-west1-a", nil
 		}
 
-		backupVaultID := "backup-vault-1"
+		backupVaultPath := "projects/test-project/locations/us-west1-a/backupVaults/backup-vault-1"
 		expectedConfigs := []*models.ExpertModeVolumeBackupConfig{
 			{
-				VolumeID:      "volume-with-backup",
-				BackupVaultID: &backupVaultID,
+				VolumeResourceID: "volume-with-backup",
+				BackupVaultPath:  &backupVaultPath,
 			},
 			{
-				VolumeID:      "volume-without-backup",
-				BackupVaultID: nil,
+				VolumeResourceID: "volume-without-backup",
+				BackupVaultPath:  nil,
 			},
 		}
 
-		mockOrchestrator.EXPECT().GetBackupConfigsForPool(mock.Anything, "pool-uuid-123", "test-project").
+		mockOrchestrator.EXPECT().GetBackupConfigsForPool(mock.Anything, "pool-uuid-123", "test-project", "us-west1-a").
 			Return(expectedConfigs, nil).Once()
 
 		handler := Handler{Orchestrator: mockOrchestrator}
@@ -8585,7 +8585,7 @@ func TestV1betaGetBackupConfigsForPool(t *testing.T) {
 			return "us-west1", "us-west1-a", nil
 		}
 
-		mockOrchestrator.EXPECT().GetBackupConfigsForPool(mock.Anything, "pool-uuid-123", "test-project").
+		mockOrchestrator.EXPECT().GetBackupConfigsForPool(mock.Anything, "pool-uuid-123", "test-project", "us-west1-a").
 			Return([]*models.ExpertModeVolumeBackupConfig{}, nil).Once()
 
 		handler := Handler{Orchestrator: mockOrchestrator}
@@ -8682,7 +8682,7 @@ func TestV1betaGetBackupConfigsForPool(t *testing.T) {
 			return "us-west1", "us-west1-a", nil
 		}
 
-		mockOrchestrator.EXPECT().GetBackupConfigsForPool(mock.Anything, "non-existent-pool", "test-project").
+		mockOrchestrator.EXPECT().GetBackupConfigsForPool(mock.Anything, "non-existent-pool", "test-project", "us-west1-a").
 			Return(nil, errors.NewNotFoundErr("Pool", nil)).Once()
 
 		handler := Handler{Orchestrator: mockOrchestrator}
@@ -8720,7 +8720,7 @@ func TestV1betaGetBackupConfigsForPool(t *testing.T) {
 			return "us-west1", "us-west1-a", nil
 		}
 
-		mockOrchestrator.EXPECT().GetBackupConfigsForPool(mock.Anything, "rest-pool-uuid", "test-project").
+		mockOrchestrator.EXPECT().GetBackupConfigsForPool(mock.Anything, "rest-pool-uuid", "test-project", "us-west1-a").
 			Return(nil, errors.NewBadRequestErr("backup configurations are only available for ONTAP pools")).Once()
 
 		handler := Handler{Orchestrator: mockOrchestrator}
@@ -8758,7 +8758,7 @@ func TestV1betaGetBackupConfigsForPool(t *testing.T) {
 			return "us-west1", "us-west1-a", nil
 		}
 
-		mockOrchestrator.EXPECT().GetBackupConfigsForPool(mock.Anything, "pool-uuid-123", "test-project").
+		mockOrchestrator.EXPECT().GetBackupConfigsForPool(mock.Anything, "pool-uuid-123", "test-project", "us-west1-a").
 			Return(nil, stderrors.New("database connection error")).Once()
 
 		handler := Handler{Orchestrator: mockOrchestrator}
@@ -8794,17 +8794,16 @@ func TestV1betaGetBackupConfigsForPool(t *testing.T) {
 			return "us-west1", "us-west1-a", nil
 		}
 
-		// Create 100 volumes
 		expectedConfigs := make([]*models.ExpertModeVolumeBackupConfig, 100)
 		for i := 0; i < 100; i++ {
-			backupVaultID := fmt.Sprintf("backup-vault-%d", i)
+			backupVaultPath := fmt.Sprintf("projects/test-project/locations/us-west1-a/backupVaults/backup-vault-%d", i)
 			expectedConfigs[i] = &models.ExpertModeVolumeBackupConfig{
-				VolumeID:      fmt.Sprintf("volume-uuid-%d", i),
-				BackupVaultID: &backupVaultID,
+				VolumeResourceID: fmt.Sprintf("volume-uuid-%d", i),
+				BackupVaultPath:  &backupVaultPath,
 			}
 		}
 
-		mockOrchestrator.EXPECT().GetBackupConfigsForPool(mock.Anything, "pool-uuid-123", "test-project").
+		mockOrchestrator.EXPECT().GetBackupConfigsForPool(mock.Anything, "pool-uuid-123", "test-project", "us-west1-a").
 			Return(expectedConfigs, nil).Once()
 
 		handler := Handler{Orchestrator: mockOrchestrator}

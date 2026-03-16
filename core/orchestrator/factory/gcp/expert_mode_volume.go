@@ -583,7 +583,7 @@ func (o *GCPOrchestrator) GetExpertModeVolumeByUUID(ctx context.Context, volumeU
 }
 
 // GetBackupConfigsForPool retrieves backup configurations for all expert mode volumes in a pool
-func (o *GCPOrchestrator) GetBackupConfigsForPool(ctx context.Context, poolID string, accountName string) ([]*models.ExpertModeVolumeBackupConfig, error) {
+func (o *GCPOrchestrator) GetBackupConfigsForPool(ctx context.Context, poolID string, accountName string, locationId string) ([]*models.ExpertModeVolumeBackupConfig, error) {
 	logger := util.GetLogger(ctx)
 
 	// Get account
@@ -611,16 +611,49 @@ func (o *GCPOrchestrator) GetBackupConfigsForPool(ctx context.Context, poolID st
 		return nil, err
 	}
 
-	// Convert to VolumeBackupConfig response
+	backupVaults, err := o.storage.ListBackupVaults(ctx, account.ID)
+	if err != nil {
+		logger.Error("Failed to list backup vaults", "accountID", account.ID, "error", err)
+		return nil, err
+	}
+	vaultsByUUID := make(map[string]string, len(backupVaults))
+	for _, bv := range backupVaults {
+		vaultsByUUID[bv.UUID] = bv.Name
+	}
+
+	conditions := [][]interface{}{{"account_id = ?", account.ID}}
+	backupPolicies, err := o.storage.ListBackupPolicies(ctx, conditions)
+	if err != nil {
+		logger.Error("Failed to list backup policies", "accountID", account.ID, "error", err)
+		return nil, err
+	}
+	policiesByUUID := make(map[string]string, len(backupPolicies))
+	for _, bp := range backupPolicies {
+		policiesByUUID[bp.UUID] = bp.Name
+	}
+
 	backupConfigs := make([]*models.ExpertModeVolumeBackupConfig, 0, len(expertModeVolumes))
 	for _, vol := range expertModeVolumes {
 		config := &models.ExpertModeVolumeBackupConfig{
-			VolumeID: vol.ExternalUUID,
+			VolumeResourceID: vol.Name,
 		}
 
-		// Extract backup vault ID from BackupConfig if it exists
 		if vol.BackupConfig != nil && vol.BackupConfig.BackupVaultID != "" {
-			config.BackupVaultID = &vol.BackupConfig.BackupVaultID
+			if vaultName, ok := vaultsByUUID[vol.BackupConfig.BackupVaultID]; ok {
+				path := fmt.Sprintf("projects/%s/locations/%s/backupVaults/%s", accountName, locationId, vaultName)
+				config.BackupVaultPath = &path
+			} else {
+				logger.Error("Backup vault not found for volume", "volumeName", vol.Name, "backupVaultID", vol.BackupConfig.BackupVaultID)
+			}
+		}
+
+		if vol.BackupConfig != nil && vol.BackupConfig.BackupPolicyID != "" {
+			if policyName, ok := policiesByUUID[vol.BackupConfig.BackupPolicyID]; ok {
+				path := fmt.Sprintf("projects/%s/locations/%s/backupPolicies/%s", accountName, locationId, policyName)
+				config.BackupPolicyPath = &path
+			} else {
+				logger.Error("Backup policy not found for volume", "volumeName", vol.Name, "backupPolicyID", vol.BackupConfig.BackupPolicyID)
+			}
 		}
 
 		backupConfigs = append(backupConfigs, config)

@@ -4,8 +4,9 @@ import "time"
 
 // VolumeBackupConfig represents the backup configuration for an expert mode volume
 type ExpertModeVolumeBackupConfig struct {
-	VolumeID      string  // ONTAP UUID (externalUUID)
-	BackupVaultID *string // BackupVault UUID if configured
+	VolumeResourceID string  // Volume name
+	BackupVaultPath  *string // e.g. projects/{project}/locations/{location}/backupVaults/{id}
+	BackupPolicyPath *string // e.g. projects/{project}/locations/{location}/backupPolicies/{id}
 }
 
 // Backup describes a backup in the cloud volumes model

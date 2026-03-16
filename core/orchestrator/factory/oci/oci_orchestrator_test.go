@@ -1950,7 +1950,7 @@ func TestOCIOrchestrator_GetBackupConfigsForPool(t *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
 
-		result, err := orch.GetBackupConfigsForPool(ctx, "pool-id", "account-name")
+		result, err := orch.GetBackupConfigsForPool(ctx, "pool-id", "account-name", "us-west1-a")
 
 		assert.Error(tt, err)
 		assert.True(tt, errors.IsNotImplementedYetErr(err))

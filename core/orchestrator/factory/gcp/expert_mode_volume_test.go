@@ -3176,255 +3176,6 @@ func TestValidateUpdateParams(t *testing.T) {
 	})
 }
 
-func TestGetBackupConfigsForPool(t *testing.T) {
-	setupStoreForBackupConfigs := func(tt *testing.T) (*log.MockLogger, database.Storage, *datamodel.Account, *datamodel.Pool, *datamodel.Svm) {
-		mockLogger := log.NewMockLogger(tt)
-		mockLogger.EXPECT().InfoContext(mock.Anything, "Running AutoMigrate for model changes")
-
-		store, err := database.SetupStorageForTest(mockLogger)
-		if err != nil {
-			tt.Fatalf("Failed to create test storage: %v", err)
-		}
-
-		err = database.ClearInMemoryDB(store.DB())
-		if err != nil {
-			tt.Fatalf("Failed to clean up test storage: %v", err)
-		}
-
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
-			Name:      "test_account",
-		}
-		err = store.DB().Create(account).Error
-		if err != nil {
-			tt.Fatalf("Failed to create account: %v", err)
-		}
-
-		pool := &datamodel.Pool{
-			BaseModel:      datamodel.BaseModel{UUID: "550e8400-e29b-41d4-a716-446655440000"},
-			Name:           "test_pool",
-			AccountID:      account.ID,
-			SizeInBytes:    2199023255552,
-			APIAccessMode:  "ONTAP",
-			DeploymentName: "test-deployment",
-			PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"},
-		}
-		err = store.DB().Create(pool).Error
-		if err != nil {
-			tt.Fatalf("Failed to create pool: %v", err)
-		}
-
-		svm := &datamodel.Svm{
-			BaseModel: datamodel.BaseModel{UUID: "test-svm-uuid"},
-			Name:      "test-svm",
-			PoolID:    pool.ID,
-			AccountID: account.ID,
-			SvmDetails: &datamodel.SvmDetails{
-				ExternalUUID: "660e8400-e29b-41d4-a716-446655440001",
-				IPSpace:      "Default",
-			},
-			State: models.LifeCycleStateREADY,
-		}
-		err = store.DB().Create(svm).Error
-		if err != nil {
-			tt.Fatalf("Failed to create svm: %v", err)
-		}
-
-		return mockLogger, store, account, pool, svm
-	}
-
-	t.Run("Success_WithBackupConfigs", func(tt *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-		mockLogger, store, account, pool, svm := setupStoreForBackupConfigs(tt)
-		defer mockLogger.AssertExpectations(tt)
-
-		// Create volumes with backup configs
-		backupConfig1 := &datamodel.DataProtection{
-			BackupVaultID: "backup-vault-uuid-1",
-			ScheduledBackupEnabled: func() *bool {
-				b := true
-				return &b
-			}(),
-		}
-		volume1 := &datamodel.ExpertModeVolumes{
-			BaseModel:    datamodel.BaseModel{UUID: "volume-uuid-1"},
-			Name:         "volume-1",
-			SizeInBytes:  1099511627776,
-			PoolID:       pool.ID,
-			AccountID:    account.ID,
-			SvmID:        svm.ID,
-			Style:        "flexvol",
-			ExternalUUID: "external-uuid-1",
-			State:        models.LifeCycleStateREADY,
-			BackupConfig: backupConfig1,
-		}
-		err := store.DB().Create(volume1).Error
-		assert.NoError(tt, err)
-
-		backupConfig2 := &datamodel.DataProtection{
-			BackupVaultID: "backup-vault-uuid-2",
-			ScheduledBackupEnabled: func() *bool {
-				b := false
-				return &b
-			}(),
-		}
-		volume2 := &datamodel.ExpertModeVolumes{
-			BaseModel:    datamodel.BaseModel{UUID: "volume-uuid-2"},
-			Name:         "volume-2",
-			SizeInBytes:  536870912000,
-			PoolID:       pool.ID,
-			AccountID:    account.ID,
-			SvmID:        svm.ID,
-			Style:        "flexgroup",
-			ExternalUUID: "external-uuid-2",
-			State:        models.LifeCycleStateREADY,
-			BackupConfig: backupConfig2,
-		}
-		err = store.DB().Create(volume2).Error
-		assert.NoError(tt, err)
-
-		orch := &GCPOrchestrator{storage: store}
-		backupConfigs, err := orch.GetBackupConfigsForPool(ctx, pool.UUID, account.Name)
-
-		assert.NoError(tt, err)
-		assert.NotNil(tt, backupConfigs)
-		assert.Equal(tt, 2, len(backupConfigs))
-
-		// Create map for easier verification
-		configMap := make(map[string]*models.ExpertModeVolumeBackupConfig)
-		for _, config := range backupConfigs {
-			configMap[config.VolumeID] = config
-		}
-
-		// Verify volume 1 config
-		config1, exists := configMap["external-uuid-1"]
-		assert.True(tt, exists)
-		assert.NotNil(tt, config1.BackupVaultID)
-		assert.Equal(tt, "backup-vault-uuid-1", *config1.BackupVaultID)
-
-		// Verify volume 2 config
-		config2, exists := configMap["external-uuid-2"]
-		assert.True(tt, exists)
-		assert.NotNil(tt, config2.BackupVaultID)
-		assert.Equal(tt, "backup-vault-uuid-2", *config2.BackupVaultID)
-	})
-
-	t.Run("Success_MixedBackupConfigs", func(tt *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-		mockLogger, store, account, pool, svm := setupStoreForBackupConfigs(tt)
-		defer mockLogger.AssertExpectations(tt)
-
-		// Volume with backup config
-		backupConfig := &datamodel.DataProtection{
-			BackupVaultID: "backup-vault-uuid-1",
-		}
-		volume1 := &datamodel.ExpertModeVolumes{
-			BaseModel:    datamodel.BaseModel{UUID: "volume-uuid-1"},
-			Name:         "volume-1",
-			SizeInBytes:  1099511627776,
-			PoolID:       pool.ID,
-			AccountID:    account.ID,
-			SvmID:        svm.ID,
-			Style:        "flexvol",
-			ExternalUUID: "external-uuid-1",
-			State:        models.LifeCycleStateREADY,
-			BackupConfig: backupConfig,
-		}
-		err := store.DB().Create(volume1).Error
-		assert.NoError(tt, err)
-
-		// Volume without backup config
-		volume2 := &datamodel.ExpertModeVolumes{
-			BaseModel:    datamodel.BaseModel{UUID: "volume-uuid-2"},
-			Name:         "volume-2",
-			SizeInBytes:  536870912000,
-			PoolID:       pool.ID,
-			AccountID:    account.ID,
-			SvmID:        svm.ID,
-			Style:        "flexvol",
-			ExternalUUID: "external-uuid-2",
-			State:        models.LifeCycleStateREADY,
-		}
-		err = store.DB().Create(volume2).Error
-		assert.NoError(tt, err)
-
-		orch := &GCPOrchestrator{storage: store}
-		backupConfigs, err := orch.GetBackupConfigsForPool(ctx, pool.UUID, account.Name)
-
-		assert.NoError(tt, err)
-		assert.NotNil(tt, backupConfigs)
-		assert.Equal(tt, 2, len(backupConfigs))
-
-		// Create map for easier verification
-		configMap := make(map[string]*models.ExpertModeVolumeBackupConfig)
-		for _, config := range backupConfigs {
-			configMap[config.VolumeID] = config
-		}
-
-		// Verify volume 1 has backup config
-		config1, exists := configMap["external-uuid-1"]
-		assert.True(tt, exists)
-		assert.NotNil(tt, config1.BackupVaultID)
-		assert.Equal(tt, "backup-vault-uuid-1", *config1.BackupVaultID)
-
-		// Verify volume 2 has no backup config
-		config2, exists := configMap["external-uuid-2"]
-		assert.True(tt, exists)
-		assert.Nil(tt, config2.BackupVaultID)
-	})
-
-	t.Run("Success_EmptyPool", func(tt *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-		mockLogger, store, account, pool, _ := setupStoreForBackupConfigs(tt)
-		defer mockLogger.AssertExpectations(tt)
-
-		orch := &GCPOrchestrator{storage: store}
-		backupConfigs, err := orch.GetBackupConfigsForPool(ctx, pool.UUID, account.Name)
-
-		assert.NoError(tt, err)
-		assert.NotNil(tt, backupConfigs)
-		assert.Equal(tt, 0, len(backupConfigs))
-	})
-
-	t.Run("Error_PoolNotFound", func(tt *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-		mockLogger, store, account, _, _ := setupStoreForBackupConfigs(tt)
-		defer mockLogger.AssertExpectations(tt)
-
-		orch := &GCPOrchestrator{storage: store}
-		backupConfigs, err := orch.GetBackupConfigsForPool(ctx, "non-existent-pool-uuid", account.Name)
-
-		assert.Error(tt, err)
-		assert.Nil(tt, backupConfigs)
-	})
-
-	t.Run("Error_PoolNotONTAPMode", func(tt *testing.T) {
-		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
-		mockLogger, store, account, _, _ := setupStoreForBackupConfigs(tt)
-		defer mockLogger.AssertExpectations(tt)
-
-		// Create a non-ONTAP pool
-		nonOntapPool := &datamodel.Pool{
-			BaseModel:      datamodel.BaseModel{UUID: "non-ontap-pool-uuid"},
-			Name:           "non_ontap_pool",
-			AccountID:      account.ID,
-			SizeInBytes:    2199023255552,
-			APIAccessMode:  "REST",
-			DeploymentName: "non-ontap-deployment",
-			PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"},
-		}
-		err := store.DB().Create(nonOntapPool).Error
-		assert.NoError(tt, err)
-
-		orch := &GCPOrchestrator{storage: store}
-		backupConfigs, err := orch.GetBackupConfigsForPool(ctx, nonOntapPool.UUID, account.Name)
-
-		assert.Error(tt, err)
-		assert.Nil(tt, backupConfigs)
-		assert.Contains(tt, err.Error(), "backup configurations are only available for ONTAP pools")
-	})
-}
-
 func TestGetExpertModeVolumeByUUID(t *testing.T) {
 	t.Run("Success_VolumeExists", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
@@ -3875,5 +3626,384 @@ func TestRestoreOntapModeBackupExpertMode(t *testing.T) {
 		assert.Equal(tt, string(models.JobTypeRestoreOntapModeBackup), job.Type)
 		mockLogger.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
+	})
+}
+
+func TestGetBackupConfigsForPool(t *testing.T) {
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test_account",
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:     datamodel.BaseModel{ID: 10, UUID: "pool-uuid"},
+		Name:          "test_pool",
+		AccountID:     account.ID,
+		APIAccessMode: commonparams.ONTAPMode,
+	}
+
+	t.Run("Success_WithBackupVaultAndPolicy", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
+		mockStorage.EXPECT().ListExpertModeVolumesByPoolID(ctx, pool.ID).Return([]*datamodel.ExpertModeVolumes{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"},
+				Name:      "vol-1",
+				BackupConfig: &datamodel.DataProtection{
+					BackupVaultID:  "vault-uuid-1",
+					BackupPolicyID: "policy-uuid-1",
+				},
+			},
+		}, nil).Once()
+		mockStorage.EXPECT().ListBackupVaults(ctx, account.ID).Return([]*datamodel.BackupVault{
+			{BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"}, Name: "my-vault"},
+		}, nil).Once()
+		mockStorage.EXPECT().ListBackupPolicies(ctx, mock.Anything).Return([]*datamodel.BackupPolicy{
+			{BaseModel: datamodel.BaseModel{UUID: "policy-uuid-1"}, Name: "my-policy"},
+		}, nil).Once()
+
+		orch := &GCPOrchestrator{storage: mockStorage}
+		configs, err := orch.GetBackupConfigsForPool(ctx, pool.UUID, account.Name, "us-east4")
+
+		assert.NoError(tt, err)
+		assert.Len(tt, configs, 1)
+		assert.Equal(tt, "vol-1", configs[0].VolumeResourceID)
+		assert.NotNil(tt, configs[0].BackupVaultPath)
+		assert.Equal(tt, "projects/test_account/locations/us-east4/backupVaults/my-vault", *configs[0].BackupVaultPath)
+		assert.NotNil(tt, configs[0].BackupPolicyPath)
+		assert.Equal(tt, "projects/test_account/locations/us-east4/backupPolicies/my-policy", *configs[0].BackupPolicyPath)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Success_NoBackupConfig", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
+		mockStorage.EXPECT().ListExpertModeVolumesByPoolID(ctx, pool.ID).Return([]*datamodel.ExpertModeVolumes{
+			{
+				BaseModel:    datamodel.BaseModel{UUID: "vol-uuid-1"},
+				Name:         "vol-no-backup",
+				BackupConfig: nil,
+			},
+		}, nil).Once()
+		mockStorage.EXPECT().ListBackupVaults(ctx, account.ID).Return([]*datamodel.BackupVault{}, nil).Once()
+		mockStorage.EXPECT().ListBackupPolicies(ctx, mock.Anything).Return([]*datamodel.BackupPolicy{}, nil).Once()
+
+		orch := &GCPOrchestrator{storage: mockStorage}
+		configs, err := orch.GetBackupConfigsForPool(ctx, pool.UUID, account.Name, "us-east4")
+
+		assert.NoError(tt, err)
+		assert.Len(tt, configs, 1)
+		assert.Equal(tt, "vol-no-backup", configs[0].VolumeResourceID)
+		assert.Nil(tt, configs[0].BackupVaultPath)
+		assert.Nil(tt, configs[0].BackupPolicyPath)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Success_EmptyVolumes", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
+		mockStorage.EXPECT().ListExpertModeVolumesByPoolID(ctx, pool.ID).Return([]*datamodel.ExpertModeVolumes{}, nil).Once()
+		mockStorage.EXPECT().ListBackupVaults(ctx, account.ID).Return([]*datamodel.BackupVault{}, nil).Once()
+		mockStorage.EXPECT().ListBackupPolicies(ctx, mock.Anything).Return([]*datamodel.BackupPolicy{}, nil).Once()
+
+		orch := &GCPOrchestrator{storage: mockStorage}
+		configs, err := orch.GetBackupConfigsForPool(ctx, pool.UUID, account.Name, "us-east4")
+
+		assert.NoError(tt, err)
+		assert.Empty(tt, configs)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Success_VaultNotFoundInMap", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
+		mockStorage.EXPECT().ListExpertModeVolumesByPoolID(ctx, pool.ID).Return([]*datamodel.ExpertModeVolumes{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"},
+				Name:      "vol-orphan",
+				BackupConfig: &datamodel.DataProtection{
+					BackupVaultID:  "non-existent-vault-uuid",
+					BackupPolicyID: "non-existent-policy-uuid",
+				},
+			},
+		}, nil).Once()
+		mockStorage.EXPECT().ListBackupVaults(ctx, account.ID).Return([]*datamodel.BackupVault{}, nil).Once()
+		mockStorage.EXPECT().ListBackupPolicies(ctx, mock.Anything).Return([]*datamodel.BackupPolicy{}, nil).Once()
+
+		orch := &GCPOrchestrator{storage: mockStorage}
+		configs, err := orch.GetBackupConfigsForPool(ctx, pool.UUID, account.Name, "us-east4")
+
+		assert.NoError(tt, err)
+		assert.Len(tt, configs, 1)
+		assert.Equal(tt, "vol-orphan", configs[0].VolumeResourceID)
+		assert.Nil(tt, configs[0].BackupVaultPath)
+		assert.Nil(tt, configs[0].BackupPolicyPath)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Success_MultipleVolumes_MixedConfigs", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
+		mockStorage.EXPECT().ListExpertModeVolumesByPoolID(ctx, pool.ID).Return([]*datamodel.ExpertModeVolumes{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"},
+				Name:      "vol-with-vault-only",
+				BackupConfig: &datamodel.DataProtection{
+					BackupVaultID: "vault-uuid-1",
+				},
+			},
+			{
+				BaseModel:    datamodel.BaseModel{UUID: "vol-uuid-2"},
+				Name:         "vol-no-config",
+				BackupConfig: nil,
+			},
+			{
+				BaseModel: datamodel.BaseModel{UUID: "vol-uuid-3"},
+				Name:      "vol-with-both",
+				BackupConfig: &datamodel.DataProtection{
+					BackupVaultID:  "vault-uuid-1",
+					BackupPolicyID: "policy-uuid-1",
+				},
+			},
+		}, nil).Once()
+		mockStorage.EXPECT().ListBackupVaults(ctx, account.ID).Return([]*datamodel.BackupVault{
+			{BaseModel: datamodel.BaseModel{UUID: "vault-uuid-1"}, Name: "my-vault"},
+		}, nil).Once()
+		mockStorage.EXPECT().ListBackupPolicies(ctx, mock.Anything).Return([]*datamodel.BackupPolicy{
+			{BaseModel: datamodel.BaseModel{UUID: "policy-uuid-1"}, Name: "my-policy"},
+		}, nil).Once()
+
+		orch := &GCPOrchestrator{storage: mockStorage}
+		configs, err := orch.GetBackupConfigsForPool(ctx, pool.UUID, account.Name, "us-east4")
+
+		assert.NoError(tt, err)
+		assert.Len(tt, configs, 3)
+
+		assert.Equal(tt, "vol-with-vault-only", configs[0].VolumeResourceID)
+		assert.NotNil(tt, configs[0].BackupVaultPath)
+		assert.Equal(tt, "projects/test_account/locations/us-east4/backupVaults/my-vault", *configs[0].BackupVaultPath)
+		assert.Nil(tt, configs[0].BackupPolicyPath)
+
+		assert.Equal(tt, "vol-no-config", configs[1].VolumeResourceID)
+		assert.Nil(tt, configs[1].BackupVaultPath)
+		assert.Nil(tt, configs[1].BackupPolicyPath)
+
+		assert.Equal(tt, "vol-with-both", configs[2].VolumeResourceID)
+		assert.NotNil(tt, configs[2].BackupVaultPath)
+		assert.NotNil(tt, configs[2].BackupPolicyPath)
+		assert.Equal(tt, "projects/test_account/locations/us-east4/backupPolicies/my-policy", *configs[2].BackupPolicyPath)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_AccountNotFound", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("account not found")
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		orch := &GCPOrchestrator{storage: mockStorage}
+		configs, err := orch.GetBackupConfigsForPool(ctx, pool.UUID, "non_existent_account", "us-east4")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, configs)
+		assert.Contains(tt, err.Error(), "account not found")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_GetPoolError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(nil, errors.New("pool not found")).Once()
+
+		orch := &GCPOrchestrator{storage: mockStorage}
+		configs, err := orch.GetBackupConfigsForPool(ctx, pool.UUID, account.Name, "us-east4")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, configs)
+		assert.Contains(tt, err.Error(), "pool not found")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_NonONTAPPool", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
+
+		nonOntapPool := &datamodel.Pool{
+			BaseModel:     datamodel.BaseModel{ID: 10, UUID: "pool-uuid"},
+			Name:          "non_ontap_pool",
+			AccountID:     account.ID,
+			APIAccessMode: "STANDARD",
+		}
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *nonOntapPool}, nil).Once()
+
+		orch := &GCPOrchestrator{storage: mockStorage}
+		configs, err := orch.GetBackupConfigsForPool(ctx, pool.UUID, account.Name, "us-east4")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, configs)
+		assert.Contains(tt, err.Error(), "backup configurations are only available for ONTAP pools")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_ListExpertModeVolumesError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
+		mockStorage.EXPECT().ListExpertModeVolumesByPoolID(ctx, pool.ID).Return(nil, errors.New("db error listing volumes")).Once()
+
+		orch := &GCPOrchestrator{storage: mockStorage}
+		configs, err := orch.GetBackupConfigsForPool(ctx, pool.UUID, account.Name, "us-east4")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, configs)
+		assert.Contains(tt, err.Error(), "db error listing volumes")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_ListBackupVaultsError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
+		mockStorage.EXPECT().ListExpertModeVolumesByPoolID(ctx, pool.ID).Return([]*datamodel.ExpertModeVolumes{}, nil).Once()
+		mockStorage.EXPECT().ListBackupVaults(ctx, account.ID).Return(nil, errors.New("db error listing vaults")).Once()
+
+		orch := &GCPOrchestrator{storage: mockStorage}
+		configs, err := orch.GetBackupConfigsForPool(ctx, pool.UUID, account.Name, "us-east4")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, configs)
+		assert.Contains(tt, err.Error(), "db error listing vaults")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_ListBackupPoliciesError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
+		mockStorage.EXPECT().ListExpertModeVolumesByPoolID(ctx, pool.ID).Return([]*datamodel.ExpertModeVolumes{}, nil).Once()
+		mockStorage.EXPECT().ListBackupVaults(ctx, account.ID).Return([]*datamodel.BackupVault{}, nil).Once()
+		mockStorage.EXPECT().ListBackupPolicies(ctx, mock.Anything).Return(nil, errors.New("db error listing policies")).Once()
+
+		orch := &GCPOrchestrator{storage: mockStorage}
+		configs, err := orch.GetBackupConfigsForPool(ctx, pool.UUID, account.Name, "us-east4")
+
+		assert.Error(tt, err)
+		assert.Nil(tt, configs)
+		assert.Contains(tt, err.Error(), "db error listing policies")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("Success_BackupConfigWithEmptyIDs", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockStorage := database.NewMockStorage(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
+		mockStorage.EXPECT().ListExpertModeVolumesByPoolID(ctx, pool.ID).Return([]*datamodel.ExpertModeVolumes{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"},
+				Name:      "vol-empty-ids",
+				BackupConfig: &datamodel.DataProtection{
+					BackupVaultID:  "",
+					BackupPolicyID: "",
+				},
+			},
+		}, nil).Once()
+		mockStorage.EXPECT().ListBackupVaults(ctx, account.ID).Return([]*datamodel.BackupVault{}, nil).Once()
+		mockStorage.EXPECT().ListBackupPolicies(ctx, mock.Anything).Return([]*datamodel.BackupPolicy{}, nil).Once()
+
+		orch := &GCPOrchestrator{storage: mockStorage}
+		configs, err := orch.GetBackupConfigsForPool(ctx, pool.UUID, account.Name, "us-east4")
+
+		assert.NoError(tt, err)
+		assert.Len(tt, configs, 1)
+		assert.Equal(tt, "vol-empty-ids", configs[0].VolumeResourceID)
+		assert.Nil(tt, configs[0].BackupVaultPath)
+		assert.Nil(tt, configs[0].BackupPolicyPath)
+		mockStorage.AssertExpectations(tt)
 	})
 }
