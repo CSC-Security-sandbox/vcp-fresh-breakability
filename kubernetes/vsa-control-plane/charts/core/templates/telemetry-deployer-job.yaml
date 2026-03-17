@@ -152,8 +152,9 @@ spec:
             - name: METRICS_DB_NAME
               value: {{ .Values.database.metricsDbName | default "metrics" | quote }}
             # Runtime configuration
+            # Must be "false" — non-owner inline migrations fail when Cloud SQL IAM auth is enabled.
             - name: RUN_MIGRATION_ON_START
-              value: {{ .Values.telemetryDeployer.runMigrationOnStart | default "true" | quote }}
+              value: {{ .Values.telemetryDeployer.runMigrationOnStart | default "false" | quote }}
             - name: PERFORMANCE_ROOT_URL
               value: {{ .Values.telemetryDeployer.performanceRootUrl | default "https://servicecontrol.googleapis.com" | quote }}
             - name: USAGE_ROOT_URL

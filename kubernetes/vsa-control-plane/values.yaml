@@ -90,7 +90,8 @@ global:
     retryInterval: "1s"
     retryMaxAttempts: "5"
     retryMaxInterval: "60s"
-    runMigrationOnStart: "true"
+    # Must be "false" — non-owner inline migrations fail when Cloud SQL IAM auth is enabled.
+    runMigrationOnStart: "false"
     startToCloseWorkflowTimeout: "120s"
     svmPeerTimeout: "30s"
     temporalAddress: ""

@@ -430,7 +430,8 @@ workerConfig:
     type: "postgres"
     sslMode: "disable"
     timezone: "UTC"
-    runMigrationOnStart: "true"
+    # Must be "false" — non-owner inline migrations fail when Cloud SQL IAM auth is enabled.
+    runMigrationOnStart: "false"
     host: cloud-sql-proxy.sde.svc.cluster.local
     port: 5432
     # NOTE: When global.cloudSqlIamAuthEnabled=true, the chart overrides DB_USER to <ksa>@<project>.iam automatically.

@@ -15,7 +15,8 @@ gcpServiceNetworkingEndpointUrl: ""
 gcpServiceUrl: "https://cloudvolumesgcp-api.netapp.com"
 localRegion: ""
 otelGoogleProjectId: ""
-runMigrationOnStart: true
+# Must be false — non-owner inline migrations fail when Cloud SQL IAM auth is enabled.
+runMigrationOnStart: false
 temporalAddress: "temporal-frontend.temporal.svc.cluster.local:7233"
 vsaNodeUsername: ""
 vsaNodePassword: ""
