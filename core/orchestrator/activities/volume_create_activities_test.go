@@ -5052,6 +5052,138 @@ func TestConfigureLdap(t *testing.T) {
 		// Assertions
 		assert.NoError(t, err)
 	})
+	t.Run("ActiveDirectory_Nil_ReturnsError", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+		env.RegisterActivity(activity.ConfigureLdap)
+
+		mockProvider := vsa.NewMockProvider(t)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		volume := &datamodel.Volume{
+			AccountID: 1,
+			PoolID:    123,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				FileProperties: &datamodel.FileProperties{
+					ExportPolicy: &datamodel.ExportPolicy{ExportPolicyName: "test-policy"},
+				},
+			},
+			Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"}},
+		}
+		node := &models.Node{Name: "test-node", EndpointAddress: "192.168.1.100"}
+
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:      datamodel.BaseModel{UUID: "test-pool-uuid"},
+				PoolAttributes: &datamodel.PoolAttributes{LdapEnabled: true},
+			},
+		}
+		mockStorage.EXPECT().GetPool(mock.Anything, volume.Pool.UUID, volume.AccountID).Return(pool, nil)
+		mockStorage.EXPECT().GetActiveDirectoryForPoolByPoolID(mock.Anything, mock.Anything).Return(nil, nil)
+		mockProvider.AssertNotCalled(t, "CreateLdap")
+
+		_, err := env.ExecuteActivity(activity.ConfigureLdap, volume, node)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Active Directory configuration is required for LDAP-enabled pools but is missing")
+	})
+	t.Run("CreateLdap_Conflict_ReturnsNil", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+		env.RegisterActivity(activity.ConfigureLdap)
+
+		mockProvider := vsa.NewMockProvider(t)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		volume := &datamodel.Volume{
+			AccountID: 1,
+			PoolID:    123,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				FileProperties: &datamodel.FileProperties{
+					ExportPolicy: &datamodel.ExportPolicy{ExportPolicyName: "test-policy"},
+				},
+			},
+			Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"}},
+		}
+		node := &models.Node{Name: "test-node", EndpointAddress: "192.168.1.100"}
+
+		ad := &datamodel.ActiveDirectory{AdName: "test-ad", AccountId: 123}
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+				PoolAttributes:  &datamodel.PoolAttributes{LdapEnabled: true},
+				ActiveDirectory: ad,
+			},
+		}
+
+		mockStorage.EXPECT().GetPool(mock.Anything, volume.Pool.UUID, volume.AccountID).Return(pool, nil)
+		mockStorage.EXPECT().GetActiveDirectoryForPoolByPoolID(mock.Anything, mock.Anything).Return(ad, nil)
+		mockProvider.EXPECT().CreateLdap(ad, volume).Return(utilErrors.NewConflictErr("LDAP config already exists"))
+
+		_, err := env.ExecuteActivity(activity.ConfigureLdap, volume, node)
+
+		assert.NoError(t, err)
+	})
+	t.Run("CreateLdap_NonConflictError_ReturnsWrapOntapError", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+		env.RegisterActivity(activity.ConfigureLdap)
+
+		mockProvider := vsa.NewMockProvider(t)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		volume := &datamodel.Volume{
+			AccountID: 1,
+			PoolID:    123,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				FileProperties: &datamodel.FileProperties{
+					ExportPolicy: &datamodel.ExportPolicy{ExportPolicyName: "test-policy"},
+				},
+			},
+			Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"}},
+		}
+		node := &models.Node{Name: "test-node", EndpointAddress: "192.168.1.100"}
+
+		ad := &datamodel.ActiveDirectory{AdName: "test-ad", AccountId: 123}
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:       datamodel.BaseModel{UUID: "test-pool-uuid"},
+				PoolAttributes:  &datamodel.PoolAttributes{LdapEnabled: true},
+				ActiveDirectory: ad,
+			},
+		}
+
+		mockStorage.EXPECT().GetPool(mock.Anything, volume.Pool.UUID, volume.AccountID).Return(pool, nil)
+		mockStorage.EXPECT().GetActiveDirectoryForPoolByPoolID(mock.Anything, mock.Anything).Return(ad, nil)
+		createLdapErr := errors.New("ontap ldap create failed")
+		mockProvider.EXPECT().CreateLdap(ad, volume).Return(createLdapErr)
+
+		_, err := env.ExecuteActivity(activity.ConfigureLdap, volume, node)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "LDAP configuration")
+	})
 }
 
 func TestCreateBackupPolicySchedule(t *testing.T) {

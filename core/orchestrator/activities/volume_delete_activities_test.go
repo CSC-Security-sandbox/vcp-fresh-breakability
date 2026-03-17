@@ -3882,7 +3882,7 @@ func TestDeleteLDAPConfiguration_FailedToDeleteLDAPConfig(t *testing.T) {
 
 	// Assertions
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to delete LDAP config for volume")
+	assert.Contains(t, err.Error(), "An error occurred during LDAP configuration. Please verify your settings and try again")
 }
 
 func TestDeleteLDAPConfiguration_Success(t *testing.T) {

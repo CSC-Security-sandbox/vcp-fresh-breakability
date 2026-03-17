@@ -368,7 +368,7 @@ func (va VolumeDeleteActivity) DeleteLDAPConfiguration(ctx context.Context, volu
 			return nil
 		}
 		logger.Errorf("failed to delete LDAP config for volume %s: %v", volume.UUID, err)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		return vsaerrors.WrapOntapError(err, vsaerrors.DomainLDAP)
 	}
 
 	logger.Infof("Ldap client configuration deleted successfully for svm %s", volume.Svm.SvmDetails.ExternalUUID)

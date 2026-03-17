@@ -2876,7 +2876,9 @@ func (a VolumeCreateActivity) ConfigureLdap(ctx context.Context, volume *datamod
 			logger.Info("LDAP config already exists, skipping LDAP configuration")
 			return nil
 		}
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+		logger.Errorf("Failed to configure LDAP for pool (pool_id=%d, pool_uuid=%s, account_id=%d): %v",
+			pool.ID, volume.Pool.UUID, volume.AccountID, err)
+		return vsaerrors.WrapOntapError(err, vsaerrors.DomainLDAP)
 	}
 	activity.RecordHeartbeat(ctx, "Finished ConfigureLdap activity")
 	return nil
