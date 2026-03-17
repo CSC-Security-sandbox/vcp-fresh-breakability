@@ -91,7 +91,11 @@ func TestClassifyOntapError_Rules(t *testing.T) {
 		{"LDAP User DN invalid", "User DN specified in the LDAP client configuration failed validation", DomainLDAP, ErrLDAPUserDNInvalid},
 		{"LDAP Group DN invalid", "Group DN specified in the LDAP client configuration failed validation", DomainLDAP, ErrLDAPGroupDNInvalid},
 		{"LDAP config invalid", "LDAP configuration contains invalid settings", DomainLDAP, ErrLDAPInvalidConfiguration},
+		{"LDAP client config invalid", "LDAP client configuration invalid configuration", DomainLDAP, ErrLDAPInvalidConfiguration},
 		{"LDAP ssl cert error", "ssl3_get_server_certificate: certificate verify failed", DomainLDAP, ErrLDAPCertificateError},
+		{"LDAP server not identified", "No servers available for MS_LDAP_AD", DomainLDAP, ErrADLDAPServerNotIdentified},
+		{"LDAP search timeout", "LDAP Error: The search was timed out", DomainLDAP, ErrADLDAPSearchTimeout},
+		{"LDAP unable to start TLS", "Unable to start TLS: Server is unavailable", DomainLDAP, ErrADUnableToStartTLS},
 		// SMB additional SDE patterns
 		{"SMB NetBIOS conflict", "The CIFS server name must be different from the NetBIOS name of the home domain.", DomainSMB, ErrSMBNetBIOSNameConflict},
 		{"SMB CIFS already exists", "Only one CIFS server is supported per SVM", DomainSMB, ErrSMBCIFSServerAlreadyExists},

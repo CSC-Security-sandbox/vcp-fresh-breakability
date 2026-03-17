@@ -20,9 +20,9 @@ const (
 // - AnyOf: at least ONE must be present (OR logic); checked only when Substrings is empty.
 // - Domains: which domains this rule applies to; nil means all domains.
 type ErrorRule struct {
-	Substrings []string     // ALL must match (AND logic)
-	AnyOf      []string     // at least ONE must match (OR logic); used only if Substrings is empty
-	TrackingID int          // VCP tracking ID to assign
+	Substrings []string      // ALL must match (AND logic)
+	AnyOf      []string      // at least ONE must match (OR logic); used only if Substrings is empty
+	TrackingID int           // VCP tracking ID to assign
 	Domains    []ErrorDomain // which domains this rule applies to; nil = all
 }
 
@@ -51,12 +51,12 @@ var ontapErrorRules = []ErrorRule{
 	{AnyOf: []string{"cannot be reached"}, TrackingID: ErrDNSServerUnreachable, Domains: []ErrorDomain{DomainDNS}},
 	// --- New patterns (SDE gap) ---
 	{Substrings: []string{"Failed to determine if site is a valid default site"}, TrackingID: ErrADDefaultSiteValidationFailed, Domains: []ErrorDomain{DomainAD}},
-	{Substrings: []string{"No servers available for MS_LDAP_AD"}, TrackingID: ErrADLDAPServerNotIdentified, Domains: []ErrorDomain{DomainAD}},
-	{Substrings: []string{"Unable to start TLS: Server is unavailable"}, TrackingID: ErrADUnableToStartTLS, Domains: []ErrorDomain{DomainAD}},
+	{Substrings: []string{"No servers available for MS_LDAP_AD"}, TrackingID: ErrADLDAPServerNotIdentified, Domains: []ErrorDomain{DomainAD, DomainLDAP}},
+	{Substrings: []string{"Unable to start TLS: Server is unavailable"}, TrackingID: ErrADUnableToStartTLS, Domains: []ErrorDomain{DomainAD, DomainLDAP}},
 	{Substrings: []string{"vserver cifs users-and-groups remove-stale-records"}, TrackingID: ErrADStaleCacheCleanup, Domains: []ErrorDomain{DomainAD}},
 	{Substrings: []string{"CIFS Server Modify Job is RUNNING"}, TrackingID: ErrADUpdateInProgress, Domains: []ErrorDomain{DomainAD}},
 	{Substrings: []string{"Failed to resolve name"}, TrackingID: ErrADUserResolutionFailed, Domains: []ErrorDomain{DomainAD}},
-	{Substrings: []string{"LDAP Error: The search was timed out"}, TrackingID: ErrADLDAPSearchTimeout, Domains: []ErrorDomain{DomainAD}},
+	{Substrings: []string{"LDAP Error: The search was timed out"}, TrackingID: ErrADLDAPSearchTimeout, Domains: []ErrorDomain{DomainAD, DomainLDAP}},
 	{Substrings: []string{"SASL bind to LDAP", "GSSAPI"}, TrackingID: ErrADLDAPBindFailed, Domains: []ErrorDomain{DomainAD}},
 	{AnyOf: []string{"RESULT_ERROR_LDAPSERVER_LOCAL_ERROR"}, TrackingID: ErrADLDAPBindFailed, Domains: []ErrorDomain{DomainAD}},
 	// --- AD additional SDE patterns ---
@@ -76,6 +76,7 @@ var ontapErrorRules = []ErrorRule{
 	{AnyOf: []string{"Group DN specified in the LDAP client configuration is not available"}, TrackingID: ErrLDAPGroupDNNotAvailable, Domains: []ErrorDomain{DomainLDAP}},
 	{AnyOf: []string{"User DN specified in the LDAP client configuration failed"}, TrackingID: ErrLDAPUserDNInvalid, Domains: []ErrorDomain{DomainLDAP}},
 	{AnyOf: []string{"Group DN specified in the LDAP client configuration failed"}, TrackingID: ErrLDAPGroupDNInvalid, Domains: []ErrorDomain{DomainLDAP}},
+	{Substrings: []string{"LDAP client configuration", "invalid"}, TrackingID: ErrLDAPInvalidConfiguration, Domains: []ErrorDomain{DomainLDAP}},
 	{Substrings: []string{"LDAP configuration", "invalid"}, TrackingID: ErrLDAPInvalidConfiguration, Domains: []ErrorDomain{DomainLDAP}},
 	{AnyOf: []string{"ssl3_get_server_certificate"}, TrackingID: ErrLDAPCertificateError, Domains: []ErrorDomain{DomainLDAP}},
 	// --- SMB additional SDE patterns ---
