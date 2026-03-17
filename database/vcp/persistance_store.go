@@ -738,6 +738,10 @@ func (s *PersistenceStore) GetNodesByPoolID(ctx context.Context, poolID int64) (
 	return s.dataStore.GetNodesByPoolID(ctx, poolID)
 }
 
+func (s *PersistenceStore) GetNodeByID(ctx context.Context, nodeID int64) (*datamodel.Node, error) {
+	return s.dataStore.GetNodeByID(ctx, nodeID)
+}
+
 func (s *PersistenceStore) CreateSVM(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error) {
 	return s.dataStore.CreateSVM(ctx, svm)
 }
@@ -1542,6 +1546,10 @@ func (s *PersistenceStore) ListClusterPeeringRowsByAccountID(ctx context.Context
 
 func (s *PersistenceStore) ListNodeNodeGroupMap(ctx context.Context, includeDeleted bool, pagination *dbutils.Pagination) ([]*datamodel.NodeNodeGroupMap, error) {
 	return s.dataStore.ListNodeNodeGroupMap(ctx, includeDeleted, pagination)
+}
+
+func (s *PersistenceStore) ListNodeNodeGroupMapAfterID(ctx context.Context, includeDeleted bool, afterID int64, limit int) ([]*datamodel.NodeNodeGroupMap, error) {
+	return s.dataStore.ListNodeNodeGroupMapAfterID(ctx, includeDeleted, afterID, limit)
 }
 
 func (s *PersistenceStore) GetActiveDirectoryByUUID(ctx context.Context, uuid string) (*datamodel.ActiveDirectory, error) {

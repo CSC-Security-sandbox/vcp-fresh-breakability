@@ -1464,3 +1464,77 @@ func TestListNodeNodeGroupMap_IncludeDeletedWithPagination(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, result, 5)
 }
+
+func TestListNodeNodeGroupMapAfterID_Success(t *testing.T) {
+	repo, _ := setupNodeNodeGroupMapTestRepo(t)
+	ctx := context.Background()
+
+	for i := 0; i < 3; i++ {
+		mapping := &datamodel.NodeNodeGroupMap{
+			BaseModel:     datamodel.BaseModel{UUID: uuid.NewString()},
+			NodeID:        int64(i + 1),
+			NodeGroupID:   int64(i + 10),
+			HarvestConfig: &datamodel.HarvestConfig{},
+		}
+		_, err := repo.CreateNodeNodeGroupMap(ctx, mapping)
+		assert.NoError(t, err)
+	}
+
+	result, err := repo.ListNodeNodeGroupMapAfterID(ctx, false, 0, 10)
+	assert.NoError(t, err)
+	assert.Len(t, result, 3)
+	// IDs should be ascending
+	for i := 1; i < len(result); i++ {
+		assert.Greater(t, result[i].ID, result[i-1].ID)
+	}
+}
+
+func TestListNodeNodeGroupMapAfterID_AfterCursor(t *testing.T) {
+	repo, _ := setupNodeNodeGroupMapTestRepo(t)
+	ctx := context.Background()
+
+	for i := 0; i < 5; i++ {
+		mapping := &datamodel.NodeNodeGroupMap{
+			BaseModel:     datamodel.BaseModel{UUID: uuid.NewString()},
+			NodeID:        int64(i + 1),
+			NodeGroupID:   int64(i + 10),
+			HarvestConfig: &datamodel.HarvestConfig{},
+		}
+		_, err := repo.CreateNodeNodeGroupMap(ctx, mapping)
+		assert.NoError(t, err)
+	}
+
+	result, err := repo.ListNodeNodeGroupMapAfterID(ctx, false, 2, 10)
+	assert.NoError(t, err)
+	assert.GreaterOrEqual(t, len(result), 3)
+	for _, m := range result {
+		assert.Greater(t, m.ID, int64(2))
+	}
+}
+
+func TestListNodeNodeGroupMapAfterID_IncludeDeleted(t *testing.T) {
+	repo, mapping := setupNodeNodeGroupMapTestRepo(t)
+	ctx := context.Background()
+	created, err := repo.CreateNodeNodeGroupMap(ctx, mapping)
+	assert.NoError(t, err)
+	err = repo.DeleteNodeNodeGroupMap(ctx, created.ID)
+	assert.NoError(t, err)
+
+	result, err := repo.ListNodeNodeGroupMapAfterID(ctx, true, 0, 10)
+	assert.NoError(t, err)
+	assert.GreaterOrEqual(t, len(result), 1)
+}
+
+func TestListNodeNodeGroupMapAfterID_DBError(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+	dbConn, _ := db.DB()
+	_ = dbConn.Close()
+	wrapper := gorm.New(db)
+	badRepo := &DataStoreRepository{db: wrapper}
+	ctx := context.Background()
+
+	result, err := badRepo.ListNodeNodeGroupMapAfterID(ctx, false, 0, 10)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}

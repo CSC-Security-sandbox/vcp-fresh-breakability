@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -205,4 +206,134 @@ func (unRegisterNodeToHarvest *UnRegisterNodeFromHarvestActivity) ValidateAndRel
 func (unRegisterNodeToHarvest *UnRegisterNodeFromHarvestActivity) AlertHarvestUnRegisterFailure(ctx context.Context, errorDetails string) error {
 	metrics.IncJobStatusCounter(ctx, errorDetails, "failed to un-register nodes from harvest farm")
 	return nil
+}
+
+// ListAllMapsWithDeletedNodesParams optionally configures page size for the internal keyset loop. Zero = default.
+type ListAllMapsWithDeletedNodesParams struct {
+	PageSize int // limit per internal page; default 100
+}
+
+// ListAllMapsWithDeletedNodesResult returns the full list of node group maps whose node is DELETED.
+type ListAllMapsWithDeletedNodesResult struct {
+	MapsToReconcile []*datamodel.NodeNodeGroupMap
+}
+
+const defaultListAllPageSize = 100
+const maxListAllPageIterations = 10000
+
+// ListAllMapsWithDeletedNodes runs the keyset pagination loop inside the activity: fetches all pages
+// of non-deleted node group maps, filters to those whose node is in DELETED state, and returns
+// the entire list. Use with ReconcileNodeGroupMapsBatch so the workflow has no loop.
+func (a *UnRegisterNodeFromHarvestActivity) ListAllMapsWithDeletedNodes(
+	ctx context.Context,
+	params *ListAllMapsWithDeletedNodesParams,
+) (*ListAllMapsWithDeletedNodesResult, error) {
+	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "ListAllMapsWithDeletedNodes started")
+
+	pageSize := defaultListAllPageSize
+	if params != nil && params.PageSize > 0 {
+		pageSize = params.PageSize
+	}
+
+	se := a.SE
+	var all []*datamodel.NodeNodeGroupMap
+	afterID := int64(0)
+	iterations := 0
+
+	for iterations < maxListAllPageIterations {
+		iterations++
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("Listing page after ID %d", afterID))
+
+		maps, err := se.ListNodeNodeGroupMapAfterID(ctx, false, afterID, pageSize)
+		if err != nil {
+			logger.Warnf("failed to list node group maps: %v", err)
+			return nil, err
+		}
+		if len(maps) == 0 {
+			break
+		}
+		lastID := maps[len(maps)-1].ID
+
+		for i, m := range maps {
+			activity.RecordHeartbeat(ctx, fmt.Sprintf("Checking node %d/%d (page)", i+1, len(maps)))
+
+			node, err := se.GetNodeByID(ctx, m.NodeID)
+			if err != nil {
+				if errors.IsNotFoundErr(err) {
+					logger.Warnf("node ID %d for node group map %d not found, skipping", m.NodeID, m.ID)
+					continue
+				}
+				logger.Warnf("GetNodeByID failed for node %d (node group map %d): %v", m.NodeID, m.ID, err)
+				return nil, err
+			}
+			if node.State != models.LifeCycleStateDeleted {
+				continue
+			}
+			all = append(all, m)
+		}
+
+		if len(maps) < pageSize {
+			break
+		}
+		afterID = lastID
+	}
+
+	logger.Infof("ListAllMapsWithDeletedNodes collected %d maps to reconcile", len(all))
+	return &ListAllMapsWithDeletedNodesResult{MapsToReconcile: all}, nil
+}
+
+// ReconcileNodeGroupMapsBatchParams holds the list of node group maps to reconcile (Harvest delete + DB soft-delete).
+type ReconcileNodeGroupMapsBatchParams struct {
+	Maps []*datamodel.NodeNodeGroupMap
+}
+
+// ReconcileNodeGroupMapsBatchResult holds the number of records successfully reconciled.
+type ReconcileNodeGroupMapsBatchResult struct {
+	Reconciled int
+}
+
+// ReconcileNodeGroupMapsBatch issues Harvest delete and DB soft-delete for each given node group map.
+// Call after ListAllMapsWithDeletedNodes; input maps are expected to have NodeGroup preloaded.
+func (a *UnRegisterNodeFromHarvestActivity) ReconcileNodeGroupMapsBatch(
+	ctx context.Context,
+	params *ReconcileNodeGroupMapsBatchParams,
+) (*ReconcileNodeGroupMapsBatchResult, error) {
+	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "ReconcileNodeGroupMapsBatch started")
+
+	if params == nil || len(params.Maps) == 0 {
+		return &ReconcileNodeGroupMapsBatchResult{}, nil
+	}
+
+	se := a.SE
+	var reconciled int
+	for i, m := range params.Maps {
+		activity.RecordHeartbeat(ctx, fmt.Sprintf("Reconciling %d/%d", i+1, len(params.Maps)))
+
+		if m.NodeGroup != nil && len(m.NodeGroup.LeaseName) > 0 {
+			deleteURL := fmt.Sprintf(harvestRestProtocol+"://"+harvestEndPoint+"/config/%s/%s%d", m.NodeGroup.LeaseName, leasePrefix, m.NodeID)
+			resp, err := deletePollerRestResponse(ctx, deleteURL)
+			if err != nil {
+				logger.Warnf("failed to delete poller from harvest for node group map %d (node %d): %v", m.ID, m.NodeID, err)
+				continue
+			}
+			if resp != nil && resp.Body != nil {
+				_ = resp.Body.Close()
+			}
+			if resp != nil && resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
+				logger.Warnf("harvest delete returned status %d for node group map %d", resp.StatusCode, m.ID)
+				continue
+			}
+		}
+
+		if err := se.DeleteNodeNodeGroupMap(ctx, m.ID); err != nil {
+			logger.Warnf("failed to mark node group map %d as deleted: %v", m.ID, err)
+			continue
+		}
+		reconciled++
+		logger.Infof("reconciled node group map %d (node %d deleted): removed from Harvest and marked deleted", m.ID, m.NodeID)
+	}
+
+	return &ReconcileNodeGroupMapsBatchResult{Reconciled: reconciled}, nil
 }

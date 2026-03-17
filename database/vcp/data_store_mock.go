@@ -8968,6 +8968,65 @@ func (_c *MockDataStore_GetNextSerialNumberInRegion_Call) RunAndReturn(run func(
 	return _c
 }
 
+// GetNodeByID provides a mock function with given fields: ctx, nodeID
+func (_m *MockDataStore) GetNodeByID(ctx context.Context, nodeID int64) (*datamodel.Node, error) {
+	ret := _m.Called(ctx, nodeID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetNodeByID")
+	}
+
+	var r0 *datamodel.Node
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (*datamodel.Node, error)); ok {
+		return rf(ctx, nodeID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) *datamodel.Node); ok {
+		r0 = rf(ctx, nodeID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.Node)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, nodeID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetNodeByID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetNodeByID'
+type MockDataStore_GetNodeByID_Call struct {
+	*mock.Call
+}
+
+// GetNodeByID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - nodeID int64
+func (_e *MockDataStore_Expecter) GetNodeByID(ctx interface{}, nodeID interface{}) *MockDataStore_GetNodeByID_Call {
+	return &MockDataStore_GetNodeByID_Call{Call: _e.mock.On("GetNodeByID", ctx, nodeID)}
+}
+
+func (_c *MockDataStore_GetNodeByID_Call) Run(run func(ctx context.Context, nodeID int64)) *MockDataStore_GetNodeByID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetNodeByID_Call) Return(_a0 *datamodel.Node, _a1 error) *MockDataStore_GetNodeByID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetNodeByID_Call) RunAndReturn(run func(context.Context, int64) (*datamodel.Node, error)) *MockDataStore_GetNodeByID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetNodeGroup provides a mock function with given fields: ctx, id
 func (_m *MockDataStore) GetNodeGroup(ctx context.Context, id int64) (*datamodel.NodeGroup, error) {
 	ret := _m.Called(ctx, id)
@@ -14243,6 +14302,63 @@ func (_c *MockDataStore_ListNodeNodeGroupMap_Call) Return(_a0 []*datamodel.NodeN
 }
 
 func (_c *MockDataStore_ListNodeNodeGroupMap_Call) RunAndReturn(run func(context.Context, bool, *utils.Pagination) ([]*datamodel.NodeNodeGroupMap, error)) *MockDataStore_ListNodeNodeGroupMap_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListNodeNodeGroupMapAfterID provides a mock function with given fields: ctx, includeDeleted, afterID, limit
+func (_m *MockDataStore) ListNodeNodeGroupMapAfterID(ctx context.Context, includeDeleted bool, afterID int64, limit int) ([]*datamodel.NodeNodeGroupMap, error) {
+	ret := _m.Called(ctx, includeDeleted, afterID, limit)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListNodeNodeGroupMapAfterID")
+	}
+
+	var r0 []*datamodel.NodeNodeGroupMap
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, bool, int64, int) ([]*datamodel.NodeNodeGroupMap, error)); ok {
+		return rf(ctx, includeDeleted, afterID, limit)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, bool, int64, int) []*datamodel.NodeNodeGroupMap); ok {
+		r0 = rf(ctx, includeDeleted, afterID, limit)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.NodeNodeGroupMap)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, bool, int64, int) error); ok {
+		r1 = rf(ctx, includeDeleted, afterID, limit)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ListNodeNodeGroupMapAfterID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListNodeNodeGroupMapAfterID'
+type MockDataStore_ListNodeNodeGroupMapAfterID_Call struct {
+	*mock.Call
+}
+
+// ListNodeNodeGroupMapAfterID is a helper method to define mock.On call
+func (_e *MockDataStore_Expecter) ListNodeNodeGroupMapAfterID(ctx interface{}, includeDeleted interface{}, afterID interface{}, limit interface{}) *MockDataStore_ListNodeNodeGroupMapAfterID_Call {
+	return &MockDataStore_ListNodeNodeGroupMapAfterID_Call{Call: _e.mock.On("ListNodeNodeGroupMapAfterID", ctx, includeDeleted, afterID, limit)}
+}
+
+func (_c *MockDataStore_ListNodeNodeGroupMapAfterID_Call) Run(run func(ctx context.Context, includeDeleted bool, afterID int64, limit int)) *MockDataStore_ListNodeNodeGroupMapAfterID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(bool), args[2].(int64), args[3].(int))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ListNodeNodeGroupMapAfterID_Call) Return(_a0 []*datamodel.NodeNodeGroupMap, _a1 error) *MockDataStore_ListNodeNodeGroupMapAfterID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ListNodeNodeGroupMapAfterID_Call) RunAndReturn(run func(context.Context, bool, int64, int) ([]*datamodel.NodeNodeGroupMap, error)) *MockDataStore_ListNodeNodeGroupMapAfterID_Call {
 	_c.Call.Return(run)
 	return _c
 }

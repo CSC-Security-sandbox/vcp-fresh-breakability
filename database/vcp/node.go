@@ -19,6 +19,19 @@ func (d *DataStoreRepository) GetNodesByPoolID(ctx context.Context, poolID int64
 	return getNodesByPoolID(d.db.GORM().Unscoped().WithContext(ctx), poolID)
 }
 
+// GetNodeByID retrieves a node by ID. Uses Unscoped to include soft-deleted nodes so callers can check State.
+func (d *DataStoreRepository) GetNodeByID(ctx context.Context, nodeID int64) (*datamodel.Node, error) {
+	var node datamodel.Node
+	err := d.db.GORM().Unscoped().WithContext(ctx).First(&node, nodeID).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataNotFoundError, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "node", nil))
+		}
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return &node, nil
+}
+
 func getNodesByPoolID(db *gorm.DB, poolID int64) ([]*datamodel.Node, error) {
 	var nodes []*datamodel.Node
 	err := db.Where("pool_id = ?", poolID).Order("id ASC").Find(&nodes).Error

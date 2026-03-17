@@ -153,6 +153,7 @@ type (
 
 		GetSvmForPoolID(ctx context.Context, poolID int64) (*datamodel.Svm, error)
 		GetNodesByPoolID(ctx context.Context, poolId int64) ([]*datamodel.Node, error)
+		GetNodeByID(ctx context.Context, nodeID int64) (*datamodel.Node, error)
 		CreateNode(ctx context.Context, node *datamodel.Node) (*datamodel.Node, error)
 
 		CreateSVM(ctx context.Context, svm *datamodel.Svm) (*datamodel.Svm, error)
@@ -364,6 +365,8 @@ type (
 		// Assumes that node1 and node2 are precreated and have valid IDs
 		AssignTwoNodesToTwoGroups(ctx context.Context, params datamodel.NodeGroupAssignmentParams) ([]*datamodel.NodeNodeGroupMap, error)
 		ListNodeNodeGroupMap(ctx context.Context, includeDeleted bool, pagination *dbutils.Pagination) ([]*datamodel.NodeNodeGroupMap, error)
+		// ListNodeNodeGroupMapAfterID returns non-deleted (or all if includeDeleted) records with id > afterID, ordered by id, limit. Used for keyset pagination.
+		ListNodeNodeGroupMapAfterID(ctx context.Context, includeDeleted bool, afterID int64, limit int) ([]*datamodel.NodeNodeGroupMap, error)
 
 		HardDeleteResourceByTable(ctx context.Context, table string, query string, id int64) error
 

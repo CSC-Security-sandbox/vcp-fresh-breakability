@@ -1653,6 +1653,22 @@ func (re *retryEngine) GetNodesByPoolID(ctx context.Context, poolId int64) ([]*d
 	return var0, err
 }
 
+func (re *retryEngine) GetNodeByID(ctx context.Context, nodeID int64) (*datamodel.Node, error) {
+	var var0 *datamodel.Node
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetNodeByID(ctx, nodeID)
+		if err != nil {
+			re.logError("GetNodeByID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) CreateNode(ctx context.Context, node *datamodel.Node) (*datamodel.Node, error) {
 	var var0 *datamodel.Node
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -4573,6 +4589,22 @@ func (re *retryEngine) ListNodeNodeGroupMap(ctx context.Context, includeDeleted 
 		var0, err = re.dataStore.ListNodeNodeGroupMap(ctx, includeDeleted, pagination)
 		if err != nil {
 			re.logError("ListNodeNodeGroupMap", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) ListNodeNodeGroupMapAfterID(ctx context.Context, includeDeleted bool, afterID int64, limit int) ([]*datamodel.NodeNodeGroupMap, error) {
+	var var0 []*datamodel.NodeNodeGroupMap
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListNodeNodeGroupMapAfterID(ctx, includeDeleted, afterID, limit)
+		if err != nil {
+			re.logError("ListNodeNodeGroupMapAfterID", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

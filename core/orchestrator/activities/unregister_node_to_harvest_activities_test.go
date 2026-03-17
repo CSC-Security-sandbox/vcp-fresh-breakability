@@ -3,8 +3,10 @@ package activities
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -584,4 +586,462 @@ func TestUnRegisterAlertHarvestRegisterFailure(t *testing.T) {
 	ctx := context.Background()
 	err := activity.AlertHarvestUnRegisterFailure(ctx, "test-error-details")
 	assert.NoError(t, err)
+}
+
+func TestReconcileNodeGroupMapsBatch_Empty(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.ReconcileNodeGroupMapsBatch)
+
+	result, err := env.ExecuteActivity(activity.ReconcileNodeGroupMapsBatch, &ReconcileNodeGroupMapsBatchParams{Maps: nil})
+	assert.NoError(t, err)
+	var batchResult ReconcileNodeGroupMapsBatchResult
+	_ = result.Get(&batchResult)
+	assert.Equal(t, 0, batchResult.Reconciled)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestReconcileNodeGroupMapsBatch_OneMap_Reconciles(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}
+	nodeGroupMap := &datamodel.NodeNodeGroupMap{
+		BaseModel:   datamodel.BaseModel{ID: 1},
+		NodeID:      10,
+		NodeGroupID: 100,
+		NodeGroup:   &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{ID: 100}, Name: "g1", LeaseName: "lease-1"},
+	}
+	mockStorage.On("DeleteNodeNodeGroupMap", mock.Anything, int64(1)).Return(nil)
+
+	oldDelete := deletePollerRestResponse
+	deletePollerRestResponse = func(ctx context.Context, url string) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK}, nil
+	}
+	defer func() { deletePollerRestResponse = oldDelete }()
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.ReconcileNodeGroupMapsBatch)
+
+	result, err := env.ExecuteActivity(activity.ReconcileNodeGroupMapsBatch, &ReconcileNodeGroupMapsBatchParams{Maps: []*datamodel.NodeNodeGroupMap{nodeGroupMap}})
+	assert.NoError(t, err)
+	var batchResult ReconcileNodeGroupMapsBatchResult
+	_ = result.Get(&batchResult)
+	assert.Equal(t, 1, batchResult.Reconciled)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestListAllMapsWithDeletedNodes_Empty(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}
+	// First page is empty -> loop exits immediately
+	mockStorage.On("ListNodeNodeGroupMapAfterID", mock.Anything, false, int64(0), 100).Return([]*datamodel.NodeNodeGroupMap{}, nil)
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.ListAllMapsWithDeletedNodes)
+
+	result, err := env.ExecuteActivity(activity.ListAllMapsWithDeletedNodes, &ListAllMapsWithDeletedNodesParams{})
+	assert.NoError(t, err)
+	var listResult ListAllMapsWithDeletedNodesResult
+	_ = result.Get(&listResult)
+	assert.Empty(t, listResult.MapsToReconcile)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestListAllMapsWithDeletedNodes_OnePage_OneDeleted(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}
+	createdAt := time.Now()
+	mapDeleted := &datamodel.NodeNodeGroupMap{
+		BaseModel: datamodel.BaseModel{ID: 1, CreatedAt: createdAt, UpdatedAt: createdAt},
+		NodeID:    10, NodeGroupID: 100,
+		NodeGroup: &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{ID: 100}, Name: "g1", LeaseName: "lease-1"},
+	}
+	nodeDeleted := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 10}, State: models.LifeCycleStateDeleted}
+	// Single page with one map (deleted node) -> len(maps) < pageSize so loop exits after one page
+	mockStorage.On("ListNodeNodeGroupMapAfterID", mock.Anything, false, int64(0), 100).Return([]*datamodel.NodeNodeGroupMap{mapDeleted}, nil)
+	mockStorage.On("GetNodeByID", mock.Anything, int64(10)).Return(nodeDeleted, nil)
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.ListAllMapsWithDeletedNodes)
+
+	result, err := env.ExecuteActivity(activity.ListAllMapsWithDeletedNodes, &ListAllMapsWithDeletedNodesParams{})
+	assert.NoError(t, err)
+	var listResult ListAllMapsWithDeletedNodesResult
+	_ = result.Get(&listResult)
+	assert.Len(t, listResult.MapsToReconcile, 1)
+	assert.Equal(t, int64(1), listResult.MapsToReconcile[0].ID)
+	mockStorage.AssertExpectations(t)
+}
+
+// --- ListAllMapsWithDeletedNodes: additional scenarios ---
+
+func TestListAllMapsWithDeletedNodes_ListNodeError_ReturnsError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}
+	mockStorage.On("ListNodeNodeGroupMapAfterID", mock.Anything, false, int64(0), 100).Return(([]*datamodel.NodeNodeGroupMap)(nil), errors.New("list failed"))
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.ListAllMapsWithDeletedNodes)
+
+	_, err := env.ExecuteActivity(activity.ListAllMapsWithDeletedNodes, &ListAllMapsWithDeletedNodesParams{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "list failed")
+	mockStorage.AssertExpectations(t)
+}
+
+// TestListAllMapsWithDeletedNodes_GetNodeByIDReturnsNonNotFoundError_ReturnsError covers line 351: return nil, err when GetNodeByID fails with non-NotFound error.
+func TestListAllMapsWithDeletedNodes_GetNodeByIDReturnsNonNotFoundError_ReturnsError(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}
+	m := &datamodel.NodeNodeGroupMap{BaseModel: datamodel.BaseModel{ID: 1}, NodeID: 10, NodeGroupID: 100}
+	readErr := vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, errors.New("db read error"))
+	mockStorage.On("ListNodeNodeGroupMapAfterID", mock.Anything, false, int64(0), 100).Return([]*datamodel.NodeNodeGroupMap{m}, nil)
+	mockStorage.On("GetNodeByID", mock.Anything, int64(10)).Return((*datamodel.Node)(nil), readErr)
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.ListAllMapsWithDeletedNodes)
+
+	_, err := env.ExecuteActivity(activity.ListAllMapsWithDeletedNodes, &ListAllMapsWithDeletedNodesParams{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "db read error")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestListAllMapsWithDeletedNodes_NodeNotFound_SkipsMap(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}
+	m1 := &datamodel.NodeNodeGroupMap{BaseModel: datamodel.BaseModel{ID: 1}, NodeID: 10, NodeGroupID: 100}
+	m2 := &datamodel.NodeNodeGroupMap{BaseModel: datamodel.BaseModel{ID: 2}, NodeID: 20, NodeGroupID: 100}
+	notFoundErr := vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataNotFoundError, errors.NewNotFoundErr("node", nil))
+	nodeDeleted := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 20}, State: models.LifeCycleStateDeleted}
+	mockStorage.On("ListNodeNodeGroupMapAfterID", mock.Anything, false, int64(0), 50).Return([]*datamodel.NodeNodeGroupMap{m1, m2}, nil)
+	mockStorage.On("GetNodeByID", mock.Anything, int64(10)).Return((*datamodel.Node)(nil), notFoundErr)
+	mockStorage.On("GetNodeByID", mock.Anything, int64(20)).Return(nodeDeleted, nil)
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.ListAllMapsWithDeletedNodes)
+
+	result, err := env.ExecuteActivity(activity.ListAllMapsWithDeletedNodes, &ListAllMapsWithDeletedNodesParams{PageSize: 50})
+	assert.NoError(t, err)
+	var listResult ListAllMapsWithDeletedNodesResult
+	_ = result.Get(&listResult)
+	assert.Len(t, listResult.MapsToReconcile, 1)
+	assert.Equal(t, int64(2), listResult.MapsToReconcile[0].ID)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestListAllMapsWithDeletedNodes_TwoPages_CollectsAllDeleted(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}
+	page1Map := &datamodel.NodeNodeGroupMap{
+		BaseModel: datamodel.BaseModel{ID: 1}, NodeID: 10, NodeGroupID: 100,
+		NodeGroup: &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{ID: 100}, Name: "g1", LeaseName: "lease-1"},
+	}
+	page2Map := &datamodel.NodeNodeGroupMap{
+		BaseModel: datamodel.BaseModel{ID: 2}, NodeID: 20, NodeGroupID: 100,
+		NodeGroup: &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{ID: 100}, Name: "g1", LeaseName: "lease-1"},
+	}
+	node10 := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 10}, State: models.LifeCycleStateDeleted}
+	node20 := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 20}, State: models.LifeCycleStateDeleted}
+	// Page size 1: first page returns 1 map, second page returns 1 map, third returns 0
+	mockStorage.On("ListNodeNodeGroupMapAfterID", mock.Anything, false, int64(0), 1).Return([]*datamodel.NodeNodeGroupMap{page1Map}, nil)
+	mockStorage.On("GetNodeByID", mock.Anything, int64(10)).Return(node10, nil)
+	mockStorage.On("ListNodeNodeGroupMapAfterID", mock.Anything, false, int64(1), 1).Return([]*datamodel.NodeNodeGroupMap{page2Map}, nil)
+	mockStorage.On("GetNodeByID", mock.Anything, int64(20)).Return(node20, nil)
+	mockStorage.On("ListNodeNodeGroupMapAfterID", mock.Anything, false, int64(2), 1).Return([]*datamodel.NodeNodeGroupMap{}, nil)
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.ListAllMapsWithDeletedNodes)
+
+	result, err := env.ExecuteActivity(activity.ListAllMapsWithDeletedNodes, &ListAllMapsWithDeletedNodesParams{PageSize: 1})
+	assert.NoError(t, err)
+	var listResult ListAllMapsWithDeletedNodesResult
+	_ = result.Get(&listResult)
+	assert.Len(t, listResult.MapsToReconcile, 2)
+	assert.Equal(t, int64(1), listResult.MapsToReconcile[0].ID)
+	assert.Equal(t, int64(2), listResult.MapsToReconcile[1].ID)
+	mockStorage.AssertExpectations(t)
+}
+
+// TestListAllMapsWithDeletedNodes_NodeNotDeleted_SkipsMap covers line 351: continue when node.State != Deleted.
+func TestListAllMapsWithDeletedNodes_NodeNotDeleted_SkipsMap(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}
+	m1 := &datamodel.NodeNodeGroupMap{BaseModel: datamodel.BaseModel{ID: 1}, NodeID: 10, NodeGroupID: 100}
+	m2 := &datamodel.NodeNodeGroupMap{BaseModel: datamodel.BaseModel{ID: 2}, NodeID: 20, NodeGroupID: 100}
+	node10Active := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 10}, State: models.LifeCycleStateAvailable}
+	node20Deleted := &datamodel.Node{BaseModel: datamodel.BaseModel{ID: 20}, State: models.LifeCycleStateDeleted}
+	mockStorage.On("ListNodeNodeGroupMapAfterID", mock.Anything, false, int64(0), 100).Return([]*datamodel.NodeNodeGroupMap{m1, m2}, nil)
+	mockStorage.On("GetNodeByID", mock.Anything, int64(10)).Return(node10Active, nil)
+	mockStorage.On("GetNodeByID", mock.Anything, int64(20)).Return(node20Deleted, nil)
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.ListAllMapsWithDeletedNodes)
+
+	result, err := env.ExecuteActivity(activity.ListAllMapsWithDeletedNodes, &ListAllMapsWithDeletedNodesParams{})
+	assert.NoError(t, err)
+	var listResult ListAllMapsWithDeletedNodesResult
+	_ = result.Get(&listResult)
+	assert.Len(t, listResult.MapsToReconcile, 1)
+	assert.Equal(t, int64(2), listResult.MapsToReconcile[0].ID)
+	mockStorage.AssertExpectations(t)
+}
+
+// --- ReconcileNodeGroupMapsBatch: additional scenarios ---
+
+func TestReconcileNodeGroupMapsBatch_EmptySlice_ReturnsZero(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.ReconcileNodeGroupMapsBatch)
+
+	result, err := env.ExecuteActivity(activity.ReconcileNodeGroupMapsBatch, &ReconcileNodeGroupMapsBatchParams{Maps: []*datamodel.NodeNodeGroupMap{}})
+	assert.NoError(t, err)
+	var batchResult ReconcileNodeGroupMapsBatchResult
+	_ = result.Get(&batchResult)
+	assert.Equal(t, 0, batchResult.Reconciled)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestReconcileNodeGroupMapsBatch_NoLeaseName_StillDeletesFromDB(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}
+	m := &datamodel.NodeNodeGroupMap{
+		BaseModel: datamodel.BaseModel{ID: 1}, NodeID: 10, NodeGroupID: 100,
+		NodeGroup: &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{ID: 100}, Name: "g1", LeaseName: ""},
+	}
+	mockStorage.On("DeleteNodeNodeGroupMap", mock.Anything, int64(1)).Return(nil)
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.ReconcileNodeGroupMapsBatch)
+
+	result, err := env.ExecuteActivity(activity.ReconcileNodeGroupMapsBatch, &ReconcileNodeGroupMapsBatchParams{Maps: []*datamodel.NodeNodeGroupMap{m}})
+	assert.NoError(t, err)
+	var batchResult ReconcileNodeGroupMapsBatchResult
+	_ = result.Get(&batchResult)
+	assert.Equal(t, 1, batchResult.Reconciled)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestReconcileNodeGroupMapsBatch_NodeGroupNil_StillDeletesFromDB(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}
+	m := &datamodel.NodeNodeGroupMap{
+		BaseModel: datamodel.BaseModel{ID: 1}, NodeID: 10, NodeGroupID: 100,
+		NodeGroup: nil,
+	}
+	mockStorage.On("DeleteNodeNodeGroupMap", mock.Anything, int64(1)).Return(nil)
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.ReconcileNodeGroupMapsBatch)
+
+	result, err := env.ExecuteActivity(activity.ReconcileNodeGroupMapsBatch, &ReconcileNodeGroupMapsBatchParams{Maps: []*datamodel.NodeNodeGroupMap{m}})
+	assert.NoError(t, err)
+	var batchResult ReconcileNodeGroupMapsBatchResult
+	_ = result.Get(&batchResult)
+	assert.Equal(t, 1, batchResult.Reconciled)
+	mockStorage.AssertExpectations(t)
+}
+
+// TestReconcileNodeGroupMapsBatch_SingleMap_HarvestFails_Continues covers line 466: continue when deletePollerRestResponse returns error.
+func TestReconcileNodeGroupMapsBatch_SingleMap_HarvestFails_Continues(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}
+	m := &datamodel.NodeNodeGroupMap{
+		BaseModel: datamodel.BaseModel{ID: 1}, NodeID: 10, NodeGroupID: 100,
+		NodeGroup: &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{ID: 100}, Name: "g1", LeaseName: "lease-1"},
+	}
+	oldDelete := deletePollerRestResponse
+	deletePollerRestResponse = func(ctx context.Context, url string) (*http.Response, error) {
+		return nil, errors.New("harvest down")
+	}
+	defer func() { deletePollerRestResponse = oldDelete }()
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.ReconcileNodeGroupMapsBatch)
+
+	result, err := env.ExecuteActivity(activity.ReconcileNodeGroupMapsBatch, &ReconcileNodeGroupMapsBatchParams{Maps: []*datamodel.NodeNodeGroupMap{m}})
+	assert.NoError(t, err)
+	var batchResult ReconcileNodeGroupMapsBatchResult
+	_ = result.Get(&batchResult)
+	assert.Equal(t, 0, batchResult.Reconciled)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestReconcileNodeGroupMapsBatch_HarvestFails_SkipsThatMap(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}
+	m1 := &datamodel.NodeNodeGroupMap{
+		BaseModel: datamodel.BaseModel{ID: 1}, NodeID: 10, NodeGroupID: 100,
+		NodeGroup: &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{ID: 100}, Name: "g1", LeaseName: "lease-1"},
+	}
+	m2 := &datamodel.NodeNodeGroupMap{
+		BaseModel: datamodel.BaseModel{ID: 2}, NodeID: 20, NodeGroupID: 100,
+		NodeGroup: &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{ID: 100}, Name: "g1", LeaseName: "lease-1"},
+	}
+	mockStorage.On("DeleteNodeNodeGroupMap", mock.Anything, int64(2)).Return(nil)
+
+	callCount := 0
+	oldDelete := deletePollerRestResponse
+	deletePollerRestResponse = func(ctx context.Context, url string) (*http.Response, error) {
+		callCount++
+		if callCount == 1 {
+			return nil, errors.New("harvest down")
+		}
+		return &http.Response{StatusCode: http.StatusOK}, nil
+	}
+	defer func() { deletePollerRestResponse = oldDelete }()
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.ReconcileNodeGroupMapsBatch)
+
+	result, err := env.ExecuteActivity(activity.ReconcileNodeGroupMapsBatch, &ReconcileNodeGroupMapsBatchParams{Maps: []*datamodel.NodeNodeGroupMap{m1, m2}})
+	assert.NoError(t, err)
+	var batchResult ReconcileNodeGroupMapsBatchResult
+	_ = result.Get(&batchResult)
+	assert.Equal(t, 1, batchResult.Reconciled)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestReconcileNodeGroupMapsBatch_HarvestReturns500_SkipsThatMap(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}
+	m1 := &datamodel.NodeNodeGroupMap{
+		BaseModel: datamodel.BaseModel{ID: 1}, NodeID: 10, NodeGroupID: 100,
+		NodeGroup: &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{ID: 100}, Name: "g1", LeaseName: "lease-1"},
+	}
+	m2 := &datamodel.NodeNodeGroupMap{
+		BaseModel: datamodel.BaseModel{ID: 2}, NodeID: 20, NodeGroupID: 100,
+		NodeGroup: &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{ID: 100}, Name: "g1", LeaseName: "lease-1"},
+	}
+	mockStorage.On("DeleteNodeNodeGroupMap", mock.Anything, int64(2)).Return(nil)
+
+	callCount := 0
+	oldDelete := deletePollerRestResponse
+	deletePollerRestResponse = func(ctx context.Context, url string) (*http.Response, error) {
+		callCount++
+		if callCount == 1 {
+			return &http.Response{StatusCode: http.StatusInternalServerError}, nil
+		}
+		return &http.Response{StatusCode: http.StatusOK}, nil
+	}
+	defer func() { deletePollerRestResponse = oldDelete }()
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.ReconcileNodeGroupMapsBatch)
+
+	result, err := env.ExecuteActivity(activity.ReconcileNodeGroupMapsBatch, &ReconcileNodeGroupMapsBatchParams{Maps: []*datamodel.NodeNodeGroupMap{m1, m2}})
+	assert.NoError(t, err)
+	var batchResult ReconcileNodeGroupMapsBatchResult
+	_ = result.Get(&batchResult)
+	assert.Equal(t, 1, batchResult.Reconciled)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestReconcileNodeGroupMapsBatch_DBDeleteFails_SkipsThatMap(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}
+	m1 := &datamodel.NodeNodeGroupMap{
+		BaseModel: datamodel.BaseModel{ID: 1}, NodeID: 10, NodeGroupID: 100,
+		NodeGroup: &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{ID: 100}, Name: "g1", LeaseName: "lease-1"},
+	}
+	m2 := &datamodel.NodeNodeGroupMap{
+		BaseModel: datamodel.BaseModel{ID: 2}, NodeID: 20, NodeGroupID: 100,
+		NodeGroup: &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{ID: 100}, Name: "g1", LeaseName: "lease-1"},
+	}
+	mockStorage.On("DeleteNodeNodeGroupMap", mock.Anything, int64(1)).Return(errors.New("db fail"))
+	mockStorage.On("DeleteNodeNodeGroupMap", mock.Anything, int64(2)).Return(nil)
+
+	oldDelete := deletePollerRestResponse
+	deletePollerRestResponse = func(ctx context.Context, url string) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK}, nil
+	}
+	defer func() { deletePollerRestResponse = oldDelete }()
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.ReconcileNodeGroupMapsBatch)
+
+	result, err := env.ExecuteActivity(activity.ReconcileNodeGroupMapsBatch, &ReconcileNodeGroupMapsBatchParams{Maps: []*datamodel.NodeNodeGroupMap{m1, m2}})
+	assert.NoError(t, err)
+	var batchResult ReconcileNodeGroupMapsBatchResult
+	_ = result.Get(&batchResult)
+	assert.Equal(t, 1, batchResult.Reconciled)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestReconcileNodeGroupMapsBatch_MultipleMaps_AllSucceed(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}
+	m1 := &datamodel.NodeNodeGroupMap{
+		BaseModel: datamodel.BaseModel{ID: 1}, NodeID: 10, NodeGroupID: 100,
+		NodeGroup: &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{ID: 100}, Name: "g1", LeaseName: "lease-1"},
+	}
+	m2 := &datamodel.NodeNodeGroupMap{
+		BaseModel: datamodel.BaseModel{ID: 2}, NodeID: 20, NodeGroupID: 100,
+		NodeGroup: &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{ID: 100}, Name: "g1", LeaseName: "lease-1"},
+	}
+	mockStorage.On("DeleteNodeNodeGroupMap", mock.Anything, int64(1)).Return(nil)
+	mockStorage.On("DeleteNodeNodeGroupMap", mock.Anything, int64(2)).Return(nil)
+
+	oldDelete := deletePollerRestResponse
+	deletePollerRestResponse = func(ctx context.Context, url string) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK}, nil
+	}
+	defer func() { deletePollerRestResponse = oldDelete }()
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.ReconcileNodeGroupMapsBatch)
+
+	result, err := env.ExecuteActivity(activity.ReconcileNodeGroupMapsBatch, &ReconcileNodeGroupMapsBatchParams{Maps: []*datamodel.NodeNodeGroupMap{m1, m2}})
+	assert.NoError(t, err)
+	var batchResult ReconcileNodeGroupMapsBatchResult
+	_ = result.Get(&batchResult)
+	assert.Equal(t, 2, batchResult.Reconciled)
+	mockStorage.AssertExpectations(t)
+}
+
+// TestReconcileNodeGroupMapsBatch_HarvestOK_WithBody_ClosesBody covers line 466 (resp.Body.Close).
+func TestReconcileNodeGroupMapsBatch_HarvestOK_WithBody_ClosesBody(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := &UnRegisterNodeFromHarvestActivity{SE: mockStorage}
+	m := &datamodel.NodeNodeGroupMap{
+		BaseModel: datamodel.BaseModel{ID: 1}, NodeID: 10, NodeGroupID: 100,
+		NodeGroup: &datamodel.NodeGroup{BaseModel: datamodel.BaseModel{ID: 100}, Name: "g1", LeaseName: "lease-1"},
+	}
+	mockStorage.On("DeleteNodeNodeGroupMap", mock.Anything, int64(1)).Return(nil)
+
+	oldDelete := deletePollerRestResponse
+	deletePollerRestResponse = func(ctx context.Context, url string) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(""))}, nil
+	}
+	defer func() { deletePollerRestResponse = oldDelete }()
+
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(activity.ReconcileNodeGroupMapsBatch)
+
+	result, err := env.ExecuteActivity(activity.ReconcileNodeGroupMapsBatch, &ReconcileNodeGroupMapsBatchParams{Maps: []*datamodel.NodeNodeGroupMap{m}})
+	assert.NoError(t, err)
+	var batchResult ReconcileNodeGroupMapsBatchResult
+	_ = result.Get(&batchResult)
+	assert.Equal(t, 1, batchResult.Reconciled)
+	mockStorage.AssertExpectations(t)
 }

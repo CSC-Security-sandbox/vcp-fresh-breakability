@@ -645,6 +645,38 @@ func TestGetNodesByPoolID_Persistence_Store(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetNodeByID_Persistence_Store(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	// Node ID 0 or non-existent returns error; call exercises the delegation path
+	_, err = store.GetNodeByID(ctx, 0)
+	assert.Error(t, err)
+}
+
+func TestListNodeNodeGroupMapAfterID_Persistence_Store(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+	result, err := store.ListNodeNodeGroupMapAfterID(ctx, false, 0, 10)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 // LIF
 func TestCreateLif_Persistence_Store(t *testing.T) {
 	logger := log.NewLogger()

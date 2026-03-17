@@ -99,6 +99,26 @@ func (d *DataStoreRepository) ListNodeNodeGroupMap(
 	return nodesGroupMap, nil
 }
 
+// ListNodeNodeGroupMapAfterID returns records with id > afterID, ordered by id ascending, with limit.
+// Used for keyset (cursor) pagination so that soft-deletes during iteration do not cause rows to be skipped.
+func (d *DataStoreRepository) ListNodeNodeGroupMapAfterID(
+	ctx context.Context,
+	includeDeleted bool,
+	afterID int64,
+	limit int,
+) ([]*datamodel.NodeNodeGroupMap, error) {
+	db := d.db.GORM().WithContext(ctx)
+	if includeDeleted {
+		db = d.db.Unscoped().GORM().WithContext(ctx)
+	}
+	var nodesGroupMap []*datamodel.NodeNodeGroupMap
+	err := db.Where("id > ?", afterID).Order("id ASC").Limit(limit).Preload("NodeGroup").Find(&nodesGroupMap).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return nodesGroupMap, nil
+}
+
 // DeleteNodeNodeGroupMap deletes a node to nodegroup mapping by ID
 func (d *DataStoreRepository) DeleteNodeNodeGroupMap(ctx context.Context, id int64) error {
 	tx := d.db.GORM().WithContext(ctx)

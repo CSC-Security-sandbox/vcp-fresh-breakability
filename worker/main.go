@@ -298,6 +298,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterWorkflow(replicationWorkflows.StopReplicationWorkflow)
 	worker.RegisterWorkflow(workflows.RegisterNodeToHarvestFarmWorkflow)
 	worker.RegisterWorkflow(workflows.UnRegisterNodeFromHarvestFarmWorkflow)
+	worker.RegisterWorkflow(workflows.ReconcileHarvestNodeGroupMapWorkflow)
 	worker.RegisterWorkflow(workflows.HarvestPollerUpgradeWorkFlow)
 	worker.RegisterWorkflow(replicationWorkflows.ReplicationDeleteWorkflow)
 	worker.RegisterWorkflow(ontaprest.PollOntapJob)

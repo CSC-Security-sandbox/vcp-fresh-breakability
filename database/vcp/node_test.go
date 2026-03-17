@@ -56,6 +56,79 @@ func TestGetNodesByPoolID(t *testing.T) {
 		assert.NoError(tt, err, "Expected no error, got %v", err)
 		assert.Equal(tt, 0, len(result))
 	})
+	t.Run("WhenDBError", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		dbConn, _ := db.DB()
+		_ = dbConn.Close()
+
+		result, err := store.GetNodesByPoolID(context.Background(), 1)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		var ce *vsaerrors.CustomError
+		if assert.True(tt, errors.As(err, &ce)) {
+			assert.Equal(tt, vsaerrors.ErrDatabaseDataReadError, ce.TrackingID)
+		}
+	})
+}
+
+func TestGetNodeByID(t *testing.T) {
+	t.Run("WhenNodeExists", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		node := &datamodel.Node{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-node-uuid"},
+			Name:      "test_node",
+			PoolID:    1234,
+		}
+		err = store.db.Create(node).Error()
+		assert.NoError(tt, err)
+
+		got, err := store.GetNodeByID(context.Background(), node.ID)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, got)
+		assert.Equal(tt, node.ID, got.ID)
+		assert.Equal(tt, node.Name, got.Name)
+	})
+	t.Run("WhenNodeNotFound", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		got, err := store.GetNodeByID(context.Background(), 99999)
+		assert.Error(tt, err)
+		assert.Nil(tt, got)
+		var ce *vsaerrors.CustomError
+		if assert.True(tt, errors.As(err, &ce)) {
+			assert.Equal(tt, vsaerrors.ErrDatabaseDataNotFoundError, ce.TrackingID)
+		}
+	})
+	t.Run("WhenDBReadError", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		dbConn, _ := db.DB()
+		_ = dbConn.Close()
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		got, err := store.GetNodeByID(context.Background(), 1)
+		assert.Error(tt, err)
+		assert.Nil(tt, got)
+		var ce *vsaerrors.CustomError
+		if assert.True(tt, errors.As(err, &ce)) {
+			assert.Equal(tt, vsaerrors.ErrDatabaseDataReadError, ce.TrackingID)
+		}
+	})
 }
 
 func TestCreateNode(t *testing.T) {
