@@ -122,19 +122,19 @@ func TestUpdateBackupVaultStateDetails_OverlaysCmekFromVCP(t *testing.T) {
 	}
 }
 
-func TestUpdateBackupVaultStateDetails_SetsCrossProjectVaultForGCBDR(t *testing.T) {
+func TestUpdateBackupVaultStateDetails_SetsCrossProjectVaultForCrossProject(t *testing.T) {
 	cvpBv := &models.BackupVaultV1beta{
-		ResourceID:    nillable.GetStringPtr("gcbdr-vault"),
+		ResourceID:    nillable.GetStringPtr("cross-project-vault"),
 		BackupVaultID: "vault-id",
 		State:         "READY",
 		StateDetails:  "ready",
 	}
 
 	vcpBv := &mod.BackupVaultV1beta{
-		Name:                  "gcbdr-vault",
+		Name:                  "cross-project-vault",
 		LifeCycleState:        "READY",
 		LifeCycleStateDetails: "ready",
-		ServiceType:           mod.ServiceTypeGCBDR,
+		ServiceType:           mod.ServiceTypeCrossProject,
 	}
 
 	res := updateBackupVaultStateDetails([]*mod.BackupVaultV1beta{vcpBv}, []*models.BackupVaultV1beta{cvpBv})
@@ -196,7 +196,7 @@ func TestConvertBackupVaultV1Beta_CrossProjectVaultFalse(t *testing.T) {
 	assert.True(t, result.CrossProjectVault.IsSet())
 	assert.False(t, result.CrossProjectVault.Value)
 }
-func TestConvertBackupVaultV1Beta_CrossProjectVaultNotSetForNonGCBDR(t *testing.T) {
+func TestConvertBackupVaultV1Beta_CrossProjectVaultNotSetForNonCrossProject(t *testing.T) {
 	bv := &models.BackupVaultV1beta{
 		BackupVaultID: "vault-id",
 		ResourceID:    nillable.GetStringPtr("normal-vault"),
@@ -403,7 +403,7 @@ func TestV1betaDescribeBackupVault(t *testing.T) {
 		mockOrchestrator.AssertExpectations(t)
 	})
 
-	t.Run("WhenDescribeBackupVaultSetsCrossProjectVaultForGCBDR", func(t *testing.T) {
+	t.Run("WhenDescribeBackupVaultSetsCrossProjectVaultForCrossProject", func(t *testing.T) {
 		mockClient := backup_vault.NewMockClientService(t)
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		origBackupEnabled := backupEnabled
@@ -414,13 +414,13 @@ func TestV1betaDescribeBackupVault(t *testing.T) {
 			LocationId:     "test-location",
 			ProjectNumber:  "12345",
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
-			BackupVaultId:  "bv-gcbdr",
+			BackupVaultId:  "bv-cross-project",
 		}
 
 		mockResponse := &backup_vault.V1betaDescribeBackupVaultOK{
 			Payload: &models.BackupVaultV1beta{
-				ResourceID:      nillable.GetStringPtr("bv-gcbdr"),
-				BackupVaultID:   "bvid-gcbdr",
+				ResourceID:      nillable.GetStringPtr("bv-cross-project"),
+				BackupVaultID:   "bvid-cross-project",
 				BackupVaultType: nillable.GetStringPtr("IN_REGION"),
 				State:           "READY",
 				StateDetails:    "ready",
@@ -428,14 +428,14 @@ func TestV1betaDescribeBackupVault(t *testing.T) {
 		}
 
 		vcpBv := &mod.BackupVaultV1beta{
-			Name:                  "bv-gcbdr",
-			BackupVaultID:         "bvid-gcbdr",
+			Name:                  "bv-cross-project",
+			BackupVaultID:         "bvid-cross-project",
 			LifeCycleState:        "READY",
 			LifeCycleStateDetails: "ready",
-			ServiceType:           mod.ServiceTypeGCBDR,
+			ServiceType:           mod.ServiceTypeCrossProject,
 		}
 
-		mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "bv-gcbdr", "12345").Return(vcpBv, nil)
+		mockOrchestrator.On("GetBackupVaultByUUID", mock.Anything, "bv-cross-project", "12345").Return(vcpBv, nil)
 
 		mockClient.EXPECT().
 			V1betaDescribeBackupVault(mock.Anything).
@@ -2234,7 +2234,55 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 	})
-	t.Run("ReturnsBadRequestWhenGCBDRDisabledButTenantProjectSet", func(t *testing.T) {
+	t.Run("ReturnsBadRequestWhenTenantProjectWithoutCrossProjectVault", func(t *testing.T) {
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			LocationId:    "us-central1",
+			ProjectNumber: "test-project-123",
+		}
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:    gcpgenserver.NewOptString("cross-project-vault"),
+			TenantProject: gcpgenserver.NewOptString("tenant-project-123"),
+		}
+
+		handler := Handler{}
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		badRequestResult, ok := result.(*gcpgenserver.V1betaCreateBackupVaultBadRequest)
+		assert.True(t, ok, "Expected BadRequest response type")
+		assert.Contains(t, badRequestResult.Message, "crossProjectVault must be set to true when tenantProject is provided")
+	})
+	t.Run("ReturnsBadRequestWhenCrossProjectVaultWithoutTenantProject", func(t *testing.T) {
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			LocationId:    "us-central1",
+			ProjectNumber: "test-project-123",
+		}
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:        gcpgenserver.NewOptString("cross-project-vault"),
+			CrossProjectVault: gcpgenserver.NewOptBool(true),
+		}
+
+		handler := Handler{}
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		badRequestResult, ok := result.(*gcpgenserver.V1betaCreateBackupVaultBadRequest)
+		assert.True(t, ok, "Expected BadRequest response type")
+		assert.Contains(t, badRequestResult.Message, "tenantProject is required when creating a cross-project backup vault")
+	})
+	t.Run("ReturnsBadRequestWhenCrossProjectDisabled", func(t *testing.T) {
 		origBackupEnabled := backupEnabled
 		origGCBDRVaultEnabled := GCBDRVaultEnabled
 		defer func() {
@@ -2249,8 +2297,9 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 			ProjectNumber: "test-project-123",
 		}
 		req := &gcpgenserver.BackupVaultCreateV1beta{
-			ResourceId:    gcpgenserver.NewOptString("gcbdr-vault"),
-			TenantProject: gcpgenserver.NewOptString("tenant-project-123"),
+			ResourceId:        gcpgenserver.NewOptString("cross-project-vault"),
+			CrossProjectVault: gcpgenserver.NewOptBool(true),
+			TenantProject:     gcpgenserver.NewOptString("tenant-project-123"),
 		}
 
 		handler := Handler{}
@@ -2261,9 +2310,9 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 
 		badRequestResult, ok := result.(*gcpgenserver.V1betaCreateBackupVaultBadRequest)
 		assert.True(t, ok, "Expected BadRequest response type")
-		assert.Contains(t, badRequestResult.Message, "GCBDR backup vault creation is not enabled")
+		assert.Contains(t, badRequestResult.Message, "Cross-project backup vault creation is not enabled")
 	})
-	t.Run("ReturnsBadRequestWhenGCBDRWithCMEK", func(t *testing.T) {
+	t.Run("ReturnsBadRequestWhenCrossProjectWithCMEK", func(t *testing.T) {
 		origBackupEnabled := backupEnabled
 		origGCBDRVaultEnabled := GCBDRVaultEnabled
 		defer func() {
@@ -2278,7 +2327,8 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 			ProjectNumber: "test-project-123",
 		}
 		req := &gcpgenserver.BackupVaultCreateV1beta{
-			ResourceId:            gcpgenserver.NewOptString("gcbdr-cmek-vault"),
+			ResourceId:            gcpgenserver.NewOptString("cross-project-cmek-vault"),
+			CrossProjectVault:     gcpgenserver.NewOptBool(true),
 			TenantProject:         gcpgenserver.NewOptString("tenant-project-123"),
 			KmsConfigResourcePath: gcpgenserver.NewOptString("projects/p/locations/l/keyRings/r/cryptoKeys/k"),
 		}
@@ -2291,9 +2341,9 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 
 		badRequestResult, ok := result.(*gcpgenserver.V1betaCreateBackupVaultBadRequest)
 		assert.True(t, ok, "Expected BadRequest response type")
-		assert.Contains(t, badRequestResult.Message, "CMEK is not supported for GCBDR backup vaults")
+		assert.Contains(t, badRequestResult.Message, "CMEK is not supported for cross-project backup vaults")
 	})
-	t.Run("ReturnsBadRequestWhenGCBDRWithCRB", func(t *testing.T) {
+	t.Run("ReturnsBadRequestWhenCrossProjectWithCRB", func(t *testing.T) {
 		origBackupEnabled := backupEnabled
 		origGCBDRVaultEnabled := GCBDRVaultEnabled
 		defer func() {
@@ -2308,9 +2358,10 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 			ProjectNumber: "test-project-123",
 		}
 		req := &gcpgenserver.BackupVaultCreateV1beta{
-			ResourceId:    gcpgenserver.NewOptString("gcbdr-crb-vault"),
-			TenantProject: gcpgenserver.NewOptString("tenant-project-123"),
-			BackupRegion:  gcpgenserver.NewOptString("us-east1"),
+			ResourceId:        gcpgenserver.NewOptString("cross-project-crb-vault"),
+			CrossProjectVault: gcpgenserver.NewOptBool(true),
+			TenantProject:     gcpgenserver.NewOptString("tenant-project-123"),
+			BackupRegion:      gcpgenserver.NewOptString("us-east1"),
 		}
 
 		handler := Handler{}
@@ -2321,9 +2372,9 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 
 		badRequestResult, ok := result.(*gcpgenserver.V1betaCreateBackupVaultBadRequest)
 		assert.True(t, ok, "Expected BadRequest response type")
-		assert.Contains(t, badRequestResult.Message, "Cross-region backup is not supported for GCBDR backup vaults")
+		assert.Contains(t, badRequestResult.Message, "Cross-region backup is not supported for cross-project backup vaults")
 	})
-	t.Run("ReturnsBadRequestWhenGCBDRWithImmutable", func(t *testing.T) {
+	t.Run("ReturnsBadRequestWhenCrossProjectWithImmutable", func(t *testing.T) {
 		origBackupEnabled := backupEnabled
 		origGCBDRVaultEnabled := GCBDRVaultEnabled
 		defer func() {
@@ -2338,8 +2389,9 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 			ProjectNumber: "test-project-123",
 		}
 		req := &gcpgenserver.BackupVaultCreateV1beta{
-			ResourceId:    gcpgenserver.NewOptString("gcbdr-immutable-vault"),
-			TenantProject: gcpgenserver.NewOptString("tenant-project-123"),
+			ResourceId:        gcpgenserver.NewOptString("cross-project-immutable-vault"),
+			CrossProjectVault: gcpgenserver.NewOptBool(true),
+			TenantProject:     gcpgenserver.NewOptString("tenant-project-123"),
 			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyV1beta(
 				gcpgenserver.BackupRetentionPolicyV1beta{
 					BackupMinimumEnforcedRetentionDays: gcpgenserver.NewOptInt(30),
@@ -2355,7 +2407,7 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 
 		badRequestResult, ok := result.(*gcpgenserver.V1betaCreateBackupVaultBadRequest)
 		assert.True(t, ok, "Expected BadRequest response type")
-		assert.Contains(t, badRequestResult.Message, "Immutable backup vaults are not supported for GCBDR backup vaults")
+		assert.Contains(t, badRequestResult.Message, "Immutable backup vaults are not supported for cross-project backup vaults")
 	})
 	t.Run("ReturnsBadRequestWhenRegionParsingFails", func(t *testing.T) {
 		params := gcpgenserver.V1betaCreateBackupVaultParams{
@@ -2953,11 +3005,12 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 		assert.NotNil(t, result)
 		mockOrchestrator.AssertExpectations(t)
 	})
-	t.Run("WhenGCBDRVaultEnabledAndCreateBackupVaultEntryInVCPFromCVPFails_ReturnsInternalServerError", func(t *testing.T) {
+	t.Run("WhenCrossProjectVaultEnabledAndCreateBackupVaultEntryInVCPFromCVPFails_ReturnsInternalServerError", func(t *testing.T) {
 		mockClient := backup_vault.NewMockClientService(t)
 		req := &gcpgenserver.BackupVaultCreateV1beta{
-			ResourceId:    gcpgenserver.NewOptString("new-vault"),
-			TenantProject: gcpgenserver.NewOptString("596181058421"),
+			ResourceId:        gcpgenserver.NewOptString("new-vault"),
+			CrossProjectVault: gcpgenserver.NewOptBool(true),
+			TenantProject:     gcpgenserver.NewOptString("596181058421"),
 		}
 		origBackupEnabled := backupEnabled
 		origGCBDRVaultEnabled := GCBDRVaultEnabled
@@ -3017,11 +3070,12 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 		assert.Equal(t, "Failed to create BackupVault entry in VCP", internalErr.Message)
 		mockOrchestrator.AssertExpectations(t)
 	})
-	t.Run("WhenGCBDRVaultCreatedSuccessfully_ResponseIncludesCrossProjectVault", func(t *testing.T) {
+	t.Run("WhenCrossProjectVaultCreatedSuccessfully_ResponseIncludesCrossProjectVault", func(t *testing.T) {
 		mockClient := backup_vault.NewMockClientService(t)
 		req := &gcpgenserver.BackupVaultCreateV1beta{
-			ResourceId:    gcpgenserver.NewOptString("gcbdr-vault"),
-			TenantProject: gcpgenserver.NewOptString("596181058421"),
+			ResourceId:        gcpgenserver.NewOptString("cross-project-vault"),
+			CrossProjectVault: gcpgenserver.NewOptBool(true),
+			TenantProject:     gcpgenserver.NewOptString("596181058421"),
 		}
 		origBackupEnabled := backupEnabled
 		origGCBDRVaultEnabled := GCBDRVaultEnabled
@@ -3040,8 +3094,8 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 			return "us-east4", "us-east4", nil
 		}
 		bvResponse := &models.BackupVaultV1beta{
-			BackupVaultID: "bv-uuid-gcbdr",
-			ResourceID:    nillable.GetStringPtr("gcbdr-vault"),
+			BackupVaultID: "bv-uuid-cross-project",
+			ResourceID:    nillable.GetStringPtr("cross-project-vault"),
 			State:         "READY",
 			StateDetails:  "Available for use",
 		}
@@ -3052,9 +3106,10 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 				Response: bvResponse,
 			},
 		}
-		bvName := "gcbdr-vault"
+		bvName := "cross-project-vault"
 		mockOrchestrator.On("GetBackupVaultByNameAndOwnerID", mock.Anything, bvName, "1234567890").
 			Return(nil, errors2.NewNotFoundErr("backup vault", &bvName))
+		// When crossProjectVault is true, tenantProject from request is used
 		mockOrchestrator.On("CreateBackupVaultEntryInVCPFromCVP", mock.Anything, mock.Anything, "us-east4", "1234567890", "596181058421").
 			Return(nil, nil)
 		mockClient.EXPECT().
@@ -3083,6 +3138,226 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 		var responseMap map[string]interface{}
 		require.NoError(t, utils.ConvertJsonToModel(opResult.Response, &responseMap))
 		assert.Equal(t, true, responseMap["crossProjectVault"])
+		mockOrchestrator.AssertExpectations(t)
+	})
+	t.Run("WhenCrossProjectVaultTrueButTenantProjectMissing_ReturnsBadRequest", func(t *testing.T) {
+		origBackupEnabled := backupEnabled
+		defer func() { backupEnabled = origBackupEnabled }()
+		backupEnabled = true
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "1234567890",
+		}
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:        gcpgenserver.NewOptString("cross-project-vault-no-tenant"),
+			CrossProjectVault: gcpgenserver.NewOptBool(true),
+		}
+
+		handler := Handler{}
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		badRequestResult, ok := result.(*gcpgenserver.V1betaCreateBackupVaultBadRequest)
+		assert.True(t, ok, "Expected BadRequest response type")
+		assert.Contains(t, badRequestResult.Message, "tenantProject is required when creating a cross-project backup vault")
+	})
+	t.Run("WhenCrossProjectVaultTrueAndDisabled_ReturnsBadRequest", func(t *testing.T) {
+		origBackupEnabled := backupEnabled
+		origGCBDRVaultEnabled := GCBDRVaultEnabled
+		defer func() {
+			backupEnabled = origBackupEnabled
+			GCBDRVaultEnabled = origGCBDRVaultEnabled
+		}()
+		backupEnabled = true
+		GCBDRVaultEnabled = false
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			LocationId:    "us-central1",
+			ProjectNumber: "test-project-123",
+		}
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:        gcpgenserver.NewOptString("cross-project-vault"),
+			CrossProjectVault: gcpgenserver.NewOptBool(true),
+			TenantProject:     gcpgenserver.NewOptString("tenant-project-123"),
+		}
+
+		handler := Handler{}
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		badRequestResult, ok := result.(*gcpgenserver.V1betaCreateBackupVaultBadRequest)
+		assert.True(t, ok, "Expected BadRequest response type")
+		assert.Contains(t, badRequestResult.Message, "Cross-project backup vault creation is not enabled")
+	})
+	t.Run("WhenCrossProjectVaultTrueWithCMEK_ReturnsBadRequest", func(t *testing.T) {
+		origBackupEnabled := backupEnabled
+		origGCBDRVaultEnabled := GCBDRVaultEnabled
+		defer func() {
+			backupEnabled = origBackupEnabled
+			GCBDRVaultEnabled = origGCBDRVaultEnabled
+		}()
+		backupEnabled = true
+		GCBDRVaultEnabled = true
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			LocationId:    "us-central1",
+			ProjectNumber: "test-project-123",
+		}
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:            gcpgenserver.NewOptString("cross-project-vault-cmek"),
+			CrossProjectVault:     gcpgenserver.NewOptBool(true),
+			TenantProject:         gcpgenserver.NewOptString("tenant-project-123"),
+			KmsConfigResourcePath: gcpgenserver.NewOptString("projects/p/locations/l/keyRings/r/cryptoKeys/k"),
+		}
+
+		handler := Handler{}
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		badRequestResult, ok := result.(*gcpgenserver.V1betaCreateBackupVaultBadRequest)
+		assert.True(t, ok, "Expected BadRequest response type")
+		assert.Contains(t, badRequestResult.Message, "CMEK is not supported for cross-project backup vaults")
+	})
+	t.Run("WhenCrossProjectVaultTrueWithCRB_ReturnsBadRequest", func(t *testing.T) {
+		origBackupEnabled := backupEnabled
+		origGCBDRVaultEnabled := GCBDRVaultEnabled
+		defer func() {
+			backupEnabled = origBackupEnabled
+			GCBDRVaultEnabled = origGCBDRVaultEnabled
+		}()
+		backupEnabled = true
+		GCBDRVaultEnabled = true
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			LocationId:    "us-central1",
+			ProjectNumber: "test-project-123",
+		}
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:        gcpgenserver.NewOptString("cross-project-vault-crb"),
+			CrossProjectVault: gcpgenserver.NewOptBool(true),
+			TenantProject:     gcpgenserver.NewOptString("tenant-project-123"),
+			BackupRegion:      gcpgenserver.NewOptString("us-east1"),
+		}
+
+		handler := Handler{}
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		badRequestResult, ok := result.(*gcpgenserver.V1betaCreateBackupVaultBadRequest)
+		assert.True(t, ok, "Expected BadRequest response type")
+		assert.Contains(t, badRequestResult.Message, "Cross-region backup is not supported for cross-project backup vaults")
+	})
+	t.Run("WhenCrossProjectVaultTrueWithImmutable_ReturnsBadRequest", func(t *testing.T) {
+		origBackupEnabled := backupEnabled
+		origGCBDRVaultEnabled := GCBDRVaultEnabled
+		defer func() {
+			backupEnabled = origBackupEnabled
+			GCBDRVaultEnabled = origGCBDRVaultEnabled
+		}()
+		backupEnabled = true
+		GCBDRVaultEnabled = true
+
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			LocationId:    "us-central1",
+			ProjectNumber: "test-project-123",
+		}
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:        gcpgenserver.NewOptString("cross-project-vault-immutable"),
+			CrossProjectVault: gcpgenserver.NewOptBool(true),
+			TenantProject:     gcpgenserver.NewOptString("tenant-project-123"),
+			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyV1beta(
+				gcpgenserver.BackupRetentionPolicyV1beta{
+					BackupMinimumEnforcedRetentionDays: gcpgenserver.NewOptInt(30),
+					DailyBackupImmutable:               gcpgenserver.NewOptBool(true),
+				}),
+		}
+
+		handler := Handler{}
+		result, err := handler.V1betaCreateBackupVault(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		badRequestResult, ok := result.(*gcpgenserver.V1betaCreateBackupVaultBadRequest)
+		assert.True(t, ok, "Expected BadRequest response type")
+		assert.Contains(t, badRequestResult.Message, "Immutable backup vaults are not supported for cross-project backup vaults")
+	})
+	t.Run("WhenCrossProjectVaultFalse_DoesNotCreateCrossProjectVault", func(t *testing.T) {
+		mockClient := backup_vault.NewMockClientService(t)
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:        gcpgenserver.NewOptString("regular-vault"),
+			CrossProjectVault: gcpgenserver.NewOptBool(false),
+		}
+		origBackupEnabled := backupEnabled
+		origGCBDRVaultEnabled := GCBDRVaultEnabled
+		defer func() {
+			backupEnabled = origBackupEnabled
+			GCBDRVaultEnabled = origGCBDRVaultEnabled
+		}()
+		backupEnabled = true
+		GCBDRVaultEnabled = true
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "1234567890",
+		}
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+		bvResponse := &models.BackupVaultV1beta{
+			BackupVaultID: "bv-uuid-regular",
+			ResourceID:    nillable.GetStringPtr("regular-vault"),
+			State:         "READY",
+			StateDetails:  "Available for use",
+		}
+		mockResponse := &backup_vault.V1betaCreateBackupVaultAccepted{
+			Payload: &models.OperationV1beta{
+				Name:     "operation-id",
+				Done:     nillable.GetBoolPtr(true),
+				Response: bvResponse,
+			},
+		}
+		bvName := "regular-vault"
+		mockOrchestrator.On("GetBackupVaultByNameAndOwnerID", mock.Anything, bvName, "1234567890").
+			Return(nil, errors2.NewNotFoundErr("backup vault", &bvName))
+		// CreateBackupVaultEntryInVCPFromCVP should NOT be called for regular vaults
+		mockClient.EXPECT().
+			V1betaCreateBackupVault(mock.Anything).
+			Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockClient}
+		originalCreateClient := cvpCreateClient
+		defer func() {
+			cvpCreateClient = originalCreateClient
+			utilsConvertJsonToModel = utils.ConvertJsonToModel
+		}()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+		utilsConvertJsonToModel = func(data []byte, model interface{}) error {
+			return utils.ConvertJsonToModel(data, model)
+		}
+		handler := Handler{Orchestrator: mockOrchestrator}
+		ctx := context.Background()
+		result, err := handler.V1betaCreateBackupVault(ctx, req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		opResult, ok := result.(*gcpgenserver.OperationV1beta)
+		require.True(t, ok, "expected OperationV1beta response")
+		var responseMap map[string]interface{}
+		require.NoError(t, utils.ConvertJsonToModel(opResult.Response, &responseMap))
+		// crossProjectVault should not be set for regular vaults
+		_, hasCrossProjectVault := responseMap["crossProjectVault"]
+		assert.False(t, hasCrossProjectVault, "crossProjectVault should not be set for regular vaults")
 		mockOrchestrator.AssertExpectations(t)
 	})
 }

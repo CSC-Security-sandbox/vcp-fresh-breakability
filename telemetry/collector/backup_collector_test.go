@@ -37,7 +37,7 @@ func Test_GetBackupMetrics_ReturnsMetrics(t *testing.T) {
 	m := new(mockBackupStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{
-		RegionName:             "us-east-1",
+		RegionName:               "us-east-1",
 		EnableFilesBackupBilling: true, // Enable files backup billing to include in HydratedMetricsDataModel
 	}
 
@@ -101,7 +101,7 @@ func Test_GetBackupMetrics_MultipleBackups(t *testing.T) {
 	m := new(mockBackupStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{
-		RegionName:             "us-east-1",
+		RegionName:               "us-east-1",
 		EnableFilesBackupBilling: true, // Enable files backup billing to include in HydratedMetricsDataModel
 	}
 
@@ -247,7 +247,7 @@ func Test_GetBackupMetrics_MixedValidAndNilAttributes(t *testing.T) {
 	m := new(mockBackupStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{
-		RegionName:             "us-east-1",
+		RegionName:               "us-east-1",
 		EnableFilesBackupBilling: true, // Enable files backup billing to include in HydratedMetricsDataModel
 	}
 
@@ -419,7 +419,7 @@ func TestGetBackupMetrics_HydratedMetricsDataModelIntegration(t *testing.T) {
 	m := new(mockBackupStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{
-		RegionName:             "ap-south-1",
+		RegionName:               "ap-south-1",
 		EnableFilesBackupBilling: true, // Enable files backup billing to include in HydratedMetricsDataModel
 	}
 
@@ -488,7 +488,7 @@ func Test_GetBackupMetrics_WithSANProtocol(t *testing.T) {
 	m := new(mockBackupStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{
-		RegionName:             "us-east-1",
+		RegionName:               "us-east-1",
 		EnableFilesBackupBilling: false, // Disabled
 	}
 
@@ -532,7 +532,7 @@ func Test_GetBackupMetrics_WithNASProtocol_NotIncluded(t *testing.T) {
 	m := new(mockBackupStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{
-		RegionName:             "us-east-1",
+		RegionName:               "us-east-1",
 		EnableFilesBackupBilling: false, // Disabled
 	}
 
@@ -574,7 +574,7 @@ func Test_GetBackupMetrics_WithNASProtocol_IncludedWhenEnabled(t *testing.T) {
 	m := new(mockBackupStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{
-		RegionName:             "us-east-1",
+		RegionName:               "us-east-1",
 		EnableFilesBackupBilling: true, // Enabled
 	}
 
@@ -617,7 +617,7 @@ func Test_GetBackupMetrics_NoProtocols_NotIncluded(t *testing.T) {
 	m := new(mockBackupStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{
-		RegionName:             "us-east-1",
+		RegionName:               "us-east-1",
 		EnableFilesBackupBilling: false, // Disabled
 	}
 
@@ -659,7 +659,7 @@ func Test_GetBackupMetrics_MixedProtocols(t *testing.T) {
 	m := new(mockBackupStorage)
 	ctx := context.Background()
 	config := &common.TelemetryConfig{
-		RegionName:             "us-east-1",
+		RegionName:               "us-east-1",
 		EnableFilesBackupBilling: false, // Disabled
 	}
 
@@ -1328,8 +1328,8 @@ func TestGetBackupMetrics_SkipBilling_Cascade(t *testing.T) {
 				LatestLogicalBackupSize: 400,
 				Attributes:              &datamodel.BackupAttributes{AccountIdentifier: "acct", VolumeName: "vol"},
 				BackupVault: &datamodel.BackupVault{
-					BaseModel: datamodel.BaseModel{UUID: "bv-g3"},
-					Name:      "vault",
+					BaseModel:       datamodel.BaseModel{UUID: "bv-g3"},
+					Name:            "vault",
 					BackupVaultType: "IN_REGION",
 					CmekAttributes:  &datamodel.CmekAttributes{KmsConfigResourcePath: &cmekPath},
 				},
@@ -1353,8 +1353,8 @@ func TestGetBackupMetrics_SkipBilling_Cascade(t *testing.T) {
 					Protocols: []string{"NFS"},
 				},
 				BackupVault: &datamodel.BackupVault{
-					BaseModel: datamodel.BaseModel{UUID: "bv-g4"},
-					Name:      "vault",
+					BaseModel:       datamodel.BaseModel{UUID: "bv-g4"},
+					Name:            "vault",
 					BackupVaultType: "IN_REGION",
 				},
 			},
@@ -1377,8 +1377,8 @@ func TestGetBackupMetrics_SkipBilling_Cascade(t *testing.T) {
 					Protocols: []string{"ISCSI"},
 				},
 				BackupVault: &datamodel.BackupVault{
-					BaseModel: datamodel.BaseModel{UUID: "bv-g4san"},
-					Name:      "vault",
+					BaseModel:       datamodel.BaseModel{UUID: "bv-g4san"},
+					Name:            "vault",
 					BackupVaultType: "IN_REGION",
 				},
 			},
@@ -1426,8 +1426,8 @@ func TestGetBackupMetrics_SkipBilling_Cascade(t *testing.T) {
 					Protocols: []string{"NFS"},
 				},
 				BackupVault: &datamodel.BackupVault{
-					BaseModel: datamodel.BaseModel{UUID: "bv-std"},
-					Name:      "vault",
+					BaseModel:       datamodel.BaseModel{UUID: "bv-std"},
+					Name:            "vault",
 					BackupVaultType: "IN_REGION",
 				},
 			},
@@ -1709,7 +1709,7 @@ func TestGetBackupMetrics_GcbdrBackupBilling_SkipsAndIncludes(t *testing.T) {
 		description                   string
 	}{
 		{
-			name:                    "GCBDR billing disabled - skip GCBDR backup billing metrics",
+			name:                     "GCBDR billing disabled - skip GCBDR backup billing metrics",
 			enableGcbdrBackupBilling: false,
 			backups: []*datamodel.Backup{
 				{
@@ -1724,7 +1724,7 @@ func TestGetBackupMetrics_GcbdrBackupBilling_SkipsAndIncludes(t *testing.T) {
 					BackupVault: &datamodel.BackupVault{
 						BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-gcbdr-1"},
 						Name:        "BackupVaultGcbdr1",
-						ServiceType: models.ServiceTypeGCBDR,
+						ServiceType: models.ServiceTypeCrossProject,
 					},
 				},
 			},
@@ -1733,7 +1733,7 @@ func TestGetBackupMetrics_GcbdrBackupBilling_SkipsAndIncludes(t *testing.T) {
 			description:                   "GCBDR backup should skip HydratedMetricsDataModel when GCBDR billing is disabled",
 		},
 		{
-			name:                    "GCBDR billing enabled - include GCBDR backup billing metrics",
+			name:                     "GCBDR billing enabled - include GCBDR backup billing metrics",
 			enableGcbdrBackupBilling: true,
 			backups: []*datamodel.Backup{
 				{
@@ -1748,7 +1748,7 @@ func TestGetBackupMetrics_GcbdrBackupBilling_SkipsAndIncludes(t *testing.T) {
 					BackupVault: &datamodel.BackupVault{
 						BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-gcbdr-2"},
 						Name:        "BackupVaultGcbdr2",
-						ServiceType: models.ServiceTypeGCBDR,
+						ServiceType: models.ServiceTypeCrossProject,
 					},
 				},
 			},
@@ -1757,7 +1757,7 @@ func TestGetBackupMetrics_GcbdrBackupBilling_SkipsAndIncludes(t *testing.T) {
 			description:                   "GCBDR backup should create both metrics when GCBDR billing is enabled",
 		},
 		{
-			name:                    "GCBDR billing disabled - non-GCBDR backups still billed",
+			name:                     "GCBDR billing disabled - non-GCBDR backups still billed",
 			enableGcbdrBackupBilling: false,
 			backups: []*datamodel.Backup{
 				{

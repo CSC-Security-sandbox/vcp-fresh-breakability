@@ -13789,6 +13789,11 @@ components:
           description: Tenant project number for GCBDR backup vaults. When provided, the vault is created as GCBDR service type and only in VCP.
           example: "596181058421"
           x-nullable: true
+        crossProjectVault:
+          title: crossProjectVault
+          type: boolean
+          description: When true, creates a cross-project vault with CrossProject service type.
+          x-nullable: true
     BackupVaultUpdate_v1beta:
       title: BackupVaultUpdateRequest
       type: object

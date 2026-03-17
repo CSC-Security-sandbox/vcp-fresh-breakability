@@ -183,15 +183,15 @@ func GetVolumeMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 						}
 					}
 
-					// Skip billing for GCBDR backup vaults when GCBDR backup billing is disabled.
+					// Skip billing for cross-project backup vaults when GCBDR backup billing is disabled.
 					if !skipBilling && !config.EnableGcbdrBackupBilling && volume.DataProtection.BackupVaultID != "" {
 						if bv, exists := backupVaultMap[volume.DataProtection.BackupVaultID]; exists {
-							if bv.ServiceType == models.ServiceTypeGCBDR {
-								logger.Debug("Skipping BackupEnabledVolumeAllocatedSize billing metric for GCBDR backup vault", "volumeUUID", volume.UUID, "backupVaultID", volume.DataProtection.BackupVaultID)
+							if bv.ServiceType == models.ServiceTypeCrossProject {
+								logger.Debug("Skipping BackupEnabledVolumeAllocatedSize billing metric for cross-project backup vault", "volumeUUID", volume.UUID, "backupVaultID", volume.DataProtection.BackupVaultID)
 								skipBilling = true
 							}
 						} else {
-							logger.Error("Backup vault not found in map for GCBDR billing check", "backupVaultID", volume.DataProtection.BackupVaultID, "for volumeUUID", volume.UUID)
+							logger.Error("Backup vault not found in map for cross-project billing check", "backupVaultID", volume.DataProtection.BackupVaultID, "for volumeUUID", volume.UUID)
 							skipBilling = true
 						}
 					}

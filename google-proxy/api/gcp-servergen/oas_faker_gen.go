@@ -862,6 +862,11 @@ func (s *BackupVaultCreateV1beta) SetFake() {
 			s.TenantProject.SetFake()
 		}
 	}
+	{
+		{
+			s.CrossProjectVault.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.

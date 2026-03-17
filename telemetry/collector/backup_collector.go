@@ -132,10 +132,10 @@ func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 			}
 		}
 
-		// Skip billing for backups in GCBDR backup vaults when GCBDR backup billing is disabled.
+		// Skip billing for backups in cross-project backup vaults when GCBDR backup billing is disabled.
 		if !skipBilling && !config.EnableGcbdrBackupBilling {
-			if backup.BackupVault != nil && backup.BackupVault.ServiceType == models.ServiceTypeGCBDR {
-				logger.Debug("Skipping BackupLogicalSize billing metric for GCBDR backup", "backupUUID", backup.UUID, "backupVaultID", backup.BackupVault.UUID)
+			if backup.BackupVault != nil && backup.BackupVault.ServiceType == models.ServiceTypeCrossProject {
+				logger.Debug("Skipping BackupLogicalSize billing metric for cross-project backup", "backupUUID", backup.UUID, "backupVaultID", backup.BackupVault.UUID)
 				skipBilling = true
 			}
 		}

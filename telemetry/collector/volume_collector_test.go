@@ -396,7 +396,7 @@ func Test_GetVolumeMetrics_GcbdrBackupBillingDisabled_SkipsGcbdrVaults(t *testin
 	backupVaults := []*datamodel.BackupVault{
 		{
 			BaseModel:   datamodel.BaseModel{UUID: "bv-1"},
-			ServiceType: models.ServiceTypeGCBDR,
+			ServiceType: models.ServiceTypeCrossProject,
 		},
 	}
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return(backupVaults, nil)
@@ -444,7 +444,7 @@ func Test_GetVolumeMetrics_GcbdrBackupBillingEnabled_IncludesGcbdrVaults(t *test
 	backupVaults := []*datamodel.BackupVault{
 		{
 			BaseModel:   datamodel.BaseModel{UUID: "bv-1"},
-			ServiceType: models.ServiceTypeGCBDR,
+			ServiceType: models.ServiceTypeCrossProject,
 		},
 	}
 	m.On("GetMultipleBackupVaults", mock.Anything, mock.Anything).Return(backupVaults, nil)

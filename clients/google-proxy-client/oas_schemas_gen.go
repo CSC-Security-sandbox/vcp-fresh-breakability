@@ -2021,6 +2021,8 @@ type BackupVaultCreateV1beta struct {
 	// Tenant project number for GCBDR backup vaults. When provided, the vault is created as GCBDR
 	// service type and only in VCP.
 	TenantProject OptString `json:"tenantProject"`
+	// When true, creates a cross-project vault with CrossProject service type.
+	CrossProjectVault OptBool `json:"crossProjectVault"`
 }
 
 // GetResourceId returns the value of ResourceId.
@@ -2058,6 +2060,11 @@ func (s *BackupVaultCreateV1beta) GetTenantProject() OptString {
 	return s.TenantProject
 }
 
+// GetCrossProjectVault returns the value of CrossProjectVault.
+func (s *BackupVaultCreateV1beta) GetCrossProjectVault() OptBool {
+	return s.CrossProjectVault
+}
+
 // SetResourceId sets the value of ResourceId.
 func (s *BackupVaultCreateV1beta) SetResourceId(val OptString) {
 	s.ResourceId = val
@@ -2091,6 +2098,11 @@ func (s *BackupVaultCreateV1beta) SetBackupsPrimaryKeyVersion(val OptString) {
 // SetTenantProject sets the value of TenantProject.
 func (s *BackupVaultCreateV1beta) SetTenantProject(val OptString) {
 	s.TenantProject = val
+}
+
+// SetCrossProjectVault sets the value of CrossProjectVault.
+func (s *BackupVaultCreateV1beta) SetCrossProjectVault(val OptBool) {
+	s.CrossProjectVault = val
 }
 
 // Ref: #/components/schemas/BackupVaultInternalUpdate_v1beta

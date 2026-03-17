@@ -18,11 +18,11 @@ import (
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 )
 
 var (
@@ -172,23 +172,41 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 			Message: "Backup feature is currently not enabled.",
 		}, nil
 	}
-	if req.TenantProject.IsSet() && req.TenantProject.Value != "" {
+	// Validate cross-project vault creation: crossProjectVault and tenantProject must both be present together
+	hasCrossProjectFlag := req.CrossProjectVault.IsSet() && req.CrossProjectVault.Value
+	hasTenantProject := req.TenantProject.IsSet() && req.TenantProject.Value != ""
+
+	if hasTenantProject && !hasCrossProjectFlag {
+		return &gcpgenserver.V1betaCreateBackupVaultBadRequest{
+			Code:    400,
+			Message: "crossProjectVault must be set to true when tenantProject is provided.",
+		}, nil
+	}
+	if hasCrossProjectFlag && !hasTenantProject {
+		return &gcpgenserver.V1betaCreateBackupVaultBadRequest{
+			Code:    400,
+			Message: "tenantProject is required when creating a cross-project backup vault.",
+		}, nil
+	}
+
+	isCrossProjectVault := hasCrossProjectFlag && hasTenantProject
+	if isCrossProjectVault {
 		if !GCBDRVaultEnabled {
 			return &gcpgenserver.V1betaCreateBackupVaultBadRequest{
 				Code:    400,
-				Message: "GCBDR backup vault creation is not enabled.",
+				Message: "Cross-project backup vault creation is not enabled.",
 			}, nil
 		}
 		if req.KmsConfigResourcePath.IsSet() && req.KmsConfigResourcePath.Value != "" {
 			return &gcpgenserver.V1betaCreateBackupVaultBadRequest{
 				Code:    400,
-				Message: "CMEK is not supported for GCBDR backup vaults.",
+				Message: "CMEK is not supported for cross-project backup vaults.",
 			}, nil
 		}
 		if req.BackupRegion.IsSet() && req.BackupRegion.Value != "" {
 			return &gcpgenserver.V1betaCreateBackupVaultBadRequest{
 				Code:    400,
-				Message: "Cross-region backup is not supported for GCBDR backup vaults.",
+				Message: "Cross-region backup is not supported for cross-project backup vaults.",
 			}, nil
 		}
 		if req.BackupRetentionPolicy.IsSet() &&
@@ -196,7 +214,7 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 			req.BackupRetentionPolicy.Value.BackupMinimumEnforcedRetentionDays.Value > 0 {
 			return &gcpgenserver.V1betaCreateBackupVaultBadRequest{
 				Code:    400,
-				Message: "Immutable backup vaults are not supported for GCBDR backup vaults.",
+				Message: "Immutable backup vaults are not supported for cross-project backup vaults.",
 			}, nil
 		}
 	}
@@ -391,7 +409,7 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 		}, err
 	}
 
-	if GCBDRVaultEnabled && req.TenantProject.IsSet() && req.TenantProject.Value != "" {
+	if isCrossProjectVault {
 		_, err := h.Orchestrator.CreateBackupVaultEntryInVCPFromCVP(ctx, &data, reqPayloadparams.LocationId, reqPayloadparams.ProjectNumber, req.TenantProject.Value)
 		if err != nil {
 			logger.Error("Failed to create BackupVault entry in VCP from CVP response", "error", err)
@@ -677,7 +695,7 @@ func (h Handler) V1betaDescribeBackupVault(ctx context.Context, params gcpgenser
 		if vcpBackupVaultDetails.BackupsPrimaryKeyVersion != nil {
 			cvpResponse.Payload.BackupsPrimaryKeyVersion = vcpBackupVaultDetails.BackupsPrimaryKeyVersion
 		}
-		if vcpBackupVaultDetails.ServiceType == coremodels.ServiceTypeGCBDR {
+		if vcpBackupVaultDetails.ServiceType == coremodels.ServiceTypeCrossProject {
 			crossProject := true
 			cvpResponse.Payload.CrossProjectVault = &crossProject
 		}
@@ -892,7 +910,7 @@ func updateBackupVaultStateDetails(bvs []*coremodels.BackupVaultV1beta, cvpBvs [
 			if bv.BackupsPrimaryKeyVersion != nil {
 				cvpBv.BackupsPrimaryKeyVersion = bv.BackupsPrimaryKeyVersion
 			}
-			if bv.ServiceType == coremodels.ServiceTypeGCBDR {
+			if bv.ServiceType == coremodels.ServiceTypeCrossProject {
 				crossProject := true
 				cvpBv.CrossProjectVault = &crossProject
 			}

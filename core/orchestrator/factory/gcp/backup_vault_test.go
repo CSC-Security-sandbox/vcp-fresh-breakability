@@ -2297,7 +2297,7 @@ func TestCreateBackupVaultEntryInVCPFromCVP(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 
-	t.Run("WhenTenantProjectProvided_SetsGCBDRServiceTypeAndBucketDetails", func(tt *testing.T) {
+	t.Run("WhenTenantProjectProvided_SetsCrossProjectServiceTypeAndBucketDetails", func(tt *testing.T) {
 		mockStorage := new(database.MockStorage)
 		mockTemporal := new(workflow_engine_mock.MockTemporalTestClient)
 		orchestrator := &GCPOrchestrator{storage: mockStorage, temporal: mockTemporal}
@@ -2311,7 +2311,7 @@ func TestCreateBackupVaultEntryInVCPFromCVP(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "bv-uuid"},
 			Name:        "vault-resource-id",
 			AccountID:   account.ID,
-			ServiceType: models.ServiceTypeGCBDR,
+			ServiceType: models.ServiceTypeCrossProject,
 		}
 
 		convertCVPToBackupVaultDataModel = func(_ *cvpmodels.BackupVaultV1beta, _ string) (*datamodel.BackupVault, error) {
@@ -2322,7 +2322,7 @@ func TestCreateBackupVaultEntryInVCPFromCVP(t *testing.T) {
 		}
 		mockStorage.On("CreateBackupVaultEntryInVCP", ctx, mock.MatchedBy(func(bv *datamodel.BackupVault) bool {
 			return bv.UUID == "bv-uuid" &&
-				bv.ServiceType == models.ServiceTypeGCBDR &&
+				bv.ServiceType == models.ServiceTypeCrossProject &&
 				len(bv.BucketDetails) == 1 &&
 				bv.BucketDetails[0].TenantProjectNumber == "596181058421"
 		})).Return(createdBV, nil)
@@ -2336,7 +2336,7 @@ func TestCreateBackupVaultEntryInVCPFromCVP(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		assert.Equal(tt, models.ServiceTypeGCBDR, result.ServiceType)
+		assert.Equal(tt, models.ServiceTypeCrossProject, result.ServiceType)
 		mockStorage.AssertExpectations(tt)
 	})
 }

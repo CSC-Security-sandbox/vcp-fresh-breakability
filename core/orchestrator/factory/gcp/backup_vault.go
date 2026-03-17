@@ -467,7 +467,7 @@ func (o *GCPOrchestrator) CreateBackupVaultEntryInVCPFromCVP(ctx context.Context
 	}
 
 	if tenantProject != "" {
-		bv.ServiceType = models.ServiceTypeGCBDR
+		bv.ServiceType = models.ServiceTypeCrossProject
 		bv.BucketDetails = datamodel.BucketDetailsArray{
 			&datamodel.BucketDetails{
 				TenantProjectNumber: tenantProject,
