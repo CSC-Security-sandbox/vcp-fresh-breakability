@@ -273,6 +273,13 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 		}, nil
 	}
 
+	if parsedKmsKeyFullPath.ProjectID != strings.ToLower(parsedKmsKeyFullPath.ProjectID) {
+		return &gcpgenserver.V1betaCreateKmsConfigurationBadRequest{
+			Code:    400,
+			Message: "Project ID in KeyFullPath must not contain uppercase letters",
+		}, nil
+	}
+
 	if parsedKmsKeyFullPath.Location == regionGlobal || parsedKmsKeyFullPath.Location != region {
 		return &gcpgenserver.V1betaCreateKmsConfigurationBadRequest{
 			Code:    400,
@@ -774,6 +781,18 @@ func (h Handler) V1betaUpdateKmsConfiguration(ctx context.Context, req *gcpgense
 		}
 
 		URISplits = strings.Split(req.KeyFullPath.Value, "/")
+		if len(URISplits) < 8 {
+			return &gcpgenserver.V1betaUpdateKmsConfigurationBadRequest{
+				Code:    400,
+				Message: "KeyFullPath is not as expected sample : 'projects/projectID/locations/us-east1/keyRings/keyRing/cryptoKeys/keyName'",
+			}, nil
+		}
+		if URISplits[1] != strings.ToLower(URISplits[1]) {
+			return &gcpgenserver.V1betaUpdateKmsConfigurationBadRequest{
+				Code:    400,
+				Message: "Project ID in KeyFullPath must not contain uppercase letters",
+			}, nil
+		}
 		param.KeyName = URISplits[7]
 		param.KeyRing = URISplits[5]
 		param.KeyProjectID = URISplits[1]

@@ -84,6 +84,27 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.Equal(t, float64(400), result.(*gcpgenserver.V1betaCreateKmsConfigurationBadRequest).Code)
 		assert.Equal(t, "Invalid KeyFullPath format", result.(*gcpgenserver.V1betaCreateKmsConfigurationBadRequest).Message)
 	})
+	t.Run("CreateKmsConfigurationReturnsBadRequestWhenProjectIDHasUppercase", func(t *testing.T) {
+		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "test-project",
+		}
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		req := &gcpgenserver.KmsConfigV1beta{KeyFullPath: "projects/My-Project/locations/us-east4/keyRings/test-keyring/cryptoKeys/test-key"}
+		handler := Handler{}
+		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, float64(400), result.(*gcpgenserver.V1betaCreateKmsConfigurationBadRequest).Code)
+		assert.Equal(t, "Project ID in KeyFullPath must not contain uppercase letters", result.(*gcpgenserver.V1betaCreateKmsConfigurationBadRequest).Message)
+	})
 	t.Run("CreateKmsConfigurationReturnsBadRequestWhenLocationIdIsInvalid", func(t *testing.T) {
 		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
 			LocationId:    "invalid-location",
@@ -1998,7 +2019,7 @@ func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		req := &gcpgenserver.KmsConfigUpdateV1beta{
-			KeyFullPath: gcpgenserver.NewOptString("projects/projectID/locations/us/keyRings/keyRing/cryptoKeys/keyName"),
+			KeyFullPath: gcpgenserver.NewOptString("projects/projectid/locations/us/keyRings/keyRing/cryptoKeys/keyName"),
 			Description: gcpgenserver.NewOptString("test-description"),
 			ResourceId:  gcpgenserver.NewOptString("test-resource-id"),
 		}
@@ -2011,7 +2032,7 @@ func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 			Name:            resourceId,
 			KeyName:         "keyName",
 			KeyRing:         "keyRing",
-			KeyProjectID:    "projectID",
+			KeyProjectID:    "projectid",
 			KeyRingLocation: "us",
 			ResourceID:      resourceId,
 			Description:     "test-description",
@@ -2050,7 +2071,7 @@ func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		req := &gcpgenserver.KmsConfigUpdateV1beta{
-			KeyFullPath: gcpgenserver.NewOptString("projects/projectID/locations/us/keyRings/keyRing/cryptoKeys/keyName"),
+			KeyFullPath: gcpgenserver.NewOptString("projects/projectid/locations/us/keyRings/keyRing/cryptoKeys/keyName"),
 			Description: gcpgenserver.NewOptString("test-description"),
 			ResourceId:  gcpgenserver.NewOptString("test-resource-id"),
 		}
@@ -2080,7 +2101,7 @@ func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
 		}
 		req := &gcpgenserver.KmsConfigUpdateV1beta{
-			KeyFullPath: gcpgenserver.NewOptString("projects/projectID/locations/us/keyRings/keyRing/cryptoKeys/keyName"),
+			KeyFullPath: gcpgenserver.NewOptString("projects/projectid/locations/us/keyRings/keyRing/cryptoKeys/keyName"),
 			Description: gcpgenserver.NewOptString("test-description"),
 			ResourceId:  gcpgenserver.NewOptString("test-resource-id"),
 		}
@@ -2100,6 +2121,60 @@ func TestV1betaUpdateKmsConfiguration(t *testing.T) {
 		// Assertions
 		assert.NoError(t, err)
 		assert.Equal(t, result, &gcpgenserver.V1betaUpdateKmsConfigurationConflict{Code: 409, Message: "kms"})
+	})
+	t.Run("UpdateKmsConfigurationReturnsBadRequestWhenProjectIDHasUppercase", func(t *testing.T) {
+		params := gcpgenserver.V1betaUpdateKmsConfigurationParams{
+			KmsConfigId:    "kms-config-id-1",
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		req := &gcpgenserver.KmsConfigUpdateV1beta{
+			KeyFullPath: gcpgenserver.NewOptString("projects/My-Project/locations/us/keyRings/keyRing/cryptoKeys/keyName"),
+			Description: gcpgenserver.NewOptString("test-description"),
+			ResourceId:  gcpgenserver.NewOptString("test-resource-id"),
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "region", "zone", nil
+		}
+		handler := Handler{}
+		result, err := handler.V1betaUpdateKmsConfiguration(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, float64(400), result.(*gcpgenserver.V1betaUpdateKmsConfigurationBadRequest).Code)
+		assert.Equal(t, "Project ID in KeyFullPath must not contain uppercase letters", result.(*gcpgenserver.V1betaUpdateKmsConfigurationBadRequest).Message)
+	})
+	t.Run("UpdateKmsConfigurationReturnsBadRequestWhenKeyFullPathHasInsufficientSegments", func(t *testing.T) {
+		params := gcpgenserver.V1betaUpdateKmsConfigurationParams{
+			KmsConfigId:    "kms-config-id-1",
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		req := &gcpgenserver.KmsConfigUpdateV1beta{
+			KeyFullPath: gcpgenserver.NewOptString("projects/myproject/locations/us/keyRings/keyRing/cryptoKeyskeyName"),
+			Description: gcpgenserver.NewOptString("test-description"),
+			ResourceId:  gcpgenserver.NewOptString("test-resource-id"),
+		}
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "region", "zone", nil
+		}
+		handler := Handler{}
+		result, err := handler.V1betaUpdateKmsConfiguration(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, float64(400), result.(*gcpgenserver.V1betaUpdateKmsConfigurationBadRequest).Code)
+		assert.Equal(t, "KeyFullPath is not as expected sample : 'projects/projectID/locations/us-east1/keyRings/keyRing/cryptoKeys/keyName'", result.(*gcpgenserver.V1betaUpdateKmsConfigurationBadRequest).Message)
 	})
 }
 
