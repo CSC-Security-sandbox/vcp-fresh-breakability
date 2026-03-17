@@ -296,7 +296,9 @@ jobs:
           git config --global url."https://${{ secrets.GHVSA_PAT }}@github.com/".insteadOf "https://github.com/"
       - name: Clean Workspace
         run: |
-          git reset --hard && git submodule foreach git reset --hard  && git clean -fd
+          git reset --hard
+          if [ -f .gitmodules ] && [ -s .gitmodules ]; then git submodule foreach git reset --hard; fi
+          git clean -fd
       - name: Verify autogen code
         run: make verify-generated
       

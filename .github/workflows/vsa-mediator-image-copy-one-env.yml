@@ -1,42 +1,41 @@
-name: VSA and Mediator Compute Image Copy
+name: VSA and Mediator Compute Image Copy (One Environment)
 
-# This workflow copies VSA or Mediator compute images to autopush, staging, or prod.
-# All run parameters (version, image_name, bundle_name, upgrade paths) are read from a config file in config/VSA-Image/. VLM worker copy is not in this workflow; use separate steps when ready.
-# Manual trigger: provide Config file name (e.g. 9.18.1X26.json), Run mode, Image type, and Environment. See config/VSA-Image/README.md.
-
-permissions:
-  contents: read
+# Reusable workflow: copies VSA or Mediator compute image to one environment (autopush, staging, or prod).
+# Called by vsa-mediator-image-copy.yml for single-environment or all-environments (autopush → staging → prod) runs.
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
-      config_file_name:
-        description: 'Config file name in config/VSA-Image/ (e.g. 9.18.1X26.json). All version, image, bundle, and upgrade parameters are read from this file.'
+      environment:
+        description: 'Target environment (autopush, staging, or prod)'
         required: true
         type: string
-      run_mode:
-        description: 'Run mode'
-        required: true
-        type: choice
-        options:
-          - single_environment
-          - all_environments
       image_type:
-        description: 'Image type: vsa (VSA image only), mediator (Mediator image only), or both (VSA + Mediator + upgrade + RBAC + VLM when in config)'
+        description: 'Image type (vsa or mediator)'
         required: true
-        type: choice
-        options:
-          - vsa
-          - mediator
-          - both
-      environment:
-        description: 'Target environment (used only when Run mode is Single environment)'
+        type: string
+      version:
+        description: 'Version (e.g. 9.18.1X26, 9.18.1)'
         required: true
-        type: choice
-        options:
-          - autopush
-          - staging
-          - prod
+        type: string
+      image_name:
+        description: 'Image name (e.g. x-9-18-1x26, cvo-mediator-x-9-18-1)'
+        required: true
+        type: string
+      bundle_name:
+        description: 'Bundle name under GCNV_released_bundle'
+        required: true
+        type: string
+      upgrade_release_bundle_path:
+        description: 'Optional. Release bundle path for upgrade file (e.g. GCNV_released_bundle/R9.18.1D1)'
+        required: false
+        type: string
+        default: ''
+      upgrade_file_path:
+        description: 'Optional. Path under bundle to upgrade file (e.g. GCNV/9.18.1D1/cot.image.ONTAP-9.18.1D1.tgz)'
+        required: false
+        type: string
+        default: ''
 
 env:
   GCP_REGION: 'us-central1'
@@ -45,313 +44,9 @@ env:
   PULL_VM_NAME: 'vsa-pull-image-instance'
 
 jobs:
-  resolve-dispatch-inputs:
-    name: Resolve Parameters (from config file)
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    outputs:
-      run_mode: ${{ steps.resolve.outputs.run_mode }}
-      image_type: ${{ steps.resolve.outputs.image_type }}
-      image_types: ${{ steps.resolve.outputs.image_types }}
-      environment: ${{ steps.resolve.outputs.environment }}
-      version: ${{ steps.resolve.outputs.version }}
-      image_name: ${{ steps.resolve.outputs.image_name }}
-      mediator_image_name: ${{ steps.resolve.outputs.mediator_image_name }}
-      bundle_name: ${{ steps.resolve.outputs.bundle_name }}
-      upgrade_release_bundle_path: ${{ steps.resolve.outputs.upgrade_release_bundle_path }}
-      upgrade_file_path: ${{ steps.resolve.outputs.upgrade_file_path }}
-      destination_bucket: ${{ steps.resolve.outputs.destination_bucket }}
-      source_bucket: ${{ steps.resolve.outputs.source_bucket }}
-      is_autopush: ${{ steps.resolve.outputs.is_autopush }}
-      vlm_worker_tar_gz_path: ${{ steps.resolve.outputs.vlm_worker_tar_gz_path }}
-      vlm_worker_tag: ${{ steps.resolve.outputs.vlm_worker_tag }}
-      rbac_folder_path: ${{ steps.resolve.outputs.rbac_folder_path }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Resolve from config file
-        id: resolve
-        env:
-          CONFIG_FILE_NAME: ${{ inputs.config_file_name }}
-          IMAGE_TYPE_INPUT: ${{ inputs.image_type }}
-        run: |
-          set -euo pipefail
-          VSA_IMAGE_DIR="config/VSA-Image"
-          CONFIG_FILE="$VSA_IMAGE_DIR/$CONFIG_FILE_NAME"
-          [ -z "$CONFIG_FILE_NAME" ] && { echo "❌ Config file name is required"; exit 1; }
-          [ ! -f "$CONFIG_FILE" ] && { echo "❌ Config file not found: $CONFIG_FILE"; exit 1; }
-          RUN_MODE="${{ inputs.run_mode }}"
-          IMAGE_TYPE="$IMAGE_TYPE_INPUT"
-          ENVIRONMENT="${{ inputs.environment }}"
-          if [ "$IMAGE_TYPE" = "both" ] && [ "$RUN_MODE" = "all_environments" ]; then
-            echo "❌ Image type 'Both' is only supported with Run mode 'Single environment'. For all environments, run twice (VSA then Mediator) or use single environment with Both."
-            exit 1
-          fi
-          echo "📄 Reading from $CONFIG_FILE"
-          # Image types array for matrix: both -> [vsa, mediator], else single
-          if [ "$IMAGE_TYPE" = "both" ]; then
-            IMAGE_TYPES_JSON='["vsa","mediator"]'
-          else
-            IMAGE_TYPES_JSON="[\"$IMAGE_TYPE\"]"
-          fi
-          # Support two formats: (1) release-bundle (email-style) or (2) flat
-          if jq -e '.release_bucket_prefix != null and (.release_bucket_prefix | type == "string") and (.release_bucket_prefix | length > 0)' "$CONFIG_FILE" >/dev/null 2>&1; then
-            RELEASE_PREFIX=$(jq -r '.release_bucket_prefix // empty' "$CONFIG_FILE")
-            RELEASE_VER=$(jq -r '.release_version // empty' "$CONFIG_FILE")
-            [ -z "$RELEASE_PREFIX" ] && { echo "❌ Missing release_bucket_prefix in $CONFIG_FILE"; exit 1; }
-            [ -z "$RELEASE_VER" ] && { echo "❌ Missing release_version in $CONFIG_FILE"; exit 1; }
-            BUNDLE_NAME="${RELEASE_PREFIX##*/}"
-            VERSION="$RELEASE_VER"
-            VSA_IMAGE_NAME=$(jq -r '[.images[]? | select(.name | startswith("x-"))] | .[0].name // empty' "$CONFIG_FILE")
-            MEDIATOR_IMAGE_NAME=$(jq -r '[.images[]? | select(.name | startswith("cvo-mediator"))] | .[0].name // empty' "$CONFIG_FILE")
-            if [ "$IMAGE_TYPE" = "both" ]; then
-              [ -z "$VSA_IMAGE_NAME" ] && { echo "❌ No VSA image in .images[] in $CONFIG_FILE"; exit 1; }
-              [ -z "$MEDIATOR_IMAGE_NAME" ] && { echo "❌ No Mediator image in .images[] in $CONFIG_FILE"; exit 1; }
-              IMAGE_NAME="$VSA_IMAGE_NAME"
-            elif [ "$IMAGE_TYPE" = "vsa" ]; then
-              IMAGE_NAME="${VSA_IMAGE_NAME}"
-              [ -z "$IMAGE_NAME" ] && { echo "❌ No image found in .images[] for type=$IMAGE_TYPE"; exit 1; }
-            else
-              IMAGE_NAME="${MEDIATOR_IMAGE_NAME}"
-              [ -z "$IMAGE_NAME" ] && { echo "❌ No image found in .images[] for type=$IMAGE_TYPE"; exit 1; }
-            fi
-            UPGRADE_BUNDLE="$RELEASE_PREFIX"
-            UPGRADE_FILE=$(jq -r '.upgrade_file_path // .gc_nv_image_path // empty' "$CONFIG_FILE")
-          else
-            VERSION=$(jq -r '.version // empty' "$CONFIG_FILE")
-            VSA_IMAGE_NAME=$(jq -r '.image_name // empty' "$CONFIG_FILE")
-            MEDIATOR_IMAGE_NAME=$(jq -r '.mediator_image_name // empty' "$CONFIG_FILE")
-            if [ "$IMAGE_TYPE" = "both" ]; then
-              [ -z "$VSA_IMAGE_NAME" ] && { echo "❌ Config must have image_name (VSA) for copy both"; exit 1; }
-              [ -z "$MEDIATOR_IMAGE_NAME" ] && { echo "❌ Config must have mediator_image_name for copy both"; exit 1; }
-              IMAGE_NAME="$VSA_IMAGE_NAME"
-              echo "📌 Copy both: VSA=$VSA_IMAGE_NAME Mediator=$MEDIATOR_IMAGE_NAME"
-            elif [ "$IMAGE_TYPE" = "mediator" ]; then
-              [ -z "$MEDIATOR_IMAGE_NAME" ] && { echo "❌ For Mediator, config must have mediator_image_name"; exit 1; }
-              IMAGE_NAME="$MEDIATOR_IMAGE_NAME"
-              echo "📌 Using Mediator image: $IMAGE_NAME"
-            else
-              IMAGE_NAME="$VSA_IMAGE_NAME"
-              echo "📌 Using VSA image: $IMAGE_NAME"
-            fi
-            BUNDLE_NAME=$(jq -r '.bundle_name // empty' "$CONFIG_FILE")
-            UPGRADE_BUNDLE=$(jq -r '.upgrade_release_bundle_path // empty' "$CONFIG_FILE")
-            UPGRADE_FILE=$(jq -r '.upgrade_file_path // empty' "$CONFIG_FILE")
-            [ -z "$VERSION" ] && { echo "❌ Missing required key in $CONFIG_FILE: version"; exit 1; }
-            [ -z "$IMAGE_NAME" ] && { echo "❌ Missing required key in $CONFIG_FILE: image_name (VSA) or mediator_image_name (Mediator)"; exit 1; }
-            [ -z "$BUNDLE_NAME" ] && { echo "❌ Missing required key in $CONFIG_FILE: bundle_name"; exit 1; }
-          fi
-          [ -z "$UPGRADE_BUNDLE" ] && { echo "❌ Missing upgrade_release_bundle_path (or release_bucket_prefix) in $CONFIG_FILE"; exit 1; }
-          [ -z "$UPGRADE_FILE" ] && { echo "❌ Missing upgrade_file_path (or gc_nv_image_path) in $CONFIG_FILE"; exit 1; }
-          # Optional VLM worker (for push-vlm-worker-image job)
-          VLM_PATH=$(jq -r '.vlm_worker_path // empty' "$CONFIG_FILE")
-          VLM_TAG=$(jq -r '.vlm_worker_tag // empty' "$CONFIG_FILE")
-          if [ -n "$VLM_PATH" ] && [ -n "$VLM_TAG" ]; then
-            VLM_FULL_PATH="gs://cot-releases-public/$UPGRADE_BUNDLE/$VLM_PATH"
-            echo "vlm_worker_tar_gz_path=$VLM_FULL_PATH" >> $GITHUB_OUTPUT
-            echo "vlm_worker_tag=$VLM_TAG" >> $GITHUB_OUTPUT
-          fi
-          # Optional RBAC folder path (relative to upgrade_release_bundle_path); copies gcnvadmin_create_cli + gcnvadmin_create_cli.sha256.b64
-          RBAC_FOLDER=$(jq -r '.rbac_folder_path // empty' "$CONFIG_FILE")
-          if [ -n "$RBAC_FOLDER" ]; then
-            echo "rbac_folder_path=$RBAC_FOLDER" >> $GITHUB_OUTPUT
-          fi
-          # Destination/source bucket and is_autopush for copy-upgrade and downstream
-          case "$ENVIRONMENT" in
-            autopush) DESTINATION_BUCKET="gcnv-autopush-images-bucket"; SOURCE_BUCKET="vsa-compute-images"; IS_AUTOPUSH="true" ;;
-            staging)  DESTINATION_BUCKET="gcnv-staging-images-bucket"; SOURCE_BUCKET="gcnv-autopush-images-bucket"; IS_AUTOPUSH="false" ;;
-            prod)     DESTINATION_BUCKET="gcnv-prod-images-bucket"; SOURCE_BUCKET="gcnv-autopush-images-bucket"; IS_AUTOPUSH="false" ;;
-            *)       DESTINATION_BUCKET=""; SOURCE_BUCKET=""; IS_AUTOPUSH="false" ;;
-          esac
-          echo "run_mode=$RUN_MODE" >> $GITHUB_OUTPUT
-          echo "image_type=$IMAGE_TYPE" >> $GITHUB_OUTPUT
-          echo "image_types=$IMAGE_TYPES_JSON" >> $GITHUB_OUTPUT
-          echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "image_name=$VSA_IMAGE_NAME" >> $GITHUB_OUTPUT
-          echo "mediator_image_name=$MEDIATOR_IMAGE_NAME" >> $GITHUB_OUTPUT
-          echo "bundle_name=$BUNDLE_NAME" >> $GITHUB_OUTPUT
-          echo "upgrade_release_bundle_path=$UPGRADE_BUNDLE" >> $GITHUB_OUTPUT
-          echo "upgrade_file_path=$UPGRADE_FILE" >> $GITHUB_OUTPUT
-          echo "destination_bucket=$DESTINATION_BUCKET" >> $GITHUB_OUTPUT
-          echo "source_bucket=$SOURCE_BUCKET" >> $GITHUB_OUTPUT
-          echo "is_autopush=$IS_AUTOPUSH" >> $GITHUB_OUTPUT
-
-      - name: What will be copied (summary)
-        run: |
-          echo "## 📋 Files / images that will be copied" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          IMAGE_TYPE="${{ inputs.image_type }}"
-          VSA_NAME="${{ steps.resolve.outputs.image_name }}"
-          MED_NAME="${{ steps.resolve.outputs.mediator_image_name }}"
-          UPGRADE="${{ steps.resolve.outputs.upgrade_file_path }}"
-          RBAC_FOLDER="${{ steps.resolve.outputs.rbac_folder_path }}"
-          echo "| Type | Name / path |" >> $GITHUB_STEP_SUMMARY
-          echo "|------|-------------|" >> $GITHUB_STEP_SUMMARY
-          if [ "$IMAGE_TYPE" = "both" ]; then
-            echo "| **VSA image** | \`$VSA_NAME\` |" >> $GITHUB_STEP_SUMMARY
-            echo "| **Mediator image** | \`$MED_NAME\` |" >> $GITHUB_STEP_SUMMARY
-          elif [ "$IMAGE_TYPE" = "mediator" ]; then
-            echo "| **Mediator image** | \`$MED_NAME\` |" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "| **VSA image** | \`$VSA_NAME\` |" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "| **Upgrade file** | \`$UPGRADE\` |" >> $GITHUB_STEP_SUMMARY
-          if [ -n "$RBAC_FOLDER" ]; then
-            echo "| **RBAC files** | \`gcnvadmin_create_cli\`, \`gcnvadmin_create_cli.sha256.b64\` (from \`$RBAC_FOLDER\`) |" >> $GITHUB_STEP_SUMMARY
-          fi
-          if [ -n "${{ steps.resolve.outputs.vlm_worker_tar_gz_path }}" ]; then
-            echo "| **VLM worker image** | \`${{ steps.resolve.outputs.vlm_worker_tar_gz_path }}\` → tag \`${{ steps.resolve.outputs.vlm_worker_tag }}\` |" >> $GITHUB_STEP_SUMMARY
-          fi
-
-  push-vlm-worker-image:
-    name: Push VLM Worker Image (when in config)
-    runs-on: ubuntu-latest
-    needs: resolve-dispatch-inputs
-    if: needs.resolve-dispatch-inputs.outputs.run_mode == 'single_environment' && needs.resolve-dispatch-inputs.outputs.vlm_worker_tar_gz_path != '' && needs.resolve-dispatch-inputs.outputs.vlm_worker_tag != ''
-    permissions:
-      contents: read
-      id-token: write
-    env:
-      VLM_REGISTRY: us-docker.pkg.dev
-      VLM_PROJECT: gcnv-artifact-registry-nonprod
-      VLM_REPO: vcp-container-images-us
-      VLM_IMAGE: vlm-worker
-      # Use pull VM + impersonation to read from cot-releases-public (org policy / VPC SC)
-      VLM_IMPERSONATE_SA: gcnv-vsa-image-sa@gcnv-vsa-prod.iam.gserviceaccount.com
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER_VSA }}
-          service_account: ${{ secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          export_default_credentials: true
-
-      - name: Set GCP project and configure SSH
-        run: |
-          gcloud config set project ${PULL_VM_PROJECT}
-          gcloud config set compute/region ${GCP_REGION}
-          gcloud config set core/disable_prompts true
-
-      - name: Copy vlm-worker tar.gz via Pull VM (impersonate SA)
-        id: copy
-        run: |
-          set -euo pipefail
-          SRC="${{ needs.resolve-dispatch-inputs.outputs.vlm_worker_tar_gz_path }}"
-          VM_PATH="/tmp/vlm-worker.tar.gz"
-          RUNNER_DEST="/tmp/vlm-worker.tar.gz"
-          echo "📋 Copying from GCS via Pull VM (impersonate ${{ env.VLM_IMPERSONATE_SA }})"
-          echo "   Source: $SRC"
-          # 1) On VM: set impersonation and gsutil cp from GCS to VM
-          gcloud compute ssh ${PULL_VM_NAME} \
-            --zone=${GCP_ZONE} \
-            --project=${PULL_VM_PROJECT} \
-            --quiet \
-            --command="gcloud config set auth/impersonate_service_account ${{ env.VLM_IMPERSONATE_SA }} && gsutil cp '$SRC' '$VM_PATH'"
-          # 2) SCP from VM to runner
-          gcloud compute scp \
-            --zone=${GCP_ZONE} \
-            --project=${PULL_VM_PROJECT} \
-            ${PULL_VM_NAME}:${VM_PATH} \
-            "$RUNNER_DEST"
-          echo "✅ Copied to $RUNNER_DEST"
-          echo "dest=$RUNNER_DEST" >> $GITHUB_OUTPUT
-
-      - name: Configure Docker for Artifact Registry
-        run: |
-          gcloud auth configure-docker ${{ env.VLM_REGISTRY }} --quiet
-
-      - name: Unzip (extract) tar.gz to tar
-        id: unzip
-        run: |
-          set -euo pipefail
-          GZ="${{ steps.copy.outputs.dest }}"
-          TAR="/tmp/vlm-worker.tar"
-          echo "📂 Extracting $GZ -> $TAR"
-          gzip -dc "$GZ" > "$TAR"
-          echo "✅ Extracted"
-          echo "tar_file=$TAR" >> $GITHUB_OUTPUT
-
-      - name: Load Docker image from tar file
-        id: load
-        run: |
-          set -euo pipefail
-          TAR_FILE="${{ steps.unzip.outputs.tar_file }}"
-          echo "📦 Loading Docker image from $TAR_FILE"
-          LOAD_OUTPUT=$(docker load -i "$TAR_FILE" 2>&1)
-          echo "$LOAD_OUTPUT"
-          if echo "$LOAD_OUTPUT" | grep -q "Loaded image:"; then
-            LOADED_IMAGE=$(echo "$LOAD_OUTPUT" | grep "Loaded image:" | sed 's/^Loaded image: *//' | head -1)
-          elif echo "$LOAD_OUTPUT" | grep -q "Loaded image ID:"; then
-            LOADED_IMAGE=$(echo "$LOAD_OUTPUT" | grep "Loaded image ID:" | sed 's/^Loaded image ID: *//' | head -1)
-          else
-            LOADED_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | head -1)
-          fi
-          if [ -z "$LOADED_IMAGE" ]; then
-            echo "❌ Could not determine loaded image"
-            exit 1
-          fi
-          echo "loaded_image=$LOADED_IMAGE" >> $GITHUB_OUTPUT
-          echo "✅ Loaded image: $LOADED_IMAGE"
-
-      - name: Check if VLM worker image already exists in registry
-        id: check
-        run: |
-          set -euo pipefail
-          TAG="${{ needs.resolve-dispatch-inputs.outputs.vlm_worker_tag }}"
-          IMAGE_URI="${{ env.VLM_REGISTRY }}/${{ env.VLM_PROJECT }}/${{ env.VLM_REPO }}/${{ env.VLM_IMAGE }}:$TAG"
-          echo "🔍 Checking if image exists: $IMAGE_URI"
-          if gcloud artifacts docker images describe "$IMAGE_URI" --project="${{ env.VLM_PROJECT }}" 2>/dev/null; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "✅ VLM worker image already exists in registry: $IMAGE_URI"
-            echo "   Skipping tag and push; continuing with pipeline."
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-            echo "ℹ️ Image not found in registry; will tag and push."
-          fi
-
-      - name: Tag and push VLM worker image
-        if: steps.check.outputs.exists != 'true'
-        run: |
-          set -euo pipefail
-          TAG="${{ needs.resolve-dispatch-inputs.outputs.vlm_worker_tag }}"
-          TARGET="${{ env.VLM_REGISTRY }}/${{ env.VLM_PROJECT }}/${{ env.VLM_REPO }}/${{ env.VLM_IMAGE }}:$TAG"
-          LOADED="${{ steps.load.outputs.loaded_image }}"
-          echo "🏷️ Tagging: $LOADED -> $TARGET"
-          docker tag "$LOADED" "$TARGET"
-          echo "📤 Pushing to Artifact Registry..."
-          docker push "$TARGET"
-          echo "✅ Pushed $TARGET"
-
-      - name: VLM push summary
-        if: always()
-        run: |
-          echo "## VLM Worker Image Push" >> $GITHUB_STEP_SUMMARY
-          echo "- **Source path**: ${{ needs.resolve-dispatch-inputs.outputs.vlm_worker_tar_gz_path }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tag**: ${{ needs.resolve-dispatch-inputs.outputs.vlm_worker_tag }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Registry image**: ${{ env.VLM_REGISTRY }}/${{ env.VLM_PROJECT }}/${{ env.VLM_REPO }}/${{ env.VLM_IMAGE }}:${{ needs.resolve-dispatch-inputs.outputs.vlm_worker_tag }}" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ steps.check.outputs.exists }}" = "true" ]; then
-            echo "- **Result**: Image already existed; skip push." >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- **Result**: Image loaded, tagged and pushed." >> $GITHUB_STEP_SUMMARY
-          fi
-
   parse-version-file:
-    name: Resolve Parameters (${{ matrix.image_type }})
+    name: Resolve Parameters
     runs-on: ubuntu-latest
-    needs: resolve-dispatch-inputs
-    if: needs.resolve-dispatch-inputs.outputs.run_mode == 'single_environment'
-    strategy:
-      matrix:
-        image_type: ${{ fromJson(needs.resolve-dispatch-inputs.outputs.image_types) }}
     
     permissions:
       contents: read
@@ -377,25 +72,19 @@ jobs:
         run: |
           set -euo pipefail
           
-          IMAGE_TYPE="${{ matrix.image_type }}"
-          ENVIRONMENT="${{ needs.resolve-dispatch-inputs.outputs.environment }}"
-          VSA_IMAGE_NAME="${{ needs.resolve-dispatch-inputs.outputs.image_name }}"
-          MEDIATOR_IMAGE_NAME="${{ needs.resolve-dispatch-inputs.outputs.mediator_image_name }}"
-          if [ "$IMAGE_TYPE" = "mediator" ]; then
-            IMAGE_NAME="$MEDIATOR_IMAGE_NAME"
-          else
-            IMAGE_NAME="$VSA_IMAGE_NAME"
-          fi
-          VERSION="${{ needs.resolve-dispatch-inputs.outputs.version }}"
-          BUNDLE_NAME="${{ needs.resolve-dispatch-inputs.outputs.bundle_name }}"
+          IMAGE_TYPE="${{ inputs.image_type }}"
+          ENVIRONMENT="${{ inputs.environment }}"
+          IMAGE_NAME="${{ inputs.image_name }}"
+          VERSION="${{ inputs.version }}"
+          BUNDLE_NAME="${{ inputs.bundle_name }}"
           
           # Validate required inputs
           if [ -z "$IMAGE_NAME" ] || [ -z "$VERSION" ] || [ -z "$BUNDLE_NAME" ]; then
-            echo "❌ Missing required parameters for $IMAGE_TYPE: IMAGE_NAME, VERSION, and BUNDLE_NAME must be provided"
+            echo "❌ Missing required parameters: IMAGE_NAME, VERSION, and BUNDLE_NAME must be provided"
             exit 1
           fi
           
-          echo "📄 Resolving for image_type=$IMAGE_TYPE image_name=$IMAGE_NAME"
+          echo "📄 Using workflow inputs (no config file)"
           
           # Map image type to GCS path segment (vsa -> VSA, mediator -> Mediator per bucket convention)
           case "$IMAGE_TYPE" in
@@ -484,12 +173,9 @@ jobs:
           echo "is_autopush=$IS_AUTOPUSH" >> $GITHUB_OUTPUT
 
   pre-check-image:
-    name: Pre-check Image Existence (${{ matrix.image_type }})
+    name: Pre-check Image Existence
     runs-on: ubuntu-latest
-    needs: [resolve-dispatch-inputs, parse-version-file]
-    strategy:
-      matrix:
-        image_type: ${{ fromJson(needs.resolve-dispatch-inputs.outputs.image_types) }}
+    needs: parse-version-file
     
     permissions:
       contents: read
@@ -521,7 +207,7 @@ jobs:
           IMAGE_NAME="${{ needs.parse-version-file.outputs.image_name }}"
           DEST_PROJECT="${{ needs.parse-version-file.outputs.destination_project }}"
           
-          echo "🔍 Pre-checking if image exists in destination project (${{ matrix.image_type }})"
+          echo "🔍 Pre-checking if image exists in destination project"
           echo "Image: $IMAGE_NAME"
           echo "Project: $DEST_PROJECT"
           echo ""
@@ -540,20 +226,17 @@ jobs:
           fi
           
           if [ "$IMAGE_EXISTS" = "true" ]; then
-            echo "✅ Image $IMAGE_NAME already exists in $DEST_PROJECT - will skip copy for this image"
+            echo "✅ Image $IMAGE_NAME already exists in $DEST_PROJECT"
             echo "image_exists=true" >> $GITHUB_OUTPUT
           else
-            echo "ℹ️ Image $IMAGE_NAME does not exist in $DEST_PROJECT - will copy"
+            echo "ℹ️ Image $IMAGE_NAME does not exist in $DEST_PROJECT - proceeding with workflow"
             echo "image_exists=false" >> $GITHUB_OUTPUT
           fi
 
   create-and-export-image:
-    name: Create and Export Image (${{ matrix.image_type }}, Autopush Only)
+    name: Create and Export Image (Autopush Only)
     runs-on: ubuntu-latest
-    needs: [resolve-dispatch-inputs, parse-version-file, pre-check-image]
-    strategy:
-      matrix:
-        image_type: ${{ fromJson(needs.resolve-dispatch-inputs.outputs.image_types) }}
+    needs: [parse-version-file, pre-check-image]
     if: |
       needs.parse-version-file.outputs.is_autopush == 'true' &&
       needs.pre-check-image.outputs.image_exists == 'false'
@@ -742,7 +425,7 @@ jobs:
           echo "## Create and Export Summary (Autopush)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Image Name**: ${{ needs.parse-version-file.outputs.image_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image Type**: ${{ needs.resolve-dispatch-inputs.outputs.image_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Type**: ${{ inputs.image_type }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Source Image Project**: ${{ needs.parse-version-file.outputs.source_image_project }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Target Project**: ${{ needs.parse-version-file.outputs.source_project }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Export Bucket**: ${{ needs.parse-version-file.outputs.source_bucket }}" >> $GITHUB_STEP_SUMMARY
@@ -750,14 +433,12 @@ jobs:
           echo "- **Status**: ${{ steps.export.outputs.status }}" >> $GITHUB_STEP_SUMMARY
 
   copy-signature-file-to-vsa-compute-images:
-    name: Copy Signature File (${{ matrix.image_type }})
+    name: Copy Signature File to Destination
     runs-on: ubuntu-latest
-    needs: [resolve-dispatch-inputs, parse-version-file, pre-check-image, create-and-export-image]
-    strategy:
-      matrix:
-        image_type: ${{ fromJson(needs.resolve-dispatch-inputs.outputs.image_types) }}
+    needs: [parse-version-file, pre-check-image, create-and-export-image]
     if: |
       needs.parse-version-file.outputs.is_autopush == 'true' &&
+      needs.pre-check-image.outputs.image_exists == 'false' &&
       (needs.create-and-export-image.result == 'success' || needs.create-and-export-image.result == 'skipped') &&
       needs.parse-version-file.outputs.sig_file_path != '' &&
       needs.parse-version-file.outputs.sig_file_path != 'null'
@@ -903,12 +584,9 @@ jobs:
 
 
   copy-to-destination:
-    name: Copy to Destination Bucket (${{ matrix.image_type }})
+    name: Copy to Destination Bucket
     runs-on: ubuntu-latest
-    needs: [resolve-dispatch-inputs, parse-version-file, pre-check-image, create-and-export-image, copy-signature-file-to-vsa-compute-images]
-    strategy:
-      matrix:
-        image_type: ${{ fromJson(needs.resolve-dispatch-inputs.outputs.image_types) }}
+    needs: [parse-version-file, pre-check-image, create-and-export-image, copy-signature-file-to-vsa-compute-images]
     if: |
       always() &&
       needs.pre-check-image.outputs.image_exists == 'false' &&
@@ -1101,13 +779,152 @@ jobs:
             fi
           fi
       
+      - name: Copy upgrade file to destination bucket
+        id: copy-upgrade
+        if: inputs.upgrade_release_bundle_path != '' && inputs.upgrade_file_path != ''
+        run: |
+          set -uo pipefail
+          
+          VERSION="${{ needs.parse-version-file.outputs.version }}"
+          DEST_BUCKET="${{ needs.parse-version-file.outputs.destination_bucket }}"
+          SOURCE_BUCKET="${{ needs.parse-version-file.outputs.source_bucket }}"
+          IS_AUTOPUSH="${{ needs.parse-version-file.outputs.is_autopush }}"
+          UPGRADE_RELEASE_BUNDLE="${{ inputs.upgrade_release_bundle_path }}"
+          UPGRADE_FILE_PATH="${{ inputs.upgrade_file_path }}"
+          ENVIRONMENT="${{ inputs.environment }}"
+          
+          # Basename and directory of upgrade file (e.g. cot.image.ONTAP-9.18.1D1.tgz, GCNV/9.18.1D1)
+          FILENAME="${UPGRADE_FILE_PATH##*/}"
+          UPGRADE_DIR="${UPGRADE_FILE_PATH%/*}"
+          DEST_UPGRADE_PREFIX="gs://$DEST_BUCKET/GCNV/$VERSION/upgrade"
+          DEST_URI="$DEST_UPGRADE_PREFIX/$FILENAME"
+          COT_URI="gs://cot-releases-public/$UPGRADE_RELEASE_BUNDLE/$UPGRADE_FILE_PATH"
+          COT_CHECKSUM_URI="gs://cot-releases-public/$UPGRADE_RELEASE_BUNDLE/$UPGRADE_DIR/cot.checksum.ONTAP-$VERSION.txt"
+          
+          if [ "$IS_AUTOPUSH" = "true" ]; then
+            SOURCE_URI="$COT_URI"
+          else
+            SOURCE_URI="gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade/$FILENAME"
+          fi
+          
+          echo "📋 Copying upgrade file to destination"
+          echo "Source: $SOURCE_URI"
+          echo "Destination: $DEST_URI"
+          echo ""
+          
+          # 1) Idempotency: skip if file already exists in destination
+          if gsutil -q stat "$DEST_URI" 2>/dev/null; then
+            echo "✅ Upgrade file already exists in destination (skipping copy): $DEST_URI"
+            echo "status=exists" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # 2) Ensure upgrade folder exists in destination (create placeholder if missing)
+          if ! gsutil ls "$DEST_UPGRADE_PREFIX/" 2>/dev/null | head -1 | grep -q .; then
+            echo "📁 Creating upgrade folder in destination (missing): $DEST_UPGRADE_PREFIX/"
+            echo -n | gsutil cp - "$DEST_UPGRADE_PREFIX/.keep" 2>/dev/null || true
+          fi
+          
+          # 3) Resolve source: try current source, then for staging/prod populate from COT and retry
+          copy_success=false
+          if gsutil -q stat "$SOURCE_URI" 2>/dev/null; then
+            copy_success=true
+          fi
+          if [ "$copy_success" != "true" ]; then
+            if [ "$IS_AUTOPUSH" = "true" ]; then
+              echo "⚠️ Upgrade file not found at COT source (autopush has no upstream). Skipping without retry."
+            else
+              echo "⚠️ Upgrade file not found at source bucket. Attempting to populate source from COT and retry..."
+              SOURCE_UPGRADE_PREFIX="gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade"
+              if ! gsutil ls "$SOURCE_UPGRADE_PREFIX/" 2>/dev/null | head -1 | grep -q .; then
+                echo -n | gsutil cp - "$SOURCE_UPGRADE_PREFIX/.keep" 2>/dev/null || true
+              fi
+              if gsutil -q stat "$COT_URI" 2>/dev/null; then
+                gsutil cp "$COT_URI" "gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade/$FILENAME" && echo "✅ Populated source bucket from COT"
+              fi
+              if gsutil -q stat "$SOURCE_URI" 2>/dev/null; then
+                copy_success=true
+              fi
+            fi
+          fi
+          
+          if [ "$copy_success" != "true" ]; then
+            echo "status=skipped" >> $GITHUB_OUTPUT
+            echo ""
+            echo "=============================================="
+            echo "⚠️ UPGRADE FILE COPY SKIPPED (workflow continues)"
+            echo "=============================================="
+            echo ""
+            echo "**What was tried:**"
+            echo "  1. Copy upgrade file from current source to destination."
+            echo "  2. Source checked: $SOURCE_URI"
+            if [ "$IS_AUTOPUSH" != "true" ]; then
+              echo "  3. File missing at source → attempted to populate source from COT ($COT_URI) and retried."
+            fi
+            echo ""
+            echo "**Why it was skipped:**"
+            echo "  The upgrade file \"$FILENAME\" was not available at the expected location(s)."
+            if [ "$IS_AUTOPUSH" = "true" ]; then
+              echo "  For **autopush**, the source is the COT bucket. The file was not found at:"
+              echo "    $COT_URI"
+              echo "  Please ensure the file exists in the COT release bundle (check upgrade_release_bundle_path and upgrade_file_path inputs)."
+            else
+              echo "  For **$ENVIRONMENT**, the source is the upstream bucket ($SOURCE_BUCKET)."
+              echo "  Either the file was missing there, or COT did not have it to populate the source:"
+              echo "    COT: $COT_URI"
+              echo "    Upstream bucket path: gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade/$FILENAME"
+              echo "  Ensure the upgrade file exists in COT for the given release bundle, or that a previous environment (e.g. autopush) has already copied it."
+            fi
+            echo ""
+            echo "**Destination (unchanged):** $DEST_URI"
+            echo ""
+            exit 0
+          fi
+          
+          # 4) Download file from source to temp for checksum verification
+          gsutil cp "$SOURCE_URI" /tmp/upgrade_verify.tgz
+          
+          # 5) Checksum verification (COT cot.checksum.ONTAP-*.txt): detect algorithm by length (MD5=32, SHA256=64)
+          verify_ok=false
+          gsutil cat "$COT_CHECKSUM_URI" 2>/dev/null > /tmp/expected_checksum.txt || true
+          if [ -s /tmp/expected_checksum.txt ]; then
+            EXPECTED=$(grep -oE '[a-fA-F0-9]{64}|[a-fA-F0-9]{32}' /tmp/expected_checksum.txt | head -1)
+            if [ -n "$EXPECTED" ]; then
+              LEN=${#EXPECTED}
+              if [ "$LEN" -eq 64 ]; then
+                ACTUAL=$(sha256sum /tmp/upgrade_verify.tgz | awk '{print $1}')
+              else
+                ACTUAL=$(md5sum /tmp/upgrade_verify.tgz | awk '{print $1}')
+              fi
+              if [ "$EXPECTED" = "$ACTUAL" ]; then
+                echo "✅ Checksum verification passed ($( [ "$LEN" -eq 64 ] && echo 'SHA256' || echo 'MD5' ))"
+                verify_ok=true
+              else
+                echo "❌ Checksum mismatch. Expected: $EXPECTED Actual: $ACTUAL"
+                echo "status=checksum_mismatch" >> $GITHUB_OUTPUT
+                echo ""
+                echo "Upgrade file copy skipped: checksum verification failed. Workflow continues."
+                exit 0
+              fi
+            fi
+          fi
+          if [ "$verify_ok" != "true" ]; then
+            echo "⚠️ Checksum file not found or unparseable in COT ($COT_CHECKSUM_URI); copying without verification"
+          fi
+          
+          # 6) Copy verified file to destination
+          gsutil cp /tmp/upgrade_verify.tgz "$DEST_URI"
+          echo "✅ Upgrade file copied to $DEST_URI"
+          echo "status=success" >> $GITHUB_OUTPUT
+          exit 0
+      
       - name: Show copy summary
         if: always()
         run: |
-          echo "## Copy to Destination Summary (${{ matrix.image_type }})" >> $GITHUB_STEP_SUMMARY
+          echo "## Copy to Destination Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Image Name**: ${{ needs.parse-version-file.outputs.image_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Environment**: ${{ needs.resolve-dispatch-inputs.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Source URI**: ${{ steps.copy.outputs.source_uri }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Destination Bucket**: ${{ needs.parse-version-file.outputs.destination_bucket }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Image Copy Status**: ${{ steps.copy.outputs.status }}" >> $GITHUB_STEP_SUMMARY
@@ -1115,172 +932,19 @@ jobs:
             echo "- **Signature File Copy Status**: ${{ steps.copy-sig.outputs.status || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
             echo "- **Signature File URI**: ${{ steps.copy-sig.outputs.dest_sig_uri || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
           fi
-
-  copy-upgrade-to-destination:
-    name: Copy Upgrade File to Destination
-    runs-on: ubuntu-latest
-    needs: [resolve-dispatch-inputs, copy-to-destination]
-    if: |
-      always() &&
-      needs.resolve-dispatch-inputs.outputs.run_mode == 'single_environment' &&
-      needs.resolve-dispatch-inputs.outputs.upgrade_release_bundle_path != '' &&
-      needs.resolve-dispatch-inputs.outputs.upgrade_file_path != '' &&
-      needs.copy-to-destination.result != 'failure'
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ needs.resolve-dispatch-inputs.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_PROVIDER_VSA_PROD || secrets.WORKLOAD_IDENTITY_PROVIDER_VSA }}
-          service_account: ${{ needs.resolve-dispatch-inputs.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_PROD || secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-      - name: Configure gcloud
-        run: |
-          gcloud config set compute/region ${GCP_REGION}
-          gcloud config set core/disable_prompts true
-      - name: Copy upgrade file to destination bucket
-        id: copy-upgrade
-        run: |
-          set -uo pipefail
-          VERSION="${{ needs.resolve-dispatch-inputs.outputs.version }}"
-          DEST_BUCKET="${{ needs.resolve-dispatch-inputs.outputs.destination_bucket }}"
-          SOURCE_BUCKET="${{ needs.resolve-dispatch-inputs.outputs.source_bucket }}"
-          IS_AUTOPUSH="${{ needs.resolve-dispatch-inputs.outputs.is_autopush }}"
-          UPGRADE_RELEASE_BUNDLE="${{ needs.resolve-dispatch-inputs.outputs.upgrade_release_bundle_path }}"
-          UPGRADE_FILE_PATH="${{ needs.resolve-dispatch-inputs.outputs.upgrade_file_path }}"
-          ENVIRONMENT="${{ needs.resolve-dispatch-inputs.outputs.environment }}"
-          FILENAME="${UPGRADE_FILE_PATH##*/}"
-          UPGRADE_DIR="${UPGRADE_FILE_PATH%/*}"
-          DEST_UPGRADE_PREFIX="gs://$DEST_BUCKET/GCNV/$VERSION/upgrade"
-          DEST_URI="$DEST_UPGRADE_PREFIX/$FILENAME"
-          COT_URI="gs://cot-releases-public/$UPGRADE_RELEASE_BUNDLE/$UPGRADE_FILE_PATH"
-          COT_CHECKSUM_URI="gs://cot-releases-public/$UPGRADE_RELEASE_BUNDLE/$UPGRADE_DIR/cot.checksum.ONTAP-$VERSION.txt"
-          if [ "$IS_AUTOPUSH" = "true" ]; then SOURCE_URI="$COT_URI"; else SOURCE_URI="gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade/$FILENAME"; fi
-          echo "📋 Copying upgrade file to destination (once per run)"
-          if gsutil -q stat "$DEST_URI" 2>/dev/null; then
-            echo "✅ Upgrade file already exists: $DEST_URI"
-            echo "status=exists" >> $GITHUB_OUTPUT
-            exit 0
+          if [ "${{ inputs.upgrade_release_bundle_path }}" != "" ] && [ "${{ inputs.upgrade_file_path }}" != "" ]; then
+            echo "- **Upgrade File Copy Status**: ${{ steps.copy-upgrade.outputs.status || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
           fi
-          if ! gsutil ls "$DEST_UPGRADE_PREFIX/" 2>/dev/null | head -1 | grep -q .; then
-            echo -n | gsutil cp - "$DEST_UPGRADE_PREFIX/.keep" 2>/dev/null || true
-          fi
-          copy_success=false
-          if gsutil -q stat "$SOURCE_URI" 2>/dev/null; then copy_success=true; fi
-          if [ "$copy_success" != "true" ] && [ "$IS_AUTOPUSH" != "true" ]; then
-            SOURCE_UPGRADE_PREFIX="gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade"
-            if ! gsutil ls "$SOURCE_UPGRADE_PREFIX/" 2>/dev/null | head -1 | grep -q .; then echo -n | gsutil cp - "$SOURCE_UPGRADE_PREFIX/.keep" 2>/dev/null || true; fi
-            if gsutil -q stat "$COT_URI" 2>/dev/null; then gsutil cp "$COT_URI" "gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade/$FILENAME" && echo "✅ Populated source from COT"; fi
-            if gsutil -q stat "$SOURCE_URI" 2>/dev/null; then copy_success=true; fi
-          fi
-          if [ "$copy_success" != "true" ]; then echo "status=skipped" >> $GITHUB_OUTPUT; exit 0; fi
-          gsutil cp "$SOURCE_URI" /tmp/upgrade_verify.tgz
-          verify_ok=false
-          gsutil cat "$COT_CHECKSUM_URI" 2>/dev/null > /tmp/expected_checksum.txt || true
-          if [ -s /tmp/expected_checksum.txt ]; then
-            EXPECTED=$(grep -oE '[a-fA-F0-9]{64}|[a-fA-F0-9]{32}' /tmp/expected_checksum.txt | head -1)
-            if [ -n "$EXPECTED" ]; then
-              LEN=${#EXPECTED}
-              if [ "$LEN" -eq 64 ]; then ACTUAL=$(sha256sum /tmp/upgrade_verify.tgz | awk '{print $1}'); else ACTUAL=$(md5sum /tmp/upgrade_verify.tgz | awk '{print $1}'); fi
-              if [ "$EXPECTED" = "$ACTUAL" ]; then verify_ok=true; else echo "status=checksum_mismatch" >> $GITHUB_OUTPUT; exit 0; fi
-            fi
-          fi
-          gsutil cp /tmp/upgrade_verify.tgz "$DEST_URI"
-          echo "✅ Upgrade file copied to $DEST_URI"
-          echo "status=success" >> $GITHUB_OUTPUT
-
-  copy-rbac-to-destination:
-    name: Copy RBAC Files to Destination
-    runs-on: ubuntu-latest
-    needs: [resolve-dispatch-inputs, copy-to-destination]
-    if: |
-      always() &&
-      needs.resolve-dispatch-inputs.outputs.run_mode == 'single_environment' &&
-      needs.resolve-dispatch-inputs.outputs.rbac_folder_path != '' &&
-      needs.copy-to-destination.result != 'failure'
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ needs.resolve-dispatch-inputs.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_PROVIDER_VSA_PROD || secrets.WORKLOAD_IDENTITY_PROVIDER_VSA }}
-          service_account: ${{ needs.resolve-dispatch-inputs.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_PROD || secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-      - name: Configure gcloud
-        run: |
-          gcloud config set compute/region ${GCP_REGION}
-          gcloud config set core/disable_prompts true
-      - name: Copy RBAC files to destination bucket
-        id: copy-rbac
-        run: |
-          set -uo pipefail
-          VERSION="${{ needs.resolve-dispatch-inputs.outputs.version }}"
-          DEST_BUCKET="${{ needs.resolve-dispatch-inputs.outputs.destination_bucket }}"
-          SOURCE_BUCKET="${{ needs.resolve-dispatch-inputs.outputs.source_bucket }}"
-          IS_AUTOPUSH="${{ needs.resolve-dispatch-inputs.outputs.is_autopush }}"
-          UPGRADE_BUNDLE="${{ needs.resolve-dispatch-inputs.outputs.upgrade_release_bundle_path }}"
-          RBAC_FOLDER="${{ needs.resolve-dispatch-inputs.outputs.rbac_folder_path }}"
-          RBAC_CLI="gcnvadmin_create_cli"
-          RBAC_SHA="gcnvadmin_create_cli.sha256.b64"
-          DEST_RBAC_PREFIX="gs://$DEST_BUCKET/GCNV/$VERSION/RBAC"
-          DEST_CLI_URI="$DEST_RBAC_PREFIX/$RBAC_CLI"
-          DEST_SHA_URI="$DEST_RBAC_PREFIX/$RBAC_SHA"
-          COT_CLI_URI="gs://cot-releases-public/$UPGRADE_BUNDLE/$RBAC_FOLDER/$RBAC_CLI"
-          COT_SHA_URI="gs://cot-releases-public/$UPGRADE_BUNDLE/$RBAC_FOLDER/$RBAC_SHA"
-          SOURCE_CLI_URI="gs://$SOURCE_BUCKET/GCNV/$VERSION/RBAC/$RBAC_CLI"
-          SOURCE_SHA_URI="gs://$SOURCE_BUCKET/GCNV/$VERSION/RBAC/$RBAC_SHA"
-          echo "📋 Copying RBAC files to destination (once per run)"
-          if gsutil -q stat "$DEST_CLI_URI" 2>/dev/null && gsutil -q stat "$DEST_SHA_URI" 2>/dev/null; then
-            echo "✅ RBAC files already exist: $DEST_RBAC_PREFIX/"
-            echo "status=exists" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          if ! gsutil ls "$DEST_RBAC_PREFIX/" 2>/dev/null | head -1 | grep -q .; then
-            echo -n | gsutil cp - "$DEST_RBAC_PREFIX/.keep" 2>/dev/null || true
-          fi
-          copy_cli=false
-          copy_sha=false
-          if [ "$IS_AUTOPUSH" = "true" ]; then
-            if gsutil -q stat "$COT_CLI_URI" 2>/dev/null; then copy_cli=true; fi
-            if gsutil -q stat "$COT_SHA_URI" 2>/dev/null; then copy_sha=true; fi
-          else
-            if gsutil -q stat "$SOURCE_CLI_URI" 2>/dev/null; then copy_cli=true; fi
-            if gsutil -q stat "$SOURCE_SHA_URI" 2>/dev/null; then copy_sha=true; fi
-            if [ "$copy_cli" != "true" ] && gsutil -q stat "$COT_CLI_URI" 2>/dev/null; then
-              gsutil cp "$COT_CLI_URI" "$SOURCE_CLI_URI" 2>/dev/null && copy_cli=true || true
-            fi
-            if [ "$copy_sha" != "true" ] && gsutil -q stat "$COT_SHA_URI" 2>/dev/null; then
-              gsutil cp "$COT_SHA_URI" "$SOURCE_SHA_URI" 2>/dev/null && copy_sha=true || true
-            fi
-          fi
-          if [ "$copy_cli" != "true" ] || [ "$copy_sha" != "true" ]; then
-            echo "⚠️ RBAC files not available at source/COT; skipping"
-            echo "status=skipped" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          SRC_CLI="$COT_CLI_URI"; SRC_SHA="$COT_SHA_URI"
-          if [ "$IS_AUTOPUSH" != "true" ]; then SRC_CLI="$SOURCE_CLI_URI"; SRC_SHA="$SOURCE_SHA_URI"; fi
-          gsutil cp "$SRC_CLI" "$DEST_CLI_URI"
-          gsutil cp "$SRC_SHA" "$DEST_SHA_URI"
-          echo "✅ RBAC files copied to $DEST_RBAC_PREFIX/"
-          echo "status=success" >> $GITHUB_OUTPUT
 
   ensure-upgrade-when-vsa-image-present:
     name: Ensure Upgrade Folder (VSA Image Already Present)
     runs-on: ubuntu-latest
-    needs: [resolve-dispatch-inputs, parse-version-file, pre-check-image]
+    needs: [parse-version-file, pre-check-image]
     if: |
-      needs.resolve-dispatch-inputs.outputs.run_mode == 'single_environment' &&
-      needs.resolve-dispatch-inputs.outputs.image_type == 'vsa' &&
+      inputs.image_type == 'vsa' &&
       needs.pre-check-image.outputs.image_exists == 'true' &&
-      needs.resolve-dispatch-inputs.outputs.upgrade_release_bundle_path != '' &&
-      needs.resolve-dispatch-inputs.outputs.upgrade_file_path != ''
+      inputs.upgrade_release_bundle_path != '' &&
+      inputs.upgrade_file_path != ''
     permissions:
       contents: read
       id-token: write
@@ -1306,9 +970,9 @@ jobs:
           DEST_BUCKET="${{ needs.parse-version-file.outputs.destination_bucket }}"
           SOURCE_BUCKET="${{ needs.parse-version-file.outputs.source_bucket }}"
           IS_AUTOPUSH="${{ needs.parse-version-file.outputs.is_autopush }}"
-          UPGRADE_RELEASE_BUNDLE="${{ needs.resolve-dispatch-inputs.outputs.upgrade_release_bundle_path }}"
-          UPGRADE_FILE_PATH="${{ needs.resolve-dispatch-inputs.outputs.upgrade_file_path }}"
-          ENVIRONMENT="${{ needs.resolve-dispatch-inputs.outputs.environment }}"
+          UPGRADE_RELEASE_BUNDLE="${{ inputs.upgrade_release_bundle_path }}"
+          UPGRADE_FILE_PATH="${{ inputs.upgrade_file_path }}"
+          ENVIRONMENT="${{ inputs.environment }}"
           FILENAME="${UPGRADE_FILE_PATH##*/}"
           UPGRADE_DIR="${UPGRADE_FILE_PATH%/*}"
           DEST_UPGRADE_PREFIX="gs://$DEST_BUCKET/GCNV/$VERSION/upgrade"
@@ -1377,95 +1041,13 @@ jobs:
           echo "✅ Upgrade file copied to $DEST_URI"
           echo "status=success" >> $GITHUB_OUTPUT
 
-  ensure-rbac-when-vsa-image-present:
-    name: Ensure RBAC Folder (VSA Image Already Present)
-    runs-on: ubuntu-latest
-    needs: [resolve-dispatch-inputs, parse-version-file, pre-check-image]
-    if: |
-      needs.resolve-dispatch-inputs.outputs.run_mode == 'single_environment' &&
-      needs.parse-version-file.outputs.image_type == 'vsa' &&
-      needs.pre-check-image.outputs.image_exists == 'true' &&
-      needs.resolve-dispatch-inputs.outputs.rbac_folder_path != ''
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_PROVIDER_VSA_PROD || secrets.WORKLOAD_IDENTITY_PROVIDER_VSA }}
-          service_account: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_PROD || secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-      - name: Configure gcloud
-        run: |
-          gcloud config set compute/region ${GCP_REGION}
-          gcloud config set core/disable_prompts true
-      - name: Check RBAC folder and copy if missing
-        id: ensure-rbac
-        run: |
-          set -uo pipefail
-          VERSION="${{ needs.parse-version-file.outputs.version }}"
-          DEST_BUCKET="${{ needs.parse-version-file.outputs.destination_bucket }}"
-          SOURCE_BUCKET="${{ needs.parse-version-file.outputs.source_bucket }}"
-          IS_AUTOPUSH="${{ needs.parse-version-file.outputs.is_autopush }}"
-          UPGRADE_BUNDLE="${{ needs.resolve-dispatch-inputs.outputs.upgrade_release_bundle_path }}"
-          RBAC_FOLDER="${{ needs.resolve-dispatch-inputs.outputs.rbac_folder_path }}"
-          RBAC_CLI="gcnvadmin_create_cli"
-          RBAC_SHA="gcnvadmin_create_cli.sha256.b64"
-          DEST_RBAC_PREFIX="gs://$DEST_BUCKET/GCNV/$VERSION/RBAC"
-          DEST_CLI_URI="$DEST_RBAC_PREFIX/$RBAC_CLI"
-          DEST_SHA_URI="$DEST_RBAC_PREFIX/$RBAC_SHA"
-          COT_CLI_URI="gs://cot-releases-public/$UPGRADE_BUNDLE/$RBAC_FOLDER/$RBAC_CLI"
-          COT_SHA_URI="gs://cot-releases-public/$UPGRADE_BUNDLE/$RBAC_FOLDER/$RBAC_SHA"
-          SOURCE_CLI_URI="gs://$SOURCE_BUCKET/GCNV/$VERSION/RBAC/$RBAC_CLI"
-          SOURCE_SHA_URI="gs://$SOURCE_BUCKET/GCNV/$VERSION/RBAC/$RBAC_SHA"
-          echo "🔍 VSA image already present; checking RBAC folder"
-          if gsutil -q stat "$DEST_CLI_URI" 2>/dev/null && gsutil -q stat "$DEST_SHA_URI" 2>/dev/null; then
-            echo "✅ RBAC files already exist in destination: $DEST_RBAC_PREFIX/"
-            echo "status=exists" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          echo "📁 RBAC folder/files missing; creating folder and copying RBAC files"
-          if ! gsutil ls "$DEST_RBAC_PREFIX/" 2>/dev/null | head -1 | grep -q .; then
-            echo -n | gsutil cp - "$DEST_RBAC_PREFIX/.keep" 2>/dev/null || true
-          fi
-          copy_cli=false
-          copy_sha=false
-          if [ "$IS_AUTOPUSH" = "true" ]; then
-            if gsutil -q stat "$COT_CLI_URI" 2>/dev/null; then copy_cli=true; fi
-            if gsutil -q stat "$COT_SHA_URI" 2>/dev/null; then copy_sha=true; fi
-          else
-            if gsutil -q stat "$SOURCE_CLI_URI" 2>/dev/null; then copy_cli=true; fi
-            if gsutil -q stat "$SOURCE_SHA_URI" 2>/dev/null; then copy_sha=true; fi
-            if [ "$copy_cli" != "true" ] && gsutil -q stat "$COT_CLI_URI" 2>/dev/null; then
-              gsutil cp "$COT_CLI_URI" "$SOURCE_CLI_URI" 2>/dev/null && copy_cli=true || true
-            fi
-            if [ "$copy_sha" != "true" ] && gsutil -q stat "$COT_SHA_URI" 2>/dev/null; then
-              gsutil cp "$COT_SHA_URI" "$SOURCE_SHA_URI" 2>/dev/null && copy_sha=true || true
-            fi
-          fi
-          if [ "$copy_cli" != "true" ] || [ "$copy_sha" != "true" ]; then
-            echo "⚠️ RBAC files not available at source/COT; skipping"
-            echo "status=skipped" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          SRC_CLI="$COT_CLI_URI"; SRC_SHA="$COT_SHA_URI"
-          if [ "$IS_AUTOPUSH" != "true" ]; then SRC_CLI="$SOURCE_CLI_URI"; SRC_SHA="$SOURCE_SHA_URI"; fi
-          gsutil cp "$SRC_CLI" "$DEST_CLI_URI"
-          gsutil cp "$SRC_SHA" "$DEST_SHA_URI"
-          echo "✅ RBAC files copied to $DEST_RBAC_PREFIX/"
-          echo "status=success" >> $GITHUB_OUTPUT
-
   create-in-destination:
-    name: Create Image in Destination (${{ matrix.image_type }})
+    name: Create Image in Destination Project
     runs-on: ubuntu-latest
-    needs: [resolve-dispatch-inputs, parse-version-file, pre-check-image, create-and-export-image, copy-signature-file-to-vsa-compute-images, copy-to-destination]
-    strategy:
-      matrix:
-        image_type: ${{ fromJson(needs.resolve-dispatch-inputs.outputs.image_types) }}
+    needs: [parse-version-file, pre-check-image, create-and-export-image, copy-signature-file-to-vsa-compute-images, copy-to-destination]
     if: |
       always() &&
+      needs.pre-check-image.outputs.image_exists == 'false' &&
       needs.copy-to-destination.result != 'failure' &&
       (
         (needs.parse-version-file.outputs.is_autopush == 'true' && 
@@ -1726,8 +1308,8 @@ jobs:
           echo "## Create Image in Destination Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Image Name**: ${{ needs.parse-version-file.outputs.image_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image Type**: ${{ needs.resolve-dispatch-inputs.outputs.image_type }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Environment**: ${{ needs.resolve-dispatch-inputs.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Type**: ${{ inputs.image_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Destination Project**: ${{ needs.parse-version-file.outputs.destination_project }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Source URI**: gs://${{ needs.parse-version-file.outputs.destination_bucket }}/${{ needs.parse-version-file.outputs.image_type_path }}/${{ needs.parse-version-file.outputs.image_name }}.tar.gz" >> $GITHUB_STEP_SUMMARY
           echo "- **Storage Location**: ${{ needs.parse-version-file.outputs.storage_location }}" >> $GITHUB_STEP_SUMMARY
@@ -1737,65 +1319,11 @@ jobs:
           echo "- **Checksum2 Label**: ${{ steps.verify-digest.outputs.checksum2 }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: ${{ steps.create-dest.outputs.status }}" >> $GITHUB_STEP_SUMMARY
 
-  run-autopush:
-    name: All environments – Autopush
-    needs: resolve-dispatch-inputs
-    if: needs.resolve-dispatch-inputs.outputs.run_mode == 'all_environments'
-    permissions:
-      contents: read
-      id-token: write
-    uses: ./.github/workflows/vsa-mediator-image-copy-one-env.yml
-    with:
-      environment: autopush
-      image_type: ${{ needs.resolve-dispatch-inputs.outputs.image_type }}
-      version: ${{ needs.resolve-dispatch-inputs.outputs.version }}
-      image_name: ${{ needs.resolve-dispatch-inputs.outputs.image_name }}
-      bundle_name: ${{ needs.resolve-dispatch-inputs.outputs.bundle_name }}
-      upgrade_release_bundle_path: ${{ needs.resolve-dispatch-inputs.outputs.upgrade_release_bundle_path }}
-      upgrade_file_path: ${{ needs.resolve-dispatch-inputs.outputs.upgrade_file_path }}
-    secrets: inherit
-
-  run-staging:
-    name: All environments – Staging
-    needs: [resolve-dispatch-inputs, run-autopush]
-    if: needs.resolve-dispatch-inputs.outputs.run_mode == 'all_environments'
-    permissions:
-      contents: read
-      id-token: write
-    uses: ./.github/workflows/vsa-mediator-image-copy-one-env.yml
-    with:
-      environment: staging
-      image_type: ${{ needs.resolve-dispatch-inputs.outputs.image_type }}
-      version: ${{ needs.resolve-dispatch-inputs.outputs.version }}
-      image_name: ${{ needs.resolve-dispatch-inputs.outputs.image_name }}
-      bundle_name: ${{ needs.resolve-dispatch-inputs.outputs.bundle_name }}
-      upgrade_release_bundle_path: ${{ needs.resolve-dispatch-inputs.outputs.upgrade_release_bundle_path }}
-      upgrade_file_path: ${{ needs.resolve-dispatch-inputs.outputs.upgrade_file_path }}
-    secrets: inherit
-
-  run-prod:
-    name: All environments – Production
-    needs: [resolve-dispatch-inputs, run-staging]
-    if: needs.resolve-dispatch-inputs.outputs.run_mode == 'all_environments'
-    permissions:
-      contents: read
-      id-token: write
-    uses: ./.github/workflows/vsa-mediator-image-copy-one-env.yml
-    with:
-      environment: prod
-      image_type: ${{ needs.resolve-dispatch-inputs.outputs.image_type }}
-      version: ${{ needs.resolve-dispatch-inputs.outputs.version }}
-      image_name: ${{ needs.resolve-dispatch-inputs.outputs.image_name }}
-      bundle_name: ${{ needs.resolve-dispatch-inputs.outputs.bundle_name }}
-      upgrade_release_bundle_path: ${{ needs.resolve-dispatch-inputs.outputs.upgrade_release_bundle_path }}
-      upgrade_file_path: ${{ needs.resolve-dispatch-inputs.outputs.upgrade_file_path }}
-    secrets: inherit
-
   workflow-summary:
     name: Workflow Summary
     runs-on: ubuntu-latest
-    needs: [resolve-dispatch-inputs, parse-version-file, pre-check-image, create-and-export-image, copy-to-destination, copy-upgrade-to-destination, create-in-destination]
-    if: always() && needs.resolve-dispatch-inputs.outputs.run_mode == 'single_environment'
+    needs: [parse-version-file, pre-check-image, create-and-export-image, copy-to-destination, create-in-destination]
+    if: always()
     
     permissions:
       contents: read
@@ -1806,8 +1334,8 @@ jobs:
           echo "## 🎯 Compute Image Copy Workflow Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Configuration" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image Type**: ${{ needs.resolve-dispatch-inputs.outputs.image_type }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Environment**: ${{ needs.resolve-dispatch-inputs.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Type**: ${{ inputs.image_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Image Name**: ${{ needs.parse-version-file.outputs.image_name }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Destination Project**: ${{ needs.parse-version-file.outputs.destination_project }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -1846,7 +1374,7 @@ jobs:
                 echo "❌ **Create & Export**: Failed" >> $GITHUB_STEP_SUMMARY
               fi
             else
-              echo "⏭️ **Create & Export**: Skipped (not required for ${{ needs.resolve-dispatch-inputs.outputs.environment }})" >> $GITHUB_STEP_SUMMARY
+              echo "⏭️ **Create & Export**: Skipped (not required for ${{ inputs.environment }})" >> $GITHUB_STEP_SUMMARY
             fi
             
             COPY_RESULT="${{ needs.copy-to-destination.result }}"

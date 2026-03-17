@@ -1,0 +1,3 @@
+[submodule "vcp-deployment-pipeline"]
+	path = vcp-deployment-pipeline
+	url = https://github.com/VCP-VSA-control-Plane/vcp-deployment-pipeline.git
