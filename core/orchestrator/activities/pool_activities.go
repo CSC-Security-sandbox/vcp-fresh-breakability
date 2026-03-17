@@ -1548,10 +1548,9 @@ func (j *PoolActivity) CreateQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 				"existingIOPS", existingQosPolicy.MaxIOPS,
 				"newIOPS", maxIOPS)
 
-			// Update the existing QoS policy with new values
+			// Update the existing QoS policy with new values (omit Name so ONTAP does not treat it as a rename)
 			updateQosPolicyParams := vsa.UpdateQoSGroupPolicyParams{
 				UUID:          existingQosPolicy.UUID,
-				Name:          existingQosPolicy.Name,
 				SvmName:       existingQosPolicy.SvmName,
 				MaxThroughput: maxThroughput,
 				MaxIOPS:       maxIOPS,
@@ -1665,10 +1664,9 @@ func (j *PoolActivity) ModifyQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 		"currentIOPS", existingQosPolicy.MaxIOPS,
 		"newIOPS", newMaxIOPS)
 
-	// Update the QoS policy with new values
+	// Update the QoS policy with new values (omit Name so ONTAP does not treat it as a rename)
 	updateQosPolicyParams := vsa.UpdateQoSGroupPolicyParams{
 		UUID:          existingQosPolicy.UUID,
-		Name:          existingQosPolicy.Name,
 		SvmName:       existingQosPolicy.SvmName,
 		MaxThroughput: newMaxThroughput,
 		MaxIOPS:       *newMaxIOPS,

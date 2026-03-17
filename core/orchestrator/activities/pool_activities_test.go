@@ -5804,7 +5804,7 @@ func TestCreateQoSPolicyAndApplyToSVM(t *testing.T) {
 		// Mock QoS policy update
 		mockProvider.On("UpdateQoSGroupPolicy", vsa.UpdateQoSGroupPolicyParams{
 			UUID:          "test-qos-uuid",
-			Name:          "test-svm-qos-policy",
+			Name:          "",
 			SvmName:       "test-svm",
 			MaxThroughput: 1000,
 			MaxIOPS:       5000,
@@ -6137,7 +6137,7 @@ func TestModifyQoSPolicyAndApplyToSVM(t *testing.T) {
 		// Mock QoS policy update
 		mockProvider.On("UpdateQoSGroupPolicy", vsa.UpdateQoSGroupPolicyParams{
 			UUID:          "test-qos-uuid",
-			Name:          "test-svm-qos-policy",
+			Name:          "",
 			SvmName:       "test-svm",
 			MaxThroughput: 2000,
 			MaxIOPS:       6000,
@@ -6340,7 +6340,7 @@ func TestModifyQoSPolicyAndApplyToSVM(t *testing.T) {
 		}).Return(existingQoSPolicy, nil)
 		mockProvider.On("UpdateQoSGroupPolicy", vsa.UpdateQoSGroupPolicyParams{
 			UUID:          "test-qos-uuid",
-			Name:          "test-svm-qos-policy",
+			Name:          "",
 			SvmName:       "test-svm",
 			MaxThroughput: 2000,
 			MaxIOPS:       6000,
@@ -6397,7 +6397,7 @@ func TestModifyQoSPolicyAndApplyToSVM(t *testing.T) {
 		}).Return(existingQoSPolicy, nil)
 		mockProvider.On("UpdateQoSGroupPolicy", vsa.UpdateQoSGroupPolicyParams{
 			UUID:          "test-qos-uuid",
-			Name:          "test-svm-qos-policy",
+			Name:          "",
 			SvmName:       "test-svm",
 			MaxThroughput: 2000,
 			MaxIOPS:       6000,
