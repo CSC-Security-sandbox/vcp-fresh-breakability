@@ -114,7 +114,7 @@ spec:
             - name: GCE_METADATA_HOST
               value: "34.116.66.254:9090"
         - name: vlm-worker-files
-          image: ghcr.io/vcp-vsa-control-plane/temporal-vlm:R9.18.1Px_8002425
+          image: ghcr.io/vcp-vsa-control-plane/vcp-container-images-us/vlm-worker:R9.18.1Px_8020811
           env:
             - name: PROVIDER
               value: "gcp"
