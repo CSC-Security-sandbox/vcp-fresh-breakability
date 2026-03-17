@@ -94,18 +94,6 @@ data:
                     regex: 'source_cluster|source_location|source_volume|source_vserver|destination_location|destination_node|destination_volume|destination_vserver'
                   - action: labeldrop
                     regex: 'aggr|partition|plex|node'
-        prometheus/health:
-            config:
-                scrape_configs:
-                - job_name: "health-scrape-job"
-                  scrape_interval: 60s
-                  http_sd_configs:
-                  - url: http://{{ .Values.otel.metricsHost }}{{ .Values.otel.pollerMetricsEndPoint }}
-                    refresh_interval: {{ .Values.otel.refresh_interval }}
-                  metric_relabel_configs:
-                  - source_labels: ['__name__']
-                    action: keep
-                    regex: 'cluster_new_status|node_new_status|volume_new_status'
         prometheus/scaling:
             config:
                 scrape_configs:
@@ -157,7 +145,7 @@ data:
             - health_check
         pipelines:
             metrics:
-                receivers: [prometheus, prometheus/health]
+                receivers: [prometheus]
                 processors: [resourcedetection,groupbyattrs,transform/monitoring,batch]
                 exporters: [googlecloud,debug]
             metrics/tenants:
