@@ -1290,8 +1290,14 @@ func _getSourceVolumePathFromBackup(backup *datamodel.Backup) string {
 	} else {
 		sourceVolumeZone = backup.Attributes.SourceVolumeZone
 	}
+	accountIdentifier := backup.Attributes.AccountIdentifier
+	if backup.BackupVault != nil &&
+		backup.BackupVault.ServiceType == models.ServiceTypeCrossProject &&
+		backup.Attributes.VolumeAccountName != "" {
+		accountIdentifier = backup.Attributes.VolumeAccountName
+	}
 	return fmt.Sprintf("projects/%s/locations/%s/volumes/%s",
-		backup.Attributes.AccountIdentifier,
+		accountIdentifier,
 		sourceVolumeZone,
 		backup.Attributes.VolumeName)
 }
@@ -1304,8 +1310,14 @@ func _getSourceSnapshotPathFromBackup(backup *datamodel.Backup) string {
 	} else {
 		sourceVolumeZone = backup.Attributes.SourceVolumeZone
 	}
+	accountIdentifier := backup.Attributes.AccountIdentifier
+	if backup.BackupVault != nil &&
+		backup.BackupVault.ServiceType == models.ServiceTypeCrossProject &&
+		backup.Attributes.VolumeAccountName != "" {
+		accountIdentifier = backup.Attributes.VolumeAccountName
+	}
 	return fmt.Sprintf("projects/%s/locations/%s/volumes/%s/snapshots/%s",
-		backup.Attributes.AccountIdentifier,
+		accountIdentifier,
 		sourceVolumeZone,
 		backup.Attributes.VolumeName,
 		RenameSnapshotName(backup.Attributes.SnapshotName))

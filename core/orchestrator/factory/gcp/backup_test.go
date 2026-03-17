@@ -6279,7 +6279,7 @@ func TestCreateBackup_GCBDR_UsesGetVolumeWithoutAccountID(t *testing.T) {
 
 	backupVault := &datamodel.BackupVault{
 		BaseModel:   datamodel.BaseModel{ID: 5, UUID: "vault-uuid"},
-		ServiceType: "GCBDR",
+		ServiceType: models.ServiceTypeCrossProject,
 		AccountID:   account.ID,
 	}
 
@@ -6290,7 +6290,7 @@ func TestCreateBackup_GCBDR_UsesGetVolumeWithoutAccountID(t *testing.T) {
 		AccountName:            account.Name,
 		Description:            "GCBDR test backup",
 		BackupType:             "MANUAL",
-		BackupVaultServiceType: "GCBDR", // triggers GetVolume path
+		BackupVaultServiceType: models.ServiceTypeCrossProject, // triggers GetVolume path
 	}
 
 	job := &datamodel.Job{
@@ -6358,7 +6358,7 @@ func TestGetBackupVaultByUUIDWithoutAccount_Success(t *testing.T) {
 	backupVault := &datamodel.BackupVault{
 		BaseModel:   datamodel.BaseModel{ID: 1, UUID: bvUUID},
 		Name:        "gcbdr-vault",
-		ServiceType: "GCBDR",
+		ServiceType: models.ServiceTypeCrossProject,
 		Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "owner-uuid"}},
 	}
 

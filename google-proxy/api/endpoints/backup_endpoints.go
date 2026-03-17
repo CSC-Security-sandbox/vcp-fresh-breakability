@@ -30,7 +30,7 @@ var (
 	checkIfBackupExistInCVP           = _checkIfBackupExistInCVP
 	ONTAPMode                         = "ONTAP"
 	ExpertModeBackupEnabled           = env.GetBool("EXPERT_MODE_BACKUP_ENABLED", false)
-	gcbdrServiceType                  = "GCBDR"
+	gcbdrServiceType                  = coremodels.ServiceTypeCrossProject
 )
 
 func (h Handler) V1betaGetMultipleBackups(ctx context.Context, req *gcpgenserver.BackupUuidListV1beta, params gcpgenserver.V1betaGetMultipleBackupsParams) (gcpgenserver.V1betaGetMultipleBackupsRes, error) {

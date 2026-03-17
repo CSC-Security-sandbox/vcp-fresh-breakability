@@ -1051,6 +1051,7 @@ type BackupAttributes struct {
 	IsRegionalHA                   bool      `json:"is_regional_ha"`
 	RestoreVolumeCount             int       `json:"restore_volume_count"`
 	TotalTransferBytes             int64     `json:"total_transfer_bytes"`
+	VolumeAccountName              string    `json:"volume_account_name"`
 }
 
 func (b *BackupAttributes) GetTotalTransferBytes() int64 {

@@ -6542,7 +6542,7 @@ func TestV1betaCreateBackup_GCBDR_SkipsCVPCheckAndDetectsConflictInVCP(t *testin
 	// GCBDR vault
 	vcpBv := &coremodels.BackupVaultV1beta{
 		BackupVaultID: params.BackupVaultId,
-		ServiceType:   "GCBDR",
+		ServiceType:   "CrossProject",
 		AccountName:   "vault-owner",
 	}
 	mockOrch.EXPECT().
@@ -6612,7 +6612,7 @@ func TestV1betaCreateBackup_GCBDR_VCPCheckError(t *testing.T) {
 	// GCBDR vault
 	vcpBv := &coremodels.BackupVaultV1beta{
 		BackupVaultID: params.BackupVaultId,
-		ServiceType:   "GCBDR",
+		ServiceType:   "CrossProject",
 		AccountName:   "vault-owner",
 	}
 	mockOrch.EXPECT().
@@ -6659,7 +6659,7 @@ func TestV1betaListBackups_GCBDR_UsesListBackupsWithoutAccountFilter(t *testing.
 	// Return GCBDR vault
 	vcpBv := &coremodels.BackupVaultV1beta{
 		BackupVaultID: params.BackupVaultId,
-		ServiceType:   "GCBDR",
+		ServiceType:   "CrossProject",
 		AccountName:   "vault-owner",
 	}
 	mockOrch.EXPECT().
@@ -6670,7 +6670,7 @@ func TestV1betaListBackups_GCBDR_UsesListBackupsWithoutAccountFilter(t *testing.
 	sourceRegion := "us-central1"
 	backupVaultData := &datamodel.BackupVault{
 		Name:             "gcbdr-vault",
-		ServiceType:      "GCBDR",
+		ServiceType:      "CrossProject",
 		SourceRegionName: &sourceRegion,
 		BucketDetails:    datamodel.BucketDetailsArray{&datamodel.BucketDetails{BucketName: "gcbdr-bucket"}},
 	}

@@ -3005,7 +3005,7 @@ func Test_CreateBackupVaultV1beta(t *testing.T) {
 		assert.NotNil(t, result)
 		mockOrchestrator.AssertExpectations(t)
 	})
-	t.Run("WhenCrossProjectVaultEnabledAndCreateBackupVaultEntryInVCPFromCVPFails_ReturnsInternalServerError", func(t *testing.T) {
+	t.Run("WhenGCBDRVaultEnabledAndCreateBackupVaultEntryInVCPFromCVPFails_ReturnsInternalServerError", func(t *testing.T) {
 		mockClient := backup_vault.NewMockClientService(t)
 		req := &gcpgenserver.BackupVaultCreateV1beta{
 			ResourceId:        gcpgenserver.NewOptString("new-vault"),

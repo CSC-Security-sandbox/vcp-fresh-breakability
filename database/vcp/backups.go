@@ -211,6 +211,7 @@ func _getBackupWithDetails(db *gorm.DB, query *datamodel.Backup) (*datamodel.Bac
 	return backup, nil
 }
 
+
 func (d *DataStoreRepository) GetBackupCountByBackupVaultID(ctx context.Context, backupVaultID int64) (int64, error) {
 	var count int64
 	err := d.db.GORM().WithContext(ctx).Model(&datamodel.Backup{}).Where("backup_vault_id = ?", backupVaultID).Count(&count).Error

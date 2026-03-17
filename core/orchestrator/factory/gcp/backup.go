@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	GCBDRServiceType = "GCBDR"
+	GCBDRServiceType = models.ServiceTypeCrossProject
 )
 
 var (
@@ -264,6 +264,9 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 	}
 	if params.ConstituentCountOfBackup > 0 {
 		backupAttributes.ConstituentCountOfBackup = params.ConstituentCountOfBackup
+	}
+	if params.BackupVaultServiceType == GCBDRServiceType && volume != nil && volume.Account != nil {
+		backupAttributes.VolumeAccountName = volume.Account.Name
 	}
 	dbBackup := &datamodel.Backup{
 		Name:          params.BackupName,

@@ -44,7 +44,7 @@ const (
 	VolumeTypeDP                 = "dp"
 	SnapshotPolicyNone           = "none"
 	CrossRegionBackupType        = "CROSS_REGION"
-	GCBDRServiceType             = "GCBDR"
+	GCBDRServiceType             = models.ServiceTypeCrossProject
 	CrossRegionBackupVaultErrMsg = "Cross region backup vaults are not supported for ISCSI volumes"
 	RestoreBackupWorkflow        = "RestoreBackupWorkflow"
 	BytesPerGB                   = 1073741824 // 1024^3 bytes = 1 GB

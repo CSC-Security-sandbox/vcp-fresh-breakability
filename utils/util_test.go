@@ -3108,6 +3108,56 @@ func TestGetSourceVolumePathFromBackup(t *testing.T) {
 			expectedPath: "projects/project-with-dashes-123/locations/us-central1-b/volumes/volume_with_underscores",
 			expectError:  false,
 		},
+		{
+			name: "CrossProject vault: VolumeAccountName overrides AccountIdentifier",
+			backup: &datamodel.Backup{
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier: "vault-project-999",
+					SourceVolumeZone:  "us-east1-b",
+					VolumeName:        "cross-project-vol",
+					VolumeAccountName: "volume-owner-project-123",
+				},
+				BackupVault: &datamodel.BackupVault{
+					SourceRegionName: stringPtr("us-east1"),
+					ServiceType:      models.ServiceTypeCrossProject,
+				},
+			},
+			expectedPath: "projects/volume-owner-project-123/locations/us-east1-b/volumes/cross-project-vol",
+			expectError:  false,
+		},
+		{
+			name: "CrossProject vault: VolumeAccountName empty falls back to AccountIdentifier",
+			backup: &datamodel.Backup{
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier: "fallback-project-456",
+					SourceVolumeZone:  "us-west1-a",
+					VolumeName:        "fallback-vol",
+				},
+				BackupVault: &datamodel.BackupVault{
+					SourceRegionName: stringPtr("us-west1"),
+					ServiceType:      models.ServiceTypeCrossProject,
+				},
+			},
+			expectedPath: "projects/fallback-project-456/locations/us-west1-a/volumes/fallback-vol",
+			expectError:  false,
+		},
+		{
+			name: "Non-CrossProject vault ignores VolumeAccountName",
+			backup: &datamodel.Backup{
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier: "requesting-project-111",
+					SourceVolumeZone:  "us-east1-b",
+					VolumeName:        "vol-1",
+					VolumeAccountName: "should-be-ignored",
+				},
+				BackupVault: &datamodel.BackupVault{
+					SourceRegionName: stringPtr("us-east1"),
+					ServiceType:      "GCNV",
+				},
+			},
+			expectedPath: "projects/requesting-project-111/locations/us-east1-b/volumes/vol-1",
+			expectError:  false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -3155,6 +3205,59 @@ func TestGetSourceSnapshotPathFromBackup(t *testing.T) {
 				},
 			},
 			expectedPath: "projects/test-project-456/locations/us-west1/volumes/test-volume-2/snapshots/snapshot-2",
+			expectError:  false,
+		},
+		{
+			name: "CrossProject vault: VolumeAccountName overrides AccountIdentifier",
+			backup: &datamodel.Backup{
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier: "vault-project-999",
+					SourceVolumeZone:  "us-east1-b",
+					VolumeName:        "cross-project-vol",
+					SnapshotName:      "snap-1",
+					VolumeAccountName: "volume-owner-project-123",
+				},
+				BackupVault: &datamodel.BackupVault{
+					SourceRegionName: stringPtr("us-east1"),
+					ServiceType:      models.ServiceTypeCrossProject,
+				},
+			},
+			expectedPath: "projects/volume-owner-project-123/locations/us-east1-b/volumes/cross-project-vol/snapshots/snap-1",
+			expectError:  false,
+		},
+		{
+			name: "CrossProject vault: VolumeAccountName empty falls back to AccountIdentifier",
+			backup: &datamodel.Backup{
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier: "fallback-project-456",
+					SourceVolumeZone:  "us-west1-a",
+					VolumeName:        "fallback-vol",
+					SnapshotName:      "snap-fallback",
+				},
+				BackupVault: &datamodel.BackupVault{
+					SourceRegionName: stringPtr("us-west1"),
+					ServiceType:      models.ServiceTypeCrossProject,
+				},
+			},
+			expectedPath: "projects/fallback-project-456/locations/us-west1-a/volumes/fallback-vol/snapshots/snap-fallback",
+			expectError:  false,
+		},
+		{
+			name: "Non-CrossProject vault ignores VolumeAccountName for snapshot",
+			backup: &datamodel.Backup{
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier: "requesting-project-111",
+					SourceVolumeZone:  "us-east1-b",
+					VolumeName:        "vol-1",
+					SnapshotName:      "snap-1",
+					VolumeAccountName: "should-be-ignored",
+				},
+				BackupVault: &datamodel.BackupVault{
+					SourceRegionName: stringPtr("us-east1"),
+					ServiceType:      "GCNV",
+				},
+			},
+			expectedPath: "projects/requesting-project-111/locations/us-east1-b/volumes/vol-1/snapshots/snap-1",
 			expectError:  false,
 		},
 	}
