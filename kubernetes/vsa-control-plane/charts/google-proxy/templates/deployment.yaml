@@ -55,6 +55,10 @@ spec:
           image: "{{- include "containerImage" (list . (dict "name" "googleProxy" "secondary" false)) | trim -}}"
           {{- end }}
           imagePullPolicy: {{ .Values.images.googleProxy.pullPolicy }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            allowPrivilegeEscalation: false
           resources:
             limits:
               cpu: {{ .Values.resources.limits.cpu }}

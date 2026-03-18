@@ -38,3 +38,5 @@ RUN chown github:github /usr/local/bin/vsacictl && \
 RUN mkdir -p /workspace && chown github:github /workspace
 
 WORKDIR /workspace
+
+USER github

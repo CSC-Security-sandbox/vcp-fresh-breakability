@@ -40,6 +40,10 @@ spec:
       containers:
       - name: core
         image: core
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65532
+          allowPrivilegeEscalation: false
         env:
           - name: FIRESTORE_EMULATOR_HOST
             value: firestore_emulator:8200

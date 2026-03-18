@@ -15,11 +15,17 @@ spec:
       labels:
         app: postgres
     spec:
+      securityContext:
+        fsGroup: 999
       containers:
         - name: postgres
           image: postgres:14
           ports:
             - containerPort: 5432
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            allowPrivilegeEscalation: false
           env:
             - name: POSTGRES_DB
               value: vcp

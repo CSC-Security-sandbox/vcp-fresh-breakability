@@ -54,6 +54,10 @@ spec:
           image: "{{- include "containerImage" (list $ (dict "name" "vcpWorker" "secondary" false "version" $versionName "sha" $ver.sha )) | trim -}}"
           {{- end }}
           imagePullPolicy: {{ $.Values.images.vcpWorker.pullPolicy }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            allowPrivilegeEscalation: false
           resources:
             limits:
               cpu: {{ $.Values.resources.limits.cpu }}

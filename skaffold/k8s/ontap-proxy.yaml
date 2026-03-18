@@ -37,6 +37,10 @@ spec:
           image: ontap-proxy
           ports:
             - containerPort: 8080
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            allowPrivilegeEscalation: false
           env:
             - name: ONTAP_API_ADDRESS
               value: "35.221.37.74"

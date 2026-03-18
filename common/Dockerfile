@@ -3,4 +3,5 @@ FROM gcr.io/distroless/base
 # for `skaffold debug` (https://skaffold.dev/docs/workflows/debug/).
 
 ENV GOTRACEBACK=single
+USER nonroot:nonroot
 CMD ["/app"]

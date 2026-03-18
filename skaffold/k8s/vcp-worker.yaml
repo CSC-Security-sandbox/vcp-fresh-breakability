@@ -173,6 +173,10 @@ spec:
           ports:
             - containerPort: 8080
               name: http
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            allowPrivilegeEscalation: false
           envFrom:
             - configMapRef:
                 name: vcp-worker-config
@@ -207,6 +211,10 @@ spec:
           ports:
             - containerPort: 8080
               name: http
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            allowPrivilegeEscalation: false
           envFrom:
             - configMapRef:
                 name: vcp-worker-config

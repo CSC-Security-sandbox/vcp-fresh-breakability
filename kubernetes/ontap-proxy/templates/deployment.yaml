@@ -46,6 +46,10 @@ spec:
           image: "{{- include "containerImage" (list . (dict "name" "ontapProxy" "secondary" false)) | trim -}}"
           {{- end }}
           imagePullPolicy: {{ .Values.images.ontapProxy.pullPolicy }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            allowPrivilegeEscalation: false
           resources:
             limits:
               cpu: {{ .Values.resources.limits.cpu }}
