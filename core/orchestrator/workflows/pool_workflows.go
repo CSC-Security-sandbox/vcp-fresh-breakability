@@ -798,6 +798,15 @@ func UpdatePoolWorkflow(ctx workflow.Context, params *common.UpdatePoolParams, p
 		return nil, ConvertToVSAError(err)
 	}
 
+	// On panic, mark job ERROR so the operation reports done with error instead of staying "in progress"
+	defer func() {
+		if r := recover(); r != nil {
+			updatePoolWF.Status = WorkflowStatusFailed
+			_ = updatePoolWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), fmt.Errorf("workflow panic: %v", r))
+			panic(r)
+		}
+	}()
+
 	updatePoolWF.Status = WorkflowStatusRunning
 	err = updatePoolWF.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
@@ -913,12 +922,16 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 			return nil, ConvertToVSAError(err)
 		}
 	}
+	// Do not short-circuit when qosType is explicitly changing (auto↔manual); transition branch handles it.
+	// Use a single robust check: requested type is valid (auto|manual) and differs from current.
+	qosTypeTransition := (updatePoolParams.QosType == utils.QosTypeAuto || updatePoolParams.QosType == utils.QosTypeManual) && updatePoolParams.QosType != dbPool.QosType
+
 	// if there is no need of vlm workflow, just perform update pool in db
 	// Note: For expert mode pools enabling auto-tiering, we must call VLM to attach the bucket
 	if currentProvisionedSize == int64(toProvisionPoolSizeInBytes) &&
 		dbPool.PoolAttributes.ThroughputMibps == int64(updatePoolParams.TotalThroughputMibps) &&
 		dbPool.PoolAttributes.Iops == *updatePoolParams.TotalIops && autoScalingParams == nil &&
-		!needsBucketAttachment {
+		!needsBucketAttachment && !qosTypeTransition {
 		if dbPool.Description != updatePoolParams.Description {
 			dbPool.Description = updatePoolParams.Description
 		}
@@ -932,9 +945,33 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		// Update AutoTiering configuration
 		updateAutoTieringFields(dbPool, updatePoolParams)
 
+		// Apply qosType when provided so it is persisted by UpdatedPool (handles case where
+		// qosTypeTransition was false due to params serialization but request included qosType)
+		if updatePoolParams.QosType != "" {
+			dbPool.QosType = updatePoolParams.QosType
+		}
+
 		rollbackManager.AddActivity(poolActivity.UpdatedPool, pool)
 		err = workflow.ExecuteActivity(dbHbCtx, poolActivity.UpdatedPool, dbPool).Get(dbHbCtx, nil)
 		return nil, ConvertToVSAError(err)
+	}
+
+	// qosType transition: auto → manual
+	if updatePoolParams.QosType == utils.QosTypeManual && dbPool.QosType == utils.QosTypeAuto {
+		if customErr := runPoolQosTypeTransitionAutoToManual(ctx, dbHbCtx, wf, rollbackManager, poolActivity, dbPool, updatePoolParams, pool); customErr != nil {
+			err = customErr // ensure defer runs ExecuteRollback (e.g. restore QPG on vserver)
+			return nil, customErr
+		}
+		return nil, nil
+	}
+
+	// qosType transition: manual → auto
+	if updatePoolParams.QosType == utils.QosTypeAuto && dbPool.QosType == utils.QosTypeManual {
+		if customErr := runPoolQosTypeTransitionManualToAuto(ctx, dbHbCtx, wf, rollbackManager, poolActivity, dbPool, updatePoolParams, pool); customErr != nil {
+			err = customErr
+			return nil, customErr
+		}
+		return nil, nil
 	}
 
 	bucketName := ""
@@ -2315,8 +2352,302 @@ func _waitForGCPNetworkOperationStatus(ctx workflow.Context, poolActivity *activ
 	}
 }
 
+// runPoolQosTypeTransitionAutoToManual runs the auto→manual qosType transition: remove QPG from vserver,
+// create converted VPG (ONTAP + DB), assign all pool volumes to it, update pool qos_type to manual.
+// Registers rollback after each step so failure restores pre-transition state.
+func runPoolQosTypeTransitionAutoToManual(
+	ctx workflow.Context,
+	dbHbCtx workflow.Context,
+	wf *updatePoolWorkflow,
+	rollbackManager *common.RollbackManager,
+	poolActivity *activities.PoolActivity,
+	dbPool *datamodel.Pool,
+	updatePoolParams *common.UpdatePoolParams,
+	pool *datamodel.Pool,
+) *vsaerrors.CustomError {
+	volumeCreateActivity := &activities.VolumeCreateActivity{}
+	vpgActivity := &activities.VolumePerformanceGroupActivity{}
+	updateActivity := &activities.VolumeUpdateActivity{}
+	volumeDeleteActivity := &activities.VolumeDeleteActivity{}
+
+	wf.Logger.Info("qosType transition started", "direction", "auto_to_manual", "poolUUID", dbPool.UUID)
+
+	// Rollback params to re-apply QPG to vserver (restore auto state)
+	rollbackParamsForAuto := &common.UpdatePoolParams{
+		QosType:              utils.QosTypeAuto,
+		TotalThroughputMibps: dbPool.PoolAttributes.ThroughputMibps,
+		TotalIops:            &dbPool.PoolAttributes.Iops,
+	}
+
+	// 1. Get node for pool
+	var dbNodes []*datamodel.Node
+	if err := workflow.ExecuteActivity(dbHbCtx, activities.CommonActivities.GetNode, pool.ID).Get(dbHbCtx, &dbNodes); err != nil {
+		wf.Logger.Error("qosType transition failed", "direction", "auto_to_manual", "poolUUID", dbPool.UUID, "error", err)
+		return ConvertToVSAError(err)
+	}
+	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+		Nodes:            dbNodes,
+		DeploymentName:   pool.DeploymentName,
+		OntapCredentials: pool.PoolCredentials,
+	})
+
+	// 2. Remove QPG from vserver
+	wf.Logger.Info("qosType auto→manual: removing QPG from vserver")
+	if err := workflow.ExecuteActivity(ctx, poolActivity.RemoveQoSPolicyFromSVM, dbPool, node).Get(ctx, nil); err != nil {
+		wf.Logger.Error("qosType transition failed", "direction", "auto_to_manual", "poolUUID", dbPool.UUID, "error", err)
+		return ConvertToVSAError(err)
+	}
+	// Rollback must re-apply QPG; use immutable snapshot with QosType=auto so ModifyQoSPolicyAndApplyToSVM does not skip
+	rollbackPoolSnapshot := *dbPool
+	rollbackPoolSnapshot.QosType = utils.QosTypeAuto
+	rollbackManager.AddActivity(poolActivity.ModifyQoSPolicyAndApplyToSVM, &rollbackPoolSnapshot, node, rollbackParamsForAuto)
+
+	// 2b. Delete any existing QoS policy with the transition name (idempotent create: leftover from previous run)
+	// TransitionVPGNameFromPoolName is defined in pool_vpg_helpers.go.
+	transitionName := TransitionVPGNameFromPoolName(dbPool.Name)
+	if err := workflow.ExecuteActivity(ctx, vpgActivity.DeleteQoSPolicyInONTAP, transitionName, pool.ID, node).Get(ctx, nil); err != nil {
+		wf.Logger.Error("qosType transition failed", "direction", "auto_to_manual", "poolUUID", dbPool.UUID, "error", err)
+		return ConvertToVSAError(err)
+	}
+
+	// 3. Create transition VPG (shared, not auto-generated) with pool's total throughput/IOPS; name = pool name + -vpg
+	convertedVPGName := transitionName
+	convertedVPG := &datamodel.VolumePerformanceGroup{
+		Name:            convertedVPGName,
+		PoolID:          dbPool.ID,
+		ThroughputMibps: dbPool.PoolAttributes.ThroughputMibps,
+		Iops:            dbPool.PoolAttributes.Iops,
+		IsShared:        true,
+		IsAutoGen:       false,
+	}
+	var qosPolicyID string
+	if err := workflow.ExecuteActivity(ctx, vpgActivity.CreateQoSPolicyInONTAP, convertedVPG, node).Get(ctx, &qosPolicyID); err != nil {
+		wf.Logger.Error("qosType transition failed", "direction", "auto_to_manual", "poolUUID", dbPool.UUID, "error", err)
+		return ConvertToVSAError(err)
+	}
+	convertedVPG.OntapQosPolicyID = qosPolicyID
+	rollbackManager.AddActivity(vpgActivity.DeleteQoSPolicyInONTAP, qosPolicyID, pool.ID, node)
+
+	var createdVPG *datamodel.VolumePerformanceGroup
+	if err := workflow.ExecuteActivity(ctx, vpgActivity.CreateVPGInDB, convertedVPG).Get(ctx, &createdVPG); err != nil {
+		wf.Logger.Error("qosType transition failed", "direction", "auto_to_manual", "poolUUID", dbPool.UUID, "error", err)
+		return ConvertToVSAError(err)
+	}
+	rollbackManager.AddActivity(volumeDeleteActivity.DeleteVPGByID, createdVPG.ID, node)
+
+	// 4. Get volumes in pool
+	var volumes []*datamodel.Volume
+	if err := workflow.ExecuteActivity(dbHbCtx, volumeCreateActivity.GetVolumesByPoolID, pool.ID).Get(dbHbCtx, &volumes); err != nil {
+		wf.Logger.Error("qosType transition failed", "direction", "auto_to_manual", "poolUUID", dbPool.UUID, "error", err)
+		return ConvertToVSAError(err)
+	}
+
+	// 5. Assign each volume to the converted VPG (ONTAP + DB).
+	// Use VPG name (policy name in ONTAP), not OntapQosPolicyID (UUID): ONTAP volume update expects qos.policy.name.
+	for _, vol := range volumes {
+		if err := workflow.ExecuteActivity(ctx, updateActivity.AssignQoSPolicyToVolume, vol, createdVPG.Name, node).Get(ctx, nil); err != nil {
+			wf.Logger.Error("qosType transition failed", "direction", "auto_to_manual", "poolUUID", dbPool.UUID, "error", err)
+			return ConvertToVSAError(err)
+		}
+		rollbackManager.AddActivity(updateActivity.UpdateVolumePerformanceGroupInDBForVolume, vol.UUID, nil)
+		rollbackManager.AddActivity(updateActivity.UnassignQoSPolicyFromVolume, vol, node)
+
+		if err := workflow.ExecuteActivity(dbHbCtx, updateActivity.UpdateVolumePerformanceGroupInDBForVolume, vol.UUID, createdVPG).Get(dbHbCtx, nil); err != nil {
+			wf.Logger.Error("qosType transition failed", "direction", "auto_to_manual", "poolUUID", dbPool.UUID, "error", err)
+			return ConvertToVSAError(err)
+		}
+	}
+
+	// 6. Apply all applicable update params (description, labels, size, auto-tiering, throughput, iops) so they are persisted with the pool
+	applyUpdatePoolParamsToDbPool(dbPool, updatePoolParams)
+	// Update pool qos_type to manual in DB
+	dbPool.QosType = utils.QosTypeManual
+	if err := workflow.ExecuteActivity(dbHbCtx, poolActivity.UpdatePoolFields, dbPool.UUID, map[string]interface{}{
+		"qos_type": utils.QosTypeManual,
+	}).Get(dbHbCtx, nil); err != nil {
+		wf.Logger.Error("qosType transition failed", "direction", "auto_to_manual", "poolUUID", dbPool.UUID, "error", err)
+		return ConvertToVSAError(err)
+	}
+	if err := workflow.ExecuteActivity(dbHbCtx, poolActivity.UpdatedPool, dbPool).Get(dbHbCtx, nil); err != nil {
+		wf.Logger.Error("qosType transition failed", "direction", "auto_to_manual", "poolUUID", dbPool.UUID, "error", err)
+		return ConvertToVSAError(err)
+	}
+	wf.Logger.Info("qosType transition completed", "direction", "auto_to_manual", "poolUUID", dbPool.UUID)
+	return nil
+}
+
+// runPoolQosTypeTransitionManualToAuto runs the manual→auto qosType transition: unassign volumes from VPGs,
+// delete auto-generated VPGs, apply QPG to vserver, update pool qos_type to auto.
+// Registers rollback after each step so failure restores pre-transition state.
+func runPoolQosTypeTransitionManualToAuto(
+	ctx workflow.Context,
+	dbHbCtx workflow.Context,
+	wf *updatePoolWorkflow,
+	rollbackManager *common.RollbackManager,
+	poolActivity *activities.PoolActivity,
+	dbPool *datamodel.Pool,
+	updatePoolParams *common.UpdatePoolParams,
+	pool *datamodel.Pool,
+) *vsaerrors.CustomError {
+	vpgActivity := &activities.VolumePerformanceGroupActivity{}
+	volumeCreateActivity := &activities.VolumeCreateActivity{}
+	volumeDeleteActivity := &activities.VolumeDeleteActivity{}
+	updateActivity := &activities.VolumeUpdateActivity{}
+
+	wf.Logger.Info("qosType transition started", "direction", "manual_to_auto", "poolUUID", dbPool.UUID)
+
+	rollbackParamsForAuto := &common.UpdatePoolParams{
+		QosType:              utils.QosTypeAuto,
+		TotalThroughputMibps: dbPool.PoolAttributes.ThroughputMibps,
+		TotalIops:            &dbPool.PoolAttributes.Iops,
+	}
+
+	// 1. Get node for pool
+	var dbNodes []*datamodel.Node
+	if err := workflow.ExecuteActivity(dbHbCtx, activities.CommonActivities.GetNode, pool.ID).Get(dbHbCtx, &dbNodes); err != nil {
+		wf.Logger.Error("qosType transition failed", "direction", "manual_to_auto", "poolUUID", dbPool.UUID, "error", err)
+		return ConvertToVSAError(err)
+	}
+	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+		Nodes:            dbNodes,
+		DeploymentName:   pool.DeploymentName,
+		OntapCredentials: pool.PoolCredentials,
+	})
+
+	// 2. Get volumes in pool
+	var volumes []*datamodel.Volume
+	if err := workflow.ExecuteActivity(dbHbCtx, volumeCreateActivity.GetVolumesByPoolID, pool.ID).Get(dbHbCtx, &volumes); err != nil {
+		wf.Logger.Error("qosType transition failed", "direction", "manual_to_auto", "poolUUID", dbPool.UUID, "error", err)
+		return ConvertToVSAError(err)
+	}
+
+	// 3. List all VPGs for the pool (manual→auto deletes every pool VPG, not only auto-generated)
+	var allVPGs []*datamodel.VolumePerformanceGroup
+	if err := workflow.ExecuteActivity(dbHbCtx, vpgActivity.ListVolumePerformanceGroupsByPoolID, pool.ID).Get(dbHbCtx, &allVPGs); err != nil {
+		wf.Logger.Error("qosType transition failed", "direction", "manual_to_auto", "poolUUID", dbPool.UUID, "error", err)
+		return ConvertToVSAError(err)
+	}
+
+	// Build volumes-per-VPG for rollback (before we delete VPGs)
+	volumesByVPGID := make(map[int64][]*datamodel.Volume)
+	for _, vol := range volumes {
+		if vol.VolumePerformanceGroupID.Valid {
+			vpgID := vol.VolumePerformanceGroupID.Int64
+			volumesByVPGID[vpgID] = append(volumesByVPGID[vpgID], vol)
+		}
+	}
+
+	// 4. Unassign each volume from its VPG (ONTAP + DB) and register rollback to re-assign on failure
+	wf.Logger.Info("qosType manual→auto: unassigning volumes from VPGs", "direction", "manual_to_auto", "poolUUID", dbPool.UUID)
+	for _, vpg := range allVPGs {
+		for _, vol := range volumesByVPGID[vpg.ID] {
+			if err := workflow.ExecuteActivity(ctx, updateActivity.UnassignQoSPolicyFromVolume, vol, node).Get(ctx, nil); err != nil {
+				wf.Logger.Error("qosType transition failed", "direction", "manual_to_auto", "poolUUID", dbPool.UUID, "error", err)
+				return ConvertToVSAError(err)
+			}
+			if err := workflow.ExecuteActivity(dbHbCtx, updateActivity.UpdateVolumePerformanceGroupInDBForVolume, vol.UUID, nil).Get(dbHbCtx, nil); err != nil {
+				wf.Logger.Error("qosType transition failed", "direction", "manual_to_auto", "poolUUID", dbPool.UUID, "error", err)
+				return ConvertToVSAError(err)
+			}
+			rollbackManager.AddActivity(updateActivity.UpdateVolumePerformanceGroupInDBForVolume, vol.UUID, vpg)
+			rollbackManager.AddActivity(updateActivity.AssignQoSPolicyToVolume, vol, vpg.Name, node)
+		}
+	}
+
+	// 5. Bulk dereference any remaining pool volumes from VPGs (e.g. soft-deleted volumes) to avoid FK on VPG delete
+	wf.Logger.Info("qosType manual→auto: dereferencing pool volumes from VPGs in DB", "direction", "manual_to_auto", "poolUUID", dbPool.UUID)
+	if err := workflow.ExecuteActivity(dbHbCtx, volumeDeleteActivity.DereferencePoolVolumesFromVPGs, pool.ID).Get(dbHbCtx, nil); err != nil {
+		wf.Logger.Error("qosType transition failed", "direction", "manual_to_auto", "poolUUID", dbPool.UUID, "error", err)
+		return ConvertToVSAError(err)
+	}
+
+	// 6. Delete every pool VPG (QPG in ONTAP + hard-delete VPG in DB); register rollback to restore
+	for _, vpg := range allVPGs {
+		if err := workflow.ExecuteActivity(ctx, volumeDeleteActivity.DeleteVPGByID, vpg.ID, node).Get(ctx, nil); err != nil {
+			wf.Logger.Error("qosType transition failed", "direction", "manual_to_auto", "poolUUID", dbPool.UUID, "error", err)
+			return ConvertToVSAError(err)
+		}
+		volumesInVpg := volumesByVPGID[vpg.ID]
+		rollbackManager.AddActivity(vpgActivity.RestoreAutoGeneratedVPG, vpg, volumesInVpg, node)
+	}
+
+	// 6b. Delete QoS policy by transition name so no leftover policy remains (e.g. from failed DeleteVPGByID or wrong UUID)
+	transitionName := TransitionVPGNameFromPoolName(dbPool.Name)
+	if err := workflow.ExecuteActivity(ctx, vpgActivity.DeleteQoSPolicyInONTAP, transitionName, pool.ID, node).Get(ctx, nil); err != nil {
+		wf.Logger.Error("qosType transition failed", "direction", "manual_to_auto", "poolUUID", dbPool.UUID, "error", err)
+		return ConvertToVSAError(err)
+	}
+
+	// 7. Apply QPG to vserver. Use request params when present so the activity reliably sees QosType auto
+	// (avoids serialization/deserialization issues); otherwise use rollbackParamsForAuto (pool capacity).
+	paramsForApply := rollbackParamsForAuto
+	if updatePoolParams != nil && updatePoolParams.QosType == utils.QosTypeAuto {
+		paramsForApply = &common.UpdatePoolParams{
+			QosType:              utils.QosTypeAuto,
+			TotalThroughputMibps: updatePoolParams.TotalThroughputMibps,
+			TotalIops:            updatePoolParams.TotalIops,
+		}
+		if paramsForApply.TotalThroughputMibps == 0 && dbPool.PoolAttributes != nil {
+			paramsForApply.TotalThroughputMibps = dbPool.PoolAttributes.ThroughputMibps
+			paramsForApply.TotalIops = &dbPool.PoolAttributes.Iops
+		}
+	}
+	wf.Logger.Info("qosType manual→auto: applying QPG to vserver")
+	// Pass pool with QosType=auto so ModifyQoSPolicyAndApplyToSVM does not early-return for manual pools
+	poolForSVM := *dbPool
+	poolForSVM.QosType = utils.QosTypeAuto
+	if err := workflow.ExecuteActivity(ctx, poolActivity.ModifyQoSPolicyAndApplyToSVM, &poolForSVM, node, paramsForApply).Get(ctx, nil); err != nil {
+		wf.Logger.Error("qosType transition failed", "direction", "manual_to_auto", "poolUUID", dbPool.UUID, "error", err)
+		return ConvertToVSAError(err)
+	}
+	rollbackManager.AddActivity(poolActivity.RemoveQoSPolicyFromSVM, &poolForSVM, node)
+
+	// 8. Apply all applicable update params (description, labels, size, auto-tiering, throughput, iops) so they are persisted with the pool
+	applyUpdatePoolParamsToDbPool(dbPool, updatePoolParams)
+	// Update pool qos_type to auto in DB
+	dbPool.QosType = utils.QosTypeAuto
+	if err := workflow.ExecuteActivity(dbHbCtx, poolActivity.UpdatePoolFields, dbPool.UUID, map[string]interface{}{
+		"qos_type": utils.QosTypeAuto,
+	}).Get(dbHbCtx, nil); err != nil {
+		wf.Logger.Error("qosType transition failed", "direction", "manual_to_auto", "poolUUID", dbPool.UUID, "error", err)
+		return ConvertToVSAError(err)
+	}
+	if err := workflow.ExecuteActivity(dbHbCtx, poolActivity.UpdatedPool, dbPool).Get(dbHbCtx, nil); err != nil {
+		wf.Logger.Error("qosType transition failed", "direction", "manual_to_auto", "poolUUID", dbPool.UUID, "error", err)
+		return ConvertToVSAError(err)
+	}
+	wf.Logger.Info("qosType transition completed", "direction", "manual_to_auto", "poolUUID", dbPool.UUID)
+	return nil
+}
+
+// applyUpdatePoolParamsToDbPool applies all applicable update params to dbPool so that
+// when UpdatedPool is called, every request field (description, labels, size, auto-tiering,
+// throughput, iops) is persisted. Used by qosType transition paths so that a request
+// that includes qosType plus other fields updates everything.
+func applyUpdatePoolParamsToDbPool(dbPool *datamodel.Pool, updatePoolParams *common.UpdatePoolParams) {
+	dbPool.Description = updatePoolParams.Description
+	if updatePoolParams.Labels != nil {
+		if dbPool.PoolAttributes == nil {
+			dbPool.PoolAttributes = &datamodel.PoolAttributes{}
+		}
+		dbPool.PoolAttributes.Labels = updatePoolParams.Labels
+	}
+	dbPool.SizeInBytes = int64(updatePoolParams.SizeInBytes)
+	updateAutoTieringFields(dbPool, updatePoolParams)
+	if dbPool.PoolAttributes == nil {
+		dbPool.PoolAttributes = &datamodel.PoolAttributes{}
+	}
+	dbPool.PoolAttributes.ThroughputMibps = updatePoolParams.TotalThroughputMibps
+	if updatePoolParams.TotalIops != nil {
+		dbPool.PoolAttributes.Iops = *updatePoolParams.TotalIops
+	}
+}
+
 // updateAutoTieringFields updates the AutoTiering configuration fields in the pool
 func updateAutoTieringFields(dbPool *datamodel.Pool, updatePoolParams *common.UpdatePoolParams) {
+	if dbPool.AutoTieringConfig == nil {
+		dbPool.AutoTieringConfig = &datamodel.AutoTieringConfig{}
+	}
 	if updatePoolParams.AllowAutoTiering {
 		dbPool.AllowAutoTiering = true
 		dbPool.AutoTieringConfig.HotTierSizeInBytes = int64(updatePoolParams.HotTierSizeInBytes)

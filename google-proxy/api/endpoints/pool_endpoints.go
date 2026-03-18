@@ -1307,10 +1307,19 @@ func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *
 		}
 	}
 
-	if req.QosType.IsSet() && req.QosType.Value != existingPool.QosType {
+	// Allow qosType transition (auto <-> manual); workflow handles the transition.
+	// Only validate that value is a valid enum when set.
+	if req.QosType.IsSet() && req.QosType.Value != utils.QosTypeAuto && req.QosType.Value != utils.QosTypeManual {
 		return &gcpgenserver.V1betaUpdatePoolBadRequest{
 			Code:    http.StatusBadRequest,
-			Message: "Updating QosType is currently not supported",
+			Message: "QosType must be 'auto' or 'manual'",
+		}
+	}
+	// Only allow transitioning to manual when ENABLE_MQOS (enableMqos) is true.
+	if req.QosType.IsSet() && req.QosType.Value == utils.QosTypeManual && !enableMqos {
+		return &gcpgenserver.V1betaUpdatePoolBadRequest{
+			Code:    http.StatusBadRequest,
+			Message: "Manual QosType is not supported",
 		}
 	}
 

@@ -1489,6 +1489,39 @@ func applyQoSPolicyToSVM(ctx context.Context, svm *datamodel.Svm, node *models.N
 	return nil
 }
 
+// RemoveQoSPolicyFromSVM clears the QoS policy from the SVM (vserver-level).
+// Used during pool qosType transition auto→manual so the pool's QPG is no longer applied at vserver level.
+// Same lookup pattern as applyQoSPolicyToSVM: GetSvmForPoolID then provider.ModifySVMWithQoSPolicy with empty policy name.
+func (j *PoolActivity) RemoveQoSPolicyFromSVM(ctx context.Context, pool *datamodel.Pool, node *models.Node) error {
+	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Starting RemoveQoSPolicyFromSVM - pool: %s, node: %s", pool.Name, node.Name))
+
+	svm, err := j.GetSvmForPoolID(ctx, pool.ID)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	if svm == nil || svm.SvmDetails == nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrInputValidationError, fmt.Errorf("SVM or SvmDetails is nil for pool %s", pool.Name))
+	}
+
+	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	modifyParams := vsa.ModifySVMWithQoSPolicyParams{
+		SvmUUID:       svm.SvmDetails.ExternalUUID,
+		QoSPolicyName: "", // empty clears the policy from the SVM
+	}
+	if err := provider.ModifySVMWithQoSPolicy(modifyParams); err != nil {
+		logger.Error("Failed to remove QoS policy from SVM", "error", err, "svmName", svm.Name)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Info("QoS policy removed from SVM successfully", "svmName", svm.Name)
+	return nil
+}
+
 // generateQoSPolicyName generates a consistent QoS policy name for an SVM
 func generateQoSPolicyName(svmName string) string {
 	return fmt.Sprintf("%s-qos-policy", svmName)
@@ -1599,12 +1632,17 @@ func (j *PoolActivity) CreateQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 	return applyQoSPolicyToSVM(ctx, svm, node, qosPolicyResponse.Name)
 }
 
-// ModifyQoSPolicyAndApplyToSVM modifies an existing QoS policy group and applies it to the SVM if changes are needed
-// This activity is idempotent - it will only update the QoS policy if the new requirements differ from the current ones
+// ModifyQoSPolicyAndApplyToSVM modifies an existing QoS policy group and applies it to the SVM if changes are needed.
+// When switching from manual to auto (updateParams.QosType == auto while pool.QosType is manual), the activity
+// finds or creates the pool's QoS policy and applies it to the SVM so the vserver gets the pool qos-policy-group.
 func (j *PoolActivity) ModifyQoSPolicyAndApplyToSVM(ctx context.Context, pool *datamodel.Pool, node *models.Node, updateParams *commonparams.UpdatePoolParams) error {
 	logger := util.GetLogger(ctx)
 
-	if pool.QosType == utils.QosTypeManual {
+	// Skip only when pool is manual and we are not being asked to switch to auto (manual→auto case).
+	// When pool is manual, we must not skip if this is manual→auto: we need to apply the pool QPG to the vserver.
+	// Nil or empty updateParams.QosType means "leave qosType unchanged"; only explicit QosTypeAuto means switch to auto.
+	switchingToAuto := updateParams != nil && updateParams.QosType == utils.QosTypeAuto
+	if pool.QosType == utils.QosTypeManual && !switchingToAuto {
 		logger.Info("QoS type is manual, no modification needed for QoS policy as no QoS policy is assigned to the SVM for manual QoS type", "poolName", pool.Name)
 		return nil
 	}
@@ -1629,9 +1667,19 @@ func (j *PoolActivity) ModifyQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 	// Construct the QoS policy name (same format as CreateQoSPolicyAndApplyToSVM)
 	qosPolicyName := generateQoSPolicyName(svm.Name)
 
-	// Get the new requirements from the update parameters
-	newMaxThroughput := updateParams.TotalThroughputMibps
-	newMaxIOPS := updateParams.TotalIops
+	// Get the new requirements from the update parameters, or from pool when switching to auto with nil/partial params
+	newMaxThroughput := int64(0)
+	newMaxIOPSVal := int64(0)
+	if updateParams != nil {
+		newMaxThroughput = updateParams.TotalThroughputMibps
+		if updateParams.TotalIops != nil {
+			newMaxIOPSVal = *updateParams.TotalIops
+		}
+	}
+	if newMaxThroughput == 0 && pool.PoolAttributes != nil {
+		newMaxThroughput = pool.PoolAttributes.ThroughputMibps
+		newMaxIOPSVal = pool.PoolAttributes.Iops
+	}
 
 	// Find the existing QoS policy
 	findQosPolicyParams := vsa.FindQoSGroupPolicyParams{
@@ -1642,18 +1690,44 @@ func (j *PoolActivity) ModifyQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 	activity.RecordHeartbeat(ctx, "Finding existing QoS policy group")
 	existingQosPolicy, err := provider.FindQoSGroupPolicy(findQosPolicyParams)
 	if err != nil {
+		// When switching to auto (manual→auto), policy may not exist yet; only create when the find error is a definite "not found".
+		if switchingToAuto && utilErrors.IsNotFoundErr(err) {
+			logger.Info("QoS policy not found during manual→auto, creating and applying", "policyName", qosPolicyName)
+			isShared := true
+			qosPolicyParams := vsa.CreateQoSGroupPolicyParams{
+				Name:          qosPolicyName,
+				SvmName:       svm.Name,
+				MaxThroughput: newMaxThroughput,
+				MaxIOPS:       newMaxIOPSVal,
+				IsShared:      &isShared,
+			}
+			activity.RecordHeartbeat(ctx, "Creating QoS policy group for manual→auto")
+			qosPolicyResponse, createErr := provider.CreateQoSGroupPolicy(qosPolicyParams)
+			if createErr != nil {
+				logger.Error("Failed to create QoS policy during manual→auto", "error", createErr, "policyName", qosPolicyName)
+				return vsaerrors.WrapAsTemporalApplicationError(createErr)
+			}
+			logger.Info("QoS policy created for manual→auto", "policyName", qosPolicyResponse.Name, "policyUUID", qosPolicyResponse.UUID)
+			activity.RecordHeartbeat(ctx, "Applying QoS policy to SVM (manual→auto)")
+			return applyQoSPolicyToSVM(ctx, svm, node, qosPolicyResponse.Name)
+		}
 		logger.Error("Failed to find existing QoS policy", "error", err, "policyName", qosPolicyName)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	// Check if the QoS policy needs to be updated
-	if existingQosPolicy.MaxThroughput == newMaxThroughput && existingQosPolicy.MaxIOPS == *newMaxIOPS {
+	if existingQosPolicy.MaxThroughput == newMaxThroughput && existingQosPolicy.MaxIOPS == newMaxIOPSVal {
 		logger.Info("QoS policy already matches the new requirements, no update needed",
 			"policyName", qosPolicyName,
 			"currentThroughput", existingQosPolicy.MaxThroughput,
 			"newThroughput", newMaxThroughput,
 			"currentIOPS", existingQosPolicy.MaxIOPS,
-			"newIOPS", newMaxIOPS)
+			"newIOPS", newMaxIOPSVal)
+		// When switching to auto, we must still apply the policy to the SVM so the vserver gets the qos-policy-group.
+		if switchingToAuto {
+			activity.RecordHeartbeat(ctx, "Applying existing QoS policy to SVM (manual→auto)")
+			return applyQoSPolicyToSVM(ctx, svm, node, existingQosPolicy.Name)
+		}
 		return nil
 	}
 
@@ -1662,14 +1736,14 @@ func (j *PoolActivity) ModifyQoSPolicyAndApplyToSVM(ctx context.Context, pool *d
 		"currentThroughput", existingQosPolicy.MaxThroughput,
 		"newThroughput", newMaxThroughput,
 		"currentIOPS", existingQosPolicy.MaxIOPS,
-		"newIOPS", newMaxIOPS)
+		"newIOPS", newMaxIOPSVal)
 
 	// Update the QoS policy with new values (omit Name so ONTAP does not treat it as a rename)
 	updateQosPolicyParams := vsa.UpdateQoSGroupPolicyParams{
 		UUID:          existingQosPolicy.UUID,
 		SvmName:       existingQosPolicy.SvmName,
 		MaxThroughput: newMaxThroughput,
-		MaxIOPS:       *newMaxIOPS,
+		MaxIOPS:       newMaxIOPSVal,
 	}
 
 	activity.RecordHeartbeat(ctx, "Updating QoS policy group")

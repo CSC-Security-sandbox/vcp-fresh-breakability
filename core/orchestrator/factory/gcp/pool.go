@@ -476,9 +476,7 @@ func _validateAndSetUpdatePoolParams(params *commonparams.UpdatePoolParams, pool
 		return customerrors.NewUserInputValidationErr("Given large capacity value is not supported. Large capacity cannot be changed for existing pool")
 	}
 
-	if params.QosType != "" && pool.QosType != "" && params.QosType != pool.QosType {
-		return customerrors.NewUserInputValidationErr("QoS type cannot be changed for existing pool")
-	}
+	// qosType transition (auto <-> manual) is allowed; workflow performs the transition.
 
 	// Call unified validation (no service level check needed for updates)
 	err := ValidatePoolParams(perf, "")

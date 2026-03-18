@@ -43,6 +43,9 @@ func (rc *OntapRestProvider) CreateSVM(params CreateSvmParams) (*ProviderRespons
 	}, nil
 }
 
+// ModifySVMWithQoSPolicy applies or clears the QoS policy on an SVM.
+// Use QoSPolicyName == "" to clear the SVM's QoS policy (required for auto→manual pool transition).
+// ONTAP rejects empty string; we send "none" to clear (same semantic as volume QoS unassign).
 func (rc *OntapRestProvider) ModifySVMWithQoSPolicy(params ModifySVMWithQoSPolicyParams) error {
 	// Get the ONTAP client
 	client, err := getOntapClientFunc(rc.ClientParams)
@@ -50,10 +53,16 @@ func (rc *OntapRestProvider) ModifySVMWithQoSPolicy(params ModifySVMWithQoSPolic
 		return err
 	}
 
-	// Modify the SVM to apply the QoS policy group
+	// ONTAP uses "none" to clear the SVM QoS policy; empty string returns "policy does not exist" (8454172)
+	qosPolicyNameForONTAP := params.QoSPolicyName
+	if qosPolicyNameForONTAP == "" {
+		qosPolicyNameForONTAP = "none"
+	}
+
+	// Modify the SVM to apply or clear the QoS policy group
 	done, job, err := client.SVM().SvmModify(&ontapRest.SvmModifyParams{
 		SvmUUID:       params.SvmUUID,
-		QoSPolicyName: &params.QoSPolicyName,
+		QoSPolicyName: &qosPolicyNameForONTAP,
 	})
 	if err != nil {
 		return err

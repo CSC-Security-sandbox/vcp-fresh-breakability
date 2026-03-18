@@ -2716,18 +2716,11 @@ func TestV1betaUpdatePoolValidationErrors(t *testing.T) {
 			message: "Pool size cannot be reduced",
 		},
 		{
-			name: "QosType is set to manual",
-			req: &gcpgenserver.PoolUpdateV1beta{
-				QosType: gcpgenserver.NewOptNilString("manual"),
-			},
-			message: "Updating QosType is currently not supported",
-		},
-		{
 			name: "QosType is set to invalid value",
 			req: &gcpgenserver.PoolUpdateV1beta{
 				QosType: gcpgenserver.NewOptNilString("invalid-qos-type"),
 			},
-			message: "Updating QosType is currently not supported",
+			message: "QosType must be 'auto' or 'manual'",
 		},
 		{
 			name: "CustomPerformanceEnabled is set to false",
@@ -8328,6 +8321,10 @@ func TestValidateUpdatePoolParams_EnablingAutoTieringOnNonATPool(t *testing.T) {
 // are allowed when QosType matches the existing pool value
 func TestValidateUpdatePoolParams_QosType(t *testing.T) {
 	t.Run("AllowsUpdateWhenQosTypeMatchesExistingPool_Manual", func(tt *testing.T) {
+		orig := enableMqos
+		defer func() { enableMqos = orig }()
+		enableMqos = true
+
 		// Pool with manual QosType
 		existingPool := &models.Pool{
 			BaseModel: models.BaseModel{
@@ -8373,7 +8370,11 @@ func TestValidateUpdatePoolParams_QosType(t *testing.T) {
 		assert.Nil(tt, result, "Should allow update when QosType matches existing pool")
 	})
 
-	t.Run("RejectsUpdateWhenQosTypeChangesFromAutoToManual", func(tt *testing.T) {
+	t.Run("AllowsUpdateWhenQosTypeChangesFromAutoToManual", func(tt *testing.T) {
+		orig := enableMqos
+		defer func() { enableMqos = orig }()
+		enableMqos = true
+
 		// Pool with auto QosType
 		existingPool := &models.Pool{
 			BaseModel: models.BaseModel{
@@ -8386,20 +8387,16 @@ func TestValidateUpdatePoolParams_QosType(t *testing.T) {
 			},
 		}
 
-		// Request trying to change QosType
+		// Request changing QosType to manual (transition allowed; workflow handles it)
 		req := &gcpgenserver.PoolUpdateV1beta{
 			QosType: gcpgenserver.NewOptNilString("manual"),
 		}
 
 		result := validateUpdatePoolParams(req, existingPool)
-
-		badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
-		assert.True(tt, ok, "Expected V1betaUpdatePoolBadRequest response")
-		assert.Equal(tt, float64(http.StatusBadRequest), badReq.Code)
-		assert.Equal(tt, "Updating QosType is currently not supported", badReq.Message)
+		assert.Nil(tt, result, "Should allow update when QosType changes from auto to manual")
 	})
 
-	t.Run("RejectsUpdateWhenQosTypeChangesFromManualToAuto", func(tt *testing.T) {
+	t.Run("AllowsUpdateWhenQosTypeChangesFromManualToAuto", func(tt *testing.T) {
 		// Pool with manual QosType
 		existingPool := &models.Pool{
 			BaseModel: models.BaseModel{
@@ -8412,17 +8409,63 @@ func TestValidateUpdatePoolParams_QosType(t *testing.T) {
 			},
 		}
 
-		// Request trying to change QosType
+		// Request changing QosType to auto (transition allowed; workflow handles it)
 		req := &gcpgenserver.PoolUpdateV1beta{
 			QosType: gcpgenserver.NewOptNilString("auto"),
 		}
 
 		result := validateUpdatePoolParams(req, existingPool)
+		assert.Nil(tt, result, "Should allow update when QosType changes from manual to auto")
+	})
 
+	t.Run("RejectsUpdateWhenQosTypeInvalid", func(tt *testing.T) {
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			QosType: "auto",
+			State:   models.LifeCycleStateREADY,
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		}
+
+		req := &gcpgenserver.PoolUpdateV1beta{
+			QosType: gcpgenserver.NewOptNilString("invalid-qos-type"),
+		}
+
+		result := validateUpdatePoolParams(req, existingPool)
 		badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
 		assert.True(tt, ok, "Expected V1betaUpdatePoolBadRequest response")
 		assert.Equal(tt, float64(http.StatusBadRequest), badReq.Code)
-		assert.Equal(tt, "Updating QosType is currently not supported", badReq.Message)
+		assert.Equal(tt, "QosType must be 'auto' or 'manual'", badReq.Message)
+	})
+
+	t.Run("RejectsUpdateWhenQosTypeManualAndEnableMqosFalse", func(tt *testing.T) {
+		orig := enableMqos
+		defer func() { enableMqos = orig }()
+		enableMqos = false
+
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			QosType: "auto",
+			State:   models.LifeCycleStateREADY,
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		}
+
+		req := &gcpgenserver.PoolUpdateV1beta{
+			QosType: gcpgenserver.NewOptNilString("manual"),
+		}
+
+		result := validateUpdatePoolParams(req, existingPool)
+		badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+		assert.True(tt, ok, "Expected V1betaUpdatePoolBadRequest response")
+		assert.Equal(tt, float64(http.StatusBadRequest), badReq.Code)
+		assert.Equal(tt, "Manual QosType is not supported", badReq.Message)
 	})
 
 	t.Run("AllowsUpdateWhenQosTypeNotSet", func(tt *testing.T) {

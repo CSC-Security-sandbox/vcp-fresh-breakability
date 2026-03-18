@@ -1016,10 +1016,11 @@ type QoSGroupPolicyResponse struct {
 }
 
 // ModifySVMWithQoSPolicyParams is the input struct for Provider.ModifySVMWithQoSPolicy
-// Used to apply a QoS policy group to an existing SVM
+// Used to apply a QoS policy group to an existing SVM, or to clear it.
+// When QoSPolicyName is empty string, the SVM's QoS policy is cleared (removed from vserver).
 type ModifySVMWithQoSPolicyParams struct {
 	SvmUUID       string // UUID of the SVM to modify
-	QoSPolicyName string // Name of the QoS policy group to apply
+	QoSPolicyName string // Name of the QoS policy group to apply; empty string clears the policy from the SVM
 }
 
 // FindQoSGroupPolicyParams is the input struct for Provider.FindQoSGroupPolicy

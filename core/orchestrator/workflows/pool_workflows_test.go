@@ -3273,6 +3273,696 @@ func TestUpdatePoolWorkflowNoVLM(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
+// TestUpdatePoolWorkflow_QosTypeAutoToManual_RunsTransitionAndSucceeds tests that when
+// qosType changes from auto to manual, the workflow runs the transition path (remove QPG,
+// delete any existing transition-named policy, create converted VPG, assign volumes, update pool) and succeeds.
+func TestUpdatePoolWorkflow_QosTypeAutoToManual_RunsTransitionAndSucceeds(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	env.SetHeader(&commonpb.Header{
+		Fields: map[string]*commonpb.Payload{"logParam": encodedValue},
+	})
+
+	mockStorage := database.NewMockStorage(t)
+
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeCreateActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumePerformanceGroupActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeUpdateActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeDeleteActivity{SE: mockStorage})
+	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
+
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		PoolId:               "pool-uuid",
+		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024,
+		TotalThroughputMibps: 128,
+		TotalIops:            nillable.ToPointer(int64(2048)),
+		QosType:              utils.QosTypeManual,
+	}
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid", ID: 100},
+		Name:      "test-pool",
+		QosType:   utils.QosTypeAuto,
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			AuthType: envs.USERNAME_PWD,
+		},
+		ClusterDetails: datamodel.ClusterDetails{
+			ExternalName:          "test-cluster",
+			Network:               "test-network",
+			RegionalTenantProject: "test-regional-project",
+			SnHostProject:         "test-host-project",
+		},
+		DeploymentName: "test-deployment",
+		SizeInBytes:    2 * 1024 * 1024 * 1024 * 1024,
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 128,
+			Iops:            2048,
+		},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{BucketName: "bucket"},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node-1"},
+	}, nil)
+	env.OnActivity("RemoveQoSPolicyFromSVM", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything).Return("qos-policy-uuid", nil)
+	env.OnActivity("CreateVPGInDB", mock.Anything, mock.Anything).Return(&datamodel.VolumePerformanceGroup{
+		BaseModel:        datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
+		Name:             "test-pool-vpg", // transition VPG name; AssignQoSPolicyToVolume uses Name (ONTAP expects policy name)
+		OntapQosPolicyID: "qos-policy-uuid",
+	}, nil)
+	env.OnActivity("GetVolumesByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil)
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).Return(nil, nil)
+
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+// TestUpdatePoolWorkflow_QosTypeAutoToManual_WithMultipleVolumes_Succeeds tests auto→manual transition when
+// the pool has multiple volumes: each volume is assigned to the converted VPG (AssignQoSPolicyToVolume and
+// UpdateVolumePerformanceGroupInDBForVolume called once per volume).
+func TestUpdatePoolWorkflow_QosTypeAutoToManual_WithMultipleVolumes_Succeeds(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	env.SetHeader(&commonpb.Header{
+		Fields: map[string]*commonpb.Payload{"logParam": encodedValue},
+	})
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeCreateActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumePerformanceGroupActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeUpdateActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeDeleteActivity{SE: mockStorage})
+	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
+
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		PoolId:               "pool-uuid",
+		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024,
+		TotalThroughputMibps: 128,
+		TotalIops:            nillable.ToPointer(int64(2048)),
+		QosType:              utils.QosTypeManual,
+	}
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid", ID: 100},
+		Name:      "test-pool",
+		QosType:   utils.QosTypeAuto,
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			AuthType: envs.USERNAME_PWD,
+		},
+		ClusterDetails: datamodel.ClusterDetails{
+			ExternalName:          "test-cluster",
+			Network:               "test-network",
+			RegionalTenantProject: "test-regional-project",
+			SnHostProject:         "test-host-project",
+		},
+		DeploymentName: "test-deployment",
+		SizeInBytes:    2 * 1024 * 1024 * 1024 * 1024,
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 128,
+			Iops:            2048,
+		},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{BucketName: "bucket"},
+	}
+
+	// Three volumes in pool for multi-volume transition
+	volumes := []*datamodel.Volume{
+		{BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"}, PoolID: 100},
+		{BaseModel: datamodel.BaseModel{UUID: "vol-uuid-2"}, PoolID: 100},
+		{BaseModel: datamodel.BaseModel{UUID: "vol-uuid-3"}, PoolID: 100},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node-1"},
+	}, nil)
+	env.OnActivity("RemoveQoSPolicyFromSVM", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything).Return("qos-policy-uuid", nil)
+	env.OnActivity("CreateVPGInDB", mock.Anything, mock.Anything).Return(&datamodel.VolumePerformanceGroup{
+		BaseModel:        datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
+		Name:             "test-pool-vpg", // transition VPG name; AssignQoSPolicyToVolume uses Name (ONTAP expects policy name)
+		OntapQosPolicyID: "qos-policy-uuid",
+	}, nil)
+	env.OnActivity("GetVolumesByPoolID", mock.Anything, mock.Anything).Return(volumes, nil)
+	// Each volume gets AssignQoSPolicyToVolume then UpdateVolumePerformanceGroupInDBForVolume (3 times each)
+	env.OnActivity("AssignQoSPolicyToVolume", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(3)
+	env.OnActivity("UpdateVolumePerformanceGroupInDBForVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(3)
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).Return(nil, nil)
+
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+// TestUpdatePoolWorkflow_QosTypeManualToAuto_RunsTransitionAndSucceeds tests manual→auto qosType transition
+// with 0 volumes: GetVolumesByPoolID empty, ListVolumePerformanceGroupsByPoolID empty, delete transition-named policy, Apply QPG to vserver, update pool.
+func TestUpdatePoolWorkflow_QosTypeManualToAuto_RunsTransitionAndSucceeds(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeCreateActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumePerformanceGroupActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeUpdateActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeDeleteActivity{SE: mockStorage})
+	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
+
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		PoolId:               "pool-uuid",
+		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024,
+		TotalThroughputMibps: 128,
+		TotalIops:            nillable.ToPointer(int64(2048)),
+		QosType:              utils.QosTypeAuto,
+	}
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid", ID: 100},
+		Name:      "test-pool",
+		QosType:   utils.QosTypeManual,
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			AuthType: envs.USERNAME_PWD,
+		},
+		ClusterDetails: datamodel.ClusterDetails{
+			ExternalName:          "test-cluster",
+			Network:               "test-network",
+			RegionalTenantProject: "test-regional-project",
+			SnHostProject:         "test-host-project",
+		},
+		DeploymentName: "test-deployment",
+		SizeInBytes:    2 * 1024 * 1024 * 1024 * 1024,
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 128,
+			Iops:            2048,
+		},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{BucketName: "bucket"},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node-1"},
+	}, nil)
+	env.OnActivity("GetVolumesByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil)
+	env.OnActivity("ListVolumePerformanceGroupsByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.VolumePerformanceGroup{}, nil)
+	env.OnActivity("DereferencePoolVolumesFromVPGs", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ModifyQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).Return(nil, nil)
+
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+// TestUpdatePoolWorkflow_QosTypeManualToAuto_WithMultipleVolumes_Succeeds tests manual→auto transition when
+// the pool has multiple volumes assigned to a shared VPG: each volume is unassigned (UnassignQoSPolicyFromVolume
+// and UpdateVolumePerformanceGroupInDBForVolume called once per volume), then the VPG is cleaned up.
+func TestUpdatePoolWorkflow_QosTypeManualToAuto_WithMultipleVolumes_Succeeds(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	env.SetHeader(&commonpb.Header{
+		Fields: map[string]*commonpb.Payload{"logParam": encodedValue},
+	})
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeCreateActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumePerformanceGroupActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeUpdateActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeDeleteActivity{SE: mockStorage})
+	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
+
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		PoolId:               "pool-uuid",
+		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024,
+		TotalThroughputMibps: 128,
+		TotalIops:            nillable.ToPointer(int64(2048)),
+		QosType:              utils.QosTypeAuto,
+	}
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid", ID: 100},
+		Name:      "test-pool",
+		QosType:   utils.QosTypeManual,
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			AuthType: envs.USERNAME_PWD,
+		},
+		ClusterDetails: datamodel.ClusterDetails{
+			ExternalName:          "test-cluster",
+			Network:               "test-network",
+			RegionalTenantProject: "test-regional-project",
+			SnHostProject:         "test-host-project",
+		},
+		DeploymentName: "test-deployment",
+		SizeInBytes:    2 * 1024 * 1024 * 1024 * 1024,
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 128,
+			Iops:            2048,
+		},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{BucketName: "bucket"},
+	}
+
+	sharedVPG := &datamodel.VolumePerformanceGroup{
+		BaseModel:        datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
+		OntapQosPolicyID: "qos-policy-uuid",
+		IsAutoGen:        true,
+		PoolID:           100,
+	}
+	// Three volumes in pool, all assigned to the same shared VPG
+	volumes := []*datamodel.Volume{
+		{BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"}, PoolID: 100, VolumePerformanceGroupID: sql.NullInt64{Int64: 1, Valid: true}},
+		{BaseModel: datamodel.BaseModel{UUID: "vol-uuid-2"}, PoolID: 100, VolumePerformanceGroupID: sql.NullInt64{Int64: 1, Valid: true}},
+		{BaseModel: datamodel.BaseModel{UUID: "vol-uuid-3"}, PoolID: 100, VolumePerformanceGroupID: sql.NullInt64{Int64: 1, Valid: true}},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node-1"},
+	}, nil)
+	env.OnActivity("GetVolumesByPoolID", mock.Anything, mock.Anything).Return(volumes, nil)
+	env.OnActivity("ListVolumePerformanceGroupsByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.VolumePerformanceGroup{sharedVPG}, nil)
+	// Per-volume unassign (ONTAP + DB), then bulk dereference, then delete VPG
+	env.OnActivity("UnassignQoSPolicyFromVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(3)
+	env.OnActivity("UpdateVolumePerformanceGroupInDBForVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(3)
+	env.OnActivity("DereferencePoolVolumesFromVPGs", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteVPGByID", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("ModifyQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).Return(nil, nil)
+
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+// TestUpdatePoolWorkflow_QosTypeUnchanged_DoesNotRunTransition tests that when qosType is
+// unchanged (e.g. both auto), the workflow does not run the transition path: RemoveQoSPolicyFromSVM,
+// CreateQoSPolicyInONTAP, CreateVPGInDB, etc. are not called; short-circuit runs and only UpdatedPool is executed.
+func TestUpdatePoolWorkflow_QosTypeUnchanged_DoesNotRunTransition(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeCreateActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumePerformanceGroupActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeUpdateActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeDeleteActivity{SE: mockStorage})
+	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
+
+	sizeBytes := int64(2 * 1024 * 1024 * 1024 * 1024)
+	throughput := int64(128)
+	iops := int64(2048)
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		PoolId:               "pool-uuid",
+		SizeInBytes:          uint64(sizeBytes),
+		TotalThroughputMibps: throughput,
+		TotalIops:            nillable.ToPointer(iops),
+		QosType:              utils.QosTypeAuto, // same as pool
+	}
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid", ID: 100},
+		Name:      "test-pool",
+		QosType:   utils.QosTypeAuto,
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			AuthType: envs.USERNAME_PWD,
+		},
+		ClusterDetails: datamodel.ClusterDetails{
+			ExternalName:          "test-cluster",
+			Network:               "test-network",
+			RegionalTenantProject: "test-regional-project",
+			SnHostProject:         "test-host-project",
+		},
+		DeploymentName: "test-deployment",
+		SizeInBytes:    sizeBytes,
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: throughput,
+			Iops:            iops,
+		},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{BucketName: "bucket"},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).Return(nil, nil)
+
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	// Transition activities must not be called
+	env.AssertNotCalled(t, "RemoveQoSPolicyFromSVM", mock.Anything, mock.Anything, mock.Anything)
+	env.AssertNotCalled(t, "CreateQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything)
+	env.AssertNotCalled(t, "CreateVPGInDB", mock.Anything, mock.Anything)
+	env.AssertExpectations(t)
+}
+
+// TestUpdatePoolWorkflow_QosTypeAutoToManual_RemoveQoSFails_WorkflowFails tests that when
+// RemoveQoSPolicyFromSVM fails, the workflow fails and no VPG create or volume assign runs.
+func TestUpdatePoolWorkflow_QosTypeAutoToManual_RemoveQoSFails_WorkflowFails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeCreateActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumePerformanceGroupActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeUpdateActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeDeleteActivity{SE: mockStorage})
+	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
+
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		PoolId:               "pool-uuid",
+		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024,
+		TotalThroughputMibps: 128,
+		TotalIops:            nillable.ToPointer(int64(2048)),
+		QosType:              utils.QosTypeManual,
+	}
+	pool := &datamodel.Pool{
+		BaseModel:         datamodel.BaseModel{UUID: "pool-uuid", ID: 100},
+		Name:              "test-pool",
+		QosType:           utils.QosTypeAuto,
+		PoolCredentials:   &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		ClusterDetails:    datamodel.ClusterDetails{ExternalName: "test-cluster", Network: "test-network", RegionalTenantProject: "test-regional-project", SnHostProject: "test-host-project"},
+		DeploymentName:    "test-deployment",
+		SizeInBytes:       2 * 1024 * 1024 * 1024 * 1024,
+		PoolAttributes:    &datamodel.PoolAttributes{ThroughputMibps: 128, Iops: 2048},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{BucketName: "bucket"},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node-1"},
+	}, nil)
+	env.OnActivity("RemoveQoSPolicyFromSVM", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("remove QPG failed"))
+	// Rollback may call UpdatedPool when transition fails
+	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	env.AssertNotCalled(t, "DeleteQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	env.AssertNotCalled(t, "CreateQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything)
+	env.AssertNotCalled(t, "CreateVPGInDB", mock.Anything, mock.Anything)
+	env.AssertExpectations(t)
+}
+
+// TestUpdatePoolWorkflow_QosTypeAutoToManual_FailAfterCreateVPG_RollbackReappliesQPG tests that
+// when the workflow fails after creating the converted VPG (e.g. GetVolumesByPoolID or first Assign fails),
+// rollback runs: CleanupAutoGeneratedVPG then ModifyQoSPolicyAndApplyToSVM to restore auto state.
+func TestUpdatePoolWorkflow_QosTypeAutoToManual_FailAfterCreateVPG_RollbackReappliesQPG(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeCreateActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumePerformanceGroupActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeUpdateActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeDeleteActivity{SE: mockStorage})
+	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
+
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		PoolId:               "pool-uuid",
+		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024,
+		TotalThroughputMibps: 128,
+		TotalIops:            nillable.ToPointer(int64(2048)),
+		QosType:              utils.QosTypeManual,
+	}
+	pool := &datamodel.Pool{
+		BaseModel:         datamodel.BaseModel{UUID: "pool-uuid", ID: 100},
+		Name:              "test-pool",
+		QosType:           utils.QosTypeAuto,
+		PoolCredentials:   &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		ClusterDetails:    datamodel.ClusterDetails{ExternalName: "test-cluster", Network: "test-network", RegionalTenantProject: "test-regional-project", SnHostProject: "test-host-project"},
+		DeploymentName:    "test-deployment",
+		SizeInBytes:       2 * 1024 * 1024 * 1024 * 1024,
+		PoolAttributes:    &datamodel.PoolAttributes{ThroughputMibps: 128, Iops: 2048},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{BucketName: "bucket"},
+	}
+
+	createdVPG := &datamodel.VolumePerformanceGroup{
+		BaseModel:        datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
+		Name:             "test-pool-vpg",
+		OntapQosPolicyID: "qos-policy-uuid",
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node-1"},
+	}, nil)
+	env.OnActivity("RemoveQoSPolicyFromSVM", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything).Return("qos-policy-uuid", nil)
+	env.OnActivity("CreateVPGInDB", mock.Anything, mock.Anything).Return(createdVPG, nil)
+	env.OnActivity("GetVolumesByPoolID", mock.Anything, mock.Anything).Return(nil, errors.New("get volumes failed"))
+	// Rollback (LIFO): DeleteVPGByID, ModifyQoSPolicyAndApplyToSVM, then UpdatedPool (registered at start of Run)
+	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnActivity("DeleteVPGByID", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("ModifyQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+// TestUpdatePoolWorkflow_QosTypeAutoToManual_FailAfterAssignVolume_RollbackUnassignsDeletesVPGReappliesQPG tests
+// that when the workflow fails after assigning some volumes to the converted VPG, rollback runs:
+// UpdateVolumePerformanceGroupInDBForVolume(vol, nil), UnassignQoSPolicyFromVolume, DeleteVPGByID,
+// ModifyQoSPolicyAndApplyToSVM (LIFO order).
+func TestUpdatePoolWorkflow_QosTypeAutoToManual_FailAfterAssignVolume_RollbackUnassignsDeletesVPGReappliesQPG(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeCreateActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumePerformanceGroupActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeUpdateActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeDeleteActivity{SE: mockStorage})
+	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
+
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		PoolId:               "pool-uuid",
+		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024,
+		TotalThroughputMibps: 128,
+		TotalIops:            nillable.ToPointer(int64(2048)),
+		QosType:              utils.QosTypeManual,
+	}
+	pool := &datamodel.Pool{
+		BaseModel:         datamodel.BaseModel{UUID: "pool-uuid", ID: 100},
+		Name:              "test-pool",
+		QosType:           utils.QosTypeAuto,
+		PoolCredentials:   &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		ClusterDetails:    datamodel.ClusterDetails{ExternalName: "test-cluster", Network: "test-network", RegionalTenantProject: "test-regional-project", SnHostProject: "test-host-project"},
+		DeploymentName:    "test-deployment",
+		SizeInBytes:       2 * 1024 * 1024 * 1024 * 1024,
+		PoolAttributes:    &datamodel.PoolAttributes{ThroughputMibps: 128, Iops: 2048},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{BucketName: "bucket"},
+	}
+
+	volumes := []*datamodel.Volume{
+		{BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"}, PoolID: 100},
+		{BaseModel: datamodel.BaseModel{UUID: "vol-uuid-2"}, PoolID: 100},
+	}
+	createdVPG := &datamodel.VolumePerformanceGroup{
+		BaseModel:        datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
+		Name:             "test-pool-vpg", // transition VPG name; AssignQoSPolicyToVolume uses Name (ONTAP expects policy name)
+		OntapQosPolicyID: "qos-policy-uuid",
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node-1"},
+	}, nil)
+	env.OnActivity("RemoveQoSPolicyFromSVM", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything).Return("qos-policy-uuid", nil)
+	env.OnActivity("CreateVPGInDB", mock.Anything, mock.Anything).Return(createdVPG, nil)
+	env.OnActivity("GetVolumesByPoolID", mock.Anything, mock.Anything).Return(volumes, nil)
+	env.OnActivity("AssignQoSPolicyToVolume", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+	env.OnActivity("UpdateVolumePerformanceGroupInDBForVolume", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("update volume VPG failed"))
+	// Rollback (LIFO): UpdateVolumePerformanceGroupInDBForVolume(nil), UnassignQoSPolicyFromVolume (per volume), DeleteVPGByID, ModifyQoSPolicyAndApplyToSVM, UpdatedPool
+	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnActivity("UpdateVolumePerformanceGroupInDBForVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("UnassignQoSPolicyFromVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("DeleteVPGByID", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("ModifyQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
+// TestUpdatePoolWorkflow_QosTypeManualToAuto_FailAfterUnassign_RollbackReassignsVolumes tests that
+// when manual→auto fails after deleting a VPG (e.g. DeleteVPGByID fails), rollback
+// runs: RestoreAutoGeneratedVPG (and/or re-assign activities) so pool is back to manual state.
+func TestUpdatePoolWorkflow_QosTypeManualToAuto_FailAfterUnassign_RollbackReassignsVolumes(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeCreateActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumePerformanceGroupActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeUpdateActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.VolumeDeleteActivity{SE: mockStorage})
+	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
+
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		PoolId:               "pool-uuid",
+		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024,
+		TotalThroughputMibps: 128,
+		TotalIops:            nillable.ToPointer(int64(2048)),
+		QosType:              utils.QosTypeAuto,
+	}
+	pool := &datamodel.Pool{
+		BaseModel:         datamodel.BaseModel{UUID: "pool-uuid", ID: 100},
+		Name:              "test-pool",
+		QosType:           utils.QosTypeManual,
+		PoolCredentials:   &datamodel.PoolCredentials{Password: "test-password", AuthType: envs.USERNAME_PWD},
+		ClusterDetails:    datamodel.ClusterDetails{ExternalName: "test-cluster", Network: "test-network", RegionalTenantProject: "test-regional-project", SnHostProject: "test-host-project"},
+		DeploymentName:    "test-deployment",
+		SizeInBytes:       2 * 1024 * 1024 * 1024 * 1024,
+		PoolAttributes:    &datamodel.PoolAttributes{ThroughputMibps: 128, Iops: 2048},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{BucketName: "bucket"},
+	}
+
+	sharedVPG := &datamodel.VolumePerformanceGroup{
+		BaseModel:        datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
+		OntapQosPolicyID: "qos-policy-uuid",
+		IsAutoGen:        true,
+		PoolID:           100,
+	}
+	volumes := []*datamodel.Volume{
+		{BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"}, PoolID: 100, VolumePerformanceGroupID: sql.NullInt64{Int64: 1, Valid: true}},
+		{BaseModel: datamodel.BaseModel{UUID: "vol-uuid-2"}, PoolID: 100, VolumePerformanceGroupID: sql.NullInt64{Int64: 1, Valid: true}},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{
+		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node-1"},
+	}, nil)
+	env.OnActivity("GetVolumesByPoolID", mock.Anything, mock.Anything).Return(volumes, nil)
+	env.OnActivity("ListVolumePerformanceGroupsByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.VolumePerformanceGroup{sharedVPG}, nil)
+	env.OnActivity("UnassignQoSPolicyFromVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2)
+	// Forward: 2x UpdateVolumePerformanceGroupInDBForVolume(vol.UUID, nil); rollback: 2x UpdateVolumePerformanceGroupInDBForVolume(vol.UUID, vpg)
+	env.OnActivity("UpdateVolumePerformanceGroupInDBForVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(4)
+	env.OnActivity("DereferencePoolVolumesFromVPGs", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteVPGByID", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("delete VPG failed"))
+	// Rollback (LIFO): RestoreAutoGeneratedVPG, then per-volume UpdateVolumePerformanceGroupInDBForVolume(vpg), AssignQoSPolicyToVolume, then UpdatedPool
+	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	env.OnActivity("RestoreAutoGeneratedVPG", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("AssignQoSPolicyToVolume", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2)
+
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
 // TestUpdatePoolWorkflow_ExpertModeEnableAutoTiering tests that VLM is called when enabling
 // auto-tiering on an expert mode pool, even when size/throughput/IOPS are unchanged.
 // This ensures the bucket attachment request is sent to VLM.
@@ -12168,6 +12858,118 @@ func TestUpdateAutoTieringFields(t *testing.T) {
 				assert.Equal(t, tt.expectedAutoTieringConfig.BucketName,
 					dbPoolCopy.AutoTieringConfig.BucketName,
 					"BucketName should match: %s", tt.description)
+			}
+		})
+	}
+}
+
+// TestApplyUpdatePoolParamsToDbPool tests that applyUpdatePoolParamsToDbPool applies all applicable
+// update params (description, labels, size, auto-tiering, throughput, iops) so that a request
+// that includes qosType plus other fields persists everything during qosType transition.
+func TestApplyUpdatePoolParamsToDbPool(t *testing.T) {
+	labels := &datamodel.JSONB{"env": "test", "team": "storage"}
+	tests := []struct {
+		name             string
+		dbPool           *datamodel.Pool
+		updatePoolParams *common.UpdatePoolParams
+		description      string
+	}{
+		{
+			name: "AppliesDescriptionLabelsSizeThroughputIopsAndAutoTiering",
+			dbPool: &datamodel.Pool{
+				Description:       "old-desc",
+				SizeInBytes:       1000,
+				PoolAttributes:    &datamodel.PoolAttributes{ThroughputMibps: 64, Iops: 1024},
+				AutoTieringConfig: &datamodel.AutoTieringConfig{},
+			},
+			updatePoolParams: &common.UpdatePoolParams{
+				Description:          "new-desc",
+				Labels:               labels,
+				SizeInBytes:          2000,
+				AllowAutoTiering:     true,
+				HotTierSizeInBytes:   500,
+				EnableHotTierAutoResize: true,
+				TotalThroughputMibps: 128,
+				TotalIops:            nillable.ToPointer(int64(2048)),
+			},
+			description: "all applicable fields from request are applied to dbPool",
+		},
+		{
+			name: "CreatesPoolAttributesWhenNil",
+			dbPool: &datamodel.Pool{
+				Description:        "desc",
+				SizeInBytes:        1000,
+				PoolAttributes:     nil,
+				AutoTieringConfig:  &datamodel.AutoTieringConfig{},
+			},
+			updatePoolParams: &common.UpdatePoolParams{
+				Description:          "updated-desc",
+				SizeInBytes:          3000,
+				TotalThroughputMibps: 64,
+				TotalIops:            nillable.ToPointer(int64(1024)),
+			},
+			description: "PoolAttributes is created when nil so throughput/iops can be set",
+		},
+		{
+			name: "NilTotalIopsDoesNotOverwriteIops",
+			dbPool: &datamodel.Pool{
+				PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128, Iops: 2048},
+				AutoTieringConfig: &datamodel.AutoTieringConfig{},
+			},
+			updatePoolParams: &common.UpdatePoolParams{
+				Description:          "desc",
+				SizeInBytes:          1000,
+				TotalThroughputMibps: 256,
+				TotalIops:            nil, // not set in request
+			},
+			description: "when TotalIops is nil only ThroughputMibps is set on PoolAttributes",
+		},
+		{
+			name: "LabelsWithNilPoolAttributesCreatesPoolAttributes",
+			dbPool: &datamodel.Pool{
+				Description:        "desc",
+				SizeInBytes:        1000,
+				PoolAttributes:     nil,
+				AutoTieringConfig:  &datamodel.AutoTieringConfig{},
+			},
+			updatePoolParams: &common.UpdatePoolParams{
+				Description:          "updated-desc",
+				Labels:               labels,
+				SizeInBytes:          2000,
+				TotalThroughputMibps: 64,
+				TotalIops:            nillable.ToPointer(int64(1024)),
+			},
+			description: "when Labels is set and PoolAttributes is nil, PoolAttributes is created and Labels assigned",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dbPoolCopy := *tt.dbPool
+			if tt.dbPool.PoolAttributes != nil {
+				pa := *tt.dbPool.PoolAttributes
+				dbPoolCopy.PoolAttributes = &pa
+			}
+			if tt.dbPool.AutoTieringConfig != nil {
+				at := *tt.dbPool.AutoTieringConfig
+				dbPoolCopy.AutoTieringConfig = &at
+			}
+
+			applyUpdatePoolParamsToDbPool(&dbPoolCopy, tt.updatePoolParams)
+
+			assert.Equal(t, tt.updatePoolParams.Description, dbPoolCopy.Description, "Description")
+			assert.Equal(t, int64(tt.updatePoolParams.SizeInBytes), dbPoolCopy.SizeInBytes, "SizeInBytes")
+			assert.NotNil(t, dbPoolCopy.PoolAttributes, "PoolAttributes should be set")
+			assert.Equal(t, tt.updatePoolParams.TotalThroughputMibps, dbPoolCopy.PoolAttributes.ThroughputMibps, "ThroughputMibps")
+			if tt.updatePoolParams.TotalIops != nil {
+				assert.Equal(t, *tt.updatePoolParams.TotalIops, dbPoolCopy.PoolAttributes.Iops, "Iops")
+			}
+			if tt.updatePoolParams.Labels != nil {
+				assert.Equal(t, tt.updatePoolParams.Labels, dbPoolCopy.PoolAttributes.Labels, "Labels")
+			}
+			// updateAutoTieringFields behavior is covered by TestUpdateAutoTieringFields
+			if tt.updatePoolParams.AllowAutoTiering {
+				assert.True(t, dbPoolCopy.AllowAutoTiering)
+				assert.NotNil(t, dbPoolCopy.AutoTieringConfig)
 			}
 		})
 	}

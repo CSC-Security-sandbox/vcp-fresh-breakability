@@ -6388,6 +6388,298 @@ func TestModifyQoSPolicyAndApplyToSVM(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 
+	// Manual→auto: activity must not return early; it must find or create the policy and apply to SVM.
+	t.Run("WhenManualToAuto_AndPolicyExists_ThenApplyToSVM", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(t)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() {
+			hyperscaler2.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-svm",
+			SvmDetails: &datamodel.SvmDetails{
+				ExternalUUID: "test-svm-uuid",
+			},
+		}
+		mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
+
+		// Pool is manual; we are switching to auto (updateParams.QosType == auto).
+		poolManual := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-pool",
+			QosType:   utils.QosTypeManual,
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 1000,
+				Iops:            5000,
+			},
+		}
+		paramsManualToAuto := &commonparams.UpdatePoolParams{
+			QosType:              utils.QosTypeAuto,
+			TotalThroughputMibps: 1000,
+			TotalIops:            nillable.ToPointer(int64(5000)),
+		}
+
+		// Policy already exists with same values; we must still apply to SVM.
+		existingQoSPolicy := &vsa.QoSGroupPolicyResponse{
+			Name:          "test-svm-qos-policy",
+			UUID:          "test-qos-uuid",
+			SvmName:       "test-svm",
+			MaxThroughput: 1000,
+			MaxIOPS:       5000,
+		}
+		mockProvider.On("FindQoSGroupPolicy", vsa.FindQoSGroupPolicyParams{
+			Name:    "test-svm-qos-policy",
+			SvmName: "test-svm",
+		}).Return(existingQoSPolicy, nil)
+		mockProvider.On("ModifySVMWithQoSPolicy", vsa.ModifySVMWithQoSPolicyParams{
+			SvmUUID:       "test-svm-uuid",
+			QoSPolicyName: "test-svm-qos-policy",
+		}).Return(nil)
+
+		activity := &activities.PoolActivity{SE: mockStorage}
+		env.RegisterActivity(activity.ModifyQoSPolicyAndApplyToSVM)
+		_, err := env.ExecuteActivity(activity.ModifyQoSPolicyAndApplyToSVM, poolManual, node, paramsManualToAuto)
+
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenManualToAuto_AndPolicyNotFound_ThenCreateAndApply", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(t)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() {
+			hyperscaler2.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-svm",
+			SvmDetails: &datamodel.SvmDetails{
+				ExternalUUID: "test-svm-uuid",
+			},
+		}
+		mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
+
+		poolManual := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-pool",
+			QosType:   utils.QosTypeManual,
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 128,
+				Iops:            2048,
+			},
+		}
+		paramsManualToAuto := &commonparams.UpdatePoolParams{
+			QosType:              utils.QosTypeAuto,
+			TotalThroughputMibps: 128,
+			TotalIops:            nillable.ToPointer(int64(2048)),
+		}
+
+		// Use NotFoundErr so the activity creates the policy (only "not found" triggers create when switchingToAuto).
+		mockProvider.On("FindQoSGroupPolicy", vsa.FindQoSGroupPolicyParams{
+			Name:    "test-svm-qos-policy",
+			SvmName: "test-svm",
+		}).Return(nil, utilErrors.NewNotFoundErr("QoS policy", nil))
+		mockProvider.On("CreateQoSGroupPolicy", mock.MatchedBy(func(p vsa.CreateQoSGroupPolicyParams) bool {
+			return p.Name == "test-svm-qos-policy" && p.SvmName == "test-svm" && p.MaxThroughput == 128 && p.MaxIOPS == 2048
+		})).Return(&vsa.QoSGroupPolicyResponse{
+			Name: "test-svm-qos-policy",
+			UUID: "new-uuid",
+		}, nil)
+		mockProvider.On("ModifySVMWithQoSPolicy", vsa.ModifySVMWithQoSPolicyParams{
+			SvmUUID:       "test-svm-uuid",
+			QoSPolicyName: "test-svm-qos-policy",
+		}).Return(nil)
+
+		activity := &activities.PoolActivity{SE: mockStorage}
+		env.RegisterActivity(activity.ModifyQoSPolicyAndApplyToSVM)
+		_, err := env.ExecuteActivity(activity.ModifyQoSPolicyAndApplyToSVM, poolManual, node, paramsManualToAuto)
+
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenManualToAuto_AndFindReturnsNonNotFoundError_ThenReturnErrorWithoutCreating", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(t)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, n *coremodel.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-svm",
+			SvmDetails: &datamodel.SvmDetails{ExternalUUID: "test-svm-uuid"},
+		}
+		mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
+
+		poolManual := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-pool",
+			QosType:   utils.QosTypeManual,
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 128,
+				Iops:            2048,
+			},
+		}
+		paramsManualToAuto := &commonparams.UpdatePoolParams{
+			QosType:              utils.QosTypeAuto,
+			TotalThroughputMibps: 128,
+			TotalIops:            nillable.ToPointer(int64(2048)),
+		}
+
+		// Non-NotFound error: activity must return error and must NOT call CreateQoSGroupPolicy.
+		mockProvider.On("FindQoSGroupPolicy", vsa.FindQoSGroupPolicyParams{
+			Name:    "test-svm-qos-policy",
+			SvmName: "test-svm",
+		}).Return(nil, errors.New("transient API error"))
+
+		activity := &activities.PoolActivity{SE: mockStorage}
+		env.RegisterActivity(activity.ModifyQoSPolicyAndApplyToSVM)
+		_, err := env.ExecuteActivity(activity.ModifyQoSPolicyAndApplyToSVM, poolManual, node, paramsManualToAuto)
+
+		assert.Error(tt, err)
+		mockProvider.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateParamsNilAndPoolHasPoolAttributes_ThenUsePoolThroughputAndIops", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(t)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, n *coremodel.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-svm",
+			SvmDetails: &datamodel.SvmDetails{ExternalUUID: "test-svm-uuid"},
+		}
+		mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
+
+		poolWithAttrs := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-pool",
+			QosType:   utils.QosTypeAuto,
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 100,
+				Iops:            200,
+			},
+		}
+		existingQoSPolicy := &vsa.QoSGroupPolicyResponse{
+			Name:          "test-svm-qos-policy",
+			UUID:          "test-qos-uuid",
+			SvmName:       "test-svm",
+			MaxThroughput: 50,
+			MaxIOPS:       100,
+		}
+		mockProvider.On("FindQoSGroupPolicy", vsa.FindQoSGroupPolicyParams{
+			Name:    "test-svm-qos-policy",
+			SvmName: "test-svm",
+		}).Return(existingQoSPolicy, nil)
+		// Production code omits Name in UpdateQoSGroupPolicyParams so ONTAP does not treat it as a rename
+		mockProvider.On("UpdateQoSGroupPolicy", vsa.UpdateQoSGroupPolicyParams{
+			UUID:          "test-qos-uuid",
+			SvmName:       "test-svm",
+			MaxThroughput: 100,
+			MaxIOPS:       200,
+		}).Return(nil)
+		mockProvider.On("ModifySVMWithQoSPolicy", vsa.ModifySVMWithQoSPolicyParams{
+			SvmUUID:       "test-svm-uuid",
+			QoSPolicyName: "test-svm-qos-policy",
+		}).Return(nil)
+
+		activity := &activities.PoolActivity{SE: mockStorage}
+		env.RegisterActivity(activity.ModifyQoSPolicyAndApplyToSVM)
+		_, err := env.ExecuteActivity(activity.ModifyQoSPolicyAndApplyToSVM, poolWithAttrs, node, nil)
+
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenManualToAutoAndCreateQoSFails_ThenReturnError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(t)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, n *coremodel.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-svm",
+			SvmDetails: &datamodel.SvmDetails{ExternalUUID: "test-svm-uuid"},
+		}
+		mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
+
+		poolManual := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-pool",
+			QosType:   utils.QosTypeManual,
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: 128,
+				Iops:            2048,
+			},
+		}
+		paramsManualToAuto := &commonparams.UpdatePoolParams{
+			QosType:              utils.QosTypeAuto,
+			TotalThroughputMibps: 128,
+			TotalIops:            nillable.ToPointer(int64(2048)),
+		}
+
+		// Use NotFoundErr so the activity attempts to create the policy (only "not found" triggers create when switchingToAuto).
+		mockProvider.On("FindQoSGroupPolicy", vsa.FindQoSGroupPolicyParams{
+			Name:    "test-svm-qos-policy",
+			SvmName: "test-svm",
+		}).Return(nil, utilErrors.NewNotFoundErr("QoS policy", nil))
+		mockProvider.On("CreateQoSGroupPolicy", mock.Anything).Return(nil, errors.New("create QoS policy failed"))
+
+		activity := &activities.PoolActivity{SE: mockStorage}
+		env.RegisterActivity(activity.ModifyQoSPolicyAndApplyToSVM)
+		_, err := env.ExecuteActivity(activity.ModifyQoSPolicyAndApplyToSVM, poolManual, node, paramsManualToAuto)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "create QoS policy failed")
+		mockProvider.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+
 	t.Run("WhenUpdateQoSGroupPolicyFails_ThenReturnError", func(tt *testing.T) {
 		// Setup Temporal test environment
 		var ts testsuite.WorkflowTestSuite
@@ -6515,15 +6807,201 @@ func TestModifyQoSPolicyAndApplyToSVM(t *testing.T) {
 		poolWithManualQoS := pool
 		poolWithManualQoS.QosType = utils.QosTypeManual
 
+		// updateParams with QosType Manual so the activity skips (no manual→auto)
+		updateParamsManualOnly := &commonparams.UpdatePoolParams{
+			TotalThroughputMibps: updateParams.TotalThroughputMibps,
+			TotalIops:           updateParams.TotalIops,
+			QosType:             utils.QosTypeManual,
+		}
+
 		// No provider or storage should be called when QosType is Manual
 		// We don't set up any mocks because the function should return early
 
 		activity := &activities.PoolActivity{}
 		testEnv.RegisterActivity(activity.ModifyQoSPolicyAndApplyToSVM)
-		_, err := testEnv.ExecuteActivity(activity.ModifyQoSPolicyAndApplyToSVM, poolWithManualQoS, node, updateParams)
+		_, err := testEnv.ExecuteActivity(activity.ModifyQoSPolicyAndApplyToSVM, poolWithManualQoS, node, updateParamsManualOnly)
 
 		// Should return successfully without any provider or storage interactions
 		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenQosTypeIsManualAndParamsNil_ThenSkipAndLeaveQosTypeUnchanged", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		testEnv := ts.NewTestActivityEnvironment()
+		poolWithManualQoS := pool
+		poolWithManualQoS.QosType = utils.QosTypeManual
+		activity := &activities.PoolActivity{}
+		testEnv.RegisterActivity(activity.ModifyQoSPolicyAndApplyToSVM)
+		_, err := testEnv.ExecuteActivity(activity.ModifyQoSPolicyAndApplyToSVM, poolWithManualQoS, node, nil)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenQosTypeIsManualAndParamsEmptyQosType_ThenSkipAndLeaveQosTypeUnchanged", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		testEnv := ts.NewTestActivityEnvironment()
+		poolWithManualQoS := pool
+		poolWithManualQoS.QosType = utils.QosTypeManual
+		paramsEmptyQos := &commonparams.UpdatePoolParams{
+			TotalThroughputMibps: 100,
+			TotalIops:           updateParams.TotalIops,
+			QosType:             "",
+		}
+		activity := &activities.PoolActivity{}
+		testEnv.RegisterActivity(activity.ModifyQoSPolicyAndApplyToSVM)
+		_, err := testEnv.ExecuteActivity(activity.ModifyQoSPolicyAndApplyToSVM, poolWithManualQoS, node, paramsEmptyQos)
+		assert.NoError(tt, err)
+	})
+}
+
+func TestRemoveQoSPolicyFromSVM(t *testing.T) {
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 1},
+		Name:      "test-pool",
+	}
+	node := &coremodel.Node{
+		Name:                           "test-node",
+		EndpointAddress:                "1.2.3.4",
+		AuthType:                       env.USERNAME_PWD,
+		EndpointAddressesToHostNameMap: make(map[string]string),
+	}
+
+	t.Run("WhenSuccess_ThenClearPolicyFromSVM", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(t)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() {
+			hyperscaler2.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, n *coremodel.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-svm",
+			SvmDetails: &datamodel.SvmDetails{
+				ExternalUUID: "test-svm-uuid",
+			},
+		}
+		mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
+		mockProvider.On("ModifySVMWithQoSPolicy", vsa.ModifySVMWithQoSPolicyParams{
+			SvmUUID:       "test-svm-uuid",
+			QoSPolicyName: "",
+		}).Return(nil)
+
+		activity := &activities.PoolActivity{SE: mockStorage}
+		env.RegisterActivity(activity.RemoveQoSPolicyFromSVM)
+		_, err := env.ExecuteActivity(activity.RemoveQoSPolicyFromSVM, pool, node)
+
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetSvmForPoolIDFails_ThenReturnError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(nil, errors.New("SVM not found"))
+
+		activity := &activities.PoolActivity{SE: mockStorage}
+		env.RegisterActivity(activity.RemoveQoSPolicyFromSVM)
+		_, err := env.ExecuteActivity(activity.RemoveQoSPolicyFromSVM, pool, node)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "SVM not found")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSvmDetailsNil_ThenReturnValidationError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(t)
+		svmNoDetails := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-svm",
+			SvmDetails: nil,
+		}
+		mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svmNoDetails, nil)
+
+		activity := &activities.PoolActivity{SE: mockStorage}
+		env.RegisterActivity(activity.RemoveQoSPolicyFromSVM)
+		_, err := env.ExecuteActivity(activity.RemoveQoSPolicyFromSVM, pool, node)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "SVM or SvmDetails is nil")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetProviderByNodeFails_ThenReturnError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(t)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, n *coremodel.Node) (vsa.Provider, error) {
+			return nil, errors.New("provider not found")
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-svm",
+			SvmDetails: &datamodel.SvmDetails{ExternalUUID: "test-svm-uuid"},
+		}
+		mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
+
+		activity := &activities.PoolActivity{SE: mockStorage}
+		env.RegisterActivity(activity.RemoveQoSPolicyFromSVM)
+		_, err := env.ExecuteActivity(activity.RemoveQoSPolicyFromSVM, pool, node)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "provider not found")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenProviderClearFails_ThenReturnError", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(t)
+		originalGetProviderByNode := hyperscaler2.GetProviderByNode
+		defer func() {
+			hyperscaler2.GetProviderByNode = originalGetProviderByNode
+		}()
+
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, n *coremodel.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-svm",
+			SvmDetails: &datamodel.SvmDetails{
+				ExternalUUID: "test-svm-uuid",
+			},
+		}
+		mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
+		mockProvider.On("ModifySVMWithQoSPolicy", vsa.ModifySVMWithQoSPolicyParams{
+			SvmUUID:       "test-svm-uuid",
+			QoSPolicyName: "",
+		}).Return(errors.New("ONTAP clear policy failed"))
+
+		activity := &activities.PoolActivity{SE: mockStorage}
+		env.RegisterActivity(activity.RemoveQoSPolicyFromSVM)
+		_, err := env.ExecuteActivity(activity.RemoveQoSPolicyFromSVM, pool, node)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "ONTAP clear policy failed")
+		mockProvider.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
 	})
 }
 
@@ -13675,7 +14153,7 @@ func TestSetWaflMaxVolCloneHier(t *testing.T) {
 		// The original map should still have only 2 entries
 		assert.Equal(tt, 2, len(node.EndpointAddressesToHostNameMap), "Original node's EndpointAddressesToHostNameMap should not be modified")
 		assert.Equal(tt, originalMapCopy, node.EndpointAddressesToHostNameMap, "Original node's EndpointAddressesToHostNameMap should remain unchanged")
-		
+
 		// Verify that the captured node (copy) has the modified map with 3 entries
 		assert.NotNil(tt, capturedNode)
 		assert.Equal(tt, 3, len(capturedNode.EndpointAddressesToHostNameMap), "Captured node's map should have the new entry added by GetProviderByNode")

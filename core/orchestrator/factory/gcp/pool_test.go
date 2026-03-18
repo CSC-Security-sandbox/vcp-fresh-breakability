@@ -4832,7 +4832,7 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		assert.Contains(tt, err.Error(), "Given pool size not supported")
 	})
 
-	// Test 10: Invalid QoS type change from auto to manual
+	// Test 10: Invalid QoS type (not "auto" or "manual")
 	t.Run("InvalidQosType_ChangeFromAutoToManual", func(tt *testing.T) {
 		params := &common.UpdatePoolParams{
 			SizeInBytes:          uint64(4 * utils.TiBInBytes),
@@ -4851,6 +4851,48 @@ func TestValidateUpdatePoolParamsComprehensive(t *testing.T) {
 		err := _validateAndSetUpdatePoolParams(params, pool)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "Given QoS type not supported")
+	})
+
+	// Test 10a: Allow qosType change from auto to manual (workflow performs transition)
+	t.Run("AllowUpdatePoolWhenQosTypeChangesFromAutoToManual", func(tt *testing.T) {
+		params := &common.UpdatePoolParams{
+			SizeInBytes:          uint64(4 * utils.TiBInBytes),
+			QosType:              utils.QosTypeManual,
+			LargeCapacity:        nillable.ToPointer(false),
+			TotalThroughputMibps: 256,
+			TotalIops:            nillable.ToPointer(int64(4096)),
+		}
+
+		pool := &datamodel.Pool{
+			SizeInBytes:      int64(2 * utils.TiBInBytes),
+			AllowAutoTiering: false,
+			LargeCapacity:    false,
+			QosType:          utils.QosTypeAuto,
+		}
+
+		err := _validateAndSetUpdatePoolParams(params, pool)
+		assert.NoError(tt, err, "QosType transition from auto to manual should be allowed")
+	})
+
+	// Test 10b: Allow qosType change from manual to auto (workflow performs transition)
+	t.Run("AllowUpdatePoolWhenQosTypeChangesFromManualToAuto", func(tt *testing.T) {
+		params := &common.UpdatePoolParams{
+			SizeInBytes:          uint64(4 * utils.TiBInBytes),
+			QosType:              utils.QosTypeAuto,
+			LargeCapacity:        nillable.ToPointer(false),
+			TotalThroughputMibps: 256,
+			TotalIops:            nillable.ToPointer(int64(4096)),
+		}
+
+		pool := &datamodel.Pool{
+			SizeInBytes:      int64(2 * utils.TiBInBytes),
+			AllowAutoTiering: false,
+			LargeCapacity:    false,
+			QosType:          utils.QosTypeManual,
+		}
+
+		err := _validateAndSetUpdatePoolParams(params, pool)
+		assert.NoError(tt, err, "QosType transition from manual to auto should be allowed")
 	})
 
 	// Test 11: Invalid throughput below minimum

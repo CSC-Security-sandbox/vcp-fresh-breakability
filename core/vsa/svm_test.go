@@ -360,6 +360,36 @@ func TestModifySVMWithQoSPolicy(t *testing.T) {
 		mockSVM.AssertExpectations(tt)
 		mockClient.AssertExpectations(tt)
 	})
+
+	t.Run("WhenQoSPolicyNameEmpty_ThenCallSvmModifyWithNone", func(tt *testing.T) {
+		mockSVM := new(ontaprest.MockSVMClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SVM").Return(mockSVM)
+		originalgetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalgetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		// Empty QoSPolicyName clears policy; ONTAP expects "none"
+		clearParams := ModifySVMWithQoSPolicyParams{
+			SvmUUID:       "svm-uuid-clear",
+			QoSPolicyName: "",
+		}
+		mockSVM.On("SvmModify", &ontaprest.SvmModifyParams{
+			SvmUUID:       "svm-uuid-clear",
+			QoSPolicyName: nillable.ToPointer("none"),
+		}).Return(true, nil, nil)
+
+		err := rc.ModifySVMWithQoSPolicy(clearParams)
+
+		assert.NoError(tt, err)
+		mockSVM.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
 }
 
 func TestGetSVM(t *testing.T) {

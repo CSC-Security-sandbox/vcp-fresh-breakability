@@ -579,6 +579,36 @@ func (d *DataStoreRepository) GetVolumesByVolumePerformanceGroupID(ctx context.C
 	return volumes, nil
 }
 
+// DereferencePoolVolumesFromVPGs sets volume_performance_group_id to NULL for all volumes in the pool
+// that reference any VPG (including soft-deleted volumes). Used before deleting VPGs in manual→auto
+// qosType transition to avoid foreign key constraint violations. Returns the number of rows updated.
+func (d *DataStoreRepository) DereferencePoolVolumesFromVPGs(ctx context.Context, poolID int64) (int64, error) {
+	var err error
+	db := d.db.GORM().WithContext(ctx)
+	tx, txErr := startTransaction(db)
+	if txErr != nil {
+		err = txErr
+		return 0, err
+	}
+	logger := util.GetLogger(ctx)
+	defer commitOrRollbackOnError(logger, tx, &err)
+
+	result := tx.Unscoped().
+		Model(&datamodel.Volume{}).
+		Where("pool_id = ?", poolID).
+		Where("volume_performance_group_id IS NOT NULL").
+		Updates(map[string]interface{}{
+			"volume_performance_group_id": nil,
+			"updated_at":                  time.Now(),
+		})
+
+	if result.Error != nil {
+		err = vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, result.Error)
+		return 0, err
+	}
+	return result.RowsAffected, nil
+}
+
 // DereferenceVPGFromDeletedVolumes sets volume_performance_group_id to NULL for all deleted volumes
 // that reference the given VPG. This prevents foreign key constraint violations when deleting the VPG.
 func (d *DataStoreRepository) DereferenceVPGFromDeletedVolumes(ctx context.Context, vpgID int64) error {

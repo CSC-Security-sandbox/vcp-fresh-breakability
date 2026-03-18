@@ -7173,6 +7173,59 @@ func TestPersistenceStore_VpgWrapperMethods(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// TestPersistenceStore_DereferencePoolVolumesFromVPGs covers the DereferencePoolVolumesFromVPGs wrapper (line 662).
+func TestPersistenceStore_DereferencePoolVolumesFromVPGs(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+	require.NoError(t, ClearInMemoryDB(store.DB()))
+
+	account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-deref-pool"}, Name: "acct-deref-pool"}
+	require.NoError(t, store.DB().Create(account).Error)
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-deref-pool"}, Name: "pool-deref-pool", AccountID: account.ID, Account: account}
+	require.NoError(t, store.DB().Create(pool).Error)
+
+	vpg := &datamodel.VolumePerformanceGroup{
+		BaseModel: datamodel.BaseModel{UUID: "vpg-deref-pool"},
+		PoolID:    pool.ID,
+		Name:      "vpg-deref-pool",
+		IsShared:  true,
+	}
+	require.NoError(t, store.DB().Create(vpg).Error)
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-deref-pool"},
+		Name:      "vol-deref-pool",
+		PoolID:    pool.ID,
+		AccountID: account.ID,
+		VolumePerformanceGroupID: sql.NullInt64{
+			Int64: vpg.ID,
+			Valid: true,
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			AccountName:    "acct-deref-pool",
+			DeploymentName: "deployment-deref-pool",
+			Protocols:      []string{"NFS"},
+		},
+	}
+	require.NoError(t, store.DB().Create(volume).Error)
+
+	count, err := store.DereferencePoolVolumesFromVPGs(ctx, pool.ID)
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, count, int64(1))
+
+	var updated datamodel.Volume
+	require.NoError(t, store.DB().Unscoped().Where("uuid = ?", volume.UUID).First(&updated).Error)
+	assert.False(t, updated.VolumePerformanceGroupID.Valid)
+}
+
 // Tests for ListAccountsForTelemetry delegate method
 func TestPersistenceStore_ListAccountsForTelemetry(t *testing.T) {
 	logger := log.NewLogger()
