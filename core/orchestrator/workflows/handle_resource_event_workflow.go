@@ -731,6 +731,10 @@ func (s updateResourceStateDELETEWorkflow) Run(ctx workflow.Context, args ...int
 				if err != nil {
 					return nil, ConvertToVSAError(err)
 				}
+				err = workflow.ExecuteActivity(ctx, resourceEventsActivity.DeleteClusterPeeringsForVolume, volume).Get(ctx, nil)
+				if err != nil {
+					return nil, ConvertToVSAError(err)
+				}
 			}
 		}
 

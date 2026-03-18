@@ -1783,6 +1783,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	s.env.RegisterActivity(volumeActivity.GetVolumesByPoolID)
 	s.env.RegisterActivity(resourceEventsActivity.DeleteReplicationsForVolume)
 	s.env.RegisterActivity(resourceEventsActivity.DeleteVolumeForPool)
+	s.env.RegisterActivity(resourceEventsActivity.DeleteClusterPeeringsForVolume)
 
 	poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}, VolumeCount: 1}
 	volumes := []*datamodel.Volume{{BaseModel: datamodel.BaseModel{UUID: "vol-1"}, State: models.StateOn}}
@@ -1792,6 +1793,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	s.env.OnActivity(volumeActivity.GetVolumesByPoolID, mock.Anything, mock.Anything).Return(volumes, nil)
 	s.env.OnActivity(resourceEventsActivity.DeleteReplicationsForVolume, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(resourceEventsActivity.DeleteVolumeForPool, mock.Anything, mock.Anything).Return(errors.New("failed to delete volume for pool"))
+	s.env.OnActivity(resourceEventsActivity.DeleteClusterPeeringsForVolume, mock.Anything, mock.Anything).Return(nil)
 
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
@@ -1876,6 +1878,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	s.env.RegisterActivity(volumeActivity.GetVolumesByPoolID)
 	s.env.RegisterActivity(resourceEventsActivity.DeleteReplicationsForVolume)
 	s.env.RegisterActivity(resourceEventsActivity.DeleteVolumeForPool)
+	s.env.RegisterActivity(resourceEventsActivity.DeleteClusterPeeringsForVolume)
 	s.env.RegisterActivity(poolActivity.GetPool)
 
 	// Mock the DeletePoolWorkflowInternal as a child workflow
@@ -1907,6 +1910,9 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 			return v.UUID == vol.UUID
 		})).Return(nil)
 		s.env.OnActivity(resourceEventsActivity.DeleteVolumeForPool, mock.Anything, mock.MatchedBy(func(v *datamodel.Volume) bool {
+			return v.UUID == vol.UUID
+		})).Return(nil)
+		s.env.OnActivity(resourceEventsActivity.DeleteClusterPeeringsForVolume, mock.Anything, mock.MatchedBy(func(v *datamodel.Volume) bool {
 			return v.UUID == vol.UUID
 		})).Return(nil)
 	}
@@ -1942,6 +1948,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	s.env.RegisterActivity(volumeActivity.GetVolumesByPoolID)
 	s.env.RegisterActivity(resourceEventsActivity.DeleteReplicationsForVolume)
 	s.env.RegisterActivity(resourceEventsActivity.DeleteVolumeForPool)
+	s.env.RegisterActivity(resourceEventsActivity.DeleteClusterPeeringsForVolume)
 	s.env.RegisterActivity(poolActivity.GetPool)
 
 	// Mock the DeletePoolWorkflowInternal as a child workflow
@@ -1979,6 +1986,9 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 		s.env.OnActivity(resourceEventsActivity.DeleteVolumeForPool, mock.Anything, mock.MatchedBy(func(v *datamodel.Volume) bool {
 			return v.UUID == vol.UUID
 		})).Return(nil)
+		s.env.OnActivity(resourceEventsActivity.DeleteClusterPeeringsForVolume, mock.Anything, mock.MatchedBy(func(v *datamodel.Volume) bool {
+			return v.UUID == vol.UUID
+		})).Return(nil)
 	}
 	s.env.OnActivity(poolActivity.GetPool, mock.Anything, mock.Anything).Return(pool, nil)
 
@@ -2012,6 +2022,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	s.env.RegisterActivity(volumeActivity.GetVolumesByPoolID)
 	s.env.RegisterActivity(resourceEventsActivity.DeleteReplicationsForVolume)
 	s.env.RegisterActivity(resourceEventsActivity.DeleteVolumeForPool)
+	s.env.RegisterActivity(resourceEventsActivity.DeleteClusterPeeringsForVolume)
 	s.env.RegisterActivity(poolActivity.GetPool)
 
 	// Mock the DeletePoolWorkflowInternal to fail
@@ -2043,6 +2054,9 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 			return v.UUID == vol.UUID
 		})).Return(nil)
 		s.env.OnActivity(resourceEventsActivity.DeleteVolumeForPool, mock.Anything, mock.MatchedBy(func(v *datamodel.Volume) bool {
+			return v.UUID == vol.UUID
+		})).Return(nil)
+		s.env.OnActivity(resourceEventsActivity.DeleteClusterPeeringsForVolume, mock.Anything, mock.MatchedBy(func(v *datamodel.Volume) bool {
 			return v.UUID == vol.UUID
 		})).Return(nil)
 	}
@@ -2534,6 +2548,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	s.env.RegisterActivity(volumeActivity.GetVolumesByPoolID)
 	s.env.RegisterActivity(resourceEventsActivity.DeleteReplicationsForVolume)
 	s.env.RegisterActivity(resourceEventsActivity.DeleteVolumeForPool)
+	s.env.RegisterActivity(resourceEventsActivity.DeleteClusterPeeringsForVolume)
 
 	poolView := &datamodel.PoolView{Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}, VolumeCount: 1}
 	volumes := []*datamodel.Volume{
@@ -2546,6 +2561,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	s.env.OnActivity(resourceEventsActivity.DeleteReplicationsForVolume, mock.Anything, mock.Anything).Return(nil)
 	// Fail the DeleteVolumeForPool activity to cover the error handling
 	s.env.OnActivity(resourceEventsActivity.DeleteVolumeForPool, mock.Anything, mock.Anything).Return(temporal.NewNonRetryableApplicationError("Volume deletion failed", "VolumeError", errors.New("insufficient permissions")))
+	s.env.OnActivity(resourceEventsActivity.DeleteClusterPeeringsForVolume, mock.Anything, mock.Anything).Return(nil)
 
 	param := &common.UpdateResourceStateParams{
 		ResourceId:    "pool-id",
@@ -2580,6 +2596,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	s.env.RegisterActivity(resourceEventsActivity.DeleteReplicationsForVolume)
 	s.env.RegisterActivity(resourceEventsActivity.DeleteVolumeAssociatedQuotaRules)
 	s.env.RegisterActivity(resourceEventsActivity.DeleteVolumeForPool)
+	s.env.RegisterActivity(resourceEventsActivity.DeleteClusterPeeringsForVolume)
 	s.env.RegisterActivity(poolActivity.GetPool)
 
 	// Mock the DeletePoolWorkflowInternal as a child workflow
@@ -2626,6 +2643,9 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 		s.env.OnActivity(resourceEventsActivity.DeleteVolumeForPool, mock.Anything, mock.MatchedBy(func(v *datamodel.Volume) bool {
 			return v.UUID == vol.UUID
 		})).Return(nil)
+		s.env.OnActivity(resourceEventsActivity.DeleteClusterPeeringsForVolume, mock.Anything, mock.MatchedBy(func(v *datamodel.Volume) bool {
+			return v.UUID == vol.UUID
+		})).Return(nil)
 	}
 	s.env.OnActivity(poolActivity.GetPool, mock.Anything, mock.Anything).Return(pool, nil)
 
@@ -2641,6 +2661,8 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	assert.Nil(s.T(), s.env.GetWorkflowError())
 	// Verify that DeleteVolumeAssociatedQuotaRules was called for each volume
 	s.env.AssertNumberOfCalls(s.T(), "DeleteVolumeAssociatedQuotaRules", 2)
+	// Verify that DeleteClusterPeeringsForVolume was called for each volume
+	s.env.AssertNumberOfCalls(s.T(), "DeleteClusterPeeringsForVolume", 2)
 }
 
 // Test case: DeleteVolumeAssociatedQuotaRules not called for volumes without FileProperties
@@ -2662,6 +2684,7 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	s.env.RegisterActivity(resourceEventsActivity.DeleteReplicationsForVolume)
 	s.env.RegisterActivity(resourceEventsActivity.DeleteVolumeAssociatedQuotaRules)
 	s.env.RegisterActivity(resourceEventsActivity.DeleteVolumeForPool)
+	s.env.RegisterActivity(resourceEventsActivity.DeleteClusterPeeringsForVolume)
 	s.env.RegisterActivity(poolActivity.GetPool)
 
 	// Mock the DeletePoolWorkflowInternal as a child workflow
@@ -2707,6 +2730,9 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 		s.env.OnActivity(resourceEventsActivity.DeleteVolumeForPool, mock.Anything, mock.MatchedBy(func(v *datamodel.Volume) bool {
 			return v.UUID == vol.UUID
 		})).Return(nil)
+		s.env.OnActivity(resourceEventsActivity.DeleteClusterPeeringsForVolume, mock.Anything, mock.MatchedBy(func(v *datamodel.Volume) bool {
+			return v.UUID == vol.UUID
+		})).Return(nil)
 	}
 	s.env.OnActivity(poolActivity.GetPool, mock.Anything, mock.Anything).Return(pool, nil)
 
@@ -2722,6 +2748,8 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	assert.Nil(s.T(), s.env.GetWorkflowError())
 	// Verify that DeleteVolumeAssociatedQuotaRules was NOT called
 	s.env.AssertNumberOfCalls(s.T(), "DeleteVolumeAssociatedQuotaRules", 0)
+	// Verify that DeleteClusterPeeringsForVolume was called for each volume
+	s.env.AssertNumberOfCalls(s.T(), "DeleteClusterPeeringsForVolume", 2)
 }
 
 // Test case: DeleteVolumeAssociatedQuotaRules activity fails

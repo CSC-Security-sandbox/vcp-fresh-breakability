@@ -2,6 +2,7 @@ package resource_events_activities
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 
@@ -1778,6 +1779,162 @@ func TestDeleteReplicationsForVolume(t *testing.T) {
 		err := activity.DeleteReplicationsForVolume(ctx, volume)
 		assert.NotNil(tt, err)
 		assert.ErrorContains(tt, err, "deletion failed")
+	})
+
+	t.Run("DeleteReplicationsForVolume_DeletesClusterPeeringWhenPresent", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid", ID: 1},
+			AccountID: 1,
+			PoolID:    1,
+			State:     common.ResourceStateEnabled,
+		}
+		replicationWithPeer := &datamodel.VolumeReplication{
+			BaseModel:     datamodel.BaseModel{UUID: "repl-uuid", ID: 1},
+			VolumeID:     volume.ID,
+			AccountID:    volume.AccountID,
+			State:        common.ResourceStateEnabled,
+			ClusterPeerId: sql.NullInt64{Int64: 42, Valid: true},
+		}
+
+		filter := dbutils.CreateFilterWithConditions(
+			dbutils.NewFilterCondition("account_id", "=", volume.AccountID),
+			dbutils.NewFilterCondition("volume_id", "=", volume.ID))
+
+		mockSE.On("ListVolumeReplications", ctx, *filter, 0).Return([]*datamodel.VolumeReplication{replicationWithPeer}, nil)
+		mockSE.On("DeleteVolumeReplication", ctx, replicationWithPeer).Return(replicationWithPeer, nil)
+		mockSE.On("DeleteClusterPeeringRow", ctx, mock.MatchedBy(func(row *datamodel.ClusterPeerings) bool { return row.ID == 42 })).Return(nil)
+
+		err := activity.DeleteReplicationsForVolume(ctx, volume)
+		assert.Nil(tt, err)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("DeleteReplicationsForVolume_ClusterPeeringAlreadyDeleted", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid", ID: 1},
+			AccountID: 1,
+			PoolID:    1,
+			State:     common.ResourceStateEnabled,
+		}
+		replicationWithPeer := &datamodel.VolumeReplication{
+			BaseModel:     datamodel.BaseModel{UUID: "repl-uuid", ID: 1},
+			VolumeID:     volume.ID,
+			AccountID:    volume.AccountID,
+			State:        common.ResourceStateEnabled,
+			ClusterPeerId: sql.NullInt64{Int64: 42, Valid: true},
+		}
+
+		filter := dbutils.CreateFilterWithConditions(
+			dbutils.NewFilterCondition("account_id", "=", volume.AccountID),
+			dbutils.NewFilterCondition("volume_id", "=", volume.ID))
+
+		mockSE.On("ListVolumeReplications", ctx, *filter, 0).Return([]*datamodel.VolumeReplication{replicationWithPeer}, nil)
+		mockSE.On("DeleteVolumeReplication", ctx, replicationWithPeer).Return(replicationWithPeer, nil)
+		mockSE.On("DeleteClusterPeeringRow", ctx, mock.MatchedBy(func(row *datamodel.ClusterPeerings) bool { return row.ID == 42 })).
+			Return(utilErrors.NewNotFoundErr("cluster peer", nil))
+
+		err := activity.DeleteReplicationsForVolume(ctx, volume)
+		assert.Nil(tt, err)
+		mockSE.AssertExpectations(tt)
+	})
+}
+
+func TestDeleteClusterPeeringsForVolume(t *testing.T) {
+	t.Run("Success_DeletesClusterPeering", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		clusterPeerID := int64(42)
+		volume := &datamodel.Volume{
+			BaseModel:     datamodel.BaseModel{UUID: "vol-uuid", ID: 1},
+			AccountID:     1,
+			ClusterPeerID: sql.NullInt64{Int64: clusterPeerID, Valid: true},
+		}
+
+		mockSE.On("DeleteClusterPeeringRow", ctx, mock.MatchedBy(func(row *datamodel.ClusterPeerings) bool {
+			return row != nil && row.ID == clusterPeerID
+		})).Return(nil)
+
+		err := activity.DeleteClusterPeeringsForVolume(ctx, volume)
+		assert.NoError(tt, err)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("Success_SkipsWhenNoClusterPeerID", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		volume := &datamodel.Volume{
+			BaseModel:     datamodel.BaseModel{UUID: "vol-uuid", ID: 1},
+			AccountID:     1,
+			ClusterPeerID: sql.NullInt64{Valid: false},
+		}
+
+		err := activity.DeleteClusterPeeringsForVolume(ctx, volume)
+		assert.NoError(tt, err)
+		mockSE.AssertNotCalled(tt, "DeleteClusterPeeringRow")
+	})
+
+	t.Run("Success_SkipsWhenNilVolume", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		err := activity.DeleteClusterPeeringsForVolume(ctx, nil)
+		assert.NoError(tt, err)
+		mockSE.AssertNotCalled(tt, "DeleteClusterPeeringRow")
+	})
+
+	t.Run("DeleteClusterPeeringRowFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		clusterPeerID := int64(42)
+		volume := &datamodel.Volume{
+			BaseModel:     datamodel.BaseModel{UUID: "vol-uuid", ID: 1},
+			AccountID:     1,
+			ClusterPeerID: sql.NullInt64{Int64: clusterPeerID, Valid: true},
+		}
+
+		mockSE.On("DeleteClusterPeeringRow", ctx, mock.MatchedBy(func(row *datamodel.ClusterPeerings) bool {
+			return row != nil && row.ID == clusterPeerID
+		})).Return(errors.New("delete failed"))
+
+		err := activity.DeleteClusterPeeringsForVolume(ctx, volume)
+		assert.Error(tt, err)
+		assert.ErrorContains(tt, err, "delete failed")
+	})
+
+	t.Run("Success_ClusterPeeringAlreadyDeleted", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		clusterPeerID := int64(42)
+		volume := &datamodel.Volume{
+			BaseModel:     datamodel.BaseModel{UUID: "vol-uuid", ID: 1},
+			AccountID:     1,
+			ClusterPeerID: sql.NullInt64{Int64: clusterPeerID, Valid: true},
+		}
+
+		mockSE.On("DeleteClusterPeeringRow", ctx, mock.MatchedBy(func(row *datamodel.ClusterPeerings) bool {
+			return row != nil && row.ID == clusterPeerID
+		})).Return(utilErrors.NewNotFoundErr("cluster peer", nil))
+
+		err := activity.DeleteClusterPeeringsForVolume(ctx, volume)
+		assert.NoError(tt, err)
+		mockSE.AssertExpectations(tt)
 	})
 }
 

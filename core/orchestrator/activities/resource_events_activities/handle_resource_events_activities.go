@@ -553,6 +553,20 @@ func (a *ResourceEventsActivity) DeleteReplicationsForVolume(ctx context.Context
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 		logger.Debugf("Replication:%s marked deleted successfully in the db", replication.Name)
+
+		// If this replication had a cluster peering, delete the peering row.
+		if replication.ClusterPeerId.Valid {
+			row := &datamodel.ClusterPeerings{BaseModel: datamodel.BaseModel{ID: replication.ClusterPeerId.Int64}}
+			if delErr := se.DeleteClusterPeeringRow(ctx, row); delErr != nil {
+				if errors.IsNotFoundErr(delErr) {
+					logger.Debugf("Cluster peering row with ID %d already deleted", replication.ClusterPeerId.Int64)
+				} else {
+					return vsaerrors.WrapAsTemporalApplicationError(delErr)
+				}
+			} else {
+				logger.Debugf("Cluster peering row with ID %d soft-deleted", replication.ClusterPeerId.Int64)
+			}
+		}
 	}
 
 	return nil
@@ -581,6 +595,27 @@ func (a *ResourceEventsActivity) DeleteVolumeAssociatedQuotaRules(ctx context.Co
 		}
 	}
 	logger.Debugf("Volume associated quota rules deleted successfully for volumeID: %d", volumeID)
+	return nil
+}
+
+func (a *ResourceEventsActivity) DeleteClusterPeeringsForVolume(ctx context.Context, volume *datamodel.Volume) error {
+	logger := util.GetLogger(ctx)
+	se := a.SE
+
+	if volume == nil || !volume.ClusterPeerID.Valid {
+		return nil
+	}
+
+	clusterPeerID := volume.ClusterPeerID.Int64
+	row := &datamodel.ClusterPeerings{BaseModel: datamodel.BaseModel{ID: clusterPeerID}}
+	if err := se.DeleteClusterPeeringRow(ctx, row); err != nil {
+		if errors.IsNotFoundErr(err) {
+			logger.Debugf("Cluster peering row with ID %d already deleted", clusterPeerID)
+			return nil
+		}
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	logger.Debugf("Cluster peering row with ID %d soft-deleted successfully", clusterPeerID)
 	return nil
 }
 

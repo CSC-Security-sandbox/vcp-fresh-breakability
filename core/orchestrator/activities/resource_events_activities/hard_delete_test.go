@@ -239,7 +239,7 @@ func TestFinishProjectEventActivity_HardDeleteResourcesInOrder(t *testing.T) {
 		// Verify the order matches expected
 		expectedOrder := []string{
 			"backups", "backup_policies", "snapshots", "volume_replications",
-			"volumes", "backup_vaults", "svms", "pools", "host_groups",
+			"volumes", "cluster_peerings", "backup_vaults", "svms", "pools", "host_groups",
 			"kms_configs", "nodes", "service_accounts", "lifs", "accounts", "quota_rules",
 			"active_directories",
 		}
@@ -340,7 +340,7 @@ func TestFinishProjectEventActivity_HardDeleteResourcesInOrder(t *testing.T) {
 
 		// Verify specific query filters
 		assert.Equal(t, dbQueryBackupID, queryFilters[0])     // backups
-		assert.Equal(t, dbQueryAccountName, queryFilters[13]) // accounts (index 13, uses dbQueryAccountName)
+		assert.Equal(t, dbQueryAccountName, queryFilters[14]) // accounts (index 14, uses dbQueryAccountName)
 
 		// Count dbQueryAccountID usage
 		accountIDQueryCount := 0
@@ -349,13 +349,13 @@ func TestFinishProjectEventActivity_HardDeleteResourcesInOrder(t *testing.T) {
 				accountIDQueryCount++
 			}
 		}
-		assert.Equal(t, 14, accountIDQueryCount) // All except backups and accounts (13 resources + quota_rules + active_directories)
+		assert.Equal(t, 15, accountIDQueryCount) // All except backups and accounts (cluster_peerings + 13 others + quota_rules + active_directories)
 	})
 }
 
 func TestResourceConfiguration(t *testing.T) {
 	t.Run("VerifyResourceCount", func(t *testing.T) {
-		assert.Equal(t, 16, len(resourcesToHardDelete), "Should have 16 resources to delete")
+		assert.Equal(t, 17, len(resourcesToHardDelete), "Should have 17 resources to delete")
 	})
 
 	t.Run("VerifyConstantValues", func(t *testing.T) {
@@ -375,7 +375,7 @@ func TestResourceConfiguration(t *testing.T) {
 		// Verify the specific order of resources
 		expectedOrder := []string{
 			"backups", "backup_policies", "snapshots", "volume_replications",
-			"volumes", "backup_vaults", "svms", "pools", "host_groups",
+			"volumes", "cluster_peerings", "backup_vaults", "svms", "pools", "host_groups",
 			"kms_configs", "nodes", "service_accounts", "lifs", "accounts", "quota_rules",
 			"active_directories",
 		}
