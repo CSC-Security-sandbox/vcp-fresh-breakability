@@ -1849,6 +1849,13 @@ func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, c
 	if isLargeCapacityPool {
 		vlmConfig.Deployment.NumHAPair = decision.ClusterMetadata.NumHAPairs
 	}
+	// Derive region identifier from REGION_NUMBER_MAP (worker configmap, same as proxy regionNumberMap) and append to cluster name
+	regionIdentifier := getRegionNumber()
+	if regionIdentifier != "" {
+		vlmConfig.VsaCluster.ClusterName = deploymentName + "-" + regionIdentifier
+	} else {
+		vlmConfig.VsaCluster.ClusterName = deploymentName
+	}
 
 	activity.RecordHeartbeat(ctx, "Finished IdentifyVMs activity")
 	return vlmConfig, nil

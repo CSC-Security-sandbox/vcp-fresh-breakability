@@ -450,6 +450,9 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 
+	if vlmConfig.VsaCluster.ClusterName != "" {
+		createVSAClusterDeploymentResponse.VLMConfig.VsaCluster.ClusterName = vlmConfig.VsaCluster.ClusterName
+	}
 	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}

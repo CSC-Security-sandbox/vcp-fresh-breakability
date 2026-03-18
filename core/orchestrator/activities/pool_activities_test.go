@@ -3991,6 +3991,95 @@ func Test_IdentifyVMs_SuccessfullyPreparesConfig(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func Test_IdentifyVMs_SetsClusterName_DeploymentNameOnlyWhenNoRegionCode(t *testing.T) {
+	// When getRegionNumber() returns "" (e.g. LOCAL_REGION unset or not in REGION_NUMBER_MAP),
+	// ClusterName should be deploymentName only.
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	activity := activities.PoolActivity{}
+	env.RegisterActivity(activity.IdentifyVMs)
+
+	prepareVLMConfig := activities.PrepareVlmConfig
+	originalGetPasswordForVSACluster := hyperscaler2.GetPasswordForVSACluster
+	defer func() {
+		activities.PrepareVlmConfig = prepareVLMConfig
+		hyperscaler2.GetPasswordForVSACluster = originalGetPasswordForVSACluster
+	}()
+	hyperscaler2.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
+		return &hyperscaler_models.CustomSecret{SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "password"}}, nil
+	}
+	activities.PrepareVlmConfig = func(cfg *vlm.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, saEmail string, autoTierBucket string) error {
+		return nil
+	}
+
+	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{}
+	locationInfo := &commonparams.LocationInfo{
+		PrimaryZone:   "test-zone1",
+		SecondaryZone: "test-zone2",
+		Region:        "test-region",
+	}
+	tenancyInfo := &commonparams.TenancyInfo{
+		RegionalTenantProject: "test-project",
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		SnHostProject:         "test-sn-host-project",
+	}
+
+	val, err := env.ExecuteActivity(activity.IdentifyVMs, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "test-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", false)
+	require.NoError(t, err)
+
+	var vlmConfig *vlm.VLMConfig
+	require.NoError(t, val.Get(&vlmConfig))
+	// With default test env, LOCAL_REGION is typically "" so getRegionNumber() returns "" and ClusterName is deploymentName only
+	assert.Equal(t, "test-deployment", vlmConfig.VsaCluster.ClusterName)
+}
+
+func Test_IdentifyVMs_SetsClusterName_FormatDeploymentNameAndRegionCode(t *testing.T) {
+	// ClusterName must be either deploymentName or deploymentName + "-" + region identifier from getRegionNumber()
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	activity := activities.PoolActivity{}
+	env.RegisterActivity(activity.IdentifyVMs)
+
+	prepareVLMConfig := activities.PrepareVlmConfig
+	originalGetPasswordForVSACluster := hyperscaler2.GetPasswordForVSACluster
+	defer func() {
+		activities.PrepareVlmConfig = prepareVLMConfig
+		hyperscaler2.GetPasswordForVSACluster = originalGetPasswordForVSACluster
+	}()
+	hyperscaler2.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
+		return &hyperscaler_models.CustomSecret{SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "password"}}, nil
+	}
+	activities.PrepareVlmConfig = func(cfg *vlm.VLMConfig, deploymentName, region, primaryZone, secondaryZone, network, subnet, projectId, snHostProject string, dsc *vmrs.Decision, saEmail string, autoTierBucket string) error {
+		return nil
+	}
+
+	customerRequestedPerformance := &vmrs.CustomerRequestedPerformance{}
+	locationInfo := &commonparams.LocationInfo{
+		PrimaryZone:   "test-zone1",
+		SecondaryZone: "test-zone2",
+		Region:        "test-region",
+	}
+	tenancyInfo := &commonparams.TenancyInfo{
+		RegionalTenantProject: "test-project",
+		Network:               "test-network",
+		SubnetworkNames:       []string{"test-subnet"},
+		SnHostProject:         "test-sn-host-project",
+	}
+
+	val, err := env.ExecuteActivity(activity.IdentifyVMs, "testdata/valid_vmrs_gcp.yaml", *customerRequestedPerformance, "my-deployment", locationInfo, tenancyInfo, "test-tenant-project@xyz.com", "test-tenant-project", false)
+	require.NoError(t, err)
+
+	var vlmConfig *vlm.VLMConfig
+	require.NoError(t, val.Get(&vlmConfig))
+	// ClusterName is deploymentName when getRegionNumber() is "", else deploymentName + "-" + regionCode
+	assert.NotEmpty(t, vlmConfig.VsaCluster.ClusterName)
+	assert.True(t, vlmConfig.VsaCluster.ClusterName == "my-deployment" || strings.HasPrefix(vlmConfig.VsaCluster.ClusterName, "my-deployment-"),
+		"ClusterName should be deploymentName or deploymentName + '-' + region identifier, got %s", vlmConfig.VsaCluster.ClusterName)
+}
+
 func Test_IdentifyVMs_SuccessfullyPreparesConfig_LargeVolume(t *testing.T) {
 	// Setup Temporal test environment
 	var ts testsuite.WorkflowTestSuite

@@ -17736,6 +17736,257 @@ func TestCreatePoolWorkflow_CancellationAtIdentifyVMs(t *testing.T) {
 	assert.Contains(t, env.GetWorkflowError().Error(), "pool creation cancelled")
 }
 
+// getClusterNameFromVLMConfigArgument returns VsaCluster.ClusterName from a mock argument that may be *vlm.VLMConfig or vlm.VLMConfig.
+func getClusterNameFromVLMConfigArgument(arg interface{}) string {
+	if p, ok := arg.(*vlm.VLMConfig); ok {
+		return p.VsaCluster.ClusterName
+	}
+	if v, ok := arg.(vlm.VLMConfig); ok {
+		return v.VsaCluster.ClusterName
+	}
+	return ""
+}
+
+// TestCreatePoolWorkflow_PropagatesClusterNameFromIdentifyVMs asserts that when IdentifyVMs returns a VLMConfig with
+// VsaCluster.ClusterName set, the workflow overwrites CreateVSAClusterDeployment response with it and downstream
+// activities (e.g. CreateCloudDNSRecords) receive the overwritten ClusterName.
+func TestCreatePoolWorkflow_PropagatesClusterNameFromIdentifyVMs(t *testing.T) {
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
+	ginLoggingFeatureFlag = true
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	origVSAClientFactory := GetNewVSAClientWorkflowManager
+	defer func() { GetNewVSAClientWorkflowManager = origVSAClientFactory }()
+
+	mockStorage := database.NewMockStorage(t)
+	_, cleanupProvider := setupMockProvider()
+	defer cleanupProvider()
+
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error { return nil },
+		workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
+	)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.PSCActivity{})
+	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
+	env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-jwt-token", nil).Maybe()
+
+	mockAddressURI := "test-address-uri"
+	mockForwardingRuleIP := "127.0.0.1"
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024,
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
+	}
+	pool := &datamodel.Pool{
+		Account: &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-password", SecretID: "", AuthType: envs.USERNAME_PWD},
+		PoolAttributes:  &datamodel.PoolAttributes{Iops: nillable.FromPointer(params.CustomPerformanceParams.Iops), ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps},
+		DeploymentName:  "test-deployment",
+		QosType:         utils.QosTypeAuto,
+	}
+	svmName := "svmName"
+
+	identifyVMsClusterName := "test-deployment-01"
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}, State: string(models.JobsStateNEW)}, nil).Maybe()
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"}, State: string(models.JobsStateDONE)}, nil).Maybe()
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network: "test-network", SubnetworkNames: []string{"test-subnet"}, RegionalTenantProject: "test-project", SnHostProject: "test-host-project", Gateway: "192.168.1.254",
+	}, nil)
+	env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+	env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
+	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&vlm.VLMConfig{VsaCluster: vlm.VsaClusterConfig{ClusterName: identifyVMsClusterName}}, nil)
+	// CreateVSAClusterDeployment returns a response with a different ClusterName; workflow should overwrite with IdentifyVMs value.
+	mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).
+		Return(&vlm.CreateVSAClusterDeploymentResponse{VLMConfig: vlm.VLMConfig{VsaCluster: vlm.VsaClusterConfig{ClusterName: "other-from-vlm"}}}, nil)
+	mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
+	var capturedClusterName string
+	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Run(func(args mock.Arguments) {
+		capturedClusterName = getClusterNameFromVLMConfigArgument(args[1])
+	})
+	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateEMSEventForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
+	mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil)
+	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
+	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("SetWaflMaxVolCloneHier", mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("GetIPsConsumedForSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&[]datamodel.SubnetToIPs{{SubnetName: "test-subnet", IPsReserved: 6}}, nil)
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		PrimaryZone: "test-zone", SecondaryZone: "test-secondary-zone", Region: "test-region", MediatorZone: "test-mediator-zone",
+	}, nil)
+	env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, mock.Anything).Return(nil)
+	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil).Maybe()
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVSAClientWorkflowManager }
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+	assert.Equal(t, identifyVMsClusterName, capturedClusterName, "CreateCloudDNSRecords should receive ClusterName from IdentifyVMs")
+}
+
+// TestCreatePoolWorkflow_DoesNotOverwriteClusterNameWhenIdentifyVMsReturnsEmpty asserts that when IdentifyVMs returns
+// VsaCluster.ClusterName empty, the workflow does not overwrite the CreateVSAClusterDeployment response and
+// downstream activities receive the response's ClusterName.
+func TestCreatePoolWorkflow_DoesNotOverwriteClusterNameWhenIdentifyVMsReturnsEmpty(t *testing.T) {
+	cleanup := setEnableSyncPoolZIZSTrue()
+	defer cleanup()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
+	ginLoggingFeatureFlag = true
+	mockVSAClientWorkflowManager := new(vlm.MockVlmWorkflowClient)
+	origVSAClientFactory := GetNewVSAClientWorkflowManager
+	defer func() { GetNewVSAClientWorkflowManager = origVSAClientFactory }()
+
+	mockStorage := database.NewMockStorage(t)
+	_, cleanupProvider := setupMockProvider()
+	defer cleanupProvider()
+
+	env.RegisterActivity(&SubnetActivity{})
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+	env.RegisterWorkflow(ConfigureNetworkWorkflow)
+	env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
+	env.RegisterWorkflow(SyncPoolComplianceForPoolWorkflow)
+	env.RegisterWorkflow(ReleasePSCEndpointWorkflow)
+	env.RegisterWorkflow(CleanupServiceAccountPermissionsWorkflow)
+	env.RegisterWorkflowWithOptions(
+		func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error { return nil },
+		workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
+	)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.BackupActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{})
+	env.RegisterActivity(&activities.PSCActivity{})
+	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
+	env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-jwt-token", nil).Maybe()
+
+	mockAddressURI := "test-address-uri"
+	mockForwardingRuleIP := "127.0.0.1"
+	params := &common.CreatePoolParams{
+		Name:                    "test-pool",
+		AccountName:             "test-account",
+		SizeInBytes:             1024 * 1024 * 1024 * 1024,
+		Region:                  "test-region",
+		PrimaryZone:             "test-zone",
+		SecondaryZone:           "test-secondary-zone",
+		AllowAutoTiering:        true,
+		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
+	}
+	pool := &datamodel.Pool{
+		Account: &datamodel.Account{Name: "test-account"},
+		PoolCredentials: &datamodel.PoolCredentials{Password: "test-password", SecretID: "", AuthType: envs.USERNAME_PWD},
+		PoolAttributes:  &datamodel.PoolAttributes{Iops: nillable.FromPointer(params.CustomPerformanceParams.Iops), ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps},
+		DeploymentName: "test-deployment",
+		QosType:         utils.QosTypeAuto,
+	}
+	svmName := "svmName"
+
+	responseClusterName := "from-vlm-response"
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, "default-test-workflow-id").Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}, State: string(models.JobsStateNEW)}, nil).Maybe()
+	env.OnActivity("GetJob", mock.Anything, "test-subnet-id").Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "test-subnet-id"}, State: string(models.JobsStateDONE)}, nil).Maybe()
+	env.OnActivity("FindTenancyProject", mock.Anything, mock.Anything).Return("test-project", nil)
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("test-subnet-id", nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, mock.Anything).Return(&common.TenancyInfo{
+		Network: "test-network", SubnetworkNames: []string{"test-subnet"}, RegionalTenantProject: "test-project", SnHostProject: "test-host-project", Gateway: "192.168.1.254",
+	}, nil)
+	env.OnActivity("CreateAddressForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetAddressURI", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockAddressURI, nil)
+	env.OnActivity("CreateForwardingRuleForPSCEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetForwardingRuleIPAddress", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mockForwardingRuleIP, nil)
+	env.OnActivity("CreateVPCs", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateSubnets", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateFirewalls", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateServiceAccountWithStorageRole", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateAutoTierBucket", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateOnTapCredentials", mock.Anything, mock.Anything).Return(nil, nil)
+	// IdentifyVMs returns empty ClusterName; workflow must not overwrite response.
+	env.OnActivity("IdentifyVMs", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&vlm.VLMConfig{VsaCluster: vlm.VsaClusterConfig{ClusterName: ""}}, nil)
+	mockVSAClientWorkflowManager.On("CreateVSAClusterDeployment", mock.Anything, mock.Anything, mock.Anything).
+		Return(&vlm.CreateVSAClusterDeploymentResponse{VLMConfig: vlm.VLMConfig{VsaCluster: vlm.VsaClusterConfig{ClusterName: responseClusterName}}}, nil)
+	mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
+	var capturedClusterName string
+	env.OnActivity("CreateCloudDNSRecords", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Run(func(args mock.Arguments) {
+		capturedClusterName = getClusterNameFromVLMConfigArgument(args[1])
+	})
+	env.OnActivity("SaveVSANodeDetails", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreateEMSEventForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
+	mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
+	env.OnActivity("SaveSVMAndLifData", mock.Anything, mock.Anything, mock.Anything, svmName).Return(nil, nil)
+	env.OnActivity("GetInterClusterLifsFromVLMConfig", mock.Anything, mock.Anything).Return([]string{"192.168.1.10", "192.168.1.11"}, nil)
+	env.OnActivity("CreateQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+	env.OnActivity("SetWaflMaxVolCloneHier", mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("GetIPsConsumedForSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&[]datamodel.SubnetToIPs{{SubnetName: "test-subnet", IPsReserved: 6}}, nil)
+	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("IdentifySecondaryAndMediatorZone", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.LocationInfo{
+		PrimaryZone: "test-zone", SecondaryZone: "test-secondary-zone", Region: "test-region", MediatorZone: "test-mediator-zone",
+	}, nil)
+	env.OnWorkflow(RegisterNodeToHarvestFarmWorkflow, mock.Anything, mock.Anything).Return(nil)
+	env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil).Maybe()
+	GetNewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient { return mockVSAClientWorkflowManager }
+
+	env.ExecuteWorkflow(CreatePoolWorkflow, params, pool)
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+	assert.Equal(t, responseClusterName, capturedClusterName, "CreateCloudDNSRecords should receive ClusterName from CreateVSAClusterDeployment response when IdentifyVMs ClusterName is empty")
+}
+
 // TestCreatePoolWorkflow_CancellationAfterFirstSavePoolWithClusterDetails tests cancellation check at line 260 after first SavePoolWithClusterDetails
 func TestCreatePoolWorkflow_CancellationAfterFirstSavePoolWithClusterDetails(t *testing.T) {
 	cleanup := setEnableSyncPoolZIZSTrue()
