@@ -57,7 +57,31 @@ install_goimports() {
       exit 1
     fi
 
-    echo "goimports installed successfully."
+    # Add Go bin directory to PATH
+    local go_bin
+    go_bin=$(go env GOPATH)/bin
+    if [ -n "$go_bin" ] && [ -d "$go_bin" ]; then
+      export PATH="$go_bin:$PATH"
+      # Also add to shell config files for future sessions
+      if ! echo "$PATH" | grep -q "$go_bin"; then
+        if [ -f ~/.bashrc ]; then
+          echo "export PATH=\"$go_bin:\$PATH\"" >> ~/.bashrc
+        fi
+        if [ -f ~/.zshrc ]; then
+          echo "export PATH=\"$go_bin:\$PATH\"" >> ~/.zshrc
+        fi
+        if [ -f ~/.profile ]; then
+          echo "export PATH=\"$go_bin:\$PATH\"" >> ~/.profile
+        fi
+      fi
+    fi
+
+    # Verify installation
+    if ! command_exists "goimports"; then
+      echo "Warning: goimports was installed but is not in PATH. Please add $(go env GOPATH)/bin to your PATH."
+    else
+      echo "goimports installed successfully."
+    fi
   else
     echo "goimports is already installed."
   fi

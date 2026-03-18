@@ -3914,6 +3914,157 @@ func (_c *MockProvider_GetSecurityLogForwarding_Call) RunAndReturn(run func(GetS
 	return _c
 }
 
+// CreateEMSEventForwarding provides a mock function with given fields: params
+func (_m *MockProvider) CreateEMSEventForwarding(params CreateEMSEventForwardingParams) error {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateEMSEventForwarding")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(CreateEMSEventForwardingParams) error); ok {
+		r0 = rf(params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_CreateEMSEventForwarding_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateEMSEventForwarding'
+type MockProvider_CreateEMSEventForwarding_Call struct {
+	*mock.Call
+}
+
+// CreateEMSEventForwarding is a helper method to define mock.On call
+//   - params CreateEMSEventForwardingParams
+func (_e *MockProvider_Expecter) CreateEMSEventForwarding(params interface{}) *MockProvider_CreateEMSEventForwarding_Call {
+	return &MockProvider_CreateEMSEventForwarding_Call{Call: _e.mock.On("CreateEMSEventForwarding", params)}
+}
+
+func (_c *MockProvider_CreateEMSEventForwarding_Call) Run(run func(params CreateEMSEventForwardingParams)) *MockProvider_CreateEMSEventForwarding_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(CreateEMSEventForwardingParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_CreateEMSEventForwarding_Call) Return(_a0 error) *MockProvider_CreateEMSEventForwarding_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_CreateEMSEventForwarding_Call) RunAndReturn(run func(CreateEMSEventForwardingParams) error) *MockProvider_CreateEMSEventForwarding_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetEMSEventForwarding provides a mock function with given fields: destinationName
+func (_m *MockProvider) GetEMSEventForwarding(destinationName string) (*EMSEventDestination, error) {
+	ret := _m.Called(destinationName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetEMSEventForwarding")
+	}
+
+	var r0 *EMSEventDestination
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (*EMSEventDestination, error)); ok {
+		return rf(destinationName)
+	}
+	if rf, ok := ret.Get(0).(func(string) *EMSEventDestination); ok {
+		r0 = rf(destinationName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*EMSEventDestination)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(destinationName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetEMSEventForwarding_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetEMSEventForwarding'
+type MockProvider_GetEMSEventForwarding_Call struct {
+	*mock.Call
+}
+
+// GetEMSEventForwarding is a helper method to define mock.On call
+//   - destinationName string
+func (_e *MockProvider_Expecter) GetEMSEventForwarding(destinationName interface{}) *MockProvider_GetEMSEventForwarding_Call {
+	return &MockProvider_GetEMSEventForwarding_Call{Call: _e.mock.On("GetEMSEventForwarding", destinationName)}
+}
+
+func (_c *MockProvider_GetEMSEventForwarding_Call) Run(run func(destinationName string)) *MockProvider_GetEMSEventForwarding_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetEMSEventForwarding_Call) Return(_a0 *EMSEventDestination, _a1 error) *MockProvider_GetEMSEventForwarding_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetEMSEventForwarding_Call) RunAndReturn(run func(string) (*EMSEventDestination, error)) *MockProvider_GetEMSEventForwarding_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteEMSEventForwarding provides a mock function with given fields: destinationName, filterName
+func (_m *MockProvider) DeleteEMSEventForwarding(destinationName, filterName string) error {
+	ret := _m.Called(destinationName, filterName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteEMSEventForwarding")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string) error); ok {
+		r0 = rf(destinationName, filterName)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockProvider_DeleteEMSEventForwarding_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteEMSEventForwarding'
+type MockProvider_DeleteEMSEventForwarding_Call struct {
+	*mock.Call
+}
+
+// DeleteEMSEventForwarding is a helper method to define mock.On call
+//   - destinationName string
+//   - filterName string
+func (_e *MockProvider_Expecter) DeleteEMSEventForwarding(destinationName interface{}, filterName interface{}) *MockProvider_DeleteEMSEventForwarding_Call {
+	return &MockProvider_DeleteEMSEventForwarding_Call{Call: _e.mock.On("DeleteEMSEventForwarding", destinationName, filterName)}
+}
+
+func (_c *MockProvider_DeleteEMSEventForwarding_Call) Run(run func(destinationName string, filterName string)) *MockProvider_DeleteEMSEventForwarding_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_DeleteEMSEventForwarding_Call) Return(_a0 error) *MockProvider_DeleteEMSEventForwarding_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockProvider_DeleteEMSEventForwarding_Call) RunAndReturn(run func(string, string) error) *MockProvider_DeleteEMSEventForwarding_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetServerCertificates provides a mock function with given fields: params
 func (_m *MockProvider) GetServerCertificates(params GetServerCertificateParams) ([]*ServerCertificateResponse, error) {
 	ret := _m.Called(params)

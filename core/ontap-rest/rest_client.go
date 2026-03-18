@@ -34,6 +34,7 @@ type RESTClient interface { // generate:mock
 	Poll(jobUUID string) error
 	Snapmirror() SnapmirrorClient
 	NameServices() NameServicesClient
+	Support() SupportClient
 }
 
 type OntapRestClient struct {
@@ -50,6 +51,7 @@ type OntapRestClient struct {
 	snapmirror                *snapmirrorClient
 	cloud                     *cloudClient
 	nameServices              *nameServicesClient
+	support                   *supportClient
 }
 
 // RESTClientParams describes the parameters for creating a new RESTClient
@@ -156,6 +158,7 @@ func NewClient(params RESTClientParams) (RESTClient, error) {
 			poller:                    p,
 			security:                  &securityClient{api: &api.Security},
 			nameServices:              &nameServicesClient{api: &api.NameServices},
+			support:                   &supportClient{api: &api.Support},
 		}
 		if params.FastConnection {
 			if err := FastTestConnection(rc); err == nil {
@@ -274,6 +277,11 @@ func (rc *OntapRestClient) Cloud() CloudClient {
 // NameServicesClient returns a Name Services client
 func (rc *OntapRestClient) NameServices() NameServicesClient {
 	return rc.nameServices
+}
+
+// Support returns a Support client
+func (rc *OntapRestClient) Support() SupportClient {
+	return rc.support
 }
 
 // getAPICallCertificate retrieves the certificate and root CA for API calls

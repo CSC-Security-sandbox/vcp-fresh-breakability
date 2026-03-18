@@ -903,6 +903,56 @@ func securityLogForwardingCreateParamsToONTAP(params *SecurityLogForwardingCreat
 	return otParams
 }
 
+// EMS Event Notification types and parameters
+
+type EMSEventDestinationCreateParams struct {
+	BaseParams
+	Name                    *string
+	Type                    *string // "syslog", "email", "snmp", "rest_api"
+	SyslogHost              *string
+	SyslogPort              *int64
+	SyslogTransport         *string // "udp_unencrypted", "tcp_unencrypted", "tcp_encrypted"
+	SyslogTimestampFormat   *string // "rfc-3164", "rfc-5424", "no-override"
+	SyslogMessageFormat     *string // "legacy-netapp", "rfc-5424"
+}
+
+type EMSEventFilterCreateParams struct {
+	BaseParams
+	Name *string
+}
+
+type EMSEventFilterRuleAddParams struct {
+	BaseParams
+	FilterName *string
+	Type       *string // "include", "exclude"
+	Severity   []string // "EMERGENCY", "ALERT", "ERROR", "NOTICE", "INFORMATIONAL"
+}
+
+type EMSEventNotificationCreateParams struct {
+	BaseParams
+	FilterName   *string
+	Destinations []string
+}
+
+type EMSEventDestinationModifyParams struct {
+	BaseParams
+	Filters []string // Filter names to link to destination
+}
+
+type EMSEventDestination struct {
+	Name    string
+	Type    string
+	Syslog  *EMSEventDestinationSyslog
+}
+
+type EMSEventDestinationSyslog struct {
+	Host              string
+	Port              int64
+	Transport         string
+	TimestampFormat   string
+	MessageFormat     string
+}
+
 func gcpKmsCreateParamsToONTAP(params *GcpKmsCreateParams) *security.GcpKmsCreateParams {
 	otParams := security.NewGcpKmsCreateParams()
 	if params == nil {

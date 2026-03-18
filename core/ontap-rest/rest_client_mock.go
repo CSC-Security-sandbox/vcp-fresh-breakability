@@ -578,6 +578,53 @@ func (_c *MockRESTClient_Storage_Call) RunAndReturn(run func() StorageClient) *M
 	return _c
 }
 
+// Support provides a mock function with no fields
+func (_m *MockRESTClient) Support() SupportClient {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for Support")
+	}
+
+	var r0 SupportClient
+	if rf, ok := ret.Get(0).(func() SupportClient); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(SupportClient)
+		}
+	}
+
+	return r0
+}
+
+// MockRESTClient_Support_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Support'
+type MockRESTClient_Support_Call struct {
+	*mock.Call
+}
+
+// Support is a helper method to define mock.On call
+func (_e *MockRESTClient_Expecter) Support() *MockRESTClient_Support_Call {
+	return &MockRESTClient_Support_Call{Call: _e.mock.On("Support")}
+}
+
+func (_c *MockRESTClient_Support_Call) Run(run func()) *MockRESTClient_Support_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockRESTClient_Support_Call) Return(_a0 SupportClient) *MockRESTClient_Support_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockRESTClient_Support_Call) RunAndReturn(run func() SupportClient) *MockRESTClient_Support_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockRESTClient creates a new instance of MockRESTClient. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockRESTClient(t interface {

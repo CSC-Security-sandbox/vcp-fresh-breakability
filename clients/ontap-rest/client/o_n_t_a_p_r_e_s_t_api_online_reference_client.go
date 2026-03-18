@@ -20,6 +20,7 @@ import (
 	securityops "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/security"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/snapmirror"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/storage"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/support"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/svm"
 )
 
@@ -75,6 +76,7 @@ func New(transport runtime.ClientTransport, formats strfmt.Registry) *ONTAPRESTA
 	cli.Security = securityops.New(transport, formats)
 	cli.Snapmirror = snapmirror.New(transport, formats)
 	cli.Storage = storage.New(transport, formats)
+	cli.Support = support.New(transport, formats)
 	cli.Svm = svm.New(transport, formats)
 	return cli
 }
@@ -140,6 +142,8 @@ type ONTAPRESTAPIOnlineReference struct {
 
 	Storage storage.ClientService
 
+	Support support.ClientService
+
 	Svm svm.ClientService
 
 	Transport runtime.ClientTransport
@@ -158,5 +162,6 @@ func (c *ONTAPRESTAPIOnlineReference) SetTransport(transport runtime.ClientTrans
 	c.Security.SetTransport(transport)
 	c.Snapmirror.SetTransport(transport)
 	c.Storage.SetTransport(transport)
+	c.Support.SetTransport(transport)
 	c.Svm.SetTransport(transport)
 }

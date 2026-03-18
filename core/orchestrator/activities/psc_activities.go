@@ -157,6 +157,52 @@ func (j *PSCActivity) CreateClusterLogForwarding(ctx context.Context, node *mode
 	return nil
 }
 
+func (j *PSCActivity) CreateEMSEventForwarding(ctx context.Context, node *models.Node, address string) error {
+	activity.RecordHeartbeat(ctx, "Creating EMS event forwarding configuration")
+	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Create EMS event forwarding parameters
+	emsEventForwardingParams := vsa.CreateEMSEventForwardingParams{
+		DestinationName: "syslog-ems",
+		DestinationIP:   address,
+		DestinationPort: ginLoggingMetricsPort,
+		Transport:       ginLoggingMetricsProtocol,
+		TimestampFormat: "rfc-3164",
+		MessageFormat:   "legacy-netapp",
+		FilterName:      "syslog-ems",
+		Severities:      []string{"INFORMATIONAL", "EMERGENCY", "ERROR", "ALERT", "NOTICE"},
+	}
+
+	err = provider.CreateEMSEventForwarding(emsEventForwardingParams)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return nil
+}
+
+func (j *PSCActivity) DeleteEMSEventForwarding(ctx context.Context, node *models.Node) error {
+	activity.RecordHeartbeat(ctx, "Deleting EMS event forwarding configuration")
+	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	// Delete EMS event forwarding using the same names as creation
+	destinationName := "syslog-ems"
+	filterName := "syslog-ems"
+
+	err = provider.DeleteEMSEventForwarding(destinationName, filterName)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	return nil
+}
+
 func _getClusterLogForwarding(ctx context.Context, node *models.Node, address string, port int64) error {
 	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
 	if err != nil {

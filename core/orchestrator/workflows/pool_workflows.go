@@ -2110,6 +2110,7 @@ func ReleasePSCEndpointWorkflow(ctx workflow.Context, pool *datamodel.Pool) erro
 		}
 		pool.ClusterDetails.RegionalTenantProject = *tenantProjectNumber
 	}
+
 	deleteForwardingRuleOperation := make([]common.Operations, 0)
 	err = workflow.ExecuteActivity(setupPscCtx, pscActivity.DeleteForwardingRule, pool).Get(ctx, &deleteForwardingRuleOperation)
 	if err != nil {
@@ -2208,6 +2209,12 @@ func ConfigurePSCEndpointWorkflow(ctx workflow.Context, projectName string, regi
 
 	// forward ontap logging to PSC Endpoint
 	err = workflow.ExecuteActivity(setupPscCtx, pscActivity.CreateClusterLogForwarding, node, forwardingRuleIpAddress).Get(ctx, nil)
+	if err != nil {
+		return ConvertToVSAError(err)
+	}
+
+	// forward ontap EMS events to PSC Endpoint
+	err = workflow.ExecuteActivity(setupPscCtx, pscActivity.CreateEMSEventForwarding, node, forwardingRuleIpAddress).Get(ctx, nil)
 	if err != nil {
 		return ConvertToVSAError(err)
 	}

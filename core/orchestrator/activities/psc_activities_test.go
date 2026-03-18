@@ -95,6 +95,95 @@ func TestCreateClusterLogForwardingProvider_Failure(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestCreateEMSEventForwarding_Success(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider) // Use the mock provider
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() {
+		hyperscaler2.GetProviderByNode = originalGetProviderByNode
+	}() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	pscActivity := &activities.PSCActivity{
+		SE: database.NewMockStorage(t),
+	}
+
+	node := &coremodel.Node{}
+	mockProvider.On("CreateEMSEventForwarding", mock.Anything).Return(nil)
+
+	// Run activity through Temporal test environment so RecordHeartbeat has a valid activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(pscActivity.CreateEMSEventForwarding)
+
+	_, err := env.ExecuteActivity(pscActivity.CreateEMSEventForwarding, node, "35.239.71.238")
+	assert.NoError(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCreateEMSEventForwarding_Failure(t *testing.T) {
+	// Arrange
+	mockProvider := new(vsa.MockProvider) // Use the mock provider
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() {
+		hyperscaler2.GetProviderByNode = originalGetProviderByNode
+	}() // Restore original function after test
+
+	// Mock GetProviderByNode to return the mock provider
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	pscActivity := &activities.PSCActivity{
+		SE: database.NewMockStorage(t),
+	}
+
+	node := &coremodel.Node{}
+	mockProvider.On("CreateEMSEventForwarding", mock.Anything).Return(errors.New("failed to create EMS event forwarding"))
+
+	// Run activity through Temporal test environment so RecordHeartbeat has a valid activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(pscActivity.CreateEMSEventForwarding)
+
+	_, err := env.ExecuteActivity(pscActivity.CreateEMSEventForwarding, node, "35.239.71.238")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create EMS event forwarding")
+	mockProvider.AssertExpectations(t)
+}
+
+func TestCreateEMSEventForwarding_ProviderError(t *testing.T) {
+	// Arrange
+	originalGetProviderByNode := hyperscaler2.GetProviderByNode
+	defer func() {
+		hyperscaler2.GetProviderByNode = originalGetProviderByNode
+	}() // Restore original function after test
+
+	// Mock GetProviderByNode to return error
+	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *coremodel.Node) (vsa.Provider, error) {
+		return nil, errors.New("failed to get provider by node")
+	}
+
+	pscActivity := &activities.PSCActivity{
+		SE: database.NewMockStorage(t),
+	}
+
+	node := &coremodel.Node{}
+
+	// Run activity through Temporal test environment so RecordHeartbeat has a valid activity context
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	env.RegisterActivity(pscActivity.CreateEMSEventForwarding)
+
+	_, err := env.ExecuteActivity(pscActivity.CreateEMSEventForwarding, node, "35.239.71.238")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get provider by node")
+}
+
 func Test_getClusterLogForwarding_Success(t *testing.T) {
 	mockProvider := new(vsa.MockProvider) // Use the mock provider
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode

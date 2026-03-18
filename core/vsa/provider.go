@@ -135,6 +135,9 @@ type Provider interface {
 	DeleteExportPolicy(params *ExportPolicy) error
 	CreateSecurityLogForwarding(params CreateSecurityLogForwardingParams) (*CreateSecurityLogForwardingResponse, error)
 	GetSecurityLogForwarding(params GetSecurityLogForwardingParams) error
+	CreateEMSEventForwarding(params CreateEMSEventForwardingParams) error
+	GetEMSEventForwarding(destinationName string) (*EMSEventDestination, error)
+	DeleteEMSEventForwarding(destinationName, filterName string) error
 	UpdateSecurityAudit(params UpdateSecurityAuditParams) (*SecurityAudit, error)
 	GetSecurityAudit() (*SecurityAudit, error)
 	EnableAutoVolOfflineCronForGCPKMS() error

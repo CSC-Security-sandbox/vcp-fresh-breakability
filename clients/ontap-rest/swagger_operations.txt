@@ -45,6 +45,17 @@ disk_collection_get
 dns_create
 dns_get
 dns_modify
+ems_destination_create
+ems_destination_delete
+ems_destination_get
+ems_destination_modify
+ems_filter_create
+ems_filter_delete
+ems_filter_get
+ems_filter_rule_collection_get
+ems_filter_rule_delete
+ems_filter_rule_get
+ems_filters_rules_create
 export_policy_collection_get
 export_policy_create
 export_policy_delete_collection
