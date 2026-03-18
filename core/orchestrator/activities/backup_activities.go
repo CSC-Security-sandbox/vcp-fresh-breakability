@@ -49,9 +49,10 @@ type BackupActivity struct {
 }
 
 type BackupWorkflowInput struct {
-	Backup      *datamodel.Backup
-	BackupVault *datamodel.BackupVault
-	Volume      *datamodel.Volume
+	Backup                 *datamodel.Backup
+	BackupVault            *datamodel.BackupVault
+	Volume                 *datamodel.Volume
+	BackupVaultAccountName string
 }
 
 type ScheduledBackupParams struct {

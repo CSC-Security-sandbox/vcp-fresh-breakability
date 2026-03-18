@@ -1919,6 +1919,7 @@ type BackupPathInfo struct {
 	VaultName           string
 	BackupName          string
 	BackupVaultFullPath string
+	ProjectName         string
 }
 
 // ============================================================================
@@ -1930,6 +1931,7 @@ type BackupPathInfo struct {
 func parseBackupPath(backupPath string) (*BackupPathInfo, error) {
 	const (
 		ProjectsKeyIndex        = 0
+		ProjectNameIndex        = 1
 		LocationsKeyIndex       = 2
 		LocationIdIndex         = 3
 		BackupVaultKeyIndex     = 4
@@ -1957,6 +1959,7 @@ func parseBackupPath(backupPath string) (*BackupPathInfo, error) {
 		Region:              components[LocationIdIndex],
 		VaultName:           components[BackupVaultNameIndex],
 		BackupName:          components[BackupNameIndex],
+		ProjectName:         components[ProjectNameIndex],
 		BackupVaultFullPath: strings.Join(components[:6], "/"),
 	}, nil
 }
@@ -2027,10 +2030,15 @@ func fetchBackupVaultOrFallbackToRemoteVCP(ctx context.Context, se database.Stor
 	var backupVault *datamodel.BackupVault
 	var err error
 
+	backupPathAccount, err := se.GetAccount(ctx, pathInfo.ProjectName)
+	if err != nil {
+		logger.Errorf("Failed to find account for backup path project '%s': %v", pathInfo.ProjectName, err)
+		return nil, fmt.Errorf("account not found for project '%s' in backup path: %w", pathInfo.ProjectName, err)
+	}
 	// Try to get from VCP database first
 	if pathInfo.Region == volumeRegion {
-		logger.Debugf("Checking for backup vault in VCP DB using vault name: %s", pathInfo.VaultName)
-		backupVault, err = se.GetBackupVaultByNameAndOwnerID(ctx, pathInfo.VaultName, fmt.Sprintf("%d", volume.AccountID))
+		logger.Debugf("Checking for backup vault in VCP DB using vault name: %s, account: %d (project: %s)", pathInfo.VaultName, backupPathAccount.ID, pathInfo.ProjectName)
+		backupVault, err = se.GetBackupVaultByNameAndOwnerID(ctx, pathInfo.VaultName, fmt.Sprintf("%d", backupPathAccount.ID))
 		if err != nil && !errors.IsNotFoundErr(err) {
 			logger.Errorf("Error fetching backup vault from VCP DB: %v", err)
 			return nil, err
@@ -2552,6 +2560,19 @@ func (a VolumeCreateActivity) CreateRestoreWorkflow(ctx context.Context, createV
 	logger := util.GetLogger(ctx)
 	logger.Infof("Creating backup restore workflow for backup: %s", backup.Name)
 	se := a.SE
+
+	pathInfo, err := parseBackupPath(createVolumeParams.BackupPath)
+	if err != nil {
+		logger.Errorf("Failed to parse backup path for vault account resolution: %v", err)
+		return err
+	}
+	backupPathAccount, err := se.GetAccount(ctx, pathInfo.ProjectName)
+	if err != nil {
+		logger.Errorf("Failed to resolve account for backup vault project '%s': %v", pathInfo.ProjectName, err)
+		return fmt.Errorf("account not found for backup vault project '%s': %w", pathInfo.ProjectName, err)
+	}
+	backupVaultAccountName := backupPathAccount.Name
+
 	jobType := models.JobTypeRestoreBackup
 	job := &datamodel.Job{
 		Type:          string(jobType),
@@ -2587,6 +2608,7 @@ func (a VolumeCreateActivity) CreateRestoreWorkflow(ctx context.Context, createV
 		backup,
 		hostParams,
 		volCreateResponse,
+		backupVaultAccountName,
 	)
 	if err != nil {
 		logger.Error("Failed to start restore backup workflow: ", "error", err)

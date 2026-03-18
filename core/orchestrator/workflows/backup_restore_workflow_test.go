@@ -189,9 +189,10 @@ func (s *BackupRestoreWorkflowTestSuite) setupCommonMocks(volume *datamodel.Volu
 	s.env.OnActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity, mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
 		BackupActivitiesContext: &activities.BackupActivitiesContext{
 			BackupWorkflowInit: &activities.BackupWorkflowInput{
-				Backup:      &datamodel.Backup{},
-				BackupVault: &datamodel.BackupVault{},
-				Volume:      volume,
+				Backup:                 &datamodel.Backup{},
+				BackupVault:            &datamodel.BackupVault{},
+				Volume:                 volume,
+				BackupVaultAccountName: "test-account",
 			},
 			Node:         &models.Node{EndpointAddress: "127.0.0.1"},
 			SnapshotName: "test-backup",
@@ -237,7 +238,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_Success() {
 	s.setupCommonMocks(volume)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Assertions
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -269,7 +270,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SetupFailure(
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(errors.New("setup failed"))
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Assertions
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -318,7 +319,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetNodeFailur
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Debug logging
 	s.T().Logf("Workflow completed: %v", s.env.IsWorkflowCompleted())
@@ -383,7 +384,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_PreWorkflowFa
 	s.env.OnWorkflow("PreBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("pre workflow failed"))
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Debug logging
 	s.T().Logf("Workflow completed: %v", s.env.IsWorkflowCompleted())
@@ -449,7 +450,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetSmSourcePa
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Debug logging
 	s.T().Logf("Workflow completed: %v", s.env.IsWorkflowCompleted())
@@ -480,7 +481,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorTra
 	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&activities.SnapmirrorTransferStatus{Status: activities.SmStatusSuccess, BytesTransferred: nil}, nil).Once()
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Assertions
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -544,7 +545,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorTra
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Debug logging
 	s.T().Logf("Workflow completed: %v", s.env.IsWorkflowCompleted())
@@ -576,7 +577,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_VolumeStatePo
 	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{Type: "rw"}, nil).Once()
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Assertions
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -642,9 +643,10 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_VolumeStatePo
 	s.env.OnActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity, mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
 		BackupActivitiesContext: &activities.BackupActivitiesContext{
 			BackupWorkflowInit: &activities.BackupWorkflowInput{
-				Backup:      backup,
-				BackupVault: backupVault,
-				Volume:      volume,
+				Backup:                 backup,
+				BackupVault:            backupVault,
+				Volume:                 volume,
+				BackupVaultAccountName: "test-account",
 			},
 			Node:         &models.Node{EndpointAddress: "127.0.0.1"},
 			SnapshotName: "test-backup",
@@ -677,7 +679,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_VolumeStatePo
 		Return(&vsa.VolumeResponse{Type: "dp"}, nil).Maybe()
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Assertions
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -763,9 +765,10 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_VolumeStatePo
 	s.env.OnActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity, mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
 		BackupActivitiesContext: &activities.BackupActivitiesContext{
 			BackupWorkflowInit: &activities.BackupWorkflowInput{
-				Backup:      backup,
-				BackupVault: backupVault,
-				Volume:      volume,
+				Backup:                 backup,
+				BackupVault:            backupVault,
+				Volume:                 volume,
+				BackupVaultAccountName: "test-account",
 			},
 			Node:         &models.Node{EndpointAddress: "127.0.0.1"},
 			SnapshotName: "test-backup",
@@ -796,7 +799,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_VolumeStatePo
 		Return(&vsa.VolumeResponse{Type: "ls"}, nil).Maybe()
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Assertions
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -897,7 +900,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_VolumeStateIn
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Debug logging
 	s.T().Logf("Workflow completed: %v", s.env.IsWorkflowCompleted())
@@ -994,7 +997,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_PostWorkflowF
 	s.env.OnWorkflow("PostBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("post workflow failed"))
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Debug logging
 	s.T().Logf("Workflow completed: %v", s.env.IsWorkflowCompleted())
@@ -1064,9 +1067,10 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_UpdateVolumeJ
 	s.env.OnActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity, mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
 		BackupActivitiesContext: &activities.BackupActivitiesContext{
 			BackupWorkflowInit: &activities.BackupWorkflowInput{
-				Backup:      backup,
-				BackupVault: backupVault,
-				Volume:      volume,
+				Backup:                 backup,
+				BackupVault:            backupVault,
+				Volume:                 volume,
+				BackupVaultAccountName: "test-account",
 			},
 			Node:         &models.Node{EndpointAddress: "127.0.0.1"},
 			SnapshotName: "test-backup",
@@ -1092,7 +1096,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_UpdateVolumeJ
 	s.env.OnActivity(backupActivity.DeleteSnapmirror, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil).Maybe()
 	s.env.OnActivity(volumeCreateActivity.DeleteRestoreObjectStore, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil).Maybe()
 
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
@@ -1175,7 +1179,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_UpdateVolumeD
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Debug logging
 	s.T().Logf("Workflow completed: %v", s.env.IsWorkflowCompleted())
@@ -1202,7 +1206,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_QueryHandler(
 	s.setupCommonMocks(volume)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Query workflow status
 	status, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
@@ -1265,7 +1269,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_RetryPolicyEr
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Debug logging
 	s.T().Logf("Workflow completed: %v", s.env.IsWorkflowCompleted())
@@ -1330,7 +1334,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetObjStoreNa
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Assertions
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -1385,7 +1389,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GenerateObjec
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Debug logging
 	s.T().Logf("Workflow completed: %v", s.env.IsWorkflowCompleted())
@@ -1463,7 +1467,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetBucketDeta
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Assertions
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -1534,7 +1538,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetOrCreateOb
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Assertions
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -1606,7 +1610,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorGet
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Assertions
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -1679,7 +1683,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorTra
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Assertions
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -1715,7 +1719,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorTra
 	s.env.OnActivity(backupActivity.GetSnapmirrorTransferStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&activities.SnapmirrorTransferStatus{Status: activities.SmStatusSuccess, BytesTransferred: nil}, nil).Once()
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Assertions
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -1729,9 +1733,10 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflowWithContext_Su
 	// Create backup activities context
 	backupActivitiesContext := &activities.BackupActivitiesContext{
 		BackupWorkflowInit: &activities.BackupWorkflowInput{
-			Backup:      backup,
-			BackupVault: backupVault,
-			Volume:      volume,
+			Backup:                 backup,
+			BackupVault:            backupVault,
+			Volume:                 volume,
+			BackupVaultAccountName: "test-account",
 		},
 		Node: &models.Node{EndpointAddress: "127.0.0.1"},
 		SnapmirrorRelationship: &common.SnapmirrorRelationship{
@@ -1759,9 +1764,10 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflowWithContext_Se
 	// Create backup activities context
 	backupActivitiesContext := &activities.BackupActivitiesContext{
 		BackupWorkflowInit: &activities.BackupWorkflowInput{
-			Backup:      backup,
-			BackupVault: backupVault,
-			Volume:      volume,
+			Backup:                 backup,
+			BackupVault:            backupVault,
+			Volume:                 volume,
+			BackupVaultAccountName: "test-account",
 		},
 	}
 
@@ -1802,9 +1808,10 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflowWithContext_Ru
 	// Create backup activities context
 	backupActivitiesContext := &activities.BackupActivitiesContext{
 		BackupWorkflowInit: &activities.BackupWorkflowInput{
-			Backup:      backup,
-			BackupVault: backupVault,
-			Volume:      volume,
+			Backup:                 backup,
+			BackupVault:            backupVault,
+			Volume:                 volume,
+			BackupVaultAccountName: "test-account",
 		},
 	}
 
@@ -1859,9 +1866,10 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflowWithContext_Co
 	// Create backup activities context with continuation data
 	backupActivitiesContext := &activities.BackupActivitiesContext{
 		BackupWorkflowInit: &activities.BackupWorkflowInput{
-			Backup:      backup,
-			BackupVault: backupVault,
-			Volume:      volume,
+			Backup:                 backup,
+			BackupVault:            backupVault,
+			Volume:                 volume,
+			BackupVaultAccountName: "test-account",
 		},
 		Node:         &models.Node{EndpointAddress: "127.0.0.1"},
 		SnapshotName: "test-backup",
@@ -1922,7 +1930,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_UpdateBackupR
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Debug logging
 	s.T().Logf("Workflow completed: %v", s.env.IsWorkflowCompleted())
@@ -1963,7 +1971,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_EnsureJobStat
 	}, nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Assert that the workflow failed due to EnsureJobState error
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -1994,9 +2002,10 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflowWithContext_En
 
 	backupActivitiesContext := &activities.BackupActivitiesContext{
 		BackupWorkflowInit: &activities.BackupWorkflowInput{
-			Backup:      backup,
-			BackupVault: backupVault,
-			Volume:      volume,
+			Backup:                 backup,
+			BackupVault:            backupVault,
+			Volume:                 volume,
+			BackupVaultAccountName: "test-account",
 		},
 		Node: &models.Node{EndpointAddress: "127.0.0.1"},
 	}
@@ -2079,9 +2088,10 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetSnapmirror
 	s.env.OnActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity, mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
 		BackupActivitiesContext: &activities.BackupActivitiesContext{
 			BackupWorkflowInit: &activities.BackupWorkflowInput{
-				Backup:      &datamodel.Backup{},
-				BackupVault: &datamodel.BackupVault{},
-				Volume:      volume,
+				Backup:                 &datamodel.Backup{},
+				BackupVault:            &datamodel.BackupVault{},
+				Volume:                 volume,
+				BackupVaultAccountName: "test-account",
 			},
 			Node:         &models.Node{EndpointAddress: "127.0.0.1"},
 			SnapshotName: "test-backup",
@@ -2102,7 +2112,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetSnapmirror
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Assertions
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -2168,9 +2178,10 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SleepBeforeGe
 	s.env.OnActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity, mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
 		BackupActivitiesContext: &activities.BackupActivitiesContext{
 			BackupWorkflowInit: &activities.BackupWorkflowInput{
-				Backup:      &datamodel.Backup{},
-				BackupVault: &datamodel.BackupVault{},
-				Volume:      volume,
+				Backup:                 &datamodel.Backup{},
+				BackupVault:            &datamodel.BackupVault{},
+				Volume:                 volume,
+				BackupVaultAccountName: "test-account",
 			},
 			Node:                   &models.Node{EndpointAddress: "127.0.0.1"},
 			SnapshotName:           "test-backup",
@@ -2190,7 +2201,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SleepBeforeGe
 		}
 	})
 
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
@@ -2270,9 +2281,10 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_UnhealthySnap
 	s.env.OnActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity, mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
 		BackupActivitiesContext: &activities.BackupActivitiesContext{
 			BackupWorkflowInit: &activities.BackupWorkflowInput{
-				Backup:      &datamodel.Backup{},
-				BackupVault: &datamodel.BackupVault{},
-				Volume:      volume,
+				Backup:                 &datamodel.Backup{},
+				BackupVault:            &datamodel.BackupVault{},
+				Volume:                 volume,
+				BackupVaultAccountName: "test-account",
 			},
 			Node:         &models.Node{EndpointAddress: "127.0.0.1"},
 			SnapshotName: "test-backup",
@@ -2299,7 +2311,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_UnhealthySnap
 	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Assertions
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
@@ -2374,9 +2386,10 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorSta
 	s.env.OnActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity, mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
 		BackupActivitiesContext: &activities.BackupActivitiesContext{
 			BackupWorkflowInit: &activities.BackupWorkflowInput{
-				Backup:      &datamodel.Backup{},
-				BackupVault: &datamodel.BackupVault{},
-				Volume:      volume,
+				Backup:                 &datamodel.Backup{},
+				BackupVault:            &datamodel.BackupVault{},
+				Volume:                 volume,
+				BackupVaultAccountName: "test-account",
 			},
 			Node:         &models.Node{EndpointAddress: "127.0.0.1"},
 			SnapshotName: "test-backup",
@@ -2402,7 +2415,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorSta
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountIncrement).Return(nil)
 	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil)
 
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
@@ -2481,9 +2494,10 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetSnapmirror
 	s.env.OnActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity, mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
 		BackupActivitiesContext: &activities.BackupActivitiesContext{
 			BackupWorkflowInit: &activities.BackupWorkflowInput{
-				Backup:      &datamodel.Backup{},
-				BackupVault: &datamodel.BackupVault{},
-				Volume:      volume,
+				Backup:                 &datamodel.Backup{},
+				BackupVault:            &datamodel.BackupVault{},
+				Volume:                 volume,
+				BackupVaultAccountName: "test-account",
 			},
 			Node:         &models.Node{EndpointAddress: "127.0.0.1"},
 			SnapshotName: "test-backup",
@@ -2513,7 +2527,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetSnapmirror
 	s.env.OnWorkflow(WaitForONTAPJob, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Execute workflow
-	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse)
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
 
 	// Assertions - workflow should complete successfully despite NotFound error
 	assert.True(s.T(), s.env.IsWorkflowCompleted())

@@ -10156,6 +10156,8 @@ func TestFetchBackupVaultMetadataForRestore(t *testing.T) {
 			},
 		}
 
+		// Mock GetAccount for the project in the backup path
+		mockStorage.On("GetAccount", ctx, "123456").Return(&datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "123456"}, nil)
 		// Mock the storage call for same region
 		mockStorage.On("GetBackupVaultByNameAndOwnerID", ctx, "my-vault", "1").Return(expectedBackupVault, nil)
 
@@ -10184,6 +10186,8 @@ func TestFetchBackupVaultMetadataForRestore(t *testing.T) {
 			AccountID: 1,
 		}
 
+		// Mock GetAccount for the project in the backup path
+		mockStorage.On("GetAccount", ctx, "123456").Return(&datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "123456"}, nil)
 		// Mock database to return NotFoundErr
 		mockStorage.On("GetBackupVaultByNameAndOwnerID", ctx, "my-vault", "1").Return(nil, utilErrors.NewNotFoundErr("Backup vault", nil))
 
@@ -10279,6 +10283,8 @@ func TestFetchBackupVaultMetadataForRestore(t *testing.T) {
 			AccountID: 1,
 		}
 
+		// Mock GetAccount for the project in the backup path
+		mockStorage.On("GetAccount", ctx, "123456").Return(&datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "123456"}, nil)
 		// Mock database to return a non-NotFound error
 		dbError := fmt.Errorf("database connection failed")
 		mockStorage.On("GetBackupVaultByNameAndOwnerID", ctx, "my-vault", "1").Return(nil, dbError)
@@ -10308,6 +10314,8 @@ func TestFetchBackupVaultMetadataForRestore(t *testing.T) {
 			AccountID: 1,
 		}
 
+		// Mock GetAccount for the project in the backup path
+		mockStorage.On("GetAccount", ctx, "123456").Return(&datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "123456"}, nil)
 		// Mock database to return NotFoundErr
 		mockStorage.On("GetBackupVaultByNameAndOwnerID", ctx, "my-vault", "1").Return(nil, utilErrors.NewNotFoundErr("Backup vault", nil))
 
@@ -10345,6 +10353,76 @@ func TestFetchBackupVaultMetadataForRestore(t *testing.T) {
 		assert.Contains(t, err.Error(), "remote VCP connection error")
 		mockStorage.AssertExpectations(t)
 		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("Success_CrossProject_DifferentAccountInBackupPath", func(t *testing.T) {
+		// Arrange: backup path has a different project (vault owner) than the volume's project
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+
+		// Vault belongs to project 999888 (account_id=50), volume belongs to project 123456 (account_id=1)
+		backupPath := "projects/999888/locations/us-central1/backupVaults/cross-vault/backups/my-backup"
+		region := "us-central1"
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Account:   &datamodel.Account{Name: "123456"},
+			AccountID: 1,
+		}
+
+		expectedBackupVault := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{ID: 50, UUID: "cross-bv-uuid"},
+			Name:        "cross-vault",
+			AccountID:   50,
+			ServiceType: "CrossProject",
+			BucketDetails: datamodel.BucketDetailsArray{
+				{BucketName: "cross-bucket", TenantProjectNumber: "tp-999888"},
+			},
+		}
+
+		// Mock GetAccount for the vault owner's project in the backup path
+		mockStorage.On("GetAccount", ctx, "999888").Return(&datamodel.Account{BaseModel: datamodel.BaseModel{ID: 50}, Name: "999888"}, nil)
+		// Mock the storage call — uses vault owner's account_id (50), not volume's (1)
+		mockStorage.On("GetBackupVaultByNameAndOwnerID", ctx, "cross-vault", "50").Return(expectedBackupVault, nil)
+
+		// Act
+		result, err := activity.FetchBackupVaultMetadataForRestore(ctx, backupPath, volume, region)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "cross-vault", result.Name)
+		assert.Equal(t, "cross-bv-uuid", result.UUID)
+		assert.Equal(t, int64(50), result.AccountID)
+		assert.Equal(t, "CrossProject", result.ServiceType)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Error_GetAccountFails_ForBackupPathProject", func(t *testing.T) {
+		// Arrange: GetAccount fails for the project in the backup path
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.VolumeCreateActivity{SE: mockStorage}
+
+		backupPath := "projects/unknown-project/locations/us-central1/backupVaults/my-vault/backups/my-backup"
+		region := "us-central1"
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Account:   &datamodel.Account{Name: "123456"},
+			AccountID: 1,
+		}
+
+		// Mock GetAccount to fail
+		mockStorage.On("GetAccount", ctx, "unknown-project").Return(nil, utilErrors.NewNotFoundErr("account", nil))
+
+		// Act
+		result, err := activity.FetchBackupVaultMetadataForRestore(ctx, backupPath, volume, region)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "account not found for project 'unknown-project' in backup path")
+		mockStorage.AssertExpectations(t)
 	})
 }
 
@@ -15360,4 +15438,65 @@ func TestBuildRestoreJobPayloadAttributes_EmptyProtocols(t *testing.T) {
 
 	_, exists := attrs["protocols"]
 	assert.False(t, exists)
+}
+
+func TestCreateRestoreWorkflow_InvalidBackupPath(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	act := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	err := act.CreateRestoreWorkflow(ctx,
+		&common.CreateVolumeParams{BackupPath: "invalid-path"},
+		&datamodel.Volume{Name: "vol"},
+		nil, nil, &datamodel.Backup{Name: "bk"}, nil,
+	)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Backup path is not in correct format")
+}
+
+func TestCreateRestoreWorkflow_GetAccountFails(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	act := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	mockStorage.On("GetAccount", mock.Anything, "my-project").
+		Return(nil, errors.New("account not found"))
+
+	err := act.CreateRestoreWorkflow(ctx,
+		&common.CreateVolumeParams{BackupPath: "projects/my-project/locations/us-central1/backupVaults/vault1/backups/bk1"},
+		&datamodel.Volume{Name: "vol"},
+		nil, nil, &datamodel.Backup{Name: "bk1"}, nil,
+	)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "account not found for backup vault project")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestCreateRestoreWorkflow_GetAccountSuccess_CreateJobFails(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	act := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	mockStorage.On("GetAccount", mock.Anything, "my-project").
+		Return(&datamodel.Account{Name: "vault-account"}, nil)
+	mockStorage.On("CreateJob", mock.Anything, mock.Anything).
+		Return(nil, errors.New("db error"))
+
+	err := act.CreateRestoreWorkflow(ctx,
+		&common.CreateVolumeParams{BackupPath: "projects/my-project/locations/us-central1/backupVaults/vault1/backups/bk1"},
+		&datamodel.Volume{
+			Name:    "vol",
+			Account: &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}},
+		},
+		nil,
+		&datamodel.BackupVault{BackupVaultType: "IN_REGION"},
+		&datamodel.Backup{Name: "bk1"},
+		nil,
+	)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "db error")
+	mockStorage.AssertExpectations(t)
 }

@@ -41,7 +41,7 @@ type restoreBackupWorkflow struct {
 var _ WorkflowInterface = &restoreBackupWorkflow{}
 
 // RestoreBackupWorkflow Restore Workflow process backup restore related requests from a customer.
-func RestoreBackupWorkflow(ctx workflow.Context, params *common.CreateVolumeParams, volume *datamodel.Volume, backupVault *datamodel.BackupVault, backup *datamodel.Backup, hostParams []*common.HostParams, volCreateResponse *vsa.VolumeResponse) (gcpgenserver.V1betaDescribeVolumeRes, error) {
+func RestoreBackupWorkflow(ctx workflow.Context, params *common.CreateVolumeParams, volume *datamodel.Volume, backupVault *datamodel.BackupVault, backup *datamodel.Backup, hostParams []*common.HostParams, volCreateResponse *vsa.VolumeResponse, backupVaultAccountName string) (gcpgenserver.V1betaDescribeVolumeRes, error) {
 	log := util.GetLogger(ctx)
 	restoreWf := new(restoreBackupWorkflow)
 	err := restoreWf.Setup(ctx, params)
@@ -59,7 +59,7 @@ func RestoreBackupWorkflow(ctx workflow.Context, params *common.CreateVolumePara
 		return nil, err
 	}
 	var customErr *vsaerrors.CustomError
-	_, customErr = restoreWf.Run(ctx, volume, params, backupVault, backup, hostParams, volCreateResponse)
+	_, customErr = restoreWf.Run(ctx, volume, params, backupVault, backup, hostParams, volCreateResponse, backupVaultAccountName)
 	if customErr != nil {
 		// Check if the error is a ContinueAsNewError - if so, don't call revert
 		if workflow.IsContinueAsNewError(customErr.OriginalErr) {
@@ -146,12 +146,22 @@ func (wf *restoreBackupWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 	createVolumeParams := args[1].(*common.CreateVolumeParams)
 	hostParams := args[4].([]*common.HostParams)
 	volCreateResponse := args[5].(*vsa.VolumeResponse)
+	volume := args[0].(*datamodel.Volume)
+
+	var backupVaultAccountName string
+	if len(args) > 6 {
+		backupVaultAccountName, _ = args[6].(string)
+	}
+	if backupVaultAccountName == "" {
+		backupVaultAccountName = volume.Account.Name
+	}
 
 	backupActivitiesContext := &activities.BackupActivitiesContext{
 		BackupWorkflowInit: &activities.BackupWorkflowInput{
-			Backup:      args[3].(*datamodel.Backup),
-			BackupVault: args[2].(*datamodel.BackupVault),
-			Volume:      args[0].(*datamodel.Volume),
+			Backup:                 args[3].(*datamodel.Backup),
+			BackupVault:            args[2].(*datamodel.BackupVault),
+			Volume:                 volume,
+			BackupVaultAccountName: backupVaultAccountName,
 		},
 	}
 
@@ -191,7 +201,7 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 			decrementErr := workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupRestoreCount,
 				backupActivitiesContext.BackupWorkflowInit.BackupVault.UUID,
 				backupActivitiesContext.BackupWorkflowInit.Backup.UUID,
-				backupActivitiesContext.BackupWorkflowInit.Volume.Account.Name, activities.BackupRestoreCountDecrement).Get(ctx, nil)
+				backupActivitiesContext.BackupWorkflowInit.BackupVaultAccountName, activities.BackupRestoreCountDecrement).Get(ctx, nil)
 			if decrementErr != nil {
 				log.Errorf("Failed to revert backup restore count: %v", decrementErr)
 			}
@@ -228,7 +238,7 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 		incrementErr = workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupRestoreCount,
 			backupActivitiesContext.BackupWorkflowInit.BackupVault.UUID,
 			backupActivitiesContext.BackupWorkflowInit.Backup.UUID,
-			backupActivitiesContext.BackupWorkflowInit.Volume.Account.Name, activities.BackupRestoreCountIncrement).Get(ctx, nil)
+			backupActivitiesContext.BackupWorkflowInit.BackupVaultAccountName, activities.BackupRestoreCountIncrement).Get(ctx, nil)
 		if incrementErr != nil {
 			log.Errorf("Failed to update backup restore count: %v", incrementErr)
 			return nil, ConvertToVSAError(incrementErr)
