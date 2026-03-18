@@ -19,6 +19,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/sdk/activity"
 )
 
 type ActiveDirectorySyncActivity struct {
@@ -90,6 +91,7 @@ func (a ActiveDirectorySyncActivity) PushActiveDirectoryPasswordActivity(ctx con
 		Body:           passwordBody,
 	}
 
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Calling CVP PushActiveDirectoryPassword for AD %s", params.ActiveDirectoryID))
 	// Call CVP API
 	response, err := cvpClient.InternalActiveDirectories.V1betaPushActiveDirectoryPassword(pushPasswordParams)
 	if err != nil {
@@ -180,6 +182,7 @@ func (a ActiveDirectorySyncActivity) PollPushPasswordOperationActivity(ctx conte
 	logger.Debugf("Polling CVP operation with params: ProjectNumber=%s, LocationID=%s, OperationID=%s",
 		params.AccountName, params.LocationID, operationUUID)
 
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Polling CVP operation %s for AD %s", operationUUID, params.ActiveDirectoryID))
 	res, err := pollCvpOperationForWorkflow(ctx, cvpClient, operationParams)
 	if err != nil {
 		logger.Errorf("Failed to poll CVP operation %s: %v", operationUUID, err)
@@ -221,6 +224,7 @@ func (a ActiveDirectorySyncActivity) CreateActiveDirectoryInVCPActivity(ctx cont
 		)
 	}
 
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Fetching account for %s", params.AccountName))
 	// Get account ID
 	account, err := a.SE.GetAccount(ctx, params.AccountName)
 	if err != nil {
@@ -228,6 +232,7 @@ func (a ActiveDirectorySyncActivity) CreateActiveDirectoryInVCPActivity(ctx cont
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Checking for existing AD %s in account %d", params.ActiveDirectoryID, account.ID))
 	// Return existing ActiveDirectory if present to avoid duplicates
 	existingAD, err := a.SE.GetActiveDirectoryByUuidAndAccountId(ctx, params.ActiveDirectoryID, account.ID)
 	if err != nil && !customerrors.IsNotFoundErr(err) {
@@ -275,6 +280,7 @@ func (a ActiveDirectorySyncActivity) CreateActiveDirectoryInVCPActivity(ctx cont
 		}
 	}
 
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Creating AD record for %s in VCP database", params.ActiveDirectoryID))
 	// Create the ActiveDirectory record first to get the ID
 	createdAD, err := a.SE.CreateActiveDirectory(ctx, adRecord)
 	if err != nil {
@@ -284,6 +290,7 @@ func (a ActiveDirectorySyncActivity) CreateActiveDirectoryInVCPActivity(ctx cont
 
 	createdAD.CredentialPath = secretCredentialPath
 
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Updating credential path for AD %d", createdAD.ID))
 	_, err = a.SE.UpdateActiveDirectory(ctx, createdAD)
 	if err != nil {
 		logger.Errorf("Failed to update Active Directory credential path: %v", err)
@@ -304,6 +311,7 @@ func (a ActiveDirectorySyncActivity) UpdatePoolActiveDirectoryIDActivity(ctx con
 		"active_directory_id": sql.NullInt64{Int64: adID, Valid: true},
 	}
 
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Updating pool %s with AD ID %d", params.PoolUUID, adID))
 	err := a.SE.UpdatePoolFields(ctx, params.PoolUUID, updates)
 	if err != nil {
 		logger.Errorf("Failed to update pool ActiveDirectory ID: %v", err)

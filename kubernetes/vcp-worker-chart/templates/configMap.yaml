@@ -351,6 +351,15 @@ data:
   SA_RETRY_MAXIMUM_INTERVAL: {{$.Values.workerConfig.saRetryMaximumInterval | quote }}
   SA_RETRY_BACKOFF_COEFFICIENT: {{$.Values.workerConfig.saRetryBackoffCoefficient | quote }}
 
+  # AD Sync retry configuration
+  AD_SCHEDULE_TO_CLOSE_WORKFLOW_TIMEOUT: {{$.Values.workerConfig.adScheduleToCloseWorkflowTimeout | quote }}
+  AD_SYNC_HEARTBEAT_TIMEOUT: {{$.Values.workerConfig.adSyncHeartbeatTimeout | quote }}
+  AD_SYNC_RETRY_START_TO_CLOSE_TIMEOUT: {{$.Values.workerConfig.adSyncRetryStartToCloseTimeout | quote }}
+  AD_SYNC_RETRY_INITIAL_INTERVAL: {{$.Values.workerConfig.adSyncRetryInitialInterval | quote }}
+  AD_SYNC_RETRY_BACKOFF_COEFFICIENT: {{$.Values.workerConfig.adSyncRetryBackoffCoefficient | quote }}
+  AD_SYNC_RETRY_MAX_INTERVAL: {{$.Values.workerConfig.adSyncRetryMaxInterval | quote }}
+  AD_SYNC_RETRY_MAX_ATTEMPTS: {{$.Values.workerConfig.adSyncRetryMaxAttempts | quote }}
+
   MOCK_ACCESS_TOKEN: {{$.Values.workerConfig.mockAccessToken | quote }}
   INTEGRATION_TEST: {{$.Values.workerConfig.integrationTest | quote }}
   NKDEV_TEST: {{$.Values.workerConfig.nkdevTest | quote }}

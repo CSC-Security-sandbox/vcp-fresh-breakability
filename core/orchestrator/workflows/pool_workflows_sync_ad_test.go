@@ -100,6 +100,32 @@ func TestSyncActiveDirectoryInVcp(t *testing.T) {
 		assert.True(tt, env.IsWorkflowCompleted())
 		assert.NoError(tt, env.GetWorkflowError())
 	})
+
+	t.Run("SucceedsWithInvalidScheduleToCloseTimeout", func(tt *testing.T) {
+		origTimeout := AdScheduleToCloseTimeout
+		AdScheduleToCloseTimeout = "invalid"
+		defer func() { AdScheduleToCloseTimeout = origTimeout }()
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(tt)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, input.AccountName).Return("test-jwt-token", nil)
+		env.OnActivity("PushActiveDirectoryPasswordActivity", mock.Anything, mock.Anything).Return(&active_directory_activities.PushActiveDirectoryPasswordResult{
+			Operation:  &cvpmodels.OperationV1beta{Name: "op"},
+			SecretName: "secret-path",
+		}, nil)
+		env.OnActivity("PollPushPasswordOperationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateActiveDirectoryInVCPActivity", mock.Anything, mock.Anything, "secret-path").Return(&datamodel.ActiveDirectory{BaseModel: datamodel.BaseModel{ID: 10}}, nil)
+		env.OnActivity("UpdatePoolActiveDirectoryIDActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.RegisterWorkflow(testSyncADWorkflow)
+
+		env.ExecuteWorkflow(testSyncADWorkflow, input, pool)
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+	})
 }
 
 func testSyncADWorkflow(ctx workflow.Context, input adSyncInput, pool *datamodel.Pool) error {

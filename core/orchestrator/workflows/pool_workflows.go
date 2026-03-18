@@ -2542,13 +2542,18 @@ func _syncActiveDirectoryInVcp(ctx workflow.Context, input adSyncInput, pool *da
 		return vsaerrors.New("ActiveDirectory is nil, cannot sync")
 	}
 
-	retryPolicy, err := PopulateRetryPolicyParams(input.LargeCapacity)
+	retryPolicy := PopulateADSyncRetryPolicyParams()
+
+	scheduleToCloseTimeout, err := time.ParseDuration(AdScheduleToCloseTimeout)
 	if err != nil {
-		return ConvertToVSAError(err)
+		logger.Errorf("an error occurred while parsing schedule-to-close timeout from value %q: %v; using default", AdScheduleToCloseTimeout, err)
+		scheduleToCloseTimeout = 35 * time.Minute
 	}
 
 	ao := workflow.ActivityOptions{
-		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		ScheduleToCloseTimeout: scheduleToCloseTimeout,
+		StartToCloseTimeout:    retryPolicy.StartToCloseTimeout,
+		HeartbeatTimeout:       retryPolicy.HeartBeatTimeout,
 		RetryPolicy: &temporal.RetryPolicy{
 			InitialInterval:        retryPolicy.InitialInterval,
 			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
@@ -2593,7 +2598,9 @@ func _syncActiveDirectoryInVcp(ctx workflow.Context, input adSyncInput, pool *da
 	if pushPasswordResult != nil && pushPasswordResult.Operation != nil {
 		// Prepare polling options
 		pollingOptions := workflow.ActivityOptions{
-			StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+			ScheduleToCloseTimeout: scheduleToCloseTimeout,
+			StartToCloseTimeout:    retryPolicy.StartToCloseTimeout,
+			HeartbeatTimeout:       retryPolicy.HeartBeatTimeout,
 			RetryPolicy: &temporal.RetryPolicy{
 				InitialInterval:        retryPolicy.InitialInterval,
 				BackoffCoefficient:     retryPolicy.BackoffCoefficient,

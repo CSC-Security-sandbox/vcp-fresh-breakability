@@ -395,6 +395,15 @@ workerConfig:
   saRetryMaximumInterval: "60s"
   saRetryBackoffCoefficient: "2.0"
 
+  # AD Sync Retry Configuration
+  adScheduleToCloseWorkflowTimeout: "35m"
+  adSyncHeartbeatTimeout: "2m"
+  adSyncRetryStartToCloseTimeout: "10m"
+  adSyncRetryInitialInterval: "10s"
+  adSyncRetryBackoffCoefficient: "2.0"
+  adSyncRetryMaxInterval: "60s"
+  adSyncRetryMaxAttempts: "10"
+
   #Backup workflow timeout configuration
   adcWorkflowHeartbeatTimeoutSec : "600"     # 10 minutes
   backupRestoreWorkflowHeartbeatTimeoutSec : "600"     # 10 minutes

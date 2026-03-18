@@ -234,6 +234,60 @@ func TestPopulateRetryPolicyParams(t *testing.T) {
 	})
 }
 
+func TestPopulateADSyncRetryPolicyParams(t *testing.T) {
+	origStartToClose := adSyncRetryStartToCloseTimeout
+	origInitialInterval := adSyncRetryInitialInterval
+	origMaxInterval := adSyncRetryMaxInterval
+	origBackoff := adSyncRetryBackoffCoefficient
+	origHeartbeat := adSyncHeartBeatTimeout
+	origMaxAttempts := adSyncRetryMaxAttempts
+
+	defer func() {
+		adSyncRetryStartToCloseTimeout = origStartToClose
+		adSyncRetryInitialInterval = origInitialInterval
+		adSyncRetryMaxInterval = origMaxInterval
+		adSyncRetryBackoffCoefficient = origBackoff
+		adSyncHeartBeatTimeout = origHeartbeat
+		adSyncRetryMaxAttempts = origMaxAttempts
+	}()
+
+	t.Run("valid_values", func(t *testing.T) {
+		adSyncRetryStartToCloseTimeout = "15m"
+		adSyncRetryInitialInterval = "5s"
+		adSyncRetryMaxInterval = "30s"
+		adSyncRetryBackoffCoefficient = "1.5"
+		adSyncHeartBeatTimeout = "3m"
+		adSyncRetryMaxAttempts = 5
+
+		policy := PopulateADSyncRetryPolicyParams()
+		assert.NotNil(t, policy)
+		assert.Equal(t, 15*time.Minute, policy.StartToCloseTimeout)
+		assert.Equal(t, 5*time.Second, policy.InitialInterval)
+		assert.Equal(t, 30*time.Second, policy.MaximumInterval)
+		assert.Equal(t, 1.5, policy.BackoffCoefficient)
+		assert.Equal(t, 3*time.Minute, policy.HeartBeatTimeout)
+		assert.Equal(t, 5, policy.MaximumAttempts)
+	})
+
+	t.Run("invalid_values_use_defaults", func(t *testing.T) {
+		adSyncRetryStartToCloseTimeout = "invalid"
+		adSyncRetryInitialInterval = "invalid"
+		adSyncRetryMaxInterval = "invalid"
+		adSyncRetryBackoffCoefficient = "invalid"
+		adSyncHeartBeatTimeout = "invalid"
+		adSyncRetryMaxAttempts = 10
+
+		policy := PopulateADSyncRetryPolicyParams()
+		assert.NotNil(t, policy)
+		assert.Equal(t, 10*time.Minute, policy.StartToCloseTimeout)
+		assert.Equal(t, 10*time.Second, policy.InitialInterval)
+		assert.Equal(t, 60*time.Second, policy.MaximumInterval)
+		assert.Equal(t, 2.0, policy.BackoffCoefficient)
+		assert.Equal(t, 2*time.Minute, policy.HeartBeatTimeout)
+		assert.Equal(t, 10, policy.MaximumAttempts)
+	})
+}
+
 func TestPopulateServiceAccountRetryPolicyParams(t *testing.T) {
 	// Save original values
 	origSARetryStartToCloseTimeout := SARetryStartToCloseTimeout

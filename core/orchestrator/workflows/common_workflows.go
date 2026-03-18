@@ -66,6 +66,15 @@ var (
 	SARetryMaximumInterval     = env.GetString("SA_RETRY_MAXIMUM_INTERVAL", "60s")
 	SARetryBackoffCoefficient  = env.GetString("SA_RETRY_BACKOFF_COEFFICIENT", "2.0")
 
+	// Active Directory specific retry policy configurations
+	AdScheduleToCloseTimeout       = env.GetString("AD_SCHEDULE_TO_CLOSE_WORKFLOW_TIMEOUT", "35m")
+	adSyncHeartBeatTimeout         = env.GetString("AD_SYNC_HEARTBEAT_TIMEOUT", "2m")
+	adSyncRetryStartToCloseTimeout = env.GetString("AD_SYNC_RETRY_START_TO_CLOSE_TIMEOUT", "10m")
+	adSyncRetryInitialInterval     = env.GetString("AD_SYNC_RETRY_INITIAL_INTERVAL", "10s")
+	adSyncRetryBackoffCoefficient  = env.GetString("AD_SYNC_RETRY_BACKOFF_COEFFICIENT", "2.0")
+	adSyncRetryMaxInterval         = env.GetString("AD_SYNC_RETRY_MAX_INTERVAL", "60s")
+	adSyncRetryMaxAttempts         = env.GetInt("AD_SYNC_RETRY_MAX_ATTEMPTS", 10)
+
 	// Timeout for when transfer is stuck (no progress in bytes transferred)
 	snapmirrorTransferStuckTimeout = time.Duration(env.GetUint64("SNAPMIRROR_TRANSFER_STUCK_TIMEOUT_MINUTES", 10)) * time.Minute // Default 10 minutes
 
@@ -215,6 +224,40 @@ func PopulateRotationRetryPolicyParams(largeCapacity ...bool) (*WorkflowRetryPol
 		MaximumInterval:     activityRetryMaxInterval,
 		MaximumAttempts:     activityRetryMaxAttempts,
 	}, nil
+}
+
+// PopulateADSyncRetryPolicyParams returns retry policy specific to AD Sync operations
+// with custom values: backoff coefficient 2.0, max attempts 10, max interval 60 seconds
+// to ensure AD Sync Activities run for ~10 min
+func PopulateADSyncRetryPolicyParams() *WorkflowRetryPolicy {
+	activityStartToCloseTimeout, err := time.ParseDuration(adSyncRetryStartToCloseTimeout)
+	if err != nil {
+		activityStartToCloseTimeout = 10 * time.Minute
+	}
+	activityInitialInterval, err := time.ParseDuration(adSyncRetryInitialInterval)
+	if err != nil {
+		activityInitialInterval = 10 * time.Second
+	}
+	activityRetryMaxInterval, err := time.ParseDuration(adSyncRetryMaxInterval)
+	if err != nil {
+		activityRetryMaxInterval = 60 * time.Second
+	}
+	activityRetryBackoff, err := strconv.ParseFloat(adSyncRetryBackoffCoefficient, 64)
+	if err != nil {
+		activityRetryBackoff = 2.0
+	}
+	activityHeartBeatTimeout, err := time.ParseDuration(adSyncHeartBeatTimeout)
+	if err != nil {
+		activityHeartBeatTimeout = 2 * time.Minute
+	}
+	return &WorkflowRetryPolicy{
+		HeartBeatTimeout:    activityHeartBeatTimeout,
+		InitialInterval:     activityInitialInterval,
+		StartToCloseTimeout: activityStartToCloseTimeout,
+		BackoffCoefficient:  activityRetryBackoff,
+		MaximumInterval:     activityRetryMaxInterval,
+		MaximumAttempts:     adSyncRetryMaxAttempts,
+	}
 }
 
 // populateServiceAccountRetryPolicyParams returns retry policy specific to service account operations
