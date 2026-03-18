@@ -5,10 +5,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	expertModeWorkflows "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/expertMode"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -25,9 +28,187 @@ const (
 	APIAccessModeONTAP             = "ONTAP"
 )
 
+// expertModeVolumeToVolumeForSFR builds a partial *datamodel.Volume from expert mode volume for use with RestoreFilesFromBackupWorkflow.
+// Same field mapping as convertExpertModeVolumeToVolume in workflows/expertMode (VolumeAttributes has no FileProperties/BlockProperties).
+func expertModeVolumeToVolumeForSFR(emv *datamodel.ExpertModeVolumes) *datamodel.Volume {
+	volumeAttributes := &datamodel.VolumeAttributes{ExternalUUID: emv.ExternalUUID}
+	return &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{UUID: emv.UUID},
+		Name:             emv.Name,
+		Description:      emv.Description,
+		State:            emv.State,
+		SizeInBytes:      emv.SizeInBytes,
+		AccountID:        emv.AccountID,
+		PoolID:           emv.PoolID,
+		SvmID:            emv.SvmID,
+		Account:          emv.Account,
+		Pool:             emv.Pool,
+		Svm:              emv.Svm,
+		VolumeAttributes: volumeAttributes,
+		DataProtection:   emv.BackupConfig,
+	}
+}
+
 // RestoreOntapModeBackup restores an expert mode volume from backup by starting RestoreForOntapModeVolumeWorkflow.
 func (o *GCPOrchestrator) RestoreOntapModeBackup(ctx context.Context, params *commonparams.RestoreOntapModeBackupParams) (string, error) {
 	return restoreOntapModeBackup(ctx, o.storage, o.temporal, params)
+}
+
+// SFROntapModeBackup performs selective file restore for an expert mode volume from backup (when SourceFileList is set).
+func (o *GCPOrchestrator) SFROntapModeBackup(ctx context.Context, params *commonparams.RestoreOntapModeBackupParams) (string, error) {
+	return sfrOntapModeBackup(ctx, o.storage, o.temporal, params)
+}
+
+// sfrOntapModeBackup runs the selective file restore path for ontap mode: expert-mode validation + backup resolution + RestoreFilesFromBackupWorkflow.
+func sfrOntapModeBackup(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.RestoreOntapModeBackupParams) (string, error) {
+	logger := util.GetLogger(ctx)
+
+	account, err := getOrCreateAccount(ctx, se, params.AccountName)
+	if err != nil {
+		return "", err
+	}
+
+	if params.PoolID == "" {
+		return "", customerrors.NewUserInputValidationErr("PoolID is required for expert mode restore")
+	}
+
+	poolView, err := se.DescribePool(ctx, params.PoolID, account.ID)
+	if err != nil {
+		return "", err
+	}
+	if poolView.APIAccessMode != commonparams.ONTAPMode {
+		return "", customerrors.NewUserInputValidationErr("Pool is not an expert mode (ONTAP) pool")
+	}
+
+	expertModeVolume, err := se.GetExpertModeVolumeByExternalUUID(ctx, params.VolumeUUID)
+	if err != nil {
+		return "", err
+	}
+
+	// Check runs at restore start only. If a previous restore failed and left state in ERROR/RESTORING,
+	// this check fails and blocks starting a new restore until state is corrected (e.g. by defer in SFR workflow).
+	if expertModeVolume.State != models.LifeCycleStateREADY {
+		return "", customerrors.NewUserInputValidationErr("Volume is not available")
+	}
+
+	if params.BackupPath == "" {
+		return "", customerrors.NewUserInputValidationErr("BackupPath must be provided")
+	}
+
+	components := strings.Split(params.BackupPath, "/")
+	if len(components) < MaxBackupPathComponents {
+		return "", customerrors.NewUserInputValidationErr("Backup path is not in correct format")
+	}
+
+	backupRegion := components[LocationIdIndex]
+	location, err := utils.GetLocationFromVendorID(expertModeVolume.Pool.VendorID)
+	if err != nil {
+		logger.Error("Failed to get location from vendor ID: ", "error", err)
+		return "", err
+	}
+	volumeRegion, _, err := utils.ParseRegionAndZone(location)
+	if err != nil {
+		return "", err
+	}
+
+	var backupVault *datamodel.BackupVault
+	backupVaultName := components[BackupVaultNameIndex]
+	if backupRegion != volumeRegion {
+		backupVaultPath := strings.Join(components[:BackupVaultNameIndex+1], "/")
+		backupVault, err = se.GetBackupVaultByCrossRegionBackupVaultName(ctx, backupVaultPath, account.ID)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		backupVault, err = se.GetBackupVaultByNameAndOwnerID(ctx, backupVaultName, strconv.FormatInt(account.ID, 10))
+		if err != nil {
+			return "", err
+		}
+	}
+
+	backupName := components[BackupNameIndex]
+	backup, err := se.GetBackupByNameAndBackupVaultID(ctx, backupName, backupVault.ID)
+	if err != nil {
+		return "", err
+	}
+
+	if backup.State != models.LifeCycleStateAvailable {
+		return "", customerrors.NewUserInputValidationErr("Cannot restore files from backup which is not available")
+	}
+
+	originalState := expertModeVolume.State
+	stateUpdated := false
+
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeRestoreFilesBackup),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  expertModeVolume.UUID,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create restore files from backup job in database", "error", err)
+		return "", err
+	}
+
+	defer func() {
+		if err != nil {
+			if stateUpdated {
+				if rollbackErr := se.UpdateExpertModeVolumeFields(ctx, expertModeVolume.ExternalUUID, map[string]interface{}{
+					"state": originalState,
+				}); rollbackErr != nil {
+					logger.Error("Failed to rollback expert mode volume state", "error", rollbackErr, "originalState", originalState)
+				}
+			}
+			if createdJob != nil {
+				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error()); jobErr != nil {
+					logger.Error("Failed to update job state to ERROR", "error", jobErr, "jobUUID", createdJob.UUID)
+				}
+			}
+		}
+	}()
+
+	err = se.UpdateExpertModeVolumeFields(ctx, expertModeVolume.ExternalUUID, map[string]interface{}{
+		"state": models.LifeCycleStateRestoring,
+	})
+	if err != nil {
+		logger.Error("Failed to update expert mode volume state to restoring", "error", err)
+		return "", err
+	}
+	stateUpdated = true
+
+	sfrParams := &commonparams.RestoreFilesFromBackupParams{
+		AccountName:         params.AccountName,
+		BackupPath:          params.BackupPath,
+		SourceFileList:      params.SourceFileList,
+		RestoreFilePath:     params.RestoreFilePath,
+		VolumeUUID:          params.VolumeUUID,
+		Region:              params.Region,
+		PoolID:              params.PoolID,
+		IsExpertModeRestore: true,
+	}
+	volumeForWorkflow := expertModeVolumeToVolumeForSFR(expertModeVolume)
+
+	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
+	err = workflowExecutor.ExecuteWorkflow(
+		ctx,
+		createdJob.WorkflowID,
+		workflowengine.CustomerTaskQueue,
+		workflows.RestoreFilesFromBackupWorkflow,
+		workflowengine.GetSFRWorkflowTimeout(),
+		sfrParams,
+		backup,
+		volumeForWorkflow,
+	)
+	if err != nil {
+		logger.Error("Failed to start restore files from backup workflow after retries: ", "error", err)
+		return "", err
+	}
+	return createdJob.UUID, nil
 }
 
 func restoreOntapModeBackup(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.RestoreOntapModeBackupParams) (string, error) {
@@ -61,7 +242,6 @@ func restoreOntapModeBackup(ctx context.Context, se database.Storage, temporal c
 
 	volumeRegion := params.Region
 	originalState := expertModeVolume.State
-	originalStyle := expertModeVolume.Style
 	stateUpdated := false
 
 	job := &datamodel.Job{
@@ -85,7 +265,6 @@ func restoreOntapModeBackup(ctx context.Context, se database.Storage, temporal c
 			if stateUpdated {
 				if rollbackErr := se.UpdateExpertModeVolumeFields(ctx, expertModeVolume.ExternalUUID, map[string]interface{}{
 					"state": originalState,
-					"style": originalStyle,
 				}); rollbackErr != nil {
 					logger.Error("Failed to rollback expert mode volume state", "error", rollbackErr, "originalState", originalState)
 				}
@@ -100,7 +279,6 @@ func restoreOntapModeBackup(ctx context.Context, se database.Storage, temporal c
 
 	err = se.UpdateExpertModeVolumeFields(ctx, expertModeVolume.ExternalUUID, map[string]interface{}{
 		"state": models.LifeCycleStateRestoring,
-		"style": models.LifeCycleStateRestoringDetails,
 	})
 	if err != nil {
 		logger.Error("Failed to update expert mode volume state to restoring", "error", err)

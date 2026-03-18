@@ -29856,7 +29856,7 @@ func TestRestoreOntapModeBackup(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 
-	t.Run("GetExpertModeVolumeByUUIDError", func(tt *testing.T) {
+	t.Run("GetExpertModeVolumeByExternalUUIDError", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
 

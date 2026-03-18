@@ -149,6 +149,10 @@ func (o *OCIOrchestrator) RestoreOntapModeBackup(ctx context.Context, params *co
 	return "", utilserrors.NewNotImplementedYetErr()
 }
 
+func (o *OCIOrchestrator) SFROntapModeBackup(ctx context.Context, params *commonparams.RestoreOntapModeBackupParams) (string, error) {
+	return "", utilserrors.NewNotImplementedYetErr()
+}
+
 func (o *OCIOrchestrator) SplitCloneVolume(ctx context.Context, params *commonparams.SplitCloneVolumeParams) (*models.Volume, string, error) {
 	// TODO implement me
 	return nil, "", utilserrors.NewNotImplementedYetErr()

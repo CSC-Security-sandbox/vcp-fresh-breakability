@@ -10,6 +10,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	expertmodeactivities "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/expert_mode_activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
@@ -135,6 +136,7 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 	backupActivity := &activities.BackupActivity{}
 	sfrActivity := &activities.SFRActivity{}
 	volumeActivity := &activities.VolumeCreateActivity{}
+	ontapRestoreActivity := &activities.OntapModeRestoreActivity{}
 
 	// Get backup vault from backup
 	var backupVault *datamodel.BackupVault
@@ -220,9 +222,17 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 		} else {
 			log.Infof("SFR workflow completed, restoring volume %s from RESTORING state back to READY", volume.UUID)
 		}
-		err2 := workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeStateInDB, volume.UUID, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil)
-		if err2 != nil {
-			log.Errorf("Failed to restore volume state to READY: %v", err2)
+		if params.IsExpertModeRestore {
+			expertModeVolumeActivity := &expertmodeactivities.ExpertModeVolumeActivity{}
+			err2 := workflow.ExecuteActivity(ctx, expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, volume.UUID, models.LifeCycleStateREADY).Get(ctx, nil)
+			if err2 != nil {
+				log.Errorf("Failed to restore expert mode volume state to READY: %v", err2)
+			}
+		} else {
+			err2 := workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeStateInDB, volume.UUID, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil)
+			if err2 != nil {
+				log.Errorf("Failed to restore volume state to READY: %v", err2)
+			}
 		}
 
 		if workflowErr != nil {
@@ -440,6 +450,19 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 		DeploymentName:   volume.Pool.DeploymentName,
 		OntapCredentials: volume.Pool.PoolCredentials,
 	})
+
+	// For expert mode flexgroup backup: verify restore target constituent count matches backup
+	if params.IsExpertModeRestore && backup.Attributes != nil && backup.Attributes.OntapVolumeStyle == "flexgroup" {
+		var restoreTargetConstituentCount int32
+		err = workflow.ExecuteActivity(ctx, ontapRestoreActivity.FetchConstituentCountForLargeVolume, volume, node).Get(ctx, &restoreTargetConstituentCount)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		err = workflow.ExecuteActivity(ctx, ontapRestoreActivity.VerifyCVCountForLargeVolume, backup, restoreTargetConstituentCount).Get(ctx, nil)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+	}
 
 	var objStoreName string
 	err = workflow.ExecuteActivity(ctx, backupActivity.GenerateObjectStoreNameForRestore, backupVault, backup).Get(ctx, &objStoreName)

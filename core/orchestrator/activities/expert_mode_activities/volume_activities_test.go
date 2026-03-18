@@ -572,47 +572,46 @@ func TestUpdateExpertModeVolumeStateInDB(t *testing.T) {
 		activity := ExpertModeVolumeActivity{SE: mockStorage}
 		env.RegisterActivity(activity.UpdateExpertModeVolumeStateInDB)
 
-		externalUUID := "ext-uuid-123"
+		volumeUUID := "emv-uuid-123"
 		state := models.LifeCycleStateREADY
-		stateDetails := models.LifeCycleStateAvailableDetails
 
 		volume := &datamodel.ExpertModeVolumes{
-			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
-			ExternalUUID: externalUUID,
+			BaseModel:    datamodel.BaseModel{UUID: volumeUUID},
+			ExternalUUID: "ext-uuid-123",
 			Name:         "test-vol",
 			State:        models.LifeCycleStateCreating,
-			Style:        "",
+			Style:        "flexvol",
 		}
 		updatedVolume := &datamodel.ExpertModeVolumes{
-			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
-			ExternalUUID: externalUUID,
+			BaseModel:    datamodel.BaseModel{UUID: volumeUUID},
+			ExternalUUID: "ext-uuid-123",
 			Name:         "test-vol",
 			State:        state,
-			Style:        stateDetails,
+			Style:        volume.Style, // Style is unchanged
 		}
 
-		mockStorage.On("GetExpertModeVolumeByExternalUUID", mock.Anything, externalUUID).Return(volume, nil)
+		mockStorage.On("GetExpertModeVolumeByUUID", mock.Anything, volumeUUID).Return(volume, nil)
 		mockStorage.On("UpdateExpertModeVolume", mock.Anything, mock.MatchedBy(func(v *datamodel.ExpertModeVolumes) bool {
-			return v.ExternalUUID == externalUUID && v.State == state && v.Style == stateDetails
+			return v.UUID == volumeUUID && v.State == state && v.Style == volume.Style
 		})).Return(updatedVolume, nil)
 
-		_, err := env.ExecuteActivity(activity.UpdateExpertModeVolumeStateInDB, externalUUID, state, stateDetails)
+		_, err := env.ExecuteActivity(activity.UpdateExpertModeVolumeStateInDB, volumeUUID, state)
 		assert.NoError(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
 
-	t.Run("WhenGetExpertModeVolumeByExternalUUIDFails", func(tt *testing.T) {
+	t.Run("WhenGetExpertModeVolumeByUUIDFails", func(tt *testing.T) {
 		testSuite := &testsuite.WorkflowTestSuite{}
 		env := testSuite.NewTestActivityEnvironment()
 		mockStorage := database.NewMockStorage(tt)
 		activity := ExpertModeVolumeActivity{SE: mockStorage}
 		env.RegisterActivity(activity.UpdateExpertModeVolumeStateInDB)
 
-		externalUUID := "ext-uuid-456"
+		volumeUUID := "emv-uuid-456"
 		getErr := errors.New("volume not found")
-		mockStorage.On("GetExpertModeVolumeByExternalUUID", mock.Anything, externalUUID).Return(nil, getErr)
+		mockStorage.On("GetExpertModeVolumeByUUID", mock.Anything, volumeUUID).Return(nil, getErr)
 
-		_, err := env.ExecuteActivity(activity.UpdateExpertModeVolumeStateInDB, externalUUID, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails)
+		_, err := env.ExecuteActivity(activity.UpdateExpertModeVolumeStateInDB, volumeUUID, models.LifeCycleStateREADY)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "volume not found")
 		mockStorage.AssertExpectations(tt)
@@ -625,18 +624,18 @@ func TestUpdateExpertModeVolumeStateInDB(t *testing.T) {
 		activity := ExpertModeVolumeActivity{SE: mockStorage}
 		env.RegisterActivity(activity.UpdateExpertModeVolumeStateInDB)
 
-		externalUUID := "ext-uuid-789"
+		volumeUUID := "emv-uuid-789"
 		volume := &datamodel.ExpertModeVolumes{
-			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
-			ExternalUUID: externalUUID,
+			BaseModel:    datamodel.BaseModel{UUID: volumeUUID},
+			ExternalUUID: "ext-uuid-789",
 			Name:         "test-vol",
 			State:        models.LifeCycleStateCreating,
 		}
 		updateErr := errors.New("database update failed")
-		mockStorage.On("GetExpertModeVolumeByExternalUUID", mock.Anything, externalUUID).Return(volume, nil)
+		mockStorage.On("GetExpertModeVolumeByUUID", mock.Anything, volumeUUID).Return(volume, nil)
 		mockStorage.On("UpdateExpertModeVolume", mock.Anything, mock.Anything).Return(nil, updateErr)
 
-		_, err := env.ExecuteActivity(activity.UpdateExpertModeVolumeStateInDB, externalUUID, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails)
+		_, err := env.ExecuteActivity(activity.UpdateExpertModeVolumeStateInDB, volumeUUID, models.LifeCycleStateREADY)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "database update failed")
 		mockStorage.AssertExpectations(tt)

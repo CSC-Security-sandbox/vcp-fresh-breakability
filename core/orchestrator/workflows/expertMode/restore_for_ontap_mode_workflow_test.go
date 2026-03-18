@@ -68,7 +68,7 @@ func (s *RestoreForOntapModeWorkflowTestSuite) SetupTest() {
 
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	s.env.OnActivity(s.commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
-	s.env.OnActivity(s.expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(s.expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 }
 
 // AfterTest optionally asserts activity mock expectations. Skipped when using .Maybe() mocks to avoid false failures.
@@ -258,7 +258,7 @@ func (s *RestoreForOntapModeWorkflowTestSuite) Test_Run_SameVolumeRestoreRejecte
 		Name:        "backup-name",
 		State:       models.LifeCycleStateREADY,
 		SizeInBytes: 1024,
-		VolumeUUID:  "ext-uuid",
+		VolumeUUID:  "emv-uuid", // same as params.ExpertModeVolume.UUID so workflow rejects same-volume full restore
 		BackupVault: backupVault,
 	}
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil).Maybe()
@@ -336,7 +336,7 @@ func TestConvertExpertModeVolumeToVolume(t *testing.T) {
 	}
 	vol := convertExpertModeVolumeToVolume(emv)
 	assert.NotNil(t, vol)
-	assert.Equal(t, "ext-uuid", vol.UUID)
+	assert.Equal(t, "emv-uuid", vol.UUID)
 	assert.Equal(t, "vol", vol.Name)
 	assert.Equal(t, int64(1024), vol.SizeInBytes)
 	assert.NotNil(t, vol.VolumeAttributes)

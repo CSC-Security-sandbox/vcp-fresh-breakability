@@ -344,6 +344,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterActivity(&workflows.SubnetActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.VolumeCreateActivity{SE: dbcon, Scheduler: temporalScheduler})
 	worker.RegisterActivity(&activities.OntapModeRestoreActivity{SE: dbcon})
+	worker.RegisterActivity(&expertmodeactivities.ExpertModeVolumeActivity{SE: dbcon})
 	worker.RegisterActivity(&activities.VolumePerformanceGroupActivity{SE: dbcon})
 	worker.RegisterActivity(&flexcache_activities.FlexCacheVolumeCreateActivity{SE: dbcon})
 	worker.RegisterActivity(&flexcache_activities.FlexCacheVolumeDeleteActivity{SE: dbcon})

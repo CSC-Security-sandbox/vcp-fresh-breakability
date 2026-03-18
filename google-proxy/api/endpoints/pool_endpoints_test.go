@@ -8830,6 +8830,12 @@ func TestV1betaRestoreOntapModeBackup(t *testing.T) {
 		defer func() { ExpertModeBackupEnabled = originalOntapModeRestoreEnabled }()
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
 		params := gcpgenserver.V1betaRestoreOntapModeBackupParams{
 			LocationId:    "us-east4",
 			ProjectNumber: "project-number",
@@ -9199,6 +9205,49 @@ func TestV1betaRestoreOntapModeBackup(t *testing.T) {
 			VolumeId:        "vol-uuid",
 			BackupUri:       validBackupPath,
 			RestoreFilePath: gcpgenserver.NewOptString("/restore/dest"),
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaRestoreOntapModeBackup(ctx, req, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		assert.True(tt, op.Name.IsSet())
+		assert.Equal(tt, "/v1beta/projects/project-number/locations/us-east4/operations/"+jobUUID, op.Name.Value)
+		mockOrchestrator.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSourceFileListSet_CallsSFROntapModeBackup", func(tt *testing.T) {
+		originalOntapModeRestoreEnabled := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = true
+		defer func() { ExpertModeBackupEnabled = originalOntapModeRestoreEnabled }()
+
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		jobUUID := "job-uuid-sfr"
+		sourceFileList := []string{"/path/to/file1", "/path/to/file2"}
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().SFROntapModeBackup(mock.Anything, mock.MatchedBy(func(p *commonparams.RestoreOntapModeBackupParams) bool {
+			return p.AccountName == "project-number" && p.BackupPath == validBackupPath &&
+				p.VolumeUUID == "vol-uuid" && p.Region == "us-east4" && p.PoolID == "pool-uuid" &&
+				len(p.SourceFileList) == 2 && p.SourceFileList[0] == "/path/to/file1" && p.SourceFileList[1] == "/path/to/file2"
+		})).Return(jobUUID, nil).Once()
+
+		params := gcpgenserver.V1betaRestoreOntapModeBackupParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+			PoolId:        "pool-uuid",
+		}
+		req := &gcpgenserver.RestoreBackupRequestV1beta{
+			VolumeId:       "vol-uuid",
+			BackupUri:      validBackupPath,
+			SourceFileList: sourceFileList,
 		}
 
 		handler := Handler{Orchestrator: mockOrchestrator}

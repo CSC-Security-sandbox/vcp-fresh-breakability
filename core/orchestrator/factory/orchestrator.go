@@ -46,6 +46,7 @@ type OrchestratorFactory interface {
 	EstablishReplicationPeering(ctx context.Context, params *commonparams.EstablishReplicationPeeringParams) (*models.VolumeReplication, string, error)
 	RestoreFilesFromBackup(ctx context.Context, params *commonparams.RestoreFilesFromBackupParams) (string, error)
 	RestoreOntapModeBackup(ctx context.Context, params *commonparams.RestoreOntapModeBackupParams) (string, error)
+	SFROntapModeBackup(ctx context.Context, params *commonparams.RestoreOntapModeBackupParams) (string, error)
 	SplitCloneVolume(ctx context.Context, params *commonparams.SplitCloneVolumeParams) (*models.Volume, string, error)
 
 	GetJob(ctx context.Context, operationId string) (*models.Job, error)

@@ -427,7 +427,8 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 	// Finalise restored volume: update volumes table for VSA-managed restores, or expert_mode_volumes for expert mode restores
 	volume := backupActivitiesContext.BackupWorkflowInit.Volume
 	if createVolumeParams.IsExpertModeRestore {
-		err = workflow.ExecuteActivity(ctx, expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, volume.UUID, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil)
+		expertModeVolumeActivity := &expertmodeactivities.ExpertModeVolumeActivity{}
+		err = workflow.ExecuteActivity(ctx, expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, volume.UUID, models.LifeCycleStateREADY).Get(ctx, nil)
 	} else {
 		err = workflow.ExecuteActivity(ctx, volumeActivity.FinaliseRestoredVolume, volume).Get(ctx, nil)
 	}

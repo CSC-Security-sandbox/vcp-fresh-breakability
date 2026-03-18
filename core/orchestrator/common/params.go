@@ -833,13 +833,14 @@ type RestoreFilesFromBackupParams struct {
 	Region          string
 	// PoolID is required for expert mode restore; used to fetch the pool and verify it is an expert mode (ONTAP) pool (APIAccessMode == ONTAP). Supplied from API path (e.g. params.PoolId).
 	PoolID string
+	// IsExpertModeRestore when true causes the SFR workflow to update expert_mode_volumes table (UpdateExpertModeVolumeStateInDB) instead of volumes table (UpdateVolumeStateInDB).
+	IsExpertModeRestore bool
 }
 
 // RestoreOntapModeBackupParams holds parameters for RestoreOntapModeBackup (pool endpoint full-volume or file-level restore for ONTAP mode).
 type RestoreOntapModeBackupParams struct {
 	AccountName     string
 	BackupPath      string
-	BackupID        string
 	SourceFileList  []string
 	RestoreFilePath string
 	VolumeUUID      string

@@ -108,28 +108,26 @@ func (a *ExpertModeVolumeActivity) CheckVolumeDeletedInOntap(ctx context.Context
 	return vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, fmt.Errorf("volume %s still exists in ONTAP, deletion may be in progress", volume.Name)))
 }
 
-// UpdateExpertModeVolumeStateInDB updates the state (and style) of an expert mode volume looked up by its external UUID.
-func (a *ExpertModeVolumeActivity) UpdateExpertModeVolumeStateInDB(ctx context.Context, externalUUID, state, stateDetails string) error {
+// UpdateExpertModeVolumeStateInDB updates the lifecycle state of an expert mode volume by UUID.
+// Only state is updated; Style is not changed (Style is a volume type/display attribute, not state details).
+func (a *ExpertModeVolumeActivity) UpdateExpertModeVolumeStateInDB(ctx context.Context, volumeUUID, state string) error {
 	logger := util.GetLogger(ctx)
-	activity.RecordHeartbeat(ctx, fmt.Sprintf("Updating expert mode volume state for external UUID %s", externalUUID))
 
-	volume, err := a.SE.GetExpertModeVolumeByExternalUUID(ctx, externalUUID)
+	volume, err := a.SE.GetExpertModeVolumeByUUID(ctx, volumeUUID)
 	if err != nil {
-		logger.Errorf("Failed to get expert mode volume by external UUID %s: %v", externalUUID, err)
+		logger.Errorf("Failed to get expert mode volume by UUID %s: %v", volumeUUID, err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
 	volume.State = state
-	volume.Style = stateDetails
 
 	_, err = a.SE.UpdateExpertModeVolume(ctx, volume)
 	if err != nil {
-		logger.Errorf("Failed to update expert mode volume state for external UUID %s: %v", externalUUID, err)
+		logger.Errorf("Failed to update expert mode volume state for UUID %s: %v", volumeUUID, err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	logger.Infof("Successfully updated expert mode volume state to %s for external UUID %s", state, externalUUID)
-	activity.RecordHeartbeat(ctx, "Expert mode volume state updated successfully")
+	logger.Infof("Successfully updated expert mode volume state to %s for UUID %s", state, volumeUUID)
 	return nil
 }
 

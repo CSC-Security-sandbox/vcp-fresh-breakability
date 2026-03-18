@@ -33,7 +33,7 @@ const ontapVolumeStyleFlexgroup = "flexgroup"
 func convertExpertModeVolumeToVolume(emv *datamodel.ExpertModeVolumes) *datamodel.Volume {
 	volumeAttributes := &datamodel.VolumeAttributes{ExternalUUID: emv.ExternalUUID}
 	return &datamodel.Volume{
-		BaseModel:        datamodel.BaseModel{UUID: emv.ExternalUUID},
+		BaseModel:        datamodel.BaseModel{UUID: emv.UUID},
 		Name:             emv.Name,
 		Description:      emv.Description,
 		State:            emv.State,
@@ -139,7 +139,7 @@ func (wf *restoreForOntapModeVolumeWorkflow) Run(ctx workflow.Context, args ...i
 	defer func() {
 		// Only restore volume to READY on failure (rollback). On success, RestoreBackupWorkflow sets READY when the actual restore completes.
 		if retErr != nil {
-			if err2 := workflow.ExecuteActivity(ctx, expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, volume.UUID, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil); err2 != nil {
+			if err2 := workflow.ExecuteActivity(ctx, expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, volume.UUID, models.LifeCycleStateREADY).Get(ctx, nil); err2 != nil {
 				log.Errorf("Failed to restore expert mode volume state to READY: %v", err2)
 			}
 		}

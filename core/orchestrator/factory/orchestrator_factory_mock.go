@@ -7396,6 +7396,63 @@ func (_c *MockOrchestratorFactory_RotateKmsConfig_Call) RunAndReturn(run func(co
 	return _c
 }
 
+// SFROntapModeBackup provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) SFROntapModeBackup(ctx context.Context, params *common.RestoreOntapModeBackupParams) (string, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SFROntapModeBackup")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.RestoreOntapModeBackupParams) (string, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.RestoreOntapModeBackupParams) string); ok {
+		r0 = rf(ctx, params)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.RestoreOntapModeBackupParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_SFROntapModeBackup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SFROntapModeBackup'
+type MockOrchestratorFactory_SFROntapModeBackup_Call struct {
+	*mock.Call
+}
+
+// SFROntapModeBackup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.RestoreOntapModeBackupParams
+func (_e *MockOrchestratorFactory_Expecter) SFROntapModeBackup(ctx interface{}, params interface{}) *MockOrchestratorFactory_SFROntapModeBackup_Call {
+	return &MockOrchestratorFactory_SFROntapModeBackup_Call{Call: _e.mock.On("SFROntapModeBackup", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_SFROntapModeBackup_Call) Run(run func(ctx context.Context, params *common.RestoreOntapModeBackupParams)) *MockOrchestratorFactory_SFROntapModeBackup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.RestoreOntapModeBackupParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_SFROntapModeBackup_Call) Return(_a0 string, _a1 error) *MockOrchestratorFactory_SFROntapModeBackup_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_SFROntapModeBackup_Call) RunAndReturn(run func(context.Context, *common.RestoreOntapModeBackupParams) (string, error)) *MockOrchestratorFactory_SFROntapModeBackup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SplitCloneVolume provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) SplitCloneVolume(ctx context.Context, params *common.SplitCloneVolumeParams) (*models.Volume, string, error) {
 	ret := _m.Called(ctx, params)

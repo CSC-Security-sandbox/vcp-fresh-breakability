@@ -1745,7 +1745,6 @@ func (h Handler) V1betaRestoreOntapModeBackup(ctx context.Context, req *gcpgense
 	restoreParams := &commonparams.RestoreOntapModeBackupParams{
 		AccountName:     params.ProjectNumber,
 		BackupPath:      backupPath,
-		BackupID:        "",
 		SourceFileList:  req.SourceFileList,
 		RestoreFilePath: restoreFilePath,
 		VolumeUUID:      req.VolumeId,
@@ -1753,18 +1752,24 @@ func (h Handler) V1betaRestoreOntapModeBackup(ctx context.Context, req *gcpgense
 		PoolID:          params.PoolId,
 	}
 
-	jobUUID, err := h.Orchestrator.RestoreOntapModeBackup(ctx, restoreParams)
-	if err != nil {
-		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
+	var jobUUID string
+	var restoreErr error
+	if len(req.SourceFileList) > 0 {
+		jobUUID, restoreErr = h.Orchestrator.SFROntapModeBackup(ctx, restoreParams)
+	} else {
+		jobUUID, restoreErr = h.Orchestrator.RestoreOntapModeBackup(ctx, restoreParams)
+	}
+	if restoreErr != nil {
+		if errors.IsUserInputValidationErr(restoreErr) || errors.IsNotFoundErr(restoreErr) {
 			return &gcpgenserver.V1betaRestoreOntapModeBackupBadRequest{
 				Code:    400,
-				Message: err.Error(),
+				Message: restoreErr.Error(),
 			}, nil
 		}
-		logger.Error("Failed to restore files from backup", "error", err.Error())
+		logger.Error("Failed to restore files from backup", "error", restoreErr.Error())
 		return &gcpgenserver.V1betaRestoreOntapModeBackupInternalServerError{
 			Code:    500,
-			Message: err.Error(),
+			Message: restoreErr.Error(),
 		}, nil
 	}
 
