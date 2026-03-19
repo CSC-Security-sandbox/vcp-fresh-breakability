@@ -2,6 +2,7 @@ package replication
 
 import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/mqos"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 )
@@ -14,6 +15,7 @@ func (_m *monkeyMock) Patch() {
 	ValidateReplicationResourceId = _m.validateReplicationResourceId
 	validateStoragePoolUri = _m.validateStoragePoolUri
 	getDestinationPool = _m.getDestinationPool
+	validateVolumeQosParamsForReplication = _m.validateVolumeQosParamsForReplication
 	replicationJobInProcess = _m.replicationJobInProcess
 	getQuotaLimit = _m.getQuotaLimit
 	internalGetReplicationCount = _m.internalGetReplicationCount
@@ -30,6 +32,7 @@ func (_m *monkeyMock) Unpatch() {
 	ValidateReplicationResourceId = _validateReplicationResourceId
 	validateStoragePoolUri = _validateStoragePoolUri
 	getDestinationPool = _getDestinationPool
+	validateVolumeQosParamsForReplication = mqos.ValidateVolumeQosParams
 	replicationJobInProcess = _replicationJobInProcess
 	getQuotaLimit = common.GetQuotaLimit
 	internalGetReplicationCount = _internalGetReplicationCount

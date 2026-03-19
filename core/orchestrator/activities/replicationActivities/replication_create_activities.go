@@ -620,6 +620,16 @@ func convertSourceVolumeToDestinationVolume(result *replication.CreateReplicatio
 		volume.TieringPolicy = googleproxyclient.NewOptTieringPolicyV1beta(tieringPolicy)
 	}
 
+	if destVolParams.ThroughputMibps != nil {
+		volume.ThroughputMibps = googleproxyclient.NewOptNilFloat64(float64(*destVolParams.ThroughputMibps))
+	}
+	if destVolParams.Iops != nil {
+		volume.Iops = googleproxyclient.NewOptNilInt64(*destVolParams.Iops)
+	}
+	if destVolParams.VolumePerformanceGroupId != nil {
+		volume.VolumePerformanceGroupId = googleproxyclient.NewOptNilString(*destVolParams.VolumePerformanceGroupId)
+	}
+
 	return volume
 }
 

@@ -24,6 +24,8 @@ import (
 
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 
+	mqos "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/mqos"
+
 	time "time"
 )
 
@@ -1155,6 +1157,67 @@ func (_c *monkeyMock_validateDeleteVolumeParams_Call) Return(_a0 error) *monkeyM
 }
 
 func (_c *monkeyMock_validateDeleteVolumeParams_Call) RunAndReturn(run func(context.Context, database.Storage, *datamodel.Volume) error) *monkeyMock_validateDeleteVolumeParams_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// validateVolumeQosParams provides a mock function with given fields: pool, throughputMibps, iops, vpgID
+func (_m *monkeyMock) validateVolumeQosParams(pool mqos.PoolQosInput, throughputMibps *int64, iops *int64, vpgID *string) (*int64, error) {
+	ret := _m.Called(pool, throughputMibps, iops, vpgID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for validateVolumeQosParams")
+	}
+
+	var r0 *int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(mqos.PoolQosInput, *int64, *int64, *string) (*int64, error)); ok {
+		return rf(pool, throughputMibps, iops, vpgID)
+	}
+	if rf, ok := ret.Get(0).(func(mqos.PoolQosInput, *int64, *int64, *string) *int64); ok {
+		r0 = rf(pool, throughputMibps, iops, vpgID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*int64)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(mqos.PoolQosInput, *int64, *int64, *string) error); ok {
+		r1 = rf(pool, throughputMibps, iops, vpgID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// monkeyMock_validateVolumeQosParams_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'validateVolumeQosParams'
+type monkeyMock_validateVolumeQosParams_Call struct {
+	*mock.Call
+}
+
+// validateVolumeQosParams is a helper method to define mock.On call
+//   - pool mqos.PoolQosInput
+//   - throughputMibps *int64
+//   - iops *int64
+//   - vpgID *string
+func (_e *monkeyMock_Expecter) validateVolumeQosParams(pool interface{}, throughputMibps interface{}, iops interface{}, vpgID interface{}) *monkeyMock_validateVolumeQosParams_Call {
+	return &monkeyMock_validateVolumeQosParams_Call{Call: _e.mock.On("validateVolumeQosParams", pool, throughputMibps, iops, vpgID)}
+}
+
+func (_c *monkeyMock_validateVolumeQosParams_Call) Run(run func(pool mqos.PoolQosInput, throughputMibps *int64, iops *int64, vpgID *string)) *monkeyMock_validateVolumeQosParams_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(mqos.PoolQosInput), args[1].(*int64), args[2].(*int64), args[3].(*string))
+	})
+	return _c
+}
+
+func (_c *monkeyMock_validateVolumeQosParams_Call) Return(_a0 *int64, _a1 error) *monkeyMock_validateVolumeQosParams_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *monkeyMock_validateVolumeQosParams_Call) RunAndReturn(run func(mqos.PoolQosInput, *int64, *int64, *string) (*int64, error)) *monkeyMock_validateVolumeQosParams_Call {
 	_c.Call.Return(run)
 	return _c
 }

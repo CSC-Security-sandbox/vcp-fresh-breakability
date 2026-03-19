@@ -3974,6 +3974,13 @@ type DestinationVolumeParametersV1beta struct {
 	// Description of the destination volume.
 	Description   OptString              `json:"description"`
 	TieringPolicy OptTieringPolicyV1beta `json:"tieringPolicy"`
+	// Throughput of the destination volume in Mibps.
+	ThroughputMibps OptNilFloat64 `json:"throughputMibps"`
+	// IOPS limit for the volume, retrieved from the associated Volume Performance Group.
+	Iops OptNilInt64 `json:"iops"`
+	// UUID of the volume performance group this volume belongs to. Use this to query the VPG via GET ...
+	// /pools/{poolId}/volumePerformanceGroups/{volumePerformanceGroupId}.
+	VolumePerformanceGroupId OptNilString `json:"volumePerformanceGroupId"`
 }
 
 // GetStoragePool returns the value of StoragePool.
@@ -4001,6 +4008,21 @@ func (s *DestinationVolumeParametersV1beta) GetTieringPolicy() OptTieringPolicyV
 	return s.TieringPolicy
 }
 
+// GetThroughputMibps returns the value of ThroughputMibps.
+func (s *DestinationVolumeParametersV1beta) GetThroughputMibps() OptNilFloat64 {
+	return s.ThroughputMibps
+}
+
+// GetIops returns the value of Iops.
+func (s *DestinationVolumeParametersV1beta) GetIops() OptNilInt64 {
+	return s.Iops
+}
+
+// GetVolumePerformanceGroupId returns the value of VolumePerformanceGroupId.
+func (s *DestinationVolumeParametersV1beta) GetVolumePerformanceGroupId() OptNilString {
+	return s.VolumePerformanceGroupId
+}
+
 // SetStoragePool sets the value of StoragePool.
 func (s *DestinationVolumeParametersV1beta) SetStoragePool(val string) {
 	s.StoragePool = val
@@ -4024,6 +4046,21 @@ func (s *DestinationVolumeParametersV1beta) SetDescription(val OptString) {
 // SetTieringPolicy sets the value of TieringPolicy.
 func (s *DestinationVolumeParametersV1beta) SetTieringPolicy(val OptTieringPolicyV1beta) {
 	s.TieringPolicy = val
+}
+
+// SetThroughputMibps sets the value of ThroughputMibps.
+func (s *DestinationVolumeParametersV1beta) SetThroughputMibps(val OptNilFloat64) {
+	s.ThroughputMibps = val
+}
+
+// SetIops sets the value of Iops.
+func (s *DestinationVolumeParametersV1beta) SetIops(val OptNilInt64) {
+	s.Iops = val
+}
+
+// SetVolumePerformanceGroupId sets the value of VolumePerformanceGroupId.
+func (s *DestinationVolumeParametersV1beta) SetVolumePerformanceGroupId(val OptNilString) {
+	s.VolumePerformanceGroupId = val
 }
 
 // Error response.

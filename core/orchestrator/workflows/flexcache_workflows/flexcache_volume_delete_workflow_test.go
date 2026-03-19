@@ -962,7 +962,9 @@ func (s *FlexCacheDeleteUnitTestSuite) Test_DeleteFlexCacheVolumeWorkflow_Cancel
 	deleteJobUuid := "delete-job-uuid"
 
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// First call fails (tested); Temporal retries, so allow a second call that succeeds to avoid mock panic
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.CancelPrepopulateJobsForVolume, mock.Anything, volume.UUID).Return(errors.New("cancel failed")).Once()
+	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.CancelPrepopulateJobsForVolume, mock.Anything, volume.UUID).Return(nil).Maybe()
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(s.flexCacheVolumeDeleteActivity.UnmountVolumeInOntapActivity, mock.Anything, mock.Anything).Return(&flexcache.DeleteFlexCacheResult{
 		UnmountJobResponse: &vsa.OntapAsyncResponse{JobUUID: unmountJobUuid},

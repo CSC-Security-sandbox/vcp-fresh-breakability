@@ -1691,7 +1691,7 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 			},
 			CoolingThresholdDays: googleproxyclient.OptNilInt32{Value: 2},
 		}
-		// Set a Autotiering disabled destination pool
+		// Set an Autotiering disabled destination pool
 		nonATPool := &googleproxyclient.PoolInternalV1beta{
 			Network:          "network",
 			ResourceId:       destPoolID,
@@ -1926,6 +1926,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.On("internalGetVolumeCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(0, nil).Once()
 		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, mock.Anything).Return(googleproxyclient.VolumeV1beta{}, errors.NewNotFoundErr("Volume", nil)).Once()
 		mm.On("createReplicationObjects", event, event.DestinationLocationID, mock.Anything, mock.Anything).Return(&datamodel.VolumeReplication{}, nil).Once()
+		iops := int64(0)
+		mm.EXPECT().validateVolumeQosParamsForReplication(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iops, nil).Once()
 
 		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
 		assert.NoError(t, err)
@@ -1975,6 +1977,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.On("internalGetVolumeCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(0, nil).Once()
 		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, mock.Anything).Return(googleproxyclient.VolumeV1beta{}, errors.NewNotFoundErr("Volume", nil)).Once()
 		mm.On("createReplicationObjects", event, event.DestinationLocationID, mock.Anything, mock.Anything).Return(&datamodel.VolumeReplication{}, nil).Once()
+		iops := int64(0)
+		mm.EXPECT().validateVolumeQosParamsForReplication(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iops, nil).Once()
 
 		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
 		assert.NoError(t, err)
@@ -2024,6 +2028,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.On("internalGetVolumeCount", ctx, "basePath", event.DestinationProjectNumber, event.DestinationLocationID, "", "token", mock.Anything, mock.Anything).Return(0, nil).Once()
 		mm.On("getVolume", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, mock.Anything).Return(googleproxyclient.VolumeV1beta{}, errors.NewNotFoundErr("Volume", nil)).Once()
 		mm.On("createReplicationObjects", event, event.DestinationLocationID, mock.Anything, mock.Anything).Return(&datamodel.VolumeReplication{}, nil).Once()
+		iops := int64(0)
+		mm.EXPECT().validateVolumeQosParamsForReplication(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iops, nil).Once()
 
 		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
 		assert.NoError(t, err)
@@ -2044,6 +2050,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+		iops := int64(0)
+		mm.EXPECT().validateVolumeQosParamsForReplication(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iops, nil).Once()
 
 		// Reset volume state and storage pool
 		event.SourceVolume.VolumeAttributes.IsDataProtection = false
@@ -2069,6 +2077,48 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.AssertExpectations(t)
 	})
 
+	t.Run("WhenQosValidationFails", func(t *testing.T) {
+		mockStorage := &database.MockStorage{}
+		setupMockNoActiveClusterUpgrade(mockStorage)
+		mm := &monkeyMock{}
+		mm.Patch()
+		defer mm.Unpatch()
+
+		mm.On("InternalUtilGetSignedToken", event.DestinationProjectNumber).Return("token", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.LocationID).Return("region-1", "zone-1", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
+		mm.On("InternalParseRegionAndZone", event.DestinationLocationID).Return("region-2", "zone-2", nil).Once()
+		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
+		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
+		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+
+		event.SourceVolume.VolumeAttributes.IsDataProtection = false
+		event.SourceVolume.State = string(googleproxyclient.VolumeV1betaVolumeStateREADY)
+		event.CreateReplicationParams.DestinationVolumeParameters.StoragePool = &storagePoolUri
+
+		validPool := &googleproxyclient.PoolInternalV1beta{
+			Network:              "network",
+			ResourceId:           destPoolID,
+			PoolId:               googleproxyclient.OptString{Value: destPoolID, Set: true},
+			AllocatedBytes:       googleproxyclient.NewOptNilFloat64(0),
+			SizeInBytes:          200,
+			ServiceLevel:         googleproxyclient.PoolInternalV1betaServiceLevelFLEX,
+			StoragePoolState:     googleproxyclient.NewOptPoolInternalV1betaStoragePoolState(googleproxyclient.PoolInternalV1betaStoragePoolStateREADY),
+			QosType:              googleproxyclient.OptNilString{Value: utils.QosTypeManual, Set: true},
+			TotalThroughputMibps: googleproxyclient.NewOptNilFloat64(10000),
+			TotalIops:            googleproxyclient.NewOptNilFloat64(50000),
+		}
+		mm.On("getDestinationPool", ctx, "basePath", "token", event.DestinationLocationID, event.DestinationProjectNumber, event.XCorrelationID, event.DestinationPoolName).Return(validPool, nil).Once()
+
+		qosValidationErr := errors.New("qos validation failed")
+		mm.On("validateVolumeQosParamsForReplication", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*int64)(nil), qosValidationErr).Once()
+
+		_, err := _validateCreateReplicationParams(ctx, event, mockStorage)
+		assert.Error(t, err)
+		assert.Equal(t, qosValidationErr, err)
+		mm.AssertExpectations(t)
+	})
+
 	t.Run("WhenGetCallbackTokenFails", func(t *testing.T) {
 		mockStorage := &database.MockStorage{}
 		setupMockNoActiveClusterUpgrade(mockStorage)
@@ -2083,6 +2133,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+		iops := int64(0)
+		mm.EXPECT().validateVolumeQosParamsForReplication(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iops, nil).Once()
 
 		// Reset volume state and storage pool
 		event.SourceVolume.VolumeAttributes.IsDataProtection = false
@@ -2124,6 +2176,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+		iops := int64(0)
+		mm.EXPECT().validateVolumeQosParamsForReplication(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iops, nil).Once()
 
 		// Reset volume state and storage pool
 		event.SourceVolume.VolumeAttributes.IsDataProtection = false
@@ -2166,6 +2220,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+		iops := int64(0)
+		mm.EXPECT().validateVolumeQosParamsForReplication(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iops, nil).Once()
 
 		// Reset volume state and storage pool
 		event.SourceVolume.VolumeAttributes.IsDataProtection = false
@@ -2210,6 +2266,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+		iops := int64(0)
+		mm.EXPECT().validateVolumeQosParamsForReplication(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iops, nil).Once()
 
 		// Reset volume state and storage pool
 		event.SourceVolume.VolumeAttributes.IsDataProtection = false
@@ -2254,6 +2312,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+		iops := int64(0)
+		mm.EXPECT().validateVolumeQosParamsForReplication(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iops, nil).Once()
 
 		// Reset volume state and storage pool
 		event.SourceVolume.VolumeAttributes.IsDataProtection = false
@@ -2300,6 +2360,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+		iops := int64(0)
+		mm.EXPECT().validateVolumeQosParamsForReplication(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iops, nil).Once()
 
 		// Reset volume state and storage pool
 		event.SourceVolume.VolumeAttributes.IsDataProtection = false
@@ -2348,6 +2410,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+		iops := int64(0)
+		mm.EXPECT().validateVolumeQosParamsForReplication(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iops, nil).Once()
 
 		// Reset volume state and storage pool
 		event.SourceVolume.VolumeAttributes.IsDataProtection = false
@@ -2404,6 +2468,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.On("InternalUtilGetPairedRegionURI", "us-east1").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+		iops := int64(0)
+		mm.EXPECT().validateVolumeQosParamsForReplication(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iops, nil).Once()
 
 		// Reset volume state and storage pool
 		event.SourceVolume.VolumeAttributes.IsDataProtection = false
@@ -2447,6 +2513,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+		iops := int64(0)
+		mm.EXPECT().validateVolumeQosParamsForReplication(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iops, nil).Once()
 
 		// Reset volume state and storage pool
 		event.SourceVolume.VolumeAttributes.IsDataProtection = false
@@ -2502,6 +2570,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+		iops := int64(0)
+		mm.EXPECT().validateVolumeQosParamsForReplication(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iops, nil).Once()
 
 		// Reset volume state and storage pool
 		event.SourceVolume.VolumeAttributes.IsDataProtection = false
@@ -2557,6 +2627,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+		iops := int64(0)
+		mm.EXPECT().validateVolumeQosParamsForReplication(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iops, nil).Once()
 
 		// Reset volume state and storage pool
 		event.SourceVolume.VolumeAttributes.IsDataProtection = false
@@ -2611,6 +2683,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+		iops := int64(0)
+		mm.EXPECT().validateVolumeQosParamsForReplication(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iops, nil).Once()
 
 		// Reset volume state and storage pool
 		event.SourceVolume.VolumeAttributes.IsDataProtection = false
@@ -2667,6 +2741,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+		iops := int64(0)
+		mm.EXPECT().validateVolumeQosParamsForReplication(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iops, nil).Once()
 
 		// Reset volume state and storage pool
 		event.SourceVolume.VolumeAttributes.IsDataProtection = false
@@ -2734,6 +2810,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.On("InternalUtilGetPairedRegionURI", "region-2").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+		iops := int64(0)
+		mm.EXPECT().validateVolumeQosParamsForReplication(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iops, nil).Once()
 
 		// Reset volume state and storage pool
 		event.SourceVolume.VolumeAttributes.IsDataProtection = false
@@ -2800,6 +2878,8 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		mm.On("InternalUtilGetPairedRegionURI", "region-1").Return("basePath", nil).Once()
 		mm.On("validateReplicationResourceId", ctx, event.SourceProjectNumber, *event.CreateReplicationParams.ResourceID, event.VolumeResourceID, mockStorage).Return(nil).Once()
 		mm.On("validateStoragePoolUri", *event.CreateReplicationParams.DestinationVolumeParameters.StoragePool).Return(nil).Once()
+		iops := int64(0)
+		mm.EXPECT().validateVolumeQosParamsForReplication(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&iops, nil).Once()
 
 		// Reset volume state and storage pool
 		event.SourceVolume.VolumeAttributes.IsDataProtection = false

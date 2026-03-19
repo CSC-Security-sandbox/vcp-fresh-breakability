@@ -7137,14 +7137,35 @@ func (s *DestinationVolumeParametersV1beta) encodeFields(e *jx.Encoder) {
 			s.TieringPolicy.Encode(e)
 		}
 	}
+	{
+		if s.ThroughputMibps.Set {
+			e.FieldStart("throughputMibps")
+			s.ThroughputMibps.Encode(e)
+		}
+	}
+	{
+		if s.Iops.Set {
+			e.FieldStart("iops")
+			s.Iops.Encode(e)
+		}
+	}
+	{
+		if s.VolumePerformanceGroupId.Set {
+			e.FieldStart("volumePerformanceGroupId")
+			s.VolumePerformanceGroupId.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfDestinationVolumeParametersV1beta = [5]string{
+var jsonFieldsNameOfDestinationVolumeParametersV1beta = [8]string{
 	0: "storagePool",
 	1: "volumeId",
 	2: "shareName",
 	3: "description",
 	4: "tieringPolicy",
+	5: "throughputMibps",
+	6: "iops",
+	7: "volumePerformanceGroupId",
 }
 
 // Decode decodes DestinationVolumeParametersV1beta from json.
@@ -7207,6 +7228,36 @@ func (s *DestinationVolumeParametersV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"tieringPolicy\"")
+			}
+		case "throughputMibps":
+			if err := func() error {
+				s.ThroughputMibps.Reset()
+				if err := s.ThroughputMibps.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"throughputMibps\"")
+			}
+		case "iops":
+			if err := func() error {
+				s.Iops.Reset()
+				if err := s.Iops.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"iops\"")
+			}
+		case "volumePerformanceGroupId":
+			if err := func() error {
+				s.VolumePerformanceGroupId.Reset()
+				if err := s.VolumePerformanceGroupId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"volumePerformanceGroupId\"")
 			}
 		default:
 			return d.Skip()

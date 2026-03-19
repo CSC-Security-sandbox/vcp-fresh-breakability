@@ -1572,6 +1572,21 @@ func (s *DestinationVolumeParametersV1beta) SetFake() {
 			s.TieringPolicy.SetFake()
 		}
 	}
+	{
+		{
+			s.ThroughputMibps.SetFake()
+		}
+	}
+	{
+		{
+			s.Iops.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumePerformanceGroupId.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.

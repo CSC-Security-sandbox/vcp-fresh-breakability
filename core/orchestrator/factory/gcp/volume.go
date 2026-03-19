@@ -21,6 +21,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/mqos"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/replication"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/flexcache_workflows"
@@ -55,6 +56,7 @@ var (
 	revertVolume                         = _revertVolume
 	splitCloneVolume                     = _splitCloneVolume
 	validateCreateVolumeParams           = _validateCreateVolumeParams
+	validateVolumeQosParams               = mqos.ValidateVolumeQosParams
 	validateSplitCloneVolumeParams       = _validateSplitCloneVolumeParams
 	getIPAddressForVolume                = _getIPAddressForVolume
 	updateVolume                         = _updateVolume
@@ -1226,110 +1228,6 @@ func getMaxConstituentVolumesPerAggregate(logger log.Logger, config string) (int
 	return activities.GetMaxConstituentsPerAggregate(logger, vlmConfig.Deployment.VSAInstanceType), nil
 }
 
-// validatePoolCapacityForVolume validates that adding/updating a volume's throughput/IOPS
-// won't exceed the pool's total capacity. This function is used by both create and update flows.
-// excludeVolumeID: if set, excludes this volume from the sum calculation (used for updates)
-func validatePoolCapacityForVolume(ctx context.Context, se database.Storage, poolID int64, newThroughputMibps *int64, newIops *int64, excludeVolumeID *int64) error {
-	logger := utilGetLogger(ctx)
-
-	// Get pool to get total throughput/IOPS
-	pool, err := se.GetPoolByID(ctx, poolID)
-	if err != nil {
-		return err
-	}
-
-	// Only validate if pool has custom performance enabled (manual QoS)
-	if pool.PoolAttributes == nil || pool.PoolAttributes.ThroughputMibps == 0 {
-		// Pool doesn't have custom performance, skip validation
-		logger.Debug("Pool capacity validation skipped - no custom performance enabled", "pool_id", poolID)
-		return nil
-	}
-
-	totalPoolThroughput := pool.PoolAttributes.ThroughputMibps
-	totalPoolIops := pool.PoolAttributes.Iops
-
-	// Get pool view to access utilized throughput/IOPS tracked on the pool model
-	poolView, err := se.DescribePool(ctx, pool.UUID, pool.AccountID)
-	if err != nil {
-		return err
-	}
-	if poolView == nil {
-		return fmt.Errorf("pool view not found for pool ID %d", poolID)
-	}
-
-	totalConfiguredThroughput := int64(poolView.Throughput)
-	totalConfiguredIops := poolView.Iops
-
-	// Exclude the volume being updated if specified
-	if excludeVolumeID != nil {
-		volume, err := se.GetVolumeByIDAndAccountID(ctx, *excludeVolumeID, pool.AccountID)
-		if err != nil {
-			return err
-		}
-		if volume.VolumePerformanceGroup != nil {
-			shouldSubtract, err := shouldSubtractCurrentVpgContribution(ctx, se, volume)
-			if err != nil {
-				return err
-			}
-			if shouldSubtract {
-				totalConfiguredThroughput -= volume.VolumePerformanceGroup.ThroughputMibps
-				totalConfiguredIops -= volume.VolumePerformanceGroup.Iops
-			}
-		}
-	}
-
-	// Add the new/updated volume's values
-	if newThroughputMibps != nil {
-		totalConfiguredThroughput += *newThroughputMibps
-	}
-	if newIops != nil {
-		totalConfiguredIops += *newIops
-	}
-
-	logger.Debug("Pool capacity validation",
-		"pool_id", poolID,
-		"total_configured_throughput", totalConfiguredThroughput,
-		"total_pool_throughput", totalPoolThroughput,
-		"total_configured_iops", totalConfiguredIops,
-		"total_pool_iops", totalPoolIops)
-
-	// Compare against pool totals and return error if exceeds
-	if totalConfiguredThroughput > totalPoolThroughput {
-		return customerrors.NewUserInputValidationErr(fmt.Sprintf(
-			"Sum of configured throughput (%d MiBps) would exceed pool's total throughput (%d MiBps)",
-			totalConfiguredThroughput, totalPoolThroughput))
-	}
-
-	if totalConfiguredIops > totalPoolIops {
-		return customerrors.NewUserInputValidationErr(fmt.Sprintf(
-			"Sum of configured IOPS (%d) would exceed pool's total IOPS (%d)",
-			totalConfiguredIops, totalPoolIops))
-	}
-
-	return nil
-}
-
-// shouldSubtractCurrentVpgContribution determines whether removing the volume's current
-// VPG contribution should reduce pool throughput/iops totals.
-// For shared VPGs with more than one member, removing a single volume does not
-// reduce the total contribution of the shared VPG.
-func shouldSubtractCurrentVpgContribution(ctx context.Context, se database.Storage, volume *datamodel.Volume) (bool, error) {
-	if volume == nil || volume.VolumePerformanceGroup == nil {
-		return false, nil
-	}
-	if !volume.VolumePerformanceGroup.IsShared {
-		return true, nil
-	}
-	if volume.VolumePerformanceGroup.ID == 0 {
-		return false, nil
-	}
-	volumesInCurrentVPG, err := se.GetVolumeCountByVolumePerformanceGroupID(ctx, volume.VolumePerformanceGroup.ID)
-	if err != nil {
-		return false, err
-	}
-	return volumesInCurrentVPG <= 1, nil
-}
-
 func _validateCreateVolumeParams(ctx context.Context, se database.Storage, params *common.CreateVolumeParams, pool *datamodel.PoolView) error {
 	logger := utilGetLogger(ctx)
 	if pool.LargeCapacity != params.LargeCapacity {
@@ -1522,106 +1420,20 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		return customerrors.NewUserInputValidationErr("volume size cannot be greater than pool size")
 	}
 
-	// Validate QoS parameters: throughputMibps
-	hasThroughput := params.ThroughputMibps != nil
-	hasVpgId := params.VolumePerformanceGroupID != nil
-	hasIops := params.Iops != nil
-
-	// Check mutually exclusive parameters: VPG cannot be combined with throughput or iops
-	if hasVpgId && (hasThroughput || hasIops) {
-		return customerrors.NewUserInputValidationErr(utils.ErrMsgVpgMutuallyExclusiveWithQos)
+	// Validate QoS parameters (MQoS rules and throughput range); pool capacity is validated below
+	poolQos := mqos.PoolQosInput{QosType: pool.QosType}
+	if pool.PoolAttributes != nil {
+		poolQos.PoolThroughputMibps = pool.PoolAttributes.ThroughputMibps
+		poolQos.PoolIops = pool.PoolAttributes.Iops
 	}
-
-	// Auto pools ALWAYS reject throughputMibps and iops (regardless of feature flag)
-	// This must happen before feature flag checks to ensure it executes
-	if pool.QosType == utils.QosTypeAuto {
-		if hasThroughput {
-			return customerrors.NewUserInputValidationErr(utils.ErrMsgPoolAutoQosTypeCannotSpecifyThroughput)
-		}
-		if hasIops {
-			return customerrors.NewUserInputValidationErr(utils.ErrMsgPoolAutoQosTypeCannotSpecifyIops)
-		}
-		if hasVpgId {
-			return customerrors.NewUserInputValidationErr(utils.ErrMsgPoolAutoQosTypeCannotSpecifyVpgId)
-		}
-	}
-
-	// Validate pool QosType rules for manual pools
-	// Manual pools require either throughputMibps or volumePerformanceGroupId (if MQOS is enabled)
-	if pool.QosType == utils.QosTypeManual {
-		if enableMqos && !hasThroughput && !hasVpgId {
-			return customerrors.NewUserInputValidationErr(utils.ErrMsgPoolManualQosTypeRequiresThroughputOrVpg)
-		}
-	}
-
-	// If QoS parameters provided, validate feature flag
-	// Note: Auto pools already rejected above, so this only applies to manual pools
-	if !enableMqos {
-		if hasThroughput {
-			return customerrors.NewUserInputValidationErr(utils.ErrMsgMqosNotEnabledThroughput)
-		}
-		if hasIops {
-			return customerrors.NewUserInputValidationErr(utils.ErrMsgMqosNotEnabledIops)
-		}
-		if hasVpgId {
-			return customerrors.NewUserInputValidationErr(utils.ErrMsgMqosNotEnabledVpgId)
-		}
-	}
-
-	// VPG assignment feature flag check
-	if hasVpgId && !enableVolumePerformanceGroupAssignment {
-		return customerrors.NewUserInputValidationErr(utils.ErrMsgVpgAssignmentNotEnabled)
-	}
-
-	// Early validation: Fail fast when IOPS is required but not provided.
-	// This check prevents expensive database operations (validatePoolCapacityForVolume)
-	// that would otherwise execute before the error is detected.
-	// Benefits:
-	//   - Avoids 2-3 database queries (GetPoolByID, DescribePool, GetVolumeByIDAndAccountID)
-	//   - Avoids pool capacity aggregation calculations
-	//   - Faster error response (10-100ms+ saved depending on DB latency)
-	//   - Reduces database connection pool usage
-	// If this check passes, we can safely assume IOPS is provided when needed later in this function.
-	if !enableInferredIops && hasThroughput && !hasIops {
-		return customerrors.NewUserInputValidationErr("IOPS inference is disabled. IOPS must be provided explicitly when throughputMibps is specified.")
-	}
-
-	// Validate throughput range if provided
-	if params.ThroughputMibps != nil {
-		if *params.ThroughputMibps < int64(utils.MinVolumeThroughput) {
-			return customerrors.NewUserInputValidationErr(fmt.Sprintf("throughputMibps must be at least %d", utils.MinVolumeThroughput))
-		}
-
-		// No maximum limit here - pool capacity validation (validatePoolCapacityForVolume) will ensure
-		// the sum of all volumes' throughput doesn't exceed the pool's total throughput capacity
-		// Note: Earlier validation ensures we only reach here when MQOS is enabled and pool is manual
-	}
-
-	// Calculate IOPS from throughput for pool capacity validation (only if MQOS is enabled)
-	// When inferred IOPS is enabled, use proportional calculation based on pool totals (not IopsPerMiBps)
-	// When inferred IOPS is disabled, use the provided IOPS value
-	// Note: Early validation earlier in this function ensures IOPS is provided when enableInferredIops is false
-	var calculatedIops *int64
-	if enableMqos && hasThroughput {
-		if enableInferredIops {
-			// Use proportional calculation based on pool totals (not IopsPerMiBps)
-			if pool == nil || pool.PoolAttributes == nil {
-				return customerrors.NewUserInputValidationErr("pool throughput totals are required for inferred IOPS calculation")
-			}
-			calculatedIopsValue := calculateIopsFromThroughput(*params.ThroughputMibps, pool.PoolAttributes.ThroughputMibps, pool.PoolAttributes.Iops)
-			calculatedIops = &calculatedIopsValue
-		} else {
-			// Inferred IOPS is disabled - use the provided IOPS value
-			// Note: If enableInferredIops is false and hasThroughput is true, the early validation
-			// check earlier in this function ensures hasIops is true before we reach this point.
-			// Therefore, params.Iops is guaranteed to be non-nil here.
-			calculatedIops = params.Iops
-		}
+	calculatedIops, err := validateVolumeQosParams(poolQos, params.ThroughputMibps, params.Iops, params.VolumePerformanceGroupID)
+	if err != nil {
+		return err
 	}
 
 	// Validate pool capacity if throughput is provided (only if MQOS is enabled)
-	if enableMqos && hasThroughput {
-		err := validatePoolCapacityForVolume(ctx, se, pool.ID, params.ThroughputMibps, calculatedIops, nil)
+	if enableMqos && params.ThroughputMibps != nil {
+		err := mqos.ValidatePoolCapacityForVolume(ctx, se, pool.UUID, params.ThroughputMibps, calculatedIops, nil)
 		if err != nil {
 			return err
 		}
@@ -2973,7 +2785,7 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		// Calculate what the pool utilization would be after assigning this volume to the VPG
 		// First, subtract the current volume's VPG contribution (if any)
 		if volume.VolumePerformanceGroupID.Valid && volume.VolumePerformanceGroup != nil {
-			shouldSubtract, err := shouldSubtractCurrentVpgContribution(ctx, se, volume)
+			shouldSubtract, err := mqos.ShouldSubtractCurrentVpgContribution(ctx, se, volume)
 			if err != nil {
 				log.Error("Failed to evaluate current VPG contribution for validation", "vpgID", vpg.ID, "error", err)
 				return err

@@ -17,6 +17,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/mqos"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	utils2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -41,6 +42,7 @@ var (
 
 	validateStoragePoolUri                = _validateStoragePoolUri
 	getDestinationPool                    = _getDestinationPool
+	validateVolumeQosParamsForReplication = mqos.ValidateVolumeQosParams
 	getVolume                             = _getVolume
 	describeVolume                        = _describeVolume
 	verifyHybridParameters                = _verifyHybridParameters
@@ -131,8 +133,9 @@ func hasActiveClusterUpgrade(ctx context.Context, se database.Storage, clusterID
 func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicationEvent, se database.Storage) (*datamodel.VolumeReplication, error) {
 	logger := util.GetLogger(ctx)
 	logger.Debug("Starting validateCreateReplicationParams")
+	destVolumeParams := event.CreateReplicationParams.DestinationVolumeParameters
 
-	if event.CreateReplicationParams.DestinationVolumeParameters.TieringPolicy != nil {
+	if destVolumeParams.TieringPolicy != nil {
 		if !autoTieringEnabled {
 			return nil, utilErrors.NewUserInputValidationErr("Auto-Tiering feature is currently not enabled.")
 		}
@@ -143,7 +146,7 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 		return nil, typeErr
 	}
 
-	if event.CreateReplicationParams.DestinationVolumeParameters.VolumeID != "" && !compiledRegex.MatchString(event.CreateReplicationParams.DestinationVolumeParameters.VolumeID) {
+	if destVolumeParams.VolumeID != "" && !compiledRegex.MatchString(destVolumeParams.VolumeID) {
 		return nil, utilErrors.NewUserInputValidationErr("Volume ID can only contain lowercase letters, numbers, and underscores. It must start with a letter and cannot end with an underscore.")
 	}
 
@@ -248,7 +251,7 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 		return nil, typeErr
 	}
 
-	err = validateStoragePoolUri(*event.CreateReplicationParams.DestinationVolumeParameters.StoragePool)
+	err = validateStoragePoolUri(*destVolumeParams.StoragePool)
 	if err != nil {
 		logger.Error("validateStoragePoolUri error", "error", err)
 		return nil, errors.NewVCPError(errors.ErrValidateStoragePoolUri, err)
@@ -293,7 +296,7 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 	}
 
 	// Validate AutoTiering
-	tieringPolicy := event.CreateReplicationParams.DestinationVolumeParameters.TieringPolicy
+	tieringPolicy := destVolumeParams.TieringPolicy
 
 	if (tieringPolicy != nil && !tieringPolicy.TierAction.IsNull()) && !destPool.AllowAutoTiering.IsNull() && !destPool.AllowAutoTiering.Value {
 		typeErr := errors.NewVCPError(errors.ErrDestPoolTieringPolicyMismatch, errors.New("Auto tiering is not enabled on the destination pool"))
@@ -321,6 +324,16 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 		logger.Error("CRR cannot be created between normal and large capacity pools", "error", typeErr, "sourceLargeCapacity", event.SourceVolume.Pool.LargeCapacity, "destLargeCapacity", destPool.LargeCapacity.Value)
 		return nil, typeErr
 	}
+
+	// Validate QoS parameters (MQoS rules and throughput range); pool capacity is validated below
+	poolQos := mqos.PoolQosInput{QosType: destPool.QosType.Value}
+	poolQos.PoolThroughputMibps = int64(destPool.TotalThroughputMibps.Value)
+	poolQos.PoolIops = int64(destPool.TotalIops.Value)
+	calculatedIops, err := validateVolumeQosParamsForReplication(poolQos, destVolumeParams.ThroughputMibps, destVolumeParams.Iops, destVolumeParams.VolumePerformanceGroupId)
+	if err != nil {
+		return nil, err
+	}
+	destVolumeParams.Iops = calculatedIops
 
 	err = replicationJobInProcess(ctx, event.SourceProjectNumber, event.DestinationProjectNumber, srcBasePath, destBasePath, event.LocationID, event.DestinationLocationID, token, dstToken, event.CCFEUri, "", event.SourcePool.UUID, destPool.PoolId.Value, event.XCorrelationID)
 	if err != nil {

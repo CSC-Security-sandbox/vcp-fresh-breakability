@@ -1851,19 +1851,17 @@ func (s *FlexCacheUnitTestSuite) Test_CreateFlexCacheWorkflow_CancellationDuring
 	params := &common.CreateVolumeParams{}
 	event := createTestEvent()
 
-	// Send cancellation signal after first activity completes to test cancellation during execution
-	s.env.RegisterDelayedCallback(func() {
-		s.env.SignalWorkflow(CancelFlexCacheSignalName, "cancel data")
-	}, 1*time.Millisecond)
-
 	node := &models.Node{EndpointAddress: "127.0.0.1"}
 	result := &flexcache.CreateFlexCacheResult{
 		DBVolume: volume,
 		Node:     node,
 	}
 
+	// Signal cancellation when the first activity completes so the test is deterministic (no timer race).
 	s.env.OnActivity(s.commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Return(result, nil)
+	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CompleteFlexCacheCreateJobActivity, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		s.env.SignalWorkflow(CancelFlexCacheSignalName, "cancel data")
+	}).Return(result, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.CreatePeeringJobActivity, mock.Anything, mock.Anything).Maybe().Return(result, nil)
 	s.env.OnActivity(s.commonActivity.GetNode, mock.Anything, mock.Anything).Maybe().Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(s.flexCacheVolumeCreateActivity.GetClusterPeeringRowFromDBActivity, mock.Anything, mock.Anything).Maybe().Return(result, nil)

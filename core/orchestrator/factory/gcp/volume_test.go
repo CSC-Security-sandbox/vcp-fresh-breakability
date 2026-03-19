@@ -21,6 +21,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/mqos"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/flexcache_workflows"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -519,6 +520,9 @@ func TestGetVolume(t *testing.T) {
 }
 
 func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
+	// Many subtests return before the QoS call (e.g. large-capacity mismatch, SAN restriction); use no-op so no expectation.
+	patchValidateVolumeQosParamsNoop(t)
+
 	t.Run("PoolVolumeCapacityMismatch_PoolLarge_VolumeNot", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
@@ -11083,6 +11087,7 @@ func TestGetMultipleVolumes(t *testing.T) {
 
 func TestValidateCreateVolumeParams(t *testing.T) {
 	t.Run("WhenValidateCreateVolumeParamsSuccess", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -11363,13 +11368,16 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 			Pool: *pool,
 		}
 
-		mm.EXPECT().envIsLocalEnv().Return(true)
+		// Call order in _validateCreateVolumeParams: utilGetLogger, then validateVolumeQosParams, then envIsLocalEnv
 		mm.EXPECT().utilGetLogger(mock.Anything).Return(mockLogger)
+		mm.EXPECT().validateVolumeQosParams(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*int64)(nil), nil)
+		mm.EXPECT().envIsLocalEnv().Return(true)
 
 		err = _validateCreateVolumeParams(ctx, store, params, poolView)
 		assert.Nil(tt, err, "some error")
 	})
 	t.Run("WhenValidateCreateVolumeParamsFailsWhileAttachingErroredBackupVaultToVolume", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -11394,12 +11402,13 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
-			Network:   "somevpc",
-			Account:   &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1}},
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			Network:     "somevpc",
+			SizeInBytes: int64(10 * 1024 * 1024 * 1024 * 1024), // 10 TiB so pool-size check passes before backup vault check
+			Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1}},
 		}
 
 		err = store.DB().Create(pool).Error
@@ -11515,6 +11524,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		assert.Error(tt, err)
 	})
 	t.Run("WhenValidateCreateVolumeParamsFailsWhileAttachingCrossRegionBackupVaultInDestinationRegion", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -11539,12 +11549,13 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
-			Network:   "somevpc",
-			Account:   &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1}},
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			Network:     "somevpc",
+			SizeInBytes: int64(10 * 1024 * 1024 * 1024 * 1024), // 10 TiB so pool-size check passes before cross-region check
+			Account:     &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1}},
 		}
 
 		err = store.DB().Create(pool).Error
@@ -11692,6 +11703,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 
 		for _, tc := range testCases {
 			tt.Run(tc.name, func(t *testing.T) {
+				newMonkeyMockForValidateQos(t)
 				ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 				mockLogger := log.NewLogger()
@@ -11720,7 +11732,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 					Name:        "test_pool",
 					AccountID:   account.ID,
 					State:       tc.poolState,
-					SizeInBytes: int64(10 * 1024 * 1024 * 1024 * 1024), // 10 TiB
+					SizeInBytes: int64(10 * 1024 * 1024 * 1024 * 1024), // 10 TiB so pool-size check passes before state check
 				}
 
 				err = store.DB().Create(pool).Error
@@ -11764,6 +11776,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 
 		for _, tc := range testCases {
 			tt.Run(tc.name, func(t *testing.T) {
+				newMonkeyMockForValidateQos(t)
 				ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 				mockLogger := log.NewLogger()
@@ -11878,6 +11891,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 	})
 	t.Run("WhenQuotaIsTooSmall", func(tt *testing.T) {
+		patchValidateVolumeQosParamsNoop(tt) // fails at quota range check before QoS
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -11902,10 +11916,11 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 
 		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
-			Name:      "test_pool",
-			AccountID: account.ID,
-			State:     models.LifeCycleStateREADY,
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			SizeInBytes: int64(10 * 1024 * 1024 * 1024 * 1024), // 10 TiB so pool-size check passes before quota check
 		}
 
 		err = store.DB().Create(pool).Error
@@ -11927,6 +11942,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		assert.EqualError(tt, err, "Invalid volume capacity 1073741823B. Must be between 1GiB and 128TiB.")
 	})
 	t.Run("WhenVolumeSizeExceedsPoolSize", func(tt *testing.T) {
+		patchValidateVolumeQosParamsNoop(tt) // fails at pool-size check before QoS
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -11988,6 +12004,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		assert.EqualError(tt, err, "volume size cannot be greater than pool size")
 	})
 	t.Run("WhenVolumeSizeExactlyFitsInPool", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -12052,6 +12069,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		assert.EqualError(tt, err, "pool network and volume network should be same")
 	})
 	t.Run("WhenPoolNetworkIsNotSameAsVolume", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -12104,6 +12122,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		assert.EqualError(tt, err, "pool network and volume network should be same")
 	})
 	t.Run("WhenSvmforPoolIdIsNotThere", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -12155,6 +12174,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		assert.EqualError(tt, err, "svm not found")
 	})
 	t.Run("WhenSvmforPoolIdNotInRightState", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -12219,6 +12239,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		assert.EqualError(tt, err, "svm is not ready")
 	})
 	t.Run("WhenCountOfNodes<2", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -12296,6 +12317,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		assert.EqualError(tt, err, "required count of nodes not found")
 	})
 	t.Run("WhenNodesNotInReadyState", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -12382,6 +12404,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		assert.EqualError(tt, err, "node is not ready")
 	})
 	t.Run("WhenGetLifForNodeFails", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -12473,6 +12496,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		}
 	})
 	t.Run("WhenGetLifNameNotAvailable", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -12579,6 +12603,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		assert.EqualError(tt, err, "lif for node test_node1 is not available")
 	})
 	t.Run("WhenBPAvailableWithNoHG", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -12687,6 +12712,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		assert.Nil(tt, err)
 	})
 	t.Run("WhenBPAvailableWithInvalidHG", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -12798,6 +12824,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		assert.EqualError(tt, err, "could not find some of the host groups, please check the hostgroup details and try with valid host group names.")
 	})
 	t.Run("WhenBPAvailableWithInvalidHGState", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -12919,6 +12946,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		assert.EqualError(tt, err, "host group testhg is not available")
 	})
 	t.Run("WhenBPAvailableWithRightState", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -13164,6 +13192,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		assert.EqualError(tt, err, "Auto Tiering is not allowed for this volume. Please enable Auto Tiering on the Pool and try again")
 	})
 	t.Run("WhenCoolnessPeriodBelowTheRange", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -13290,6 +13319,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		assert.EqualError(tt, err, "Auto Tiering Cooling Threshold days must be between 2 and 183 days")
 	})
 	t.Run("WhenCoolnessPeriodAboveTheRange", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -13416,6 +13446,7 @@ func TestValidateCreateVolumeParams(t *testing.T) {
 		assert.EqualError(tt, err, "Auto Tiering Cooling Threshold days must be between 2 and 183 days")
 	})
 	t.Run("WhenAutoTieringIsIsFalse", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -13646,6 +13677,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 	assert.NoError(tt, err, "Failed to create node")
 
 	tt.Run("WhenBackupPolicySetWithoutBackupVaultID", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		params := &common.CreateVolumeParams{
 			Name:         "dummy-name",
 			PoolID:       pool.UUID,
@@ -13664,6 +13696,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 		assert.EqualError(tt, err, "backup vault id is required to assign a backup policy to a volume")
 	})
 	tt.Run("WhenBackupPolicySetWithoutScheduledBackupEnable", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		params := &common.CreateVolumeParams{
 			Name:         "dummy-name",
 			PoolID:       pool.UUID,
@@ -13690,6 +13723,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 		assert.EqualError(tt, err, "scheduled backups needs to be enabled/disabled when a backup policy is assigned to a volume")
 	})
 	tt.Run("WhenBackupPolicySetOnDataProtectedVolume", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		// Create backup vault for this test
 		bv := &datamodel.BackupVault{
 			BaseModel: datamodel.BaseModel{UUID: "test-vault-3"},
@@ -13721,6 +13755,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 		assert.EqualError(tt, err, "scheduled backups are not supported for cross region replication, only manual backups with existing snapshots are supported")
 	})
 	tt.Run("WhenBackupPolicyNotSetWithScheduledBackupNil", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		// Create backup vault for this test
 		bv := &datamodel.BackupVault{
 			BaseModel: datamodel.BaseModel{UUID: "test-vault-1"},
@@ -13752,6 +13787,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 		assert.Nil(tt, err)
 	})
 	tt.Run("WhenBackupPolicySetWithScheduledBackupEnabled", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		// Create backup vault for this test
 		bv := &datamodel.BackupVault{
 			BaseModel: datamodel.BaseModel{UUID: "test-vault-2"},
@@ -13786,6 +13822,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 		assert.Nil(tt, err)
 	})
 	tt.Run("WhenBackupPolicySetWithImmutableBackupValidation", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		// Set up immutable backup feature flag for this test case
 		utils.SetImmutableBackupEnabledForTest(true)
 		defer utils.SetImmutableBackupEnabledForTest(false)
@@ -13848,6 +13885,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 	})
 
 	tt.Run("WhenBackupPolicySetWithInsufficientRetentionForImmutableBackup", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		// Set up immutable backup feature flag for this test case
 		utils.SetImmutableBackupEnabledForTest(true)
 		defer utils.SetImmutableBackupEnabledForTest(false)
@@ -13910,6 +13948,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 	})
 
 	tt.Run("WhenImmutableBackupDisabled", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		// Explicitly disable immutable backup feature flag for this test case
 		utils.SetImmutableBackupEnabledForTest(false)
 		defer utils.SetImmutableBackupEnabledForTest(false)
@@ -13972,6 +14011,7 @@ func TestValidateCreateVolumeParams_DataProtectionChecks(tt *testing.T) {
 	})
 
 	tt.Run("WhenCrossRegionBackupVaultAssignedToVolumeInDestinationRegion", func(tt *testing.T) {
+		newMonkeyMockForValidateQos(tt)
 		utils.SetCrossRegionBackupEnabledForTest(true)
 		// Create a cross-region backup vault with backup region matching the volume's region
 		sourceRegionName := "us-central1"
@@ -33188,662 +33228,6 @@ func TestCalculateIopsFromThroughput(t *testing.T) {
 	}
 }
 
-// TestValidatePoolCapacityForVolume tests the validatePoolCapacityForVolume helper function
-func TestValidatePoolCapacityForVolume(t *testing.T) {
-	ctx := context.Background()
-
-	t.Run("Successful Validation - Empty Pool (Create)", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		poolID := int64(1)
-		poolUUID := "pool-uuid"
-		accountID := int64(10)
-
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: poolID, UUID: poolUUID},
-			AccountID: accountID,
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 10000,
-				Iops:            50000,
-			},
-		}
-		poolView := &datamodel.PoolView{
-			Pool:       *pool,
-			Throughput: 0,
-			Iops:       0,
-		}
-		poolView.VendorID = pool.VendorID
-
-		newThroughput := int64Ptr(1000)
-		newIops := int64Ptr(5000)
-
-		mockStorage.On("GetPoolByID", ctx, poolID).Return(pool, nil)
-		mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
-
-		err := validatePoolCapacityForVolume(ctx, mockStorage, poolID, newThroughput, newIops, nil)
-		assert.NoError(tt, err)
-	})
-
-	t.Run("Successful Validation - Within Capacity (Create)", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		poolID := int64(1)
-		poolUUID := "pool-uuid"
-		accountID := int64(10)
-
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: poolID, UUID: poolUUID},
-			AccountID: accountID,
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 10000,
-				Iops:            50000,
-			},
-		}
-		poolView := &datamodel.PoolView{
-			Pool:       *pool,
-			Throughput: 5000,
-			Iops:       25000,
-		}
-
-		newThroughput := int64Ptr(4000)
-		newIops := int64Ptr(20000)
-
-		mockStorage.On("GetPoolByID", ctx, poolID).Return(pool, nil)
-		mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
-
-		err := validatePoolCapacityForVolume(ctx, mockStorage, poolID, newThroughput, newIops, nil)
-		assert.NoError(tt, err)
-	})
-
-	t.Run("Successful Validation - Exact Capacity (Create)", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		poolID := int64(1)
-		poolUUID := "pool-uuid"
-		accountID := int64(10)
-
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: poolID, UUID: poolUUID},
-			AccountID: accountID,
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 10000,
-				Iops:            50000,
-			},
-		}
-		poolView := &datamodel.PoolView{
-			Pool:       *pool,
-			Throughput: 5000,
-			Iops:       25000,
-		}
-
-		newThroughput := int64Ptr(5000)
-		newIops := int64Ptr(25000)
-
-		mockStorage.On("GetPoolByID", ctx, poolID).Return(pool, nil)
-		mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
-
-		err := validatePoolCapacityForVolume(ctx, mockStorage, poolID, newThroughput, newIops, nil)
-		assert.NoError(tt, err)
-	})
-
-	t.Run("Error - Throughput Exceeds Pool Capacity (Create)", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		poolID := int64(1)
-		poolUUID := "pool-uuid"
-		accountID := int64(10)
-
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: poolID, UUID: poolUUID},
-			AccountID: accountID,
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 10000,
-				Iops:            50000,
-			},
-		}
-		poolView := &datamodel.PoolView{
-			Pool:       *pool,
-			Throughput: 5000,
-			Iops:       25000,
-		}
-
-		newThroughput := int64Ptr(6000)
-		newIops := int64Ptr(30000)
-
-		mockStorage.On("GetPoolByID", ctx, poolID).Return(pool, nil)
-		mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
-
-		err := validatePoolCapacityForVolume(ctx, mockStorage, poolID, newThroughput, newIops, nil)
-		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "Sum of configured throughput (11000 MiBps) would exceed pool's total throughput (10000 MiBps)")
-	})
-
-	t.Run("Error - IOPS Exceeds Pool Capacity (Create)", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		poolID := int64(1)
-		poolUUID := "pool-uuid"
-		accountID := int64(10)
-
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: poolID, UUID: poolUUID},
-			AccountID: accountID,
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 10000,
-				Iops:            50000,
-			},
-		}
-		poolView := &datamodel.PoolView{
-			Pool:       *pool,
-			Throughput: 5000,
-			Iops:       25000,
-		}
-
-		newThroughput := int64Ptr(4000)
-		newIops := int64Ptr(30000)
-
-		mockStorage.On("GetPoolByID", ctx, poolID).Return(pool, nil)
-		mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
-
-		err := validatePoolCapacityForVolume(ctx, mockStorage, poolID, newThroughput, newIops, nil)
-		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "Sum of configured IOPS (55000) would exceed pool's total IOPS (50000)")
-	})
-
-	t.Run("Successful Validation - Update Excluding Current Volume", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		poolID := int64(1)
-		poolUUID := "pool-uuid"
-		accountID := int64(10)
-
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: poolID, UUID: poolUUID},
-			AccountID: accountID,
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 10000,
-				Iops:            50000,
-			},
-		}
-		poolView := &datamodel.PoolView{
-			Pool:       *pool,
-			Throughput: 5000,
-			Iops:       25000,
-		}
-
-		existingVPG1 := &datamodel.VolumePerformanceGroup{
-			ThroughputMibps: 3000,
-			Iops:            15000,
-		}
-
-		volume1 := &datamodel.Volume{
-			BaseModel:              datamodel.BaseModel{ID: 1},
-			VolumePerformanceGroup: existingVPG1,
-		}
-
-		newThroughput := int64Ptr(4000)
-		newIops := int64Ptr(20000)
-		excludeVolumeID := int64Ptr(int64(1))
-
-		mockStorage.On("GetPoolByID", ctx, poolID).Return(pool, nil)
-		mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
-		mockStorage.On("GetVolumeByIDAndAccountID", ctx, *excludeVolumeID, pool.AccountID).Return(volume1, nil)
-
-		err := validatePoolCapacityForVolume(ctx, mockStorage, poolID, newThroughput, newIops, excludeVolumeID)
-		assert.NoError(tt, err) // 2000 (vol2) + 4000 (new) = 6000 < 10000
-	})
-
-	t.Run("Error - Update Exceeds Capacity (Excluding Current Volume)", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		poolID := int64(1)
-		poolUUID := "pool-uuid"
-		accountID := int64(10)
-
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: poolID, UUID: poolUUID},
-			AccountID: accountID,
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 10000,
-				Iops:            50000,
-			},
-		}
-		poolView := &datamodel.PoolView{
-			Pool:       *pool,
-			Throughput: 8000,
-			Iops:       40000,
-		}
-
-		existingVPG1 := &datamodel.VolumePerformanceGroup{
-			ThroughputMibps: 3000,
-			Iops:            15000,
-		}
-
-		volume1 := &datamodel.Volume{
-			BaseModel:              datamodel.BaseModel{ID: 1},
-			VolumePerformanceGroup: existingVPG1,
-		}
-
-		newThroughput := int64Ptr(6000)
-		newIops := int64Ptr(30000)
-		excludeVolumeID := int64Ptr(int64(1))
-
-		mockStorage.On("GetPoolByID", ctx, poolID).Return(pool, nil)
-		mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
-		mockStorage.On("GetVolumeByIDAndAccountID", ctx, *excludeVolumeID, pool.AccountID).Return(volume1, nil)
-
-		err := validatePoolCapacityForVolume(ctx, mockStorage, poolID, newThroughput, newIops, excludeVolumeID)
-		assert.Error(tt, err) // 5000 (vol2) + 6000 (new) = 11000 > 10000
-	})
-
-	t.Run("Skip Validation - Pool Without Custom Performance", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		poolID := int64(1)
-
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: poolID},
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 0, // No custom performance
-			},
-		}
-
-		newThroughput := int64Ptr(1000)
-		newIops := int64Ptr(5000)
-
-		mockStorage.On("GetPoolByID", ctx, poolID).Return(pool, nil)
-
-		err := validatePoolCapacityForVolume(ctx, mockStorage, poolID, newThroughput, newIops, nil)
-		assert.NoError(tt, err) // Validation skipped
-	})
-
-	t.Run("Multiple Volumes - Complex Scenario", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		poolID := int64(1)
-		poolUUID := "pool-uuid"
-		accountID := int64(10)
-
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: poolID, UUID: poolUUID},
-			AccountID: accountID,
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 50000,
-				Iops:            250000,
-			},
-		}
-		poolView := &datamodel.PoolView{
-			Pool:       *pool,
-			Throughput: 30000,
-			Iops:       150000,
-		}
-
-		newThroughput := int64Ptr(15000)
-		newIops := int64Ptr(75000)
-
-		mockStorage.On("GetPoolByID", ctx, poolID).Return(pool, nil)
-		mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
-
-		err := validatePoolCapacityForVolume(ctx, mockStorage, poolID, newThroughput, newIops, nil)
-		assert.NoError(tt, err) // 45000 < 50000, 225000 < 250000
-	})
-
-	t.Run("Volumes Without VPGs", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		poolID := int64(1)
-		poolUUID := "pool-uuid"
-		accountID := int64(10)
-
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: poolID, UUID: poolUUID},
-			AccountID: accountID,
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 10000,
-				Iops:            50000,
-			},
-		}
-		poolView := &datamodel.PoolView{
-			Pool:       *pool,
-			Throughput: 0,
-			Iops:       0,
-		}
-		poolView.VendorID = pool.VendorID
-
-		newThroughput := int64Ptr(1000)
-		newIops := int64Ptr(5000)
-
-		mockStorage.On("GetPoolByID", ctx, poolID).Return(pool, nil)
-		mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
-
-		err := validatePoolCapacityForVolume(ctx, mockStorage, poolID, newThroughput, newIops, nil)
-		assert.NoError(tt, err) // Volumes without VPGs don't contribute to sum
-	})
-
-	t.Run("Error - GetPoolByID Fails", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		poolID := int64(1)
-
-		mockStorage.On("GetPoolByID", ctx, poolID).Return(nil, errors2.New("pool error"))
-
-		err := validatePoolCapacityForVolume(ctx, mockStorage, poolID, nil, nil, nil)
-		assert.Error(tt, err)
-	})
-
-	t.Run("Error - DescribePool Fails", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		poolID := int64(1)
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: poolID, UUID: "pool-uuid"},
-			AccountID: 10,
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 10000,
-				Iops:            50000,
-			},
-		}
-
-		mockStorage.On("GetPoolByID", ctx, poolID).Return(pool, nil)
-		mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(nil, errors2.New("describe error"))
-
-		err := validatePoolCapacityForVolume(ctx, mockStorage, poolID, nil, nil, nil)
-		assert.Error(tt, err)
-	})
-
-	t.Run("Error - PoolView Nil", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		poolID := int64(1)
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: poolID, UUID: "pool-uuid"},
-			AccountID: 10,
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 10000,
-				Iops:            50000,
-			},
-		}
-
-		mockStorage.On("GetPoolByID", ctx, poolID).Return(pool, nil)
-		mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(nil, nil)
-
-		err := validatePoolCapacityForVolume(ctx, mockStorage, poolID, nil, nil, nil)
-		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "pool view not found")
-	})
-
-	t.Run("Error - Exclude Volume Lookup Fails", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		poolID := int64(1)
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: poolID, UUID: "pool-uuid"},
-			AccountID: 10,
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 10000,
-				Iops:            50000,
-			},
-		}
-		poolView := &datamodel.PoolView{
-			Pool:       *pool,
-			Throughput: 0,
-			Iops:       0,
-		}
-		poolView.VendorID = pool.VendorID
-		volumeID := int64(99)
-
-		mockStorage.On("GetPoolByID", ctx, poolID).Return(pool, nil)
-		mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
-		mockStorage.On("GetVolumeByIDAndAccountID", ctx, volumeID, pool.AccountID).Return(nil, errors2.New("volume lookup error"))
-
-		err := validatePoolCapacityForVolume(ctx, mockStorage, poolID, nil, nil, &volumeID)
-		assert.Error(tt, err)
-	})
-}
-
-func TestValidateCreateVolumeParams_QosValidation(t *testing.T) {
-	ctx := context.Background()
-	utils.SetFileProtocolSupportedForTesting(true)
-	defer utils.SetFileProtocolSupportedForTesting(false)
-	origEnableMqos := enableMqos
-	origEnableInferredIops := enableInferredIops
-	defer func() {
-		enableMqos = origEnableMqos
-		enableInferredIops = origEnableInferredIops
-	}()
-
-	basePool := &datamodel.PoolView{
-		Pool: datamodel.Pool{
-			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
-			QosType:     utils.QosTypeManual,
-			State:       models.LifeCycleStateREADY,
-			SizeInBytes: 100 * utils.TiBInBytes,
-			Network:     "net",
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 10000,
-				Iops:            50000,
-			},
-		},
-	}
-
-	t.Run("Rejects Throughput With VPG ID", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		enableMqos = true
-		enableInferredIops = true
-
-		throughput := int64(100)
-		vpgID := "vpg-uuid"
-		params := &common.CreateVolumeParams{
-			Name:                     "vol",
-			QuotaInBytes:             utils.GiBInBytes,
-			Protocols:                []string{"nfs"},
-			ThroughputMibps:          &throughput,
-			VolumePerformanceGroupID: &vpgID,
-		}
-
-		err := _validateCreateVolumeParams(ctx, mockStorage, params, basePool)
-		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), utils.ErrMsgVpgMutuallyExclusiveWithQos)
-	})
-
-	t.Run("Auto Pool Rejects VPG ID", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		enableMqos = true
-		enableInferredIops = true
-
-		pool := *basePool
-		pool.QosType = utils.QosTypeAuto
-		vpgID := "vpg-uuid"
-		params := &common.CreateVolumeParams{
-			Name:                     "vol",
-			QuotaInBytes:             utils.GiBInBytes,
-			Protocols:                []string{"nfs"},
-			VolumePerformanceGroupID: &vpgID,
-		}
-
-		err := _validateCreateVolumeParams(ctx, mockStorage, params, &pool)
-		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), utils.ErrMsgPoolAutoQosTypeCannotSpecifyVpgId)
-	})
-
-	t.Run("Manual Pool Requires Throughput Or VPG When MQOS Enabled", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		enableMqos = true
-		enableInferredIops = true
-
-		params := &common.CreateVolumeParams{
-			Name:         "vol",
-			QuotaInBytes: utils.GiBInBytes,
-			Protocols:    []string{"nfs"},
-		}
-
-		err := _validateCreateVolumeParams(ctx, mockStorage, params, basePool)
-		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), utils.ErrMsgPoolManualQosTypeRequiresThroughputOrVpg)
-	})
-
-	t.Run("Manual Pool Allows VPG ID Without Throughput", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		enableMqos = true
-		enableInferredIops = true
-		origVPGAssignment := enableVolumePerformanceGroupAssignment
-		enableVolumePerformanceGroupAssignment = true
-		defer func() { enableVolumePerformanceGroupAssignment = origVPGAssignment }()
-
-		vpgID := "vpg-uuid"
-		params := &common.CreateVolumeParams{
-			Name:                     "vol",
-			QuotaInBytes:             utils.GiBInBytes,
-			Protocols:                []string{utils.ProtocolISCSI},
-			VolumePerformanceGroupID: &vpgID,
-			BlockProperties:          &common.BlockPropertiesRequest{OSType: "LINUX"},
-		}
-
-		mockStorage.On("GetSvmForPoolID", ctx, basePool.ID).Return(&datamodel.Svm{
-			State: models.LifeCycleStateREADY,
-		}, nil)
-		mockStorage.On("GetNodesByPoolID", ctx, basePool.ID).Return([]*datamodel.Node{{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			AccountID: basePool.AccountID,
-			Name:      "node-1",
-			State:     models.LifeCycleStateREADY,
-		}, {
-			BaseModel: datamodel.BaseModel{ID: 2},
-			AccountID: basePool.AccountID,
-			Name:      "node-2",
-			State:     models.LifeCycleStateREADY,
-		}}, nil)
-		mockStorage.On("GetLifForNode", ctx, int64(1), basePool.AccountID).Return(&datamodel.Lif{Name: "lif-1"}, nil)
-		mockStorage.On("GetLifForNode", ctx, int64(2), basePool.AccountID).Return(&datamodel.Lif{Name: "lif-2"}, nil)
-
-		err := _validateCreateVolumeParams(ctx, mockStorage, params, basePool)
-		assert.NoError(tt, err)
-	})
-
-	t.Run("Rejects VPG ID When VPG Assignment Feature Flag Disabled", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		enableMqos = true
-		enableInferredIops = true
-		origVPGAssignment := enableVolumePerformanceGroupAssignment
-		enableVolumePerformanceGroupAssignment = false
-		defer func() { enableVolumePerformanceGroupAssignment = origVPGAssignment }()
-
-		vpgID := "vpg-uuid"
-		params := &common.CreateVolumeParams{
-			Name:                     "vol",
-			QuotaInBytes:             utils.GiBInBytes,
-			Protocols:                []string{"nfs"},
-			VolumePerformanceGroupID: &vpgID,
-		}
-
-		err := _validateCreateVolumeParams(ctx, mockStorage, params, basePool)
-		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), utils.ErrMsgVpgAssignmentNotEnabled)
-	})
-
-	t.Run("Rejects IOPS When MQOS Disabled", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		enableMqos = false
-		enableInferredIops = true
-
-		iops := int64(1000)
-		params := &common.CreateVolumeParams{
-			Name:         "vol",
-			QuotaInBytes: utils.GiBInBytes,
-			Protocols:    []string{"nfs"},
-			Iops:         &iops,
-		}
-
-		err := _validateCreateVolumeParams(ctx, mockStorage, params, basePool)
-		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), utils.ErrMsgMqosNotEnabledIops)
-	})
-
-	t.Run("Rejects Throughput Without IOPS When Inference Disabled", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		enableMqos = true
-		enableInferredIops = false
-
-		throughput := int64(100)
-		params := &common.CreateVolumeParams{
-			Name:            "vol",
-			QuotaInBytes:    utils.GiBInBytes,
-			Protocols:       []string{"nfs"},
-			ThroughputMibps: &throughput,
-		}
-
-		err := _validateCreateVolumeParams(ctx, mockStorage, params, basePool)
-		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "IOPS inference is disabled")
-	})
-
-	t.Run("Rejects Throughput Below Minimum", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		enableMqos = true
-		enableInferredIops = true
-
-		throughput := int64(0)
-		params := &common.CreateVolumeParams{
-			Name:            "vol",
-			QuotaInBytes:    utils.GiBInBytes,
-			Protocols:       []string{"nfs"},
-			ThroughputMibps: &throughput,
-		}
-
-		err := _validateCreateVolumeParams(ctx, mockStorage, params, basePool)
-		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "throughputMibps must be at least")
-	})
-
-	t.Run("Rejects When Pool Totals Missing For Inferred IOPS", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		enableMqos = true
-		enableInferredIops = true
-
-		pool := *basePool
-		pool.PoolAttributes = nil
-		throughput := int64(100)
-		params := &common.CreateVolumeParams{
-			Name:            "vol",
-			QuotaInBytes:    utils.GiBInBytes,
-			Protocols:       []string{"nfs"},
-			ThroughputMibps: &throughput,
-		}
-
-		err := _validateCreateVolumeParams(ctx, mockStorage, params, &pool)
-		assert.Error(tt, err)
-	})
-
-	t.Run("Uses Provided IOPS When Inference Disabled", func(tt *testing.T) {
-		mockStorage := database.NewMockStorage(tt)
-		enableMqos = true
-		enableInferredIops = false
-
-		pool := *basePool
-		throughput := int64(100)
-		iops := int64(2000)
-		params := &common.CreateVolumeParams{
-			Name:            "vol",
-			QuotaInBytes:    utils.GiBInBytes,
-			Protocols:       []string{utils.ProtocolISCSI},
-			ThroughputMibps: &throughput,
-			Iops:            &iops,
-			BlockProperties: &common.BlockPropertiesRequest{OSType: "LINUX"},
-		}
-		mockStorage.On("GetPoolByID", ctx, pool.ID).Return(&pool.Pool, nil)
-		mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(&datamodel.PoolView{
-			Pool:       pool.Pool,
-			Throughput: 0,
-			Iops:       0,
-		}, nil)
-		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			AccountID: pool.AccountID,
-			Name:      "node-1",
-			State:     models.LifeCycleStateREADY,
-		}, {
-			BaseModel: datamodel.BaseModel{ID: 2},
-			AccountID: pool.AccountID,
-			Name:      "node-2",
-			State:     models.LifeCycleStateREADY,
-		}}, nil)
-		mockStorage.On("GetLifForNode", ctx, int64(1), pool.AccountID).Return(&datamodel.Lif{Name: "lif-1"}, nil)
-		mockStorage.On("GetLifForNode", ctx, int64(2), pool.AccountID).Return(&datamodel.Lif{Name: "lif-2"}, nil)
-		mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(&datamodel.Svm{
-			State: models.LifeCycleStateREADY,
-		}, nil)
-
-		err := _validateCreateVolumeParams(ctx, mockStorage, params, &pool)
-		assert.NoError(tt, err)
-	})
-}
-
 // TestAutoPoolRejectsThroughputMibps tests that auto pools reject throughputMibps regardless of feature flag
 func TestAutoPoolRejectsThroughputMibps(t *testing.T) {
 	ctx := context.Background()
@@ -33992,20 +33376,11 @@ func TestAutoPoolRejectsThroughputMibps(t *testing.T) {
 	})
 }
 
-// TestVolumeThroughputAbove5120Allowed tests that volumes can have throughput > 5120 when enableMqos is ON and pool is manual
-func TestVolumeThroughputAbove5120Allowed(t *testing.T) {
+// TestCreateVolume_ValidationErrorPropagated ensures that when MQoS validation fails, create volume returns that error.
+func TestCreateVolume_ValidationErrorPropagated(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("Volume Throughput 8192 Allowed When MQOS Enabled and Pool Manual", func(tt *testing.T) {
-		origEnableMqos := enableMqos
-		origEnableInferredIops := enableInferredIops
-		enableMqos = true
-		enableInferredIops = true
-		defer func() {
-			enableMqos = origEnableMqos
-			enableInferredIops = origEnableInferredIops
-		}()
-
+	t.Run("Returns validation error when manual pool has no throughput or VPG", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
 
@@ -34013,7 +33388,6 @@ func TestVolumeThroughputAbove5120Allowed(t *testing.T) {
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
 			Name:      "test-account",
 		}
-
 		pool := &datamodel.Pool{
 			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
 			AccountID:   account.ID,
@@ -34022,222 +33396,28 @@ func TestVolumeThroughputAbove5120Allowed(t *testing.T) {
 			State:       models.LifeCycleStateREADY,
 			SizeInBytes: 100 * utils.TiBInBytes,
 			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 20000, // Pool has 20000 MiB/s capacity
-				Iops:            100000,
-			},
-		}
-
-		throughput := int64(8192) // Above 5120, but within pool capacity
-		params := &common.CreateVolumeParams{
-			AccountName:     account.Name,
-			Name:            "test-volume",
-			PoolID:          pool.UUID,
-			QuotaInBytes:    1073741824, // 1 GiB
-			Protocols:       []string{"nfs"},
-			ThroughputMibps: &throughput,
-		}
-		poolView := &datamodel.PoolView{
-			Pool:       *pool,
-			Throughput: 0,
-			Iops:       0,
-		}
-		poolView.VendorID = pool.VendorID
-
-		mockStorage.On("GetAccount", ctx, account.Name).Return(account, nil)
-		mockStorage.On("GetPool", ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{
-			Pool: *pool,
-		}, nil)
-		mockStorage.On("GetPoolByID", ctx, pool.ID).Return(pool, nil)
-		mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
-		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, pool.Account.ID, params.Zone, false).
-			Return(nil, customerrors.NewNotFoundErr("volume", nil))
-		mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(nil, customerrors.NewNotFoundErr("svm", nil))
-
-		// This will fail later in the flow (e.g., missing SVM), but should pass throughput validation
-		_, _, err := _createVolume(ctx, mockStorage, mockTemporal, params)
-		// Should not fail with "throughputMibps cannot exceed 5120" error when MQOS is enabled and pool is manual
-		assert.NotContains(tt, err.Error(), "throughputMibps cannot exceed 5120")
-	})
-
-	t.Run("Volume Throughput 8192 Rejected When MQOS Disabled", func(tt *testing.T) {
-		origEnableMqos := enableMqos
-		enableMqos = false
-		defer func() {
-			enableMqos = origEnableMqos
-		}()
-
-		mockStorage := database.NewMockStorage(tt)
-		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
-
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
-			Name:      "test-account",
-		}
-
-		pool := &datamodel.Pool{
-			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
-			AccountID:   account.ID,
-			Account:     account,
-			QosType:     "manual",
-			State:       models.LifeCycleStateREADY,
-			SizeInBytes: 100 * utils.TiBInBytes,
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 15000,
-				Iops:            75000,
-			},
-		}
-
-		throughput := int64(8192) // Above 5120
-		params := &common.CreateVolumeParams{
-			AccountName:     account.Name,
-			Name:            "test-volume",
-			PoolID:          pool.UUID,
-			QuotaInBytes:    1073741824, // 1 GiB
-			Protocols:       []string{"nfs"},
-			ThroughputMibps: &throughput,
-		}
-
-		mockStorage.On("GetAccount", ctx, account.Name).Return(account, nil)
-		mockStorage.On("GetPool", ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{
-			Pool: *pool,
-		}, nil)
-		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, pool.Account.ID, params.Zone, false).
-			Return(nil, customerrors.NewNotFoundErr("volume", nil))
-
-		_, _, err := _createVolume(ctx, mockStorage, mockTemporal, params)
-		// Should fail because MQOS is disabled - throughputMibps not supported
-		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "Manual QoS (MQOS) is not enabled")
-	})
-
-	t.Run("Volume Throughput 10000 Allowed When Pool Capacity Allows", func(tt *testing.T) {
-		origEnableMqos := enableMqos
-		origEnableInferredIops := enableInferredIops
-		enableMqos = true
-		enableInferredIops = true
-		defer func() {
-			enableMqos = origEnableMqos
-			enableInferredIops = origEnableInferredIops
-		}()
-
-		mockStorage := database.NewMockStorage(tt)
-		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
-
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
-			Name:      "test-account",
-		}
-
-		pool := &datamodel.Pool{
-			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
-			AccountID:   account.ID,
-			Account:     account,
-			QosType:     "manual",
-			State:       models.LifeCycleStateREADY,
-			SizeInBytes: 100 * utils.TiBInBytes,
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 15000, // Pool has 15000 MiB/s capacity
-				Iops:            75000,
-			},
-		}
-
-		throughput := int64(10000) // Above 5120, but within pool capacity
-		params := &common.CreateVolumeParams{
-			AccountName:     account.Name,
-			Name:            "test-volume",
-			PoolID:          pool.UUID,
-			QuotaInBytes:    1073741824, // 1 GiB
-			Protocols:       []string{"nfs"},
-			ThroughputMibps: &throughput,
-		}
-		poolView := &datamodel.PoolView{
-			Pool:       *pool,
-			Throughput: 0,
-			Iops:       0,
-		}
-
-		mockStorage.On("GetAccount", ctx, account.Name).Return(account, nil)
-		mockStorage.On("GetPool", ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{
-			Pool: *pool,
-		}, nil)
-		mockStorage.On("GetPoolByID", ctx, pool.ID).Return(pool, nil)
-		mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(&datamodel.PoolView{
-			Pool:       *pool,
-			Throughput: 0,
-			Iops:       0,
-		}, nil)
-		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, pool.Account.ID, params.Zone, false).
-			Return(nil, customerrors.NewNotFoundErr("volume", nil))
-		mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(nil, customerrors.NewNotFoundErr("svm", nil))
-		mockStorage.On("GetPoolByID", ctx, pool.ID).Return(pool, nil)
-		mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
-
-		// This will fail later in the flow (e.g., missing SVM), but should pass throughput validation
-		_, _, err := _createVolume(ctx, mockStorage, mockTemporal, params)
-		// Should not fail with throughput limit error
-		assert.NotContains(tt, err.Error(), "throughputMibps cannot exceed")
-	})
-
-	t.Run("Volume Throughput Rejected When Exceeds Pool Capacity", func(tt *testing.T) {
-		origEnableMqos := enableMqos
-		origEnableInferredIops := enableInferredIops
-		enableMqos = true
-		enableInferredIops = true
-		defer func() {
-			enableMqos = origEnableMqos
-			enableInferredIops = origEnableInferredIops
-		}()
-
-		mockStorage := database.NewMockStorage(tt)
-		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
-
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
-			Name:      "test-account",
-		}
-
-		pool := &datamodel.Pool{
-			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
-			AccountID:   account.ID,
-			Account:     account,
-			QosType:     "manual",
-			State:       models.LifeCycleStateREADY,
-			SizeInBytes: 100 * utils.TiBInBytes,
-			PoolAttributes: &datamodel.PoolAttributes{
-				ThroughputMibps: 10000, // Pool has 10000 MiB/s capacity
+				ThroughputMibps: 10000,
 				Iops:            50000,
 			},
 		}
 
-		throughput := int64(15000) // Exceeds pool capacity
 		params := &common.CreateVolumeParams{
-			AccountName:     account.Name,
-			Name:            "test-volume",
-			PoolID:          pool.UUID,
-			QuotaInBytes:    1073741824, // 1 GiB
-			Protocols:       []string{"nfs"},
-			ThroughputMibps: &throughput,
-		}
-		poolView := &datamodel.PoolView{
-			Pool:       *pool,
-			Throughput: 0,
-			Iops:       0,
+			AccountName:  account.Name,
+			Name:         "test-volume",
+			PoolID:       pool.UUID,
+			QuotaInBytes: 1073741824, // 1 GiB
+			Protocols:    []string{"nfs"},
+			// No ThroughputMibps, no VolumePerformanceGroupID -> triggers MQoS validation error
 		}
 
 		mockStorage.On("GetAccount", ctx, account.Name).Return(account, nil)
-		mockStorage.On("GetPool", ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{
-			Pool: *pool,
-		}, nil)
-		mockStorage.On("GetPoolByID", ctx, pool.ID).Return(pool, nil)
-		mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
+		mockStorage.On("GetPool", ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil)
 		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, pool.Account.ID, params.Zone, false).
 			Return(nil, customerrors.NewNotFoundErr("volume", nil))
 
 		_, _, err := _createVolume(ctx, mockStorage, mockTemporal, params)
 		assert.Error(tt, err)
-		// Should fail with pool capacity exceeded error, not 5120 limit error
-		assert.Contains(tt, err.Error(), "would exceed pool's total throughput")
-		assert.NotContains(tt, err.Error(), "throughputMibps cannot exceed 5120")
+		assert.Contains(tt, err.Error(), utils.ErrMsgPoolManualQosTypeRequiresThroughputOrVpg)
 	})
 }
 
@@ -34247,6 +33427,17 @@ func TestCreateVolume_VpgHandling(t *testing.T) {
 	defer utils.SetFileProtocolSupportedForTesting(false)
 
 	t.Run("SetsIopsWhenThroughputProvided", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		mm.On("getOrCreateAccount", mock.Anything, mock.Anything, account.Name).Return(account, nil)
+		mm.On("validateCreateVolumeParams", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
 		origEnableMqos := enableMqos
 		origEnableInferredIops := enableInferredIops
 		enableMqos = true
@@ -34256,13 +33447,6 @@ func TestCreateVolume_VpgHandling(t *testing.T) {
 			enableInferredIops = origEnableInferredIops
 		}()
 
-		mockStorage := database.NewMockStorage(tt)
-		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
-
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
-			Name:      "test-account",
-		}
 		pool := &datamodel.Pool{
 			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
 			AccountID:   account.ID,
@@ -34298,25 +33482,10 @@ func TestCreateVolume_VpgHandling(t *testing.T) {
 
 		mockStorage.On("GetAccount", ctx, account.Name).Return(account, nil)
 		mockStorage.On("GetPool", ctx, pool.UUID, account.ID).Return(poolView, nil)
-		mockStorage.On("GetPoolByID", ctx, pool.ID).Return(pool, nil)
-		mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
 		mockStorage.On("GetMultipleHostGroups", mock.Anything, mock.Anything, account.ID).
-			Return([]*datamodel.HostGroup{}, nil).Maybe()
+			Return([]*datamodel.HostGroup{}, nil)
 		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, pool.Account.ID, params.Zone, false).
 			Return(nil, customerrors.NewNotFoundErr("volume", nil))
-		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			AccountID: pool.AccountID,
-			Name:      "node-1",
-			State:     models.LifeCycleStateREADY,
-		}, {
-			BaseModel: datamodel.BaseModel{ID: 2},
-			AccountID: pool.AccountID,
-			Name:      "node-2",
-			State:     models.LifeCycleStateREADY,
-		}}, nil)
-		mockStorage.On("GetLifForNode", ctx, int64(1), pool.AccountID).Return(&datamodel.Lif{Name: "lif-1"}, nil)
-		mockStorage.On("GetLifForNode", ctx, int64(2), pool.AccountID).Return(&datamodel.Lif{Name: "lif-2"}, nil)
 		mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(&datamodel.Svm{
 			Name:  "svm-1",
 			State: models.LifeCycleStateREADY,
@@ -34338,25 +33507,17 @@ func TestCreateVolume_VpgHandling(t *testing.T) {
 	})
 
 	t.Run("ReturnsErrorWhenVpgNotFound", func(tt *testing.T) {
-		origEnableMqos := enableMqos
-		origEnableInferredIops := enableInferredIops
-		origEnableVpgAssignment := enableVolumePerformanceGroupAssignment
-		enableMqos = true
-		enableInferredIops = true
-		enableVolumePerformanceGroupAssignment = true
-		defer func() {
-			enableMqos = origEnableMqos
-			enableInferredIops = origEnableInferredIops
-			enableVolumePerformanceGroupAssignment = origEnableVpgAssignment
-		}()
-
-		mockStorage := database.NewMockStorage(tt)
-		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
-
+		mm := newMonkeyMockAndPatch(tt)
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
 			Name:      "test-account",
 		}
+		mm.On("getOrCreateAccount", mock.Anything, mock.Anything, account.Name).Return(account, nil)
+		mm.On("validateCreateVolumeParams", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
 		pool := &datamodel.Pool{
 			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
 			AccountID:   account.ID,
@@ -34393,22 +33554,9 @@ func TestCreateVolume_VpgHandling(t *testing.T) {
 		mockStorage.On("GetAccount", ctx, account.Name).Return(account, nil)
 		mockStorage.On("GetPool", ctx, pool.UUID, account.ID).Return(poolView, nil)
 		mockStorage.On("GetMultipleHostGroups", mock.Anything, mock.Anything, account.ID).
-			Return([]*datamodel.HostGroup{}, nil).Maybe()
+			Return([]*datamodel.HostGroup{}, nil)
 		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, pool.Account.ID, params.Zone, false).
 			Return(nil, customerrors.NewNotFoundErr("volume", nil))
-		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			AccountID: pool.AccountID,
-			Name:      "node-1",
-			State:     models.LifeCycleStateREADY,
-		}, {
-			BaseModel: datamodel.BaseModel{ID: 2},
-			AccountID: pool.AccountID,
-			Name:      "node-2",
-			State:     models.LifeCycleStateREADY,
-		}}, nil)
-		mockStorage.On("GetLifForNode", ctx, int64(1), pool.AccountID).Return(&datamodel.Lif{Name: "lif-1"}, nil)
-		mockStorage.On("GetLifForNode", ctx, int64(2), pool.AccountID).Return(&datamodel.Lif{Name: "lif-2"}, nil)
 		mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(&datamodel.Svm{
 			Name:  "svm-1",
 			State: models.LifeCycleStateREADY,
@@ -34422,25 +33570,17 @@ func TestCreateVolume_VpgHandling(t *testing.T) {
 	})
 
 	t.Run("ReturnsErrorWhenVpgPoolMismatch", func(tt *testing.T) {
-		origEnableMqos := enableMqos
-		origEnableInferredIops := enableInferredIops
-		origEnableVpgAssignment := enableVolumePerformanceGroupAssignment
-		enableMqos = true
-		enableInferredIops = true
-		enableVolumePerformanceGroupAssignment = true
-		defer func() {
-			enableMqos = origEnableMqos
-			enableInferredIops = origEnableInferredIops
-			enableVolumePerformanceGroupAssignment = origEnableVpgAssignment
-		}()
-
-		mockStorage := database.NewMockStorage(tt)
-		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
-
+		mm := newMonkeyMockAndPatch(tt)
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
 			Name:      "test-account",
 		}
+		mm.On("getOrCreateAccount", mock.Anything, mock.Anything, account.Name).Return(account, nil)
+		mm.On("validateCreateVolumeParams", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
 		pool := &datamodel.Pool{
 			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
 			AccountID:   account.ID,
@@ -34477,22 +33617,9 @@ func TestCreateVolume_VpgHandling(t *testing.T) {
 		mockStorage.On("GetAccount", ctx, account.Name).Return(account, nil)
 		mockStorage.On("GetPool", ctx, pool.UUID, account.ID).Return(poolView, nil)
 		mockStorage.On("GetMultipleHostGroups", mock.Anything, mock.Anything, account.ID).
-			Return([]*datamodel.HostGroup{}, nil).Maybe()
+			Return([]*datamodel.HostGroup{}, nil)
 		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, pool.Account.ID, params.Zone, false).
 			Return(nil, customerrors.NewNotFoundErr("volume", nil))
-		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			AccountID: pool.AccountID,
-			Name:      "node-1",
-			State:     models.LifeCycleStateREADY,
-		}, {
-			BaseModel: datamodel.BaseModel{ID: 2},
-			AccountID: pool.AccountID,
-			Name:      "node-2",
-			State:     models.LifeCycleStateREADY,
-		}}, nil)
-		mockStorage.On("GetLifForNode", ctx, int64(1), pool.AccountID).Return(&datamodel.Lif{Name: "lif-1"}, nil)
-		mockStorage.On("GetLifForNode", ctx, int64(2), pool.AccountID).Return(&datamodel.Lif{Name: "lif-2"}, nil)
 		mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(&datamodel.Svm{
 			Name:  "svm-1",
 			State: models.LifeCycleStateREADY,
@@ -34506,25 +33633,17 @@ func TestCreateVolume_VpgHandling(t *testing.T) {
 	})
 
 	t.Run("AssignsVpgIdWhenVpgExists", func(tt *testing.T) {
-		origEnableMqos := enableMqos
-		origEnableInferredIops := enableInferredIops
-		origEnableVpgAssignment := enableVolumePerformanceGroupAssignment
-		enableMqos = true
-		enableInferredIops = true
-		enableVolumePerformanceGroupAssignment = true
-		defer func() {
-			enableMqos = origEnableMqos
-			enableInferredIops = origEnableInferredIops
-			enableVolumePerformanceGroupAssignment = origEnableVpgAssignment
-		}()
-
-		mockStorage := database.NewMockStorage(tt)
-		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
-
+		mm := newMonkeyMockAndPatch(tt)
 		account := &datamodel.Account{
 			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
 			Name:      "test-account",
 		}
+		mm.On("getOrCreateAccount", mock.Anything, mock.Anything, account.Name).Return(account, nil)
+		mm.On("validateCreateVolumeParams", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
 		pool := &datamodel.Pool{
 			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
 			AccountID:   account.ID,
@@ -34561,22 +33680,9 @@ func TestCreateVolume_VpgHandling(t *testing.T) {
 		mockStorage.On("GetAccount", ctx, account.Name).Return(account, nil)
 		mockStorage.On("GetPool", ctx, pool.UUID, account.ID).Return(poolView, nil)
 		mockStorage.On("GetMultipleHostGroups", mock.Anything, mock.Anything, account.ID).
-			Return([]*datamodel.HostGroup{}, nil).Maybe()
+			Return([]*datamodel.HostGroup{}, nil)
 		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, pool.Account.ID, params.Zone, false).
 			Return(nil, customerrors.NewNotFoundErr("volume", nil))
-		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			AccountID: pool.AccountID,
-			Name:      "node-1",
-			State:     models.LifeCycleStateREADY,
-		}, {
-			BaseModel: datamodel.BaseModel{ID: 2},
-			AccountID: pool.AccountID,
-			Name:      "node-2",
-			State:     models.LifeCycleStateREADY,
-		}}, nil)
-		mockStorage.On("GetLifForNode", ctx, int64(1), pool.AccountID).Return(&datamodel.Lif{Name: "lif-1"}, nil)
-		mockStorage.On("GetLifForNode", ctx, int64(2), pool.AccountID).Return(&datamodel.Lif{Name: "lif-2"}, nil)
 		mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(&datamodel.Svm{
 			Name:  "svm-1",
 			State: models.LifeCycleStateREADY,
@@ -34598,9 +33704,12 @@ func TestCreateVolume_VpgHandling(t *testing.T) {
 	})
 }
 
-// Helper function to create int64 pointer
-func int64Ptr(i int64) *int64 {
-	return &i
+// patchValidateVolumeQosParamsNoop stubs validateVolumeQosParams with a no-op (returns nil, nil) and restores on t.Cleanup.
+// Use only when the test intentionally fails before the QoS call (e.g. WhenVolumeSizeExceedsPoolSize); otherwise use newMonkeyMockForValidateQos.
+func patchValidateVolumeQosParamsNoop(t *testing.T) {
+	orig := validateVolumeQosParams
+	validateVolumeQosParams = func(_ mqos.PoolQosInput, _ *int64, _ *int64, _ *string) (*int64, error) { return nil, nil }
+	t.Cleanup(func() { validateVolumeQosParams = orig })
 }
 
 // Test_createVolume_AutoTieringPolicyValidation tests the auto tiering policy validation for clone volumes
