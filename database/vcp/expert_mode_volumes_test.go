@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"gorm.io/gorm"
@@ -1898,4 +1899,126 @@ func TestListExpertModeVolumesByPoolID_IsolationBetweenPools(t *testing.T) {
 	for _, vol := range pool2Volumes {
 		assert.Equal(t, pool2.ID, vol.PoolID, "All pool2 volumes should belong to pool2")
 	}
+}
+
+func TestGetEligibleExpertModeVolumes_Success(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+	account, pool := createTestAccountAndPoolForExpertMode(t, store)
+	svmName := fmt.Sprintf("test-svm-%s", utils.GenerateRandomAlphanumeric(8))
+	svmExternalUUID := utils.RandomUUID()
+	svm := createTestSVMForExpertMode(t, store, pool.ID, account.ID, svmName, svmExternalUUID)
+
+	vol1 := &datamodel.ExpertModeVolumes{
+		Name:         fmt.Sprintf("eligible-vol-1-%s", utils.GenerateRandomAlphanumeric(8)),
+		SizeInBytes:  1099511627776,
+		PoolID:       pool.ID,
+		AccountID:    account.ID,
+		SvmID:        svm.ID,
+		Style:        "flexvol",
+		ExternalUUID: utils.RandomUUID(),
+		State:        models.LifeCycleStateREADY,
+	}
+	_, err := store.CreateExpertModeVolume(ctx, vol1)
+	assert.NoError(t, err)
+
+	vol2 := &datamodel.ExpertModeVolumes{
+		Name:         fmt.Sprintf("eligible-vol-2-%s", utils.GenerateRandomAlphanumeric(8)),
+		SizeInBytes:  536870912000,
+		PoolID:       pool.ID,
+		AccountID:    account.ID,
+		SvmID:        svm.ID,
+		Style:        "flexgroup",
+		ExternalUUID: utils.RandomUUID(),
+		State:        models.LifeCycleStateCreating,
+	}
+	_, err = store.CreateExpertModeVolume(ctx, vol2)
+	assert.NoError(t, err)
+
+	pagination := &dbutils.Pagination{Offset: 0, Limit: 1000}
+	volumes, err := store.GetEligibleExpertModeVolumes(ctx, [][]interface{}{}, pagination)
+	assert.NoError(t, err)
+	assert.GreaterOrEqual(t, len(volumes), 2)
+
+	for _, v := range volumes {
+		assert.NotEmpty(t, v.Name)
+		assert.NotEmpty(t, v.State)
+	}
+}
+
+func TestGetEligibleExpertModeVolumes_ExcludesDeletedVolumes(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+	account, pool := createTestAccountAndPoolForExpertMode(t, store)
+	svmName := fmt.Sprintf("test-svm-%s", utils.GenerateRandomAlphanumeric(8))
+	svmExternalUUID := utils.RandomUUID()
+	svm := createTestSVMForExpertMode(t, store, pool.ID, account.ID, svmName, svmExternalUUID)
+
+	vol := &datamodel.ExpertModeVolumes{
+		Name:         fmt.Sprintf("delete-me-%s", utils.GenerateRandomAlphanumeric(8)),
+		SizeInBytes:  1099511627776,
+		PoolID:       pool.ID,
+		AccountID:    account.ID,
+		SvmID:        svm.ID,
+		Style:        "flexvol",
+		ExternalUUID: utils.RandomUUID(),
+		State:        models.LifeCycleStateREADY,
+	}
+	created, err := store.CreateExpertModeVolume(ctx, vol)
+	assert.NoError(t, err)
+
+	err = store.DeleteExpertModeVolume(ctx, created.UUID)
+	assert.NoError(t, err)
+
+	pagination := &dbutils.Pagination{Offset: 0, Limit: 1000}
+	volumes, err := store.GetEligibleExpertModeVolumes(ctx, [][]interface{}{}, pagination)
+	assert.NoError(t, err)
+
+	for _, v := range volumes {
+		assert.NotEqual(t, created.Name, v.Name, "Deleted volume should not appear in eligible results")
+	}
+}
+
+func TestGetEligibleExpertModeVolumes_Pagination(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+	account, pool := createTestAccountAndPoolForExpertMode(t, store)
+	svmName := fmt.Sprintf("test-svm-%s", utils.GenerateRandomAlphanumeric(8))
+	svmExternalUUID := utils.RandomUUID()
+	svm := createTestSVMForExpertMode(t, store, pool.ID, account.ID, svmName, svmExternalUUID)
+
+	for i := 0; i < 3; i++ {
+		vol := &datamodel.ExpertModeVolumes{
+			Name:         fmt.Sprintf("page-vol-%d-%s", i, utils.GenerateRandomAlphanumeric(8)),
+			SizeInBytes:  1099511627776,
+			PoolID:       pool.ID,
+			AccountID:    account.ID,
+			SvmID:        svm.ID,
+			Style:        "flexvol",
+			ExternalUUID: utils.RandomUUID(),
+			State:        models.LifeCycleStateREADY,
+		}
+		_, err := store.CreateExpertModeVolume(ctx, vol)
+		assert.NoError(t, err)
+	}
+
+	page1 := &dbutils.Pagination{Offset: 0, Limit: 2}
+	vols1, err := store.GetEligibleExpertModeVolumes(ctx, [][]interface{}{}, page1)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(vols1))
+
+	page2 := &dbutils.Pagination{Offset: 2, Limit: 2}
+	vols2, err := store.GetEligibleExpertModeVolumes(ctx, [][]interface{}{}, page2)
+	assert.NoError(t, err)
+	assert.GreaterOrEqual(t, len(vols2), 1)
+}
+
+func TestGetEligibleExpertModeVolumes_EmptyResult(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+
+	pagination := &dbutils.Pagination{Offset: 999999, Limit: 1000}
+	volumes, err := store.GetEligibleExpertModeVolumes(ctx, [][]interface{}{}, pagination)
+	assert.NoError(t, err)
+	assert.Empty(t, volumes)
 }

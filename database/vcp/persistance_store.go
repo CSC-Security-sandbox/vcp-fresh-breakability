@@ -1713,6 +1713,10 @@ func (s *PersistenceStore) ListExpertModeVolumesByPoolID(ctx context.Context, po
 	return s.dataStore.ListExpertModeVolumesByPoolID(ctx, poolID)
 }
 
+func (s *PersistenceStore) GetEligibleExpertModeVolumes(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.ExpertModeVolumes, error) {
+	return s.dataStore.GetEligibleExpertModeVolumes(ctx, conditions, pagination)
+}
+
 func (s *PersistenceStore) GetExpertModeBackupsByVolumeExternalUUID(ctx context.Context, volumeExternalUUID string) ([]*datamodel.Backup, error) {
 	return s.dataStore.GetExpertModeBackupsByVolumeExternalUUID(ctx, volumeExternalUUID)
 }

@@ -10,6 +10,7 @@ import (
 )
 
 const CreatedByLabelValue = "vcp"
+const CreatedByOntapProxyLabelValue = "ontap-proxy"
 
 type VolumeDetails struct {
 	Name        string
@@ -465,7 +466,7 @@ func EmitCBSEnabledMetric(volumes []*datamodel.Volume) {
 
 // Aggregate and emit metrics for Eligibility String
 
-func EmitEligibilityStringMetric(volumes []*datamodel.Volume) {
+func EmitEligibilityStringMetric(volumes []*datamodel.Volume, expertModeVolumes []*datamodel.ExpertModeVolumes) {
 	eligibilityStringGauge.Reset()
 	type eligibilityKey struct {
 		Name      string
@@ -478,6 +479,14 @@ func EmitEligibilityStringMetric(volumes []*datamodel.Volume) {
 			Name:      v.Name,
 			State:     v.State,
 			CreatedBy: CreatedByLabelValue,
+		}
+		counts[key]++
+	}
+	for _, v := range expertModeVolumes {
+		key := eligibilityKey{
+			Name:      v.Name,
+			State:     v.State,
+			CreatedBy: CreatedByOntapProxyLabelValue,
 		}
 		counts[key]++
 	}

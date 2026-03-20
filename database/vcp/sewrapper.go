@@ -5385,6 +5385,22 @@ func (re *retryEngine) ListExpertModeVolumesByPoolID(ctx context.Context, poolID
 	return var0, err
 }
 
+func (re *retryEngine) GetEligibleExpertModeVolumes(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.ExpertModeVolumes, error) {
+	var var0 []*datamodel.ExpertModeVolumes
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetEligibleExpertModeVolumes(ctx, conditions, pagination)
+		if err != nil {
+			re.logError("GetEligibleExpertModeVolumes", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetExpertModeBackupsByVolumeExternalUUID(ctx context.Context, volumeExternalUUID string) ([]*datamodel.Backup, error) {
 	var var0 []*datamodel.Backup
 	err := retry.Do(func(attempt int) (bool, error) {

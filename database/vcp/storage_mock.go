@@ -7447,6 +7447,66 @@ func (_c *MockStorage_GetDistinctBackupVaultIDsByVolumeUUID_Call) RunAndReturn(r
 	return _c
 }
 
+// GetEligibleExpertModeVolumes provides a mock function with given fields: ctx, conditions, pagination
+func (_m *MockStorage) GetEligibleExpertModeVolumes(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination) ([]*datamodel.ExpertModeVolumes, error) {
+	ret := _m.Called(ctx, conditions, pagination)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetEligibleExpertModeVolumes")
+	}
+
+	var r0 []*datamodel.ExpertModeVolumes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.ExpertModeVolumes, error)); ok {
+		return rf(ctx, conditions, pagination)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) []*datamodel.ExpertModeVolumes); ok {
+		r0 = rf(ctx, conditions, pagination)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.ExpertModeVolumes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, [][]interface{}, *utils.Pagination) error); ok {
+		r1 = rf(ctx, conditions, pagination)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetEligibleExpertModeVolumes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetEligibleExpertModeVolumes'
+type MockStorage_GetEligibleExpertModeVolumes_Call struct {
+	*mock.Call
+}
+
+// GetEligibleExpertModeVolumes is a helper method to define mock.On call
+//   - ctx context.Context
+//   - conditions [][]interface{}
+//   - pagination *utils.Pagination
+func (_e *MockStorage_Expecter) GetEligibleExpertModeVolumes(ctx interface{}, conditions interface{}, pagination interface{}) *MockStorage_GetEligibleExpertModeVolumes_Call {
+	return &MockStorage_GetEligibleExpertModeVolumes_Call{Call: _e.mock.On("GetEligibleExpertModeVolumes", ctx, conditions, pagination)}
+}
+
+func (_c *MockStorage_GetEligibleExpertModeVolumes_Call) Run(run func(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination)) *MockStorage_GetEligibleExpertModeVolumes_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([][]interface{}), args[2].(*utils.Pagination))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetEligibleExpertModeVolumes_Call) Return(_a0 []*datamodel.ExpertModeVolumes, _a1 error) *MockStorage_GetEligibleExpertModeVolumes_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetEligibleExpertModeVolumes_Call) RunAndReturn(run func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.ExpertModeVolumes, error)) *MockStorage_GetEligibleExpertModeVolumes_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetEligibleVolumes provides a mock function with given fields: ctx, conditions, pagination
 func (_m *MockStorage) GetEligibleVolumes(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination) ([]*datamodel.Volume, error) {
 	ret := _m.Called(ctx, conditions, pagination)
@@ -13480,7 +13540,7 @@ func (_c *MockStorage_IsLatestBackupAnyState_Call) RunAndReturn(run func(context
 	return _c
 }
 
-// IsLatestBackupAnyStateInVault provides a mock function with given fields: ctx, backupUUID, volumeUUID, backupVaultID
+// IsLatestBackupInVault provides a mock function with given fields: ctx, backupUUID, volumeUUID, backupVaultID
 func (_m *MockStorage) IsLatestBackupInVault(ctx context.Context, backupUUID string, volumeUUID string, backupVaultID int64) (bool, error) {
 	ret := _m.Called(ctx, backupUUID, volumeUUID, backupVaultID)
 
@@ -13508,33 +13568,33 @@ func (_m *MockStorage) IsLatestBackupInVault(ctx context.Context, backupUUID str
 	return r0, r1
 }
 
-// MockStorage_IsLatestBackupAnyStateInVault_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsLatestBackupInVault'
-type MockStorage_IsLatestBackupAnyStateInVault_Call struct {
+// MockStorage_IsLatestBackupInVault_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsLatestBackupInVault'
+type MockStorage_IsLatestBackupInVault_Call struct {
 	*mock.Call
 }
 
-// IsLatestBackupAnyStateInVault is a helper method to define mock.On call
+// IsLatestBackupInVault is a helper method to define mock.On call
 //   - ctx context.Context
 //   - backupUUID string
 //   - volumeUUID string
 //   - backupVaultID int64
-func (_e *MockStorage_Expecter) IsLatestBackupAnyStateInVault(ctx interface{}, backupUUID interface{}, volumeUUID interface{}, backupVaultID interface{}) *MockStorage_IsLatestBackupAnyStateInVault_Call {
-	return &MockStorage_IsLatestBackupAnyStateInVault_Call{Call: _e.mock.On("IsLatestBackupInVault", ctx, backupUUID, volumeUUID, backupVaultID)}
+func (_e *MockStorage_Expecter) IsLatestBackupInVault(ctx interface{}, backupUUID interface{}, volumeUUID interface{}, backupVaultID interface{}) *MockStorage_IsLatestBackupInVault_Call {
+	return &MockStorage_IsLatestBackupInVault_Call{Call: _e.mock.On("IsLatestBackupInVault", ctx, backupUUID, volumeUUID, backupVaultID)}
 }
 
-func (_c *MockStorage_IsLatestBackupAnyStateInVault_Call) Run(run func(ctx context.Context, backupUUID string, volumeUUID string, backupVaultID int64)) *MockStorage_IsLatestBackupAnyStateInVault_Call {
+func (_c *MockStorage_IsLatestBackupInVault_Call) Run(run func(ctx context.Context, backupUUID string, volumeUUID string, backupVaultID int64)) *MockStorage_IsLatestBackupInVault_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(int64))
 	})
 	return _c
 }
 
-func (_c *MockStorage_IsLatestBackupAnyStateInVault_Call) Return(_a0 bool, _a1 error) *MockStorage_IsLatestBackupAnyStateInVault_Call {
+func (_c *MockStorage_IsLatestBackupInVault_Call) Return(_a0 bool, _a1 error) *MockStorage_IsLatestBackupInVault_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockStorage_IsLatestBackupAnyStateInVault_Call) RunAndReturn(run func(context.Context, string, string, int64) (bool, error)) *MockStorage_IsLatestBackupAnyStateInVault_Call {
+func (_c *MockStorage_IsLatestBackupInVault_Call) RunAndReturn(run func(context.Context, string, string, int64) (bool, error)) *MockStorage_IsLatestBackupInVault_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -14581,6 +14641,10 @@ type MockStorage_ListNodeNodeGroupMapAfterID_Call struct {
 }
 
 // ListNodeNodeGroupMapAfterID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - includeDeleted bool
+//   - afterID int64
+//   - limit int
 func (_e *MockStorage_Expecter) ListNodeNodeGroupMapAfterID(ctx interface{}, includeDeleted interface{}, afterID interface{}, limit interface{}) *MockStorage_ListNodeNodeGroupMapAfterID_Call {
 	return &MockStorage_ListNodeNodeGroupMapAfterID_Call{Call: _e.mock.On("ListNodeNodeGroupMapAfterID", ctx, includeDeleted, afterID, limit)}
 }

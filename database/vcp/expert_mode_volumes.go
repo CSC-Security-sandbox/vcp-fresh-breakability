@@ -2,14 +2,15 @@ package database
 
 import (
 	"context"
-	"gorm.io/gorm"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"gorm.io/gorm"
 )
 
 // ExpertModePoolCapacity represents the total size and volume count for expert mode volumes in a pool
@@ -204,5 +205,19 @@ func (d *DataStoreRepository) ListExpertModeVolumesByPoolID(ctx context.Context,
 		return nil, err
 	}
 
+	return volumes, nil
+}
+
+// GetEligibleExpertModeVolumes retrieves non-deleted expert mode volumes (name, state only) with pagination for eligibility metrics
+func (d *DataStoreRepository) GetEligibleExpertModeVolumes(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.ExpertModeVolumes, error) {
+	var volumes []*datamodel.ExpertModeVolumes
+	err := d.db.ApplyFilter(conditions).GORM().WithContext(ctx).
+		Select("name, state").
+		Where("deleted_at IS NULL").
+		Scopes(dbutils.Paginate(pagination)).
+		Find(&volumes).Error
+	if err != nil {
+		return nil, err
+	}
 	return volumes, nil
 }

@@ -170,7 +170,7 @@ func TestEmitLargeVolumeEnabledMetric(t *testing.T) {
 func TestEmitEligibilityStringMetric(t *testing.T) {
 	RegisterEligibilityStringGauge()
 	volumes := getTestVolumes()
-	EmitEligibilityStringMetric(volumes)
+	EmitEligibilityStringMetric(volumes, nil)
 	metrics, err := prometheus.DefaultGatherer.Gather()
 	if err != nil {
 		t.Errorf("Failed to gather metrics: %v", err)
@@ -196,6 +196,98 @@ func TestEmitEligibilityStringMetric(t *testing.T) {
 		}
 		if !found {
 			t.Errorf("EligibilityStringMetric gauge not found for key %s", key)
+		}
+	}
+}
+
+func TestEmitEligibilityStringMetric_ExpertModeVolumes(t *testing.T) {
+	prometheus.Unregister(eligibilityStringGauge)
+	eligibilityStringGauge = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "gcnv_volumes_eligibility",
+			Help: "Total number of volumes for eligibility string",
+		},
+		[]string{"name", "state", "created_by"},
+	)
+	RegisterEligibilityStringGauge()
+
+	expertVols := []*datamodel.ExpertModeVolumes{
+		{Name: "expert-vol1", State: "AVAILABLE"},
+		{Name: "expert-vol2", State: "AVAILABLE"},
+	}
+	EmitEligibilityStringMetric(nil, expertVols)
+
+	gathered, err := prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		t.Fatalf("Failed to gather metrics: %v", err)
+	}
+
+	for _, ev := range expertVols {
+		found := false
+		for _, mf := range gathered {
+			if *mf.Name == "gcnv_volumes_eligibility" {
+				for _, m := range mf.Metric {
+					expected := map[string]string{
+						"name":       ev.Name,
+						"state":      ev.State,
+						"created_by": "ontap-proxy",
+					}
+					if metricHasLabels(m.Label, expected) {
+						found = true
+						break
+					}
+				}
+			}
+		}
+		if !found {
+			t.Errorf("EligibilityStringMetric gauge not found for expert mode volume %s", ev.Name)
+		}
+	}
+}
+
+func TestEmitEligibilityStringMetric_MixedVolumes(t *testing.T) {
+	prometheus.Unregister(eligibilityStringGauge)
+	eligibilityStringGauge = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "gcnv_volumes_eligibility",
+			Help: "Total number of volumes for eligibility string",
+		},
+		[]string{"name", "state", "created_by"},
+	)
+	RegisterEligibilityStringGauge()
+
+	vcpVols := []*datamodel.Volume{
+		{Name: "vcp-vol1", State: "READY"},
+	}
+	expertVols := []*datamodel.ExpertModeVolumes{
+		{Name: "expert-vol1", State: "AVAILABLE"},
+	}
+	EmitEligibilityStringMetric(vcpVols, expertVols)
+
+	gathered, err := prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		t.Fatalf("Failed to gather metrics: %v", err)
+	}
+
+	expectedLabels := []map[string]string{
+		{"name": "vcp-vol1", "state": "READY", "created_by": "vcp"},
+		{"name": "expert-vol1", "state": "AVAILABLE", "created_by": "ontap-proxy"},
+	}
+
+	for _, expected := range expectedLabels {
+		found := false
+		for _, mf := range gathered {
+			if *mf.Name == "gcnv_volumes_eligibility" {
+				for _, m := range mf.Metric {
+					if metricHasLabels(m.Label, expected) {
+						found = true
+						break
+					}
+				}
+			}
+		}
+		if !found {
+			t.Errorf("EligibilityStringMetric gauge not found for labels %v", expected)
 		}
 	}
 }

@@ -34,19 +34,19 @@ func (suite *EligibilityStringActivityUnitTestSuite) TestGetEligibilityString_Re
 		{Name: "vol2", State: "available"},
 		{Name: "vol3", State: "available"},
 	}
-	// First call returns vols, second call returns empty slice to break loop
-	// GetEligibleVolumes already filters deleted_at IS NULL at DB level, so mock returns only eligible volumes
 	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return(vols, nil).Once()
 	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
+	suite.mockStorage.On("GetEligibleExpertModeVolumes", suite.ctx, mock.Anything, mock.Anything).Return([]*datamodel.ExpertModeVolumes{}, nil).Once()
 
 	err := suite.activity.GetEligibilityString(suite.ctx)
 	assert.NoError(suite.T(), err)
-	// Activity emits metrics and returns nil on success
 	suite.mockStorage.AssertExpectations(suite.T())
 }
 
 func (suite *EligibilityStringActivityUnitTestSuite) TestGetEligibilityString_ReturnsErrorOnListFailure() {
-	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return(nil, assert.AnError)
+	// VCP fetch fails — expert mode fetch still runs, metrics emitted with nil VCP slice
+	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return(nil, assert.AnError).Once()
+	suite.mockStorage.On("GetEligibleExpertModeVolumes", suite.ctx, mock.Anything, mock.Anything).Return([]*datamodel.ExpertModeVolumes{}, nil).Once()
 	err := suite.activity.GetEligibilityString(suite.ctx)
 	assert.Error(suite.T(), err)
 	suite.mockStorage.AssertExpectations(suite.T())
@@ -54,9 +54,8 @@ func (suite *EligibilityStringActivityUnitTestSuite) TestGetEligibilityString_Re
 
 func (suite *EligibilityStringActivityUnitTestSuite) TestGetEligibilityString_ContextCancellation() {
 	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // Cancel immediately
+	cancel()
 
-	// Mock should not be called since context is cancelled
 	err := suite.activity.GetEligibilityString(ctx)
 	assert.Error(suite.T(), err)
 	assert.Equal(suite.T(), context.Canceled, err)
@@ -64,7 +63,6 @@ func (suite *EligibilityStringActivityUnitTestSuite) TestGetEligibilityString_Co
 }
 
 func (suite *EligibilityStringActivityUnitTestSuite) TestGetEligibilityString_MultiplePaginationIterations() {
-	// Test pagination with multiple pages (more than 2)
 	page1 := []*datamodel.Volume{
 		{Name: "vol1", State: "available"},
 		{Name: "vol2", State: "available"},
@@ -77,11 +75,11 @@ func (suite *EligibilityStringActivityUnitTestSuite) TestGetEligibilityString_Mu
 		{Name: "vol5", State: "available"},
 	}
 
-	// First call returns page1, second returns page2, third returns page3, fourth returns empty to break
 	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return(page1, nil).Once()
 	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return(page2, nil).Once()
 	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return(page3, nil).Once()
 	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
+	suite.mockStorage.On("GetEligibleExpertModeVolumes", suite.ctx, mock.Anything, mock.Anything).Return([]*datamodel.ExpertModeVolumes{}, nil).Once()
 
 	err := suite.activity.GetEligibilityString(suite.ctx)
 	assert.NoError(suite.T(), err)
@@ -89,8 +87,8 @@ func (suite *EligibilityStringActivityUnitTestSuite) TestGetEligibilityString_Mu
 }
 
 func (suite *EligibilityStringActivityUnitTestSuite) TestGetEligibilityString_EmptyResultOnFirstCall() {
-	// Test when first call returns empty (no volumes at all)
 	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
+	suite.mockStorage.On("GetEligibleExpertModeVolumes", suite.ctx, mock.Anything, mock.Anything).Return([]*datamodel.ExpertModeVolumes{}, nil).Once()
 
 	err := suite.activity.GetEligibilityString(suite.ctx)
 	assert.NoError(suite.T(), err)
@@ -98,15 +96,92 @@ func (suite *EligibilityStringActivityUnitTestSuite) TestGetEligibilityString_Em
 }
 
 func (suite *EligibilityStringActivityUnitTestSuite) TestGetEligibilityString_ErrorOnSecondPaginationCall() {
-	// Test error on second pagination call (not just first)
+	// VCP second page fails — expert mode fetch still runs, error returned at the end
 	page1 := []*datamodel.Volume{
 		{Name: "vol1", State: "available"},
 	}
 
 	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return(page1, nil).Once()
 	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return(nil, assert.AnError).Once()
+	suite.mockStorage.On("GetEligibleExpertModeVolumes", suite.ctx, mock.Anything, mock.Anything).Return([]*datamodel.ExpertModeVolumes{}, nil).Once()
 
 	err := suite.activity.GetEligibilityString(suite.ctx)
 	assert.Error(suite.T(), err)
+	suite.mockStorage.AssertExpectations(suite.T())
+}
+
+func (suite *EligibilityStringActivityUnitTestSuite) TestGetEligibilityString_ExpertModeVolumes() {
+	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
+
+	expertVols := []*datamodel.ExpertModeVolumes{
+		{Name: "expert-vol1", State: "AVAILABLE"},
+		{Name: "expert-vol2", State: "AVAILABLE"},
+	}
+	suite.mockStorage.On("GetEligibleExpertModeVolumes", suite.ctx, mock.Anything, mock.Anything).Return(expertVols, nil).Once()
+	suite.mockStorage.On("GetEligibleExpertModeVolumes", suite.ctx, mock.Anything, mock.Anything).Return([]*datamodel.ExpertModeVolumes{}, nil).Once()
+
+	err := suite.activity.GetEligibilityString(suite.ctx)
+	assert.NoError(suite.T(), err)
+	suite.mockStorage.AssertExpectations(suite.T())
+}
+
+func (suite *EligibilityStringActivityUnitTestSuite) TestGetEligibilityString_ExpertModeErrorOnFetch() {
+	// Expert mode fetch fails — VCP data already collected, metrics emitted with nil expert mode slice, error returned
+	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
+	suite.mockStorage.On("GetEligibleExpertModeVolumes", suite.ctx, mock.Anything, mock.Anything).Return(nil, assert.AnError).Once()
+
+	err := suite.activity.GetEligibilityString(suite.ctx)
+	assert.Error(suite.T(), err)
+	suite.mockStorage.AssertExpectations(suite.T())
+}
+
+func (suite *EligibilityStringActivityUnitTestSuite) TestGetEligibilityString_ExpertModePagination() {
+	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
+
+	expertPage1 := []*datamodel.ExpertModeVolumes{
+		{Name: "expert-vol1", State: "AVAILABLE"},
+	}
+	expertPage2 := []*datamodel.ExpertModeVolumes{
+		{Name: "expert-vol2", State: "AVAILABLE"},
+	}
+	suite.mockStorage.On("GetEligibleExpertModeVolumes", suite.ctx, mock.Anything, mock.Anything).Return(expertPage1, nil).Once()
+	suite.mockStorage.On("GetEligibleExpertModeVolumes", suite.ctx, mock.Anything, mock.Anything).Return(expertPage2, nil).Once()
+	suite.mockStorage.On("GetEligibleExpertModeVolumes", suite.ctx, mock.Anything, mock.Anything).Return([]*datamodel.ExpertModeVolumes{}, nil).Once()
+
+	err := suite.activity.GetEligibilityString(suite.ctx)
+	assert.NoError(suite.T(), err)
+	suite.mockStorage.AssertExpectations(suite.T())
+}
+
+func (suite *EligibilityStringActivityUnitTestSuite) TestGetEligibilityString_ContextCancellationDuringExpertModeFetch() {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	suite.mockStorage.On("GetEligibleVolumes", ctx, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
+	suite.mockStorage.On("GetEligibleExpertModeVolumes", ctx, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		cancel()
+	}).Return([]*datamodel.ExpertModeVolumes{{Name: "vol1", State: "AVAILABLE"}}, nil).Once()
+
+	suite.activity = &EligibilityStringActivity{SE: suite.mockStorage}
+
+	err := suite.activity.GetEligibilityString(ctx)
+	assert.Error(suite.T(), err)
+	assert.Equal(suite.T(), context.Canceled, err)
+}
+
+func (suite *EligibilityStringActivityUnitTestSuite) TestGetEligibilityString_BothVCPAndExpertModeVolumes() {
+	vcpVols := []*datamodel.Volume{
+		{Name: "vcp-vol1", State: "READY"},
+	}
+	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return(vcpVols, nil).Once()
+	suite.mockStorage.On("GetEligibleVolumes", suite.ctx, mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil).Once()
+
+	expertVols := []*datamodel.ExpertModeVolumes{
+		{Name: "expert-vol1", State: "AVAILABLE"},
+	}
+	suite.mockStorage.On("GetEligibleExpertModeVolumes", suite.ctx, mock.Anything, mock.Anything).Return(expertVols, nil).Once()
+	suite.mockStorage.On("GetEligibleExpertModeVolumes", suite.ctx, mock.Anything, mock.Anything).Return([]*datamodel.ExpertModeVolumes{}, nil).Once()
+
+	err := suite.activity.GetEligibilityString(suite.ctx)
+	assert.NoError(suite.T(), err)
 	suite.mockStorage.AssertExpectations(suite.T())
 }
