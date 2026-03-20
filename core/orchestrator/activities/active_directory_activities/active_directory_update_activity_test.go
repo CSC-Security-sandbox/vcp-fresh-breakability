@@ -902,7 +902,7 @@ func TestActiveDirectoryUpdateActivity_UpdateSdeActiveDirectory_Success(t *testi
 		LocationId:                 "us-central1",
 		XCorrelationId:             "test-correlation-id",
 		Username:                   nillable.GetStringPtr("new-admin@test.local"),
-		Password:                   nillable.GetStringPtr("NewSecurePass123!"),
+		Password:                   nillable.GetStringPtr("encrypted-pass"),
 		DNS:                        nillable.GetStringPtr("10.0.0.2"),
 		Domain:                     nillable.GetStringPtr("test.local"),
 		NetBIOS:                    nillable.GetStringPtr("TEST"),
@@ -920,7 +920,13 @@ func TestActiveDirectoryUpdateActivity_UpdateSdeActiveDirectory_Success(t *testi
 		Description:                nillable.GetStringPtr("Updated test AD"),
 	}
 
-	// Mock JWT token in context
+	originalDecryptPassword := decryptPassword
+	decryptPassword = func(password log.Secret) (*string, error) {
+		decrypted := "decrypted-pass"
+		return &decrypted, nil
+	}
+	defer func() { decryptPassword = originalDecryptPassword }()
+
 	ctx = context.WithValue(ctx, "jwt_token", "test-jwt-token")
 
 	expectedDone := false
@@ -932,8 +938,9 @@ func TestActiveDirectoryUpdateActivity_UpdateSdeActiveDirectory_Success(t *testi
 	}
 
 	mockActiveDirectoriesClient := active_directories.NewMockClientService(t)
-	mockActiveDirectoriesClient.On("V1betaUpdateActiveDirectory", mock.Anything).
-		Return(expectedResponse, nil)
+	mockActiveDirectoriesClient.On("V1betaUpdateActiveDirectory", mock.MatchedBy(func(p *active_directories.V1betaUpdateActiveDirectoryParams) bool {
+		return p.Body.Password == "decrypted-pass"
+	})).Return(expectedResponse, nil)
 
 	cvpClient := &cvpapi.Cvp{ActiveDirectories: mockActiveDirectoriesClient}
 	originalCvpClient := CvpClient
@@ -946,6 +953,7 @@ func TestActiveDirectoryUpdateActivity_UpdateSdeActiveDirectory_Success(t *testi
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
+	mockActiveDirectoriesClient.AssertExpectations(t)
 }
 
 func TestActiveDirectoryUpdateActivity_UpdateSdeActiveDirectory_PartialUpdate(t *testing.T) {
@@ -1237,6 +1245,145 @@ func TestActiveDirectoryUpdateActivity_UpdateSdeActiveDirectory_CVPError(t *test
 	assert.Error(t, err)
 	customErr := vsaerrors.ExtractCustomError(err)
 	assert.True(t, customErr.IsError(vsaerrors.ErrCVPNotFound))
+}
+
+func TestActiveDirectoryUpdateActivity_UpdateSdeActiveDirectory_PasswordDecryptionFailure(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	activity := &ActiveDirectoryUpdateActivity{
+		SE: mockStorage,
+	}
+
+	params := &common.UpdateActiveDirectoryParams{
+		ActiveDirectoryId: "test-ad-uuid",
+		AccountId:         "123456789",
+		LocationId:        "us-central1",
+		XCorrelationId:    "test-correlation-id",
+		Password:          nillable.GetStringPtr("bad-encrypted-data"),
+	}
+
+	originalDecryptPassword := decryptPassword
+	decryptPassword = func(password log.Secret) (*string, error) {
+		return nil, stderrors.New("decryption failed")
+	}
+	defer func() { decryptPassword = originalDecryptPassword }()
+
+	result, err := activity.UpdateSdeActiveDirectory(ctx, params)
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Password could not be decrypted")
+}
+
+func TestActiveDirectoryUpdateActivity_UpdateSdeActiveDirectory_NilPasswordSkipsDecryption(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	activity := &ActiveDirectoryUpdateActivity{
+		SE: mockStorage,
+	}
+
+	params := &common.UpdateActiveDirectoryParams{
+		ActiveDirectoryId: "test-ad-uuid",
+		AccountId:         "123456789",
+		LocationId:        "us-central1",
+		XCorrelationId:    "test-correlation-id",
+		DNS:               nillable.GetStringPtr("10.0.0.2"),
+	}
+
+	decryptCalled := false
+	originalDecryptPassword := decryptPassword
+	decryptPassword = func(password log.Secret) (*string, error) {
+		decryptCalled = true
+		return nil, stderrors.New("should not be called")
+	}
+	defer func() { decryptPassword = originalDecryptPassword }()
+
+	ctx = context.WithValue(ctx, "jwt_token", "test-jwt-token")
+
+	expectedDone := false
+	expectedResponse := &active_directories.V1betaUpdateActiveDirectoryAccepted{
+		Payload: &cvpModels.OperationV1beta{
+			Done: &expectedDone,
+			Name: "operations/test-operation-123",
+		},
+	}
+
+	mockActiveDirectoriesClient := active_directories.NewMockClientService(t)
+	mockActiveDirectoriesClient.On("V1betaUpdateActiveDirectory", mock.MatchedBy(func(p *active_directories.V1betaUpdateActiveDirectoryParams) bool {
+		return p.Body.Password == ""
+	})).Return(expectedResponse, nil)
+
+	cvpClient := &cvpapi.Cvp{ActiveDirectories: mockActiveDirectoriesClient}
+	originalCvpClient := CvpClient
+	defer func() { CvpClient = originalCvpClient }()
+	CvpClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	result, err := activity.UpdateSdeActiveDirectory(ctx, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.False(t, decryptCalled, "decryptPassword should not be called when password is nil")
+	mockActiveDirectoriesClient.AssertExpectations(t)
+}
+
+func TestActiveDirectoryUpdateActivity_UpdateSdeActiveDirectory_DecryptedPasswordSentToSDE(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	activity := &ActiveDirectoryUpdateActivity{
+		SE: mockStorage,
+	}
+
+	params := &common.UpdateActiveDirectoryParams{
+		ActiveDirectoryId: "test-ad-uuid",
+		AccountId:         "123456789",
+		LocationId:        "us-central1",
+		XCorrelationId:    "test-correlation-id",
+		Password:          nillable.GetStringPtr("encrypted-payload"),
+	}
+
+	originalDecryptPassword := decryptPassword
+	decryptPassword = func(password log.Secret) (*string, error) {
+		assert.Equal(t, log.Secret("encrypted-payload"), password, "encrypted password should be passed to decryptPassword")
+		decrypted := "plaintext-password"
+		return &decrypted, nil
+	}
+	defer func() { decryptPassword = originalDecryptPassword }()
+
+	ctx = context.WithValue(ctx, "jwt_token", "test-jwt-token")
+
+	expectedDone := false
+	expectedResponse := &active_directories.V1betaUpdateActiveDirectoryAccepted{
+		Payload: &cvpModels.OperationV1beta{
+			Done: &expectedDone,
+			Name: "operations/test-operation-123",
+		},
+	}
+
+	var capturedBody *cvpModels.ActiveDirectoryUpdateV1beta
+	mockActiveDirectoriesClient := active_directories.NewMockClientService(t)
+	mockActiveDirectoriesClient.On("V1betaUpdateActiveDirectory", mock.MatchedBy(func(p *active_directories.V1betaUpdateActiveDirectoryParams) bool {
+		capturedBody = p.Body
+		return true
+	})).Return(expectedResponse, nil)
+
+	cvpClient := &cvpapi.Cvp{ActiveDirectories: mockActiveDirectoriesClient}
+	originalCvpClient := CvpClient
+	defer func() { CvpClient = originalCvpClient }()
+	CvpClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	result, err := activity.UpdateSdeActiveDirectory(ctx, params)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "plaintext-password", capturedBody.Password, "decrypted plaintext password should be sent to SDE")
+	mockActiveDirectoriesClient.AssertExpectations(t)
 }
 
 func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_TokenError(t *testing.T) {

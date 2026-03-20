@@ -39,6 +39,7 @@ const (
 
 var (
 	updatePasswordSecret = _updatePasswordSecret
+	decryptPassword      = utils.DecryptPassword
 )
 
 func (a ActiveDirectoryUpdateActivity) MarkVcpAdToUpdatingActivity(ctx context.Context, params *common.UpdateActiveDirectoryParams, oldAd *models.ActiveDirectory) error {
@@ -217,7 +218,11 @@ func (a ActiveDirectoryUpdateActivity) UpdateSdeActiveDirectory(ctx context.Cont
 		body.Description = params.Description
 	}
 	if params.Password != nil {
-		body.Password = *params.Password
+		decryptedPassword, err := decryptPassword(log.Secret(*params.Password))
+		if err != nil {
+			return nil, errors.New("Password could not be decrypted.")
+		}
+		body.Password = *decryptedPassword
 	}
 	if params.Domain != nil {
 		body.Domain = *params.Domain
