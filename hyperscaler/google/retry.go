@@ -2,16 +2,18 @@ package google
 
 import (
 	"fmt"
-	"math/rand"
 	"net"
 	"net/http"
 	"strings"
 	"time"
 
+	utilretry "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/retry"
 	"google.golang.org/api/googleapi"
 )
 
-var jitterBase = time.Millisecond
+var (
+	jitterBase = time.Millisecond
+)
 
 // RetryStrategy defines methods for retrying http requests
 type RetryStrategy interface {
@@ -89,7 +91,12 @@ func (e *retry) GetRetryCount() uint {
 }
 
 func (e *retry) generateJitter() time.Duration {
-	return jitterBase * time.Duration(rand.Intn(30)) // [0, 30] ms jitter
+	jitter, err := utilretry.SecureIntn(30) // [0, 30] ms jitter
+	if err != nil {
+		// Fallback should not happen, but handle gracefully by using no jitter
+		return 0
+	}
+	return jitterBase * time.Duration(jitter)
 }
 
 // NewExponentialRetryStrategy return a new retry strategy that implements exponential back-off

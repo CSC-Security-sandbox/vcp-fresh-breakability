@@ -1,7 +1,9 @@
 package retry
 
 import (
-	"math/rand"
+	"crypto/rand"
+	"fmt"
+	"math/big"
 	"runtime"
 	"strings"
 	"time"
@@ -40,6 +42,22 @@ func init() {
 	prometheus.MustRegister(retryStats)
 }
 
+// SecureIntn generates a cryptographically secure random integer in [0, n)
+func SecureIntn(n int) (int, error) {
+	if n <= 0 {
+		return 0, fmt.Errorf("n must be positive")
+	}
+	maxVal := big.NewInt(int64(n))
+	result, err := rand.Int(rand.Reader, maxVal)
+	if err != nil {
+		return 0, err
+	}
+	if result == nil {
+		return 0, fmt.Errorf("secure random: unexpected nil result")
+	}
+	return int(result.Int64()), nil
+}
+
 // Retriable represents functions that can be retried.
 type Retriable func(attempt int) (retry bool, err error)
 
@@ -68,8 +86,21 @@ func Do(fn Retriable) error {
 
 		attempt++
 		logger.Warn("Retrying function", "attempt", *pAttempt, "function", getCallerName(2))
-		randomJitter := time.Duration(rand.Intn(int(getRetryDelay()) / 5))
-		time.Sleep(getRetryDelay() + randomJitter)
+		delay := getRetryDelay()
+		jitterMax := int(delay / 5)
+		if jitterMax > 0 {
+			jitter, err := SecureIntn(jitterMax)
+			if err != nil {
+				// Fallback should not happen, but handle gracefully by using no jitter
+				logger.Warn("Failed to generate random jitter, using delay without jitter", "error", err)
+				time.Sleep(delay)
+			} else {
+				randomJitter := time.Duration(jitter)
+				time.Sleep(delay + randomJitter)
+			}
+		} else {
+			time.Sleep(delay)
+		}
 	}
 	return err
 }

@@ -1,10 +1,12 @@
 package utils
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"math/rand"
+	"io"
+	"math/big"
 	"regexp"
 	"time"
 
@@ -12,15 +14,38 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 )
 
-func init() {
-	seedInit()
-}
+// secureRandomSource is the reader used by secureIntn for crypto/rand.Int
+var secureRandomSource io.Reader = rand.Reader
 
-var seedInit = _seedInit
+// secureIntnNow returns the current time for secureIntn fallback
+var secureIntnNow = time.Now
 
-func _seedInit() {
-	source := rand.NewSource(time.Now().UnixNano())
-	rand.New(source)
+// secureIntn generates a cryptographically secure random integer in [0, n)
+// It retries up to 3 times before falling back to a time-based value
+func secureIntn(n int) (int, error) {
+	if n <= 0 {
+		return 0, fmt.Errorf("n must be positive")
+	}
+	maxVal := big.NewInt(int64(n))
+
+	// Retry up to 3 times
+	for attempt := 0; attempt < 3; attempt++ {
+		result, err := rand.Int(secureRandomSource, maxVal)
+		if err == nil {
+			return int(result.Int64()), nil
+		}
+		// Small delay before retry
+		time.Sleep(time.Millisecond * time.Duration(attempt+1))
+	}
+
+	// Fallback: use time-based pseudo-random value as last resort
+	// This ensures the function never fails completely
+	u := secureIntnNow().UnixNano()
+	if u < 0 {
+		u = -u
+	}
+	fallback := int(u % int64(n))
+	return fallback, nil
 }
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz1234567890")
@@ -29,8 +54,10 @@ var hexRunes = []rune("abcdef0123456789")
 // GenerateRandomAlphanumeric returns a random alphanumeric string of length n
 func GenerateRandomAlphanumeric(n int) string {
 	b := make([]rune, n)
+	letterLen := len(letterRunes)
 	for i := range b {
-		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+		idx, _ := secureIntn(letterLen) // secureIntn handles errors internally with fallback
+		b[i] = letterRunes[idx]
 	}
 	return string(b)
 }
@@ -38,15 +65,21 @@ func GenerateRandomAlphanumeric(n int) string {
 // GenerateRandomHex returns a random hexadecimal string of length n
 func GenerateRandomHex(n int) string {
 	b := make([]rune, n)
+	hexLen := len(hexRunes)
 	for i := range b {
-		b[i] = hexRunes[rand.Intn(len(hexRunes))]
+		idx, _ := secureIntn(hexLen) // secureIntn handles errors internally with fallback
+		b[i] = hexRunes[idx]
 	}
 	return string(b)
 }
 
 // GenerateRandomInRange returns a random integer from 0 to less than n
 func GenerateRandomInRange(n int) int {
-	return rand.Intn(n)
+	if n <= 0 {
+		return 0
+	}
+	result, _ := secureIntn(n) // secureIntn handles errors internally with fallback
+	return result
 }
 
 // RandomUUID returns a random UUID

@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"errors"
+	"io"
 	"os"
 	"regexp"
 	"strconv"
@@ -10,6 +12,23 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 )
+
+// alwaysErrReader makes crypto/rand.Int fail (Read errors), exercising secureIntn retries and fallback.
+type alwaysErrReader struct{}
+
+func (alwaysErrReader) Read(_ []byte) (int, error) {
+	return 0, errors.New("mock: secure random read failed")
+}
+
+func restoreSecureIntnDeps(t *testing.T) {
+	t.Helper()
+	prevReader := secureRandomSource
+	prevNow := secureIntnNow
+	t.Cleanup(func() {
+		secureRandomSource = prevReader
+		secureIntnNow = prevNow
+	})
+}
 
 func TestGenerateRandomAlphanumeric(t *testing.T) {
 	if r := GenerateRandomAlphanumeric(0); len(r) != 0 {
@@ -219,4 +238,156 @@ func TestGenerateUniqueUsername(t *testing.T) {
 	if err != nil || !matched {
 		t.Errorf("Username contains invalid characters: %s", username1)
 	}
+}
+
+func TestSecureIntn(t *testing.T) {
+	t.Run("WhenNIsPositive", func(tt *testing.T) {
+		// Test with various positive values
+		testCases := []int{1, 10, 100, 1000}
+		for _, n := range testCases {
+			result, err := secureIntn(n)
+			if err != nil {
+				tt.Errorf("secureIntn(%d) returned unexpected error: %v", n, err)
+			}
+			if result < 0 || result >= n {
+				tt.Errorf("secureIntn(%d) returned value %d out of range [0, %d)", n, result, n)
+			}
+		}
+	})
+
+	t.Run("WhenNIsZero", func(tt *testing.T) {
+		result, err := secureIntn(0)
+		if err == nil {
+			tt.Error("secureIntn(0) should return an error")
+		}
+		if result != 0 {
+			tt.Errorf("secureIntn(0) should return 0, got %d", result)
+		}
+	})
+
+	t.Run("WhenNIsNegative", func(tt *testing.T) {
+		result, err := secureIntn(-1)
+		if err == nil {
+			tt.Error("secureIntn(-1) should return an error")
+		}
+		if result != 0 {
+			tt.Errorf("secureIntn(-1) should return 0, got %d", result)
+		}
+	})
+
+	t.Run("WhenRandReaderSucceeds", func(tt *testing.T) {
+		// This test verifies that secureIntn works correctly with the real rand.Reader
+		// and returns values in the correct range
+		for i := 0; i < 100; i++ {
+			result, err := secureIntn(100)
+			if err != nil {
+				tt.Errorf("secureIntn(100) returned unexpected error on iteration %d: %v", i, err)
+			}
+			if result < 0 || result >= 100 {
+				tt.Errorf("secureIntn(100) returned value %d out of range [0, 100) on iteration %d", result, i)
+			}
+		}
+	})
+
+	t.Run("MultipleCallsReturnDifferentValues", func(tt *testing.T) {
+		// Verify that multiple calls return different values (randomness)
+		results := make(map[int]bool)
+		n := 1000
+		uniqueCount := 0
+
+		for i := 0; i < 100; i++ {
+			result, err := secureIntn(n)
+			if err != nil {
+				tt.Fatalf("secureIntn(%d) returned error: %v", n, err)
+			}
+			if !results[result] {
+				results[result] = true
+				uniqueCount++
+			}
+		}
+
+		// With 100 calls and range of 1000, we should get many unique values
+		// This is a probabilistic test, but should pass with high probability
+		if uniqueCount < 50 {
+			tt.Errorf("Expected at least 50 unique values from 100 calls, got %d", uniqueCount)
+		}
+	})
+
+	t.Run("WhenRandReaderAlwaysFailsUsesTimeFallback", func(tt *testing.T) {
+		restoreSecureIntnDeps(tt)
+		secureRandomSource = alwaysErrReader{}
+		fixed := time.Unix(1000, 123456789)
+		secureIntnNow = func() time.Time { return fixed }
+
+		n := 17
+		result, err := secureIntn(n)
+		if err != nil {
+			tt.Fatalf("expected nil error after fallback, got %v", err)
+		}
+		if result < 0 || result >= n {
+			tt.Fatalf("fallback out of range: got %d want [0,%d)", result, n)
+		}
+		u := fixed.UnixNano()
+		expected := int(u % int64(n))
+		if result != expected {
+			tt.Fatalf("fallback mismatch: got %d want %d (UnixNano %% n)", result, expected)
+		}
+	})
+
+	t.Run("WhenRandReaderAlwaysFailsFallbackUsesAbsForNegativeUnixNano", func(tt *testing.T) {
+		restoreSecureIntnDeps(tt)
+		secureRandomSource = alwaysErrReader{}
+		// Before 1970 => negative UnixNano
+		secureIntnNow = func() time.Time {
+			return time.Date(1969, 12, 31, 23, 59, 59, 0, time.UTC)
+		}
+
+		n := 7
+		result, err := secureIntn(n)
+		if err != nil {
+			tt.Fatalf("expected nil error after fallback, got %v", err)
+		}
+		if result < 0 || result >= n {
+			tt.Fatalf("fallback out of range: got %d want [0,%d)", result, n)
+		}
+		u := secureIntnNow().UnixNano()
+		if u >= 0 {
+			tt.Fatalf("test setup: expected negative UnixNano, got %d", u)
+		}
+		expected := int((-u) % int64(n))
+		if result != expected {
+			tt.Fatalf("fallback mismatch: got %d want %d ((-UnixNano) %% n)", result, expected)
+		}
+	})
+
+	t.Run("WhenRandReaderFailsThenSucceedsReturnsCryptoValue", func(tt *testing.T) {
+		restoreSecureIntnDeps(tt)
+		// Reader that fails a few times then provides bytes rand.Int needs.
+		secureRandomSource = &flakyThenOKReader{failReads: 2}
+
+		n := 100
+		result, err := secureIntn(n)
+		if err != nil {
+			tt.Fatalf("expected success after reader recovers, got %v", err)
+		}
+		if result < 0 || result >= n {
+			tt.Fatalf("result %d out of [0,%d)", result, n)
+		}
+	})
+}
+
+// flakyThenOKReader fails the first N Read calls, then fills p with zeros so rand.Int succeeds.
+type flakyThenOKReader struct {
+	failReads int
+}
+
+func (f *flakyThenOKReader) Read(p []byte) (int, error) {
+	if f.failReads > 0 {
+		f.failReads--
+		return 0, io.EOF
+	}
+	for i := range p {
+		p[i] = 0
+	}
+	return len(p), nil
 }
