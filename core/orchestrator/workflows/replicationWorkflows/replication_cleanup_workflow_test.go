@@ -251,8 +251,7 @@ func TestReplicationCleanupWorkflowWithMirrorStateUnspecified(t *testing.T) {
 		env.OnActivity("GetSignedSrcTokenCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("GetSignedDstTokenCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("GetReplicationOnDestinationForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
-		// Verify that StopReplicationOnDestinationForCleanup is called when mirror state is MIRROR_STATE_UNSPECIFIED
-		env.OnActivity(resumeReplicationActivity.StopReplicationOnDestinationForCleanup, mock.Anything, mock.Anything).Return(replicationResult, nil)
+		// StopReplicationOnDestinationForCleanup should not be called when mirror state is MIRROR_STATE_UNSPECIFIED.
 		env.OnActivity("DescribeRemoteJobForCleanup", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteReplicationOnDestinationForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
 		env.OnActivity("DeleteSnapmirrorSnapshotsOnDestinationForCleanup", mock.Anything, mock.Anything).Return(replicationResult, nil)
@@ -269,7 +268,6 @@ func TestReplicationCleanupWorkflowWithMirrorStateUnspecified(t *testing.T) {
 		assert.Nil(tt, err)
 		assert.True(tt, env.IsWorkflowCompleted())
 		assert.NoError(tt, env.GetWorkflowError())
-		// Verify that StopReplicationOnDestinationForCleanup was called
 		env.AssertExpectations(tt)
 	})
 }

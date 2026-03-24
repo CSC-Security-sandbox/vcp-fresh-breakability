@@ -43,14 +43,16 @@ func shouldStopReplicationBeforeDelete(dstReplication *googleproxyclient.VolumeR
 	}
 	// Don't stop if lifecycle state is "creating" or "error"
 	if dstReplication.LifeCycleState.Set &&
-		(dstReplication.LifeCycleState.Value == googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateCreating ||
-			dstReplication.LifeCycleState.Value == googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateError) {
+		(dstReplication.LifeCycleState.Value == googleproxyclient.VolumeReplicationInternalV1betaLifeCycleStateCreating) {
 		return false
 	}
 	mirrorState := dstReplication.MirrorState.Value
+
+	if mirrorState == googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED {
+		return false
+	}
 	return mirrorState == googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED ||
-		mirrorState == googleproxyclient.VolumeReplicationInternalV1betaMirrorStateBASELINETRANSFERRING ||
-		mirrorState == googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORSTATEUNSPECIFIED
+		mirrorState == googleproxyclient.VolumeReplicationInternalV1betaMirrorStateBASELINETRANSFERRING
 }
 
 func ReplicationCleanupWorkflow(ctx workflow.Context, params *commonparams.DeleteReplicationParams, event *replication.DeleteReplicationEvent) (*vsa.VolumeReplication, error) {
