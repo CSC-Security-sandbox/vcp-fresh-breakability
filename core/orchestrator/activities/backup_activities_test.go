@@ -12817,10 +12817,18 @@ func TestCheckAndAttachBackupVaultToVolume_GCBDR_SourceRegionForBackupRegion(t *
 	}
 
 	backupVaultUUID := "gcbdr-vault-uuid"
+	poolUUID := "pool-uuid"
 	volumeUUID := "test-volume-uuid"
 	region := "us-central1"
 	sourceRegion := "us-east1"
 	vendorSubnetID := "projects/test-project/regions/us-central1/subnetworks/test-subnet"
+
+	pool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{UUID: poolUUID},
+		ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "pool-tenant-999"},
+		ServiceAccountId: "sa-id",
+		PoolAttributes:   &datamodel.PoolAttributes{},
+	}
 
 	backupActivitiesContext := &BackupActivitiesContext{
 		BackupWorkflowInit: &BackupWorkflowInput{
@@ -12828,6 +12836,7 @@ func TestCheckAndAttachBackupVaultToVolume_GCBDR_SourceRegionForBackupRegion(t *
 				BaseModel: datamodel.BaseModel{UUID: volumeUUID},
 				Account:   account,
 				AccountID: account.ID,
+				Pool:      pool,
 				VolumeAttributes: &datamodel.VolumeAttributes{
 					VendorSubnetID: vendorSubnetID,
 				},
@@ -12847,7 +12856,7 @@ func TestCheckAndAttachBackupVaultToVolume_GCBDR_SourceRegionForBackupRegion(t *
 
 	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).Return(existingBackupVault, nil)
 
-	// Mock CheckForBucketResourceName to return existing bucket (so it skips bucket creation)
+	// Mock CheckForBucketResourceName to return existing bucket (skips bucket creation)
 	originalCheckForBucketResourceName := CheckForBucketResourceName
 	defer func() { CheckForBucketResourceName = originalCheckForBucketResourceName }()
 	CheckForBucketResourceName = func(ctx context.Context, se database.Storage, volume *datamodel.Volume) (*commonparams.BucketDetails, error) {
@@ -12856,6 +12865,23 @@ func TestCheckAndAttachBackupVaultToVolume_GCBDR_SourceRegionForBackupRegion(t *
 			TenantProjectNumber: "tenant-123",
 		}, nil
 	}
+
+	// SetupCrossProjectBackupPermissions runs unconditionally; mock the underlying function vars
+	originalGetPoolServiceAccountName := GetPoolServiceAccountName
+	defer func() { GetPoolServiceAccountName = originalGetPoolServiceAccountName }()
+	GetPoolServiceAccountName = func(p *datamodel.Pool, projectID string) (string, error) {
+		return "sa@project.iam.gserviceaccount.com", nil
+	}
+
+	originalGrantStorageObjectAdminRole := GrantStorageObjectAdminRole
+	defer func() { GrantStorageObjectAdminRole = originalGrantStorageObjectAdminRole }()
+	GrantStorageObjectAdminRole = func(ctx context.Context, serviceAccount string, project string) error {
+		return nil
+	}
+
+	// addServiceAccountPermissionProject tracks the tenant project on the pool
+	mockStorage.On("GetPoolByUUID", ctx, poolUUID).Return(pool, nil).Maybe()
+	mockStorage.On("UpdatePoolFields", ctx, poolUUID, mock.AnythingOfType("map[string]interface {}")).Return(nil).Maybe()
 
 	// Mock GetExpertModeVolumeByUUID and UpdateExpertModeVolumeDataProtection for attaching
 	expertModeVol := &datamodel.ExpertModeVolumes{
@@ -13116,6 +13142,188 @@ func TestCheckAndAttachBackupVaultToVolume_GCBDR_SuccessfulCrossProjectPermissio
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
+	mockStorage.AssertExpectations(t)
+}
+
+// TestCheckAndAttachBackupVaultToVolume_GCBDR_BucketAlreadyExists_PermissionsGranted verifies that
+// SetupCrossProjectBackupPermissions is called unconditionally even when the bucket already exists,
+// so a pool attaching to a pre-provisioned GCBDR vault still receives the IAM grant.
+func TestCheckAndAttachBackupVaultToVolume_GCBDR_BucketAlreadyExists_PermissionsGranted(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test-project",
+	}
+
+	poolUUID := "pool-uuid-existing-bucket"
+	backupVaultUUID := "gcbdr-vault-existing-bucket"
+	volumeUUID := "volume-uuid-existing-bucket"
+	region := "us-central1"
+	vendorSubnetID := "projects/test-project/regions/us-central1/subnetworks/test-subnet"
+
+	pool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{UUID: poolUUID},
+		ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "pool-tenant-different"},
+		ServiceAccountId: "sa-id",
+		PoolAttributes:   &datamodel.PoolAttributes{},
+	}
+
+	backupActivitiesContext := &BackupActivitiesContext{
+		BackupWorkflowInit: &BackupWorkflowInput{
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+				Account:   account,
+				AccountID: account.ID,
+				Pool:      pool,
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					VendorSubnetID: vendorSubnetID,
+				},
+				// DataProtection.BackupVaultID intentionally empty: vault not yet attached,
+				// so the early-return guard is bypassed and the full attach+grant path runs.
+			},
+			BackupVault: &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: backupVaultUUID}},
+		},
+	}
+
+	existingBackupVault := &datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{UUID: backupVaultUUID},
+		ServiceType: GCBDRServiceType,
+		BucketDetails: datamodel.BucketDetailsArray{
+			{BucketName: "pre-existing-bucket", TenantProjectNumber: "bucket-tenant-456"},
+		},
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).Return(existingBackupVault, nil)
+
+	// CheckForBucketResourceName returns non-empty — bucket already exists, creation block skipped
+	originalCheckForBucketResourceName := CheckForBucketResourceName
+	defer func() { CheckForBucketResourceName = originalCheckForBucketResourceName }()
+	CheckForBucketResourceName = func(ctx context.Context, se database.Storage, volume *datamodel.Volume) (*commonparams.BucketDetails, error) {
+		return &commonparams.BucketDetails{
+			BucketName:          "pre-existing-bucket",
+			TenantProjectNumber: "bucket-tenant-456",
+		}, nil
+	}
+
+	// SetupCrossProjectBackupPermissions must still be called; mock the underlying function vars
+	permissionsGranted := false
+	originalGetPoolServiceAccountName := GetPoolServiceAccountName
+	defer func() { GetPoolServiceAccountName = originalGetPoolServiceAccountName }()
+	GetPoolServiceAccountName = func(p *datamodel.Pool, projectID string) (string, error) {
+		return "sa@project.iam.gserviceaccount.com", nil
+	}
+
+	originalGrantStorageObjectAdminRole := GrantStorageObjectAdminRole
+	defer func() { GrantStorageObjectAdminRole = originalGrantStorageObjectAdminRole }()
+	GrantStorageObjectAdminRole = func(ctx context.Context, serviceAccount string, project string) error {
+		permissionsGranted = true
+		return nil
+	}
+
+	mockStorage.On("GetPoolByUUID", ctx, poolUUID).Return(pool, nil).Maybe()
+	mockStorage.On("UpdatePoolFields", ctx, poolUUID, mock.AnythingOfType("map[string]interface {}")).Return(nil).Maybe()
+
+	expertModeVol := &datamodel.ExpertModeVolumes{
+		BaseModel:    datamodel.BaseModel{UUID: volumeUUID},
+		BackupConfig: &datamodel.DataProtection{},
+	}
+	mockStorage.On("GetExpertModeVolumeByUUID", ctx, volumeUUID).Return(expertModeVol, nil)
+	mockStorage.On("UpdateExpertModeVolumeDataProtection", ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(nil)
+
+	result, err := activity.CheckAndAttachBackupVaultToVolume(ctx, backupActivitiesContext, region)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.True(t, permissionsGranted, "SetupCrossProjectBackupPermissions must be called even when bucket already exists")
+	mockStorage.AssertExpectations(t)
+}
+
+// TestCheckAndAttachBackupVaultToVolume_GCBDR_SetupPermissionsError verifies that an error from
+// SetupCrossProjectBackupPermissions is propagated as a Temporal application error.
+func TestCheckAndAttachBackupVaultToVolume_GCBDR_SetupPermissionsError(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	mockStorage := database.NewMockStorage(t)
+	activity := BackupActivity{SE: mockStorage}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		Name:      "test-project",
+	}
+
+	poolUUID := "pool-uuid-perm-error"
+	backupVaultUUID := "gcbdr-vault-perm-error"
+	volumeUUID := "volume-uuid-perm-error"
+	region := "us-central1"
+	vendorSubnetID := "projects/test-project/regions/us-central1/subnetworks/test-subnet"
+
+	pool := &datamodel.Pool{
+		BaseModel:        datamodel.BaseModel{UUID: poolUUID},
+		ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "pool-tenant-error"},
+		ServiceAccountId: "sa-id",
+		PoolAttributes:   &datamodel.PoolAttributes{},
+	}
+
+	backupActivitiesContext := &BackupActivitiesContext{
+		BackupWorkflowInit: &BackupWorkflowInput{
+			Volume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+				Account:   account,
+				AccountID: account.ID,
+				Pool:      pool,
+				VolumeAttributes: &datamodel.VolumeAttributes{
+					VendorSubnetID: vendorSubnetID,
+				},
+			},
+			BackupVault: &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: backupVaultUUID}},
+		},
+	}
+
+	existingBackupVault := &datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{UUID: backupVaultUUID},
+		ServiceType: GCBDRServiceType,
+		BucketDetails: datamodel.BucketDetailsArray{
+			{BucketName: "gcbdr-bucket", TenantProjectNumber: "bucket-tenant-789"},
+		},
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).Return(existingBackupVault, nil)
+
+	// Bucket already exists — creation block skipped, unconditional permissions grant runs
+	originalCheckForBucketResourceName := CheckForBucketResourceName
+	defer func() { CheckForBucketResourceName = originalCheckForBucketResourceName }()
+	CheckForBucketResourceName = func(ctx context.Context, se database.Storage, volume *datamodel.Volume) (*commonparams.BucketDetails, error) {
+		return &commonparams.BucketDetails{
+			BucketName:          "gcbdr-bucket",
+			TenantProjectNumber: "bucket-tenant-789",
+		}, nil
+	}
+
+	originalGetPoolServiceAccountName := GetPoolServiceAccountName
+	defer func() { GetPoolServiceAccountName = originalGetPoolServiceAccountName }()
+	GetPoolServiceAccountName = func(p *datamodel.Pool, projectID string) (string, error) {
+		return "sa@project.iam.gserviceaccount.com", nil
+	}
+
+	// GrantStorageObjectAdminRole returns an error — SetupCrossProjectBackupPermissions fails
+	originalGrantStorageObjectAdminRole := GrantStorageObjectAdminRole
+	defer func() { GrantStorageObjectAdminRole = originalGrantStorageObjectAdminRole }()
+	GrantStorageObjectAdminRole = func(ctx context.Context, serviceAccount string, project string) error {
+		return errors.New("iam grant failed: insufficient permissions")
+	}
+
+	mockStorage.On("GetPoolByUUID", ctx, poolUUID).Return(pool, nil).Maybe()
+	mockStorage.On("UpdatePoolFields", ctx, poolUUID, mock.AnythingOfType("map[string]interface {}")).Return(nil).Maybe()
+
+	result, err := activity.CheckAndAttachBackupVaultToVolume(ctx, backupActivitiesContext, region)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "failed to setup cross-project backup permissions")
 	mockStorage.AssertExpectations(t)
 }
 

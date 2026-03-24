@@ -2153,7 +2153,7 @@ func (a *BackupActivity) CheckAndAttachBackupVaultToVolume(ctx context.Context, 
 			}
 		}
 
-		// Setup permissions for cross-region or cross-project scenarios
+		// Setup cross-region permissions (only needed when bucket is new)
 		if existingBackupVault.BackupVaultType == CrossRegionBackupType && existingBackupVault.BackupRegionName != nil && *existingBackupVault.BackupRegionName != "" {
 			if volume.Pool == nil {
 				return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("volume pool cannot be nil for cross-region backup setup"))
@@ -2162,17 +2162,22 @@ func (a *BackupActivity) CheckAndAttachBackupVaultToVolume(ctx context.Context, 
 			if err != nil {
 				return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to setup cross-region backup permissions: %w", err))
 			}
-		} else if existingBackupVault.ServiceType == GCBDRServiceType {
-			if volume.Pool == nil {
-				return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("volume pool cannot be nil for GCBDR backup setup"))
-			}
-			err = volumeActivity.SetupCrossProjectBackupPermissions(ctx, volume.Pool, bucketDetails)
-			if err != nil {
-				return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to setup cross-project backup permissions: %w", err))
-			}
-			logger.Infof("Successfully granted pool SA access to GCBDR bucket %s", bucketDetails.BucketName)
 		}
 	}
+
+	// Grant pool SA access to GCBDR bucket unconditionally — runs on every vault attachment
+	// so that a pool attaching to an already-provisioned vault still receives the IAM grant.
+	if existingBackupVault.ServiceType == GCBDRServiceType {
+		if volume.Pool == nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("volume pool cannot be nil for GCBDR backup setup"))
+		}
+		err := volumeActivity.SetupCrossProjectBackupPermissions(ctx, volume.Pool, bucketDetails)
+		if err != nil {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to setup cross-project backup permissions: %w", err))
+		}
+		logger.Infof("Successfully granted pool SA access to GCBDR bucket %s", bucketDetails.BucketName)
+	}
+
 	// Convert commonparams.BucketDetails to datamodel.BucketDetails
 	datamodelBucketDetails := &datamodel.BucketDetails{
 		BucketName:          bucketDetails.BucketName,

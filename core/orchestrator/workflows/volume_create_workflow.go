@@ -1336,24 +1336,6 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				return nil, ConvertToVSAError(err)
 			}
 
-			// For GCBDR vaults, grant pool's service account access to cross-project bucket
-			if backupVault.ServiceType == activities.GCBDRServiceType {
-				if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
-					return nil, cancelErr
-				}
-				poolDetails := dbVolume.Pool
-				if poolDetails == nil {
-					log.Errorf("Pool details not available for volume %s", dbVolume.UUID)
-					return nil, ConvertToVSAError(fmt.Errorf("pool details required for GCBDR bucket permissions"))
-				}
-				err = workflow.ExecuteActivity(ctx, volumeActivity.SetupCrossProjectBackupPermissions, poolDetails, &bucketDetails).Get(ctx, nil)
-				if err != nil {
-					log.Errorf("Failed to setup cross-project backup permissions: %v", err)
-					return nil, ConvertToVSAError(err)
-				}
-				log.Infof("Successfully granted pool SA access to GCBDR bucket %s", bucketDetails.BucketName)
-			}
-
 			if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 				return nil, cancelErr
 			}
@@ -1370,6 +1352,25 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}
+		}
+
+		// Grant pool SA access to GCBDR bucket unconditionally — runs on every volume operation
+		// so that a pool attaching to an already-provisioned vault still receives the IAM grant.
+		if backupVault.ServiceType == activities.GCBDRServiceType {
+			if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+				return nil, cancelErr
+			}
+			poolDetails := dbVolume.Pool
+			if poolDetails == nil {
+				log.Errorf("Pool details not available for volume %s", dbVolume.UUID)
+				return nil, ConvertToVSAError(fmt.Errorf("pool details required for GCBDR bucket permissions"))
+			}
+			err = workflow.ExecuteActivity(ctx, volumeActivity.SetupCrossProjectBackupPermissions, poolDetails, &bucketDetails).Get(ctx, nil)
+			if err != nil {
+				log.Errorf("Failed to setup cross-project backup permissions: %v", err)
+				return nil, ConvertToVSAError(err)
+			}
+			log.Infof("Successfully granted pool SA access to GCBDR bucket %s", bucketDetails.BucketName)
 		}
 
 		// TODO: Optimize this to avoid running for each volume call.

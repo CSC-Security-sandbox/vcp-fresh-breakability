@@ -481,20 +481,6 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				return nil, ConvertToVSAError(err)
 			}
 
-			if backupVault.ServiceType == activities.GCBDRServiceType {
-				if volume.Pool == nil {
-					log.Errorf("Pool details not available for volume %s", volume.UUID)
-					return nil, ConvertToVSAError(fmt.Errorf("pool details required for GCBDR bucket permissions"))
-				}
-				volumeCreateActivity := &activities.VolumeCreateActivity{}
-				err = workflow.ExecuteActivity(ctx, volumeCreateActivity.SetupCrossProjectBackupPermissions, volume.Pool, &bucketDetails).Get(ctx, nil)
-				if err != nil {
-					log.Errorf("Failed to setup cross-project backup permissions: %v", err)
-					return nil, ConvertToVSAError(err)
-				}
-				log.Infof("Successfully granted pool SA access to GCBDR bucket %s", bucketDetails.BucketName)
-			}
-
 			var RemoteBV *datamodel.BackupVault
 			volumeActivity := &activities.VolumeCreateActivity{}
 			err = workflow.ExecuteActivity(ctx, volumeActivity.CheckOrCreateRemoteBackupVaultInVCP, &volume, backupVault, &bucketDetails).Get(ctx, &RemoteBV)
@@ -506,6 +492,22 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			if err != nil {
 				return nil, ConvertToVSAError(err)
 			}
+		}
+
+		// Grant pool SA access to GCBDR bucket unconditionally — runs on every volume operation
+		// so that a pool attaching to an already-provisioned vault still receives the IAM grant.
+		if backupVault.ServiceType == activities.GCBDRServiceType {
+			if volume.Pool == nil {
+				log.Errorf("Pool details not available for volume %s", volume.UUID)
+				return nil, ConvertToVSAError(fmt.Errorf("pool details required for GCBDR bucket permissions"))
+			}
+			volumeCreateActivity := &activities.VolumeCreateActivity{}
+			err = workflow.ExecuteActivity(ctx, volumeCreateActivity.SetupCrossProjectBackupPermissions, volume.Pool, &bucketDetails).Get(ctx, nil)
+			if err != nil {
+				log.Errorf("Failed to setup cross-project backup permissions: %v", err)
+				return nil, ConvertToVSAError(err)
+			}
+			log.Infof("Successfully granted pool SA access to GCBDR bucket %s", bucketDetails.BucketName)
 		}
 
 		// TODO: Optimize this to avoid running for each volume call.

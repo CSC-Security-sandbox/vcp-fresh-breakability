@@ -8408,12 +8408,14 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_SizeReduction_GetVolum
 
 // ===== GCBDR Backup Vault Tests for Volume Update =====
 
-// Test_UpdateVolumeWorkflow_GCBDR_BucketAlreadyExists tests the happy path when a GCBDR
-// vault is attached and the bucket already exists (skips bucket creation).
+// Test_UpdateVolumeWorkflow_GCBDR_BucketAlreadyExists tests that when a GCBDR vault is
+// attached and the bucket already exists (skips bucket creation), SetupCrossProjectBackupPermissions
+// is still called unconditionally to ensure every pool receives the IAM grant.
 func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_GCBDR_BucketAlreadyExists() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	backupActivity := activities.BackupActivity{SE: mockStorage}
 
 	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -8426,6 +8428,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_GCBDR_BucketAlreadyExi
 	s.env.RegisterActivity(updateActivity.CheckBackupVaultExistInVCP)
 	s.env.RegisterActivity(updateActivity.FindTenancyDetails)
 	s.env.RegisterActivity(updateActivity.CheckBucketResourceName)
+	s.env.RegisterActivity(volumeCreateActivity.SetupCrossProjectBackupPermissions)
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
 	s.env.RegisterActivity(backupActivity.UpdateBackupMetadataIfExistsActivity)
 
@@ -8457,6 +8460,8 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_GCBDR_BucketAlreadyExi
 		ServiceAccountName:  "gcbdr-sa",
 		TenantProjectNumber: "12345",
 	}, nil)
+	// SetupCrossProjectBackupPermissions is called unconditionally — even when bucket already exists
+	s.env.OnActivity(volumeCreateActivity.SetupCrossProjectBackupPermissions, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupActivity.UpdateBackupMetadataIfExistsActivity, mock.Anything, mock.Anything).Return(nil)
 
@@ -8486,7 +8491,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_GCBDR_BucketAlreadyExi
 	}
 	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
 
-	// Assert workflow completed successfully — bucket already exists, no creation needed
+	// Assert workflow completed successfully — permissions granted even when bucket pre-existed
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Nil(s.T(), s.env.GetWorkflowError())
 }
@@ -8762,4 +8767,132 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_GCBDR_UpdateBucketDeta
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+// Test_UpdateVolumeWorkflow_GCBDR_NilPool_Error tests that the workflow fails when the volume
+// has no pool and a GCBDR vault is attached (bucket already exists path).
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_GCBDR_NilPool_Error() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.CheckBackupVaultExistInVCP)
+	s.env.RegisterActivity(updateActivity.FindTenancyDetails)
+	s.env.RegisterActivity(updateActivity.CheckBucketResourceName)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{ExternalUUID: "ext-uuid", Name: "test_volume"},
+		AvailableSpace:   1000,
+		Size:             1000,
+		State:            "online",
+	}, nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+	s.env.OnActivity(updateActivity.CheckBackupVaultExistInVCP, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{UUID: "gcbdr-vault-uuid"},
+		Name:        "gcbdr-vault",
+		ServiceType: activities.GCBDRServiceType,
+		BucketDetails: datamodel.BucketDetailsArray{
+			{BucketName: "gcbdr-bucket", TenantProjectNumber: "tenant-project"},
+		},
+	}, nil)
+	// Bucket already exists — skip creation block, go straight to unconditional permissions check
+	s.env.OnActivity(updateActivity.CheckBucketResourceName, mock.Anything, mock.Anything).Return(&common.BucketDetails{
+		BucketName: "gcbdr-bucket", ServiceAccountName: "gcbdr-sa", TenantProjectNumber: "12345",
+	}, nil)
+
+	// Execute workflow with nil Pool — triggers "pool details required" error
+	volume := &datamodel.Volume{
+		Pool: nil,
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "gcbdr-vault-uuid",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			VendorSubnetID: "test-subnet-id",
+		},
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 1000,
+		Region:       "us-west-1",
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+// Test_UpdateVolumeWorkflow_GCBDR_SetupCrossProjectPermissions_Error tests that the workflow
+// fails when SetupCrossProjectBackupPermissions returns an error (bucket already exists path).
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_GCBDR_SetupCrossProjectPermissions_Error() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.CheckBackupVaultExistInVCP)
+	s.env.RegisterActivity(updateActivity.FindTenancyDetails)
+	s.env.RegisterActivity(updateActivity.CheckBucketResourceName)
+	s.env.RegisterActivity(volumeCreateActivity.SetupCrossProjectBackupPermissions)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{ExternalUUID: "ext-uuid", Name: "test_volume"},
+		AvailableSpace:   1000,
+		Size:             1000,
+		State:            "online",
+	}, nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+	s.env.OnActivity(updateActivity.CheckBackupVaultExistInVCP, mock.Anything, mock.Anything, mock.Anything).Return(&datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{UUID: "gcbdr-vault-uuid"},
+		Name:        "gcbdr-vault",
+		ServiceType: activities.GCBDRServiceType,
+		BucketDetails: datamodel.BucketDetailsArray{
+			{BucketName: "gcbdr-bucket", TenantProjectNumber: "tenant-project"},
+		},
+	}, nil)
+	// Bucket already exists — skip creation block, go straight to unconditional permissions check
+	s.env.OnActivity(updateActivity.CheckBucketResourceName, mock.Anything, mock.Anything).Return(&common.BucketDetails{
+		BucketName: "gcbdr-bucket", ServiceAccountName: "gcbdr-sa", TenantProjectNumber: "12345",
+	}, nil)
+	// SetupCrossProjectBackupPermissions fails
+	s.env.OnActivity(volumeCreateActivity.SetupCrossProjectBackupPermissions, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("iam grant failed"))
+
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password: "password",
+			},
+		},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		DataProtection: &datamodel.DataProtection{
+			BackupVaultID: "gcbdr-vault-uuid",
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			VendorSubnetID: "test-subnet-id",
+		},
+	}
+	params := &common.UpdateVolumeParams{
+		QuotaInBytes: 1000,
+		Region:       "us-west-1",
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
 }
