@@ -3335,7 +3335,7 @@ func TestUpdatePoolWorkflow_QosTypeAutoToManual_RunsTransitionAndSucceeds(t *tes
 		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node-1"},
 	}, nil)
 	env.OnActivity("RemoveQoSPolicyFromSVM", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything).Return("qos-policy-uuid", nil)
 	env.OnActivity("CreateVPGInDB", mock.Anything, mock.Anything).Return(&datamodel.VolumePerformanceGroup{
 		BaseModel:        datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
@@ -3421,7 +3421,7 @@ func TestUpdatePoolWorkflow_QosTypeAutoToManual_WithMultipleVolumes_Succeeds(t *
 		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node-1"},
 	}, nil)
 	env.OnActivity("RemoveQoSPolicyFromSVM", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything).Return("qos-policy-uuid", nil)
 	env.OnActivity("CreateVPGInDB", mock.Anything, mock.Anything).Return(&datamodel.VolumePerformanceGroup{
 		BaseModel:        datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
@@ -3502,7 +3502,7 @@ func TestUpdatePoolWorkflow_QosTypeManualToAuto_RunsTransitionAndSucceeds(t *tes
 	env.OnActivity("GetVolumesByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil)
 	env.OnActivity("ListVolumePerformanceGroupsByPoolID", mock.Anything, mock.Anything).Return([]*datamodel.VolumePerformanceGroup{}, nil)
 	env.OnActivity("DereferencePoolVolumesFromVPGs", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("ModifyQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).Return(nil, nil)
@@ -3594,7 +3594,7 @@ func TestUpdatePoolWorkflow_QosTypeManualToAuto_WithMultipleVolumes_Succeeds(t *
 	env.OnActivity("UpdateVolumePerformanceGroupInDBForVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(3)
 	env.OnActivity("DereferencePoolVolumesFromVPGs", mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("DeleteVPGByID", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("ModifyQoSPolicyAndApplyToSVM", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("UpdatePoolFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).Return(nil, nil)
@@ -3731,7 +3731,7 @@ func TestUpdatePoolWorkflow_QosTypeAutoToManual_RemoveQoSFails_WorkflowFails(t *
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.Error(t, env.GetWorkflowError())
-	env.AssertNotCalled(t, "DeleteQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	env.AssertNotCalled(t, "DeleteQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	env.AssertNotCalled(t, "CreateQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything)
 	env.AssertNotCalled(t, "CreateVPGInDB", mock.Anything, mock.Anything)
 	env.AssertExpectations(t)
@@ -3791,7 +3791,7 @@ func TestUpdatePoolWorkflow_QosTypeAutoToManual_FailAfterCreateVPG_RollbackReapp
 		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node-1"},
 	}, nil)
 	env.OnActivity("RemoveQoSPolicyFromSVM", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything).Return("qos-policy-uuid", nil)
 	env.OnActivity("CreateVPGInDB", mock.Anything, mock.Anything).Return(createdVPG, nil)
 	env.OnActivity("GetVolumesByPoolID", mock.Anything, mock.Anything).Return(nil, errors.New("get volumes failed"))
@@ -3866,7 +3866,7 @@ func TestUpdatePoolWorkflow_QosTypeAutoToManual_FailAfterAssignVolume_RollbackUn
 		{BaseModel: datamodel.BaseModel{ID: 1}, Name: "node-1"},
 	}, nil)
 	env.OnActivity("RemoveQoSPolicyFromSVM", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("DeleteQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("DeleteQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	env.OnActivity("CreateQoSPolicyInONTAP", mock.Anything, mock.Anything, mock.Anything).Return("qos-policy-uuid", nil)
 	env.OnActivity("CreateVPGInDB", mock.Anything, mock.Anything).Return(createdVPG, nil)
 	env.OnActivity("GetVolumesByPoolID", mock.Anything, mock.Anything).Return(volumes, nil)

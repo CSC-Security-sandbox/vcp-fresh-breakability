@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/go-faster/jx"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
@@ -211,11 +210,10 @@ func (h Handler) V1betaUpdateVolumePerformanceGroup(ctx context.Context, req *gc
 			Message: "Failed to encode response",
 		}, err
 	}
-	resp := jx.Raw(data)
 	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
 	return &gcpgenserver.OperationV1beta{
 		Name:     gcpgenserver.NewOptString(operationID),
-		Response: resp,
+		Response: data,
 		Done:     gcpgenserver.NewOptBool(false),
 	}, nil
 }
@@ -235,7 +233,7 @@ func (h Handler) V1betaDeleteVolumePerformanceGroup(ctx context.Context, params 
 		PoolID:                   params.PoolId,
 		VolumePerformanceGroupID: params.VolumePerformanceGroupId,
 	}
-	vpg, err := h.Orchestrator.DeleteVolumePerformanceGroup(ctx, deleteParams)
+	vpg, jobUUID, err := h.Orchestrator.DeleteVolumePerformanceGroup(ctx, deleteParams)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
 			return &gcpgenserver.V1betaDeleteVolumePerformanceGroupNotFound{
@@ -261,7 +259,6 @@ func (h Handler) V1betaDeleteVolumePerformanceGroup(ctx context.Context, params 
 			Message: "Internal server error",
 		}, err
 	}
-	// Return operation with deleted VPG in response (like volume delete).
 	vcpVPG := convertModelToVCPVolumePerformanceGroup(vpg, params.PoolId)
 	data, err := json.Marshal(vcpVPG)
 	if err != nil {
@@ -270,11 +267,11 @@ func (h Handler) V1betaDeleteVolumePerformanceGroup(ctx context.Context, params 
 			Message: "Failed to encode response",
 		}, err
 	}
-	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/vpg-delete-" + vpg.UUID
+	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
 	return &gcpgenserver.OperationV1beta{
 		Name:     gcpgenserver.NewOptString(operationID),
-		Response: jx.Raw(data),
-		Done:     gcpgenserver.NewOptBool(true),
+		Response: data,
+		Done:     gcpgenserver.NewOptBool(false),
 	}, nil
 }
 

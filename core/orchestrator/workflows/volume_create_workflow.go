@@ -1043,7 +1043,7 @@ func (wf *volumeCreateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			log.Errorf("Failed to create QoS policy in ONTAP: %v", err)
 			return nil, ConvertToVSAError(err)
 		}
-		rollbackManager.AddActivity(vpgActivity.DeleteQoSPolicyInONTAP, qosPolicyID, dbVolume.Pool.ID, &node)
+		rollbackManager.AddActivity(vpgActivity.DeleteQoSPolicyInONTAP, qosPolicyID, "", dbVolume.Pool.ID, &node)
 
 		// Step 2: Set the QPG UUID on the VPG object before creating it in DB
 		vpg.OntapQosPolicyID = qosPolicyID

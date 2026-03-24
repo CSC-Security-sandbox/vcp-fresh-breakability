@@ -7,27 +7,30 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 )
 
-type vpgUpdateWorkflow struct {
+type DeleteVolumePerformanceGroupWorkflowParams struct {
+	VPG         *datamodel.VolumePerformanceGroup
+	AccountName string
+}
+
+type vpgDeleteWorkflow struct {
 	BaseWorkflow
 }
 
-var _ WorkflowInterface = &vpgUpdateWorkflow{}
+var _ WorkflowInterface = &vpgDeleteWorkflow{}
 
-// UpdateVolumePerformanceGroupWorkflow updates a VPG's name, throughput, and IOPS via the VPG endpoint (ONTAP QoS policy + DB).
-func UpdateVolumePerformanceGroupWorkflow(ctx workflow.Context, params *common.UpdateVolumePerformanceGroupParams, vpg *datamodel.VolumePerformanceGroup) error {
+// DeleteVolumePerformanceGroupWorkflow deletes a VPG's QoS policy from ONTAP and hard-deletes the row from the database.
+func DeleteVolumePerformanceGroupWorkflow(ctx workflow.Context, params *DeleteVolumePerformanceGroupWorkflowParams) error {
 	log := util.GetLogger(ctx)
-	wf := new(vpgUpdateWorkflow)
+	wf := new(vpgDeleteWorkflow)
 	if err := wf.Setup(ctx, params); err != nil {
-		log.Errorf("VPG update workflow setup error: %v", err)
+		log.Errorf("VPG delete workflow setup error: %v", err)
 		return err
 	}
 	if err := wf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
@@ -39,9 +42,9 @@ func UpdateVolumePerformanceGroupWorkflow(ctx workflow.Context, params *common.U
 		return err
 	}
 
-	_, customErr := wf.Run(ctx, params, vpg)
+	_, customErr := wf.Run(ctx, params)
 	if customErr != nil {
-		log.Errorf("UpdateVolumePerformanceGroupWorkflow failed: %v", customErr)
+		log.Errorf("DeleteVolumePerformanceGroupWorkflow failed: %v", customErr)
 		wf.Status = WorkflowStatusFailed
 		_ = wf.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
 		return customErr
@@ -54,8 +57,8 @@ func UpdateVolumePerformanceGroupWorkflow(ctx workflow.Context, params *common.U
 	return nil
 }
 
-func (wf *vpgUpdateWorkflow) Setup(ctx workflow.Context, input interface{}) error {
-	params := input.(*common.UpdateVolumePerformanceGroupParams)
+func (wf *vpgDeleteWorkflow) Setup(ctx workflow.Context, input interface{}) error {
+	params := input.(*DeleteVolumePerformanceGroupWorkflowParams)
 	info := workflow.GetInfo(ctx)
 	wf.ID = info.WorkflowExecution.ID
 	wf.CustomerID = params.AccountName
@@ -67,10 +70,9 @@ func (wf *vpgUpdateWorkflow) Setup(ctx workflow.Context, input interface{}) erro
 	})
 }
 
-func (wf *vpgUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
-	params := args[0].(*common.UpdateVolumePerformanceGroupParams)
-	vpg := args[1].(*datamodel.VolumePerformanceGroup)
-	_ = util.GetLogger(ctx)
+func (wf *vpgDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
+	params := args[0].(*DeleteVolumePerformanceGroupWorkflowParams)
+	vpg := params.VPG
 
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
@@ -110,28 +112,11 @@ func (wf *vpgUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (int
 		OntapCredentials: pool.PoolCredentials,
 	})
 
-	newName := params.Name
-	if newName == "" {
-		newName = vpg.Name
-	}
-	newThroughput := nillable.GetInt64(params.ThroughputMibps, vpg.ThroughputMibps)
-	newIops := nillable.GetInt64(params.Iops, vpg.Iops)
-
-	if err := executeActivity(ctx, vpgActivity.UpdateQoSPolicyInONTAP, vpg, pool, node, newName, newThroughput, newIops).Get(ctx, nil); err != nil {
+	if err := executeActivity(ctx, vpgActivity.DeleteQoSPolicyInONTAP, vpg.OntapQosPolicyID, vpg.Name, vpg.PoolID, node).Get(ctx, nil); err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 
-	updatedVPG := &datamodel.VolumePerformanceGroup{
-		BaseModel:         vpg.BaseModel,
-		Name:              newName,
-		PoolID:            vpg.PoolID,
-		IsShared:          vpg.IsShared,
-		IsAutoGen:         vpg.IsAutoGen,
-		ThroughputMibps:   newThroughput,
-		Iops:              newIops,
-		OntapQosPolicyID:  vpg.OntapQosPolicyID,
-	}
-	if err := executeActivity(ctx, vpgActivity.UpdateVPGInDB, updatedVPG).Get(ctx, nil); err != nil {
+	if err := executeActivity(ctx, vpgActivity.HardDeleteVPGInDB, vpg).Get(ctx, nil); err != nil {
 		return nil, ConvertToVSAError(err)
 	}
 

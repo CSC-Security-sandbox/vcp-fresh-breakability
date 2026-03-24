@@ -2405,7 +2405,7 @@ func runPoolQosTypeTransitionAutoToManual(
 	// 2b. Delete any existing QoS policy with the transition name (idempotent create: leftover from previous run)
 	// TransitionVPGNameFromPoolName is defined in pool_vpg_helpers.go.
 	transitionName := TransitionVPGNameFromPoolName(dbPool.Name)
-	if err := workflow.ExecuteActivity(ctx, vpgActivity.DeleteQoSPolicyInONTAP, transitionName, pool.ID, node).Get(ctx, nil); err != nil {
+	if err := workflow.ExecuteActivity(ctx, vpgActivity.DeleteQoSPolicyInONTAP, transitionName, "", pool.ID, node).Get(ctx, nil); err != nil {
 		wf.Logger.Error("qosType transition failed", "direction", "auto_to_manual", "poolUUID", dbPool.UUID, "error", err)
 		return ConvertToVSAError(err)
 	}
@@ -2426,7 +2426,7 @@ func runPoolQosTypeTransitionAutoToManual(
 		return ConvertToVSAError(err)
 	}
 	convertedVPG.OntapQosPolicyID = qosPolicyID
-	rollbackManager.AddActivity(vpgActivity.DeleteQoSPolicyInONTAP, qosPolicyID, pool.ID, node)
+	rollbackManager.AddActivity(vpgActivity.DeleteQoSPolicyInONTAP, qosPolicyID, "", pool.ID, node)
 
 	var createdVPG *datamodel.VolumePerformanceGroup
 	if err := workflow.ExecuteActivity(ctx, vpgActivity.CreateVPGInDB, convertedVPG).Get(ctx, &createdVPG); err != nil {
@@ -2573,7 +2573,7 @@ func runPoolQosTypeTransitionManualToAuto(
 
 	// 6b. Delete QoS policy by transition name so no leftover policy remains (e.g. from failed DeleteVPGByID or wrong UUID)
 	transitionName := TransitionVPGNameFromPoolName(dbPool.Name)
-	if err := workflow.ExecuteActivity(ctx, vpgActivity.DeleteQoSPolicyInONTAP, transitionName, pool.ID, node).Get(ctx, nil); err != nil {
+	if err := workflow.ExecuteActivity(ctx, vpgActivity.DeleteQoSPolicyInONTAP, transitionName, "", pool.ID, node).Get(ctx, nil); err != nil {
 		wf.Logger.Error("qosType transition failed", "direction", "manual_to_auto", "poolUUID", dbPool.UUID, "error", err)
 		return ConvertToVSAError(err)
 	}

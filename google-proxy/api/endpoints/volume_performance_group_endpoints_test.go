@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"testing"
 
@@ -842,6 +843,15 @@ func TestV1betaUpdateVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		assert.True(t, opRes.Name.IsSet())
 		assert.Contains(t, opRes.Name.Value, "job-uuid-123")
 		assert.False(t, opRes.Done.Value)
+
+		var vpgBody gcpgenserver.VolumePerformanceGroupV1beta
+		assert.NoError(t, json.Unmarshal(opRes.Response, &vpgBody))
+		assert.Equal(t, "new-vpg-name", vpgBody.ResourceId)
+		assert.Equal(t, "pool-id", vpgBody.PoolId)
+		assert.Equal(t, "vpg-uuid", vpgBody.VolumePerformanceGroupId)
+		assert.Equal(t, int64(200), vpgBody.ThroughputMibps)
+		assert.Equal(t, int64(600), vpgBody.Iops)
+		assert.True(t, vpgBody.IsShared)
 	})
 
 	t.Run("WhenSuccessful_WithoutResourceId", func(tt *testing.T) {
@@ -885,6 +895,15 @@ func TestV1betaUpdateVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		assert.True(t, opRes.Name.IsSet())
 		assert.Contains(t, opRes.Name.Value, "job-uuid-456")
 		assert.False(t, opRes.Done.Value)
+
+		var vpgBody gcpgenserver.VolumePerformanceGroupV1beta
+		assert.NoError(t, json.Unmarshal(opRes.Response, &vpgBody))
+		assert.Equal(t, "existing-name", vpgBody.ResourceId)
+		assert.Equal(t, "pool-id", vpgBody.PoolId)
+		assert.Equal(t, "vpg-uuid", vpgBody.VolumePerformanceGroupId)
+		assert.Equal(t, int64(150), vpgBody.ThroughputMibps)
+		assert.Equal(t, int64(500), vpgBody.Iops)
+		assert.True(t, vpgBody.IsShared)
 	})
 
 	t.Run("WhenNotFound_ReturnsBadRequest", func(tt *testing.T) {
@@ -1057,7 +1076,7 @@ func TestV1betaDeleteVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		}
 
 		handler := Handler{Orchestrator: mockOrchestrator}
-		mockOrchestrator.EXPECT().DeleteVolumePerformanceGroup(mock.Anything, mock.Anything).Return(nil, errors.New("deleting volume performance group is not implemented"))
+		mockOrchestrator.EXPECT().DeleteVolumePerformanceGroup(mock.Anything, mock.Anything).Return(nil, "", errors.New("deleting volume performance group is not implemented"))
 		res, err := handler.V1betaDeleteVolumePerformanceGroup(ctx, params)
 
 		assert.Error(tt, err)
@@ -1096,7 +1115,7 @@ func TestV1betaDeleteVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		handler := Handler{Orchestrator: mockOrchestrator}
 		mockOrchestrator.EXPECT().DeleteVolumePerformanceGroup(mock.Anything, mock.MatchedBy(func(p *common.DeleteVolumePerformanceGroupParams) bool {
 			return p.PoolID == "pool-id" && p.VolumePerformanceGroupID == "vpg-uuid-1" && p.AccountName == "12345"
-		})).Return(deletedVPG, nil)
+		})).Return(deletedVPG, "job-uuid-delete-1", nil)
 
 		res, err := handler.V1betaDeleteVolumePerformanceGroup(ctx, params)
 
@@ -1104,9 +1123,8 @@ func TestV1betaDeleteVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		assert.NotNil(tt, res)
 		op, ok := res.(*gcpgenserver.OperationV1beta)
 		assert.True(tt, ok)
-		assert.True(tt, op.Done.IsSet() && op.Done.Value)
 		assert.True(tt, op.Name.IsSet())
-		assert.Contains(tt, op.Name.Value, "/operations/vpg-delete-vpg-uuid-1")
+		assert.Contains(tt, op.Name.Value, "/operations/job-uuid-delete-1")
 	})
 
 	t.Run("NotFound_WhenOrchestratorReturnsNotFound", func(tt *testing.T) {
@@ -1129,7 +1147,7 @@ func TestV1betaDeleteVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		}
 
 		handler := Handler{Orchestrator: mockOrchestrator}
-		mockOrchestrator.EXPECT().DeleteVolumePerformanceGroup(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("volume performance group", nil))
+		mockOrchestrator.EXPECT().DeleteVolumePerformanceGroup(mock.Anything, mock.Anything).Return(nil, "", errors.NewNotFoundErr("volume performance group", nil))
 
 		res, err := handler.V1betaDeleteVolumePerformanceGroup(ctx, params)
 
@@ -1159,7 +1177,7 @@ func TestV1betaDeleteVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		}
 
 		handler := Handler{Orchestrator: mockOrchestrator}
-		mockOrchestrator.EXPECT().DeleteVolumePerformanceGroup(mock.Anything, mock.Anything).Return(nil, errors.NewConflictErr("attached to volumes"))
+		mockOrchestrator.EXPECT().DeleteVolumePerformanceGroup(mock.Anything, mock.Anything).Return(nil, "", errors.NewConflictErr("attached to volumes"))
 
 		res, err := handler.V1betaDeleteVolumePerformanceGroup(ctx, params)
 
@@ -1189,7 +1207,7 @@ func TestV1betaDeleteVolumePerformanceGroup_NotImplemented(t *testing.T) {
 		}
 
 		handler := Handler{Orchestrator: mockOrchestrator}
-		mockOrchestrator.EXPECT().DeleteVolumePerformanceGroup(mock.Anything, mock.Anything).Return(nil, errors.NewUserInputValidationErr("does not belong to pool"))
+		mockOrchestrator.EXPECT().DeleteVolumePerformanceGroup(mock.Anything, mock.Anything).Return(nil, "", errors.NewUserInputValidationErr("does not belong to pool"))
 
 		res, err := handler.V1betaDeleteVolumePerformanceGroup(ctx, params)
 

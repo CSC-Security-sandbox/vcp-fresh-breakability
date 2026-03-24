@@ -182,7 +182,7 @@ type OrchestratorFactory interface {
 	ListVolumePerformanceGroups(ctx context.Context, params *commonparams.ListVolumePerformanceGroupsParams) ([]*models.VolumePerformanceGroup, error)
 	GetVolumePerformanceGroup(ctx context.Context, params *commonparams.GetVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, error)
 	UpdateVolumePerformanceGroup(ctx context.Context, params *commonparams.UpdateVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, string, error)
-	DeleteVolumePerformanceGroup(ctx context.Context, params *commonparams.DeleteVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, error)
+	DeleteVolumePerformanceGroup(ctx context.Context, params *commonparams.DeleteVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, string, error)
 
 	// Quota rules
 	ReplaceDstQuotaRulesWithSrc(ctx context.Context, req *commonparams.UpdateDstWithSrcQuotaRulesV1beta, params commonparams.V1betaUpdateDestinationQuotaRulesVCPParams) ([]*datamodel.QuotaRule, error)

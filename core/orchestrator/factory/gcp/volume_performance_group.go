@@ -10,9 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
@@ -331,98 +329,82 @@ func (o *GCPOrchestrator) UpdateVolumePerformanceGroup(ctx context.Context, para
 
 // DeleteVolumePerformanceGroup deletes a volume performance group from ONTAP and the VCP database.
 // Deletion is only allowed when the VPG is not attached to any volumes.
-// Returns the deleted VPG model (for API response) or an error.
-func (o *GCPOrchestrator) DeleteVolumePerformanceGroup(ctx context.Context, params *commonparams.DeleteVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, error) {
+// Returns the deleted VPG model, the job UUID (for operation polling), or an error.
+func (o *GCPOrchestrator) DeleteVolumePerformanceGroup(ctx context.Context, params *commonparams.DeleteVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, string, error) {
 	logger := util.GetLogger(ctx)
 	se := o.storage
 
 	account, err := getAccountWithName(ctx, se, params.AccountName)
 	if err != nil {
 		logger.Error("Failed to fetch account for VPG delete", "error", err)
-		return nil, err
+		return nil, "", err
 	}
 
 	poolView, err := se.GetPool(ctx, params.PoolID, account.ID)
 	if err != nil {
 		logger.Error("Failed to fetch pool for VPG delete", "error", err)
-		return nil, err
+		return nil, "", err
 	}
 
 	vpg, err := se.GetVolumePerformanceGroupByUUID(ctx, params.VolumePerformanceGroupID)
 	if err != nil {
 		logger.Error("Failed to fetch volume performance group", "error", err)
-		return nil, err
+		return nil, "", err
 	}
 
 	if vpg.PoolID != poolView.Pool.ID {
 		logger.Error("Volume performance group does not belong to the specified pool", "vpgPoolID", vpg.PoolID, "requestedPoolID", poolView.Pool.ID)
-		return nil, customerrors.NewUserInputValidationErr("volume performance group does not belong to the specified pool")
+		return nil, "", customerrors.NewUserInputValidationErr("volume performance group does not belong to the specified pool")
 	}
 
 	count, err := se.GetVolumeCountByVolumePerformanceGroupID(ctx, vpg.ID)
 	if err != nil {
 		logger.Error("Failed to get volume count for VPG", "vpg_id", vpg.UUID, "error", err)
-		return nil, err
+		return nil, "", err
 	}
 	if count > 0 {
 		logger.Error("Cannot delete volume performance group: it is attached to one or more volumes", "vpg_id", vpg.UUID, "volume_count", count)
-		return nil, customerrors.NewConflictErr("volume performance group cannot be deleted because it is attached to one or more volumes")
+		return nil, "", customerrors.NewConflictErr("volume performance group cannot be deleted because it is attached to one or more volumes")
 	}
 
-	svm, err := se.GetSvmForPoolID(ctx, poolView.Pool.ID)
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeDeleteVolumePerformanceGroup),
+		State:        string(models.JobsStateNEW),
+		ResourceName: vpg.Name,
+		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID: vpg.UUID,
+		},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+	}
+	createdJob, err := se.CreateJob(ctx, job)
 	if err != nil {
-		logger.Error("Failed to get SVM for QoS policy deletion", "error", err, "pool_id", poolView.Pool.ID)
-		return nil, err
+		logger.Error("Failed to create VPG delete job", "error", err)
+		return nil, "", err
 	}
-
-	dbNodes, err := se.GetNodesByPoolID(ctx, poolView.Pool.ID)
-	if err != nil {
-		logger.Error("Failed to get nodes for pool", "error", err, "pool_id", poolView.Pool.ID)
-		return nil, err
-	}
-	if len(dbNodes) == 0 {
-		logger.Error("No node found for pool", "pool_id", poolView.Pool.ID)
-		return nil, customerrors.NewUserInputValidationErr("no node found for pool")
-	}
-
-	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
-		Nodes:            dbNodes,
-		DeploymentName:   poolView.DeploymentName,
-		OntapCredentials: poolView.PoolCredentials,
-	})
-	if node == nil {
-		logger.Error("CreateNodeForProvider returned nil", "pool_id", poolView.Pool.ID)
-		return nil, fmt.Errorf("CreateNodeForProvider returned nil for pool %d", poolView.Pool.ID)
-	}
-
-	provider, err := hyperscaler.GetProviderByNode(ctx, node)
-	if err != nil {
-		logger.Error("Failed to get provider for QoS policy deletion", "error", err)
-		return nil, err
-	}
-
-	if vpg.OntapQosPolicyID != "" {
-		deleteParams := vsa.DeleteQoSGroupPolicyParams{
-			UUID:    vpg.OntapQosPolicyID,
-			SvmName: svm.Name,
+	defer func() {
+		if err != nil && createdJob != nil {
+			_ = se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), 0, err.Error())
 		}
-		if err := provider.DeleteQoSGroupPolicy(deleteParams); err != nil {
-			if !customerrors.IsNotFoundErr(err) {
-				logger.Error("Failed to delete QoS policy from ONTAP", "policy_id", vpg.OntapQosPolicyID, "error", err)
-				return nil, err
-			}
-			logger.Debug("QoS policy already deleted in ONTAP", "policy_id", vpg.OntapQosPolicyID)
-		}
-	}
+	}()
 
-	// Build response model before deleting from DB (so we can return the deleted resource like volume delete).
+	// Build response model before the workflow hard-deletes the row.
 	deletedModel := convertDatastoreVPGToModel(vpg)
 
-	if err := se.HardDeleteVolumePerformanceGroup(ctx, vpg); err != nil {
-		logger.Error("Failed to delete volume performance group from database", "vpg_id", vpg.UUID, "error", err)
-		return nil, err
+	workflowExecutor := workflows.NewWorkflowExecutor(o.temporal, logger)
+	err = workflowExecutor.ExecuteWorkflow(
+		ctx,
+		createdJob.WorkflowID,
+		workflowengine.CustomerTaskQueue,
+		workflows.DeleteVolumePerformanceGroupWorkflow,
+		nil,
+		&workflows.DeleteVolumePerformanceGroupWorkflowParams{VPG: vpg, AccountName: params.AccountName},
+	)
+	if err != nil {
+		logger.Error("Failed to start VPG delete workflow", "error", err)
+		return nil, "", err
 	}
 
-	logger.Info("Deleted volume performance group", "vpg_id", vpg.UUID)
-	return deletedModel, nil
+	return deletedModel, createdJob.UUID, nil
 }

@@ -130,22 +130,21 @@ var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]
 func (a *VolumePerformanceGroupActivity) DeleteQoSPolicyInONTAP(
 	ctx context.Context,
 	qosPolicyID string,
+	vpgName string,
 	poolID int64,
 	node *models.Node,
 ) error {
 	logger := util.GetLogger(ctx)
-	if qosPolicyID == "" {
+	if qosPolicyID == "" && vpgName == "" {
 		return nil
 	}
 
-	// Get SVM for the pool
 	svm, err := a.SE.GetSvmForPoolID(ctx, poolID)
 	if err != nil {
 		logger.Error("Failed to get SVM for QoS policy deletion", "error", err, "pool_id", poolID)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	// Get provider for the node
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
 		logger.Error("Failed to get provider for QoS policy deletion", "error", err)
@@ -153,22 +152,29 @@ func (a *VolumePerformanceGroupActivity) DeleteQoSPolicyInONTAP(
 	}
 
 	deleteQosParams := vsa.DeleteQoSGroupPolicyParams{SvmName: svm.Name}
-	if uuidPattern.MatchString(qosPolicyID) {
-		deleteQosParams.UUID = qosPolicyID
+	if qosPolicyID != "" {
+		if uuidPattern.MatchString(qosPolicyID) {
+			deleteQosParams.UUID = qosPolicyID
+		} else {
+			deleteQosParams.Name = qosPolicyID
+		}
 	} else {
-		deleteQosParams.Name = qosPolicyID
+		logger.Warn("OntapQosPolicyID not set; falling back to name-based QoS policy deletion",
+			"vpg_name", vpgName, "pool_id", poolID)
+		deleteQosParams.Name = vpgName
 	}
+
 	err = provider.DeleteQoSGroupPolicy(deleteQosParams)
 	if err != nil {
 		if utilErrors.IsNotFoundErr(err) {
-			logger.Debug("QoS policy already deleted", "policy_name", qosPolicyID)
+			logger.Debug("QoS policy already deleted", "qos_policy_id", qosPolicyID, "vpg_name", vpgName)
 			return nil
 		}
-		logger.Error("Failed to delete QoS policy from ONTAP", "policy_name", qosPolicyID, "error", err)
+		logger.Error("Failed to delete QoS policy from ONTAP", "qos_policy_id", qosPolicyID, "vpg_name", vpgName, "error", err)
 		return vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	logger.Info("Deleted QoS policy from ONTAP", "policy_name", qosPolicyID)
+	logger.Info("Deleted QoS policy from ONTAP", "qos_policy_id", qosPolicyID, "vpg_name", vpgName)
 	return nil
 }
 
@@ -242,6 +248,18 @@ func (a *VolumePerformanceGroupActivity) UpdateQoSPolicyInONTAP(
 	}
 
 	logger.Info("QoS policy updated in ONTAP", "policy_name", newName, "vpg_id", vpg.UUID)
+	return nil
+}
+
+// HardDeleteVPGInDB permanently removes the VPG row from the database.
+func (a *VolumePerformanceGroupActivity) HardDeleteVPGInDB(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) error {
+	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Hard-deleting VPG from database")
+	if err := a.SE.HardDeleteVolumePerformanceGroup(ctx, vpg); err != nil {
+		logger.Error("Failed to hard-delete VPG from database", "error", err, "vpg_id", vpg.UUID)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	logger.Info("VPG hard-deleted from database", "vpg_id", vpg.UUID)
 	return nil
 }
 

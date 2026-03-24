@@ -368,7 +368,7 @@ func TestDeleteQoSPolicyInONTAP_Success(t *testing.T) {
 	mockProvider.On("DeleteQoSGroupPolicy", mock.AnythingOfType("vsa.DeleteQoSGroupPolicyParams")).Return(nil)
 
 	// Act
-	_, err := env.ExecuteActivity(activity.DeleteQoSPolicyInONTAP, qosPolicyID, poolID, node)
+	_, err := env.ExecuteActivity(activity.DeleteQoSPolicyInONTAP, qosPolicyID, "", poolID, node)
 
 	// Assert
 	assert.NoError(t, err)
@@ -390,7 +390,7 @@ func TestDeleteQoSPolicyInONTAP_EmptyPolicyID(t *testing.T) {
 	node := &models.Node{ExternalUUID: "node-uuid"}
 
 	// Act
-	_, err := env.ExecuteActivity(activity.DeleteQoSPolicyInONTAP, qosPolicyID, poolID, node)
+	_, err := env.ExecuteActivity(activity.DeleteQoSPolicyInONTAP, qosPolicyID, "", poolID, node)
 
 	// Assert
 	assert.NoError(t, err)
@@ -414,7 +414,7 @@ func TestDeleteQoSPolicyInONTAP_GetSvmError(t *testing.T) {
 	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(nil, expectedError)
 
 	// Act
-	_, err := env.ExecuteActivity(activity.DeleteQoSPolicyInONTAP, qosPolicyID, poolID, node)
+	_, err := env.ExecuteActivity(activity.DeleteQoSPolicyInONTAP, qosPolicyID, "", poolID, node)
 
 	// Assert
 	assert.Error(t, err)
@@ -447,7 +447,7 @@ func TestDeleteQoSPolicyInONTAP_GetProviderError(t *testing.T) {
 	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
 
 	// Act
-	_, err := env.ExecuteActivity(activity.DeleteQoSPolicyInONTAP, qosPolicyID, poolID, node)
+	_, err := env.ExecuteActivity(activity.DeleteQoSPolicyInONTAP, qosPolicyID, "", poolID, node)
 
 	// Assert
 	assert.Error(t, err)
@@ -483,7 +483,7 @@ func TestDeleteQoSPolicyInONTAP_DeleteError(t *testing.T) {
 	mockProvider.On("DeleteQoSGroupPolicy", mock.AnythingOfType("vsa.DeleteQoSGroupPolicyParams")).Return(expectedError)
 
 	// Act
-	_, err := env.ExecuteActivity(activity.DeleteQoSPolicyInONTAP, qosPolicyID, poolID, node)
+	_, err := env.ExecuteActivity(activity.DeleteQoSPolicyInONTAP, qosPolicyID, "", poolID, node)
 
 	// Assert
 	assert.Error(t, err)
@@ -520,12 +520,86 @@ func TestDeleteQoSPolicyInONTAP_NotFoundError(t *testing.T) {
 	mockProvider.On("DeleteQoSGroupPolicy", mock.AnythingOfType("vsa.DeleteQoSGroupPolicyParams")).Return(notFoundError)
 
 	// Act
-	_, err := env.ExecuteActivity(activity.DeleteQoSPolicyInONTAP, qosPolicyID, poolID, node)
+	_, err := env.ExecuteActivity(activity.DeleteQoSPolicyInONTAP, qosPolicyID, "", poolID, node)
 
 	// Assert
 	assert.NoError(t, err) // NotFound errors should be ignored
 	mockStorage.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
+}
+
+func TestDeleteQoSPolicyInONTAP_NameFallback_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	mockProvider := new(vsa.MockProvider)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	act := VolumePerformanceGroupActivity{SE: mockStorage}
+	env.RegisterActivity(act.DeleteQoSPolicyInONTAP)
+
+	poolID := int64(1)
+	node := &models.Node{ExternalUUID: "node-uuid"}
+	svm := &datamodel.Svm{Name: "test-svm"}
+
+	mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
+	mockProvider.On("DeleteQoSGroupPolicy", vsa.DeleteQoSGroupPolicyParams{
+		SvmName: "test-svm",
+		Name:    "vpg-name-fallback",
+	}).Return(nil)
+
+	_, err := env.ExecuteActivity(act.DeleteQoSPolicyInONTAP, "", "vpg-name-fallback", poolID, node)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestHardDeleteVPGInDB_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	act := VolumePerformanceGroupActivity{SE: mockStorage}
+	env.RegisterActivity(act.HardDeleteVPGInDB)
+
+	vpg := &datamodel.VolumePerformanceGroup{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
+		Name:      "test-vpg",
+		PoolID:    1,
+	}
+
+	mockStorage.On("HardDeleteVolumePerformanceGroup", mock.Anything, vpg).Return(nil)
+
+	_, err := env.ExecuteActivity(act.HardDeleteVPGInDB, vpg)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestHardDeleteVPGInDB_Error(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	act := VolumePerformanceGroupActivity{SE: mockStorage}
+	env.RegisterActivity(act.HardDeleteVPGInDB)
+
+	vpg := &datamodel.VolumePerformanceGroup{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "vpg-uuid"},
+		Name:      "test-vpg",
+		PoolID:    1,
+	}
+
+	mockStorage.On("HardDeleteVolumePerformanceGroup", mock.Anything, vpg).Return(errors.New("db delete failed"))
+
+	_, err := env.ExecuteActivity(act.HardDeleteVPGInDB, vpg)
+	assert.Error(t, err)
+	mockStorage.AssertExpectations(t)
 }
 
 func TestGetPoolViewByPoolID_Success(t *testing.T) {
