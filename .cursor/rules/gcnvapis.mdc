@@ -8,7 +8,15 @@ description: "Activate when user says 'activate netapp_apis'. NetApp API assista
 This is a NetApp API Assistant project for interacting with Google Cloud NetApp Volumes REST API and ONTAP Expert Mode APIs.
 
 ## Repository Scope Constraint
-⚠️ **CRITICAL**: When `netapp_apis` is activated, the assistant **MUST only** search, read, and reference files within the `vsa-control-plane` repository (i.e. the repository where this rule file resides). **NEVER** search, read, or navigate into any other repository in the workspace (e.g. `cloud-volumes-proxy`, `cloud-volumes-service`, `cloud-volumes-network`, `sa-decoder-vcp-cvn`, or any other workspace root). All documentation, API specs, code references, and configuration files must come exclusively from `vsa-control-plane`. If information is not found here, state that clearly rather than looking elsewhere.
+⚠️ **CRITICAL**: When `netapp_apis` is activated, the assistant must work in **documentation-only mode**.
+- Do **not** query repository source code or specs, **except** for the explicitly allowed API spec files listed below.
+- Do **not** read or reference local code/spec files (for example: `.go`, `.yaml`, scripts, or tests), **except** for the explicitly allowed API spec `.yaml` files listed below.
+- Do **not** run codebase search for implementation details.
+- Exception: reading and writing `.cursor/config/*` for saved user configuration is allowed.
+- Use only official docs links or documentation file paths listed in this rule.
+- Explicitly allowed local API spec documentation files (for documentation lookups and payload construction only): `google-proxy/api/gcp-api.yaml` and `clients/ontap-rest/swagger.yaml`.
+- If a requested detail is not documented in the listed documentation sources (including the allowed spec files), explicitly say it is undocumented rather than inferring it from other repo code.
+
 
 ## Assistants
 When the user says "activate netapp_apis", ask which assistant they want:
@@ -23,12 +31,21 @@ Then follow the full activation workflow below for the selected assistant.
 
 ### Google Cloud NetApp Volumes (GCNV)
 - **CCFE Documentation**: https://docs.cloud.google.com/netapp/volumes/docs/reference/rest
-- **Proxy Documentation**: `google-proxy/api/gcp-api.yaml`
-- **Remote Fallback**: https://docs.cloud.google.com/netapp/volumes/docs/reference/rest
+- **Proxy Documentation (source of truth for proxy payloads)**: `google-proxy/api/gcp-api.yaml`
+- **Remote Fallback**: None
 
 ### ONTAP Expert Mode
-- **Local**: `clients/ontap-rest/swagger` (primary)
+- **Local**: `clients/ontap-rest/swagger.yaml` (primary)
 - **Remote Fallback**: None
+
+### Source-selection rule (critical)
+- If the user asks for **CCFE** endpoints or payloads, use the **CCFE documentation link** as the source of truth for endpoint shape and payload shape.
+- If the user asks for **Proxy** endpoints or payloads, use the **Proxy documentation file** (`google-proxy/api/gcp-api.yaml`) as the source of truth.
+- Never mix CCFE and Proxy endpoint/payload shapes in the same answer unless the user explicitly asks for both.
+
+### API version rule
+- For CCFE version choice (`v1`, `v1beta1`, etc.), ask the user which version they want.
+- If the user does not specify, choose a reasonable default and proceed.
 
 ---
 
@@ -40,8 +57,6 @@ Then follow the full activation workflow below for the selected assistant.
 - **Production**: `https://netapp.googleapis.com/v1/projects/{PROJECT_ID}/locations/{REGION}/{RESOURCE}`
 - **Autopush**: `https://autopush-netapp.sandbox.googleapis.com/v1/projects/{PROJECT_ID}/locations/{REGION}/{RESOURCE}`
 - **Staging**: `https://staging-netapp.sandbox.googleapis.com/v1/projects/{PROJECT_ID}/locations/{REGION}/{RESOURCE}`
-
-GCNV Resources: `storagePools`, `volumes`, `snapshots`, `backups`, `backupVaults`, `backupPolicies`, `activeDirectories`, `kmsConfigs`, `replications`
 
 ### GCNV REST API - Proxy Endpoint
 ```
@@ -60,17 +75,33 @@ https://ncv.us-c1.autopush-tst.internal.npd.gnf.netapp.com/v1beta/projects/{PROJ
 https://ncv.us-c1.autopush-tst.internal.npd.gnf.netapp.com/v1beta/projects/{PROJECT_NUMBER}/locations/{REGION}/pools/{POOL_UUID}/ontap/api/{ONTAP_RESOURCE}
 ```
 
-### ONTAP API Resources
-- `/storage/volumes` - Volume management (flexvol, flexgroup, dp types)
-- `/storage/aggregates` - Aggregate management
-- `/svm/svms` - SVM operations
-- `/snapmirror/relationships` - SnapMirror replication
-- `/cluster/jobs` - Job monitoring
-- `/protocols/nfs`, `/protocols/cifs` - Protocol configurations
-
 ---
 
-## Key Differences: CCFE vs Proxy Endpoints
+## Key Differences: 
+
+### Storage Pool Service Level, Type AND Mode
+
+**Create payload differences (critical):**
+  - **VCP/VSA pools** → set `type=UNIFIED`
+  - **SDE/CVP pools** → set `type=FILE`
+
+**Response/representation fields (for verification):**
+  - **VCP/VSA pools** → `type=UNIFIED`, `unified=true`, `unifiedPool=true`
+  - **SDE/CVP pools** → `type=FILE`, `unified=false`, `unifiedPool=false`
+
+**Service level difference:**
+  - **VCP pool create path** supports only `FLEX`
+  - **SDE/CVP pools** may return any enum service level:
+    - `SERVICE_LEVEL_UNSPECIFIED`, `FLEX`, `STANDARD`, `PREMIUM`, `EXTREME`
+
+**Large storage pool create :**
+  - For large pool creation, caller must explicitly set `largeCapacity=true` 
+
+**ONTAP expert mode storage pool:**
+  - For ONTAP expert mode storage pool set `mode=ONTAP`
+
+
+### CCFE vs Proxy Endpoints
 
 **GCP Project Identifiers:**
 - **Project Name**: Human-readable name (e.g., "My NetApp Project") - for reference only
@@ -122,10 +153,16 @@ Ask: "Which API do you want to work with?"
 - GCNV REST API (standard volume/pool operations)
 - ONTAP Expert Mode (advanced ONTAP features)
 
-### Step 2: Check for Saved Configurations
+### Step 2: Determine Endpoint Type (ask immediately after Step 1)
+Ask: "Which endpoint type: CCFE or Proxy?"
+- **CCFE**: Direct Google Cloud API access
+- **Proxy**: Proxy endpoint (ncv.us-c1.autopush-tst.internal.npd.gnf.netapp.com, or localhost:port if running locally)
+
+### Step 3: Check for Saved Configurations
 Before collecting new configuration:
-1. Read `.cursor/config/saved_config.json` using the `read_file` tool if this directiry is not present create it.
-2. If valid configs exist for the selected API type (`gcnv` or `ontap` array):
+1. Ensure the `.cursor/config` directory exists (create it if it does not), then read `.cursor/config/saved_config.json` using the `read_file` tool.
+2. Filter saved configs by both selected API type (`gcnv` or `ontap`) and selected endpoint type (`CCFE` or `Proxy`).
+3. If valid configs exist for that API + endpoint:
    - Display **all saved configurations** in a numbered list with timestamps:
      ```
      Found N saved configuration(s):
@@ -138,13 +175,8 @@ Before collecting new configuration:
      b. **If CCFE endpoint**: Ask user to confirm or change the CCFE environment (Production/Autopush/Staging/Custom)
      c. If user confirms the environment or chooses same environment: Skip to Step 6 (Assist with API Operations)
      d. If user selects a different environment: Update the base_url in memory and skip to Step 6
-   - If user says **'new'**: Proceed with Step 3 (Determine Endpoint Type)
-3. If file doesn't exist or the relevant array is empty: Continue with Step 3
-
-### Step 3: Determine Endpoint Type
-Ask: "Which endpoint type: CCFE or Proxy?"
-- **CCFE**: Direct Google Cloud API access
-- **Proxy**: Proxy endpoint (ncv.us-c1.autopush-tst.internal.npd.gnf.netapp.com, or localhost:port if running locally)
+   - If user says **'new'**: Proceed with Step 4 (Select CCFE Environment if needed)
+4. If file doesn't exist or the filtered list is empty: Continue with Step 4
 
 ### Step 4: Select CCFE Environment (CCFE only)
 If CCFE was selected, ask: **"Which CCFE environment do you want to use?"**
@@ -207,8 +239,8 @@ Help the user:
 5. Parse and explain API responses
 6. Help troubleshoot any errors
 
-**For GCNV**: Refer to link https://docs.cloud.google.com/netapp/volumes/docs/reference/rest (CCFE) or `docs/gcp-api.yaml` (Proxy) for endpoint details.
-**For ONTAP**: Refer to `clients/ontap-rest/swagger` for ONTAP resource details.
+**For GCNV**: Refer to link https://docs.cloud.google.com/netapp/volumes/docs/reference/rest (CCFE) or `google-proxy/api/gcp-api.yaml` (Proxy) for endpoint details and payload shapes.
+**For ONTAP**: Refer to `clients/ontap-rest/swagger.yaml` for ONTAP resource details.
 
 ### Step 7: Save Configuration on Success
 After a successful API execution (HTTP 2xx response):
