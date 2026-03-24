@@ -1285,3 +1285,105 @@ func TestIsCVPError(t *testing.T) {
 		})
 	}
 }
+
+// TestErrKMSMigrationClientErrorMapping verifies that ErrKMSMigrationClientError (6064)
+// is properly mapped to HTTP 400 for client errors during CMEK migration (e.g. ONTAP 409 conflict).
+func TestErrKMSMigrationClientErrorMapping(t *testing.T) {
+	// Preserve global state so this test does not interfere with others.
+	originalErrorMap := make(map[int]ErrorMessage)
+	for k, v := range errorMap {
+		originalErrorMap[k] = v
+	}
+	originalErrorsJSON := make([]byte, len(errorsJSON))
+	copy(originalErrorsJSON, errorsJSON)
+	defer func() {
+		errorMap = originalErrorMap
+		errorsJSON = originalErrorsJSON
+	}()
+
+	// Reload errorMap from the embedded JSON to ensure we test against the actual mappings.
+	errorsJSON = embeddedErrorsJSON
+	handler := &ErrorHandler{}
+	if err := handler.loadErrorMessages(); err != nil {
+		t.Fatalf("failed to load error messages from embedded JSON: %v", err)
+	}
+
+	msg := GetErrorMessageByTrackingID(ErrKMSMigrationClientError)
+	if msg == nil {
+		t.Fatalf("Expected non-nil ErrorMessage for ErrKMSMigrationClientError (6064)")
+	}
+
+	if msg.Message == "undefined error" {
+		t.Fatalf("ErrKMSMigrationClientError (6064) is not defined in errors.json - got 'undefined error'")
+	}
+
+	expectedMessage := "Error while migrating KMS configuration"
+	if msg.Message != expectedMessage {
+		t.Errorf("Expected message '%s', got '%s'", expectedMessage, msg.Message)
+	}
+
+	if msg.HttpCode == nil {
+		t.Fatalf("Expected non-nil HTTP code for ErrKMSMigrationClientError")
+	}
+	if *msg.HttpCode != 400 {
+		t.Errorf("Expected HTTP code 400, got %d", *msg.HttpCode)
+	}
+
+	if msg.Retriable == nil {
+		t.Fatalf("Expected non-nil Retriable for ErrKMSMigrationClientError")
+	}
+	if *msg.Retriable {
+		t.Errorf("Expected ErrKMSMigrationClientError to be non-retriable")
+	}
+}
+
+// TestErrKMSMigrationMapping verifies that ErrKMSMigration (6063)
+// is properly mapped to HTTP 500 for internal errors during CMEK migration.
+func TestErrKMSMigrationMapping(t *testing.T) {
+	// Preserve global state so this test does not interfere with others.
+	originalErrorMap := make(map[int]ErrorMessage)
+	for k, v := range errorMap {
+		originalErrorMap[k] = v
+	}
+	originalErrorsJSON := make([]byte, len(errorsJSON))
+	copy(originalErrorsJSON, errorsJSON)
+	defer func() {
+		errorMap = originalErrorMap
+		errorsJSON = originalErrorsJSON
+	}()
+
+	// Reload errorMap from the embedded JSON to ensure we test against the actual mappings.
+	errorsJSON = embeddedErrorsJSON
+	handler := &ErrorHandler{}
+	if err := handler.loadErrorMessages(); err != nil {
+		t.Fatalf("failed to load error messages from embedded JSON: %v", err)
+	}
+
+	msg := GetErrorMessageByTrackingID(ErrKMSMigration)
+	if msg == nil {
+		t.Fatalf("Expected non-nil ErrorMessage for ErrKMSMigration (6063)")
+	}
+
+	if msg.Message == "undefined error" {
+		t.Fatalf("ErrKMSMigration (6063) is not defined in errors.json - got 'undefined error'")
+	}
+
+	expectedMessage := "Error while migrating KMS configuration"
+	if msg.Message != expectedMessage {
+		t.Errorf("Expected message '%s', got '%s'", expectedMessage, msg.Message)
+	}
+
+	if msg.HttpCode == nil {
+		t.Fatalf("Expected non-nil HTTP code for ErrKMSMigration")
+	}
+	if *msg.HttpCode != 500 {
+		t.Errorf("Expected HTTP code 500, got %d", *msg.HttpCode)
+	}
+
+	if msg.Retriable == nil {
+		t.Fatalf("Expected non-nil Retriable for ErrKMSMigration")
+	}
+	if *msg.Retriable {
+		t.Errorf("Expected ErrKMSMigration to be non-retriable")
+	}
+}

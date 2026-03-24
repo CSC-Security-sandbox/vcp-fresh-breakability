@@ -55,7 +55,7 @@ func MigrateKmsConfigWorkflow(ctx workflow.Context, params *common.MigrateKmsCon
 			kmsConfigWorkflow.Logger.Info(fmt.Sprintf("%s", vsaCmekMigrationSkippedPoolReason))
 			errWorkflow = workflows.ConvertToVSAError(fmt.Errorf("%w \n%s", errWorkflow, vsaCmekMigrationSkippedPoolReason))
 		}
-		err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), errorcore.WrapAsTemporalApplicationError(errorcore.NewVCPError(errorcore.ErrKMSMigration, errWorkflow)))
+		err = kmsConfigWorkflow.UpdateJobStatus(ctx, string(models.JobsStateERROR), errWorkflow)
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
@@ -265,7 +265,7 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 	}
 
 	// Begin migration of VSA resources
-	var poolMigrationFailed bool
+	var poolMigrationClientError, poolMigrationInternalError bool
 	var future workflow.Future
 	futures := make([]workflow.Future, 0, len(poolsForMigration))
 	for index, pool := range poolsForMigration {
@@ -273,7 +273,7 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 		var dbNodes []*datamodel.Node
 		errGetNode := workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, pool.ID).Get(ctx, &dbNodes)
 		if errGetNode != nil {
-			poolMigrationFailed = true
+			poolMigrationInternalError = true
 			kmsWorkflow.Logger.Error(fmt.Sprintf("Failed to get node belonging to pool-id %s selected for CMEK migration", strconv.Itoa(int(pool.ID))), log.Fields{"error": errGetNode})
 
 			err = workflow.ExecuteActivity(ctx, poolActivity.FailedPoolActivity, pool, errGetNode.Error()).Get(ctx, nil)
@@ -290,7 +290,7 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 			OntapCredentials: pool.PoolCredentials,
 		})
 		if len(nodeForPool.EndpointAddressesToHostNameMap) == 0 {
-			poolMigrationFailed = true
+			poolMigrationInternalError = true
 			errMsgNode := fmt.Sprintf("Node belonging to pool-id %s selected for CMEK migration does not have Endpoint Address", strconv.Itoa(int(pool.ID)))
 			kmsWorkflow.Logger.Error(errMsgNode)
 
@@ -306,7 +306,7 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 		svmForPool := datamodel.Svm{}
 		errGetSvm := workflow.ExecuteActivity(ctx, poolActivity.GetSvmForPoolID, pool.ID).Get(ctx, &svmForPool)
 		if errGetSvm != nil || svmForPool.ID == 0 {
-			poolMigrationFailed = true
+			poolMigrationInternalError = true
 			kmsWorkflow.Logger.Error(fmt.Sprintf("Failed to get SVM belonging to pool-id %s selected for CMEK migration", strconv.Itoa(int(pool.ID))), log.Fields{"error": errGetSvm})
 			errGetSvmMsg := fmt.Sprintf("Failed to get SVM belonging to pool-id %s selected for CMEK migration", strconv.Itoa(int(pool.ID)))
 			if errGetSvm != nil {
@@ -331,7 +331,11 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 		// Create EKM for Svm associated with Pool
 		errCreateEKM := createEkmForSvm(ctx, nodeForPool, &svmForPool, poolsForMigration[index], paramsForSyncingAndEKMCreation)
 		if errCreateEKM != nil {
-			poolMigrationFailed = true
+			if strings.Contains(errCreateEKM.Error(), "[409]") {
+				poolMigrationClientError = true
+			} else {
+				poolMigrationInternalError = true
+			}
 			kmsWorkflow.Logger.Error(fmt.Sprintf(
 				"Failed to associate EKM to pool-id %s selected for CMEK migration...skipping migration for this pool", pool.UUID),
 				log.Fields{"error": errCreateEKM})
@@ -349,7 +353,7 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 
 		errGetVolume := workflow.ExecuteActivity(ctx, volumeActivity.GetVolumesByPoolID, pool.ID).Get(ctx, &volumesForMigration)
 		if errGetVolume != nil {
-			poolMigrationFailed = true
+			poolMigrationInternalError = true
 			kmsWorkflow.Logger.Error(fmt.Sprintf("Failed to retrieve volumes belonging to pool-id %s selected for CMEK migration...skipping migration for this pool", pool.UUID), log.Fields{"error": errGetVolume})
 
 			err = workflow.ExecuteActivity(ctx, poolActivity.FailedPoolActivity, pool, errGetVolume.Error()).Get(ctx, nil)
@@ -397,7 +401,7 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 		if f != nil {
 			errFuture := f.Get(ctx, nil)
 			if errFuture != nil {
-				poolMigrationFailed = true
+				poolMigrationInternalError = true
 				err = workflow.ExecuteActivity(ctx, poolActivity.FailedPoolActivity, poolsForMigration[index], errFuture.Error()).Get(ctx, nil)
 				if err != nil {
 					kmsWorkflow.Logger.Error(fmt.Sprintf(
@@ -415,8 +419,12 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 		}
 	}
 
-	if poolMigrationFailed {
-		return vsaCmekMigrationSkippedPoolReason, workflows.ConvertToVSAError(errors.New("Migration failed for at least one of the Pools"))
+	if poolMigrationInternalError {
+		// At least one pool had an internal error → return 500
+		return vsaCmekMigrationSkippedPoolReason, errorcore.NewVCPError(errorcore.ErrKMSMigration, errors.New("Migration failed for at least one of the Pools"))
+	} else if poolMigrationClientError {
+		// All pool failures were client errors → return 400
+		return vsaCmekMigrationSkippedPoolReason, errorcore.NewVCPError(errorcore.ErrKMSMigrationClientError, errors.New("Migration failed for at least one of the Pools"))
 	}
 	return vsaCmekMigrationSkippedPoolReason, nil
 }
@@ -478,7 +486,10 @@ func createEkmForSvm(ctx workflow.Context, node *models.Node, svm *datamodel.Svm
 
 	defer func() {
 		if err != nil {
-			_ = workflow.ExecuteActivity(ctx, kmsConfigActivity.DeleteEkmConfigActivity, node, svm).Get(ctx, nil)
+			// Only attempt cleanup if we actually created an EKM (UUID was populated).
+			if svm.SvmDetails != nil && svm.SvmDetails.ExternalKmsConfigUUID != "" {
+				_ = workflow.ExecuteActivity(ctx, kmsConfigActivity.DeleteEkmConfigActivity, node, svm).Get(ctx, nil)
+			}
 		}
 	}()
 

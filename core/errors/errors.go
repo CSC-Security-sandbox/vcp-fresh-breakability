@@ -212,6 +212,7 @@ const (
 	ErrCVPClientStartProjectEventError             = 6060
 	ErrInvalidOperationName                        = 6061
 	ErrKMSMigration                                = 6063
+	ErrKMSMigrationClientError                     = 6064
 	ErrKMSDelete                                   = 6066
 	ErrKMSUpdate                                   = 6067
 	ErrKMSCreate                                   = 6068

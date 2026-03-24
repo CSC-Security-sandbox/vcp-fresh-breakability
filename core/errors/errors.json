@@ -834,10 +834,16 @@
     "http_code": 500
   },
   "6063": {
-    "description": "Cmek Migration failure",
+    "description": "CMEK Migration failure",
     "message": "Error while migrating KMS configuration",
     "retriable": false,
     "http_code": 500
+  },
+  "6064": {
+    "description": "CMEK Migration client error",
+    "message": "Error while migrating KMS configuration",
+    "retriable": false,
+    "http_code": 400
   },
   "6066": {
     "description": "Cmek Deletion failure",

@@ -678,7 +678,6 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetSvmForPoolID", mock.Anything, mock.Anything).Return(svm, nil)
 		env.OnActivity("UpdatingPool", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(temporal.NewNonRetryableApplicationError("Create DNS failed", "error", nil))
-		env.OnActivity("DeleteEkmConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FailedPoolActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
 
@@ -735,7 +734,6 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("UpdatingPool", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("Update Kms Config state failed", "error", nil))
-		env.OnActivity("DeleteEkmConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FailedPoolActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
 
@@ -793,7 +791,6 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(temporal.NewNonRetryableApplicationError("Update Kms Config state failed", "error", nil)).Once()
-		env.OnActivity("DeleteEkmConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FailedPoolActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
 
@@ -852,7 +849,6 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 		env.OnActivity("UpdatePoolWithKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("Update Pool with Kms Config failed", "error", nil))
-		env.OnActivity("DeleteEkmConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("FailedPoolActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
 
@@ -1103,6 +1099,134 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
+	})
+	t.Run("WhenCreateEkmReturnsOntap409_ReturnsClientError", func(tt *testing.T) {
+		// When ConfigureKmsForSvmActivity returns an ONTAP [409] conflict error,
+		// poolMigrationStatus should be poolMigrationClientError → ErrKMSMigrationClientError (tracking ID 6064).
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		vsaKmsConfig := newTestVsaKmsConfig(params.UUID)
+		env.SetHeader(mockHeader)
+		origAuthType := env2.AuthType
+		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
+		defer func() {
+			env2.AuthType = origAuthType
+		}()
+		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		var poolsInAccount []*datamodel.Pool
+		var dbNodes []*datamodel.Node
+		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateInUse,
+			DeploymentName: "cluster1",
+			PoolCredentials: &datamodel.PoolCredentials{
+				CertificateID: "cert-123",
+			}}
+		poolsInAccount = append(poolsInAccount, &pool1)
+		node1 := datamodel.Node{Name: "Node", EndpointAddress: "1.2.3.4", HostDNSName: "host1"}
+		dbNodes = append(dbNodes, &node1)
+		svm := &datamodel.Svm{Name: "SVM with ID", BaseModel: datamodel.BaseModel{ID: int64(1)}}
+
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
+		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
+		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
+		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
+		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(&vsaKmsConfig, nil)
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(dbNodes, nil)
+		env.OnActivity("GetSvmForPoolID", mock.Anything, mock.Anything).Return(svm, nil)
+		env.OnActivity("UpdatingPool", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
+		// ONTAP 409 conflict: key manager already configured for this SVM
+		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("ONTAP REST API error: [409] key manager already configured", "error", nil))
+		env.OnActivity("FailedPoolActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+		assert.ErrorContains(tt, env.GetWorkflowError(), "Migration failed for at least one of the Pools")
+		env.AssertExpectations(tt)
+	})
+	t.Run("WhenMixedOntap409AndInternalError_EscalatesToInternalError", func(tt *testing.T) {
+		// Two pools: pool1 fails with ONTAP [409] (client error), pool2 fails at GetNode (internal error).
+		// poolMigrationStatus should escalate to poolMigrationInternalError → ErrKMSMigration (tracking ID 6063).
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		vsaKmsConfig := newTestVsaKmsConfig(params.UUID)
+		env.SetHeader(mockHeader)
+		origAuthType := env2.AuthType
+		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
+		defer func() {
+			env2.AuthType = origAuthType
+		}()
+		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		var poolsInAccount []*datamodel.Pool
+		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateInUse,
+			DeploymentName: "cluster1",
+			PoolCredentials: &datamodel.PoolCredentials{
+				CertificateID: "cert-123",
+			}}
+		pool2 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(2), UUID: "pool2"}, State: models.LifeCycleStateREADY,
+			DeploymentName: "cluster2",
+			PoolCredentials: &datamodel.PoolCredentials{
+				CertificateID: "cert-456",
+			}}
+		poolsInAccount = append(poolsInAccount, &pool1, &pool2)
+
+		var dbNodes []*datamodel.Node
+		node1 := datamodel.Node{Name: "Node", EndpointAddress: "1.2.3.4", HostDNSName: "host1"}
+		dbNodes = append(dbNodes, &node1)
+		svm := &datamodel.Svm{Name: "SVM with ID", BaseModel: datamodel.BaseModel{ID: int64(1)}}
+
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
+		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
+		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
+		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
+		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(&vsaKmsConfig, nil)
+		// Pool 1: succeeds through to createEkmForSvm, then gets ONTAP 409
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(dbNodes, nil).Once()
+		env.OnActivity("GetSvmForPoolID", mock.Anything, mock.Anything).Return(svm, nil)
+		env.OnActivity("UpdatingPool", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("ONTAP REST API error: [409] key manager already configured", "error", nil))
+		// Pool 2: fails at GetNode (internal error) → escalates poolMigrationStatus to poolMigrationInternalError
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("Get Node failed", "error", nil)).Once()
+		env.OnActivity("FailedPoolActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+		assert.ErrorContains(tt, env.GetWorkflowError(), "Migration failed for at least one of the Pools")
+		env.AssertExpectations(tt)
 	})
 	t.Run("WhenFutureReturnsWithError", func(tt *testing.T) {
 		var ts testsuite.WorkflowTestSuite
