@@ -59,7 +59,8 @@ var (
 	// ontapPathValidStructure: path segments separated by /; each segment is either exactly *
 	ontapPathValidStructure     = regexp.MustCompile(`^/?(\*|[a-zA-Z0-9\-_.]+)(/(\*|[a-zA-Z0-9\-_.]+))*$`)
 	queryParamNameAllowedChars  = regexp.MustCompile(`^[a-zA-Z0-9_.\-]+$`)
-	queryParamValueAllowedChars = regexp.MustCompile(`^[a-zA-Z0-9\-_.,;:/*><=!@+% |]+$`)
+	// Backslash allowed for ONTAP APIs that use Windows-style domain\group in query params (e.g. CIFS local-groups).
+	queryParamValueAllowedChars = regexp.MustCompile(`^[a-zA-Z0-9\-_.,;:/*><=!@+% |\\]+$`)
 
 	// blockedQueryParams contains query parameter names that are not allowed
 	blockedQueryParams = map[string]string{

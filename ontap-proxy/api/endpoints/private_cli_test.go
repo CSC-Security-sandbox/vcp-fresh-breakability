@@ -146,6 +146,11 @@ func TestV1PrivateCli_Validation(t *testing.T) {
 		assert.Equal(t, 400, badReq.Code)
 		assert.Equal(t, "Composite commands are not allowed", badReq.Message)
 	})
+
+	t.Run("question mark help token is allowed by input validator", func(t *testing.T) {
+		assert.True(t, cliInputAllowedChars.MatchString("?"))
+		assert.True(t, cliInputAllowedChars.MatchString("vol create ?"))
+	})
 }
 
 func TestV1PrivateCli_RuleMatching(t *testing.T) {

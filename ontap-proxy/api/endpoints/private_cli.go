@@ -17,8 +17,8 @@ import (
 )
 
 // cliInputAllowedChars is the allowlist for CLI command input (OWASP: define allowed characters).
-// Covers ONTAP CLI: alphanumeric, hyphen, underscore, path chars, operators, quotes, space, tab.
-var cliInputAllowedChars = regexp.MustCompile(`^[a-zA-Z0-9\-_.,:;/*><=!@+%'" \t]+$`)
+// Covers ONTAP CLI: alphanumeric, hyphen, underscore, path chars, operators, quotes, help token (?), space, tab.
+var cliInputAllowedChars = regexp.MustCompile(`^[a-zA-Z0-9\-_.,:;/*><=!@+%'"? \t]+$`)
 
 // V1PrivateCli executes an ONTAP CLI command through the private CLI API.
 func (h Handler) V1PrivateCli(

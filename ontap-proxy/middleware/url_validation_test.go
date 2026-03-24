@@ -336,6 +336,11 @@ func TestValidateQueryParamValue(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:    "valid CIFS style domain backslash group",
+			value:   `TFCIFS-SRV01\f_cifs_group`,
+			wantErr: false,
+		},
+		{
 			name:    "disallowed chars - quote in value",
 			value:   "test' UNION SELECT * FROM users--",
 			wantErr: true,
