@@ -18,11 +18,13 @@ func runRollback(args []string) error {
 
 	var (
 		auditID  string
+		prNumber int
 		dryRun   bool
 		operator string
 	)
 
-	fs.StringVar(&auditID, "audit", "", "Audit ID to rollback (required)")
+	fs.StringVar(&auditID, "audit", "", "Audit ID to rollback")
+	fs.IntVar(&prNumber, "pr", 0, "PR number to rollback (fetches rollback from plan file)")
 	fs.BoolVar(&dryRun, "dry-run", false, "Show rollback SQL without executing")
 	fs.StringVar(&operator, "operator", "", "Operator performing rollback")
 
@@ -30,12 +32,17 @@ func runRollback(args []string) error {
 		return err
 	}
 
+	// Check for PR-based rollback
+	if prNumber > 0 {
+		return runRollbackForPR(prNumber)
+	}
+
 	if auditID == "" {
-		return fmt.Errorf("--audit is required")
+		return fmt.Errorf("either --audit or --pr is required")
 	}
 
 	// Load audit entry
-	auditLogger := audit.NewLogger(cfg.GetAuditPath())
+	auditLogger := audit.NewLogger(getAuditStorage())
 	entry, err := auditLogger.Get(auditID)
 	if err != nil {
 		return fmt.Errorf("failed to load audit entry: %w", err)
@@ -62,7 +69,7 @@ func runRollback(args []string) error {
 		return fmt.Errorf("no valid rollback SQL statements found")
 	}
 
-	printBox("ROLLBACK PREVIEW", "yellow")
+	printBox("ROLLBACK PREVIEW")
 	logger.Info("")
 	logger.Info(fmt.Sprintf("  Original Execution: %s\n", entry.AuditID))
 	logger.Info(fmt.Sprintf("  Executed At: %s\n", entry.Timestamp.Format(time.RFC3339)))
@@ -121,7 +128,7 @@ func runRollback(args []string) error {
 	defer dbClient.Close()
 
 	logger.Info("")
-	printBox("EXECUTING ROLLBACK", "yellow")
+	printBox("EXECUTING ROLLBACK")
 	logger.Info("")
 
 	// Execute rollback statements
@@ -146,7 +153,7 @@ func runRollback(args []string) error {
 	logger.Info("")
 
 	if err != nil {
-		printBox("ROLLBACK FAILED", "red")
+		printBox("ROLLBACK FAILED")
 		logger.Info("")
 		logger.Info(fmt.Sprintf("  Error: %v\n", err))
 		return err
@@ -158,7 +165,7 @@ func runRollback(args []string) error {
 		totalRows += count
 	}
 
-	printBox("ROLLBACK SUCCESSFUL", "green")
+	printBox("ROLLBACK SUCCESSFUL")
 	logger.Info("")
 	logger.Info(fmt.Sprintf("  Rows affected: %d\n", totalRows))
 	logger.Info("")

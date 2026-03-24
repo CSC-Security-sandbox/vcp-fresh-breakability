@@ -16,6 +16,7 @@ type Config struct {
 	Database   DatabaseConfig   `yaml:"database"`
 	Thresholds ThresholdsConfig `yaml:"thresholds"`
 	Audit      AuditConfig      `yaml:"audit"`
+	Storage    StorageConfig    `yaml:"storage"`
 }
 
 // GitHubConfig holds GitHub integration settings.
@@ -51,8 +52,14 @@ type ThresholdsConfig struct {
 // AuditConfig holds audit settings.
 type AuditConfig struct {
 	Enabled     bool   `yaml:"enabled"`
-	FilePath    string `yaml:"file_path"`
+	FilePath    string `yaml:"file_path"` // Deprecated: audit logs now stored in GCS
 	GitHubAudit bool   `yaml:"github_audit"`
+}
+
+// StorageConfig holds storage backend settings.
+type StorageConfig struct {
+	Backend   string `yaml:"backend"`    // Only "gcs" is supported
+	GCSBucket string `yaml:"gcs_bucket"` // GCS bucket name (required)
 }
 
 // DefaultConfig returns a Config with sensible defaults.
@@ -66,8 +73,11 @@ func DefaultConfig() *Config {
 		},
 		Database: DatabaseConfig{
 			UseVCPConfig: true,
+			Host:         "127.0.0.1", // Default host
 			Port:         "5432",
-			SSLMode:      "require",
+			User:         "postgres",  // Default user
+			DBName:       "vcp",       // Default database
+			SSLMode:      "disable",   // Default SSL mode
 		},
 		Thresholds: ThresholdsConfig{
 			MaxRowsDefault:   100,
@@ -79,6 +89,9 @@ func DefaultConfig() *Config {
 		Audit: AuditConfig{
 			Enabled:  true,
 			FilePath: ".safesql/audit/",
+		},
+		Storage: StorageConfig{
+			Backend: "gcs",
 		},
 	}
 }
@@ -155,6 +168,12 @@ func (c *Config) loadFromEnv() {
 	if sslmode := os.Getenv("DB_SSLMODE"); sslmode != "" {
 		c.Database.SSLMode = sslmode
 	}
+
+	// Storage overrides
+	if bucket := os.Getenv("SAFESQL_GCS_BUCKET"); bucket != "" {
+		c.Storage.GCSBucket = bucket
+		c.Storage.Backend = "gcs"
+	}
 }
 
 // Validate checks if the configuration is valid for operation.
@@ -168,28 +187,20 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	if !c.Database.UseVCPConfig {
+	// Always require database host
 		if c.Database.Host == "" {
-			return fmt.Errorf("database.host is required when use_vcp_config is false")
-		}
+		return fmt.Errorf("database host not configured. Set DB_HOST environment variable or create .safesql/config.yaml")
 	}
 
 	if c.Thresholds.MaxRowsDefault <= 0 {
 		return fmt.Errorf("thresholds.max_rows_default must be positive")
 	}
 
+	// Validate storage config
+	if c.Storage.Backend == "gcs" && c.Storage.GCSBucket == "" {
+		return fmt.Errorf("GCS bucket is required when storage backend is 'gcs' (set SAFESQL_GCS_BUCKET)")
+	}
+
 	return nil
 }
 
-// GetPlanStorePath returns the path where plans are stored.
-func (c *Config) GetPlanStorePath() string {
-	return ".safesql/plans/"
-}
-
-// GetAuditPath returns the path where audit logs are stored.
-func (c *Config) GetAuditPath() string {
-	if c.Audit.FilePath != "" {
-		return c.Audit.FilePath
-	}
-	return ".safesql/audit/"
-}

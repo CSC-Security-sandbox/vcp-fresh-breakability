@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -24,30 +25,47 @@ func runPlan(args []string) error {
 	var (
 		githubRef string
 		localFile string
-		operator  string
+		prNumber  int
 		ticket    string
 		force     bool
 	)
 
 	fs.StringVar(&githubRef, "github", "", "GitHub reference (owner/repo@branch:path or branch:path)")
 	fs.StringVar(&localFile, "file", "", "Local file path (requires --force if GitHub source required)")
-	fs.StringVar(&operator, "operator", "", "Operator name/email (required)")
-	fs.StringVar(&ticket, "ticket", "", "Ticket reference (required)")
+	fs.IntVar(&prNumber, "pr", 0, "Pull request number (generates plan and commits to PR)")
+	fs.StringVar(&ticket, "ticket", "", "Ticket reference (required for --file/--github, optional for --pr if in PR title)")
 	fs.BoolVar(&force, "force", false, "Force local file execution (bypasses GitHub requirement)")
 
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
+	// Handle PR-based plan generation
+	if prNumber > 0 {
+		return runPlanForPR(prNumber, ticket)
+	}
+
+	// Auto-fetch username from environment or system
+	operator, err := getCurrentUsername()
+	if err != nil {
+		return fmt.Errorf("failed to get current username: %w", err)
+	}
+
+	// Override with SAFESQL_OPERATOR if set
+	if envOperator := os.Getenv("SAFESQL_OPERATOR"); envOperator != "" {
+		operator = envOperator
+	}
+
 	// Validate inputs
-	if operator == "" {
-		return fmt.Errorf("--operator is required")
+	if githubRef == "" && localFile == "" && prNumber == 0 {
+		return fmt.Errorf("either --github, --file, or --pr is required")
 	}
-	if ticket == "" {
-		return fmt.Errorf("--ticket is required")
+	if (githubRef != "" && localFile != "") || (githubRef != "" && prNumber > 0) || (localFile != "" && prNumber > 0) {
+		return fmt.Errorf("only one of --github, --file, or --pr can be specified")
 	}
-	if githubRef == "" && localFile == "" {
-		return fmt.Errorf("either --github or --file is required")
+	// Ticket is required for non-PR workflows (will be extracted from PR title if not provided for PR workflow)
+	if prNumber == 0 && ticket == "" {
+		return fmt.Errorf("--ticket is required for --file and --github workflows")
 	}
 
 	// Check GitHub requirement
@@ -133,18 +151,18 @@ func runPlan(args []string) error {
 	validationResult := v.Validate(parseResult)
 
 	if !validationResult.Valid {
-		printBox("VALIDATION FAILED", "red")
+		printBox("VALIDATION FAILED")
 		for _, e := range validationResult.Errors {
-			logger.Info(fmt.Sprintf("  ❌ %s: %s\n", e.Rule, e.Description))
+			logger.Info(fmt.Sprintf("  [ERROR] %s: %s\n", e.Rule, e.Description))
 		}
 		return fmt.Errorf("query validation failed")
 	}
 
 	// Print warnings
 	if len(validationResult.Warnings) > 0 {
-		printBox("WARNINGS", "yellow")
+		printBox("WARNINGS")
 		for _, w := range validationResult.Warnings {
-			logger.Info(fmt.Sprintf("  ⚠️  %s: %s\n", w.Rule, w.Description))
+			logger.Info(fmt.Sprintf("  [WARNING] %s: %s\n", w.Rule, w.Description))
 		}
 		logger.Info("")
 	}
@@ -212,19 +230,19 @@ func runPlan(args []string) error {
 	}
 
 	// Build plan
-	pb := planner.NewPlanBuilder(cfg.Thresholds.PlanExpiry, cfg.GetPlanStorePath())
+	pb := planner.NewPlanBuilder(cfg.Thresholds.PlanExpiry, getPlanStorage())
 	plan, err := pb.Build(sourceInfo, parseResult, analysisResult, rollbackSQL, operator, ticket)
 	if err != nil {
 		return fmt.Errorf("failed to build plan: %w", err)
 	}
 
 	// Save plan
-	if err := pb.Save(plan); err != nil {
+	if err := pb.Save(ctx, plan); err != nil {
 		return fmt.Errorf("failed to save plan: %w", err)
 	}
 
 	// Log to audit
-	auditLogger := audit.NewLogger(cfg.GetAuditPath())
+	auditLogger := audit.NewLogger(getAuditStorage())
 	if _, err := auditLogger.LogPlan(plan); err != nil {
 		logger.Info(fmt.Sprintf("Warning: failed to log audit: %v\n", err))
 	}
@@ -236,7 +254,7 @@ func runPlan(args []string) error {
 }
 
 func printPlanSummary(plan *planner.Plan) {
-	printBox("EXECUTION PLAN GENERATED", "green")
+	printBox("EXECUTION PLAN GENERATED")
 	logger.Info("")
 	logger.Info(fmt.Sprintf("  Plan ID: %s\n", plan.PlanID))
 	logger.Info(fmt.Sprintf("  Expires: %s\n", plan.ExpiresAt.Format(time.RFC3339)))
@@ -299,7 +317,7 @@ func printPlanSummary(plan *planner.Plan) {
 		logger.Info("")
 	}
 
-	logger.Info(fmt.Sprintf("  Plan saved to: %s%s.json\n", cfg.GetPlanStorePath(), plan.PlanID))
+	logger.Info(fmt.Sprintf("  Plan saved to GCS: gs://%s/plans/%s.json\n", cfg.Storage.GCSBucket, plan.PlanID))
 	logger.Info("")
 	logger.Info("  Next step:")
 	logger.Info(fmt.Sprintf("    safesql apply --plan %s\n", plan.PlanID))
@@ -321,22 +339,23 @@ func formatRowPreview(row map[string]interface{}) string {
 	return strings.Join(parts, ", ")
 }
 
-func printBox(title, color string) {
-	var colorCode string
-	switch color {
-	case "red":
-		colorCode = "\033[31m"
-	case "green":
-		colorCode = "\033[32m"
-	case "yellow":
-		colorCode = "\033[33m"
-	default:
-		colorCode = ""
-	}
-	reset := "\033[0m"
+func printBox(title string) {
+	border := strings.Repeat("=", len(title)+4)
+	logger.Info(fmt.Sprintf("+%s+\n", border))
+	logger.Info(fmt.Sprintf("|  %s  |\n", title))
+	logger.Info(fmt.Sprintf("+%s+\n", border))
+}
 
-	border := strings.Repeat("═", len(title)+4)
-	logger.Info(fmt.Sprintf("%s╔%s╗%s\n", colorCode, border, reset))
-	logger.Info(fmt.Sprintf("%s║  %s  ║%s\n", colorCode, title, reset))
-	logger.Info(fmt.Sprintf("%s╚%s╝%s\n", colorCode, border, reset))
+// getCurrentUsername fetches the current system username using whoami command
+func getCurrentUsername() (string, error) {
+	cmd := exec.Command("whoami")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to execute whoami: %w", err)
+	}
+	username := strings.TrimSpace(string(output))
+	if username == "" {
+		return "", fmt.Errorf("whoami returned empty username")
+	}
+	return username, nil
 }

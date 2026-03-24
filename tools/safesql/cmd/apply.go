@@ -20,32 +20,42 @@ func runApply(args []string) error {
 	fs := flag.NewFlagSet("apply", flag.ExitOnError)
 
 	var (
-		planID string
-		force  bool
+		planID   string
+		prNumber int
+		force    bool
 	)
 
-	fs.StringVar(&planID, "plan", "", "Plan ID to apply (required)")
+	fs.StringVar(&planID, "plan", "", "Plan ID to apply")
+	fs.IntVar(&prNumber, "pr", 0, "Pull request number (applies plan from merged PR)")
 	fs.BoolVar(&force, "force", false, "Force execution even with warnings")
 
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
+	// Handle PR-based apply
+	if prNumber > 0 {
+		if planID != "" {
+			return fmt.Errorf("cannot specify both --plan and --pr")
+		}
+		return runApplyForPR(prNumber)
+	}
+
 	if planID == "" {
-		return fmt.Errorf("--plan is required")
+		return fmt.Errorf("either --plan or --pr is required")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
 	// Load plan
-	pb := planner.NewPlanBuilder(cfg.Thresholds.PlanExpiry, cfg.GetPlanStorePath())
-	plan, err := pb.Load(planID)
+	pb := planner.NewPlanBuilder(cfg.Thresholds.PlanExpiry, getPlanStorage())
+	plan, err := pb.Load(ctx, planID)
 	if err != nil {
 		return fmt.Errorf("failed to load plan: %w", err)
 	}
 
-	printBox("VERIFYING PLAN", "yellow")
+	printBox("VERIFYING PLAN")
 	logger.Info("")
 
 	// Validate database configuration
@@ -86,7 +96,7 @@ func runApply(args []string) error {
 	printVerificationResult(verifyResult, plan)
 
 	if !verifyResult.Valid {
-		printBox("EXECUTION BLOCKED", "red")
+		printBox("EXECUTION BLOCKED")
 		logger.Info("")
 		logger.Info("  The plan cannot be applied due to the above errors.")
 		logger.Info("  Create a new plan to capture the current state:")
@@ -94,13 +104,13 @@ func runApply(args []string) error {
 			plan.Source.Repository, plan.Source.Branch, plan.Source.FilePath))
 
 		// Log abort
-		auditLogger := audit.NewLogger(cfg.GetAuditPath())
+		auditLogger := audit.NewLogger(getAuditStorage())
 		auditLogger.LogAbort(plan, "Verification failed: "+strings.Join(verifyResult.Errors, "; "))
 
 		return fmt.Errorf("plan verification failed")
 	}
 
-	printBox("READY TO EXECUTE", "green")
+	printBox("READY TO EXECUTE")
 	logger.Info("")
 	logger.Info("  All verifications passed. The following queries will be executed:")
 	logger.Info("")
@@ -112,7 +122,7 @@ func runApply(args []string) error {
 
 	// Warning for high row counts
 	if plan.Impact.TotalRows > int64(cfg.Thresholds.WarningThreshold) {
-		logger.Info(fmt.Sprintf("  ⚠️  WARNING: This will affect %d rows\n", plan.Impact.TotalRows))
+		logger.Info(fmt.Sprintf("  [WARNING] This will affect %d rows\n", plan.Impact.TotalRows))
 		logger.Info("")
 	}
 
@@ -127,14 +137,14 @@ func runApply(args []string) error {
 		logger.Info("  Execution aborted by user.")
 
 		// Log abort
-		auditLogger := audit.NewLogger(cfg.GetAuditPath())
+		auditLogger := audit.NewLogger(getAuditStorage())
 		auditLogger.LogAbort(plan, "Aborted by user")
 
 		return nil
 	}
 
 	logger.Info("")
-	printBox("EXECUTING", "yellow")
+	printBox("EXECUTING")
 	logger.Info("")
 
 	// Execute with confirmation callback
@@ -150,7 +160,7 @@ func runApply(args []string) error {
 
 		// Check if row count matches expected
 		if total != plan.Impact.TotalRows {
-			logger.Info(fmt.Sprintf("  ⚠️  WARNING: Row count (%d) differs from plan (%d)\n", total, plan.Impact.TotalRows))
+			logger.Info(fmt.Sprintf("  [WARNING] Row count (%d) differs from plan (%d)\n", total, plan.Impact.TotalRows))
 			logger.Info("")
 		}
 
@@ -163,12 +173,12 @@ func runApply(args []string) error {
 	})
 
 	// Log execution
-	auditLogger := audit.NewLogger(cfg.GetAuditPath())
+	auditLogger := audit.NewLogger(getAuditStorage())
 	auditEntry, _ := auditLogger.LogApply(plan, verifyResult, execResult)
 
 	logger.Info("")
 	if execResult != nil && execResult.Success {
-		printBox("EXECUTION SUCCESSFUL", "green")
+		printBox("EXECUTION SUCCESSFUL")
 		logger.Info("")
 		logger.Info(fmt.Sprintf("  Rows affected: %d\n", execResult.TotalRows))
 		logger.Info(fmt.Sprintf("  Duration: %v\n", execResult.Duration))
@@ -176,19 +186,16 @@ func runApply(args []string) error {
 			logger.Info(fmt.Sprintf("  Audit ID: %s\n", auditEntry.AuditID))
 		}
 		logger.Info("")
-		logger.Info("  Rollback available:")
-		if auditEntry != nil {
-			logger.Info(fmt.Sprintf("    safesql rollback --audit %s\n", auditEntry.AuditID))
-		}
+		logger.Info("  Note: For PR-based workflows, use 'safesql rollback --pr <number>'\n")
 	} else if execResult != nil && execResult.RolledBack {
-		printBox("EXECUTION ROLLED BACK", "yellow")
+		printBox("EXECUTION ROLLED BACK")
 		logger.Info("")
 		logger.Info("  Transaction was rolled back (no changes made).")
 		if execResult.Error != nil {
 			logger.Info(fmt.Sprintf("  Reason: %v\n", execResult.Error))
 		}
 	} else {
-		printBox("EXECUTION FAILED", "red")
+		printBox("EXECUTION FAILED")
 		logger.Info("")
 		if err != nil {
 			logger.Info(fmt.Sprintf("  Error: %v\n", err))
@@ -201,40 +208,40 @@ func runApply(args []string) error {
 func printVerificationResult(result *executor.VerificationResult, plan *planner.Plan) {
 	// Plan expiry check
 	if result.PlanExpired {
-		logger.Info(fmt.Sprintf("  ❌ Plan expired at %s\n", plan.ExpiresAt.Format(time.RFC3339)))
+		logger.Info(fmt.Sprintf("  [FAIL] Plan expired at %s\n", plan.ExpiresAt.Format(time.RFC3339)))
 	} else {
 		remaining := time.Until(plan.ExpiresAt)
-		logger.Info(fmt.Sprintf("  ✓ Plan not expired (%v remaining)\n", remaining.Round(time.Minute)))
+		logger.Info(fmt.Sprintf("  [PASS] Plan not expired (%v remaining)\n", remaining.Round(time.Minute)))
 	}
 
 	// Signature check
 	if result.SignatureInvalid {
-		logger.Info("  ❌ Plan signature invalid")
+		logger.Info("  [FAIL] Plan signature invalid")
 	} else {
-		logger.Info("  ✓ Plan signature valid")
+		logger.Info("  [PASS] Plan signature valid")
 	}
 
 	// Commit check (GitHub source)
 	if plan.Source.Type == "github" {
 		if result.CommitMismatch {
-			logger.Info("  ❌ Commit SHA mismatch (file changed since plan)")
+			logger.Info("  [FAIL] Commit SHA mismatch (file changed since plan)")
 		} else {
-			logger.Info(fmt.Sprintf("  ✓ Commit SHA matches (%s)\n", plan.Source.CommitSHA[:12]))
+			logger.Info(fmt.Sprintf("  [PASS] Commit SHA matches (%s)\n", plan.Source.CommitSHA[:12]))
 		}
 	}
 
 	// State drift check
 	if result.StateDrift {
-		logger.Info("  ❌ State drift detected (data changed since plan)")
+		logger.Info("  [FAIL] State drift detected (data changed since plan)")
 	} else {
-		logger.Info("  ✓ State hash matches (no drift)")
+		logger.Info("  [PASS] State hash matches (no drift)")
 	}
 
 	// Row count check
 	if result.RowCountMismatch {
-		logger.Info("  ❌ Row count mismatch")
+		logger.Info("  [FAIL] Row count mismatch")
 	} else {
-		logger.Info(fmt.Sprintf("  ✓ Row count unchanged (%d rows)\n", plan.Impact.TotalRows))
+		logger.Info(fmt.Sprintf("  [PASS] Row count unchanged (%d rows)\n", plan.Impact.TotalRows))
 	}
 
 	logger.Info("")

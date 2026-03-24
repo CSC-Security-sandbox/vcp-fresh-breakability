@@ -2,11 +2,9 @@
 package audit
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"sort"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/tools/safesql/internal/executor"
@@ -62,14 +60,28 @@ type VerificationAudit struct {
 	Errors []string `json:"errors,omitempty"`
 }
 
-// Logger handles audit log operations.
-type Logger struct {
-	auditPath string
+// AuditMetadata contains metadata about an audit entry.
+type AuditMetadata struct {
+	AuditID   string
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
-// NewLogger creates a new audit Logger.
-func NewLogger(auditPath string) *Logger {
-	return &Logger{auditPath: auditPath}
+// StorageBackend defines the interface for audit storage operations.
+type StorageBackend interface {
+	SaveAudit(ctx context.Context, auditID string, data []byte) error
+	LoadAudit(ctx context.Context, auditID string) ([]byte, error)
+	ListAudits(ctx context.Context, date *time.Time, limit int) ([]AuditMetadata, error)
+}
+
+// Logger handles audit log operations.
+type Logger struct {
+	storage StorageBackend
+}
+
+// NewLogger creates a new audit Logger with a storage backend.
+func NewLogger(storage StorageBackend) *Logger {
+	return &Logger{storage: storage}
 }
 
 // LogPlan logs a plan creation.
@@ -239,20 +251,14 @@ func (l *Logger) generateAuditID(prefix string) string {
 }
 
 func (l *Logger) save(entry *Entry) error {
-	// Ensure directory exists
-	if err := os.MkdirAll(l.auditPath, 0755); err != nil {
-		return fmt.Errorf("failed to create audit directory: %w", err)
-	}
-
-	// Write audit file
-	filename := filepath.Join(l.auditPath, entry.AuditID+".json")
+	ctx := context.Background()
 	data, err := json.MarshalIndent(entry, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal audit entry: %w", err)
 	}
 
-	if err := os.WriteFile(filename, data, 0644); err != nil {
-		return fmt.Errorf("failed to write audit file: %w", err)
+	if err := l.storage.SaveAudit(ctx, entry.AuditID, data); err != nil {
+		return fmt.Errorf("failed to save audit entry: %w", err)
 	}
 
 	return nil
@@ -260,10 +266,10 @@ func (l *Logger) save(entry *Entry) error {
 
 // Get retrieves an audit entry by ID.
 func (l *Logger) Get(auditID string) (*Entry, error) {
-	filename := filepath.Join(l.auditPath, auditID+".json")
-	data, err := os.ReadFile(filename)
+	ctx := context.Background()
+	data, err := l.storage.LoadAudit(ctx, auditID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read audit file: %w", err)
+		return nil, fmt.Errorf("failed to load audit entry: %w", err)
 	}
 
 	var entry Entry
@@ -276,38 +282,17 @@ func (l *Logger) Get(auditID string) (*Entry, error) {
 
 // List returns recent audit entries.
 func (l *Logger) List(limit int) ([]*Entry, error) {
-	files, err := filepath.Glob(filepath.Join(l.auditPath, "*.json"))
+	ctx := context.Background()
+	storageMetadata, err := l.storage.ListAudits(ctx, nil, limit)
 	if err != nil {
-		return nil, err
-	}
-
-	// Sort by modification time (newest first)
-	// Use zero time as fallback for files that can't be stat'd (they'll sort to the end)
-	sort.Slice(files, func(i, j int) bool {
-		fi, err := os.Stat(files[i])
-		var ti time.Time
-		if err == nil && fi != nil {
-			ti = fi.ModTime()
-		}
-
-		fj, err := os.Stat(files[j])
-		var tj time.Time
-		if err == nil && fj != nil {
-			tj = fj.ModTime()
-		}
-
-		return ti.After(tj)
-	})
-
-	if limit > 0 && len(files) > limit {
-		files = files[:limit]
+		return nil, fmt.Errorf("failed to list audits: %w", err)
 	}
 
 	var entries []*Entry
-	for _, file := range files {
-		data, err := os.ReadFile(file)
+	for _, meta := range storageMetadata {
+		data, err := l.storage.LoadAudit(ctx, meta.AuditID)
 		if err != nil {
-			continue
+			continue // Skip entries that can't be loaded
 		}
 
 		var entry Entry
@@ -322,17 +307,15 @@ func (l *Logger) List(limit int) ([]*Entry, error) {
 
 // ListByDate returns audit entries for a specific date.
 func (l *Logger) ListByDate(date time.Time) ([]*Entry, error) {
-	dateStr := date.Format("20060102")
-	pattern := filepath.Join(l.auditPath, fmt.Sprintf("*-%s-*.json", dateStr))
-
-	files, err := filepath.Glob(pattern)
+	ctx := context.Background()
+	storageMetadata, err := l.storage.ListAudits(ctx, &date, 0) // 0 = no limit
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list audits by date: %w", err)
 	}
 
 	var entries []*Entry
-	for _, file := range files {
-		data, err := os.ReadFile(file)
+	for _, meta := range storageMetadata {
+		data, err := l.storage.LoadAudit(ctx, meta.AuditID)
 		if err != nil {
 			continue
 		}

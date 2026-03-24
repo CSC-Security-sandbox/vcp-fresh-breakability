@@ -226,34 +226,50 @@ func detectStatementType(sql string) StatementType {
 
 func extractTables(sql string, stmtType StatementType) []string {
 	var tables []string
-	upper := strings.ToUpper(sql)
 
 	switch stmtType {
 	case StatementUpdate:
-		// UPDATE table_name SET ...
-		re := regexp.MustCompile(`(?i)UPDATE\s+(\w+)`)
+		// UPDATE table_name SET ... or UPDATE "table_name" SET ...
+		re := regexp.MustCompile(`(?i)UPDATE\s+(?:"([^"]+)"|([a-zA-Z_][a-zA-Z0-9_]*))`)
 		if matches := re.FindStringSubmatch(sql); len(matches) > 1 {
-			tables = append(tables, strings.ToLower(matches[1]))
+			// matches[1] is quoted name, matches[2] is unquoted name
+			if matches[1] != "" {
+				tables = append(tables, strings.ToLower(matches[1]))
+			} else if matches[2] != "" {
+				tables = append(tables, strings.ToLower(matches[2]))
+			}
 		}
 	case StatementDelete:
-		// DELETE FROM table_name ...
-		re := regexp.MustCompile(`(?i)DELETE\s+FROM\s+(\w+)`)
+		// DELETE FROM table_name ... or DELETE FROM "table_name" ...
+		re := regexp.MustCompile(`(?i)DELETE\s+FROM\s+(?:"([^"]+)"|([a-zA-Z_][a-zA-Z0-9_]*))`)
 		if matches := re.FindStringSubmatch(sql); len(matches) > 1 {
-			tables = append(tables, strings.ToLower(matches[1]))
+			if matches[1] != "" {
+				tables = append(tables, strings.ToLower(matches[1]))
+			} else if matches[2] != "" {
+				tables = append(tables, strings.ToLower(matches[2]))
+			}
 		}
 	case StatementInsert:
-		// INSERT INTO table_name ...
-		re := regexp.MustCompile(`(?i)INSERT\s+INTO\s+(\w+)`)
+		// INSERT INTO table_name ... or INSERT INTO "table_name" ...
+		re := regexp.MustCompile(`(?i)INSERT\s+INTO\s+(?:"([^"]+)"|([a-zA-Z_][a-zA-Z0-9_]*))`)
 		if matches := re.FindStringSubmatch(sql); len(matches) > 1 {
-			tables = append(tables, strings.ToLower(matches[1]))
+			if matches[1] != "" {
+				tables = append(tables, strings.ToLower(matches[1]))
+			} else if matches[2] != "" {
+				tables = append(tables, strings.ToLower(matches[2]))
+			}
 		}
 	case StatementSelect:
-		// SELECT ... FROM table_name ...
-		re := regexp.MustCompile(`(?i)FROM\s+(\w+)`)
-		matches := re.FindAllStringSubmatch(upper, -1)
+		// SELECT ... FROM table_name ... or FROM "table_name" ...
+		re := regexp.MustCompile(`(?i)FROM\s+(?:"([^"]+)"|([a-zA-Z_][a-zA-Z0-9_]*))`)
+		matches := re.FindAllStringSubmatch(sql, -1)
 		for _, m := range matches {
 			if len(m) > 1 {
-				tables = append(tables, strings.ToLower(m[1]))
+				if m[1] != "" {
+					tables = append(tables, strings.ToLower(m[1]))
+				} else if m[2] != "" {
+					tables = append(tables, strings.ToLower(m[2]))
+				}
 			}
 		}
 	}
@@ -271,14 +287,60 @@ func extractWhereClause(sql string) (string, bool) {
 	// Extract everything after WHERE
 	whereClause := strings.TrimSpace(sql[idx+5:])
 
-	// Remove trailing clauses (ORDER BY, LIMIT, etc.)
-	for _, keyword := range []string{"ORDER BY", "LIMIT", "GROUP BY", "HAVING"} {
-		if keyIdx := strings.Index(strings.ToUpper(whereClause), keyword); keyIdx != -1 {
-			whereClause = strings.TrimSpace(whereClause[:keyIdx])
-		}
-	}
+	// Remove trailing clauses (ORDER BY, LIMIT, etc.) only if they're at the top level
+	// (not inside subqueries/parentheses)
+	whereClause = removeTopLevelTrailingClauses(whereClause)
 
 	return whereClause, true
+}
+
+// removeTopLevelTrailingClauses removes ORDER BY, LIMIT, etc. only if they're at the top level
+// (not inside parentheses/subqueries)
+func removeTopLevelTrailingClauses(whereClause string) string {
+	upper := strings.ToUpper(whereClause)
+	keywords := []string{"ORDER BY", "LIMIT", "GROUP BY", "HAVING", "OFFSET"}
+	
+	// Track parenthesis depth
+	depth := 0
+	result := whereClause
+	
+	for _, keyword := range keywords {
+		keywordIdx := -1
+		keywordDepth := 0
+		
+		// Find the keyword at depth 0 (top level)
+		for i := 0; i < len(upper); i++ {
+			if upper[i] == '(' {
+				depth++
+			} else if upper[i] == ')' {
+				depth--
+			} else if depth == 0 {
+				// Check if keyword starts at this position
+				if i+len(keyword) <= len(upper) && upper[i:i+len(keyword)] == keyword {
+					// Make sure it's a word boundary
+					if (i == 0 || !isAlphaNum(upper[i-1])) && 
+					   (i+len(keyword) >= len(upper) || !isAlphaNum(upper[i+len(keyword)])) {
+						keywordIdx = i
+						keywordDepth = depth
+						break
+					}
+				}
+			}
+		}
+		
+		// If found at top level, truncate
+		if keywordIdx != -1 && keywordDepth == 0 {
+			result = strings.TrimSpace(result[:keywordIdx])
+			upper = strings.ToUpper(result)
+			depth = 0 // Reset for next keyword
+		}
+	}
+	
+	return result
+}
+
+func isAlphaNum(c byte) bool {
+	return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_'
 }
 
 func computeHash(content string) string {

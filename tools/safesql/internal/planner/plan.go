@@ -2,11 +2,10 @@
 package planner
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -87,17 +86,25 @@ type VerificationQuery struct {
 	Description    string `json:"description"`     // Human-readable description
 }
 
+// StorageBackend defines the interface for plan storage operations.
+type StorageBackend interface {
+	SavePlan(ctx context.Context, planID string, data []byte) error
+	LoadPlan(ctx context.Context, planID string) ([]byte, error)
+	DeletePlan(ctx context.Context, planID string) error
+	ListPlans(ctx context.Context) ([]string, error)
+}
+
 // PlanBuilder builds execution plans.
 type PlanBuilder struct {
 	planExpiry time.Duration
-	storePath  string
+	storage    StorageBackend
 }
 
-// NewPlanBuilder creates a new PlanBuilder.
-func NewPlanBuilder(planExpiry time.Duration, storePath string) *PlanBuilder {
+// NewPlanBuilder creates a new PlanBuilder with a storage backend.
+func NewPlanBuilder(planExpiry time.Duration, storage StorageBackend) *PlanBuilder {
 	return &PlanBuilder{
 		planExpiry: planExpiry,
-		storePath:  storePath,
+		storage:    storage,
 	}
 }
 
@@ -110,7 +117,7 @@ func (b *PlanBuilder) Build(
 	operator, ticket string,
 ) (*Plan, error) {
 	now := time.Now().UTC()
-	planID := b.generatePlanID(now)
+	planID := b.generatePlanIDWithMetadata(now, operator, ticket)
 
 	plan := &Plan{
 		PlanID:    planID,
@@ -179,6 +186,30 @@ func (b *PlanBuilder) generatePlanID(t time.Time) string {
 	return fmt.Sprintf("plan-%s-%s", t.Format("20060102-150405"), fmt.Sprintf("%x", hash[:4]))
 }
 
+// generatePlanIDWithMetadata creates a plan ID with username and ticket
+func (b *PlanBuilder) generatePlanIDWithMetadata(t time.Time, username, ticket string) string {
+	hash := sha256.Sum256([]byte(fmt.Sprintf("%d-%d", t.UnixNano(), time.Now().UnixNano())))
+	// Sanitize username and ticket for filename safety
+	safeUsername := sanitizeForFilename(username)
+	safeTicket := sanitizeForFilename(ticket)
+	return fmt.Sprintf("plan-%s-%s-%s-%s", t.Format("20060102-150405"), safeUsername, safeTicket, fmt.Sprintf("%x", hash[:4]))
+}
+
+// sanitizeForFilename removes characters that are unsafe for filenames
+func sanitizeForFilename(s string) string {
+	// Replace spaces, slashes, and other unsafe characters with underscores
+	unsafe := []string{" ", "/", "\\", ":", "*", "?", "\"", "<", ">", "|", "@", "#", "$", "%", "^", "&"}
+	result := s
+	for _, char := range unsafe {
+		result = strings.ReplaceAll(result, char, "_")
+	}
+	// Limit length to avoid overly long filenames
+	if len(result) > 20 {
+		result = result[:20]
+	}
+	return result
+}
+
 func (b *PlanBuilder) signPlan(plan *Plan) string {
 	// Create a deterministic signature from plan contents
 	data := fmt.Sprintf("%s:%s:%s:%s:%d",
@@ -197,47 +228,29 @@ func (b *PlanBuilder) signPlan(plan *Plan) string {
 	return fmt.Sprintf("sha256:%x", hash)
 }
 
-// Save persists the plan to disk.
-func (b *PlanBuilder) Save(plan *Plan) error {
-	// Ensure directory exists
-	if err := os.MkdirAll(b.storePath, 0755); err != nil {
-		return fmt.Errorf("failed to create plan directory: %w", err)
-	}
-
-	// Write plan file
-	filename := filepath.Join(b.storePath, plan.PlanID+".json")
+// Save persists the plan to storage.
+func (b *PlanBuilder) Save(ctx context.Context, plan *Plan) error {
 	data, err := json.MarshalIndent(plan, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal plan: %w", err)
 	}
 
-	if err := os.WriteFile(filename, data, 0644); err != nil {
-		return fmt.Errorf("failed to write plan file: %w", err)
+	if err := b.storage.SavePlan(ctx, plan.PlanID, data); err != nil {
+		return fmt.Errorf("failed to save plan: %w", err)
 	}
 
 	return nil
 }
 
-// Load reads a plan from disk.
-// Accepts either a plan ID (e.g., "plan-20240115-143022-abc123") or a full file path.
-func (b *PlanBuilder) Load(planIDOrPath string) (*Plan, error) {
-	var filename string
+// Load reads a plan from storage.
+// Accepts a plan ID (e.g., "plan-20240115-143022-abc123").
+func (b *PlanBuilder) Load(ctx context.Context, planID string) (*Plan, error) {
+	// Strip .json suffix if present
+	planID = strings.TrimSuffix(planID, ".json")
 
-	// Check if it's a full path (contains path separator or ends with .json)
-	if strings.Contains(planIDOrPath, string(filepath.Separator)) || strings.HasSuffix(planIDOrPath, ".json") {
-		filename = planIDOrPath
-		// If it doesn't end with .json, add it
-		if !strings.HasSuffix(filename, ".json") {
-			filename = filename + ".json"
-		}
-	} else {
-		// It's just a plan ID
-		filename = filepath.Join(b.storePath, planIDOrPath+".json")
-	}
-
-	data, err := os.ReadFile(filename)
+	data, err := b.storage.LoadPlan(ctx, planID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read plan file '%s': %w", filename, err)
+		return nil, fmt.Errorf("failed to load plan '%s': %w", planID, err)
 	}
 
 	var plan Plan
@@ -265,16 +278,15 @@ func (b *PlanBuilder) Verify(plan *Plan) error {
 }
 
 // ListPlans returns all stored plans.
-func (b *PlanBuilder) ListPlans() ([]*Plan, error) {
-	files, err := filepath.Glob(filepath.Join(b.storePath, "plan-*.json"))
+func (b *PlanBuilder) ListPlans(ctx context.Context) ([]*Plan, error) {
+	planIDs, err := b.storage.ListPlans(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list plans: %w", err)
 	}
 
 	var plans []*Plan
-	for _, file := range files {
-		planID := filepath.Base(file[:len(file)-5]) // Remove .json
-		plan, err := b.Load(planID)
+	for _, planID := range planIDs {
+		plan, err := b.Load(ctx, planID)
 		if err != nil {
 			continue // Skip invalid plans
 		}
@@ -285,9 +297,8 @@ func (b *PlanBuilder) ListPlans() ([]*Plan, error) {
 }
 
 // DeletePlan removes a plan from storage.
-func (b *PlanBuilder) DeletePlan(planID string) error {
-	filename := filepath.Join(b.storePath, planID+".json")
-	return os.Remove(filename)
+func (b *PlanBuilder) DeletePlan(ctx context.Context, planID string) error {
+	return b.storage.DeletePlan(ctx, planID)
 }
 
 func computeHash(content string) string {

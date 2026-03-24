@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -14,24 +15,35 @@ func runShow(args []string) error {
 	fs := flag.NewFlagSet("show", flag.ExitOnError)
 
 	var (
-		planID string
-		asJSON bool
+		planID   string
+		prNumber int
+		asJSON   bool
 	)
 
-	fs.StringVar(&planID, "plan", "", "Plan ID to show (required)")
+	fs.StringVar(&planID, "plan", "", "Plan ID to show")
+	fs.IntVar(&prNumber, "pr", 0, "Pull request number (shows plan from PR)")
 	fs.BoolVar(&asJSON, "json", false, "Output as JSON")
 
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
+	// Handle PR-based show
+	if prNumber > 0 {
+		if planID != "" {
+			return fmt.Errorf("cannot specify both --plan and --pr")
+		}
+		return runShowForPR(prNumber, asJSON)
+	}
+
 	if planID == "" {
-		return fmt.Errorf("--plan is required")
+		return fmt.Errorf("either --plan or --pr is required")
 	}
 
 	// Load plan
-	pb := planner.NewPlanBuilder(cfg.Thresholds.PlanExpiry, cfg.GetPlanStorePath())
-	plan, err := pb.Load(planID)
+	ctx := context.Background()
+	pb := planner.NewPlanBuilder(cfg.Thresholds.PlanExpiry, getPlanStorage())
+	plan, err := pb.Load(ctx, planID)
 	if err != nil {
 		return fmt.Errorf("failed to load plan: %w", err)
 	}
@@ -54,9 +66,9 @@ func printDetailedPlan(plan *planner.Plan) {
 	isExpired := time.Now().UTC().After(plan.ExpiresAt)
 
 	if isExpired {
-		printBox("PLAN (EXPIRED)", "red")
+		printBox("PLAN (EXPIRED)")
 	} else {
-		printBox("PLAN DETAILS", "green")
+		printBox("PLAN DETAILS")
 	}
 	logger.Info("")
 

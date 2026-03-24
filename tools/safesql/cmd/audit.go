@@ -29,7 +29,7 @@ func runAudit(args []string) error {
 		return err
 	}
 
-	auditLogger := audit.NewLogger(cfg.GetAuditPath())
+	auditLogger := audit.NewLogger(getAuditStorage())
 
 	if auditID != "" {
 		// Show specific entry
@@ -87,31 +87,37 @@ func runAudit(args []string) error {
 }
 
 func printAuditList(entries []*audit.Entry) {
-	printBox("AUDIT HISTORY", "green")
+	printBox("AUDIT HISTORY")
 	logger.Info("")
 
 	// Header
-	logger.Info(fmt.Sprintf("  %-25s  %-8s  %-15s  %-12s  %-7s  %s\n",
-		"AUDIT ID", "TYPE", "OPERATOR", "TICKET", "RESULT", "TIMESTAMP"))
-	logger.Info(fmt.Sprintf("  %s\n", repeatChar("-", 90)))
+	logger.Info(fmt.Sprintf("  %-6s  %-8s  %-15s  %-25s  %-12s  %s\n",
+		"PR", "TYPE", "OPERATOR", "TICKET", "RESULT", "TIMESTAMP"))
+	logger.Info(fmt.Sprintf("  %s\n", repeatChar("-", 95)))
 
 	for _, entry := range entries {
-		result := "—"
+		result := "-"
 		if entry.Result != nil {
 			if entry.Result.Success {
-				result = "✓ OK"
+				result = "OK"
 			} else if entry.Result.RolledBack {
-				result = "↩ ROLLBACK"
+				result = "ROLLBACK"
 			} else {
-				result = "✗ FAIL"
+				result = "FAIL"
 			}
 		}
 
-		logger.Info(fmt.Sprintf("  %-25s  %-8s  %-15s  %-12s  %-7s  %s\n",
-			entry.AuditID,
+		// Get PR number from source metadata
+		prNumber := "-"
+		if entry.Source.PRMetadata != nil && entry.Source.PRMetadata.Number > 0 {
+			prNumber = fmt.Sprintf("#%d", entry.Source.PRMetadata.Number)
+		}
+
+		logger.Info(fmt.Sprintf("  %-6s  %-8s  %-15s  %-25s  %-12s  %s\n",
+			prNumber,
 			entry.Type,
 			truncate(entry.Operator, 15),
-			truncate(entry.Ticket, 12),
+			entry.Ticket, // Show full ticket name
 			result,
 			entry.Timestamp.Format("2006-01-02 15:04"),
 		))
@@ -140,7 +146,7 @@ func printAuditEntry(entry *audit.Entry) {
 		title = "EXECUTION ABORTED"
 	}
 
-	printBox(title, "green")
+	printBox(title)
 	logger.Info("")
 
 	logger.Info(fmt.Sprintf("  Audit ID:  %s\n", entry.AuditID))
@@ -166,11 +172,11 @@ func printAuditEntry(entry *audit.Entry) {
 	if entry.Verification != nil {
 		logger.Info("  Verification:")
 		if entry.Verification.Valid {
-			logger.Info("    Status: ✓ All checks passed")
+			logger.Info("    Status: [PASS] All checks passed")
 		} else {
-			logger.Info("    Status: ✗ Failed")
+			logger.Info("    Status: [FAIL] Failed")
 			for _, e := range entry.Verification.Errors {
-				logger.Info(fmt.Sprintf("      • %s\n", e))
+				logger.Info(fmt.Sprintf("      - %s\n", e))
 			}
 		}
 		logger.Info("")
@@ -196,16 +202,16 @@ func printAuditEntry(entry *audit.Entry) {
 	if entry.Result != nil {
 		logger.Info("  Result:")
 		if entry.Result.Success {
-			logger.Info("    Status: ✓ Success\n")
+			logger.Info("    Status: [SUCCESS]\n")
 			logger.Info(fmt.Sprintf("    Total Rows: %d\n", entry.Result.TotalRows))
 			logger.Info(fmt.Sprintf("    Duration: %v\n", entry.Result.Duration))
 		} else if entry.Result.RolledBack {
-			logger.Info("    Status: ↩ Rolled Back\n")
+			logger.Info("    Status: [ROLLED BACK]\n")
 			if entry.Result.ErrorMessage != "" {
 				logger.Info(fmt.Sprintf("    Reason: %s\n", entry.Result.ErrorMessage))
 			}
 		} else {
-			logger.Info("    Status: ✗ Failed\n")
+			logger.Info("    Status: [FAILED]\n")
 			if entry.Result.ErrorMessage != "" {
 				logger.Info(fmt.Sprintf("    Error: %s\n", entry.Result.ErrorMessage))
 			}
@@ -216,7 +222,10 @@ func printAuditEntry(entry *audit.Entry) {
 	// Rollback SQL
 	if len(entry.RollbackSQL) > 0 && entry.Result != nil && entry.Result.Success {
 		logger.Info("  Rollback Available:")
-		logger.Info(fmt.Sprintf("    safesql rollback --audit %s\n", entry.AuditID))
+		// Show PR-based rollback if PR metadata exists
+		if entry.Source.PRMetadata != nil && entry.Source.PRMetadata.Number > 0 {
+			logger.Info(fmt.Sprintf("    safesql rollback --pr %d\n", entry.Source.PRMetadata.Number))
+		}
 		logger.Info("")
 		logger.Info("  Rollback SQL:")
 		for i, sql := range entry.RollbackSQL {

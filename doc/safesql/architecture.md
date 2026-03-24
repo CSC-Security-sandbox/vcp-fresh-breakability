@@ -204,15 +204,22 @@ tools/safesql/
     ├── audit/               # Audit logging
     └── rollback/            # Rollback generation
 
-.safesql/                    # Local storage (gitignored)
-├── config.yaml              # Configuration
-├── plans/                   # Pending plans
-└── audit/                   # Audit logs
+.safesql/                    # Local config only (gitignored)
+└── config.yaml              # Configuration file
 
 sql-queries/                 # Version-controlled queries
 ├── pending/                 # Queries awaiting execution
 ├── executed/                # Completed queries
 └── templates/               # Reusable templates
+
+GCS Bucket Structure:       # Cloud storage for all artifacts
+├── plans/                   # Execution plans
+│   └── plan-*.json
+├── audit/                   # Audit logs
+│   └── exec-*.json
+└── pr-plans/                # PR-specific plans
+    └── {pr-number}/
+        └── *-plan.json
 ```
 
 ## Configuration
@@ -232,6 +239,10 @@ safesql:
     port: "5432"
     # Credentials from environment variables
   
+  storage:
+    backend: "gcs"
+    gcs_bucket: "${SAFESQL_GCS_BUCKET}"  # Set via environment variable
+  
   thresholds:
     max_rows_default: 100
     warning_threshold: 10
@@ -243,8 +254,9 @@ safesql:
 
 1. **GitHub Token**: Required for fetching queries; use environment variable
 2. **Database Credentials**: Never stored in plan files; loaded at runtime
-3. **Audit Logs**: Contain query text and affected data; secure appropriately
-4. **Plan Files**: Signed but not encrypted; store in secure location
+3. **GCS Bucket**: All plans and audit logs stored in GCS; configure IAM appropriately
+4. **Audit Logs**: Contain query text and affected data; GCS bucket should have restricted access
+5. **Plan Files**: Signed but not encrypted; GCS bucket access controls provide security
 
 ## Extension Points
 

@@ -4,6 +4,7 @@ package executor
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/tools/safesql/internal/analyzer"
@@ -30,6 +31,7 @@ type ExecutionResult struct {
 	RowsAffected []int64
 	TotalRows    int64
 	ExecutedAt   time.Time
+	Timestamp    time.Time // Alias for ExecutedAt (for consistency)
 	Duration     time.Duration
 	RolledBack   bool
 	Error        error
@@ -195,6 +197,72 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan, confirmFn fu
 	// Execute with verification queries from plan
 	rowsAffected, err := e.db.ExecuteWithVerification(ctx, queries, verificationQueries, confirmFn)
 	result.Duration = time.Since(startTime)
+
+	if err != nil {
+		result.Error = err
+		result.Success = false
+		if rowsAffected != nil {
+			result.RowsAffected = rowsAffected
+			result.RolledBack = true
+		}
+		return result, err
+	}
+
+	result.Success = true
+	result.RowsAffected = rowsAffected
+	result.Timestamp = result.ExecutedAt
+	for _, count := range rowsAffected {
+		result.TotalRows += count
+	}
+
+	return result, nil
+}
+
+// ExecuteRollback executes rollback statements from a plan.
+func (e *Executor) ExecuteRollback(ctx context.Context, plan *planner.Plan) (*ExecutionResult, error) {
+	result := &ExecutionResult{
+		ExecutedAt: time.Now().UTC(),
+	}
+	result.Timestamp = result.ExecutedAt
+
+	startTime := time.Now()
+	defer func() {
+		result.Duration = time.Since(startTime)
+	}()
+
+	// Check if rollback is available
+	if len(plan.Rollback) == 0 {
+		result.Error = fmt.Errorf("no rollback statements available")
+		return result, result.Error
+	}
+
+	// Extract and split rollback SQL statements
+	// Each plan.Rollback entry may contain multiple statements joined by ";\n"
+	var rollbackSQL []string
+	for _, rb := range plan.Rollback {
+		if rb.SQL == "" {
+			continue
+		}
+		// Split by semicolon to get individual statements
+		stmts := strings.Split(rb.SQL, ";")
+		for _, stmt := range stmts {
+			stmt = strings.TrimSpace(stmt)
+			if stmt != "" {
+				rollbackSQL = append(rollbackSQL, stmt)
+			}
+		}
+	}
+
+	if len(rollbackSQL) == 0 {
+		result.Error = fmt.Errorf("no valid rollback statements found")
+		return result, result.Error
+	}
+
+	// Execute rollback statements in transaction
+	rowsAffected, err := e.db.ExecuteMultipleInTransaction(ctx, rollbackSQL, func(results []int64) bool {
+		// Auto-confirm rollback (no user confirmation needed during rollback)
+		return true
+	})
 
 	if err != nil {
 		result.Error = err

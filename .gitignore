@@ -51,3 +51,4 @@ triagebot_logs/
 .gcloud/
 .toolchain/
 .gomodcache/
+tools/safesql/safesql

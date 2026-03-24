@@ -32,6 +32,7 @@ require (
 	github.com/prometheus/client_golang v1.22.0
 	github.com/sosodev/duration v1.3.1
 	github.com/stretchr/testify v1.11.1
+	github.com/xwb1989/sqlparser v0.0.0-20180606152119-120387863bf2
 	github.com/xyproto/randomstring v1.2.0
 	go.opentelemetry.io/otel v1.38.0
 	go.opentelemetry.io/otel/exporters/prometheus v0.58.0

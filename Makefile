@@ -305,11 +305,11 @@ validate-errors:
 # SafeSQL targets
 .PHONY: safesql-build
 safesql-build:
-	go build -o safesql ./tools/safesql/
+	go build -o bin/safesql ./tools/safesql/
 
 .PHONY: safesql-build-linux
 safesql-build-linux:
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o safesql-linux ./tools/safesql/
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/build/linux/safesql ./tools/safesql/
 
 .PHONY: safesql-install
 safesql-install:

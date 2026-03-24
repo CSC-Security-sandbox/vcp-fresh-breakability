@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/tools/safesql/internal/parser"
+	"github.com/xwb1989/sqlparser"
 )
 
 // Generator creates rollback SQL from original statements and their pre-state.
@@ -161,23 +162,61 @@ func (g *Generator) GenerateConsolidated(stmt *parser.Statement, preState []map[
 }
 
 func extractUpdatedColumns(sql string) []string {
-	// Simple extraction - look for SET col1 = val1, col2 = val2
+	// Use proper SQL parser to extract updated columns
+	// Note: We only extract column names, not the WHERE clause.
+	// Rollback SQL uses primary key-based WHERE clauses (WHERE id = X)
+	// instead of replaying the original WHERE clause, ensuring each
+	// affected row is reverted individually.
+	stmt, err := sqlparser.Parse(sql)
+	if err != nil {
+		// Fallback to regex-based extraction for PostgreSQL-specific syntax
+		return extractUpdatedColumnsRegex(sql)
+	}
+
+	updateStmt, ok := stmt.(*sqlparser.Update)
+	if !ok {
+		return nil
+	}
+
+	var columns []string
+	for _, expr := range updateStmt.Exprs {
+		// expr.Name is the column being updated
+		colName := strings.Trim(expr.Name.Name.String(), "\"'`")
+		if colName != "" {
+			columns = append(columns, colName)
+		}
+	}
+
+	return columns
+}
+
+// extractUpdatedColumnsRegex is a fallback regex-based extraction for PostgreSQL
+func extractUpdatedColumnsRegex(sql string) []string {
 	upper := strings.ToUpper(sql)
-	setIdx := strings.Index(upper, "SET ")
+	setIdx := strings.Index(upper, "SET")
 	if setIdx == -1 {
 		return nil
 	}
 
-	// Find WHERE or end
-	whereIdx := strings.Index(upper[setIdx:], " WHERE")
+	// Find WHERE clause to isolate the SET clause content
+	// (We need to find WHERE to avoid parsing WHERE conditions as column names,
+	// but we don't preserve the WHERE clause - rollback uses primary key WHERE)
+	whereIdx := -1
+	for _, pattern := range []string{" WHERE", "\nWHERE", "\tWHERE"} {
+		idx := strings.Index(upper[setIdx:], pattern)
+		if idx != -1 {
+			whereIdx = idx
+			break
+		}
+	}
+	
 	var setClause string
 	if whereIdx == -1 {
-		setClause = sql[setIdx+4:]
+		setClause = sql[setIdx+3:]
 	} else {
-		setClause = sql[setIdx+4 : setIdx+whereIdx]
+		setClause = sql[setIdx+3 : setIdx+whereIdx]
 	}
 
-	// Split by comma and extract column names
 	var columns []string
 	parts := strings.Split(setClause, ",")
 	for _, part := range parts {
@@ -185,7 +224,10 @@ func extractUpdatedColumns(sql string) []string {
 		eqIdx := strings.Index(part, "=")
 		if eqIdx > 0 {
 			col := strings.TrimSpace(part[:eqIdx])
-			columns = append(columns, col)
+			col = strings.Trim(col, "\"'`")
+			if col != "" {
+				columns = append(columns, col)
+			}
 		}
 	}
 
