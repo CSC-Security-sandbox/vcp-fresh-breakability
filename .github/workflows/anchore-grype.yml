@@ -1,0 +1,95 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+# This workflow checks out code, builds an image, performs a container image
+# vulnerability scan with Anchore's Grype tool, and integrates the results with GitHub Advanced Security
+# code scanning feature.  For more information on the Anchore scan action usage
+# and parameters, see https://github.com/anchore/scan-action. For more
+# information on Anchore's container image scanning tool Grype, see
+# https://github.com/anchore/grype
+name: Anchore Grype vulnerability scan
+
+on:
+  workflow_call:
+    inputs:
+      images_to_scan:
+        required: true
+        type: string
+      tag:
+        required: true
+        type: string
+    secrets:
+      GHVSA_PAT:
+        required: true
+      GHCR_REPO:
+        required: true
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  grype_scan:
+    name: Grype scan on container images
+    runs-on: [grype-scan-vcp]
+    strategy:
+      matrix:
+        image: ${{ fromJson(inputs.images_to_scan) }}
+    steps:
+      - name: Log in to the Container registry
+        run: |
+          echo "${{ secrets.GHVSA_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Set image reference
+        id: imgref
+        run: |
+          if [ "${{ matrix.image }}" = "cloud-backup-adc" ]; then
+            echo "ref=ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/${{ matrix.image }}:2.9" >> $GITHUB_OUTPUT
+          else
+            echo "ref=ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/${{ matrix.image }}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run Anchore Grype scan action
+        uses: anchore/scan-action@v7
+        id: scan
+        env:
+          GRYPE_DB_VALIDATE_AGE: "false"
+          GRYPE_DB_MAX_ALLOWED_BUILT_AGE: "87600h"
+          GRYPE_LOG_LEVEL: "error"
+          SYFT_LOG_LEVEL: "error"
+        with:
+          image: registry:${{ steps.imgref.outputs.ref }}
+          output-format: sarif
+          output-file: grype-results.sarif
+          fail-build: false
+          severity-cutoff: high
+
+      - name: Check SARIF file
+        id: sarif_check
+        run: |
+          sarif_path="grype-results.sarif"
+          if [ ! -f "${sarif_path}" ] && [ -n "${{ steps.scan.outputs.sarif }}" ]; then
+            sarif_path="${{ steps.scan.outputs.sarif }}"
+          fi
+          if [ -n "${sarif_path}" ] && [ -f "${sarif_path}" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "sarif_path=${sarif_path}" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "SARIF file missing: ${sarif_path}"
+          fi
+
+      - name: Print SARIF content
+        if: ${{ steps.sarif_check.outputs.exists == 'true' }}
+        run: |
+          cat "${{ steps.sarif_check.outputs.sarif_path }}"
+
+      - name: Upload vulnerability report
+        if: ${{ steps.sarif_check.outputs.exists == 'true' }}
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.sarif_check.outputs.sarif_path }}
+        continue-on-error: true

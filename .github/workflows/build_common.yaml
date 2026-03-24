@@ -49,10 +49,6 @@ on:
         description: "A flag to indicate if Helm charts should be pushed"
         default: true
         type: boolean
-      trivy_scan_format:
-        description: "Format for Trivy scan results"
-        default: "sarif"
-        type: string
     outputs:
       GHCR_core_URL:
         description: "URL of the core image in GHCR"
@@ -158,7 +154,7 @@ jobs:
       GHCR_ontap_proxy_URL: ${{ steps.generate_output_urls.outputs.GHCR_ontap-proxy_URL }}
       GCP_ontap_proxy_URL: ${{ steps.generate_output_urls.outputs.GCP_ontap-proxy_URL }}
       GHCR_vsa_control_plane_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_vsa-control-plane_HELM_URL }}
-      GCP_vsa_control_plane_HELM_URL: ${{ steps.generate_output_urls.outputs.GCP_vsa-control-plane_HELM_URL }}
+      GCP_vsa_control_plane_HELM_URL: ${{ steps.generate_output_urls.outputs.GCP_vsa_control_plane_HELM_URL }}
       GHCR_vcp_worker_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-worker-chart_HELM_URL }}
       GCP_vcp_worker_HELM_URL: ${{ steps.generate_output_urls.outputs.GCP_vcp-worker-chart_HELM_URL }}
       GHCR_vsa_harvest_otel_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_vsa-harvest-otel-chart_HELM_URL }}
@@ -507,63 +503,16 @@ jobs:
         env:
           IMAGE: ${{ matrix.image }}
 
-  trivy_scan_image:
-    if: ${{ false }}
-    name: Run trivy scan on the container images
+  grype_scan_image:
+    name: Run Anchore/Grype vulnerability scans (reusable)
     needs: [ build_and_publish ]
-    runs-on: [ self-hosted,linux ]
-    container:
-      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
-      options: -v /var/run/docker.sock:/var/run/docker.sock --user root
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-      security-events: write
-    strategy:
-      matrix:
-        image: ${{ fromJson(needs.build_and_publish.outputs.IMAGES_TO_SCAN) }}
-
-    steps:
-      - name: Log in to the Container registry
-        run: |
-          echo "${{ secrets.GHVSA_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-
-      - name: Ensure output directory exists
-        run: mkdir -p repo-dir2
-
-      #- name: Run Trivy vulnerability scanner - Table format
-      #  if: ${{ inputs.trivy_scan_format == 'table' }}
-      #  uses: aquasecurity/trivy-action@master
-      #  with:
-      #    image-ref: ${{ matrix.image == 'cloud-backup-adc' && format('ghcr.io/vcp-vsa-control-plane/{0}/{1}:2.9', vars.AR_IMAGE_PATH, matrix.image) || format('ghcr.io/vcp-vsa-control-plane/{0}/{1}:{2}', vars.AR_IMAGE_PATH, matrix.image, inputs.tag) }}
-      #    format: ${{ inputs.trivy_scan_format }}
-      #    exit-code: 1
-      #    ignore-unfixed: true
-      #    severity: HIGH,CRITICAL
-
-      #- name: Run Trivy vulnerability scanner
-      #  if: ${{ inputs.trivy_scan_format == 'sarif' }}
-      #  uses: aquasecurity/trivy-action@master
-      #  with:
-      #    image-ref: ${{ matrix.image == 'cloud-backup-adc' && format('ghcr.io/vcp-vsa-control-plane/{0}/{1}:2.9', vars.AR_IMAGE_PATH, matrix.image) || format('ghcr.io/vcp-vsa-control-plane/{0}/{1}:{2}', vars.AR_IMAGE_PATH, matrix.image, inputs.tag) }}
-      #    format: 'sarif'
-      #    output: 'repo-dir2/trivy-${{ matrix.image }}.sarif'
-
-      #- name: upload trivy scan results
-      #  if: ${{ inputs.trivy_scan_format == 'sarif' }}
-      #  shell: bash -e {0}
-      #  run: |
-      #    if [ -f repo-dir2/trivy-${{ matrix.image }}.sarif ]; then
-      #      curl -L -X POST -H "Accept: application/vnd.github+json" \
-      #      -H "X-GitHub-Api-Version: 2022-11-28" \
-      #      -H "Authorization: Bearer ${{ secrets.GHVSA_PAT}}" \
-      #      https://api.github.com/repos/VCP-VSA-control-Plane/vsa-control-plane/code-scanning/sarifs \
-      #      -d "{\"commit_sha\":\"${{ github.sha }}\",\"ref\":\"refs/heads/main\",\"sarif\":\"$(gzip -c repo-dir2/trivy-${{ matrix.image }}.sarif | base64 -w0)\"}"
-      #    else
-      #      echo "SARIF file for ${{ matrix.image }} not found."
-      #      exit 1
-      #    fi
+    uses: ./.github/workflows/anchore-grype.yml
+    with:
+      images_to_scan: ${{ needs.build_and_publish.outputs.IMAGES_TO_SCAN }}
+      tag: ${{ inputs.tag }}
+    secrets:
+      GHVSA_PAT: ${{ secrets.GHVSA_PAT }}
+      GHCR_REPO: ${{ secrets.GHCR_REPO }}
 
   send-slack-notification:
     if: ${{ inputs.send_slack_notification }}
@@ -594,9 +543,9 @@ jobs:
           VSABUILDREPORTWEBHOOK: ${{ secrets.VSABUILDREPORTWEBHOOK }}
           NEW_TAG: ${{ inputs.tag }}
           GHCR_vsa_control_plane_HELM_URL: ${{ needs.build_and_publish.outputs.GHCR_vsa_control_plane_HELM_URL }}
-          GCP_vsa_control_plane_HELM_URL: ${{ needs.build_and_publish.outputs.GCP_vsa_control_plane_HELM_URL }}
+          GCP_vsa_control_plane_HELM_URL: ${{ needs.build_and_publish.outputs.GHCR_vsa_control_plane_HELM_URL }}
           GHCR_vcp_worker_HELM_URL: ${{ needs.build_and_publish.outputs.GHCR_vcp_worker_HELM_URL }}
-          GCP_vcp_worker_HELM_URL: ${{ needs.build_and_publish.outputs.GCP_vcp_worker_HELM_URL }}
+          GCP_vcp_worker_HELM_URL: ${{ needs.build_and_publish.outputs.GHCR_vcp_worker_HELM_URL }}
         run: |
           vsacictl slack notify_build_report
 
