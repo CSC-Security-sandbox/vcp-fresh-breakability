@@ -56,7 +56,7 @@ var (
 	revertVolume                         = _revertVolume
 	splitCloneVolume                     = _splitCloneVolume
 	validateCreateVolumeParams           = _validateCreateVolumeParams
-	validateVolumeQosParams               = mqos.ValidateVolumeQosParams
+	validateVolumeQosParams              = mqos.ValidateVolumeQosParams
 	validateSplitCloneVolumeParams       = _validateSplitCloneVolumeParams
 	getIPAddressForVolume                = _getIPAddressForVolume
 	updateVolume                         = _updateVolume
@@ -2222,6 +2222,8 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 	if params.DataProtection != nil {
 		// If backup vault is already attached to the volume and the backup vault is changed or removed
 		if dbVolume.DataProtection != nil && dbVolume.DataProtection.BackupVaultID != "" && params.DataProtection.BackupVaultID != nil && (*params.DataProtection.BackupVaultID == "" || *params.DataProtection.BackupVaultID != dbVolume.DataProtection.BackupVaultID) {
+			filters := [][]interface{}{{"volume_uuid = ?", dbVolume.UUID}}
+			var backups []*datamodel.Backup
 			if utils.EnableBackupVaultSwitching {
 				backupInProgress, err := se.IsBackupInCreatingorDeletingStateByVolume(ctx, dbVolume.UUID)
 				if err != nil {
@@ -2230,26 +2232,46 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 				if backupInProgress {
 					return nil, "", customerrors.NewUserInputValidationErr("A backup operation on the volume is currently in progress. Please wait for it to complete before changing or removing the backup vault")
 				}
-				// Switching is only allowed between GCBDR backup vaults (service type must be GCBDR)
+				// Switching between vaults is only allowed between GCBDR backup vaults.
+				// For detach, use volume-wide backup existence (across vaults) to prevent
+				// detaching non-GCBDR vaults when detached backups still exist.
 				currentVault, err := se.GetBackupVault(ctx, dbVolume.DataProtection.BackupVaultID)
 				if err != nil && !customerrors.IsNotFoundErr(err) {
 					return nil, "", err
 				}
-				if currentVault != nil && currentVault.ServiceType != activities.GCBDRServiceType {
-					return nil, "", customerrors.NewUserInputValidationErr("Backup vault switching is only allowed for GCBDR backup vaults. The current backup vault is not a GCBDR vault.")
-				}
+				
 				if *params.DataProtection.BackupVaultID == "" {
-					// Removing vault: block if backup policy is attached
+					// Removing vault: non-GCBDR vaults require no available backups on the volume.
+					serviceType := ""
+					if currentVault != nil {
+						serviceType = currentVault.ServiceType
+					}
+					vaultIDs, errDistinct := se.GetDistinctBackupVaultIDsByVolumeUUID(ctx, dbVolume.UUID)
+					if errDistinct != nil {
+						return nil, "", errDistinct
+					}
+					logger.Infof("Removing backup vault from volume %s. Current vault service type: %s, distinct backup vaults with available backups: %d", dbVolume.UUID, serviceType, len(vaultIDs))
+					if currentVault != nil && currentVault.ServiceType != activities.GCBDRServiceType && len(vaultIDs) > 0 {
+						return nil, "", customerrors.NewUserInputValidationErr("cannot remove backup vault as there are backups associated with it")
+					}
 					if dbVolume.DataProtection.BackupPolicyID != "" {
 						return nil, "", customerrors.NewUserInputValidationErr("Cannot remove backup vault while a backup policy is attached. Detach the backup policy first, then remove the backup vault.")
 					}
 				} else {
-					// Changing to another vault: new vault must also be GCBDR
+					// Changing to another vault: current and new must be GCBDR
+					if currentVault != nil && currentVault.ServiceType != activities.GCBDRServiceType {
+						return nil, "", customerrors.NewUserInputValidationErr("Backup vault switching is only allowed for GCBDR backup vaults. The current backup vault is not a GCBDR vault.")
+					}
+
 					newVault, err := se.GetBackupVault(ctx, *params.DataProtection.BackupVaultID)
 					if err != nil && !customerrors.IsNotFoundErr(err) {
 						return nil, "", err
 					}
 					if newVault != nil && newVault.ServiceType != activities.GCBDRServiceType {
+						if newVault.AccountID != dbVolume.AccountID {
+							return nil, "", customerrors.NewUserInputValidationErr("The target backup vault belongs to a different account and cannot be associated with the volume")
+						}
+
 						return nil, "", customerrors.NewUserInputValidationErr("Backup vault switching is only allowed between GCBDR backup vaults. The target backup vault is not a GCBDR vault.")
 					}
 				}
@@ -2258,11 +2280,10 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 				if dbVolume.DataProtection.BackupPolicyID != "" {
 					return nil, "", customerrors.NewUserInputValidationErr("cannot remove backup vault as backup policy is associated to the volume")
 				}
-			}
-			filters := [][]interface{}{{"volume_uuid = ?", dbVolume.UUID}}
-			backups, err := se.GetBackupsByBackupVaultOwnerIDAndFilter(ctx, dbVolume.DataProtection.BackupVaultID, dbVolume.Account.ID, filters)
-			if err != nil {
-				return nil, "", err
+				backups, err = se.GetBackupsByBackupVaultOwnerIDAndFilter(ctx, dbVolume.DataProtection.BackupVaultID, dbVolume.Account.ID, filters)
+				if err != nil {
+					return nil, "", err
+				}
 			}
 			// When flag is enabled, allow both switch and detach when backups exist (policy blocks detach above when needed).
 			// When flag is disabled, keep current behaviour (block change or remove when backups exist).
@@ -2630,11 +2651,31 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 	}
 
 	if params.DataProtection != nil && params.DataProtection.BackupVaultID != nil && *params.DataProtection.BackupVaultID != "" {
-		bv, err := se.GetBackupVaultByUUIDndOwnerID(ctx, *params.DataProtection.BackupVaultID, pool.Account.ID)
+		var bv *datamodel.BackupVault
+		var err error
+		if utils.EnableBackupVaultSwitching {
+			// Vault can be from a different project (owner); resolve by UUID only so we can validate and allow attach.
+			bv, err = se.GetBackupVault(ctx, *params.DataProtection.BackupVaultID)
+		} else {
+			bv, err = se.GetBackupVaultByUUIDndOwnerID(ctx, *params.DataProtection.BackupVaultID, pool.Account.ID)
+		}
 		if err != nil && !customerrors.IsNotFoundErr(err) {
 			return err
 		}
 		if bv != nil {
+			// Re-attaching a vault after detach: available backups may still reference a detached vault.
+			// Only GCBDR vaults may be attached in that case (GCNV cannot consume that chain).
+			// Only applies when vault switching is enabled: detach can leave available backups tied to the old vault.
+			noVaultAttached := volume.DataProtection == nil || volume.DataProtection.BackupVaultID == ""
+			if utils.EnableBackupVaultSwitching && noVaultAttached {
+				vaultIDs, errDistinct := se.GetDistinctBackupVaultIDsByVolumeUUID(ctx, volume.UUID)
+				if errDistinct != nil {
+					return errDistinct
+				}
+				if len(vaultIDs) > 0 && bv.ServiceType != activities.GCBDRServiceType {
+					return customerrors.NewUserInputValidationErr("Cannot attach a non-GCBDR backup vault while the volume has existing backups from a detached backup vault. Delete those backups first, or attach a GCBDR backup vault.")
+				}
+			}
 			if bv.LifeCycleState == models.LifeCycleStateError {
 				return customerrors.NewUserInputValidationErr("backup vault is in error state, please check the backup vault and try again")
 			}
