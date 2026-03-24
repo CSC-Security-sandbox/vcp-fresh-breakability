@@ -376,6 +376,16 @@ func TestValidateQueryParamValue(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:    "valid - quoted policy name",
+			value:   "\"DailyBackup\"",
+			wantErr: false,
+		},
+		{
+			name:    "valid - space slash ampersand",
+			value:   "Daily Backup/Prod&QA",
+			wantErr: false,
+		},
+		{
 			name:    "path traversal",
 			value:   "../../etc/passwd",
 			wantErr: true,
@@ -1429,6 +1439,36 @@ func TestURLValidationMiddleware_QueryParamValidation(t *testing.T) {
 		assert.False(t, nextCalled, "privilege_level should still be blocked")
 		assert.Equal(t, http.StatusBadRequest, rr.Code)
 		assert.Contains(t, rr.Body.String(), "privilege_level query parameter is not allowed")
+	})
+
+	t.Run("WhenEncodedQuoteSpaceSlashAndAmpersandInQueryValue_ShouldPass", func(t *testing.T) {
+		originalLocalRegion := localRegion
+		defer func() {
+			localRegion = originalLocalRegion
+		}()
+
+		localRegion = "us-east1"
+
+		nextCalled := false
+		nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			nextCalled = true
+			w.WriteHeader(http.StatusOK)
+		})
+
+		middleware := URLValidationMiddleware()
+		handler := middleware(nextHandler)
+
+		req := httptest.NewRequest(
+			"GET",
+			"/v1beta/projects/123456789/locations/us-east1/pools/550e8400-e29b-41d4-a716-446655440000/ontap/api/snapmirror/policies?name=%22Daily%20Backup%2FProd%26QA%22&ontap_fields=name,retention&return_timeout=4",
+			nil,
+		)
+		rr := httptest.NewRecorder()
+
+		handler.ServeHTTP(rr, req)
+
+		assert.True(t, nextCalled)
+		assert.Equal(t, http.StatusOK, rr.Code)
 	})
 }
 
