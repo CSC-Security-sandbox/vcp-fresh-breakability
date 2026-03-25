@@ -66,6 +66,9 @@ func (a *HybridReplicationActivity) CreateJobForHybridReplication(ctx context.Co
 	if jobType == string(models.JobTypeCreateVolume) {
 		resourceName = replicationResult.DestinationVolume.Name
 	} else if jobType == string(models.JobTypeHybridReplicationEstablishPeering) || jobType == string(models.JobTypeHybridReplicationInternalEstablish) {
+		if replicationResult.HybridReplicationParameters == nil || replicationResult.HybridReplicationParameters.ResourceID == "" {
+			return nil, errors.NewVCPError(errors.ErrBadRequest, fmt.Errorf("missing hybrid replication resource ID"))
+		}
 		resourceName = fmt.Sprintf("projects/%s/locations/%s/volumes/%s/replications/%s",
 			replicationResult.DestinationProjectNumber,
 			location,

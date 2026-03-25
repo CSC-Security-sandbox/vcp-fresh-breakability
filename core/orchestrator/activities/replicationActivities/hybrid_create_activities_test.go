@@ -625,6 +625,31 @@ func TestHybridReplicationActivity_CreateJobForEstablishReplicationWorkflow(t *t
 		mockStorage.AssertExpectations(tt)
 	})
 
+	t.Run("CreateJobForHybridReplicationEstablishPeeringMissingResourceID", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		activity := HybridReplicationActivity{SE: mockStorage}
+
+		replicationResult := replication.CreateHybridReplicationResult{
+			DestinationVolume: &datamodel.Volume{
+				BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid", ID: 456},
+				Name:      "test-volume",
+				AccountID: 123,
+				Pool:      &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"}},
+			},
+			DestinationProjectNumber: "test-project",
+			DestinationRegion:        "us-central1",
+			// HybridReplicationParameters intentionally omitted to validate nil guard.
+		}
+
+		result, err := activity.CreateJobForHybridReplication(ctx, replicationResult, string(models.JobTypeHybridReplicationEstablishPeering))
+
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "Bad Request", err.Error())
+		mockStorage.AssertNotCalled(tt, "CreateJob", mock.Anything, mock.Anything)
+	})
+
 	t.Run("CreateJobForHybridReplicationWithDestinationZone", func(tt *testing.T) {
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)
