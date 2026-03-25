@@ -21,6 +21,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -34,7 +35,7 @@ var (
 	parseKeyFullPathResource      = utils.ParseKeyFullPathResource
 	updateKmsConfig               = _updateKmsConfig
 	validateUpdateKmsConfigParams = _validateUpdateKmsConfigParams
-	getKmsConfigByKeyFullPath     = _getKmsConfigByKeyFullPath
+	getExistingKmsConfig          = _getExistingKmsConfig
 	validateDeleteKmsConfigParams = _validateDeleteKmsConfigParams
 	ConvertKmsConfigStateV1beta   = convertKmsConfigStateV1beta
 	updateSDEKmsConfiguration     = sde.UpdateSDEKmsConfiguration
@@ -47,6 +48,22 @@ const (
 	RetryTimeoutVerifyKmsConfigHealthCheck  = time.Second * 15
 	RetryIntervalVerifyKmsConfigHealthCheck = time.Second * 5
 )
+
+type KmsConfigInterface interface {
+	CreateKmsConfig(ctx context.Context, params *common.CreateKmsConfigParams) (*models.KmsConfig, string, error)
+	GetKmsConfig(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfig, error)
+	GetExistingKmsConfig(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfig, error)
+	GetMultipleKMSConfigs(ctx context.Context, kmsConfigIDList []string) ([]*models.KmsConfig, error)
+	ListKmsConfigs(ctx context.Context, accountName string) ([]*models.KmsConfig, error)
+	UpdateKmsConfig(ctx context.Context, params *common.UpdateKmsConfigParams) (*models.KmsConfig, error)
+	CheckAndUpdateKmsConfigHealth(ctx context.Context, params *models.KmsConfigCheck) (*models.KmsConfig, error)
+	AccessCryptoKeyAndEncryptDataWithImpersonation(ctx context.Context, kmsConfig *models.KmsConfig) error
+	DeleteKmsConfig(ctx context.Context, params *common.DeleteKmsConfigParams) (*models.KmsConfig, string, error)
+	MigrateKmsConfig(ctx context.Context, params *common.MigrateKmsConfigParams) (string, error)
+	RotateKmsConfig(ctx context.Context, params *common.RotateKmsConfigParams) (*models.KmsConfig, *models.Job, error)
+	CreateAndSyncKmsConfig(ctx context.Context, params *common.CreateKmsConfigParams) (*models.KmsConfig, error)
+	GetSDEKmsConfiguration(ctx context.Context, params *common.GetKmsConfigParams) (*cvpModels.KmsConfigV1beta, error)
+}
 
 // CreateKmsConfig creates a new KMS configuration.
 func (o *GCPOrchestrator) CreateKmsConfig(ctx context.Context, params *common.CreateKmsConfigParams) (*models.KmsConfig, string, error) {
@@ -98,9 +115,20 @@ func _createKmsConfig(ctx context.Context, se database.Storage, temporal client.
 	kmsConfig.KeyRing = parsedKeyFullPath.KeyRing
 	kmsConfig.ResourceID = params.ResourceID
 	kmsConfig.KeyProjectID = parsedKeyFullPath.ProjectID
-	kmsConfig.KmsAttributes = &datamodel.KmsAttributes{SdeKmsConfigUUID: params.UUID,
-		SdeKmsConfigOperationURI:  params.OperationUri,
-		SdeKmsConfigOperationDone: params.OperationDone}
+
+	// Set KmsAttributes based on whether common resources are created in VCP or SDE
+	if !utils.IsCVPHostSet() {
+		kmsConfig.KmsAttributes = &datamodel.KmsAttributes{
+			CreationMode: datamodel.KmsCreationModeVCP,
+		}
+	} else {
+		kmsConfig.KmsAttributes = &datamodel.KmsAttributes{
+			SdeKmsConfigUUID:          params.UUID,
+			SdeKmsConfigOperationURI:  params.OperationUri,
+			SdeKmsConfigOperationDone: params.OperationDone,
+			CreationMode:              datamodel.KmsCreationModeSDE,
+		}
+	}
 	kmsConfig.Description = params.Description
 
 	kmsConfig, err = se.CreateKmsConfig(ctx, kmsConfig)
@@ -185,6 +213,24 @@ func (o *GCPOrchestrator) GetMultipleKMSConfigs(ctx context.Context, kmsConfigUU
 	return kmsConfigModelList, nil
 }
 
+// ListKmsConfigs lists all KMS configurations for the given account.
+func (o *GCPOrchestrator) ListKmsConfigs(ctx context.Context, accountName string) ([]*models.KmsConfig, error) {
+	se := o.storage
+	account, err := getOrCreateAccount(ctx, se, accountName)
+	if err != nil {
+		return nil, err
+	}
+	kmsConfigs, err := se.ListKmsConfigByAccountID(ctx, account.ID)
+	if err != nil {
+		return nil, err
+	}
+	var result []*models.KmsConfig
+	for _, kmsConfig := range kmsConfigs {
+		result = append(result, convertDataStoreKmsConfigToModel(kmsConfig))
+	}
+	return result, nil
+}
+
 // UpdateKmsConfig updates the specified kms configuration.
 func (o *GCPOrchestrator) UpdateKmsConfig(ctx context.Context, params *common.UpdateKmsConfigParams) (*models.KmsConfig, error) {
 	return updateKmsConfig(ctx, o.storage, params)
@@ -203,9 +249,15 @@ func _updateKmsConfig(ctx context.Context, se database.Storage, params *common.U
 		if !errors.IsNotFoundErr(err) {
 			return nil, err
 		}
+
+		// VCP path: KMS config must exist in VCP DB, no SDE fallback when CVP is not configured.
+		if !utils.IsCVPHostConfigured() {
+			return nil, errors.NewNotFoundErr("KMS Configuration", nil)
+		}
+
 		logger.Info("Kms config not found in vcp database", "error", err)
 
-		// For KmsConfig not found, directly call SDE & return
+		// SDE path: For KmsConfig not found, directly call SDE & return
 		kmsConfig = &datamodel.KmsConfig{
 			KmsAttributes: &datamodel.KmsAttributes{
 				SdeKmsConfigUUID: params.KmsConfigID,
@@ -231,42 +283,49 @@ func _updateKmsConfig(ctx context.Context, se database.Storage, params *common.U
 		return nil, err
 	}
 
-	_, err = updateSDEKmsConfiguration(ctx, kmsConfig, params)
+	// Existing config routing: use SDE flow only for SDE-created configs.
+	if !utils.ShouldUseVCPForExistingKMS(kmsConfig) {
+		_, err = updateSDEKmsConfiguration(ctx, kmsConfig, params)
+		if err != nil {
+			logger.Error("Failed to update KMS configuration in SDE", "error", err)
+			return nil, err
+		}
+	}
+
+	return updateKmsConfigInVCPDB(ctx, se, kmsConfig, params, logger)
+}
+
+// updateKmsConfigInVCPDB updates the KMS config in the VCP database and returns the updated model.
+func updateKmsConfigInVCPDB(ctx context.Context, se database.Storage, kmsConfig *datamodel.KmsConfig, params *common.UpdateKmsConfigParams, logger log.Logger) (*models.KmsConfig, error) {
+	if kmsConfig.UUID == "" {
+		return convertDataStoreKmsConfigToModel(kmsConfig), nil
+	}
+
+	// Parse KeyUri if provided to set individual key components
+	if params.KeyUri != "" {
+		parsedKeyFullPath, parseErr := parseKeyFullPathResource(params.KeyUri)
+		if parseErr == nil {
+			params.KeyName = parsedKeyFullPath.CryptoKey
+			params.KeyRingLocation = parsedKeyFullPath.Location
+			params.KeyRing = parsedKeyFullPath.KeyRing
+			params.KeyProjectID = parsedKeyFullPath.ProjectID
+		}
+	}
+
+	// Use the activity function to update the KMS config in database
+	err := kms_activities.UpdateKmsConfig(se, ctx, kmsConfig, params)
 	if err != nil {
-		logger.Error("Failed to update KMS configuration in SDE", "error", err)
+		logger.Error("Failed to update KMS config in database", "error", err)
 		return nil, err
 	}
 
-	// Update the database with success state only when state is
-	if kmsConfig.UUID != "" {
-		// Parse KeyUri if provided to set individual key components
-		if params.KeyUri != "" {
-			parsedKeyFullPath, parseErr := parseKeyFullPathResource(params.KeyUri)
-			if parseErr == nil {
-				params.KeyName = parsedKeyFullPath.CryptoKey
-				params.KeyRingLocation = parsedKeyFullPath.Location
-				params.KeyRing = parsedKeyFullPath.KeyRing
-				params.KeyProjectID = parsedKeyFullPath.ProjectID
-			}
-		}
-
-		// Use the activity function to update the KMS config in database
-		err = kms_activities.UpdateKmsConfig(se, ctx, kmsConfig, params)
-		if err != nil {
-			logger.Error("Failed to update KMS config in database", "error", err)
-			return nil, err
-		}
-
-		// Get the updated config from database
-		updatedKmsConfig, err := se.GetKmsConfig(ctx, params.KmsConfigID)
-		if err != nil {
-			logger.Error("Failed to get updated KMS config from database", "error", err)
-			return nil, err
-		}
-		return convertDataStoreKmsConfigToModel(updatedKmsConfig), nil
+	// Get the updated config from database
+	updatedKmsConfig, err := se.GetKmsConfig(ctx, params.KmsConfigID)
+	if err != nil {
+		logger.Error("Failed to get updated KMS config from database", "error", err)
+		return nil, err
 	}
-
-	return convertDataStoreKmsConfigToModel(kmsConfig), nil
+	return convertDataStoreKmsConfigToModel(updatedKmsConfig), nil
 }
 
 // DeleteKmsConfig updates the specified kms configuration.
@@ -348,6 +407,13 @@ func _deleteKmsConfig(ctx context.Context, se database.Storage, temporal client.
 		if !errors.IsNotFoundErr(err) {
 			return nil, "", err
 		}
+
+		// VCP path: if KMS config not found in DB and CVP is not configured, return not found
+		if !utils.IsCVPHostConfigured() {
+			return nil, "", errors.NewNotFoundErr("KMS Configuration", nil)
+		}
+
+		// SDE path: config might exist only in SDE, create a stub for the workflow
 		logger.Error("Failed to get kms config from database", "error", err)
 		kmsConfig = &datamodel.KmsConfig{
 			KmsAttributes: &datamodel.KmsAttributes{
@@ -425,12 +491,22 @@ func migrateKmsConfig(ctx context.Context, se database.Storage, temporal client.
 		if !errors.IsNotFoundErr(err) {
 			return "", err
 		}
+		// VCP path: KMS config must exist in VCP DB when CVP is not configured
+		if !utils.IsCVPHostConfigured() {
+			return "", errors.NewNotFoundErr("KMS Configuration", nil)
+		}
 	} else {
-		if dbKmsConfig.KmsAttributes != nil && dbKmsConfig.KmsAttributes.SdeKmsConfigUUID != "" {
-			params.SdeUUID = dbKmsConfig.KmsAttributes.SdeKmsConfigUUID
-			localEntryPresent = true
+		if !utils.ShouldUseVCPForExistingKMS(dbKmsConfig) {
+			// SDE-created config: resolve SDE UUID for CVP client calls.
+			if dbKmsConfig.KmsAttributes != nil && dbKmsConfig.KmsAttributes.SdeKmsConfigUUID != "" {
+				params.SdeUUID = dbKmsConfig.KmsAttributes.SdeKmsConfigUUID
+				localEntryPresent = true
+			} else {
+				return "", errors.New("KmsAttributes property not present within KmsConfig DB entry in VCP")
+			}
 		} else {
-			return "", errors.New("KmsAttributes property not present within KmsConfig DB entry in VCP")
+			// VCP-created config: proceed without SDE UUID remapping.
+			localEntryPresent = true
 		}
 	}
 
@@ -613,6 +689,8 @@ func convertDataStoreKmsConfigToModel(kmsConfig *datamodel.KmsConfig) *models.Km
 			SdeKmsConfigUUID:       kmsConfig.KmsAttributes.SdeKmsConfigUUID,
 			SdeServiceAccountEmail: kmsConfig.KmsAttributes.SdeServiceAccountEmail,
 			Instructions:           kmsConfig.KmsAttributes.Instructions,
+			CreationMode:           kmsConfig.KmsAttributes.CreationMode,
+			VcpServiceAccountEmail: kmsConfig.KmsAttributes.VcpServiceAccountEmail,
 		}
 	}
 	return kmsModel
@@ -680,20 +758,43 @@ func (o *GCPOrchestrator) AccessCryptoKeyAndEncryptDataWithImpersonation(ctx con
 		RetryTimeoutVerifyKmsConfigHealthCheck, RetryIntervalVerifyKmsConfigHealthCheck)
 }
 
-func (o *GCPOrchestrator) GetKmsConfigByKeyFullPath(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
-	return getKmsConfigByKeyFullPath(ctx, o.storage, params)
+func (o *GCPOrchestrator) GetExistingKmsConfig(ctx context.Context, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
+	return getExistingKmsConfig(ctx, o.storage, params)
 }
 
-func _getKmsConfigByKeyFullPath(ctx context.Context, se database.Storage, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
+// _getExistingKmsConfig looks up an existing KMS config for the account.
+// Uses ListKmsConfigByAccountID to enforce at most one config per account.
+// Returns ConflictErr if a config exists with a different key path.
+func _getExistingKmsConfig(ctx context.Context, se database.Storage, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
 	account, err := getOrCreateAccount(ctx, se, params.AccountName)
 	if err != nil {
 		return nil, err
 	}
-	dbKmsConfig, err := se.GetKmsConfigByKeyFullPath(ctx, params.KeyFullPath, account.ID)
+
+	configs, err := se.ListKmsConfigByAccountID(ctx, account.ID)
 	if err != nil {
 		return nil, err
 	}
-	return convertDatastoreKmsConfigToModel(dbKmsConfig), nil
+	if len(configs) == 0 {
+		return nil, errors.NewNotFoundErr("KMS Configuration", nil)
+	}
+
+	// Account already has a KMS config — check if the key path matches
+	existingConfig := configs[0]
+	parsedKeyFullPath, err := parseKeyFullPathResource(params.KeyFullPath)
+	if err != nil {
+		return nil, err
+	}
+	if existingConfig.KeyProjectID != parsedKeyFullPath.ProjectID ||
+		existingConfig.KeyRingLocation != parsedKeyFullPath.Location ||
+		existingConfig.KeyRing != parsedKeyFullPath.KeyRing ||
+		existingConfig.KeyName != parsedKeyFullPath.CryptoKey {
+		return nil, errors.NewConflictErr(
+			fmt.Sprintf("A KMS configuration already exists for this account with a different key path. Existing key: projects/%s/locations/%s/keyRings/%s/cryptoKeys/%s, resourceId: %s",
+				existingConfig.KeyProjectID, existingConfig.KeyRingLocation, existingConfig.KeyRing, existingConfig.KeyName, existingConfig.ResourceID))
+	}
+
+	return convertDatastoreKmsConfigToModel(existingConfig), nil
 }
 
 func convertDatastoreKmsConfigToModel(kmsConfig *datamodel.KmsConfig) *models.KmsConfig {
@@ -716,6 +817,8 @@ func convertDatastoreKmsConfigToModel(kmsConfig *datamodel.KmsConfig) *models.Km
 			SdeKmsConfigUUID:       kmsConfig.KmsAttributes.SdeKmsConfigUUID,
 			SdeServiceAccountEmail: kmsConfig.KmsAttributes.SdeServiceAccountEmail,
 			Instructions:           kmsConfig.KmsAttributes.Instructions,
+			CreationMode:           kmsConfig.KmsAttributes.CreationMode,
+			VcpServiceAccountEmail: kmsConfig.KmsAttributes.VcpServiceAccountEmail,
 		},
 		ServiceAccount:  convertDatastoreServiceAccountToModel(kmsConfig.ServiceAccount),
 		Name:            kmsConfig.Name,
@@ -884,10 +987,12 @@ func convertSDEResponseToKmsConfig(kmsConfig *gcpserver.KmsConfigV1beta) *models
 		modelKmsConfig.KmsAttributes = &models.KmsAttributes{
 			SdeKmsConfigUUID:       kmsConfig.UUID.Value,
 			SdeServiceAccountEmail: kmsConfig.ServiceAccountEmail.Value,
+			CreationMode:           datamodel.KmsCreationModeSDE,
 		}
 	} else {
 		modelKmsConfig.KmsAttributes = &models.KmsAttributes{
 			SdeKmsConfigUUID: kmsConfig.UUID.Value,
+			CreationMode:     datamodel.KmsCreationModeSDE,
 		}
 	}
 

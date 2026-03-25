@@ -7,6 +7,50 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestKmsAttributes_GetCreationMode(t *testing.T) {
+	t.Run("ReturnsVCP_WhenCreationModeIsVCP", func(t *testing.T) {
+		a := &KmsAttributes{CreationMode: KmsCreationModeVCP}
+		assert.Equal(t, KmsCreationModeVCP, a.GetCreationMode())
+	})
+
+	t.Run("ReturnsSDE_WhenCreationModeIsSDE", func(t *testing.T) {
+		a := &KmsAttributes{CreationMode: KmsCreationModeSDE}
+		assert.Equal(t, KmsCreationModeSDE, a.GetCreationMode())
+	})
+
+	t.Run("ReturnsSDE_WhenCreationModeIsEmpty", func(t *testing.T) {
+		a := &KmsAttributes{CreationMode: ""}
+		assert.Equal(t, KmsCreationModeSDE, a.GetCreationMode())
+	})
+
+	t.Run("ReturnsSDE_WhenAttributesNil", func(t *testing.T) {
+		var a *KmsAttributes
+		assert.Equal(t, KmsCreationModeSDE, a.GetCreationMode())
+	})
+}
+
+func TestKmsAttributes_IsVCPCreated(t *testing.T) {
+	t.Run("ReturnsTrue_WhenCreationModeIsVCP", func(t *testing.T) {
+		a := &KmsAttributes{CreationMode: KmsCreationModeVCP}
+		assert.True(t, a.IsVCPCreated())
+	})
+
+	t.Run("ReturnsFalse_WhenCreationModeIsSDE", func(t *testing.T) {
+		a := &KmsAttributes{CreationMode: KmsCreationModeSDE}
+		assert.False(t, a.IsVCPCreated())
+	})
+
+	t.Run("ReturnsFalse_WhenCreationModeIsEmpty", func(t *testing.T) {
+		a := &KmsAttributes{}
+		assert.False(t, a.IsVCPCreated())
+	})
+
+	t.Run("ReturnsFalse_WhenAttributesNil", func(t *testing.T) {
+		var a *KmsAttributes
+		assert.False(t, a.IsVCPCreated())
+	})
+}
+
 func TestServiceAccount_GetPrimaryKey(t *testing.T) {
 	t.Run("ReturnsPrimaryKey_WhenExists", func(t *testing.T) {
 		sa := &ServiceAccount{

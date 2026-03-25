@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -98,6 +99,10 @@ func TestGetMultipleKmsConfigs(t *testing.T) {
 }
 
 func TestMigrateKmsConfig(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+	cvp.CVP_HOST = "localhost:8009"
+
 	ctx := context.Background()
 	mockLogger := log.NewLogger()
 	store, err := database.SetupStorageForTest(mockLogger)
@@ -358,6 +363,10 @@ func TestConvertDataStoreKmsConfigToModel(t *testing.T) {
 }
 
 func TestUpdateKmsConfig(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+	cvp.CVP_HOST = "localhost:8009"
+
 	ctx := context.Background()
 
 	t.Run("SuccessfulUpdate", func(tt *testing.T) {
@@ -409,6 +418,104 @@ func TestUpdateKmsConfig(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, kmsConfig)
 		assert.Equal(tt, "test-kms-config-id", kmsConfig.UUID)
+	})
+
+	t.Run("ExistingVCPConfigSkipsSDEWhenCVPHostIsConfigured", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine.MockTemporalTestClient)
+
+		params := &common.UpdateKmsConfigParams{
+			KmsConfigID: "test-kms-config-id",
+			AccountName: "test-account",
+			ResourceID:  "updated-kms-config",
+		}
+
+		orchestrator := GCPOrchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{Name: "test-account"}
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:     models.LifeCycleStateAvailable,
+			KmsAttributes: &datamodel.KmsAttributes{
+				CreationMode: datamodel.KmsCreationModeVCP,
+			},
+		}
+
+		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
+		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
+		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, nil)
+		mockStorage.On("UpdateKmsConfig", ctx, dbKmsConfig.UUID, mock.Anything).Return(nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
+
+		originalUpdateSDE := updateSDEKmsConfiguration
+		updateSDEKmsConfiguration = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, params *common.UpdateKmsConfigParams) (gcpserver.V1betaUpdateKmsConfigurationRes, error) {
+			tt.Fatalf("updateSDEKmsConfiguration should not be called for VCP-created config")
+			return nil, nil
+		}
+		defer func() {
+			updateSDEKmsConfiguration = originalUpdateSDE
+		}()
+
+		kmsConfig, err := orchestrator.UpdateKmsConfig(ctx, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, kmsConfig)
+	})
+
+	t.Run("ExistingSDEConfigUsesSDEWhenForceVCPFlagIsEnabled", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(workflow_engine.MockTemporalTestClient)
+		originalForceFlag := utils.ForceVCPKMSPathForTesting
+		utils.ForceVCPKMSPathForTesting = true
+		defer func() {
+			utils.ForceVCPKMSPathForTesting = originalForceFlag
+		}()
+
+		params := &common.UpdateKmsConfigParams{
+			KmsConfigID: "test-kms-config-id",
+			AccountName: "test-account",
+			ResourceID:  "updated-kms-config",
+		}
+
+		orchestrator := GCPOrchestrator{
+			storage:  mockStorage,
+			temporal: mockTemporal,
+		}
+
+		account := &datamodel.Account{Name: "test-account"}
+		dbKmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "test-kms-config-id"},
+			State:     models.LifeCycleStateAvailable,
+			KmsAttributes: &datamodel.KmsAttributes{
+				CreationMode:     datamodel.KmsCreationModeSDE,
+				SdeKmsConfigUUID: "test-sde-kms-config-id",
+			},
+		}
+
+		mockStorage.On("GetAccount", ctx, "test-account").Return(account, nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
+		mockStorage.On("IsKmsConfigInUse", ctx, dbKmsConfig.UUID).Return(false, nil)
+		mockStorage.On("GetSvmsByKmsConfigID", ctx, dbKmsConfig.ID).Return(nil, nil)
+		mockStorage.On("UpdateKmsConfig", ctx, dbKmsConfig.UUID, mock.Anything).Return(nil)
+		mockStorage.On("GetKmsConfig", ctx, "test-kms-config-id").Return(dbKmsConfig, nil)
+
+		calledSDE := false
+		originalUpdateSDE := updateSDEKmsConfiguration
+		updateSDEKmsConfiguration = func(ctx context.Context, kmsConfig *datamodel.KmsConfig, params *common.UpdateKmsConfigParams) (gcpserver.V1betaUpdateKmsConfigurationRes, error) {
+			calledSDE = true
+			return nil, nil
+		}
+		defer func() {
+			updateSDEKmsConfiguration = originalUpdateSDE
+		}()
+
+		kmsConfig, err := orchestrator.UpdateKmsConfig(ctx, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, kmsConfig)
+		assert.True(tt, calledSDE, "expected SDE update call for SDE-created config")
 	})
 
 	t.Run("SuccessfulUpdateWhenVcpKmsConfigNotFound", func(tt *testing.T) {
@@ -1394,26 +1501,63 @@ func TestAccessKmsCryptoKey(t *testing.T) {
 	})
 }
 
-func TestGetKmsConfigByKeyFullPath(t *testing.T) {
-	t.Run("GetKmsConfigByKeyFullPathReturnsKmsConfigOnSuccess", func(t *testing.T) {
+func TestGetExistingKmsConfig(t *testing.T) {
+	t.Run("ReturnsKmsConfig_WhenKeyPathMatches", func(t *testing.T) {
 		ctx := context.Background()
 		mockStorage := new(database.MockStorage)
 		params := &common.GetKmsConfigParams{AccountName: "test-account", KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/k"}
 		expectedAccount := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "uuid"}, Name: "test-account"}
-		expectedKmsConfig := &datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "uuid"}, KeyName: "k", KmsAttributes: &datamodel.KmsAttributes{},
-			ServiceAccount: &datamodel.ServiceAccount{}}
+		existingConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "uuid"}, KeyProjectID: "p", KeyRingLocation: "l", KeyRing: "r", KeyName: "k",
+			KmsAttributes: &datamodel.KmsAttributes{}, ServiceAccount: &datamodel.ServiceAccount{},
+		}
 		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
 			return expectedAccount, nil
 		}
 		defer func() { getOrCreateAccount = _getOrCreateAccount }()
-		mockStorage.On("GetKmsConfigByKeyFullPath", ctx, params.KeyFullPath, int64(1)).Return(expectedKmsConfig, nil)
+		mockStorage.On("ListKmsConfigByAccountID", ctx, int64(1)).Return([]*datamodel.KmsConfig{existingConfig}, nil)
 
-		result, err := _getKmsConfigByKeyFullPath(ctx, mockStorage, params)
+		result, err := _getExistingKmsConfig(ctx, mockStorage, params)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, "uuid", result.UUID)
 	})
-	t.Run("GetKmsConfigByKeyFullPathReturnsErrorWhenAccountFails", func(t *testing.T) {
+	t.Run("ReturnsNotFound_WhenNoConfigsExist", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
+		params := &common.GetKmsConfigParams{AccountName: "test-account", KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/k"}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}}, nil
+		}
+		defer func() { getOrCreateAccount = _getOrCreateAccount }()
+		mockStorage.On("ListKmsConfigByAccountID", ctx, int64(1)).Return([]*datamodel.KmsConfig{}, nil)
+
+		result, err := _getExistingKmsConfig(ctx, mockStorage, params)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.True(t, errors.IsNotFoundErr(err))
+	})
+	t.Run("ReturnsConflict_WhenDifferentKeyPathExists", func(t *testing.T) {
+		ctx := context.Background()
+		mockStorage := new(database.MockStorage)
+		params := &common.GetKmsConfigParams{AccountName: "test-account", KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/newKey"}
+		existingConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "uuid"}, KeyProjectID: "p", KeyRingLocation: "l", KeyRing: "r", KeyName: "oldKey",
+			KmsAttributes: &datamodel.KmsAttributes{}, ServiceAccount: &datamodel.ServiceAccount{},
+		}
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}}, nil
+		}
+		defer func() { getOrCreateAccount = _getOrCreateAccount }()
+		mockStorage.On("ListKmsConfigByAccountID", ctx, int64(1)).Return([]*datamodel.KmsConfig{existingConfig}, nil)
+
+		result, err := _getExistingKmsConfig(ctx, mockStorage, params)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.True(t, errors.IsConflictErr(err))
+		assert.Contains(t, err.Error(), "A KMS configuration already exists for this account with a different key path")
+	})
+	t.Run("ReturnsError_WhenAccountFails", func(t *testing.T) {
 		ctx := context.Background()
 		mockStorage := new(database.MockStorage)
 		params := &common.GetKmsConfigParams{AccountName: "fail-account", KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/k"}
@@ -1422,12 +1566,12 @@ func TestGetKmsConfigByKeyFullPath(t *testing.T) {
 		}
 		defer func() { getOrCreateAccount = _getOrCreateAccount }()
 
-		result, err := _getKmsConfigByKeyFullPath(ctx, mockStorage, params)
+		result, err := _getExistingKmsConfig(ctx, mockStorage, params)
 		assert.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "account error")
 	})
-	t.Run("GetKmsConfigByKeyFullPathReturnsErrorWhenStorageFails", func(t *testing.T) {
+	t.Run("ReturnsError_WhenStorageFails", func(t *testing.T) {
 		ctx := context.Background()
 		mockStorage := new(database.MockStorage)
 		params := &common.GetKmsConfigParams{AccountName: "test-account", KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/k"}
@@ -1435,45 +1579,45 @@ func TestGetKmsConfigByKeyFullPath(t *testing.T) {
 			return &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}}, nil
 		}
 		defer func() { getOrCreateAccount = _getOrCreateAccount }()
-		mockStorage.On("GetKmsConfigByKeyFullPath", ctx, params.KeyFullPath, int64(1)).Return(nil, errors.New("db error"))
+		mockStorage.On("ListKmsConfigByAccountID", ctx, int64(1)).Return(nil, errors.New("db error"))
 
-		result, err := _getKmsConfigByKeyFullPath(ctx, mockStorage, params)
+		result, err := _getExistingKmsConfig(ctx, mockStorage, params)
 		assert.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "db error")
 	})
 }
 
-func TestOrchestratorGetKmsConfigByKeyFullPath(t *testing.T) {
-	t.Run("OrchestratorGetKmsConfigByKeyFullPathReturnsKmsConfigOnSuccess", func(t *testing.T) {
+func TestOrchestratorGetExistingKmsConfig(t *testing.T) {
+	t.Run("OrchestratorGetExistingKmsConfigReturnsKmsConfigOnSuccess", func(t *testing.T) {
 		ctx := context.Background()
 		mockStorage := new(database.MockStorage)
 		orch := GCPOrchestrator{storage: mockStorage}
 		params := &common.GetKmsConfigParams{AccountName: "test-account", KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/k"}
 		expectedKmsConfig := &models.KmsConfig{BaseModel: models.BaseModel{UUID: "uuid"}}
 
-		getKmsConfigByKeyFullPath = func(ctx context.Context, se database.Storage, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
+		getExistingKmsConfig = func(ctx context.Context, se database.Storage, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
 			return expectedKmsConfig, nil
 		}
-		defer func() { getKmsConfigByKeyFullPath = _getKmsConfigByKeyFullPath }()
+		defer func() { getExistingKmsConfig = _getExistingKmsConfig }()
 
-		result, err := orch.GetKmsConfigByKeyFullPath(ctx, params)
+		result, err := orch.GetExistingKmsConfig(ctx, params)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, "uuid", result.UUID)
 	})
-	t.Run("OrchestratorGetKmsConfigByKeyFullPathReturnsErrorOnFailure", func(t *testing.T) {
+	t.Run("OrchestratorGetExistingKmsConfigReturnsErrorOnFailure", func(t *testing.T) {
 		ctx := context.Background()
 		mockStorage := new(database.MockStorage)
 		orch := GCPOrchestrator{storage: mockStorage}
 		params := &common.GetKmsConfigParams{AccountName: "fail-account", KeyFullPath: "projects/p/locations/l/keyRings/r/cryptoKeys/k"}
 
-		getKmsConfigByKeyFullPath = func(ctx context.Context, se database.Storage, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
+		getExistingKmsConfig = func(ctx context.Context, se database.Storage, params *common.GetKmsConfigParams) (*models.KmsConfig, error) {
 			return nil, errors.New("some error")
 		}
-		defer func() { getKmsConfigByKeyFullPath = _getKmsConfigByKeyFullPath }()
+		defer func() { getExistingKmsConfig = _getExistingKmsConfig }()
 
-		result, err := orch.GetKmsConfigByKeyFullPath(ctx, params)
+		result, err := orch.GetExistingKmsConfig(ctx, params)
 		assert.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "some error")
@@ -1481,6 +1625,10 @@ func TestOrchestratorGetKmsConfigByKeyFullPath(t *testing.T) {
 }
 
 func TestDeleteKmsConfig(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+	cvp.CVP_HOST = "localhost:8009"
+
 	ctx := context.Background()
 
 	t.Run("SuccessfulDelete", func(tt *testing.T) {
@@ -2926,6 +3074,10 @@ func TestDeleteKmsConfig_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 }
 
 func TestMigrateKmsConfig_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+	cvp.CVP_HOST = "localhost:8009"
+
 	t.Run("WhenMigrateKmsConfig_JobAttributesContainsPreviousStateAndDetails", func(tt *testing.T) {
 		ctx := context.Background()
 		mockStorage := database.NewMockStorage(tt)

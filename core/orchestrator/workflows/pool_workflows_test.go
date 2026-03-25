@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -45,6 +46,48 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
+func testVerifyKmsConfigReachabilityWorkflow(ctx workflow.Context, kmsConfigID string) error {
+	ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		StartToCloseTimeout: time.Minute,
+	})
+	return _verifyKmsConfigReachability(ctx, kmsConfigID)
+}
+
+func TestVerifyKmsConfigReachability_SkipsGrantRoleForVCPCreatedConfigEvenWhenCVPHostSet(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+
+	env.RegisterWorkflow(testVerifyKmsConfigReachabilityWorkflow)
+	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+
+	kmsConfig := &datamodel.KmsConfig{
+		BaseModel: datamodel.BaseModel{UUID: "kms-id"},
+		KmsAttributes: &datamodel.KmsAttributes{
+			CreationMode: datamodel.KmsCreationModeVCP,
+		},
+	}
+
+	grantRoleCalled := false
+
+	env.OnActivity("GetKmsConfigActivity", mock.Anything, "kms-id").Return(kmsConfig, nil).Once()
+	env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil).Once()
+	env.OnActivity("GrantRoleActivity", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		grantRoleCalled = true
+	}).Maybe()
+	env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, "kms-id", true).Return(nil).Once()
+
+	env.ExecuteWorkflow(testVerifyKmsConfigReachabilityWorkflow, "kms-id")
+
+	require.True(t, env.IsWorkflowCompleted())
+	require.NoError(t, env.GetWorkflowError())
+	assert.False(t, grantRoleCalled, "GrantRoleActivity must be skipped for VCP-created KMS configs")
+	env.AssertExpectations(t)
+}
+
 // Helper function to set enableSyncPoolZIZS to true and return a cleanup function
 func setEnableSyncPoolZIZSTrue() func() {
 	originalValue := enableSyncPoolZIZS
@@ -59,22 +102,22 @@ func setEnableSyncPoolZIZSTrue() func() {
 func setupMockProvider() (*vsa.MockProvider, func()) {
 	mockProvider := new(vsa.MockProvider)
 	originalGetProviderByNode := hyperscaler2.GetProviderByNode
-	
+
 	// Mock GetProviderByNode to return the mock provider
 	hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 		return mockProvider, nil
 	}
-	
+
 	// Set up default mocks for common provider methods
 	ontapVersion := "9.17.1"
 	mockProvider.On("GetONTAPVersion", mock.Anything).Return(&ontapVersion, nil).Maybe()
 	mockProvider.On("CreateEMSEventForwarding", mock.Anything).Return(nil).Maybe()
-	
+
 	// Cleanup function to restore original
 	cleanup := func() {
 		hyperscaler2.GetProviderByNode = originalGetProviderByNode
 	}
-	
+
 	return mockProvider, cleanup
 }
 
@@ -340,11 +383,11 @@ func TestCreatePoolWorkflow(t *testing.T) {
 	}()
 
 	mockStorage := database.NewMockStorage(t)
-	
+
 	// Set up provider mocks to prevent real HTTP calls to ONTAP
 	_, cleanupProvider := setupMockProvider()
 	defer cleanupProvider()
-	
+
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
@@ -639,11 +682,11 @@ func TestCreatePoolWorkflowWithExpertMode(t *testing.T) {
 	}()
 
 	mockStorage := database.NewMockStorage(t)
-	
+
 	// Set up provider mocks to prevent real HTTP calls to ONTAP
 	_, cleanupProvider := setupMockProvider()
 	defer cleanupProvider()
-	
+
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
@@ -857,11 +900,11 @@ func TestCreatePoolWorkflowWithManualQoS(t *testing.T) {
 	}()
 
 	mockStorage := database.NewMockStorage(t)
-	
+
 	// Set up provider mocks to prevent real HTTP calls to ONTAP
 	_, cleanupProvider := setupMockProvider()
 	defer cleanupProvider()
-	
+
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
@@ -1039,11 +1082,11 @@ func TestCreatePoolWorkflow_RegisterNodeToHarvestFailure(t *testing.T) {
 	}()
 
 	mockStorage := database.NewMockStorage(t)
-	
+
 	// Set up provider mocks to prevent real HTTP calls to ONTAP
 	_, cleanupProvider := setupMockProvider()
 	defer cleanupProvider()
-	
+
 	env.RegisterActivity(&SubnetActivity{})
 	env.RegisterWorkflow(DataSubnetSequentialPoller)
 	env.RegisterWorkflow(ConfigureNetworkWorkflow)
@@ -1842,9 +1885,9 @@ func TestCreatePoolWorkflow_ConfigureNetworkWorkflow(t *testing.T) {
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateEMSEventForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateEMSEventForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
 		mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
@@ -6177,9 +6220,9 @@ func TestConfigureQoSPolicyForSvmActivity(t *testing.T) {
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateEMSEventForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateEMSEventForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
 		mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
@@ -6469,9 +6512,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("CreateEMSEventForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateEMSEventForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil)
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil)
 		mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil)
@@ -6634,9 +6677,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetOntapVersion", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 		env.OnActivity("CreateInternalInfraSubnet", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 		env.OnActivity("UpdateSecurityAudit", mock.Anything, mock.Anything).Return(nil).Maybe()
-	env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
-	env.OnActivity("CreateEMSEventForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
-	env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("CreateClusterLogForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("CreateEMSEventForwarding", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("SavePoolWithClusterDetails", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("AllocateSVMName", mock.Anything, mock.Anything).Return(svmName, nil).Maybe()
 		mockVSAClientWorkflowManager.On("CreateVSASVM", mock.Anything, mock.Anything).Return(&vlm.CreateSVMResponse{}, nil).Maybe()
 		mockVSAClientWorkflowManager.On("GetClusterZiZsDetails", mock.Anything, mock.Anything).Return(&vlm.GetResourceInfoResp{}, nil).Maybe()
@@ -12883,24 +12926,24 @@ func TestApplyUpdatePoolParamsToDbPool(t *testing.T) {
 				AutoTieringConfig: &datamodel.AutoTieringConfig{},
 			},
 			updatePoolParams: &common.UpdatePoolParams{
-				Description:          "new-desc",
-				Labels:               labels,
-				SizeInBytes:          2000,
-				AllowAutoTiering:     true,
-				HotTierSizeInBytes:   500,
+				Description:             "new-desc",
+				Labels:                  labels,
+				SizeInBytes:             2000,
+				AllowAutoTiering:        true,
+				HotTierSizeInBytes:      500,
 				EnableHotTierAutoResize: true,
-				TotalThroughputMibps: 128,
-				TotalIops:            nillable.ToPointer(int64(2048)),
+				TotalThroughputMibps:    128,
+				TotalIops:               nillable.ToPointer(int64(2048)),
 			},
 			description: "all applicable fields from request are applied to dbPool",
 		},
 		{
 			name: "CreatesPoolAttributesWhenNil",
 			dbPool: &datamodel.Pool{
-				Description:        "desc",
-				SizeInBytes:        1000,
-				PoolAttributes:     nil,
-				AutoTieringConfig:  &datamodel.AutoTieringConfig{},
+				Description:       "desc",
+				SizeInBytes:       1000,
+				PoolAttributes:    nil,
+				AutoTieringConfig: &datamodel.AutoTieringConfig{},
 			},
 			updatePoolParams: &common.UpdatePoolParams{
 				Description:          "updated-desc",
@@ -12913,7 +12956,7 @@ func TestApplyUpdatePoolParamsToDbPool(t *testing.T) {
 		{
 			name: "NilTotalIopsDoesNotOverwriteIops",
 			dbPool: &datamodel.Pool{
-				PoolAttributes: &datamodel.PoolAttributes{ThroughputMibps: 128, Iops: 2048},
+				PoolAttributes:    &datamodel.PoolAttributes{ThroughputMibps: 128, Iops: 2048},
 				AutoTieringConfig: &datamodel.AutoTieringConfig{},
 			},
 			updatePoolParams: &common.UpdatePoolParams{
@@ -12927,10 +12970,10 @@ func TestApplyUpdatePoolParamsToDbPool(t *testing.T) {
 		{
 			name: "LabelsWithNilPoolAttributesCreatesPoolAttributes",
 			dbPool: &datamodel.Pool{
-				Description:        "desc",
-				SizeInBytes:        1000,
-				PoolAttributes:     nil,
-				AutoTieringConfig:  &datamodel.AutoTieringConfig{},
+				Description:       "desc",
+				SizeInBytes:       1000,
+				PoolAttributes:    nil,
+				AutoTieringConfig: &datamodel.AutoTieringConfig{},
 			},
 			updatePoolParams: &common.UpdatePoolParams{
 				Description:          "updated-desc",
@@ -18601,7 +18644,7 @@ func TestCreatePoolWorkflow_PropagatesClusterNameFromIdentifyVMs(t *testing.T) {
 		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
-		Account: &datamodel.Account{Name: "test-account"},
+		Account:         &datamodel.Account{Name: "test-account"},
 		PoolCredentials: &datamodel.PoolCredentials{Password: "test-password", SecretID: "", AuthType: envs.USERNAME_PWD},
 		PoolAttributes:  &datamodel.PoolAttributes{Iops: nillable.FromPointer(params.CustomPerformanceParams.Iops), ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps},
 		DeploymentName:  "test-deployment",
@@ -18721,10 +18764,10 @@ func TestCreatePoolWorkflow_DoesNotOverwriteClusterNameWhenIdentifyVMsReturnsEmp
 		CustomPerformanceParams: &common.CustomPerformanceParams{Enabled: true, ThroughputMibps: 64, Iops: nillable.ToPointer(int64(1024))},
 	}
 	pool := &datamodel.Pool{
-		Account: &datamodel.Account{Name: "test-account"},
+		Account:         &datamodel.Account{Name: "test-account"},
 		PoolCredentials: &datamodel.PoolCredentials{Password: "test-password", SecretID: "", AuthType: envs.USERNAME_PWD},
 		PoolAttributes:  &datamodel.PoolAttributes{Iops: nillable.FromPointer(params.CustomPerformanceParams.Iops), ThroughputMibps: params.CustomPerformanceParams.ThroughputMibps},
-		DeploymentName: "test-deployment",
+		DeploymentName:  "test-deployment",
 		QosType:         utils.QosTypeAuto,
 	}
 	svmName := "svmName"
@@ -19038,22 +19081,24 @@ func TestDeletePoolWorkflow_InvokesDeleteAllPoolVPGs_WhenManualQoS(t *testing.T)
 	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 	env.RegisterWorkflowWithOptions(func(ctx workflow.Context, params *unRegisterNodeFromHarvestFarmParams) error { return nil }, workflow.RegisterOptions{Name: "UnRegisterNodeFromHarvestFarmWorkflow"})
 	env.RegisterWorkflowWithOptions(func(ctx workflow.Context, pool *datamodel.Pool) error { return nil }, workflow.RegisterOptions{Name: "ReleasePSCEndpointWorkflow"})
-	env.RegisterWorkflowWithOptions(func(ctx workflow.Context, params *common.CreatePoolParams, pool *datamodel.Pool, tp string, at models.ResourceOperation) (*common.TenancyInfo, error) { return nil, nil }, workflow.RegisterOptions{Name: "DataSubnetSequentialPoller"})
+	env.RegisterWorkflowWithOptions(func(ctx workflow.Context, params *common.CreatePoolParams, pool *datamodel.Pool, tp string, at models.ResourceOperation) (*common.TenancyInfo, error) {
+		return nil, nil
+	}, workflow.RegisterOptions{Name: "DataSubnetSequentialPoller"})
 	env.RegisterWorkflowWithOptions(func(ctx workflow.Context, pool *datamodel.Pool, rp *WorkflowRetryPolicy) error { return nil }, workflow.RegisterOptions{Name: "CleanupServiceAccountPermissionsWorkflow"})
 
 	params := &common.DeletePoolParams{PoolID: "test-pool", AccountName: "test-account"}
 	pool := &datamodel.Pool{
-		Name:             "test-pool",
-		QosType:          "manual",
+		Name:              "test-pool",
+		QosType:           "manual",
 		AutoTieringConfig: &datamodel.AutoTieringConfig{BucketName: "test-bucket"},
-		Account:          &datamodel.Account{Name: "test-account"},
-		ServiceAccountId: "test-sa",
-		ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "test-tenant"},
-		BuildInfo:        &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
-		PoolCredentials:  &datamodel.PoolCredentials{Password: "pw", AuthType: envs.USERNAME_PWD},
-		KmsConfig:        &datamodel.KmsConfig{},
-		KmsConfigID:      sql.NullInt64{Int64: 1, Valid: true},
-		APIAccessMode:    common.ONTAPMode,
+		Account:           &datamodel.Account{Name: "test-account"},
+		ServiceAccountId:  "test-sa",
+		ClusterDetails:    datamodel.ClusterDetails{RegionalTenantProject: "test-tenant"},
+		BuildInfo:         &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
+		PoolCredentials:   &datamodel.PoolCredentials{Password: "pw", AuthType: envs.USERNAME_PWD},
+		KmsConfig:         &datamodel.KmsConfig{},
+		KmsConfigID:       sql.NullInt64{Int64: 1, Valid: true},
+		APIAccessMode:     common.ONTAPMode,
 	}
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -19105,22 +19150,24 @@ func TestDeletePoolWorkflow_VPGDeleteFailure_DoesNotFailWorkflow(t *testing.T) {
 	env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 	env.RegisterWorkflowWithOptions(func(ctx workflow.Context, params *unRegisterNodeFromHarvestFarmParams) error { return nil }, workflow.RegisterOptions{Name: "UnRegisterNodeFromHarvestFarmWorkflow"})
 	env.RegisterWorkflowWithOptions(func(ctx workflow.Context, pool *datamodel.Pool) error { return nil }, workflow.RegisterOptions{Name: "ReleasePSCEndpointWorkflow"})
-	env.RegisterWorkflowWithOptions(func(ctx workflow.Context, params *common.CreatePoolParams, pool *datamodel.Pool, tp string, at models.ResourceOperation) (*common.TenancyInfo, error) { return nil, nil }, workflow.RegisterOptions{Name: "DataSubnetSequentialPoller"})
+	env.RegisterWorkflowWithOptions(func(ctx workflow.Context, params *common.CreatePoolParams, pool *datamodel.Pool, tp string, at models.ResourceOperation) (*common.TenancyInfo, error) {
+		return nil, nil
+	}, workflow.RegisterOptions{Name: "DataSubnetSequentialPoller"})
 	env.RegisterWorkflowWithOptions(func(ctx workflow.Context, pool *datamodel.Pool, rp *WorkflowRetryPolicy) error { return nil }, workflow.RegisterOptions{Name: "CleanupServiceAccountPermissionsWorkflow"})
 
 	params := &common.DeletePoolParams{PoolID: "test-pool", AccountName: "test-account"}
 	pool := &datamodel.Pool{
-		Name:             "test-pool",
-		QosType:          "manual",
+		Name:              "test-pool",
+		QosType:           "manual",
 		AutoTieringConfig: &datamodel.AutoTieringConfig{BucketName: "test-bucket"},
-		Account:          &datamodel.Account{Name: "test-account"},
-		ServiceAccountId: "test-sa",
-		ClusterDetails:   datamodel.ClusterDetails{RegionalTenantProject: "test-tenant"},
-		BuildInfo:        &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
-		PoolCredentials:  &datamodel.PoolCredentials{Password: "pw", AuthType: envs.USERNAME_PWD},
-		KmsConfig:        &datamodel.KmsConfig{},
-		KmsConfigID:      sql.NullInt64{Int64: 1, Valid: true},
-		APIAccessMode:    common.ONTAPMode,
+		Account:           &datamodel.Account{Name: "test-account"},
+		ServiceAccountId:  "test-sa",
+		ClusterDetails:    datamodel.ClusterDetails{RegionalTenantProject: "test-tenant"},
+		BuildInfo:         &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
+		PoolCredentials:   &datamodel.PoolCredentials{Password: "pw", AuthType: envs.USERNAME_PWD},
+		KmsConfig:         &datamodel.KmsConfig{},
+		KmsConfigID:       sql.NullInt64{Int64: 1, Valid: true},
+		APIAccessMode:     common.ONTAPMode,
 	}
 
 	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()

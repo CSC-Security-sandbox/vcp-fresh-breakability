@@ -3,13 +3,16 @@ package kms_activities
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
@@ -32,6 +35,7 @@ import (
 	googleOauth2 "golang.org/x/oauth2/google"
 	"google.golang.org/api/cloudkms/v1"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/api/option"
 )
 
 func TestPollKmsConfigOperationActivity(t *testing.T) {
@@ -210,8 +214,12 @@ func TestFailedKmsConfigCreateActivity(t *testing.T) {
 			State:             models.LifeCycleStateError,
 			StateDetails:      "failure reason",
 			CustomerProjectID: "123456789",
-			ServiceAccount:    &datamodel.ServiceAccount{},
+			ServiceAccount:    &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "sa-uuid"}},
 		}
+		// DB cleanup happens before JWT token generation
+		mockSE.On("DeleteKmsConfig", mock.Anything, "uuid", models.LifeCycleStateDeleted, "failure reason").Return(nil, nil)
+		mockSE.On("UpdateServiceAccountState", mock.Anything, "sa-uuid", models.LifeCycleStateError, "failure reason").Return(&datamodel.ServiceAccount{}, nil)
+
 		_, err := env.ExecuteActivity(activity.FailedKmsConfigCreateActivity, kmsConfig, "failure reason", "location-id")
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "failed to get signed token")
@@ -295,6 +303,28 @@ func TestFailedKmsConfigCreateActivity(t *testing.T) {
 		env.RegisterActivity(activity.FailedKmsConfigCreateActivity)
 		_, err := env.ExecuteActivity(activity.FailedKmsConfigCreateActivity, kmsConfig, "failure reason", "location-id")
 		assert.NoError(tt, err)
+	})
+	t.Run("WhenVCPCreated_SkipsSDE", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(tt)
+		activity := &KmsConfigActivity{SE: mockSE}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.FailedKmsConfigCreateActivity)
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel:         datamodel.BaseModel{UUID: "uuid"},
+			State:             models.LifeCycleStateError,
+			StateDetails:      "failure reason",
+			CustomerProjectID: "123456789",
+			ServiceAccount:    &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "sa-uuid"}},
+			KmsAttributes:     &datamodel.KmsAttributes{CreationMode: datamodel.KmsCreationModeVCP},
+		}
+		mockSE.On("DeleteKmsConfig", mock.Anything, kmsConfig.UUID, models.LifeCycleStateDeleted, "failure reason").Return(nil, nil)
+		mockSE.On("UpdateServiceAccountState", mock.Anything, "sa-uuid", models.LifeCycleStateError, "failure reason").Return(&datamodel.ServiceAccount{}, nil)
+
+		// No SDE/CVP mocks — if SDE code is called, the test will fail with unexpected mock calls
+		_, err := env.ExecuteActivity(activity.FailedKmsConfigCreateActivity, kmsConfig, "failure reason", "location-id")
+		assert.NoError(tt, err)
+		mockSE.AssertExpectations(tt)
 	})
 	t.Run("WhenV1betaDeleteKmsConfigurationFails", func(tt *testing.T) {
 		mockClient := kms_configurations.NewMockClientService(t)
@@ -391,6 +421,11 @@ func TestCreatedKmsConfigActivity(t *testing.T) {
 }
 
 func TestCreateVSAKmsConfigSAKeyActivity(t *testing.T) {
+	// All existing tests use SdeServiceAccountEmail (SDE path), so set CVP_HOST
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	t.Run("returns error if getGcpService fails", func(tt *testing.T) {
 		mockSE := database.NewMockStorage(t)
 		activity := &KmsConfigActivity{SE: mockSE}
@@ -425,16 +460,24 @@ func TestCreateVSAKmsConfigSAKeyActivity(t *testing.T) {
 				SdeServiceAccountEmail: "test@project.iam.gserviceaccount.com",
 			},
 		}
+		origIsKeyPresent := isServiceAccountKeyPresentInGCP
+		origExtractKeyID := extractPrivateKeyIDFromPassword
 		defer func() {
 			getGcpService = hyperscaler2.GetGCPService
 			GcpServiceCreateServiceAccountKey = _gcpServiceCreateServiceAccountKey
-			getGcpService = hyperscaler2.GetGCPService
+			isServiceAccountKeyPresentInGCP = origIsKeyPresent
+			extractPrivateKeyIDFromPassword = origExtractKeyID
 		}()
 		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
 			return &google.GcpServices{}, nil
 		}
 		GcpServiceCreateServiceAccountKey = func(gcpService hyperscaler2.GoogleServices, ctx context.Context, email string) (*hyperscaler.ServiceAccountKey, error) {
 			return &hyperscaler.ServiceAccountKey{PrivateKeyData: "keydata"}, nil
+		}
+		// Mock: SA key exists in GCP, no sync needed
+		extractPrivateKeyIDFromPassword = func(keyData string) (string, error) { return "test-key-id", nil }
+		isServiceAccountKeyPresentInGCP = func(ctx context.Context, gcpService *google.GcpServices, email, keyID string) (bool, error) {
+			return true, nil
 		}
 		pass := "enc"
 		utils.DecryptPassword = func(_ log.Secret) (*string, error) { return &pass, nil }
@@ -453,6 +496,54 @@ func TestCreateVSAKmsConfigSAKeyActivity(t *testing.T) {
 		if response.ServiceAccount.ServiceAccountEmail != "test@project.iam.gserviceaccount.com" {
 			tt.Errorf("expected ServiceAccountEmail to be set, got %v", response.ServiceAccount.ServiceAccountEmail)
 		}
+	})
+
+	t.Run("uses VcpServiceAccountEmail for VCP-created config", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.CreateVSAKmsConfigSAKeyActivity)
+
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "kms-uuid"},
+			KmsAttributes: &datamodel.KmsAttributes{
+				CreationMode:           datamodel.KmsCreationModeVCP,
+				VcpServiceAccountEmail: "vcp-sa@project.iam.gserviceaccount.com",
+				SdeServiceAccountEmail: "sde-sa@project.iam.gserviceaccount.com",
+			},
+		}
+
+		origGetGcpService := getGcpService
+		origDecryptPassword := utils.DecryptPassword
+		origValidate := utils.ValidateSAKeyInGCP
+		defer func() {
+			getGcpService = origGetGcpService
+			utils.DecryptPassword = origDecryptPassword
+			utils.ValidateSAKeyInGCP = origValidate
+		}()
+
+		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		utils.ValidateSAKeyInGCP = false
+		pass := "non-empty-password"
+		utils.DecryptPassword = func(_ log.Secret) (*string, error) { return &pass, nil }
+
+		mockSE.On("GetServiceAccountFromEmail", mock.Anything, "vcp-sa@project.iam.gserviceaccount.com").Return(
+			&datamodel.ServiceAccount{
+				BaseModel:                      datamodel.BaseModel{ID: 7, UUID: "sa-uuid"},
+				ServiceAccountEmail:            "vcp-sa@project.iam.gserviceaccount.com",
+				ServiceAccountPasswordLocation: "enc",
+			}, nil)
+		mockSE.On("UpdateServiceAccountState", mock.Anything, "sa-uuid", mock.Anything, mock.Anything).Return(&datamodel.ServiceAccount{}, nil)
+		mockSE.On("UpdateKmsConfig", mock.Anything, "kms-uuid", mock.Anything).Return(nil)
+
+		result, err := env.ExecuteActivity(activity.CreateVSAKmsConfigSAKeyActivity, kmsConfig)
+		assert.NoError(tt, err)
+		var response *datamodel.KmsConfig
+		assert.NoError(tt, result.Get(&response))
+		assert.Equal(tt, "vcp-sa@project.iam.gserviceaccount.com", response.ServiceAccount.ServiceAccountEmail)
 	})
 
 	t.Run("returns error if CreateKmsServiceAccount fails", func(tt *testing.T) {
@@ -684,6 +775,289 @@ func TestCreateVSAKmsConfigSAKeyActivity(t *testing.T) {
 		if response.ServiceAccount.ServiceAccountEmail != "test@project.iam.gserviceaccount.com" {
 			tt.Errorf("expected ServiceAccountEmail to be set, got %v", response.ServiceAccount.ServiceAccountEmail)
 		}
+	})
+
+	t.Run("re-syncs when password is non-empty but specific key not found in GCP", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.CreateVSAKmsConfigSAKeyActivity)
+		kmsConfig := &datamodel.KmsConfig{
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "uuid"}},
+			KmsAttributes:  &datamodel.KmsAttributes{SdeServiceAccountEmail: "test@project.iam.gserviceaccount.com"},
+		}
+		origGetGcpService := getGcpService
+		origSyncKeys := synchronizeServiceAccountKeys
+		origIsKeyPresent := isServiceAccountKeyPresentInGCP
+		origExtractKeyID := extractPrivateKeyIDFromPassword
+		origDecryptPassword := utils.DecryptPassword
+		origValidate := utils.ValidateSAKeyInGCP
+		defer func() {
+			getGcpService = origGetGcpService
+			synchronizeServiceAccountKeys = origSyncKeys
+			isServiceAccountKeyPresentInGCP = origIsKeyPresent
+			extractPrivateKeyIDFromPassword = origExtractKeyID
+			utils.DecryptPassword = origDecryptPassword
+			utils.ValidateSAKeyInGCP = origValidate
+		}()
+		utils.ValidateSAKeyInGCP = true
+		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		// Password is non-empty but specific key not found in GCP → should re-sync
+		validPass := "valid-encrypted-key"
+		utils.DecryptPassword = func(_ log.Secret) (*string, error) { return &validPass, nil }
+		extractPrivateKeyIDFromPassword = func(keyData string) (string, error) { return "deleted-key-id", nil }
+		isServiceAccountKeyPresentInGCP = func(ctx context.Context, gcpService *google.GcpServices, email, keyID string) (bool, error) {
+			return false, nil // key not found in GCP
+		}
+		syncCalled := false
+		synchronizeServiceAccountKeys = func(ctx context.Context, gcpService hyperscaler2.GoogleServices, email string) (*string, error) {
+			syncCalled = true
+			val := "new-enc-key"
+			return &val, nil
+		}
+		mockSE.On("GetServiceAccountFromEmail", mock.Anything, "test@project.iam.gserviceaccount.com").Return(
+			&datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "uuid"}, ServiceAccountEmail: "test@project.iam.gserviceaccount.com", ServiceAccountPasswordLocation: "enc"}, nil)
+		mockSE.On("UpdateServiceAccountEmailAndKey", mock.Anything, "uuid", "test@project.iam.gserviceaccount.com", "new-enc-key").Return(
+			&datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "uuid"}, ServiceAccountEmail: "test@project.iam.gserviceaccount.com"}, nil)
+		mockSE.On("UpdateServiceAccountState", mock.Anything, "uuid", mock.Anything, mock.Anything).Return(&datamodel.ServiceAccount{}, nil)
+		mockSE.On("UpdateKmsConfig", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		_, err := env.ExecuteActivity(activity.CreateVSAKmsConfigSAKeyActivity, kmsConfig)
+		assert.NoError(tt, err)
+		assert.True(tt, syncCalled, "synchronizeServiceAccountKeys should have been called when specific key not found in GCP")
+	})
+
+	t.Run("skips sync when password is non-empty and specific key found in GCP", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.CreateVSAKmsConfigSAKeyActivity)
+		kmsConfig := &datamodel.KmsConfig{
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "uuid"}},
+			KmsAttributes:  &datamodel.KmsAttributes{SdeServiceAccountEmail: "test@project.iam.gserviceaccount.com"},
+		}
+		origGetGcpService := getGcpService
+		origSyncKeys := synchronizeServiceAccountKeys
+		origIsKeyPresent := isServiceAccountKeyPresentInGCP
+		origExtractKeyID := extractPrivateKeyIDFromPassword
+		origDecryptPassword := utils.DecryptPassword
+		origValidate := utils.ValidateSAKeyInGCP
+		defer func() {
+			getGcpService = origGetGcpService
+			synchronizeServiceAccountKeys = origSyncKeys
+			isServiceAccountKeyPresentInGCP = origIsKeyPresent
+			extractPrivateKeyIDFromPassword = origExtractKeyID
+			utils.DecryptPassword = origDecryptPassword
+			utils.ValidateSAKeyInGCP = origValidate
+		}()
+		utils.ValidateSAKeyInGCP = true
+		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		// Password is non-empty and specific key exists in GCP → should NOT re-sync
+		validPass := "valid-encrypted-key"
+		utils.DecryptPassword = func(_ log.Secret) (*string, error) { return &validPass, nil }
+		extractPrivateKeyIDFromPassword = func(keyData string) (string, error) { return "existing-key-id", nil }
+		isServiceAccountKeyPresentInGCP = func(ctx context.Context, gcpService *google.GcpServices, email, keyID string) (bool, error) {
+			return true, nil // key exists in GCP
+		}
+		syncCalled := false
+		synchronizeServiceAccountKeys = func(ctx context.Context, gcpService hyperscaler2.GoogleServices, email string) (*string, error) {
+			syncCalled = true
+			val := "enc"
+			return &val, nil
+		}
+		mockSE.On("GetServiceAccountFromEmail", mock.Anything, "test@project.iam.gserviceaccount.com").Return(
+			&datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "uuid"}, ServiceAccountEmail: "test@project.iam.gserviceaccount.com", ServiceAccountPasswordLocation: "enc"}, nil)
+		mockSE.On("UpdateServiceAccountState", mock.Anything, "uuid", mock.Anything, mock.Anything).Return(&datamodel.ServiceAccount{}, nil)
+		mockSE.On("UpdateKmsConfig", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		result, err := env.ExecuteActivity(activity.CreateVSAKmsConfigSAKeyActivity, kmsConfig)
+		assert.NoError(tt, err)
+		assert.False(tt, syncCalled, "synchronizeServiceAccountKeys should NOT have been called when specific key found in GCP")
+		var response *datamodel.KmsConfig
+		assert.NoError(tt, result.Get(&response))
+	})
+
+	t.Run("re-syncs when password is non-empty but GCP key check fails", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.CreateVSAKmsConfigSAKeyActivity)
+		kmsConfig := &datamodel.KmsConfig{
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "uuid"}},
+			KmsAttributes:  &datamodel.KmsAttributes{SdeServiceAccountEmail: "test@project.iam.gserviceaccount.com"},
+		}
+		origGetGcpService := getGcpService
+		origSyncKeys := synchronizeServiceAccountKeys
+		origIsKeyPresent := isServiceAccountKeyPresentInGCP
+		origExtractKeyID := extractPrivateKeyIDFromPassword
+		origDecryptPassword := utils.DecryptPassword
+		origValidate := utils.ValidateSAKeyInGCP
+		defer func() {
+			getGcpService = origGetGcpService
+			synchronizeServiceAccountKeys = origSyncKeys
+			isServiceAccountKeyPresentInGCP = origIsKeyPresent
+			extractPrivateKeyIDFromPassword = origExtractKeyID
+			utils.DecryptPassword = origDecryptPassword
+			utils.ValidateSAKeyInGCP = origValidate
+		}()
+		utils.ValidateSAKeyInGCP = true
+		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		// Password is non-empty, but GCP key check returns error → should re-sync as safe fallback
+		validPass := "valid-encrypted-key"
+		utils.DecryptPassword = func(_ log.Secret) (*string, error) { return &validPass, nil }
+		extractPrivateKeyIDFromPassword = func(keyData string) (string, error) { return "some-key-id", nil }
+		isServiceAccountKeyPresentInGCP = func(ctx context.Context, gcpService *google.GcpServices, email, keyID string) (bool, error) {
+			return false, errors.New("GCP list keys error")
+		}
+		syncCalled := false
+		synchronizeServiceAccountKeys = func(ctx context.Context, gcpService hyperscaler2.GoogleServices, email string) (*string, error) {
+			syncCalled = true
+			val := "new-enc-key"
+			return &val, nil
+		}
+		mockSE.On("GetServiceAccountFromEmail", mock.Anything, "test@project.iam.gserviceaccount.com").Return(
+			&datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "uuid"}, ServiceAccountEmail: "test@project.iam.gserviceaccount.com", ServiceAccountPasswordLocation: "enc"}, nil)
+		mockSE.On("UpdateServiceAccountEmailAndKey", mock.Anything, "uuid", "test@project.iam.gserviceaccount.com", "new-enc-key").Return(
+			&datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "uuid"}, ServiceAccountEmail: "test@project.iam.gserviceaccount.com"}, nil)
+		mockSE.On("UpdateServiceAccountState", mock.Anything, "uuid", mock.Anything, mock.Anything).Return(&datamodel.ServiceAccount{}, nil)
+		mockSE.On("UpdateKmsConfig", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		_, err := env.ExecuteActivity(activity.CreateVSAKmsConfigSAKeyActivity, kmsConfig)
+		assert.NoError(tt, err)
+		assert.True(tt, syncCalled, "synchronizeServiceAccountKeys should have been called when GCP key check fails")
+	})
+
+	t.Run("re-syncs when password is non-empty but key ID extraction fails", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.CreateVSAKmsConfigSAKeyActivity)
+		kmsConfig := &datamodel.KmsConfig{
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "uuid"}},
+			KmsAttributes:  &datamodel.KmsAttributes{SdeServiceAccountEmail: "test@project.iam.gserviceaccount.com"},
+		}
+		origGetGcpService := getGcpService
+		origSyncKeys := synchronizeServiceAccountKeys
+		origExtractKeyID := extractPrivateKeyIDFromPassword
+		origDecryptPassword := utils.DecryptPassword
+		origValidate := utils.ValidateSAKeyInGCP
+		defer func() {
+			getGcpService = origGetGcpService
+			synchronizeServiceAccountKeys = origSyncKeys
+			extractPrivateKeyIDFromPassword = origExtractKeyID
+			utils.DecryptPassword = origDecryptPassword
+			utils.ValidateSAKeyInGCP = origValidate
+		}()
+		utils.ValidateSAKeyInGCP = true
+		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		// Password is non-empty, but key data is corrupt/unparseable → should re-sync
+		validPass := "corrupt-key-data"
+		utils.DecryptPassword = func(_ log.Secret) (*string, error) { return &validPass, nil }
+		extractPrivateKeyIDFromPassword = func(keyData string) (string, error) {
+			return "", errors.New("failed to parse key JSON")
+		}
+		syncCalled := false
+		synchronizeServiceAccountKeys = func(ctx context.Context, gcpService hyperscaler2.GoogleServices, email string) (*string, error) {
+			syncCalled = true
+			val := "new-enc-key"
+			return &val, nil
+		}
+		mockSE.On("GetServiceAccountFromEmail", mock.Anything, "test@project.iam.gserviceaccount.com").Return(
+			&datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "uuid"}, ServiceAccountEmail: "test@project.iam.gserviceaccount.com", ServiceAccountPasswordLocation: "enc"}, nil)
+		mockSE.On("UpdateServiceAccountEmailAndKey", mock.Anything, "uuid", "test@project.iam.gserviceaccount.com", "new-enc-key").Return(
+			&datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "uuid"}, ServiceAccountEmail: "test@project.iam.gserviceaccount.com"}, nil)
+		mockSE.On("UpdateServiceAccountState", mock.Anything, "uuid", mock.Anything, mock.Anything).Return(&datamodel.ServiceAccount{}, nil)
+		mockSE.On("UpdateKmsConfig", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		_, err := env.ExecuteActivity(activity.CreateVSAKmsConfigSAKeyActivity, kmsConfig)
+		assert.NoError(tt, err)
+		assert.True(tt, syncCalled, "synchronizeServiceAccountKeys should have been called when key ID extraction fails")
+	})
+
+	t.Run("skips GCP validation when ValidateSAKeyInGCP is disabled", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &KmsConfigActivity{SE: mockSE}
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(activity.CreateVSAKmsConfigSAKeyActivity)
+		kmsConfig := &datamodel.KmsConfig{
+			ServiceAccount: &datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "uuid"}},
+			KmsAttributes:  &datamodel.KmsAttributes{SdeServiceAccountEmail: "test@project.iam.gserviceaccount.com"},
+		}
+		origGetGcpService := getGcpService
+		origSyncKeys := synchronizeServiceAccountKeys
+		origDecryptPassword := utils.DecryptPassword
+		origValidate := utils.ValidateSAKeyInGCP
+		defer func() {
+			getGcpService = origGetGcpService
+			synchronizeServiceAccountKeys = origSyncKeys
+			utils.DecryptPassword = origDecryptPassword
+			utils.ValidateSAKeyInGCP = origValidate
+		}()
+		utils.ValidateSAKeyInGCP = false // disable validation
+		getGcpService = func(ctx context.Context) (*google.GcpServices, error) {
+			return &google.GcpServices{}, nil
+		}
+		// Password is non-empty — with validation disabled, no GCP check should happen
+		validPass := "valid-encrypted-key"
+		utils.DecryptPassword = func(_ log.Secret) (*string, error) { return &validPass, nil }
+		syncCalled := false
+		synchronizeServiceAccountKeys = func(ctx context.Context, gcpService hyperscaler2.GoogleServices, email string) (*string, error) {
+			syncCalled = true
+			val := "enc"
+			return &val, nil
+		}
+		mockSE.On("GetServiceAccountFromEmail", mock.Anything, "test@project.iam.gserviceaccount.com").Return(
+			&datamodel.ServiceAccount{BaseModel: datamodel.BaseModel{UUID: "uuid"}, ServiceAccountEmail: "test@project.iam.gserviceaccount.com", ServiceAccountPasswordLocation: "enc"}, nil)
+		mockSE.On("UpdateServiceAccountState", mock.Anything, "uuid", mock.Anything, mock.Anything).Return(&datamodel.ServiceAccount{}, nil)
+		mockSE.On("UpdateKmsConfig", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		result, err := env.ExecuteActivity(activity.CreateVSAKmsConfigSAKeyActivity, kmsConfig)
+		assert.NoError(tt, err)
+		assert.False(tt, syncCalled, "synchronizeServiceAccountKeys should NOT have been called when validation is disabled")
+		var response *datamodel.KmsConfig
+		assert.NoError(tt, result.Get(&response))
+	})
+}
+
+func Test_extractPrivateKeyID(t *testing.T) {
+	t.Run("extracts key ID from valid base64-encoded JSON", func(tt *testing.T) {
+		keyJSON := `{"type":"service_account","private_key_id":"abc123","client_email":"test@project.iam.gserviceaccount.com"}`
+		encoded := base64.StdEncoding.EncodeToString([]byte(keyJSON))
+		keyID, err := _extractPrivateKeyID(encoded)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "abc123", keyID)
+	})
+
+	t.Run("returns error for invalid base64", func(tt *testing.T) {
+		keyID, err := _extractPrivateKeyID("not-valid-base64!!!")
+		assert.Error(tt, err)
+		assert.Empty(tt, keyID)
+		assert.Contains(tt, err.Error(), "base64")
+	})
+
+	t.Run("returns error for invalid JSON", func(tt *testing.T) {
+		encoded := base64.StdEncoding.EncodeToString([]byte("not json"))
+		keyID, err := _extractPrivateKeyID(encoded)
+		assert.Error(tt, err)
+		assert.Empty(tt, keyID)
+		assert.Contains(tt, err.Error(), "parse key JSON")
+	})
+
+	t.Run("returns error when private_key_id is missing", func(tt *testing.T) {
+		keyJSON := `{"type":"service_account","client_email":"test@project.iam.gserviceaccount.com"}`
+		encoded := base64.StdEncoding.EncodeToString([]byte(keyJSON))
+		keyID, err := _extractPrivateKeyID(encoded)
+		assert.Error(tt, err)
+		assert.Empty(tt, keyID)
+		assert.Contains(tt, err.Error(), "private_key_id not found")
 	})
 }
 
@@ -1104,7 +1478,7 @@ func TestAccessCryptoKey(t *testing.T) {
 
 		_, err := env.ExecuteActivity(testAccessCryptoKeyActivity, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey)
 		assert.Error(t, err) // Expected to fail due to nil KMS service
-		assert.Equal(t, "AccessCryptoKeyAndEncryptDataWithImpersonation", receivedCaller, "Expected correct caller name in retry function")
+		assert.Equal(t, "AccessCryptoKeyAndEncryptData", receivedCaller, "Expected correct caller name in retry function")
 	})
 	t.Run("VerifiesTimeoutParametersAreUsedCorrectly", func(t *testing.T) {
 		testSuite := &testsuite.WorkflowTestSuite{}
@@ -1298,7 +1672,7 @@ func TestEncryptDataWithCryptoKey(t *testing.T) {
 
 		_, err := env.ExecuteActivity(testAccessCryptoKeyActivity, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey)
 		assert.Error(t, err) // Expected to fail due to nil KMS service
-		assert.Equal(t, "AccessCryptoKeyAndEncryptDataWithImpersonationActivity", receivedCaller, "Expected correct caller name in retry function")
+		assert.Equal(t, "AccessCryptoKeyAndEncryptData", receivedCaller, "Expected correct caller name in retry function")
 	})
 	t.Run("WhenEncryptDataWithCryptoKeyIsSuccessful", func(t *testing.T) {
 		testSuite := &testsuite.WorkflowTestSuite{}
@@ -1337,8 +1711,315 @@ func TestEncryptDataWithCryptoKey(t *testing.T) {
 
 		_, err := env.ExecuteActivity(testAccessCryptoKeyActivity, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey)
 		assert.NoError(t, err)
-		assert.Equal(t, "AccessCryptoKeyAndEncryptDataWithImpersonationActivity", receivedCaller, "Expected correct caller name in retry function")
+		assert.Equal(t, "AccessCryptoKeyAndEncryptData", receivedCaller, "Expected correct caller name in retry function")
 	})
+}
+
+func TestAccessCryptoKeyVCPDirectPath(t *testing.T) {
+	t.Run("VCPConfigUsesDirectKmsServiceNotImpersonation", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(testAccessCryptoKeyActivity)
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "uuid"},
+			ServiceAccount: &datamodel.ServiceAccount{
+				ServiceAccountPasswordLocation: "encrypted-location",
+			},
+			KmsAttributes: &datamodel.KmsAttributes{
+				VcpServiceAccountEmail: "cmek-usea1-123456789@cmek-project.iam.gserviceaccount.com",
+				CreationMode:           datamodel.KmsCreationModeVCP,
+			},
+			KeyProjectID:    "project",
+			KeyRingLocation: "location",
+			KeyRing:         "keyring",
+			KeyName:         "keyname",
+		}
+		origProcessCredentials := utils.ProcessCredentials
+		origGetDirect := getDirectKmsService
+		origGetImpersonated := getImpersonatedKmsService
+		defer func() {
+			utils.ProcessCredentials = origProcessCredentials
+			getDirectKmsService = origGetDirect
+			getImpersonatedKmsService = origGetImpersonated
+		}()
+
+		utils.ProcessCredentials = func(ctx context.Context, secretPassword string) (*googleOauth2.Credentials, error) {
+			return &googleOauth2.Credentials{}, nil
+		}
+
+		directCalled := false
+		getDirectKmsService = func(ctx context.Context, creds *googleOauth2.Credentials) (*cloudkms.Service, error) {
+			directCalled = true
+			return nil, errors.New("direct kms service error")
+		}
+		impersonatedCalled := false
+		getImpersonatedKmsService = func(ctx context.Context, targetEmail string, creds *googleOauth2.Credentials) (*cloudkms.Service, error) {
+			impersonatedCalled = true
+			return nil, errors.New("should not be called")
+		}
+
+		_, err := env.ExecuteActivity(testAccessCryptoKeyActivity, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey)
+		assert.Error(t, err)
+		assert.True(t, directCalled, "Expected getDirectKmsService to be called for VCP config")
+		assert.False(t, impersonatedCalled, "Expected getImpersonatedKmsService NOT to be called for VCP config")
+	})
+
+	t.Run("SDEConfigUsesImpersonatedKmsServiceNotDirect", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(testAccessCryptoKeyActivity)
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "uuid"},
+			ServiceAccount: &datamodel.ServiceAccount{
+				ServiceAccountPasswordLocation: "encrypted-location",
+			},
+			KmsAttributes: &datamodel.KmsAttributes{
+				SdeServiceAccountEmail: "svc@project.iam.gserviceaccount.com",
+				CreationMode:           datamodel.KmsCreationModeSDE,
+			},
+			KeyProjectID:    "project",
+			KeyRingLocation: "location",
+			KeyRing:         "keyring",
+			KeyName:         "keyname",
+		}
+		origProcessCredentials := utils.ProcessCredentials
+		origGetDirect := getDirectKmsService
+		origGetImpersonated := getImpersonatedKmsService
+		defer func() {
+			utils.ProcessCredentials = origProcessCredentials
+			getDirectKmsService = origGetDirect
+			getImpersonatedKmsService = origGetImpersonated
+		}()
+
+		utils.ProcessCredentials = func(ctx context.Context, secretPassword string) (*googleOauth2.Credentials, error) {
+			return &googleOauth2.Credentials{}, nil
+		}
+
+		directCalled := false
+		getDirectKmsService = func(ctx context.Context, creds *googleOauth2.Credentials) (*cloudkms.Service, error) {
+			directCalled = true
+			return nil, errors.New("should not be called")
+		}
+		impersonatedCalled := false
+		getImpersonatedKmsService = func(ctx context.Context, targetEmail string, creds *googleOauth2.Credentials) (*cloudkms.Service, error) {
+			impersonatedCalled = true
+			return nil, errors.New("impersonated kms service error")
+		}
+
+		_, err := env.ExecuteActivity(testAccessCryptoKeyActivity, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey)
+		assert.Error(t, err)
+		assert.False(t, directCalled, "Expected getDirectKmsService NOT to be called for SDE config")
+		assert.True(t, impersonatedCalled, "Expected getImpersonatedKmsService to be called for SDE config")
+	})
+
+	t.Run("EmptyCreationModeDefaultsToSDE", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(testAccessCryptoKeyActivity)
+		kmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "uuid"},
+			ServiceAccount: &datamodel.ServiceAccount{
+				ServiceAccountPasswordLocation: "encrypted-location",
+			},
+			KmsAttributes: &datamodel.KmsAttributes{
+				SdeServiceAccountEmail: "svc@project.iam.gserviceaccount.com",
+				// CreationMode is empty — should default to SDE
+			},
+			KeyProjectID:    "project",
+			KeyRingLocation: "location",
+			KeyRing:         "keyring",
+			KeyName:         "keyname",
+		}
+		origProcessCredentials := utils.ProcessCredentials
+		origGetDirect := getDirectKmsService
+		origGetImpersonated := getImpersonatedKmsService
+		defer func() {
+			utils.ProcessCredentials = origProcessCredentials
+			getDirectKmsService = origGetDirect
+			getImpersonatedKmsService = origGetImpersonated
+		}()
+
+		utils.ProcessCredentials = func(ctx context.Context, secretPassword string) (*googleOauth2.Credentials, error) {
+			return &googleOauth2.Credentials{}, nil
+		}
+
+		directCalled := false
+		getDirectKmsService = func(ctx context.Context, creds *googleOauth2.Credentials) (*cloudkms.Service, error) {
+			directCalled = true
+			return nil, errors.New("should not be called")
+		}
+		impersonatedCalled := false
+		getImpersonatedKmsService = func(ctx context.Context, targetEmail string, creds *googleOauth2.Credentials) (*cloudkms.Service, error) {
+			impersonatedCalled = true
+			return nil, errors.New("impersonated error")
+		}
+
+		_, err := env.ExecuteActivity(testAccessCryptoKeyActivity, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey)
+		assert.Error(t, err)
+		assert.False(t, directCalled, "Expected getDirectKmsService NOT to be called for empty CreationMode (defaults to SDE)")
+		assert.True(t, impersonatedCalled, "Expected getImpersonatedKmsService to be called for empty CreationMode (defaults to SDE)")
+	})
+}
+
+func newKMSServiceForTest(t *testing.T, getStatus int, getBody string, encryptStatus int, encryptBody string) *cloudkms.Service {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if strings.Contains(r.URL.Path, ":encrypt") {
+			w.WriteHeader(encryptStatus)
+			_, _ = w.Write([]byte(encryptBody))
+			return
+		}
+		w.WriteHeader(getStatus)
+		_, _ = w.Write([]byte(getBody))
+	}))
+	t.Cleanup(server.Close)
+
+	svc, err := cloudkms.NewService(
+		context.Background(),
+		option.WithoutAuthentication(),
+		option.WithHTTPClient(server.Client()),
+		option.WithEndpoint(server.URL+"/"),
+	)
+	assert.NoError(t, err)
+	return svc
+}
+
+func TestAccessCryptoKeyBranchCoverage(t *testing.T) {
+	type tc struct {
+		name        string
+		attrs       *datamodel.KmsAttributes
+		getStatus   int
+		getBody     string
+		encStatus   int
+		encBody     string
+		expectError string
+	}
+
+	tests := []tc{
+		{
+			name: "DirectPathSuccess",
+			attrs: &datamodel.KmsAttributes{
+				CreationMode: datamodel.KmsCreationModeVCP,
+			},
+			getStatus: http.StatusOK,
+			getBody:   `{"primary":{"algorithm":"GOOGLE_SYMMETRIC_ENCRYPTION","state":"ENABLED"}}`,
+			encStatus: http.StatusOK,
+			encBody:   `{"name":"ok","ciphertext":"abc"}`,
+		},
+		{
+			name: "DirectPathGetPermissionDenied",
+			attrs: &datamodel.KmsAttributes{
+				CreationMode: datamodel.KmsCreationModeVCP,
+			},
+			getStatus:   http.StatusForbidden,
+			getBody:     `{"error":{"message":"Permission denied on key"}}`,
+			encStatus:   http.StatusOK,
+			encBody:     `{"name":"ok","ciphertext":"abc"}`,
+			expectError: "Permission denied",
+		},
+		{
+			name: "DirectPathEncryptPermissionDenied",
+			attrs: &datamodel.KmsAttributes{
+				CreationMode: datamodel.KmsCreationModeVCP,
+			},
+			getStatus:   http.StatusOK,
+			getBody:     `{"primary":{"algorithm":"GOOGLE_SYMMETRIC_ENCRYPTION","state":"ENABLED"}}`,
+			encStatus:   http.StatusForbidden,
+			encBody:     `{"error":{"message":"The caller does not have permission to encrypt with this key"}}`,
+			expectError: "permission",
+		},
+		{
+			name: "ImpersonatedPathGetUnreachable",
+			attrs: &datamodel.KmsAttributes{
+				CreationMode:           datamodel.KmsCreationModeSDE,
+				SdeServiceAccountEmail: "sde@test.iam.gserviceaccount.com",
+			},
+			getStatus:   http.StatusBadRequest,
+			getBody:     `{"error":{"message":"key_unreachable"}}`,
+			encStatus:   http.StatusOK,
+			encBody:     `{"name":"ok","ciphertext":"abc"}`,
+			expectError: "key_unreachable",
+		},
+		{
+			name: "ImpersonatedPathValidateKeyFailure",
+			attrs: &datamodel.KmsAttributes{
+				CreationMode:           datamodel.KmsCreationModeSDE,
+				SdeServiceAccountEmail: "sde@test.iam.gserviceaccount.com",
+			},
+			getStatus:   http.StatusOK,
+			getBody:     `{"primary":{"algorithm":"GOOGLE_SYMMETRIC_ENCRYPTION","state":"DISABLED"}}`,
+			encStatus:   http.StatusOK,
+			encBody:     `{"name":"ok","ciphertext":"abc"}`,
+			expectError: "not enabled",
+		},
+		{
+			name: "ImpersonatedPathEncryptRetriableError",
+			attrs: &datamodel.KmsAttributes{
+				CreationMode:           datamodel.KmsCreationModeSDE,
+				SdeServiceAccountEmail: "sde@test.iam.gserviceaccount.com",
+			},
+			getStatus:   http.StatusOK,
+			getBody:     `{"primary":{"algorithm":"GOOGLE_SYMMETRIC_ENCRYPTION","state":"ENABLED"}}`,
+			encStatus:   http.StatusInternalServerError,
+			encBody:     `{"error":{"message":"internal error"}}`,
+			expectError: "Encrypt",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(tt *testing.T) {
+			testSuite := &testsuite.WorkflowTestSuite{}
+			env := testSuite.NewTestActivityEnvironment()
+			env.RegisterActivity(testAccessCryptoKeyActivity)
+
+			kmsConfig := &datamodel.KmsConfig{
+				BaseModel: datamodel.BaseModel{UUID: "uuid"},
+				ServiceAccount: &datamodel.ServiceAccount{
+					ServiceAccountPasswordLocation: "encrypted-location",
+				},
+				KmsAttributes:   test.attrs,
+				KeyProjectID:    "project",
+				KeyRingLocation: "location",
+				KeyRing:         "keyring",
+				KeyName:         "keyname",
+			}
+
+			origProcessCredentials := utils.ProcessCredentials
+			origRetryDo := retryDo
+			origGetDirect := getDirectKmsService
+			origGetImpersonated := getImpersonatedKmsService
+			defer func() {
+				utils.ProcessCredentials = origProcessCredentials
+				retryDo = origRetryDo
+				getDirectKmsService = origGetDirect
+				getImpersonatedKmsService = origGetImpersonated
+			}()
+
+			utils.ProcessCredentials = func(ctx context.Context, secretPassword string) (*googleOauth2.Credentials, error) {
+				return &googleOauth2.Credentials{}, nil
+			}
+			retryDo = func(ctx context.Context, timeout, wait time.Duration, caller string, fn retry.Retriable) error {
+				_, err := fn(1)
+				return err
+			}
+
+			kmsSvc := newKMSServiceForTest(tt, test.getStatus, test.getBody, test.encStatus, test.encBody)
+			getDirectKmsService = func(ctx context.Context, creds *googleOauth2.Credentials) (*cloudkms.Service, error) {
+				return kmsSvc, nil
+			}
+			getImpersonatedKmsService = func(ctx context.Context, targetEmail string, creds *googleOauth2.Credentials) (*cloudkms.Service, error) {
+				return kmsSvc, nil
+			}
+
+			_, err := env.ExecuteActivity(testAccessCryptoKeyActivity, kmsConfig, kmsConfig.ServiceAccount.ServiceAccountPasswordLocation, RetryTimeOutForGetCryptoKey, RetryIntervalForGetCryptoKey)
+			if test.expectError == "" {
+				assert.NoError(tt, err)
+				return
+			}
+			assert.Error(tt, err)
+			assert.Contains(tt, err.Error(), test.expectError)
+		})
+	}
 }
 
 func Test_synchronizeServiceAccountKeys(t *testing.T) {
@@ -1374,6 +2055,17 @@ func Test_synchronizeServiceAccountKeys(t *testing.T) {
 		key, err := _synchronizeServiceAccountKeys(ctx, mockGCPService, email)
 		assert.Error(t, err)
 		assert.Nil(t, key)
+	})
+}
+
+func TestGcpWrapperFunctions(t *testing.T) {
+	t.Run("disable-enable-key-present wrappers call underlying methods", func(tt *testing.T) {
+		gcpSvc := &google.GcpServices{}
+		assert.Panics(tt, func() { _ = _gcpDisableServiceAccount(gcpSvc, "sa@test.iam.gserviceaccount.com") })
+		assert.Panics(tt, func() { _ = _gcpEnableServiceAccount(gcpSvc, "sa@test.iam.gserviceaccount.com") })
+		assert.Panics(tt, func() {
+			_, _ = _isServiceAccountKeyPresentInGCP(context.Background(), gcpSvc, "sa@test.iam.gserviceaccount.com", "key-id")
+		})
 	})
 }
 

@@ -4,11 +4,13 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/http"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"google.golang.org/api/cloudkms/v1"
@@ -89,6 +91,104 @@ func TestParseServiceAccountEmail(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestGetShortRegion(t *testing.T) {
+	t.Run("WhenGetShortRegionSuccess", func(t *testing.T) {
+		shortRegion := GetShortRegion("us-east1")
+		assert.Equal(t, "usea1", shortRegion)
+	})
+	t.Run("WhenRegionWithoutNumber", func(t *testing.T) {
+		shortRegion := GetShortRegion("us-east")
+		assert.Equal(t, "usea0", shortRegion)
+	})
+	t.Run("WhenRegionLengthIsTwo", func(t *testing.T) {
+		shortRegion := GetShortRegion("us")
+		assert.Equal(t, "us0", shortRegion)
+	})
+	t.Run("WhenRegionSegmentLengthIsOne", func(t *testing.T) {
+		shortRegion := GetShortRegion("u-s1")
+		assert.Equal(t, "us11", shortRegion)
+	})
+	t.Run("WhenRegionWithoutHyphens", func(t *testing.T) {
+		shortRegion := GetShortRegion("europe")
+		assert.Equal(t, "eu0", shortRegion)
+	})
+	t.Run("WhenRegionBlank", func(t *testing.T) {
+		shortRegion := GetShortRegion("")
+		assert.Equal(t, "", shortRegion)
+	})
+	t.Run("CustomOverrideMapRegions", func(t *testing.T) {
+		origMap := cmekRegionNameOverrideMap
+		defer func() { cmekRegionNameOverrideMap = origMap }()
+
+		cmekRegionNameOverrideMap = map[string]string{
+			"custom-region-1": "cust1",
+			"another-region":  "anre",
+		}
+
+		assert.Equal(t, "cust1", GetShortRegion("custom-region-1"))
+		assert.Equal(t, "anre", GetShortRegion("another-region"))
+	})
+	t.Run("DefaultOverrideForAsiaSoutheast", func(t *testing.T) {
+		origMap := cmekRegionNameOverrideMap
+		defer func() { cmekRegionNameOverrideMap = origMap }()
+		cmekRegionNameOverrideMap = map[string]string{
+			"asia-southeast1": "asse1",
+			"asia-southeast2": "asse2",
+		}
+
+		assert.Equal(t, "asse1", GetShortRegion("asia-southeast1"))
+		assert.Equal(t, "asse2", GetShortRegion("asia-southeast2"))
+	})
+}
+
+func TestShouldUseVCPForExistingKMS(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
+	t.Run("ReturnsFalseWhenCVPHostConfiguredAndNotVCPCreated", func(t *testing.T) {
+		cvp.CVP_HOST = "localhost:8009"
+		kmsConfig := &datamodel.KmsConfig{KmsAttributes: nil}
+		assert.False(t, ShouldUseVCPForExistingKMS(kmsConfig))
+	})
+
+	t.Run("ReturnsTrueWhenCVPHostNotConfigured", func(t *testing.T) {
+		cvp.CVP_HOST = ""
+		kmsConfig := &datamodel.KmsConfig{KmsAttributes: nil}
+		assert.True(t, ShouldUseVCPForExistingKMS(kmsConfig))
+	})
+}
+
+func TestParseCmekRegionOverrideMap(t *testing.T) {
+	t.Run("ReturnsDefaultWhenEnvIsMissing", func(t *testing.T) {
+		orig := os.Getenv("CMEK_SERVICE_ACCOUNT_REGION_NAME_OVERRIDE")
+		defer func() { _ = os.Setenv("CMEK_SERVICE_ACCOUNT_REGION_NAME_OVERRIDE", orig) }()
+		_ = os.Unsetenv("CMEK_SERVICE_ACCOUNT_REGION_NAME_OVERRIDE")
+
+		overrideMap := parseCmekRegionOverrideMap()
+		assert.Equal(t, "asse1", overrideMap["asia-southeast1"])
+		assert.Equal(t, "asse2", overrideMap["asia-southeast2"])
+	})
+
+	t.Run("ReturnsDefaultWhenEnvIsInvalidJSON", func(t *testing.T) {
+		orig := os.Getenv("CMEK_SERVICE_ACCOUNT_REGION_NAME_OVERRIDE")
+		defer func() { _ = os.Setenv("CMEK_SERVICE_ACCOUNT_REGION_NAME_OVERRIDE", orig) }()
+		_ = os.Setenv("CMEK_SERVICE_ACCOUNT_REGION_NAME_OVERRIDE", "{invalid-json}")
+
+		overrideMap := parseCmekRegionOverrideMap()
+		assert.Equal(t, "asse1", overrideMap["asia-southeast1"])
+		assert.Equal(t, "asse2", overrideMap["asia-southeast2"])
+	})
+
+	t.Run("ReturnsEnvMapWhenValidJSON", func(t *testing.T) {
+		orig := os.Getenv("CMEK_SERVICE_ACCOUNT_REGION_NAME_OVERRIDE")
+		defer func() { _ = os.Setenv("CMEK_SERVICE_ACCOUNT_REGION_NAME_OVERRIDE", orig) }()
+		_ = os.Setenv("CMEK_SERVICE_ACCOUNT_REGION_NAME_OVERRIDE", `{"custom-region-1":"cust1"}`)
+
+		overrideMap := parseCmekRegionOverrideMap()
+		assert.Equal(t, "cust1", overrideMap["custom-region-1"])
+	})
 }
 
 func TestDetermineStartToCloseTimeoutBasedOnUsedSize(t *testing.T) {

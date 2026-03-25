@@ -220,6 +220,79 @@ func Test__deleteAllServiceAccountKeys(t *testing.T) {
 	})
 }
 
+func TestIsServiceAccountKeyPresent(t *testing.T) {
+	ctx := context.Background()
+	email := "test@example.com"
+
+	t.Run("returns true when matching USER_MANAGED key exists", func(tt *testing.T) {
+		origList := listServiceAccountsKeysWithRetry
+		defer func() { listServiceAccountsKeysWithRetry = origList }()
+		listServiceAccountsKeysWithRetry = func(ctx context.Context, c *GcpServices, email string) (*iam.ListServiceAccountKeysResponse, error) {
+			return &iam.ListServiceAccountKeysResponse{
+				Keys: []*iam.ServiceAccountKey{
+					{Name: "projects/-/serviceAccounts/test@example.com/keys/sys-key-1", KeyType: "SYSTEM_MANAGED"},
+					{Name: "projects/-/serviceAccounts/test@example.com/keys/user-key-abc", KeyType: "USER_MANAGED"},
+				},
+			}, nil
+		}
+		found, err := (&GcpServices{}).IsServiceAccountKeyPresent(ctx, email, "user-key-abc")
+		assert.NoError(tt, err)
+		assert.True(tt, found)
+	})
+
+	t.Run("returns false when key ID does not match any USER_MANAGED key", func(tt *testing.T) {
+		origList := listServiceAccountsKeysWithRetry
+		defer func() { listServiceAccountsKeysWithRetry = origList }()
+		listServiceAccountsKeysWithRetry = func(ctx context.Context, c *GcpServices, email string) (*iam.ListServiceAccountKeysResponse, error) {
+			return &iam.ListServiceAccountKeysResponse{
+				Keys: []*iam.ServiceAccountKey{
+					{Name: "projects/-/serviceAccounts/test@example.com/keys/user-key-abc", KeyType: "USER_MANAGED"},
+				},
+			}, nil
+		}
+		found, err := (&GcpServices{}).IsServiceAccountKeyPresent(ctx, email, "different-key-id")
+		assert.NoError(tt, err)
+		assert.False(tt, found)
+	})
+
+	t.Run("returns false when only SYSTEM_MANAGED keys exist", func(tt *testing.T) {
+		origList := listServiceAccountsKeysWithRetry
+		defer func() { listServiceAccountsKeysWithRetry = origList }()
+		listServiceAccountsKeysWithRetry = func(ctx context.Context, c *GcpServices, email string) (*iam.ListServiceAccountKeysResponse, error) {
+			return &iam.ListServiceAccountKeysResponse{
+				Keys: []*iam.ServiceAccountKey{
+					{Name: "projects/-/serviceAccounts/test@example.com/keys/sys-key-1", KeyType: "SYSTEM_MANAGED"},
+				},
+			}, nil
+		}
+		found, err := (&GcpServices{}).IsServiceAccountKeyPresent(ctx, email, "any-key-id")
+		assert.NoError(tt, err)
+		assert.False(tt, found)
+	})
+
+	t.Run("returns false when no keys exist", func(tt *testing.T) {
+		origList := listServiceAccountsKeysWithRetry
+		defer func() { listServiceAccountsKeysWithRetry = origList }()
+		listServiceAccountsKeysWithRetry = func(ctx context.Context, c *GcpServices, email string) (*iam.ListServiceAccountKeysResponse, error) {
+			return &iam.ListServiceAccountKeysResponse{Keys: nil}, nil
+		}
+		found, err := (&GcpServices{}).IsServiceAccountKeyPresent(ctx, email, "any-key-id")
+		assert.NoError(tt, err)
+		assert.False(tt, found)
+	})
+
+	t.Run("returns error when list fails", func(tt *testing.T) {
+		origList := listServiceAccountsKeysWithRetry
+		defer func() { listServiceAccountsKeysWithRetry = origList }()
+		listServiceAccountsKeysWithRetry = func(ctx context.Context, c *GcpServices, email string) (*iam.ListServiceAccountKeysResponse, error) {
+			return nil, fmt.Errorf("list error")
+		}
+		found, err := (&GcpServices{}).IsServiceAccountKeyPresent(ctx, email, "any-key-id")
+		assert.Error(tt, err)
+		assert.False(tt, found)
+	})
+}
+
 func Test_ListServiceAccountsKeysWithRetry(t *testing.T) {
 	ctx := context.Background()
 	email := "test@example.com"

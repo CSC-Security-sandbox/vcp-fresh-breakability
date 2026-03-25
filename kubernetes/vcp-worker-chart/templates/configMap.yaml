@@ -148,6 +148,7 @@ data:
   ENABLE_MQOS: {{$.Values.workerConfig.enableMqos | quote }}
   ENABLE_VPG_ENDPOINTS: {{$.Values.workerConfig.enableVpgEndpoints | quote }}
   PROBER_PROJECT_LIST: {{$.Values.workerConfig.proberProjectList | quote }}
+  FORCE_VCP_KMS_PATH_FOR_TESTING: {{$.Values.workerConfig.forceVcpKmsPathForTesting | quote }}
   WORKFLOW_GLOBAL_TIMEOUT_MINUTES: {{$.Values.workerConfig.workflowGlobalTimeoutMinutes | quote }}
   CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES: {{$.Values.workerConfig.cmekWorkflowGlobalTimeoutMinutes | quote }}
   CREATE_POOL_WORKFLOW_TIMEOUT_MINUTES: {{$.Values.workerConfig.createPoolWorkflowTimeoutMinutes | quote }}

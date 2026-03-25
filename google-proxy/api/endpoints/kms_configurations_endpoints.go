@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-faster/jx"
+	"github.com/google/uuid"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/kms_configurations"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	datamodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -48,6 +49,13 @@ func parseCmekSupervisorGracePeriod() time.Duration {
 	return duration
 }
 
+func shouldUseSDEForExistingKMSModel(kmsConfig *coremodel.KmsConfig) bool {
+	if !utils.IsCVPHostConfigured() || kmsConfig == nil {
+		return false
+	}
+	return kmsConfig.KmsAttributes == nil || !kmsConfig.KmsAttributes.IsVCPCreated()
+}
+
 func (h Handler) V1betaCheckKmsConfig(ctx context.Context, params gcpgenserver.V1betaCheckKmsConfigParams) (gcpgenserver.V1betaCheckKmsConfigRes, error) {
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
@@ -57,33 +65,43 @@ func (h Handler) V1betaCheckKmsConfig(ctx context.Context, params gcpgenserver.V
 		}, nil
 	}
 
-	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
-	cvpClient := createClient(logger, jwtToken)
 
+	logger := util.GetLogger(ctx)
 	getKmsConfigParams := &common.GetKmsConfigParams{
 		AccountName:   params.ProjectNumber,
 		UUID:          params.KmsConfigId,
 		LocationID:    params.LocationId,
 		ProjectNumber: params.ProjectNumber,
 	}
-	// Get the KMS configuration from the vsa DB if not found then try getting this from the SDE
+
+	// Route UUID-based checks using KMS creation mode when local config exists.
 	kmsConfigUUID := params.KmsConfigId
 	kmsConfig, err := h.Orchestrator.GetKmsConfig(ctx, getKmsConfigParams)
 	if err != nil {
 		var notFoundErr *errors.NotFoundErr
-		if !goErrors.As(err, &notFoundErr) {
+		if goErrors.As(err, &notFoundErr) {
+			if !utils.IsCVPHostConfigured() {
+				return h.v1betaCheckKmsConfigVCP(ctx, params)
+			}
+		} else {
 			return &gcpgenserver.V1betaCheckKmsConfigInternalServerError{
 				Code:    http.StatusInternalServerError,
 				Message: err.Error(),
 			}, nil
 		}
-	} else if kmsConfig != nil {
-		// If the KMS configuration is found in the vsa DB, use SDE UUID
-		kmsConfigUUID = kmsConfig.KmsAttributes.SdeKmsConfigUUID
+	} else {
+		if !shouldUseSDEForExistingKMSModel(kmsConfig) {
+			return h.v1betaCheckKmsConfigVCP(ctx, params)
+		}
+		if kmsConfig.KmsAttributes != nil && kmsConfig.KmsAttributes.SdeKmsConfigUUID != "" {
+			kmsConfigUUID = kmsConfig.KmsAttributes.SdeKmsConfigUUID
+		}
 	}
 
+	// SDE/CVP path.
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	cvpClient := createClient(logger, jwtToken)
 	checkKmsConfigParams := &kms_configurations.V1betaCheckKmsConfigParams{
 		KmsConfigID:    kmsConfigUUID,
 		LocationID:     params.LocationId,
@@ -112,7 +130,7 @@ func (h Handler) V1betaCheckKmsConfig(ctx context.Context, params gcpgenserver.V
 		}
 
 		if !checkKmsConfigResponse.KmsConfigHealthCheck.Value.IsHealthy {
-			// Update health as unhealthy and return
+			// CVP already reported unhealthy — update and return
 			if _, healthErr := h.Orchestrator.CheckAndUpdateKmsConfigHealth(ctx, checkParams); healthErr != nil {
 				return &gcpgenserver.V1betaCheckKmsConfigInternalServerError{
 					Code:    http.StatusInternalServerError,
@@ -122,30 +140,90 @@ func (h Handler) V1betaCheckKmsConfig(ctx context.Context, params gcpgenserver.V
 			return checkKmsConfigResponse, nil
 		}
 
-		// Access the KMS crypto key to ensure it is accessible using impersonation
-		err = h.Orchestrator.AccessCryptoKeyAndEncryptDataWithImpersonation(ctx, kmsConfig)
-		if err != nil {
-			// Update the KMS config health in the vsa DB
-			_, healthErr := h.Orchestrator.CheckAndUpdateKmsConfigHealth(ctx, checkParams)
-			if healthErr != nil {
-				return &gcpgenserver.V1betaCheckKmsConfigInternalServerError{
-					Code:    http.StatusInternalServerError,
-					Message: "Failed to update KMS config health",
-				}, nil
-			}
-			return convertErrorToKmsConfigCheckV1beta(err, kmsConfig), nil
+		// Verify crypto key access and update health
+		if errResp, _ := h.verifyKmsKeyAccessAndUpdateHealth(ctx, kmsConfig, checkParams); errResp != nil {
+			return errResp, nil
 		}
+	}
+	return checkKmsConfigResponse, nil
+}
 
-		// Update the KMS config health in the vsa DB
-		_, err = h.Orchestrator.CheckAndUpdateKmsConfigHealth(ctx, checkParams)
-		if err != nil {
+// v1betaCheckKmsConfigVCP handles the VCP path for checking KMS config health.
+// Gets the KMS config from VCP DB, accesses the KMS key directly (no impersonation),
+// and updates the health status accordingly.
+func (h Handler) v1betaCheckKmsConfigVCP(ctx context.Context, params gcpgenserver.V1betaCheckKmsConfigParams) (gcpgenserver.V1betaCheckKmsConfigRes, error) {
+	getKmsConfigParams := &common.GetKmsConfigParams{
+		AccountName:   params.ProjectNumber,
+		UUID:          params.KmsConfigId,
+		LocationID:    params.LocationId,
+		ProjectNumber: params.ProjectNumber,
+	}
+
+	kmsConfig, err := h.Orchestrator.GetKmsConfig(ctx, getKmsConfigParams)
+	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaCheckKmsConfigNotFound{
+				Code:    http.StatusNotFound,
+				Message: "KMS configuration not found",
+			}, nil
+		}
+		return &gcpgenserver.V1betaCheckKmsConfigInternalServerError{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+		}, nil
+	}
+
+	saEmail := ""
+	if kmsConfig.KmsAttributes != nil {
+		saEmail = kmsConfig.KmsAttributes.GetServiceAccountEmail()
+	}
+
+	checkParams := &coremodel.KmsConfigCheck{
+		KmsConfig: kmsConfig,
+		Email:     saEmail,
+		IsHealthy: true,
+		ProxyType: coremodel.ProxyTypeVcp,
+	}
+
+	// Verify crypto key access (direct, no impersonation) and update health
+	if errResp, _ := h.verifyKmsKeyAccessAndUpdateHealth(ctx, kmsConfig, checkParams); errResp != nil {
+		return errResp, nil
+	}
+
+	return &gcpgenserver.KmsConfigCheckV1beta{
+		ServiceAccount: gcpgenserver.NewOptString(saEmail),
+		KmsConfigHealthCheck: gcpgenserver.NewOptKmsConfigHealthCheckV1beta(gcpgenserver.KmsConfigHealthCheckV1beta{
+			IsHealthy:    true,
+			Instructions: gcpgenserver.NewOptString(getKmsInstructions(kmsConfig)),
+		}),
+	}, nil
+}
+
+// verifyKmsKeyAccessAndUpdateHealth accesses the KMS crypto key and updates the health status.
+// Returns a non-nil response only on failure (access error or health update error).
+// On success returns (nil, nil) — the caller builds the success response.
+func (h Handler) verifyKmsKeyAccessAndUpdateHealth(ctx context.Context, kmsConfig *coremodel.KmsConfig, checkParams *coremodel.KmsConfigCheck) (gcpgenserver.V1betaCheckKmsConfigRes, error) {
+	accessErr := h.Orchestrator.AccessCryptoKeyAndEncryptDataWithImpersonation(ctx, kmsConfig)
+	if accessErr != nil {
+		checkParams.IsHealthy = false
+		checkParams.HealthError = accessErr.Error()
+		if _, healthErr := h.Orchestrator.CheckAndUpdateKmsConfigHealth(ctx, checkParams); healthErr != nil {
 			return &gcpgenserver.V1betaCheckKmsConfigInternalServerError{
 				Code:    http.StatusInternalServerError,
 				Message: "Failed to update KMS config health",
 			}, nil
 		}
+		return convertErrorToKmsConfigCheckV1beta(accessErr, kmsConfig), nil
 	}
-	return checkKmsConfigResponse, nil
+
+	// Update the KMS config health as healthy
+	if _, healthErr := h.Orchestrator.CheckAndUpdateKmsConfigHealth(ctx, checkParams); healthErr != nil {
+		return &gcpgenserver.V1betaCheckKmsConfigInternalServerError{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to update KMS config health",
+		}, nil
+	}
+	return nil, nil
 }
 
 func categorizeCvpClientErrorsForCheckKmsConfigs(cvpErr error) (gcpgenserver.V1betaCheckKmsConfigRes, error) {
@@ -273,13 +351,6 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 		}, nil
 	}
 
-	if parsedKmsKeyFullPath.ProjectID != strings.ToLower(parsedKmsKeyFullPath.ProjectID) {
-		return &gcpgenserver.V1betaCreateKmsConfigurationBadRequest{
-			Code:    400,
-			Message: "Project ID in KeyFullPath must not contain uppercase letters",
-		}, nil
-	}
-
 	if parsedKmsKeyFullPath.Location == regionGlobal || parsedKmsKeyFullPath.Location != region {
 		return &gcpgenserver.V1betaCreateKmsConfigurationBadRequest{
 			Code:    400,
@@ -291,146 +362,40 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 		AccountName: params.ProjectNumber,
 		KeyFullPath: req.KeyFullPath,
 	}
-	kmsConfig, err := h.Orchestrator.GetKmsConfigByKeyFullPath(ctx, getKmsConfigParams)
+	kmsConfig, err := h.Orchestrator.GetExistingKmsConfig(ctx, getKmsConfigParams)
 	if err != nil {
 		var notFoundErr *errors.NotFoundErr
+		var conflictErr *errors.ConflictErr
 		switch {
 		case goErrors.As(err, &notFoundErr):
-			logger := util.GetLogger(ctx)
-			jwtToken := utils.GetJWTTokenFromContext(ctx)
-			cvpClient := createClient(logger, jwtToken)
+			var createKmsConfigParams *common.CreateKmsConfigParams
 
-			var body = &models.KmsConfigV1beta{
-				ResourceID:  &req.ResourceId.Value,
-				KeyFullPath: &req.KeyFullPath,
-				Description: &req.Description.Value,
-			}
-
-			cvpCreateKmsConfigParams := &kms_configurations.V1betaCreateKmsConfigurationParams{
-				LocationID:     params.LocationId,
-				ProjectNumber:  params.ProjectNumber,
-				XCorrelationID: &params.XCorrelationID.Value,
-				Body:           body,
-			}
-
-			jobPayloadAttributes := map[string]interface{}{
-				"keyFullPath":   req.KeyFullPath,
-				"projectNumber": params.ProjectNumber,
-				"locationId":    params.LocationId,
-			}
-			supervisorAttributes := &datamodel.SupervisorAttributes{
-				OverrideGracePeriod: cmekSupervisorGracePeriod,
-			}
-
-			createJobParams := &common.CreateJobParams{
-				AccountName:  params.ProjectNumber,
-				Type:         coremodel.JobTypeSdeKmsCreate,
-				ResourceName: req.ResourceId.Value,
-				JobAttributes: &datamodel.JobAttributes{
-					PayloadAttributes:    jobPayloadAttributes,
-					SupervisorAttributes: supervisorAttributes,
-				},
-			}
-			if params.XCorrelationID.Set {
-				createJobParams.CorrelationID = params.XCorrelationID.Value
-			}
-
-			sdeJob, jobErr := h.Orchestrator.CreateJob(ctx, createJobParams)
-			if jobErr != nil {
-				logger.Error("Failed to create SDE KMS job", "error", jobErr.Error())
-				return &gcpgenserver.V1betaCreateKmsConfigurationInternalServerError{
-					Code:    http.StatusInternalServerError,
-					Message: "Failed to enqueue SDE KMS creation workflow",
-				}, nil
-			}
-			logger.Debug("Created SDE KMS job", "jobUUID", sdeJob.UUID)
-
-			markSdeJobError := func(failure error) {
-				if failure == nil || sdeJob == nil {
-					return
+			if !utils.IsCVPHostSet() {
+				// VCP path: generate UUID locally, no SDE involvement
+				createKmsConfigParams = &common.CreateKmsConfigParams{
+					KeyFullPath:    req.KeyFullPath,
+					ResourceID:     req.ResourceId.Value,
+					AccountName:    params.ProjectNumber,
+					LocationID:     params.LocationId,
+					ProjectNumber:  params.ProjectNumber,
+					UUID:           uuid.New().String(),
+					XCorrelationID: params.XCorrelationID.Value,
+					Description:    req.Description.Value,
 				}
-				if updateErr := h.Orchestrator.UpdateJobStatus(
-					ctx,
-					sdeJob.UUID,
-					string(coremodel.JobsStateERROR),
-					sdeJob.TrackingID,
-					failure.Error(),
-				); updateErr != nil {
-					logger.Warn("Failed to mark SDE job as error", "jobUUID", sdeJob.UUID, "error", updateErr)
+			} else {
+				// SDE path: call CVP, create SDE job, parse response
+				var errResp gcpgenserver.V1betaCreateKmsConfigurationRes
+				createKmsConfigParams, errResp = h.createSDEKmsConfig(ctx, req, params)
+				if errResp != nil {
+					return errResp, nil
 				}
 			}
 
-			// clearSdeJobGracePeriod removes the override window so the supervisor
-			// immediately reclaims the SDE job when we abort after creation.
-			clearSdeJobGracePeriod := func() {
-				if sdeJob == nil {
-					return
-				}
-				attrs := &datamodel.JobAttributes{
-					PayloadAttributes: jobPayloadAttributes,
-					SupervisorAttributes: &datamodel.SupervisorAttributes{
-						OverrideGracePeriod: 0,
-					},
-				}
-				if updateErr := h.Orchestrator.UpdateJobAttributes(ctx, sdeJob.UUID, attrs); updateErr != nil {
-					logger.Warn("Failed to clear override grace period for SDE job", "jobUUID", sdeJob.UUID, "error", updateErr)
-				}
-			}
-
-			cvpResponse, err := cvpClient.KmsConfigurations.V1betaCreateKmsConfiguration(cvpCreateKmsConfigParams)
-			if err != nil {
-				markSdeJobError(err)
-				return categorizeCvpClientErrorsForCreateKmsConfigs(err)
-			}
-
-			parsedCvpResponse, err := parseKmsConfigResponse(cvpResponse.Payload.Response)
-			if err != nil {
-				clearSdeJobGracePeriod()
-				return &gcpgenserver.V1betaCreateKmsConfigurationInternalServerError{
-					Code:    http.StatusInternalServerError,
-					Message: "Failed to parse KMS configuration response",
-				}, nil
-			}
-
-			createKmsConfigParams := &common.CreateKmsConfigParams{
-				KeyFullPath:    req.KeyFullPath,
-				ResourceID:     req.ResourceId.Value,
-				AccountName:    params.ProjectNumber,
-				LocationID:     params.LocationId,
-				ProjectNumber:  params.ProjectNumber,
-				OperationUri:   cvpResponse.Payload.Name,
-				OperationDone:  *cvpResponse.Payload.Done,
-				UUID:           parsedCvpResponse.UUID, // UUID of the SDE kms config
-				XCorrelationID: params.XCorrelationID.Value,
-				Description:    req.Description.Value,
-				SdeJobUUID:     sdeJob.UUID,
-			}
-
-			// create kms config in vsa DB and start the workflow to poll the SDE operation
 			kmsConfig, operationID, err := h.Orchestrator.CreateKmsConfig(ctx, createKmsConfigParams)
 			if err != nil {
-				clearSdeJobGracePeriod()
-				var conflictErr *errors.ConflictErr
-				var badRequestErr *errors.BadRequestErr
-				switch {
-				case goErrors.As(err, &conflictErr):
-					return &gcpgenserver.V1betaCreateKmsConfigurationConflict{
-						Message: conflictErr.Error(),
-						Code:    http.StatusConflict,
-					}, nil
-				case goErrors.As(err, &badRequestErr):
-					return &gcpgenserver.V1betaCreateKmsConfigurationBadRequest{
-						Message: badRequestErr.Error(),
-						Code:    http.StatusBadRequest,
-					}, nil
-				default:
-					// Handle any other error types
-					return &gcpgenserver.V1betaCreateKmsConfigurationInternalServerError{
-						Message: "An unexpected error occurred",
-						Code:    http.StatusInternalServerError,
-					}, nil
-				}
+				return categorizeCreateKmsConfigOrchestratorErrors(err)
 			}
+
 			resp, err := encodeKmsConfigV1(convertModelToKmsConfigV1Beta(kmsConfig))
 			if err != nil {
 				return &gcpgenserver.V1betaCreateKmsConfigurationInternalServerError{
@@ -448,6 +413,11 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 			return &gcpgenserver.V1betaCreateKmsConfigurationInternalServerError{
 				Code:    http.StatusInternalServerError,
 				Message: "Internal error while creating KMS configuration",
+			}, nil
+		case goErrors.As(err, &conflictErr):
+			return &gcpgenserver.V1betaCreateKmsConfigurationConflict{
+				Code:    http.StatusConflict,
+				Message: err.Error(),
 			}, nil
 		default:
 			return &gcpgenserver.V1betaCreateKmsConfigurationInternalServerError{
@@ -510,6 +480,139 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 		Response: resp,
 		Done:     gcpgenserver.NewOptBool(done),
 	}, nil
+}
+
+// createSDEKmsConfig handles KMS config creation via SDE: creates an SDE job, calls CVP client,
+// parses the response, and returns the orchestrator params.
+// On failure, returns a non-nil errResp (the HTTP error response to send back).
+func (h Handler) createSDEKmsConfig(ctx context.Context, req *gcpgenserver.KmsConfigV1beta,
+	params gcpgenserver.V1betaCreateKmsConfigurationParams) (_ *common.CreateKmsConfigParams, errResp gcpgenserver.V1betaCreateKmsConfigurationRes) {
+	logger := util.GetLogger(ctx)
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	cvpClient := createClient(logger, jwtToken)
+
+	body := &models.KmsConfigV1beta{
+		ResourceID:  &req.ResourceId.Value,
+		KeyFullPath: &req.KeyFullPath,
+		Description: &req.Description.Value,
+	}
+
+	cvpCreateKmsConfigParams := &kms_configurations.V1betaCreateKmsConfigurationParams{
+		LocationID:     params.LocationId,
+		ProjectNumber:  params.ProjectNumber,
+		XCorrelationID: &params.XCorrelationID.Value,
+		Body:           body,
+	}
+
+	jobPayloadAttributes := map[string]interface{}{
+		"keyFullPath":   req.KeyFullPath,
+		"projectNumber": params.ProjectNumber,
+		"locationId":    params.LocationId,
+	}
+
+	createJobParams := &common.CreateJobParams{
+		AccountName:  params.ProjectNumber,
+		Type:         coremodel.JobTypeSdeKmsCreate,
+		ResourceName: req.ResourceId.Value,
+		JobAttributes: &datamodel.JobAttributes{
+			PayloadAttributes: jobPayloadAttributes,
+			SupervisorAttributes: &datamodel.SupervisorAttributes{
+				OverrideGracePeriod: cmekSupervisorGracePeriod,
+			},
+		},
+	}
+	if params.XCorrelationID.Set {
+		createJobParams.CorrelationID = params.XCorrelationID.Value
+	}
+
+	sdeJob, jobErr := h.Orchestrator.CreateJob(ctx, createJobParams)
+	if jobErr != nil {
+		logger.Error("Failed to create SDE KMS job", "error", jobErr.Error())
+		return nil, &gcpgenserver.V1betaCreateKmsConfigurationInternalServerError{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to enqueue SDE KMS creation workflow",
+		}
+	}
+	logger.Debug("Created SDE KMS job", "jobUUID", sdeJob.UUID)
+
+	markSdeJobError := func(failure error) {
+		if failure == nil || sdeJob == nil {
+			return
+		}
+		if updateErr := h.Orchestrator.UpdateJobStatus(
+			ctx, sdeJob.UUID, string(coremodel.JobsStateERROR), sdeJob.TrackingID, failure.Error(),
+		); updateErr != nil {
+			logger.Warn("Failed to mark SDE job as error", "jobUUID", sdeJob.UUID, "error", updateErr)
+		}
+	}
+
+	clearSdeJobGracePeriod := func() {
+		if sdeJob == nil {
+			return
+		}
+		attrs := &datamodel.JobAttributes{
+			PayloadAttributes: jobPayloadAttributes,
+			SupervisorAttributes: &datamodel.SupervisorAttributes{
+				OverrideGracePeriod: 0,
+			},
+		}
+		if updateErr := h.Orchestrator.UpdateJobAttributes(ctx, sdeJob.UUID, attrs); updateErr != nil {
+			logger.Warn("Failed to clear override grace period for SDE job", "jobUUID", sdeJob.UUID, "error", updateErr)
+		}
+	}
+
+	cvpResponse, err := cvpClient.KmsConfigurations.V1betaCreateKmsConfiguration(cvpCreateKmsConfigParams)
+	if err != nil {
+		markSdeJobError(err)
+		resp, _ := categorizeCvpClientErrorsForCreateKmsConfigs(err)
+		return nil, resp
+	}
+
+	parsedCvpResponse, err := parseKmsConfigResponse(cvpResponse.Payload.Response)
+	if err != nil {
+		clearSdeJobGracePeriod()
+		return nil, &gcpgenserver.V1betaCreateKmsConfigurationInternalServerError{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to parse KMS configuration response",
+		}
+	}
+
+	return &common.CreateKmsConfigParams{
+		KeyFullPath:    req.KeyFullPath,
+		ResourceID:     req.ResourceId.Value,
+		AccountName:    params.ProjectNumber,
+		LocationID:     params.LocationId,
+		ProjectNumber:  params.ProjectNumber,
+		OperationUri:   cvpResponse.Payload.Name,
+		OperationDone:  *cvpResponse.Payload.Done,
+		UUID:           parsedCvpResponse.UUID,
+		XCorrelationID: params.XCorrelationID.Value,
+		Description:    req.Description.Value,
+		SdeJobUUID:     sdeJob.UUID,
+	}, nil
+}
+
+// categorizeCreateKmsConfigOrchestratorErrors maps orchestrator errors to HTTP responses.
+func categorizeCreateKmsConfigOrchestratorErrors(err error) (gcpgenserver.V1betaCreateKmsConfigurationRes, error) {
+	var conflictErr *errors.ConflictErr
+	var badRequestErr *errors.BadRequestErr
+	switch {
+	case goErrors.As(err, &conflictErr):
+		return &gcpgenserver.V1betaCreateKmsConfigurationConflict{
+			Message: conflictErr.Error(),
+			Code:    http.StatusConflict,
+		}, nil
+	case goErrors.As(err, &badRequestErr):
+		return &gcpgenserver.V1betaCreateKmsConfigurationBadRequest{
+			Message: badRequestErr.Error(),
+			Code:    http.StatusBadRequest,
+		}, nil
+	default:
+		return &gcpgenserver.V1betaCreateKmsConfigurationInternalServerError{
+			Message: "An unexpected error occurred",
+			Code:    http.StatusInternalServerError,
+		}, nil
+	}
 }
 
 func categorizeCvpClientErrorsForDescribeKmsConfigs(cvpErr error) (gcpgenserver.V1betaDescribeKmsConfigurationRes, error) {
@@ -586,8 +689,6 @@ func categorizeCvpClientErrorsForDescribeKmsConfigs(cvpErr error) (gcpgenserver.
 func (h Handler) V1betaDescribeKmsConfiguration(ctx context.Context, params gcpgenserver.V1betaDescribeKmsConfigurationParams) (gcpgenserver.V1betaDescribeKmsConfigurationRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
-	cvpClient := createClient(logger, jwtToken)
 	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaDescribeKmsConfigurationBadRequest{
@@ -596,9 +697,40 @@ func (h Handler) V1betaDescribeKmsConfiguration(ctx context.Context, params gcpg
 		}, nil
 	}
 
-	// Get The KMS configuration from the SDE DB
+	getKmsConfigParams := &common.GetKmsConfigParams{
+		AccountName:   params.ProjectNumber,
+		UUID:          params.KmsConfigId,
+		LocationID:    params.LocationId,
+		ProjectNumber: params.ProjectNumber,
+	}
+
+	kmsConfig, err := h.Orchestrator.GetKmsConfig(ctx, getKmsConfigParams)
+	if err == nil && !shouldUseSDEForExistingKMSModel(kmsConfig) {
+		return convertModelToKmsConfigV1Beta(kmsConfig), nil
+	}
+	if err != nil && !errors.IsNotFoundErr(err) {
+		return &gcpgenserver.V1betaDescribeKmsConfigurationInternalServerError{
+			Message: err.Error(),
+			Code:    http.StatusInternalServerError,
+		}, nil
+	}
+	if err != nil && errors.IsNotFoundErr(err) && !utils.IsCVPHostConfigured() {
+		return &gcpgenserver.V1betaDescribeKmsConfigurationNotFound{
+			Code:    http.StatusNotFound,
+			Message: "KMS configuration not found",
+		}, nil
+	}
+
+	// SDE path: get from SDE first, then enrich with VCP data when available.
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	cvpClient := createClient(logger, jwtToken)
+	kmsConfigID := params.KmsConfigId
+	if kmsConfig != nil && kmsConfig.KmsAttributes != nil && kmsConfig.KmsAttributes.SdeKmsConfigUUID != "" {
+		kmsConfigID = kmsConfig.KmsAttributes.SdeKmsConfigUUID
+	}
+
 	describeKmsConfigParams := &kms_configurations.V1betaDescribeKmsConfigurationParams{
-		KmsConfigID:    params.KmsConfigId,
+		KmsConfigID:    kmsConfigID,
 		LocationID:     params.LocationId,
 		ProjectNumber:  params.ProjectNumber,
 		XCorrelationID: &params.XCorrelationID.Value,
@@ -614,21 +746,15 @@ func (h Handler) V1betaDescribeKmsConfiguration(ctx context.Context, params gcpg
 		}, nil
 	}
 
-	getKmsConfigParams := &common.GetKmsConfigParams{
-		AccountName:   params.ProjectNumber,
-		UUID:          params.KmsConfigId,
-		LocationID:    params.LocationId,
-		ProjectNumber: params.ProjectNumber,
+	if kmsConfig == nil {
+		kmsConfig, err = h.Orchestrator.GetKmsConfig(ctx, getKmsConfigParams)
 	}
-	// Get the KMS configuration from the vsa DB if not found then try getting this from the SDE
-	kmsConfig, err := h.Orchestrator.GetKmsConfig(ctx, getKmsConfigParams)
 	if err != nil {
 		var notFoundErr *errors.NotFoundErr
 		switch {
 		case goErrors.As(err, &notFoundErr):
 			return convertToKmsConfigV1beta(res.Payload), nil
 		default:
-			// Handle any other error types
 			return &gcpgenserver.V1betaDescribeKmsConfigurationInternalServerError{
 				Message: err.Error(),
 				Code:    http.StatusInternalServerError,
@@ -647,6 +773,25 @@ func (h Handler) V1betaDescribeKmsConfiguration(ctx context.Context, params gcpg
 func (h Handler) V1betaListKmsConfigurations(ctx context.Context, params gcpgenserver.V1betaListKmsConfigurationsParams) (gcpgenserver.V1betaListKmsConfigurationsRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+
+	// VCP path: list directly from VCP DB, no SDE involvement
+	if !utils.IsCVPHostSet() {
+		kmsConfigs, err := h.Orchestrator.ListKmsConfigs(ctx, params.ProjectNumber)
+		if err != nil {
+			logger.Error("Failed to list KMS configurations from VCP database", "error", err)
+			return &gcpgenserver.V1betaListKmsConfigurationsInternalServerError{
+				Code:    http.StatusInternalServerError,
+				Message: "Failed to list KMS configurations",
+			}, nil
+		}
+		operationResponse := gcpgenserver.V1betaListKmsConfigurationsOKApplicationJSON{}
+		for _, kmsConfig := range kmsConfigs {
+			operationResponse = append(operationResponse, *convertModelToKmsConfigV1Beta(kmsConfig))
+		}
+		return &operationResponse, nil
+	}
+
+	// SDE path: list from SDE, enrich with VCP data
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
 	listKmsConfigParams := &kms_configurations.V1betaListKmsConfigurationsParams{
@@ -781,18 +926,6 @@ func (h Handler) V1betaUpdateKmsConfiguration(ctx context.Context, req *gcpgense
 		}
 
 		URISplits = strings.Split(req.KeyFullPath.Value, "/")
-		if len(URISplits) < 8 {
-			return &gcpgenserver.V1betaUpdateKmsConfigurationBadRequest{
-				Code:    400,
-				Message: "KeyFullPath is not as expected sample : 'projects/projectID/locations/us-east1/keyRings/keyRing/cryptoKeys/keyName'",
-			}, nil
-		}
-		if URISplits[1] != strings.ToLower(URISplits[1]) {
-			return &gcpgenserver.V1betaUpdateKmsConfigurationBadRequest{
-				Code:    400,
-				Message: "Project ID in KeyFullPath must not contain uppercase letters",
-			}, nil
-		}
 		param.KeyName = URISplits[7]
 		param.KeyRing = URISplits[5]
 		param.KeyProjectID = URISplits[1]
@@ -846,6 +979,12 @@ func (h Handler) V1betaGetMultipleKmsConfigs(ctx context.Context, req *gcpgenser
 		operationResponse.KmsConfigurations = append(operationResponse.KmsConfigurations, *convertOrchestratorModelToKmsConfigV1beta(kmsConfigVSA))
 	}
 
+	// If CVP is not configured, all configs should live in VCP DB.
+	if !utils.IsCVPHostConfigured() {
+		return &operationResponse, nil
+	}
+
+	// SDE path: for UUIDs not found in VCP, fall back to SDE
 	if len(kmsConfigVSAList) != len(kmsConfigUUIDList) {
 		kmsConfigUUIDMissingList := missingKmsConfigIdsInVcp(kmsConfigUUIDList, kmsConfigVSAList)
 
@@ -1059,8 +1198,8 @@ func convertToKmsConfigCheckV1beta(res *kms_configurations.V1betaCheckKmsConfigO
 
 func convertErrorToKmsConfigCheckV1beta(err error, kmsConfig *coremodel.KmsConfig) *gcpgenserver.KmsConfigCheckV1beta {
 	serviceAccount := ""
-	if kmsConfig.KmsAttributes != nil && kmsConfig.KmsAttributes.SdeServiceAccountEmail != "" {
-		serviceAccount = kmsConfig.KmsAttributes.SdeServiceAccountEmail
+	if kmsConfig.KmsAttributes != nil {
+		serviceAccount = kmsConfig.KmsAttributes.GetServiceAccountEmail()
 	}
 	return &gcpgenserver.KmsConfigCheckV1beta{
 		ServiceAccount: gcpgenserver.NewOptString(serviceAccount),
@@ -1132,7 +1271,9 @@ func convertOrchestratorModelToKmsConfigV1beta(kmsConfig *coremodel.KmsConfig) *
 		res.DeletedTime = gcpgenserver.OptDateTime{Value: *kmsConfig.DeletedAt}
 	}
 	if kmsConfig.KmsAttributes != nil {
-		res.ServiceAccountEmail = gcpgenserver.NewOptString(kmsConfig.KmsAttributes.SdeServiceAccountEmail)
+		if saEmail := kmsConfig.KmsAttributes.GetServiceAccountEmail(); saEmail != "" {
+			res.ServiceAccountEmail = gcpgenserver.NewOptString(saEmail)
+		}
 	}
 	return res
 }
@@ -1163,7 +1304,12 @@ func convertVcpKmsConfigToKmsConfigV1beta(res *coremodel.KmsConfig) *gcpgenserve
 }
 
 func getKmsInstructions(kmsConfig *coremodel.KmsConfig) (instructions string) {
-	if kmsConfig.KmsAttributes == nil || kmsConfig.KmsAttributes.SdeServiceAccountEmail == "" {
+	if kmsConfig.KmsAttributes == nil {
+		return ""
+	}
+
+	saEmail := kmsConfig.KmsAttributes.GetServiceAccountEmail()
+	if saEmail == "" {
 		return ""
 	}
 
@@ -1174,7 +1320,7 @@ func getKmsInstructions(kmsConfig *coremodel.KmsConfig) (instructions string) {
 
 	return fmt.Sprintf(`Please copy and paste the commands listed below into Google Cloud Shell in the project that contains the key ring. The commands create a KMS role and assign it to the CVS service account so that it can access the key.
 ## CREATE KMS role ## gcloud iam roles create %[1]s --project=%[2]s --title='%[1]s' --description='custom cmek cvs role' --permissions=cloudkms.cryptoKeyVersions.get,cloudkms.cryptoKeyVersions.list,cloudkms.cryptoKeyVersions.useToDecrypt,cloudkms.cryptoKeyVersions.useToEncrypt,cloudkms.cryptoKeys.get,cloudkms.keyRings.get,cloudkms.locations.get,cloudkms.locations.list,resourcemanager.projects.get --stage=GA
- ## ASSIGN role and give KEY ACCESS to CVS service account ## gcloud kms keys add-iam-policy-binding %[3]s --project=%[2]s --keyring %[4]s --location %[5]s --member serviceAccount:%[6]s --role projects/%[2]s/roles/%[1]s`, roleName, keyProjectID, kmsConfig.KeyName, kmsConfig.KeyRing, kmsConfig.KeyRingLocation, kmsConfig.KmsAttributes.SdeServiceAccountEmail)
+ ## ASSIGN role and give KEY ACCESS to CVS service account ## gcloud kms keys add-iam-policy-binding %[3]s --project=%[2]s --keyring %[4]s --location %[5]s --member serviceAccount:%[6]s --role projects/%[2]s/roles/%[1]s`, roleName, keyProjectID, kmsConfig.KeyName, kmsConfig.KeyRing, kmsConfig.KeyRingLocation, saEmail)
 }
 
 func missingKmsConfigIdsInVcp(kmsConfigUUIDList []string, kmsConfigVSAList []*coremodel.KmsConfig) []string {
@@ -1320,8 +1466,8 @@ func convertModelToKmsConfigV1Beta(kmsConfig *coremodel.KmsConfig) *gcpgenserver
 		CreatedTime: gcpgenserver.NewOptDateTime(kmsConfig.CreatedAt),
 		UpdatedTime: gcpgenserver.NewOptDateTime(kmsConfig.UpdatedAt),
 	}
-	if kmsConfig.KmsAttributes.SdeServiceAccountEmail != "" {
-		model.ServiceAccountEmail = gcpgenserver.NewOptString(kmsConfig.KmsAttributes.SdeServiceAccountEmail)
+	if saEmail := kmsConfig.KmsAttributes.GetServiceAccountEmail(); saEmail != "" {
+		model.ServiceAccountEmail = gcpgenserver.NewOptString(saEmail)
 	}
 	if kmsConfig.Description != "" {
 		model.Description = gcpgenserver.NewOptString(kmsConfig.Description)

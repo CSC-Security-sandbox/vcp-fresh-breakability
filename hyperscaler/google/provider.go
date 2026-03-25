@@ -1369,6 +1369,46 @@ func (gcpService *GcpServices) GetServiceAccountByEmail(email string) (*hypersca
 	return convertServiceAccountToHyperscalerServiceAccount(account), nil
 }
 
+func (gcpService *GcpServices) DisableServiceAccount(saEmail string) error {
+	name := "projects/-/serviceAccounts/" + saEmail
+	_, err := gcpService.AdminGCPService.iamService.Projects.ServiceAccounts.Disable(name, &iam.DisableServiceAccountRequest{}).Do()
+	if err != nil {
+		var gerr *googleapi.Error
+		if errors.As(err, &gerr) {
+			switch gerr.Code {
+			case http.StatusNotFound:
+				// Service account does not exist, treat as success
+				return nil
+			case http.StatusConflict:
+				// Already disabled, treat as success
+				return nil
+			}
+		}
+		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, fmt.Errorf("failed to disable service account %s: %v", saEmail, err))
+	}
+	return nil
+}
+
+func (gcpService *GcpServices) EnableServiceAccount(saEmail string) error {
+	name := "projects/-/serviceAccounts/" + saEmail
+	_, err := gcpService.AdminGCPService.iamService.Projects.ServiceAccounts.Enable(name, &iam.EnableServiceAccountRequest{}).Do()
+	if err != nil {
+		var gerr *googleapi.Error
+		if errors.As(err, &gerr) {
+			switch gerr.Code {
+			case http.StatusNotFound:
+				// Service account does not exist, cannot enable
+				return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, fmt.Errorf("service account %s not found", saEmail))
+			case http.StatusConflict:
+				// Already enabled, treat as success
+				return nil
+			}
+		}
+		return vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, fmt.Errorf("failed to enable service account %s: %v", saEmail, err))
+	}
+	return nil
+}
+
 func (gcpService *GcpServices) DeleteServiceAccount(projectNumber string, saEmail string) error {
 	// Convert project number to project ID for the IAM API call
 	projectID, err := getProjectIDFromNumber(gcpService, projectNumber)
@@ -1453,6 +1493,16 @@ func GetImpersonatedKmsService(ctx context.Context, targetEmail string, scopeCre
 	kmsService, err := cloudkms.NewService(ctx, option.WithTokenSource(tokenSource))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create KMS service: %w", err)
+	}
+	return kmsService, nil
+}
+
+// GetDirectKmsService creates a Cloud KMS service using the provided credentials directly (no impersonation).
+// Used by VCP-managed KMS configs where the VCP service account has direct access to the customer's KMS key.
+func GetDirectKmsService(ctx context.Context, scopeCreds *google.Credentials) (*cloudkms.Service, error) {
+	kmsService, err := cloudkms.NewService(ctx, option.WithCredentials(scopeCreds))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create direct KMS service: %w", err)
 	}
 	return kmsService, nil
 }

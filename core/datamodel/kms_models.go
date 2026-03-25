@@ -36,6 +36,26 @@ type KmsAttributes struct {
 	SdeKmsConfigHealthError   string `json:"sde_health_error"`
 	SdeKmsConfigOperationURI  string `json:"sde_operation_uri"`
 	SdeKmsConfigOperationDone bool   `json:"sde_operation_done"`
+	CreationMode              string `json:"creation_mode,omitempty"` // "SDE" or "VCP"; empty means "SDE" (backward compat)
+	VcpServiceAccountEmail    string `json:"vcp_service_account_email"`
+}
+
+const (
+	KmsCreationModeSDE = "SDE"
+	KmsCreationModeVCP = "VCP"
+)
+
+// GetCreationMode returns the creation mode, defaulting to "SDE" for backward compatibility.
+func (a *KmsAttributes) GetCreationMode() string {
+	if a == nil || a.CreationMode == "" {
+		return KmsCreationModeSDE
+	}
+	return a.CreationMode
+}
+
+// IsVCPCreated returns true if the KMS config was created via VCP (no SDE involvement).
+func (a *KmsAttributes) IsVCPCreated() bool {
+	return a.GetCreationMode() == KmsCreationModeVCP
 }
 
 func (kmsAttributes *KmsAttributes) Scan(value interface{}) error {

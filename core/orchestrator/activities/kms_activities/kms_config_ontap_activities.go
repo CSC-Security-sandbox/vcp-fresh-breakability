@@ -48,6 +48,14 @@ func (j *KmsConfigActivity) ConfigureKmsForSvmActivity(ctx context.Context, svm 
 		return nil, err
 	}
 
+	// VCP-created configs: use direct access — PrivilegedAccount is empty (no impersonation).
+	// The VCP SA has direct access to the customer's KMS key.
+	// SDE-created configs: use SDE service account email for impersonation via PrivilegedAccount.
+	privilegedAccount := kmsConfig.KmsAttributes.SdeServiceAccountEmail
+	if kmsConfig.KmsAttributes != nil && kmsConfig.KmsAttributes.IsVCPCreated() {
+		privilegedAccount = "" // No impersonation needed for VCP-created configs
+	}
+
 	// Create the KMS configuration using the provider i.e ONTAP REST client on vsa cluster
 	res, err := provider.CreateKmsConfig(vsa.CreateKmsConfigParams{
 		SvmName:           svm.Name,
@@ -55,8 +63,8 @@ func (j *KmsConfigActivity) ConfigureKmsForSvmActivity(ctx context.Context, svm 
 		KeyRingLocation:   kmsConfig.KeyRingLocation,
 		KeyRingName:       kmsConfig.KeyRing,
 		ProjectID:         kmsConfig.KeyProjectID,                          // project id of keyfull path
-		Credentials:       nillable.ToPointer(strfmt.Password(decodedKey)), // Use the long-term service account of SDE i.e., VCP service account Key
-		PrivilegedAccount: kmsConfig.KmsAttributes.SdeServiceAccountEmail,  // Use SDE service account email for privileged operations i.e., impersonation
+		Credentials:       nillable.ToPointer(strfmt.Password(decodedKey)), // Use the long-term VCP service account key
+		PrivilegedAccount: privilegedAccount,
 	})
 	if err != nil {
 		return nil, err

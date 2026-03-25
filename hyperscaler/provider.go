@@ -50,6 +50,7 @@ type Services interface {
 	RemoveRolesFromServiceAccounts(roles []string, serviceAccountEmail, projectID string) error
 	GetServiceAccountRoles(serviceAccountEmail, projectID string) ([]string, error)
 	DeleteServiceAccount(project string, email string) error
+	DisableServiceAccount(email string) error
 	GetServiceAccountByEmail(email string) (*models.ServiceAccount, error)
 
 	CreateHmacKey(projectID string, serviceAccount string) (accessKey *string, secretKey *string, err error)

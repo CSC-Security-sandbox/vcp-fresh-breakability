@@ -128,75 +128,86 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
-	jwtToken := ""
-	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.GetSignedTokenActivity, params.ProjectNumber).Get(ctx, &jwtToken)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
+
+	isVCPCreated := kmsConfig.KmsAttributes != nil && kmsConfig.KmsAttributes.IsVCPCreated()
+
+	// VCP-created config path: create GCP service account directly in CMEK global project.
+	// SDE-created config path: get JWT, poll SDE operation, describe SDE config, update attributes.
+	if isVCPCreated {
+		// Create GCP service account in the CMEK global project
+		err = workflow.ExecuteActivity(ctx, kmsConfigActivity.CreateGCPServiceAccountActivity, kmsConfig).Get(ctx, kmsConfig)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		// Enable the service account in case it was disabled by a previous delete flow
+		err = workflow.ExecuteActivity(ctx, kmsConfigActivity.EnableGCPServiceAccountActivity, kmsConfig).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+	} else {
+		jwtToken := ""
+		err = workflow.ExecuteActivity(ctx, kmsConfigActivity.GetSignedTokenActivity, params.ProjectNumber).Get(ctx, &jwtToken)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
+
+		pollingOptions := workflow.ActivityOptions{
+			StartToCloseTimeout: time.Duration(cvpMaxPollTimeout) * time.Minute,
+			HeartbeatTimeout:    retryPolicy.HeartBeatTimeout,
+			RetryPolicy: &temporal.RetryPolicy{
+				BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+				InitialInterval:        time.Duration(cvpPollInterval) * time.Second,
+				NonRetryableErrorTypes: []string{"PanicError"},
+			},
+		}
+		pollingCtx := workflow.WithActivityOptions(ctx, pollingOptions)
+
+		pollKmsConfigParams := &common.PollKmsConfigParams{
+			OperationUri:   params.OperationUri,
+			OperationDone:  params.OperationDone,
+			ProjectNumber:  params.ProjectNumber,
+			LocationID:     params.LocationID,
+			XCorrelationID: params.XCorrelationID,
+		}
+
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
+		}
+		err = workflow.ExecuteActivity(pollingCtx, kmsConfigActivity.PollKmsConfigOperationActivity, pollKmsConfigParams).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		getKmsConfigParams := &common.GetKmsConfigParams{
+			UUID:          params.UUID,
+			LocationID:    params.LocationID,
+			ProjectNumber: params.ProjectNumber,
+		}
+		var cvpKmsConfig cvpmodels.KmsConfigV1beta
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
+		}
+		err = workflow.ExecuteActivity(ctx, kmsConfigActivity.DescribeSDEKmsConfigurationActivity, getKmsConfigParams).Get(ctx, &cvpKmsConfig)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		kmsConfig.KmsAttributes.SdeKmsConfigUUID = cvpKmsConfig.UUID
+		kmsConfig.KmsAttributes.SdeServiceAccountEmail = cvpKmsConfig.ServiceAccountEmail
+		kmsConfig.KmsAttributes.Instructions = cvpKmsConfig.Instructions
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
+		}
+		err = workflow.ExecuteActivity(ctx, kmsConfigActivity.UpdateKmsConfigAttributesActivity, kmsConfig, kmsConfig.KmsAttributes).Get(ctx, kmsConfig)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 	}
 
-	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
-
-	// retry policy for polling the KMS configuration operation
-	pollingOptions := workflow.ActivityOptions{
-		StartToCloseTimeout: time.Duration(cvpMaxPollTimeout) * time.Minute,
-		HeartbeatTimeout:    retryPolicy.HeartBeatTimeout,
-		RetryPolicy: &temporal.RetryPolicy{
-			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
-			InitialInterval:        time.Duration(cvpPollInterval) * time.Second,
-			NonRetryableErrorTypes: []string{"PanicError"},
-		},
-	}
-
-	pollingCtx := workflow.WithActivityOptions(ctx, pollingOptions)
-
-	// Poll the KMS configuration operation until it is done
-
-	// Prepare Poll Kms Config Params
-	pollKmsConfigParams := &common.PollKmsConfigParams{
-		OperationUri:   params.OperationUri,
-		OperationDone:  params.OperationDone,
-		ProjectNumber:  params.ProjectNumber,
-		LocationID:     params.LocationID,
-		XCorrelationID: params.XCorrelationID,
-	}
-
-	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
-		return nil, cancelErr
-	}
-	err = workflow.ExecuteActivity(pollingCtx, kmsConfigActivity.PollKmsConfigOperationActivity, pollKmsConfigParams).Get(ctx, nil)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
-
-	// Describe KMS configurations to get the created KMS configuration; this must be called after polling the operation to get the sde kms config information
-	getKmsConfigParams := &common.GetKmsConfigParams{
-		UUID:          params.UUID,
-		LocationID:    params.LocationID,
-		ProjectNumber: params.ProjectNumber,
-	}
-	var cvpKmsConfig cvpmodels.KmsConfigV1beta
-	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
-		return nil, cancelErr
-	}
-	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.DescribeSDEKmsConfigurationActivity, getKmsConfigParams).Get(ctx, &cvpKmsConfig)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
-
-	// Update the KMS configuration attributes in the database
-	kmsConfig.KmsAttributes.SdeKmsConfigUUID = cvpKmsConfig.UUID
-	kmsConfig.KmsAttributes.SdeServiceAccountEmail = cvpKmsConfig.ServiceAccountEmail
-	kmsConfig.KmsAttributes.Instructions = cvpKmsConfig.Instructions
-	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
-		return nil, cancelErr
-	}
-	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.UpdateKmsConfigAttributesActivity, kmsConfig, kmsConfig.KmsAttributes).Get(ctx, kmsConfig)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
-
-	// After the KMS configuration is created, we need to perform additional steps like creating service account keys and granting roles
-	// Create the service account key for the KMS configuration
+	// Create the service account key for the KMS configuration (shared)
 	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
@@ -205,16 +216,18 @@ func (kmsConfigWorkflow *createKmsConfigWorkflow) Run(ctx workflow.Context, args
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
-	// Grant the necessary roles to the service account
-	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
-		return nil, cancelErr
-	}
-	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.GrantRoleActivity, kmsConfig).Get(ctx, nil)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
+	// Grant roles — only needed for SDE-created configs (impersonation from SDE SA to VCP SA).
+	if !isVCPCreated {
+		if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
+			return nil, cancelErr
+		}
+		err = workflow.ExecuteActivity(ctx, kmsConfigActivity.GrantRoleActivity, kmsConfig).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 	}
 
-	// Update the Created the KMS configuration in the database
+	// Mark KMS config as created (shared)
 	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}

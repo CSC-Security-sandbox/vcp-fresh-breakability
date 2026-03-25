@@ -400,6 +400,14 @@ func (o *OCIOrchestrator) GetSDEKmsConfiguration(ctx context.Context, params *co
 	return nil, utilserrors.NewNotImplementedYetErr()
 }
 
+func (o *OCIOrchestrator) GetExistingKmsConfig(ctx context.Context, params *commonparams.GetKmsConfigParams) (*models.KmsConfig, error) {
+	return nil, utilserrors.NewNotImplementedYetErr()
+}
+
+func (o *OCIOrchestrator) ListKmsConfigs(ctx context.Context, accountName string) ([]*models.KmsConfig, error) {
+	return nil, utilserrors.NewNotImplementedYetErr()
+}
+
 func (o *OCIOrchestrator) GetBackupVaultByNameAndOwnerID(ctx context.Context, bvName, ownerID string) (*models.BackupVaultV1beta, error) {
 	return nil, utilserrors.NewNotImplementedYetErr()
 }

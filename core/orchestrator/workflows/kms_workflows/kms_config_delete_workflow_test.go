@@ -7,6 +7,7 @@ import (
 	"github.com/go-openapi/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -22,6 +23,11 @@ import (
 )
 
 func TestDeleteKmsConfigWorkflow(t *testing.T) {
+	// These tests cover the SDE path — ensure SDE is enabled
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	t.Run("WhenSuccessful", func(tt *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
@@ -481,6 +487,147 @@ func TestDeleteKmsConfigWorkflow(t *testing.T) {
 		env.ExecuteWorkflow(DeleteKmsConfigWorkflow, kmsConfig, params)
 
 		// Workflow should still succeed even if cancellation handling encounters errors
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+}
+
+func TestDeleteKmsConfigWorkflow_VCPPath(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = ""
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
+	setupWorkflowEnv := func(t *testing.T) *testsuite.TestWorkflowEnvironment {
+		t.Helper()
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterWorkflow(DeleteKmsConfigWorkflow)
+		env.RegisterActivity(&activities.CommonActivities{})
+		mockStorage := database.NewMockStorage(t)
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{SE: mockStorage})
+		return env
+	}
+
+	t.Run("WhenVCPPathSucceeds", func(t *testing.T) {
+		env := setupWorkflowEnv(t)
+
+		params := &common.DeleteKmsConfigParams{
+			KmsConfigID: "test-config-id",
+			AccountName: "123456789",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			Name: "kms1",
+			BaseModel: datamodel.BaseModel{
+				UUID: "kms1-uuid",
+			},
+			CustomerProjectID: "123456789",
+			KmsAttributes: &datamodel.KmsAttributes{
+				VcpServiceAccountEmail: "cmek-usea1-123456789@cmek-project.iam.gserviceaccount.com",
+			},
+		}
+
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DisableGCPServiceAccountActivity", mock.Anything, kmsConfig).Return(nil)
+		env.OnActivity("DisableKmsServiceAccount", mock.Anything, kmsConfig).Return(nil)
+		env.OnActivity("DeleteKmsConfig", mock.Anything, kmsConfig, params).Return(nil)
+
+		env.ExecuteWorkflow(DeleteKmsConfigWorkflow, kmsConfig, params)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("WhenDisableGCPServiceAccountActivityFails", func(t *testing.T) {
+		env := setupWorkflowEnv(t)
+
+		params := &common.DeleteKmsConfigParams{
+			KmsConfigID: "test-config-id",
+			AccountName: "123456789",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			Name: "kms1",
+			BaseModel: datamodel.BaseModel{
+				UUID: "kms1-uuid",
+			},
+			CustomerProjectID: "123456789",
+			KmsAttributes: &datamodel.KmsAttributes{
+				VcpServiceAccountEmail: "cmek-usea1-123456789@cmek-project.iam.gserviceaccount.com",
+			},
+		}
+
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DisableGCPServiceAccountActivity", mock.Anything, kmsConfig).Return(errors.New(500, "failed to disable SA"))
+		env.OnActivity("UpdateKmsConfigState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+		env.ExecuteWorkflow(DeleteKmsConfigWorkflow, kmsConfig, params)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("WhenVCPPathSkipsSDEActivities", func(t *testing.T) {
+		env := setupWorkflowEnv(t)
+
+		params := &common.DeleteKmsConfigParams{
+			KmsConfigID: "test-config-id",
+			AccountName: "123456789",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			Name: "kms1",
+			BaseModel: datamodel.BaseModel{
+				UUID: "kms1-uuid",
+			},
+			CustomerProjectID: "123456789",
+			KmsAttributes: &datamodel.KmsAttributes{
+				VcpServiceAccountEmail: "cmek-usea1-123456789@cmek-project.iam.gserviceaccount.com",
+			},
+		}
+
+		// Mock only VCP path activities — SDE activities (GetSignedTokenActivity,
+		// DeleteSDEKmsConfig, DescribeSDEDeleteJob) should NOT be called
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DisableGCPServiceAccountActivity", mock.Anything, kmsConfig).Return(nil)
+		env.OnActivity("DisableKmsServiceAccount", mock.Anything, kmsConfig).Return(nil)
+		env.OnActivity("DeleteKmsConfig", mock.Anything, kmsConfig, params).Return(nil)
+
+		env.ExecuteWorkflow(DeleteKmsConfigWorkflow, kmsConfig, params)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("WhenVCPPathNoUUID_SkipsSharedActivities", func(t *testing.T) {
+		env := setupWorkflowEnv(t)
+
+		params := &common.DeleteKmsConfigParams{
+			KmsConfigID: "test-config-id",
+			AccountName: "123456789",
+		}
+		kmsConfig := &datamodel.KmsConfig{
+			CustomerProjectID: "123456789",
+			KmsAttributes: &datamodel.KmsAttributes{
+				VcpServiceAccountEmail: "cmek-usea1-123456789@cmek-project.iam.gserviceaccount.com",
+			},
+		}
+
+		// With empty UUID, DisableKmsServiceAccount and DeleteKmsConfig should NOT be called
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DisableGCPServiceAccountActivity", mock.Anything, kmsConfig).Return(nil)
+
+		env.ExecuteWorkflow(DeleteKmsConfigWorkflow, kmsConfig, params)
+
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
 		env.AssertExpectations(t)

@@ -33,6 +33,8 @@ proxyClientTransportSchema: "https"
 vcpPairedRegions: ""
 loggerLevel: "info"
 cvpHost: ""
+# Temporary test-only override: forces VCP path even when CVP_HOST is set.
+forceVcpKmsPathForTesting: false
 coreApi:
   host: "core-service.vcp.svc.cluster.local:8080"
 crrEnabled: false

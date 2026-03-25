@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -33,6 +34,11 @@ func expectJobIsNew(env *testsuite.TestWorkflowEnvironment) {
 }
 
 func TestCreateKmsConfig(t *testing.T) {
+	// These tests cover the SDE path — ensure SDE is enabled
+	origCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = "localhost:8009"
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+
 	t.Run("WhenGetSignedTokenActivityFails", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
@@ -791,9 +797,9 @@ func TestCreateKmsConfig(t *testing.T) {
 		cvpKmsConfig := &cvpmodels.KmsConfigV1beta{}
 		expectJobIsNew(env)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-	env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil).Maybe()
-	env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
-	env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil).Maybe()
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil).Maybe()
+		env.OnActivity("PollKmsConfigOperationActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(cvpKmsConfig, nil).Maybe()
 
 		// Send cancellation signal before UpdateKmsConfigAttributesActivity
 		env.RegisterDelayedCallback(func() {
@@ -1424,5 +1430,146 @@ func TestCreateKmsConfig(t *testing.T) {
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
+	})
+}
+
+func TestCreateKmsConfigVCPPath(t *testing.T) {
+	setupWorkflowEnv := func(t *testing.T) *testsuite.TestWorkflowEnvironment {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		env.SetHeader(&commonpb.Header{
+			Fields: map[string]*commonpb.Payload{"logParam": encodedValue},
+		})
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		return env
+	}
+
+	t.Run("WhenVCPPathSucceeds", func(t *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = ""
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
+		env := setupWorkflowEnv(t)
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+		}
+		kmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{CreationMode: datamodel.KmsCreationModeVCP}}
+		expectJobIsNew(env)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateGCPServiceAccountActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		env.OnActivity("EnableGCPServiceAccountActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		env.OnActivity("CreatedKmsConfigActivity", mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("WhenCreateGCPServiceAccountActivityFails", func(t *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = ""
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
+		env := setupWorkflowEnv(t)
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+		}
+		kmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{CreationMode: datamodel.KmsCreationModeVCP}}
+		expectJobIsNew(env)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateGCPServiceAccountActivity", mock.Anything, mock.Anything).Return(nil, errors.New("GCP SA creation failed"))
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("WhenEnableGCPServiceAccountActivityFails", func(t *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = ""
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
+		env := setupWorkflowEnv(t)
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+		}
+		kmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{CreationMode: datamodel.KmsCreationModeVCP}}
+		expectJobIsNew(env)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateGCPServiceAccountActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		env.OnActivity("EnableGCPServiceAccountActivity", mock.Anything, mock.Anything).Return(errors.New("IAM enable failed"))
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("WhenVCPCreateSAKeyFails", func(t *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = ""
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
+		env := setupWorkflowEnv(t)
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+		}
+		kmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{CreationMode: datamodel.KmsCreationModeVCP}}
+		expectJobIsNew(env)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateGCPServiceAccountActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		env.OnActivity("EnableGCPServiceAccountActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(nil, errors.New("SA key creation failed"))
+		env.OnActivity("FailedKmsConfigCreateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("WhenVCPPath_SkipsGrantRoleAndSDEActivities", func(t *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		cvp.CVP_HOST = ""
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+
+		env := setupWorkflowEnv(t)
+		params := &common.CreateKmsConfigParams{
+			Name:        "test-kms",
+			AccountName: "test-account",
+		}
+		kmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{CreationMode: datamodel.KmsCreationModeVCP}}
+		expectJobIsNew(env)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateGCPServiceAccountActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		env.OnActivity("EnableGCPServiceAccountActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		env.OnActivity("CreatedKmsConfigActivity", mock.Anything, mock.Anything).Return(nil)
+
+		// These SDE-only activities should NOT be called:
+		// GetSignedTokenActivity, PollKmsConfigOperationActivity, DescribeSDEKmsConfigurationActivity,
+		// UpdateKmsConfigAttributesActivity, GrantRoleActivity
+
+		env.ExecuteWorkflow(CreateKmsConfigWorkflow, params, kmsConfig)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t) // will fail if any unexpected activities were called
 	})
 }

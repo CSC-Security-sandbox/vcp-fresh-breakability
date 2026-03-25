@@ -1352,6 +1352,52 @@ func (_c *MockGoogleServices_DeleteServiceAccountKeysExcludingKey_Call) RunAndRe
 	return _c
 }
 
+// DisableServiceAccount provides a mock function with given fields: email
+func (_m *MockGoogleServices) DisableServiceAccount(email string) error {
+	ret := _m.Called(email)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DisableServiceAccount")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(email)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockGoogleServices_DisableServiceAccount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DisableServiceAccount'
+type MockGoogleServices_DisableServiceAccount_Call struct {
+	*mock.Call
+}
+
+// DisableServiceAccount is a helper method to define mock.On call
+//   - email string
+func (_e *MockGoogleServices_Expecter) DisableServiceAccount(email interface{}) *MockGoogleServices_DisableServiceAccount_Call {
+	return &MockGoogleServices_DisableServiceAccount_Call{Call: _e.mock.On("DisableServiceAccount", email)}
+}
+
+func (_c *MockGoogleServices_DisableServiceAccount_Call) Run(run func(email string)) *MockGoogleServices_DisableServiceAccount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockGoogleServices_DisableServiceAccount_Call) Return(_a0 error) *MockGoogleServices_DisableServiceAccount_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockGoogleServices_DisableServiceAccount_Call) RunAndReturn(run func(string) error) *MockGoogleServices_DisableServiceAccount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // EmptyBucket provides a mock function with given fields: ctx, bucketName
 func (_m *MockGoogleServices) EmptyBucket(ctx context.Context, bucketName string) error {
 	ret := _m.Called(ctx, bucketName)

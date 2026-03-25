@@ -375,6 +375,12 @@ const (
 	ErrKMSKeyUnreachable         = 8010
 	ErrKMSPermissionDenied       = 8011
 
+	// VCP CMEK service account errors
+	ErrKMSCreateGCPServiceAccount  = 8012
+	ErrKMSEnableGCPServiceAccount  = 8013
+	ErrKMSDisableGCPServiceAccount = 8014
+	ErrKMSUpdateConfigAttributes   = 8015
+
 	// Certificate and Password Rotation Error Codes (8500-8599 range)
 	ErrCertificateRotationFailed               = 8501
 	ErrPasswordRotationFailed                  = 8502

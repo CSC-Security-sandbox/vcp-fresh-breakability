@@ -24,6 +24,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"golang.org/x/oauth2"
+	googleOauth2 "golang.org/x/oauth2/google"
+	"google.golang.org/api/cloudkms/v1"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/dns/v1"
@@ -5977,5 +5980,67 @@ func TestRotateObjectsInParallel_RetryBehavior(t *testing.T) {
 		require.NoError(t, err, "404 should be treated as non-fatal")
 		assert.Equal(t, 0, rotated)
 		assert.Equal(t, 1, attemptCount, "404 should not be retried")
+	})
+}
+
+func TestDisableEnableServiceAccount(t *testing.T) {
+	makeService := func(t *testing.T, status int) *iam.Service {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(status)
+			if status >= 400 {
+				_, _ = w.Write([]byte(fmt.Sprintf(`{"error":{"code":%d,"message":"status-%d"}}`, status, status)))
+				return
+			}
+			_, _ = w.Write([]byte(`{}`))
+		}))
+		t.Cleanup(server.Close)
+		svc, err := iam.NewService(context.Background(), option.WithEndpoint(server.URL), option.WithHTTPClient(server.Client()), option.WithoutAuthentication())
+		require.NoError(t, err)
+		return svc
+	}
+
+	t.Run("DisableHandlesNotFoundConflictAndSuccess", func(t *testing.T) {
+		for _, code := range []int{http.StatusNotFound, http.StatusConflict, http.StatusOK} {
+			gcpSvc := &GcpServices{AdminGCPService: &AdminGCPService{iamService: makeService(t, code)}}
+			err := gcpSvc.DisableServiceAccount("sa@test.iam.gserviceaccount.com")
+			assert.NoError(t, err, "status %d should be treated as success", code)
+		}
+	})
+
+	t.Run("DisableReturnsProvisionErrorForUnexpectedFailure", func(t *testing.T) {
+		gcpSvc := &GcpServices{AdminGCPService: &AdminGCPService{iamService: makeService(t, http.StatusInternalServerError)}}
+		err := gcpSvc.DisableServiceAccount("sa@test.iam.gserviceaccount.com")
+		require.Error(t, err)
+	})
+
+	t.Run("EnableHandlesConflictAndSuccess", func(t *testing.T) {
+		for _, code := range []int{http.StatusConflict, http.StatusOK} {
+			gcpSvc := &GcpServices{AdminGCPService: &AdminGCPService{iamService: makeService(t, code)}}
+			err := gcpSvc.EnableServiceAccount("sa@test.iam.gserviceaccount.com")
+			assert.NoError(t, err, "status %d should be treated as success", code)
+		}
+	})
+
+	t.Run("EnableReturnsNotFoundAndUnexpectedErrors", func(t *testing.T) {
+		gcpSvcNotFound := &GcpServices{AdminGCPService: &AdminGCPService{iamService: makeService(t, http.StatusNotFound)}}
+		err := gcpSvcNotFound.EnableServiceAccount("sa@test.iam.gserviceaccount.com")
+		require.Error(t, err)
+
+		gcpSvcInternal := &GcpServices{AdminGCPService: &AdminGCPService{iamService: makeService(t, http.StatusInternalServerError)}}
+		err = gcpSvcInternal.EnableServiceAccount("sa@test.iam.gserviceaccount.com")
+		require.Error(t, err)
+	})
+}
+
+func TestGetDirectKmsService(t *testing.T) {
+	t.Run("ReturnsServiceWithStaticTokenSource", func(t *testing.T) {
+		creds := &googleOauth2.Credentials{
+			TokenSource: oauth2.StaticTokenSource(&oauth2.Token{AccessToken: "token"}),
+		}
+		svc, err := GetDirectKmsService(context.Background(), creds)
+		require.NoError(t, err)
+		assert.NotNil(t, svc)
+		assert.IsType(t, &cloudkms.Service{}, svc)
 	})
 }

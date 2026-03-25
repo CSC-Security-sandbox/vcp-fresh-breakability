@@ -3,7 +3,6 @@ package kms_activities
 import (
 	"context"
 	"encoding/base64"
-	"gorm.io/gorm"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,11 +11,12 @@ import (
 	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"gorm.io/gorm"
 )
 
 func TestConfigureKmsForSvmActivity(t *testing.T) {
@@ -237,6 +237,87 @@ func TestConfigureKmsForSvmActivity(t *testing.T) {
 		result, err := mockActivity.ConfigureKmsForSvmActivity(ctx, svm, node, params)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
+	})
+
+	t.Run("VCPCreatedConfigUsesEmptyPrivilegedAccount", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockSE := database.NewMockStorage(t)
+		mockActivity := &KmsConfigActivity{SE: mockSE}
+		ctx := context.Background()
+		svm := &datamodel.Svm{Name: "svm1"}
+		node := &coreModels.Node{}
+		params := commonparams.CreatePoolParams{KmsConfigId: "kms-uuid"}
+		resp := &vsa.CreateKmsConfigResponse{}
+		kmsConfig := &datamodel.KmsConfig{
+			ServiceAccount: &datamodel.ServiceAccount{},
+			KmsAttributes: &datamodel.KmsAttributes{
+				CreationMode:           datamodel.KmsCreationModeVCP,
+				VcpServiceAccountEmail: "cmek-usea1-123@cmek-project.iam.gserviceaccount.com",
+				SdeServiceAccountEmail: "should-not-be-used@sde.iam.gserviceaccount.com",
+			},
+		}
+		mockSE.On("GetKmsConfig", mock.Anything, mock.Anything).Return(kmsConfig, nil).Once()
+		// Capture the CreateKmsConfig params to verify PrivilegedAccount is empty
+		mockProvider.On("CreateKmsConfig", mock.MatchedBy(func(p vsa.CreateKmsConfigParams) bool {
+			return p.PrivilegedAccount == "" // VCP path: no impersonation
+		})).Return(resp, nil).Once()
+		mockSE.On("UpdateSvmWithKmsConfigIDs", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(svm, nil).Once()
+		mockSE.On("UpdateKmsConfigState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+		origDecryptPassword := utils.DecryptPassword
+		utils.DecryptPassword = func(_ log.Secret) (*string, error) {
+			s := base64.StdEncoding.EncodeToString([]byte("key"))
+			return &s, nil
+		}
+		defer func() { utils.DecryptPassword = origDecryptPassword }()
+
+		origGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) { return mockProvider, nil }
+		defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
+
+		result, err := mockActivity.ConfigureKmsForSvmActivity(ctx, svm, node, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("SDECreatedConfigUsesSdeServiceAccountAsPrivilegedAccount", func(t *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockSE := database.NewMockStorage(t)
+		mockActivity := &KmsConfigActivity{SE: mockSE}
+		ctx := context.Background()
+		svm := &datamodel.Svm{Name: "svm1"}
+		node := &coreModels.Node{}
+		params := commonparams.CreatePoolParams{KmsConfigId: "kms-uuid"}
+		resp := &vsa.CreateKmsConfigResponse{}
+		kmsConfig := &datamodel.KmsConfig{
+			ServiceAccount: &datamodel.ServiceAccount{},
+			KmsAttributes: &datamodel.KmsAttributes{
+				SdeServiceAccountEmail: "sde-sa@sde-project.iam.gserviceaccount.com",
+				// CreationMode empty = SDE default
+			},
+		}
+		mockSE.On("GetKmsConfig", mock.Anything, mock.Anything).Return(kmsConfig, nil).Once()
+		// Capture the CreateKmsConfig params to verify PrivilegedAccount is the SDE SA
+		mockProvider.On("CreateKmsConfig", mock.MatchedBy(func(p vsa.CreateKmsConfigParams) bool {
+			return p.PrivilegedAccount == "sde-sa@sde-project.iam.gserviceaccount.com"
+		})).Return(resp, nil).Once()
+		mockSE.On("UpdateSvmWithKmsConfigIDs", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(svm, nil).Once()
+		mockSE.On("UpdateKmsConfigState", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+		origDecryptPassword := utils.DecryptPassword
+		utils.DecryptPassword = func(_ log.Secret) (*string, error) {
+			s := base64.StdEncoding.EncodeToString([]byte("key"))
+			return &s, nil
+		}
+		defer func() { utils.DecryptPassword = origDecryptPassword }()
+
+		origGetProviderByNode := hyperscaler.GetProviderByNode
+		hyperscaler.GetProviderByNode = func(_ context.Context, _ *coreModels.Node) (vsa.Provider, error) { return mockProvider, nil }
+		defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
+
+		result, err := mockActivity.ConfigureKmsForSvmActivity(ctx, svm, node, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		mockProvider.AssertExpectations(t)
 	})
 }
 

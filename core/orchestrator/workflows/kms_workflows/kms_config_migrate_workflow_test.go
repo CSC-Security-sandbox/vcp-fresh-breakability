@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -35,6 +36,10 @@ func newTestVsaKmsConfig(uuid string) datamodel.KmsConfig {
 }
 
 func TestMigrateKmsConfigWorkflow(t *testing.T) {
+	origCVPHost := cvp.CVP_HOST
+	defer func() { cvp.CVP_HOST = origCVPHost }()
+	cvp.CVP_HOST = "localhost:8009"
+
 	params := &common.MigrateKmsConfigParams{
 		Name:          "test-pool",
 		AccountName:   "test-account",
@@ -83,6 +88,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(&datamodel.KmsConfig{
+			BaseModel:     datamodel.BaseModel{UUID: params.UUID},
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}, nil)
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, temporal.NewNonRetryableApplicationError("Migrate SDE KMS Config Error", "error", nil))
 		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -110,6 +119,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(&datamodel.KmsConfig{
+			BaseModel:     datamodel.BaseModel{UUID: params.UUID},
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}, nil)
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(temporal.NewNonRetryableApplicationError("Polling error", "error", nil))
@@ -137,6 +150,10 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(&datamodel.KmsConfig{
+			BaseModel:     datamodel.BaseModel{UUID: params.UUID},
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}, nil)
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(temporal.NewNonRetryableApplicationError("operation failed:", "error", nil))
@@ -168,6 +185,8 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
+		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(&datamodel.KmsConfig{BaseModel: datamodel.BaseModel{UUID: "test-uuid"}, KmsAttributes: &datamodel.KmsAttributes{}}, nil)
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("Get Pools by account name failed", "error", nil))
 		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
@@ -198,11 +217,15 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		poolsInAccount = append(poolsInAccount, &pool1)
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(&datamodel.KmsConfig{
+			BaseModel:     datamodel.BaseModel{UUID: params.UUID},
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}, nil)
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
-		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
 		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("Describe VSA Kms Config failed", "error", nil))
+		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil).Maybe()
 		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
@@ -226,16 +249,8 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&activities.CommonActivities{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
-		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateCreated, KmsConfigID: sql.NullInt64{Int64: 1, Valid: true}}
-		var poolsInAccount []*datamodel.Pool
-		poolsInAccount = append(poolsInAccount, &pool1)
 
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
-		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
-		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
-		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
-		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("Describe VSA Kms Config failed", "error", nil))
 		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
@@ -268,7 +283,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
-		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
+		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil).Maybe()
 		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError(errors.NewNotFoundErr("Record not found", nil).Error(), "KmsConfigNotFound", nil))
 		env.OnActivity("CreateAndSyncKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError(errors.NewNotFoundErr("CreateAndSyncKmsConfigActivity", nil).Error(), "KmsConfigNotFound", nil))
@@ -304,7 +319,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
-		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
+		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil).Maybe()
 		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError(errors.NewNotFoundErr("Record not found", nil).Error(), "KmsConfigNotFound", nil))
 		env.OnActivity("CreateAndSyncKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -341,7 +356,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
-		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
+		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil).Maybe()
 		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError(errors.NewNotFoundErr("Record not found", nil).Error(), "KmsConfigNotFound", nil))
 		env.OnActivity("CreateAndSyncKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -380,7 +395,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
 		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil)
+		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return(poolsInAccount, nil).Maybe()
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError(errors.NewNotFoundErr("Record not found", nil).Error(), "KmsConfigNotFound", nil))
 		env.OnActivity("CreateAndSyncKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateVSAKmsConfigSAKeyActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1341,6 +1356,10 @@ func TestValidateKmsConfigForMigration(t *testing.T) { // Generated using GitHub
 		})
 	}
 	t.Run("HeartbeatTimeoutIsConfigured", func(t *testing.T) {
+		origCVPHost := cvp.CVP_HOST
+		defer func() { cvp.CVP_HOST = origCVPHost }()
+		cvp.CVP_HOST = "localhost:8009"
+
 		// This test verifies that HeartbeatTimeout is configured in ActivityOptions
 		// by ensuring activities with RecordHeartbeat can execute successfully
 		var ts testsuite.WorkflowTestSuite
@@ -1369,6 +1388,11 @@ func TestValidateKmsConfigForMigration(t *testing.T) { // Generated using GitHub
 		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
 		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(&datamodel.KmsConfig{
+			BaseModel:     datamodel.BaseModel{UUID: "test-uuid"},
+			KmsAttributes: &datamodel.KmsAttributes{},
+		}, nil)
 		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return([]*datamodel.Pool{}, nil)
 		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 

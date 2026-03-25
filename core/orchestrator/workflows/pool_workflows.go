@@ -1522,10 +1522,14 @@ func _verifyKmsConfigReachability(ctx workflow.Context, kmsConfigId string) erro
 		return err
 	}
 
-	// Grant the necessary roles to the service account, if required
-	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.GrantRoleActivity, kmsConfig).Get(ctx, nil)
-	if err != nil {
-		return err
+	// VCP-created configs: skip GrantRoleActivity — the VCP SA has direct access to the customer's KMS key
+	// and does not need impersonation role grants.
+	// SDE-created configs: grant the necessary roles to the service account for impersonation.
+	if kmsConfig.KmsAttributes == nil || !kmsConfig.KmsAttributes.IsVCPCreated() {
+		err = workflow.ExecuteActivity(ctx, kmsConfigActivity.GrantRoleActivity, kmsConfig).Get(ctx, nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Access a crypto key using the KMS config in the VSA database to make sure key is reachable and update the kms config state based on the reachability

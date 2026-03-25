@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	stdErrors "errors"
 	"fmt"
 	"regexp"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"google.golang.org/api/cloudkms/v1"
 	"google.golang.org/api/googleapi"
@@ -27,8 +29,64 @@ const (
 )
 
 var (
-	kmsSupportedEncryption = []string{"GOOGLE_SYMMETRIC_ENCRYPTION", "EXTERNAL_SYMMETRIC_ENCRYPTION"}
+	kmsSupportedEncryption    = []string{"GOOGLE_SYMMETRIC_ENCRYPTION", "EXTERNAL_SYMMETRIC_ENCRYPTION"}
+	cmekRegionNameOverrideMap = parseCmekRegionOverrideMap()
 )
+
+// ShouldUseVCPForExistingKMS returns true when an existing KMS config should
+// execute the VCP path:
+//   - CVP host is not configured, or
+//   - the config is explicitly VCP-created.
+func ShouldUseVCPForExistingKMS(kmsConfig *datamodel.KmsConfig) bool {
+	return !IsCVPHostConfigured() || (kmsConfig.KmsAttributes != nil && kmsConfig.KmsAttributes.IsVCPCreated())
+}
+
+// parseCmekRegionOverrideMap reads the CMEK_SERVICE_ACCOUNT_REGION_NAME_OVERRIDE env var (JSON string map)
+// and falls back to a default map matching CVN's defaults.
+func parseCmekRegionOverrideMap() map[string]string {
+	defaultMap := map[string]string{
+		"asia-southeast1": "asse1",
+		"asia-southeast2": "asse2",
+	}
+	raw := env.GetString("CMEK_SERVICE_ACCOUNT_REGION_NAME_OVERRIDE", "")
+	if raw == "" {
+		return defaultMap
+	}
+	var m map[string]string
+	if err := json.Unmarshal([]byte(raw), &m); err != nil {
+		return defaultMap
+	}
+	return m
+}
+
+// GetShortRegion shortens a GCP region name for use in service account IDs.
+// Example: us-east1 -> usea1, europe-southwest1 -> euso1.
+func GetShortRegion(region string) string {
+	if region == "" {
+		return ""
+	}
+
+	if val, ok := cmekRegionNameOverrideMap[region]; ok {
+		return val
+	}
+
+	var shortRegion string
+	lastNumber := "0"
+	re := regexp.MustCompile("[0-9]+")
+	match := re.FindAllString(region, -1)
+	if len(match) > 0 {
+		lastNumber = match[len(match)-1]
+	}
+	splitRegion := strings.Split(region, "-")
+	for _, str := range splitRegion {
+		if len(str) < 2 {
+			shortRegion += str
+		} else {
+			shortRegion += str[:2]
+		}
+	}
+	return shortRegion + lastNumber
+}
 
 // ParsedKeyFullPathResource represents the parsed components of the input resource string.
 type ParsedKeyFullPathResource struct {

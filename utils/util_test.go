@@ -13,6 +13,7 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	ontapmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
@@ -188,6 +189,32 @@ func TestContainsStringCaseInsensitive(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestIsCVPHostFlags(t *testing.T) {
+	origHost := cvp.CVP_HOST
+	origForce := ForceVCPKMSPathForTesting
+	defer func() {
+		cvp.CVP_HOST = origHost
+		ForceVCPKMSPathForTesting = origForce
+	}()
+
+	cvp.CVP_HOST = "localhost:8009"
+
+	t.Run("IsCVPHostSetHonorsForceOverride", func(t *testing.T) {
+		ForceVCPKMSPathForTesting = true
+		assert.False(t, IsCVPHostSet())
+	})
+
+	t.Run("IsCVPHostSetWithoutOverrideUsesHost", func(t *testing.T) {
+		ForceVCPKMSPathForTesting = false
+		assert.True(t, IsCVPHostSet())
+	})
+
+	t.Run("IsCVPHostConfiguredIgnoresForceOverride", func(t *testing.T) {
+		ForceVCPKMSPathForTesting = true
+		assert.True(t, IsCVPHostConfigured())
+	})
 }
 
 func TestEnvToInt32Conversion(t *testing.T) {

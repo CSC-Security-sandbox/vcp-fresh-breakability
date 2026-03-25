@@ -227,6 +227,8 @@ workerConfig:
   harvestPortStart: 13001
   harvestPortEnd: 13500
   cvpHost: ""
+  # Temporary test-only override: forces VCP path even when CVP_HOST is set.
+  forceVcpKmsPathForTesting: "false"
   proberProjectList: ""
   enableUniqueSerialNumberGeneration: false
   clusterSerialNumberPrefix: "935"

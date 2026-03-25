@@ -9,6 +9,7 @@ import (
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -118,18 +119,6 @@ func (wf *deleteKmsConfigWorkflow) Run(ctx workflow.Context, args ...interface{}
 	); cancelErr != nil {
 		wf.Logger.Warnf("Error handling cancellation: %v, proceeding with normal delete", cancelErr)
 	}
-	jwtToken := ""
-	err = workflow.ExecuteActivity(ctx, deleteActivity.GetSignedTokenActivity, params.AccountName).Get(ctx, &jwtToken)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
-
-	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
-
-	sdeJobRetryOpts := defaultActivityOpts
-	sdeJobRetryOpts.RetryPolicy.MaximumAttempts = int32(SdeKmsJobRetryMaxAttempts)
-	ctx1 := workflow.WithActivityOptions(ctx, sdeJobRetryOpts)
-
 	defer func() {
 		if err != nil && kmsConfig.UUID != "" {
 			err = workflow.ExecuteActivity(ctx, deleteActivity.UpdateKmsConfigState, kmsConfig, models.LifeCycleStateError, err.Error()).Get(ctx, nil)
@@ -138,17 +127,39 @@ func (wf *deleteKmsConfigWorkflow) Run(ctx workflow.Context, args ...interface{}
 		}
 	}()
 
-	var sdeJobId string
-	err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSDEKmsConfig, kmsConfig, params).Get(ctx, &sdeJobId)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
+	// VCP-created config path: disable the GCP service account directly (no SDE involvement).
+	// SDE-created config path: get JWT token, delete via SDE, poll SDE job.
+	if utils.ShouldUseVCPForExistingKMS(kmsConfig) {
+		err = workflow.ExecuteActivity(ctx, deleteActivity.DisableGCPServiceAccountActivity, kmsConfig).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+	} else {
+		jwtToken := ""
+		err = workflow.ExecuteActivity(ctx, deleteActivity.GetSignedTokenActivity, params.AccountName).Get(ctx, &jwtToken)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
+
+		sdeJobRetryOpts := defaultActivityOpts
+		sdeJobRetryOpts.RetryPolicy.MaximumAttempts = int32(SdeKmsJobRetryMaxAttempts)
+		ctx1 := workflow.WithActivityOptions(ctx, sdeJobRetryOpts)
+
+		var sdeJobId string
+		err = workflow.ExecuteActivity(ctx, deleteActivity.DeleteSDEKmsConfig, kmsConfig, params).Get(ctx, &sdeJobId)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+
+		err = workflow.ExecuteActivity(ctx1, deleteActivity.DescribeSDEDeleteJob, &sdeJobId, params).Get(ctx, nil)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
 	}
 
-	err = workflow.ExecuteActivity(ctx1, deleteActivity.DescribeSDEDeleteJob, &sdeJobId, params).Get(ctx, nil)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
-
+	// Shared path: disable service account in DB + soft-delete KMS config
 	if kmsConfig.UUID != "" {
 		err = workflow.ExecuteActivity(ctx, deleteActivity.DisableKmsServiceAccount, kmsConfig).Get(ctx, nil)
 		if err != nil {

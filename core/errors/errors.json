@@ -2003,6 +2003,30 @@
     "retriable": true,
     "http_code": 412
   },
+  "8012": {
+    "description": "Failed to create GCP service account for VCP CMEK - GCP IAM API or infrastructure issue",
+    "message": "Internal error while creating KMS service account",
+    "retriable": true,
+    "http_code": 500
+  },
+  "8013": {
+    "description": "Failed to enable GCP service account for VCP CMEK - GCP IAM API or infrastructure issue",
+    "message": "Internal error while enabling KMS service account",
+    "retriable": true,
+    "http_code": 500
+  },
+  "8014": {
+    "description": "Failed to disable GCP service account for VCP CMEK - GCP IAM API or infrastructure issue",
+    "message": "Internal error while disabling KMS service account",
+    "retriable": true,
+    "http_code": 500
+  },
+  "8015": {
+    "description": "Failed to update KMS config attributes in database - transient DB error",
+    "message": "Internal error while updating KMS configuration",
+    "retriable": true,
+    "http_code": 500
+  },
   "8501": {
     "description": "Certificate rotation failed",
     "message": "Failed to rotate certificate for VSA cluster",

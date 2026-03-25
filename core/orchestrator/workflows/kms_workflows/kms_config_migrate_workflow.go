@@ -120,14 +120,6 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, activityOptions)
-	jwtToken := ""
-	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.GetSignedTokenActivity, params.ProjectNumber).Get(ctx, &jwtToken)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
-	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
-
-	//     -----		Migrate SDE resources     	-----
 
 	defer func() {
 		// KmsConfig State is not dependent on an outcome of migration;
@@ -139,41 +131,108 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 		}
 	}()
 
-	// Migrate KMS configuration in CVP
-	var response *kms_configurations.V1betaEncryptVolumesAccepted
-	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.MigrateSdeKmsConfigActivity, params).Get(ctx, &response)
-	if err != nil {
-		kmsWorkflow.Logger.Error("Error encountered when KMS Migrate API was sent to SDE", log.Fields{
-			"error":  err,
-			"params": params,
-		})
-		return vsaCmekMigrationSkippedPoolReason, workflows.ConvertToVSAError(err)
+	paramsForSyncingAndEKMCreation := common.CreatePoolParams{
+		AccountName: params.AccountName,
+		Region:      params.LocationID,
+		KmsConfigId: kmsConfigUUID,
 	}
 
-	// Policy for polling the KMS migrate operation
-	pollingOptions := workflow.ActivityOptions{
-		StartToCloseTimeout: time.Duration(cvpMaxPollTimeout) * time.Minute,
-		HeartbeatTimeout:    retryPolicy.HeartBeatTimeout,
-		RetryPolicy: &temporal.RetryPolicy{
-			BackoffCoefficient:     retryPolicy.BackoffCoefficient,
-			InitialInterval:        time.Duration(cvpPollInterval) * time.Second,
-			NonRetryableErrorTypes: []string{"PanicError"},
-		},
+	shouldUseSDEMigration := utils.IsCVPHostConfigured()
+	var existingKmsConfig datamodel.KmsConfig
+	getErr := workflow.ExecuteActivity(ctx, kmsConfigActivity.GetKmsConfigActivity, kmsConfigUUID).Get(ctx, &existingKmsConfig)
+	if getErr == nil {
+		shouldUseSDEMigration = !utils.ShouldUseVCPForExistingKMS(&existingKmsConfig)
+	} else {
+		var appErr *temporal.ApplicationError
+		if !(errorcore.As(getErr, &appErr) && appErr.NonRetryable() && appErr.Type() == kms_activities.ErrTypeKmsConfigNotFound) {
+			return vsaCmekMigrationSkippedPoolReason, workflows.ConvertToVSAError(getErr)
+		}
 	}
-	pollingCtx := workflow.WithActivityOptions(ctx, pollingOptions)
 
-	// Poll the KMS migration operation until completion/timeout
-	err = workflow.ExecuteActivity(pollingCtx, kmsConfigActivity.PollMigrateSdeKmsConfigActivity, params, response).Get(ctx, nil)
-	if err != nil {
-		if strings.Contains(err.Error(), "operation failed:") {
-			kmsWorkflow.Logger.Error("Error encountered during SDE migration; Setting CMEK policy in VCP to error state", log.Fields{
+	// SDE-created config path: migrate SDE resources, poll, describe, and sync VCP DB with SDE DB.
+	if shouldUseSDEMigration {
+		jwtToken := ""
+		err = workflow.ExecuteActivity(ctx, kmsConfigActivity.GetSignedTokenActivity, params.ProjectNumber).Get(ctx, &jwtToken)
+		if err != nil {
+			return nil, workflows.ConvertToVSAError(err)
+		}
+		ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
+
+		// Migrate KMS configuration in CVP
+		var response *kms_configurations.V1betaEncryptVolumesAccepted
+		err = workflow.ExecuteActivity(ctx, kmsConfigActivity.MigrateSdeKmsConfigActivity, params).Get(ctx, &response)
+		if err != nil {
+			kmsWorkflow.Logger.Error("Error encountered when KMS Migrate API was sent to SDE", log.Fields{
 				"error":  err,
 				"params": params,
 			})
+			return vsaCmekMigrationSkippedPoolReason, workflows.ConvertToVSAError(err)
 		}
 
-		return vsaCmekMigrationSkippedPoolReason, workflows.ConvertToVSAError(err)
+		// Policy for polling the KMS migrate operation
+		pollingOptions := workflow.ActivityOptions{
+			StartToCloseTimeout: time.Duration(cvpMaxPollTimeout) * time.Minute,
+			HeartbeatTimeout:    retryPolicy.HeartBeatTimeout,
+			RetryPolicy: &temporal.RetryPolicy{
+				BackoffCoefficient:     retryPolicy.BackoffCoefficient,
+				InitialInterval:        time.Duration(cvpPollInterval) * time.Second,
+				NonRetryableErrorTypes: []string{"PanicError"},
+			},
+		}
+		pollingCtx := workflow.WithActivityOptions(ctx, pollingOptions)
+
+		// Poll the KMS migration operation until completion/timeout
+		err = workflow.ExecuteActivity(pollingCtx, kmsConfigActivity.PollMigrateSdeKmsConfigActivity, params, response).Get(ctx, nil)
+		if err != nil {
+			if strings.Contains(err.Error(), "operation failed:") {
+				kmsWorkflow.Logger.Error("Error encountered during SDE migration; Setting CMEK policy in VCP to error state", log.Fields{
+					"error":  err,
+					"params": params,
+				})
+			}
+			return vsaCmekMigrationSkippedPoolReason, workflows.ConvertToVSAError(err)
+		}
+
+		// Describe SDE KMS config and sync VCP DB if needed
+		var sdeKmsConfig cvpmodels.KmsConfigV1beta
+		getKmsConfigParams := &common.GetKmsConfigParams{
+			UUID:          sdeKmsConfigUUID,
+			LocationID:    params.LocationID,
+			ProjectNumber: params.AccountName,
+		}
+		err = workflow.ExecuteActivity(ctx, kmsConfigActivity.DescribeSDEKmsConfigurationActivity, getKmsConfigParams).Get(ctx, &sdeKmsConfig)
+		if err != nil {
+			if errors.IsNotFoundErr(err) {
+				kmsWorkflow.Logger.Info("KMS configuration not found in SDE DB after CMEK migration")
+			}
+			return vsaCmekMigrationSkippedPoolReason, workflows.ConvertToVSAError(err)
+		}
+
+		if sdeKmsConfig.Description != nil {
+			paramsForSyncingAndEKMCreation.Description = *sdeKmsConfig.Description
+		}
+		vsaKmsConfig := datamodel.KmsConfig{}
+		err = workflow.ExecuteActivity(ctx, kmsConfigActivity.GetKmsConfigActivity, kmsConfigUUID).Get(ctx, &vsaKmsConfig)
+		if err != nil {
+			var appErr *temporal.ApplicationError
+			if errorcore.As(err, &appErr) && appErr.NonRetryable() && appErr.Type() == kms_activities.ErrTypeKmsConfigNotFound {
+				kmsWorkflow.Logger.Info("KMS configuration not found in VCP DB - Syncing SDE and VCP DBs...")
+				sdeKmsConfig.KmsState = models.LifeCycleStateMigrating
+				sdeKmsConfig.KmsStateDetails = models.LifeCycleStateMigratingDetails
+				createKmsConfigParams := kms_activities.ConvertToCreateKmsConfigParams(&sdeKmsConfig, &paramsForSyncingAndEKMCreation)
+				errSync := syncBetweenSdeAndVsaDBs(ctx, createKmsConfigParams)
+				if errSync != nil {
+					kmsWorkflow.Logger.Error("VSA KMS configuration syncing with SDE DB has failed...", log.Fields{"error": errSync})
+					return vsaCmekMigrationSkippedPoolReason, workflows.ConvertToVSAError(errSync)
+				}
+			} else {
+				return vsaCmekMigrationSkippedPoolReason, workflows.ConvertToVSAError(err)
+			}
+		}
 	}
+
+	// VCP path: KMS config already in VCP DB, no SDE migration/sync needed.
+	// Proceed directly to pool/volume migration.
 
 	poolActivity := &activities.PoolActivity{}
 	volumeActivity := &activities.VolumeCreateActivity{}
@@ -185,49 +244,6 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 	if len(poolsForAccount) < 1 {
 		kmsWorkflow.Logger.Info("For the following pools migration was skipped:\n" + vsaCmekMigrationSkippedPoolReason)
 		return vsaCmekMigrationSkippedPoolReason, nil
-	}
-
-	// -----   Sync VCP DB with SDE DB (if required)     -----
-
-	var sdeKmsConfig cvpmodels.KmsConfigV1beta
-	getKmsConfigParams := &common.GetKmsConfigParams{
-		UUID:          sdeKmsConfigUUID,
-		LocationID:    params.LocationID,
-		ProjectNumber: params.AccountName,
-	}
-	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.DescribeSDEKmsConfigurationActivity, getKmsConfigParams).Get(ctx, &sdeKmsConfig)
-	if err != nil {
-		if errors.IsNotFoundErr(err) {
-			kmsWorkflow.Logger.Info("KMS configuration not found in SDE DB after CMEK migration")
-		}
-		return vsaCmekMigrationSkippedPoolReason, workflows.ConvertToVSAError(err)
-	}
-
-	paramsForSyncingAndEKMCreation := common.CreatePoolParams{
-		AccountName: params.AccountName,
-		Region:      params.LocationID,
-		KmsConfigId: kmsConfigUUID,
-	}
-	if sdeKmsConfig.Description != nil {
-		paramsForSyncingAndEKMCreation.Description = *sdeKmsConfig.Description
-	}
-	vsaKmsConfig := datamodel.KmsConfig{}
-	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.GetKmsConfigActivity, kmsConfigUUID).Get(ctx, &vsaKmsConfig)
-	if err != nil {
-		var appErr *temporal.ApplicationError
-		if errorcore.As(err, &appErr) && appErr.NonRetryable() && appErr.Type() == kms_activities.ErrTypeKmsConfigNotFound {
-			kmsWorkflow.Logger.Info("KMS configuration not found in VCP DB - Syncing SDE and VCP DBs...")
-			sdeKmsConfig.KmsState = models.LifeCycleStateMigrating
-			sdeKmsConfig.KmsStateDetails = models.LifeCycleStateMigratingDetails
-			createKmsConfigParams := kms_activities.ConvertToCreateKmsConfigParams(&sdeKmsConfig, &paramsForSyncingAndEKMCreation)
-			errSync := syncBetweenSdeAndVsaDBs(ctx, createKmsConfigParams)
-			if errSync != nil {
-				kmsWorkflow.Logger.Error("VSA KMS configuration syncing with SDE DB has failed...", log.Fields{"error": errSync})
-				return vsaCmekMigrationSkippedPoolReason, workflows.ConvertToVSAError(errSync)
-			}
-		} else {
-			return vsaCmekMigrationSkippedPoolReason, workflows.ConvertToVSAError(err)
-		}
 	}
 
 	//     -----   Migrate VSA resources     -----
@@ -465,10 +481,13 @@ func syncBetweenSdeAndVsaDBs(ctx workflow.Context, createKmsConfigParams *common
 		return err
 	}
 
-	// Grant the necessary roles to the service account
-	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.GrantRoleActivity, kmsConfig).Get(ctx, nil)
-	if err != nil {
-		return err
+	// VCP-created configs: skip GrantRoleActivity — the VCP SA has direct access to the customer's KMS key.
+	// SDE-created configs: grant the necessary roles to the service account for impersonation.
+	if kmsConfig.KmsAttributes == nil || !kmsConfig.KmsAttributes.IsVCPCreated() {
+		err = workflow.ExecuteActivity(ctx, kmsConfigActivity.GrantRoleActivity, kmsConfig).Get(ctx, nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Access a crypto key using the KMS config in the VSA database to make sure key is reachable

@@ -3,6 +3,7 @@ package google
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
@@ -191,6 +192,24 @@ func DeleteServiceAccountKeyWithRetry(ctx context.Context, c *GcpServices, keyNa
 		return err
 	}
 	return nil
+}
+
+// IsServiceAccountKeyPresent checks whether a specific USER_MANAGED key (identified by keyID)
+// exists in GCP for the given service account email. The keyID is matched against the suffix
+// of the key resource name (e.g. "projects/-/serviceAccounts/{email}/keys/{keyID}").
+func (c *GcpServices) IsServiceAccountKeyPresent(ctx context.Context, email, keyID string) (bool, error) {
+	keyList, err := listServiceAccountsKeysWithRetry(ctx, c, keyResourceUrlPrefix+email)
+	if err != nil {
+		return false, fmt.Errorf("failed to list service account keys for %s: %v", email, err)
+	}
+	if keyList.Keys != nil {
+		for _, key := range keyList.Keys {
+			if key.KeyType == "USER_MANAGED" && strings.HasSuffix(key.Name, "/"+keyID) {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }
 
 func (c *GcpServices) DeleteServiceAccountKeysExcludingKey(ctx context.Context, email, keyToExclude string) error {

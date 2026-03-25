@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/go-openapi/strfmt"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	ontapmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/core-api/core-servergen"
@@ -67,6 +68,9 @@ var (
 	MinHotTierSize                   = env.GetUint64("MIN_HOT_TIER_SIZE", 1099511627776) // 1 TiB
 	MinHotTierSizeLargeVolumes       = env.GetUint64("MIN_HOT_TIER_SIZE_LARGE_VOLUMES", 6*TiBInBytes)
 	CreateCommonResourcesInVCP       = env.GetBool("CREATE_COMMON_RESOURCES_IN_VCP", true)
+	ValidateSAKeyInGCP               = env.GetBool("VALIDATE_SA_KEY_IN_GCP", true)
+	CmekGlobalProjectID              = env.GetString("CMEK_GLOBAL_PROJECT_ID", "")
+	RegionNumberMap                  = env.GetString("REGION_NUMBER_MAP", DefaultRegionNumberMap)
 	SyncADCreateSDEEnabled           = env.GetBool("AD_CREATE_SYNC_SDE_ENABLED", true)
 	EnableMultiAD                    = env.GetBool("ENABLE_MULTI_AD", false)
 	MaxNumberOfADPerAccount          = env.GetInt("MAX_NUMBER_OF_AD_PER_ACCOUNT", 5)
@@ -109,10 +113,30 @@ var (
 	RestoreVolumeBufferEnabled             = env.GetBool("RESTORE_VOLUME_BUFFER_ENABLED", false)
 	EnableBackupVaultSwitching             = env.GetBool("ENABLE_BACKUP_VAULT_SWITCHING", false)
 	enableKerberos                         = env.GetBool("ENABLE_KERBEROS", false)
+	// TODO: Remove FORCE_VCP_KMS_PATH_FOR_TESTING once CMEK VPC-SC testing is complete.
+	ForceVCPKMSPathForTesting = env.GetBool("FORCE_VCP_KMS_PATH_FOR_TESTING", false)
 
 	// Will match ONTAP version strings like "9.7.1", "9.8.2P3", "10.1.0", "10.3.1P2", etc.
 	ontapVersionRegex = regexp.MustCompile(`\d+\.\d+\.\d+(?:P\d+)?`)
 )
+
+// IsCVPHostSet returns true when CVP_HOST is configured, indicating SDE mode is active.
+func IsCVPHostSet() bool {
+	if ForceVCPKMSPathForTesting {
+		return false
+	}
+	return cvp.CVP_HOST != ""
+}
+
+// IsCVPHostConfigured returns true when CVP_HOST is configured.
+// Unlike IsCVPHostSet, this check ignores test overrides.
+func IsCVPHostConfigured() bool {
+	return cvp.CVP_HOST != ""
+}
+
+// DefaultRegionNumberMap is the default JSON mapping of GCP regions to numeric codes.
+// Used for node serial number generation and CMEK service account naming.
+const DefaultRegionNumberMap = `{"africa-south1": "01","asia-east1": "02","asia-east2": "03","asia-northeast1": "04","asia-northeast2": "05","asia-northeast3": "06","asia-south1": "07","asia-south2": "08","asia-southeast1": "09","asia-southeast2": "10","australia-southeast1": "11","australia-southeast2": "12","europe-central2": "13","europe-north1": "14","europe-north2": "15","europe-southwest1": "16","europe-west1": "17","europe-west10": "18","europe-west12": "19","europe-west2": "20","europe-west3": "21","europe-west4": "22","europe-west6": "23","europe-west8": "24","europe-west9": "25","me-central1": "26","me-central2": "27","me-west1": "28","northamerica-northeast1": "29","northamerica-northeast2": "30","northamerica-south1": "31","southamerica-east1": "32","southamerica-west1": "33","us-central1": "34","us-east1": "35","us-east4": "36","us-east5": "37","us-south1": "38","us-west1": "39","us-west2": "40","us-west3": "41","us-west4": "42"}`
 
 const (
 	lowercaseLetters           = "abcdefghijklmnopqrstuvwxyz"
@@ -129,15 +153,15 @@ const (
 	BackupTypeMANUAL           = "MANUAL"
 	BackupTypeSCHEDULED        = "SCHEDULED"
 	// Pool QosType validation errors
-	ErrMsgPoolAutoQosTypeCannotSpecifyThroughput = "Pool has auto QoS type. Cannot specify throughputMibps. Volumes inherit QoS from the pool."
-	ErrMsgPoolAutoQosTypeCannotSpecifyIops       = "Pool has auto QoS type. Cannot specify iops. Volumes inherit QoS from the pool."
-	ErrMsgPoolAutoQosTypeCannotSpecifyVpgId      = "Pool has auto QoS type. Cannot specify volumePerformanceGroupId. Volumes inherit QoS from the pool."
+	ErrMsgPoolAutoQosTypeCannotSpecifyThroughput   = "Pool has auto QoS type. Cannot specify throughputMibps. Volumes inherit QoS from the pool."
+	ErrMsgPoolAutoQosTypeCannotSpecifyIops         = "Pool has auto QoS type. Cannot specify iops. Volumes inherit QoS from the pool."
+	ErrMsgPoolAutoQosTypeCannotSpecifyVpgId        = "Pool has auto QoS type. Cannot specify volumePerformanceGroupId. Volumes inherit QoS from the pool."
 	ErrMsgPoolManualQosTypeRequiresThroughputOrVpg = "Pool has manual QoS type. Either throughputMibps (with iops) or volumePerformanceGroupId must be provided."
-	ErrMsgVpgMutuallyExclusiveWithQos             = "Cannot specify throughputMibps or iops with volumePerformanceGroupId. They are mutually exclusive."
-	ErrMsgVpgAssignmentNotEnabled                 = "Volume performance group assignment is not enabled"
-	ErrMsgMqosNotEnabledThroughput                = "Manual QoS (MQOS) is not enabled. throughputMibps parameter is not supported."
-	ErrMsgMqosNotEnabledIops                      = "Manual QoS (MQOS) is not enabled. iops parameter is not supported."
-	ErrMsgMqosNotEnabledVpgId                     = "Manual QoS (MQOS) is not enabled. volumePerformanceGroupId parameter is not supported."
+	ErrMsgVpgMutuallyExclusiveWithQos              = "Cannot specify throughputMibps or iops with volumePerformanceGroupId. They are mutually exclusive."
+	ErrMsgVpgAssignmentNotEnabled                  = "Volume performance group assignment is not enabled"
+	ErrMsgMqosNotEnabledThroughput                 = "Manual QoS (MQOS) is not enabled. throughputMibps parameter is not supported."
+	ErrMsgMqosNotEnabledIops                       = "Manual QoS (MQOS) is not enabled. iops parameter is not supported."
+	ErrMsgMqosNotEnabledVpgId                      = "Manual QoS (MQOS) is not enabled. volumePerformanceGroupId parameter is not supported."
 	// ActiveDirectoryGroupBuiltInBackupOperators defines the name of the built-in backup operators group
 	ActiveDirectoryGroupBuiltInBackupOperators = `BUILTIN\Backup Operators`
 
@@ -1409,7 +1433,7 @@ func IsOntapVersionGreaterOrEqual(version, targetVersion string) bool {
 }
 
 func ConvertLabelsMapToJSONB(labels map[string]string) *datamodel.JSONB {
-	if labels == nil || len(labels) == 0 {
+	if len(labels) == 0 {
 		return nil
 	}
 

@@ -97,18 +97,7 @@ type OrchestratorFactory interface {
 	ReverseAndResumeReplication(ctx context.Context, params *commonparams.ReverseAndResumeReplicationParams) (*models.VolumeReplication, *string, error)
 
 	// KMS Config related methods
-	CreateKmsConfig(ctx context.Context, params *commonparams.CreateKmsConfigParams) (*models.KmsConfig, string, error)
-	GetKmsConfig(ctx context.Context, params *commonparams.GetKmsConfigParams) (*models.KmsConfig, error)
-	GetKmsConfigByKeyFullPath(ctx context.Context, params *commonparams.GetKmsConfigParams) (*models.KmsConfig, error)
-	GetMultipleKMSConfigs(ctx context.Context, kmsConfigIDList []string) ([]*models.KmsConfig, error)
-	UpdateKmsConfig(ctx context.Context, params *commonparams.UpdateKmsConfigParams) (*models.KmsConfig, error)
-	CheckAndUpdateKmsConfigHealth(ctx context.Context, params *models.KmsConfigCheck) (*models.KmsConfig, error)
-	AccessCryptoKeyAndEncryptDataWithImpersonation(ctx context.Context, kmsConfig *models.KmsConfig) error
-	DeleteKmsConfig(ctx context.Context, params *commonparams.DeleteKmsConfigParams) (*models.KmsConfig, string, error)
-	MigrateKmsConfig(ctx context.Context, params *commonparams.MigrateKmsConfigParams) (string, error)
-	RotateKmsConfig(ctx context.Context, params *commonparams.RotateKmsConfigParams) (*models.KmsConfig, *models.Job, error)
-	CreateAndSyncKmsConfig(ctx context.Context, params *commonparams.CreateKmsConfigParams) (*models.KmsConfig, error)
-	GetSDEKmsConfiguration(ctx context.Context, params *commonparams.GetKmsConfigParams) (*cvpmodels.KmsConfigV1beta, error)
+	gcp.KmsConfigInterface
 
 	GetBackupVaultByNameAndOwnerID(ctx context.Context, bvName, ownerID string) (*models.BackupVaultV1beta, error)
 	GetBackupPolicyByNameAndOwnerID(ctx context.Context, backupPolicyName, ownerID string) (*models.BackupPolicy, error)

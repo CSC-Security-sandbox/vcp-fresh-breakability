@@ -42,6 +42,7 @@ data:
   CERTIFICATE_ROTATION_CRON_EXPRESSION: "{{ index .Values "certificateRotationCronExpression" }}"
   LOGGER_LEVEL: "{{ index .Values "loggerLevel" }}"
   CVP_HOST: "{{ index .Values "cvpHost" }}"
+  FORCE_VCP_KMS_PATH_FOR_TESTING: "{{ index .Values "forceVcpKmsPathForTesting" }}"
   CORE_API_HOST: "{{ index .Values "coreApi" "host" }}"
   VSA_AUTH_TYPE: "{{ index .Values "vsaAuthType" }}" #0 for username/password, 1 for username/password in secret manager and 2 for certificate authentication
   BACKUP_ENABLED: "{{ index .Values "backupEnabled" }}"
