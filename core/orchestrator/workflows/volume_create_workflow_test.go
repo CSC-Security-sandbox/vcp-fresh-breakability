@@ -3549,15 +3549,99 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_ParseVlmConfigError() {
 		utils.SetExperimentalVersionAllowlistedAccountsForTesting("")
 	}()
 
-	s.env.OnActivity(poolActivity.ParseVlmConfig, mock.Anything, mock.Anything).Return(nil, errors.New("failed to parse VLM config"))
+	parseVLM_Config_Failure := temporal.NewNonRetryableApplicationError(
+		"An error occurred during VLM config parsing. Please contact support.",
+		vsaerrors.CustomErrorType,
+		nil,
+		vsaerrors.ErrVLMConfigParseError,
+		"Failed to parse VLM config",
+	)
+
+	s.env.OnActivity(poolActivity.ParseVlmConfig, mock.Anything, mock.Anything).Return(nil, parseVLM_Config_Failure)
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: database.NewMockStorage(s.T())}
 	s.env.OnActivity(volumeCreateActivity.GetOntapClusterHealth, mock.Anything, mock.Anything).Return(isOntapClusterHealthy, nil)
 
 	s.env.ExecuteWorkflow(PreFileVolumeWorkflow, volume, &models.Node{})
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Error(s.T(), s.env.GetWorkflowError())
-	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "Failed to parse VLM config")
+	err := s.env.GetWorkflowError()
+	assert.Error(s.T(), err)
+	customErr := vsaerrors.ExtractCustomError(err)
+	assert.NotNil(s.T(), customErr)
+	assert.NotNil(s.T(), customErr.OriginalErr)
+	assert.Equal(s.T(), customErr.TrackingID, vsaerrors.ErrVLMConfigParseError)
+	assert.Equal(s.T(), customErr.Message, "An error occurred during VLM config parsing. Please contact support.")
+	assert.Contains(s.T(), customErr.OriginalErr.Error(), "Failed to parse VLM config")
+}
+
+func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_GetOnTapCredentials_Error() {
+	// Test PreFileVolumeWorkflow when ParseVlmConfig fails (lines 222-223)
+	mockStorage := database.NewMockStorage(s.T())
+	poolActivity := activities.PoolActivity{SE: mockStorage}
+	isOntapClusterHealthy := new(bool)
+	*isOntapClusterHealthy = true
+	s.env.RegisterActivity(poolActivity.ParseVlmConfig)
+	s.env.RegisterActivity(poolActivity.HasNasLifInVLMConfig)
+	s.env.RegisterActivity(poolActivity.SetupNasFirewalls)
+	s.env.RegisterActivity(poolActivity.GetOnTapCredentials)
+
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{
+			BuildInfo: &datamodel.PoolBuildInfo{OntapVersion: "9.18.1"},
+		},
+		Svm: &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols: []string{"NFSV3"},
+		},
+	}
+
+	vlmConfig := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			DevFlags: vlm.DevFlags{
+				EnableIlbSupport: false,
+			},
+		},
+		Svm: map[string]vlm.SvmConfig{},
+	}
+
+	utils.SetFileProtocolSupportedForTesting(true)
+	utils.SetExperimentalVersionAllowlistedAccountsForTesting("test-account")
+	defer func() {
+		utils.SetFileProtocolSupportedForTesting(false)
+		utils.SetExperimentalVersionAllowlistedAccountsForTesting("")
+	}()
+
+	getOntapCredentials_Failure := temporal.NewNonRetryableApplicationError(
+		"Resource not found",
+		vsaerrors.CustomErrorType,
+		nil,
+		vsaerrors.ErrResourceNotFound,
+		"Failed to get Ontap Credentials",
+	)
+
+	firewallOps := &[]common.Operations{
+		{OperationName: "op1", IsDone: false},
+	}
+
+	s.env.OnActivity(poolActivity.ParseVlmConfig, mock.Anything, mock.Anything).Return(vlmConfig, nil)
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: database.NewMockStorage(s.T())}
+	s.env.OnActivity(volumeCreateActivity.GetOntapClusterHealth, mock.Anything, mock.Anything).Return(isOntapClusterHealthy, nil)
+	s.env.OnActivity(poolActivity.HasNasLifInVLMConfig, mock.Anything, mock.Anything).Return(false, nil)
+	s.env.OnActivity(poolActivity.SetupNasFirewalls, mock.Anything, "test-project", "test-network").Return(firewallOps, nil)
+	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.Anything).Return(nil, getOntapCredentials_Failure)
+	s.env.OnWorkflow(WaitForGCPNetworkOperationStatusWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.ExecuteWorkflow(PreFileVolumeWorkflow, volume, &models.Node{})
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	err := s.env.GetWorkflowError()
+	assert.Error(s.T(), err)
+	customErr := vsaerrors.ExtractCustomError(err)
+	assert.NotNil(s.T(), customErr)
+	assert.NotNil(s.T(), customErr.OriginalErr)
+	assert.Equal(s.T(), customErr.TrackingID, vsaerrors.ErrResourceNotFound)
+	assert.Equal(s.T(), customErr.Message, "Resource not found")
+	assert.Contains(s.T(), customErr.OriginalErr.Error(), "Failed to get Ontap Credentials")
 }
 
 func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_MissingPoolDetails() {
@@ -3600,7 +3684,7 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_Missin
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
-	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "pool details not loaded")
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "An internal error occurred")
 }
 
 func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_MissingNetworkDetails() {
@@ -3691,18 +3775,32 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_Firewa
 		},
 		Svm: map[string]vlm.SvmConfig{},
 	}
+
+	setupNASFirewallErr := temporal.NewNonRetryableApplicationError(
+		"Resource not found",
+		vsaerrors.CustomErrorType,
+		nil,
+		vsaerrors.ErrResourceNotFound,
+		"Failed to setup NAS firewalls",
+	)
+
 	s.env.OnActivity(poolActivity.ParseVlmConfig, mock.Anything, mock.Anything).Return(vlmConfig, nil)
 	// Mock HasNasLifInVLMConfig to return false since vlmConfig doesn't have NAS LIF configured
 	s.env.OnActivity(poolActivity.HasNasLifInVLMConfig, mock.Anything, mock.Anything).Return(false, nil)
-	s.env.OnActivity(poolActivity.SetupNasFirewalls, mock.Anything, "test-project", "test-network").Return(nil, errors.New("firewall setup failed"))
+	s.env.OnActivity(poolActivity.SetupNasFirewalls, mock.Anything, "test-project", "test-network").Return(nil, setupNASFirewallErr)
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: database.NewMockStorage(s.T())}
 	s.env.OnActivity(volumeCreateActivity.GetOntapClusterHealth, mock.Anything, mock.Anything).Return(isOntapClusterHealthy, nil)
 
 	s.env.ExecuteWorkflow(PreFileVolumeWorkflow, volume, &models.Node{})
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Error(s.T(), s.env.GetWorkflowError())
-	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "Failed to setup NAS firewalls")
+	err := s.env.GetWorkflowError()
+	assert.Error(s.T(), err)
+	customErr := vsaerrors.ExtractCustomError(err)
+	assert.NotNil(s.T(), customErr)
+	assert.NotNil(s.T(), customErr.OriginalErr)
+	assert.Contains(s.T(), customErr.Message, "Resource not found")
+	assert.Contains(s.T(), customErr.OriginalErr.Error(), "Failed to setup NAS firewalls")
 }
 
 func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_FirewallWaitError() {
@@ -3750,6 +3848,14 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_Firewa
 		{OperationName: "op1", IsDone: false},
 	}
 
+	gcpNetworkOperationFailure := temporal.NewNonRetryableApplicationError(
+		"An internal error occurred.",
+		vsaerrors.CustomErrorType,
+		nil,
+		vsaerrors.ErrGCPResourceProvisionError,
+		"Failed to wait for NAS firewall operations",
+	)
+
 	s.env.OnActivity(poolActivity.ParseVlmConfig, mock.Anything, mock.Anything).Return(vlmConfig, nil)
 	// Mock HasNasLifInVLMConfig to return false since vlmConfig doesn't have NAS LIF configured
 	s.env.OnActivity(poolActivity.HasNasLifInVLMConfig, mock.Anything, mock.Anything).Return(false, nil)
@@ -3758,13 +3864,18 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_Firewa
 	s.env.OnActivity(volumeCreateActivity.GetOntapClusterHealth, mock.Anything, mock.Anything).Return(isOntapClusterHealthy, nil)
 
 	// Mock WaitForGCPNetworkOperationStatusWorkflow child workflow to fail
-	s.env.OnWorkflow(WaitForGCPNetworkOperationStatusWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to wait for operations"))
+	s.env.OnWorkflow(WaitForGCPNetworkOperationStatusWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(gcpNetworkOperationFailure)
 
 	s.env.ExecuteWorkflow(PreFileVolumeWorkflow, volume, &models.Node{})
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Error(s.T(), s.env.GetWorkflowError())
-	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "Failed to wait for NAS firewall operations")
+	err := s.env.GetWorkflowError()
+	assert.Error(s.T(), err)
+	customErr := vsaerrors.ExtractCustomError(err)
+	assert.NotNil(s.T(), customErr)
+	assert.NotNil(s.T(), customErr.OriginalErr)
+	assert.Equal(s.T(), customErr.TrackingID, vsaerrors.ErrGCPResourceProvisionError)
+	assert.Contains(s.T(), customErr.OriginalErr.Error(), "Failed to wait for NAS firewall operations")
 }
 
 func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_FirewallAlreadyExists() {
@@ -3895,6 +4006,14 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_Modify
 	}
 	emptyFirewallOps := &[]common.Operations{}
 
+	configureNAS_LIF_Failure := temporal.NewNonRetryableApplicationError(
+		"An error occurred during VLM workflow execution. Please try again or contact support if the issue persists.",
+		vsaerrors.CustomErrorType,
+		nil,
+		vsaerrors.ErrVLMWorkflowError,
+		"Failed to configure NAS LIF",
+	)
+
 	s.env.OnActivity(poolActivity.ParseVlmConfig, mock.Anything, mock.Anything).Return(vlmConfig, nil)
 	// Mock HasNasLifInVLMConfig to return false since vlmConfig doesn't have NAS LIF configured
 	s.env.OnActivity(poolActivity.HasNasLifInVLMConfig, mock.Anything, mock.Anything).Return(false, nil)
@@ -3909,7 +4028,7 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_Modify
 	originalNewVSAClientWorkflowManager := vlm.NewVSAClientWorkflowManager
 	mockVLMClient := vlm.NewMockVlmWorkflowClient(s.T())
 	// Set expectation to return error for ModifyVSASVMWorkflow
-	mockVLMClient.EXPECT().ModifyVSASVMWorkflow(mock.Anything, mock.Anything).Return(nil, errors.New("ModifyVSASVMWorkflow failed"))
+	mockVLMClient.EXPECT().ModifyVSASVMWorkflow(mock.Anything, mock.Anything).Return(nil, configureNAS_LIF_Failure)
 	vlm.NewVSAClientWorkflowManager = func() vlm.VlmWorkflowClient {
 		return mockVLMClient
 	}
@@ -3920,8 +4039,13 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_Modify
 	s.env.ExecuteWorkflow(PreFileVolumeWorkflow, volume, &models.Node{})
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Error(s.T(), s.env.GetWorkflowError())
-	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "Failed to configure NAS LIF")
+	err := s.env.GetWorkflowError()
+	assert.Error(s.T(), err)
+	customErr := vsaerrors.ExtractCustomError(err)
+	assert.NotNil(s.T(), customErr)
+	assert.NotNil(s.T(), customErr.OriginalErr)
+	assert.Equal(s.T(), customErr.TrackingID, vsaerrors.ErrVLMWorkflowError)
+	assert.Contains(s.T(), customErr.OriginalErr.Error(), "Failed to configure NAS LIF")
 }
 
 func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_MarshalError() {
@@ -4047,6 +4171,14 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_SaveSV
 	}
 	emptyFirewallOps := &[]common.Operations{}
 
+	saveSVM_And_LIF_Data_Failure := temporal.NewNonRetryableApplicationError(
+		"An internal error occurred.",
+		vsaerrors.CustomErrorType,
+		nil,
+		vsaerrors.ErrIncorrectVSAClusterState,
+		"failed to save SVM and LIFs to database",
+	)
+
 	s.env.OnActivity(poolActivity.ParseVlmConfig, mock.Anything, mock.Anything).Return(vlmConfig, nil)
 	s.env.OnActivity(poolActivity.HasNasLifInVLMConfig, mock.Anything, mock.Anything).Return(false, nil)
 	s.env.OnActivity(poolActivity.SetupNasFirewalls, mock.Anything, "test-project", "test-network").Return(emptyFirewallOps, nil)
@@ -4069,13 +4201,18 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_SaveSV
 		vlm.NewVSAClientWorkflowManager = originalNewVSAClientWorkflowManager
 	}()
 
-	s.env.OnActivity(poolActivity.SaveSVMAndLifData, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Svm)(nil), errors.New("failed to save SVM"))
+	s.env.OnActivity(poolActivity.SaveSVMAndLifData, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Svm)(nil), saveSVM_And_LIF_Data_Failure)
 
 	s.env.ExecuteWorkflow(PreFileVolumeWorkflow, volume, &models.Node{})
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Error(s.T(), s.env.GetWorkflowError())
-	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "failed to save SVM and LIFs to database")
+	err := s.env.GetWorkflowError()
+	assert.Error(s.T(), err)
+	customErr := vsaerrors.ExtractCustomError(err)
+	assert.NotNil(s.T(), customErr)
+	assert.NotNil(s.T(), customErr.OriginalErr)
+	assert.Equal(s.T(), customErr.TrackingID, vsaerrors.ErrIncorrectVSAClusterState)
+	assert.Contains(s.T(), customErr.OriginalErr.Error(), "failed to save SVM and LIFs to database")
 }
 
 func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_UpdatePoolFieldsError() {
@@ -4126,6 +4263,14 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_Update
 	}
 	emptyFirewallOps := &[]common.Operations{}
 
+	updatePool_Failure := temporal.NewNonRetryableApplicationError(
+		"An internal error occurred..",
+		vsaerrors.CustomErrorType,
+		nil,
+		vsaerrors.ErrDatabaseDataUpdateError,
+		"Failed to update pool with VLMConfig",
+	)
+
 	s.env.OnActivity(poolActivity.ParseVlmConfig, mock.Anything, mock.Anything).Return(vlmConfig, nil)
 	// Mock HasNasLifInVLMConfig to return false since vlmConfig doesn't have NAS LIF configured
 	s.env.OnActivity(poolActivity.HasNasLifInVLMConfig, mock.Anything, mock.Anything).Return(false, nil)
@@ -4155,13 +4300,18 @@ func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_Update
 		vlm.NewVSAClientWorkflowManager = originalNewVSAClientWorkflowManager
 	}()
 
-	s.env.OnActivity(poolActivity.UpdatePoolFields, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update pool fields"))
+	s.env.OnActivity(poolActivity.UpdatePoolFields, mock.Anything, mock.Anything, mock.Anything).Return(updatePool_Failure)
 
 	s.env.ExecuteWorkflow(PreFileVolumeWorkflow, volume, &models.Node{})
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Error(s.T(), s.env.GetWorkflowError())
-	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "Failed to update pool with VLMConfig")
+	err := s.env.GetWorkflowError()
+	assert.Error(s.T(), err)
+	customErr := vsaerrors.ExtractCustomError(err)
+	assert.NotNil(s.T(), customErr)
+	assert.NotNil(s.T(), customErr.OriginalErr)
+	assert.Equal(s.T(), customErr.TrackingID, vsaerrors.ErrDatabaseDataUpdateError)
+	assert.Contains(s.T(), customErr.OriginalErr.Error(), "Failed to update pool with VLMConfig")
 }
 
 func (s *UnitTestSuite) Test_PreFileVolumeWorkflow_NASInfrastructureSetup_Success() {

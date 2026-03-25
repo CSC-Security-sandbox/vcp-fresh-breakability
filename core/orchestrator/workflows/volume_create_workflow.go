@@ -257,14 +257,14 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 	err = workflow.ExecuteActivity(ctx, poolActivity.ParseVlmConfig, dbVolume.Pool).Get(ctx, &vlmConfig)
 	if err != nil {
 		log.Error("Failed to parse VLM config for NAS LIF check", "error", err)
-		return nil, ConvertToVSAError(fmt.Errorf("Failed to parse VLM config: %w", err))
+		return nil, WrapErrorForChildWorkflow(err)
 	}
 
 	// Check if pool details are loaded before proceeding
 	if dbVolume.Pool == nil {
 		err = fmt.Errorf("pool details not loaded for volume %s", dbVolume.UUID)
 		log.Error("Pool details missing during NAS LIF check", "error", err)
-		return nil, ConvertToVSAError(vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, err))
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, err))
 	}
 
 	ontapVersion := activities.GetOntapVersionFromPool(dbVolume.Pool)
@@ -276,7 +276,7 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 		err = workflow.ExecuteActivity(ctx, poolActivity.HasNasLifInVLMConfig, *vlmConfig).Get(ctx, &hasNasLif)
 		if err != nil {
 			log.Error("Failed to check for NAS LIF in VLM config", "error", err)
-			return nil, ConvertToVSAError(fmt.Errorf("Failed to check for NAS LIF in VLM config: %w", err))
+			return nil, WrapErrorForChildWorkflow(err)
 		}
 		if !hasNasLif {
 			log.Info("NAS LIF not found in VLMConfig, setting up NAS infrastructure", "pool", dbVolume.Pool.Name, "svm", dbVolume.Svm.Name)
@@ -293,7 +293,7 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 				err = workflow.ExecuteActivity(ctx, poolActivity.SetupNasFirewalls, poolClusterDetails.SnHostProject, poolClusterDetails.Network).Get(ctx, &firewallOperations)
 				if err != nil {
 					log.Error("Failed to setup NAS firewalls", "error", err, "pool", dbVolume.Pool.Name)
-					return nil, ConvertToVSAError(fmt.Errorf("Failed to setup NAS firewalls: %w", err))
+					return nil, WrapErrorForChildWorkflow(err)
 				}
 				// Wait for firewall operations to complete using child workflow
 				if firewallOperations != nil && len(*firewallOperations) > 0 {
@@ -304,7 +304,7 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 					err = workflow.ExecuteChildWorkflow(firewallChildCtx, WaitForGCPNetworkOperationStatusWorkflow, firewallOperations, retryPolicy.StartToCloseTimeout).Get(firewallChildCtx, nil)
 					if err != nil {
 						log.Error("Failed to wait for NAS firewall operations to complete", "error", err, "pool", dbVolume.Pool.Name)
-						return nil, ConvertToVSAError(fmt.Errorf("Failed to wait for NAS firewall operations: %w", err))
+						return nil, WrapErrorForChildWorkflow(err)
 					}
 					log.Info("Successfully set up NAS firewalls", "pool", dbVolume.Pool.Name, "operations", len(*firewallOperations))
 				} else {
@@ -319,7 +319,7 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 			err = workflow.ExecuteActivity(ctx, poolActivity.GetOnTapCredentials, dbVolume.Pool).Get(ctx, &ontapCredentials)
 			if err != nil {
 				log.Error("Failed to get ONTAP credentials for ModifyVSASVMWorkflow", "error", err)
-				return nil, ConvertToVSAError(err)
+				return nil, WrapErrorForChildWorkflow(err)
 			}
 			// Update VLMConfig with EnableIlbSupport = true
 			vlmConfig.Deployment.DevFlags.EnableIlbSupport = true
@@ -335,7 +335,7 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 			modifySVMResponse, err = vlmClient.ModifyVSASVMWorkflow(ctx, modifySVMRequest)
 			if err != nil {
 				log.Error("Failed to configure NAS LIF via ModifyVSASVMWorkflow", "error", err)
-				return nil, ConvertToVSAError(fmt.Errorf("Failed to configure NAS LIF: %w", err))
+				return nil, WrapErrorForChildWorkflow(err)
 			}
 
 			// Get the updated VLMConfig from the response
@@ -345,7 +345,8 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 
 			err = workflow.ExecuteActivity(ctx, poolActivity.SaveSVMAndLifData, dbVolume.Pool, vlmConfig, dbVolume.Svm.Name).Get(ctx, nil)
 			if err != nil {
-				return nil, ConvertToVSAError(fmt.Errorf("failed to save SVM and LIFs to database: %w", err))
+				log.Error("failed to save SVM and LIFs to database", "error", err)
+				return nil, WrapErrorForChildWorkflow(err)
 			}
 
 			// Save updated VLMConfig back to pool using UpdatePoolFields
@@ -354,7 +355,7 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 			err = workflow.ExecuteActivity(ctx, poolActivity.MarshalVLMConfig, *vlmConfig).Get(ctx, &marshalledVlmConfig)
 			if err != nil {
 				log.Error("Failed to marshal VLMConfig", "error", err)
-				return nil, ConvertToVSAError(fmt.Errorf("Failed to marshal VLMConfig: %w", err))
+				return nil, WrapErrorForChildWorkflow(err)
 			}
 			updates := map[string]interface{}{
 				"vlm_config": marshalledVlmConfig,
@@ -363,7 +364,7 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 			err = workflow.ExecuteActivity(ctx, poolActivity.UpdatePoolFields, dbVolume.Pool.UUID, updates).Get(ctx, nil)
 			if err != nil {
 				log.Error("Failed to update pool with VLMConfig after NAS LIF configuration", "error", err)
-				return nil, ConvertToVSAError(fmt.Errorf("Failed to update pool with VLMConfig: %w", err))
+				return nil, WrapErrorForChildWorkflow(err)
 			} else {
 				log.Info("Successfully configured NAS LIF and updated pool VLMConfig", "pool", dbVolume.Pool.Name)
 			}
@@ -377,7 +378,7 @@ func PreFileVolumeWorkflow(ctx workflow.Context, dbVolume *datamodel.Volume, nod
 
 	err = workflow.ExecuteActivity(ctx, volumeActivity.CreateExportPolicyInOntap, &dbVolume, &node).Get(ctx, nil)
 	if err != nil {
-		return nil, err
+		return nil, WrapErrorForChildWorkflow(err)
 	}
 	log.Info("File pre-provisioning: create export policy, etc. (placeholder)")
 	return dbVolume, nil
