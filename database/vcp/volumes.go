@@ -638,14 +638,9 @@ func (d *DataStoreRepository) DereferenceVPGFromDeletedVolumes(ctx context.Conte
 	return nil
 }
 
-func (d *DataStoreRepository) GetVolumeCountByPoolID(ctx context.Context, poolID int64, isOntapMode bool) (int64, error) {
+func (d *DataStoreRepository) GetVolumeCountByPoolID(ctx context.Context, poolID int64) (int64, error) {
 	var count int64
-	var err error
-	if isOntapMode {
-		err = d.db.GORM().WithContext(ctx).Model(&datamodel.ExpertModeVolumes{}).Where("pool_id = ?", poolID).Count(&count).Error
-	} else {
-		err = d.db.GORM().WithContext(ctx).Model(&datamodel.Volume{}).Where("pool_id = ?", poolID).Count(&count).Error
-	}
+	err := d.db.GORM().WithContext(ctx).Model(&datamodel.Volume{}).Where("pool_id = ?", poolID).Count(&count).Error
 	if err != nil {
 		return 0, err
 	}

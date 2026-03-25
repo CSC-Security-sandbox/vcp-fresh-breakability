@@ -11977,9 +11977,9 @@ func (_c *MockDataStore_GetVolumeCountByBackupVaultID_Call) RunAndReturn(run fun
 	return _c
 }
 
-// GetVolumeCountByPoolID provides a mock function with given fields: ctx, poolID, isOntapMode
-func (_m *MockDataStore) GetVolumeCountByPoolID(ctx context.Context, poolID int64, isOntapMode bool) (int64, error) {
-	ret := _m.Called(ctx, poolID, isOntapMode)
+// GetVolumeCountByPoolID provides a mock function with given fields: ctx, poolID
+func (_m *MockDataStore) GetVolumeCountByPoolID(ctx context.Context, poolID int64) (int64, error) {
+	ret := _m.Called(ctx, poolID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetVolumeCountByPoolID")
@@ -11987,17 +11987,17 @@ func (_m *MockDataStore) GetVolumeCountByPoolID(ctx context.Context, poolID int6
 
 	var r0 int64
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, int64, bool) (int64, error)); ok {
-		return rf(ctx, poolID, isOntapMode)
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (int64, error)); ok {
+		return rf(ctx, poolID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, int64, bool) int64); ok {
-		r0 = rf(ctx, poolID, isOntapMode)
+	if rf, ok := ret.Get(0).(func(context.Context, int64) int64); ok {
+		r0 = rf(ctx, poolID)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, int64, bool) error); ok {
-		r1 = rf(ctx, poolID, isOntapMode)
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, poolID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -12013,14 +12013,13 @@ type MockDataStore_GetVolumeCountByPoolID_Call struct {
 // GetVolumeCountByPoolID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - poolID int64
-//   - isOntapMode bool
-func (_e *MockDataStore_Expecter) GetVolumeCountByPoolID(ctx interface{}, poolID interface{}, isOntapMode interface{}) *MockDataStore_GetVolumeCountByPoolID_Call {
-	return &MockDataStore_GetVolumeCountByPoolID_Call{Call: _e.mock.On("GetVolumeCountByPoolID", ctx, poolID, isOntapMode)}
+func (_e *MockDataStore_Expecter) GetVolumeCountByPoolID(ctx interface{}, poolID interface{}) *MockDataStore_GetVolumeCountByPoolID_Call {
+	return &MockDataStore_GetVolumeCountByPoolID_Call{Call: _e.mock.On("GetVolumeCountByPoolID", ctx, poolID)}
 }
 
-func (_c *MockDataStore_GetVolumeCountByPoolID_Call) Run(run func(ctx context.Context, poolID int64, isOntapMode bool)) *MockDataStore_GetVolumeCountByPoolID_Call {
+func (_c *MockDataStore_GetVolumeCountByPoolID_Call) Run(run func(ctx context.Context, poolID int64)) *MockDataStore_GetVolumeCountByPoolID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(int64), args[2].(bool))
+		run(args[0].(context.Context), args[1].(int64))
 	})
 	return _c
 }
@@ -12030,7 +12029,7 @@ func (_c *MockDataStore_GetVolumeCountByPoolID_Call) Return(_a0 int64, _a1 error
 	return _c
 }
 
-func (_c *MockDataStore_GetVolumeCountByPoolID_Call) RunAndReturn(run func(context.Context, int64, bool) (int64, error)) *MockDataStore_GetVolumeCountByPoolID_Call {
+func (_c *MockDataStore_GetVolumeCountByPoolID_Call) RunAndReturn(run func(context.Context, int64) (int64, error)) *MockDataStore_GetVolumeCountByPoolID_Call {
 	_c.Call.Return(run)
 	return _c
 }

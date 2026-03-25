@@ -27727,7 +27727,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 		}
 
 		// Mock GetVolumeCountByPoolID to fail
-		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID, false).Return(int64(0), errors.New("failed to get volume count"))
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(0), errors.New("failed to get volume count"))
 
 		checkAndTriggerPoolScalingIfNeeded(ctx, mockStorage, mockTemporal, pool, false)
 
@@ -27747,7 +27747,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 		}
 
 		// Mock GetVolumeCountByPoolID to succeed
-		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID, false).Return(int64(10), nil)
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(10), nil)
 
 		// Override autoPoolScalingLimits with invalid JSON
 		originalLimits := autoPoolScalingLimits
@@ -27780,7 +27780,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 		}
 
 		// Mock GetVolumeCountByPoolID to succeed with a count that exceeds c3-standard-4-lssd limit (245)
-		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID, false).Return(int64(250), nil)
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(250), nil)
 
 		// Mock GetNodesByPoolID to return nodes with instance type
 		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{
@@ -27824,7 +27824,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 		}
 
 		// Mock GetVolumeCountByPoolID to succeed with a count that exceeds c3-standard-4-lssd limit (245)
-		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID, false).Return(int64(250), nil)
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(250), nil)
 
 		// Mock GetNodesByPoolID to return nodes with instance type
 		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{
@@ -27885,7 +27885,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 		}
 
 		// Mock GetVolumeCountByPoolID to succeed with a count that exceeds c3-standard-4-lssd limit (245)
-		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID, false).Return(int64(250), nil)
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(250), nil)
 
 		// Mock GetNodesByPoolID to return nodes with instance type
 		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{
@@ -27959,7 +27959,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 		}
 
 		// Mock GetVolumeCountByPoolID to succeed with a count that exceeds c3-standard-4-lssd limit (245)
-		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID, false).Return(int64(250), nil)
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(250), nil)
 
 		// Mock GetNodesByPoolID to return nodes with instance type
 		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{
@@ -28008,7 +28008,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 		}
 
 		// Mock GetVolumeCountByPoolID to succeed
-		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID, false).Return(int64(10), nil)
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(10), nil)
 
 		// Override autoPoolScalingLimits with empty JSON object
 		originalLimits := autoPoolScalingLimits
@@ -28056,7 +28056,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 		}
 
 		// Mock GetVolumeCountByPoolID to succeed with a count that exceeds c3-standard-4-lssd limit (245)
-		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID, false).Return(int64(250), nil)
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(250), nil)
 
 		// Mock GetNodesByPoolID to return nodes with instance type
 		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{
@@ -28135,7 +28135,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 		}
 
 		// Mock GetVolumeCountByPoolID to succeed with a count that exceeds c3-standard-4-lssd limit (245)
-		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID, false).Return(int64(250), nil)
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(250), nil)
 
 		// Mock GetNodesByPoolID to return nodes with instance type
 		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{
@@ -28209,7 +28209,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 		}
 
 		// Mock GetVolumeCountByPoolID to succeed with a count that exceeds c3-standard-4-lssd limit (245)
-		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID, false).Return(int64(250), nil)
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(250), nil)
 		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{
 			{
 				BaseModel:      datamodel.BaseModel{ID: 1},
@@ -28282,7 +28282,7 @@ func TestCheckAndTriggerPoolScalingIfNeeded(t *testing.T) {
 		}
 
 		// Mock GetVolumeCountByPoolID to succeed with a count that exceeds c3-standard-4-lssd limit (245)
-		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID, false).Return(int64(250), nil)
+		mockStorage.On("GetVolumeCountByPoolID", ctx, pool.ID).Return(int64(250), nil)
 
 		// Mock GetNodesByPoolID to return nodes with instance type
 		mockStorage.On("GetNodesByPoolID", ctx, pool.ID).Return([]*datamodel.Node{

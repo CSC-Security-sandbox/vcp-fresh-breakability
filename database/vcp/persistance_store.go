@@ -662,8 +662,8 @@ func (s *PersistenceStore) DereferencePoolVolumesFromVPGs(ctx context.Context, p
 	return s.dataStore.DereferencePoolVolumesFromVPGs(ctx, poolID)
 }
 
-func (s *PersistenceStore) GetVolumeCountByPoolID(ctx context.Context, poolID int64, isOntapMode bool) (int64, error) {
-	return s.dataStore.GetVolumeCountByPoolID(ctx, poolID, isOntapMode)
+func (s *PersistenceStore) GetVolumeCountByPoolID(ctx context.Context, poolID int64) (int64, error) {
+	return s.dataStore.GetVolumeCountByPoolID(ctx, poolID)
 }
 
 func (s *PersistenceStore) GetMultipleVolumes(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Volume, error) {

@@ -186,7 +186,7 @@ func (a *ExpertModeVolumeActivity) ValidateONTAPVolumeUpdate(ctx context.Context
 	return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, fmt.Errorf("Volume %s still not updated in ONTAP (UUID: %s), update may be in progress. Will retry.", volume.Name, volume.ExternalUUID)))
 }
 
-// FetchOntapVolumeByUUID fetches a volume from ONTAP by UUID and checks if the update was successful
+// ValidateONTAPVolumeUpdate fetches a volume from ONTAP by UUID and checks if the update was successful
 func (a *ExpertModeVolumeActivity) FetchOntapVolumeByUUID(ctx context.Context, volume *datamodel.ExpertModeVolumes, node *models.Node) (*datamodel.ExpertModeVolumes, error) {
 	logger := util.GetLogger(ctx)
 	activity.RecordHeartbeat(ctx, fmt.Sprintf("Fetching ONTAP volume by UUID for external UUID: %s and Name : %s", volume.ExternalUUID, volume.Name))
