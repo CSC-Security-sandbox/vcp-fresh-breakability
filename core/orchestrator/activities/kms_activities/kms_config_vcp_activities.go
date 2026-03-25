@@ -47,7 +47,7 @@ func (j *KmsConfigActivity) CreateGCPServiceAccountActivity(ctx context.Context,
 	if cmekProjectID == "" {
 		// Permanent configuration error — retrying won't help
 		return nil, errors2.WrapAsNonRetryableTemporalApplicationError(
-			errors2.NewVCPError(errors2.ErrKMSCreateGCPServiceAccount, fmt.Errorf("CMEK_GLOBAL_PROJECT_ID is not configured")))
+			errors2.NewVCPError(errors2.ErrKMSInvalidConfiguration, fmt.Errorf("CMEK_GLOBAL_PROJECT_ID is not configured")))
 	}
 
 	saID, err := generateVCPServiceAccountID(kmsConfig.CustomerProjectID, kmsConfig.KeyRingLocation)

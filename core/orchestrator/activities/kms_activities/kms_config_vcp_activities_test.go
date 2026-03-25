@@ -322,7 +322,8 @@ func TestCreateGCPServiceAccountActivity(t *testing.T) {
 
 		_, err := env.ExecuteActivity(act.CreateGCPServiceAccountActivity, kmsConfig)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Internal error while creating KMS service account")
+		assert.Contains(t, err.Error(), "CMEK service configuration is invalid")
+		assert.Contains(t, err.Error(), "CMEK_GLOBAL_PROJECT_ID is not configured")
 		assert.Contains(t, err.Error(), "retryable: false")
 	})
 

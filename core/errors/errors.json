@@ -2027,6 +2027,12 @@
     "retriable": true,
     "http_code": 500
   },
+  "8016": {
+    "description": "Invalid CMEK service configuration",
+    "message": "CMEK service configuration is invalid",
+    "retriable": false,
+    "http_code": 412
+  },
   "8501": {
     "description": "Certificate rotation failed",
     "message": "Failed to rotate certificate for VSA cluster",

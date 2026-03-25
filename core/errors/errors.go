@@ -380,6 +380,7 @@ const (
 	ErrKMSEnableGCPServiceAccount  = 8013
 	ErrKMSDisableGCPServiceAccount = 8014
 	ErrKMSUpdateConfigAttributes   = 8015
+	ErrKMSInvalidConfiguration     = 8016
 
 	// Certificate and Password Rotation Error Codes (8500-8599 range)
 	ErrCertificateRotationFailed               = 8501

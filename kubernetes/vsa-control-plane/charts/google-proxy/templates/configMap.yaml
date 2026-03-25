@@ -89,6 +89,7 @@ data:
   JWK_KIDS_URL: "{{ index .Values "jwkKidsUrl" }}"
   WORKFLOW_GLOBAL_TIMEOUT_MINUTES: "{{ index .Values "workflowGlobalTimeoutMinutes" }}"
   CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES: "{{ index .Values "cmekWorkflowGlobalTimeoutMinutes" }}"
+  CMEK_GLOBAL_PROJECT_ID: "{{ index .Values "cmekGlobalProjectId" }}"
   CREATE_POOL_WORKFLOW_TIMEOUT_MINUTES: "{{ index .Values "createPoolWorkflowTimeoutMinutes" }}"
   CREATE_POOL_WORKFLOW_TIMEOUT_MINUTES_LV: "{{ index .Values "createPoolWorkflowTimeoutMinutesLV" }}"
   UPDATE_POOL_WORKFLOW_TIMEOUT_MINUTES: "{{ index .Values "updatePoolWorkflowTimeoutMinutes" }}"
