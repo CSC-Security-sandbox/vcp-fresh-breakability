@@ -10,6 +10,8 @@ require (
 	golang.org/x/oauth2 v0.30.0
 )
 
+require github.com/opentracing/opentracing-go v1.2.0 // indirect
+
 require (
 	cloud.google.com/go/auth v0.16.2 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
