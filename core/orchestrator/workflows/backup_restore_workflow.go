@@ -343,15 +343,6 @@ func (wf *restoreBackupWorkflow) RunWithContext(ctx workflow.Context, backupActi
 		}
 	}
 
-	if smRelationship != nil && smRelationship.State != nil && *smRelationship.State != models.OntapSnapmirrored {
-		unhealthyMsg := ""
-		if smRelationship.Healthy != nil && !*smRelationship.Healthy && smRelationship.UnhealthyReason != nil && len(*smRelationship.UnhealthyReason) > 0 {
-			unhealthyMsg = fmt.Sprintf(" Unhealthy reasons: %v", *smRelationship.UnhealthyReason)
-		}
-		wf.Logger.Infof("Snapmirror relationship state is %s, expected %s.%s", *smRelationship.State, models.OntapSnapmirrored, unhealthyMsg)
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, vsaerrors.New("snapmirror relationship state is not snapmirrored"))
-	}
-
 	if smRelationship != nil && smRelationship.Healthy != nil && !*smRelationship.Healthy {
 		if smRelationship.UnhealthyReason != nil && len(*smRelationship.UnhealthyReason) > 0 {
 			wf.Logger.Infof("Snapmirror relationship is unhealthy. Reasons: %v", *smRelationship.UnhealthyReason)

@@ -2323,7 +2323,7 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_UnhealthySnap
 	assert.Contains(s.T(), jobStatusCalls, "ERROR")
 }
 
-func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorStateNotSnapmirrored() {
+func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_UnhealthySnapmirrorWithBrokenOffState() {
 	params, volume, backupVault, backup, hostParams, volCreateResponse := s.createTestData()
 
 	mockStorage := database.NewMockStorage(s.T())
@@ -2419,9 +2419,209 @@ func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SnapmirrorSta
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
-	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "snapmirror relationship state is not snapmirrored")
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "snapmirror relationship is unhealthy")
 	assert.Contains(s.T(), jobStatusCalls, "PROCESSING")
 	assert.Contains(s.T(), jobStatusCalls, "ERROR")
+}
+
+func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SucceedsWithUninitializedState() {
+	params, volume, backupVault, backup, hostParams, volCreateResponse := s.createTestData()
+
+	mockStorage := database.NewMockStorage(s.T())
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	backupActivity := &activities.BackupActivity{}
+	volumeCreateActivity := &activities.VolumeCreateActivity{}
+	volumeUpdateActivity := &activities.VolumeUpdateActivity{}
+
+	s.env.RegisterActivity(commonActivity)
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(volumeCreateActivity)
+	s.env.RegisterActivity(volumeUpdateActivity)
+	s.env.RegisterActivity(backupActivity.GenerateObjectStoreNameForRestore)
+	s.env.RegisterActivity(activities.GetBucketDetailsFromBackup)
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathActivity)
+	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
+	s.env.RegisterActivity(backupActivity.SnapmirrorGetOrCreate)
+	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
+	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
+	s.env.RegisterActivity(backupActivity.UpdateBackupRestoreCount)
+	s.env.RegisterActivity(backupActivity.DeleteSnapmirror)
+	s.env.RegisterActivity(backupActivity.GetSnapmirror)
+	s.env.RegisterActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity)
+	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteRolesForServiceAccountInBackupTenantProject)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	var jobStatusCalls []string
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		job := args.Get(1).(*datamodel.Job)
+		jobStatusCalls = append(jobStatusCalls, job.State)
+	}).Return(nil)
+
+	s.env.OnActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.DeleteRolesForServiceAccountInBackupTenantProject, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnWorkflow("PreBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
+	s.env.OnActivity(backupActivity.GenerateObjectStoreNameForRestore, mock.Anything, mock.Anything, mock.Anything).Return("test-obj-store-abcd", nil)
+	s.env.OnActivity(backupActivity.GetSmSourcePathActivity, mock.Anything, mock.Anything).Return("test-dest-path", nil)
+	s.env.OnActivity(activities.GetBucketDetailsFromBackup, mock.Anything, mock.Anything).Return(&datamodel.BucketDetails{BucketName: "test-bucket"}, nil)
+	s.env.OnActivity(backupActivity.GetOrCreateObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.CloudTarget{}, nil)
+	s.env.OnActivity(volumeCreateActivity.DeleteRestoreObjectStore, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil).Maybe()
+	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{UUID: "test-uuid"}, nil)
+	s.env.OnActivity(backupActivity.DeleteSnapmirror, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil).Maybe()
+	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity, mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
+		BackupActivitiesContext: &activities.BackupActivitiesContext{
+			BackupWorkflowInit: &activities.BackupWorkflowInput{
+				Backup:                 &datamodel.Backup{},
+				BackupVault:            &datamodel.BackupVault{},
+				Volume:                 volume,
+				BackupVaultAccountName: "test-account",
+			},
+			Node:         &models.Node{EndpointAddress: "127.0.0.1"},
+			SnapshotName: "test-backup",
+			SnapmirrorRelationship: &common.SnapmirrorRelationship{
+				UUID: "test-snapmirror-uuid",
+			},
+			TransferStatus:    activities.SmStatusSuccess,
+			SmSourcePath:      "test-source-path",
+			SmDestinationPath: "test-destination-path",
+		},
+		TransferComplete:    true,
+		ShouldContinueAsNew: false,
+	}, nil)
+	uninitializedState := models.OntapUninitialized
+	healthy := true
+	s.env.OnActivity(backupActivity.GetSnapmirror, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{
+		UUID:    "test-uuid",
+		Healthy: &healthy,
+		State:   &uninitializedState,
+	}, nil)
+	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{Type: "rw"}, nil)
+	s.env.OnActivity(volumeUpdateActivity.UpdateVolumeJunctionpath, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.FinaliseRestoredVolume, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnWorkflow("PostBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
+	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountIncrement).Return(nil)
+	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil)
+	s.env.OnWorkflow(WaitForONTAPJob, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), jobStatusCalls, "PROCESSING")
+	assert.Contains(s.T(), jobStatusCalls, "DONE")
+}
+
+func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_SucceedsWithBrokenOffState() {
+	params, volume, backupVault, backup, hostParams, volCreateResponse := s.createTestData()
+
+	mockStorage := database.NewMockStorage(s.T())
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	backupActivity := &activities.BackupActivity{}
+	volumeCreateActivity := &activities.VolumeCreateActivity{}
+	volumeUpdateActivity := &activities.VolumeUpdateActivity{}
+
+	s.env.RegisterActivity(commonActivity)
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(volumeCreateActivity)
+	s.env.RegisterActivity(volumeUpdateActivity)
+	s.env.RegisterActivity(backupActivity.GenerateObjectStoreNameForRestore)
+	s.env.RegisterActivity(activities.GetBucketDetailsFromBackup)
+	s.env.RegisterActivity(backupActivity.GetSmSourcePathActivity)
+	s.env.RegisterActivity(backupActivity.GetOrCreateObjectStore)
+	s.env.RegisterActivity(backupActivity.SnapmirrorGetOrCreate)
+	s.env.RegisterActivity(backupActivity.SnapmirrorTransfer)
+	s.env.RegisterActivity(backupActivity.GetSnapmirrorTransferStatus)
+	s.env.RegisterActivity(backupActivity.UpdateBackupRestoreCount)
+	s.env.RegisterActivity(backupActivity.DeleteSnapmirror)
+	s.env.RegisterActivity(backupActivity.GetSnapmirror)
+	s.env.RegisterActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity)
+	s.env.RegisterActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteRestoreObjectStore)
+	s.env.RegisterActivity(volumeCreateActivity.DeleteRolesForServiceAccountInBackupTenantProject)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeStateInDB)
+
+	s.env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	var jobStatusCalls []string
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		job := args.Get(1).(*datamodel.Job)
+		jobStatusCalls = append(jobStatusCalls, job.State)
+	}).Return(nil)
+
+	s.env.OnActivity(volumeCreateActivity.CrossPoolOrVPCRestorationActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.DeleteRolesForServiceAccountInBackupTenantProject, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnWorkflow("PreBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
+	s.env.OnActivity(backupActivity.GenerateObjectStoreNameForRestore, mock.Anything, mock.Anything, mock.Anything).Return("test-obj-store-abcd", nil)
+	s.env.OnActivity(backupActivity.GetSmSourcePathActivity, mock.Anything, mock.Anything).Return("test-dest-path", nil)
+	s.env.OnActivity(activities.GetBucketDetailsFromBackup, mock.Anything, mock.Anything).Return(&datamodel.BucketDetails{BucketName: "test-bucket"}, nil)
+	s.env.OnActivity(backupActivity.GetOrCreateObjectStore, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.CloudTarget{}, nil)
+	s.env.OnActivity(volumeCreateActivity.DeleteRestoreObjectStore, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil).Maybe()
+	s.env.OnActivity(backupActivity.SnapmirrorGetOrCreate, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{UUID: "test-uuid"}, nil)
+	s.env.OnActivity(backupActivity.DeleteSnapmirror, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{}, nil).Maybe()
+	s.env.OnActivity(backupActivity.SnapmirrorTransfer, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupActivity.PollTransferStatusWithHistoryCheckActivity, mock.Anything, mock.Anything, mock.Anything).Return(&activities.PollTransferStatusOutput{
+		BackupActivitiesContext: &activities.BackupActivitiesContext{
+			BackupWorkflowInit: &activities.BackupWorkflowInput{
+				Backup:                 &datamodel.Backup{},
+				BackupVault:            &datamodel.BackupVault{},
+				Volume:                 volume,
+				BackupVaultAccountName: "test-account",
+			},
+			Node:         &models.Node{EndpointAddress: "127.0.0.1"},
+			SnapshotName: "test-backup",
+			SnapmirrorRelationship: &common.SnapmirrorRelationship{
+				UUID: "test-snapmirror-uuid",
+			},
+			TransferStatus:    activities.SmStatusSuccess,
+			SmSourcePath:      "test-source-path",
+			SmDestinationPath: "test-destination-path",
+		},
+		TransferComplete:    true,
+		ShouldContinueAsNew: false,
+	}, nil)
+	brokenOffState := models.OntapBrokenOff
+	healthy := true
+	s.env.OnActivity(backupActivity.GetSnapmirror, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&common.SnapmirrorRelationship{
+		UUID:    "test-uuid",
+		Healthy: &healthy,
+		State:   &brokenOffState,
+	}, nil)
+	s.env.OnActivity(volumeUpdateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{Type: "rw"}, nil)
+	s.env.OnActivity(volumeUpdateActivity.UpdateVolumeJunctionpath, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.FinaliseRestoredVolume, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnWorkflow("PostBlockVolumeWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volume, nil)
+	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountIncrement).Return(nil)
+	s.env.OnActivity(backupActivity.UpdateBackupRestoreCount, mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil)
+	s.env.OnWorkflow(WaitForONTAPJob, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.ExecuteWorkflow(RestoreBackupWorkflow, params, volume, backupVault, backup, hostParams, volCreateResponse, "test-account")
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), jobStatusCalls, "PROCESSING")
+	assert.Contains(s.T(), jobStatusCalls, "DONE")
 }
 
 func (s *BackupRestoreWorkflowTestSuite) TestRestoreBackupWorkflow_GetSnapmirrorNotFound() {
