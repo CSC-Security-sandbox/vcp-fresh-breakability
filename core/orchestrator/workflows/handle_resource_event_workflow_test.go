@@ -2847,6 +2847,94 @@ func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDEL
 	s.env.AssertExpectations(s.T())
 }
 
+// Test case: ONTAP mode pool deletes expert mode volumes instead of regular volumes
+func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDELETEWorkflow_ONTAPModePool_DeletesExpertModeVolumes() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	poolActivity := activities.PoolActivity{SE: mockStorage}
+	resourceEventsActivity := resource_events_activities.ResourceEventsActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(resourceEventsActivity.HandleResourceEventCheckForVCPActivity)
+	s.env.RegisterActivity(poolActivity.GetPoolView)
+	s.env.RegisterActivity(resourceEventsActivity.DeleteExpertModeVolumesForPool)
+	s.env.RegisterActivity(poolActivity.GetPool)
+
+	s.env.OnWorkflow(DeletePoolWorkflowInternal, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+	poolView := &datamodel.PoolView{
+		Pool:        datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, APIAccessMode: common.ONTAPMode},
+		VolumeCount: 0,
+	}
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{ID: 1},
+		APIAccessMode:  common.ONTAPMode,
+		DeploymentName: "test-deployment",
+		ClusterDetails: datamodel.ClusterDetails{
+			RegionalTenantProject: "test-project",
+			OntapVersion:          "9.11.1",
+		},
+		ServiceAccountId: "test-sa",
+		PoolCredentials:  &datamodel.PoolCredentials{AuthType: 1},
+	}
+
+	s.env.OnActivity(resourceEventsActivity.HandleResourceEventCheckForVCPActivity, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(poolActivity.GetPoolView, mock.Anything, mock.Anything).Return(poolView, nil)
+	s.env.OnActivity(resourceEventsActivity.DeleteExpertModeVolumesForPool, mock.Anything, int64(1)).Return(nil)
+	s.env.OnActivity(poolActivity.GetPool, mock.Anything, mock.Anything).Return(pool, nil)
+
+	param := &common.UpdateResourceStateParams{
+		ResourceId:    "pool-id",
+		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
+		State:         models.StateDelete,
+		ProjectNumber: "123456789",
+	}
+	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+// Test case: ONTAP mode pool where DeleteExpertModeVolumesForPool fails
+func (s *UpdateResourceStateDELETEWorkflowTestSuite) Test_UpdateResourceStateDELETEWorkflow_ONTAPModePool_DeleteExpertModeVolumesFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	poolActivity := activities.PoolActivity{SE: mockStorage}
+	resourceEventsActivity := resource_events_activities.ResourceEventsActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(resourceEventsActivity.HandleResourceEventCheckForVCPActivity)
+	s.env.RegisterActivity(poolActivity.GetPoolView)
+	s.env.RegisterActivity(resourceEventsActivity.DeleteExpertModeVolumesForPool)
+
+	poolView := &datamodel.PoolView{
+		Pool:        datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, APIAccessMode: common.ONTAPMode},
+		VolumeCount: 0,
+	}
+
+	s.env.OnActivity(resourceEventsActivity.HandleResourceEventCheckForVCPActivity, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(poolActivity.GetPoolView, mock.Anything, mock.Anything).Return(poolView, nil)
+	s.env.OnActivity(resourceEventsActivity.DeleteExpertModeVolumesForPool, mock.Anything, int64(1)).Return(
+		temporal.NewNonRetryableApplicationError("delete expert mode volumes failed", "NonRetryableError", errors.New("db error")),
+	)
+
+	param := &common.UpdateResourceStateParams{
+		ResourceId:    "pool-id",
+		ResourceType:  common.ResourceStateV1ResourceTypeStoragePool,
+		State:         models.StateDelete,
+		ProjectNumber: "123456789",
+	}
+	s.env.ExecuteWorkflow(UpdateResourceStateDELETEWorkflow, param)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "delete expert mode volumes failed")
+}
+
 func TestUpdateResourceStateDELETEWorkflowTestSuite(t *testing.T) {
 	suite.Run(t, new(UpdateResourceStateDELETEWorkflowTestSuite))
 }

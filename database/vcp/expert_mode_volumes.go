@@ -208,6 +208,16 @@ func (d *DataStoreRepository) ListExpertModeVolumesByPoolID(ctx context.Context,
 	return volumes, nil
 }
 
+// CountNonDeletedExpertModeVolumesByAccountID returns the number of expert mode volumes that have not been soft-deleted for a given account
+func (d *DataStoreRepository) GetActiveExpertModeVolumesCountByAccountID(ctx context.Context, accountID int64) (int64, error) {
+	var count int64
+	err := d.db.GORM().WithContext(ctx).
+		Model(&datamodel.ExpertModeVolumes{}).
+		Where("account_id = ? AND deleted_at IS NULL", accountID).
+		Count(&count).Error
+	return count, err
+}
+
 // GetEligibleExpertModeVolumes retrieves non-deleted expert mode volumes (name, state only) with pagination for eligibility metrics
 func (d *DataStoreRepository) GetEligibleExpertModeVolumes(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.ExpertModeVolumes, error) {
 	var volumes []*datamodel.ExpertModeVolumes

@@ -430,6 +430,7 @@ type (
 		DeleteExpertModeVolume(ctx context.Context, volumeUUID string) error
 		UpdateExpertModeVolumeDataProtection(ctx context.Context, expertModeVolume *datamodel.ExpertModeVolumes) error
 		ListExpertModeVolumesByPoolID(ctx context.Context, poolID int64) ([]*datamodel.ExpertModeVolumes, error)
+		GetActiveExpertModeVolumesCountByAccountID(ctx context.Context, accountID int64) (int64, error)
 		GetEligibleExpertModeVolumes(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.ExpertModeVolumes, error)
 		GetExpertModeBackupsByVolumeExternalUUID(ctx context.Context, volumeExternalUUID string) ([]*datamodel.Backup, error)
 	}

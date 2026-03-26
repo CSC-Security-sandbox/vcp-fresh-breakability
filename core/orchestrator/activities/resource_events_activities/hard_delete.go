@@ -19,6 +19,7 @@ var (
 		{"snapshots", dbQueryAccountID},
 		{"volume_replications", dbQueryAccountID},
 		{"volumes", dbQueryAccountID},
+		{"expert_mode_volumes", dbQueryAccountID},
 		{"cluster_peerings", dbQueryAccountID},
 		{"backup_vaults", dbQueryAccountID},
 		{"svms", dbQueryAccountID},

@@ -535,6 +535,27 @@ func (a *ResourceEventsActivity) DeleteVolumeForPool(ctx context.Context, volume
 	return nil
 }
 
+func (a *ResourceEventsActivity) DeleteExpertModeVolumesForPool(ctx context.Context, poolID int64) error {
+	logger := util.GetLogger(ctx)
+	se := a.SE
+
+	expertModeVolumes, err := se.ListExpertModeVolumesByPoolID(ctx, poolID)
+	if err != nil {
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	for _, vol := range expertModeVolumes {
+		if err := se.DeleteExpertModeVolume(ctx, vol.UUID); err != nil {
+			logger.Errorf("Failed to soft-delete expert mode volume %s (UUID: %s) for pool %d: %v", vol.Name, vol.UUID, poolID, err)
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+		logger.Debugf("Expert mode volume %s (UUID: %s) marked deleted for pool %d", vol.Name, vol.UUID, poolID)
+	}
+
+	logger.Infof("Soft-deleted %d expert mode volumes for pool %d", len(expertModeVolumes), poolID)
+	return nil
+}
+
 func (a *ResourceEventsActivity) DeleteReplicationsForVolume(ctx context.Context, volume *datamodel.Volume) error {
 	logger := util.GetLogger(ctx)
 	se := a.SE

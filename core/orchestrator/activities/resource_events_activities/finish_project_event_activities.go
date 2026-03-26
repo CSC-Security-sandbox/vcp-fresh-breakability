@@ -197,9 +197,10 @@ func (j *FinishProjectEventActivity) DeleteAccountActivity(ctx context.Context, 
 
 func (j *FinishProjectEventActivity) VerifySoftDeletedResourcesForAccount(ctx context.Context, projectNumber string) (bool, error) {
 	var (
-		softDelVolume = true
-		softDelPool   = true
-		softDelSvms   = true
+		softDelVolume             = true
+		softDelPool               = true
+		softDelSvms               = true
+		softDelExpertModeVolumes  = true
 	)
 	logger := util.GetLogger(ctx)
 	se := j.SE
@@ -220,6 +221,15 @@ func (j *FinishProjectEventActivity) VerifySoftDeletedResourcesForAccount(ctx co
 	}
 	if len(softDeletedVols) > 0 {
 		softDelVolume = false
+	}
+
+	expertModeVolCount, err := se.GetActiveExpertModeVolumesCountByAccountID(ctx, account.ID)
+	if err != nil {
+		logger.Errorf("Error counting non-deleted expert mode volumes for account %d: %v", account.ID, err)
+		return false, err
+	}
+	if expertModeVolCount > 0 {
+		softDelExpertModeVolumes = false
 	}
 
 	filter := utils2.CreateFilterWithConditions(
@@ -243,7 +253,7 @@ func (j *FinishProjectEventActivity) VerifySoftDeletedResourcesForAccount(ctx co
 		softDelSvms = false
 	}
 
-	if softDelVolume && softDelPool && softDelSvms {
+	if softDelVolume && softDelExpertModeVolumes && softDelPool && softDelSvms {
 		return true, nil
 	}
 

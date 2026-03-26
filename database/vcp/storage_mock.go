@@ -4391,6 +4391,63 @@ func (_c *MockStorage_DeletingSnapshot_Call) RunAndReturn(run func(context.Conte
 	return _c
 }
 
+// DereferencePoolVolumesFromVPGs provides a mock function with given fields: ctx, poolID
+func (_m *MockStorage) DereferencePoolVolumesFromVPGs(ctx context.Context, poolID int64) (int64, error) {
+	ret := _m.Called(ctx, poolID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DereferencePoolVolumesFromVPGs")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (int64, error)); ok {
+		return rf(ctx, poolID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) int64); ok {
+		r0 = rf(ctx, poolID)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, poolID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_DereferencePoolVolumesFromVPGs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DereferencePoolVolumesFromVPGs'
+type MockStorage_DereferencePoolVolumesFromVPGs_Call struct {
+	*mock.Call
+}
+
+// DereferencePoolVolumesFromVPGs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolID int64
+func (_e *MockStorage_Expecter) DereferencePoolVolumesFromVPGs(ctx interface{}, poolID interface{}) *MockStorage_DereferencePoolVolumesFromVPGs_Call {
+	return &MockStorage_DereferencePoolVolumesFromVPGs_Call{Call: _e.mock.On("DereferencePoolVolumesFromVPGs", ctx, poolID)}
+}
+
+func (_c *MockStorage_DereferencePoolVolumesFromVPGs_Call) Run(run func(ctx context.Context, poolID int64)) *MockStorage_DereferencePoolVolumesFromVPGs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_DereferencePoolVolumesFromVPGs_Call) Return(_a0 int64, _a1 error) *MockStorage_DereferencePoolVolumesFromVPGs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_DereferencePoolVolumesFromVPGs_Call) RunAndReturn(run func(context.Context, int64) (int64, error)) *MockStorage_DereferencePoolVolumesFromVPGs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DereferenceVPGFromDeletedVolumes provides a mock function with given fields: ctx, vpgID
 func (_m *MockStorage) DereferenceVPGFromDeletedVolumes(ctx context.Context, vpgID int64) error {
 	ret := _m.Called(ctx, vpgID)
@@ -4434,60 +4491,6 @@ func (_c *MockStorage_DereferenceVPGFromDeletedVolumes_Call) Return(_a0 error) *
 }
 
 func (_c *MockStorage_DereferenceVPGFromDeletedVolumes_Call) RunAndReturn(run func(context.Context, int64) error) *MockStorage_DereferenceVPGFromDeletedVolumes_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// DereferencePoolVolumesFromVPGs provides a mock function with given fields: ctx, poolID
-func (_m *MockStorage) DereferencePoolVolumesFromVPGs(ctx context.Context, poolID int64) (int64, error) {
-	ret := _m.Called(ctx, poolID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for DereferencePoolVolumesFromVPGs")
-	}
-
-	var r0 int64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, int64) (int64, error)); ok {
-		return rf(ctx, poolID)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, int64) int64); ok {
-		r0 = rf(ctx, poolID)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
-		r1 = rf(ctx, poolID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockStorage_DereferencePoolVolumesFromVPGs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DereferencePoolVolumesFromVPGs'
-type MockStorage_DereferencePoolVolumesFromVPGs_Call struct {
-	*mock.Call
-}
-
-// DereferencePoolVolumesFromVPGs is a helper method to define mock.On call
-func (_e *MockStorage_Expecter) DereferencePoolVolumesFromVPGs(ctx interface{}, poolID interface{}) *MockStorage_DereferencePoolVolumesFromVPGs_Call {
-	return &MockStorage_DereferencePoolVolumesFromVPGs_Call{Call: _e.mock.On("DereferencePoolVolumesFromVPGs", ctx, poolID)}
-}
-
-func (_c *MockStorage_DereferencePoolVolumesFromVPGs_Call) Run(run func(ctx context.Context, poolID int64)) *MockStorage_DereferencePoolVolumesFromVPGs_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(int64))
-	})
-	return _c
-}
-
-func (_c *MockStorage_DereferencePoolVolumesFromVPGs_Call) Return(_a0 int64, _a1 error) *MockStorage_DereferencePoolVolumesFromVPGs_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockStorage_DereferencePoolVolumesFromVPGs_Call) RunAndReturn(run func(context.Context, int64) (int64, error)) *MockStorage_DereferencePoolVolumesFromVPGs_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -5298,6 +5301,63 @@ func (_c *MockStorage_GetActiveDirectoryForPoolByPoolID_Call) Return(_a0 *datamo
 }
 
 func (_c *MockStorage_GetActiveDirectoryForPoolByPoolID_Call) RunAndReturn(run func(context.Context, int64) (*datamodel.ActiveDirectory, error)) *MockStorage_GetActiveDirectoryForPoolByPoolID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetActiveExpertModeVolumesCountByAccountID provides a mock function with given fields: ctx, accountID
+func (_m *MockStorage) GetActiveExpertModeVolumesCountByAccountID(ctx context.Context, accountID int64) (int64, error) {
+	ret := _m.Called(ctx, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetActiveExpertModeVolumesCountByAccountID")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int64) (int64, error)); ok {
+		return rf(ctx, accountID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int64) int64); ok {
+		r0 = rf(ctx, accountID)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = rf(ctx, accountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetActiveExpertModeVolumesCountByAccountID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetActiveExpertModeVolumesCountByAccountID'
+type MockStorage_GetActiveExpertModeVolumesCountByAccountID_Call struct {
+	*mock.Call
+}
+
+// GetActiveExpertModeVolumesCountByAccountID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountID int64
+func (_e *MockStorage_Expecter) GetActiveExpertModeVolumesCountByAccountID(ctx interface{}, accountID interface{}) *MockStorage_GetActiveExpertModeVolumesCountByAccountID_Call {
+	return &MockStorage_GetActiveExpertModeVolumesCountByAccountID_Call{Call: _e.mock.On("GetActiveExpertModeVolumesCountByAccountID", ctx, accountID)}
+}
+
+func (_c *MockStorage_GetActiveExpertModeVolumesCountByAccountID_Call) Run(run func(ctx context.Context, accountID int64)) *MockStorage_GetActiveExpertModeVolumesCountByAccountID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(int64))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetActiveExpertModeVolumesCountByAccountID_Call) Return(_a0 int64, _a1 error) *MockStorage_GetActiveExpertModeVolumesCountByAccountID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetActiveExpertModeVolumesCountByAccountID_Call) RunAndReturn(run func(context.Context, int64) (int64, error)) *MockStorage_GetActiveExpertModeVolumesCountByAccountID_Call {
 	_c.Call.Return(run)
 	return _c
 }

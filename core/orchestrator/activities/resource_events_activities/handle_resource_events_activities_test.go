@@ -3544,3 +3544,74 @@ func TestResourceEventsActivity_DeleteVolumeAssociatedQuotaRules(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 }
+
+func TestDeleteExpertModeVolumesForPool(t *testing.T) {
+	t.Run("Success_DeletesAllExpertModeVolumes", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		poolID := int64(42)
+		volumes := []*datamodel.ExpertModeVolumes{
+			{BaseModel: datamodel.BaseModel{UUID: "em-vol-1"}, Name: "vol1", PoolID: poolID},
+			{BaseModel: datamodel.BaseModel{UUID: "em-vol-2"}, Name: "vol2", PoolID: poolID},
+		}
+
+		mockSE.On("ListExpertModeVolumesByPoolID", ctx, poolID).Return(volumes, nil)
+		mockSE.On("DeleteExpertModeVolume", ctx, "em-vol-1").Return(nil)
+		mockSE.On("DeleteExpertModeVolume", ctx, "em-vol-2").Return(nil)
+
+		err := activity.DeleteExpertModeVolumesForPool(ctx, poolID)
+		assert.NoError(tt, err)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("Success_NoVolumesInPool", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		poolID := int64(42)
+		mockSE.On("ListExpertModeVolumesByPoolID", ctx, poolID).Return([]*datamodel.ExpertModeVolumes{}, nil)
+
+		err := activity.DeleteExpertModeVolumesForPool(ctx, poolID)
+		assert.NoError(tt, err)
+		mockSE.AssertExpectations(tt)
+		mockSE.AssertNotCalled(tt, "DeleteExpertModeVolume", mock.Anything, mock.Anything)
+	})
+
+	t.Run("Error_ListExpertModeVolumesFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		poolID := int64(42)
+		mockSE.On("ListExpertModeVolumesByPoolID", ctx, poolID).Return(nil, errors.New("db connection error"))
+
+		err := activity.DeleteExpertModeVolumesForPool(ctx, poolID)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "db connection error")
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("Error_DeleteExpertModeVolumeFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+		activity := &ResourceEventsActivity{SE: mockSE}
+
+		poolID := int64(42)
+		volumes := []*datamodel.ExpertModeVolumes{
+			{BaseModel: datamodel.BaseModel{UUID: "em-vol-1"}, Name: "vol1", PoolID: poolID},
+			{BaseModel: datamodel.BaseModel{UUID: "em-vol-2"}, Name: "vol2", PoolID: poolID},
+		}
+
+		mockSE.On("ListExpertModeVolumesByPoolID", ctx, poolID).Return(volumes, nil)
+		mockSE.On("DeleteExpertModeVolume", ctx, "em-vol-1").Return(errors.New("delete failed"))
+
+		err := activity.DeleteExpertModeVolumesForPool(ctx, poolID)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "delete failed")
+		mockSE.AssertExpectations(tt)
+		mockSE.AssertNotCalled(tt, "DeleteExpertModeVolume", ctx, "em-vol-2")
+	})
+}

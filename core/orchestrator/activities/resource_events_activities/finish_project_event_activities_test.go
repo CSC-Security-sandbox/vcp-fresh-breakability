@@ -462,6 +462,7 @@ func Test_VerifySoftDeletedResourcesForAccount(t *testing.T) {
 
 		mockSE.EXPECT().GetSoftDeleteAccount(ctx, projectNumber).Return(account, nil)
 		mockSE.EXPECT().ListVolumes(ctx, mock.Anything).Return(volumes, nil)
+		mockSE.EXPECT().GetActiveExpertModeVolumesCountByAccountID(ctx, accountID).Return(int64(0), nil)
 		mockSE.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
 		mockSE.EXPECT().ListSvmsWithAccountId(ctx, accountID).Return(svms, nil)
 
@@ -536,6 +537,7 @@ func Test_VerifySoftDeletedResourcesForAccount(t *testing.T) {
 
 		mockSE.EXPECT().GetSoftDeleteAccount(ctx, projectNumber).Return(account, nil)
 		mockSE.EXPECT().ListVolumes(ctx, mock.Anything).Return(volumes, nil)
+		mockSE.EXPECT().GetActiveExpertModeVolumesCountByAccountID(ctx, accountID).Return(int64(0), nil)
 		mockSE.EXPECT().ListPools(ctx, mock.Anything).Return(nil, listErr)
 
 		activity := &FinishProjectEventActivity{SE: mockSE}
@@ -570,6 +572,7 @@ func Test_VerifySoftDeletedResourcesForAccount(t *testing.T) {
 
 		mockSE.EXPECT().GetSoftDeleteAccount(ctx, projectNumber).Return(account, nil)
 		mockSE.EXPECT().ListVolumes(ctx, mock.Anything).Return(volumes, nil)
+		mockSE.EXPECT().GetActiveExpertModeVolumesCountByAccountID(ctx, accountID).Return(int64(0), nil)
 		mockSE.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
 		mockSE.EXPECT().ListSvmsWithAccountId(ctx, accountID).Return(nil, listErr)
 
@@ -601,6 +604,7 @@ func Test_VerifySoftDeletedResourcesForAccount(t *testing.T) {
 
 		mockSE.EXPECT().GetSoftDeleteAccount(ctx, projectNumber).Return(account, nil)
 		mockSE.EXPECT().ListVolumes(ctx, mock.Anything).Return(volumes, nil)
+		mockSE.EXPECT().GetActiveExpertModeVolumesCountByAccountID(ctx, accountID).Return(int64(0), nil)
 		mockSE.EXPECT().ListPools(ctx, mock.Anything).Return(pools, nil)
 		mockSE.EXPECT().ListSvmsWithAccountId(ctx, accountID).Return(svms, nil)
 
@@ -608,6 +612,61 @@ func Test_VerifySoftDeletedResourcesForAccount(t *testing.T) {
 		result, err := activity.VerifySoftDeletedResourcesForAccount(ctx, projectNumber)
 		assert.NoError(tt, err)
 		assert.True(tt, result)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("VerifySoftDeletedResourcesForAccount_ExpertModeVolumesExist", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+
+		projectNumber := "test-project-123"
+		accountID := int64(123)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: accountID,
+			},
+			Name: projectNumber,
+		}
+
+		mockSE.EXPECT().GetSoftDeleteAccount(ctx, projectNumber).Return(account, nil)
+		mockSE.EXPECT().ListVolumes(ctx, mock.Anything).Return([]*datamodel.Volume{}, nil)
+		mockSE.EXPECT().GetActiveExpertModeVolumesCountByAccountID(ctx, accountID).Return(int64(3), nil)
+		mockSE.EXPECT().ListPools(ctx, mock.Anything).Return([]*datamodel.PoolView{}, nil)
+		mockSE.EXPECT().ListSvmsWithAccountId(ctx, accountID).Return([]*datamodel.Svm{}, nil)
+
+		activity := &FinishProjectEventActivity{SE: mockSE}
+		result, err := activity.VerifySoftDeletedResourcesForAccount(ctx, projectNumber)
+		assert.Error(tt, err)
+		assert.False(tt, result)
+		assert.Contains(tt, err.Error(), "Soft-deleted")
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("VerifySoftDeletedResourcesForAccount_CountExpertModeVolumesError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockSE := database.NewMockStorage(tt)
+
+		projectNumber := "test-project-123"
+		accountID := int64(123)
+		countErr := errors.New("count expert mode volumes failed")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{
+				ID: accountID,
+			},
+			Name: projectNumber,
+		}
+
+		mockSE.EXPECT().GetSoftDeleteAccount(ctx, projectNumber).Return(account, nil)
+		mockSE.EXPECT().ListVolumes(ctx, mock.Anything).Return([]*datamodel.Volume{}, nil)
+		mockSE.EXPECT().GetActiveExpertModeVolumesCountByAccountID(ctx, accountID).Return(int64(0), countErr)
+
+		activity := &FinishProjectEventActivity{SE: mockSE}
+		result, err := activity.VerifySoftDeletedResourcesForAccount(ctx, projectNumber)
+		assert.Error(tt, err)
+		assert.Equal(tt, countErr, err)
+		assert.False(tt, result)
 		mockSE.AssertExpectations(tt)
 	})
 }

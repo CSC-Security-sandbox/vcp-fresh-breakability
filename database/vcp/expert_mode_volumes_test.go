@@ -309,6 +309,85 @@ func TestGetExpertModePoolUsedCapacity_WithDeletedVolumes(t *testing.T) {
 	assert.Equal(t, int64(0), capacity.VolumeCount)
 }
 
+func TestGetActiveExpertModeVolumesCountByAccountID(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+
+	// Account 1 with a pool/svm and 3 volumes (1 soft-deleted)
+	account1, pool1 := createTestAccountAndPoolForExpertMode(t, store)
+	svm1 := createTestSVMForExpertMode(t, store, pool1.ID, account1.ID, "svm-account-1", utils.RandomUUID())
+
+	volA1 := &datamodel.ExpertModeVolumes{
+		Name:         "acct1-vol-1",
+		SizeInBytes:  1024,
+		PoolID:       pool1.ID,
+		AccountID:    account1.ID,
+		SvmID:        svm1.ID,
+		Style:        "flexvol",
+		ExternalUUID: utils.RandomUUID(),
+		State:        models.LifeCycleStateREADY,
+	}
+	volA2 := &datamodel.ExpertModeVolumes{
+		Name:         "acct1-vol-2",
+		SizeInBytes:  2048,
+		PoolID:       pool1.ID,
+		AccountID:    account1.ID,
+		SvmID:        svm1.ID,
+		Style:        "flexvol",
+		ExternalUUID: utils.RandomUUID(),
+		State:        models.LifeCycleStateREADY,
+	}
+	volA3 := &datamodel.ExpertModeVolumes{
+		Name:         "acct1-vol-3",
+		SizeInBytes:  4096,
+		PoolID:       pool1.ID,
+		AccountID:    account1.ID,
+		SvmID:        svm1.ID,
+		Style:        "flexvol",
+		ExternalUUID: utils.RandomUUID(),
+		State:        models.LifeCycleStateREADY,
+	}
+
+	createdA1, err := store.CreateExpertModeVolume(ctx, volA1)
+	assert.NoError(t, err)
+	_, err = store.CreateExpertModeVolume(ctx, volA2)
+	assert.NoError(t, err)
+	_, err = store.CreateExpertModeVolume(ctx, volA3)
+	assert.NoError(t, err)
+
+	// Soft-delete one volume from account1; it should not be counted.
+	err = store.db.GORM().Delete(createdA1).Error
+	assert.NoError(t, err)
+
+	// Account 2 with one active volume; should not be counted for account1.
+	account2, pool2 := createTestAccountAndPoolForExpertMode(t, store)
+	svm2 := createTestSVMForExpertMode(t, store, pool2.ID, account2.ID, "svm-account-2", utils.RandomUUID())
+	volB1 := &datamodel.ExpertModeVolumes{
+		Name:         "acct2-vol-1",
+		SizeInBytes:  1024,
+		PoolID:       pool2.ID,
+		AccountID:    account2.ID,
+		SvmID:        svm2.ID,
+		Style:        "flexvol",
+		ExternalUUID: utils.RandomUUID(),
+		State:        models.LifeCycleStateREADY,
+	}
+	_, err = store.CreateExpertModeVolume(ctx, volB1)
+	assert.NoError(t, err)
+
+	countAccount1, err := store.GetActiveExpertModeVolumesCountByAccountID(ctx, account1.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(2), countAccount1)
+
+	countAccount2, err := store.GetActiveExpertModeVolumesCountByAccountID(ctx, account2.ID)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(1), countAccount2)
+
+	countUnknown, err := store.GetActiveExpertModeVolumesCountByAccountID(ctx, 9999999)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(0), countUnknown)
+}
+
 func TestCreateExpertModeVolume_ForeignKeyConstraint(t *testing.T) {
 	store := setup(t)
 	ctx := context.Background()

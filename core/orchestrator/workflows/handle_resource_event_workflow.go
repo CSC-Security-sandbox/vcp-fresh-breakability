@@ -708,8 +708,15 @@ func (s updateResourceStateDELETEWorkflow) Run(ctx workflow.Context, args ...int
 			}
 		}
 
-		// Check if there are volumes in the pool that need to be disabled/deleted
-		if poolView.VolumeCount > 0 {
+		if poolView.Pool.APIAccessMode == common.ONTAPMode {
+			// ONTAP mode pools use expert_mode_volumes table
+			logger.Infof("Pool %s is ONTAP mode, deleting expert mode volumes", updateResourceStateParams.ResourceId)
+			err = workflow.ExecuteActivity(ctx, resourceEventsActivity.DeleteExpertModeVolumesForPool, poolView.Pool.ID).Get(ctx, nil)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
+			}
+		} else if poolView.VolumeCount > 0 {
+			// Default mode pools use the regular volumes table
 			var volumes []*datamodel.Volume
 			errGetVolume := workflow.ExecuteActivity(ctx, volumeActivity.GetVolumesByPoolID, poolView.Pool.ID).Get(ctx, &volumes)
 			if errGetVolume != nil {
