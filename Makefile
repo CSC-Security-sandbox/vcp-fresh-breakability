@@ -177,6 +177,7 @@ build-all-binaries-prod:
 		-v $(GOMODCACHE):/go/pkg/mod \
 		-e GOCACHE=/go-build-cache \
 		-e GOMODCACHE=/go/pkg/mod \
+		-e CGO_ENABLED=1 \
 		vsa-binaries-builder sh -c '\
 		go build -o /src/artifacts/vcp-worker ./worker/ && \
 		go build -o /src/artifacts/google-proxy ./google-proxy/ && \
@@ -198,12 +199,13 @@ build-all-binaries-prod-on-mac:
 		-v $(GOMODCACHE):/go/pkg/mod \
 		-e GOCACHE=/go-build-cache \
 		-e GOMODCACHE=/go/pkg/mod \
+		-e CGO_ENABLED=1 \
 		vsa-binaries-builder sh -c '\
-		CGO_ENABLED=0 GOOS=linux GOARCH=amd64  go build -o /src/artifacts/vcp-worker ./worker/ && \
-		CGO_ENABLED=0 GOOS=linux GOARCH=amd64  go build -o /src/artifacts/google-proxy ./google-proxy/ && \
-		CGO_ENABLED=0 GOOS=linux GOARCH=amd64  go build -o /src/artifacts/core ./core && \
-		CGO_ENABLED=0 GOOS=linux GOARCH=amd64  go build -o /src/artifacts/telemetry ./telemetry/ && \
-        CGO_ENABLED=0 GOOS=linux GOARCH=amd64  go build -o /src/artifacts/ontap-proxy ./ontap-proxy/'
+		GOOS=linux GOARCH=amd64  go build -o /src/artifacts/vcp-worker ./worker/ && \
+		GOOS=linux GOARCH=amd64  go build -o /src/artifacts/google-proxy ./google-proxy/ && \
+		GOOS=linux GOARCH=amd64  go build -o /src/artifacts/core ./core && \
+		GOOS=linux GOARCH=amd64  go build -o /src/artifacts/telemetry ./telemetry/ && \
+        GOOS=linux GOARCH=amd64  go build -o /src/artifacts/ontap-proxy ./ontap-proxy/'
 	docker cp vsa-binaries-builder-run:/src/artifacts/. ./artifacts/
 	ls artifacts
 	docker rm vsa-binaries-builder-run

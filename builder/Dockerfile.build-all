@@ -5,4 +5,5 @@ ARG GHVSA_PAT
 COPY . /src
 RUN git config --global url."https://${GHVSA_PAT}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
 ENV GOTRACEBACK=single
+ENV GOEXPERIMENT=boringcrypto
 
