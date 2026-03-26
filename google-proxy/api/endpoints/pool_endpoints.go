@@ -1307,6 +1307,13 @@ func validateUpdatePoolParams(req *gcpgenserver.PoolUpdateV1beta, existingPool *
 		}
 	}
 
+	if existingPool.APIAccessMode == commonparams.ONTAPMode && req.QosType.IsSet() && req.QosType.Value != existingPool.QosType {
+		return &gcpgenserver.V1betaUpdatePoolBadRequest{
+			Code:    http.StatusBadRequest,
+			Message: "QosType cannot be modified for an ONTAP mode pool",
+		}
+	}
+
 	// Allow qosType transition (auto <-> manual); workflow handles the transition.
 	// Only validate that value is a valid enum when set.
 	if req.QosType.IsSet() && req.QosType.Value != utils.QosTypeAuto && req.QosType.Value != utils.QosTypeManual {

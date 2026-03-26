@@ -8418,6 +8418,30 @@ func TestValidateUpdatePoolParams_QosType(t *testing.T) {
 		assert.Nil(tt, result, "Should allow update when QosType changes from manual to auto")
 	})
 
+	t.Run("RejectsUpdateWhenOntapModePool", func(tt *testing.T) {
+		existingPool := &models.Pool{
+			BaseModel: models.BaseModel{
+				UUID: "pool-uuid",
+			},
+			QosType: "auto",
+			State:   models.LifeCycleStateREADY,
+			PoolAttributes: &models.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+			APIAccessMode: common.ONTAPMode,
+		}
+
+		req := &gcpgenserver.PoolUpdateV1beta{
+			QosType: gcpgenserver.NewOptNilString("manual"),
+		}
+
+		result := validateUpdatePoolParams(req, existingPool)
+		badReq, ok := result.(*gcpgenserver.V1betaUpdatePoolBadRequest)
+		assert.True(tt, ok, "Expected V1betaUpdatePoolBadRequest response")
+		assert.Equal(tt, float64(http.StatusBadRequest), badReq.Code)
+		assert.Equal(tt, "QosType cannot be modified for an ONTAP mode pool", badReq.Message)
+	})
+
 	t.Run("RejectsUpdateWhenQosTypeInvalid", func(tt *testing.T) {
 		existingPool := &models.Pool{
 			BaseModel: models.BaseModel{

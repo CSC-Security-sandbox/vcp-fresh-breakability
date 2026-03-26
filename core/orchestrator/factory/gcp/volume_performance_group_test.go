@@ -271,6 +271,43 @@ func TestCreateVolumePerformanceGroup(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 
+	t.Run("ReturnsErrorWhenOntapModePool", func(tt *testing.T) {
+		mm := newMonkeyMockAndPatch(tt)
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+		orchestrator := &GCPOrchestrator{storage: mockStorage, temporal: mockTemporal}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:     datamodel.BaseModel{ID: 1, UUID: "pool-uuid"},
+				State:         models.LifeCycleStateREADY,
+				QosType:       utils.QosTypeManual,
+				APIAccessMode: common.ONTAPMode,
+			},
+		}
+		mm.EXPECT().getAccountWithName(ctx, mock.Anything, "test-account").Return(account, nil)
+		mockStorage.On("GetPool", ctx, "test-pool-id", int64(1)).Return(pool, nil)
+
+		params := &common.CreateVolumePerformanceGroupParams{
+			AccountName:     "test-account",
+			PoolID:          "test-pool-id",
+			Name:            "test-vpg",
+			ThroughputMibps: 100,
+			Iops:            1000,
+			IsShared:        false,
+		}
+
+		result, err := orchestrator.CreateVolumePerformanceGroup(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "ONTAP mode")
+		mockStorage.AssertExpectations(tt)
+	})
+
 	t.Run("ReturnsErrorWhenCreateVolumePerformanceGroupFails", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)

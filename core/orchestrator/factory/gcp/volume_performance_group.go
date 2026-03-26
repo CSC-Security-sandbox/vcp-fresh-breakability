@@ -40,6 +40,9 @@ func (o *GCPOrchestrator) CreateVolumePerformanceGroup(ctx context.Context, para
 	if pool.State != models.LifeCycleStateREADY {
 		return nil, customerrors.NewUserInputValidationErr("pool is not in a ready state")
 	}
+	if pool.APIAccessMode == commonparams.ONTAPMode {
+		return nil, customerrors.NewUserInputValidationErr("Cannot create Volume Performance Groups in ONTAP mode pool using GCNV API")
+	}
 	if pool.QosType != utils.QosTypeManual {
 		return nil, customerrors.NewUserInputValidationErr("VPGs can only be created in pools with manual QoS type")
 	}
