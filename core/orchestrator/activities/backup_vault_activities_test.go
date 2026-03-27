@@ -3567,3 +3567,155 @@ func TestUpdateRemoteBackupVaultInVCP(t *testing.T) {
 		mockInvoker.AssertExpectations(tt)
 	})
 }
+
+func TestBackupVaultActivity_ApplyBackupVaultUpdateParams(t *testing.T) {
+	ctx := context.Background()
+	activity := &BackupVaultActivity{}
+	ext := "external-uuid-1"
+	accountID := int64(42)
+	baseVault := func() *datamodel.BackupVault {
+		oldDesc := "original description"
+		return &datamodel.BackupVault{
+			BaseModel:             datamodel.BaseModel{UUID: "vault-uuid"},
+			AccountID:             accountID,
+			ExternalUUID:          &ext,
+			Description:           &oldDesc,
+			LifeCycleState:        "UPDATING",
+			LifeCycleStateDetails: "busy",
+		}
+	}
+
+	t.Run("copies_identity_fields_and_sets_lifecycle_ready", func(t *testing.T) {
+		bv := baseVault()
+		params := &common.BackupVaultParams{}
+		got, err := activity.ApplyBackupVaultUpdateParams(ctx, bv, params)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, bv.BaseModel, got.BaseModel)
+		assert.Equal(t, bv.AccountID, got.AccountID)
+		assert.Equal(t, bv.ExternalUUID, got.ExternalUUID)
+		assert.Equal(t, coremodels.LifeCycleStateREADY, got.LifeCycleState)
+		assert.Equal(t, coremodels.LifeCycleStateAvailableDetails, got.LifeCycleStateDetails)
+	})
+
+	t.Run("keeps_description_when_params_description_nil", func(t *testing.T) {
+		bv := baseVault()
+		params := &common.BackupVaultParams{}
+		got, err := activity.ApplyBackupVaultUpdateParams(ctx, bv, params)
+		require.NoError(t, err)
+		require.Equal(t, bv.Description, got.Description)
+	})
+
+	t.Run("replaces_description_when_params_description_set", func(t *testing.T) {
+		bv := baseVault()
+		newDesc := "updated description"
+		params := &common.BackupVaultParams{Description: &newDesc}
+		got, err := activity.ApplyBackupVaultUpdateParams(ctx, bv, params)
+		require.NoError(t, err)
+		require.NotNil(t, got.Description)
+		assert.Equal(t, "updated description", *got.Description)
+	})
+
+	t.Run("immutable_attributes_same_pointer_when_no_retention_in_params", func(t *testing.T) {
+		bv := baseVault()
+		ia := &datamodel.ImmutableAttributes{
+			BackupMinimumEnforcedRetentionDuration: nillable.ToPointer(int64(7)),
+			IsDailyBackupImmutable:                 true,
+		}
+		bv.ImmutableAttributes = ia
+		params := &common.BackupVaultParams{}
+		got, err := activity.ApplyBackupVaultUpdateParams(ctx, bv, params)
+		require.NoError(t, err)
+		assert.Same(t, bv.ImmutableAttributes, got.ImmutableAttributes)
+	})
+
+	t.Run("immutable_attributes_nil_when_vault_has_none_and_no_retention_in_params", func(t *testing.T) {
+		bv := baseVault()
+		bv.ImmutableAttributes = nil
+		params := &common.BackupVaultParams{}
+		got, err := activity.ApplyBackupVaultUpdateParams(ctx, bv, params)
+		require.NoError(t, err)
+		assert.Nil(t, got.ImmutableAttributes)
+	})
+
+	t.Run("merges_retention_into_existing_immutable_attributes", func(t *testing.T) {
+		bv := baseVault()
+		durOld := int64(10)
+		bv.ImmutableAttributes = &datamodel.ImmutableAttributes{
+			BackupMinimumEnforcedRetentionDuration: &durOld,
+			IsDailyBackupImmutable:                 false,
+			IsWeeklyBackupImmutable:                true,
+			IsMonthlyBackupImmutable:               false,
+			IsAdhocBackupImmutable:                 false,
+		}
+		durNew := int64(20)
+		daily := true
+		params := &common.BackupVaultParams{
+			BackupRetentionPolicy: common.BackupRetentionPolicyParams{
+				BackupMinimumEnforcedRetentionDuration: &durNew,
+				IsDailyBackupImmutable:                 &daily,
+			},
+		}
+		got, err := activity.ApplyBackupVaultUpdateParams(ctx, bv, params)
+		require.NoError(t, err)
+		require.NotNil(t, got.ImmutableAttributes)
+		assert.Equal(t, &durNew, got.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration)
+		assert.True(t, got.ImmutableAttributes.IsDailyBackupImmutable)
+		assert.True(t, got.ImmutableAttributes.IsWeeklyBackupImmutable)
+	})
+
+	t.Run("creates_immutable_attributes_when_vault_nil_but_retention_in_params", func(t *testing.T) {
+		bv := baseVault()
+		bv.ImmutableAttributes = nil
+		monthly := true
+		params := &common.BackupVaultParams{
+			BackupRetentionPolicy: common.BackupRetentionPolicyParams{
+				IsMonthlyBackupImmutable: &monthly,
+			},
+		}
+		got, err := activity.ApplyBackupVaultUpdateParams(ctx, bv, params)
+		require.NoError(t, err)
+		require.NotNil(t, got.ImmutableAttributes)
+		assert.True(t, got.ImmutableAttributes.IsMonthlyBackupImmutable)
+		assert.False(t, got.ImmutableAttributes.IsDailyBackupImmutable)
+	})
+
+	t.Run("copies_cmek_from_vault_and_applies_param_overrides", func(t *testing.T) {
+		bv := baseVault()
+		kms := "projects/p/locations/l/keyRings/k/cryptoKeys/key"
+		encOld := "OLD"
+		verOld := "v1"
+		bv.CmekAttributes = &datamodel.CmekAttributes{
+			KmsConfigResourcePath:    &kms,
+			EncryptionState:          &encOld,
+			BackupsPrimaryKeyVersion: &verOld,
+		}
+		encNew := "ENCRYPTION_STATE_COMPLETED"
+		verNew := "v2"
+		params := &common.BackupVaultParams{
+			CmekEncryptionState:          &encNew,
+			CmekBackupsPrimaryKeyVersion: &verNew,
+		}
+		got, err := activity.ApplyBackupVaultUpdateParams(ctx, bv, params)
+		require.NoError(t, err)
+		require.NotNil(t, got.CmekAttributes)
+		assert.Equal(t, &kms, got.CmekAttributes.KmsConfigResourcePath)
+		assert.Equal(t, &encNew, got.CmekAttributes.EncryptionState)
+		assert.Equal(t, &verNew, got.CmekAttributes.BackupsPrimaryKeyVersion)
+	})
+
+	t.Run("initializes_cmek_when_vault_has_none_but_params_set_cmek_fields", func(t *testing.T) {
+		bv := baseVault()
+		bv.CmekAttributes = nil
+		enc := "ENCRYPTION_STATE_PENDING"
+		params := &common.BackupVaultParams{
+			CmekEncryptionState: &enc,
+		}
+		got, err := activity.ApplyBackupVaultUpdateParams(ctx, bv, params)
+		require.NoError(t, err)
+		require.NotNil(t, got.CmekAttributes)
+		assert.Nil(t, got.CmekAttributes.KmsConfigResourcePath)
+		assert.Equal(t, &enc, got.CmekAttributes.EncryptionState)
+		assert.Nil(t, got.CmekAttributes.BackupsPrimaryKeyVersion)
+	})
+}

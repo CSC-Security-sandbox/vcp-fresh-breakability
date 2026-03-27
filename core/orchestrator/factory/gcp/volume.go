@@ -1157,6 +1157,9 @@ func _checkIsValidImmutableBackupPolicyWithStateCheck(ctx context.Context, se da
 	backupVault, err := se.GetBackupVaultByUUIDndOwnerID(ctx, backupVaultUUID, accountID)
 	if err != nil {
 		if customerrors.IsNotFoundErr(err) {
+			if env.UseVCPRegion {
+				return fmt.Errorf("backup vault '%s' not found", backupVaultUUID)
+			}
 			logger := util.GetLogger(ctx)
 			logger.Warnf("Backup vault '%v' not found in local DB, attempting to fetch from CVP", backupVaultUUID)
 			// If not found in local DB, try fetching from CVP

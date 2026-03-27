@@ -6,7 +6,6 @@ import (
 	"errors"
 	"strconv"
 
-	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -15,10 +14,16 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/client"
 	"gorm.io/gorm"
+)
+
+const (
+	InRegionBackupType    = "IN_REGION"
+	CrossRegionBackupType = "CROSS_REGION"
 )
 
 var (
@@ -26,7 +31,6 @@ var (
 	getBackupVaultByNameAndOwnerID     = _getBackupVaultByNameAndOwnerID
 	updateBackupVault                  = _updateBackupVault
 	deleteBackupVault                  = _deleteBackupVault
-	convertCVPToBackupVaultDataModel   = activities.ConvertToBackupVaultDataModel
 )
 
 // CreateBackupVaultParams describes parameters supplied to CreateBackupVault
@@ -81,6 +85,7 @@ func (o *GCPOrchestrator) DeleteBackupVaultInternal(ctx context.Context, params 
 		return "", err
 	}
 	params.BackupVaultID = RemoteBV.UUID
+	// TODO: Add dehydration for cross-project backup vaults
 	_, err = se.DeleteBackupVaultInVCP(ctx, RemoteBV.UUID)
 	if err != nil {
 		return "", err
@@ -454,30 +459,75 @@ func (o *GCPOrchestrator) CreateBackupVaultEntryInVCP(ctx context.Context, bv *d
 	return backupVault, nil
 }
 
-// CreateBackupVaultEntryInVCPFromCVP converts a CVP backup vault response to the VCP datamodel and creates
-// a BackupVault entry in the VCP database. Used when GCBDR_VAULT_ENABLED is set to mirror CVP-created vaults in VCP.
-// When tenantProject is non-empty, the vault is tagged as GCBDR with the tenant project stored in bucket_details.
-func (o *GCPOrchestrator) CreateBackupVaultEntryInVCPFromCVP(ctx context.Context, cvpBV *cvpmodels.BackupVaultV1beta, region, accountName string, tenantProject string) (*datamodel.BackupVault, error) {
-	if cvpBV == nil {
-		return nil, errors.New("CVP backup vault is nil")
-	}
-	bv, err := convertCVPToBackupVaultDataModel(cvpBV, region)
+// CreateBackupVault creates a new BackupVault entry in the VCP database and returns its model representation.
+func (o *GCPOrchestrator) CreateBackupVault(ctx context.Context, params *commonparams.CreateBackupVaultParams) (*models.BackupVaultV1beta, error) {
+	se := o.storage
+	account, err := getOrCreateAccount(ctx, se, params.ProjectNumber)
 	if err != nil {
 		return nil, err
 	}
-
-	if tenantProject != "" {
-		bv.ServiceType = models.ServiceTypeCrossProject
-		bv.BucketDetails = datamodel.BucketDetailsArray{
-			&datamodel.BucketDetails{
-				TenantProjectNumber: tenantProject,
-			},
-		}
-	} else {
-		bv.ServiceType = models.ServiceTypeGCNV
+	bv := buildBackupVaultFromCreateParams(params, account)
+	createdBv, err := o.storage.CreateBackupVaultEntryInVCP(ctx, bv)
+	if err != nil {
+		return nil, err
 	}
+	return convertDatastoreBackupVaultToModel(createdBv), nil
+}
 
-	return o.CreateBackupVaultEntryInVCP(ctx, bv, accountName)
+func buildBackupVaultFromCreateParams(params *commonparams.CreateBackupVaultParams, account *datamodel.Account) *datamodel.BackupVault {
+	var backupVaultType string
+	if params.BackupRegion != nil && *params.BackupRegion != params.LocationId {
+		backupVaultType = CrossRegionBackupType
+	} else {
+		backupVaultType = InRegionBackupType
+	}
+	bv := &datamodel.BackupVault{
+		BaseModel:             datamodel.BaseModel{UUID: utils.RandomUUID()},
+		Name:                  params.ResourceId,
+		AccountID:             account.ID,
+		Account:               account,
+		RegionName:            params.LocationId,
+		BackupRegionName:      params.BackupRegion,
+		LifeCycleState:        models.LifeCycleStateREADY,
+		LifeCycleStateDetails: models.LifeCycleStateAvailableDetails,
+		BackupVaultType:       backupVaultType,
+		SourceRegionName:      nillable.ToPointer(params.LocationId),
+	}
+	if params.Description != "" {
+		bv.Description = &params.Description
+	}
+	if params.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration != nil ||
+		params.BackupRetentionPolicy.IsDailyBackupImmutable != nil ||
+		params.BackupRetentionPolicy.IsWeeklyBackupImmutable != nil ||
+		params.BackupRetentionPolicy.IsMonthlyBackupImmutable != nil ||
+		params.BackupRetentionPolicy.IsAdhocBackupImmutable != nil {
+		bv.ImmutableAttributes = &datamodel.ImmutableAttributes{}
+		if params.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration != nil {
+			bv.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration = params.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration
+		}
+		if params.BackupRetentionPolicy.IsDailyBackupImmutable != nil {
+			bv.ImmutableAttributes.IsDailyBackupImmutable = *params.BackupRetentionPolicy.IsDailyBackupImmutable
+		}
+		if params.BackupRetentionPolicy.IsWeeklyBackupImmutable != nil {
+			bv.ImmutableAttributes.IsWeeklyBackupImmutable = *params.BackupRetentionPolicy.IsWeeklyBackupImmutable
+		}
+		if params.BackupRetentionPolicy.IsMonthlyBackupImmutable != nil {
+			bv.ImmutableAttributes.IsMonthlyBackupImmutable = *params.BackupRetentionPolicy.IsMonthlyBackupImmutable
+		}
+		if params.BackupRetentionPolicy.IsAdhocBackupImmutable != nil {
+			bv.ImmutableAttributes.IsAdhocBackupImmutable = *params.BackupRetentionPolicy.IsAdhocBackupImmutable
+		}
+	}
+	if params.KmsConfigResourcePath != nil || params.BackupsPrimaryKeyVersion != nil {
+		bv.CmekAttributes = &datamodel.CmekAttributes{}
+		if params.KmsConfigResourcePath != nil {
+			bv.CmekAttributes.KmsConfigResourcePath = params.KmsConfigResourcePath
+		}
+		if params.BackupsPrimaryKeyVersion != nil {
+			bv.CmekAttributes.BackupsPrimaryKeyVersion = params.BackupsPrimaryKeyVersion
+		}
+	}
+	return bv
 }
 
 // GetBackupVaultByExternalUUIDAndOwnerID gets a BackupVault by external UUID directly from storage for cross-region operations

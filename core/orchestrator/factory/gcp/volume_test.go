@@ -26,6 +26,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/flexcache_workflows"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -26726,6 +26727,32 @@ func TestCheckIsValidImmutableBackupPolicyWithStateCheck(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "Immutable backup vault is being updated")
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Error when backup vault not found in DB and UseVCPRegion", func(t *testing.T) {
+		origUseVCPRegion := env.UseVCPRegion
+		env.UseVCPRegion = true
+		defer func() { env.UseVCPRegion = origUseVCPRegion }()
+
+		mockStorage := database.NewMockStorage(t)
+
+		mockBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel:            datamodel.BaseModel{UUID: backupPolicyUUID},
+			LifeCycleState:       models.LifeCycleStateREADY,
+			DailyBackupsToKeep:   30,
+			WeeklyBackupsToKeep:  0,
+			MonthlyBackupsToKeep: 0,
+		}
+
+		notFoundErr := customerrors.NewNotFoundErr("Backup vault", &backupVaultUUID)
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(mockBackupPolicy, nil)
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, accountID).Return(nil, notFoundErr)
+
+		err := _checkIsValidImmutableBackupPolicyWithStateCheck(ctx, mockStorage, backupPolicyUUID, backupVaultUUID, accountID, region, accountName)
+
+		assert.Error(t, err)
+		assert.Equal(t, fmt.Sprintf("backup vault '%s' not found", backupVaultUUID), err.Error())
 		mockStorage.AssertExpectations(t)
 	})
 

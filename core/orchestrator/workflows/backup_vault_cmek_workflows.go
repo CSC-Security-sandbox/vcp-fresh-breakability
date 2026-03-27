@@ -9,6 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -23,9 +24,7 @@ type backupVaultCmekRotationWorkflow struct {
 	BaseWorkflow
 }
 
-var (
-	_ WorkflowInterface = &backupVaultCmekRotationWorkflow{}
-)
+var _ WorkflowInterface = &backupVaultCmekRotationWorkflow{}
 
 // RotateCmekBackupsWorkflow is the Temporal entry point used by the orchestrator.
 func RotateCmekBackupsWorkflow(ctx workflow.Context, params *common.BackupVaultParams, backupVault *datamodel.BackupVault, primaryKeyVersion string) error {
@@ -89,6 +88,7 @@ func (wf *backupVaultCmekRotationWorkflow) Run(ctx workflow.Context, args ...int
 	backupVault := args[0].(*datamodel.BackupVault)
 	bvCommonParams := args[1].(*common.BackupVaultParams)
 	primaryKeyVersion := args[2].(string)
+	useVCPRegion := env.UseVCPRegion
 
 	backupVaultActivity := &activities.BackupVaultActivity{}
 
@@ -213,62 +213,57 @@ func (wf *backupVaultCmekRotationWorkflow) Run(ctx workflow.Context, args ...int
 		}
 	}
 
-	// Step 2: Only after successful VCP bucket rotation, start SDE rotation.
-	var jwtToken string
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, bvCommonParams.AccountName).Get(ctx, &jwtToken)
-	if err != nil {
-		wf.Logger.Error("Failed to get auth JWT token for SDE CMEK rotation", log.Fields{
-			"backupVaultUUID": backupVault.UUID,
-			"error":           err,
-		})
-		_ = workflow.ExecuteActivity(ctx, backupVaultActivity.EmitCmekRotationFailureMetric, "", bvCommonParams.OwnerID, backupVault.UUID, "sde_auth_failed").Get(ctx, nil)
-		failedState := models.EncryptionStateFailed
-		_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, backupVault, failedState).Get(ctx, nil)
-		hydrateSourceFailed()
-		return nil, ConvertToVSAError(fmt.Errorf("GetAuthJWTToken failed: %w", err))
-	}
-	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
-	rotateCtx = workflow.WithValue(rotateCtx, middleware.AuthorizationToken, jwtToken)
+	// Step 2: When not USE_VCP_REGION, start SDE rotation and wait for completion. When USE_VCP_REGION, only VCP rotation runs.
+	var sdeSucceeded bool = true
+	if !useVCPRegion && backupVault.ServiceType != models.ServiceTypeCrossProject {
+		var jwtToken string
+		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, bvCommonParams.AccountName).Get(ctx, &jwtToken)
+		if err != nil {
+			wf.Logger.Error("Failed to get auth JWT token for SDE CMEK rotation", log.Fields{
+				"backupVaultUUID": backupVault.UUID,
+				"error":           err,
+			})
+			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.EmitCmekRotationFailureMetric, "", bvCommonParams.OwnerID, backupVault.UUID, "sde_auth_failed").Get(ctx, nil)
+			failedState := models.EncryptionStateFailed
+			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, backupVault, failedState).Get(ctx, nil)
+			hydrateSourceFailed()
+			return nil, ConvertToVSAError(fmt.Errorf("GetAuthJWTToken failed: %w", err))
+		}
+		ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
+		rotateCtx = workflow.WithValue(rotateCtx, middleware.AuthorizationToken, jwtToken)
 
-	// Start SDE-side CMEK rotation for SDE-managed buckets. This creates an async
-	// job in SDE/CBS and returns immediately once the job is accepted.
-	err = workflow.ExecuteActivity(ctx, backupVaultActivity.StartSDECmekRotationForBackupVault, bvCommonParams, primaryKeyVersion).Get(ctx, nil)
-	if err != nil {
-		wf.Logger.Error("Failed to start SDE CMEK rotation for backup vault", log.Fields{
-			"backupVaultUUID": backupVault.UUID,
-			"error":           err,
-		})
-		_ = workflow.ExecuteActivity(ctx, backupVaultActivity.EmitCmekRotationFailureMetric, "", bvCommonParams.OwnerID, backupVault.UUID, "sde_rotation_start_failed").Get(ctx, nil)
+		err = workflow.ExecuteActivity(ctx, backupVaultActivity.StartSDECmekRotationForBackupVault, bvCommonParams, primaryKeyVersion).Get(ctx, nil)
+		if err != nil {
+			wf.Logger.Error("Failed to start SDE CMEK rotation for backup vault", log.Fields{
+				"backupVaultUUID": backupVault.UUID,
+				"error":           err,
+			})
+			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.EmitCmekRotationFailureMetric, "", bvCommonParams.OwnerID, backupVault.UUID, "sde_rotation_start_failed").Get(ctx, nil)
+			failedState := models.EncryptionStateFailed
+			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, backupVault, failedState).Get(ctx, nil)
+			hydrateSourceFailed()
+			return nil, ConvertToVSAError(fmt.Errorf("StartSDECmekRotationForBackupVault failed: %w", err))
+		}
 
-		failedState := models.EncryptionStateFailed
-		_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, backupVault, failedState).Get(ctx, nil)
+		err = workflow.ExecuteActivity(rotateCtx, backupVaultActivity.WaitForSDECmekRotationCompletion, bvCommonParams).Get(rotateCtx, &sdeSucceeded)
+		if err != nil {
+			wf.Logger.Error("Failed while waiting for SDE CMEK rotation completion", log.Fields{
+				"backupVaultUUID": backupVault.UUID,
+				"error":           err,
+			})
+			sdeSucceeded = false
+		}
 
-		hydrateSourceFailed()
-
-		return nil, ConvertToVSAError(fmt.Errorf("StartSDECmekRotationForBackupVault failed: %w", err))
-	}
-
-	// Wait for SDE-side CMEK rotation to complete and determine its outcome.
-	var sdeSucceeded bool
-	err = workflow.ExecuteActivity(rotateCtx, backupVaultActivity.WaitForSDECmekRotationCompletion, bvCommonParams).Get(rotateCtx, &sdeSucceeded)
-	if err != nil {
-		wf.Logger.Error("Failed while waiting for SDE CMEK rotation completion", log.Fields{
-			"backupVaultUUID": backupVault.UUID,
-			"error":           err,
-		})
-		// Treat this as SDE failure.
-		sdeSucceeded = false
-	}
-
-	if !sdeSucceeded {
-		_ = workflow.ExecuteActivity(ctx, backupVaultActivity.EmitCmekRotationFailureMetric, "", bvCommonParams.OwnerID, backupVault.UUID, "sde_rotation_failed").Get(ctx, nil)
-		failedState := models.EncryptionStateFailed
-		_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, backupVault, failedState).Get(ctx, nil)
-		hydrateSourceFailed()
-		return nil, ConvertToVSAError(fmt.Errorf("SDE CMEK rotation failed for backup vault %s", backupVault.UUID))
+		if !sdeSucceeded {
+			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.EmitCmekRotationFailureMetric, "", bvCommonParams.OwnerID, backupVault.UUID, "sde_rotation_failed").Get(ctx, nil)
+			failedState := models.EncryptionStateFailed
+			_ = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultEncryptionStateInVCPActivity, backupVault, failedState).Get(ctx, nil)
+			hydrateSourceFailed()
+			return nil, ConvertToVSAError(fmt.Errorf("SDE CMEK rotation failed for backup vault %s", backupVault.UUID))
+		}
 	}
 
-	// Step 3: Both VCP and SDE rotations have succeeded; update VCP CMEK metadata
+	// Step 3: VCP (and SDE when !useVCPRegion) rotations have succeeded; update VCP CMEK metadata
 	// with the new key version and mark encryption state COMPLETED.
 	err = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultCmekInVCPActivity, backupVault, primaryKeyVersion).Get(ctx, nil)
 	if err != nil {

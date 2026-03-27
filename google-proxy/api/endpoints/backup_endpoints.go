@@ -30,7 +30,6 @@ var (
 	checkIfBackupExistInCVP           = _checkIfBackupExistInCVP
 	ONTAPMode                         = "ONTAP"
 	ExpertModeBackupEnabled           = env.GetBool("EXPERT_MODE_BACKUP_ENABLED", false)
-	gcbdrServiceType                  = coremodels.ServiceTypeCrossProject
 )
 
 func (h Handler) V1betaGetMultipleBackups(ctx context.Context, req *gcpgenserver.BackupUuidListV1beta, params gcpgenserver.V1betaGetMultipleBackupsParams) (gcpgenserver.V1betaGetMultipleBackupsRes, error) {
@@ -62,7 +61,7 @@ func (h Handler) V1betaGetMultipleBackups(ctx context.Context, req *gcpgenserver
 	operationResponse := gcpgenserver.V1betaGetMultipleBackupsOK{
 		Backups: []gcpgenserver.BackupV1beta{},
 	}
-	if len(uuids) != 0 {
+	if len(uuids) != 0 && !env.UseVCPRegion {
 		jwtToken := utils.GetJWTTokenFromContext(ctx)
 		cvpClient := createClient(logger, jwtToken)
 
@@ -177,7 +176,7 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 	isGCBDRVault := false
 	if vcpBv != nil && vcpBv.ServiceType != "" {
 		backupVaultServiceType = vcpBv.ServiceType
-		isGCBDRVault = backupVaultServiceType == gcbdrServiceType
+		isGCBDRVault = backupVaultServiceType == coremodels.ServiceTypeCrossProject
 	}
 
 	// For non-GCBDR vaults found in VCP, validate that vault belongs to the requesting account
@@ -241,7 +240,7 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 			if expertModeVol.BackupConfig == nil || expertModeVol.BackupConfig.BackupVaultID == "" {
 				// Backup vault not attached, check if it exists in VCP, if not fetch from CVP
 				backupVault, err := checkAndFetchBackupVault(ctx, &h, expertModeVol, params.BackupVaultId, params.LocationId)
-				if err != nil {
+				if err != nil && !errors.IsNotFoundErr(err) {
 					logger.Error("Failed to check/attach backup vault to expert mode volume", "error", err.Error())
 					return &gcpgenserver.V1betaCreateBackupInternalServerError{Code: 500, Message: err.Error()}, err
 				}
@@ -260,6 +259,12 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 		vol, err = h.Orchestrator.GetVolume(ctx, req.VolumeId, false)
 		if err != nil {
 			if errors.IsNotFoundErr(err) {
+				if env.UseVCPRegion {
+					return &gcpgenserver.V1betaCreateBackupBadRequest{
+						Code:    400,
+						Message: fmt.Sprintf("Volume with ID %s not found", req.VolumeId),
+					}, nil
+				}
 				fetchFromCVP = true
 			} else if errors.IsUserInputValidationErr(err) {
 				return &gcpgenserver.V1betaCreateBackupBadRequest{
@@ -425,7 +430,7 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 		return &gcpgenserver.V1betaCreateBackupInternalServerError{Code: 500, Message: err.Error()}, err
 	}
 	// For GCBDR vaults, skip CVP check and only check VCP
-	if !isGCBDRVault {
+	if !env.UseVCPRegion && !isGCBDRVault {
 		exist, err := checkIfBackupExistInCVP(ctx, &req.ResourceId, params)
 		if err != nil {
 			logger.Error("Failed to check if backup exists in CVP", "error", err.Error())
@@ -442,13 +447,24 @@ func (h Handler) V1betaCreateBackup(ctx context.Context, req *gcpgenserver.Backu
 	} else {
 		logger.Info("Skipping CVP backup existence check for GCBDR vault, checking VCP only", "backupVaultId", params.BackupVaultId)
 		filters := [][]interface{}{{"name = ?", req.ResourceId}}
-		// For GCBDR vaults, do not apply project/account filtering when checking for existing backups
-		// This ensures we detect backups created by other projects in the same GCBDR vault
-		existingBackups, err := h.Orchestrator.ListBackupsWithoutAccountFilter(ctx, params.BackupVaultId, filters)
-		if err != nil && !errors.IsNotFoundErr(err) {
-			logger.Error("Failed to check for existing backups in VCP", "error", err.Error())
-			return &gcpgenserver.V1betaCreateBackupInternalServerError{Code: 500, Message: err.Error()}, err
+
+		var existingBackups []*datamodel.Backup
+		if isGCBDRVault {
+			// For GCBDR vaults, do not apply project/account filtering when checking for existing backups
+			// This ensures we detect backups created by other projects in the same GCBDR vault
+			existingBackups, err = h.Orchestrator.ListBackupsWithoutAccountFilter(ctx, params.BackupVaultId, filters)
+			if err != nil && !errors.IsNotFoundErr(err) {
+				logger.Error("Failed to check for existing backups in VCP", "error", err.Error())
+				return &gcpgenserver.V1betaCreateBackupInternalServerError{Code: 500, Message: err.Error()}, err
+			}
+		} else {
+			existingBackups, err = h.Orchestrator.ListBackups(ctx, params.BackupVaultId, params.ProjectNumber, filters)
+			if err != nil && !errors.IsNotFoundErr(err) {
+				logger.Error("Failed to check for existing backups in VCP", "error", err.Error())
+				return &gcpgenserver.V1betaCreateBackupInternalServerError{Code: 500, Message: err.Error()}, err
+			}
 		}
+
 		if len(existingBackups) > 0 {
 			msg := fmt.Sprintf("Backup with resource ID %s already exists in backup vault %s", req.ResourceId, params.BackupVaultId)
 			logger.Error(msg)
@@ -524,6 +540,12 @@ func (h Handler) V1betaDeleteBackupUnderBackupVault(ctx context.Context, params 
 	if err != nil {
 		// Delegate to CVP/SDE only when the backup is not found in VSA.
 		if errors.IsNotFoundErr(err) {
+			if env.UseVCPRegion {
+				return &gcpgenserver.V1betaDeleteBackupUnderBackupVaultNotFound{
+					Code:    404,
+					Message: fmt.Sprintf("Backup with ID %s not found", params.BackupId),
+				}, nil
+			}
 			return deleteBackupToCVP(ctx, params)
 		}
 		logger.Error("Failed to get backup", "error", err.Error())
@@ -578,6 +600,12 @@ func (h Handler) V1betaDescribeBackup(ctx context.Context, params gcpgenserver.V
 	})
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
+			if env.UseVCPRegion {
+				return &gcpgenserver.V1betaDescribeBackupNotFound{
+					Code:    404,
+					Message: fmt.Sprintf("Backup with ID %s not found", params.BackupId),
+				}, nil
+			}
 			// Delegate to CVP/SDE so NotFound errors are returned with proper HTTP status.
 			return getBackupsFromCVP(ctx, params)
 		}
@@ -620,6 +648,12 @@ func (h Handler) V1betaUpdateBackup(ctx context.Context, req *gcpgenserver.Backu
 	if err != nil {
 		// Delegate to CVP/SDE only when the backup is not found in VSA
 		if errors.IsNotFoundErr(err) {
+			if env.UseVCPRegion {
+				return &gcpgenserver.V1betaUpdateBackupNotFound{
+					Code:    404,
+					Message: fmt.Sprintf("Backup with ID %s not found", params.BackupId),
+				}, nil
+			}
 			return updateBackupToCVP(ctx, req, params)
 		}
 		// For all other errors, treat as internal failures to avoid misrouting
@@ -799,12 +833,12 @@ func (h Handler) V1betaListBackups(ctx context.Context, params gcpgenserver.V1be
 	// Determine if this is a GCBDR vault
 	isGCBDRVault := false
 	if vcpBv != nil {
-		isGCBDRVault = vcpBv.ServiceType == gcbdrServiceType
+		isGCBDRVault = vcpBv.ServiceType == coremodels.ServiceTypeCrossProject
 	}
 
 	// For GCBDR vaults, skip CVP call and only list from VCP
 	var cvpBackups *gcpgenserver.V1betaListBackupsOK
-	if !isGCBDRVault {
+	if !env.UseVCPRegion && !isGCBDRVault {
 		listBackupParams := gcpgenserver.V1betaListBackupsParams{
 			BackupVaultId:  params.BackupVaultId,
 			LocationId:     params.LocationId,
@@ -1455,8 +1489,12 @@ func checkAndFetchBackupVault(ctx context.Context, handler *Handler, expertModeV
 	}
 
 	// If error is not a NotFound error, propagate it (e.g., database connection failures, timeouts)
-	if err != nil && !errors.IsNotFoundErr(err) {
-		return nil, err
+	if err != nil {
+		if env.UseVCPRegion && errors.IsNotFoundErr(err) {
+			return nil, errors.NewNotFoundErr("Backup vault", &backupVaultID)
+		} else if !errors.IsNotFoundErr(err) {
+			return nil, err
+		}
 	}
 
 	// Backup vault not found locally, fetch from CVP

@@ -204,7 +204,7 @@ func (d *DataStoreRepository) CreateBackupVaultEntryInVCP(ctx context.Context, b
 		if err != nil {
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, err)
 		}
-		err := tx.Where("uuid = ? and account_id = ?", bv.UUID, bv.AccountID).First(&bvDetails).Error
+		err := tx.Where("uuid = ? and account_id = ?", bv.UUID, bv.AccountID).Preload("Account").First(&bvDetails).Error
 		if err != nil {
 			return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 		}

@@ -252,6 +252,7 @@ workerConfig:
   minHotTierSize: "1099511627776"
   minHotTierSizeLV: "6597069766656"
   createCommonResourcesInVCP: true
+  useVCPRegion: "false"
   consecutiveUpdatePoolTimeGapAllowedMinutes: 240
   autoTierHotTierAutoResizeThresholdPercent: 100
   autoTierHotTierAutoResizeIncreasePercent: 10

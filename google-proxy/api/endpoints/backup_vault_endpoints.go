@@ -165,7 +165,7 @@ func extractRetentionPolicyParams(req *gcpgenserver.BackupVaultUpdateV1beta) *co
 	}
 }
 
-func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.BackupVaultCreateV1beta, reqPayloadparams gcpgenserver.V1betaCreateBackupVaultParams) (gcpgenserver.V1betaCreateBackupVaultRes, error) {
+func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.BackupVaultCreateV1beta, params gcpgenserver.V1betaCreateBackupVaultParams) (gcpgenserver.V1betaCreateBackupVaultRes, error) {
 	if !backupEnabled {
 		return &gcpgenserver.V1betaCreateBackupVaultBadRequest{
 			Code:    400,
@@ -219,8 +219,8 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 		}
 	}
 	logger := util.GetLogger(ctx)
-	helper.AddLabelerAttributes(ctx, reqPayloadparams.ProjectNumber, reqPayloadparams.LocationId, nil)
-	_, _, parsingErr := parseAndValidateRegionAndZone(reqPayloadparams.LocationId)
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	_, _, parsingErr := parseAndValidateRegionAndZone(params.LocationId)
 	if parsingErr != nil {
 		return &gcpgenserver.V1betaCreateBackupVaultBadRequest{
 			Code:    parsingErr.Code,
@@ -282,9 +282,9 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 		backupRegion = &req.BackupRegion.Value
 	}
 	// Check if the BackupVault already exists
-	existingBackupVault, err := h.Orchestrator.GetBackupVaultByNameAndOwnerID(ctx, req.ResourceId.Value, reqPayloadparams.ProjectNumber)
+	existingBackupVault, err := h.Orchestrator.GetBackupVaultByNameAndOwnerID(ctx, req.ResourceId.Value, params.ProjectNumber)
 	if err == nil && existingBackupVault != nil {
-		logger.Infof("backupVault with name: %s already exists ", req.ResourceId)
+		logger.Infof("backupVault with name: %s already exists ", resourceID)
 		convertedBackupVault := convertCoreToCvpBackupVault(existingBackupVault)
 		bvJSON, err := json.Marshal(convertedBackupVault)
 		if err != nil {
@@ -305,6 +305,32 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 			Code:    500,
 			Message: "Failed to check existing Backup vault",
 		}, err
+	}
+
+	if env.UseVCPRegion || isCrossProjectVault {
+		// USE_VCP_REGION: create backup vault in VCP via workflow
+		createParams := buildCreateBackupVaultParams(req, params, backupRegion)
+		vault, err := h.Orchestrator.CreateBackupVault(ctx, createParams)
+		if err != nil {
+			logger.Error("Failed to create backup vault", "error", err)
+			return &gcpgenserver.V1betaCreateBackupVaultInternalServerError{
+				Code:    500,
+				Message: err.Error(),
+			}, err
+		}
+		bvJSON, err := jsonMarshal(convertCoreToCvpBackupVault(vault))
+		if err != nil {
+			logger.Error("Failed to marshal backup vault", err.Error())
+			return &gcpgenserver.V1betaCreateBackupVaultInternalServerError{
+				Code:    500,
+				Message: "Failed to marshal Backup vault",
+			}, err
+		}
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(vault.Name),
+			Done:     gcpgenserver.NewOptBool(true),
+			Response: bvJSON,
+		}, nil
 	}
 
 	// not exists in VCP, Call SDE for Creating
@@ -328,8 +354,8 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 		body.BackupsPrimaryKeyVersion = &req.BackupsPrimaryKeyVersion.Value
 	}
 	vault, err := cvpClient.BackupVault.V1betaCreateBackupVault(&backup_vault.V1betaCreateBackupVaultParams{
-		LocationID:     reqPayloadparams.LocationId,
-		ProjectNumber:  reqPayloadparams.ProjectNumber,
+		LocationID:     params.LocationId,
+		ProjectNumber:  params.ProjectNumber,
 		XCorrelationID: &xCorrelationID,
 		Body:           body,
 	})
@@ -409,19 +435,6 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 		}, err
 	}
 
-	if isCrossProjectVault {
-		_, err := h.Orchestrator.CreateBackupVaultEntryInVCPFromCVP(ctx, &data, reqPayloadparams.LocationId, reqPayloadparams.ProjectNumber, req.TenantProject.Value)
-		if err != nil {
-			logger.Error("Failed to create BackupVault entry in VCP from CVP response", "error", err)
-			return &gcpgenserver.V1betaCreateBackupVaultInternalServerError{
-				Code:    500,
-				Message: "Failed to create BackupVault entry in VCP",
-			}, err
-		}
-		crossProject := true
-		data.CrossProjectVault = &crossProject
-	}
-
 	bvJSON, err := jsonMarshal(data)
 	if err != nil {
 		logger.Error("Failed to marshal backup vault", err.Error())
@@ -435,6 +448,42 @@ func (h Handler) V1betaCreateBackupVault(ctx context.Context, req *gcpgenserver.
 		Done:     gcpgenserver.NewOptBool(true),
 		Response: bvJSON,
 	}, nil
+}
+
+func buildCreateBackupVaultParams(req *gcpgenserver.BackupVaultCreateV1beta, params gcpgenserver.V1betaCreateBackupVaultParams, backupRegion *string) *commonparams.CreateBackupVaultParams {
+	createParams := &commonparams.CreateBackupVaultParams{
+		ResourceId:    req.ResourceId.Value,
+		Description:   req.Description.Value,
+		BackupRegion:  backupRegion,
+		LocationId:    params.LocationId,
+		ProjectNumber: params.ProjectNumber,
+	}
+	if req.BackupRetentionPolicy.IsSet() {
+		br := req.BackupRetentionPolicy.Value
+		if br.BackupMinimumEnforcedRetentionDays.IsSet() {
+			d := int64(br.BackupMinimumEnforcedRetentionDays.Value)
+			createParams.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration = &d
+		}
+		if br.DailyBackupImmutable.IsSet() {
+			createParams.BackupRetentionPolicy.IsDailyBackupImmutable = &br.DailyBackupImmutable.Value
+		}
+		if br.ManualBackupImmutable.IsSet() {
+			createParams.BackupRetentionPolicy.IsAdhocBackupImmutable = &br.ManualBackupImmutable.Value
+		}
+		if br.MonthlyBackupImmutable.IsSet() {
+			createParams.BackupRetentionPolicy.IsMonthlyBackupImmutable = &br.MonthlyBackupImmutable.Value
+		}
+		if br.WeeklyBackupImmutable.IsSet() {
+			createParams.BackupRetentionPolicy.IsWeeklyBackupImmutable = &br.WeeklyBackupImmutable.Value
+		}
+	}
+	if req.KmsConfigResourcePath.IsSet() {
+		createParams.KmsConfigResourcePath = &req.KmsConfigResourcePath.Value
+	}
+	if req.BackupsPrimaryKeyVersion.IsSet() {
+		createParams.BackupsPrimaryKeyVersion = &req.BackupsPrimaryKeyVersion.Value
+	}
+	return createParams
 }
 
 func convertBackupRetentionPolicyToCvpModelForCreate(brPolicy gcpgenserver.OptBackupRetentionPolicyV1beta) *models.BackupRetentionPolicyV1beta {
@@ -560,6 +609,12 @@ func (h Handler) V1betaDeleteBackupVault(ctx context.Context, params gcpgenserve
 	_, err := h.Orchestrator.GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
+			if env.UseVCPRegion {
+				return &gcpgenserver.V1betaDeleteBackupVaultNotFound{
+					Code:    404,
+					Message: "Backup vault not found",
+				}, nil
+			}
 			// SDE delete will handle both in-region/cross-region BV cases as handled through pubsub
 			sdeBvResponse, err := deleteBackupVaultInSDE(ctx, params, logger)
 			if err != nil {
@@ -612,6 +667,37 @@ func (h Handler) V1betaDescribeBackupVault(ctx context.Context, params gcpgenser
 	}
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+
+	vcpBackupVaultDetails, err := h.Orchestrator.GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber)
+	if env.UseVCPRegion {
+		if err != nil {
+			if errors.IsNotFoundErr(err) {
+				return &gcpgenserver.V1betaDescribeBackupVaultNotFound{
+					Code:    404,
+					Message: "Backup vault not found",
+				}, nil
+			}
+			return &gcpgenserver.V1betaDescribeBackupVaultInternalServerError{
+				Code:    500,
+				Message: err.Error(),
+			}, nil
+		}
+		response := convertCoreModelsToBackupVaultV1beta(vcpBackupVaultDetails)
+		return response, nil
+	}
+
+	if err != nil && !errors.IsNotFoundErr(err) {
+		return &gcpgenserver.V1betaDescribeBackupVaultInternalServerError{
+			Code:    500,
+			Message: err.Error(),
+		}, nil
+	}
+	if vcpBackupVaultDetails != nil {
+		response := convertCoreModelsToBackupVaultV1beta(vcpBackupVaultDetails)
+		return response, nil
+	}
+
+	// VCP not found: try CVP; if CVP also not found, return 404.
 	describeParams := &backup_vault.V1betaDescribeBackupVaultParams{
 		LocationID:     params.LocationId,
 		ProjectNumber:  params.ProjectNumber,
@@ -679,27 +765,8 @@ func (h Handler) V1betaDescribeBackupVault(ctx context.Context, params gcpgenser
 			}, nil
 		}
 	}
-	vcpBackupVaultDetails, err := h.Orchestrator.GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber)
-	if err != nil && !errors.IsNotFoundErr(err) {
-		return nil, err
-	}
-	if vcpBackupVaultDetails != nil {
-		cvpResponse.Payload.State = vcpBackupVaultDetails.LifeCycleState
-		cvpResponse.Payload.StateDetails = vcpBackupVaultDetails.LifeCycleStateDetails
 
-		// Overlay CMEK fields from VCP when present so that user-visible state
-		// and key version always follow VCP's view for attached vaults.
-		if vcpBackupVaultDetails.EncryptionState != nil {
-			cvpResponse.Payload.EncryptionState = vcpBackupVaultDetails.EncryptionState
-		}
-		if vcpBackupVaultDetails.BackupsPrimaryKeyVersion != nil {
-			cvpResponse.Payload.BackupsPrimaryKeyVersion = vcpBackupVaultDetails.BackupsPrimaryKeyVersion
-		}
-		if vcpBackupVaultDetails.ServiceType == coremodels.ServiceTypeCrossProject {
-			crossProject := true
-			cvpResponse.Payload.CrossProjectVault = &crossProject
-		}
-	}
+	// CVP found: return CVP payload (no VCP overlay when we fell back from VCP-not-found).
 	response := convertBackupVaultV1Beta(cvpResponse.Payload)
 	return &response, nil
 }
@@ -713,6 +780,25 @@ func (h Handler) V1betaGetMultipleBackupVaults(ctx context.Context, req *gcpgens
 	}
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	if env.UseVCPRegion {
+		vaultsDataModel, err := h.Orchestrator.GetMultipleBackupVaults(ctx, req.BackupVaultUuids)
+		if err != nil {
+			return &gcpgenserver.V1betaGetMultipleBackupVaultsInternalServerError{
+				Code:    500,
+				Message: err.Error(),
+			}, nil
+		}
+		bvResponse := gcpgenserver.V1betaGetMultipleBackupVaultsOK{
+			BackupVaults: []gcpgenserver.BackupVaultV1beta{},
+		}
+		for _, bv := range vaultsDataModel {
+			converted := convertCoreModelsToBackupVaultV1beta(bv)
+			if converted != nil {
+				bvResponse.BackupVaults = append(bvResponse.BackupVaults, *converted)
+			}
+		}
+		return &bvResponse, nil
+	}
 	body := &models.BackupVaultUUIDListV1beta{
 		BackupVaultUUIDs: req.BackupVaultUuids,
 	}
@@ -792,7 +878,11 @@ func (h Handler) V1betaGetMultipleBackupVaults(ctx context.Context, req *gcpgens
 			Message: err.Error(),
 		}, nil
 	}
-	res := updateBackupVaultStateDetails(vaultsDataModel, cvpResponse.Payload.BackupVaults)
+	vcpModels := make([]*models.BackupVaultV1beta, 0, len(vaultsDataModel))
+	for _, bv := range vaultsDataModel {
+		vcpModels = append(vcpModels, convertCoreToCvpBackupVault(bv))
+	}
+	res := removeDuplicateSDEBackupVault(vcpModels, cvpResponse.Payload.BackupVaults)
 	for _, bv := range res {
 		bvResponse.BackupVaults = append(bvResponse.BackupVaults, convertBackupVaultV1Beta(bv))
 	}
@@ -808,6 +898,26 @@ func (h Handler) V1betaListBackupVaults(ctx context.Context, params gcpgenserver
 	}
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+	if env.UseVCPRegion {
+		bvs, err := h.Orchestrator.ListBackupVaults(ctx, params.ProjectNumber)
+		if err != nil {
+			logger.Error("Failed to list backup vaults", "error", err)
+			return &gcpgenserver.V1betaListBackupVaultsInternalServerError{
+				Code:    500,
+				Message: "failed to list backup vaults",
+			}, nil
+		}
+		bvResponse := gcpgenserver.V1betaListBackupVaultsOK{
+			BackupVaults: []gcpgenserver.BackupVaultV1beta{},
+		}
+		for _, bv := range bvs {
+			converted := convertCoreModelsToBackupVaultV1beta(bv)
+			if converted != nil {
+				bvResponse.BackupVaults = append(bvResponse.BackupVaults, *converted)
+			}
+		}
+		return &bvResponse, nil
+	}
 	listParams := &backup_vault.V1betaListBackupVaultsParams{
 		LocationID:     params.LocationId,
 		ProjectNumber:  params.ProjectNumber,
@@ -880,11 +990,38 @@ func (h Handler) V1betaListBackupVaults(ctx context.Context, params gcpgenserver
 			Message: "failed to list backup vaults",
 		}, nil
 	}
-	res := updateBackupVaultStateDetails(bvs, cvpResponse.Payload.BackupVaults)
+	vcpModels := make([]*models.BackupVaultV1beta, 0, len(bvs))
+	for _, bv := range bvs {
+		vcpModels = append(vcpModels, convertCoreToCvpBackupVault(bv))
+	}
+	res := removeDuplicateSDEBackupVault(vcpModels, cvpResponse.Payload.BackupVaults)
 	for _, bv := range res {
 		bvResponse.BackupVaults = append(bvResponse.BackupVaults, convertBackupVaultV1Beta(bv))
 	}
 	return &bvResponse, nil
+}
+
+// removeDuplicateSDEBackupVault returns a list containing all VCP backup vaults and only those
+// CVP backup vaults whose UUID is not present in VCP. Duplication is judged by backup vault
+// UUID (BackupVaultID). The result has no duplicate UUIDs: VCP wins when present in both.
+func removeDuplicateSDEBackupVault(vcpVaults []*models.BackupVaultV1beta, cvpVaults []*models.BackupVaultV1beta) []*models.BackupVaultV1beta {
+	vcpUUIDs := make(map[string]struct{})
+	for _, bv := range vcpVaults {
+		if bv != nil && bv.BackupVaultID != "" {
+			vcpUUIDs[bv.BackupVaultID] = struct{}{}
+		}
+	}
+	out := make([]*models.BackupVaultV1beta, 0, len(vcpVaults)+len(cvpVaults))
+	out = append(out, vcpVaults...)
+	for _, bv := range cvpVaults {
+		if bv == nil {
+			continue
+		}
+		if _, inVCP := vcpUUIDs[bv.BackupVaultID]; !inVCP && bv.BackupVaultID != "" {
+			out = append(out, bv)
+		}
+	}
+	return out
 }
 
 func updateBackupVaultStateDetails(bvs []*coremodels.BackupVaultV1beta, cvpBvs []*models.BackupVaultV1beta) []*models.BackupVaultV1beta {
@@ -1164,6 +1301,12 @@ func (h Handler) V1betaUpdateBackupVault(ctx context.Context, req *gcpgenserver.
 	backupVault, err := h.Orchestrator.GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber)
 	if err != nil {
 		if errors.IsNotFoundErr(err) {
+			if env.UseVCPRegion {
+				return &gcpgenserver.ErrorStatusCode{
+					StatusCode: 404,
+					Response:   gcpgenserver.Error{Code: 404, Message: "Backup vault not found"},
+				}, nil
+			}
 			sdeBvResponse, err := updateBackupVaultInSDE(ctx, req, params, description)
 			if err != nil {
 				return nil, err
@@ -1406,7 +1549,11 @@ func convertCoreToCvpBackupVault(coreBV *coremodels.BackupVaultV1beta) *models.B
 }
 
 func convertCoreModelsToBackupVaultV1beta(beta *coremodels.BackupVaultV1beta) *gcpgenserver.BackupVaultV1beta {
-	var description, sourceBackupVault, destinationBackupVault, sourceRegion, backupRegion, backupVaultType string
+	var (
+		description, sourceBackupVault, destinationBackupVault, sourceRegion, backupRegion, backupVaultType string
+		kmsConfigResourcePath, backupsPrimaryKeyVersion, encryptionState                                    string
+		crossProjectVault                                                                                   bool
+	)
 	var backupMinimumEnforcedRetentionDuration int
 	if beta.Description != nil {
 		description = *beta.Description
@@ -1429,6 +1576,18 @@ func convertCoreModelsToBackupVaultV1beta(beta *coremodels.BackupVaultV1beta) *g
 	if beta.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration != nil {
 		backupMinimumEnforcedRetentionDuration = int(*beta.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration)
 	}
+	if beta.KmsConfigResourcePath != nil {
+		kmsConfigResourcePath = *beta.KmsConfigResourcePath
+	}
+	if beta.BackupsPrimaryKeyVersion != nil {
+		backupsPrimaryKeyVersion = *beta.BackupsPrimaryKeyVersion
+	}
+	if beta.EncryptionState != nil {
+		encryptionState = *beta.EncryptionState
+	}
+	if beta.ServiceType != "" {
+		crossProjectVault = beta.ServiceType == coremodels.ServiceTypeCrossProject
+	}
 	return &gcpgenserver.BackupVaultV1beta{
 		BackupVaultId:          gcpgenserver.NewOptString(beta.BackupVaultID),
 		State:                  gcpgenserver.NewOptBackupVaultV1betaState(gcpgenserver.BackupVaultV1betaState(beta.LifeCycleState)),
@@ -1448,6 +1607,10 @@ func convertCoreModelsToBackupVaultV1beta(beta *coremodels.BackupVaultV1beta) *g
 			MonthlyBackupImmutable:             gcpgenserver.NewOptBool(beta.BackupRetentionPolicy.IsMonthlyBackupImmutable),
 			WeeklyBackupImmutable:              gcpgenserver.NewOptBool(beta.BackupRetentionPolicy.IsWeeklyBackupImmutable),
 		}),
+		KmsConfigResourcePath:    gcpgenserver.NewOptString(kmsConfigResourcePath),
+		BackupsPrimaryKeyVersion: gcpgenserver.NewOptString(backupsPrimaryKeyVersion),
+		EncryptionState:          gcpgenserver.NewOptBackupVaultV1betaEncryptionState(gcpgenserver.BackupVaultV1betaEncryptionState(encryptionState)),
+		CrossProjectVault:        gcpgenserver.NewOptBool(crossProjectVault),
 	}
 }
 
@@ -1485,8 +1648,14 @@ func (h Handler) V1betaRotateCmekBackups(ctx context.Context, req *gcpgenserver.
 	// Try VCP path for VCP-tracked backup vaults.
 	bv, err := h.Orchestrator.GetBackupVaultByUUID(ctx, params.BackupVaultId, params.ProjectNumber)
 	if err != nil {
-		// If backup vault is not in VCP, fall back to SDE rotation.
 		if errors.IsNotFoundErr(err) {
+			if env.UseVCPRegion {
+				return &gcpgenserver.V1betaRotateCmekBackupsNotFound{
+					Code:    404,
+					Message: "Backup vault not found",
+				}, nil
+			}
+			// If backup vault is not in VCP, fall back to SDE rotation.
 			return _rotateCmekBackupsInSDE(ctx, req, params, logger)
 		}
 		return &gcpgenserver.V1betaRotateCmekBackupsInternalServerError{

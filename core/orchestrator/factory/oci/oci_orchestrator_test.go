@@ -1453,6 +1453,31 @@ func TestOCIOrchestrator_CreateBackupVaultEntryInVCP(t *testing.T) {
 	})
 }
 
+func TestOCIOrchestrator_CreateBackupVault(t *testing.T) {
+	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
+		orch := &OCIOrchestrator{}
+		ctx := context.Background()
+		params := &common.CreateBackupVaultParams{}
+
+		jobID, err := orch.CreateBackupVault(ctx, params)
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsNotImplementedYetErr(err))
+		assert.Empty(tt, jobID)
+	})
+
+	t.Run("ReturnsNotImplementedError_nilParams", func(tt *testing.T) {
+		orch := &OCIOrchestrator{}
+		ctx := context.Background()
+
+		jobID, err := orch.CreateBackupVault(ctx, nil)
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsNotImplementedYetErr(err))
+		assert.Empty(tt, jobID)
+	})
+}
+
 func TestOCIOrchestrator_GetBackupVaultByExternalUUIDAndOwnerID(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}

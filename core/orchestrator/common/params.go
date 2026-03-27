@@ -439,6 +439,18 @@ type BackupRetentionPolicyParams struct {
 	IsAdhocBackupImmutable                 *bool
 }
 
+// CreateBackupVaultParams describes parameters for creating a backup vault in VCP (USE_VCP_REGION path).
+type CreateBackupVaultParams struct {
+	ResourceId               string
+	Description              string
+	BackupRegion             *string
+	LocationId               string
+	ProjectNumber            string
+	BackupRetentionPolicy    BackupRetentionPolicyParams
+	KmsConfigResourcePath    *string
+	BackupsPrimaryKeyVersion *string
+}
+
 type DeleteBackupPolicyParams struct {
 	Name           string
 	OwnerID        string

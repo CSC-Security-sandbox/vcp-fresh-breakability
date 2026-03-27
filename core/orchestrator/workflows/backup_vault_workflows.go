@@ -10,6 +10,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -91,6 +92,7 @@ func (wf *backupVaultUpdateWorkflow) Setup(ctx workflow.Context, input interface
 func (wf *backupVaultUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	backupVault := args[0].(*datamodel.BackupVault)
 	bvCommonParams := args[1].(*common.BackupVaultParams)
+	useVCPRegion := env.UseVCPRegion
 	backupVaultActivity := &activities.BackupVaultActivity{}
 
 	retryPolicy, err := PopulateRetryPolicyParams()
@@ -115,25 +117,33 @@ func (wf *backupVaultUpdateWorkflow) Run(ctx workflow.Context, args ...interface
 		}
 	}()
 
-	var jwtToken string
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, bvCommonParams.AccountName).Get(ctx, &jwtToken)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
+	var sdeBackupVault *datamodel.BackupVault
+	if useVCPRegion || backupVault.ServiceType == models.ServiceTypeCrossProject {
+		err = workflow.ExecuteActivity(ctx, backupVaultActivity.ApplyBackupVaultUpdateParams, backupVault, bvCommonParams).Get(ctx, &sdeBackupVault)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+	} else {
+		var jwtToken string
+		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, bvCommonParams.AccountName).Get(ctx, &jwtToken)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
 
-	sdeBackupVault := &datamodel.BackupVault{}
-	err = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultInSDE, bvCommonParams).Get(ctx, &sdeBackupVault)
-	if err != nil {
-		wf.Logger.Error("Failed to update backup vault in SDE", log.Fields{
-			"error":  err,
-			"params": backupVault,
-		})
-		return nil, ConvertToVSAError(fmt.Errorf("UpdateBackupVaultInSDE failed: %w", err))
+		sdeBackupVault = &datamodel.BackupVault{}
+		err = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultInSDE, bvCommonParams).Get(ctx, &sdeBackupVault)
+		if err != nil {
+			wf.Logger.Error("Failed to update backup vault in SDE", log.Fields{
+				"error":  err,
+				"params": backupVault,
+			})
+			return nil, ConvertToVSAError(fmt.Errorf("UpdateBackupVaultInSDE failed: %w", err))
+		}
 	}
 
 	dbBackupVault := &datamodel.BackupVault{}
-	err = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultInVCP, &sdeBackupVault, backupVault).Get(ctx, &dbBackupVault)
+	err = workflow.ExecuteActivity(ctx, backupVaultActivity.UpdateBackupVaultInVCP, sdeBackupVault, backupVault).Get(ctx, &dbBackupVault)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
 	}
@@ -215,6 +225,7 @@ func (wf *backupVaultDeleteWorkflow) Setup(ctx workflow.Context, input interface
 func (wf *backupVaultDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	backupVault := args[0].(*datamodel.BackupVault)
 	bvCommonParams := args[1].(*common.BackupVaultParams)
+	useVCPRegion := env.UseVCPRegion
 	backupVaultActivity := &activities.BackupVaultActivity{}
 
 	retryPolicy, err := PopulateRetryPolicyParams()
@@ -239,13 +250,6 @@ func (wf *backupVaultDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 		}
 	}()
 
-	var jwtToken string
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, bvCommonParams.AccountName).Get(ctx, &jwtToken)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
-
 	// Step 1: Soft-delete backup vault in VCP database (state → DELETED, DeletedAt set)
 	dbBackupVault := &datamodel.BackupVault{}
 	err = workflow.ExecuteActivity(ctx, backupVaultActivity.DeleteBackupVaultInVCP, bvCommonParams.BackupVaultID).Get(ctx, &dbBackupVault)
@@ -257,15 +261,24 @@ func (wf *backupVaultDeleteWorkflow) Run(ctx workflow.Context, args ...interface
 		return nil, ConvertToVSAError(fmt.Errorf("DeleteBackupVaultInVCP failed: %w", err))
 	}
 
-	// Step 2: Delete backup vault in SDE
-	sdeBackupVault := &datamodel.BackupVault{}
-	err = workflow.ExecuteActivity(ctx, backupVaultActivity.DeleteBackupVaultInSDE, bvCommonParams).Get(ctx, &sdeBackupVault)
-	if err != nil {
-		wf.Logger.Error("Failed to delete backup vault in SDE", log.Fields{
-			"error":  err,
-			"params": backupVault,
-		})
-		return nil, ConvertToVSAError(fmt.Errorf("DeleteBackupVaultInSDE failed: %w", err))
+	// Step 2: Delete backup vault in SDE (if not cross-project, or if USE_VCP_REGION is enabled)
+	if !useVCPRegion && backupVault.ServiceType != models.ServiceTypeCrossProject {
+		var jwtToken string
+		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, bvCommonParams.AccountName).Get(ctx, &jwtToken)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, jwtToken)
+
+		sdeBackupVault := &datamodel.BackupVault{}
+		err = workflow.ExecuteActivity(ctx, backupVaultActivity.DeleteBackupVaultInSDE, bvCommonParams).Get(ctx, &sdeBackupVault)
+		if err != nil {
+			wf.Logger.Error("Failed to delete backup vault in SDE", log.Fields{
+				"error":  err,
+				"params": backupVault,
+			})
+			return nil, ConvertToVSAError(fmt.Errorf("DeleteBackupVaultInSDE failed: %w", err))
+		}
 	}
 
 	// Step 3: Delete remote backup vault in VCP (cross-region only)

@@ -543,6 +543,91 @@ func _updateBackupVaultInSDE(ctx context.Context, paramz *common.BackupVaultPara
 	return model, nil
 }
 
+// ApplyBackupVaultUpdateParams merges update params into the current backup vault and returns
+// the result. Used when USE_VCP_REGION is true so VCP is updated with the requested fields (description,
+// retention policy, etc.) without calling SDE.
+func (j *BackupVaultActivity) ApplyBackupVaultUpdateParams(ctx context.Context, backupVault *datamodel.BackupVault, params *common.BackupVaultParams) (*datamodel.BackupVault, error) {
+	updated := &datamodel.BackupVault{
+		BaseModel:    backupVault.BaseModel,
+		AccountID:    backupVault.AccountID,
+		ExternalUUID: backupVault.ExternalUUID,
+	}
+
+	if params.Description != nil {
+		updated.Description = params.Description
+	} else {
+		updated.Description = backupVault.Description
+	}
+
+	brp := params.BackupRetentionPolicy
+	if brp.BackupMinimumEnforcedRetentionDuration != nil ||
+		brp.IsDailyBackupImmutable != nil ||
+		brp.IsWeeklyBackupImmutable != nil ||
+		brp.IsMonthlyBackupImmutable != nil ||
+		brp.IsAdhocBackupImmutable != nil {
+		if backupVault.ImmutableAttributes != nil {
+			updated.ImmutableAttributes = &datamodel.ImmutableAttributes{
+				BackupMinimumEnforcedRetentionDuration: backupVault.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration,
+				IsDailyBackupImmutable:                 backupVault.ImmutableAttributes.IsDailyBackupImmutable,
+				IsWeeklyBackupImmutable:                backupVault.ImmutableAttributes.IsWeeklyBackupImmutable,
+				IsMonthlyBackupImmutable:               backupVault.ImmutableAttributes.IsMonthlyBackupImmutable,
+				IsAdhocBackupImmutable:                 backupVault.ImmutableAttributes.IsAdhocBackupImmutable,
+			}
+		} else {
+			updated.ImmutableAttributes = &datamodel.ImmutableAttributes{}
+		}
+		if brp.BackupMinimumEnforcedRetentionDuration != nil {
+			updated.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration = brp.BackupMinimumEnforcedRetentionDuration
+		}
+		if brp.IsDailyBackupImmutable != nil {
+			updated.ImmutableAttributes.IsDailyBackupImmutable = *brp.IsDailyBackupImmutable
+		}
+		if brp.IsWeeklyBackupImmutable != nil {
+			updated.ImmutableAttributes.IsWeeklyBackupImmutable = *brp.IsWeeklyBackupImmutable
+		}
+		if brp.IsMonthlyBackupImmutable != nil {
+			updated.ImmutableAttributes.IsMonthlyBackupImmutable = *brp.IsMonthlyBackupImmutable
+		}
+		if brp.IsAdhocBackupImmutable != nil {
+			updated.ImmutableAttributes.IsAdhocBackupImmutable = *brp.IsAdhocBackupImmutable
+		}
+	} else {
+		updated.ImmutableAttributes = backupVault.ImmutableAttributes
+	}
+
+	if backupVault.CmekAttributes != nil {
+		updated.CmekAttributes = &datamodel.CmekAttributes{
+			KmsConfigResourcePath:    backupVault.CmekAttributes.KmsConfigResourcePath,
+			EncryptionState:          backupVault.CmekAttributes.EncryptionState,
+			BackupsPrimaryKeyVersion: backupVault.CmekAttributes.BackupsPrimaryKeyVersion,
+		}
+	}
+	if params.CmekEncryptionState != nil || params.CmekBackupsPrimaryKeyVersion != nil {
+		if updated.CmekAttributes == nil {
+			updated.CmekAttributes = &datamodel.CmekAttributes{}
+		}
+		if params.CmekEncryptionState != nil {
+			updated.CmekAttributes.EncryptionState = params.CmekEncryptionState
+		}
+		if params.CmekBackupsPrimaryKeyVersion != nil {
+			updated.CmekAttributes.BackupsPrimaryKeyVersion = params.CmekBackupsPrimaryKeyVersion
+		}
+	}
+
+	updated.LifeCycleState = coremodels.LifeCycleStateREADY
+	updated.LifeCycleStateDetails = coremodels.LifeCycleStateAvailableDetails
+	return updated, nil
+}
+
+// CreateBackupVaultInVCP creates a backup vault entry in the VCP database (USE_VCP_REGION path).
+func (j *BackupVaultActivity) CreateBackupVaultInVCP(ctx context.Context, bv *datamodel.BackupVault) (*datamodel.BackupVault, error) {
+	created, err := j.SE.CreateBackupVaultEntryInVCP(ctx, bv)
+	if err != nil {
+		return nil, err
+	}
+	return created, nil
+}
+
 func (j *BackupVaultActivity) UpdateBackupVaultInVCP(ctx context.Context, bvParams *datamodel.BackupVault, vcpBvParams *datamodel.BackupVault) (*datamodel.BackupVault, error) {
 	se := j.SE
 	BackupVault, err := se.UpdateBackupVaultInVCP(ctx, bvParams, vcpBvParams)

@@ -8,6 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 )
 
@@ -51,6 +52,63 @@ func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_Success() {
 	assert.Nil(s.T(), err)
 
 	// Assert workflow failed
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+// Test_UpdateBackupVaultWorkflow_UseVCPRegion_ApplyBackupVaultUpdateParams_Success covers the
+// useVCPRegion branch: ApplyBackupVaultUpdateParams then UpdateBackupVaultInVCP (no SDE/JWT path).
+func (s *UnitTestSuite) Test_UpdateBackupVaultWorkflow_UseVCPRegion_ApplyBackupVaultUpdateParams_Success() {
+	origUseVCPRegion := env.UseVCPRegion
+	env.UseVCPRegion = true
+	defer func() { env.UseVCPRegion = origUseVCPRegion }()
+
+	mockStorage := database.NewMockStorage(s.T())
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	backupvaultUpdateActivity := activities.BackupVaultActivity{SE: mockStorage}
+	des := "description of backup vault"
+	mrd := int64(30)
+	bv := &datamodel.BackupVault{
+		BaseModel:   datamodel.BaseModel{ID: int64(1)},
+		Name:        "backup_vault_test",
+		Description: &des,
+		ImmutableAttributes: &datamodel.ImmutableAttributes{
+			IsDailyBackupImmutable:                 true,
+			IsWeeklyBackupImmutable:                true,
+			IsMonthlyBackupImmutable:               true,
+			IsAdhocBackupImmutable:                 true,
+			BackupMinimumEnforcedRetentionDuration: &mrd,
+		},
+	}
+	mergedFromApply := &datamodel.BackupVault{
+		BaseModel:       datamodel.BaseModel{ID: int64(1), UUID: "merged-from-apply"},
+		Name:            bv.Name,
+		Description:     bv.Description,
+		BackupVaultType: "IN_REGION",
+	}
+	dbBackupVault := &datamodel.BackupVault{
+		BaseModel:       datamodel.BaseModel{ID: int64(1), UUID: "db-bv-uuid"},
+		Name:            bv.Name,
+		BackupVaultType: "IN_REGION",
+	}
+
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(backupvaultUpdateActivity.ApplyBackupVaultUpdateParams)
+	s.env.RegisterActivity(backupvaultUpdateActivity.UpdateBackupVaultInVCP)
+
+	s.env.OnActivity(backupvaultUpdateActivity.ApplyBackupVaultUpdateParams, mock.Anything, mock.Anything, mock.Anything).Return(mergedFromApply, nil)
+	s.env.OnActivity(backupvaultUpdateActivity.UpdateBackupVaultInVCP, mock.Anything, mock.Anything, mock.Anything).Return(dbBackupVault, nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.ExecuteWorkflow(UpdateBackupVaultWorkflow, &common.BackupVaultParams{AccountName: "test-account"}, bv)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Nil(s.T(), s.env.GetWorkflowError())
 }

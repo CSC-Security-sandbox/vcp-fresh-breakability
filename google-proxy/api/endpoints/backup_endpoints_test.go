@@ -515,6 +515,40 @@ func TestUpdateBackup(t *testing.T) {
 		assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
 		assert.Equal(t, "/v1beta/projects/12345/locations/us-east4/operations/job-id", result.(*gcpgenserver.OperationV1beta).Name.Value)
 	})
+	t.Run("WhenBackupNotFoundAndUseVCPRegionEnabled_ShouldReturnNotFound", func(t *testing.T) {
+		backupEnabled = true
+		origUseVCPRegion := env.UseVCPRegion
+		defer func() { env.UseVCPRegion = origUseVCPRegion }()
+		env.UseVCPRegion = true
+
+		req := &gcpgenserver.BackupUpdateV1beta{
+			Description: "updated-description",
+		}
+		params := gcpgenserver.V1betaUpdateBackupParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "12345",
+			BackupVaultId: "test-backup-vault-id",
+			BackupId:      "test-backup-id",
+		}
+
+		mockOrch := factory.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+		defer func() {
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+		mockOrch.EXPECT().GetBackup(mock.Anything, mock.Anything).Return(nil, errors.NewNotFoundErr("backup not found", nil))
+
+		result, err := handler.V1betaUpdateBackup(context.Background(), req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaUpdateBackupNotFound{}, result)
+		assert.Equal(t, float64(404), result.(*gcpgenserver.V1betaUpdateBackupNotFound).Code)
+		assert.Equal(t, "Backup with ID test-backup-id not found", result.(*gcpgenserver.V1betaUpdateBackupNotFound).Message)
+	})
 	t.Run("WhenOrchestratorGetBackupReturnsNonNotFoundError", func(t *testing.T) {
 		backupEnabled = true
 		req := &gcpgenserver.BackupUpdateV1beta{
@@ -1809,6 +1843,36 @@ func TestV1betaDeleteBackupUnderBackupVault(t *testing.T) {
 		assert.Equal(tt, float64(404), result.(*gcpgenserver.V1betaDeleteBackupUnderBackupVaultNotFound).Code)
 		assert.Equal(tt, "Not Found", result.(*gcpgenserver.V1betaDeleteBackupUnderBackupVaultNotFound).Message)
 	})
+	t.Run("WhenBackupNotFoundAndUseVCPRegionEnabled_ShouldReturnNotFoundWithoutCVPFallback", func(tt *testing.T) {
+		origUseVCPRegion := env.UseVCPRegion
+		defer func() { env.UseVCPRegion = origUseVCPRegion }()
+		env.UseVCPRegion = true
+
+		ctx := context.Background()
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+		defer func() {
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		params := gcpgenserver.V1betaDeleteBackupUnderBackupVaultParams{
+			BackupVaultId: "vault-id",
+			BackupId:      "backup-id",
+			LocationId:    "us-east4",
+			ProjectNumber: "project-number",
+		}
+
+		mockOrchestrator.EXPECT().GetBackup(ctx, mock.Anything).Return(nil, errors.NewNotFoundErr("backup", nil))
+
+		result, err := handler.V1betaDeleteBackupUnderBackupVault(ctx, params)
+		assert.Nil(tt, err)
+		assert.IsType(tt, &gcpgenserver.V1betaDeleteBackupUnderBackupVaultNotFound{}, result)
+		assert.Equal(tt, float64(404), result.(*gcpgenserver.V1betaDeleteBackupUnderBackupVaultNotFound).Code)
+		assert.Equal(tt, "Backup with ID backup-id not found", result.(*gcpgenserver.V1betaDeleteBackupUnderBackupVaultNotFound).Message)
+	})
 	t.Run("WhenInternalServerErrorOccurs", func(tt *testing.T) {
 		ctx := context.Background()
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
@@ -2791,6 +2855,36 @@ func TestV1betaDescribeBackup(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, resp)
+	})
+
+	t.Run("WhenBackupNotFoundAndUseVCPRegionEnabled_ShouldReturnNotFound", func(t *testing.T) {
+		origUseVCPRegion := env.UseVCPRegion
+		defer func() { env.UseVCPRegion = origUseVCPRegion }()
+		env.UseVCPRegion = true
+
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		defer func() {
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		mockOrchestrator.EXPECT().GetBackup(ctx, mock.Anything).Return(nil, errors.NewNotFoundErr("backup", nil))
+
+		params := gcpgenserver.V1betaDescribeBackupParams{
+			BackupVaultId: "vault-123",
+			BackupId:      "backup-123",
+			ProjectNumber: "project-123",
+		}
+
+		resp, err := handler.V1betaDescribeBackup(ctx, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.IsType(t, &gcpgenserver.V1betaDescribeBackupNotFound{}, resp)
+		assert.Equal(t, float64(404), resp.(*gcpgenserver.V1betaDescribeBackupNotFound).Code)
+		assert.Equal(t, "Backup with ID backup-123 not found", resp.(*gcpgenserver.V1betaDescribeBackupNotFound).Message)
 	})
 
 	t.Run("WhenInternalServerErrorOccurs", func(t *testing.T) {
@@ -5181,6 +5275,53 @@ func TestV1betaCreateBackup_VolumeNotFoundInVSA(t *testing.T) {
 		assert.Equal(t, "Database connection failed", internalErr.Message)
 	})
 
+	t.Run("WhenVolumeNotFoundAndUseVCPRegionEnabled_ShouldReturnBadRequest", func(t *testing.T) {
+		origUseVCPRegion := env.UseVCPRegion
+		defer func() { env.UseVCPRegion = origUseVCPRegion }()
+		env.UseVCPRegion = true
+
+		logger := &log.MockLogger{}
+		ctx := context.Background()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+		mockOrch := factory.NewMockOrchestratorFactory(t)
+		req := &gcpgenserver.BackupCreateV1beta{
+			VolumeId:   "vol-id",
+			ResourceId: "res-id",
+		}
+		params := gcpgenserver.V1betaCreateBackupParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "proj",
+			BackupVaultId: "vault",
+		}
+
+		originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
+		defer func() {
+			utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
+		}()
+		utils.ParseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		backupVault := &coremodels.BackupVaultV1beta{
+			BackupVaultID: "vault",
+			AccountName:   "proj",
+			ServiceType:   "GCNV",
+		}
+		mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, "vault").Return(backupVault, nil)
+		mockOrch.EXPECT().GetVolume(ctx, "vol-id", false).Return(nil, errors.NewNotFoundErr("Volume not found", nil))
+
+		handler := Handler{Orchestrator: mockOrch}
+		result, err := handler.V1betaCreateBackup(ctx, req, params)
+
+		assert.NoError(t, err)
+		assert.IsType(t, &gcpgenserver.V1betaCreateBackupBadRequest{}, result)
+
+		badReq := result.(*gcpgenserver.V1betaCreateBackupBadRequest)
+		assert.Equal(t, float64(400), badReq.Code)
+		assert.Equal(t, "Volume with ID vol-id not found", badReq.Message)
+	})
+
 	t.Run("WhenVolumeIsNilAndNoExistingBackup_ShouldProceedToCVP", func(t *testing.T) {
 		logger := &log.MockLogger{}
 		ctx := context.Background()
@@ -5645,6 +5786,27 @@ func TestCheckAndFetchBackupVault(t *testing.T) {
 		assert.Equal(t, dbError, err)
 	})
 
+	t.Run("WhenUseVCPRegionEnabledAndBackupVaultNotFound_ShouldReturnNotFoundError", func(t *testing.T) {
+		origUseVCPRegion := env.UseVCPRegion
+		defer func() { env.UseVCPRegion = origUseVCPRegion }()
+		env.UseVCPRegion = true
+
+		mockOrch := factory.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+
+		notFoundErr := errors.NewNotFoundErr("Backup vault", &backupVaultID)
+		mockOrch.EXPECT().
+			GetBackupVaultByUUID(ctx, backupVaultID, accountName).
+			Return(nil, notFoundErr)
+
+		result, err := checkAndFetchBackupVault(ctx, &handler, expertModeVol, backupVaultID, region)
+
+		assert.Nil(t, result)
+		assert.Error(t, err)
+		assert.True(t, errors.IsNotFoundErr(err))
+		assert.Equal(t, "Backup vault 'backup-vault-123' not found", err.Error())
+	})
+
 	t.Run("WhenBackupVaultNotFoundLocallyAndCVPFetchSucceeds", func(t *testing.T) {
 		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrch}
@@ -5894,6 +6056,97 @@ func TestV1betaCreateBackup_PoolAndExpertModeVolumeHandling(t *testing.T) {
 		assert.Contains(t, badRequest.Message, fmt.Sprintf("Expert mode volume %s is associated with a different backup vault %s", volumeId, differentBackupVaultId))
 	})
 
+	t.Run("WhenONTAPModeAndExpertModeVolumeNotFound_ShouldReturnBadRequest", func(t *testing.T) {
+		mockOrch := factory.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+
+		req := &gcpgenserver.BackupCreateV1beta{
+			VolumeId:   volumeId,
+			ResourceId: "backup-123",
+			PoolId:     gcpgenserver.NewOptString(poolId),
+		}
+
+		oldOntapModebackupEnabled := ExpertModeBackupEnabled
+		defer func() { ExpertModeBackupEnabled = oldOntapModebackupEnabled }()
+		ExpertModeBackupEnabled = true
+
+		bv := &coremodels.BackupVaultV1beta{
+			BackupVaultID: backupVaultId,
+			AccountName:   projectNumber,
+			ServiceType:   "GCNV",
+		}
+		mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, backupVaultId).Return(bv, nil)
+
+		pool := &coremodels.Pool{
+			BaseModel: coremodels.BaseModel{
+				UUID: poolId,
+			},
+			APIAccessMode: ONTAPMode,
+		}
+		mockOrch.EXPECT().
+			DescribePool(ctx, poolId, projectNumber).
+			Return(pool, nil)
+
+		mockOrch.EXPECT().
+			GetExpertModeVolumeByExternalUUID(ctx, volumeId).
+			Return(nil, errors.NewNotFoundErr("Expert mode volume", &volumeId))
+
+		result, err := handler.V1betaCreateBackup(ctx, req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaCreateBackupBadRequest{}, result)
+		badRequest := result.(*gcpgenserver.V1betaCreateBackupBadRequest)
+		assert.Equal(t, float64(400), badRequest.Code)
+		assert.Equal(t, fmt.Sprintf("Expert mode volume with ID %s not found", volumeId), badRequest.Message)
+	})
+
+	t.Run("WhenONTAPModeAndExpertModeVolumeLookupFailsWithInternalError_ShouldReturnInternalServerError", func(t *testing.T) {
+		mockOrch := factory.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+
+		req := &gcpgenserver.BackupCreateV1beta{
+			VolumeId:   volumeId,
+			ResourceId: "backup-123",
+			PoolId:     gcpgenserver.NewOptString(poolId),
+		}
+
+		oldOntapModebackupEnabled := ExpertModeBackupEnabled
+		defer func() { ExpertModeBackupEnabled = oldOntapModebackupEnabled }()
+		ExpertModeBackupEnabled = true
+
+		bv := &coremodels.BackupVaultV1beta{
+			BackupVaultID: backupVaultId,
+			AccountName:   projectNumber,
+			ServiceType:   "GCNV",
+		}
+		mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, backupVaultId).Return(bv, nil)
+
+		pool := &coremodels.Pool{
+			BaseModel: coremodels.BaseModel{
+				UUID: poolId,
+			},
+			APIAccessMode: ONTAPMode,
+		}
+		mockOrch.EXPECT().
+			DescribePool(ctx, poolId, projectNumber).
+			Return(pool, nil)
+
+		expertLookupErr := fmt.Errorf("expert mode lookup failed")
+		mockOrch.EXPECT().
+			GetExpertModeVolumeByExternalUUID(ctx, volumeId).
+			Return(nil, expertLookupErr)
+
+		result, err := handler.V1betaCreateBackup(ctx, req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaCreateBackupInternalServerError{}, result)
+		internalErr := result.(*gcpgenserver.V1betaCreateBackupInternalServerError)
+		assert.Equal(t, float64(500), internalErr.Code)
+		assert.Equal(t, expertLookupErr.Error(), internalErr.Message)
+	})
+
 	t.Run("WhenONTAPModeAndExpertModeVolumeHasNoBackupVaultAndCheckAndFetchBackupVaultReturnsError", func(t *testing.T) {
 		mockOrch := factory.NewMockOrchestratorFactory(t)
 		handler := Handler{Orchestrator: mockOrch}
@@ -6093,6 +6346,51 @@ func TestV1betaCreateBackup_PoolAndExpertModeVolumeHandling(t *testing.T) {
 		_, err := handler.V1betaCreateBackup(ctx, req, params)
 		// Should proceed to CVP since volume not found
 		assert.NoError(t, err)
+	})
+
+	t.Run("WhenUseVCPRegionEnabledAndListBackupsFailsInVCPCheck_ShouldReturnInternalServerError", func(t *testing.T) {
+		origUseVCPRegion := env.UseVCPRegion
+		defer func() { env.UseVCPRegion = origUseVCPRegion }()
+		env.UseVCPRegion = true
+
+		mockOrch := factory.NewMockOrchestratorFactory(t)
+		handler := Handler{Orchestrator: mockOrch}
+
+		req := &gcpgenserver.BackupCreateV1beta{
+			VolumeId:   volumeId,
+			ResourceId: "backup-123",
+			PoolId:     gcpgenserver.OptString{},
+		}
+
+		bv := &coremodels.BackupVaultV1beta{
+			BackupVaultID: backupVaultId,
+			AccountName:   projectNumber,
+			ServiceType:   "GCNV",
+		}
+		mockOrch.EXPECT().GetBackupVaultByUUIDWithoutAccount(mock.Anything, backupVaultId).Return(bv, nil)
+
+		vol := &coremodels.Volume{
+			BaseModel: coremodels.BaseModel{
+				UUID: volumeId,
+			},
+			AccountName: projectNumber,
+		}
+		mockOrch.EXPECT().GetVolume(ctx, volumeId, false).Return(vol, nil)
+
+		listErr := fmt.Errorf("vcp list backups failed")
+		mockOrch.EXPECT().
+			ListBackups(ctx, backupVaultId, projectNumber, [][]interface{}{{"name = ?", "backup-123"}}).
+			Return(nil, listErr)
+
+		result, err := handler.V1betaCreateBackup(ctx, req, params)
+
+		assert.Error(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaCreateBackupInternalServerError{}, result)
+		internalErr := result.(*gcpgenserver.V1betaCreateBackupInternalServerError)
+		assert.Equal(t, float64(500), internalErr.Code)
+		assert.Equal(t, listErr.Error(), internalErr.Message)
+		assert.Equal(t, listErr.Error(), err.Error())
 	})
 }
 

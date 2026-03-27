@@ -30,6 +30,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscaler "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -2861,6 +2862,41 @@ func TestUpdateBackupVaultWithBucketDetails_Failure_UpdateError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.EqualError(t, err, expectedError.Error())
+	mockStorage.AssertExpectations(t)
+}
+
+func TestBackupVaultExists_UseVCPRegion_ReturnsResourceNotFoundWhenVaultMissingInDB(t *testing.T) {
+	origUseVCPRegion := env.UseVCPRegion
+	origGCBDR := activities.GCBDRVaultEnabled
+	defer func() {
+		env.UseVCPRegion = origUseVCPRegion
+		activities.GCBDRVaultEnabled = origGCBDR
+	}()
+	env.UseVCPRegion = true
+	activities.GCBDRVaultEnabled = false
+
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+	bvID := "missing-vault-id"
+	volume := &datamodel.Volume{
+		DataProtection: &datamodel.DataProtection{BackupVaultID: bvID},
+		Account:        &datamodel.Account{Name: "project-number"},
+		AccountID:      123,
+	}
+
+	mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, bvID, volume.AccountID).Return(nil, utilErrors.NewNotFoundErr("backup vault", nil))
+
+	_, err := activity.CheckBackupVaultExistsInVCP(ctx, volume, "us-central1")
+
+	assert.Error(t, err)
+	var appErr *temporal.ApplicationError
+	assert.ErrorAs(t, err, &appErr)
+	var trackingID int
+	var originalMsg string
+	assert.NoError(t, appErr.Details(&trackingID, &originalMsg))
+	assert.Equal(t, vsaerrors.ErrResourceNotFound, trackingID)
+	assert.Contains(t, originalMsg, "backup vault with id "+bvID+" not found")
 	mockStorage.AssertExpectations(t)
 }
 
