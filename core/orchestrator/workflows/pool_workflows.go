@@ -45,6 +45,7 @@ var (
 	verifyKmsConfigReachability          = _verifyKmsConfigReachability
 	syncPoolZIZSDetailsWorkflow          = _syncPoolZIZSDetailsWorkflow
 	syncActiveDirectoryInVcp             = _syncActiveDirectoryInVcp
+	deepCopyPoolFn                       = utils.DeepCopyPool
 )
 
 var (
@@ -873,7 +874,10 @@ func (wf *updatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		}
 	}()
 
-	dbPool := pool
+	dbPool, err := deepCopyPoolFn(pool)
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
 
 	// In case of any errors, rollback to the old values.
 	rollbackManager.AddActivity(poolActivity.UpdatedPool, pool)

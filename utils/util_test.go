@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	stdErrors "errors"
 	"net/http"
 	"os"
 	"strconv"
@@ -294,6 +295,76 @@ func TestContainsFloat64(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDeepCopyPool(t *testing.T) {
+	t.Run("ReturnsIndependentCopy", func(t *testing.T) {
+		original := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "pool-1",
+			},
+			Description: "original-description",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-central1-a",
+			},
+			AutoTieringConfig: &datamodel.AutoTieringConfig{
+				BucketName: "bucket-a",
+			},
+		}
+
+		copied, err := DeepCopyPool(original)
+		require.NoError(t, err)
+		require.NotNil(t, copied)
+		require.NotSame(t, original, copied)
+		require.NotSame(t, original.PoolAttributes, copied.PoolAttributes)
+		require.NotSame(t, original.AutoTieringConfig, copied.AutoTieringConfig)
+
+		// Mutate only the copy and verify original remains unchanged.
+		copied.Description = "copied-description"
+		copied.PoolAttributes.PrimaryZone = "us-central1-b"
+		copied.AutoTieringConfig.BucketName = "bucket-b"
+
+		assert.Equal(t, "original-description", original.Description)
+		assert.Equal(t, "us-central1-a", original.PoolAttributes.PrimaryZone)
+		assert.Equal(t, "bucket-a", original.AutoTieringConfig.BucketName)
+	})
+
+	t.Run("ReturnsErrorForNilInput", func(t *testing.T) {
+		copied, err := DeepCopyPool(nil)
+		require.Error(t, err)
+		assert.Nil(t, copied)
+		assert.Contains(t, err.Error(), "pool is nil")
+	})
+
+	t.Run("ReturnsErrorWhenMarshalFails", func(t *testing.T) {
+		origMarshal := jsonMarshalFn
+		jsonMarshalFn = func(v interface{}) ([]byte, error) {
+			return nil, stdErrors.New("marshal failed")
+		}
+		t.Cleanup(func() {
+			jsonMarshalFn = origMarshal
+		})
+
+		copied, err := DeepCopyPool(&datamodel.Pool{})
+		require.Error(t, err)
+		assert.Nil(t, copied)
+		assert.Contains(t, err.Error(), "failed to marshal pool")
+	})
+
+	t.Run("ReturnsErrorWhenUnmarshalFails", func(t *testing.T) {
+		origUnmarshal := jsonUnmarshalFn
+		jsonUnmarshalFn = func(data []byte, v interface{}) error {
+			return stdErrors.New("unmarshal failed")
+		}
+		t.Cleanup(func() {
+			jsonUnmarshalFn = origUnmarshal
+		})
+
+		copied, err := DeepCopyPool(&datamodel.Pool{})
+		require.Error(t, err)
+		assert.Nil(t, copied)
+		assert.Contains(t, err.Error(), "failed to unmarshal pool copy")
+	})
 }
 
 func TestIsDuplicateUUID(t *testing.T) {

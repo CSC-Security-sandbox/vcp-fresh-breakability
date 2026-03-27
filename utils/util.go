@@ -118,6 +118,8 @@ var (
 
 	// Will match ONTAP version strings like "9.7.1", "9.8.2P3", "10.1.0", "10.3.1P2", etc.
 	ontapVersionRegex = regexp.MustCompile(`\d+\.\d+\.\d+(?:P\d+)?`)
+	jsonMarshalFn     = json.Marshal
+	jsonUnmarshalFn   = json.Unmarshal
 )
 
 // IsCVPHostSet returns true when CVP_HOST is configured, indicating SDE mode is active.
@@ -227,6 +229,26 @@ func ContainsFloat64(arr []float64, elem float64) bool {
 		}
 	}
 	return false
+}
+
+// DeepCopyPool creates a deep copy of a datamodel.Pool so callers can safely
+// mutate nested fields without affecting the original object.
+func DeepCopyPool(pool *datamodel.Pool) (*datamodel.Pool, error) {
+	if pool == nil {
+		return nil, fmt.Errorf("pool is nil")
+	}
+
+	b, err := jsonMarshalFn(pool)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal pool: %w", err)
+	}
+
+	var copied datamodel.Pool
+	if err := jsonUnmarshalFn(b, &copied); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal pool copy: %w", err)
+	}
+
+	return &copied, nil
 }
 
 func IsSliceEqual(slice1 []string, slice2 []string) bool {

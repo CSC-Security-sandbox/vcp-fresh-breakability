@@ -3316,6 +3316,142 @@ func TestUpdatePoolWorkflowNoVLM(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
+func TestUpdatePoolWorkflowNoVLM_UsesDeepCopyForDbPool(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	env.SetHeader(&commonpb.Header{
+		Fields: map[string]*commonpb.Payload{"logParam": encodedValue},
+	})
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+	env.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{})
+
+	initialDescription := "initial-description"
+	updatedDescription := "updated-description"
+	sizeBytes := uint64(2 * 1024 * 1024 * 1024 * 1024)
+	iops := int64(2048)
+	throughput := int64(128)
+
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		PoolId:               "test-pool-id",
+		SizeInBytes:          sizeBytes,
+		TotalThroughputMibps: throughput,
+		TotalIops:            nillable.ToPointer(iops),
+		QosType:              utils.QosTypeAuto,
+		Description:          updatedDescription,
+	}
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{UUID: "test-pool-id"},
+		Description: initialDescription,
+		QosType:     utils.QosTypeAuto,
+		SizeInBytes: int64(sizeBytes),
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			SecretID: "",
+			AuthType: envs.USERNAME_PWD,
+		},
+		ClusterDetails: datamodel.ClusterDetails{
+			ExternalName:          "test-cluster",
+			Network:               "test-network",
+			RegionalTenantProject: "test-regional-project",
+			SnHostProject:         "test-host-project",
+		},
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: throughput,
+			Iops:            iops,
+		},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{
+			BucketName: "bucket",
+		},
+	}
+
+	var updatedPoolDescription string
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	env.OnActivity("UpdatedPool", mock.Anything, mock.Anything).
+		Run(func(args mock.Arguments) {
+			updatedPool := args.Get(1).(*datamodel.Pool)
+			updatedPoolDescription = updatedPool.Description
+		}).
+		Return(nil, nil)
+
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	assert.Equal(t, updatedDescription, updatedPoolDescription)
+	assert.Equal(t, initialDescription, pool.Description)
+	env.AssertExpectations(t)
+}
+
+func TestUpdatePoolWorkflow_DeepCopyPoolFailure_ReturnsError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	env.SetHeader(&commonpb.Header{
+		Fields: map[string]*commonpb.Payload{"logParam": encodedValue},
+	})
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+	env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
+
+	origDeepCopyPoolFn := deepCopyPoolFn
+	deepCopyPoolFn = func(pool *datamodel.Pool) (*datamodel.Pool, error) {
+		return nil, errors.New("forced deep copy failure")
+	}
+	t.Cleanup(func() {
+		deepCopyPoolFn = origDeepCopyPoolFn
+	})
+
+	params := &common.UpdatePoolParams{
+		AccountName:          "test-account",
+		PoolId:               "test-pool-id",
+		SizeInBytes:          2 * 1024 * 1024 * 1024 * 1024,
+		TotalThroughputMibps: 128,
+		TotalIops:            nillable.ToPointer(int64(2048)),
+		QosType:              utils.QosTypeAuto,
+		Description:          "updated-description",
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{UUID: "test-pool-id"},
+		Description: "initial-description",
+		QosType:     utils.QosTypeAuto,
+		PoolCredentials: &datamodel.PoolCredentials{
+			Password: "test-password",
+			AuthType: envs.USERNAME_PWD,
+		},
+		SizeInBytes: 2 * 1024 * 1024 * 1024 * 1024,
+		PoolAttributes: &datamodel.PoolAttributes{
+			ThroughputMibps: 128,
+			Iops:            2048,
+		},
+		AutoTieringConfig: &datamodel.AutoTieringConfig{BucketName: "bucket"},
+	}
+
+	env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+	env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+
+	env.ExecuteWorkflow(UpdatePoolWorkflow, params, pool, nil)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	env.AssertExpectations(t)
+}
+
 // TestUpdatePoolWorkflow_QosTypeAutoToManual_RunsTransitionAndSucceeds tests that when
 // qosType changes from auto to manual, the workflow runs the transition path (remove QPG,
 // delete any existing transition-named policy, create converted VPG, assign volumes, update pool) and succeeds.
