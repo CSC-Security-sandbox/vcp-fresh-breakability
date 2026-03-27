@@ -215,12 +215,13 @@ func (o *GCPOrchestrator) EstablishFlexCacheVolumePeering(ctx context.Context, p
 
 func _establishFlexCacheVolumePeering(ctx context.Context, se database.Storage, temporal client.Client, params *common.EstablishVolumePeeringParams) (*coremodels.Volume, string, error) {
 	logger := utilGetLogger(ctx)
-	dbVolume, err := se.GetVolumeByName(ctx, params.Name)
+
+	account, err := getOrCreateAccount(ctx, se, params.AccountName)
 	if err != nil {
 		return nil, "", err
 	}
 
-	account, err := getOrCreateAccount(ctx, se, params.AccountName)
+	dbVolume, err := se.GetVolumeByNameAndAccountID(ctx, params.Name, account.ID)
 	if err != nil {
 		return nil, "", err
 	}

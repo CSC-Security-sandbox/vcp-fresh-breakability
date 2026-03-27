@@ -376,7 +376,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 			return &datamodel.Account{Name: "test-account"}, nil
 		}
 
-		mockStorage.On("GetVolumeByName", ctx, mock.Anything).Return(nil, errors.New("volume not found"))
+		mockStorage.On("GetVolumeByNameAndAccountID", ctx, mock.Anything, mock.Anything).Return(nil, errors.New("volume not found"))
 
 		params := &commonparams.CreateVolumeReplicationParams{
 			AccountName:      "test-account",
@@ -408,7 +408,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 			},
 		}
 		dbRep := &datamodel.VolumeReplication{Name: "rep-1"}
-		mockStorage.On("GetVolumeByName", ctx, mock.Anything).Return(dbVol, nil)
+		mockStorage.On("GetVolumeByNameAndAccountID", ctx, mock.Anything, mock.Anything).Return(dbVol, nil)
 		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, mock.Anything, mock.Anything).Return(nil, nil)
 		mockStorage.On("GetQuotaRulesByVolumeID", ctx, int64(1)).Return([]*datamodel.QuotaRule{}, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(nil, errors.New("failed to create job"))
@@ -452,7 +452,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 		}
 		dbRep := &datamodel.VolumeReplication{Name: "rep-1"}
 
-		mockStorage.On("GetVolumeByName", ctx, mock.Anything).Return(dbVol, nil)
+		mockStorage.On("GetVolumeByNameAndAccountID", ctx, mock.Anything, mock.Anything).Return(dbVol, nil)
 		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, mock.Anything, mock.Anything).Return(nil, nil)
 		mockStorage.On("GetQuotaRulesByVolumeID", ctx, int64(1)).Return([]*datamodel.QuotaRule{}, nil)
 		mockStorage.On("CreateVolumeReplication", ctx, dbRep).Return(nil, errors.New("failed to create volume replication in db"))
@@ -503,7 +503,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 			WorkflowID: "workflow-id",
 		}
 
-		mockStorage.On("GetVolumeByName", ctx, mock.Anything).Return(dbVol, nil)
+		mockStorage.On("GetVolumeByNameAndAccountID", ctx, mock.Anything, mock.Anything).Return(dbVol, nil)
 		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, mock.Anything, mock.Anything).Return(nil, nil)
 		mockStorage.On("GetQuotaRulesByVolumeID", ctx, int64(1)).Return([]*datamodel.QuotaRule{}, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
@@ -563,7 +563,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 			WorkflowID: "workflow-id",
 		}
 
-		mockStorage.On("GetVolumeByName", ctx, mock.Anything).Return(dbVol, nil)
+		mockStorage.On("GetVolumeByNameAndAccountID", ctx, mock.Anything, mock.Anything).Return(dbVol, nil)
 		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, mock.Anything, mock.Anything).Return(nil, nil)
 		mockStorage.On("GetQuotaRulesByVolumeID", ctx, int64(1)).Return([]*datamodel.QuotaRule{}, nil)
 		mockStorage.On("CreateJob", ctx, mock.Anything).Return(jobResponse, nil)
@@ -622,7 +622,7 @@ func TestCreateVolumeReplication(t *testing.T) {
 			},
 		}
 
-		mockStorage.On("GetVolumeByName", ctx, mock.Anything).Return(dbVol, nil)
+		mockStorage.On("GetVolumeByNameAndAccountID", ctx, mock.Anything, mock.Anything).Return(dbVol, nil)
 		mockStorage.On("CheckAndFetchDuplicateJobs", ctx, mock.Anything, mock.Anything).Return(nil, nil)
 		mockStorage.On("GetQuotaRulesByVolumeID", ctx, int64(1)).Return([]*datamodel.QuotaRule{}, nil)
 

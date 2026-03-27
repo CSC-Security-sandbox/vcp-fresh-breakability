@@ -1219,7 +1219,8 @@ func Test_EstablishVolumePeering(t *testing.T) {
 		mm := newMonkeyMockAndPatch(t)
 		mockLogger := log.NewMockLogger(t)
 		mockStorage := new(database.MockStorage)
-		mockStorage.On("GetVolumeByName", ctx, params.Name).Return(nil, assert.AnError)
+		mm.EXPECT().getOrCreateAccount(ctx, mockStorage, params.AccountName).Return(dbAccount, nil)
+		mockStorage.On("GetVolumeByNameAndAccountID", ctx, params.Name, mock.Anything).Return(nil, assert.AnError)
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
 
 		vol, _, err := _establishFlexCacheVolumePeering(ctx, mockStorage, temporal, params)
@@ -1232,7 +1233,6 @@ func Test_EstablishVolumePeering(t *testing.T) {
 		mm := newMonkeyMockAndPatch(t)
 		mockLogger := log.NewMockLogger(t)
 		mockStorage := new(database.MockStorage)
-		mockStorage.On("GetVolumeByName", ctx, params.Name).Return(dbVolume, nil)
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
 		mm.EXPECT().getOrCreateAccount(ctx, mockStorage, params.AccountName).Return(nil, assert.AnError)
 
@@ -1246,7 +1246,7 @@ func Test_EstablishVolumePeering(t *testing.T) {
 		mm := newMonkeyMockAndPatch(t)
 		mockLogger := log.NewMockLogger(t)
 		mockStorage := new(database.MockStorage)
-		mockStorage.On("GetVolumeByName", ctx, params.Name).Return(dbVolume, nil)
+		mockStorage.On("GetVolumeByNameAndAccountID", ctx, params.Name, mock.Anything).Return(dbVolume, nil)
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
 		mm.EXPECT().getOrCreateAccount(ctx, mockStorage, params.AccountName).Return(dbAccount, nil)
 		mm.EXPECT().isEstablishVolumePeeringNeeded(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", assert.AnError)
@@ -1263,7 +1263,7 @@ func Test_EstablishVolumePeering(t *testing.T) {
 		mockLogger := log.NewMockLogger(t)
 		mockStorage := new(database.MockStorage)
 
-		mockStorage.On("GetVolumeByName", ctx, params.Name).Return(dbVolume, nil)
+		mockStorage.On("GetVolumeByNameAndAccountID", ctx, params.Name, mock.Anything).Return(dbVolume, nil)
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
 		mm.EXPECT().getOrCreateAccount(ctx, mockStorage, params.AccountName).Return(dbAccount, nil)
 		mm.EXPECT().isEstablishVolumePeeringNeeded(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
@@ -1280,7 +1280,7 @@ func Test_EstablishVolumePeering(t *testing.T) {
 		mm := newMonkeyMockAndPatch(t)
 		mockLogger := log.NewMockLogger(t)
 		mockStorage := new(database.MockStorage)
-		mockStorage.On("GetVolumeByName", ctx, params.Name).Return(dbVolume, nil)
+		mockStorage.On("GetVolumeByNameAndAccountID", ctx, params.Name, mock.Anything).Return(dbVolume, nil)
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
 		mm.EXPECT().getOrCreateAccount(ctx, mockStorage, params.AccountName).Return(dbAccount, nil)
 		mm.EXPECT().utilsGetLocationFromVendorID(vendorID).Return(location, nil)
@@ -1299,7 +1299,7 @@ func Test_EstablishVolumePeering(t *testing.T) {
 		mm := newMonkeyMockAndPatch(t)
 		mockLogger := log.NewMockLogger(t)
 		mockStorage := new(database.MockStorage)
-		mockStorage.On("GetVolumeByName", ctx, params.Name).Return(dbVolume, nil)
+		mockStorage.On("GetVolumeByNameAndAccountID", ctx, params.Name, mock.Anything).Return(dbVolume, nil)
 		mm.EXPECT().utilGetLogger(ctx).Return(mockLogger)
 		mm.EXPECT().verifyCommandExpiryTime(params.ExpiryTime).Return(nil)
 		mm.EXPECT().getOrCreateAccount(ctx, mockStorage, params.AccountName).Return(dbAccount, nil)
@@ -1320,7 +1320,7 @@ func Test_EstablishVolumePeering(t *testing.T) {
 		mm := newMonkeyMockAndPatch(t)
 		mockLogger := log.NewMockLogger(t)
 		mockStorage := new(database.MockStorage)
-		mockStorage.On("GetVolumeByName", ctx, params.Name).Return(dbVolume, nil)
+		mockStorage.On("GetVolumeByNameAndAccountID", ctx, params.Name, mock.Anything).Return(dbVolume, nil)
 		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(&datamodel.Job{WorkflowID: "wf-id"}, nil)
 
 		event := &flexcache.CreateFlexCacheEvent{
@@ -1355,7 +1355,7 @@ func Test_EstablishVolumePeering(t *testing.T) {
 		mm := newMonkeyMockAndPatch(t)
 		mockLogger := log.NewMockLogger(t)
 		mockStorage := new(database.MockStorage)
-		mockStorage.On("GetVolumeByName", ctx, params.Name).Return(dbVolume, nil)
+		mockStorage.On("GetVolumeByNameAndAccountID", ctx, params.Name, mock.Anything).Return(dbVolume, nil)
 		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(&datamodel.Job{WorkflowID: "wf-id"}, nil)
 
 		event := &flexcache.CreateFlexCacheEvent{

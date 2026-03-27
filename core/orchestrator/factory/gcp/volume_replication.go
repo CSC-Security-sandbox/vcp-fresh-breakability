@@ -697,7 +697,7 @@ func _createVolumeReplication(ctx context.Context, se database.Storage, temporal
 		return nil, "", err
 	}
 
-	srcVolume, err := se.GetVolumeByName(ctx, params.SourceVolumeName)
+	srcVolume, err := se.GetVolumeByNameAndAccountID(ctx, params.SourceVolumeName, account.ID)
 	if err != nil {
 		return nil, "", err
 	}
