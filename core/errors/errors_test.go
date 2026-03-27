@@ -1337,6 +1337,104 @@ func TestErrKMSMigrationClientErrorMapping(t *testing.T) {
 	}
 }
 
+// TestErrKMSAlreadyExistsEKMMapping verifies that ErrKMSAlreadyExistsEKM (6065)
+// is properly mapped to HTTP 409 for "external key manager already configured on SVM" errors.
+func TestErrKMSAlreadyExistsEKMMapping(t *testing.T) {
+	originalErrorMap := make(map[int]ErrorMessage)
+	for k, v := range errorMap {
+		originalErrorMap[k] = v
+	}
+	originalErrorsJSON := make([]byte, len(errorsJSON))
+	copy(originalErrorsJSON, errorsJSON)
+	defer func() {
+		errorMap = originalErrorMap
+		errorsJSON = originalErrorsJSON
+	}()
+
+	errorsJSON = embeddedErrorsJSON
+	handler := &ErrorHandler{}
+	if err := handler.loadErrorMessages(); err != nil {
+		t.Fatalf("failed to load error messages from embedded JSON: %v", err)
+	}
+
+	msg := GetErrorMessageByTrackingID(ErrKMSAlreadyExistsEKM)
+	if msg == nil {
+		t.Fatalf("Expected non-nil ErrorMessage for ErrKMSAlreadyExistsEKM (6065)")
+	}
+
+	if msg.Message == "undefined error" {
+		t.Fatalf("ErrKMSAlreadyExistsEKM (6065) is not defined in errors.json - got 'undefined error'")
+	}
+
+	expectedMessage := "Error while configuring KMS: A key manager is already configured for this SVM"
+	if msg.Message != expectedMessage {
+		t.Errorf("Expected message '%s', got '%s'", expectedMessage, msg.Message)
+	}
+
+	if msg.HttpCode == nil {
+		t.Fatalf("Expected non-nil HTTP code for ErrKMSAlreadyExistsEKM")
+	}
+	if *msg.HttpCode != 409 {
+		t.Errorf("Expected HTTP code 409, got %d", *msg.HttpCode)
+	}
+
+	if msg.Retriable == nil {
+		t.Fatalf("Expected non-nil Retriable for ErrKMSAlreadyExistsEKM")
+	}
+	if *msg.Retriable {
+		t.Errorf("Expected ErrKMSAlreadyExistsEKM to be non-retriable")
+	}
+}
+
+// TestErrKMSConfigureEKMMapping verifies that ErrKMSConfigureEKM (6062)
+// is properly mapped to HTTP 500 for generic EKM configuration failures on ONTAP.
+func TestErrKMSConfigureEKMMapping(t *testing.T) {
+	originalErrorMap := make(map[int]ErrorMessage)
+	for k, v := range errorMap {
+		originalErrorMap[k] = v
+	}
+	originalErrorsJSON := make([]byte, len(errorsJSON))
+	copy(originalErrorsJSON, errorsJSON)
+	defer func() {
+		errorMap = originalErrorMap
+		errorsJSON = originalErrorsJSON
+	}()
+
+	errorsJSON = embeddedErrorsJSON
+	handler := &ErrorHandler{}
+	if err := handler.loadErrorMessages(); err != nil {
+		t.Fatalf("failed to load error messages from embedded JSON: %v", err)
+	}
+
+	msg := GetErrorMessageByTrackingID(ErrKMSConfigureEKM)
+	if msg == nil {
+		t.Fatalf("Expected non-nil ErrorMessage for ErrKMSConfigureEKM (6062)")
+	}
+
+	if msg.Message == "undefined error" {
+		t.Fatalf("ErrKMSConfigureEKM (6062) is not defined in errors.json - got 'undefined error'")
+	}
+
+	expectedMessage := "Error while configuring key manager"
+	if msg.Message != expectedMessage {
+		t.Errorf("Expected message '%s', got '%s'", expectedMessage, msg.Message)
+	}
+
+	if msg.HttpCode == nil {
+		t.Fatalf("Expected non-nil HTTP code for ErrKMSConfigureEKM")
+	}
+	if *msg.HttpCode != 500 {
+		t.Errorf("Expected HTTP code 500, got %d", *msg.HttpCode)
+	}
+
+	if msg.Retriable == nil {
+		t.Fatalf("Expected non-nil Retriable for ErrKMSConfigureEKM")
+	}
+	if *msg.Retriable {
+		t.Errorf("Expected ErrKMSConfigureEKM to be non-retriable")
+	}
+}
+
 // TestErrKMSMigrationMapping verifies that ErrKMSMigration (6063)
 // is properly mapped to HTTP 500 for internal errors during CMEK migration.
 func TestErrKMSMigrationMapping(t *testing.T) {

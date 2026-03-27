@@ -147,7 +147,9 @@ func TestConfigureKmsForSvmActivity(t *testing.T) {
 		result, err := mockActivity.ConfigureKmsForSvmActivity(ctx, svm, node, params)
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "provider error")
+		// Error is now wrapped by WrapOntapError (classified + Temporal ApplicationError).
+		// "provider error" doesn't match any KMS rule, so it falls to domain default ErrKMSConfigureEKM.
+		assert.Contains(t, err.Error(), "Error while configuring key manager")
 	})
 	t.Run("ConfigureKmsForSvmActivityReturnsErrorWhenUpdateSvmWithKmsConfigIDsFails", func(t *testing.T) {
 		mockProvider := new(vsa.MockProvider)

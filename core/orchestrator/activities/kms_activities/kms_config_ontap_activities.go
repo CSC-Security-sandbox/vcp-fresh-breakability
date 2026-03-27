@@ -67,7 +67,8 @@ func (j *KmsConfigActivity) ConfigureKmsForSvmActivity(ctx context.Context, svm 
 		PrivilegedAccount: privilegedAccount,
 	})
 	if err != nil {
-		return nil, err
+		// Wrap the ONTAP error as a Temporal application error so the tracking ID survives serialization.
+		return nil, vsaerrors.WrapOntapError(err, vsaerrors.DomainKMS)
 	}
 
 	// Update the SVM with the KMS configuration IDs

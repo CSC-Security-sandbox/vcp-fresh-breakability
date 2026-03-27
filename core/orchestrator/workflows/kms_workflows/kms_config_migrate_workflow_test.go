@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	errorcore "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
@@ -49,6 +50,15 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		SdeUUID:       "sde-kms-uuid",
 		LocationID:    "us-east4",
 	}
+	// Shared ONTAP 409 conflict error reused by tests that simulate "key manager already configured".
+	// Mimics what WrapOntapError(err, DomainKMS) produces: a Temporal ApplicationError of type "CustomError"
+	// with details [trackingID, originalErrMsg] so that ExtractCustomError can recover the tracking ID.
+	ontap409ConflictErr := temporal.NewApplicationError(
+		"Error while configuring KMS: A key manager is already configured for this SVM", // message from errorMap[ErrKMSAlreadyExistsEKM]
+		"CustomError",                       // type used by WrapAsTemporalApplicationError
+		errorcore.ErrKMSAlreadyExistsEKM,    // detail 1: tracking ID (6065)
+		"Failed to configure Google Cloud Key Management Service for SVM because a key manager has already been configured for this SVM.", // detail 2: original ONTAP error
+	)
 	t.Run("WhenUpdateJobReturnsError", func(tt *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
@@ -1151,8 +1161,8 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.AssertExpectations(t)
 	})
 	t.Run("WhenCreateEkmReturnsOntap409_ReturnsClientError", func(tt *testing.T) {
-		// When ConfigureKmsForSvmActivity returns an ONTAP [409] conflict error,
-		// poolMigrationStatus should be poolMigrationClientError → ErrKMSMigrationClientError (tracking ID 6064).
+		// When ConfigureKmsForSvmActivity returns an ONTAP 409 conflict error (key manager already configured),
+		// poolMigrationStatus should be poolMigrationClientError → ErrKMSAlreadyExistsEKM (tracking ID 6065).
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -1203,7 +1213,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("RenewKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid", "lock-client-id").Return(nil).Maybe()
 		env.OnActivity("ReleaseKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid", "lock-client-id").Return(nil)
 		// ONTAP 409 conflict: key manager already configured for this SVM
-		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("ONTAP REST API error: [409] key manager already configured", "error", nil))
+		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, ontap409ConflictErr)
 		env.OnActivity("FailedPoolActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
@@ -1215,7 +1225,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.AssertExpectations(tt)
 	})
 	t.Run("WhenMixedOntap409AndInternalError_EscalatesToInternalError", func(tt *testing.T) {
-		// Two pools: pool1 fails with ONTAP [409] (client error), pool2 fails at GetNode (internal error).
+		// Two pools: pool1 fails with ONTAP 409 (client error), pool2 fails at GetNode (internal error).
 		// poolMigrationStatus should escalate to poolMigrationInternalError → ErrKMSMigration (tracking ID 6063).
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
@@ -1273,7 +1283,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("AcquireKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid").Return("lock-client-id", nil)
 		env.OnActivity("RenewKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid", "lock-client-id").Return(nil).Maybe()
 		env.OnActivity("ReleaseKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid", "lock-client-id").Return(nil)
-		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("ONTAP REST API error: [409] key manager already configured", "error", nil))
+		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, ontap409ConflictErr)
 		// Pool 2: fails at GetNode (internal error) → escalates poolMigrationStatus to poolMigrationInternalError
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("Get Node failed", "error", nil)).Once()
 		env.OnActivity("FailedPoolActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)

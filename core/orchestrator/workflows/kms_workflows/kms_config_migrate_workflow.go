@@ -348,7 +348,8 @@ func (kmsWorkflow *migrateKmsConfigWorkflow) Run(ctx workflow.Context, args ...i
 		// Create EKM for Svm associated with Pool
 		errCreateEKM := createEkmForSvm(ctx, nodeForPool, &svmForPool, poolsForMigration[index], paramsForSyncingAndEKMCreation)
 		if errCreateEKM != nil {
-			if strings.Contains(errCreateEKM.Error(), "[409]") {
+			customErr := errorcore.ExtractCustomError(errCreateEKM)
+			if customErr != nil && customErr.TrackingID == errorcore.ErrKMSAlreadyExistsEKM {
 				poolMigrationClientError = true
 			} else {
 				poolMigrationInternalError = true

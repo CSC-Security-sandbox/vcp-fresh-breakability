@@ -833,6 +833,12 @@
     "retriable": false,
     "http_code": 500
   },
+  "6062": {
+    "description": "Failed to configure Key Manager on ONTAP",
+    "message": "Error while configuring key manager",
+    "retriable": false,
+    "http_code": 500
+  },
   "6063": {
     "description": "CMEK Migration failure",
     "message": "Error while migrating KMS configuration",
@@ -844,6 +850,12 @@
     "message": "Error while migrating KMS configuration",
     "retriable": false,
     "http_code": 400
+  },
+  "6065": {
+    "description": "Key Manager already configured on SVM",
+    "message": "Error while configuring KMS: A key manager is already configured for this SVM",
+    "retriable": false,
+    "http_code": 409
   },
   "6066": {
     "description": "Cmek Deletion failure",

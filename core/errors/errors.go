@@ -211,8 +211,10 @@ const (
 	ErrSDEKmsDeleteJobFailed                       = 6059
 	ErrCVPClientStartProjectEventError             = 6060
 	ErrInvalidOperationName                        = 6061
+	ErrKMSConfigureEKM                             = 6062
 	ErrKMSMigration                                = 6063
 	ErrKMSMigrationClientError                     = 6064
+	ErrKMSAlreadyExistsEKM                         = 6065
 	ErrKMSDelete                                   = 6066
 	ErrKMSUpdate                                   = 6067
 	ErrKMSCreate                                   = 6068

@@ -13,6 +13,7 @@ const (
 	DomainSMB      ErrorDomain = "smb"
 	DomainLDAP     ErrorDomain = "ldap"
 	DomainONTAP    ErrorDomain = "ontap_general"
+	DomainKMS      ErrorDomain = "kms"
 )
 
 // ErrorRule defines a single classification rule. Order in the rule table matters: more specific rules first.
@@ -86,6 +87,8 @@ var ontapErrorRules = []ErrorRule{
 	{AnyOf: []string{"Operation is disallowed on an aggregate which is not home"}, TrackingID: ErrONTAPAggregateNotHome, Domains: []ErrorDomain{DomainONTAP}},
 	{AnyOf: []string{"This operation is not allowed when giveback is in progress"}, TrackingID: ErrONTAPGivebackInProgress, Domains: []ErrorDomain{DomainONTAP}},
 	{Substrings: []string{"Node", "on ring", "is offline"}, TrackingID: ErrONTAPNodeOffline, Domains: []ErrorDomain{DomainONTAP}},
+	// --- KMS / CMEK ONTAP patterns ---
+	{AnyOf: []string{"a key manager has already been configured for this SVM"}, TrackingID: ErrKMSAlreadyExistsEKM, Domains: []ErrorDomain{DomainKMS}},
 }
 
 // domainDefaults provides the fallback tracking ID for unclassified errors per domain.
@@ -96,6 +99,7 @@ var domainDefaults = map[ErrorDomain]int{
 	DomainSMB:      ErrSMBUnclassified,
 	DomainLDAP:     ErrLDAPUnclassified,
 	DomainONTAP:    ErrInternalServerError,
+	DomainKMS:      ErrKMSConfigureEKM,
 }
 
 func ruleAppliesToDomain(rule ErrorRule, domain ErrorDomain) bool {
