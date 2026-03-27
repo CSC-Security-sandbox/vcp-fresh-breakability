@@ -129,6 +129,10 @@ spec:
             {{- end }}
           resources:
             {{- toYaml (default $.Values.server.resources $serviceValues.resources) | nindent 12 }}
+          {{- with (default $.Values.server.lifecycle $serviceValues.lifecycle) }}
+          lifecycle:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with $serviceValues.containerSecurityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}

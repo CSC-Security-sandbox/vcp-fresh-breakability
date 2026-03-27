@@ -168,6 +168,9 @@ server:
   # requests:
   #  cpu: 100m
   #  memory: 128Mi
+  # Container lifecycle hooks (preStop/postStart) for graceful shutdown.
+  # Set at server level to apply to all services, or per-service to override.
+  lifecycle: {}
   nodeSelector: {}
   tolerations: []
   affinity: {}
