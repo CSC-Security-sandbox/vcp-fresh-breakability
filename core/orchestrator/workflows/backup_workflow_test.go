@@ -1940,8 +1940,8 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 		env.AssertExpectations(t)
 	})
 
-	// Lines 664-683: vault switching ON, ADC path (IsSnapmirrorDeleted true), last backup in vault -> GetBackupCountByVolumeAndVault==1, GetObjectStore, DeleteCloudEndpoint, WaitForONTAPJob
-	t.Run("DeleteBackupWithBackupVaultSwitchingEnabled_ADCPath_LastBackupInVault_TearsDownCloudEndpoint", func(t *testing.T) {
+	// Vault switching ON + ADC path (IsSnapmirrorDeleted true): runs ADC workflow and post-delete recompute path.
+	t.Run("DeleteBackupWithBackupVaultSwitchingEnabled_ADCPath_RunsADCAndRecompute", func(t *testing.T) {
 		originalFlag := utils.EnableBackupVaultSwitching
 		defer utils.SetEnableBackupVaultSwitchingForTest(originalFlag)
 		utils.SetEnableBackupVaultSwitchingForTest(true)
@@ -2003,10 +2003,6 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 		env.OnActivity("GetSmDestinationPathActivity", mock.Anything, mock.Anything, mock.Anything).Return("test-bucket:/objstore/test-vol", nil)
 		env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
 		env.OnWorkflow("ADCWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
-		env.OnActivity("GetBackupCountByVolumeAndVault", mock.Anything, backup.VolumeUUID, backup.BackupVaultID).Return(int64(1), nil)
-		env.OnActivity("GetObjectStore", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.CloudTarget{UUID: "obj-store-uuid"}, nil)
-		env.OnActivity("DeleteCloudEndpoint", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapAsyncResponse{JobUUID: "job-uuid"}, nil)
-		env.OnActivity("GetOntapJob", mock.Anything, mock.Anything, mock.Anything).Return(&vsa.OntapJob{State: "success"}, nil)
 		env.RegisterWorkflow(ADCSizeWorkflow)
 		env.OnWorkflow("ADCSizeWorkflow", mock.Anything, mock.Anything).Return(int64(0), nil)
 		env.OnActivity("UpdateVolumeLatestLogicalBackupSize", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -2861,9 +2857,10 @@ func TestUpdateBackupWorkflowAdditionalCases(t *testing.T) {
 	})
 }
 
-// TestDeleteBackupWorkflow_ADCWorkflowErrorWithCloudDeletionInitiated tests lines 424-425
-func TestDeleteBackupWorkflow_ADCWorkflowErrorWithCloudDeletionInitiated(t *testing.T) {
-	t.Run("ADCWorkflowErrorWithCloudDeletionInitiated", func(t *testing.T) {
+// TestDeleteBackupWorkflow_ADCSuccessWithCloudDeletionInitiated_LaterFailureMarksError validates
+// HandleError behavior when ADC initiated deletion successfully but a later step fails.
+func TestDeleteBackupWorkflow_ADCSuccessWithCloudDeletionInitiated_LaterFailureMarksError(t *testing.T) {
+	t.Run("ADCSuccessWithCloudDeletionInitiated_LaterFailureMarksError", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -2905,15 +2902,17 @@ func TestDeleteBackupWorkflow_ADCWorkflowErrorWithCloudDeletionInitiated(t *test
 			Attributes:    &datamodel.BackupAttributes{BucketName: "test-bucket"},
 		}
 
-		// Mock activity responses for volume deleted scenario with ADC workflow error
+		// Mock volume-deleted ADC path where ADC succeeds and initiates deletion.
 		env.OnActivity("GetAccountByName", mock.Anything, params.AccountName).Return(account, nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GetBackupVault", mock.Anything, params.BackupVaultUUID).Return(backupVault, nil)
-		env.OnActivity("GetBackup", mock.Anything, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
+		env.OnActivity("GetBackup", mock.Anything, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil).Twice()
 		env.OnActivity("IsVolumeDeleted", mock.Anything, backup.VolumeUUID).Return(true, nil) // Volume is deleted
 		env.OnActivity("IsExpertModeVolume", mock.Anything, backup.VolumeUUID).Return(false, nil)
-		env.OnWorkflow("ADCWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
-			&AdcWF{cloudDeletionIntiated: true}, errors.New("ADC workflow failed"))
+		env.OnWorkflow("ADCWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
+		// Fail after ADC returns successfully to force HandleError path.
+		env.OnActivity("DeleteBackup", mock.Anything, params.BackupUUID, mock.Anything).Return(nil, errors.New("delete backup failed"))
+		env.OnActivity("UpdateBackupError", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
 		env.ExecuteWorkflow(DeleteBackupWorkflow, params)
@@ -2921,7 +2920,7 @@ func TestDeleteBackupWorkflow_ADCWorkflowErrorWithCloudDeletionInitiated(t *test
 		// Assert workflow execution
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
-		assert.ErrorContains(t, env.GetWorkflowError(), "An internal error occurred")
+		assert.ErrorContains(t, env.GetWorkflowError(), "delete backup failed")
 		env.AssertExpectations(t)
 	})
 }

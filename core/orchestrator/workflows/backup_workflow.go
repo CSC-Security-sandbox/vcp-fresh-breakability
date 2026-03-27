@@ -685,32 +685,9 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			wf.deleteInitiated = true
 			return nil, ConvertToVSAError(err)
 		}
-
-		// When flag is on and this was the last backup in this vault, tear down the cloud endpoint
-		// (snapmirror was already removed at switch/detach). Only when volume still exists (we have node).
-		if utils.EnableBackupVaultSwitching && !isVolumeDeleted && node != nil && volume != nil {
-			var backupCountInVault int64
-			err = workflow.ExecuteActivity(ctx, backupActivity.GetBackupCountByVolumeAndVault, dbBackup.VolumeUUID, dbBackup.BackupVaultID).Get(ctx, &backupCountInVault)
-			if err != nil {
-				return nil, ConvertToVSAError(err)
-			}
-			if backupCountInVault == 1 {
-				var objStore *commonparams.CloudTarget
-				err = workflow.ExecuteActivity(ctx, backupActivity.GetObjectStore, node, bucketDetails.BucketName).Get(ctx, &objStore)
-				if err != nil {
-					return nil, ConvertToVSAError(err)
-				}
-				var ontapAsyncResponse *vsa.OntapAsyncResponse
-				wf.deleteInitiated = true
-				err = workflow.ExecuteActivity(ctx, backupActivity.DeleteCloudEndpoint, node, objStore.UUID, dbBackup.Attributes.EndpointUUID).Get(ctx, &ontapAsyncResponse)
-				if err != nil {
-					return nil, ConvertToVSAError(err)
-				}
-				err = WaitForONTAPJob(ctx, ontapAsyncResponse, node, time.Minute*120)
-				if err != nil {
-					return nil, ConvertToVSAError(fmt.Errorf("failed to delete cloud endpoint after ADC: %w", err))
-				}
-			}
+		// Preserve ADC child-workflow outcome so HandleError can set backup state correctly on later failures.
+		if cloudDeletionIntiated {
+			wf.deleteInitiated = true
 		}
 	} else {
 		var backupCount int64
