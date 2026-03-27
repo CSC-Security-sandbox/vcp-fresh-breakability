@@ -21,6 +21,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -6576,6 +6577,13 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 		env.RegisterActivity(&activities.PSCActivity{SE: mockStorage})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
+		env.RegisterWorkflowWithOptions(
+			func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
+				return nil
+			},
+			workflow.RegisterOptions{Name: vlm.DeleteVSAClusterDeploymentWorkflowName},
+		)
 
 		// Set up test data
 		params := &common.CreatePoolParams{
@@ -6660,6 +6668,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("EnableAutoVolOfflineCronForGCPKMSActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("AcquireKmsRotationLockActivity", mock.Anything, mock.Anything).Return("lock-client-id", nil)
+		env.OnActivity("RenewKmsRotationLockActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("ReleaseKmsRotationLockActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CreatedPool", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -6730,6 +6741,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 		env.RegisterActivity(&activities.PSCActivity{SE: mockStorage})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 		env.RegisterWorkflowWithOptions(
 			func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
 				return nil
@@ -6876,9 +6888,11 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
-		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 		env.RegisterActivity(&activities.PSCActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 		env.RegisterWorkflowWithOptions(
 			func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
 				return nil
@@ -6936,9 +6950,11 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
-		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 		env.RegisterActivity(&activities.PSCActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 		env.RegisterWorkflowWithOptions(
 			func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
 				return nil
@@ -6998,6 +7014,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&activities.PSCActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 		env.RegisterWorkflowWithOptions(
 			func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
 				return nil
@@ -7054,9 +7071,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
-		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 		env.RegisterActivity(&activities.PSCActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 		env.RegisterWorkflowWithOptions(
 			func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
 				return nil
@@ -7125,6 +7143,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&activities.PSCActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 		env.RegisterWorkflowWithOptions(
 			func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
 				return nil
@@ -7221,6 +7240,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("EnableAutoVolOfflineCronForGCPKMSActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("AcquireKmsRotationLockActivity", mock.Anything, mock.Anything).Return("lock-client-id", nil)
+		env.OnActivity("RenewKmsRotationLockActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("ReleaseKmsRotationLockActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("error"))
 		env.OnActivity("GetIPsConsumedForSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("An internal error occurred."))
@@ -7282,9 +7304,10 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.RegisterWorkflow(ConfigureNetworkWorkflow)
 		env.RegisterWorkflow(ConfigurePSCEndpointWorkflow)
 		env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
-		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.PoolActivity{SE: mockStorage})
 		env.RegisterActivity(&activities.PSCActivity{})
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 		env.RegisterWorkflowWithOptions(
 			func(ctx workflow.Context, request vlm.DeleteVSAClusterDeploymentRequest) error {
 				return nil
@@ -7381,6 +7404,9 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("EnableAutoVolOfflineCronForGCPKMSActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("AcquireKmsRotationLockActivity", mock.Anything, mock.Anything).Return("lock-client-id", nil)
+		env.OnActivity("RenewKmsRotationLockActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("ReleaseKmsRotationLockActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("error"))
 		env.OnActivity("GetIPsConsumedForSubnet", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("An internal error occurred."))
 		env.OnWorkflow(vlm.DeleteVSAClusterDeploymentWorkflowName, mock.Anything, mock.Anything).Return(nil)
@@ -7587,6 +7613,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.SetHeader(mockHeader)
 
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
 		pool := datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 1},
@@ -7601,95 +7628,19 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 			KmsConfigId: "test-kms-config-uuid",
 		}
 
-		// First call returns service account in UPDATING state
+		// Return service account in UPDATING state.
 		updatingKmsConfig := &datamodel.KmsConfig{
 			BaseModel: datamodel.BaseModel{UUID: "test-kms-config-uuid"},
 			ServiceAccount: &datamodel.ServiceAccount{
 				BaseModel: datamodel.BaseModel{UUID: "test-sa-uuid"},
 				State:     models.LifeCycleStateUpdating,
-			},
-		}
-		// Second call returns service account in ENABLED state
-		enabledKmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "test-kms-config-uuid"},
-			ServiceAccount: &datamodel.ServiceAccount{
-				BaseModel: datamodel.BaseModel{UUID: "test-sa-uuid"},
-				State:     models.AccountStateEnabled,
 			},
 		}
 
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, "test-kms-config-uuid").Return(updatingKmsConfig, nil).Once()
-		env.OnActivity("GetKmsConfigActivity", mock.Anything, "test-kms-config-uuid").Return(enabledKmsConfig, nil).Once()
-		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("EnableAutoVolOfflineCronForGCPKMSActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
-		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
-		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
-		// Create a test workflow that calls the function with activity options
-		testWorkflow := func(ctx workflow.Context) error {
-			ao := workflow.ActivityOptions{
-				StartToCloseTimeout: time.Minute,
-			}
-			ctx = workflow.WithActivityOptions(ctx, ao)
-			return _configureKmsConfigForSvmActivity(ctx, pool, node, svm, params)
-		}
-		env.ExecuteWorkflow(testWorkflow)
-
-		assert.True(t, env.IsWorkflowCompleted())
-		assert.NoError(t, env.GetWorkflowError())
-		env.AssertExpectations(t)
-	})
-
-	t.Run("ServiceAccountUpdating_Timeout_ContinuesWithPoolCreation", func(t *testing.T) {
-		// Override timeout and interval for faster test execution
-		originalTimeout := ServiceAccountUpdateTimeout
-		originalInterval := ServiceAccountUpdateInterval
-		ServiceAccountUpdateTimeout = 2 * time.Second  // 2 second timeout
-		ServiceAccountUpdateInterval = 1 * time.Second // 1 second interval
-		defer func() {
-			ServiceAccountUpdateTimeout = originalTimeout
-			ServiceAccountUpdateInterval = originalInterval
-		}()
-
-		var ts testsuite.WorkflowTestSuite
-		env := ts.NewTestWorkflowEnvironment()
-		env.SetTestTimeout(time.Minute)
-		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
-		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
-		mockHeader := &commonpb.Header{
-			Fields: map[string]*commonpb.Payload{
-				"logParam": encodedValue,
-			},
-		}
-		env.SetHeader(mockHeader)
-
-		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
-
-		pool := datamodel.Pool{
-			BaseModel: datamodel.BaseModel{ID: 1},
-		}
-		node := &models.Node{
-			Name: "test-node",
-		}
-		svm := &datamodel.Svm{
-			BaseModel: datamodel.BaseModel{UUID: "svm-uuid"},
-		}
-		params := &common.CreatePoolParams{
-			KmsConfigId: "test-kms-config-uuid",
-		}
-
-		// Always return service account in UPDATING state (simulating timeout)
-		updatingKmsConfig := &datamodel.KmsConfig{
-			BaseModel: datamodel.BaseModel{UUID: "test-kms-config-uuid"},
-			ServiceAccount: &datamodel.ServiceAccount{
-				BaseModel: datamodel.BaseModel{UUID: "test-sa-uuid"},
-				State:     models.LifeCycleStateUpdating,
-			},
-		}
-
-		// Mock multiple calls to simulate polling (at least 2 iterations before timeout)
-		env.OnActivity("GetKmsConfigActivity", mock.Anything, "test-kms-config-uuid").Return(updatingKmsConfig, nil)
-		// Mock subsequent activities that are called after timeout - pool creation continues
+		env.OnActivity("AcquireKmsRotationLockActivity", mock.Anything, mock.Anything).Return("lock-client-id", nil).Maybe()
+		env.OnActivity("RenewKmsRotationLockActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("ReleaseKmsRotationLockActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("EnableAutoVolOfflineCronForGCPKMSActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -7724,6 +7675,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.SetHeader(mockHeader)
 
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
 		pool := datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 1},
@@ -7748,6 +7700,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}
 
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, "test-kms-config-uuid").Return(enabledKmsConfig, nil).Once()
+		env.OnActivity("AcquireKmsRotationLockActivity", mock.Anything, mock.Anything).Return("", nil).Maybe()
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("EnableAutoVolOfflineCronForGCPKMSActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -7783,6 +7736,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		env.SetHeader(mockHeader)
 
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
 		pool := datamodel.Pool{
 			BaseModel: datamodel.BaseModel{ID: 1},
@@ -7804,6 +7758,7 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		}
 
 		env.OnActivity("GetKmsConfigActivity", mock.Anything, "test-kms-config-uuid").Return(kmsConfig, nil).Once()
+		env.OnActivity("AcquireKmsRotationLockActivity", mock.Anything, mock.Anything).Return("", nil).Maybe()
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("EnableAutoVolOfflineCronForGCPKMSActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -7823,6 +7778,52 @@ func TestConfigureKmsConfigForSvmActivity(t *testing.T) {
 		assert.NoError(t, env.GetWorkflowError())
 		// Verify GetKmsConfigActivity was only called once (no polling)
 		env.AssertExpectations(t)
+	})
+
+	t.Run("AcquireKmsRotationLockFails_ReturnsError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetTestTimeout(time.Minute)
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
+
+		pool := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}}
+		node := &models.Node{Name: "test-node"}
+		svm := &datamodel.Svm{BaseModel: datamodel.BaseModel{UUID: "svm-uuid"}}
+		params := &common.CreatePoolParams{KmsConfigId: "test-kms-config-uuid"}
+
+		enabledKmsConfig := &datamodel.KmsConfig{
+			BaseModel: datamodel.BaseModel{UUID: "test-kms-config-uuid"},
+			ServiceAccount: &datamodel.ServiceAccount{
+				BaseModel: datamodel.BaseModel{UUID: "test-sa-uuid"},
+				State:     models.AccountStateEnabled,
+			},
+		}
+
+		env.OnActivity("GetKmsConfigActivity", mock.Anything, "test-kms-config-uuid").Return(enabledKmsConfig, nil).Once()
+		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("EnableAutoVolOfflineCronForGCPKMSActivity", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("AcquireKmsRotationLockActivity", mock.Anything, mock.Anything).Return("", errors.New("lock acquire failed"))
+
+		testWorkflow := func(ctx workflow.Context) error {
+			ao := workflow.ActivityOptions{StartToCloseTimeout: time.Minute}
+			ctx = workflow.WithActivityOptions(ctx, ao)
+			return _configureKmsConfigForSvmActivity(ctx, pool, node, svm, params)
+		}
+		env.ExecuteWorkflow(testWorkflow)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		assert.Contains(t, env.GetWorkflowError().Error(), "lock acquire failed")
 	})
 }
 

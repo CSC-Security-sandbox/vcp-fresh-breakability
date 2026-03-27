@@ -1697,6 +1697,10 @@ func (s *PersistenceStore) SetPrimaryKeyForServiceAccount(ctx context.Context, s
 	return s.dataStore.SetPrimaryKeyForServiceAccount(ctx, serviceAccountUUID, keyID)
 }
 
+func (s *PersistenceStore) UpdateServiceAccountPasswordLocation(ctx context.Context, serviceAccountUUID string, encryptedKeyData string) error {
+	return s.dataStore.UpdateServiceAccountPasswordLocation(ctx, serviceAccountUUID, encryptedKeyData)
+}
+
 func (s *PersistenceStore) GetServiceAccountWithKeys(ctx context.Context, serviceAccountUUID string) (*datamodel.ServiceAccount, error) {
 	return s.dataStore.GetServiceAccountWithKeys(ctx, serviceAccountUUID)
 }

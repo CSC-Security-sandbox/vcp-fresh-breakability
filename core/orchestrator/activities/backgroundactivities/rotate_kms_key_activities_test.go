@@ -27,6 +27,35 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
+type mockKmsRotationLocker struct {
+	lockFunc   func(context.Context, log.Logger) error
+	clientID   string
+	renewFunc  func(context.Context) error
+	unlockFunc func(context.Context) error
+}
+
+func (m *mockKmsRotationLocker) Lock(ctx context.Context, logger log.Logger) error {
+	if m.lockFunc != nil {
+		return m.lockFunc(ctx, logger)
+	}
+	return nil
+}
+func (m *mockKmsRotationLocker) ClientID() string {
+	return m.clientID
+}
+func (m *mockKmsRotationLocker) RenewLock(ctx context.Context) error {
+	if m.renewFunc != nil {
+		return m.renewFunc(ctx)
+	}
+	return nil
+}
+func (m *mockKmsRotationLocker) Unlock(ctx context.Context) error {
+	if m.unlockFunc != nil {
+		return m.unlockFunc(ctx)
+	}
+	return nil
+}
+
 func TestRotateKmsSAKeyActivity_ListKmsConfigs(t *testing.T) {
 	ctx := context.Background()
 
@@ -1835,6 +1864,7 @@ func TestRotateKmsSAKeyActivity_StoreNewKeyInDBActivity(t *testing.T) {
 
 		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
 		mockSE.On("AddKeyToServiceAccount", ctx, "sa-uuid", mock.Anything).Return(nil)
+		mockSE.On("UpdateServiceAccountPasswordLocation", ctx, "sa-uuid", "new-key-data").Return(nil)
 
 		err := activity.StoreNewKeyInDBActivity(ctx, "sa-uuid", "new-key-id", "new-key-data", "current-key-id")
 
@@ -1854,6 +1884,7 @@ func TestRotateKmsSAKeyActivity_StoreNewKeyInDBActivity(t *testing.T) {
 
 		mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(serviceAccount, nil)
 		mockSE.On("AddKeyToServiceAccount", ctx, "sa-uuid", mock.Anything).Return(nil).Times(2)
+		mockSE.On("UpdateServiceAccountPasswordLocation", ctx, "sa-uuid", "new-key-data").Return(nil)
 
 		err := activity.StoreNewKeyInDBActivity(ctx, "sa-uuid", "new-key-id", "new-key-data", "current-key-id")
 
@@ -2706,5 +2737,190 @@ func TestExtractGlobalProjectIDFromEmail(t *testing.T) {
 		_, err := extractGlobalProjectIDFromEmail("@.iam.gserviceaccount.com", mockGcpService)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "empty project ID")
+	})
+}
+
+func TestKmsRotationLockActivities_LocalSetup(t *testing.T) {
+	ctx := context.Background()
+	activity := &RotateKmsSAKeyActivity{SE: database.NewMockStorage(t)}
+
+	t.Run("AcquireKmsRotationLockActivity returns empty clientID and nil when LOCAL_SETUP is true", func(t *testing.T) {
+		t.Setenv("LOCAL_SETUP", "true")
+		defer t.Setenv("LOCAL_SETUP", "")
+
+		clientID, err := activity.AcquireKmsRotationLockActivity(ctx, "kms-config-uuid")
+
+		assert.NoError(t, err)
+		assert.Equal(t, "", clientID)
+	})
+
+	t.Run("RenewKmsRotationLockActivity returns nil when LOCAL_SETUP is true", func(t *testing.T) {
+		t.Setenv("LOCAL_SETUP", "true")
+		defer t.Setenv("LOCAL_SETUP", "")
+
+		err := activity.RenewKmsRotationLockActivity(ctx, "kms-config-uuid", "any-client-id")
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("ReleaseKmsRotationLockActivity returns nil when LOCAL_SETUP is true", func(t *testing.T) {
+		t.Setenv("LOCAL_SETUP", "true")
+		defer t.Setenv("LOCAL_SETUP", "")
+
+		err := activity.ReleaseKmsRotationLockActivity(ctx, "kms-config-uuid", "any-client-id")
+
+		assert.NoError(t, err)
+	})
+}
+
+func TestKmsRotationLockActivities_NonLocalSetup_CreateLockerFails(t *testing.T) {
+	ctx := context.Background()
+	activity := &RotateKmsSAKeyActivity{SE: database.NewMockStorage(t)}
+	t.Setenv("LOCAL_SETUP", "false")
+
+	t.Run("AcquireKmsRotationLockActivity returns internal error when locker creation fails", func(t *testing.T) {
+		clientID, err := activity.AcquireKmsRotationLockActivity(ctx, "kms-config-uuid")
+		assert.Error(t, err)
+		assert.Equal(t, "", clientID)
+		customErr := vsaerrors.ExtractCustomError(err)
+		assert.NotNil(t, customErr)
+		assert.Equal(t, vsaerrors.ErrInternalServerError, customErr.TrackingID)
+	})
+
+	t.Run("RenewKmsRotationLockActivity returns internal error when locker creation fails", func(t *testing.T) {
+		err := activity.RenewKmsRotationLockActivity(ctx, "kms-config-uuid", "lock-client-id")
+		assert.Error(t, err)
+		customErr := vsaerrors.ExtractCustomError(err)
+		assert.NotNil(t, customErr)
+		assert.Equal(t, vsaerrors.ErrInternalServerError, customErr.TrackingID)
+	})
+
+	t.Run("ReleaseKmsRotationLockActivity returns internal error when locker creation fails", func(t *testing.T) {
+		err := activity.ReleaseKmsRotationLockActivity(ctx, "kms-config-uuid", "lock-client-id")
+		assert.Error(t, err)
+		customErr := vsaerrors.ExtractCustomError(err)
+		assert.NotNil(t, customErr)
+		assert.Equal(t, vsaerrors.ErrInternalServerError, customErr.TrackingID)
+	})
+}
+
+func TestRotateKmsSAKeyActivity_StoreNewKeyInDBActivity_UpdatePasswordLocationFails(t *testing.T) {
+	ctx := context.Background()
+	mockSE := database.NewMockStorage(t)
+	activity := &RotateKmsSAKeyActivity{SE: mockSE}
+
+	sa := &datamodel.ServiceAccount{
+		BaseModel: datamodel.BaseModel{UUID: "sa-uuid"},
+		ServiceAccountAttributes: &datamodel.ServiceAccountAttributes{
+			Keys: []datamodel.ServiceAccountKey{},
+		},
+	}
+	mockSE.On("GetServiceAccountWithKeys", ctx, "sa-uuid").Return(sa, nil)
+	mockSE.On("AddKeyToServiceAccount", ctx, "sa-uuid", mock.Anything).Return(nil).Twice()
+	mockSE.On("UpdateServiceAccountPasswordLocation", ctx, "sa-uuid", "new-key-data").Return(errors.New("update failed")).Once()
+
+	err := activity.StoreNewKeyInDBActivity(ctx, "sa-uuid", "new-key-id", "new-key-data", "")
+	assert.Error(t, err)
+	customErr := vsaerrors.ExtractCustomError(err)
+	assert.NotNil(t, customErr)
+	assert.Equal(t, vsaerrors.ErrDatabaseDataUpdateError, customErr.TrackingID)
+}
+
+func TestKmsRotationLockActivities_WithMockLocker_Branches(t *testing.T) {
+	ctx := context.Background()
+	activity := &RotateKmsSAKeyActivity{SE: database.NewMockStorage(t)}
+	t.Setenv("LOCAL_SETUP", "false")
+
+	origNewKmsRotationLocker := newKmsRotationLocker
+	origMaxAcquire := kmsRotationLockMaxAcquireWait
+	origRetryWait := kmsRotationLockRetryWait
+	defer func() {
+		newKmsRotationLocker = origNewKmsRotationLocker
+		kmsRotationLockMaxAcquireWait = origMaxAcquire
+		kmsRotationLockRetryWait = origRetryWait
+	}()
+
+	t.Run("Acquire success returns client id", func(t *testing.T) {
+		newKmsRotationLocker = func(ctx context.Context, name string, options ...utils.Option) (kmsRotationLocker, error) {
+			return &mockKmsRotationLocker{
+				clientID: "client-1",
+				lockFunc: func(context.Context, log.Logger) error { return nil },
+			}, nil
+		}
+		clientID, err := activity.AcquireKmsRotationLockActivity(ctx, "kms-config-uuid")
+		assert.NoError(t, err)
+		assert.Equal(t, "client-1", clientID)
+	})
+
+	t.Run("Acquire returns conflict for non-ErrAlreadyHeld lock error", func(t *testing.T) {
+		newKmsRotationLocker = func(ctx context.Context, name string, options ...utils.Option) (kmsRotationLocker, error) {
+			return &mockKmsRotationLocker{
+				lockFunc: func(context.Context, log.Logger) error { return errors.New("boom") },
+			}, nil
+		}
+		_, err := activity.AcquireKmsRotationLockActivity(ctx, "kms-config-uuid")
+		assert.Error(t, err)
+		customErr := vsaerrors.ExtractCustomError(err)
+		assert.NotNil(t, customErr)
+		assert.Equal(t, vsaerrors.ErrResourceStateConflictError, customErr.TrackingID)
+	})
+
+	t.Run("Acquire times out when lock always already held", func(t *testing.T) {
+		kmsRotationLockMaxAcquireWait = 25 * time.Millisecond
+		kmsRotationLockRetryWait = 5 * time.Millisecond
+		newKmsRotationLocker = func(ctx context.Context, name string, options ...utils.Option) (kmsRotationLocker, error) {
+			return &mockKmsRotationLocker{
+				lockFunc: func(context.Context, log.Logger) error { return utils.ErrAlreadyHeld },
+			}, nil
+		}
+		_, err := activity.AcquireKmsRotationLockActivity(ctx, "kms-config-uuid")
+		assert.Error(t, err)
+		customErr := vsaerrors.ExtractCustomError(err)
+		assert.NotNil(t, customErr)
+		assert.Equal(t, vsaerrors.ErrResourceStateConflictError, customErr.TrackingID)
+	})
+
+	t.Run("Acquire returns context cancellation", func(t *testing.T) {
+		kmsRotationLockMaxAcquireWait = 100 * time.Millisecond
+		kmsRotationLockRetryWait = 50 * time.Millisecond
+		newKmsRotationLocker = func(ctx context.Context, name string, options ...utils.Option) (kmsRotationLocker, error) {
+			return &mockKmsRotationLocker{
+				lockFunc: func(context.Context, log.Logger) error { return utils.ErrAlreadyHeld },
+			}, nil
+		}
+		cctx, cancel := context.WithCancel(ctx)
+		cancel()
+		_, err := activity.AcquireKmsRotationLockActivity(cctx, "kms-config-uuid")
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, context.Canceled)
+	})
+
+	t.Run("Renew returns wrapped error when renew lock fails", func(t *testing.T) {
+		newKmsRotationLocker = func(ctx context.Context, name string, options ...utils.Option) (kmsRotationLocker, error) {
+			return &mockKmsRotationLocker{
+				renewFunc: func(context.Context) error { return errors.New("renew failed") },
+			}, nil
+		}
+		err := activity.RenewKmsRotationLockActivity(ctx, "kms-config-uuid", "client-1")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "renew KMS rotation lock")
+	})
+
+	t.Run("Release returns nil when unlock fails", func(t *testing.T) {
+		newKmsRotationLocker = func(ctx context.Context, name string, options ...utils.Option) (kmsRotationLocker, error) {
+			return &mockKmsRotationLocker{
+				unlockFunc: func(context.Context) error { return errors.New("unlock failed") },
+			}, nil
+		}
+		err := activity.ReleaseKmsRotationLockActivity(ctx, "kms-config-uuid", "client-1")
+		assert.NoError(t, err)
+	})
+
+	t.Run("Release success", func(t *testing.T) {
+		newKmsRotationLocker = func(ctx context.Context, name string, options ...utils.Option) (kmsRotationLocker, error) {
+			return &mockKmsRotationLocker{}, nil
+		}
+		err := activity.ReleaseKmsRotationLockActivity(ctx, "kms-config-uuid", "client-1")
+		assert.NoError(t, err)
 	})
 }

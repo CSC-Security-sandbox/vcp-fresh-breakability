@@ -15,6 +15,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coreModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
@@ -819,6 +820,27 @@ func TestPopulateRetryPolicyParamsTimeoutSelection(t *testing.T) {
 // Helper function to create a pointer to bool
 func boolPtr(b bool) *bool {
 	return &b
+}
+
+func TestWithKmsRotationLock_AcquireFails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	activity := &backgroundactivities.RotateKmsSAKeyActivity{}
+	env.RegisterActivity(activity.AcquireKmsRotationLockActivity)
+	env.OnActivity(activity.AcquireKmsRotationLockActivity, mock.Anything, "kms-uuid").Return("", errors.New("acquire failed"))
+
+	testWf := func(ctx workflow.Context) error {
+		ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+			StartToCloseTimeout: time.Minute,
+		})
+		_, _, err := WithKmsRotationLock(ctx, activity, "kms-uuid")
+		return err
+	}
+	env.ExecuteWorkflow(testWf)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "acquire failed")
 }
 
 // TestPollTransferStatusWithContinueAsNewCommon tests the PollTransferStatusWithContinueAsNewCommon function

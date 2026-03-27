@@ -71,9 +71,19 @@ func RotateKmsKeyChildWorkflow(ctx workflow.Context, serviceAccount *datamodel.S
 	serviceAccount = validationResult.ServiceAccount
 	currentKeyID := validationResult.CurrentKeyID
 
+	// Acquire K8s lease lock before creating SA key; release after key is stored in DB (defer releases only on early return)
+	logger.Info("Acquiring KMS rotation lock", "kmsConfigUUID", kmsConfig.UUID)
+	_, releaseLock, err := workflows.WithKmsRotationLock(ctx, rotateKmsSAKeyActivity, kmsConfig.UUID)
+	if err != nil {
+		logger.Error("AcquireKmsRotationLockActivity failed", "Error", err)
+		return err
+	}
+	defer releaseLock()
+
 	// Phase 2: Create new service account key in GCP (if not already exists)
 	// Activity is idempotent - checks if new key already exists in keys array before creating
 	logger.Info("Creating new service account key in GCP")
+
 	var createKeyResult *backgroundactivities.CreateServiceAccountKeyResult
 	err = workflow.ExecuteActivity(ctx, rotateKmsSAKeyActivity.CreateServiceAccountKeyActivity, serviceAccount.UUID, kmsConfig, currentKeyID).Get(ctx, &createKeyResult)
 	if err != nil {
@@ -100,6 +110,9 @@ func RotateKmsKeyChildWorkflow(ctx workflow.Context, serviceAccount *datamodel.S
 		return err
 	}
 	logger.Info("Successfully stored new key in database", "newKeyID", createKeyResult.NewKeyID)
+
+	// Release lock so we don't hold it during pool migration; defer handles release only on early return above
+	releaseLock()
 
 	// Phase 4: Get pools for migration
 	// This is a read operation - always safe to re-execute

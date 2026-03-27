@@ -1277,7 +1277,7 @@ func TestActiveDirectoryUpdateWorkflow_Run(t *testing.T) {
 
 		// Return nil result from SDE update
 		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.AccountId).Return("test-jwt-token", nil)
-		env.OnActivity("UpdateSdeActiveDirectory", mock.Anything, params).Return(nil)
+		env.OnActivity("UpdateSdeActiveDirectory", mock.Anything, params).Return((*cvpModels.OperationV1beta)(nil), nil)
 
 		var runResult interface{}
 		var runErr *vsaerrors.CustomError

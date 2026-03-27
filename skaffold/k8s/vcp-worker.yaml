@@ -26,7 +26,7 @@ data:
   DB_HOST: "postgres.default.svc.cluster.local"
   DB_PORT: "5432"
   DB_USER: "postgres"
-  DB_PASSWORD: "testpass"
+  DB_PASSWORD: "postgres"
   DB_NAME: "vcp"
   DB_SSL_MODE: "disable"
   DB_TIMEZONE: "UTC"
@@ -35,11 +35,11 @@ data:
   DB_CONN_MAX_LIFETIME: "1h"
   MIGRATION_PATH: "migrations/core"
   DB_ADMIN_USER: "postgres"
-  DB_ADMIN_PASSWORD: "testpass"
+  DB_ADMIN_PASSWORD: "postgres"
   RUN_MIGRATION_ON_START: "true"
   GCP_CONSUMER_MGMT_ENDPOINT_URL: "autopush-netapp.sandbox.googleapis.com"
   GCP_SERVICE_NETWORKING_ENDPOINT_URL: "netapp-tst-autopush-endpoint.appspot.com"
-  LOCAL_REGION: "australia-southeast1"
+  LOCAL_REGION: "us-east4"
   VSA_NODE_USERNAME: "admin"
   OBJECT_STORE_PROVIDER: "googlecloud"
   OBJECT_STORES_SERVER: "storage.googleapis.com"
@@ -54,7 +54,7 @@ data:
   EXPERIMENTAL_VERSION_ALLOWLISTED_ACCOUNTS: ""
   IS_ALL_SQUASH_ENABLED: "true"
   VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX: "vsa-lifecycle-manager"
-  ONTAP_VERSION_DETAILS: "9.17.1P1"
+  ONTAP_VERSION_DETAILS: "9.18.1"
   TOTAL_IP_PER_HA_PAIR: "6"
   DATA_SUBNET_CIDR_BLOCK: "28"
   ENFORCE_MIN_SP_CONFIG: "true"
@@ -75,6 +75,9 @@ data:
   START_TO_CLOSE_TIMEOUT_FOR_HYPERSCALER: "5m"
   START_TO_CLOSE_TIMEOUT_DATA_SUBNET_ACTIVITIES: "5m"
   POOL_SUBNET_SUPERVISOR_GRACE_PERIOD: "30m"
+  KMS_ROTATION_LOCK_MAX_ACQUIRE_WAIT: "1s"
+  KMS_ROTATION_LOCK_RETRY_WAIT: "2s"
+  KMS_ROTATION_LOCK_TTL: "30s"
   VOLUME_ACTIVITIES_START_TO_CLOSE_TIMEOUT_SEC_LV: "1800"  # 30 minutes for large capacity volumes
   DATA_SUBNET_CIDR_BLOCK_LV: "26"
   MIN_LV_POOL_COOL_TIER_CAPACITY: "6597069766656"
@@ -85,6 +88,7 @@ data:
   MIN_HOT_TIER_SIZE: "1099511627776"
   MIN_HOT_TIER_SIZE_LARGE_VOLUMES: "6597069766656"
   LEASE_NAMESPACE: "vcp"
+  VCP_KUBERNETES_NAMESPACE: "vcp"
   HARVEST_HOST: "harvest-farm-service.vcp.svc.cluster.local:3000"
   ENABLE_METRICS: "false"
   HARVEST_REST_PROTOCOL: "http"
@@ -124,6 +128,10 @@ data:
   WAIT_TIME_FOR_GCP_OPERATION_IN_SEC: "10"
   VSA_IMAGE_PROJECT: "gcnv-autopush-images"
   VSA_MEDIATOR_IMAGE_PROJECT: "gcnv-autopush-images"
+  VSA_IMAGE_NAME: "x-9-18-1x29"
+  VSA_MEDIATOR_IMAGE_NAME: "cvo-mediator-x-9-18-1x29"
+  VSA_FILES_MEDIATOR_IMAGE_NAME: "cvo-mediator-x-9-18-1x29"
+  VSA_FILES_IMAGE_NAME: "x-9-18-1x29"
   VSA_INSTANCE_TYPE_OVERRIDE_LSSD: "false"
   GIN_METRICS_PROTOCOL: "tcp-unencrypted"
   GIN_METRICS_PORT: "5140"
@@ -139,7 +147,7 @@ data:
   METRICS_DB_HOST: "postgres.default.svc.cluster.local"
   METRICS_DB_PORT: "5432"
   METRICS_DB_USER: "postgres"
-  METRICS_DB_PASSWORD: "testpass"
+  METRICS_DB_PASSWORD: "postgres"
   METRICS_DB_NAME: "metrics"
   METRICS_DB_SSL_MODE: "disable"
   METRICS_DB_TIMEZONE: "UTC"
@@ -147,6 +155,8 @@ data:
   METRICS_DB_MAX_IDLE_CONNS: "25"
   METRICS_DB_CONN_MAX_LIFETIME: "1h"
   METRICS_DB_CLEANUP_ENABLED: "false"
+  GCP_KMS_KEY_ROTATION_ENABLED: "true"
+  LOCAL_SETUP: "true"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -246,4 +256,29 @@ subjects:
 roleRef:
   kind: Role
   name: harvest-farm-lease-create
+  apiGroup: rbac.authorization.k8s.io
+---
+# KMS rotation lock uses leases in vcp namespace when VCP_KUBERNETES_NAMESPACE is unset
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: vcp-kms-lease-role
+  namespace: vcp
+rules:
+  - apiGroups: [ "coordination.k8s.io" ]
+    resources: [ "leases" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: vcp-kms-lease-binding
+  namespace: vcp
+subjects:
+  - kind: ServiceAccount
+    name: vcp-service-account
+    namespace: vcp
+roleRef:
+  kind: Role
+  name: vcp-kms-lease-role
   apiGroup: rbac.authorization.k8s.io

@@ -13,6 +13,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -501,7 +502,10 @@ func syncBetweenSdeAndVsaDBs(ctx workflow.Context, createKmsConfigParams *common
 
 func createEkmForSvm(ctx workflow.Context, node *models.Node, svm *datamodel.Svm, pool *datamodel.Pool, paramsForSyncingAndEKMCreation common.CreatePoolParams) error {
 	kmsConfigActivity := &kms_activities.KmsConfigActivity{}
+	rotateKmsSAKeyActivity := &backgroundactivities.RotateKmsSAKeyActivity{}
+	logger := util.GetLogger(ctx)
 	var err error
+	var releaseLock func()
 
 	defer func() {
 		if err != nil {
@@ -520,10 +524,25 @@ func createEkmForSvm(ctx workflow.Context, node *models.Node, svm *datamodel.Svm
 		}
 	}
 
+	// Acquire KMS lock before getting KMS and updating SVM with key ID; release after Configure (defer releases only on early return)
+	if paramsForSyncingAndEKMCreation.KmsConfigId != "" {
+		logger.Info("Acquiring KMS rotation lock for EKM config", "kmsConfigUUID", paramsForSyncingAndEKMCreation.KmsConfigId)
+		_, releaseLock, err = workflows.WithKmsRotationLock(ctx, rotateKmsSAKeyActivity, paramsForSyncingAndEKMCreation.KmsConfigId)
+		if err != nil {
+			return err
+		}
+		defer releaseLock()
+	}
+
 	// Configure KMS for SVM
 	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.ConfigureKmsForSvmActivity, svm, node, paramsForSyncingAndEKMCreation).Get(ctx, svm)
 	if err != nil {
 		return err
+	}
+
+	// Release lock so we don't hold it during reachability/UpdatePool; defer handles release only on early return above
+	if releaseLock != nil {
+		releaseLock()
 	}
 
 	// Check if the KMS config is reachable from the VSA cluster

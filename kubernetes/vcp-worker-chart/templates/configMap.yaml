@@ -66,6 +66,9 @@ data:
   PROXY_CLIENT_TRANSPORT_SCHEMA: {{$.Values.workerConfig.proxyClientTransportSchema | quote }}
   VCP_PAIRED_REGIONS: "{{ index $.Values.workerConfig "vcpPairedRegions" }}"
   GCP_KMS_KEY_ROTATION_ENABLED: {{$.Values.workerConfig.gcpKmsKeyRotationEnabled | quote }}
+  KMS_ROTATION_LOCK_MAX_ACQUIRE_WAIT: {{ $.Values.workerConfig.kmsRotationLockMaxAcquireWait | default "10m" | quote }}
+  KMS_ROTATION_LOCK_RETRY_WAIT: {{ $.Values.workerConfig.kmsRotationLockRetryWait | default "2s" | quote }}
+  KMS_ROTATION_LOCK_TTL: {{ $.Values.workerConfig.kmsRotationLockTTL | default "30s" | quote }}
   BACKUP_LOGICAL_SIZE_SYNC_ENABLED: {{$.Values.workerConfig.backupLogicalSizeSyncEnabled | quote }}
   ENABLE_AUTO_VOL_OFFLINE_CRON_FOR_GCP_KMS: {{$.Values.workerConfig.enableAutoVolOfflineCronForGcpKms | quote }}
   VSA_OPERATION_TIMEOUT: {{$.Values.workerConfig.vsaOperationTimeout | quote }}
@@ -126,6 +129,7 @@ data:
   HARVEST_PORT_START: {{$.Values.workerConfig.harvestPortStart | quote }}
   HARVEST_PORT_END: {{$.Values.workerConfig.harvestPortEnd | quote }}
   LEASE_NAMESPACE: {{ $.Values.workerConfig.leaseNameSpace | quote}}
+  VCP_KUBERNETES_NAMESPACE: {{ $.Values.workerConfig.vcpKubernetesNamespace | default "vcp" | quote }}
   HARVEST_HOST: {{ $.Values.workerConfig.harvestHost | quote }}
   ENABLE_METRICS: {{ $.Values.workerConfig.enableMetrics | quote }}
   HARVEST_SECRET_MANAGER_AUTH_ENABLED: {{ $.Values.workerConfig.harvestSecretManagerAuthEnabled | quote }}

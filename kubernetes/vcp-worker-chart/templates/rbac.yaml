@@ -21,6 +21,31 @@ roleRef:
   kind: Role
   name: harvest-farm-lease-create
   apiGroup: rbac.authorization.k8s.io
+---
+# KMS rotation lock uses leases in vcp namespace when VCP_KUBERNETES_NAMESPACE is unset
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: vcp-kms-lease-role
+  namespace:  {{ .Release.Namespace }}
+rules:
+  - apiGroups: [ "coordination.k8s.io" ]
+    resources: [ "leases" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: vcp-kms-lease-binding
+  namespace:  {{ .Release.Namespace }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.serviceAccount.name }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: vcp-kms-lease-role
+  apiGroup: rbac.authorization.k8s.io
 {{- if .Values.configMapCleanup.rbac.enabled }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1

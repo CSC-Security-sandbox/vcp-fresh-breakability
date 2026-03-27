@@ -252,6 +252,7 @@ type (
 		RemoveKeyFromServiceAccount(ctx context.Context, serviceAccountUUID string, keyID string) error
 		MarkKeyForDeletion(ctx context.Context, serviceAccountUUID string, keyID string) error
 		SetPrimaryKeyForServiceAccount(ctx context.Context, serviceAccountUUID string, keyID string) error
+		UpdateServiceAccountPasswordLocation(ctx context.Context, serviceAccountUUID string, encryptedKeyData string) error
 		GetServiceAccountWithKeys(ctx context.Context, serviceAccountUUID string) (*datamodel.ServiceAccount, error)
 
 		GetBackupVaultByNameAndOwnerID(ctx context.Context, backupVaultName, ownerID string) (*datamodel.BackupVault, error)

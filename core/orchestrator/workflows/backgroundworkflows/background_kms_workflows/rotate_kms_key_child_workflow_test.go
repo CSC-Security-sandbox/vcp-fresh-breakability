@@ -31,6 +31,18 @@ func (s *RotateKmsKeyChildWorkflowTestSuite) AfterTest() {
 	s.env.AssertExpectations(s.T())
 }
 
+const testLockClientID = "test-lock-client-id"
+
+// registerLockActivities registers AcquireKmsRotationLockActivity, RenewKmsRotationLockActivity, and ReleaseKmsRotationLockActivity with mocks so the workflow can run without a real K8s cluster.
+func (s *RotateKmsKeyChildWorkflowTestSuite) registerLockActivities(activity *backgroundactivities.RotateKmsSAKeyActivity, lockClientID string) {
+	s.env.RegisterActivity(activity.AcquireKmsRotationLockActivity)
+	s.env.RegisterActivity(activity.RenewKmsRotationLockActivity)
+	s.env.RegisterActivity(activity.ReleaseKmsRotationLockActivity)
+	s.env.OnActivity(activity.AcquireKmsRotationLockActivity, mock.Anything, mock.Anything).Return(lockClientID, nil)
+	s.env.OnActivity(activity.RenewKmsRotationLockActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(activity.ReleaseKmsRotationLockActivity, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+}
+
 // setupDecryptPasswordMock mocks utils.DecryptPassword to return a valid decrypted value
 // This is needed because the workflow calls DecryptPassword and dereferences the result
 func (s *RotateKmsKeyChildWorkflowTestSuite) setupDecryptPasswordMock() func() {
@@ -51,6 +63,7 @@ func TestRotateKmsKeyChildWorkflowTestSuite(t *testing.T) {
 func (s *RotateKmsKeyChildWorkflowTestSuite) TestRotateKmsKeyChildWorkflow_Success() {
 	defer s.setupDecryptPasswordMock()()
 	activity := &backgroundactivities.RotateKmsSAKeyActivity{}
+	lockClientID := testLockClientID
 
 	serviceAccount := &datamodel.ServiceAccount{
 		BaseModel:                      datamodel.BaseModel{UUID: "sa-uuid-1"},
@@ -105,6 +118,7 @@ func (s *RotateKmsKeyChildWorkflowTestSuite) TestRotateKmsKeyChildWorkflow_Succe
 
 	// Register activities
 	s.env.RegisterActivity(activity.ValidateKeyRotationRequiredActivity)
+	s.registerLockActivities(activity, lockClientID)
 	s.env.RegisterActivity(activity.CreateServiceAccountKeyActivity)
 	s.env.RegisterActivity(activity.StoreNewKeyInDBActivity)
 	s.env.RegisterActivity(activity.BatchPoolsForKeyRotationActivity)
@@ -210,6 +224,7 @@ func (s *RotateKmsKeyChildWorkflowTestSuite) TestRotateKmsKeyChildWorkflow_Creat
 
 	// Register activities
 	s.env.RegisterActivity(activity.ValidateKeyRotationRequiredActivity)
+	s.registerLockActivities(activity, testLockClientID)
 	s.env.RegisterActivity(activity.CreateServiceAccountKeyActivity)
 
 	// Mock activity calls
@@ -223,6 +238,34 @@ func (s *RotateKmsKeyChildWorkflowTestSuite) TestRotateKmsKeyChildWorkflow_Creat
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
 	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "GCP API error")
+}
+
+func (s *RotateKmsKeyChildWorkflowTestSuite) TestRotateKmsKeyChildWorkflow_AcquireLockFails() {
+	activity := &backgroundactivities.RotateKmsSAKeyActivity{}
+
+	serviceAccount := &datamodel.ServiceAccount{
+		BaseModel: datamodel.BaseModel{UUID: "sa-uuid-1"},
+	}
+	kmsConfig := &datamodel.KmsConfig{
+		BaseModel: datamodel.BaseModel{UUID: "kms-uuid-1"},
+	}
+	validationResult := &backgroundactivities.ValidateKeyRotationRequiredResult{
+		RotationRequired: true,
+		CurrentKeyID:     "old-key-id-123",
+		Reason:           "Rotation required",
+		ServiceAccount:   serviceAccount,
+	}
+
+	s.env.RegisterActivity(activity.ValidateKeyRotationRequiredActivity)
+	s.env.RegisterActivity(activity.AcquireKmsRotationLockActivity)
+	s.env.OnActivity(activity.ValidateKeyRotationRequiredActivity, mock.Anything, serviceAccount.UUID, kmsConfig.UUID).Return(validationResult, nil)
+	s.env.OnActivity(activity.AcquireKmsRotationLockActivity, mock.Anything, kmsConfig.UUID).Return("", errors.New("lock acquire failed"))
+
+	s.env.ExecuteWorkflow(RotateKmsKeyChildWorkflow, serviceAccount, kmsConfig)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+	assert.Contains(s.T(), s.env.GetWorkflowError().Error(), "lock acquire failed")
 }
 
 func (s *RotateKmsKeyChildWorkflowTestSuite) TestRotateKmsKeyChildWorkflow_StoreKeyFails() {
@@ -252,6 +295,7 @@ func (s *RotateKmsKeyChildWorkflowTestSuite) TestRotateKmsKeyChildWorkflow_Store
 
 	// Register activities
 	s.env.RegisterActivity(activity.ValidateKeyRotationRequiredActivity)
+	s.registerLockActivities(activity, testLockClientID)
 	s.env.RegisterActivity(activity.CreateServiceAccountKeyActivity)
 	s.env.RegisterActivity(activity.StoreNewKeyInDBActivity)
 
@@ -299,6 +343,7 @@ func (s *RotateKmsKeyChildWorkflowTestSuite) TestRotateKmsKeyChildWorkflow_Batch
 
 	// Register activities
 	s.env.RegisterActivity(activity.ValidateKeyRotationRequiredActivity)
+	s.registerLockActivities(activity, testLockClientID)
 	s.env.RegisterActivity(activity.CreateServiceAccountKeyActivity)
 	s.env.RegisterActivity(activity.StoreNewKeyInDBActivity)
 	s.env.RegisterActivity(activity.BatchPoolsForKeyRotationActivity)
@@ -364,6 +409,7 @@ func (s *RotateKmsKeyChildWorkflowTestSuite) TestRotateKmsKeyChildWorkflow_Migra
 
 	// Register activities
 	s.env.RegisterActivity(activity.ValidateKeyRotationRequiredActivity)
+	s.registerLockActivities(activity, testLockClientID)
 	s.env.RegisterActivity(activity.CreateServiceAccountKeyActivity)
 	s.env.RegisterActivity(activity.StoreNewKeyInDBActivity)
 	s.env.RegisterActivity(activity.BatchPoolsForKeyRotationActivity)
@@ -426,6 +472,7 @@ func (s *RotateKmsKeyChildWorkflowTestSuite) TestRotateKmsKeyChildWorkflow_Migra
 
 	// Register activities
 	s.env.RegisterActivity(activity.ValidateKeyRotationRequiredActivity)
+	s.registerLockActivities(activity, testLockClientID)
 	s.env.RegisterActivity(activity.CreateServiceAccountKeyActivity)
 	s.env.RegisterActivity(activity.StoreNewKeyInDBActivity)
 	s.env.RegisterActivity(activity.BatchPoolsForKeyRotationActivity)
@@ -493,6 +540,7 @@ func (s *RotateKmsKeyChildWorkflowTestSuite) TestRotateKmsKeyChildWorkflow_Compl
 
 	// Register activities
 	s.env.RegisterActivity(activity.ValidateKeyRotationRequiredActivity)
+	s.registerLockActivities(activity, testLockClientID)
 	s.env.RegisterActivity(activity.CreateServiceAccountKeyActivity)
 	s.env.RegisterActivity(activity.StoreNewKeyInDBActivity)
 	s.env.RegisterActivity(activity.BatchPoolsForKeyRotationActivity)
@@ -561,6 +609,7 @@ func (s *RotateKmsKeyChildWorkflowTestSuite) TestRotateKmsKeyChildWorkflow_Delet
 
 	// Register activities
 	s.env.RegisterActivity(activity.ValidateKeyRotationRequiredActivity)
+	s.registerLockActivities(activity, testLockClientID)
 	s.env.RegisterActivity(activity.CreateServiceAccountKeyActivity)
 	s.env.RegisterActivity(activity.StoreNewKeyInDBActivity)
 	s.env.RegisterActivity(activity.BatchPoolsForKeyRotationActivity)
@@ -631,6 +680,7 @@ func (s *RotateKmsKeyChildWorkflowTestSuite) TestRotateKmsKeyChildWorkflow_KeyAl
 
 	// Register activities
 	s.env.RegisterActivity(activity.ValidateKeyRotationRequiredActivity)
+	s.registerLockActivities(activity, testLockClientID)
 	s.env.RegisterActivity(activity.CreateServiceAccountKeyActivity)
 	s.env.RegisterActivity(activity.StoreNewKeyInDBActivity)
 	s.env.RegisterActivity(activity.BatchPoolsForKeyRotationActivity)
@@ -690,6 +740,7 @@ func (s *RotateKmsKeyChildWorkflowTestSuite) TestRotateKmsKeyChildWorkflow_NoPoo
 
 	// Register activities
 	s.env.RegisterActivity(activity.ValidateKeyRotationRequiredActivity)
+	s.registerLockActivities(activity, testLockClientID)
 	s.env.RegisterActivity(activity.CreateServiceAccountKeyActivity)
 	s.env.RegisterActivity(activity.StoreNewKeyInDBActivity)
 	s.env.RegisterActivity(activity.BatchPoolsForKeyRotationActivity)

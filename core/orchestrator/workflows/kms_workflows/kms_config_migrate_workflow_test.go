@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	env2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -465,6 +466,8 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
 		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateREADY}
 		pool2 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(2), UUID: "pool2"}, State: models.LifeCycleStateREADY}
@@ -510,6 +513,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
 		var poolsInAccount []*datamodel.Pool
 		var dbNodes []*datamodel.Node
@@ -562,6 +566,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
 		var poolsInAccount []*datamodel.Pool
 		var dbNodes []*datamodel.Node
@@ -615,6 +620,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
 		var poolsInAccount []*datamodel.Pool
 		var dbNodes []*datamodel.Node
@@ -669,6 +675,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
 		var poolsInAccount []*datamodel.Pool
 		var dbNodes []*datamodel.Node
@@ -724,6 +731,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
 		var poolsInAccount []*datamodel.Pool
 		var dbNodes []*datamodel.Node
@@ -748,6 +756,9 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetSvmForPoolID", mock.Anything, mock.Anything).Return(svm, nil)
 		env.OnActivity("UpdatingPool", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("AcquireKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid").Return("lock-client-id", nil)
+		env.OnActivity("RenewKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid", "lock-client-id").Return(nil).Maybe()
+		env.OnActivity("ReleaseKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid", "lock-client-id").Return(nil)
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("Update Kms Config state failed", "error", nil))
 		env.OnActivity("FailedPoolActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe().Maybe()
@@ -780,6 +791,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
 		var poolsInAccount []*datamodel.Pool
 		var dbNodes []*datamodel.Node
@@ -804,6 +816,9 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetSvmForPoolID", mock.Anything, mock.Anything).Return(svm, nil)
 		env.OnActivity("UpdatingPool", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("AcquireKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid").Return("lock-client-id", nil)
+		env.OnActivity("RenewKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid", "lock-client-id").Return(nil).Maybe()
+		env.OnActivity("ReleaseKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid", "lock-client-id").Return(nil)
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(temporal.NewNonRetryableApplicationError("Update Kms Config state failed", "error", nil)).Once()
 		env.OnActivity("FailedPoolActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -837,6 +852,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
 		var poolsInAccount []*datamodel.Pool
 		var dbNodes []*datamodel.Node
@@ -861,6 +877,9 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetSvmForPoolID", mock.Anything, mock.Anything).Return(svm, nil)
 		env.OnActivity("UpdatingPool", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("AcquireKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid").Return("lock-client-id", nil)
+		env.OnActivity("RenewKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid", "lock-client-id").Return(nil).Maybe()
+		env.OnActivity("ReleaseKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid", "lock-client-id").Return(nil)
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 		env.OnActivity("UpdatePoolWithKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("Update Pool with Kms Config failed", "error", nil))
@@ -895,6 +914,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
 		var poolsInAccount []*datamodel.Pool
 		var dbNodes []*datamodel.Node
@@ -919,6 +939,9 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetSvmForPoolID", mock.Anything, mock.Anything).Return(svm, nil)
 		env.OnActivity("UpdatingPool", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("AcquireKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid").Return("lock-client-id", nil)
+		env.OnActivity("RenewKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid", "lock-client-id").Return(nil).Maybe()
+		env.OnActivity("ReleaseKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid", "lock-client-id").Return(nil)
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 		env.OnActivity("UpdatePoolWithKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -954,6 +977,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
 		var volumesForMigration []*datamodel.Volume
 		var poolsInAccount []*datamodel.Pool
@@ -979,6 +1003,9 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetSvmForPoolID", mock.Anything, mock.Anything).Return(svm, nil)
 		env.OnActivity("UpdatingPool", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("AcquireKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid").Return("lock-client-id", nil)
+		env.OnActivity("RenewKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid", "lock-client-id").Return(nil).Maybe()
+		env.OnActivity("ReleaseKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid", "lock-client-id").Return(nil)
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 		env.OnActivity("UpdatePoolWithKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1014,6 +1041,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
 		var volumesForMigration []*datamodel.Volume
 		var poolsInAccount []*datamodel.Pool
@@ -1039,6 +1067,9 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetSvmForPoolID", mock.Anything, mock.Anything).Return(svm, nil)
 		env.OnActivity("UpdatingPool", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("AcquireKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid").Return("lock-client-id", nil)
+		env.OnActivity("RenewKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid", "lock-client-id").Return(nil).Maybe()
+		env.OnActivity("ReleaseKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid", "lock-client-id").Return(nil)
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 		env.OnActivity("UpdatePoolWithKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1074,6 +1105,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
 		var volumesForMigration []*datamodel.Volume
 		var poolsInAccount []*datamodel.Pool
@@ -1101,6 +1133,9 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetSvmForPoolID", mock.Anything, mock.Anything).Return(svm, nil)
 		env.OnActivity("UpdatingPool", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("AcquireKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid").Return("lock-client-id", nil)
+		env.OnActivity("RenewKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid", "lock-client-id").Return(nil).Maybe()
+		env.OnActivity("ReleaseKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid", "lock-client-id").Return(nil)
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 		env.OnActivity("UpdatePoolWithKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1139,6 +1174,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
 		var poolsInAccount []*datamodel.Pool
 		var dbNodes []*datamodel.Node
@@ -1163,6 +1199,9 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetSvmForPoolID", mock.Anything, mock.Anything).Return(svm, nil)
 		env.OnActivity("UpdatingPool", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("AcquireKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid").Return("lock-client-id", nil)
+		env.OnActivity("RenewKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid", "lock-client-id").Return(nil).Maybe()
+		env.OnActivity("ReleaseKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid", "lock-client-id").Return(nil)
 		// ONTAP 409 conflict: key manager already configured for this SVM
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("ONTAP REST API error: [409] key manager already configured", "error", nil))
 		env.OnActivity("FailedPoolActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1199,6 +1238,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
 		var poolsInAccount []*datamodel.Pool
 		pool1 := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1), UUID: "pool1"}, State: models.LifeCycleStateInUse,
@@ -1230,6 +1270,9 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetSvmForPoolID", mock.Anything, mock.Anything).Return(svm, nil)
 		env.OnActivity("UpdatingPool", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("AcquireKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid").Return("lock-client-id", nil)
+		env.OnActivity("RenewKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid", "lock-client-id").Return(nil).Maybe()
+		env.OnActivity("ReleaseKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid", "lock-client-id").Return(nil)
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("ONTAP REST API error: [409] key manager already configured", "error", nil))
 		// Pool 2: fails at GetNode (internal error) → escalates poolMigrationStatus to poolMigrationInternalError
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(nil, temporal.NewNonRetryableApplicationError("Get Node failed", "error", nil)).Once()
@@ -1265,6 +1308,7 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
 		env.RegisterActivity(&activities.PoolActivity{})
 		env.RegisterActivity(&activities.VolumeCreateActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
 
 		var volumesForMigration []*datamodel.Volume
 		var poolsInAccount []*datamodel.Pool
@@ -1292,6 +1336,9 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		env.OnActivity("GetSvmForPoolID", mock.Anything, mock.Anything).Return(svm, nil)
 		env.OnActivity("UpdatingPool", mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("AcquireKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid").Return("lock-client-id", nil)
+		env.OnActivity("RenewKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid", "lock-client-id").Return(nil).Maybe()
+		env.OnActivity("ReleaseKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid", "lock-client-id").Return(nil)
 		env.OnActivity("ConfigureKmsForSvmActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 		env.OnActivity("CheckVsaKmsConfigReachableActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 		env.OnActivity("UpdatePoolWithKmsConfigActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
@@ -1305,6 +1352,63 @@ func TestMigrateKmsConfigWorkflow(t *testing.T) {
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
+	})
+
+	t.Run("WhenAcquireKmsRotationLockActivityFails", func(tt *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		vsaKmsConfig := newTestVsaKmsConfig(params.UUID)
+		env.SetHeader(mockHeader)
+		origAuthType := env2.AuthType
+		env2.AuthType = env2.USERNAME_PWD_SEC_MGR
+		defer func() { env2.AuthType = origAuthType }()
+
+		env.RegisterWorkflow(MigrateKmsConfigWorkflow)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&kms_activities.KmsConfigActivity{})
+		env.RegisterActivity(&activities.PoolActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+		env.RegisterActivity(&backgroundactivities.RotateKmsSAKeyActivity{})
+
+		pool1 := datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: int64(1), UUID: "pool1"},
+			State:          models.LifeCycleStateInUse,
+			DeploymentName: "cluster1",
+			PoolCredentials: &datamodel.PoolCredentials{
+				CertificateID: "cert-123",
+			},
+		}
+		dbNodes := []*datamodel.Node{{Name: "Node", EndpointAddress: "1.2.3.4", HostDNSName: "host1"}}
+		svm := &datamodel.Svm{Name: "SVM with ID", BaseModel: datamodel.BaseModel{ID: int64(1)}}
+
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
+		env.OnActivity("MigrateSdeKmsConfigActivity", mock.Anything, params).Return(nil, nil)
+		env.OnActivity("PollMigrateSdeKmsConfigActivity", mock.Anything, params, mock.Anything).Return(nil)
+		env.OnActivity("GetPoolsByAccountName", mock.Anything, mock.Anything).Return([]*datamodel.Pool{&pool1}, nil)
+		env.OnActivity("DescribeSDEKmsConfigurationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("GetKmsConfigActivity", mock.Anything, mock.Anything).Return(&vsaKmsConfig, nil)
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return(dbNodes, nil)
+		env.OnActivity("GetSvmForPoolID", mock.Anything, mock.Anything).Return(svm, nil)
+		env.OnActivity("UpdatingPool", mock.Anything, mock.Anything).Return(nil, nil)
+		env.OnActivity("CreateDnsActivity", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("AcquireKmsRotationLockActivity", mock.Anything, "vsa-kms-uuid").Return("", errors.New("lock acquire failed"))
+		env.OnActivity("FailedPoolActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("VerifyVsaKmsReachabilityActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+		env.ExecuteWorkflow(MigrateKmsConfigWorkflow, params)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.Error(tt, env.GetWorkflowError())
+		assert.ErrorContains(tt, env.GetWorkflowError(), "Migration failed for at least one of the Pools")
+		env.AssertExpectations(tt)
 	})
 }
 

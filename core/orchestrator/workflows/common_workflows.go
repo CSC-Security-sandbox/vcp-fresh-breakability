@@ -11,6 +11,7 @@ import (
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -77,6 +78,8 @@ var (
 
 	// Timeout for when transfer is stuck (no progress in bytes transferred)
 	snapmirrorTransferStuckTimeout = time.Duration(env.GetUint64("SNAPMIRROR_TRANSFER_STUCK_TIMEOUT_MINUTES", 10)) * time.Minute // Default 10 minutes
+
+	kmsLockHeartbeatInterval = 5 * time.Second
 
 	executeActivity = workflow.ExecuteActivity
 )
@@ -653,4 +656,48 @@ func PollTransferStatusWithContinueAsNewCommon(ctx workflow.Context, backupActiv
 	}
 
 	return nil
+}
+
+// WithKmsRotationLock acquires the KMS rotation lock, starts a heartbeat goroutine that renews the lease
+// every kmsLockHeartbeatInterval, and returns a release function. Call defer release() so the lock is
+// released on return (release is idempotent). Call release() explicitly when done to release before
+// continuing with other work; defer ensures release on error paths.
+// Use from workflow code only.
+func WithKmsRotationLock(ctx workflow.Context, activity *backgroundactivities.RotateKmsSAKeyActivity, kmsConfigUUID string) (lockClientID string, release func(), err error) {
+	logger := util.GetLogger(ctx)
+	err = workflow.ExecuteActivity(ctx, activity.AcquireKmsRotationLockActivity, kmsConfigUUID).Get(ctx, &lockClientID)
+	if err != nil {
+		return "", nil, err
+	}
+
+	heartbeatCtx, cancelHeartbeat := workflow.WithCancel(ctx)
+	workflow.Go(heartbeatCtx, func(hctx workflow.Context) {
+		for {
+			if sleepErr := workflow.Sleep(hctx, kmsLockHeartbeatInterval); sleepErr != nil {
+				return
+			}
+			if hctx.Err() != nil {
+				return
+			}
+			renewErr := workflow.ExecuteActivity(hctx, activity.RenewKmsRotationLockActivity, kmsConfigUUID, lockClientID).Get(hctx, nil)
+			if renewErr != nil {
+				logger.Warn("RenewKmsRotationLockActivity failed (non-fatal)", "kmsConfigUUID", kmsConfigUUID, "lockClientID", lockClientID, "error", renewErr)
+			}
+		}
+	})
+
+	released := false
+	release = func() {
+		if released {
+			return
+		}
+		released = true
+		cancelHeartbeat()
+		releaseCtx, releaseCancel := workflow.NewDisconnectedContext(ctx)
+		defer releaseCancel()
+		if releaseErr := workflow.ExecuteActivity(releaseCtx, activity.ReleaseKmsRotationLockActivity, kmsConfigUUID, lockClientID).Get(releaseCtx, nil); releaseErr != nil {
+			logger.Warn("ReleaseKmsRotationLockActivity failed (non-fatal)", "kmsConfigUUID", kmsConfigUUID, "lockClientID", lockClientID, "error", releaseErr)
+		}
+	}
+	return lockClientID, release, nil
 }

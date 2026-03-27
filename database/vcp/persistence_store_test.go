@@ -7652,6 +7652,34 @@ func TestUpdateVolumePerformanceGroup_PersistenceStore(t *testing.T) {
 	})
 }
 
+func TestPersistenceStore_UpdateServiceAccountPasswordLocation(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	pStore, ok := store.(*PersistenceStore)
+	require.True(t, ok)
+	defer func() {
+		_ = store.Close()
+	}()
+
+	ctx := context.Background()
+	sa := &datamodel.ServiceAccount{
+		BaseModel:                      datamodel.BaseModel{UUID: "sa-update-password-location"},
+		ServiceAccountEmail:            "svc@test.com",
+		ServiceAccountPasswordLocation: "old-location",
+	}
+	err = pStore.db.Create(sa).Error()
+	require.NoError(t, err)
+
+	err = store.UpdateServiceAccountPasswordLocation(ctx, sa.UUID, "new-location")
+	require.NoError(t, err)
+
+	var updated datamodel.ServiceAccount
+	err = pStore.db.Where("uuid = ?", sa.UUID).First(&updated).Error()
+	require.NoError(t, err)
+	assert.Equal(t, "new-location", updated.ServiceAccountPasswordLocation)
+}
+
 func TestDeleteVolumePerformanceGroup_PersistenceStore(t *testing.T) {
 	t.Run("WhenVPGIsDeletedSuccessfully", func(tt *testing.T) {
 		db, err := SetupTestDB()

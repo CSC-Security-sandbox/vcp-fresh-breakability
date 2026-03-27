@@ -164,6 +164,20 @@ func (d *DataStoreRepository) MarkKeyForDeletion(ctx context.Context, serviceAcc
 	return db.Save(serviceAccount).Error
 }
 
+// UpdateServiceAccountPasswordLocation sets the service account's password location to already-encrypted key data (e.g. KMS-encrypted).
+// Use this when the key data is already encrypted; do not use UpdateServiceAccountEmailAndKey which re-encrypts plaintext.
+func (d *DataStoreRepository) UpdateServiceAccountPasswordLocation(ctx context.Context, serviceAccountUUID string, encryptedKeyData string) error {
+	db := d.db.GORM().WithContext(ctx)
+	dbServiceAccount := &datamodel.ServiceAccount{}
+	err := db.Where("uuid = ?", serviceAccountUUID).First(dbServiceAccount).Error
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	dbServiceAccount.ServiceAccountPasswordLocation = encryptedKeyData
+	dbServiceAccount.UpdatedAt = utils.GetTimeNow()
+	return db.Where("uuid = ?", serviceAccountUUID).Updates(dbServiceAccount).Error
+}
+
 // SetPrimaryKeyForServiceAccount sets a key as primary and updates ServiceAccountPasswordLocation
 func (d *DataStoreRepository) SetPrimaryKeyForServiceAccount(ctx context.Context, serviceAccountUUID string, keyID string) error {
 	db := d.db.GORM().WithContext(ctx)

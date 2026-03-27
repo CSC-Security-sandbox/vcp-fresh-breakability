@@ -2,7 +2,6 @@ package kms_activities
 
 import (
 	"context"
-	"gorm.io/gorm"
 	"strings"
 
 	"github.com/go-openapi/strfmt"
@@ -18,6 +17,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
+	"gorm.io/gorm"
 )
 
 var (

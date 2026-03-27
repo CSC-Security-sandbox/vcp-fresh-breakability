@@ -447,3 +447,48 @@ func TestGetServiceAccountWithKeys(t *testing.T) {
 		}
 	})
 }
+
+func TestUpdateServiceAccountPasswordLocation(t *testing.T) {
+	t.Run("UpdateServiceAccountPasswordLocation_Success", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		sa := &datamodel.ServiceAccount{
+			BaseModel:                      datamodel.BaseModel{UUID: "sa-uuid"},
+			ServiceAccountEmail:            "test@email.com",
+			ServiceAccountPasswordLocation: "old-encrypted-key",
+		}
+		err = store.db.Create(sa).Error()
+		assert.NoError(tt, err)
+
+		err = store.UpdateServiceAccountPasswordLocation(context.Background(), "sa-uuid", "new-encrypted-key")
+		assert.NoError(tt, err)
+
+		var updated datamodel.ServiceAccount
+		err = store.db.Where("uuid = ?", "sa-uuid").First(&updated).Error()
+		assert.NoError(tt, err)
+		assert.Equal(tt, "new-encrypted-key", updated.ServiceAccountPasswordLocation)
+	})
+
+	t.Run("UpdateServiceAccountPasswordLocation_NotFound", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		err = store.UpdateServiceAccountPasswordLocation(context.Background(), "missing-uuid", "new-encrypted-key")
+		assert.Error(tt, err)
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(tt, vsaerrors.ErrDatabaseDataReadError, customErr.TrackingID)
+		} else {
+			tt.Fatalf("Expected a CustomError, got %v", err)
+		}
+	})
+}

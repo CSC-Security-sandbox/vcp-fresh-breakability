@@ -3072,6 +3072,21 @@ func (re *retryEngine) SetPrimaryKeyForServiceAccount(ctx context.Context, servi
 	return err
 }
 
+func (re *retryEngine) UpdateServiceAccountPasswordLocation(ctx context.Context, serviceAccountUUID string, encryptedKeyData string) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.UpdateServiceAccountPasswordLocation(ctx, serviceAccountUUID, encryptedKeyData)
+		if err != nil {
+			re.logError("UpdateServiceAccountPasswordLocation", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return err
+}
+
 func (re *retryEngine) GetServiceAccountWithKeys(ctx context.Context, serviceAccountUUID string) (*datamodel.ServiceAccount, error) {
 	var var0 *datamodel.ServiceAccount
 	err := retry.Do(func(attempt int) (bool, error) {

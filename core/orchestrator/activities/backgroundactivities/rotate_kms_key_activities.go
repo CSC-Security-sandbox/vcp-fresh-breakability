@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	errstd "errors"
 	"fmt"
 	"strings"
 	"time"
@@ -20,6 +21,7 @@ import (
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -33,7 +35,19 @@ var (
 	syncKeyWithOntap                  = _syncKeyWithOntap
 	extractKeyID                      = _extractKeyID
 	extractKeyIDFromRawBase64         = _extractKeyIDFromRawBase64
+	vcpNamespace                      = env.GetString("VCP_KUBERNETES_NAMESPACE", "vcp")
 )
+
+type kmsRotationLocker interface {
+	Lock(ctx context.Context, logger log.Logger) error
+	ClientID() string
+	RenewLock(ctx context.Context) error
+	Unlock(ctx context.Context) error
+}
+
+var newKmsRotationLocker = func(ctx context.Context, name string, options ...utils.Option) (kmsRotationLocker, error) {
+	return utils.NewLocker(ctx, name, options...)
+}
 
 const (
 	serviceNameCmek = "cmek"
@@ -43,7 +57,22 @@ const (
 	// These limits prevent hitting GCP's hard limit if DeleteOldSAKeyFromGCPActivity fails repeatedly
 	maxTotalKeysBeforeRotation    = 8 // Leave buffer for operational flexibility
 	maxPendingDeletionKeysAllowed = 5 // Trigger error if delete activity keeps failing
+
+	// KMS rotation lock - per config to avoid concurrent create-SA-key for same config
+	kmsRotationLockNamePrefix = "vcp-kms-"
 )
+
+// KMS rotation lock timing. Configurable via env (e.g. "2s", "30s", "10m").
+var (
+	kmsRotationLockMaxAcquireWait = env.GetDuration("KMS_ROTATION_LOCK_MAX_ACQUIRE_WAIT", 10*time.Minute)
+	kmsRotationLockRetryWait      = env.GetDuration("KMS_ROTATION_LOCK_RETRY_WAIT", 2*time.Second)
+	kmsRotationLockTTL            = env.GetDuration("KMS_ROTATION_LOCK_TTL", 30*time.Second)
+)
+
+// isLocalSetup returns true when LOCAL_SETUP env is true (default false). When true, acquire/release/renew lock are no-ops.
+func isLocalSetup() bool {
+	return env.GetBool("LOCAL_SETUP", false)
+}
 
 type RotateKmsSAKeyActivity struct {
 	SE             database.Storage
@@ -417,10 +446,109 @@ func (a *RotateKmsSAKeyActivity) StoreNewKeyInDBActivity(ctx context.Context, se
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataInsertError, err)
 	}
 
+	err = se.UpdateServiceAccountPasswordLocation(ctx, serviceAccount.UUID, newKeyData)
+	if err != nil {
+		logger.Errorf("KMS_KEY_ROTATION: Failed to update service account password location with new key: %v", err)
+		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	}
+
 	logger.Info("KMS_KEY_ROTATION: Successfully stored new key in database",
 		"newKeyID", newKeyID,
 		"oldKeyID", currentKeyID)
 
+	return nil
+}
+
+// AcquireKmsRotationLockActivity acquires a K8s lease-based lock for this KMS config before creating
+// a new service account key. Returns the holder clientID; the same clientID must be passed to
+// ReleaseKmsRotationLockActivity. Caller should retry on ErrAlreadyHeld (activity retries internally).
+// When LOCAL_SETUP is true, no lock is acquired and a dummy clientID is returned (no-op).
+func (a *RotateKmsSAKeyActivity) AcquireKmsRotationLockActivity(ctx context.Context, kmsConfigUUID string) (string, error) {
+	if isLocalSetup() {
+		return "", nil
+	}
+	logger := util.GetLogger(ctx)
+	lockName := kmsRotationLockNamePrefix + kmsConfigUUID
+
+	locker, err := newKmsRotationLocker(ctx, lockName,
+		utils.Namespace(vcpNamespace),
+		utils.InClusterConfig(),
+		utils.TTL(kmsRotationLockTTL),
+		utils.MaxLockAcquiringWait(kmsRotationLockMaxAcquireWait),
+		utils.RetryWaitDuration(kmsRotationLockRetryWait))
+	if err != nil {
+		logger.Errorf("KMS_KEY_ROTATION: Failed to create locker: %v", err)
+		return "", vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, fmt.Errorf("create locker: %w", err))
+	}
+
+	deadline := time.Now().Add(kmsRotationLockMaxAcquireWait)
+	for time.Now().Before(deadline) {
+		err = locker.Lock(ctx, logger)
+		if err == nil {
+			logger.Info("KMS_KEY_ROTATION: Acquired KMS rotation lock", "kmsConfigUUID", kmsConfigUUID)
+			return locker.ClientID(), nil
+		}
+		if !errstd.Is(err, utils.ErrAlreadyHeld) {
+			return "", vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, fmt.Errorf("acquire lock: %w", err))
+		}
+		// Lock held by another worker; wait before retrying so it has time to be released.
+		logger.Info("KMS_KEY_ROTATION: KMS rotation lock held by another worker, waiting before retry",
+			"kmsConfigUUID", kmsConfigUUID, "retryWait", kmsRotationLockRetryWait)
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-time.After(kmsRotationLockRetryWait):
+		}
+	}
+	return "", vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError,
+		fmt.Errorf("could not acquire KMS rotation lock within %v (lease held by another worker)", kmsRotationLockMaxAcquireWait))
+}
+
+// RenewKmsRotationLockActivity renews the K8s lease so the lock is not considered expired while the holder
+// is still working. Call periodically (e.g. every TTL/2) between Acquire and Release. clientID must be the
+// value returned by AcquireKmsRotationLockActivity for the same kmsConfigUUID.
+// When LOCAL_SETUP is true, this is a no-op.
+func (a *RotateKmsSAKeyActivity) RenewKmsRotationLockActivity(ctx context.Context, kmsConfigUUID string, clientID string) error {
+	if isLocalSetup() {
+		return nil
+	}
+	lockName := kmsRotationLockNamePrefix + kmsConfigUUID
+	locker, err := newKmsRotationLocker(ctx, lockName,
+		utils.Namespace(vcpNamespace),
+		utils.InClusterConfig(),
+		utils.ClientID(clientID))
+	if err != nil {
+		return vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, fmt.Errorf("create locker for renew: %w", err))
+	}
+	if err := locker.RenewLock(ctx); err != nil {
+		return fmt.Errorf("renew KMS rotation lock: %w", err)
+	}
+	return nil
+}
+
+// ReleaseKmsRotationLockActivity releases the K8s lease lock acquired by AcquireKmsRotationLockActivity.
+// clientID must be the value returned by AcquireKmsRotationLockActivity for the same kmsConfigUUID.
+// When LOCAL_SETUP is true, this is a no-op.
+func (a *RotateKmsSAKeyActivity) ReleaseKmsRotationLockActivity(ctx context.Context, kmsConfigUUID string, clientID string) error {
+	if isLocalSetup() {
+		return nil
+	}
+	logger := util.GetLogger(ctx)
+	lockName := kmsRotationLockNamePrefix + kmsConfigUUID
+
+	locker, err := newKmsRotationLocker(ctx, lockName,
+		utils.Namespace(vcpNamespace),
+		utils.InClusterConfig(),
+		utils.ClientID(clientID))
+	if err != nil {
+		logger.Errorf("KMS_KEY_ROTATION: Failed to create locker for release: %v", err)
+		return vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, fmt.Errorf("create locker for release: %w", err))
+	}
+	if err := locker.Unlock(ctx); err != nil {
+		logger.Warnf("KMS_KEY_ROTATION: Failed to release lock: %v", err)
+		return nil
+	}
+	logger.Info("KMS_KEY_ROTATION: Released KMS rotation lock", "kmsConfigUUID", kmsConfigUUID)
 	return nil
 }
 

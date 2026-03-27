@@ -220,6 +220,7 @@ workerConfig:
   serviceName: "autopush-netapp.sandbox.googleapis.com"
   datacenter: "us-west-1"
   leaseNameSpace: "vcp"
+  vcpKubernetesNamespace: "vcp"
   harvestHost: "vsa-harvest-farm-service.vcp.svc.cluster.local"
   enableMetrics: "false"
   harvestSecretManagerAuthEnabled: "false"
@@ -311,6 +312,12 @@ workerConfig:
   cmekRotationPageSize: "1000"
   cmekRotationMaxWorkers: "20"
   cmekRotationMaxPasses: "10"
+  # Max time to wait to acquire KMS rotation lock per config (Go duration, e.g. "10m", "5m")
+  kmsRotationLockMaxAcquireWait: "10m"
+  # Wait between retries when acquiring KMS rotation lock (Go duration, e.g. "2s")
+  kmsRotationLockRetryWait: "2s"
+  # TTL for KMS rotation lock (Go duration, e.g. "30s")
+  kmsRotationLockTTL: "30s"
   mgmtFirewallSourceRanges: "198.18.0.0/15"
   rsmFirewallSourceRanges: "198.18.0.0/15"
   icFirewallSourceRanges: "198.18.0.0/15"

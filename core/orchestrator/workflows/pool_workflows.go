@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vmrs"
@@ -46,13 +47,6 @@ var (
 	syncPoolZIZSDetailsWorkflow          = _syncPoolZIZSDetailsWorkflow
 	syncActiveDirectoryInVcp             = _syncActiveDirectoryInVcp
 	deepCopyPoolFn                       = utils.DeepCopyPool
-)
-
-var (
-	// ServiceAccountUpdateTimeout is the maximum time to wait for service account state to transition from Updating to Enabled
-	ServiceAccountUpdateTimeout = 10 * time.Minute
-	// ServiceAccountUpdateInterval is the interval between polling attempts for service account state
-	ServiceAccountUpdateInterval = 20 * time.Second
 )
 
 var (
@@ -1556,42 +1550,6 @@ func _configureKmsConfigForSvmActivity(ctx workflow.Context, pool datamodel.Pool
 		return err
 	}
 
-	if kmsConfig.ServiceAccount != nil && kmsConfig.ServiceAccount.State == models.LifeCycleStateUpdating {
-		timeout, interval := ServiceAccountUpdateTimeout, ServiceAccountUpdateInterval
-		deadline := workflow.Now(ctx).Add(timeout)
-		serviceAccountUUID := kmsConfig.ServiceAccount.UUID
-
-		logger.Info("Service account is in Updating state, waiting for it to transition to Enabled", "serviceAccountUUID", serviceAccountUUID)
-
-		stateChanged := false
-		for workflow.Now(ctx).Before(deadline) {
-			if err = workflow.Sleep(ctx, interval); err != nil {
-				return err
-			}
-
-			polledKmsConfig := &datamodel.KmsConfig{KmsAttributes: &datamodel.KmsAttributes{}}
-			err := workflow.ExecuteActivity(ctx, kmsConfigActivity.GetKmsConfigActivity, params.KmsConfigId).Get(ctx, polledKmsConfig)
-			if err != nil {
-				logger.Warn("Failed to fetch KMS config while waiting for service account state change", "error", err)
-				continue
-			}
-
-			if polledKmsConfig.ServiceAccount != nil {
-				if polledKmsConfig.ServiceAccount.State == models.AccountStateEnabled {
-					logger.Info("Service account has transitioned to Enabled state", "serviceAccountUUID", serviceAccountUUID)
-					kmsConfig.ServiceAccount.State = models.AccountStateEnabled
-					stateChanged = true
-					break
-				}
-				logger.Debug("Service account still in state, waiting...", "serviceAccountUUID", serviceAccountUUID, "state", polledKmsConfig.ServiceAccount.State)
-			}
-		}
-
-		if !stateChanged {
-			logger.Error("Service account for KMS Config did not transition to Enabled state during pool creation within timeout period, continuing with pool creation")
-		}
-	}
-
 	// Creates DNS to reach google KMS from the VSA cluster
 	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.CreateDnsActivity, node).Get(ctx, nil)
 	if err != nil {
@@ -1606,11 +1564,23 @@ func _configureKmsConfigForSvmActivity(ctx workflow.Context, pool datamodel.Pool
 		}
 	}
 
+	// Acquire KMS lock before configuring KMS for SVM; release after Configure (defer releases only on early return)
+	rotateKmsSAKeyActivity := &backgroundactivities.RotateKmsSAKeyActivity{}
+	logger.Info("Acquiring KMS rotation lock for pool KMS config", "kmsConfigUUID", params.KmsConfigId)
+	_, releaseLock, err := WithKmsRotationLock(ctx, rotateKmsSAKeyActivity, params.KmsConfigId)
+	if err != nil {
+		return err
+	}
+	defer releaseLock()
+
 	// Configure KMS for SVM if KMS config is provided
 	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.ConfigureKmsForSvmActivity, svm, node, params).Get(ctx, svm)
 	if err != nil {
 		return err
 	}
+
+	// Release lock so we don't hold it during reachability check; defer handles release only on early return above
+	releaseLock()
 
 	// Check if the KMS config is reachable from the VSA cluster
 	err = workflow.ExecuteActivity(ctx, kmsConfigActivity.CheckVsaKmsConfigReachableActivity, svm, node).Get(ctx, nil)
