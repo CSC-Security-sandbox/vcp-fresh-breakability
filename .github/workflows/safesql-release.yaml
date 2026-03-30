@@ -50,15 +50,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ inputs.version }}
-          REPO: ${{ github.repository }}
         run: |
-          # Replace variables in the file (use | as delimiter to handle URLs with /)
-          sed -i "s|\$VERSION|${VERSION}|g" release_notes.md
-          sed -i "s|\$REPO|${REPO}|g" release_notes.md
-          
           gh release create safesql-${VERSION} \
             --title "SafeSQL ${VERSION}" \
-            --notes-file release_notes.md \
             bin/build/linux/safesql \
             bin/build/checksums.txt
 
