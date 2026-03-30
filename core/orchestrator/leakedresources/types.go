@@ -12,7 +12,8 @@ type (
 )
 
 const (
-	ResourceTypePool     = model.ResourceTypePool
-	ResourceTypeVolume   = model.ResourceTypeVolume
-	ResourceTypeSnapshot = model.ResourceTypeSnapshot
+	ResourceTypePool               = model.ResourceTypePool
+	ResourceTypeVolume             = model.ResourceTypeVolume
+	ResourceTypeSnapshot           = model.ResourceTypeSnapshot
+	ResourceTypeInternalReservedIP = model.ResourceTypeInternalReservedIP
 )

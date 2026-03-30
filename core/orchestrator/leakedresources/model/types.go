@@ -6,9 +6,10 @@ package model
 type ResourceType string
 
 const (
-	ResourceTypePool     ResourceType = "pool"
-	ResourceTypeVolume   ResourceType = "volume"
-	ResourceTypeSnapshot ResourceType = "snapshot"
+	ResourceTypePool               ResourceType = "pool"
+	ResourceTypeVolume             ResourceType = "volume"
+	ResourceTypeSnapshot           ResourceType = "snapshot"
+	ResourceTypeInternalReservedIP ResourceType = "internal_reserved_ip"
 )
 
 // LeakRecord is the unified record for a single leaked resource, produced by
@@ -20,5 +21,5 @@ type LeakRecord struct {
 	ProjectID    string            `json:"projectId,omitempty"`
 	Region       string            `json:"region,omitempty"`
 	Reason       string            `json:"reason"`
-	Extra        map[string]string  `json:"extra,omitempty"`
+	Extra        map[string]string `json:"extra,omitempty"`
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/model"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	hyperscalerleakedresources "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/leakedresources"
 )
 
 type mockDetector struct {
@@ -85,6 +86,7 @@ func TestPipeline_Run_DetectorReturnsRecords(t *testing.T) {
 		{ResourceType: model.ResourceTypePool, ResourceID: "p1", Reason: "in_vcp_not_in_ccfe"},
 	}
 	det := &mockDetector{}
+	det.On("Name").Return("pool")
 	det.On("Detect", mock.Anything, storage).Return(records, nil)
 
 	reporter := &mockReporter{}
@@ -103,6 +105,7 @@ func TestPipeline_Run_DetectorFails_ContinuesAndReportsAggregated(t *testing.T) 
 	ctx := context.Background()
 	storage := database.NewMockStorage(t)
 	okDet := &mockDetector{}
+	okDet.On("Name").Return("ok")
 	okDet.On("Detect", mock.Anything, storage).Return([]model.LeakRecord{{ResourceType: model.ResourceTypeVolume, ResourceID: "v1", Reason: "orphan"}}, nil)
 	failDet := &mockDetector{}
 	failDet.On("Name").Return("fail") // Pipeline calls Name() when logging detector failure
@@ -126,6 +129,7 @@ func TestPipeline_Run_ReporterFails_ReturnsError(t *testing.T) {
 	ctx := context.Background()
 	storage := database.NewMockStorage(t)
 	det := &mockDetector{}
+	det.On("Name").Return("empty")
 	det.On("Detect", mock.Anything, storage).Return([]model.LeakRecord{}, nil)
 	reporter := &mockReporter{}
 	reporter.On("Report", mock.Anything, mock.Anything).Return(errors.New("report failed"))
@@ -143,9 +147,43 @@ func TestPipeline_Run_ReporterFails_ReturnsError(t *testing.T) {
 func TestRun(t *testing.T) {
 	ctx := context.Background()
 	storage := database.NewMockStorage(t)
-	storage.EXPECT().ListPools(ctx, mock.Anything).Return(nil, nil).Times(2)   // pool detector + volume detector
+
+	orig := newRegionalAddressLister
+	newRegionalAddressLister = func(ctx context.Context) (hyperscalerleakedresources.RegionalAddressLister, error) {
+		return nil, errors.New("test: force skip internal detector")
+	}
+	t.Cleanup(func() { newRegionalAddressLister = orig })
+
+	// TestRun intentionally does not require cloud access; internal_reserved_ip detector may be skipped
+	// when regional address lister cannot initialize (e.g., local/no credentials).
+	storage.EXPECT().ListPools(ctx, mock.Anything).Return(nil, nil).Times(2)        // pool detector + volume detector
 	storage.EXPECT().GetAccounts(ctx, false, mock.Anything).Return(nil, nil).Once() // snapshot detector accountID→name map
-	storage.EXPECT().ListVolumes(ctx, mock.Anything).Return(nil, nil).Times(2) // volume detector + snapshot detector
+	storage.EXPECT().ListVolumes(ctx, mock.Anything).Return(nil, nil).Times(2)      // volume detector + snapshot detector
+	storage.EXPECT().GetSnapshotsWithCondition(ctx, mock.Anything).Return(nil, nil).Once()
+
+	err := Run(ctx, storage)
+	assert.NoError(t, err)
+}
+
+type emptyRegionalAddressLister struct{}
+
+func (l *emptyRegionalAddressLister) ListRegionalAddresses(ctx context.Context, projectID, region string) ([]hyperscalerleakedresources.RegionalAddress, error) {
+	return []hyperscalerleakedresources.RegionalAddress{}, nil
+}
+
+func TestRun_WithInternalReservedIPDetectorRegistered(t *testing.T) {
+	ctx := context.Background()
+	storage := database.NewMockStorage(t)
+
+	orig := newRegionalAddressLister
+	newRegionalAddressLister = func(ctx context.Context) (hyperscalerleakedresources.RegionalAddressLister, error) {
+		return &emptyRegionalAddressLister{}, nil
+	}
+	t.Cleanup(func() { newRegionalAddressLister = orig })
+
+	storage.EXPECT().ListPools(ctx, mock.Anything).Return(nil, nil).Times(3)        // pool + volume + internal_reserved_ip
+	storage.EXPECT().GetAccounts(ctx, false, mock.Anything).Return(nil, nil).Once() // snapshot detector accountID→name map
+	storage.EXPECT().ListVolumes(ctx, mock.Anything).Return(nil, nil).Times(2)      // volume + snapshot
 	storage.EXPECT().GetSnapshotsWithCondition(ctx, mock.Anything).Return(nil, nil).Once()
 
 	err := Run(ctx, storage)

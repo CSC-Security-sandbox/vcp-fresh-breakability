@@ -7,9 +7,12 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/detectors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources/model"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	hyperscalerleakedresources "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/leakedresources"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
+
+var newRegionalAddressLister = hyperscalerleakedresources.NewRegionalAddressLister
 
 // Pipeline runs the leaked resources flow: for each registered detector, run Detect,
 // aggregate all leak records, then call the reporter.
@@ -46,16 +49,21 @@ func (p *Pipeline) SetReporter(r Reporter) {
 // It is invoked by the cron-triggered locked task in core/app.go.
 func (p *Pipeline) Run(ctx context.Context, storage database.Storage) error {
 	logger := util.GetLogger(ctx)
-	logger.Info("Leaked resources pipeline started")
+	logger.Infof("Leaked resources pipeline started (detectors=%d)", len(p.detectors))
 
 	var all []model.LeakRecord
 	for _, d := range p.detectors {
+		logger.Infof("Leaked resources: checking detector=%s", d.Name())
 		records, err := d.Detect(ctx, storage)
 		if err != nil {
 			logger.Errorf("Leaked resources detector %s failed: %v", d.Name(), err)
 			continue
 		}
+		logger.Infof("Leaked resources: detector=%s completed, leaks_found=%d", d.Name(), len(records))
 		all = append(all, records...)
+	}
+	if len(all) == 0 {
+		logger.Info("Leaked resources: no leaks found in this run")
 	}
 
 	if err := p.reporter.Report(ctx, all); err != nil {
@@ -63,7 +71,7 @@ func (p *Pipeline) Run(ctx context.Context, storage database.Storage) error {
 		return err
 	}
 
-	logger.Info("Leaked resources pipeline finished")
+	logger.Infof("Leaked resources pipeline finished (total_leaks=%d)", len(all))
 	return nil
 }
 
@@ -75,5 +83,14 @@ func Run(ctx context.Context, storage database.Storage) error {
 	p.RegisterDetector(detectors.NewPoolDetector(ccfeClient))
 	p.RegisterDetector(detectors.NewVolumeOrphanDetector())
 	p.RegisterDetector(detectors.NewSnapshotOrphanDetector())
+
+	// Internal reserved IP detection is part of the same pipeline; enable/disable with LEAKED_RESOURCES_MONITORING_ENABLED (core/app.go).
+	lister, err := newRegionalAddressLister(ctx)
+	if err != nil {
+		util.GetLogger(ctx).Warnf("Leaked resources: internal reserved IP detector skipped (compute lister): %v", err)
+	} else {
+		p.RegisterDetector(detectors.NewInternalReservedIPDetector(lister, detectors.DefaultInternalReservedIPMinAge()))
+	}
+
 	return p.Run(ctx, storage)
 }

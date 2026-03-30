@@ -94,3 +94,40 @@ func TestLogReporter_Report_MixedRecordsWithAndWithoutExtra(t *testing.T) {
 	err := r.Report(ctx, records)
 	assert.NoError(t, err)
 }
+
+func TestLogReporter_Report_InternalReservedIP_DedicatedLine(t *testing.T) {
+	ctx := context.Background()
+	records := []model.LeakRecord{
+		{
+			ResourceType: model.ResourceTypeInternalReservedIP,
+			ResourceID:   "https://www.googleapis.com/compute/v1/projects/tp/regions/us-central1/addresses/x",
+			ResourceName: "addr-x",
+			ProjectID:    "tp",
+			Region:       "us-central1",
+			Reason:       "internal_reserved_ip_unassigned_capacity",
+			Extra: map[string]string{
+				"ip":                 "10.0.0.5",
+				"subnet":             "sn1",
+				"pool_uuids":         "pool-uuid-1",
+				"creation_timestamp": "2024-01-01T00:00:00Z",
+				"age_basis":          "gcp_creation_timestamp",
+			},
+		},
+	}
+	var r LogReporter
+	err := r.Report(ctx, records)
+	assert.NoError(t, err)
+}
+
+func TestFormatLeakCountsByType_Empty(t *testing.T) {
+	assert.Equal(t, "", formatLeakCountsByType(map[model.ResourceType]int{}))
+}
+
+func TestExtraGet_NilMap(t *testing.T) {
+	assert.Equal(t, "", extraGet(nil, "k"))
+}
+
+func TestFormatExtraKeyValuesExclude_AllExcluded(t *testing.T) {
+	got := formatExtraKeyValuesExclude(map[string]string{"a": "1"}, "a")
+	assert.Equal(t, "", got)
+}
