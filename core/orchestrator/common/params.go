@@ -233,7 +233,7 @@ type ExpertModeVolumeParams struct {
 	VolumeName  string
 	VolumeUUID  string
 	SizeInBytes int64
-	Style       string // flexvol|flexgroup
+	Style       string // flexvol|flexgroup|flexcache
 	SvmUuid     string
 	SvmName     string
 	AccountName string

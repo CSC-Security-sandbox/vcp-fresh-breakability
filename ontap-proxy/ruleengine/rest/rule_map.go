@@ -195,6 +195,45 @@ func GetProxyRules() map[string]Rule {
 			},
 		},
 
+		// Storage FlexCache - list and create
+		"/api/storage/flexcache/flexcaches": {
+			GET: Allow{
+				Name: "Allow FlexCache listing",
+			},
+			POST: When{
+				Name: "FlexCache creation validation",
+				Condition: And(
+					HasFields("name", "size", "svm.name"),
+					IfPresentThenValue("guarantee.type", "none"),
+					IfPresentThenValue("relative_size.enabled", false),
+					validateFlexCacheCreation,
+				),
+				IsTrue: Allow{
+					Name: "Allow FlexCache creation",
+				},
+			},
+			PATCH:  DenyAll{},
+			DELETE: DenyAll{},
+		},
+
+		// Storage FlexCache - specific flexcache operations
+		"/api/storage/flexcache/flexcaches/{uuid}": {
+			GET: Allow{
+				Name: "Allow specific FlexCache details",
+			},
+			POST: DenyAll{},
+			PATCH: Allow{
+				Name: "Allow FlexCache modification",
+			},
+			DELETE: When{
+				Name:      "FlexCache deletion validation",
+				Condition: validateFlexCacheDeletion,
+				IsTrue: Allow{
+					Name: "Allow FlexCache deletion",
+				},
+			},
+		},
+
 		// Private CLI Volume rename - PATCH with query vserver, volume and body newname
 		"/api/private/cli/volume/rename": {
 			GET:  DenyAll{},

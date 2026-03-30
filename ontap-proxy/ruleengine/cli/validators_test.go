@@ -13,6 +13,42 @@ import (
 )
 
 func Test_validateVolumeCreate(t *testing.T) {
+	t.Run("WhenCoreSucceeds_ShouldSetStyleFlexvol", func(t *testing.T) {
+		origSubmit := submitExpertModeVolumeOperation
+		defer func() { submitExpertModeVolumeOperation = origSubmit }()
+		var capturedReq *coreapi.ExpertModeVolumeV1
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			capturedReq = req
+			return nil
+		}
+		cacheKey := "test-pool-key-create-style"
+		ctx := context.WithValue(context.Background(), models.AuthDataKey, cacheKey)
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+		})
+		defer cache.RemoveFromAuthDataCache(cacheKey)
+
+		cmd := &CLICommand{
+			FullCommand: "volume create",
+			Arguments: map[string]string{
+				"-vserver": "vs1",
+				"-volume":  "vol1",
+				"-size":    "10g",
+			},
+		}
+		allowed, reason := _validateVolumeCreate(ctx, cmd)
+		if !allowed {
+			t.Errorf("Expected allowed, got reason = %q", reason)
+		}
+		if capturedReq == nil {
+			t.Fatal("Expected request to be sent")
+		}
+		if capturedReq.Style != coreapi.ExpertModeVolumeV1StyleFlexvol {
+			t.Errorf("Style = %v, want Flexvol", capturedReq.Style)
+		}
+	})
+
 	t.Run("WhenCacheKeyMissing_ShouldReturnNotAllowed", func(t *testing.T) {
 		ctx := context.Background()
 		cmd := &CLICommand{
@@ -619,6 +655,223 @@ func Test_validateVolumeRename(t *testing.T) {
 		}
 		if reason != "volume not found" {
 			t.Errorf("Reason = %q, want volume not found", reason)
+		}
+	})
+}
+
+func Test_validateFlexCacheCreate(t *testing.T) {
+	t.Run("WhenCoreSucceeds_ShouldSetStyleFlexcache", func(t *testing.T) {
+		origSubmit := submitExpertModeVolumeOperation
+		defer func() { submitExpertModeVolumeOperation = origSubmit }()
+		var capturedReq *coreapi.ExpertModeVolumeV1
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			capturedReq = req
+			return nil
+		}
+		cacheKey := "test-pool-key-fc-create-success"
+		ctx := context.WithValue(context.Background(), models.AuthDataKey, cacheKey)
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+		})
+		defer cache.RemoveFromAuthDataCache(cacheKey)
+
+		cmd := &CLICommand{
+			FullCommand: "volume flexcache create",
+			Arguments: map[string]string{
+				"-vserver":       "vs1",
+				"-volume":        "fc1",
+				"-origin-volume": "orig1",
+				"-size":          "400m",
+			},
+		}
+		allowed, reason := _validateFlexCacheCreate(ctx, cmd)
+		if !allowed {
+			t.Errorf("Expected allowed, got reason = %q", reason)
+		}
+		if capturedReq == nil {
+			t.Fatal("Expected request to be sent")
+		}
+		if capturedReq.Style != coreapi.ExpertModeVolumeV1StyleFlexcache {
+			t.Errorf("Style = %v, want Flexcache", capturedReq.Style)
+		}
+		if capturedReq.Action != coreapi.ExpertModeVolumeV1ActionCreate {
+			t.Errorf("Action = %v, want Create", capturedReq.Action)
+		}
+		if capturedReq.VolumeName != "fc1" {
+			t.Errorf("VolumeName = %q, want fc1", capturedReq.VolumeName)
+		}
+	})
+
+	t.Run("WhenCacheKeyMissing_ShouldReturnNotAllowed", func(t *testing.T) {
+		ctx := context.Background()
+		cmd := &CLICommand{
+			FullCommand: "volume flexcache create",
+			Arguments: map[string]string{
+				"-vserver":       "vs1",
+				"-volume":        "fc1",
+				"-origin-volume": "orig1",
+				"-size":          "400m",
+			},
+		}
+
+		allowed, reason := _validateFlexCacheCreate(ctx, cmd)
+		if allowed {
+			t.Error("Expected not allowed when cache key missing")
+		}
+		if reason != "cache key not found in context" {
+			t.Errorf("Reason = %q", reason)
+		}
+	})
+
+	t.Run("WhenInvalidSize_ShouldReturnNotAllowed", func(t *testing.T) {
+		cacheKey := "test-pool-key-fc-create-invalid-size"
+		ctx := context.WithValue(context.Background(), models.AuthDataKey, cacheKey)
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+		})
+		defer cache.RemoveFromAuthDataCache(cacheKey)
+
+		cmd := &CLICommand{
+			FullCommand: "volume flexcache create",
+			Arguments: map[string]string{
+				"-vserver":       "vs1",
+				"-volume":        "fc1",
+				"-origin-volume": "orig1",
+				"-size":          "invalid",
+			},
+		}
+		allowed, reason := _validateFlexCacheCreate(ctx, cmd)
+		if allowed {
+			t.Error("Expected not allowed for invalid size")
+		}
+		if reason != `"invalid" is an invalid value for argument "-size"` {
+			t.Errorf("Reason = %q", reason)
+		}
+	})
+
+	t.Run("WhenCoreReturnsError_ShouldReturnNotAllowed", func(t *testing.T) {
+		origSubmit := submitExpertModeVolumeOperation
+		defer func() { submitExpertModeVolumeOperation = origSubmit }()
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			return errors.New("flexcache validation failed")
+		}
+		cacheKey := "test-pool-key-fc-create-core-err"
+		ctx := context.WithValue(context.Background(), models.AuthDataKey, cacheKey)
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+		})
+		defer cache.RemoveFromAuthDataCache(cacheKey)
+
+		cmd := &CLICommand{
+			FullCommand: "volume flexcache create",
+			Arguments: map[string]string{
+				"-vserver":       "vs1",
+				"-volume":        "fc1",
+				"-origin-volume": "orig1",
+				"-size":          "400m",
+			},
+		}
+		allowed, reason := _validateFlexCacheCreate(ctx, cmd)
+		if allowed {
+			t.Error("Expected not allowed when core returns error")
+		}
+		if reason != "flexcache validation failed" {
+			t.Errorf("Reason = %q, want flexcache validation failed", reason)
+		}
+	})
+}
+
+func Test_validateFlexCacheDelete(t *testing.T) {
+	t.Run("WhenCoreSucceeds_ShouldSetStyleFlexcache", func(t *testing.T) {
+		origSubmit := submitExpertModeVolumeOperation
+		defer func() { submitExpertModeVolumeOperation = origSubmit }()
+		var capturedReq *coreapi.ExpertModeVolumeV1
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			capturedReq = req
+			return nil
+		}
+		cacheKey := "test-pool-key-fc-delete-success"
+		ctx := context.WithValue(context.Background(), models.AuthDataKey, cacheKey)
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+		})
+		defer cache.RemoveFromAuthDataCache(cacheKey)
+
+		cmd := &CLICommand{
+			FullCommand: "volume flexcache delete",
+			Arguments: map[string]string{
+				"-vserver": "vs1",
+				"-volume":  "fc1",
+			},
+		}
+		allowed, reason := _validateFlexCacheDelete(ctx, cmd)
+		if !allowed {
+			t.Errorf("Expected allowed, got reason = %q", reason)
+		}
+		if capturedReq == nil {
+			t.Fatal("Expected request to be sent")
+		}
+		if capturedReq.Style != coreapi.ExpertModeVolumeV1StyleFlexcache {
+			t.Errorf("Style = %v, want Flexcache", capturedReq.Style)
+		}
+		if capturedReq.Action != coreapi.ExpertModeVolumeV1ActionDelete {
+			t.Errorf("Action = %v, want Delete", capturedReq.Action)
+		}
+		if capturedReq.VolumeName != "fc1" {
+			t.Errorf("VolumeName = %q, want fc1", capturedReq.VolumeName)
+		}
+	})
+
+	t.Run("WhenCacheKeyMissing_ShouldReturnNotAllowed", func(t *testing.T) {
+		ctx := context.Background()
+		cmd := &CLICommand{
+			FullCommand: "volume flexcache delete",
+			Arguments: map[string]string{
+				"-vserver": "vs1",
+				"-volume":  "fc1",
+			},
+		}
+
+		allowed, reason := _validateFlexCacheDelete(ctx, cmd)
+		if allowed {
+			t.Error("Expected not allowed when cache key missing")
+		}
+		if reason != "cache key not found in context" {
+			t.Errorf("Reason = %q", reason)
+		}
+	})
+
+	t.Run("WhenCoreReturnsError_ShouldReturnNotAllowed", func(t *testing.T) {
+		origSubmit := submitExpertModeVolumeOperation
+		defer func() { submitExpertModeVolumeOperation = origSubmit }()
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			return errors.New("flexcache not found")
+		}
+		cacheKey := "test-pool-key-fc-delete-core-err"
+		ctx := context.WithValue(context.Background(), models.AuthDataKey, cacheKey)
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+		})
+		defer cache.RemoveFromAuthDataCache(cacheKey)
+
+		cmd := &CLICommand{
+			FullCommand: "volume flexcache delete",
+			Arguments: map[string]string{
+				"-vserver": "vs1",
+				"-volume":  "fc1",
+			},
+		}
+		allowed, reason := _validateFlexCacheDelete(ctx, cmd)
+		if allowed {
+			t.Error("Expected not allowed when core returns error")
+		}
+		if reason != "flexcache not found" {
+			t.Errorf("Reason = %q, want flexcache not found", reason)
 		}
 	})
 }

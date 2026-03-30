@@ -17,13 +17,23 @@ var (
 	validateVolumeDelete            = _validateVolumeDelete
 	validateVolumeUpdate            = _validateVolumeUpdate
 	validateVolumeRename            = _validateVolumeRename
+	validateFlexCacheCreate         = _validateFlexCacheCreate
+	validateFlexCacheDelete         = _validateFlexCacheDelete
 	submitExpertModeVolumeOperation = core.SubmitExpertModeVolumeOperation
 	submitExpertModeVolumeRename    = core.SubmitExpertModeVolumeRename
 )
 
-// _validateVolumeCreate validates volume create via the core API (expert mode volume).
-// Called after credential setup; uses auth from context and builds ExpertModeVolumeV1 Create request.
 func _validateVolumeCreate(ctx context.Context, cmd *CLICommand) (bool, string) {
+	return validateVolumeCreationByStyle(ctx, cmd, coreapi.ExpertModeVolumeV1StyleFlexvol)
+}
+
+func _validateFlexCacheCreate(ctx context.Context, cmd *CLICommand) (bool, string) {
+	return validateVolumeCreationByStyle(ctx, cmd, coreapi.ExpertModeVolumeV1StyleFlexcache)
+}
+
+// validateVolumeCreationByStyle validates volume/flexcache create via the core API.
+// Called after credential setup; uses auth from context and builds ExpertModeVolumeV1 Create request.
+func validateVolumeCreationByStyle(ctx context.Context, cmd *CLICommand, style coreapi.ExpertModeVolumeV1Style) (bool, string) {
 	logger := util.GetLogger(ctx)
 
 	cacheKey := cache.GetAuthDataKeyFromContext(ctx)
@@ -50,7 +60,7 @@ func _validateVolumeCreate(ctx context.Context, cmd *CLICommand) (bool, string) 
 		Action:        coreapi.ExpertModeVolumeV1ActionCreate,
 		VolumeName:    volumeName,
 		SizeInBytes:   sizeInBytes,
-		Style:         coreapi.ExpertModeVolumeV1StyleFlexvol,
+		Style:         style,
 		SvmName:       coreapi.NewOptString(vserverName),
 	}
 
@@ -62,10 +72,18 @@ func _validateVolumeCreate(ctx context.Context, cmd *CLICommand) (bool, string) 
 	return true, ""
 }
 
-// _validateVolumeDelete validates volume delete via the core API (expert mode volume).
+func _validateVolumeDelete(ctx context.Context, cmd *CLICommand) (bool, string) {
+	return validateVolumeDeletionByStyle(ctx, cmd, coreapi.ExpertModeVolumeV1StyleFlexvol)
+}
+
+func _validateFlexCacheDelete(ctx context.Context, cmd *CLICommand) (bool, string) {
+	return validateVolumeDeletionByStyle(ctx, cmd, coreapi.ExpertModeVolumeV1StyleFlexcache)
+}
+
+// validateVolumeDeletionByStyle validates volume/flexcache delete via the core API.
 // Called after credential setup; uses auth from context and builds ExpertModeVolumeV1 Delete request.
 // Core resolves volume by name (no VolumeUUID needed).
-func _validateVolumeDelete(ctx context.Context, cmd *CLICommand) (bool, string) {
+func validateVolumeDeletionByStyle(ctx context.Context, cmd *CLICommand, style coreapi.ExpertModeVolumeV1Style) (bool, string) {
 	logger := util.GetLogger(ctx)
 
 	cacheKey := cache.GetAuthDataKeyFromContext(ctx)
@@ -77,7 +95,6 @@ func _validateVolumeDelete(ctx context.Context, cmd *CLICommand) (bool, string) 
 		return false, fmt.Sprintf("auth data not found in cache for key: %s", cacheKey)
 	}
 
-	// -volume and -vserver are already enforced by rule Condition (CLIHasArgs) before this runs.
 	volumeName := cmd.GetArgument("-volume")
 	vserverName := cmd.GetArgument("-vserver")
 
@@ -86,7 +103,7 @@ func _validateVolumeDelete(ctx context.Context, cmd *CLICommand) (bool, string) 
 		PoolUUID:      authData.PoolID,
 		Action:        coreapi.ExpertModeVolumeV1ActionDelete,
 		VolumeName:    volumeName,
-		Style:         coreapi.ExpertModeVolumeV1StyleFlexvol, // TODO: fix this. Style should not be mandatory for delete.
+		Style:         style,
 		SvmName:       coreapi.NewOptString(vserverName),
 	}
 

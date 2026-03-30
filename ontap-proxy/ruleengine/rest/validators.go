@@ -19,6 +19,8 @@ var (
 	validateVolumeCreation               = _validateVolumeCreation
 	validateVolumeModification           = _validateVolumeModification
 	validateVolumeDeletion               = _validateVolumeDeletion
+	validateFlexCacheCreation            = _validateFlexCacheCreation
+	validateFlexCacheDeletion            = _validateFlexCacheDeletion
 	validatePrivateCLIVolumeCreation     = _validatePrivateCLIVolumeCreation
 	validatePrivateCLIVolumeModification = _validatePrivateCLIVolumeModification
 	validatePrivateCLIVolumeDeletion     = _validatePrivateCLIVolumeDeletion
@@ -108,6 +110,10 @@ func getSizeFieldPath(requestBody map[string]interface{}) string {
 }
 
 func _validateVolumeCreation(r *http.Request) (bool, string) {
+	return validateVolumeCreationByStyle(r, coreapi.ExpertModeVolumeV1StyleFlexvol)
+}
+
+func validateVolumeCreationByStyle(r *http.Request, style coreapi.ExpertModeVolumeV1Style) (bool, string) {
 	logger := util.GetLogger(r.Context())
 	requestBody, parseErr := dsl.GetParsedBody(r)
 	if parseErr != "" {
@@ -138,7 +144,7 @@ func _validateVolumeCreation(r *http.Request) (bool, string) {
 		Action:        coreapi.ExpertModeVolumeV1ActionCreate,
 		VolumeName:    fields.VolumeName,
 		SizeInBytes:   fields.SizeInBytes,
-		Style:         coreapi.ExpertModeVolumeV1StyleFlexvol,
+		Style:         style,
 		SvmUuid:       fields.SvmUuid,
 		SvmName:       fields.SvmName,
 	}
@@ -205,6 +211,10 @@ func _validateVolumeModification(r *http.Request) (bool, string) {
 }
 
 func _validateVolumeDeletion(r *http.Request) (bool, string) {
+	return validateVolumeDeletionByStyle(r, coreapi.ExpertModeVolumeV1StyleFlexvol)
+}
+
+func validateVolumeDeletionByStyle(r *http.Request, style coreapi.ExpertModeVolumeV1Style) (bool, string) {
 	logger := util.GetLogger(r.Context())
 	cacheKey := cache.GetAuthDataKeyFromContext(r.Context())
 	if cacheKey == "" {
@@ -222,7 +232,7 @@ func _validateVolumeDeletion(r *http.Request) (bool, string) {
 		ProjectNumber: authData.AccountName,
 		PoolUUID:      authData.PoolID,
 		Action:        coreapi.ExpertModeVolumeV1ActionDelete,
-		Style:         coreapi.ExpertModeVolumeV1StyleFlexvol,
+		Style:         style,
 		VolumeUUID:    volumeUUID,
 	}
 
@@ -231,6 +241,14 @@ func _validateVolumeDeletion(r *http.Request) (bool, string) {
 	}
 
 	return true, ""
+}
+
+func _validateFlexCacheCreation(r *http.Request) (bool, string) {
+	return validateVolumeCreationByStyle(r, coreapi.ExpertModeVolumeV1StyleFlexcache)
+}
+
+func _validateFlexCacheDeletion(r *http.Request) (bool, string) {
+	return validateVolumeDeletionByStyle(r, coreapi.ExpertModeVolumeV1StyleFlexcache)
 }
 
 func _validatePrivateCLIVolumeCreation(r *http.Request) (bool, string) {

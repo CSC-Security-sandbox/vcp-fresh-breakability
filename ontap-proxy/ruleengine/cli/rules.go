@@ -211,6 +211,69 @@ var cliRules = []CLIRule{
 		ExternalValidator: validateVolumeUpdate,
 	},
 
+	// FlexCache Volumes - corresponds to /api/storage/flexcache/flexcaches in rule_map.go
+	// Supports "volume flexcache", "vol flexcache", and bare "flexcache" forms
+	{
+		Pattern: "volume flexcache show",
+		Allow:   true,
+	},
+	{
+		Pattern: "vol flexcache show",
+		Allow:   true,
+	},
+	{
+		Pattern: "flexcache show",
+		Allow:   true,
+	},
+	{
+		Pattern: "volume flexcache create",
+		Allow:   true,
+		Condition: CLIAnd(
+			CLIHasArgs("-vserver", "-volume", "-origin-volume", "-size"),
+			CLIIfPresentThenValue("-space-guarantee", "none"),
+			CLIIfPresentThenEquals("-is-relative-size-enabled", "false"),
+		),
+		ExternalValidator: validateFlexCacheCreate,
+	},
+	{
+		Pattern: "vol flexcache create",
+		Allow:   true,
+		Condition: CLIAnd(
+			CLIHasArgs("-vserver", "-volume", "-origin-volume", "-size"),
+			CLIIfPresentThenValue("-space-guarantee", "none"),
+			CLIIfPresentThenEquals("-is-relative-size-enabled", "false"),
+		),
+		ExternalValidator: validateFlexCacheCreate,
+	},
+	{
+		Pattern: "flexcache create",
+		Allow:   true,
+		Condition: CLIAnd(
+			CLIHasArgs("-vserver", "-volume", "-origin-volume", "-size"),
+			CLIIfPresentThenValue("-space-guarantee", "none"),
+			CLIIfPresentThenEquals("-is-relative-size-enabled", "false"),
+		),
+		ExternalValidator: validateFlexCacheCreate,
+	},
+	{
+		Pattern:           "volume flexcache delete",
+		Allow:             true,
+		Condition:         CLIHasArgs("-vserver", "-volume"),
+		ExternalValidator: validateFlexCacheDelete,
+	},
+	{
+		Pattern:           "vol flexcache delete",
+		Allow:             true,
+		Condition:         CLIHasArgs("-vserver", "-volume"),
+		ExternalValidator: validateFlexCacheDelete,
+	},
+	{
+		Pattern:           "flexcache delete",
+		Allow:             true,
+		Condition:         CLIHasArgs("-vserver", "-volume"),
+		ExternalValidator: validateFlexCacheDelete,
+	},
+
 	// Security Certificates - corresponds to /api/security/certificates in rule_map.go
 	// Supports both "security" and shorthand "sec"
 	{

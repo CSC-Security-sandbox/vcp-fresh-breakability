@@ -62,6 +62,25 @@ func TestGetProxyRules(t *testing.T) {
 		assert.NotNil(t, rule.DELETE)
 	})
 
+	t.Run("ShouldContainStorageFlexCacheRule", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule, ok := rules["/api/storage/flexcache/flexcaches"]
+		assert.True(t, ok, "Should have rule for /api/storage/flexcache/flexcaches")
+		assert.NotNil(t, rule.GET)
+		assert.NotNil(t, rule.POST)
+		assert.NotNil(t, rule.PATCH)
+		assert.NotNil(t, rule.DELETE)
+	})
+
+	t.Run("ShouldContainStorageFlexCacheUUIDRule", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule, ok := rules["/api/storage/flexcache/flexcaches/{uuid}"]
+		assert.True(t, ok, "Should have rule for /api/storage/flexcache/flexcaches/{uuid}")
+		assert.NotNil(t, rule.GET)
+		assert.NotNil(t, rule.POST)
+		assert.NotNil(t, rule.DELETE)
+	})
+
 	t.Run("ShouldContainStorageAggregatesRule", func(t *testing.T) {
 		rules := GetProxyRules()
 		rule, ok := rules["/api/storage/aggregates"]
@@ -708,6 +727,194 @@ func TestStorageVolumesUUIDRule(t *testing.T) {
 		allowed, reason := action.ShouldAllow(req)
 		assert.False(t, allowed, "POST should be denied for specific volume")
 		assert.NotEmpty(t, reason)
+	})
+}
+
+func TestStorageFlexCacheRule(t *testing.T) {
+	origValidateFlexCacheCreation := validateFlexCacheCreation
+	defer func() { validateFlexCacheCreation = origValidateFlexCacheCreation }()
+
+	validateFlexCacheCreation = func(r *http.Request) (bool, string) { return true, "" }
+
+	t.Run("WhenGET_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/flexcache/flexcaches"]
+		req := httptest.NewRequest(http.MethodGet, "/api/storage/flexcache/flexcaches", nil)
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "GET should be allowed for flexcache collection")
+	})
+
+	t.Run("WhenPOSTWithRequiredFields_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/flexcache/flexcaches"]
+		body := bytes.NewBufferString(`{"name":"fc1","size":1073741824,"svm":{"name":"svm1"}}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/storage/flexcache/flexcaches", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "POST with required fields should be allowed")
+	})
+
+	t.Run("WhenPOSTWithoutSize_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/flexcache/flexcaches"]
+		body := bytes.NewBufferString(`{"name":"fc1","svm":{"name":"svm1"}}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/storage/flexcache/flexcaches", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "POST without size should be denied")
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenPOSTWithoutSvmName_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/flexcache/flexcaches"]
+		body := bytes.NewBufferString(`{"name":"fc1","size":1073741824,"svm":{}}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/storage/flexcache/flexcaches", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "POST without svm.name should be denied")
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenPOSTWithValidGuaranteeType_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/flexcache/flexcaches"]
+		body := bytes.NewBufferString(`{"name":"fc1","size":1073741824,"svm":{"name":"svm1"},"guarantee":{"type":"none"}}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/storage/flexcache/flexcaches", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "POST with guarantee.type='none' should be allowed")
+	})
+
+	t.Run("WhenPOSTWithInvalidGuaranteeType_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/flexcache/flexcaches"]
+		body := bytes.NewBufferString(`{"name":"fc1","size":1073741824,"svm":{"name":"svm1"},"guarantee":{"type":"volume"}}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/storage/flexcache/flexcaches", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "POST with invalid guarantee.type should be denied")
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenPOSTWithRelativeSizeEnabledFalse_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/flexcache/flexcaches"]
+		body := bytes.NewBufferString(`{"name":"fc1","size":1073741824,"svm":{"name":"svm1"},"relative_size":{"enabled":false}}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/storage/flexcache/flexcaches", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "POST with relative_size.enabled=false should be allowed")
+	})
+
+	t.Run("WhenPOSTWithRelativeSizeEnabledTrue_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/flexcache/flexcaches"]
+		body := bytes.NewBufferString(`{"name":"fc1","size":1073741824,"svm":{"name":"svm1"},"relative_size":{"enabled":true}}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/storage/flexcache/flexcaches", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "POST with relative_size.enabled=true should be denied")
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenPATCH_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/flexcache/flexcaches"]
+		req := httptest.NewRequest(http.MethodPatch, "/api/storage/flexcache/flexcaches", nil)
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "PATCH should be denied for flexcache collection")
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenDELETE_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/flexcache/flexcaches"]
+		req := httptest.NewRequest(http.MethodDelete, "/api/storage/flexcache/flexcaches", nil)
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "DELETE should be denied for flexcache collection")
+		assert.NotEmpty(t, reason)
+	})
+}
+
+func TestStorageFlexCacheUUIDRule(t *testing.T) {
+	origValidateFlexCacheDeletion := validateFlexCacheDeletion
+	defer func() { validateFlexCacheDeletion = origValidateFlexCacheDeletion }()
+	validateFlexCacheDeletion = func(r *http.Request) (bool, string) { return true, "" }
+
+	t.Run("WhenGET_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/flexcache/flexcaches/{uuid}"]
+		req := httptest.NewRequest(http.MethodGet, "/api/storage/flexcache/flexcaches/550e8400-e29b-41d4-a716-446655440000", nil)
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "GET should be allowed for specific flexcache")
+	})
+
+	t.Run("WhenDELETE_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/flexcache/flexcaches/{uuid}"]
+		req := httptest.NewRequest(http.MethodDelete, "/api/storage/flexcache/flexcaches/550e8400-e29b-41d4-a716-446655440000", nil)
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "DELETE should be allowed for specific flexcache")
+	})
+
+	t.Run("WhenPOST_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/flexcache/flexcaches/{uuid}"]
+		req := httptest.NewRequest(http.MethodPost, "/api/storage/flexcache/flexcaches/550e8400-e29b-41d4-a716-446655440000", nil)
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "POST should be denied for specific flexcache")
+		assert.NotEmpty(t, reason)
+	})
+
+	t.Run("WhenPATCH_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/flexcache/flexcaches/{uuid}"]
+		req := httptest.NewRequest(http.MethodPatch, "/api/storage/flexcache/flexcaches/550e8400-e29b-41d4-a716-446655440000", nil)
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "PATCH should be allowed for specific flexcache")
 	})
 }
 

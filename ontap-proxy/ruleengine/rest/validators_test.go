@@ -692,6 +692,88 @@ func TestValidateVolumeDeletion(t *testing.T) {
 	})
 }
 
+func TestValidateFlexCacheCreation(t *testing.T) {
+	origSubmit := submitExpertModeVolumeOperation
+	defer func() { submitExpertModeVolumeOperation = origSubmit }()
+	const cacheKey = "unit-test-cache-key-flexcache-create"
+
+	t.Run("WhenSuccess_ShouldSubmitFlexcacheStyle", func(t *testing.T) {
+		var capturedReq *coreapi.ExpertModeVolumeV1
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			capturedReq = req
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(http.MethodPost, "/api/storage/flexcache/flexcaches", bytes.NewBufferString(`{"name":"fc1","size":1024,"svm":{"name":"svm1"}}`))
+		r = r.WithContext(ctx)
+		ok, reason := _validateFlexCacheCreation(r)
+		if !ok || reason != "" {
+			t.Fatalf("expected success, got ok=%v reason=%q", ok, reason)
+		}
+		if capturedReq == nil || capturedReq.Style != coreapi.ExpertModeVolumeV1StyleFlexcache {
+			t.Fatalf("expected submitted style to be flexcache, got %v", capturedReq)
+		}
+	})
+
+	t.Run("WhenInvalidSize_ShouldFail", func(t *testing.T) {
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(http.MethodPost, "/api/storage/flexcache/flexcaches", bytes.NewBufferString(`{"name":"fc1","size":"bad","svm":{"name":"svm1"}}`))
+		r = r.WithContext(ctx)
+		ok, reason := _validateFlexCacheCreation(r)
+		if ok || !strings.Contains(reason, "invalid value for field \"size\"") {
+			t.Fatalf("expected invalid size error, got ok=%v reason=%q", ok, reason)
+		}
+	})
+}
+
+func TestValidateFlexCacheDeletion(t *testing.T) {
+	origSubmit := submitExpertModeVolumeOperation
+	defer func() { submitExpertModeVolumeOperation = origSubmit }()
+	const cacheKey = "unit-test-cache-key-flexcache-delete"
+
+	t.Run("WhenSuccess_ShouldSubmitFlexcacheStyle", func(t *testing.T) {
+		var capturedReq *coreapi.ExpertModeVolumeV1
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			capturedReq = req
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(http.MethodDelete, "/api/storage/flexcache/flexcaches/abcd-1234", nil)
+		r = r.WithContext(ctx)
+		ok, reason := _validateFlexCacheDeletion(r)
+		if !ok || reason != "" {
+			t.Fatalf("expected success, got ok=%v reason=%q", ok, reason)
+		}
+		if capturedReq == nil || capturedReq.Style != coreapi.ExpertModeVolumeV1StyleFlexcache {
+			t.Fatalf("expected submitted style to be flexcache, got %v", capturedReq)
+		}
+	})
+
+	t.Run("WhenSubmitFails_ShouldReturnError", func(t *testing.T) {
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			return errors.New("persist failed")
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(http.MethodDelete, "/api/storage/flexcache/flexcaches/abcd-1234", nil)
+		r = r.WithContext(ctx)
+		ok, reason := _validateFlexCacheDeletion(r)
+		if ok || !strings.Contains(reason, "persist failed") {
+			t.Fatalf("expected persist failure, got ok=%v reason=%q", ok, reason)
+		}
+	})
+}
+
 func TestValidatePrivateCLIVolumeCreation(t *testing.T) {
 	origSubmit := submitExpertModeVolumeOperation
 	defer func() { submitExpertModeVolumeOperation = origSubmit }()

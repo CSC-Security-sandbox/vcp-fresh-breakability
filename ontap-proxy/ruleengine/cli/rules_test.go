@@ -5,6 +5,16 @@ import (
 	"testing"
 )
 
+func findRule(pattern string) *CLIRule {
+	for i := range GetCLIRules() {
+		if GetCLIRules()[i].Pattern == pattern {
+			r := GetCLIRules()[i]
+			return &r
+		}
+	}
+	return nil
+}
+
 func TestMatchCLIRule(t *testing.T) {
 	// Tests match CLI rules defined in rules.go which correspond to rule_map.go
 
@@ -115,6 +125,78 @@ func TestMatchCLIRule(t *testing.T) {
 				}
 				if reason != "not allowed" {
 					t.Errorf("Reason = %q, want %q", reason, "not allowed")
+				}
+			})
+		}
+	})
+
+	t.Run("flexcache commands - corresponds to /api/storage/flexcache/flexcaches", func(t *testing.T) {
+		tests := []struct {
+			name      string
+			input     string
+			wantAllow bool
+		}{
+			{
+				name:      "volume flexcache show allowed",
+				input:     "volume flexcache show -vserver vs1",
+				wantAllow: true,
+			},
+			{
+				name:      "vol flexcache show allowed",
+				input:     "vol flexcache show",
+				wantAllow: true,
+			},
+			{
+				name:      "flexcache show allowed",
+				input:     "flexcache show -vserver vs1",
+				wantAllow: true,
+			},
+			{
+				name:      "volume flexcache create allowed",
+				input:     "volume flexcache create -vserver vs1 -volume fc1 -origin-volume orig1 -size 400m",
+				wantAllow: true,
+			},
+			{
+				name:      "vol flexcache create allowed",
+				input:     "vol flexcache create -vserver vs1 -volume fc1 -origin-volume orig1 -size 400m",
+				wantAllow: true,
+			},
+			{
+				name:      "flexcache create allowed",
+				input:     "flexcache create -vserver vs1 -volume fc1 -origin-volume orig1 -size 400m",
+				wantAllow: true,
+			},
+			{
+				name:      "volume flexcache delete allowed",
+				input:     "volume flexcache delete -vserver vs1 -volume fc1",
+				wantAllow: true,
+			},
+			{
+				name:      "vol flexcache delete allowed",
+				input:     "vol flexcache delete -vserver vs1 -volume fc1",
+				wantAllow: true,
+			},
+			{
+				name:      "flexcache delete allowed",
+				input:     "flexcache delete -vserver vs1 -volume fc1",
+				wantAllow: true,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				cmd, err := ParseCLICommand(tt.input)
+				if err != nil {
+					t.Fatalf("Failed to parse command: %v", err)
+				}
+
+				rule, found := MatchCLIRule(cmd)
+				if !found && tt.wantAllow {
+					t.Error("Expected to find a matching rule")
+				}
+
+				if rule.Allow != tt.wantAllow {
+					t.Errorf("Allow = %v, want %v", rule.Allow, tt.wantAllow)
 				}
 			})
 		}
@@ -441,6 +523,176 @@ func TestCLIRuleConditions(t *testing.T) {
 
 		if !allowed {
 			t.Errorf("Expected allowed with -snaplock-type compliance (rule condition does not validate snaplock-type), got denied: %s", reason)
+		}
+	})
+}
+
+func TestFlexCacheCreateRule_Conditions(t *testing.T) {
+	rule := findRule("volume flexcache create")
+	if rule == nil {
+		t.Fatal("volume flexcache create rule not found")
+	}
+
+	t.Run("WhenAllRequiredArgs_ShouldAllow", func(t *testing.T) {
+		cmd := &CLICommand{
+			Arguments: map[string]string{
+				"-vserver":       "vs1",
+				"-volume":        "fc1",
+				"-origin-volume": "orig1",
+				"-size":          "400m",
+			},
+		}
+		allowed, reason := EvaluateRule(rule, cmd)
+		if !allowed {
+			t.Errorf("Expected allowed, got denied: %s", reason)
+		}
+	})
+
+	t.Run("WhenMissingSize_ShouldDeny", func(t *testing.T) {
+		cmd := &CLICommand{
+			Arguments: map[string]string{
+				"-vserver":       "vs1",
+				"-volume":        "fc1",
+				"-origin-volume": "orig1",
+			},
+		}
+		allowed, reason := EvaluateRule(rule, cmd)
+		if allowed {
+			t.Error("Expected denied for missing -size")
+		}
+		if reason != "Missing required argument: -size" {
+			t.Errorf("Reason = %q", reason)
+		}
+	})
+
+	t.Run("WhenMissingOriginVolume_ShouldDeny", func(t *testing.T) {
+		cmd := &CLICommand{
+			Arguments: map[string]string{
+				"-vserver": "vs1",
+				"-volume":  "fc1",
+				"-size":    "400m",
+			},
+		}
+		allowed, reason := EvaluateRule(rule, cmd)
+		if allowed {
+			t.Error("Expected denied for missing -origin-volume")
+		}
+		if reason != "Missing required argument: -origin-volume" {
+			t.Errorf("Reason = %q", reason)
+		}
+	})
+
+	t.Run("WhenSpaceGuaranteeNone_ShouldAllow", func(t *testing.T) {
+		cmd := &CLICommand{
+			Arguments: map[string]string{
+				"-vserver":         "vs1",
+				"-volume":          "fc1",
+				"-origin-volume":   "orig1",
+				"-size":            "400m",
+				"-space-guarantee": "none",
+			},
+		}
+		allowed, reason := EvaluateRule(rule, cmd)
+		if !allowed {
+			t.Errorf("Expected allowed, got denied: %s", reason)
+		}
+	})
+
+	t.Run("WhenSpaceGuaranteeVolume_ShouldDeny", func(t *testing.T) {
+		cmd := &CLICommand{
+			Arguments: map[string]string{
+				"-vserver":         "vs1",
+				"-volume":          "fc1",
+				"-origin-volume":   "orig1",
+				"-size":            "400m",
+				"-space-guarantee": "volume",
+			},
+		}
+		allowed, _ := EvaluateRule(rule, cmd)
+		if allowed {
+			t.Error("Expected denied for -space-guarantee volume")
+		}
+	})
+
+	t.Run("WhenRelativeSizeEnabledTrue_ShouldDeny", func(t *testing.T) {
+		cmd := &CLICommand{
+			Arguments: map[string]string{
+				"-vserver":                  "vs1",
+				"-volume":                   "fc1",
+				"-origin-volume":            "orig1",
+				"-size":                     "400m",
+				"-is-relative-size-enabled": "true",
+			},
+		}
+		allowed, _ := EvaluateRule(rule, cmd)
+		if allowed {
+			t.Error("Expected denied for -is-relative-size-enabled true")
+		}
+	})
+
+	t.Run("WhenRelativeSizeEnabledFalse_ShouldAllow", func(t *testing.T) {
+		cmd := &CLICommand{
+			Arguments: map[string]string{
+				"-vserver":                  "vs1",
+				"-volume":                   "fc1",
+				"-origin-volume":            "orig1",
+				"-size":                     "400m",
+				"-is-relative-size-enabled": "false",
+			},
+		}
+		allowed, reason := EvaluateRule(rule, cmd)
+		if !allowed {
+			t.Errorf("Expected allowed, got denied: %s", reason)
+		}
+	})
+}
+
+func TestFlexCacheDeleteRule_Conditions(t *testing.T) {
+	rule := findRule("volume flexcache delete")
+	if rule == nil {
+		t.Fatal("volume flexcache delete rule not found")
+	}
+
+	t.Run("WhenAllRequiredArgs_ShouldAllow", func(t *testing.T) {
+		cmd := &CLICommand{
+			Arguments: map[string]string{
+				"-vserver": "vs1",
+				"-volume":  "fc1",
+			},
+		}
+		allowed, reason := EvaluateRule(rule, cmd)
+		if !allowed {
+			t.Errorf("Expected allowed, got denied: %s", reason)
+		}
+	})
+
+	t.Run("WhenMissingVolume_ShouldDeny", func(t *testing.T) {
+		cmd := &CLICommand{
+			Arguments: map[string]string{
+				"-vserver": "vs1",
+			},
+		}
+		allowed, reason := EvaluateRule(rule, cmd)
+		if allowed {
+			t.Error("Expected denied for missing -volume")
+		}
+		if reason != "Missing required argument: -volume" {
+			t.Errorf("Reason = %q", reason)
+		}
+	})
+
+	t.Run("WhenMissingVserver_ShouldDeny", func(t *testing.T) {
+		cmd := &CLICommand{
+			Arguments: map[string]string{
+				"-volume": "fc1",
+			},
+		}
+		allowed, reason := EvaluateRule(rule, cmd)
+		if allowed {
+			t.Error("Expected denied for missing -vserver")
+		}
+		if reason != "Missing required argument: -vserver" {
+			t.Errorf("Reason = %q", reason)
 		}
 	})
 }
