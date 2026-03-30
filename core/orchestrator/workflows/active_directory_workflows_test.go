@@ -925,6 +925,226 @@ func TestUpdateActiveDirectoryWorkflow(t *testing.T) {
 		env.AssertExpectations(t)
 	})
 
+	t.Run("Failure_AuthTokenError", func(t *testing.T) {
+		originalCvpHost := cvp.CVP_HOST
+		cvp.CVP_HOST = cvpHost
+		defer func() { cvp.CVP_HOST = originalCvpHost }()
+
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
+		}
+		env.SetHeader(mockHeader)
+
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+
+		oldAd := &models.ActiveDirectory{
+			AdName: "test-ad-auth-fail",
+			Domain: "example.com",
+		}
+
+		params := &common.UpdateActiveDirectoryParams{
+			AccountId:         "test-account",
+			ActiveDirectoryId: "ad-uuid",
+		}
+
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.AccountId).Return("", vsaerrors.New("auth token error"))
+		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(UpdateActiveDirectoryWorkflow, params, oldAd)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("Failure_NilSdeResult", func(t *testing.T) {
+		originalCvpHost := cvp.CVP_HOST
+		cvp.CVP_HOST = cvpHost
+		defer func() { cvp.CVP_HOST = originalCvpHost }()
+
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
+		}
+		env.SetHeader(mockHeader)
+		adUpdateActivity := active_directory_activities.ActiveDirectoryUpdateActivity{SE: mockStorage}
+		env.RegisterActivity(adUpdateActivity.UpdateSdeActiveDirectory)
+
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+
+		oldAd := &models.ActiveDirectory{
+			AdName: "test-ad-nil-result",
+			Domain: "example.com",
+		}
+
+		params := &common.UpdateActiveDirectoryParams{
+			AccountId:         "test-account",
+			ActiveDirectoryId: "ad-uuid",
+		}
+
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.AccountId).Return("test-jwt-token", nil)
+		env.OnActivity(adUpdateActivity.UpdateSdeActiveDirectory, mock.Anything, params).Return(nil, nil)
+		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(UpdateActiveDirectoryWorkflow, params, oldAd)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("Failure_MarkVcpAdToUpdatingError", func(t *testing.T) {
+		originalCvpHost := cvp.CVP_HOST
+		cvp.CVP_HOST = cvpHost
+		defer func() { cvp.CVP_HOST = originalCvpHost }()
+
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
+		}
+		env.SetHeader(mockHeader)
+		adUpdateActivity := active_directory_activities.ActiveDirectoryUpdateActivity{SE: mockStorage}
+		env.RegisterActivity(adUpdateActivity.UpdateSdeActiveDirectory)
+		env.RegisterActivity(adUpdateActivity.PollSdeUpdateActivity)
+		env.RegisterActivity(adUpdateActivity.MarkVcpAdToUpdatingActivity)
+
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+
+		oldAd := &models.ActiveDirectory{
+			AdName: "test-ad-mark-fail",
+			Domain: "example.com",
+		}
+
+		params := &common.UpdateActiveDirectoryParams{
+			AccountId:         "test-account",
+			ActiveDirectoryId: "ad-uuid",
+		}
+
+		sdeResult := &cvpModels.OperationV1beta{Name: "operations/mark-update-fail"}
+
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.AccountId).Return("test-jwt-token", nil)
+		env.OnActivity(adUpdateActivity.UpdateSdeActiveDirectory, mock.Anything, params).Return(sdeResult, nil)
+		env.OnActivity(adUpdateActivity.PollSdeUpdateActivity, mock.Anything, params, sdeResult).Return(nil)
+		env.OnActivity(adUpdateActivity.MarkVcpAdToUpdatingActivity, mock.Anything, params, oldAd).Return(vsaerrors.New("failed to mark updating"))
+		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(UpdateActiveDirectoryWorkflow, params, oldAd)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("Failure_SdePollingError_CVPErrorPreserved", func(t *testing.T) {
+		originalCvpHost := cvp.CVP_HOST
+		cvp.CVP_HOST = cvpHost
+		defer func() { cvp.CVP_HOST = originalCvpHost }()
+
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
+		}
+		env.SetHeader(mockHeader)
+		adUpdateActivity := active_directory_activities.ActiveDirectoryUpdateActivity{SE: mockStorage}
+		env.RegisterActivity(adUpdateActivity.UpdateSdeActiveDirectory)
+		env.RegisterActivity(adUpdateActivity.PollSdeUpdateActivity)
+
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity.UpdateJobStatus)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+
+		oldAd := &models.ActiveDirectory{
+			AdName: "test-ad-cvp-error",
+			Domain: "example.com",
+		}
+
+		params := &common.UpdateActiveDirectoryParams{
+			AccountId:         "test-account",
+			ActiveDirectoryId: "ad-uuid",
+		}
+
+		sdeResult := &cvpModels.OperationV1beta{Name: "operations/cvp-error-propagation"}
+
+		cvpErr := temporal.NewNonRetryableApplicationError(
+			"An internal error occurred",
+			vsaerrors.CustomErrorType,
+			nil,
+			vsaerrors.ErrCVPInternalServerError,
+			"Failed to modify the CIFS server. Reason: SecD Error: no server available.",
+		)
+
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.AccountId).Return("test-jwt-token", nil)
+		env.OnActivity(adUpdateActivity.UpdateSdeActiveDirectory, mock.Anything, params).Return(sdeResult, nil)
+		env.OnActivity(adUpdateActivity.PollSdeUpdateActivity, mock.Anything, params, sdeResult).Return(cvpErr)
+		// First call: PROCESSING status
+		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.State == string(models.JobsStatePROCESSING)
+		})).Return(nil).Once()
+		// Second call: ERROR status with CVP error details preserved
+		env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.MatchedBy(func(job *datamodel.Job) bool {
+			return job.State == string(models.JobsStateERROR) &&
+				job.TrackingID == vsaerrors.ErrCVPInternalServerError &&
+				job.ErrorDetails == "Failed to modify the CIFS server. Reason: SecD Error: no server available."
+		})).Return(nil).Once()
+
+		env.ExecuteWorkflow(UpdateActiveDirectoryWorkflow, params, oldAd)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
 	t.Run("VcpPath_StateActivityReturnsInUse_UpdateVcpCalledWithInUse", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
@@ -1290,6 +1510,374 @@ func TestActiveDirectoryUpdateWorkflow_Run(t *testing.T) {
 			return nil
 		})
 
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			wf := &ActiveDirectoryUpdateWorkflow{}
+			runResult, runErr = wf.Run(ctx, params, adRecord)
+			if runErr != nil {
+				return runErr
+			}
+			return nil
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		assert.NotNil(t, runErr)
+		assert.Nil(t, runResult)
+		env.AssertExpectations(t)
+	})
+
+	t.Run("InsufficientArguments", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
+		}
+		env.SetHeader(mockHeader)
+
+		params := &common.UpdateActiveDirectoryParams{
+			AccountId: "test-account",
+		}
+
+		var runErr *vsaerrors.CustomError
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			wf := &ActiveDirectoryUpdateWorkflow{}
+			_, runErr = wf.Run(ctx, params)
+			if runErr != nil {
+				return runErr
+			}
+			return nil
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		assert.NotNil(t, runErr)
+	})
+
+	t.Run("SdeUpdateActivityFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+
+		originalHost := cvp.CVP_HOST
+		cvp.CVP_HOST = cvpHost
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
+
+		params := &common.UpdateActiveDirectoryParams{
+			AccountId: "test-account",
+		}
+		adRecord := &models.ActiveDirectory{
+			BaseModel: models.BaseModel{ID: 5, UUID: "test-uuid-sde-fail"},
+			State:     "available",
+		}
+
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.AccountId).Return("test-jwt-token", nil)
+		env.OnActivity("UpdateSdeActiveDirectory", mock.Anything, params).Return(nil, vsaerrors.New("SDE update call failed"))
+
+		var runResult interface{}
+		var runErr *vsaerrors.CustomError
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			wf := &ActiveDirectoryUpdateWorkflow{}
+			runResult, runErr = wf.Run(ctx, params, adRecord)
+			if runErr != nil {
+				return runErr
+			}
+			return nil
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		assert.NotNil(t, runErr)
+		assert.Nil(t, runResult)
+		env.AssertExpectations(t)
+	})
+
+	t.Run("SdeAuthTokenFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
+		}
+		env.SetHeader(mockHeader)
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+
+		originalHost := cvp.CVP_HOST
+		cvp.CVP_HOST = cvpHost
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
+
+		params := &common.UpdateActiveDirectoryParams{
+			AccountId: "test-account",
+		}
+		adRecord := &models.ActiveDirectory{
+			BaseModel: models.BaseModel{ID: 6, UUID: "test-uuid-auth-fail"},
+			State:     "available",
+		}
+
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.AccountId).Return("", vsaerrors.New("auth token failure"))
+
+		var runResult interface{}
+		var runErr *vsaerrors.CustomError
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			wf := &ActiveDirectoryUpdateWorkflow{}
+			runResult, runErr = wf.Run(ctx, params, adRecord)
+			if runErr != nil {
+				return runErr
+			}
+			return nil
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		assert.NotNil(t, runErr)
+		assert.Nil(t, runResult)
+		env.AssertExpectations(t)
+	})
+
+	t.Run("SdePollingFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+
+		originalHost := cvp.CVP_HOST
+		cvp.CVP_HOST = cvpHost
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
+
+		params := &common.UpdateActiveDirectoryParams{
+			AccountId: "test-account",
+		}
+		adRecord := &models.ActiveDirectory{
+			BaseModel: models.BaseModel{ID: 7, UUID: "test-uuid-poll-fail"},
+			State:     "available",
+		}
+
+		sdeResult := &cvpModels.OperationV1beta{Name: "operations/poll-fail-op"}
+
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.AccountId).Return("test-jwt-token", nil)
+		env.OnActivity("UpdateSdeActiveDirectory", mock.Anything, params).Return(sdeResult, nil)
+		env.OnActivity("PollSdeUpdateActivity", mock.Anything, params, sdeResult).Return(vsaerrors.New("polling failed"))
+
+		var runResult interface{}
+		var runErr *vsaerrors.CustomError
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			wf := &ActiveDirectoryUpdateWorkflow{}
+			runResult, runErr = wf.Run(ctx, params, adRecord)
+			if runErr != nil {
+				return runErr
+			}
+			return nil
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		assert.NotNil(t, runErr)
+		assert.Nil(t, runResult)
+		env.AssertExpectations(t)
+	})
+
+	t.Run("SdePollingFailure_WithCVPError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+
+		originalHost := cvp.CVP_HOST
+		cvp.CVP_HOST = cvpHost
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
+
+		params := &common.UpdateActiveDirectoryParams{
+			AccountId: "test-account",
+		}
+		adRecord := &models.ActiveDirectory{
+			BaseModel: models.BaseModel{ID: 8, UUID: "test-uuid-cvp-poll-fail"},
+			State:     "available",
+		}
+
+		sdeResult := &cvpModels.OperationV1beta{Name: "operations/cvp-error-op"}
+
+		cvpErr := temporal.NewNonRetryableApplicationError(
+			"An internal error occurred",
+			vsaerrors.CustomErrorType,
+			nil,
+			vsaerrors.ErrCVPInternalServerError,
+			"Failed to modify the CIFS server. Reason: SecD Error: no server available.",
+		)
+
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.AccountId).Return("test-jwt-token", nil)
+		env.OnActivity("UpdateSdeActiveDirectory", mock.Anything, params).Return(sdeResult, nil)
+		env.OnActivity("PollSdeUpdateActivity", mock.Anything, params, sdeResult).Return(cvpErr)
+
+		var runResult interface{}
+		var runErr *vsaerrors.CustomError
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			wf := &ActiveDirectoryUpdateWorkflow{}
+			runResult, runErr = wf.Run(ctx, params, adRecord)
+			if runErr != nil {
+				return runErr
+			}
+			return nil
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		require.NotNil(t, runErr)
+		assert.True(t, vsaerrors.IsCVPError(runErr.TrackingID),
+			"expected CVP error range (14200-14399), got tracking ID %d", runErr.TrackingID)
+		assert.Equal(t, vsaerrors.ErrCVPInternalServerError, runErr.TrackingID)
+		assert.Contains(t, runErr.OriginalErr.Error(), "Failed to modify the CIFS server")
+		assert.Nil(t, runResult)
+		env.AssertExpectations(t)
+	})
+
+	t.Run("SdeMarkVcpAdToUpdatingFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+
+		originalHost := cvp.CVP_HOST
+		cvp.CVP_HOST = cvpHost
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
+
+		params := &common.UpdateActiveDirectoryParams{
+			AccountId: "test-account",
+		}
+		adRecord := &models.ActiveDirectory{
+			BaseModel: models.BaseModel{ID: 9, UUID: "test-uuid-mark-fail"},
+			State:     "available",
+		}
+
+		sdeResult := &cvpModels.OperationV1beta{Name: "operations/mark-fail-op"}
+
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.AccountId).Return("test-jwt-token", nil)
+		env.OnActivity("UpdateSdeActiveDirectory", mock.Anything, params).Return(sdeResult, nil)
+		env.OnActivity("PollSdeUpdateActivity", mock.Anything, params, sdeResult).Return(nil)
+		env.OnActivity("MarkVcpAdToUpdatingActivity", mock.Anything, params, adRecord).Return(vsaerrors.New("failed to mark as updating"))
+
+		var runResult interface{}
+		var runErr *vsaerrors.CustomError
+		env.ExecuteWorkflow(func(ctx workflow.Context) error {
+			wf := &ActiveDirectoryUpdateWorkflow{}
+			runResult, runErr = wf.Run(ctx, params, adRecord)
+			if runErr != nil {
+				return runErr
+			}
+			return nil
+		})
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		assert.NotNil(t, runErr)
+		assert.Nil(t, runResult)
+		env.AssertExpectations(t)
+	})
+
+	t.Run("SdeVcpUpdateFailureAfterPoll", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		mockStorage := database.NewMockStorage(t)
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{"log-fields": encodedValue},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryUpdateActivity{})
+		env.RegisterActivity(&active_directory_activities.ActiveDirectoryActivity{})
+		commonActivity := activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+
+		originalHost := cvp.CVP_HOST
+		cvp.CVP_HOST = cvpHost
+		originalCreateCommonResourcesInVCP := utils.CreateCommonResourcesInVCP
+		utils.CreateCommonResourcesInVCP = false
+		defer func() {
+			cvp.CVP_HOST = originalHost
+			utils.CreateCommonResourcesInVCP = originalCreateCommonResourcesInVCP
+		}()
+
+		params := &common.UpdateActiveDirectoryParams{
+			AccountId: "test-account",
+		}
+		adRecord := &models.ActiveDirectory{
+			BaseModel: models.BaseModel{ID: 10, UUID: "test-uuid-vcp-fail-after-poll"},
+			State:     "available",
+		}
+
+		sdeResult := &cvpModels.OperationV1beta{Name: "operations/vcp-fail-op"}
+
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.AccountId).Return("test-jwt-token", nil)
+		env.OnActivity("UpdateSdeActiveDirectory", mock.Anything, params).Return(sdeResult, nil)
+		env.OnActivity("PollSdeUpdateActivity", mock.Anything, params, sdeResult).Return(nil)
+		env.OnActivity("MarkVcpAdToUpdatingActivity", mock.Anything, params, adRecord).Return(nil)
+		env.OnActivity("GetSvmsForAd", mock.Anything, int64(10)).Return(nil, vsaerrors.New("failed to get SVMs"))
+		env.OnActivity("MarkVcpAdToErrorActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		var runResult interface{}
+		var runErr *vsaerrors.CustomError
 		env.ExecuteWorkflow(func(ctx workflow.Context) error {
 			wf := &ActiveDirectoryUpdateWorkflow{}
 			runResult, runErr = wf.Run(ctx, params, adRecord)

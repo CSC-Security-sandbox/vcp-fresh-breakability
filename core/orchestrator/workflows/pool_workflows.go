@@ -73,7 +73,6 @@ var (
 	ginLoggingFeatureFlag             = env.GetBool("GIN_LOGGING_FEATURE", false)
 	enableSyncPoolZIZS                = env.GetBool("ENABLE_SYNC_POOL_ZIZS", false)
 	enableLdap                        = env.GetBool("ENABLE_LDAP", false)
-	maxRetryAttemptsForSDEPollJob     = env.GetInt("MAX_RETRY_ATTEMPTS_FOR_SDE_POLL_JOB", 20)
 	poolSubnetSupervisorGracePeriod   = env.GetDuration("POOL_SUBNET_SUPERVISOR_GRACE_PERIOD", 30*time.Minute)
 )
 

@@ -458,7 +458,7 @@ func (wf *ActiveDirectoryUpdateWorkflow) Run(ctx workflow.Context, args ...inter
 				InitialInterval:        retryPolicy.InitialInterval,
 				BackoffCoefficient:     retryPolicy.BackoffCoefficient,
 				MaximumInterval:        retryPolicy.MaximumInterval,
-				MaximumAttempts:        int32(retryPolicy.MaximumAttempts),
+				MaximumAttempts:        int32(maxRetryAttemptsForSDEPollJob),
 				NonRetryableErrorTypes: []string{"NonRetryableError", "PanicError"},
 			},
 		}
