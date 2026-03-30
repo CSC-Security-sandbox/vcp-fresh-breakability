@@ -48,6 +48,7 @@ const (
 	CrossRegionBackupVaultErrMsg = "Cross region backup vaults are not supported for ISCSI volumes"
 	RestoreBackupWorkflow        = "RestoreBackupWorkflow"
 	BytesPerGB                   = 1073741824 // 1024^3 bytes = 1 GB
+	NtfsSecurityStyle            = "ntfs"
 )
 
 var GCBDRVaultEnabled = env.GetBool("GCBDR_VAULT_ENABLED", true)
@@ -179,7 +180,13 @@ func (a VolumeCreateActivity) CreateVolumeInONTAP(ctx context.Context, volume *d
 		},
 		SecurityStyle: func() *string {
 			if volume.VolumeAttributes != nil && volume.VolumeAttributes.FileProperties != nil && volume.VolumeAttributes.FileProperties.SecurityStyle != "" {
-				return &volume.VolumeAttributes.FileProperties.SecurityStyle
+				style := volume.VolumeAttributes.FileProperties.SecurityStyle
+				return &style
+			}
+			// Pass ntfs to ONTAP when protocol is SMB and security style was not provided in request (not persisted on volume).
+			if volume.VolumeAttributes != nil && len(volume.VolumeAttributes.Protocols) == 1 && utils.IsSMBProtocol(volume.VolumeAttributes.Protocols[0]) {
+				ntfsStyle := NtfsSecurityStyle // ONTAP enum value for SMB default
+				return &ntfsStyle
 			}
 			return nil
 		}(),

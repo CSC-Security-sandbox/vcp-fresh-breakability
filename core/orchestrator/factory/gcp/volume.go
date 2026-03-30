@@ -91,7 +91,7 @@ const (
 		"Please increase the volume size to at least %.0f GB with this SnapReserve or reduce the SnapReserve percentage to continue."
 	DefaultUnixPermissionsOctal = "0770"
 	UnixSecurityStyle           = "unix"
-	NtfsSecurityStyle           = "ntfs" // lower-case for persistence and ONTAP REST (enum: ntfs/unix/mixed)
+	NtfsSecurityStyle           = "ntfs" // lower-case for persistence and ONTAP REST (enum: ntfs/unix)
 )
 
 // securityStyleForAPIResponse maps stored lower-case security style (ONTAP convention) to GCNV Swagger enum casing for API responses.
@@ -101,8 +101,6 @@ func securityStyleForAPIResponse(stored string) string {
 		return "NTFS"
 	case "unix":
 		return "UNIX"
-	case "mixed":
-		return "MIXED"
 	default:
 		return stored
 	}
@@ -428,13 +426,6 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 
 	if params.FileProperties != nil {
 		volumeObj.VolumeAttributes.FileProperties = buildFilePropertiesFromParams(params.FileProperties, params.CreationToken)
-	}
-
-	if (params.FileProperties == nil || params.FileProperties.SecurityStyle == "") && len(params.Protocols) == 1 && utils.IsSMBProtocol(params.Protocols[0]) {
-		if volumeObj.VolumeAttributes.FileProperties == nil {
-			volumeObj.VolumeAttributes.FileProperties = &datamodel.FileProperties{}
-		}
-		volumeObj.VolumeAttributes.FileProperties.SecurityStyle = NtfsSecurityStyle
 	}
 
 	if params.SnapshotID != "" {
@@ -2241,7 +2232,7 @@ func _updateVolume(ctx context.Context, se database.Storage, temporal client.Cli
 				if err != nil && !customerrors.IsNotFoundErr(err) {
 					return nil, "", err
 				}
-				
+
 				if *params.DataProtection.BackupVaultID == "" {
 					// Removing vault: non-GCBDR vaults require no available backups on the volume.
 					serviceType := ""

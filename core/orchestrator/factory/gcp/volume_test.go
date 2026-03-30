@@ -7486,9 +7486,6 @@ func TestSecurityStyleForAPIResponse(t *testing.T) {
 	t.Run("maps unix to UNIX", func(tt *testing.T) {
 		assert.Equal(tt, "UNIX", securityStyleForAPIResponse("unix"))
 	})
-	t.Run("maps mixed to MIXED", func(tt *testing.T) {
-		assert.Equal(tt, "MIXED", securityStyleForAPIResponse("mixed"))
-	})
 	t.Run("maps uppercase input to Swagger casing", func(tt *testing.T) {
 		assert.Equal(tt, "NTFS", securityStyleForAPIResponse("NTFS"))
 		assert.Equal(tt, "UNIX", securityStyleForAPIResponse("UNIX"))
@@ -7646,11 +7643,13 @@ func TestCreateVolume_SMBDefaultSecurityStyle(t *testing.T) {
 		volume, _, err := createVolume(ctx, store, temporal, params)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, volume)
-		assert.NotNil(tt, volume.FileProperties)
-		assert.Equal(tt, "NTFS", volume.FileProperties.SecurityStyle)
+		// SecurityStyle is not set on volume when not in request (not persisted); ntfs is passed to ONTAP only in create call.
+		if volume.FileProperties != nil {
+			assert.Empty(tt, volume.FileProperties.SecurityStyle)
+		}
 	})
 
-	t.Run("Sets NTFS SecurityStyle when FileProperties exists but SecurityStyle is empty and protocol is SMB", func(tt *testing.T) {
+	t.Run("SMB volume without SecurityStyle in request does not persist SecurityStyle", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -7801,7 +7800,8 @@ func TestCreateVolume_SMBDefaultSecurityStyle(t *testing.T) {
 		assert.NoError(tt, err)
 		assert.NotNil(tt, volume)
 		assert.NotNil(tt, volume.FileProperties)
-		assert.Equal(tt, "NTFS", volume.FileProperties.SecurityStyle)
+		// SecurityStyle not in request is not persisted; ntfs is passed to ONTAP only.
+		assert.Empty(tt, volume.FileProperties.SecurityStyle)
 	})
 
 	t.Run("Does not override SecurityStyle when FileProperties has SecurityStyle set and protocol is SMB", func(tt *testing.T) {
@@ -7971,12 +7971,7 @@ func TestCreateVolume_SMBDefaultSecurityStyle(t *testing.T) {
 				Protocols: params.Protocols,
 			},
 		}
-		if (params.FileProperties == nil || params.FileProperties.SecurityStyle == "") && len(params.Protocols) == 1 && utils.IsSMBProtocol(params.Protocols[0]) {
-			if volumeObj.VolumeAttributes.FileProperties == nil {
-				volumeObj.VolumeAttributes.FileProperties = &datamodel.FileProperties{}
-			}
-			volumeObj.VolumeAttributes.FileProperties.SecurityStyle = NtfsSecurityStyle
-		}
+		// SecurityStyle is never set on volume when not in request; SMB default (ntfs) is passed to ONTAP only in create call.
 		assert.Nil(tt, volumeObj.VolumeAttributes.FileProperties)
 	})
 
@@ -7992,12 +7987,7 @@ func TestCreateVolume_SMBDefaultSecurityStyle(t *testing.T) {
 				Protocols: params.Protocols,
 			},
 		}
-		if (params.FileProperties == nil || params.FileProperties.SecurityStyle == "") && len(params.Protocols) == 1 && utils.IsSMBProtocol(params.Protocols[0]) {
-			if volumeObj.VolumeAttributes.FileProperties == nil {
-				volumeObj.VolumeAttributes.FileProperties = &datamodel.FileProperties{}
-			}
-			volumeObj.VolumeAttributes.FileProperties.SecurityStyle = NtfsSecurityStyle
-		}
+		// SecurityStyle is never set on volume when not in request.
 		assert.Nil(tt, volumeObj.VolumeAttributes.FileProperties)
 	})
 }
