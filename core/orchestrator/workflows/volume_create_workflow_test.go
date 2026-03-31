@@ -20,9 +20,11 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/kms_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -1134,6 +1136,495 @@ func (s *UnitTestSuite) Test_CreateVolumeWorkflow_CreateBackupPolicyScheduleErro
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
 	// UpdateJob is called through UpdateJobStatus activity, not directly on mock
+}
+
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UseVCPRegionEnabled_BackupPolicyNotFound() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			SecretID: "",
+			Password: "password",
+		}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
+		DataProtection: &datamodel.DataProtection{
+			BackupPolicyID: "backup-policy-id",
+		},
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Name:      "account-1",
+		},
+		AccountID: int64(1),
+	}
+
+	originalUseVCPRegion := env.UseVCPRegion
+	defer func() {
+		env.UseVCPRegion = originalUseVCPRegion
+	}()
+	env.UseVCPRegion = true
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
+	s.env.RegisterActivity(volumeCreateActivity.InitiateSplitForVolume)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
+		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27", "iqn.1994-05.com.redhat:19ee49a2145f"}}},
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "lun_test",
+			ExternalUUID: "lun-uuid",
+		},
+		SerialNumber: "6c5738423724595454686164",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CheckIfBackupPolicyExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+
+	// Assert workflow failed with NotFoundErr
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	workflowErr := s.env.GetWorkflowError()
+	assert.Contains(s.T(), workflowErr.Error(), "Backup policy backup-policy-id not found")
+}
+
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UseVCPRegionEnabled_BackupPolicyExists_ScheduleDoesNotExist() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			SecretID: "",
+			Password: "password",
+		}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
+		DataProtection: &datamodel.DataProtection{
+			BackupPolicyID: "backup-policy-id",
+		},
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Name:      "account-1",
+		},
+		AccountID: int64(1),
+	}
+
+	originalUseVCPRegion := env.UseVCPRegion
+	defer func() {
+		env.UseVCPRegion = originalUseVCPRegion
+	}()
+	env.UseVCPRegion = true
+
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{
+			UUID: "backup-policy-uuid",
+		},
+		Name:          "backup-policy-name",
+		PolicyEnabled: true,
+	}
+
+	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
+	s.env.RegisterActivity(volumeCreateActivity.InitiateSplitForVolume)
+	s.env.RegisterActivity(backupPolicyActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists)
+	s.env.RegisterActivity(volumeCreateActivity.CreateBackupPolicySchedule)
+	s.env.RegisterActivity(backupPolicyActivity.UnpauseBackupPolicySchedule)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
+		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27", "iqn.1994-05.com.redhat:19ee49a2145f"}}},
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "lun_test",
+			ExternalUUID: "lun-uuid",
+		},
+		SerialNumber: "6c5738423724595454686164",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CheckIfBackupPolicyExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(backupPolicyActivity.GetBackupPolicyByUUID, mock.Anything, mock.Anything, mock.Anything).Return(backupPolicy, nil)
+	s.env.OnActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists, mock.Anything, mock.Anything).Return(false, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateBackupPolicySchedule, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupPolicyActivity.UnpauseBackupPolicySchedule, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UseVCPRegionEnabled_BackupPolicyExists_ScheduleExists() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			SecretID: "",
+			Password: "password",
+		}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
+		DataProtection: &datamodel.DataProtection{
+			BackupPolicyID: "backup-policy-id",
+		},
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Name:      "account-1",
+		},
+		AccountID: int64(1),
+	}
+
+	originalUseVCPRegion := env.UseVCPRegion
+	defer func() {
+		env.UseVCPRegion = originalUseVCPRegion
+	}()
+	env.UseVCPRegion = true
+
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{
+			UUID: "backup-policy-uuid",
+		},
+		Name:          "backup-policy-name",
+		PolicyEnabled: true,
+	}
+
+	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage}
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
+	s.env.RegisterActivity(volumeCreateActivity.InitiateSplitForVolume)
+	s.env.RegisterActivity(backupPolicyActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists)
+	s.env.RegisterActivity(backupPolicyActivity.UnpauseBackupPolicySchedule)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
+		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27", "iqn.1994-05.com.redhat:19ee49a2145f"}}},
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "lun_test",
+			ExternalUUID: "lun-uuid",
+		},
+		SerialNumber: "6c5738423724595454686164",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CheckIfBackupPolicyExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(backupPolicyActivity.GetBackupPolicyByUUID, mock.Anything, mock.Anything, mock.Anything).Return(backupPolicy, nil)
+	s.env.OnActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(backupPolicyActivity.UnpauseBackupPolicySchedule, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeDetails, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
+
+	_, err := s.env.QueryWorkflowByID("default-test-workflow-id", "status")
+	assert.Nil(s.T(), err)
+
+	// Assert workflow completed successfully (schedule creation should be skipped)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	// Note: CreateBackupPolicySchedule should not be called since schedule already exists
+	// We verify this by not setting up a mock for it - if it were called, the test would fail
+}
+
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UseVCPRegionEnabled_GetBackupPolicyByUUIDFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
+	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			SecretID: "",
+			Password: "password",
+		}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
+		DataProtection: &datamodel.DataProtection{
+			BackupPolicyID: "backup-policy-id",
+		},
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Name:      "account-1",
+		},
+		AccountID: int64(1),
+	}
+	originalUseVCPRegion := env.UseVCPRegion
+	defer func() {
+		env.UseVCPRegion = originalUseVCPRegion
+	}()
+	env.UseVCPRegion = true
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
+	s.env.RegisterActivity(volumeCreateActivity.InitiateSplitForVolume)
+	s.env.RegisterActivity(backupPolicyActivity.GetBackupPolicyByUUID)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
+		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27", "iqn.1994-05.com.redhat:19ee49a2145f"}}},
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "lun_test",
+			ExternalUUID: "lun-uuid",
+		},
+		SerialNumber: "6c5738423724595454686164",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CheckIfBackupPolicyExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(backupPolicyActivity.GetBackupPolicyByUUID, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get backup policy"))
+	s.env.OnActivity(s.volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UseVCPRegionEnabled_CheckScheduleExistsFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
+	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			SecretID: "",
+			Password: "password",
+		}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
+		DataProtection: &datamodel.DataProtection{
+			BackupPolicyID: "backup-policy-id",
+		},
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Name:      "account-1",
+		},
+		AccountID: int64(1),
+	}
+	originalUseVCPRegion := env.UseVCPRegion
+	defer func() {
+		env.UseVCPRegion = originalUseVCPRegion
+	}()
+	env.UseVCPRegion = true
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{
+			UUID: "backup-policy-uuid",
+		},
+		Name:          "backup-policy-name",
+		PolicyEnabled: true,
+	}
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
+	s.env.RegisterActivity(volumeCreateActivity.InitiateSplitForVolume)
+	s.env.RegisterActivity(backupPolicyActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
+		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27", "iqn.1994-05.com.redhat:19ee49a2145f"}}},
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "lun_test",
+			ExternalUUID: "lun-uuid",
+		},
+		SerialNumber: "6c5738423724595454686164",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CheckIfBackupPolicyExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(backupPolicyActivity.GetBackupPolicyByUUID, mock.Anything, mock.Anything, mock.Anything).Return(backupPolicy, nil)
+	s.env.OnActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists, mock.Anything, mock.Anything).Return(false, errors.New("failed to check schedule"))
+	s.env.OnActivity(s.volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UseVCPRegionEnabled_CreateScheduleFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			SecretID: "",
+			Password: "password",
+		}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
+		DataProtection: &datamodel.DataProtection{
+			BackupPolicyID: "backup-policy-id",
+		},
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Name:      "account-1",
+		},
+		AccountID: int64(1),
+	}
+	originalUseVCPRegion := env.UseVCPRegion
+	defer func() {
+		env.UseVCPRegion = originalUseVCPRegion
+	}()
+	env.UseVCPRegion = true
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{
+			UUID: "backup-policy-uuid",
+		},
+		Name:          "backup-policy-name",
+		PolicyEnabled: true,
+	}
+	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage}
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
+	s.env.RegisterActivity(volumeCreateActivity.InitiateSplitForVolume)
+	s.env.RegisterActivity(backupPolicyActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists)
+	s.env.RegisterActivity(volumeCreateActivity.CreateBackupPolicySchedule)
+	s.env.RegisterActivity(backupPolicyActivity.UnpauseBackupPolicySchedule)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
+		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27", "iqn.1994-05.com.redhat:19ee49a2145f"}}},
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "lun_test",
+			ExternalUUID: "lun-uuid",
+		},
+		SerialNumber: "6c5738423724595454686164",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CheckIfBackupPolicyExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(backupPolicyActivity.GetBackupPolicyByUUID, mock.Anything, mock.Anything, mock.Anything).Return(backupPolicy, nil)
+	s.env.OnActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists, mock.Anything, mock.Anything).Return(false, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateBackupPolicySchedule, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to create schedule"))
+	s.env.OnActivity(s.volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *UnitTestSuite) Test_CreateVolumeWorkflow_UseVCPRegionEnabled_UnpauseScheduleFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			SecretID: "",
+			Password: "password",
+		}},
+		Svm:              &datamodel.Svm{Name: "svm_test"},
+		VolumeAttributes: &datamodel.VolumeAttributes{BlockProperties: &datamodel.BlockProperties{OSType: "LINUX"}, Protocols: []string{utils.ProtocolISCSI}},
+		DataProtection: &datamodel.DataProtection{
+			BackupPolicyID: "backup-policy-id",
+		},
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: int64(1)},
+			Name:      "account-1",
+		},
+		AccountID: int64(1),
+	}
+	originalUseVCPRegion := env.UseVCPRegion
+	defer func() {
+		env.UseVCPRegion = originalUseVCPRegion
+	}()
+	env.UseVCPRegion = true
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{
+			UUID: "backup-policy-uuid",
+		},
+		Name:          "backup-policy-name",
+		PolicyEnabled: true,
+	}
+	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage}
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(volumeCreateActivity.UpdateVolumeDetails)
+	s.env.RegisterActivity(volumeCreateActivity.InitiateSplitForVolume)
+	s.env.RegisterActivity(backupPolicyActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists)
+	s.env.RegisterActivity(backupPolicyActivity.UnpauseBackupPolicySchedule)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("test-token", nil)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(volumeCreateActivity.GetHosts, mock.Anything, mock.Anything).Return([]*datamodel.HostGroup{{
+		Name: "host_group_test", Hosts: datamodel.Hosts{Hosts: []string{"iqn.1993-08.org.debian:01:f2c983feb27", "iqn.1994-05.com.redhat:19ee49a2145f"}}},
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateSnapshotPolicyInONTAP, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolume, mock.Anything, mock.Anything).Return(volume, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateVolumeInONTAP, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateIgroup, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLun, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.LunResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "lun_test",
+			ExternalUUID: "lun-uuid",
+		},
+		SerialNumber: "6c5738423724595454686164",
+	}, nil)
+	s.env.OnActivity(volumeCreateActivity.CreateLunMap, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.CheckIfBackupPolicyExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(backupPolicyActivity.GetBackupPolicyByUUID, mock.Anything, mock.Anything, mock.Anything).Return(backupPolicy, nil)
+	s.env.OnActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(backupPolicyActivity.UnpauseBackupPolicySchedule, mock.Anything, mock.Anything).Return(errors.New("failed to unpause schedule"))
+	s.env.OnActivity(s.volumeDeleteActivity.DeleteVolume, mock.Anything, mock.Anything).Return(nil)
+	s.env.ExecuteWorkflow(CreateVolumeWorkflow, &common.CreateVolumeParams{}, volume)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
 }
 
 func (s *UnitTestSuite) Test_CreateVolumeWorkflow_PauseBackupPolicyScheduleError() {

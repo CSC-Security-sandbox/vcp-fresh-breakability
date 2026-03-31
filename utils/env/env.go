@@ -416,7 +416,7 @@ var (
 	FileSupportOntapVersion = GetString("FILE_SUPPORT_ONTAP_VERSION", "9.18.1")
 	// ONTAP Image Version Match Configuration
 	SkipOntapImageVersionMatch = GetBool("SKIP_ONTAP_IMAGE_VERSION_MATCH", false)
-	// UseVCPRegion when true removes SDE/CVP dependency for backup vault; all backup vault resources are in VCP only.
+	// UseVCPRegion when true removes SDE/CVP dependency.
 	UseVCPRegion = GetBool("USE_VCP_REGION", false)
 
 	ExpertModeUserSuffix     = GetString("EXPERT_MODE_USER_SUFFIX", "gadmin")

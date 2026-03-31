@@ -519,6 +519,17 @@ type GetBackupParams struct {
 	BackupUUID    string
 }
 
+type CreateBackupPolicyParams struct {
+	Name               string
+	AccountName        string
+	LocationID         string
+	Description        *string
+	PolicyEnabled      *bool
+	DailyBackupLimit   *int64
+	WeeklyBackupLimit  *int64
+	MonthlyBackupLimit *int64
+}
+
 type UpdateBackupPolicyParams struct {
 	Name               string
 	AccountName        string

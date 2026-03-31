@@ -129,6 +129,7 @@ const (
 	JobTypeDeleteScheduledBackup                    JobType = "DELETE_SCHEDULED_BACKUP"
 	JobTypeRefreshVolumeFields                      JobType = "REFRESH_VOLUME_FIELDS"
 	JobTypeUpdateBackup                             JobType = "UPDATE_BACKUP"
+	JobTypeCreateBackupPolicy                       JobType = "CREATE_BACKUP_POLICY"
 	JobTypeUpdateBackupPolicy                       JobType = "UPDATE_BACKUP_POLICY"
 	JobTypeDeleteBackupPolicy                       JobType = "DELETE_BACKUP_POLICY"
 	JobTypeCreateActiveDirectory                    JobType = "CREATE_ACTIVE_DIRECTORY"

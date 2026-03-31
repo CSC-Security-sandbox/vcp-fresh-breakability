@@ -36,6 +36,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/api/serviceerror"
+	temporalclient "go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/mocks"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/testsuite"
@@ -4376,6 +4378,88 @@ func TestCheckIfBackupPolicyExistsInVCP(t *testing.T) {
 		assert.Error(t, err)
 		assert.False(t, ok)
 		mockStorage.AssertExpectations(t)
+	})
+}
+
+func TestGetBackupPolicyByUUID(t *testing.T) {
+	ctx := context.Background()
+	backupPolicyUUID := "test-uuid"
+	accountID := int64(123)
+	t.Run("ReturnsBackupPolicyWhenFound", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.BackupPolicyActivity{SE: mockStorage}
+		mockBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{UUID: backupPolicyUUID},
+		}
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(mockBackupPolicy, nil)
+		result, err := activity.GetBackupPolicyByUUID(ctx, backupPolicyUUID, accountID)
+		assert.NoError(t, err)
+		assert.Equal(t, mockBackupPolicy, result)
+		mockStorage.AssertExpectations(t)
+	})
+	t.Run("ReturnsErrorWhenNotFound", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := activities.BackupPolicyActivity{SE: mockStorage}
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).
+			Return(nil, utilErrors.NewNotFoundErr("backup policy", &backupPolicyUUID))
+		result, err := activity.GetBackupPolicyByUUID(ctx, backupPolicyUUID, accountID)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		mockStorage.AssertExpectations(t)
+	})
+}
+
+func TestBackupPolicyActivity_CheckIfBackupPolicyScheduleExists(t *testing.T) {
+	ctx := context.Background()
+	backupPolicyUUID := "test-uuid"
+	t.Run("ReturnsTrueWhenScheduleExists", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockClient := &mocks.ScheduleClient{}
+		temporalScheduler := scheduler.NewTemporalScheduler(mockClient)
+		activity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: temporalScheduler}
+		mockHandle := &mocks.ScheduleHandle{}
+		mockHandle.On("GetID").Return(backupPolicyUUID)
+		mockHandle.On("Describe", ctx).Return(&temporalclient.ScheduleDescription{
+			Schedule: temporalclient.Schedule{
+				State: &temporalclient.ScheduleState{
+					Paused: false,
+				},
+			},
+		}, nil)
+		mockClient.On("GetHandle", ctx, backupPolicyUUID).Return(mockHandle)
+		exists, err := activity.CheckIfBackupPolicyScheduleExists(ctx, backupPolicyUUID)
+		assert.NoError(t, err)
+		assert.True(t, exists)
+		mockClient.AssertExpectations(t)
+		mockHandle.AssertExpectations(t)
+	})
+	t.Run("ReturnsFalseWhenScheduleNotFound", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockClient := &mocks.ScheduleClient{}
+		temporalScheduler := scheduler.NewTemporalScheduler(mockClient)
+		activity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: temporalScheduler}
+		mockHandle := &mocks.ScheduleHandle{}
+		mockHandle.On("Describe", ctx).Return(nil, serviceerror.NewNotFound("schedule not found"))
+		mockClient.On("GetHandle", ctx, backupPolicyUUID).Return(mockHandle)
+		exists, err := activity.CheckIfBackupPolicyScheduleExists(ctx, backupPolicyUUID)
+		assert.NoError(t, err)
+		assert.False(t, exists)
+		mockClient.AssertExpectations(t)
+		mockHandle.AssertExpectations(t)
+	})
+	t.Run("ReturnsErrorWhenOtherErrorOccurs", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockClient := &mocks.ScheduleClient{}
+		temporalScheduler := scheduler.NewTemporalScheduler(mockClient)
+		activity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: temporalScheduler}
+		mockHandle := &mocks.ScheduleHandle{}
+		mockHandle.On("Describe", ctx).Return(nil, errors.New("internal server error"))
+		mockClient.On("GetHandle", ctx, backupPolicyUUID).Return(mockHandle)
+		exists, err := activity.CheckIfBackupPolicyScheduleExists(ctx, backupPolicyUUID)
+		assert.Error(t, err)
+		assert.False(t, exists)
+		mockClient.AssertExpectations(t)
+		mockHandle.AssertExpectations(t)
 	})
 }
 

@@ -1516,3 +1516,212 @@ func TestUpdateBackupPolicy(t *testing.T) {
 		mockStorage.AssertNumberOfCalls(t, "UpdateJob", 1)
 	})
 }
+
+func TestCreateBackupPolicy(tt *testing.T) {
+	tt.Run("CreateBackupPolicySucceeds", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		createdBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel:             datamodel.BaseModel{ID: 1, UUID: "backup-policy-uuid"},
+			Name:                  "test-backup-policy",
+			AccountID:             account.ID,
+			DailyBackupsToKeep:    5,
+			WeeklyBackupsToKeep:   3,
+			MonthlyBackupsToKeep:  2,
+			PolicyEnabled:         true,
+			Description:           nillable.ToPointer("Test description"),
+			LifeCycleState:        models.LifeCycleStateREADY,
+			LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+		}
+
+		oldGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = oldGetOrCreateAccount }()
+
+		mockStorage.On("GetBackupPolicyByNameAndOwnerID", ctx, "test-backup-policy", account.ID).Return(nil, utilerrors.NewNotFoundErr("backup policy", nil))
+		mockStorage.On("CreateBackupPolicyEntryInVCP", ctx, mock.Anything).Return(createdBackupPolicy, nil)
+
+		o := &GCPOrchestrator{storage: mockStorage}
+		params := &commonparams.CreateBackupPolicyParams{
+			Name:               "test-backup-policy",
+			AccountName:        "owner-uuid",
+			LocationID:         "test-location",
+			Description:        nillable.ToPointer("Test description"),
+			DailyBackupLimit:   nillable.ToPointer(int64(5)),
+			WeeklyBackupLimit:  nillable.ToPointer(int64(3)),
+			MonthlyBackupLimit: nillable.ToPointer(int64(2)),
+			PolicyEnabled:      nillable.ToPointer(true),
+		}
+
+		result, err := o.CreateBackupPolicy(ctx, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, createdBackupPolicy.UUID, result.BackupPolicyUUID)
+		assert.Equal(tt, models.LifeCycleStateREADY, result.State)
+		mockStorage.AssertExpectations(tt)
+	})
+	tt.Run("CreateBackupPolicyFailsWhenAccountDoesNotExist", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		ctx := context.Background()
+
+		oldGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("account not found")
+		}
+		defer func() { getOrCreateAccount = oldGetOrCreateAccount }()
+
+		o := &GCPOrchestrator{storage: mockStorage}
+		params := &commonparams.CreateBackupPolicyParams{
+			Name:        "test-backup-policy",
+			AccountName: "owner-uuid",
+			LocationID:  "test-location",
+		}
+
+		result, err := o.CreateBackupPolicy(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "account not found", err.Error())
+	})
+	tt.Run("CreateBackupPolicyFailsWhenBackupPolicyAlreadyExists", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		existingBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "existing-backup-policy-uuid"},
+			Name:      "test-backup-policy",
+		}
+
+		oldGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = oldGetOrCreateAccount }()
+
+		mockStorage.On("GetBackupPolicyByNameAndOwnerID", ctx, "test-backup-policy", account.ID).Return(existingBackupPolicy, nil)
+
+		o := &GCPOrchestrator{storage: mockStorage}
+		params := &commonparams.CreateBackupPolicyParams{
+			Name:        "test-backup-policy",
+			AccountName: "owner-uuid",
+			LocationID:  "test-location",
+		}
+
+		result, err := o.CreateBackupPolicy(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "backup policy with name test-backup-policy already exists")
+		mockStorage.AssertExpectations(tt)
+	})
+	tt.Run("CreateBackupPolicyFailsWhenGetBackupPolicyReturnsNonNotFoundError", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+
+		oldGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = oldGetOrCreateAccount }()
+
+		mockStorage.On("GetBackupPolicyByNameAndOwnerID", ctx, "test-backup-policy", account.ID).Return(nil, errors.New("database error"))
+
+		o := &GCPOrchestrator{storage: mockStorage}
+		params := &commonparams.CreateBackupPolicyParams{
+			Name:        "test-backup-policy",
+			AccountName: "owner-uuid",
+			LocationID:  "test-location",
+		}
+
+		result, err := o.CreateBackupPolicy(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "database error", err.Error())
+		mockStorage.AssertExpectations(tt)
+	})
+	tt.Run("CreateBackupPolicyFailsWhenBackupPolicyCreationFails", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+
+		oldGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = oldGetOrCreateAccount }()
+
+		mockStorage.On("GetBackupPolicyByNameAndOwnerID", ctx, "test-backup-policy", account.ID).Return(nil, utilerrors.NewNotFoundErr("backup policy", nil))
+		mockStorage.On("CreateBackupPolicyEntryInVCP", ctx, mock.Anything).Return(nil, errors.New("failed to create backup policy"))
+
+		o := &GCPOrchestrator{storage: mockStorage}
+		params := &commonparams.CreateBackupPolicyParams{
+			Name:        "test-backup-policy",
+			AccountName: "owner-uuid",
+			LocationID:  "test-location",
+		}
+
+		result, err := o.CreateBackupPolicy(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "failed to create backup policy", err.Error())
+		mockStorage.AssertExpectations(tt)
+	})
+	tt.Run("CreateBackupPolicySucceedsWithAllOptionalFields", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		createdBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel:             datamodel.BaseModel{ID: 1, UUID: "backup-policy-uuid"},
+			Name:                  "test-backup-policy",
+			AccountID:             account.ID,
+			Description:           nillable.ToPointer("Test description"),
+			DailyBackupsToKeep:    5,
+			WeeklyBackupsToKeep:   3,
+			MonthlyBackupsToKeep:  2,
+			PolicyEnabled:         true,
+			LifeCycleState:        models.LifeCycleStateREADY,
+			LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+		}
+
+		oldGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = oldGetOrCreateAccount }()
+
+		mockStorage.On("GetBackupPolicyByNameAndOwnerID", ctx, "test-backup-policy", account.ID).Return(nil, utilerrors.NewNotFoundErr("backup policy", nil))
+		mockStorage.On("CreateBackupPolicyEntryInVCP", ctx, mock.Anything).Return(createdBackupPolicy, nil)
+
+		o := &GCPOrchestrator{storage: mockStorage}
+		params := &commonparams.CreateBackupPolicyParams{
+			Name:               "test-backup-policy",
+			AccountName:        "owner-uuid",
+			LocationID:         "test-location",
+			Description:        nillable.ToPointer("Test description"),
+			DailyBackupLimit:   nillable.ToPointer(int64(5)),
+			WeeklyBackupLimit:  nillable.ToPointer(int64(3)),
+			MonthlyBackupLimit: nillable.ToPointer(int64(2)),
+			PolicyEnabled:      nillable.ToPointer(true),
+		}
+
+		result, err := o.CreateBackupPolicy(ctx, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, createdBackupPolicy.UUID, result.BackupPolicyUUID)
+		assert.Equal(tt, *createdBackupPolicy.Description, *result.Description)
+		assert.Equal(tt, createdBackupPolicy.DailyBackupsToKeep, result.DailyBackupLimit)
+		assert.Equal(tt, createdBackupPolicy.WeeklyBackupsToKeep, result.WeeklyBackupLimit)
+		assert.Equal(tt, createdBackupPolicy.MonthlyBackupsToKeep, result.MonthlyBackupLimit)
+		assert.Equal(tt, createdBackupPolicy.PolicyEnabled, result.Enabled)
+		assert.Equal(tt, models.LifeCycleStateREADY, result.State)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+

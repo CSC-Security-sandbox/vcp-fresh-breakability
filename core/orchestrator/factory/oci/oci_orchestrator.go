@@ -420,6 +420,10 @@ func (o *OCIOrchestrator) GetBackupPolicyByUUIDAndOwnerID(ctx context.Context, u
 	return nil, utilserrors.NewNotImplementedYetErr()
 }
 
+func (o *OCIOrchestrator) CreateBackupPolicy(ctx context.Context, params *commonparams.CreateBackupPolicyParams) (*models.BackupPolicy, error) {
+	return nil, utilserrors.NewNotImplementedYetErr()
+}
+
 func (o *OCIOrchestrator) UpdateBackupPolicy(ctx context.Context, params *commonparams.UpdateBackupPolicyParams) (*models.BackupPolicy, string, error) {
 	// TODO implement me
 	return nil, "", utilserrors.NewNotImplementedYetErr()

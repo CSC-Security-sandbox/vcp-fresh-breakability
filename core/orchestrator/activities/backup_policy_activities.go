@@ -19,6 +19,7 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
+	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/sdk/temporal"
 	logger "golang.org/x/exp/slog"
 )
@@ -144,7 +145,7 @@ func (j *BackupPolicyActivity) UnpauseBackupPolicySchedule(ctx context.Context, 
 func updateBackupPolicyInSDE(ctx context.Context, params *common.UpdateBackupPolicyParams) (*cvpmodels.BackupPolicyV1beta, error) {
 	logger := util.GetLogger(ctx)
 	token := utils.GetAuthTokenFromContext(ctx)
-	cvpClient := cvpCreateClient(logger, token)
+	cvpClient := CvpCreateClient(logger, token)
 	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
 
 	op, _, err := cvpClient.BackupPolicy.V1betaUpdateBackupPolicy(&backup_policy.V1betaUpdateBackupPolicyParams{
@@ -182,7 +183,7 @@ func updateBackupPolicyInSDE(ctx context.Context, params *common.UpdateBackupPol
 func (j *BackupPolicyActivity) DeleteBackupPolicyInSDE(ctx context.Context, params *common.DeleteBackupPolicyParams) error {
 	logger := util.GetLogger(ctx)
 	GetSignedJwtToken := utils.GetAuthTokenFromContext(ctx)
-	cvpClient := cvpCreateClient(logger, GetSignedJwtToken)
+	cvpClient := CvpCreateClient(logger, GetSignedJwtToken)
 	xCorrelationID := utils.GetCoRelationIDFromContext(ctx)
 
 	res, _, err := cvpClient.BackupPolicy.V1betaDeleteBackupPolicy(&backup_policy.V1betaDeleteBackupPolicyParams{
@@ -261,6 +262,37 @@ func (j *BackupPolicyActivity) DeleteBackupPolicySchedule(ctx context.Context, b
 		return err
 	}
 	return nil
+}
+
+// CheckIfBackupPolicyScheduleExists checks if a schedule exists for the backup policy.
+func CheckIfBackupPolicyScheduleExists(ctx context.Context, temporalScheduler *scheduler.TemporalScheduler, backupPolicyUUID string) (bool, error) {
+	_, err := temporalScheduler.Describe(ctx, scheduler.DescribeScheduleParams{
+		ScheduleParams: scheduler.ScheduleParams{ScheduleID: backupPolicyUUID},
+	})
+	if err != nil {
+		// Check if the error is a NotFound error (schedule doesn't exist)
+		var notFound *serviceerror.NotFound
+		if errors.As(err, &notFound) {
+			return false, nil
+		}
+		// For other errors, return the error
+		return false, err
+	}
+	return true, nil
+}
+
+// GetBackupPolicyByUUID gets a backup policy from VCP by UUID and owner account.
+func (j *BackupPolicyActivity) GetBackupPolicyByUUID(ctx context.Context, backupPolicyUUID string, accountID int64) (*datamodel.BackupPolicy, error) {
+	return j.SE.GetBackupPolicyByUUIDAndOwnerID(ctx, backupPolicyUUID, accountID)
+}
+
+// CheckIfBackupPolicyScheduleExists checks if a schedule exists for the backup policy.
+func (j *BackupPolicyActivity) CheckIfBackupPolicyScheduleExists(ctx context.Context, backupPolicyUUID string) (bool, error) {
+	temporalScheduler, ok := j.Scheduler.(*scheduler.TemporalScheduler)
+	if !ok {
+		return false, fmt.Errorf("invalid scheduler type %T for CheckIfBackupPolicyScheduleExists", j.Scheduler)
+	}
+	return CheckIfBackupPolicyScheduleExists(ctx, temporalScheduler, backupPolicyUUID)
 }
 
 func (j *BackupPolicyActivity) DeleteBackupPolicyInVCP(ctx context.Context, backupPolicyID string) (*datamodel.BackupPolicy, error) {

@@ -17,6 +17,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -547,6 +548,14 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		}
 
 		if !backupPolicyExists {
+			// Check if VCP region should be used
+			if env.UseVCPRegion {
+				log.Warnf("Backup policy %s does not exist in VCP while USE_VCP_REGION is enabled; volume update requires an existing VCP backup policy", *params.DataProtection.BackupPolicyId)
+				return nil, ConvertToVSAError(customerrors.NewNotFoundErr(
+					fmt.Sprintf("Backup policy %s not found", *params.DataProtection.BackupPolicyId),
+					nil,
+				))
+			}
 			backupPolicyActivity := &activities.BackupPolicyActivity{}
 			var vcpBackupPolicy *datamodel.BackupPolicy
 			err = workflow.ExecuteActivity(ctx, updateActivity.FetchAndCreateBackupPolicyFromSDE, volume, params.Region).Get(ctx, &vcpBackupPolicy)
@@ -564,6 +573,47 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				err = workflow.ExecuteActivity(ctx, backupPolicyActivity.PauseBackupPolicySchedule, vcpBackupPolicy).Get(ctx, nil)
 				if err != nil {
 					return nil, ConvertToVSAError(err)
+				}
+			}
+		} else {
+			// Backup policy exists in VCP - ensure schedule exists (create only once)
+			if env.UseVCPRegion {
+				backupPolicyActivity := &activities.BackupPolicyActivity{}
+				// Get the backup policy from VCP
+				var vcpBackupPolicy *datamodel.BackupPolicy
+				err = workflow.ExecuteActivity(ctx, backupPolicyActivity.GetBackupPolicyByUUID, *params.DataProtection.BackupPolicyId, volume.AccountID).Get(ctx, &vcpBackupPolicy)
+				if err != nil {
+					return nil, ConvertToVSAError(err)
+				}
+
+				// Check if schedule already exists
+				var scheduleExists bool
+				err = workflow.ExecuteActivity(ctx, backupPolicyActivity.CheckIfBackupPolicyScheduleExists, vcpBackupPolicy.UUID).Get(ctx, &scheduleExists)
+				if err != nil {
+					return nil, ConvertToVSAError(err)
+				}
+
+				// Create schedule only if it doesn't exist
+				if !scheduleExists {
+					err = workflow.ExecuteActivity(ctx, updateActivity.CreateScheduleForBackupPolicy, vcpBackupPolicy, params.BackupSchedule).Get(ctx, nil)
+					if err != nil {
+						return nil, ConvertToVSAError(err)
+					}
+					rollbackManager.AddActivity(backupPolicyActivity.DeleteBackupPolicySchedule, vcpBackupPolicy.UUID)
+				}
+
+				// Handle policy enabled/disabled state
+				if !vcpBackupPolicy.PolicyEnabled {
+					err = workflow.ExecuteActivity(ctx, backupPolicyActivity.PauseBackupPolicySchedule, vcpBackupPolicy).Get(ctx, nil)
+					if err != nil {
+						return nil, ConvertToVSAError(err)
+					}
+				} else {
+					// If policy is enabled, ensure schedule is unpaused
+					err = workflow.ExecuteActivity(ctx, backupPolicyActivity.UnpauseBackupPolicySchedule, vcpBackupPolicy).Get(ctx, nil)
+					if err != nil {
+						return nil, ConvertToVSAError(err)
+					}
 				}
 			}
 		}

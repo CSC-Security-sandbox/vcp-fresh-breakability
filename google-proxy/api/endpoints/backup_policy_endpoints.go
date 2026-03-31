@@ -15,6 +15,7 @@ import (
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -46,7 +47,15 @@ func (h Handler) V1betaCreateBackupPolicy(ctx context.Context, req *gcpgenserver
 	existingBackupPolicy, err := h.Orchestrator.GetBackupPolicyByNameAndOwnerID(ctx, req.ResourceId, params.ProjectNumber)
 	if err == nil && existingBackupPolicy != nil {
 		logger.Infof("backup policy with name: %s already exists ", req.ResourceId)
-		backupPolicyJSON, err := json.Marshal(existingBackupPolicy)
+		volumeCount, countErr := h.getBackupPolicyVolumeCount(ctx, params.ProjectNumber, existingBackupPolicy.BackupPolicyUUID)
+		if countErr != nil {
+			logger.Errorf("Failed to get volume count for existing backup policy: %v", countErr)
+			return &gcpgenserver.V1betaCreateBackupPolicyInternalServerError{
+				Code:    500,
+				Message: "Failed to get volume count for backup policy",
+			}, countErr
+		}
+		backupPolicyJSON, err := marshalBackupPolicyWithVolumeCount(existingBackupPolicy, volumeCount)
 		if err != nil {
 			logger.Errorf("Failed to marshal backup policy: %v", err)
 			return &gcpgenserver.V1betaCreateBackupPolicyInternalServerError{
@@ -66,6 +75,72 @@ func (h Handler) V1betaCreateBackupPolicy(ctx context.Context, req *gcpgenserver
 			Code:    500,
 			Message: "Failed to check existing backup policy",
 		}, err
+	}
+
+	if env.UseVCPRegion {
+		createParams := convertCreateRequestToCreateBackupPolicyParams(req, params.LocationId, params.ProjectNumber)
+		createdBackupPolicy, err := h.Orchestrator.CreateBackupPolicy(ctx, createParams)
+		if err != nil {
+			if errors.IsConflictErr(err) {
+				logger.Infof("Backup policy already exists in VCP")
+				// Try to get the existing policy
+				existingBackupPolicy, err := h.Orchestrator.GetBackupPolicyByNameAndOwnerID(ctx, req.ResourceId, params.ProjectNumber)
+				if err != nil {
+					return &gcpgenserver.V1betaCreateBackupPolicyInternalServerError{
+						Code:    500,
+						Message: "Failed to get existing backup policy",
+					}, err
+				}
+				volumeCount, countErr := h.getBackupPolicyVolumeCount(ctx, params.ProjectNumber, existingBackupPolicy.BackupPolicyUUID)
+				if countErr != nil {
+					logger.Errorf("Failed to get volume count for existing backup policy: %v", countErr)
+					return &gcpgenserver.V1betaCreateBackupPolicyInternalServerError{
+						Code:    500,
+						Message: "Failed to get volume count for backup policy",
+					}, countErr
+				}
+				backupPolicyJSON, err := marshalBackupPolicyWithVolumeCount(existingBackupPolicy, volumeCount)
+				if err != nil {
+					return &gcpgenserver.V1betaCreateBackupPolicyInternalServerError{
+						Code:    500,
+						Message: "Failed to marshal backup policy",
+					}, err
+				}
+				return &gcpgenserver.OperationV1beta{
+					Name:     gcpgenserver.OptString{Value: "operation-id"},
+					Done:     gcpgenserver.NewOptBool(true),
+					Response: backupPolicyJSON,
+				}, nil
+			}
+			logger.Errorf("Failed to create backup policy: %v", err)
+			return &gcpgenserver.V1betaCreateBackupPolicyInternalServerError{
+				Code:    500,
+				Message: "Failed to create backup policy",
+			}, err
+		}
+
+		volumeCount, countErr := h.getBackupPolicyVolumeCount(ctx, params.ProjectNumber, createdBackupPolicy.BackupPolicyUUID)
+		if countErr != nil {
+			logger.Errorf("Failed to get volume count for created backup policy: %v", countErr)
+			return &gcpgenserver.V1betaCreateBackupPolicyInternalServerError{
+				Code:    500,
+				Message: "Failed to get volume count for backup policy",
+			}, countErr
+		}
+		backupPolicyJSON, err := marshalBackupPolicyWithVolumeCount(createdBackupPolicy, volumeCount)
+		if err != nil {
+			logger.Errorf("Failed to marshal backup policy: %s", err.Error())
+			return &gcpgenserver.V1betaCreateBackupPolicyInternalServerError{
+				Code:    500,
+				Message: fmt.Sprintf("Failed to marshal backup policy: %s", err.Error()),
+			}, err
+		}
+
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(req.ResourceId),
+			Response: backupPolicyJSON,
+			Done:     gcpgenserver.NewOptBool(true),
+		}, nil
 	}
 
 	// Call SDE to create backup policy
@@ -136,6 +211,28 @@ func (h Handler) V1betaCreateBackupPolicy(ctx context.Context, req *gcpgenserver
 		Response: backupPolicyJSON,
 		Done:     gcpgenserver.NewOptBool(true),
 	}, nil
+}
+
+func (h Handler) getBackupPolicyVolumeCount(ctx context.Context, projectNumber string, backupPolicyID string) (int64, error) {
+	volumeCountMap, _, err := h.Orchestrator.ListBackupPoliciesAndVolumeCount(ctx, projectNumber, []string{backupPolicyID})
+	if err != nil {
+		return 0, err
+	}
+	return volumeCountMap[backupPolicyID], nil
+}
+
+func marshalBackupPolicyWithVolumeCount(backupPolicy *coremodels.BackupPolicy, volumeCount int64) ([]byte, error) {
+	backupPolicyJSON, err := json.Marshal(backupPolicy)
+	if err != nil {
+		return nil, err
+	}
+
+	responseMap := map[string]interface{}{}
+	if err := json.Unmarshal(backupPolicyJSON, &responseMap); err != nil {
+		return nil, err
+	}
+	responseMap["volumeCount"] = volumeCount
+	return json.Marshal(responseMap)
 }
 
 func (h Handler) V1betaDeleteBackupPolicy(ctx context.Context, params gcpgenserver.V1betaDeleteBackupPolicyParams) (gcpgenserver.V1betaDeleteBackupPolicyRes, error) {
@@ -218,6 +315,36 @@ func (h Handler) V1betaDescribeBackupPolicy(ctx context.Context, params gcpgense
 	}
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+
+	if env.UseVCPRegion {
+		backupPolicy, err := h.Orchestrator.GetBackupPolicyByUUIDAndOwnerID(ctx, params.BackupPolicyId, params.ProjectNumber)
+		if err != nil {
+			if errors.IsNotFoundErr(err) {
+				return &gcpgenserver.V1betaDescribeBackupPolicyNotFound{
+					Code:    404,
+					Message: "Backup policy not found",
+				}, nil
+			}
+			logger.Errorf("Failed to get backup policy: %v", err)
+			return &gcpgenserver.V1betaDescribeBackupPolicyInternalServerError{
+				Code:    500,
+				Message: "Failed to get backup policy",
+			}, nil
+		}
+
+		volumeCountMap, _, err := h.Orchestrator.ListBackupPoliciesAndVolumeCount(ctx, params.ProjectNumber, []string{params.BackupPolicyId})
+		if err != nil {
+			logger.Errorf("Failed to get volume count for backup policy: %v", err)
+			return &gcpgenserver.V1betaDescribeBackupPolicyInternalServerError{
+				Code:    500,
+				Message: "Failed to get volume count for backup policy",
+			}, nil
+		}
+		volumeCount := volumeCountMap[params.BackupPolicyId]
+
+		return convertBackupPolicyModelToDetailsV1beta(backupPolicy, volumeCount), nil
+	}
+
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
 	describeBackupPolicyParams := &backup_policy.V1betaDescribeBackupPolicyParams{
@@ -297,6 +424,37 @@ func (h Handler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *gcpge
 	}
 
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+
+	if env.UseVCPRegion {
+		vcpBackupPolicyVolumeCount, vcpBackupPolicies, err := h.Orchestrator.ListBackupPoliciesAndVolumeCount(ctx, params.ProjectNumber, req.BackupPolicyUuids)
+		if err != nil {
+			logger.Errorf("Failed to get backup policies and volume counts: %v", err)
+			return &gcpgenserver.V1betaGetMultipleBackupPoliciesInternalServerError{
+				Code:    500,
+				Message: "Failed to get backup policies",
+			}, nil
+		}
+
+		operationResponse := gcpgenserver.V1betaGetMultipleBackupPoliciesOK{
+			BackupPolicies: []gcpgenserver.BackupPolicyV1beta{},
+		}
+
+		// Convert VCP backup policies to response format
+		for _, backupPolicyUUID := range req.BackupPolicyUuids {
+			vcpBackupPolicy, exists := vcpBackupPolicies[backupPolicyUUID]
+			if !exists {
+				// Skip if backup policy doesn't exist in VCP
+				continue
+			}
+
+			volumeCount := vcpBackupPolicyVolumeCount[backupPolicyUUID]
+			backupPolicyV1beta := convertBackupPolicyModelToV1beta(vcpBackupPolicy, volumeCount)
+			operationResponse.BackupPolicies = append(operationResponse.BackupPolicies, backupPolicyV1beta)
+		}
+
+		return &operationResponse, nil
+	}
+
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
 
@@ -416,6 +574,31 @@ func (h Handler) V1betaListBackupPolicies(ctx context.Context, params gcpgenserv
 	}
 
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
+
+	if env.UseVCPRegion {
+		vcpBackupPolicyVolumeCount, vcpBackupPolicies, err := h.Orchestrator.ListBackupPoliciesAndVolumeCount(ctx, params.ProjectNumber, nil)
+		if err != nil {
+			logger.Errorf("Failed to list backup policies and volume counts: %v", err)
+			return &gcpgenserver.V1betaListBackupPoliciesInternalServerError{
+				Code:    500,
+				Message: "Failed to list backup policies",
+			}, nil
+		}
+
+		operationResponse := gcpgenserver.V1betaListBackupPoliciesOK{
+			BackupPolicies: []gcpgenserver.BackupPolicyV1beta{},
+		}
+
+		// Convert VCP backup policies to response format
+		for backupPolicyUUID, vcpBackupPolicy := range vcpBackupPolicies {
+			volumeCount := vcpBackupPolicyVolumeCount[backupPolicyUUID]
+			backupPolicyV1beta := convertBackupPolicyModelToV1beta(vcpBackupPolicy, volumeCount)
+			operationResponse.BackupPolicies = append(operationResponse.BackupPolicies, backupPolicyV1beta)
+		}
+
+		return &operationResponse, nil
+	}
+
 	jwtToken := utils.GetJWTTokenFromContext(ctx)
 	cvpClient := createClient(logger, jwtToken)
 	listBackupPoliciesParams := &backup_policy.V1betaListBackupPoliciesParams{
@@ -818,6 +1001,43 @@ func createBackupPolicyParams(req *gcpgenserver.BackupPolicyCreateV1beta, params
 	}
 }
 
+// convertCreateRequestToCreateBackupPolicyParams converts a create request to CreateBackupPolicyParams
+func convertCreateRequestToCreateBackupPolicyParams(req *gcpgenserver.BackupPolicyCreateV1beta, locationID, accountName string) *commonparams.CreateBackupPolicyParams {
+	var description *string
+	if req.Description.IsSet() {
+		desc := req.Description.Value
+		description = &desc
+	}
+	var dailyBackupLimit, monthlyBackupLimit, weeklyBackupLimit *int64
+	if req.DailyBackupLimit.IsSet() {
+		limit := int64(req.DailyBackupLimit.Value)
+		dailyBackupLimit = &limit
+	}
+	if req.WeeklyBackupLimit.IsSet() {
+		limit := int64(req.WeeklyBackupLimit.Value)
+		weeklyBackupLimit = &limit
+	}
+	if req.MonthlyBackupLimit.IsSet() {
+		limit := int64(req.MonthlyBackupLimit.Value)
+		monthlyBackupLimit = &limit
+	}
+	var enabled *bool
+	if req.Enabled.IsSet() {
+		enabled = &req.Enabled.Value
+	}
+
+	return &commonparams.CreateBackupPolicyParams{
+		Name:               req.ResourceId,
+		AccountName:        accountName,
+		LocationID:         locationID,
+		Description:        description,
+		PolicyEnabled:      enabled,
+		DailyBackupLimit:   dailyBackupLimit,
+		WeeklyBackupLimit:  weeklyBackupLimit,
+		MonthlyBackupLimit: monthlyBackupLimit,
+	}
+}
+
 func convertToBackupPolicyDetailsV1beta(res *backup_policy.V1betaDescribeBackupPolicyOK) *gcpgenserver.BackupPolicyDetailsV1beta {
 	state := gcpgenserver.BackupPolicyDetailsV1betaState(res.Payload.State)
 	var volumeBackups []gcpgenserver.VolumeBackupDetailsV1beta
@@ -840,6 +1060,52 @@ func convertToBackupPolicyDetailsV1beta(res *backup_policy.V1betaDescribeBackupP
 		MonthlyBackupLimit: gcpgenserver.NewOptInt(int(*res.Payload.MonthlyBackupLimit)),
 		VolumeBackups:      volumeBackups,
 		VolumeCount:        gcpgenserver.NewOptInt(int(*res.Payload.VolumeCount)),
+	}
+}
+
+// convertBackupPolicyModelToV1beta converts coremodels.BackupPolicy to BackupPolicyV1beta response
+func convertBackupPolicyModelToV1beta(bp *coremodels.BackupPolicy, volumeCount int64) gcpgenserver.BackupPolicyV1beta {
+	backupPolicy := gcpgenserver.BackupPolicyV1beta{
+		ResourceId: bp.ResourceID,
+		Enabled:    bp.Enabled,
+	}
+
+	backupPolicy.BackupPolicyId = gcpgenserver.NewOptString(bp.BackupPolicyUUID)
+
+	if bp.Description != nil {
+		backupPolicy.Description = gcpgenserver.NewOptString(*bp.Description)
+	}
+
+	backupPolicy.CreatedAt = gcpgenserver.NewOptDateTime(bp.CreatedAt)
+
+	if bp.State != "" {
+		state := gcpgenserver.BackupPolicyV1betaState(bp.State)
+		backupPolicy.State = gcpgenserver.NewOptBackupPolicyV1betaState(state)
+	}
+
+	backupPolicy.VolumeCount = gcpgenserver.NewOptInt(int(volumeCount))
+	backupPolicy.DailyBackupLimit = gcpgenserver.NewOptInt(int(bp.DailyBackupLimit))
+	backupPolicy.WeeklyBackupLimit = gcpgenserver.NewOptInt(int(bp.WeeklyBackupLimit))
+	backupPolicy.MonthlyBackupLimit = gcpgenserver.NewOptInt(int(bp.MonthlyBackupLimit))
+
+	return backupPolicy
+}
+
+// convertBackupPolicyModelToDetailsV1beta converts coremodels.BackupPolicy to BackupPolicyDetailsV1beta response
+func convertBackupPolicyModelToDetailsV1beta(bp *coremodels.BackupPolicy, volumeCount int64) *gcpgenserver.BackupPolicyDetailsV1beta {
+	state := gcpgenserver.BackupPolicyDetailsV1betaState(bp.State)
+	return &gcpgenserver.BackupPolicyDetailsV1beta{
+		ResourceId:         bp.ResourceID,
+		BackupPolicyId:     gcpgenserver.NewOptString(bp.BackupPolicyUUID),
+		Enabled:            bp.Enabled,
+		Description:        gcpgenserver.NewOptString(nillable.GetString(bp.Description, "")),
+		CreatedAt:          gcpgenserver.NewOptDateTime(bp.CreatedAt),
+		State:              gcpgenserver.NewOptBackupPolicyDetailsV1betaState(state),
+		DailyBackupLimit:   gcpgenserver.NewOptInt(int(bp.DailyBackupLimit)),
+		WeeklyBackupLimit:  gcpgenserver.NewOptInt(int(bp.WeeklyBackupLimit)),
+		MonthlyBackupLimit: gcpgenserver.NewOptInt(int(bp.MonthlyBackupLimit)),
+		VolumeBackups:      []gcpgenserver.VolumeBackupDetailsV1beta{}, // Empty array for now
+		VolumeCount:        gcpgenserver.NewOptInt(int(volumeCount)),
 	}
 }
 

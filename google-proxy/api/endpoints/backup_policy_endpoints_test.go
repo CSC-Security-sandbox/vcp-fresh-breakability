@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -64,12 +66,15 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 			Description: gcpgenserver.NewOptString("Test new backup policy with already existing backup policy name"),
 		}
 		oldBackupEnabled := backupEnabled
+		oldUseVCPRegion := env.UseVCPRegion
 		oldValidateRegionAndZone := parseAndValidateRegionAndZone
 		defer func() {
 			backupEnabled = oldBackupEnabled
+			env.UseVCPRegion = oldUseVCPRegion
 			parseAndValidateRegionAndZone = oldValidateRegionAndZone
 		}()
 		backupEnabled = true
+		env.UseVCPRegion = true
 		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
 			return "us-central1", "us-central1", nil
 		}
@@ -77,8 +82,11 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
 		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", context.Background(), "existing-policy", "1234567890").
 			Return(&coremodels.BackupPolicy{
-				ResourceID: "existing-policy",
+				ResourceID:       "existing-policy",
+				BackupPolicyUUID: "existing-policy-uuid",
 			}, nil)
+		mockOrchestrator.On("ListBackupPoliciesAndVolumeCount", context.Background(), "1234567890", []string{"existing-policy-uuid"}).
+			Return(map[string]int64{"existing-policy-uuid": 0}, map[string]*coremodels.BackupPolicy{}, nil)
 		handler := Handler{Orchestrator: mockOrchestrator}
 
 		result, err := handler.V1betaCreateBackupPolicy(context.Background(), req, params)
@@ -774,6 +782,409 @@ func TestV1betaCreateBackupPolicy(t *testing.T) {
 		op := result.(*gcpgenserver.V1betaCreateBackupPolicyBadRequest)
 		assert.Equal(t, float64(400), op.Code)
 		assert.Equal(t, "Backup feature is currently not enabled.", op.Message)
+	})
+	t.Run("WhenCreateBackupPolicySuccessWithUseVCPRegionDoneTrue", func(t *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+
+		params := gcpgenserver.V1betaCreateBackupPolicyParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "1234567890",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		oldBackupEnabled := backupEnabled
+		oldUseVCPRegion := env.UseVCPRegion
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() {
+			backupEnabled = oldBackupEnabled
+			env.UseVCPRegion = oldUseVCPRegion
+			parseAndValidateRegionAndZone = oldValidateRegionAndZone
+		}()
+		backupEnabled = true
+		env.UseVCPRegion = true
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+		backupPolicyName := "backup-policy"
+		createdBackupPolicy := &coremodels.BackupPolicy{
+			BackupPolicyUUID:   "backup-policy-uuid",
+			ResourceID:         backupPolicyName,
+			Enabled:            true,
+			State:              coremodels.LifeCycleStateCreating,
+			DailyBackupLimit:   5,
+			WeeklyBackupLimit:  3,
+			MonthlyBackupLimit: 2,
+		}
+		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", ctx, backupPolicyName, "1234567890").
+			Return(nil, utilerrors.NewNotFoundErr("backup policy", &backupPolicyName))
+		mockOrchestrator.On("CreateBackupPolicy", ctx, mock.Anything).
+			Return(createdBackupPolicy, nil)
+		mockOrchestrator.On("ListBackupPoliciesAndVolumeCount", ctx, "1234567890", []string{"backup-policy-uuid"}).
+			Return(map[string]int64{"backup-policy-uuid": 4}, map[string]*coremodels.BackupPolicy{}, nil)
+
+		req := &gcpgenserver.BackupPolicyCreateV1beta{
+			ResourceId:         backupPolicyName,
+			Description:        gcpgenserver.NewOptString("test description"),
+			DailyBackupLimit:   gcpgenserver.NewOptInt(5),
+			WeeklyBackupLimit:  gcpgenserver.NewOptInt(3),
+			MonthlyBackupLimit: gcpgenserver.NewOptInt(2),
+			Enabled:            gcpgenserver.NewOptBool(true),
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaCreateBackupPolicy(ctx, req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
+		op := result.(*gcpgenserver.OperationV1beta)
+		assert.True(t, op.Done.Value)
+		assert.Equal(t, backupPolicyName, op.Name.Value)
+		assert.NotNil(t, op.Response)
+		response := map[string]interface{}{}
+		assert.NoError(t, json.Unmarshal(op.Response, &response))
+		assert.Equal(t, float64(4), response["volumeCount"])
+	})
+	t.Run("WhenCreateBackupPolicySuccessWithUseVCPRegionAndPartialOptionalFields", func(t *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+
+		params := gcpgenserver.V1betaCreateBackupPolicyParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "1234567890",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		oldBackupEnabled := backupEnabled
+		oldUseVCPRegion := env.UseVCPRegion
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() {
+			backupEnabled = oldBackupEnabled
+			env.UseVCPRegion = oldUseVCPRegion
+			parseAndValidateRegionAndZone = oldValidateRegionAndZone
+		}()
+		backupEnabled = true
+		env.UseVCPRegion = true
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+		backupPolicyName := "backup-policy"
+		createdBackupPolicy := &coremodels.BackupPolicy{
+			BackupPolicyUUID:   "backup-policy-uuid",
+			ResourceID:         backupPolicyName,
+			Enabled:            true,
+			State:              coremodels.LifeCycleStateCreating,
+			DailyBackupLimit:   5,
+			WeeklyBackupLimit:  3,
+			MonthlyBackupLimit: 2,
+		}
+
+		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", ctx, backupPolicyName, "1234567890").
+			Return(nil, utilerrors.NewNotFoundErr("backup policy", &backupPolicyName))
+		mockOrchestrator.On("CreateBackupPolicy", ctx, mock.Anything).
+			Return(createdBackupPolicy, nil)
+		mockOrchestrator.On("ListBackupPoliciesAndVolumeCount", ctx, "1234567890", []string{"backup-policy-uuid"}).
+			Return(map[string]int64{"backup-policy-uuid": 0}, map[string]*coremodels.BackupPolicy{}, nil)
+
+		req := &gcpgenserver.BackupPolicyCreateV1beta{
+			ResourceId: backupPolicyName,
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaCreateBackupPolicy(ctx, req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
+		op := result.(*gcpgenserver.OperationV1beta)
+		assert.True(t, op.Done.Value)
+		assert.Equal(t, backupPolicyName, op.Name.Value)
+		response := map[string]interface{}{}
+		assert.NoError(t, json.Unmarshal(op.Response, &response))
+		assert.Equal(t, float64(0), response["volumeCount"])
+		mockOrchestrator.AssertExpectations(t)
+	})
+	t.Run("WhenCreateBackupPolicySuccessWithPartialOptionalFieldsSync", func(t *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+
+		params := gcpgenserver.V1betaCreateBackupPolicyParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "1234567890",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		oldBackupEnabled := backupEnabled
+		oldUseVCPRegion := env.UseVCPRegion
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() {
+			backupEnabled = oldBackupEnabled
+			env.UseVCPRegion = oldUseVCPRegion
+			parseAndValidateRegionAndZone = oldValidateRegionAndZone
+		}()
+		backupEnabled = true
+		env.UseVCPRegion = true
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+		backupPolicyName := "backup-policy"
+		createdBackupPolicy := &coremodels.BackupPolicy{
+			BackupPolicyUUID:   "backup-policy-uuid",
+			ResourceID:         backupPolicyName,
+			Enabled:            false,
+			State:              coremodels.LifeCycleStateCreating,
+			DailyBackupLimit:   0,
+			WeeklyBackupLimit:  0,
+			MonthlyBackupLimit: 0,
+		}
+
+		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", ctx, backupPolicyName, "1234567890").
+			Return(nil, utilerrors.NewNotFoundErr("backup policy", &backupPolicyName))
+		mockOrchestrator.On("CreateBackupPolicy", ctx, mock.Anything).
+			Return(createdBackupPolicy, nil)
+		mockOrchestrator.On("ListBackupPoliciesAndVolumeCount", ctx, "1234567890", []string{"backup-policy-uuid"}).
+			Return(map[string]int64{"backup-policy-uuid": 0}, map[string]*coremodels.BackupPolicy{}, nil)
+
+		req := &gcpgenserver.BackupPolicyCreateV1beta{
+			ResourceId: backupPolicyName,
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaCreateBackupPolicy(ctx, req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
+		op := result.(*gcpgenserver.OperationV1beta)
+		assert.True(t, op.Done.Value)
+		assert.Equal(t, backupPolicyName, op.Name.Value)
+		response := map[string]interface{}{}
+		assert.NoError(t, json.Unmarshal(op.Response, &response))
+		assert.Equal(t, float64(0), response["volumeCount"])
+		mockOrchestrator.AssertExpectations(t)
+	})
+	t.Run("WhenCreateBackupPolicyConflictWithUseVCPRegion", func(t *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+
+		params := gcpgenserver.V1betaCreateBackupPolicyParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "1234567890",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		oldBackupEnabled := backupEnabled
+		oldUseVCPRegion := env.UseVCPRegion
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() {
+			backupEnabled = oldBackupEnabled
+			env.UseVCPRegion = oldUseVCPRegion
+			parseAndValidateRegionAndZone = oldValidateRegionAndZone
+		}()
+		backupEnabled = true
+		env.UseVCPRegion = true
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+		backupPolicyName := "backup-policy"
+		existingBackupPolicy := &coremodels.BackupPolicy{
+			BackupPolicyUUID: "backup-policy-uuid",
+			ResourceID:       backupPolicyName,
+			Enabled:          true,
+			State:            coremodels.LifeCycleStateREADY,
+		}
+
+		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", ctx, backupPolicyName, "1234567890").
+			Return(nil, utilerrors.NewNotFoundErr("backup policy", &backupPolicyName)).Once()
+		mockOrchestrator.On("CreateBackupPolicy", ctx, mock.Anything).
+			Return(nil, utilerrors.NewConflictErr("backup policy already exists")).Once()
+		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", ctx, backupPolicyName, "1234567890").
+			Return(existingBackupPolicy, nil).Once()
+		mockOrchestrator.On("ListBackupPoliciesAndVolumeCount", ctx, "1234567890", []string{"backup-policy-uuid"}).
+			Return(map[string]int64{"backup-policy-uuid": 2}, map[string]*coremodels.BackupPolicy{}, nil).Once()
+
+		req := &gcpgenserver.BackupPolicyCreateV1beta{
+			ResourceId: backupPolicyName,
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaCreateBackupPolicy(ctx, req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.OperationV1beta{}, result)
+		op := result.(*gcpgenserver.OperationV1beta)
+		assert.True(t, op.Done.Value)
+		response := map[string]interface{}{}
+		assert.NoError(t, json.Unmarshal(op.Response, &response))
+		assert.Equal(t, float64(2), response["volumeCount"])
+		mockOrchestrator.AssertExpectations(t)
+	})
+	t.Run("WhenCreateBackupPolicyConflictGetExistingFails", func(t *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+
+		params := gcpgenserver.V1betaCreateBackupPolicyParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "1234567890",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		oldBackupEnabled := backupEnabled
+		oldUseVCPRegion := env.UseVCPRegion
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() {
+			backupEnabled = oldBackupEnabled
+			env.UseVCPRegion = oldUseVCPRegion
+			parseAndValidateRegionAndZone = oldValidateRegionAndZone
+		}()
+		backupEnabled = true
+		env.UseVCPRegion = true
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+		backupPolicyName := "backup-policy"
+
+		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", ctx, backupPolicyName, "1234567890").
+			Return(nil, utilerrors.NewNotFoundErr("backup policy", &backupPolicyName))
+		mockOrchestrator.On("CreateBackupPolicy", ctx, mock.Anything).
+			Return(nil, utilerrors.NewConflictErr("backup policy already exists"))
+		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", ctx, backupPolicyName, "1234567890").
+			Return(nil, errors.New("database error"))
+
+		req := &gcpgenserver.BackupPolicyCreateV1beta{
+			ResourceId: backupPolicyName,
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaCreateBackupPolicy(ctx, req, params)
+
+		assert.Error(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaCreateBackupPolicyInternalServerError{}, result)
+		op := result.(*gcpgenserver.V1betaCreateBackupPolicyInternalServerError)
+		assert.Equal(t, float64(500), op.Code)
+		assert.Equal(t, "Failed to get existing backup policy", op.Message)
+	})
+	t.Run("WhenCreateBackupPolicyFailsWithNonConflictError", func(t *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+
+		params := gcpgenserver.V1betaCreateBackupPolicyParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "1234567890",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		oldBackupEnabled := backupEnabled
+		oldUseVCPRegion := env.UseVCPRegion
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() {
+			backupEnabled = oldBackupEnabled
+			env.UseVCPRegion = oldUseVCPRegion
+			parseAndValidateRegionAndZone = oldValidateRegionAndZone
+		}()
+		backupEnabled = true
+		env.UseVCPRegion = true
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+		backupPolicyName := "backup-policy"
+
+		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", ctx, backupPolicyName, "1234567890").
+			Return(nil, utilerrors.NewNotFoundErr("backup policy", &backupPolicyName))
+		mockOrchestrator.On("CreateBackupPolicy", ctx, mock.Anything).
+			Return(nil, errors.New("database error"))
+
+		req := &gcpgenserver.BackupPolicyCreateV1beta{
+			ResourceId: backupPolicyName,
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaCreateBackupPolicy(ctx, req, params)
+
+		assert.Error(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaCreateBackupPolicyInternalServerError{}, result)
+		op := result.(*gcpgenserver.V1betaCreateBackupPolicyInternalServerError)
+		assert.Equal(t, float64(500), op.Code)
+		assert.Equal(t, "Failed to create backup policy", op.Message)
+	})
+	t.Run("WhenGetBackupPolicyByNameReturnsNonNotFoundError", func(t *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+
+		params := gcpgenserver.V1betaCreateBackupPolicyParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "1234567890",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		oldBackupEnabled := backupEnabled
+		oldUseVCPRegion := env.UseVCPRegion
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() {
+			backupEnabled = oldBackupEnabled
+			env.UseVCPRegion = oldUseVCPRegion
+			parseAndValidateRegionAndZone = oldValidateRegionAndZone
+		}()
+		backupEnabled = true
+		env.UseVCPRegion = true
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+		backupPolicyName := "backup-policy"
+
+		mockOrchestrator.On("GetBackupPolicyByNameAndOwnerID", ctx, backupPolicyName, "1234567890").
+			Return(nil, errors.New("database error"))
+
+		req := &gcpgenserver.BackupPolicyCreateV1beta{
+			ResourceId: backupPolicyName,
+		}
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaCreateBackupPolicy(ctx, req, params)
+
+		assert.Error(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaCreateBackupPolicyInternalServerError{}, result)
+		op := result.(*gcpgenserver.V1betaCreateBackupPolicyInternalServerError)
+		assert.Equal(t, float64(500), op.Code)
+		assert.Equal(t, "Failed to check existing backup policy", op.Message)
+	})
+	t.Run("WhenDescribeBackupPolicyListVolumeCountFails", func(t *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+
+		params := gcpgenserver.V1betaDescribeBackupPolicyParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+			BackupPolicyId: "backup-policy-1",
+		}
+
+		originalBackupEnabled := backupEnabled
+		originalUseVCPRegion := env.UseVCPRegion
+		defer func() {
+			backupEnabled = originalBackupEnabled
+			env.UseVCPRegion = originalUseVCPRegion
+		}()
+		backupEnabled = true
+		env.UseVCPRegion = true
+
+		backupPolicy := &coremodels.BackupPolicy{
+			BackupPolicyUUID: "backup-policy-1",
+			ResourceID:       "test-resource-id",
+		}
+
+		mockOrchestrator.On("GetBackupPolicyByUUIDAndOwnerID", ctx, "backup-policy-1", "12345").
+			Return(backupPolicy, nil)
+		mockOrchestrator.On("ListBackupPoliciesAndVolumeCount", ctx, "12345", []string{"backup-policy-1"}).
+			Return(nil, nil, errors.New("database error"))
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaDescribeBackupPolicy(ctx, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaDescribeBackupPolicyInternalServerError{}, result)
+		serverError := result.(*gcpgenserver.V1betaDescribeBackupPolicyInternalServerError)
+		assert.Equal(t, float64(500), serverError.Code)
+		assert.Equal(t, "Failed to get volume count for backup policy", serverError.Message)
 	})
 }
 
@@ -1659,6 +2070,176 @@ func TestV1betaDescribeBackupPolicy(t *testing.T) {
 		op := result.(*gcpgenserver.V1betaDescribeBackupPolicyBadRequest)
 		assert.Equal(t, float64(400), op.Code)
 		assert.Equal(t, "Backup feature is currently not enabled.", op.Message)
+	})
+
+	t.Run("WhenDescribeBackupPolicySuccessWithUseVCPRegionEnabled", func(t *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+
+		params := gcpgenserver.V1betaDescribeBackupPolicyParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+			BackupPolicyId: "backup-policy-1",
+		}
+
+		originalBackupEnabled := backupEnabled
+		originalUseVCPRegion := env.UseVCPRegion
+		defer func() {
+			backupEnabled = originalBackupEnabled
+			env.UseVCPRegion = originalUseVCPRegion
+		}()
+		backupEnabled = true
+		env.UseVCPRegion = true
+
+		description := "test-description"
+		backupPolicy := &coremodels.BackupPolicy{
+			BackupPolicyUUID:   "backup-policy-1",
+			ResourceID:         "test-resource-id",
+			Enabled:            true,
+			Description:        &description,
+			DailyBackupLimit:   5,
+			WeeklyBackupLimit:  3,
+			MonthlyBackupLimit: 2,
+			State:              coremodels.LifeCycleStateREADY,
+			CreatedAt:          time.Now(),
+		}
+
+		mockOrchestrator.On("GetBackupPolicyByUUIDAndOwnerID", ctx, "backup-policy-1", "12345").
+			Return(backupPolicy, nil).Once()
+		mockOrchestrator.On("ListBackupPoliciesAndVolumeCount", ctx, "12345", []string{"backup-policy-1"}).
+			Return(map[string]int64{"backup-policy-1": 1}, map[string]*coremodels.BackupPolicy{"backup-policy-1": backupPolicy}, nil).Once()
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaDescribeBackupPolicy(ctx, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.BackupPolicyDetailsV1beta{}, result)
+		details := result.(*gcpgenserver.BackupPolicyDetailsV1beta)
+		assert.Equal(t, "backup-policy-1", details.BackupPolicyId.Value)
+		assert.Equal(t, "test-resource-id", details.ResourceId)
+		assert.Equal(t, int(1), details.VolumeCount.Value)
+		// VolumeBackups will be empty because getVolumeBackupsForPolicy can't access storage from mock orchestrator
+		assert.Empty(t, details.VolumeBackups)
+		mockOrchestrator.AssertExpectations(t)
+	})
+
+	t.Run("WhenDescribeBackupPolicyNotFoundWithUseVCPRegionEnabled", func(t *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+
+		params := gcpgenserver.V1betaDescribeBackupPolicyParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+			BackupPolicyId: "backup-policy-1",
+		}
+
+		originalBackupEnabled := backupEnabled
+		originalUseVCPRegion := env.UseVCPRegion
+		defer func() {
+			backupEnabled = originalBackupEnabled
+			env.UseVCPRegion = originalUseVCPRegion
+		}()
+		backupEnabled = true
+		env.UseVCPRegion = true
+
+		mockOrchestrator.On("GetBackupPolicyByUUIDAndOwnerID", ctx, "backup-policy-1", "12345").
+			Return(nil, utilerrors.NewNotFoundErr("backup policy", nillable.GetStringPtr("backup-policy-1")))
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaDescribeBackupPolicy(ctx, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaDescribeBackupPolicyNotFound{}, result)
+		notFound := result.(*gcpgenserver.V1betaDescribeBackupPolicyNotFound)
+		assert.Equal(t, float64(404), notFound.Code)
+		assert.Equal(t, "Backup policy not found", notFound.Message)
+	})
+	t.Run("WhenDescribeBackupPolicyFailsToGetVolumeCount", func(t *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+
+		params := gcpgenserver.V1betaDescribeBackupPolicyParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+			BackupPolicyId: "backup-policy-1",
+		}
+
+		originalBackupEnabled := backupEnabled
+		originalUseVCPRegion := env.UseVCPRegion
+		defer func() {
+			backupEnabled = originalBackupEnabled
+			env.UseVCPRegion = originalUseVCPRegion
+		}()
+		backupEnabled = true
+		env.UseVCPRegion = true
+
+		description := "test-description"
+		backupPolicy := &coremodels.BackupPolicy{
+			BackupPolicyUUID:   "backup-policy-1",
+			ResourceID:         "test-resource-id",
+			Enabled:            true,
+			Description:        &description,
+			DailyBackupLimit:   5,
+			WeeklyBackupLimit:  3,
+			MonthlyBackupLimit: 2,
+			State:              coremodels.LifeCycleStateREADY,
+			CreatedAt:          time.Now(),
+		}
+
+		mockOrchestrator.On("GetBackupPolicyByUUIDAndOwnerID", ctx, "backup-policy-1", "12345").
+			Return(backupPolicy, nil)
+		mockOrchestrator.On("ListBackupPoliciesAndVolumeCount", ctx, "12345", []string{"backup-policy-1"}).
+			Return(nil, nil, errors.New("failed to get volume count"))
+		mockOrchestrator.On("GetAccount", ctx, "12345").Return(&coremodels.Account{BaseModel: coremodels.BaseModel{ID: 1}}, nil).Maybe()
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaDescribeBackupPolicy(ctx, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaDescribeBackupPolicyInternalServerError{}, result)
+		internalErr := result.(*gcpgenserver.V1betaDescribeBackupPolicyInternalServerError)
+		assert.Equal(t, float64(500), internalErr.Code)
+		assert.Equal(t, "Failed to get volume count for backup policy", internalErr.Message)
+		mockOrchestrator.AssertExpectations(t)
+	})
+	t.Run("WhenDescribeBackupPolicyFailsWithUseVCPRegionEnabled", func(t *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+
+		params := gcpgenserver.V1betaDescribeBackupPolicyParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+			BackupPolicyId: "backup-policy-1",
+		}
+
+		originalBackupEnabled := backupEnabled
+		originalUseVCPRegion := env.UseVCPRegion
+		defer func() {
+			backupEnabled = originalBackupEnabled
+			env.UseVCPRegion = originalUseVCPRegion
+		}()
+		backupEnabled = true
+		env.UseVCPRegion = true
+
+		mockOrchestrator.On("GetBackupPolicyByUUIDAndOwnerID", ctx, "backup-policy-1", "12345").
+			Return(nil, fmt.Errorf("database error"))
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaDescribeBackupPolicy(ctx, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaDescribeBackupPolicyInternalServerError{}, result)
+		serverError := result.(*gcpgenserver.V1betaDescribeBackupPolicyInternalServerError)
+		assert.Equal(t, float64(500), serverError.Code)
+		assert.Equal(t, "Failed to get backup policy", serverError.Message)
 	})
 }
 
@@ -3606,6 +4187,169 @@ func TestV1betaListBackupPolicies(t *testing.T) {
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaListBackupPoliciesInternalServerError).Code)
 		assert.Contains(t, result.(*gcpgenserver.V1betaListBackupPoliciesInternalServerError).Message, errorMessage)
 	})
+
+	t.Run("WhenListBackupPoliciesSuccessWithUseVCPRegionEnabled", func(t *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+
+		params := gcpgenserver.V1betaListBackupPoliciesParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+
+		originalBackupEnabled := backupEnabled
+		originalUseVCPRegion := env.UseVCPRegion
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() {
+			backupEnabled = originalBackupEnabled
+			env.UseVCPRegion = originalUseVCPRegion
+			parseAndValidateRegionAndZone = oldValidateRegionAndZone
+		}()
+		backupEnabled = true
+		env.UseVCPRegion = true
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		backupPolicy1 := &coremodels.BackupPolicy{
+			BackupPolicyUUID:   "backup-policy-id-1",
+			ResourceID:         "test-resource-id-1",
+			Enabled:            true,
+			State:              coremodels.LifeCycleStateREADY,
+			DailyBackupLimit:   5,
+			WeeklyBackupLimit:  3,
+			MonthlyBackupLimit: 2,
+			CreatedAt:          time.Now(),
+		}
+		backupPolicy2 := &coremodels.BackupPolicy{
+			BackupPolicyUUID:   "backup-policy-id-2",
+			ResourceID:         "test-resource-id-2",
+			Enabled:            true,
+			State:              coremodels.LifeCycleStateREADY,
+			DailyBackupLimit:   10,
+			WeeklyBackupLimit:  5,
+			MonthlyBackupLimit: 3,
+			CreatedAt:          time.Now(),
+		}
+
+		vcpBackupPolicyVolumeCount := map[string]int64{
+			"backup-policy-id-1": 1,
+			"backup-policy-id-2": 2,
+		}
+		vcpBackupPolicies := map[string]*coremodels.BackupPolicy{
+			"backup-policy-id-1": backupPolicy1,
+			"backup-policy-id-2": backupPolicy2,
+		}
+
+		mockOrchestrator.On("ListBackupPoliciesAndVolumeCount", ctx, "12345", []string(nil)).
+			Return(vcpBackupPolicyVolumeCount, vcpBackupPolicies, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaListBackupPolicies(ctx, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaListBackupPoliciesOK{}, result)
+		okResult := result.(*gcpgenserver.V1betaListBackupPoliciesOK)
+		assert.Equal(t, 2, len(okResult.BackupPolicies))
+	})
+	t.Run("WhenListBackupPoliciesSuccessWithNilDescriptionAndEmptyState", func(t *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+
+		params := gcpgenserver.V1betaListBackupPoliciesParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+
+		originalBackupEnabled := backupEnabled
+		originalUseVCPRegion := env.UseVCPRegion
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() {
+			backupEnabled = originalBackupEnabled
+			env.UseVCPRegion = originalUseVCPRegion
+			parseAndValidateRegionAndZone = oldValidateRegionAndZone
+		}()
+		backupEnabled = true
+		env.UseVCPRegion = true
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		backupPolicy := &coremodels.BackupPolicy{
+			BackupPolicyUUID:   "backup-policy-id-1",
+			ResourceID:         "test-resource-id-1",
+			Enabled:            true,
+			Description:        nil,
+			State:              "",
+			DailyBackupLimit:   5,
+			WeeklyBackupLimit:  3,
+			MonthlyBackupLimit: 2,
+			CreatedAt:          time.Now(),
+		}
+
+		vcpBackupPolicyVolumeCount := map[string]int64{
+			"backup-policy-id-1": 1,
+		}
+		vcpBackupPolicies := map[string]*coremodels.BackupPolicy{
+			"backup-policy-id-1": backupPolicy,
+		}
+
+		mockOrchestrator.On("ListBackupPoliciesAndVolumeCount", ctx, "12345", []string(nil)).
+			Return(vcpBackupPolicyVolumeCount, vcpBackupPolicies, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaListBackupPolicies(ctx, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaListBackupPoliciesOK{}, result)
+		okResult := result.(*gcpgenserver.V1betaListBackupPoliciesOK)
+		assert.Equal(t, 1, len(okResult.BackupPolicies))
+		assert.Equal(t, "backup-policy-id-1", okResult.BackupPolicies[0].BackupPolicyId.Value)
+		assert.False(t, okResult.BackupPolicies[0].Description.IsSet())
+		assert.False(t, okResult.BackupPolicies[0].State.IsSet())
+		mockOrchestrator.AssertExpectations(t)
+	})
+	t.Run("WhenListBackupPoliciesFailsWithUseVCPRegionEnabled", func(t *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+
+		params := gcpgenserver.V1betaListBackupPoliciesParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+
+		originalBackupEnabled := backupEnabled
+		originalUseVCPRegion := env.UseVCPRegion
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() {
+			backupEnabled = originalBackupEnabled
+			env.UseVCPRegion = originalUseVCPRegion
+			parseAndValidateRegionAndZone = oldValidateRegionAndZone
+		}()
+		backupEnabled = true
+		env.UseVCPRegion = true
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		mockOrchestrator.On("ListBackupPoliciesAndVolumeCount", ctx, "12345", []string(nil)).
+			Return(nil, nil, fmt.Errorf("database error"))
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaListBackupPolicies(ctx, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaListBackupPoliciesInternalServerError{}, result)
+		serverError := result.(*gcpgenserver.V1betaListBackupPoliciesInternalServerError)
+		assert.Equal(t, float64(500), serverError.Code)
+		assert.Equal(t, "Failed to list backup policies", serverError.Message)
+	})
 }
 
 // V1betaGetMultipleBackupPolicies unittests
@@ -4254,6 +4998,176 @@ func TestV1GetMultipleBackupPolicies(t *testing.T) {
 		// Check if the code is as expected
 		assert.Equal(t, errorCode, result.(*gcpgenserver.V1betaGetMultipleBackupPoliciesInternalServerError).Code)
 		assert.Contains(t, result.(*gcpgenserver.V1betaGetMultipleBackupPoliciesInternalServerError).Message, errorMessage)
+	})
+
+	t.Run("WhenGetMultipleBackupPoliciesSuccessWithUseVCPRegionEnabled", func(t *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+
+		params := gcpgenserver.V1betaGetMultipleBackupPoliciesParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		req := &gcpgenserver.BackupPolicyIdListV1beta{
+			BackupPolicyUuids: []string{"backup-policy-id-1", "backup-policy-id-2"},
+		}
+
+		originalBackupEnabled := backupEnabled
+		originalUseVCPRegion := env.UseVCPRegion
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() {
+			backupEnabled = originalBackupEnabled
+			env.UseVCPRegion = originalUseVCPRegion
+			parseAndValidateRegionAndZone = oldValidateRegionAndZone
+		}()
+		backupEnabled = true
+		env.UseVCPRegion = true
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		backupPolicy1 := &coremodels.BackupPolicy{
+			BackupPolicyUUID:   "backup-policy-id-1",
+			ResourceID:         "test-resource-id-1",
+			Enabled:            true,
+			State:              coremodels.LifeCycleStateREADY,
+			DailyBackupLimit:   5,
+			WeeklyBackupLimit:  3,
+			MonthlyBackupLimit: 2,
+			CreatedAt:          time.Now(),
+		}
+		backupPolicy2 := &coremodels.BackupPolicy{
+			BackupPolicyUUID:   "backup-policy-id-2",
+			ResourceID:         "test-resource-id-2",
+			Enabled:            true,
+			State:              coremodels.LifeCycleStateREADY,
+			DailyBackupLimit:   10,
+			WeeklyBackupLimit:  5,
+			MonthlyBackupLimit: 3,
+			CreatedAt:          time.Now(),
+		}
+
+		vcpBackupPolicyVolumeCount := map[string]int64{
+			"backup-policy-id-1": 1,
+			"backup-policy-id-2": 2,
+		}
+		vcpBackupPolicies := map[string]*coremodels.BackupPolicy{
+			"backup-policy-id-1": backupPolicy1,
+			"backup-policy-id-2": backupPolicy2,
+		}
+
+		mockOrchestrator.On("ListBackupPoliciesAndVolumeCount", ctx, "12345", []string{"backup-policy-id-1", "backup-policy-id-2"}).
+			Return(vcpBackupPolicyVolumeCount, vcpBackupPolicies, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaGetMultipleBackupPolicies(ctx, req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaGetMultipleBackupPoliciesOK{}, result)
+		okResult := result.(*gcpgenserver.V1betaGetMultipleBackupPoliciesOK)
+		assert.Equal(t, 2, len(okResult.BackupPolicies))
+	})
+
+	t.Run("WhenGetMultipleBackupPoliciesSkipsNonExistentWithUseVCPRegionEnabled", func(t *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+
+		params := gcpgenserver.V1betaGetMultipleBackupPoliciesParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		req := &gcpgenserver.BackupPolicyIdListV1beta{
+			BackupPolicyUuids: []string{"backup-policy-id-1", "backup-policy-id-nonexistent"},
+		}
+
+		originalBackupEnabled := backupEnabled
+		originalUseVCPRegion := env.UseVCPRegion
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() {
+			backupEnabled = originalBackupEnabled
+			env.UseVCPRegion = originalUseVCPRegion
+			parseAndValidateRegionAndZone = oldValidateRegionAndZone
+		}()
+		backupEnabled = true
+		env.UseVCPRegion = true
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		backupPolicy1 := &coremodels.BackupPolicy{
+			BackupPolicyUUID:   "backup-policy-id-1",
+			ResourceID:         "test-resource-id-1",
+			Enabled:            true,
+			State:              coremodels.LifeCycleStateREADY,
+			DailyBackupLimit:   5,
+			WeeklyBackupLimit:  3,
+			MonthlyBackupLimit: 2,
+			CreatedAt:          time.Now(),
+		}
+
+		vcpBackupPolicyVolumeCount := map[string]int64{
+			"backup-policy-id-1": 1,
+		}
+		vcpBackupPolicies := map[string]*coremodels.BackupPolicy{
+			"backup-policy-id-1": backupPolicy1,
+		}
+
+		mockOrchestrator.On("ListBackupPoliciesAndVolumeCount", ctx, "12345", []string{"backup-policy-id-1", "backup-policy-id-nonexistent"}).
+			Return(vcpBackupPolicyVolumeCount, vcpBackupPolicies, nil)
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaGetMultipleBackupPolicies(ctx, req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaGetMultipleBackupPoliciesOK{}, result)
+		okResult := result.(*gcpgenserver.V1betaGetMultipleBackupPoliciesOK)
+		assert.Equal(t, 1, len(okResult.BackupPolicies))
+		assert.Equal(t, "backup-policy-id-1", okResult.BackupPolicies[0].BackupPolicyId.Value)
+	})
+
+	t.Run("WhenGetMultipleBackupPoliciesFailsWithUseVCPRegionEnabled", func(t *testing.T) {
+		ctx := context.Background()
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+
+		params := gcpgenserver.V1betaGetMultipleBackupPoliciesParams{
+			LocationId:     "test-location",
+			ProjectNumber:  "12345",
+			XCorrelationID: gcpgenserver.NewOptString("test-correlation-id"),
+		}
+		req := &gcpgenserver.BackupPolicyIdListV1beta{
+			BackupPolicyUuids: []string{"backup-policy-id-1"},
+		}
+
+		originalBackupEnabled := backupEnabled
+		originalUseVCPRegion := env.UseVCPRegion
+		oldValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() {
+			backupEnabled = originalBackupEnabled
+			env.UseVCPRegion = originalUseVCPRegion
+			parseAndValidateRegionAndZone = oldValidateRegionAndZone
+		}()
+		backupEnabled = true
+		env.UseVCPRegion = true
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-central1", "us-central1", nil
+		}
+
+		mockOrchestrator.On("ListBackupPoliciesAndVolumeCount", ctx, "12345", []string{"backup-policy-id-1"}).
+			Return(nil, nil, fmt.Errorf("database error"))
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaGetMultipleBackupPolicies(ctx, req, params)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.IsType(t, &gcpgenserver.V1betaGetMultipleBackupPoliciesInternalServerError{}, result)
+		serverError := result.(*gcpgenserver.V1betaGetMultipleBackupPoliciesInternalServerError)
+		assert.Equal(t, float64(500), serverError.Code)
+		assert.Equal(t, "Failed to get backup policies", serverError.Message)
 	})
 }
 

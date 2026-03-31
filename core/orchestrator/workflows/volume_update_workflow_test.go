@@ -16,9 +16,11 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/backgroundactivities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/flexcache_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
@@ -2489,6 +2491,487 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_AttachBackupPolicySucc
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Nil(s.T(), s.env.GetWorkflowError())
 	mockStorage.AssertNumberOfCalls(s.T(), "UpdateJob", 2)
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_BackupPolicyNotFound() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
+
+	originalUseVCPRegion := env.UseVCPRegion
+	defer func() {
+		env.UseVCPRegion = originalUseVCPRegion
+	}()
+	env.UseVCPRegion = true
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateLun)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("", nil)
+	s.env.OnActivity(updateActivity.VerifyIfBackupPolicyExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password:      "password",
+			SecretID:      "",
+			CertificateID: "",
+		}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		DataProtection: &datamodel.DataProtection{},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			VendorSubnetID: "test-subnet-id",
+		},
+	}
+	backupPolicyId := "test-backup-policy-id"
+	params := &common.UpdateVolumeParams{
+		Region: "us-west-1",
+		DataProtection: &models.UpdateDataProtection{
+			BackupPolicyId: &backupPolicyId,
+		},
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	// Assert workflow failed with NotFoundErr
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+	workflowErr := s.env.GetWorkflowError()
+	assert.Contains(s.T(), workflowErr.Error(), "Backup policy test-backup-policy-id not found")
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_BackupPolicyExists_ScheduleDoesNotExist() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
+
+	originalUseVCPRegion := env.UseVCPRegion
+	defer func() {
+		env.UseVCPRegion = originalUseVCPRegion
+	}()
+	env.UseVCPRegion = true
+
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{
+			UUID: "backup-policy-uuid",
+		},
+		Name:          "backup-policy-name",
+		PolicyEnabled: true,
+	}
+
+	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateLun)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(backupPolicyActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists)
+	s.env.RegisterActivity(updateActivity.CreateScheduleForBackupPolicy)
+	s.env.RegisterActivity(backupPolicyActivity.UnpauseBackupPolicySchedule)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("", nil)
+	s.env.OnActivity(updateActivity.VerifyIfBackupPolicyExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(backupPolicyActivity.GetBackupPolicyByUUID, mock.Anything, mock.Anything, mock.Anything).Return(backupPolicy, nil)
+	s.env.OnActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists, mock.Anything, mock.Anything).Return(false, nil)
+	s.env.OnActivity(updateActivity.CreateScheduleForBackupPolicy, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(backupPolicyActivity.UnpauseBackupPolicySchedule, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password:      "password",
+			SecretID:      "",
+			CertificateID: "",
+		}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		DataProtection: &datamodel.DataProtection{},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			VendorSubnetID: "test-subnet-id",
+		},
+	}
+	backupPolicyId := "test-backup-policy-id"
+	params := &common.UpdateVolumeParams{
+		Region: "us-west-1",
+		DataProtection: &models.UpdateDataProtection{
+			BackupPolicyId: &backupPolicyId,
+		},
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed successfully
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_BackupPolicyExists_ScheduleExists() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
+
+	originalUseVCPRegion := env.UseVCPRegion
+	defer func() {
+		env.UseVCPRegion = originalUseVCPRegion
+	}()
+	env.UseVCPRegion = true
+
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{
+			UUID: "backup-policy-uuid",
+		},
+		Name:          "backup-policy-name",
+		PolicyEnabled: true,
+	}
+
+	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage}
+
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Register activities
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateLun)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(backupPolicyActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists)
+	s.env.RegisterActivity(backupPolicyActivity.UnpauseBackupPolicySchedule)
+
+	// Mock activities
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("", nil)
+	s.env.OnActivity(updateActivity.VerifyIfBackupPolicyExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(backupPolicyActivity.GetBackupPolicyByUUID, mock.Anything, mock.Anything, mock.Anything).Return(backupPolicy, nil)
+	s.env.OnActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(backupPolicyActivity.UnpauseBackupPolicySchedule, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Execute workflow
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password:      "password",
+			SecretID:      "",
+			CertificateID: "",
+		}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		DataProtection: &datamodel.DataProtection{},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			VendorSubnetID: "test-subnet-id",
+		},
+	}
+	backupPolicyId := "test-backup-policy-id"
+	params := &common.UpdateVolumeParams{
+		Region: "us-west-1",
+		DataProtection: &models.UpdateDataProtection{
+			BackupPolicyId: &backupPolicyId,
+		},
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+
+	// Assert workflow completed successfully (schedule creation should be skipped)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Nil(s.T(), s.env.GetWorkflowError())
+	// Verify CreateScheduleForBackupPolicy was NOT called
+	s.env.AssertNotCalled(s.T(), "CreateScheduleForBackupPolicy", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_GetBackupPolicyByUUIDFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
+	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
+	originalUseVCPRegion := env.UseVCPRegion
+	defer func() {
+		env.UseVCPRegion = originalUseVCPRegion
+	}()
+	env.UseVCPRegion = true
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateLun)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(backupPolicyActivity.GetBackupPolicyByUUID)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("", nil)
+	s.env.OnActivity(updateActivity.VerifyIfBackupPolicyExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(backupPolicyActivity.GetBackupPolicyByUUID, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get backup policy"))
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password:      "password",
+			SecretID:      "",
+			CertificateID: "",
+		}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		DataProtection: &datamodel.DataProtection{},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			VendorSubnetID: "test-subnet-id",
+		},
+	}
+	backupPolicyId := "test-backup-policy-id"
+	params := &common.UpdateVolumeParams{
+		Region: "us-west-1",
+		DataProtection: &models.UpdateDataProtection{
+			BackupPolicyId: &backupPolicyId,
+		},
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_CheckScheduleExistsFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
+	originalUseVCPRegion := env.UseVCPRegion
+	defer func() {
+		env.UseVCPRegion = originalUseVCPRegion
+	}()
+	env.UseVCPRegion = true
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{
+			UUID: "backup-policy-uuid",
+		},
+		Name:          "backup-policy-name",
+		PolicyEnabled: true,
+	}
+	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage}
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateLun)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(backupPolicyActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists)
+	s.env.RegisterActivity(backupPolicyActivity.UnpauseBackupPolicySchedule)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("", nil)
+	s.env.OnActivity(updateActivity.VerifyIfBackupPolicyExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(backupPolicyActivity.GetBackupPolicyByUUID, mock.Anything, mock.Anything, mock.Anything).Return(backupPolicy, nil)
+	s.env.OnActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists, mock.Anything, mock.Anything).Return(false, errors.New("failed to check schedule"))
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password:      "password",
+			SecretID:      "",
+			CertificateID: "",
+		}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		DataProtection: &datamodel.DataProtection{},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			VendorSubnetID: "test-subnet-id",
+		},
+	}
+	backupPolicyId := "test-backup-policy-id"
+	params := &common.UpdateVolumeParams{
+		Region: "us-west-1",
+		DataProtection: &models.UpdateDataProtection{
+			BackupPolicyId: &backupPolicyId,
+		},
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_CreateScheduleFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
+	originalUseVCPRegion := env.UseVCPRegion
+	defer func() {
+		env.UseVCPRegion = originalUseVCPRegion
+	}()
+	env.UseVCPRegion = true
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{
+			UUID: "backup-policy-uuid",
+		},
+		Name:          "backup-policy-name",
+		PolicyEnabled: true,
+	}
+	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage}
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateLun)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(backupPolicyActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists)
+	s.env.RegisterActivity(updateActivity.CreateScheduleForBackupPolicy)
+	s.env.RegisterActivity(backupPolicyActivity.UnpauseBackupPolicySchedule)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("", nil)
+	s.env.OnActivity(updateActivity.VerifyIfBackupPolicyExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(backupPolicyActivity.GetBackupPolicyByUUID, mock.Anything, mock.Anything, mock.Anything).Return(backupPolicy, nil)
+	s.env.OnActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists, mock.Anything, mock.Anything).Return(false, nil)
+	s.env.OnActivity(updateActivity.CreateScheduleForBackupPolicy, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to create schedule"))
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password:      "password",
+			SecretID:      "",
+			CertificateID: "",
+		}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		DataProtection: &datamodel.DataProtection{},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			VendorSubnetID: "test-subnet-id",
+		},
+	}
+	backupPolicyId := "test-backup-policy-id"
+	params := &common.UpdateVolumeParams{
+		Region: "us-west-1",
+		DataProtection: &models.UpdateDataProtection{
+			BackupPolicyId: &backupPolicyId,
+		},
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_UnpauseScheduleFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	updateActivity := activities.VolumeUpdateActivity{SE: mockStorage, Scheduler: &scheduler.TemporalScheduler{}}
+	originalUseVCPRegion := env.UseVCPRegion
+	defer func() {
+		env.UseVCPRegion = originalUseVCPRegion
+	}()
+	env.UseVCPRegion = true
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{
+			UUID: "backup-policy-uuid",
+		},
+		Name:          "backup-policy-name",
+		PolicyEnabled: true,
+	}
+	backupPolicyActivity := activities.BackupPolicyActivity{SE: mockStorage}
+	mockStorage.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
+	s.env.RegisterActivity(updateActivity.UpdateLun)
+	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
+	s.env.RegisterActivity(backupPolicyActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists)
+	s.env.RegisterActivity(backupPolicyActivity.UnpauseBackupPolicySchedule)
+	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			ExternalUUID: "test-external-uuid",
+			Name:         "test_volume",
+		},
+		AvailableSpace: 1000,
+		Size:           1000,
+		State:          "online",
+	}, nil)
+	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("", nil)
+	s.env.OnActivity(updateActivity.VerifyIfBackupPolicyExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(backupPolicyActivity.GetBackupPolicyByUUID, mock.Anything, mock.Anything, mock.Anything).Return(backupPolicy, nil)
+	s.env.OnActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists, mock.Anything, mock.Anything).Return(true, nil)
+	s.env.OnActivity(backupPolicyActivity.UnpauseBackupPolicySchedule, mock.Anything, mock.Anything).Return(errors.New("failed to unpause schedule"))
+	volume := &datamodel.Volume{
+		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
+			Password:      "password",
+			SecretID:      "",
+			CertificateID: "",
+		}},
+		Account: &datamodel.Account{
+			Name: "test_account",
+		},
+		DataProtection: &datamodel.DataProtection{},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			VendorSubnetID: "test-subnet-id",
+		},
+	}
+	backupPolicyId := "test-backup-policy-id"
+	params := &common.UpdateVolumeParams{
+		Region: "us-west-1",
+		DataProtection: &models.UpdateDataProtection{
+			BackupPolicyId: &backupPolicyId,
+		},
+	}
+	s.env.ExecuteWorkflow(UpdateVolumeWorkflow, params, volume)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NotNil(s.T(), s.env.GetWorkflowError())
 }
 
 func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_PauseBackupPolicyWhenDisabled() {

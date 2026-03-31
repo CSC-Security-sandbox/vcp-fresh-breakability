@@ -1151,4 +1151,3 @@ func (a *VolumeUpdateActivity) FindQoSGroupPolicyForVolume(ctx context.Context, 
 	activity.RecordHeartbeat(ctx, "Finished FindQoSGroupPolicyForVolume activity")
 	return qosPolicy, nil
 }
-

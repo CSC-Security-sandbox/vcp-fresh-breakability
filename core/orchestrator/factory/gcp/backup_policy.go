@@ -370,3 +370,55 @@ func _convertDatastoreBackupPolicyToModel(backupPolicy *datamodel.BackupPolicy) 
 		CreatedAt:          backupPolicy.CreatedAt,
 	}
 }
+
+// CreateBackupPolicy creates a backup policy synchronously for VCP region.
+func (o *GCPOrchestrator) CreateBackupPolicy(ctx context.Context, params *commonparams.CreateBackupPolicyParams) (*models.BackupPolicy, error) {
+	se := o.storage
+	logger := util.GetLogger(ctx)
+	account, err := getOrCreateAccount(ctx, se, params.AccountName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if backup policy already exists
+	existingBackupPolicy, err := se.GetBackupPolicyByNameAndOwnerID(ctx, params.Name, account.ID)
+	if err == nil && existingBackupPolicy != nil {
+		return nil, customerrors.NewConflictErr(fmt.Sprintf("backup policy with name %s already exists", params.Name))
+	} else if err != nil && !customerrors.IsNotFoundErr(err) {
+		return nil, err
+	}
+
+	dbBackupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{
+			UUID: utils.RandomUUID(),
+		},
+		Name:                  params.Name,
+		AccountID:             account.ID,
+		Description:           params.Description,
+		DailyBackupsToKeep:    int64(0),
+		WeeklyBackupsToKeep:   int64(0),
+		MonthlyBackupsToKeep:  int64(0),
+		PolicyEnabled:         false,
+		LifeCycleState:        models.LifeCycleStateREADY,
+		LifeCycleStateDetails: models.LifeCycleStateReadyDetails,
+	}
+	if params.DailyBackupLimit != nil {
+		dbBackupPolicy.DailyBackupsToKeep = *params.DailyBackupLimit
+	}
+	if params.WeeklyBackupLimit != nil {
+		dbBackupPolicy.WeeklyBackupsToKeep = *params.WeeklyBackupLimit
+	}
+	if params.MonthlyBackupLimit != nil {
+		dbBackupPolicy.MonthlyBackupsToKeep = *params.MonthlyBackupLimit
+	}
+	if params.PolicyEnabled != nil {
+		dbBackupPolicy.PolicyEnabled = *params.PolicyEnabled
+	}
+
+	readyBackupPolicy, err := se.CreateBackupPolicyEntryInVCP(ctx, dbBackupPolicy)
+	if err != nil {
+		logger.Errorf("Failed to create backup policy in database: %v", err)
+		return nil, err
+	}
+	return convertDatastoreBackupPolicyToModel(readyBackupPolicy), nil
+}

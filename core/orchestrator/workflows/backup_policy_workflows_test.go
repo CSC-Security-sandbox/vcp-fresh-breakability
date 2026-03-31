@@ -350,7 +350,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 	assert.ErrorAs(s.T(), s.env.GetWorkflowError(), &applicationError)
 
 	s.env.AssertActivityCalled(s.T(), "RevertBackupPolicyUpdateInVCP", mock.Anything, mock.Anything)
-	s.env.AssertActivityNumberOfCalls(s.T(), "UpdateBackupPolicyInSDE", 1)
+	s.env.AssertActivityCalled(s.T(), "UpdateBackupPolicyInSDE", mock.Anything, mock.Anything)
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBackupPolicyInSDEUnauthorizedError() {
@@ -415,7 +415,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 	assert.ErrorAs(s.T(), s.env.GetWorkflowError(), &applicationError)
 
 	s.env.AssertActivityCalled(s.T(), "RevertBackupPolicyUpdateInVCP", mock.Anything, mock.Anything)
-	s.env.AssertActivityNumberOfCalls(s.T(), "UpdateBackupPolicyInSDE", 1)
+	s.env.AssertActivityCalled(s.T(), "UpdateBackupPolicyInSDE", mock.Anything, mock.Anything)
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBackupPolicyInSDEForbiddenError() {
@@ -480,7 +480,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 	assert.ErrorAs(s.T(), s.env.GetWorkflowError(), &applicationError)
 
 	s.env.AssertActivityCalled(s.T(), "RevertBackupPolicyUpdateInVCP", mock.Anything, mock.Anything)
-	s.env.AssertActivityNumberOfCalls(s.T(), "UpdateBackupPolicyInSDE", 1)
+	s.env.AssertActivityCalled(s.T(), "UpdateBackupPolicyInSDE", mock.Anything, mock.Anything)
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBackupPolicyInSDENotFoundError() {
@@ -545,7 +545,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 	assert.ErrorAs(s.T(), s.env.GetWorkflowError(), &applicationError)
 
 	s.env.AssertActivityCalled(s.T(), "RevertBackupPolicyUpdateInVCP", mock.Anything, mock.Anything)
-	s.env.AssertActivityNumberOfCalls(s.T(), "UpdateBackupPolicyInSDE", 1)
+	s.env.AssertActivityCalled(s.T(), "UpdateBackupPolicyInSDE", mock.Anything, mock.Anything)
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBackupPolicyInSDEInternalServerError() {
@@ -610,7 +610,7 @@ func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UpdateBa
 	assert.ErrorAs(s.T(), s.env.GetWorkflowError(), &applicationError)
 
 	s.env.AssertActivityCalled(s.T(), "RevertBackupPolicyUpdateInVCP", mock.Anything, mock.Anything)
-	s.env.AssertActivityNumberOfCalls(s.T(), "UpdateBackupPolicyInSDE", 1)
+	s.env.AssertActivityCalled(s.T(), "UpdateBackupPolicyInSDE", mock.Anything, mock.Anything)
 }
 
 func (s *BackupPolicyWorkflowsTestSuite) TestUpdateBackupPolicyWorkflow_UnpauseBackupPolicyScheduleFailure() {
@@ -1390,3 +1390,4 @@ func (s *BackupPolicyWorkflowsTestSuite) TestDeleteBackupPolicyWorkflow_EnsureJo
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
 }
+

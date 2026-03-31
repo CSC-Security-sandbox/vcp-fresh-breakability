@@ -29,9 +29,9 @@ func TestDeleteBackupPolicyInSDE(t *testing.T) {
 		mockClient := backup_policy.NewMockClientService(tt)
 		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
 
-		originalCreateClient := cvpCreateClient
-		defer func() { cvpCreateClient = originalCreateClient }()
-		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		originalCreateClient := CvpCreateClient
+		defer func() { CvpCreateClient = originalCreateClient }()
+		CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
 
@@ -126,9 +126,9 @@ func TestDeleteBackupPolicyInSDE(t *testing.T) {
 				mockScheduler := scheduler.NewMockScheduler(t)
 				mockClient := backup_policy.NewMockClientService(t)
 				cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
-				originalCreateClient := cvpCreateClient
-				defer func() { cvpCreateClient = originalCreateClient }()
-				cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+				originalCreateClient := CvpCreateClient
+				defer func() { CvpCreateClient = originalCreateClient }()
+				CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 					return *cvpClient
 				}
 				mockClient.On("V1betaDeleteBackupPolicy", mock.Anything).Return(nil, nil, tc.err)
@@ -154,9 +154,9 @@ func TestDeleteBackupPolicyInSDE(t *testing.T) {
 		mockClient := backup_policy.NewMockClientService(tt)
 		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
 
-		originalCreateClient := cvpCreateClient
-		defer func() { cvpCreateClient = originalCreateClient }()
-		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		originalCreateClient := CvpCreateClient
+		defer func() { CvpCreateClient = originalCreateClient }()
+		CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
 
@@ -310,9 +310,9 @@ func TestUpdateBackupPolicyInSDE(t *testing.T) {
 		mockClient := backup_policy.NewMockClientService(t)
 		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
 
-		originalCreateClient := cvpCreateClient
-		defer func() { cvpCreateClient = originalCreateClient }()
-		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		originalCreateClient := CvpCreateClient
+		defer func() { CvpCreateClient = originalCreateClient }()
+		CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
 
@@ -370,9 +370,9 @@ func TestUpdateBackupPolicyInSDE(t *testing.T) {
 		mockClient := backup_policy.NewMockClientService(t)
 		cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
 
-		originalCreateClient := cvpCreateClient
-		defer func() { cvpCreateClient = originalCreateClient }()
-		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		originalCreateClient := CvpCreateClient
+		defer func() { CvpCreateClient = originalCreateClient }()
+		CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 			return *cvpClient
 		}
 
@@ -408,9 +408,9 @@ func TestRevertBackupPolicyUpdateInSDE(t *testing.T) {
 	mockClient := backup_policy.NewMockClientService(t)
 	cvpClient := &cvpapi.Cvp{BackupPolicy: mockClient}
 
-	originalCreateClient := cvpCreateClient
-	defer func() { cvpCreateClient = originalCreateClient }()
-	cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+	originalCreateClient := CvpCreateClient
+	defer func() { CvpCreateClient = originalCreateClient }()
+	CvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
 		return *cvpClient
 	}
 
@@ -1296,3 +1296,4 @@ func TestCleanupBackupPolicy(t *testing.T) {
 		mockScheduler.AssertExpectations(tt)
 	})
 }
+

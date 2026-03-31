@@ -1556,6 +1556,23 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		if params.IsDataProtection {
 			return customerrors.NewUserInputValidationErr("scheduled backups are not supported for cross region replication, only manual backups with existing snapshots are supported")
 		}
+
+		// When USE_VCP_REGION is enabled, backup policy must exist in VCP
+		backupPolicy, err := se.GetBackupPolicyByUUIDAndOwnerID(ctx, params.DataProtection.BackupPolicyId, pool.Account.ID)
+		if err != nil && !customerrors.IsNotFoundErr(err) {
+			return err
+		}
+		if backupPolicy == nil && env.UseVCPRegion {
+			util.GetLogger(ctx).Warn("Backup policy does not exist in VCP while USE_VCP_REGION is enabled; volume creation requires an existing VCP backup policy",
+				"backupPolicyId", params.DataProtection.BackupPolicyId)
+			return customerrors.NewNotFoundErr(
+				fmt.Sprintf("Backup policy %s not found", params.DataProtection.BackupPolicyId),
+				nil,
+			)
+		}
+		if backupPolicy != nil && backupPolicy.LifeCycleState != models.LifeCycleStateREADY {
+			return customerrors.NewUserInputValidationErr("backup policy is not in ready state, please check the backup policy and try again")
+		}
 	}
 
 	if !pool.AllowAutoTiering && params.AutoTieringPolicy != nil && (params.AutoTieringPolicy.AutoTieringEnabled || params.AutoTieringPolicy.HotTierBypassModeEnabled) {
@@ -2685,6 +2702,13 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		backupPolicy, err := se.GetBackupPolicyByUUIDAndOwnerID(ctx, *params.DataProtection.BackupPolicyId, pool.Account.ID)
 		if err != nil && !customerrors.IsNotFoundErr(err) {
 			return err
+		}
+		// When USE_VCP_REGION is enabled, backup policy must exist in VCP
+		if backupPolicy == nil && env.UseVCPRegion {
+			return customerrors.NewNotFoundErr(
+				fmt.Sprintf("Backup policy %s does not exist in VCP. When USE_VCP_REGION is enabled, backup policies must exist in VCP before volume update", *params.DataProtection.BackupPolicyId),
+				nil,
+			)
 		}
 		if backupPolicy != nil && backupPolicy.LifeCycleState != models.LifeCycleStateREADY {
 			return customerrors.NewUserInputValidationErr("backup policy is not in ready state, please check the backup policy and try again")

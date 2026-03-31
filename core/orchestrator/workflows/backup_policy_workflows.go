@@ -7,6 +7,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
@@ -100,7 +101,6 @@ func (wf *updateBackupPolicyWorkflow) Run(ctx workflow.Context, args ...interfac
 				"V1betaUpdateBackupPolicyUnauthorized",
 				"V1betaUpdateBackupPolicyForbidden",
 				"V1betaUpdateBackupPolicyNotFound",
-				"V1betaUpdateBackupPolicyInternalServerError",
 				"PanicError",
 			},
 		},
@@ -125,14 +125,16 @@ func (wf *updateBackupPolicyWorkflow) Run(ctx workflow.Context, args ...interfac
 	}
 	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, authToken)
 
-	var sdeBackupPolicy *cvpmodels.BackupPolicyV1beta
-	err = workflow.ExecuteActivity(ctx, backupPolicyActivity.UpdateBackupPolicyInSDE, params).Get(ctx, &sdeBackupPolicy)
-	if err != nil {
-		wf.Logger.Errorf("Failed to update backup policy in SDE: backupPolicy: %v, err: %v", dbBackupPolicy, err.Error())
-		return nil, ConvertToVSAError(err)
+	// Check if VCP region should be used
+	if !env.UseVCPRegion {
+		var sdeBackupPolicy *cvpmodels.BackupPolicyV1beta
+		err = workflow.ExecuteActivity(ctx, backupPolicyActivity.UpdateBackupPolicyInSDE, params).Get(ctx, &sdeBackupPolicy)
+		if err != nil {
+			wf.Logger.Errorf("Failed to update backup policy in SDE: backupPolicy: %v, err: %v", dbBackupPolicy, err.Error())
+			return nil, ConvertToVSAError(err)
+		}
+		rollbackManager.AddActivity(backupPolicyActivity.RevertBackupPolicyUpdateInSDE, params, dbBackupPolicy)
 	}
-
-	rollbackManager.AddActivity(backupPolicyActivity.RevertBackupPolicyUpdateInSDE, params, dbBackupPolicy)
 	if params.PolicyEnabled != nil {
 		if *params.PolicyEnabled && !dbBackupPolicy.PolicyEnabled {
 			err = workflow.ExecuteActivity(ctx, backupPolicyActivity.UnpauseBackupPolicySchedule, dbBackupPolicy).Get(ctx, nil)
@@ -178,7 +180,7 @@ func DeleteBackupPolicyWorkflow(ctx workflow.Context, params *common.DeleteBacku
 	if customErr != nil {
 		logger.Errorf("error in delete backup policy workflow: %v", customErr)
 		deleteBackupPolicyWF.Status = WorkflowStatusFailed
-		err2 := deleteBackupPolicyWF.UpdateJobStatus(ctx, string(models.JobsStateDONE), customErr)
+		err2 := deleteBackupPolicyWF.UpdateJobStatus(ctx, string(models.JobsStateERROR), customErr)
 		if err2 != nil {
 			logger.Errorf("error updating job status in delete backup policy workflow: %v", err2)
 		}
@@ -252,10 +254,13 @@ func (wf *deleteBackupPolicyWorkflow) Run(ctx workflow.Context, args ...interfac
 	}
 	ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, authToken)
 
-	err = workflow.ExecuteActivity(ctx, backupPolicyActivity.DeleteBackupPolicyInSDE, params).Get(ctx, nil)
-	if err != nil {
-		wf.Logger.Errorf("Failed to delete backup policy in SDE: backupPolicy: %v, err: %v", dbBackupPolicy, err.Error())
-		return nil, ConvertToVSAError(err)
+	// Check if VCP region should be used
+	if !env.UseVCPRegion {
+		err = workflow.ExecuteActivity(ctx, backupPolicyActivity.DeleteBackupPolicyInSDE, params).Get(ctx, nil)
+		if err != nil {
+			wf.Logger.Errorf("Failed to delete backup policy in SDE: backupPolicy: %v, err: %v", dbBackupPolicy, err.Error())
+			return nil, ConvertToVSAError(err)
+		}
 	}
 
 	err = workflow.ExecuteActivity(ctx, backupPolicyActivity.DeleteBackupPolicySchedule, params.BackupPolicyID).Get(ctx, nil)
