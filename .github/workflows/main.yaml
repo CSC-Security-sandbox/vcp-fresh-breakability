@@ -70,7 +70,7 @@ jobs:
           cache-key: ${{ needs.setup-vsacictl.outputs.cache-key }}
 
       - name: Fetch token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@v3
         id: token
         with:
           owner: ${{ github.repository_owner }}
