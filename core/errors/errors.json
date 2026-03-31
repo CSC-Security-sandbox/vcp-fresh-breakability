@@ -511,7 +511,7 @@
   },
   "5029": {
     "description": "Active Directory default site invalid",
-    "message": "Failed to modify the SMB server. Cannot find the indicated default site. Verify that the site exists on the domain.",
+    "message": "Failed to modify the SMB server. Cannot find the specified default site. Verify that the site exists on the domain.",
     "retriable": false,
     "http_code": 400
   },

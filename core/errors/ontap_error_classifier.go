@@ -43,7 +43,7 @@ var ontapErrorRules = []ErrorRule{
 	{Substrings: []string{"RESULT_ERROR_LDAPSERVER_SERVER_DOWN", "Can't contact LDAP server"}, TrackingID: ErrADLDAPUnreachable, Domains: []ErrorDomain{DomainAD, DomainLDAP, DomainSMB}},
 	{AnyOf: []string{"ou not found", "Lookup of organizational_unit failed"}, TrackingID: ErrADInvalidOU, Domains: []ErrorDomain{DomainAD, DomainSMB}},
 	{AnyOf: []string{"insufficient access rights", "insufficient privilege", "LDAP constraint"}, TrackingID: ErrADInsufficientPermission, Domains: []ErrorDomain{DomainAD, DomainLDAP, DomainSMB}},
-	{AnyOf: []string{"cannot find the indicated default site"}, TrackingID: ErrADDefaultSiteInvalid, Domains: []ErrorDomain{DomainAD, DomainSMB}},
+	{AnyOf: []string{"cannot find the indicated default site", "not find the specified default site", "the site does not have associated DNS Service records"}, TrackingID: ErrADDefaultSiteInvalid, Domains: []ErrorDomain{DomainAD, DomainSMB}},
 	{Substrings: []string{"Unable to connect to LSA service", "RESULT_ERROR_SPINCLIENT"}, TrackingID: ErrADLSAServiceUnreachable, Domains: []ErrorDomain{DomainAD, DomainSMB}},
 	{AnyOf: []string{"Unable to connect to NetLogon", "RESULT_ERROR_SPINCLIENT"}, TrackingID: ErrADNetLogonError, Domains: []ErrorDomain{DomainAD, DomainSMB}},
 	{Substrings: []string{"Operation timed out", "domain controllers"}, TrackingID: ErrADLDAPNetworkIssue, Domains: []ErrorDomain{DomainAD, DomainSMB}},

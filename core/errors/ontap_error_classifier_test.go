@@ -52,7 +52,8 @@ func TestClassifyOntapError_Rules(t *testing.T) {
 		{"LDAP server down", "RESULT_ERROR_LDAPSERVER_SERVER_DOWN and Can't contact LDAP server", DomainAD, ErrADLDAPUnreachable},
 		{"ou not found", "ou not found", DomainAD, ErrADInvalidOU},
 		{"insufficient privilege", "insufficient privilege", DomainSMB, ErrADInsufficientPermission},
-		{"default site", "cannot find the indicated default site", DomainAD, ErrADDefaultSiteInvalid},
+		{"default site indicated", "cannot find the indicated default site", DomainAD, ErrADDefaultSiteInvalid},
+		{"default site specified", "not find the specified default site", DomainAD, ErrADDefaultSiteInvalid},
 		{"NetLogon", "Unable to connect to NetLogon", DomainAD, ErrADNetLogonError},
 		{"Operation timed out domain", "Operation timed out for domain controllers", DomainAD, ErrADLDAPNetworkIssue},
 		{"Unable to connect to any domain", "Unable to connect to any domain controllers", DomainSMB, ErrADDCUnreachable},
@@ -526,6 +527,12 @@ func TestClassifyOntapError_RealisticONTAPMessages(t *testing.T) {
 			`error:14090086:SSL routines:ssl3_get_server_certificate:certificate verify failed`,
 			DomainLDAP,
 			ErrLDAPCertificateError,
+		},
+		{
+			"full AD site not found NFSAAS-159175",
+			`Site not found: Cannot find the specified default site GCP-US-CENTRAL-1 or the site does not have associated DNS Service records`,
+			DomainAD,
+			ErrADDefaultSiteInvalid,
 		},
 	}
 	for _, tt := range tests {
