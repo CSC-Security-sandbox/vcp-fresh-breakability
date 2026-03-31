@@ -5,7 +5,8 @@ on:
   #   # Weekdays at 6 AM UTC — disabled to save CI costs
   #   - cron: '0 6 * * 1-5'
   pull_request:
-    # Scenario 2A: analyze a Dependabot PR immediately when it opens, without waiting for the next batch run.
+    # Scenario 2A: analyze a Dependabot PR immediately when it opens, without
+    # waiting for the next batch run.
     # Non-Dependabot PRs are filtered out in the discover job via the 'dependencies' label check.
     types: [opened]
   workflow_dispatch:
@@ -16,6 +17,11 @@ on:
         default: ''
       skip_agent:
         description: 'Skip agent step (deterministic only)'
+        required: false
+        default: 'false'
+        type: boolean
+      skip_deterministic:
+        description: 'Skip deterministic steps — re-run AI agent only using previous results from breakability-results branch'
         required: false
         default: 'false'
         type: boolean
@@ -49,6 +55,7 @@ jobs:
   # Job 1: Discover PRs and split into batches
   # ═══════════════════════════════════════════════════════════════════
   discover:
+    if: ${{ inputs.skip_deterministic != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -117,6 +124,7 @@ jobs:
   # Job 2: Deterministic analysis (parallel matrix)
   # ═══════════════════════════════════════════════════════════════════
   deterministic:
+    if: ${{ inputs.skip_deterministic != true }}
     needs: discover
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -162,14 +170,6 @@ jobs:
           PR_FILTER: ${{ matrix.pr_filter }}
           BATCH_ID: ${{ matrix.batch_id }}
           REPO_ROOT: ${{ github.workspace }}
-          # ── Private Registry Auth (see docs/PRIVATE_REGISTRIES.md) ──
-          # Add your registry auth tokens as GitHub secrets, then
-          # pass them here with the same env var names used in
-          # .github/breakability-config.yml → private_registries[].auth_token_env
-          # Example:
-          #   AZURE_ARTIFACTS_TOKEN: ${{ secrets.AZURE_ARTIFACTS_TOKEN }}
-          #   GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
-          #   ACR_NPM_TOKEN: ${{ secrets.ACR_NPM_TOKEN }}
 
       - name: Upload batch results
         if: always()
@@ -190,11 +190,13 @@ jobs:
     needs: [discover, deterministic]
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    if: always() && needs.discover.result == 'success'
+    if: always() && (needs.discover.result == 'success' || inputs.skip_deterministic == true)
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -206,13 +208,34 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      # ── When skipping deterministic: load results from breakability-results branch ──
+      - name: Load previous results (AI-only mode)
+        if: ${{ inputs.skip_deterministic == true }}
+        run: |
+          echo "═══════════ AI-ONLY MODE ════════════"
+          echo "Skipping deterministic analysis — loading results from breakability-results branch"
+          git fetch origin breakability-results
+          git show origin/breakability-results:build-results.json > /tmp/build-results.json
+          PR_COUNT=$(python3 -c "import json; print(len(json.load(open('/tmp/build-results.json')).get('prs', {})))")
+          echo "Loaded $PR_COUNT PRs from breakability-results branch"
+          if [[ "$PR_COUNT" -eq 0 ]]; then
+            echo "::error::breakability-results branch has 0 PRs — run a full deterministic analysis first"
+            exit 1
+          fi
+          # Extract PR diffs if available
+          git show origin/breakability-results:pr-diffs.tar.gz > /tmp/pr-diffs.tar.gz 2>/dev/null && \
+            tar xzf /tmp/pr-diffs.tar.gz -C /tmp/ || echo "No PR diffs archive on branch — agent will fetch diffs via API"
+
+      # ── When running full pipeline: download and merge batch artifacts ──
       - name: Download all batch artifacts
+        if: ${{ inputs.skip_deterministic != true }}
         uses: actions/download-artifact@v4
         with:
           path: /tmp/batch-results
           pattern: batch-*
 
       - name: List downloaded artifacts
+        if: ${{ inputs.skip_deterministic != true }}
         run: |
           echo "=== Downloaded artifacts ==="
           find /tmp/batch-results -type f | sort | head -60
@@ -220,12 +243,58 @@ jobs:
           ls -la /tmp/batch-results/batch-*/build-results-*.json 2>/dev/null || echo "No batch files found"
 
       - name: Merge results
+        if: ${{ inputs.skip_deterministic != true }}
         run: |
           chmod +x .github/scripts/merge-results.sh
           bash .github/scripts/merge-results.sh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Push merged results to breakability-results branch ──
+      # This ensures BOTH code paths in the prompt (branch + /tmp) have fresh data.
+      # Also enables AI-only re-runs via skip_deterministic=true.
+      - name: Push results to breakability-results branch
+        if: always()
+        run: |
+          RESULTS="/tmp/build-results.json"
+          if [[ ! -f "$RESULTS" ]]; then
+            echo "No build-results.json to push — skipping"
+            exit 0
+          fi
+          PR_COUNT=$(python3 -c "import json; print(len(json.load(open('$RESULTS')).get('prs', {})))")
+          if [[ "$PR_COUNT" -eq 0 ]]; then
+            echo "Results have 0 PRs — skipping branch push to avoid overwriting good data"
+            exit 0
+          fi
+          echo "Pushing $PR_COUNT PRs to breakability-results branch..."
+
+          # Package PR diffs into a tar for the branch
+          if ls /tmp/pr-*.diff 1>/dev/null 2>&1; then
+            tar czf /tmp/pr-diffs.tar.gz -C /tmp/ $(ls /tmp/pr-*.diff | xargs -n1 basename)
+          fi
+
+          # Create or update the breakability-results branch
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Switch to orphan branch (no history bloat)
+          git checkout --orphan breakability-results-tmp
+          git rm -rf . > /dev/null 2>&1 || true
+
+          cp "$RESULTS" build-results.json
+          git add build-results.json
+          if [[ -f /tmp/pr-diffs.tar.gz ]]; then
+            cp /tmp/pr-diffs.tar.gz pr-diffs.tar.gz
+            git add pr-diffs.tar.gz
+          fi
+
+          git commit -m "Update breakability results — $PR_COUNT PRs — $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push --force origin HEAD:breakability-results
+          echo "✅ breakability-results branch updated with $PR_COUNT PRs"
+
+          # Switch back to main for remaining steps
+          git checkout -f main 2>/dev/null || git checkout -f - 2>/dev/null || true
 
       - name: Upload merged results
         if: always()
