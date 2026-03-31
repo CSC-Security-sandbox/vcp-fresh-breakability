@@ -35,3 +35,4 @@ jobs:
       go_version: '1.22'
     secrets:
       token: ${{ secrets.GITHUB_TOKEN }}
+      breakability_pat: ${{ secrets.BREAKABILITY_PAT }}
