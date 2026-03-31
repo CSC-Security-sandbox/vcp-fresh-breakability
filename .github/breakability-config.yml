@@ -1,0 +1,83 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Breakability Analysis — Project Configuration
+#
+# This file tells the breakability analysis system how to build your project.
+# Place it at .github/breakability-config.yml in your repository.
+# ──────────────────────────────────────────────────────────────────────────────
+
+# ─── Analysis Mode ───────────────────────────────────────────────────────────
+# advisory: analyze and post comments, but verdicts are non-blocking recommendations.
+#           Developers see the full analysis and can choose to act on it.
+#           This is the safe default for initial rollout.
+# enforce:  (future) verdicts can block merges via required status checks.
+#           Do NOT enable until advisory mode has been running successfully.
+# Default: advisory
+mode: advisory
+
+# ─── Private Registries ──────────────────────────────────────────────────────
+# Configure authentication for private npm registries (Azure Artifacts, GitHub
+# Packages, Artifactory, etc.) so that `npm ci` can resolve private packages
+# without falling back to file: links.
+#
+# Each entry needs:
+#   scope:       npm scope (e.g., "@myorg") — packages under this scope
+#   registry:    full registry URL
+#   auth_token_env: name of the env var / GitHub secret holding the auth token
+#
+# HOW IT WORKS:
+#   build-check.sh reads this config and generates an .npmrc with:
+#     @myorg:registry=https://my-registry.example.com/
+#     //my-registry.example.com/:_authToken=${MY_SECRET}
+#
+# HOW TO SET UP:
+#   1. Add your registry auth token as a GitHub repository secret
+#      (Settings → Secrets → Actions → New repository secret)
+#   2. Add the secret name to your workflow env (see docs/PRIVATE_REGISTRIES.md)
+#   3. Add the entry below
+#
+# ──────────────────────────────────────────────────────────────────────────────
+private_registries: []
+  # Example — Azure Artifacts:
+  # - scope: "@netapp-cloud-datamigrate"
+  #   registry: "https://pkgs.dev.azure.com/myorg/_packaging/myfeed/npm/registry/"
+  #   auth_token_env: "AZURE_ARTIFACTS_TOKEN"
+  #
+  # Example — GitHub Packages:
+  # - scope: "@myorg"
+  #   registry: "https://npm.pkg.github.com/"
+  #   auth_token_env: "GH_PACKAGES_TOKEN"
+  #
+  # Example — Artifactory / Nexus:
+  # - scope: "@internal"
+  #   registry: "https://artifactory.corp.example.com/api/npm/npm-local/"
+  #   auth_token_env: "ARTIFACTORY_TOKEN"
+  #
+  # Example — ACR (Azure Container Registry npm feed):
+  # - scope: "@myorg"
+  #   registry: "https://myregistry.azurecr.io/npm/registry/"
+  #   auth_token_env: "ACR_NPM_TOKEN"
+
+# ─── Infra Error Patterns ────────────────────────────────────────────────────
+# TypeScript errors that are infrastructure artifacts (not caused by upgrades).
+# These get filtered from new_errors before verdict classification.
+# The defaults cover common monorepo scenarios; add project-specific patterns here.
+#
+# Default patterns (always applied):
+#   - "Cannot find module '@netapp-cloud-datamigrate/"  (private pkg via file: links)
+#   - "Cannot find module 'rxjs'"                       (peer dep not resolved)
+#   - "Cannot find module './../../node_modules/"        (path-based imports)
+#   - "Cannot find module 'winston'"                    (transitive peer dep)
+#   - "TS2349: This expression is not callable"         (flaky tsc across runs)
+#
+# Add project-specific patterns:
+extra_infra_patterns: []
+  # - "Cannot find module '@yourorg/"
+  # - "Cannot find module 'your-internal-package'"
+
+# ─── Build Overrides ─────────────────────────────────────────────────────────
+# Override how specific directories are built.
+# build_overrides:
+#   "services/my-special-service":
+#     install_cmd: "npm install --legacy-peer-deps"
+#     build_cmd: "npm run build"
+#     skip_tsc: true
