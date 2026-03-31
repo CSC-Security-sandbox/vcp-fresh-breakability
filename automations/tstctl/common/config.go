@@ -34,4 +34,5 @@ var DocsMap = map[string]string{
 	"BACKUP BILLING SANITY CHECKS RESULTS":     "https://netapp.atlassian.net/wiki/spaces/~ksharans/pages/566832017/Backup+Billing+Metrics+Validation+-+Test+Design+Specification+TDS",
 	"POOL BILLING SANITY CHECKS RESULTS":       "https://confluence.ngage.netapp.com/spaces/VSCP/pages/1378911888/Pool+Billing+Metrics+validation+-+Test+Design+Specification+TDS",
 	"VOLUME BILLING SANITY CHECKS RESULTS":     "https://confluence.ngage.netapp.com/spaces/VSCP/pages/1378911986/Volume+Billing+Metrics+Validation+-+Test+Design+Specification+TDS",
+	"AT BILLING SANITY CHECKS RESULTS":         "https://confluence.ngage.netapp.com/spaces/VSCP/pages/1338924354/Billing+Metrics+Sanity+Checks+Setup",
 }

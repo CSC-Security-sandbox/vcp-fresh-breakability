@@ -33,7 +33,10 @@ func SendSlackCard(message string, testName string, slackChannel, environemnt st
 		titlePrefix = "POOL BILLING SANITY CHECKS RESULTS"
 	} else if strings.Contains(strings.ToLower(testName), "volume") {
 		titlePrefix = "VOLUME BILLING SANITY CHECKS RESULTS"
+	} else if strings.Contains(strings.ToLower(testName), "at") {
+		titlePrefix = "AT BILLING SANITY CHECKS RESULTS"
 	}
+
 	color := "#2eb886"
 	title := fmt.Sprintf("%s - ✅ SUCCESS", titlePrefix)
 	if !success {
