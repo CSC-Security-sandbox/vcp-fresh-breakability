@@ -281,8 +281,8 @@ func CheckIfBackupPolicyScheduleExists(ctx context.Context, temporalScheduler *s
 	return true, nil
 }
 
-// GetBackupPolicyByUUID gets a backup policy from VCP by UUID and owner account.
-func (j *BackupPolicyActivity) GetBackupPolicyByUUID(ctx context.Context, backupPolicyUUID string, accountID int64) (*datamodel.BackupPolicy, error) {
+// GetBackupPolicyByUUIDAndAccountID gets a backup policy from VCP by UUID and owner account.
+func (j *BackupPolicyActivity) GetBackupPolicyByUUIDAndAccountID(ctx context.Context, backupPolicyUUID string, accountID int64) (*datamodel.BackupPolicy, error) {
 	return j.SE.GetBackupPolicyByUUIDAndOwnerID(ctx, backupPolicyUUID, accountID)
 }
 

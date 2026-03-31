@@ -4392,7 +4392,7 @@ func TestGetBackupPolicyByUUID(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: backupPolicyUUID},
 		}
 		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(mockBackupPolicy, nil)
-		result, err := activity.GetBackupPolicyByUUID(ctx, backupPolicyUUID, accountID)
+		result, err := activity.GetBackupPolicyByUUIDAndAccountID(ctx, backupPolicyUUID, accountID)
 		assert.NoError(t, err)
 		assert.Equal(t, mockBackupPolicy, result)
 		mockStorage.AssertExpectations(t)
@@ -4402,7 +4402,7 @@ func TestGetBackupPolicyByUUID(t *testing.T) {
 		activity := activities.BackupPolicyActivity{SE: mockStorage}
 		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).
 			Return(nil, utilErrors.NewNotFoundErr("backup policy", &backupPolicyUUID))
-		result, err := activity.GetBackupPolicyByUUID(ctx, backupPolicyUUID, accountID)
+		result, err := activity.GetBackupPolicyByUUIDAndAccountID(ctx, backupPolicyUUID, accountID)
 		assert.Error(t, err)
 		assert.Nil(t, result)
 		mockStorage.AssertExpectations(t)

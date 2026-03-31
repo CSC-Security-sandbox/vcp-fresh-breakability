@@ -461,65 +461,6 @@ func (_c *MockOrchestratorFactory_CreateBackupInternal_Call) RunAndReturn(run fu
 	return _c
 }
 
-// CreateBackupVault provides a mock function with given fields: ctx, params
-func (_m *MockOrchestratorFactory) CreateBackupVault(ctx context.Context, params *common.CreateBackupVaultParams) (*models.BackupVaultV1beta, error) {
-	ret := _m.Called(ctx, params)
-
-	if len(ret) == 0 {
-		panic("no return value specified for CreateBackupVault")
-	}
-
-	var r0 *models.BackupVaultV1beta
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateBackupVaultParams) (*models.BackupVaultV1beta, error)); ok {
-		return rf(ctx, params)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateBackupVaultParams) *models.BackupVaultV1beta); ok {
-		r0 = rf(ctx, params)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*models.BackupVaultV1beta)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, *common.CreateBackupVaultParams) error); ok {
-		r1 = rf(ctx, params)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockOrchestratorFactory_CreateBackupVault_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateBackupVault'
-type MockOrchestratorFactory_CreateBackupVault_Call struct {
-	*mock.Call
-}
-
-// CreateBackupVault is a helper method to define mock.On call
-//   - ctx context.Context
-//   - params *common.CreateBackupVaultParams
-func (_e *MockOrchestratorFactory_Expecter) CreateBackupVault(ctx interface{}, params interface{}) *MockOrchestratorFactory_CreateBackupVault_Call {
-	return &MockOrchestratorFactory_CreateBackupVault_Call{Call: _e.mock.On("CreateBackupVault", ctx, params)}
-}
-
-func (_c *MockOrchestratorFactory_CreateBackupVault_Call) Run(run func(ctx context.Context, params *common.CreateBackupVaultParams)) *MockOrchestratorFactory_CreateBackupVault_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*common.CreateBackupVaultParams))
-	})
-	return _c
-}
-
-func (_c *MockOrchestratorFactory_CreateBackupVault_Call) Return(_a0 *models.BackupVaultV1beta, _a1 error) *MockOrchestratorFactory_CreateBackupVault_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockOrchestratorFactory_CreateBackupVault_Call) RunAndReturn(run func(context.Context, *common.CreateBackupVaultParams) (*models.BackupVaultV1beta, error)) *MockOrchestratorFactory_CreateBackupVault_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // CreateBackupPolicy provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) CreateBackupPolicy(ctx context.Context, params *common.CreateBackupPolicyParams) (*models.BackupPolicy, error) {
 	ret := _m.Called(ctx, params)
@@ -579,6 +520,64 @@ func (_c *MockOrchestratorFactory_CreateBackupPolicy_Call) RunAndReturn(run func
 	return _c
 }
 
+// CreateBackupVault provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) CreateBackupVault(ctx context.Context, params *common.CreateBackupVaultParams) (*models.BackupVaultV1beta, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateBackupVault")
+	}
+
+	var r0 *models.BackupVaultV1beta
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateBackupVaultParams) (*models.BackupVaultV1beta, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.CreateBackupVaultParams) *models.BackupVaultV1beta); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*models.BackupVaultV1beta)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.CreateBackupVaultParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_CreateBackupVault_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateBackupVault'
+type MockOrchestratorFactory_CreateBackupVault_Call struct {
+	*mock.Call
+}
+
+// CreateBackupVault is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.CreateBackupVaultParams
+func (_e *MockOrchestratorFactory_Expecter) CreateBackupVault(ctx interface{}, params interface{}) *MockOrchestratorFactory_CreateBackupVault_Call {
+	return &MockOrchestratorFactory_CreateBackupVault_Call{Call: _e.mock.On("CreateBackupVault", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_CreateBackupVault_Call) Run(run func(ctx context.Context, params *common.CreateBackupVaultParams)) *MockOrchestratorFactory_CreateBackupVault_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.CreateBackupVaultParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateBackupVault_Call) Return(_a0 *models.BackupVaultV1beta, _a1 error) *MockOrchestratorFactory_CreateBackupVault_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateBackupVault_Call) RunAndReturn(run func(context.Context, *common.CreateBackupVaultParams) (*models.BackupVaultV1beta, error)) *MockOrchestratorFactory_CreateBackupVault_Call {
+	_c.Call.Return(run)
+	return _c
+}
 
 // CreateBackupVaultEntryInVCP provides a mock function with given fields: ctx, bv, accountName
 func (_m *MockOrchestratorFactory) CreateBackupVaultEntryInVCP(ctx context.Context, bv *datamodel.BackupVault, accountName string) (*datamodel.BackupVault, error) {

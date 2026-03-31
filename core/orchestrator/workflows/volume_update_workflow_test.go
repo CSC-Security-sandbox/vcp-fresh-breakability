@@ -20,8 +20,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
@@ -163,9 +163,9 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_BackupVaultSwitching_D
 
 	emptyVaultID := ""
 	volume := &datamodel.Volume{
-		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{}},
-		Account:           &datamodel.Account{Name: "test_account"},
-		SizeInBytes:       1000,
+		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{}},
+		Account:          &datamodel.Account{Name: "test_account"},
+		SizeInBytes:      1000,
 		VolumeAttributes: &datamodel.VolumeAttributes{IsDataProtection: false},
 		DataProtection:   &datamodel.DataProtection{BackupVaultID: "old-vault-uuid"},
 	}
@@ -199,10 +199,10 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_BackupVaultSwitching_D
 
 	emptyVaultID := ""
 	volume := &datamodel.Volume{
-		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{}},
-		Account:           &datamodel.Account{Name: "test_account"},
-		SizeInBytes:       1000,
-		VolumeAttributes:  &datamodel.VolumeAttributes{IsDataProtection: false},
+		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{}},
+		Account:          &datamodel.Account{Name: "test_account"},
+		SizeInBytes:      1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{IsDataProtection: false},
 		DataProtection:   &datamodel.DataProtection{BackupVaultID: "old-vault-uuid"},
 	}
 	params := &common.UpdateVolumeParams{
@@ -249,10 +249,10 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_BackupVaultSwitching_W
 
 	emptyVaultID := ""
 	volume := &datamodel.Volume{
-		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{}},
-		Account:           &datamodel.Account{Name: "test_account"},
-		SizeInBytes:       1000,
-		VolumeAttributes:  &datamodel.VolumeAttributes{IsDataProtection: false},
+		Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{}},
+		Account:          &datamodel.Account{Name: "test_account"},
+		SizeInBytes:      1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{IsDataProtection: false},
 		DataProtection:   &datamodel.DataProtection{BackupVaultID: "old-vault-uuid"},
 	}
 	params := &common.UpdateVolumeParams{
@@ -2587,7 +2587,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_Ba
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
 	s.env.RegisterActivity(updateActivity.UpdateLun)
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
-	s.env.RegisterActivity(backupPolicyActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(backupPolicyActivity.GetBackupPolicyByUUIDAndAccountID)
 	s.env.RegisterActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists)
 	s.env.RegisterActivity(updateActivity.CreateScheduleForBackupPolicy)
 	s.env.RegisterActivity(backupPolicyActivity.UnpauseBackupPolicySchedule)
@@ -2605,7 +2605,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_Ba
 	}, nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("", nil)
 	s.env.OnActivity(updateActivity.VerifyIfBackupPolicyExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
-	s.env.OnActivity(backupPolicyActivity.GetBackupPolicyByUUID, mock.Anything, mock.Anything, mock.Anything).Return(backupPolicy, nil)
+	s.env.OnActivity(backupPolicyActivity.GetBackupPolicyByUUIDAndAccountID, mock.Anything, mock.Anything, mock.Anything).Return(backupPolicy, nil)
 	s.env.OnActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists, mock.Anything, mock.Anything).Return(false, nil)
 	s.env.OnActivity(updateActivity.CreateScheduleForBackupPolicy, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(backupPolicyActivity.UnpauseBackupPolicySchedule, mock.Anything, mock.Anything).Return(nil)
@@ -2668,7 +2668,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_Ba
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
 	s.env.RegisterActivity(updateActivity.UpdateLun)
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
-	s.env.RegisterActivity(backupPolicyActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(backupPolicyActivity.GetBackupPolicyByUUIDAndAccountID)
 	s.env.RegisterActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists)
 	s.env.RegisterActivity(backupPolicyActivity.UnpauseBackupPolicySchedule)
 
@@ -2685,7 +2685,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_Ba
 	}, nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("", nil)
 	s.env.OnActivity(updateActivity.VerifyIfBackupPolicyExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
-	s.env.OnActivity(backupPolicyActivity.GetBackupPolicyByUUID, mock.Anything, mock.Anything, mock.Anything).Return(backupPolicy, nil)
+	s.env.OnActivity(backupPolicyActivity.GetBackupPolicyByUUIDAndAccountID, mock.Anything, mock.Anything, mock.Anything).Return(backupPolicy, nil)
 	s.env.OnActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists, mock.Anything, mock.Anything).Return(true, nil)
 	s.env.OnActivity(backupPolicyActivity.UnpauseBackupPolicySchedule, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(updateActivity.UpdateVolumeInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -2736,7 +2736,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_Ge
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
 	s.env.RegisterActivity(updateActivity.UpdateLun)
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
-	s.env.RegisterActivity(backupPolicyActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(backupPolicyActivity.GetBackupPolicyByUUIDAndAccountID)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	s.env.OnActivity(updateActivity.GetVolumeFromONTAP, mock.Anything, mock.Anything, mock.Anything).Return(&vsa.VolumeResponse{
 		ProviderResponse: vsa.ProviderResponse{
@@ -2749,7 +2749,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_Ge
 	}, nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("", nil)
 	s.env.OnActivity(updateActivity.VerifyIfBackupPolicyExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
-	s.env.OnActivity(backupPolicyActivity.GetBackupPolicyByUUID, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get backup policy"))
+	s.env.OnActivity(backupPolicyActivity.GetBackupPolicyByUUIDAndAccountID, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get backup policy"))
 	volume := &datamodel.Volume{
 		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
 			Password:      "password",
@@ -2798,7 +2798,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_Ch
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
 	s.env.RegisterActivity(updateActivity.UpdateLun)
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
-	s.env.RegisterActivity(backupPolicyActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(backupPolicyActivity.GetBackupPolicyByUUIDAndAccountID)
 	s.env.RegisterActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists)
 	s.env.RegisterActivity(backupPolicyActivity.UnpauseBackupPolicySchedule)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -2813,7 +2813,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_Ch
 	}, nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("", nil)
 	s.env.OnActivity(updateActivity.VerifyIfBackupPolicyExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
-	s.env.OnActivity(backupPolicyActivity.GetBackupPolicyByUUID, mock.Anything, mock.Anything, mock.Anything).Return(backupPolicy, nil)
+	s.env.OnActivity(backupPolicyActivity.GetBackupPolicyByUUIDAndAccountID, mock.Anything, mock.Anything, mock.Anything).Return(backupPolicy, nil)
 	s.env.OnActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists, mock.Anything, mock.Anything).Return(false, errors.New("failed to check schedule"))
 	volume := &datamodel.Volume{
 		Pool: &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{
@@ -2863,7 +2863,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_Cr
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
 	s.env.RegisterActivity(updateActivity.UpdateLun)
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
-	s.env.RegisterActivity(backupPolicyActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(backupPolicyActivity.GetBackupPolicyByUUIDAndAccountID)
 	s.env.RegisterActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists)
 	s.env.RegisterActivity(updateActivity.CreateScheduleForBackupPolicy)
 	s.env.RegisterActivity(backupPolicyActivity.UnpauseBackupPolicySchedule)
@@ -2879,7 +2879,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_Cr
 	}, nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("", nil)
 	s.env.OnActivity(updateActivity.VerifyIfBackupPolicyExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
-	s.env.OnActivity(backupPolicyActivity.GetBackupPolicyByUUID, mock.Anything, mock.Anything, mock.Anything).Return(backupPolicy, nil)
+	s.env.OnActivity(backupPolicyActivity.GetBackupPolicyByUUIDAndAccountID, mock.Anything, mock.Anything, mock.Anything).Return(backupPolicy, nil)
 	s.env.OnActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists, mock.Anything, mock.Anything).Return(false, nil)
 	s.env.OnActivity(updateActivity.CreateScheduleForBackupPolicy, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to create schedule"))
 	volume := &datamodel.Volume{
@@ -2930,7 +2930,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_Un
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInONTAP)
 	s.env.RegisterActivity(updateActivity.UpdateLun)
 	s.env.RegisterActivity(updateActivity.UpdateVolumeInDB)
-	s.env.RegisterActivity(backupPolicyActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(backupPolicyActivity.GetBackupPolicyByUUIDAndAccountID)
 	s.env.RegisterActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists)
 	s.env.RegisterActivity(backupPolicyActivity.UnpauseBackupPolicySchedule)
 	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
@@ -2945,7 +2945,7 @@ func (s *VolumeUpdateTestSuite) Test_UpdateVolumeWorkflow_UseVCPRegionEnabled_Un
 	}, nil)
 	s.env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).Return("", nil)
 	s.env.OnActivity(updateActivity.VerifyIfBackupPolicyExistsInVCP, mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
-	s.env.OnActivity(backupPolicyActivity.GetBackupPolicyByUUID, mock.Anything, mock.Anything, mock.Anything).Return(backupPolicy, nil)
+	s.env.OnActivity(backupPolicyActivity.GetBackupPolicyByUUIDAndAccountID, mock.Anything, mock.Anything, mock.Anything).Return(backupPolicy, nil)
 	s.env.OnActivity(backupPolicyActivity.CheckIfBackupPolicyScheduleExists, mock.Anything, mock.Anything).Return(true, nil)
 	s.env.OnActivity(backupPolicyActivity.UnpauseBackupPolicySchedule, mock.Anything, mock.Anything).Return(errors.New("failed to unpause schedule"))
 	volume := &datamodel.Volume{

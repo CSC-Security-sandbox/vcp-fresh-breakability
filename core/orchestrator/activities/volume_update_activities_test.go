@@ -15,6 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	ontap_rest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
@@ -23,7 +24,6 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	"go.temporal.io/api/serviceerror"
 	temporalclient "go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/mocks"
@@ -2209,7 +2209,7 @@ func TestBackupPolicyActivity_GetBackupPolicyByUUID(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: backupPolicyUUID},
 		}
 		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).Return(mockBackupPolicy, nil)
-		result, err := activity.GetBackupPolicyByUUID(ctx, backupPolicyUUID, accountID)
+		result, err := activity.GetBackupPolicyByUUIDAndAccountID(ctx, backupPolicyUUID, accountID)
 		assert.NoError(t, err)
 		assert.Equal(t, mockBackupPolicy, result)
 		mockStorage.AssertExpectations(t)
@@ -2219,7 +2219,7 @@ func TestBackupPolicyActivity_GetBackupPolicyByUUID(t *testing.T) {
 		activity := BackupPolicyActivity{SE: mockStorage}
 		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyUUID, accountID).
 			Return(nil, errors.NewNotFoundErr("backup policy", &backupPolicyUUID))
-		result, err := activity.GetBackupPolicyByUUID(ctx, backupPolicyUUID, accountID)
+		result, err := activity.GetBackupPolicyByUUIDAndAccountID(ctx, backupPolicyUUID, accountID)
 		assert.Error(t, err)
 		assert.Nil(t, result)
 		mockStorage.AssertExpectations(t)

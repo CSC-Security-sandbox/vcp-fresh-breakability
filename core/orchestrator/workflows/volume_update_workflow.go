@@ -581,7 +581,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 				backupPolicyActivity := &activities.BackupPolicyActivity{}
 				// Get the backup policy from VCP
 				var vcpBackupPolicy *datamodel.BackupPolicy
-				err = workflow.ExecuteActivity(ctx, backupPolicyActivity.GetBackupPolicyByUUID, *params.DataProtection.BackupPolicyId, volume.AccountID).Get(ctx, &vcpBackupPolicy)
+				err = workflow.ExecuteActivity(ctx, backupPolicyActivity.GetBackupPolicyByUUIDAndAccountID, *params.DataProtection.BackupPolicyId, volume.AccountID).Get(ctx, &vcpBackupPolicy)
 				if err != nil {
 					return nil, ConvertToVSAError(err)
 				}

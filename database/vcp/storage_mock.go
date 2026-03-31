@@ -16370,54 +16370,6 @@ func (_c *MockStorage_SetPrimaryKeyForServiceAccount_Call) RunAndReturn(run func
 	return _c
 }
 
-// UpdateServiceAccountPasswordLocation provides a mock function with given fields: ctx, serviceAccountUUID, encryptedKeyData
-func (_m *MockStorage) UpdateServiceAccountPasswordLocation(ctx context.Context, serviceAccountUUID string, encryptedKeyData string) error {
-	ret := _m.Called(ctx, serviceAccountUUID, encryptedKeyData)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateServiceAccountPasswordLocation")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
-		r0 = rf(ctx, serviceAccountUUID, encryptedKeyData)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// MockStorage_UpdateServiceAccountPasswordLocation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateServiceAccountPasswordLocation'
-type MockStorage_UpdateServiceAccountPasswordLocation_Call struct {
-	*mock.Call
-}
-
-// UpdateServiceAccountPasswordLocation is a helper method to define mock.On call
-//   - ctx context.Context
-//   - serviceAccountUUID string
-//   - encryptedKeyData string
-func (_e *MockStorage_Expecter) UpdateServiceAccountPasswordLocation(ctx interface{}, serviceAccountUUID interface{}, encryptedKeyData interface{}) *MockStorage_UpdateServiceAccountPasswordLocation_Call {
-	return &MockStorage_UpdateServiceAccountPasswordLocation_Call{Call: _e.mock.On("UpdateServiceAccountPasswordLocation", ctx, serviceAccountUUID, encryptedKeyData)}
-}
-
-func (_c *MockStorage_UpdateServiceAccountPasswordLocation_Call) Run(run func(ctx context.Context, serviceAccountUUID string, encryptedKeyData string)) *MockStorage_UpdateServiceAccountPasswordLocation_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string))
-	})
-	return _c
-}
-
-func (_c *MockStorage_UpdateServiceAccountPasswordLocation_Call) Return(_a0 error) *MockStorage_UpdateServiceAccountPasswordLocation_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *MockStorage_UpdateServiceAccountPasswordLocation_Call) RunAndReturn(run func(context.Context, string, string) error) *MockStorage_UpdateServiceAccountPasswordLocation_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // SetupDatabase provides a mock function with given fields: ctx
 func (_m *MockStorage) SetupDatabase(ctx context.Context) error {
 	ret := _m.Called(ctx)
@@ -18947,6 +18899,54 @@ func (_c *MockStorage_UpdateServiceAccountEmailAndKey_Call) Return(_a0 *datamode
 }
 
 func (_c *MockStorage_UpdateServiceAccountEmailAndKey_Call) RunAndReturn(run func(context.Context, string, string, string) (*datamodel.ServiceAccount, error)) *MockStorage_UpdateServiceAccountEmailAndKey_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateServiceAccountPasswordLocation provides a mock function with given fields: ctx, serviceAccountUUID, encryptedKeyData
+func (_m *MockStorage) UpdateServiceAccountPasswordLocation(ctx context.Context, serviceAccountUUID string, encryptedKeyData string) error {
+	ret := _m.Called(ctx, serviceAccountUUID, encryptedKeyData)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateServiceAccountPasswordLocation")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, serviceAccountUUID, encryptedKeyData)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockStorage_UpdateServiceAccountPasswordLocation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateServiceAccountPasswordLocation'
+type MockStorage_UpdateServiceAccountPasswordLocation_Call struct {
+	*mock.Call
+}
+
+// UpdateServiceAccountPasswordLocation is a helper method to define mock.On call
+//   - ctx context.Context
+//   - serviceAccountUUID string
+//   - encryptedKeyData string
+func (_e *MockStorage_Expecter) UpdateServiceAccountPasswordLocation(ctx interface{}, serviceAccountUUID interface{}, encryptedKeyData interface{}) *MockStorage_UpdateServiceAccountPasswordLocation_Call {
+	return &MockStorage_UpdateServiceAccountPasswordLocation_Call{Call: _e.mock.On("UpdateServiceAccountPasswordLocation", ctx, serviceAccountUUID, encryptedKeyData)}
+}
+
+func (_c *MockStorage_UpdateServiceAccountPasswordLocation_Call) Run(run func(ctx context.Context, serviceAccountUUID string, encryptedKeyData string)) *MockStorage_UpdateServiceAccountPasswordLocation_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_UpdateServiceAccountPasswordLocation_Call) Return(_a0 error) *MockStorage_UpdateServiceAccountPasswordLocation_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockStorage_UpdateServiceAccountPasswordLocation_Call) RunAndReturn(run func(context.Context, string, string) error) *MockStorage_UpdateServiceAccountPasswordLocation_Call {
 	_c.Call.Return(run)
 	return _c
 }
