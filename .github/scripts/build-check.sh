@@ -499,6 +499,85 @@ scan_usage_go() {
   grep -rn "\"${pkg}" --include="*.go" . 2>/dev/null | grep -v vendor/ | head -50 || true
 }
 
+# ── Go build scalability ─────────────────────────────────────────────────
+# Large Go monorepos (3000+ files) can exhaust disk and timeout with `go build ./...`.
+# go_targeted_build builds ONLY packages that import the upgraded dependency,
+# extracted from FILES_IMPORTING. Falls back to ./... if no import data.
+GO_TIMEOUT=${GO_TIMEOUT:-300}
+
+go_free_disk() {
+  # Free Go build cache to prevent "no space left on device" on runners
+  go clean -cache 2>/dev/null || true
+  # Remove old test caches too
+  go clean -testcache 2>/dev/null || true
+}
+
+go_targeted_build() {
+  # Usage: go_targeted_build <files_importing_json> [extra_args...]
+  # Builds only the directories that import the upgraded package.
+  # Falls back to ./... if no import data available.
+  local import_json="${1:-[]}"
+  shift 2>/dev/null || true
+
+  # Extract unique directories from files_importing JSON array
+  local build_dirs
+  build_dirs=$(python3 -c "
+import json, sys, os
+try:
+    files = json.loads('$import_json')
+except:
+    files = []
+dirs = set()
+for f in files:
+    # Format: './path/to/file.go:linenum'
+    path = f.split(':')[0]
+    d = os.path.dirname(path)
+    if d and d != '.':
+        dirs.add('./' + d.lstrip('./') + '/...')
+if dirs:
+    print(' '.join(sorted(dirs)))
+" 2>/dev/null)
+
+  if [[ -n "$build_dirs" ]]; then
+    local dir_count
+    dir_count=$(echo "$build_dirs" | wc -w | tr -d ' ')
+    echo "  targeted build: $dir_count package dirs (instead of entire repo)"
+    echo "  dirs: $build_dirs"
+    go_free_disk
+    timeout $GO_TIMEOUT go build -o /dev/null $build_dirs "$@"
+  else
+    echo "  full build: no import data available, building ./..."
+    go_free_disk
+    timeout $GO_TIMEOUT go build -o /dev/null ./... "$@"
+  fi
+}
+
+go_targeted_vet() {
+  local import_json="${1:-[]}"
+  local build_dirs
+  build_dirs=$(python3 -c "
+import json, sys, os
+try:
+    files = json.loads('$import_json')
+except:
+    files = []
+dirs = set()
+for f in files:
+    path = f.split(':')[0]
+    d = os.path.dirname(path)
+    if d and d != '.':
+        dirs.add('./' + d.lstrip('./') + '/...')
+if dirs:
+    print(' '.join(sorted(dirs)))
+" 2>/dev/null)
+
+  if [[ -n "$build_dirs" ]]; then
+    timeout 60 go vet $build_dirs 2>&1 || true
+  else
+    timeout 60 go vet ./... 2>&1 || true
+  fi
+}
+
 scan_usage_pip() {
   local pkg="$1"
   local import_name
@@ -822,8 +901,9 @@ if [[ -f "$MAIN_DIR/go.work" ]]; then
     # Bug fix: && ensures go build is skipped if go work sync fails (Bug 5).
     # _BUILD_RC captures go build exit so go vet warnings don't clobber it (Bug 3).
     _BUILD_RC=0
+    go_free_disk
     retry_cmd 3 5 go work sync && {
-      timeout $TIMEOUT go build -o /dev/null ./... || _BUILD_RC=$?
+      timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
       if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
       exit $_BUILD_RC
     }
@@ -837,8 +917,9 @@ elif [[ -f "$MAIN_DIR/go.mod" ]]; then
     go mod verify 2>&1 || echo "WARNING: go mod verify failed"
     # _BUILD_RC captures go build exit so go vet warnings don't clobber it (Bug 3).
     _BUILD_RC=0
+    go_free_disk
     retry_cmd 3 5 go mod tidy && {
-      timeout $TIMEOUT go build -o /dev/null ./... || _BUILD_RC=$?
+      timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
       if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
       exit $_BUILD_RC
     }
@@ -1368,8 +1449,8 @@ $TSC_OUT"
                     (cd "$_ws_mod" && timeout 30 go mod verify 2>&1) || echo "  ⚠️  go mod verify FAILED for $_ws_mod"
                   fi
                 done
-                timeout $TIMEOUT go build -o /dev/null ./... || _BUILD_RC=$?
-                if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
+                go_targeted_build "$FILES_IMPORTING" || _BUILD_RC=$?
+                if [[ $_BUILD_RC -eq 0 ]]; then go_targeted_vet "$FILES_IMPORTING"; fi
                 exit $_BUILD_RC
               }
             } 2>&1)
@@ -1383,13 +1464,13 @@ $TSC_OUT"
             if [[ "$GO_VERIFY_EXIT" -ne 0 ]]; then
               echo "  ⚠ go mod verify FAILED (possible supply chain issue)"
             fi
-            BUILD_OUTPUT=$(cd "$PR_WORKTREE" && { retry_cmd 3 5 go mod tidy && timeout $TIMEOUT go build -o /dev/null ./...; } 2>&1)
+            BUILD_OUTPUT=$(cd "$PR_WORKTREE" && { retry_cmd 3 5 go mod tidy && go_targeted_build "$FILES_IMPORTING"; } 2>&1)
             BUILD_EXIT=$?
             # Run go vet if build passed
             GO_VET_OUT=""
             if [[ "$BUILD_EXIT" -eq 0 ]]; then
               INSTALL_OK="true"
-              GO_VET_OUT=$(cd "$PR_WORKTREE" && timeout 60 go vet ./... 2>&1) || true
+              GO_VET_OUT=$(cd "$PR_WORKTREE" && go_targeted_vet "$FILES_IMPORTING" 2>&1) || true
               if [[ -n "$GO_VET_OUT" ]]; then
                 echo "  go vet warnings found"
                 BUILD_OUTPUT="$BUILD_OUTPUT
