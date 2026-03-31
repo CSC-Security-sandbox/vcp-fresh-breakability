@@ -1926,7 +1926,7 @@ func (j *PoolActivity) IdentifyVMs(ctx context.Context, vmrsConfigPath string, c
 	// Derive region identifier from REGION_NUMBER_MAP (worker configmap, same as proxy regionNumberMap) and append to cluster name
 	regionIdentifier := getRegionNumber()
 	if regionIdentifier != "" {
-		vlmConfig.VsaCluster.ClusterName = deploymentName + "-" + regionIdentifier
+		vlmConfig.VsaCluster.ClusterName = deploymentName + "-r" + regionIdentifier
 	} else {
 		vlmConfig.VsaCluster.ClusterName = deploymentName
 	}

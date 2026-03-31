@@ -38,8 +38,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
-	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	utilsEnv "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -4042,12 +4043,14 @@ func Test_IdentifyVMs_SetsClusterName_FormatDeploymentNameAndRegionCode(t *testi
 
 	activity := activities.PoolActivity{}
 	env.RegisterActivity(activity.IdentifyVMs)
+	activities.Region = "us-central1"
 
 	prepareVLMConfig := activities.PrepareVlmConfig
 	originalGetPasswordForVSACluster := hyperscaler2.GetPasswordForVSACluster
 	defer func() {
 		activities.PrepareVlmConfig = prepareVLMConfig
 		hyperscaler2.GetPasswordForVSACluster = originalGetPasswordForVSACluster
+		activities.Region = utilsEnv.GetString("LOCAL_REGION", "")
 	}()
 	hyperscaler2.GetPasswordForVSACluster = func(gcpService hyperscaler2.GoogleServices, secretID string) (*hyperscaler_models.CustomSecret, error) {
 		return &hyperscaler_models.CustomSecret{SecretVersion: &hyperscaler_models.CustomSecretVersion{Value: "password"}}, nil
@@ -4076,7 +4079,7 @@ func Test_IdentifyVMs_SetsClusterName_FormatDeploymentNameAndRegionCode(t *testi
 	require.NoError(t, val.Get(&vlmConfig))
 	// ClusterName is deploymentName when getRegionNumber() is "", else deploymentName + "-" + regionCode
 	assert.NotEmpty(t, vlmConfig.VsaCluster.ClusterName)
-	assert.True(t, vlmConfig.VsaCluster.ClusterName == "my-deployment" || strings.HasPrefix(vlmConfig.VsaCluster.ClusterName, "my-deployment-"),
+	assert.True(t, vlmConfig.VsaCluster.ClusterName == "my-deployment" || strings.HasPrefix(vlmConfig.VsaCluster.ClusterName, "my-deployment-r"),
 		"ClusterName should be deploymentName or deploymentName + '-' + region identifier, got %s", vlmConfig.VsaCluster.ClusterName)
 }
 
@@ -6533,8 +6536,8 @@ func TestModifyQoSPolicyAndApplyToSVM(t *testing.T) {
 		}
 
 		svm := &datamodel.Svm{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			Name:      "test-svm",
+			BaseModel:  datamodel.BaseModel{ID: 1},
+			Name:       "test-svm",
 			SvmDetails: &datamodel.SvmDetails{ExternalUUID: "test-svm-uuid"},
 		}
 		mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
@@ -6582,8 +6585,8 @@ func TestModifyQoSPolicyAndApplyToSVM(t *testing.T) {
 		}
 
 		svm := &datamodel.Svm{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			Name:      "test-svm",
+			BaseModel:  datamodel.BaseModel{ID: 1},
+			Name:       "test-svm",
 			SvmDetails: &datamodel.SvmDetails{ExternalUUID: "test-svm-uuid"},
 		}
 		mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
@@ -6642,8 +6645,8 @@ func TestModifyQoSPolicyAndApplyToSVM(t *testing.T) {
 		}
 
 		svm := &datamodel.Svm{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			Name:      "test-svm",
+			BaseModel:  datamodel.BaseModel{ID: 1},
+			Name:       "test-svm",
 			SvmDetails: &datamodel.SvmDetails{ExternalUUID: "test-svm-uuid"},
 		}
 		mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
@@ -6810,8 +6813,8 @@ func TestModifyQoSPolicyAndApplyToSVM(t *testing.T) {
 		// updateParams with QosType Manual so the activity skips (no manual→auto)
 		updateParamsManualOnly := &commonparams.UpdatePoolParams{
 			TotalThroughputMibps: updateParams.TotalThroughputMibps,
-			TotalIops:           updateParams.TotalIops,
-			QosType:             utils.QosTypeManual,
+			TotalIops:            updateParams.TotalIops,
+			QosType:              utils.QosTypeManual,
 		}
 
 		// No provider or storage should be called when QosType is Manual
@@ -6843,8 +6846,8 @@ func TestModifyQoSPolicyAndApplyToSVM(t *testing.T) {
 		poolWithManualQoS.QosType = utils.QosTypeManual
 		paramsEmptyQos := &commonparams.UpdatePoolParams{
 			TotalThroughputMibps: 100,
-			TotalIops:           updateParams.TotalIops,
-			QosType:             "",
+			TotalIops:            updateParams.TotalIops,
+			QosType:              "",
 		}
 		activity := &activities.PoolActivity{}
 		testEnv.RegisterActivity(activity.ModifyQoSPolicyAndApplyToSVM)
@@ -6924,8 +6927,8 @@ func TestRemoveQoSPolicyFromSVM(t *testing.T) {
 
 		mockStorage := database.NewMockStorage(t)
 		svmNoDetails := &datamodel.Svm{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			Name:      "test-svm",
+			BaseModel:  datamodel.BaseModel{ID: 1},
+			Name:       "test-svm",
 			SvmDetails: nil,
 		}
 		mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svmNoDetails, nil)
@@ -6951,8 +6954,8 @@ func TestRemoveQoSPolicyFromSVM(t *testing.T) {
 		}
 
 		svm := &datamodel.Svm{
-			BaseModel: datamodel.BaseModel{ID: 1},
-			Name:      "test-svm",
+			BaseModel:  datamodel.BaseModel{ID: 1},
+			Name:       "test-svm",
 			SvmDetails: &datamodel.SvmDetails{ExternalUUID: "test-svm-uuid"},
 		}
 		mockStorage.On("GetSvmForPoolID", mock.Anything, int64(1)).Return(svm, nil)
@@ -16505,4 +16508,3 @@ func Test_DeleteAllPoolVPGs_SkipsOntapWhenNoProvider(t *testing.T) {
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }
-
