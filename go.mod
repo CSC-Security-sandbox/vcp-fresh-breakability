@@ -1,8 +1,6 @@
 module github.com/vcp-vsa-control-Plane/vsa-control-plane
 
-go 1.24.11
-
-toolchain go1.24.12
+go 1.25.0
 
 require (
 	cloud.google.com/go/iam v1.5.2
@@ -34,12 +32,12 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/xwb1989/sqlparser v0.0.0-20180606152119-120387863bf2
 	github.com/xyproto/randomstring v1.2.0
-	go.opentelemetry.io/otel v1.38.0
+	go.opentelemetry.io/otel v1.42.0
 	go.opentelemetry.io/otel/exporters/prometheus v0.58.0
-	go.opentelemetry.io/otel/metric v1.38.0
+	go.opentelemetry.io/otel/metric v1.42.0
 	go.opentelemetry.io/otel/sdk v1.38.0
 	go.opentelemetry.io/otel/sdk/metric v1.38.0
-	go.opentelemetry.io/otel/trace v1.38.0
+	go.opentelemetry.io/otel/trace v1.42.0
 	go.temporal.io/api v1.44.1
 	go.temporal.io/sdk v1.33.0
 	go.temporal.io/sdk/contrib/opentelemetry v0.6.0
@@ -166,7 +164,7 @@ require (
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.9-0.20240815153524-6ea36470d1bd // indirect
 	go.mongodb.org/mongo-driver v1.17.7 // indirect
-	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
+	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.35.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.61.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.61.0 // indirect
