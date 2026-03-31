@@ -265,105 +265,29 @@ jobs:
               print(f'Cross-PR deps: {len(cross)}')
           " || echo "Failed to parse build-results.json"
 
-      # ── Agent Analysis (Copilot Coding Agent) ──────────────────────
-      - name: Commit build results to temp branch
+      # ── Agent Analysis (Cursor Agent CLI) ────────────────────────
+      - name: Install Cursor Agent CLI
         if: ${{ inputs.skip_agent != true }}
-        id: commit_results
         run: |
-          RESULTS_BRANCH="breakability-results"
-          echo "results_branch=$RESULTS_BRANCH" >> "$GITHUB_OUTPUT"
+          curl -fsS https://cursor.com/install | bash
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-          # Configure git
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Verify agent CLI
+        if: ${{ inputs.skip_agent != true }}
+        run: |
+          agent --version || echo "WARNING: agent CLI not on PATH"
 
-          # Create or switch to the results branch (orphan — no history needed)
-          git checkout --orphan "$RESULTS_BRANCH" 2>/dev/null || git checkout "$RESULTS_BRANCH" 2>/dev/null || true
-          git reset --hard HEAD 2>/dev/null || true
-
-          # Stage build results
-          cp /tmp/build-results.json ./build-results.json
-
-          # Bundle PR diffs into a tarball if they exist
-          if ls /tmp/pr-*.diff 1>/dev/null 2>&1; then
-            tar czf ./pr-diffs.tar.gz -C /tmp/ $(ls /tmp/pr-*.diff | xargs -I{} basename {})
-          fi
-
-          git add build-results.json pr-diffs.tar.gz 2>/dev/null || git add build-results.json
-          git commit -m "Breakability results $(date -u +%Y-%m-%dT%H:%M:%SZ)" --allow-empty
-          git push origin "$RESULTS_BRANCH" --force
-
-          # Switch back to main branch for subsequent steps
-          git checkout "${{ github.ref_name }}" 2>/dev/null || git checkout main
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Trigger Copilot coding agent via Issue
+      - name: Run Cursor agent analysis
         if: ${{ inputs.skip_agent != true }}
         id: agent
         continue-on-error: true
         run: |
-          RESULTS_BRANCH="${{ steps.commit_results.outputs.results_branch }}"
-          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
-          PR_COUNT=$(python3 -c "import json; print(len(json.load(open('/tmp/build-results.json')).get('prs',{})))" 2>/dev/null || echo "?")
-
-          # Close any previous breakability analysis issues
-          OLD_ISSUES=$(gh issue list --repo "$GITHUB_REPOSITORY" \
-            --label "breakability-analysis" --state open \
-            --json number --jq '.[].number' 2>/dev/null || true)
-          for ISSUE_NUM in $OLD_ISSUES; do
-            gh issue close "$ISSUE_NUM" --repo "$GITHUB_REPOSITORY" \
-              --comment "Superseded by new analysis run at $TIMESTAMP" 2>/dev/null || true
-          done
-
-          # Create the analysis task Issue and assign to Copilot
-          ISSUE_BODY=$(cat <<'ISSUE_EOF'
-          ## Breakability Analysis Task
-
-          **Run:** $TIMESTAMP
-          **PRs to analyze:** $PR_COUNT
-          **Results branch:** `$RESULTS_BRANCH`
-
-          ### Instructions
-
-          You are the `breakability-analyst` agent. Execute the following:
-
-          1. Fetch build results: `git fetch origin $RESULTS_BRANCH && git show origin/$RESULTS_BRANCH:build-results.json > /tmp/build-results.json`
-          2. Read the full analysis instructions from `.github/breakability-prompt.md`
-          3. Follow Section 7 (Execution) of that file exactly:
-             - Read build-results.json
-             - Create ONE merge plan Issue
-             - Post structured comments on EVERY PR (100% coverage)
-             - Verify counts
-
-          ### Key Rules
-          - NEVER close, merge, or modify any PR
-          - NEVER override build verdicts
-          - Copy `verification_label` from JSON verbatim
-          - 100% PR comment coverage is mandatory
-          - Use the comment formats from Section 4 of breakability-prompt.md
-          ISSUE_EOF
-          )
-
-          # Substitute variables into the issue body
-          ISSUE_BODY=$(echo "$ISSUE_BODY" | sed "s|\$TIMESTAMP|$TIMESTAMP|g; s|\$PR_COUNT|$PR_COUNT|g; s|\$RESULTS_BRANCH|$RESULTS_BRANCH|g")
-
-          ISSUE_URL=$(gh issue create \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "🔍 Breakability Analysis — $TIMESTAMP ($PR_COUNT PRs)" \
-            --body "$ISSUE_BODY" \
-            --assignee "copilot" \
-            --label "breakability-analysis")
-
-          echo "issue_url=$ISSUE_URL" >> "$GITHUB_OUTPUT"
-          echo "✅ Created analysis task: $ISSUE_URL"
-          echo "   Copilot coding agent will pick this up and work autonomously."
-          echo "   Monitor progress at: $ISSUE_URL"
+          agent -p --force --model claude-4-sonnet "$(cat .github/breakability-prompt.md)"
         env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        timeout-minutes: 5
+        timeout-minutes: 60
 
       # ── Fallback ───────────────────────────────────────────────────
       - name: Post fallback comments for missed PRs
