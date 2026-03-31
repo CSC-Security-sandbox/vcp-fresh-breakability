@@ -1,13 +1,13 @@
 module main
 
-go 1.24.11
+go 1.25.0
 
 require (
 	github.com/andygrunwald/go-jira v1.16.0
 	github.com/google/go-github/v79 v79.0.0
 	github.com/joho/godotenv v1.5.1
 	github.com/spf13/cobra v1.9.1
-	golang.org/x/oauth2 v0.30.0
+	golang.org/x/oauth2 v0.36.0
 )
 
 require github.com/opentracing/opentracing-go v1.2.0 // indirect
