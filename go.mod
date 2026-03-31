@@ -1,8 +1,6 @@
 module github.com/vcp-vsa-control-Plane/vsa-control-plane
 
-go 1.24.11
-
-toolchain go1.24.12
+go 1.25.0
 
 require (
 	cloud.google.com/go/iam v1.5.2
@@ -23,7 +21,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.18.2
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.14.2
-	github.com/jackc/pgx/v5 v5.7.4
+	github.com/jackc/pgx/v5 v5.9.1
 	github.com/lib/pq v1.10.9
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/ogen-go/ogen v1.15.1
