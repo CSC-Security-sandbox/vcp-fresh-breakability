@@ -76,7 +76,7 @@ jobs:
     steps:
       - name: Trigger Greencloud VCP deployment workflow
         id: trigger
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         with:
           script: |
             const env = process.env.GREENCLOUD_WORKFLOW;
@@ -106,7 +106,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger image copy workflow
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         with:
           script: |
             await github.rest.actions.createWorkflowDispatch({
