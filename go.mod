@@ -1,8 +1,6 @@
 module github.com/vcp-vsa-control-Plane/vsa-control-plane
 
-go 1.24.11
-
-toolchain go1.24.12
+go 1.25.0
 
 require (
 	cloud.google.com/go/iam v1.5.2
@@ -48,7 +46,7 @@ require (
 	golang.org/x/crypto v0.43.0
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0
 	golang.org/x/net v0.45.0
-	golang.org/x/oauth2 v0.30.0
+	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.17.0
 	google.golang.org/api v0.240.0
 	google.golang.org/protobuf v1.36.6
