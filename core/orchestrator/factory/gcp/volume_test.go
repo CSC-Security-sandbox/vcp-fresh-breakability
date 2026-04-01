@@ -35439,3 +35439,158 @@ func TestCreateVolume_LargeCapacityDefaultConstituentCount(t *testing.T) {
 		assert.Equal(tt, expectedCount, *dbVolume.LargeVolumeAttributes.LargeVolumeConstituentCount)
 	})
 }
+
+func TestValidatePoolCapacityForVPGVolumeCreate(t *testing.T) {
+	ctx := context.Background()
+	poolUUID := "pool-uuid-1"
+
+	makePool := func(totalThroughput, totalIops int64) *datamodel.Pool {
+		return &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: poolUUID},
+			AccountID: 10,
+			PoolAttributes: &datamodel.PoolAttributes{
+				ThroughputMibps: totalThroughput,
+				Iops:            totalIops,
+			},
+		}
+	}
+
+	makePoolView := func(pool *datamodel.Pool, usedThroughput float64, usedIops int64) *datamodel.PoolView {
+		return &datamodel.PoolView{
+			Pool:       *pool,
+			Throughput: usedThroughput,
+			Iops:       usedIops,
+		}
+	}
+
+	makeVPG := func(id int64, uuid string, throughput, iops int64, isShared bool) *datamodel.VolumePerformanceGroup {
+		return &datamodel.VolumePerformanceGroup{
+			BaseModel:       datamodel.BaseModel{ID: id, UUID: uuid},
+			PoolID:          1,
+			ThroughputMibps: throughput,
+			Iops:            iops,
+			IsShared:        isShared,
+		}
+	}
+
+	t.Run("NonSharedVPG_PoolHasCapacity_ShouldSucceed", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		pool := makePool(128, 2048)
+		poolView := makePoolView(pool, 64, 1024)
+		vpg := makeVPG(1, "vpg-1", 30, 500, false)
+
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-1").Return(vpg, nil)
+		mockStorage.On("GetPoolByUUID", ctx, poolUUID).Return(pool, nil)
+		mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
+
+		err := validatePoolCapacityForVPGVolumeCreate(ctx, mockStorage, poolUUID, "vpg-1")
+		assert.NoError(tt, err)
+	})
+
+	t.Run("NonSharedVPG_ExceedsThroughput_ShouldFail", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		pool := makePool(128, 2048)
+		poolView := makePoolView(pool, 100, 1024)
+		vpg := makeVPG(1, "vpg-1", 50, 400, false)
+
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-1").Return(vpg, nil)
+		mockStorage.On("GetPoolByUUID", ctx, poolUUID).Return(pool, nil)
+		mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
+
+		err := validatePoolCapacityForVPGVolumeCreate(ctx, mockStorage, poolUUID, "vpg-1")
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "throughput")
+	})
+
+	t.Run("NonSharedVPG_ExceedsIOPS_ShouldFail", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		pool := makePool(128, 2048)
+		poolView := makePoolView(pool, 64, 1800)
+		vpg := makeVPG(1, "vpg-1", 30, 400, false)
+
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-1").Return(vpg, nil)
+		mockStorage.On("GetPoolByUUID", ctx, poolUUID).Return(pool, nil)
+		mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
+
+		err := validatePoolCapacityForVPGVolumeCreate(ctx, mockStorage, poolUUID, "vpg-1")
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "IOPS")
+	})
+
+	t.Run("SharedVPG_ZeroVolumes_PoolHasCapacity_ShouldSucceed", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		pool := makePool(128, 2048)
+		poolView := makePoolView(pool, 64, 1024)
+		vpg := makeVPG(1, "vpg-1", 30, 500, true)
+
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-1").Return(vpg, nil)
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
+		mockStorage.On("GetPoolByUUID", ctx, poolUUID).Return(pool, nil)
+		mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
+
+		err := validatePoolCapacityForVPGVolumeCreate(ctx, mockStorage, poolUUID, "vpg-1")
+		assert.NoError(tt, err)
+	})
+
+	t.Run("SharedVPG_ZeroVolumes_ExceedsCapacity_ShouldFail", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		pool := makePool(128, 2048)
+		poolView := makePoolView(pool, 100, 1024)
+		vpg := makeVPG(1, "vpg-1", 50, 400, true)
+
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-1").Return(vpg, nil)
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
+		mockStorage.On("GetPoolByUUID", ctx, poolUUID).Return(pool, nil)
+		mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
+
+		err := validatePoolCapacityForVPGVolumeCreate(ctx, mockStorage, poolUUID, "vpg-1")
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "throughput")
+	})
+
+	t.Run("SharedVPG_HasExistingVolumes_ShouldSkipValidation", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		vpg := makeVPG(1, "vpg-1", 9999, 9999, true)
+
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-1").Return(vpg, nil)
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(2), nil)
+
+		err := validatePoolCapacityForVPGVolumeCreate(ctx, mockStorage, poolUUID, "vpg-1")
+		assert.NoError(tt, err)
+	})
+
+	t.Run("VPGNotFound_ShouldReturnError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-missing").Return((*datamodel.VolumePerformanceGroup)(nil), customerrors.NewNotFoundErr("vpg", nil))
+
+		err := validatePoolCapacityForVPGVolumeCreate(ctx, mockStorage, poolUUID, "vpg-missing")
+		assert.Error(tt, err)
+	})
+
+	t.Run("SharedVPG_GetVolumeCountError_ShouldReturnError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		vpg := makeVPG(1, "vpg-1", 30, 500, true)
+
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-1").Return(vpg, nil)
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), fmt.Errorf("database error"))
+
+		err := validatePoolCapacityForVPGVolumeCreate(ctx, mockStorage, poolUUID, "vpg-1")
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "database error")
+	})
+
+	t.Run("NonSharedVPG_PoolAvailableIOPSIsZero_ShouldFail", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		pool := makePool(128, 2048)
+		poolView := makePoolView(pool, 128, 2048)
+		vpg := makeVPG(1, "vpg-1", 30, 400, false)
+
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, "vpg-1").Return(vpg, nil)
+		mockStorage.On("GetPoolByUUID", ctx, poolUUID).Return(pool, nil)
+		mockStorage.On("DescribePool", ctx, pool.UUID, pool.AccountID).Return(poolView, nil)
+
+		err := validatePoolCapacityForVPGVolumeCreate(ctx, mockStorage, poolUUID, "vpg-1")
+		assert.Error(tt, err)
+	})
+}

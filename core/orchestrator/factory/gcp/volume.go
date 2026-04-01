@@ -141,6 +141,27 @@ func calculateIopsFromThroughput(throughputMibps int64, totalThroughputMibps int
 	return int64(math.Floor(float64(totalIops) * ratio))
 }
 
+// validatePoolCapacityForVPGVolumeCreate validates pool QoS capacity when assigning a volume
+// to an existing VPG. Shared VPGs with existing volumes need no check (already counted).
+func validatePoolCapacityForVPGVolumeCreate(ctx context.Context, se database.Storage, poolUUID string, vpgUUID string) error {
+	vpg, err := se.GetVolumePerformanceGroupByUUID(ctx, vpgUUID)
+	if err != nil {
+		return err
+	}
+
+	if vpg.IsShared {
+		volumeCount, err := se.GetVolumeCountByVolumePerformanceGroupID(ctx, vpg.ID)
+		if err != nil {
+			return err
+		}
+		if volumeCount > 0 {
+			return nil
+		}
+	}
+
+	return mqos.ValidatePoolCapacityForVolume(ctx, se, poolUUID, &vpg.ThroughputMibps, &vpg.Iops, nil)
+}
+
 // buildFilePropertiesFromParams creates a datamodel.FileProperties from params.FileProperties
 func buildFilePropertiesFromParams(paramsFileProperties *models.FileProperties, creationToken string) *datamodel.FileProperties {
 	if paramsFileProperties == nil {
@@ -543,7 +564,6 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		if vpg.PoolID != pool.ID {
 			return nil, "", customerrors.NewUserInputValidationErr(fmt.Sprintf("Volume performance group '%s' does not belong to the specified pool", vpgUUID))
 		}
-
 		vpgID = &vpg.ID
 		logger.Info("Using existing VPG for volume", "vpg_id", vpgUUID)
 	}
@@ -1424,10 +1444,14 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 		return err
 	}
 
-	// Validate pool capacity if throughput is provided (only if MQOS is enabled)
+	// Validate pool capacity (only if MQOS is enabled)
 	if enableMqos && params.ThroughputMibps != nil {
 		err := mqos.ValidatePoolCapacityForVolume(ctx, se, pool.UUID, params.ThroughputMibps, calculatedIops, nil)
 		if err != nil {
+			return err
+		}
+	} else if enableMqos && params.VolumePerformanceGroupID != nil {
+		if err := validatePoolCapacityForVPGVolumeCreate(ctx, se, pool.UUID, *params.VolumePerformanceGroupID); err != nil {
 			return err
 		}
 	}
