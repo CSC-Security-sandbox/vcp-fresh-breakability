@@ -47,7 +47,7 @@ jobs:
         id: imgref
         run: |
           if [ "${{ matrix.image }}" = "cloud-backup-adc" ]; then
-            echo "ref=ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/${{ matrix.image }}:2.9" >> $GITHUB_OUTPUT
+            echo "ref=ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/${{ matrix.image }}:3.0" >> $GITHUB_OUTPUT
           else
             echo "ref=ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/${{ matrix.image }}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
           fi

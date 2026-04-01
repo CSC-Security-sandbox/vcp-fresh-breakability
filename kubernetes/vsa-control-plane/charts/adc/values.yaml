@@ -14,8 +14,8 @@ hyperscaler: "gcp"
 images:
   cloudBackupAdcGCP:
     name: cloud-backup-adc
-    tag: "2.9" #NOTE: Please also update the tag for "cloud-backup-adc" in the blackduck scan CI job in release.yaml in case of a tag update here if useTags is set to true in global values.yaml
-    digest: "sha256:a21541c7609c5fe8375274ae23a48a918c0f6b5619271b5d2b2ececfdd3b5f96" #Update digest here if useTags is set to false in global values.yaml
+    tag: "3.0" #NOTE: Please also update the tag for "cloud-backup-adc" in the blackduck scan CI job in release.yaml in case of a tag update here if useTags is set to true in global values.yaml
+    digest: "sha256:c3b5aff7b291e8517aa76a0daad526d0fc6edf321e1c8727c3939d8e67118225" #Update digest here if useTags is set to false in global values.yaml
     secondary: true
     pullPolicy: IfNotPresent
 
