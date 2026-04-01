@@ -24,7 +24,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/mqos"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/flexcache_workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -30262,7 +30264,7 @@ func TestRestoreOntapModeBackup(t *testing.T) {
 	})
 }
 
-func TestSplitCloneVolume(t *testing.T) {
+func TestSplitStartVolume(t *testing.T) {
 	t.Run("WhenAccountNotFound", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
@@ -30282,12 +30284,12 @@ func TestSplitCloneVolume(t *testing.T) {
 			storage: store,
 		}
 
-		params := &common.SplitCloneVolumeParams{
+		params := &common.SplitStartVolumeParams{
 			AccountName: "non-existent-account",
 			VolumeID:    "test-volume-uuid",
 		}
 
-		_, _, err = orch.SplitCloneVolume(ctx, params)
+		_, _, err = orch.SplitStartVolume(ctx, params)
 		assert.EqualError(tt, err, "Account not found")
 		var customErr *vsaerrors.CustomError
 		errors2.As(err, &customErr)
@@ -30322,12 +30324,12 @@ func TestSplitCloneVolume(t *testing.T) {
 			storage: store,
 		}
 
-		params := &common.SplitCloneVolumeParams{
+		params := &common.SplitStartVolumeParams{
 			AccountName: account.Name,
 			VolumeID:    "non-existent-volume-uuid",
 		}
 
-		_, _, err = orch.SplitCloneVolume(ctx, params)
+		_, _, err = orch.SplitStartVolume(ctx, params)
 		assert.EqualError(tt, err, "Volume not found")
 		var customErr *vsaerrors.CustomError
 		errors2.As(err, &customErr)
@@ -30386,12 +30388,12 @@ func TestSplitCloneVolume(t *testing.T) {
 			storage: store,
 		}
 
-		params := &common.SplitCloneVolumeParams{
+		params := &common.SplitStartVolumeParams{
 			AccountName: account.Name,
 			VolumeID:    volume.UUID,
 		}
 
-		_, _, err = orch.SplitCloneVolume(ctx, params)
+		_, _, err = orch.SplitStartVolume(ctx, params)
 		assert.Contains(tt, err.Error(), "volume is in transition state and cannot be split, state: DELETING")
 	})
 
@@ -30445,12 +30447,12 @@ func TestSplitCloneVolume(t *testing.T) {
 			storage: store,
 		}
 
-		params := &common.SplitCloneVolumeParams{
+		params := &common.SplitStartVolumeParams{
 			AccountName: account.Name,
 			VolumeID:    volume.UUID,
 		}
 
-		_, _, err = orch.SplitCloneVolume(ctx, params)
+		_, _, err = orch.SplitStartVolume(ctx, params)
 		assert.Contains(tt, err.Error(), "Volume is not in READY state, state: ERROR")
 	})
 
@@ -30504,12 +30506,12 @@ func TestSplitCloneVolume(t *testing.T) {
 			storage: store,
 		}
 
-		params := &common.SplitCloneVolumeParams{
+		params := &common.SplitStartVolumeParams{
 			AccountName: account.Name,
 			VolumeID:    volume.UUID,
 		}
 
-		_, _, err = orch.SplitCloneVolume(ctx, params)
+		_, _, err = orch.SplitStartVolume(ctx, params)
 		assert.Contains(tt, err.Error(), "volume is not a thin clone volume, cannot perform split operation")
 	})
 
@@ -30556,6 +30558,12 @@ func TestSplitCloneVolume(t *testing.T) {
 			PoolID:            pool.ID,
 			State:             models.LifeCycleStateREADY,
 			ClonesSharedBytes: 1000, // Thin clone with shared bytes
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID: "parent-volume-uuid",
+					State:            models.CloneStateCloned,
+				},
+			},
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
@@ -30564,12 +30572,12 @@ func TestSplitCloneVolume(t *testing.T) {
 			storage: store,
 		}
 
-		params := &common.SplitCloneVolumeParams{
+		params := &common.SplitStartVolumeParams{
 			AccountName: account.Name,
 			VolumeID:    volume.UUID,
 		}
 
-		_, _, err = orch.SplitCloneVolume(ctx, params)
+		_, _, err = orch.SplitStartVolume(ctx, params)
 		assert.Contains(tt, err.Error(), "insufficient space in pool to split the clone volume")
 	})
 
@@ -30616,6 +30624,12 @@ func TestSplitCloneVolume(t *testing.T) {
 			PoolID:            pool.ID, // Use existing pool ID for foreign key constraint
 			State:             models.LifeCycleStateREADY,
 			ClonesSharedBytes: 1000,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID: "parent-volume-uuid",
+					State:            models.CloneStateCloned,
+				},
+			},
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
@@ -30624,12 +30638,12 @@ func TestSplitCloneVolume(t *testing.T) {
 			storage: store,
 		}
 
-		params := &common.SplitCloneVolumeParams{
+		params := &common.SplitStartVolumeParams{
 			AccountName: account.Name,
 			VolumeID:    volume.UUID,
 		}
 
-		_, _, err = orch.SplitCloneVolume(ctx, params)
+		_, _, err = orch.SplitStartVolume(ctx, params)
 		assert.Error(tt, err)
 		// The error might be wrapped, so check for "pool" in the error message
 		assert.True(tt, strings.Contains(strings.ToLower(err.Error()), "pool") || strings.Contains(strings.ToLower(err.Error()), "not found"),
@@ -30684,42 +30698,34 @@ func TestSplitCloneVolume(t *testing.T) {
 			PoolID:            pool.ID,
 			State:             models.LifeCycleStateREADY,
 			ClonesSharedBytes: 1000, // Thin clone with shared bytes
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID: "parent-volume-uuid",
+					State:            models.CloneStateCloned,
+				},
+			},
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
 
-		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
-
-		// Mock ExecuteWorkflow for auto pool scaling
-		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
-
-		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
-		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
-		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
-			return nil
+		// Mock splitStartVolume to bypass ONTAP calls and workflow execution
+		origSplitStartVolume := splitStartVolume
+		splitStartVolume = func(ctx context.Context, se database.Storage, temporal client.Client, p *common.SplitStartVolumeParams) (*models.Volume, string, error) {
+			vol := &models.Volume{LifeCycleState: models.LifeCycleStateSplitting}
+			return vol, "test-job-uuid", nil
 		}
-		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
-
-		// Mock updateVolumeStatus
-		originalUpdateVolumeStatus := updateVolumeStatus
-		updateVolumeStatus = func(ctx context.Context, se database.Storage, vol *datamodel.Volume, state string, details string) (*datamodel.Volume, error) {
-			vol.State = state
-			vol.StateDetails = details
-			return vol, nil
-		}
-		defer func() { updateVolumeStatus = originalUpdateVolumeStatus }()
+		defer func() { splitStartVolume = origSplitStartVolume }()
 
 		orch := GCPOrchestrator{
-			storage:  store,
-			temporal: temporal,
+			storage: store,
 		}
 
-		params := &common.SplitCloneVolumeParams{
+		params := &common.SplitStartVolumeParams{
 			AccountName: account.Name,
 			VolumeID:    volume.UUID,
 		}
 
-		resultVolume, jobUUID, err := orch.SplitCloneVolume(ctx, params)
+		resultVolume, jobUUID, err := orch.SplitStartVolume(ctx, params)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, resultVolume)
 		assert.NotEmpty(tt, jobUUID)
@@ -30773,48 +30779,40 @@ func TestSplitCloneVolume(t *testing.T) {
 			PoolID:            pool.ID,
 			State:             models.LifeCycleStateREADY,
 			ClonesSharedBytes: 1000,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID: "parent-volume-uuid",
+					State:            models.CloneStateCloned,
+				},
+			},
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
 
-		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
-
-		// Mock ExecuteWorkflow for auto pool scaling
-		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
-
-		// Mock ExecuteWorkflowSequentially using ExecuteWorkflowSeq
-		origExecuteWorkflowSeq := workflows.ExecuteWorkflowSeq
-		workflows.ExecuteWorkflowSeq = func(temporal client.Client, ctx context.Context, sequenceWfOptions client.StartWorkflowOptions, wfFunction interface{}, wfOptions workflow.ChildWorkflowOptions, wfArgs ...interface{}) error {
-			return errors.New("workflow execution failed")
+		// Mock splitStartVolume to return a workflow execution error
+		origSplitStartVolume := splitStartVolume
+		splitStartVolume = func(ctx context.Context, se database.Storage, temporal client.Client, p *common.SplitStartVolumeParams) (*models.Volume, string, error) {
+			return nil, "", errors.New("workflow execution failed")
 		}
-		defer func() { workflows.ExecuteWorkflowSeq = origExecuteWorkflowSeq }()
-
-		// Mock updateVolumeStatus
-		originalUpdateVolumeStatus := updateVolumeStatus
-		updateVolumeStatus = func(ctx context.Context, se database.Storage, vol *datamodel.Volume, state string, details string) (*datamodel.Volume, error) {
-			vol.State = state
-			return vol, nil
-		}
-		defer func() { updateVolumeStatus = originalUpdateVolumeStatus }()
+		defer func() { splitStartVolume = origSplitStartVolume }()
 
 		orch := GCPOrchestrator{
-			storage:  store,
-			temporal: temporal,
+			storage: store,
 		}
 
-		params := &common.SplitCloneVolumeParams{
+		params := &common.SplitStartVolumeParams{
 			AccountName: account.Name,
 			VolumeID:    volume.UUID,
 		}
 
-		_, _, tempErr := orch.SplitCloneVolume(ctx, params)
+		_, _, tempErr := orch.SplitStartVolume(ctx, params)
 
 		// Assert the error
 		assert.NotNil(tt, tempErr, "Expected an error but got nil")
 		assert.EqualError(tt, tempErr, "workflow execution failed")
 	})
 
-	t.Run("WhenGetLocationFromVendorIDFails", func(tt *testing.T) {
+	t.Run("WhenNoNodesFoundForPool", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 
 		mockLogger := log.NewLogger()
@@ -30842,8 +30840,7 @@ func TestSplitCloneVolume(t *testing.T) {
 			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
 			Name:        "test_pool",
 			AccountID:   account.ID,
-			SizeInBytes: 100000,              // Set large enough size to have sufficient space
-			VendorID:    "invalid-vendor-id", // Invalid vendor ID to trigger GetLocationFromVendorID error
+			SizeInBytes: 100000, // Set large enough size to have sufficient space
 		}
 		err = store.DB().Create(pool).Error
 		if err != nil {
@@ -30858,40 +30855,50 @@ func TestSplitCloneVolume(t *testing.T) {
 			PoolID:            pool.ID,
 			State:             models.LifeCycleStateREADY,
 			ClonesSharedBytes: 1000,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID: "parent-volume-uuid",
+					State:            models.CloneStateCloned,
+				},
+			},
 		}
 		err = store.DB().Create(volume).Error
 		assert.NoError(tt, err, "Failed to create volume")
-
-		// Mock updateVolumeStatus
-		originalUpdateVolumeStatus := updateVolumeStatus
-		updateVolumeStatus = func(ctx context.Context, se database.Storage, vol *datamodel.Volume, state string, details string) (*datamodel.Volume, error) {
-			vol.State = state
-			return vol, nil
-		}
-		defer func() { updateVolumeStatus = originalUpdateVolumeStatus }()
 
 		orch := GCPOrchestrator{
 			storage: store,
 		}
 
-		params := &common.SplitCloneVolumeParams{
+		params := &common.SplitStartVolumeParams{
 			AccountName: account.Name,
 			VolumeID:    volume.UUID,
 		}
 
-		_, _, err = orch.SplitCloneVolume(ctx, params)
+		// No nodes are registered for the pool, so GetNodesByPoolID returns empty slice.
+		// The error is wrapped as a VCP internal error (tracking ID 4011).
+		_, _, err = orch.SplitStartVolume(ctx, params)
 		assert.Error(tt, err)
-		assert.Contains(tt, err.Error(), "invalid vendor ID")
+		var customErr *vsaerrors.CustomError
+		errors2.As(err, &customErr)
+		assert.NotNil(tt, customErr, "Expected a CustomError")
+		assert.NotNil(tt, customErr.OriginalErr)
+		assert.Contains(tt, customErr.OriginalErr.Error(), "no nodes found for pool")
 	})
 }
 
-func TestValidateSplitCloneVolumeParams(t *testing.T) {
+func TestValidateSplitStartVolumeParams(t *testing.T) {
 	t.Run("ValidParams", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
 		volume := &datamodel.Volume{
 			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:              "test_volume",
 			ClonesSharedBytes: 1000,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID: "parent-volume-uuid",
+					State:            models.CloneStateCloned,
+				},
+			},
 		}
 		pool := &datamodel.PoolView{
 			Pool: datamodel.Pool{
@@ -30902,7 +30909,7 @@ func TestValidateSplitCloneVolumeParams(t *testing.T) {
 			QuotaInBytes: 2000,
 		}
 
-		err := _validateSplitCloneVolumeParams(ctx, volume, pool)
+		err := _validateSplitStartVolumeParams(ctx, volume, pool)
 		assert.NoError(tt, err)
 	})
 
@@ -30922,7 +30929,7 @@ func TestValidateSplitCloneVolumeParams(t *testing.T) {
 			QuotaInBytes: 2000,
 		}
 
-		err := _validateSplitCloneVolumeParams(ctx, volume, pool)
+		err := _validateSplitStartVolumeParams(ctx, volume, pool)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "volume is not a thin clone volume, cannot perform split operation")
 		assert.True(tt, customerrors.IsUserInputValidationErr(err))
@@ -30934,6 +30941,12 @@ func TestValidateSplitCloneVolumeParams(t *testing.T) {
 			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:              "test_volume",
 			ClonesSharedBytes: 1000,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID: "parent-volume-uuid",
+					State:            models.CloneStateCloned,
+				},
+			},
 		}
 		pool := &datamodel.PoolView{
 			Pool: datamodel.Pool{
@@ -30944,7 +30957,7 @@ func TestValidateSplitCloneVolumeParams(t *testing.T) {
 			QuotaInBytes: 0,
 		}
 
-		err := _validateSplitCloneVolumeParams(ctx, volume, pool)
+		err := _validateSplitStartVolumeParams(ctx, volume, pool)
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "insufficient space in pool to split the clone volume")
 		assert.True(tt, customerrors.IsUserInputValidationErr(err))
@@ -30956,6 +30969,12 @@ func TestValidateSplitCloneVolumeParams(t *testing.T) {
 			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:              "test_volume",
 			ClonesSharedBytes: 1000,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID: "parent-volume-uuid",
+					State:            models.CloneStateCloned,
+				},
+			},
 		}
 		pool := &datamodel.PoolView{
 			Pool: datamodel.Pool{
@@ -30966,7 +30985,7 @@ func TestValidateSplitCloneVolumeParams(t *testing.T) {
 			QuotaInBytes: 1000, // Available space = 2000 - 1000 = 1000, which equals ClonesSharedBytes
 		}
 
-		err := _validateSplitCloneVolumeParams(ctx, volume, pool)
+		err := _validateSplitStartVolumeParams(ctx, volume, pool)
 		assert.NoError(tt, err)
 	})
 
@@ -30976,6 +30995,12 @@ func TestValidateSplitCloneVolumeParams(t *testing.T) {
 			BaseModel:         datamodel.BaseModel{UUID: "test-volume-uuid"},
 			Name:              "test_volume",
 			ClonesSharedBytes: 1000,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID: "parent-volume-uuid",
+					State:            models.CloneStateCloned,
+				},
+			},
 		}
 		pool := &datamodel.PoolView{
 			Pool: datamodel.Pool{
@@ -30986,7 +31011,7 @@ func TestValidateSplitCloneVolumeParams(t *testing.T) {
 			QuotaInBytes: 2000, // Available space = 5000 - 2000 = 3000, which is greater than ClonesSharedBytes
 		}
 
-		err := _validateSplitCloneVolumeParams(ctx, volume, pool)
+		err := _validateSplitStartVolumeParams(ctx, volume, pool)
 		assert.NoError(tt, err)
 	})
 }
@@ -35593,4 +35618,963 @@ func TestValidatePoolCapacityForVPGVolumeCreate(t *testing.T) {
 		err := validatePoolCapacityForVPGVolumeCreate(ctx, mockStorage, poolUUID, "vpg-1")
 		assert.Error(tt, err)
 	})
+}
+
+// ---------------------------------------------------------------------------
+// TestConvertDatastoreVolumeToModel_CloneStateDetails covers line 1922:
+// cloneStateDetails is set when StateDetails is non-empty.
+// ---------------------------------------------------------------------------
+
+func TestConvertDatastoreVolumeToModel_CloneStateDetails(t *testing.T) {
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "acc-uuid"},
+		Name:      "test_account",
+	}
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone: "us-west1-a",
+		},
+	}
+
+	t.Run("WhenStateDetailsIsNonEmpty_ShouldBePopulated", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Name:      "test-volume",
+			Account:   account,
+			Pool:      pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID:   "parent-vol-uuid",
+					ParentSnapshotUUID: "parent-snap-uuid",
+					State:              models.CloneStateSplitting,
+					StateDetails:       "split in progress",
+				},
+			},
+		}
+		ipAddresses := []string{"10.0.0.1"}
+
+		result := _convertDatastoreVolumeToModel(volume, &ipAddresses)
+
+		assert.NotNil(tt, result.CloneParentInfo)
+		assert.NotNil(tt, result.CloneParentInfo.StateDetails)
+		assert.Equal(tt, "split in progress", *result.CloneParentInfo.StateDetails)
+	})
+
+	t.Run("WhenStateDetailsIsEmpty_ShouldBeNil", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Name:      "test-volume",
+			Account:   account,
+			Pool:      pool,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID: "parent-vol-uuid",
+					State:            models.CloneStateCloned,
+					StateDetails:     "", // empty — should remain nil
+				},
+			},
+		}
+		ipAddresses := []string{"10.0.0.1"}
+
+		result := _convertDatastoreVolumeToModel(volume, &ipAddresses)
+
+		assert.NotNil(tt, result.CloneParentInfo)
+		assert.Nil(tt, result.CloneParentInfo.StateDetails)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestIsOntapError covers lines 3421-3429.
+// ---------------------------------------------------------------------------
+
+func TestIsOntapError(t *testing.T) {
+	t.Run("NilError_ReturnsFalse", func(tt *testing.T) {
+		assert.False(tt, isOntapError(nil))
+	})
+
+	t.Run("PlainError_ReturnsFalse", func(tt *testing.T) {
+		assert.False(tt, isOntapError(errors2.New("plain error")))
+	})
+
+	t.Run("CustomErrorBelowOntapRange_ReturnsFalse", func(tt *testing.T) {
+		err := vsaerrors.NewVCPError(vsaerrors.ErrUnexpectedNodeCountForPool, errors2.New("node count"))
+		assert.False(tt, isOntapError(err))
+	})
+
+	t.Run("CustomErrorInOntapRange_ReturnsTrue", func(tt *testing.T) {
+		err := vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, errors2.New("ontap error"))
+		assert.True(tt, isOntapError(err))
+	})
+
+	t.Run("CustomErrorAtOntapRangeUpperBound_ReturnsFalse", func(tt *testing.T) {
+		// TrackingID 6000 is outside the ONTAP range [5000, 6000)
+		err := vsaerrors.NewVCPError(6000, errors2.New("above ontap range"))
+		assert.False(tt, isOntapError(err))
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestUpdateCloneState covers lines 3433-3470.
+// ---------------------------------------------------------------------------
+
+func TestUpdateCloneState(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	t.Run("GetVolumeFails_ReturnsError", func(tt *testing.T) {
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clear DB: %v", err)
+		}
+
+		err = updateCloneState(ctx, store, "non-existent-uuid", models.CloneStateSplitting)
+		assert.Error(tt, err)
+	})
+
+	t.Run("VolumeHasNoVolumeAttributes_ReturnsNil", func(tt *testing.T) {
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clear DB: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "acc-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:        datamodel.BaseModel{UUID: "vol-uuid"},
+			Name:             "test-volume",
+			AccountID:        account.ID,
+			PoolID:           pool.ID,
+			VolumeAttributes: nil, // no attributes
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		// Should return nil (warn and skip) when VolumeAttributes is nil.
+		err = updateCloneState(ctx, store, volume.UUID, models.CloneStateSplitting)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("UpdateVolumeFieldsFails_ReturnsError", func(tt *testing.T) {
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clear DB: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "acc-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Name:      "test-volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID: "parent-uuid",
+					State:            models.CloneStateCloned,
+				},
+			},
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		// Delete the volume from DB so UpdateVolumeFields cannot find it, forcing an error.
+		err = store.DB().Delete(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to delete volume: %v", err)
+		}
+
+		err = updateCloneState(ctx, store, volume.UUID, models.CloneStateSplitting)
+		assert.Error(tt, err)
+	})
+
+	t.Run("Success_WithCloneParentInfo", func(tt *testing.T) {
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clear DB: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "acc-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Name:      "test-volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID: "parent-uuid",
+					State:            models.CloneStateCloned,
+				},
+			},
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+
+		err = updateCloneState(ctx, store, volume.UUID, models.CloneStateSplitting)
+		assert.NoError(tt, err)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestValidateSplitStartVolumeParams_AlreadySplitting covers line 3691.
+// ---------------------------------------------------------------------------
+
+func TestValidateSplitStartVolumeParams_AlreadySplitting(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	volume := &datamodel.Volume{
+		BaseModel:         datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:              "test-volume",
+		ClonesSharedBytes: 1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-vol-uuid",
+				State:            models.CloneStateSplitting, // already splitting
+			},
+		},
+	}
+	pool := &datamodel.PoolView{
+		Pool: datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "pool-uuid"},
+			Name:        "test_pool",
+			SizeInBytes: 10000,
+		},
+		QuotaInBytes: 2000,
+	}
+
+	err := _validateSplitStartVolumeParams(ctx, volume, pool)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "volume split is already in progress")
+	assert.True(t, customerrors.IsConflictErr(err))
+}
+
+// ---------------------------------------------------------------------------
+// TestSplitStartVolume_UpdateCloneStateFails covers lines 3547-3548:
+// updateCloneState returns an error, _splitStartVolume propagates it.
+// ---------------------------------------------------------------------------
+
+func TestSplitStartVolume_UpdateCloneStateFails(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockLogger := log.NewLogger()
+	store, err := database.SetupStorageForTest(mockLogger)
+	if err != nil {
+		t.Fatalf("Failed to create test storage: %v", err)
+	}
+	err = database.ClearInMemoryDB(store.DB())
+	if err != nil {
+		t.Fatalf("Failed to clear DB: %v", err)
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "acc-uuid"},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	if err != nil {
+		t.Fatalf("Failed to create account: %v", err)
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:        "test_pool",
+		AccountID:   account.ID,
+		SizeInBytes: 100000,
+	}
+	err = store.DB().Create(pool).Error
+	if err != nil {
+		t.Fatalf("Failed to create pool: %v", err)
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel:         datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:              "test-volume",
+		AccountID:         account.ID,
+		Pool:              pool,
+		PoolID:            pool.ID,
+		State:             models.LifeCycleStateREADY,
+		ClonesSharedBytes: 1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-vol-uuid",
+				State:            models.CloneStateCloned,
+			},
+		},
+	}
+	err = store.DB().Create(volume).Error
+	if err != nil {
+		t.Fatalf("Failed to create volume: %v", err)
+	}
+
+	// Override updateCloneState to force a failure.
+	origUpdateCloneState := updateCloneState
+	updateCloneState = func(_ context.Context, _ database.Storage, _ string, _ string) error {
+		return errors2.New("clone state update failed")
+	}
+	defer func() { updateCloneState = origUpdateCloneState }()
+
+	params := &common.SplitStartVolumeParams{
+		AccountName: account.Name,
+		VolumeID:    volume.UUID,
+	}
+
+	_, _, err = _splitStartVolume(ctx, store, nil, params)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "clone state update failed")
+}
+
+// ---------------------------------------------------------------------------
+// TestSplitStartVolume_ReserveCloneSharedBytesFails covers line 3560:
+// UpdateVolumeFields (reserve clones_shared_bytes) returns an error.
+// ---------------------------------------------------------------------------
+
+func TestSplitStartVolume_ReserveCloneSharedBytesFails(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockLogger := log.NewLogger()
+	store, err := database.SetupStorageForTest(mockLogger)
+	if err != nil {
+		t.Fatalf("Failed to create test storage: %v", err)
+	}
+	err = database.ClearInMemoryDB(store.DB())
+	if err != nil {
+		t.Fatalf("Failed to clear DB: %v", err)
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "acc-uuid"},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	if err != nil {
+		t.Fatalf("Failed to create account: %v", err)
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:        "test_pool",
+		AccountID:   account.ID,
+		SizeInBytes: 100000,
+	}
+	err = store.DB().Create(pool).Error
+	if err != nil {
+		t.Fatalf("Failed to create pool: %v", err)
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel:         datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:              "test-volume",
+		AccountID:         account.ID,
+		Pool:              pool,
+		PoolID:            pool.ID,
+		State:             models.LifeCycleStateREADY,
+		ClonesSharedBytes: 1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-vol-uuid",
+				State:            models.CloneStateCloned,
+			},
+		},
+	}
+	err = store.DB().Create(volume).Error
+	if err != nil {
+		t.Fatalf("Failed to create volume: %v", err)
+	}
+
+	// updateCloneState succeeds; the reserve UpdateVolumeFields call is the one that fails.
+	// We delete the volume from the DB after creation so the UpdateVolumeFields call fails.
+	origUpdateCloneState := updateCloneState
+	updateCloneState = func(_ context.Context, _ database.Storage, _ string, _ string) error {
+		return nil
+	}
+	defer func() { updateCloneState = origUpdateCloneState }()
+
+	// Remove the volume so UpdateVolumeFields cannot find it.
+	err = store.DB().Delete(volume).Error
+	if err != nil {
+		t.Fatalf("Failed to delete volume: %v", err)
+	}
+
+	params := &common.SplitStartVolumeParams{
+		AccountName: account.Name,
+		VolumeID:    volume.UUID,
+	}
+
+	_, _, err = _splitStartVolume(ctx, store, nil, params)
+	assert.Error(t, err)
+}
+
+// ---------------------------------------------------------------------------
+// TestSplitStartVolume_GetProviderFails covers lines 3640-3643:
+// hyperscaler.GetProviderByNode returns an error.
+// ---------------------------------------------------------------------------
+
+func TestSplitStartVolume_GetProviderFails(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockLogger := log.NewLogger()
+	store, err := database.SetupStorageForTest(mockLogger)
+	if err != nil {
+		t.Fatalf("Failed to create test storage: %v", err)
+	}
+	err = database.ClearInMemoryDB(store.DB())
+	if err != nil {
+		t.Fatalf("Failed to clear DB: %v", err)
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "acc-uuid"},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	if err != nil {
+		t.Fatalf("Failed to create account: %v", err)
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:        "test_pool",
+		AccountID:   account.ID,
+		SizeInBytes: 100000,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:  "us-west1-a",
+			IsRegionalHA: false,
+		},
+		VendorID: "/projects/proj/locations/loc/pools/pool",
+	}
+	err = store.DB().Create(pool).Error
+	if err != nil {
+		t.Fatalf("Failed to create pool: %v", err)
+	}
+
+	node := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "node-uuid"},
+		PoolID:          pool.ID,
+		Name:            "node-host",
+		EndpointAddress: "10.0.0.1",
+	}
+	err = store.DB().Create(node).Error
+	if err != nil {
+		t.Fatalf("Failed to create node: %v", err)
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel:         datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:              "test-volume",
+		AccountID:         account.ID,
+		Pool:              pool,
+		PoolID:            pool.ID,
+		State:             models.LifeCycleStateREADY,
+		ClonesSharedBytes: 1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-vol-uuid",
+				State:            models.CloneStateCloned,
+			},
+			ExternalUUID: "ext-uuid",
+		},
+	}
+	err = store.DB().Create(volume).Error
+	if err != nil {
+		t.Fatalf("Failed to create volume: %v", err)
+	}
+
+	origGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+		return nil, errors2.New("provider creation failed")
+	}
+	defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
+
+	origUpdateCloneState := updateCloneState
+	updateCloneState = func(_ context.Context, _ database.Storage, _ string, _ string) error { return nil }
+	defer func() { updateCloneState = origUpdateCloneState }()
+
+	params := &common.SplitStartVolumeParams{
+		AccountName: account.Name,
+		VolumeID:    volume.UUID,
+	}
+
+	_, _, err = _splitStartVolume(ctx, store, nil, params)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "provider creation failed")
+}
+
+// ---------------------------------------------------------------------------
+// TestSplitStartVolume_MissingExternalUUID covers lines 3646-3649:
+// volume has no ExternalUUID, so InitiateSplitVolume cannot be called.
+// ---------------------------------------------------------------------------
+
+func TestSplitStartVolume_MissingExternalUUID(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockLogger := log.NewLogger()
+	store, err := database.SetupStorageForTest(mockLogger)
+	if err != nil {
+		t.Fatalf("Failed to create test storage: %v", err)
+	}
+	err = database.ClearInMemoryDB(store.DB())
+	if err != nil {
+		t.Fatalf("Failed to clear DB: %v", err)
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "acc-uuid"},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	if err != nil {
+		t.Fatalf("Failed to create account: %v", err)
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:        "test_pool",
+		AccountID:   account.ID,
+		SizeInBytes: 100000,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:  "us-west1-a",
+			IsRegionalHA: false,
+		},
+		VendorID: "/projects/proj/locations/loc/pools/pool",
+	}
+	err = store.DB().Create(pool).Error
+	if err != nil {
+		t.Fatalf("Failed to create pool: %v", err)
+	}
+
+	node := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "node-uuid"},
+		PoolID:          pool.ID,
+		Name:            "node-host",
+		EndpointAddress: "10.0.0.1",
+	}
+	err = store.DB().Create(node).Error
+	if err != nil {
+		t.Fatalf("Failed to create node: %v", err)
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel:         datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:              "test-volume",
+		AccountID:         account.ID,
+		Pool:              pool,
+		PoolID:            pool.ID,
+		State:             models.LifeCycleStateREADY,
+		ClonesSharedBytes: 1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-vol-uuid",
+				State:            models.CloneStateCloned,
+			},
+			ExternalUUID: "", // missing — should trigger validation error
+		},
+	}
+	err = store.DB().Create(volume).Error
+	if err != nil {
+		t.Fatalf("Failed to create volume: %v", err)
+	}
+
+	mockProvider := new(vsa.MockProvider)
+
+	origGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
+
+	origUpdateCloneState := updateCloneState
+	updateCloneState = func(_ context.Context, _ database.Storage, _ string, _ string) error { return nil }
+	defer func() { updateCloneState = origUpdateCloneState }()
+
+	params := &common.SplitStartVolumeParams{
+		AccountName: account.Name,
+		VolumeID:    volume.UUID,
+	}
+
+	_, _, err = _splitStartVolume(ctx, store, nil, params)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "volume has no external UUID")
+}
+
+// ---------------------------------------------------------------------------
+// TestSplitStartVolume_InitiateSplitVolumeFails covers lines 3652-3655:
+// InitiateSplitVolume returns an ONTAP error; the defer revert should set
+// clone state to ERROR_IN_SPLITTING and keep clones_shared_bytes as 0.
+// ---------------------------------------------------------------------------
+
+func TestSplitStartVolume_InitiateSplitVolumeFails_OntapError(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockLogger := log.NewLogger()
+	store, err := database.SetupStorageForTest(mockLogger)
+	if err != nil {
+		t.Fatalf("Failed to create test storage: %v", err)
+	}
+	err = database.ClearInMemoryDB(store.DB())
+	if err != nil {
+		t.Fatalf("Failed to clear DB: %v", err)
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "acc-uuid"},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	if err != nil {
+		t.Fatalf("Failed to create account: %v", err)
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:        "test_pool",
+		AccountID:   account.ID,
+		SizeInBytes: 100000,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:  "us-west1-a",
+			IsRegionalHA: false,
+		},
+		VendorID: "/projects/proj/locations/loc/pools/pool",
+	}
+	err = store.DB().Create(pool).Error
+	if err != nil {
+		t.Fatalf("Failed to create pool: %v", err)
+	}
+
+	node := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "node-uuid"},
+		PoolID:          pool.ID,
+		Name:            "node-host",
+		EndpointAddress: "10.0.0.1",
+	}
+	err = store.DB().Create(node).Error
+	if err != nil {
+		t.Fatalf("Failed to create node: %v", err)
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel:         datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:              "test-volume",
+		AccountID:         account.ID,
+		Pool:              pool,
+		PoolID:            pool.ID,
+		State:             models.LifeCycleStateREADY,
+		ClonesSharedBytes: 1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-vol-uuid",
+				State:            models.CloneStateCloned,
+			},
+			ExternalUUID: "ext-uuid",
+		},
+	}
+	err = store.DB().Create(volume).Error
+	if err != nil {
+		t.Fatalf("Failed to create volume: %v", err)
+	}
+
+	mockProvider := new(vsa.MockProvider)
+	ontapErr := vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, errors2.New("ONTAP split failed"))
+	mockProvider.On("InitiateSplitVolume", "ext-uuid").Return("", ontapErr)
+
+	origGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
+
+	origUpdateCloneState := updateCloneState
+	updateCloneState = func(_ context.Context, _ database.Storage, _ string, _ string) error { return nil }
+	defer func() { updateCloneState = origUpdateCloneState }()
+
+	params := &common.SplitStartVolumeParams{
+		AccountName: account.Name,
+		VolumeID:    volume.UUID,
+	}
+
+	_, _, err = _splitStartVolume(ctx, store, nil, params)
+	assert.Error(t, err)
+	// The error is an ONTAP-range error from InitiateSplitVolume.
+	assert.True(t, isOntapError(err))
+	mockProvider.AssertExpectations(t)
+}
+
+// ---------------------------------------------------------------------------
+// TestSplitStartVolume_InitiateSplitVolumeFails_NonOntapError covers the
+// non-ONTAP defer revert path (lines 3582-3584, 3607-3609):
+// clones_shared_bytes is reverted and clone state goes back to CLONED.
+// ---------------------------------------------------------------------------
+
+func TestSplitStartVolume_InitiateSplitVolumeFails_NonOntapError(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockLogger := log.NewLogger()
+	store, err := database.SetupStorageForTest(mockLogger)
+	if err != nil {
+		t.Fatalf("Failed to create test storage: %v", err)
+	}
+	err = database.ClearInMemoryDB(store.DB())
+	if err != nil {
+		t.Fatalf("Failed to clear DB: %v", err)
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "acc-uuid"},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	if err != nil {
+		t.Fatalf("Failed to create account: %v", err)
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:        "test_pool",
+		AccountID:   account.ID,
+		SizeInBytes: 100000,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:  "us-west1-a",
+			IsRegionalHA: false,
+		},
+		VendorID: "/projects/proj/locations/loc/pools/pool",
+	}
+	err = store.DB().Create(pool).Error
+	if err != nil {
+		t.Fatalf("Failed to create pool: %v", err)
+	}
+
+	node := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "node-uuid"},
+		PoolID:          pool.ID,
+		Name:            "node-host",
+		EndpointAddress: "10.0.0.1",
+	}
+	err = store.DB().Create(node).Error
+	if err != nil {
+		t.Fatalf("Failed to create node: %v", err)
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel:         datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:              "test-volume",
+		AccountID:         account.ID,
+		Pool:              pool,
+		PoolID:            pool.ID,
+		State:             models.LifeCycleStateREADY,
+		ClonesSharedBytes: 1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-vol-uuid",
+				State:            models.CloneStateCloned,
+			},
+			ExternalUUID: "ext-uuid",
+		},
+	}
+	err = store.DB().Create(volume).Error
+	if err != nil {
+		t.Fatalf("Failed to create volume: %v", err)
+	}
+
+	mockProvider := new(vsa.MockProvider)
+	// Non-ONTAP error (plain error, not in 5000-5999 range).
+	nonOntapErr := errors2.New("network timeout")
+	mockProvider.On("InitiateSplitVolume", "ext-uuid").Return("", nonOntapErr)
+
+	origGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
+
+	origUpdateCloneState := updateCloneState
+	updateCloneState = func(_ context.Context, _ database.Storage, _ string, _ string) error { return nil }
+	defer func() { updateCloneState = origUpdateCloneState }()
+
+	params := &common.SplitStartVolumeParams{
+		AccountName: account.Name,
+		VolumeID:    volume.UUID,
+	}
+
+	_, _, err = _splitStartVolume(ctx, store, nil, params)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "network timeout")
+	mockProvider.AssertExpectations(t)
+}
+
+// ---------------------------------------------------------------------------
+// TestSplitStartVolume_WorkflowExecutionFails covers lines 3663-3678:
+// ExecuteWorkflow returns an error after a successful ONTAP split.
+// ---------------------------------------------------------------------------
+
+func TestSplitStartVolume_WorkflowExecutionFails(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockLogger := log.NewLogger()
+	store, err := database.SetupStorageForTest(mockLogger)
+	if err != nil {
+		t.Fatalf("Failed to create test storage: %v", err)
+	}
+	err = database.ClearInMemoryDB(store.DB())
+	if err != nil {
+		t.Fatalf("Failed to clear DB: %v", err)
+	}
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "acc-uuid"},
+		Name:      "test_account",
+	}
+	err = store.DB().Create(account).Error
+	if err != nil {
+		t.Fatalf("Failed to create account: %v", err)
+	}
+
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:        "test_pool",
+		AccountID:   account.ID,
+		SizeInBytes: 100000,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:  "us-west1-a",
+			IsRegionalHA: false,
+		},
+		VendorID: "/projects/proj/locations/loc/pools/pool",
+	}
+	err = store.DB().Create(pool).Error
+	if err != nil {
+		t.Fatalf("Failed to create pool: %v", err)
+	}
+
+	node := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "node-uuid"},
+		PoolID:          pool.ID,
+		Name:            "node-host",
+		EndpointAddress: "10.0.0.1",
+	}
+	err = store.DB().Create(node).Error
+	if err != nil {
+		t.Fatalf("Failed to create node: %v", err)
+	}
+
+	volume := &datamodel.Volume{
+		BaseModel:         datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:              "test-volume",
+		AccountID:         account.ID,
+		Pool:              pool,
+		PoolID:            pool.ID,
+		State:             models.LifeCycleStateREADY,
+		ClonesSharedBytes: 1000,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-vol-uuid",
+				State:            models.CloneStateCloned,
+			},
+			ExternalUUID: "ext-uuid",
+		},
+	}
+	err = store.DB().Create(volume).Error
+	if err != nil {
+		t.Fatalf("Failed to create volume: %v", err)
+	}
+
+	mockProvider := new(vsa.MockProvider)
+	mockProvider.On("InitiateSplitVolume", "ext-uuid").Return("ontap-job-uuid", nil)
+
+	origGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	defer func() { hyperscaler.GetProviderByNode = origGetProviderByNode }()
+
+	origUpdateCloneState := updateCloneState
+	updateCloneState = func(_ context.Context, _ database.Storage, _ string, _ string) error { return nil }
+	defer func() { updateCloneState = origUpdateCloneState }()
+
+	// Use a mock Temporal client that fails ExecuteWorkflow.
+	mockTemporalClient := workflowEngineMock.NewMockTemporalTestClient(t)
+	mockTemporalClient.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, errors2.New("temporal unavailable")).Maybe()
+
+	params := &common.SplitStartVolumeParams{
+		AccountName: account.Name,
+		VolumeID:    volume.UUID,
+	}
+
+	_, _, err = _splitStartVolume(ctx, store, mockTemporalClient, params)
+	assert.Error(t, err)
+	mockProvider.AssertExpectations(t)
 }

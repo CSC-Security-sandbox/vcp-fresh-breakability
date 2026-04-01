@@ -404,9 +404,9 @@ func TestOCIOrchestrator_SplitCloneVolume(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
-		params := &common.SplitCloneVolumeParams{}
+		params := &common.SplitStartVolumeParams{}
 
-		result, jobID, err := orch.SplitCloneVolume(ctx, params)
+		result, jobID, err := orch.SplitStartVolume(ctx, params)
 
 		assert.Error(tt, err)
 		assert.True(tt, errors.IsNotImplementedYetErr(err))

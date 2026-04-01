@@ -996,12 +996,12 @@ func (UnimplementedHandler) V1betaRotateCmekBackups(ctx context.Context, req *Ba
 	return r, ht.ErrNotImplemented
 }
 
-// V1betaSplitCloneVolume implements v1beta_splitCloneVolume operation.
+// V1betaSplitStartVolume implements v1beta_splitStartVolume operation.
 //
 // Warning! This operation will permanently split the thin clone from its source volume.
 //
-// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/clonesplit
-func (UnimplementedHandler) V1betaSplitCloneVolume(ctx context.Context, params V1betaSplitCloneVolumeParams) (r V1betaSplitCloneVolumeRes, _ error) {
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstart
+func (UnimplementedHandler) V1betaSplitStartVolume(ctx context.Context, params V1betaSplitStartVolumeParams) (r V1betaSplitStartVolumeRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

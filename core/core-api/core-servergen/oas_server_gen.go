@@ -111,6 +111,12 @@ type Handler interface {
 	//
 	// POST /v1/Storage/GcpKmsConfig/{uuid}/RotateServiceAccountKey
 	V1RotateGcpKmsConfig(ctx context.Context, req *GcpKmsKeyRotateV1, params V1RotateGcpKmsConfigParams) (V1RotateGcpKmsConfigRes, error)
+	// V1SplitStartVolume implements v1_splitStartVolume operation.
+	//
+	// Initiates a split of a thin clone volume from its parent, making it an independent volume.
+	//
+	// POST /v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstart
+	V1SplitStartVolume(ctx context.Context, params V1SplitStartVolumeParams) (V1SplitStartVolumeRes, error)
 	// V1UpdatePool implements v1_updatePool operation.
 	//
 	// Update the pool.

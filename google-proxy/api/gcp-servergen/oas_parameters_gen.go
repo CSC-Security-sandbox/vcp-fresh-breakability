@@ -29184,8 +29184,8 @@ func decodeV1betaRotateCmekBackupsParams(args [3]string, argsEscaped bool, r *ht
 	return params, nil
 }
 
-// V1betaSplitCloneVolumeParams is parameters of v1beta_splitCloneVolume operation.
-type V1betaSplitCloneVolumeParams struct {
+// V1betaSplitStartVolumeParams is parameters of v1beta_splitStartVolume operation.
+type V1betaSplitStartVolumeParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
 	ProjectNumber string
 	// The location/region to perform the operation in.
@@ -29196,7 +29196,7 @@ type V1betaSplitCloneVolumeParams struct {
 	XCorrelationID OptString
 }
 
-func unpackV1betaSplitCloneVolumeParams(packed middleware.Parameters) (params V1betaSplitCloneVolumeParams) {
+func unpackV1betaSplitStartVolumeParams(packed middleware.Parameters) (params V1betaSplitStartVolumeParams) {
 	{
 		key := middleware.ParameterKey{
 			Name: "projectNumber",
@@ -29230,7 +29230,7 @@ func unpackV1betaSplitCloneVolumeParams(packed middleware.Parameters) (params V1
 	return params
 }
 
-func decodeV1betaSplitCloneVolumeParams(args [3]string, argsEscaped bool, r *http.Request) (params V1betaSplitCloneVolumeParams, _ error) {
+func decodeV1betaSplitStartVolumeParams(args [3]string, argsEscaped bool, r *http.Request) (params V1betaSplitStartVolumeParams, _ error) {
 	h := uri.NewHeaderDecoder(r.Header)
 	// Decode path: projectNumber.
 	if err := func() error {

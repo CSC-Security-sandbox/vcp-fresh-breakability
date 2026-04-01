@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	coreapi "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/core-api"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/volumes"
@@ -13499,310 +13500,365 @@ func TestValidateFlexCacheRequest(t *testing.T) {
 	}
 }
 
-func TestV1betaSplitCloneVolume(t *testing.T) {
-	originalParseAndValidateRegionAndZone := utils.ParseAndValidateRegionAndZone
-	mockParseAndValidateRegionAndZone := func(region string) (string, string, *gcpgenserver.Error) {
-		return "test-region", "test-location", nil
-	}
-	utils.ParseAndValidateRegionAndZone = mockParseAndValidateRegionAndZone
-	defer func() { utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
-
+func TestV1betaSplitStartVolume(t *testing.T) {
 	t.Run("FeatureDisabled_Returns403Forbidden", func(tt *testing.T) {
 		origThinCloneGASupport := thinCloneGASupport
 		defer func() { thinCloneGASupport = origThinCloneGASupport }()
 		thinCloneGASupport = false
 
-		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
-		handler := Handler{Orchestrator: mockOrchestrator}
-
-		params := gcpgenserver.V1betaSplitCloneVolumeParams{
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+		params := gcpgenserver.V1betaSplitStartVolumeParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
 			VolumeId:      "vol-1",
 		}
 
-		result, err := handler.V1betaSplitCloneVolume(context.Background(), params)
+		result, err := handler.V1betaSplitStartVolume(context.Background(), params)
 		assert.NoError(tt, err)
-		forbidden, ok := result.(*gcpgenserver.V1betaSplitCloneVolumeForbidden)
+		forbidden, ok := result.(*gcpgenserver.V1betaSplitStartVolumeForbidden)
 		assert.True(tt, ok)
 		assert.Equal(tt, float64(403), forbidden.Code)
 		assert.Contains(tt, forbidden.Message, "Thin clone split feature is currently not enabled")
 	})
 
-	t.Run("ValidSplitCloneVolume", func(tt *testing.T) {
+	t.Run("WhenCoreAPIHostNotSet_Returns500", func(tt *testing.T) {
 		origThinCloneGASupport := thinCloneGASupport
 		defer func() { thinCloneGASupport = origThinCloneGASupport }()
 		thinCloneGASupport = true
 
-		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
-		handler := Handler{Orchestrator: mockOrchestrator}
+		origCoreAPIHost := coreAPIHost
+		defer func() { coreAPIHost = origCoreAPIHost }()
+		coreAPIHost = ""
 
-		params := gcpgenserver.V1betaSplitCloneVolumeParams{
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+		params := gcpgenserver.V1betaSplitStartVolumeParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
 			VolumeId:      "vol-1",
 		}
-		volume := &models.Volume{
-			BaseModel:      models.BaseModel{UUID: "vol-1"},
-			LifeCycleState: "READY",
-		}
-		jobUUID := "job-uuid"
-		mockOrchestrator.EXPECT().SplitCloneVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
 
-		result, err := handler.V1betaSplitCloneVolume(context.Background(), params)
+		result, err := handler.V1betaSplitStartVolume(context.Background(), params)
+		assert.NoError(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaSplitStartVolumeInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Contains(tt, internalErr.Message, "Core API host not configured")
+	})
+
+	t.Run("WhenCoreAPIClientCreationFails_Returns500", func(tt *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
+		origCoreAPIHost := coreAPIHost
+		defer func() { coreAPIHost = origCoreAPIHost }()
+		coreAPIHost = "http://core-api:8080"
+
+		origCreateCoreAPIClient := createCoreAPIClient
+		defer func() { createCoreAPIClient = origCreateCoreAPIClient }()
+		createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+			return nil
+		}
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+		params := gcpgenserver.V1betaSplitStartVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+
+		result, err := handler.V1betaSplitStartVolume(context.Background(), params)
+		assert.NoError(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaSplitStartVolumeInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Contains(tt, internalErr.Message, "Failed to create core API client")
+	})
+
+	t.Run("ValidSplitStartVolume_CoreAPIReturnsOperation", func(tt *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
+		origCoreAPIHost := coreAPIHost
+		defer func() { coreAPIHost = origCoreAPIHost }()
+		coreAPIHost = "http://core-api:8080"
+
+		origCreateCoreAPIClient := createCoreAPIClient
+		defer func() { createCoreAPIClient = origCreateCoreAPIClient }()
+
+		inv := &mockInvoker{}
+		operationID := "/v1beta/projects/project-number/locations/location-id/operations/job-uuid"
+		inv.On("V1SplitStartVolume", mock.Anything, mock.Anything).Return(
+			&coreapi.OperationV1{
+				Name: coreapi.NewOptString(operationID),
+				Done: coreapi.NewOptBool(true),
+			}, nil)
+		createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{Invoker: inv}
+		}
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+		params := gcpgenserver.V1betaSplitStartVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+
+		result, err := handler.V1betaSplitStartVolume(context.Background(), params)
 		assert.NoError(tt, err)
 		op, ok := result.(*gcpgenserver.OperationV1beta)
 		assert.True(tt, ok)
-		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
+		assert.Equal(tt, operationID, op.Name.Value)
 		assert.True(tt, op.Done.Value)
+		inv.AssertExpectations(tt)
 	})
 
-	t.Run("ValidSplitCloneVolume_WithSplittingState", func(tt *testing.T) {
+	t.Run("ValidSplitStartVolume_CoreAPIReturnsOperation_NotDone", func(tt *testing.T) {
 		origThinCloneGASupport := thinCloneGASupport
 		defer func() { thinCloneGASupport = origThinCloneGASupport }()
 		thinCloneGASupport = true
 
-		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
-		handler := Handler{Orchestrator: mockOrchestrator}
+		origCoreAPIHost := coreAPIHost
+		defer func() { coreAPIHost = origCoreAPIHost }()
+		coreAPIHost = "http://core-api:8080"
 
-		params := gcpgenserver.V1betaSplitCloneVolumeParams{
+		origCreateCoreAPIClient := createCoreAPIClient
+		defer func() { createCoreAPIClient = origCreateCoreAPIClient }()
+
+		inv := &mockInvoker{}
+		operationID := "/v1beta/projects/project-number/locations/location-id/operations/job-uuid"
+		inv.On("V1SplitStartVolume", mock.Anything, mock.Anything).Return(
+			&coreapi.OperationV1{
+				Name: coreapi.NewOptString(operationID),
+				Done: coreapi.NewOptBool(false),
+			}, nil)
+		createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{Invoker: inv}
+		}
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+		params := gcpgenserver.V1betaSplitStartVolumeParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
 			VolumeId:      "vol-1",
 		}
 
-		volume := &models.Volume{
-			BaseModel:      models.BaseModel{UUID: "vol-1"},
-			LifeCycleState: models.LifeCycleStateSplitting,
-		}
-		jobUUID := "job-uuid"
-		mockOrchestrator.EXPECT().SplitCloneVolume(mock.Anything, mock.Anything).Return(volume, jobUUID, nil)
-
-		result, err := handler.V1betaSplitCloneVolume(context.Background(), params)
+		result, err := handler.V1betaSplitStartVolume(context.Background(), params)
 		assert.NoError(tt, err)
 		op, ok := result.(*gcpgenserver.OperationV1beta)
 		assert.True(tt, ok)
-		assert.Equal(tt, "/v1beta/projects/project-number/locations/location-id/operations/job-uuid", op.Name.Value)
+		assert.Equal(tt, operationID, op.Name.Value)
 		assert.False(tt, op.Done.Value)
+		inv.AssertExpectations(tt)
 	})
 
-	t.Run("UserInputValidationError", func(tt *testing.T) {
+	t.Run("CoreAPIReturns400BadRequest", func(tt *testing.T) {
 		origThinCloneGASupport := thinCloneGASupport
 		defer func() { thinCloneGASupport = origThinCloneGASupport }()
 		thinCloneGASupport = true
 
-		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
-		handler := Handler{Orchestrator: mockOrchestrator}
-		params := gcpgenserver.V1betaSplitCloneVolumeParams{
-			ProjectNumber: "test-project",
-			LocationId:    "test-location",
+		origCoreAPIHost := coreAPIHost
+		defer func() { coreAPIHost = origCoreAPIHost }()
+		coreAPIHost = "http://core-api:8080"
+
+		origCreateCoreAPIClient := createCoreAPIClient
+		defer func() { createCoreAPIClient = origCreateCoreAPIClient }()
+
+		inv := &mockInvoker{}
+		inv.On("V1SplitStartVolume", mock.Anything, mock.Anything).Return(
+			&coreapi.V1SplitStartVolumeBadRequest{Code: 400, Message: "invalid input"}, nil)
+		createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{Invoker: inv}
+		}
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+		params := gcpgenserver.V1betaSplitStartVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
 			VolumeId:      "vol-1",
 		}
-		prepareSplitCloneVolumeParams = func(params gcpgenserver.V1betaSplitCloneVolumeParams, region string) (*common.SplitCloneVolumeParams, error) {
-			return nil, errors.NewUserInputValidationErr("invalid input")
-		}
-		defer func() { prepareSplitCloneVolumeParams = _prepareSplitCloneVolumeParams }()
 
-		result, err := handler.V1betaSplitCloneVolume(context.Background(), params)
+		result, err := handler.V1betaSplitStartVolume(context.Background(), params)
 		assert.NoError(tt, err)
-		badReq, ok := result.(*gcpgenserver.V1betaSplitCloneVolumeBadRequest)
+		badReq, ok := result.(*gcpgenserver.V1betaSplitStartVolumeBadRequest)
 		assert.True(tt, ok)
 		assert.Equal(tt, float64(400), badReq.Code)
 		assert.Contains(tt, badReq.Message, "invalid input")
+		inv.AssertExpectations(tt)
 	})
 
-	t.Run("InternalServerError_PrepareParams", func(tt *testing.T) {
+	t.Run("CoreAPIReturns404NotFound", func(tt *testing.T) {
 		origThinCloneGASupport := thinCloneGASupport
 		defer func() { thinCloneGASupport = origThinCloneGASupport }()
 		thinCloneGASupport = true
 
-		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
-		handler := Handler{Orchestrator: mockOrchestrator}
-		params := gcpgenserver.V1betaSplitCloneVolumeParams{
-			ProjectNumber: "test-project",
-			LocationId:    "test-location",
-			VolumeId:      "vol-1",
-		}
-		prepareSplitCloneVolumeParams = func(params gcpgenserver.V1betaSplitCloneVolumeParams, region string) (*common.SplitCloneVolumeParams, error) {
-			return nil, fmt.Errorf("unexpected error")
-		}
-		defer func() { prepareSplitCloneVolumeParams = _prepareSplitCloneVolumeParams }()
+		origCoreAPIHost := coreAPIHost
+		defer func() { coreAPIHost = origCoreAPIHost }()
+		coreAPIHost = "http://core-api:8080"
 
-		result, err := handler.V1betaSplitCloneVolume(context.Background(), params)
-		assert.Nil(tt, err)
-		internalErr, ok := result.(*gcpgenserver.V1betaSplitCloneVolumeInternalServerError)
-		assert.True(tt, ok)
-		assert.Equal(tt, float64(500), internalErr.Code)
-		assert.Contains(tt, internalErr.Message, "unexpected error")
-	})
+		origCreateCoreAPIClient := createCoreAPIClient
+		defer func() { createCoreAPIClient = origCreateCoreAPIClient }()
 
-	t.Run("BadRequest_InvalidLocation", func(tt *testing.T) {
-		origThinCloneGASupport := thinCloneGASupport
-		defer func() { thinCloneGASupport = origThinCloneGASupport }()
-		thinCloneGASupport = true
-
-		utils.ParseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone
-		defer func() { utils.ParseAndValidateRegionAndZone = mockParseAndValidateRegionAndZone }()
-
-		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
-		handler := Handler{Orchestrator: mockOrchestrator}
-		params := gcpgenserver.V1betaSplitCloneVolumeParams{
-			ProjectNumber: "test-project",
-			LocationId:    "invalid-location",
-			VolumeId:      "vol-1",
+		inv := &mockInvoker{}
+		inv.On("V1SplitStartVolume", mock.Anything, mock.Anything).Return(
+			&coreapi.V1SplitStartVolumeNotFound{Code: 404, Message: "Volume not found"}, nil)
+		createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{Invoker: inv}
 		}
 
-		result, err := handler.V1betaSplitCloneVolume(context.Background(), params)
-		assert.NoError(tt, err)
-		badReq, ok := result.(*gcpgenserver.V1betaSplitCloneVolumeBadRequest)
-		assert.True(tt, ok)
-		assert.Equal(tt, float64(400), badReq.Code)
-	})
-
-	t.Run("WhenOrchestratorValidationThrowsAnError_Return400BadRequest", func(tt *testing.T) {
-		origThinCloneGASupport := thinCloneGASupport
-		defer func() { thinCloneGASupport = origThinCloneGASupport }()
-		thinCloneGASupport = true
-
-		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
-		handler := Handler{Orchestrator: mockOrchestrator}
-
-		params := gcpgenserver.V1betaSplitCloneVolumeParams{
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+		params := gcpgenserver.V1betaSplitStartVolumeParams{
 			LocationId:    "location-id",
 			ProjectNumber: "project-number",
 			VolumeId:      "vol-1",
 		}
 
-		mockOrchestrator.EXPECT().SplitCloneVolume(mock.Anything, mock.Anything).Return(nil, "", errors.NewUserInputValidationErr("An error occurred"))
-
-		result, err := handler.V1betaSplitCloneVolume(context.Background(), params)
+		result, err := handler.V1betaSplitStartVolume(context.Background(), params)
 		assert.NoError(tt, err)
-		badReq, ok := result.(*gcpgenserver.V1betaSplitCloneVolumeBadRequest)
-		assert.True(tt, ok)
-		assert.Equal(tt, float64(400), badReq.Code)
-		assert.Contains(tt, badReq.Message, "An error occurred")
-	})
-
-	t.Run("WhenOrchestratorConflictThrowsAnError_Return400BadRequest", func(tt *testing.T) {
-		origThinCloneGASupport := thinCloneGASupport
-		defer func() { thinCloneGASupport = origThinCloneGASupport }()
-		thinCloneGASupport = true
-
-		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
-		handler := Handler{Orchestrator: mockOrchestrator}
-
-		params := gcpgenserver.V1betaSplitCloneVolumeParams{
-			LocationId:    "location-id",
-			ProjectNumber: "project-number",
-			VolumeId:      "vol-1",
-		}
-
-		mockOrchestrator.EXPECT().SplitCloneVolume(mock.Anything, mock.Anything).Return(nil, "", errors.NewConflictErr("Volume is in transition state"))
-
-		result, err := handler.V1betaSplitCloneVolume(context.Background(), params)
-		assert.NoError(tt, err)
-		badReq, ok := result.(*gcpgenserver.V1betaSplitCloneVolumeConflict)
-		assert.True(tt, ok)
-		assert.Equal(tt, float64(409), badReq.Code)
-		assert.Contains(tt, badReq.Message, "Volume is in transition state")
-	})
-
-	t.Run("WhenOrchestratorThrowsAnError_ReturnError", func(tt *testing.T) {
-		origThinCloneGASupport := thinCloneGASupport
-		defer func() { thinCloneGASupport = origThinCloneGASupport }()
-		thinCloneGASupport = true
-
-		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
-		handler := Handler{Orchestrator: mockOrchestrator}
-
-		params := gcpgenserver.V1betaSplitCloneVolumeParams{
-			LocationId:    "location-id",
-			ProjectNumber: "project-number",
-			VolumeId:      "vol-1",
-		}
-
-		mockOrchestrator.EXPECT().SplitCloneVolume(mock.Anything, mock.Anything).Return(nil, "", fmt.Errorf("An error occurred"))
-
-		result, err := handler.V1betaSplitCloneVolume(context.Background(), params)
-		assert.Error(tt, err)
-		internalErr, ok := result.(*gcpgenserver.V1betaSplitCloneVolumeInternalServerError)
-		assert.True(tt, ok)
-		assert.Equal(tt, float64(500), internalErr.Code)
-		assert.Contains(tt, internalErr.Message, "An error occurred")
-	})
-
-	t.Run("WhenOrchestratorNotFoundError_Return404NotFoundError", func(tt *testing.T) {
-		origThinCloneGASupport := thinCloneGASupport
-		defer func() { thinCloneGASupport = origThinCloneGASupport }()
-		thinCloneGASupport = true
-
-		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
-		handler := Handler{Orchestrator: mockOrchestrator}
-
-		params := gcpgenserver.V1betaSplitCloneVolumeParams{
-			LocationId:    "location-id",
-			ProjectNumber: "project-number",
-			VolumeId:      "vol-1",
-		}
-
-		mockOrchestrator.EXPECT().SplitCloneVolume(mock.Anything, mock.Anything).Return(nil, "", errors.NewNotFoundErr("Volume not found", nil))
-
-		result, err := handler.V1betaSplitCloneVolume(context.Background(), params)
-		assert.NoError(tt, err)
-		notFound, ok := result.(*gcpgenserver.V1betaSplitCloneVolumeNotFound)
+		notFound, ok := result.(*gcpgenserver.V1betaSplitStartVolumeNotFound)
 		assert.True(tt, ok)
 		assert.Equal(tt, float64(404), notFound.Code)
 		assert.Contains(tt, notFound.Message, "Volume not found")
+		inv.AssertExpectations(tt)
 	})
-}
 
-func TestPrepareSplitCloneVolumeParams(t *testing.T) {
-	t.Run("ValidSplitCloneVolumeParams", func(tt *testing.T) {
-		params := gcpgenserver.V1betaSplitCloneVolumeParams{
-			ProjectNumber: "test-project",
-			LocationId:    "test-location",
+	t.Run("CoreAPIReturns409Conflict", func(tt *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
+		origCoreAPIHost := coreAPIHost
+		defer func() { coreAPIHost = origCoreAPIHost }()
+		coreAPIHost = "http://core-api:8080"
+
+		origCreateCoreAPIClient := createCoreAPIClient
+		defer func() { createCoreAPIClient = origCreateCoreAPIClient }()
+
+		inv := &mockInvoker{}
+		inv.On("V1SplitStartVolume", mock.Anything, mock.Anything).Return(
+			&coreapi.V1SplitStartVolumeConflict{Code: 409, Message: "Volume is in transition state"}, nil)
+		createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{Invoker: inv}
+		}
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+		params := gcpgenserver.V1betaSplitStartVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
 			VolumeId:      "vol-1",
 		}
-		region := "test-region"
 
-		expected := &common.SplitCloneVolumeParams{
-			AccountName: "test-project",
-			Region:      "test-region",
-			VolumeID:    "vol-1",
-		}
-
-		result, err := prepareSplitCloneVolumeParams(params, region)
+		result, err := handler.V1betaSplitStartVolume(context.Background(), params)
 		assert.NoError(tt, err)
-		assert.Equal(tt, expected, result)
+		conflict, ok := result.(*gcpgenserver.V1betaSplitStartVolumeConflict)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(409), conflict.Code)
+		assert.Contains(tt, conflict.Message, "Volume is in transition state")
+		inv.AssertExpectations(tt)
 	})
 
-	t.Run("EmptyVolumeId_ReturnsError", func(tt *testing.T) {
-		params := gcpgenserver.V1betaSplitCloneVolumeParams{
-			ProjectNumber: "test-project",
-			LocationId:    "test-location",
+	t.Run("CoreAPIReturns500InternalServerError", func(tt *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
+		origCoreAPIHost := coreAPIHost
+		defer func() { coreAPIHost = origCoreAPIHost }()
+		coreAPIHost = "http://core-api:8080"
+
+		origCreateCoreAPIClient := createCoreAPIClient
+		defer func() { createCoreAPIClient = origCreateCoreAPIClient }()
+
+		inv := &mockInvoker{}
+		inv.On("V1SplitStartVolume", mock.Anything, mock.Anything).Return(
+			&coreapi.V1SplitStartVolumeInternalServerError{Code: 500, Message: "An error occurred"}, nil)
+		createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{Invoker: inv}
 		}
-		region := "test-region"
 
-		result, err := prepareSplitCloneVolumeParams(params, region)
-		assert.Error(tt, err)
-		assert.Nil(tt, result)
-		assert.Contains(tt, err.Error(), "No Volume ID given")
-		assert.True(tt, errors.IsUserInputValidationErr(err))
-	})
-
-	t.Run("EmptyProjectNumber_ReturnsError", func(tt *testing.T) {
-		params := gcpgenserver.V1betaSplitCloneVolumeParams{
-			ProjectNumber: "",
-			LocationId:    "test-location",
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+		params := gcpgenserver.V1betaSplitStartVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
 			VolumeId:      "vol-1",
 		}
-		region := "test-region"
 
-		result, err := prepareSplitCloneVolumeParams(params, region)
-		assert.Error(tt, err)
-		assert.Nil(tt, result)
-		assert.Contains(tt, err.Error(), "No Project Number given")
-		assert.True(tt, errors.IsUserInputValidationErr(err))
+		result, err := handler.V1betaSplitStartVolume(context.Background(), params)
+		assert.NoError(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaSplitStartVolumeInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Contains(tt, internalErr.Message, "An error occurred")
+		inv.AssertExpectations(tt)
+	})
+
+	t.Run("CoreAPICallFails_Returns500", func(tt *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
+		origCoreAPIHost := coreAPIHost
+		defer func() { coreAPIHost = origCoreAPIHost }()
+		coreAPIHost = "http://core-api:8080"
+
+		origCreateCoreAPIClient := createCoreAPIClient
+		defer func() { createCoreAPIClient = origCreateCoreAPIClient }()
+
+		inv := &mockInvoker{}
+		inv.On("V1SplitStartVolume", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("connection refused"))
+		createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{Invoker: inv}
+		}
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+		params := gcpgenserver.V1betaSplitStartVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+
+		result, err := handler.V1betaSplitStartVolume(context.Background(), params)
+		assert.NoError(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaSplitStartVolumeInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		assert.Contains(tt, internalErr.Message, "Core API call failed")
+		inv.AssertExpectations(tt)
+	})
+
+	t.Run("CoreAPIReturnsUnexpectedType_Returns500", func(tt *testing.T) {
+		origThinCloneGASupport := thinCloneGASupport
+		defer func() { thinCloneGASupport = origThinCloneGASupport }()
+		thinCloneGASupport = true
+
+		origCoreAPIHost := coreAPIHost
+		defer func() { coreAPIHost = origCoreAPIHost }()
+		coreAPIHost = "http://core-api:8080"
+
+		origCreateCoreAPIClient := createCoreAPIClient
+		defer func() { createCoreAPIClient = origCreateCoreAPIClient }()
+
+		inv := &mockInvoker{}
+		inv.On("V1SplitStartVolume", mock.Anything, mock.Anything).Return(
+			&coreapi.V1SplitStartVolumeForbidden{Code: 403, Message: "forbidden"}, nil)
+		createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{Invoker: inv}
+		}
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+		params := gcpgenserver.V1betaSplitStartVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+
+		result, err := handler.V1betaSplitStartVolume(context.Background(), params)
+		assert.NoError(tt, err)
+		internalErr, ok := result.(*gcpgenserver.V1betaSplitStartVolumeInternalServerError)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(500), internalErr.Code)
+		inv.AssertExpectations(tt)
 	})
 }
 
@@ -15214,7 +15270,7 @@ func TestValidateFlexCacheUpdateParams(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Valid - update request with completely empty FlexCache (no required fields, no cacheConfig)",
+			name:        "Valid - update request with completely empty FlexCache (no required fields, no cacheConfig)",
 			cacheParams: &gcpgenserver.FlexCacheV1beta{
 				// All fields are missing - this should pass validation for updates
 			},
@@ -16436,4 +16492,180 @@ func Test_prepareCreateVolumeParams_CacheConfig(t *testing.T) {
 		assert.NotNil(tt, cc.AtimeScrubDays)
 		assert.Equal(tt, int16(45), *cc.AtimeScrubDays)
 	})
+}
+
+func TestConvertToCloneParentInfoV1(t *testing.T) {
+	t.Run("WhenStateIsSet_PopulatesState", func(tt *testing.T) {
+		state := "SPLIT_INITIATED"
+		cp := &models.CloneParentInfo{
+			ParentVolumeId:   nillable.ToPointer("parent-vol-id"),
+			ParentSnapshotId: nillable.ToPointer("parent-snap-id"),
+			State:            &state,
+		}
+		result := convertToCloneParentInfoV1(cp, 0)
+		assert.True(tt, result.State.Set)
+		assert.Equal(tt, gcpgenserver.CloneDetailsV1betaState(state), result.State.Value)
+	})
+
+	t.Run("WhenStateIsEmpty_DoesNotPopulateState", func(tt *testing.T) {
+		empty := ""
+		cp := &models.CloneParentInfo{
+			ParentVolumeId: nillable.ToPointer("parent-vol-id"),
+			State:          &empty,
+		}
+		result := convertToCloneParentInfoV1(cp, 0)
+		assert.False(tt, result.State.Set)
+	})
+
+	t.Run("WhenStateIsNil_DoesNotPopulateState", func(tt *testing.T) {
+		cp := &models.CloneParentInfo{
+			ParentVolumeId: nillable.ToPointer("parent-vol-id"),
+			State:          nil,
+		}
+		result := convertToCloneParentInfoV1(cp, 0)
+		assert.False(tt, result.State.Set)
+	})
+
+	t.Run("WhenSplitCompletePercentIsSet_PopulatesPercent", func(tt *testing.T) {
+		pct := int64(42)
+		cp := &models.CloneParentInfo{
+			ParentVolumeId:       nillable.ToPointer("parent-vol-id"),
+			SplitCompletePercent: &pct,
+		}
+		result := convertToCloneParentInfoV1(cp, 0)
+		assert.True(tt, result.SplitCompletePercent.Set)
+		assert.Equal(tt, int64(42), result.SplitCompletePercent.Value)
+	})
+
+	t.Run("WhenSplitCompletePercentIsNil_DoesNotPopulatePercent", func(tt *testing.T) {
+		cp := &models.CloneParentInfo{
+			ParentVolumeId:       nillable.ToPointer("parent-vol-id"),
+			SplitCompletePercent: nil,
+		}
+		result := convertToCloneParentInfoV1(cp, 0)
+		assert.False(tt, result.SplitCompletePercent.Set)
+	})
+
+	t.Run("WhenStateDetailsIsSet_PopulatesStateDetails", func(tt *testing.T) {
+		details := "split failed: out of space"
+		cp := &models.CloneParentInfo{
+			ParentVolumeId: nillable.ToPointer("parent-vol-id"),
+			StateDetails:   &details,
+		}
+		result := convertToCloneParentInfoV1(cp, 0)
+		assert.True(tt, result.StateDetails.Set)
+		assert.Equal(tt, details, result.StateDetails.Value)
+	})
+
+	t.Run("WhenStateDetailsIsEmpty_DoesNotPopulateStateDetails", func(tt *testing.T) {
+		empty := ""
+		cp := &models.CloneParentInfo{
+			ParentVolumeId: nillable.ToPointer("parent-vol-id"),
+			StateDetails:   &empty,
+		}
+		result := convertToCloneParentInfoV1(cp, 0)
+		assert.False(tt, result.StateDetails.Set)
+	})
+
+	t.Run("WhenStateDetailsIsNil_DoesNotPopulateStateDetails", func(tt *testing.T) {
+		cp := &models.CloneParentInfo{
+			ParentVolumeId: nillable.ToPointer("parent-vol-id"),
+			StateDetails:   nil,
+		}
+		result := convertToCloneParentInfoV1(cp, 0)
+		assert.False(tt, result.StateDetails.Set)
+	})
+
+	t.Run("SharedBytesIsAlwaysPopulated", func(tt *testing.T) {
+		cp := &models.CloneParentInfo{
+			ParentVolumeId: nillable.ToPointer("parent-vol-id"),
+		}
+		result := convertToCloneParentInfoV1(cp, 1024)
+		assert.True(tt, result.SharedBytes.Set)
+		assert.Equal(tt, float64(1024), result.SharedBytes.Value)
+	})
+}
+
+func TestSplitStartVolume_XCorrelationIDPropagation(t *testing.T) {
+	// Covers line 3290: when XCorrelationID is set, it is forwarded to the core API call.
+	origThinCloneGASupport := thinCloneGASupport
+	defer func() { thinCloneGASupport = origThinCloneGASupport }()
+	thinCloneGASupport = true
+
+	origCoreAPIHost := coreAPIHost
+	defer func() { coreAPIHost = origCoreAPIHost }()
+	coreAPIHost = "http://core-api:8080"
+
+	origCreateCoreAPIClient := createCoreAPIClient
+	defer func() { createCoreAPIClient = origCreateCoreAPIClient }()
+
+	var capturedParams coreapi.V1SplitStartVolumeParams
+	inv := &mockInvoker{}
+	inv.On("V1SplitStartVolume", mock.Anything, mock.MatchedBy(func(p coreapi.V1SplitStartVolumeParams) bool {
+		capturedParams = p
+		return true
+	})).Return(&coreapi.OperationV1{
+		Name: coreapi.NewOptString("/v1beta/projects/proj/locations/loc/operations/op-id"),
+		Done: coreapi.NewOptBool(false),
+	}, nil)
+	createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+		return &coreapi.CoreAPIClient{Invoker: inv}
+	}
+
+	handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(t)}
+	params := gcpgenserver.V1betaSplitStartVolumeParams{
+		LocationId:     "loc",
+		ProjectNumber:  "proj",
+		VolumeId:       "vol-1",
+		XCorrelationID: gcpgenserver.NewOptString("corr-id-xyz"),
+	}
+
+	result, err := handler.V1betaSplitStartVolume(context.Background(), params)
+	assert.NoError(t, err)
+	_, ok := result.(*gcpgenserver.OperationV1beta)
+	assert.True(t, ok)
+	assert.True(t, capturedParams.XCorrelationID.IsSet())
+	assert.Equal(t, "corr-id-xyz", capturedParams.XCorrelationID.Value)
+	inv.AssertExpectations(t)
+}
+
+func TestSplitStartVolume_EmptyOperationIDGeneratesUUID(t *testing.T) {
+	// Covers line 3309: when the core API returns an OperationV1 with an empty Name,
+	// a synthetic operation ID is generated.
+	origThinCloneGASupport := thinCloneGASupport
+	defer func() { thinCloneGASupport = origThinCloneGASupport }()
+	thinCloneGASupport = true
+
+	origCoreAPIHost := coreAPIHost
+	defer func() { coreAPIHost = origCoreAPIHost }()
+	coreAPIHost = "http://core-api:8080"
+
+	origCreateCoreAPIClient := createCoreAPIClient
+	defer func() { createCoreAPIClient = origCreateCoreAPIClient }()
+
+	inv := &mockInvoker{}
+	inv.On("V1SplitStartVolume", mock.Anything, mock.Anything).Return(&coreapi.OperationV1{
+		// Name is not set — empty string triggers the UUID fallback on line 3309.
+		Done: coreapi.NewOptBool(false),
+	}, nil)
+	createCoreAPIClient = func(basePath string, jwt string, logger log.Logger) *coreapi.CoreAPIClient {
+		return &coreapi.CoreAPIClient{Invoker: inv}
+	}
+
+	handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(t)}
+	params := gcpgenserver.V1betaSplitStartVolumeParams{
+		LocationId:    "us-east4",
+		ProjectNumber: "my-project",
+		VolumeId:      "vol-1",
+	}
+
+	result, err := handler.V1betaSplitStartVolume(context.Background(), params)
+	assert.NoError(t, err)
+	op, ok := result.(*gcpgenserver.OperationV1beta)
+	assert.True(t, ok)
+	// The generated operation ID must contain the project and location and be non-empty.
+	assert.True(t, op.Name.IsSet())
+	assert.Contains(t, op.Name.Value, "my-project")
+	assert.Contains(t, op.Name.Value, "us-east4")
+	inv.AssertExpectations(t)
 }

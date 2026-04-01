@@ -12,14 +12,14 @@ import (
 
 const (
 	// HTTP Status Codes for SDE Error Handling
-	HTTPStatusBadRequest            = 400
-	HTTPStatusUnauthorized          = 401
-	HTTPStatusForbidden             = 403
-	HTTPStatusNotFound              = 404
-	HTTPStatusConflict              = 409
-	HTTPStatusUnprocessableEntity   = 422
-	HTTPStatusTooManyRequests       = 429
-	HTTPStatusInternalServerError   = 500
+	HTTPStatusBadRequest          = 400
+	HTTPStatusUnauthorized        = 401
+	HTTPStatusForbidden           = 403
+	HTTPStatusNotFound            = 404
+	HTTPStatusConflict            = 409
+	HTTPStatusUnprocessableEntity = 422
+	HTTPStatusTooManyRequests     = 429
+	HTTPStatusInternalServerError = 500
 	HttpStatusNotImplemented      = 501
 )
 
@@ -570,11 +570,11 @@ type CloudTarget struct {
 	UUID string
 }
 type SnapmirrorRelationship struct {
-	UUID            string
-	DestinationUUID *string
-	Healthy         *bool
-	UnhealthyReason *[]string
-	State           *string
+	UUID               string
+	DestinationUUID    *string
+	Healthy            *bool
+	UnhealthyReason    *[]string
+	State              *string
 	TotalTransferBytes *int64
 }
 
@@ -896,7 +896,7 @@ type DeleteActiveDirectoryParams struct {
 	ActiveDirectoryUUID string
 }
 
-type SplitCloneVolumeParams struct {
+type SplitStartVolumeParams struct {
 	AccountName string
 	Region      string
 	VolumeID    string

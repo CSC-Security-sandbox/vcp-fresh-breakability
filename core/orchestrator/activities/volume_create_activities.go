@@ -1695,6 +1695,63 @@ func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume
 	return nil
 }
 
+// UpdateCloneParentStateInDB updates the clone parent state and clones_shared_bytes in the database.
+// It is called by SplitVolumeWorkflow as a cleanup activity on both success and failure paths:
+//   - On success (removeCloneInfo=true): removes CloneParentInfo entirely from volume_attributes,
+//     signalling that the volume is no longer a clone.
+//   - On ONTAP failure (removeCloneInfo=false): sets cloneState="SPLIT_FAILED" and records the
+//     ONTAP error message in stateDetails so operators can see why the split failed.
+func (a VolumeCreateActivity) UpdateCloneParentStateInDB(ctx context.Context, volumeUUID string, cloneState string, clonesSharedBytes uint64, stateDetails string, removeCloneInfo bool) error {
+	activity.RecordHeartbeat(ctx, "Updating clone parent state in DB")
+	logger := util.GetLogger(ctx)
+
+	volume, err := a.SE.GetVolume(ctx, volumeUUID)
+	if err != nil {
+		logger.Errorf("Failed to get volume %s for clone state update: %v", volumeUUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	updateFields := map[string]interface{}{
+		"clones_shared_bytes": clonesSharedBytes,
+	}
+
+	if volume.VolumeAttributes != nil {
+		updatedAttributes := *volume.VolumeAttributes
+		if removeCloneInfo {
+			// Split completed successfully — the volume is no longer a clone, so remove the
+			// cloneDetails block entirely.
+			updatedAttributes.CloneParentInfo = nil
+			logger.Debugf("Removing CloneParentInfo for volume %s after successful split", volumeUUID)
+		} else if volume.VolumeAttributes.CloneParentInfo != nil {
+			updatedAttributes.CloneParentInfo = &datamodel.CloneParentInfo{
+				ParentVolumeUUID:     volume.VolumeAttributes.CloneParentInfo.ParentVolumeUUID,
+				ParentSnapshotUUID:   volume.VolumeAttributes.CloneParentInfo.ParentSnapshotUUID,
+				SplitCompletePercent: volume.VolumeAttributes.CloneParentInfo.SplitCompletePercent,
+				State:                cloneState,
+				StateDetails:         stateDetails,
+			}
+		} else {
+			logger.Warnf("Volume %s has no CloneParentInfo, skipping clone state update", volumeUUID)
+		}
+		updateFields["volume_attributes"] = &updatedAttributes
+	} else {
+		logger.Warnf("Volume %s has no VolumeAttributes, skipping clone state update", volumeUUID)
+	}
+
+	activity.RecordHeartbeat(ctx, "Writing clone parent state update to DB")
+	if err := a.SE.UpdateVolumeFields(ctx, volumeUUID, updateFields); err != nil {
+		logger.Errorf("Failed to update clone parent state to %s for volume %s: %v", cloneState, volumeUUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if removeCloneInfo {
+		logger.Debugf("Removed CloneParentInfo and set clones_shared_bytes to %d for volume %s after successful split", clonesSharedBytes, volumeUUID)
+	} else {
+		logger.Debugf("Updated clone parent state to %s and clones_shared_bytes to %d for volume %s", cloneState, clonesSharedBytes, volumeUUID)
+	}
+	return nil
+}
+
 func ConvertToVSASnapshotPolicySchedules(schedules []*datamodel.SnapshotPolicySchedule) []*vsa.SnapshotPolicySchedule {
 	if schedules == nil {
 		return nil

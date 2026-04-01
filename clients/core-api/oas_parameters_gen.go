@@ -133,6 +133,18 @@ type V1RotateGcpKmsConfigParams struct {
 	UUID string
 }
 
+// V1SplitStartVolumeParams is parameters of v1_splitStartVolume operation.
+type V1SplitStartVolumeParams struct {
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// UUID v4 used to identify the volume.
+	VolumeId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1UpdatePoolParams is parameters of v1_updatePool operation.
 type V1UpdatePoolParams struct {
 	// UUID v4 used to identify the pool.

@@ -2315,30 +2315,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												return
 											}
 
-										case 'c': // Prefix: "clonesplit"
-
-											if l := len("clonesplit"); len(elem) >= l && elem[0:l] == "clonesplit" {
-												elem = elem[l:]
-											} else {
-												break
-											}
-
-											if len(elem) == 0 {
-												// Leaf node.
-												switch r.Method {
-												case "POST":
-													s.handleV1betaSplitCloneVolumeRequest([3]string{
-														args[0],
-														args[1],
-														args[2],
-													}, elemIsEscaped, w, r)
-												default:
-													s.notAllowed(w, r, "POST")
-												}
-
-												return
-											}
-
 										case 'e': // Prefix: "establishPeering"
 
 											if l := len("establishPeering"); len(elem) >= l && elem[0:l] == "establishPeering" {
@@ -2800,78 +2776,116 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 											}
 
-										case 's': // Prefix: "snapshots"
+										case 's': // Prefix: "s"
 
-											if l := len("snapshots"); len(elem) >= l && elem[0:l] == "snapshots" {
+											if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
 												elem = elem[l:]
 											} else {
 												break
 											}
 
 											if len(elem) == 0 {
-												switch r.Method {
-												case "GET":
-													s.handleV1betaListSnapshotRequest([3]string{
-														args[0],
-														args[1],
-														args[2],
-													}, elemIsEscaped, w, r)
-												case "POST":
-													s.handleV1betaCreateSnapshotRequest([3]string{
-														args[0],
-														args[1],
-														args[2],
-													}, elemIsEscaped, w, r)
-												default:
-													s.notAllowed(w, r, "GET,POST")
-												}
-
-												return
+												break
 											}
 											switch elem[0] {
-											case '/': // Prefix: "/"
+											case 'n': // Prefix: "napshots"
 
-												if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+												if l := len("napshots"); len(elem) >= l && elem[0:l] == "napshots" {
 													elem = elem[l:]
 												} else {
 													break
 												}
 
-												// Param: "snapshotId"
-												// Leaf parameter, slashes are prohibited
-												idx := strings.IndexByte(elem, '/')
-												if idx >= 0 {
+												if len(elem) == 0 {
+													switch r.Method {
+													case "GET":
+														s.handleV1betaListSnapshotRequest([3]string{
+															args[0],
+															args[1],
+															args[2],
+														}, elemIsEscaped, w, r)
+													case "POST":
+														s.handleV1betaCreateSnapshotRequest([3]string{
+															args[0],
+															args[1],
+															args[2],
+														}, elemIsEscaped, w, r)
+													default:
+														s.notAllowed(w, r, "GET,POST")
+													}
+
+													return
+												}
+												switch elem[0] {
+												case '/': // Prefix: "/"
+
+													if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+														elem = elem[l:]
+													} else {
+														break
+													}
+
+													// Param: "snapshotId"
+													// Leaf parameter, slashes are prohibited
+													idx := strings.IndexByte(elem, '/')
+													if idx >= 0 {
+														break
+													}
+													args[3] = elem
+													elem = ""
+
+													if len(elem) == 0 {
+														// Leaf node.
+														switch r.Method {
+														case "DELETE":
+															s.handleV1betaDeleteSnapshotRequest([4]string{
+																args[0],
+																args[1],
+																args[2],
+																args[3],
+															}, elemIsEscaped, w, r)
+														case "GET":
+															s.handleV1betaDescribeSnapshotRequest([4]string{
+																args[0],
+																args[1],
+																args[2],
+																args[3],
+															}, elemIsEscaped, w, r)
+														case "PUT":
+															s.handleV1betaUpdateSnapshotRequest([4]string{
+																args[0],
+																args[1],
+																args[2],
+																args[3],
+															}, elemIsEscaped, w, r)
+														default:
+															s.notAllowed(w, r, "DELETE,GET,PUT")
+														}
+
+														return
+													}
+
+												}
+
+											case 'p': // Prefix: "plitstart"
+
+												if l := len("plitstart"); len(elem) >= l && elem[0:l] == "plitstart" {
+													elem = elem[l:]
+												} else {
 													break
 												}
-												args[3] = elem
-												elem = ""
 
 												if len(elem) == 0 {
 													// Leaf node.
 													switch r.Method {
-													case "DELETE":
-														s.handleV1betaDeleteSnapshotRequest([4]string{
+													case "POST":
+														s.handleV1betaSplitStartVolumeRequest([3]string{
 															args[0],
 															args[1],
 															args[2],
-															args[3],
-														}, elemIsEscaped, w, r)
-													case "GET":
-														s.handleV1betaDescribeSnapshotRequest([4]string{
-															args[0],
-															args[1],
-															args[2],
-															args[3],
-														}, elemIsEscaped, w, r)
-													case "PUT":
-														s.handleV1betaUpdateSnapshotRequest([4]string{
-															args[0],
-															args[1],
-															args[2],
-															args[3],
 														}, elemIsEscaped, w, r)
 													default:
-														s.notAllowed(w, r, "DELETE,GET,PUT")
+														s.notAllowed(w, r, "POST")
 													}
 
 													return
@@ -5340,30 +5354,6 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 												}
 											}
 
-										case 'c': // Prefix: "clonesplit"
-
-											if l := len("clonesplit"); len(elem) >= l && elem[0:l] == "clonesplit" {
-												elem = elem[l:]
-											} else {
-												break
-											}
-
-											if len(elem) == 0 {
-												// Leaf node.
-												switch method {
-												case "POST":
-													r.name = V1betaSplitCloneVolumeOperation
-													r.summary = "Split a thin clone volume"
-													r.operationID = "v1beta_splitCloneVolume"
-													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/clonesplit"
-													r.args = args
-													r.count = 3
-													return r, true
-												default:
-													return
-												}
-											}
-
 										case 'e': // Prefix: "establishPeering"
 
 											if l := len("establishPeering"); len(elem) >= l && elem[0:l] == "establishPeering" {
@@ -5823,80 +5813,118 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 											}
 
-										case 's': // Prefix: "snapshots"
+										case 's': // Prefix: "s"
 
-											if l := len("snapshots"); len(elem) >= l && elem[0:l] == "snapshots" {
+											if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
 												elem = elem[l:]
 											} else {
 												break
 											}
 
 											if len(elem) == 0 {
-												switch method {
-												case "GET":
-													r.name = V1betaListSnapshotOperation
-													r.summary = "Lists snapshots in a volume"
-													r.operationID = "v1beta_listSnapshot"
-													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots"
-													r.args = args
-													r.count = 3
-													return r, true
-												case "POST":
-													r.name = V1betaCreateSnapshotOperation
-													r.summary = "Create a snapshot"
-													r.operationID = "v1beta_createSnapshot"
-													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots"
-													r.args = args
-													r.count = 3
-													return r, true
-												default:
-													return
-												}
+												break
 											}
 											switch elem[0] {
-											case '/': // Prefix: "/"
+											case 'n': // Prefix: "napshots"
 
-												if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+												if l := len("napshots"); len(elem) >= l && elem[0:l] == "napshots" {
 													elem = elem[l:]
 												} else {
 													break
 												}
 
-												// Param: "snapshotId"
-												// Leaf parameter, slashes are prohibited
-												idx := strings.IndexByte(elem, '/')
-												if idx >= 0 {
+												if len(elem) == 0 {
+													switch method {
+													case "GET":
+														r.name = V1betaListSnapshotOperation
+														r.summary = "Lists snapshots in a volume"
+														r.operationID = "v1beta_listSnapshot"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots"
+														r.args = args
+														r.count = 3
+														return r, true
+													case "POST":
+														r.name = V1betaCreateSnapshotOperation
+														r.summary = "Create a snapshot"
+														r.operationID = "v1beta_createSnapshot"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots"
+														r.args = args
+														r.count = 3
+														return r, true
+													default:
+														return
+													}
+												}
+												switch elem[0] {
+												case '/': // Prefix: "/"
+
+													if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+														elem = elem[l:]
+													} else {
+														break
+													}
+
+													// Param: "snapshotId"
+													// Leaf parameter, slashes are prohibited
+													idx := strings.IndexByte(elem, '/')
+													if idx >= 0 {
+														break
+													}
+													args[3] = elem
+													elem = ""
+
+													if len(elem) == 0 {
+														// Leaf node.
+														switch method {
+														case "DELETE":
+															r.name = V1betaDeleteSnapshotOperation
+															r.summary = "Delete a snapshot for a volume"
+															r.operationID = "v1beta_deleteSnapshot"
+															r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}"
+															r.args = args
+															r.count = 4
+															return r, true
+														case "GET":
+															r.name = V1betaDescribeSnapshotOperation
+															r.summary = "Get a snapshot"
+															r.operationID = "v1beta_describeSnapshot"
+															r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}"
+															r.args = args
+															r.count = 4
+															return r, true
+														case "PUT":
+															r.name = V1betaUpdateSnapshotOperation
+															r.summary = "Update a snapshot"
+															r.operationID = "v1beta_updateSnapshot"
+															r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}"
+															r.args = args
+															r.count = 4
+															return r, true
+														default:
+															return
+														}
+													}
+
+												}
+
+											case 'p': // Prefix: "plitstart"
+
+												if l := len("plitstart"); len(elem) >= l && elem[0:l] == "plitstart" {
+													elem = elem[l:]
+												} else {
 													break
 												}
-												args[3] = elem
-												elem = ""
 
 												if len(elem) == 0 {
 													// Leaf node.
 													switch method {
-													case "DELETE":
-														r.name = V1betaDeleteSnapshotOperation
-														r.summary = "Delete a snapshot for a volume"
-														r.operationID = "v1beta_deleteSnapshot"
-														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}"
+													case "POST":
+														r.name = V1betaSplitStartVolumeOperation
+														r.summary = "Split a thin clone volume"
+														r.operationID = "v1beta_splitStartVolume"
+														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstart"
 														r.args = args
-														r.count = 4
-														return r, true
-													case "GET":
-														r.name = V1betaDescribeSnapshotOperation
-														r.summary = "Get a snapshot"
-														r.operationID = "v1beta_describeSnapshot"
-														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}"
-														r.args = args
-														r.count = 4
-														return r, true
-													case "PUT":
-														r.name = V1betaUpdateSnapshotOperation
-														r.summary = "Update a snapshot"
-														r.operationID = "v1beta_updateSnapshot"
-														r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots/{snapshotId}"
-														r.args = args
-														r.count = 4
+														r.count = 3
 														return r, true
 													default:
 														return

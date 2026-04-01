@@ -425,8 +425,8 @@ type V1betaRotateCmekBackupsRes interface {
 	v1betaRotateCmekBackupsRes()
 }
 
-type V1betaSplitCloneVolumeRes interface {
-	v1betaSplitCloneVolumeRes()
+type V1betaSplitStartVolumeRes interface {
+	v1betaSplitStartVolumeRes()
 }
 
 type V1betaStartProjectEventRes interface {

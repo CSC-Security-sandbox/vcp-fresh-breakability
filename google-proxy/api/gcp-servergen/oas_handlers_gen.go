@@ -16681,22 +16681,22 @@ func (s *Server) handleV1betaRotateCmekBackupsRequest(args [3]string, argsEscape
 	}
 }
 
-// handleV1betaSplitCloneVolumeRequest handles v1beta_splitCloneVolume operation.
+// handleV1betaSplitStartVolumeRequest handles v1beta_splitStartVolume operation.
 //
 // Warning! This operation will permanently split the thin clone from its source volume.
 //
-// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/clonesplit
-func (s *Server) handleV1betaSplitCloneVolumeRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstart
+func (s *Server) handleV1betaSplitStartVolumeRequest(args [3]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
 	statusWriter := &codeRecorder{ResponseWriter: w}
 	w = statusWriter
 	otelAttrs := []attribute.KeyValue{
-		otelogen.OperationID("v1beta_splitCloneVolume"),
+		otelogen.OperationID("v1beta_splitStartVolume"),
 		semconv.HTTPRequestMethodKey.String("POST"),
-		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/clonesplit"),
+		semconv.HTTPRouteKey.String("/v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstart"),
 	}
 
 	// Start a span for this request.
-	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaSplitCloneVolumeOperation,
+	ctx, span := s.cfg.Tracer.Start(r.Context(), V1betaSplitStartVolumeOperation,
 		trace.WithAttributes(otelAttrs...),
 		serverSpanKind,
 	)
@@ -16751,11 +16751,11 @@ func (s *Server) handleV1betaSplitCloneVolumeRequest(args [3]string, argsEscaped
 		}
 		err          error
 		opErrContext = ogenerrors.OperationContext{
-			Name: V1betaSplitCloneVolumeOperation,
-			ID:   "v1beta_splitCloneVolume",
+			Name: V1betaSplitStartVolumeOperation,
+			ID:   "v1beta_splitStartVolume",
 		}
 	)
-	params, err := decodeV1betaSplitCloneVolumeParams(args, argsEscaped, r)
+	params, err := decodeV1betaSplitStartVolumeParams(args, argsEscaped, r)
 	if err != nil {
 		err = &ogenerrors.DecodeParamsError{
 			OperationContext: opErrContext,
@@ -16766,13 +16766,13 @@ func (s *Server) handleV1betaSplitCloneVolumeRequest(args [3]string, argsEscaped
 		return
 	}
 
-	var response V1betaSplitCloneVolumeRes
+	var response V1betaSplitStartVolumeRes
 	if m := s.cfg.Middleware; m != nil {
 		mreq := middleware.Request{
 			Context:          ctx,
-			OperationName:    V1betaSplitCloneVolumeOperation,
+			OperationName:    V1betaSplitStartVolumeOperation,
 			OperationSummary: "Split a thin clone volume",
-			OperationID:      "v1beta_splitCloneVolume",
+			OperationID:      "v1beta_splitStartVolume",
 			Body:             nil,
 			Params: middleware.Parameters{
 				{
@@ -16797,8 +16797,8 @@ func (s *Server) handleV1betaSplitCloneVolumeRequest(args [3]string, argsEscaped
 
 		type (
 			Request  = struct{}
-			Params   = V1betaSplitCloneVolumeParams
-			Response = V1betaSplitCloneVolumeRes
+			Params   = V1betaSplitStartVolumeParams
+			Response = V1betaSplitStartVolumeRes
 		)
 		response, err = middleware.HookMiddleware[
 			Request,
@@ -16807,14 +16807,14 @@ func (s *Server) handleV1betaSplitCloneVolumeRequest(args [3]string, argsEscaped
 		](
 			m,
 			mreq,
-			unpackV1betaSplitCloneVolumeParams,
+			unpackV1betaSplitStartVolumeParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.V1betaSplitCloneVolume(ctx, params)
+				response, err = s.h.V1betaSplitStartVolume(ctx, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.V1betaSplitCloneVolume(ctx, params)
+		response, err = s.h.V1betaSplitStartVolume(ctx, params)
 	}
 	if err != nil {
 		defer recordError("Internal", err)
@@ -16822,7 +16822,7 @@ func (s *Server) handleV1betaSplitCloneVolumeRequest(args [3]string, argsEscaped
 		return
 	}
 
-	if err := encodeV1betaSplitCloneVolumeResponse(response, w, span); err != nil {
+	if err := encodeV1betaSplitStartVolumeResponse(response, w, span); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

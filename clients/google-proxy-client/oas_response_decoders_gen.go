@@ -46963,7 +46963,7 @@ func decodeV1betaRotateCmekBackupsResponse(resp *http.Response) (res V1betaRotat
 	return res, nil
 }
 
-func decodeV1betaSplitCloneVolumeResponse(resp *http.Response) (res V1betaSplitCloneVolumeRes, _ error) {
+func decodeV1betaSplitStartVolumeResponse(resp *http.Response) (res V1betaSplitStartVolumeRes, _ error) {
 	switch resp.StatusCode {
 	case 202:
 		// Code 202.
@@ -47011,7 +47011,7 @@ func decodeV1betaSplitCloneVolumeResponse(resp *http.Response) (res V1betaSplitC
 		}
 	case 204:
 		// Code 204.
-		return &V1betaSplitCloneVolumeNoContent{}, nil
+		return &V1betaSplitStartVolumeNoContent{}, nil
 	case 400:
 		// Code 400.
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
@@ -47026,7 +47026,7 @@ func decodeV1betaSplitCloneVolumeResponse(resp *http.Response) (res V1betaSplitC
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response V1betaSplitCloneVolumeBadRequest
+			var response V1betaSplitStartVolumeBadRequest
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -47070,7 +47070,7 @@ func decodeV1betaSplitCloneVolumeResponse(resp *http.Response) (res V1betaSplitC
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response V1betaSplitCloneVolumeUnauthorized
+			var response V1betaSplitStartVolumeUnauthorized
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -47114,7 +47114,7 @@ func decodeV1betaSplitCloneVolumeResponse(resp *http.Response) (res V1betaSplitC
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response V1betaSplitCloneVolumeForbidden
+			var response V1betaSplitStartVolumeForbidden
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -47158,7 +47158,7 @@ func decodeV1betaSplitCloneVolumeResponse(resp *http.Response) (res V1betaSplitC
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response V1betaSplitCloneVolumeNotFound
+			var response V1betaSplitStartVolumeNotFound
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -47202,7 +47202,7 @@ func decodeV1betaSplitCloneVolumeResponse(resp *http.Response) (res V1betaSplitC
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response V1betaSplitCloneVolumeConflict
+			var response V1betaSplitStartVolumeConflict
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -47246,7 +47246,7 @@ func decodeV1betaSplitCloneVolumeResponse(resp *http.Response) (res V1betaSplitC
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response V1betaSplitCloneVolumeUnprocessableEntity
+			var response V1betaSplitStartVolumeUnprocessableEntity
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -47290,7 +47290,7 @@ func decodeV1betaSplitCloneVolumeResponse(resp *http.Response) (res V1betaSplitC
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response V1betaSplitCloneVolumeTooManyRequests
+			var response V1betaSplitStartVolumeTooManyRequests
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -47334,7 +47334,7 @@ func decodeV1betaSplitCloneVolumeResponse(resp *http.Response) (res V1betaSplitC
 			}
 			d := jx.DecodeBytes(buf)
 
-			var response V1betaSplitCloneVolumeInternalServerError
+			var response V1betaSplitStartVolumeInternalServerError
 			if err := func() error {
 				if err := response.Decode(d); err != nil {
 					return err
@@ -47366,7 +47366,7 @@ func decodeV1betaSplitCloneVolumeResponse(resp *http.Response) (res V1betaSplitC
 		}
 	}
 	// Default response.
-	res, err := func() (res V1betaSplitCloneVolumeRes, err error) {
+	res, err := func() (res V1betaSplitStartVolumeRes, err error) {
 		ct, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 		if err != nil {
 			return res, errors.Wrap(err, "parse media type")

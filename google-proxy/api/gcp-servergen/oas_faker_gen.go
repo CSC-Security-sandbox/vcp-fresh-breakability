@@ -1451,6 +1451,26 @@ func (s *CloneDetailsV1beta) SetFake() {
 			s.SharedBytes.SetFake()
 		}
 	}
+	{
+		{
+			s.State.SetFake()
+		}
+	}
+	{
+		{
+			s.StateDetails.SetFake()
+		}
+	}
+	{
+		{
+			s.SplitCompletePercent.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *CloneDetailsV1betaState) SetFake() {
+	*s = CloneDetailsV1betaStateCLONED
 }
 
 // SetFake set fake values.
@@ -3516,6 +3536,12 @@ func (s *OptNilBool) SetFake() {
 
 // SetFake set fake values.
 func (s *OptNilChildAssetArray) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilCloneDetailsV1betaState) SetFake() {
 	s.Null = true
 	s.Set = true
 }
@@ -13597,75 +13623,75 @@ func (s *V1betaRotateCmekBackupsUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
-func (s *V1betaSplitCloneVolumeBadRequest) SetFake() {
+func (s *V1betaSplitStartVolumeBadRequest) SetFake() {
 	var unwrapped Error
 	{
 		unwrapped.SetFake()
 	}
-	*s = V1betaSplitCloneVolumeBadRequest(unwrapped)
+	*s = V1betaSplitStartVolumeBadRequest(unwrapped)
 }
 
 // SetFake set fake values.
-func (s *V1betaSplitCloneVolumeConflict) SetFake() {
+func (s *V1betaSplitStartVolumeConflict) SetFake() {
 	var unwrapped Error
 	{
 		unwrapped.SetFake()
 	}
-	*s = V1betaSplitCloneVolumeConflict(unwrapped)
+	*s = V1betaSplitStartVolumeConflict(unwrapped)
 }
 
 // SetFake set fake values.
-func (s *V1betaSplitCloneVolumeForbidden) SetFake() {
+func (s *V1betaSplitStartVolumeForbidden) SetFake() {
 	var unwrapped Error
 	{
 		unwrapped.SetFake()
 	}
-	*s = V1betaSplitCloneVolumeForbidden(unwrapped)
+	*s = V1betaSplitStartVolumeForbidden(unwrapped)
 }
 
 // SetFake set fake values.
-func (s *V1betaSplitCloneVolumeInternalServerError) SetFake() {
+func (s *V1betaSplitStartVolumeInternalServerError) SetFake() {
 	var unwrapped Error
 	{
 		unwrapped.SetFake()
 	}
-	*s = V1betaSplitCloneVolumeInternalServerError(unwrapped)
+	*s = V1betaSplitStartVolumeInternalServerError(unwrapped)
 }
 
 // SetFake set fake values.
-func (s *V1betaSplitCloneVolumeNotFound) SetFake() {
+func (s *V1betaSplitStartVolumeNotFound) SetFake() {
 	var unwrapped Error
 	{
 		unwrapped.SetFake()
 	}
-	*s = V1betaSplitCloneVolumeNotFound(unwrapped)
+	*s = V1betaSplitStartVolumeNotFound(unwrapped)
 }
 
 // SetFake set fake values.
-func (s *V1betaSplitCloneVolumeTooManyRequests) SetFake() {
+func (s *V1betaSplitStartVolumeTooManyRequests) SetFake() {
 	var unwrapped Error
 	{
 		unwrapped.SetFake()
 	}
-	*s = V1betaSplitCloneVolumeTooManyRequests(unwrapped)
+	*s = V1betaSplitStartVolumeTooManyRequests(unwrapped)
 }
 
 // SetFake set fake values.
-func (s *V1betaSplitCloneVolumeUnauthorized) SetFake() {
+func (s *V1betaSplitStartVolumeUnauthorized) SetFake() {
 	var unwrapped Error
 	{
 		unwrapped.SetFake()
 	}
-	*s = V1betaSplitCloneVolumeUnauthorized(unwrapped)
+	*s = V1betaSplitStartVolumeUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.
-func (s *V1betaSplitCloneVolumeUnprocessableEntity) SetFake() {
+func (s *V1betaSplitStartVolumeUnprocessableEntity) SetFake() {
 	var unwrapped Error
 	{
 		unwrapped.SetFake()
 	}
-	*s = V1betaSplitCloneVolumeUnprocessableEntity(unwrapped)
+	*s = V1betaSplitStartVolumeUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.

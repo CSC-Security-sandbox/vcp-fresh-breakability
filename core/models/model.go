@@ -99,6 +99,11 @@ const (
 	AllowedAllClients               = "0.0.0.0/0"
 	IgnoreNtfsUnixSecurity          = "ignore"
 	DefaultIndexExportPolicyRule    = int64(7)
+
+	// Clone states
+	CloneStateCloned           = "CLONED"
+	CloneStateSplitting        = "SPLITTING"
+	CloneStateErrorInSplitting = "SPLIT_FAILED"
 )
 
 const (

@@ -955,6 +955,8 @@ paths:
                   parentVolumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E
                   parentSnapshotId: 9760acf5-4638-11e7-9bdb-020073ca3333
                   sharedBytes: 100000000000
+                  state: CLONED
+                  splitCompletePercent: 0
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -1070,6 +1072,8 @@ paths:
                     parentVolumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E
                     parentSnapshotId: 9760acf5-4638-11e7-9bdb-020073ca3333
                     sharedBytes: 100000000000
+                    state: CLONED
+                    splitCompletePercent: 0
         "204":
           description: No content
           content: {}
@@ -1336,6 +1340,8 @@ paths:
                       parentVolumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E
                       parentSnapshotId: 9760acf5-4638-11e7-9bdb-020073ca3333
                       sharedBytes: 100000000000
+                      state: CLONED
+                      splitCompletePercent: 0
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -1425,6 +1431,8 @@ paths:
                     parentVolumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E
                     parentSnapshotId: 9760acf5-4638-11e7-9bdb-020073ca3333
                     sharedBytes: 100000000000
+                    state: CLONED
+                    splitCompletePercent: 0
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -1539,6 +1547,8 @@ paths:
                       parentVolumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E
                       parentSnapshotId: 9760acf5-4638-11e7-9bdb-020073ca3333
                       sharedBytes: 100000000000
+                      state: CLONED
+                      splitCompletePercent: 0
                   - volumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8afE
                     resourceId: iscsi-volume-sample
                     created: 2017-01-29T09:10:30.384Z
@@ -1658,6 +1668,8 @@ paths:
                       parentVolumeId: 49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E
                       parentSnapshotId: 9760acf5-4638-11e7-9bdb-020073ca3333
                       sharedBytes: 100000000000
+                      state: CLONED
+                      splitCompletePercent: 0
         '400':
           $ref: '#/components/responses/StandardError-400'
         '401':
@@ -6717,9 +6729,9 @@ paths:
                 $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
 
-  /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/clonesplit:
+  /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstart:
     post:
-      operationId: v1beta_splitCloneVolume
+      operationId: v1beta_splitStartVolume
       summary: Split a thin clone volume
       description: Warning! This operation will permanently split the thin clone from its source volume.
       tags:
@@ -6738,8 +6750,8 @@ paths:
                 $ref: '#/components/schemas/Operation_v1beta'
               example:
                 application/json:
-                  done: false
-                  name: /v1beta/projects/123456789/locations/some-location1/operations/6bed33e1-cc9c-e0b5-ac63-24e9410e64c1
+                  done: true
+                  name: /v1beta/projects/123456789/locations/some-location1/operations/00000000-0000-0000-0000-000000000000
         '204':
           description: No Content
         '400':
@@ -14274,6 +14286,40 @@ components:
           readOnly: true
           example: 101010.0
           default: 0.0
+        state:
+          title: state
+          type: string
+          description: The current lifecycle state of the clone split operation
+          enum:
+            - CLONED
+            - SPLITTING
+            - SPLIT_FAILED
+          example: SPLITTING
+          nullable: true
+          x-nullable: true
+          x-omitempty: true
+          readOnly: true
+        stateDetails:
+          title: stateDetails
+          type: string
+          description: Error details on why the split operation failed, displayed only when state is SPLIT_FAILED
+          example: The clone split operation failed.
+          nullable: true
+          x-nullable: true
+          x-omitempty: true
+          readOnly: true
+        splitCompletePercent:
+          title: splitCompletePercent
+          minimum: 0
+          maximum: 100
+          type: number
+          description: The progress in percentage of the clone split operation. This field is only relevant for thin clones.
+          format: int64
+          nullable: true
+          x-nullable: true
+          x-omitempty: true
+          readOnly: true
+          example: 50
   responses:
     StandardError-400:
       description: Bad request

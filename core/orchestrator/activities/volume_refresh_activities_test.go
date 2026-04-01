@@ -862,7 +862,9 @@ func TestVolumeRefreshActivity_SyncUpdatedVolumesToDatabase_Success(t *testing.T
 	// Mock BatchUpdateVolumeFields to succeed
 	mockStorage.On("BatchUpdateVolumeFields", mock.Anything, mock.AnythingOfType("[]datamodel.VolumeFieldUpdate")).Return(nil)
 
-	_, err := env.ExecuteActivity(activity.SyncUpdatedVolumesToDatabase, dbVols)
+	_, err := env.ExecuteActivity(activity.SyncUpdatedVolumesToDatabase, &SyncUpdatedVolumesInput{
+		UpdatedVolumeByUUID: dbVols,
+	})
 
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
@@ -886,7 +888,9 @@ func TestVolumeRefreshActivity_SyncUpdatedVolumesToDatabase_Error(t *testing.T) 
 	expectedError := errors.New("database error")
 	mockStorage.On("BatchUpdateVolumeFields", mock.Anything, mock.AnythingOfType("[]datamodel.VolumeFieldUpdate")).Return(expectedError)
 
-	_, err := env.ExecuteActivity(activity.SyncUpdatedVolumesToDatabase, dbVols)
+	_, err := env.ExecuteActivity(activity.SyncUpdatedVolumesToDatabase, &SyncUpdatedVolumesInput{
+		UpdatedVolumeByUUID: dbVols,
+	})
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "database error")
@@ -901,9 +905,9 @@ func TestVolumeRefreshActivity_SyncUpdatedVolumesToDatabase_EmptyVols(t *testing
 	activity := &VolumeRefreshActivity{SE: mockStorage}
 	env.RegisterActivity(activity.SyncUpdatedVolumesToDatabase)
 
-	dbVols := map[string]*datamodel.Volume{}
-
-	_, err := env.ExecuteActivity(activity.SyncUpdatedVolumesToDatabase, dbVols)
+	_, err := env.ExecuteActivity(activity.SyncUpdatedVolumesToDatabase, &SyncUpdatedVolumesInput{
+		UpdatedVolumeByUUID: map[string]*datamodel.Volume{},
+	})
 
 	assert.NoError(t, err)
 	// No database calls should be made for empty volumes
@@ -912,13 +916,18 @@ func TestVolumeRefreshActivity_SyncUpdatedVolumesToDatabase_EmptyVols(t *testing
 
 // Test wrapper activity for testing _syncUpdatedVolumesToDatabase helper function
 type testSyncActivityWrapper struct {
-	SE          database.Storage
-	DBVols      map[string]*datamodel.Volume
-	ShouldError bool
+	SE                        database.Storage
+	DBVols                    map[string]*datamodel.Volume
+	ClonesSharedBytesResetUUIDs map[string]bool
+	ShouldError               bool
 }
 
 func (w *testSyncActivityWrapper) TestSyncActivity(ctx context.Context) error {
-	return _syncUpdatedVolumesToDatabase(ctx, w.SE, w.DBVols)
+	resetUUIDs := w.ClonesSharedBytesResetUUIDs
+	if resetUUIDs == nil {
+		resetUUIDs = make(map[string]bool)
+	}
+	return _syncUpdatedVolumesToDatabase(ctx, w.SE, w.DBVols, resetUUIDs)
 }
 
 func Test_syncUpdatedVolumesToDatabase_Success(t *testing.T) {
@@ -1579,6 +1588,7 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_CloneInfo_Success(t *t
 				},
 			},
 			Clone: &ontapmodels.VolumeInlineClone{
+				IsFlexclone: nillable.ToPointer(true),
 				ParentVolume: &ontapmodels.VolumeInlineCloneInlineParentVolume{
 					Name: &parentVolumeName,
 				},
@@ -1667,6 +1677,7 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_CloneInfo_ParentVolume
 				},
 			},
 			Clone: &ontapmodels.VolumeInlineClone{
+				IsFlexclone: nillable.ToPointer(true),
 				ParentVolume: &ontapmodels.VolumeInlineCloneInlineParentVolume{
 					Name: &parentVolumeName,
 				},
@@ -1742,6 +1753,7 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_CloneInfo_ParentSnapsh
 				},
 			},
 			Clone: &ontapmodels.VolumeInlineClone{
+				IsFlexclone: nillable.ToPointer(true),
 				ParentVolume: &ontapmodels.VolumeInlineCloneInlineParentVolume{
 					Name: &parentVolumeName,
 				},
@@ -1829,6 +1841,7 @@ func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_CloneInfo_UpdateExisti
 				},
 			},
 			Clone: &ontapmodels.VolumeInlineClone{
+				IsFlexclone: nillable.ToPointer(true),
 				ParentVolume: &ontapmodels.VolumeInlineCloneInlineParentVolume{
 					Name: &parentVolumeName,
 				},
@@ -2004,6 +2017,623 @@ func Test_syncUpdatedVolumesToDatabase_WithCloneInfo_GetVolumeError(t *testing.T
 	_, err := env.ExecuteActivity(wrapper.TestSyncActivity)
 
 	assert.NoError(t, err) // Should continue even if GetVolume fails
+	mockStorage.AssertExpectations(t)
+}
+
+// Test that ClonesSharedBytes is reset to 0 when ONTAP reports the volume is not a flexclone
+func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_ClonesSharedBytesReset(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := &VolumeRefreshActivity{SE: mockStorage}
+	env.RegisterActivity(activity.ProcessOntapVolumeMatching)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:      "test-pool",
+	}
+
+	// Volume is recorded as a clone in DB (ClonesSharedBytes > 0)
+	dbVolume := &datamodel.Volume{
+		BaseModel:         datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
+		Pool:              pool,
+		ClonesSharedBytes: 500,
+		UsedBytes:         1024,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid",
+		},
+	}
+
+	// ONTAP says the volume is NOT a flexclone (Clone is nil → is_flexclone defaults to false)
+	ontapVolume := &vsa.Volume{
+		Volume: ontapmodels.Volume{
+			Space: &ontapmodels.VolumeInlineSpace{
+				LogicalSpace: &ontapmodels.VolumeInlineSpaceInlineLogicalSpace{
+					Used: nillable.ToPointer(int64(2048)),
+				},
+			},
+			Clone: nil, // ONTAP has no clone info → is_flexclone is false
+		},
+	}
+
+	input := &ProcessOntapVolumeMatchingInput{
+		DbVolumes: []*datamodel.Volume{dbVolume},
+		OntapVolumesResults: map[string]*GetOntapVolumesReturnValue{
+			"pool-uuid": {
+				OntapVolumeMap: map[string]*vsa.Volume{
+					"external-uuid": ontapVolume,
+				},
+			},
+		},
+	}
+
+	val, err := env.ExecuteActivity(activity.ProcessOntapVolumeMatching, input)
+
+	assert.NoError(t, err)
+	var result *ProcessOntapVolumeMatchingResult
+	_ = val.Get(&result)
+	assert.NotNil(t, result)
+
+	// Volume must be queued for update
+	assert.Len(t, result.UpdatedVolumeByUUID, 1)
+	assert.Contains(t, result.UpdatedVolumeByUUID, "vol-uuid")
+
+	// UsedBytes should be updated from ONTAP
+	assert.Equal(t, uint64(2048), result.UpdatedVolumeByUUID["vol-uuid"].UsedBytes)
+
+	// The reset set must contain this volume's UUID so the sync step writes clones_shared_bytes=0
+	assert.True(t, result.VolumesWithClonesSharedBytesReset["vol-uuid"],
+		"VolumesWithClonesSharedBytesReset should contain vol-uuid when ONTAP reports volume is not a flexclone")
+}
+
+// Test that _syncUpdatedVolumesToDatabase writes clones_shared_bytes=0 when the UUID is in the
+// reset set and there is no clone info update (VolumeAttributes is nil on the updated volume).
+func Test_syncUpdatedVolumesToDatabase_ClonesSharedBytesReset_NoCloneInfo(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+
+	dbVols := map[string]*datamodel.Volume{
+		"vol-1": {
+			BaseModel: datamodel.BaseModel{UUID: "vol-1", ID: 1},
+			UsedBytes: 2048,
+			// VolumeAttributes is nil — only clones_shared_bytes needs resetting
+		},
+	}
+
+	// Expect UpdateVolumeFields to be called with clones_shared_bytes=0 and used_bytes
+	mockStorage.On("UpdateVolumeFields", mock.Anything, "vol-1",
+		mock.MatchedBy(func(fields map[string]interface{}) bool {
+			csb, hasCsb := fields["clones_shared_bytes"]
+			ub, hasUb := fields["used_bytes"]
+			_, hasVA := fields["volume_attributes"]
+			return hasCsb && csb == uint64(0) &&
+				hasUb && ub == uint64(2048) &&
+				!hasVA // volume_attributes must NOT be written when VolumeAttributes is nil
+		}),
+	).Return(nil)
+
+	wrapper := &testSyncActivityWrapper{
+		SE:     mockStorage,
+		DBVols: dbVols,
+		ClonesSharedBytesResetUUIDs: map[string]bool{"vol-1": true},
+	}
+	env.RegisterActivity(wrapper.TestSyncActivity)
+
+	_, err := env.ExecuteActivity(wrapper.TestSyncActivity)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+// Test split_complete_percent update when it changes — covers lines 415-430
+func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_SplitCompletePercent_Changed(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := &VolumeRefreshActivity{SE: mockStorage}
+	env.RegisterActivity(activity.ProcessOntapVolumeMatching)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:      "test-pool",
+	}
+
+	oldPercent := int64(25)
+	newPercent := int64(50)
+
+	dbVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
+		Pool:      pool,
+		UsedBytes: 2048, // Same as ONTAP — only clone update triggers change
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid",
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID:     "parent-vol-uuid",
+				ParentSnapshotUUID:   "parent-snap-uuid",
+				SplitCompletePercent: &oldPercent,
+				State:                models.CloneStateSplitting,
+			},
+		},
+	}
+
+	ontapVolume := &vsa.Volume{
+		Volume: ontapmodels.Volume{
+			Space: &ontapmodels.VolumeInlineSpace{
+				LogicalSpace: &ontapmodels.VolumeInlineSpaceInlineLogicalSpace{
+					Used: nillable.ToPointer(int64(2048)),
+				},
+			},
+			Clone: &ontapmodels.VolumeInlineClone{
+				IsFlexclone:          nillable.ToPointer(true),
+				SplitCompletePercent: &newPercent,
+			},
+		},
+	}
+
+	input := &ProcessOntapVolumeMatchingInput{
+		DbVolumes: []*datamodel.Volume{dbVolume},
+		OntapVolumesResults: map[string]*GetOntapVolumesReturnValue{
+			"pool-uuid": {
+				OntapVolumeMap: map[string]*vsa.Volume{
+					"external-uuid": ontapVolume,
+				},
+			},
+		},
+	}
+
+	val, err := env.ExecuteActivity(activity.ProcessOntapVolumeMatching, input)
+
+	assert.NoError(t, err)
+	var result *ProcessOntapVolumeMatchingResult
+	_ = val.Get(&result)
+	assert.NotNil(t, result)
+	assert.Len(t, result.UpdatedVolumeByUUID, 1)
+	updatedVol := result.UpdatedVolumeByUUID["vol-uuid"]
+	assert.NotNil(t, updatedVol)
+	assert.NotNil(t, updatedVol.VolumeAttributes)
+	assert.NotNil(t, updatedVol.VolumeAttributes.CloneParentInfo)
+	assert.Equal(t, newPercent, *updatedVol.VolumeAttributes.CloneParentInfo.SplitCompletePercent)
+	// Parent UUIDs must be preserved from DB
+	assert.Equal(t, "parent-vol-uuid", updatedVol.VolumeAttributes.CloneParentInfo.ParentVolumeUUID)
+	assert.Equal(t, "parent-snap-uuid", updatedVol.VolumeAttributes.CloneParentInfo.ParentSnapshotUUID)
+}
+
+// Test that SPLIT_FAILED state is cleared when split_complete_percent advances — covers lines 432-440
+func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_SplitCompletePercent_ClearsSplitFailed(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := &VolumeRefreshActivity{SE: mockStorage}
+	env.RegisterActivity(activity.ProcessOntapVolumeMatching)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:      "test-pool",
+	}
+
+	oldPercent := int64(30)
+	newPercent := int64(60)
+
+	dbVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
+		Pool:      pool,
+		UsedBytes: 2048,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid",
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID:     "parent-vol-uuid",
+				ParentSnapshotUUID:   "parent-snap-uuid",
+				SplitCompletePercent: &oldPercent,
+				State:                models.CloneStateErrorInSplitting,
+				StateDetails:         "previous error",
+			},
+		},
+	}
+
+	ontapVolume := &vsa.Volume{
+		Volume: ontapmodels.Volume{
+			Space: &ontapmodels.VolumeInlineSpace{
+				LogicalSpace: &ontapmodels.VolumeInlineSpaceInlineLogicalSpace{
+					Used: nillable.ToPointer(int64(2048)),
+				},
+			},
+			Clone: &ontapmodels.VolumeInlineClone{
+				IsFlexclone:          nillable.ToPointer(true),
+				SplitCompletePercent: &newPercent,
+			},
+		},
+	}
+
+	input := &ProcessOntapVolumeMatchingInput{
+		DbVolumes: []*datamodel.Volume{dbVolume},
+		OntapVolumesResults: map[string]*GetOntapVolumesReturnValue{
+			"pool-uuid": {
+				OntapVolumeMap: map[string]*vsa.Volume{
+					"external-uuid": ontapVolume,
+				},
+			},
+		},
+	}
+
+	val, err := env.ExecuteActivity(activity.ProcessOntapVolumeMatching, input)
+
+	assert.NoError(t, err)
+	var result *ProcessOntapVolumeMatchingResult
+	_ = val.Get(&result)
+	assert.NotNil(t, result)
+	assert.Len(t, result.UpdatedVolumeByUUID, 1)
+	updatedVol := result.UpdatedVolumeByUUID["vol-uuid"]
+	assert.NotNil(t, updatedVol.VolumeAttributes)
+	assert.NotNil(t, updatedVol.VolumeAttributes.CloneParentInfo)
+	// SPLIT_FAILED state must be cleared to SPLITTING
+	assert.Equal(t, models.CloneStateSplitting, updatedVol.VolumeAttributes.CloneParentInfo.State)
+	assert.Equal(t, "", updatedVol.VolumeAttributes.CloneParentInfo.StateDetails)
+}
+
+// Test split error detection: is_flexclone=true but split_complete_percent drops to 0 — covers lines 449-478
+func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_SplitError_PercentDropped(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := &VolumeRefreshActivity{SE: mockStorage}
+	env.RegisterActivity(activity.ProcessOntapVolumeMatching)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:      "test-pool",
+	}
+
+	prevPercent := int64(40)
+
+	dbVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
+		Pool:      pool,
+		UsedBytes: 2048,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid",
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID:     "parent-vol-uuid",
+				ParentSnapshotUUID:   "parent-snap-uuid",
+				SplitCompletePercent: &prevPercent,
+				State:                models.CloneStateSplitting,
+			},
+		},
+	}
+
+	// ONTAP: still a flexclone but split_complete_percent is nil (dropped to 0/nil)
+	ontapVolume := &vsa.Volume{
+		Volume: ontapmodels.Volume{
+			Space: &ontapmodels.VolumeInlineSpace{
+				LogicalSpace: &ontapmodels.VolumeInlineSpaceInlineLogicalSpace{
+					Used: nillable.ToPointer(int64(2048)),
+				},
+			},
+			Clone: &ontapmodels.VolumeInlineClone{
+				IsFlexclone:          nillable.ToPointer(true),
+				SplitCompletePercent: nil, // dropped
+			},
+		},
+	}
+
+	splitJob := &datamodel.Job{
+		ErrorDetails: "ONTAP split failed: insufficient space",
+	}
+	mockStorage.On("GetJobByResourceUUID", mock.Anything, "vol-uuid", string(models.JobTypeSplitVolume)).Return(splitJob, nil)
+
+	input := &ProcessOntapVolumeMatchingInput{
+		DbVolumes: []*datamodel.Volume{dbVolume},
+		OntapVolumesResults: map[string]*GetOntapVolumesReturnValue{
+			"pool-uuid": {
+				OntapVolumeMap: map[string]*vsa.Volume{
+					"external-uuid": ontapVolume,
+				},
+			},
+		},
+	}
+
+	val, err := env.ExecuteActivity(activity.ProcessOntapVolumeMatching, input)
+
+	assert.NoError(t, err)
+	var result *ProcessOntapVolumeMatchingResult
+	_ = val.Get(&result)
+	assert.NotNil(t, result)
+	assert.Len(t, result.UpdatedVolumeByUUID, 1)
+	updatedVol := result.UpdatedVolumeByUUID["vol-uuid"]
+	assert.NotNil(t, updatedVol.VolumeAttributes)
+	assert.NotNil(t, updatedVol.VolumeAttributes.CloneParentInfo)
+	assert.Equal(t, models.CloneStateErrorInSplitting, updatedVol.VolumeAttributes.CloneParentInfo.State)
+	assert.Equal(t, "ONTAP split failed: insufficient space", updatedVol.VolumeAttributes.CloneParentInfo.StateDetails)
+	// Parent UUIDs must be preserved
+	assert.Equal(t, "parent-vol-uuid", updatedVol.VolumeAttributes.CloneParentInfo.ParentVolumeUUID)
+	assert.Equal(t, "parent-snap-uuid", updatedVol.VolumeAttributes.CloneParentInfo.ParentSnapshotUUID)
+	mockStorage.AssertExpectations(t)
+}
+
+// Test split error detection when GetJobByResourceUUID returns an error — covers lines 461-463
+func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_SplitError_JobFetchError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := &VolumeRefreshActivity{SE: mockStorage}
+	env.RegisterActivity(activity.ProcessOntapVolumeMatching)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:      "test-pool",
+	}
+
+	prevPercent := int64(20)
+
+	dbVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
+		Pool:      pool,
+		UsedBytes: 2048,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid",
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID:     "parent-vol-uuid",
+				ParentSnapshotUUID:   "parent-snap-uuid",
+				SplitCompletePercent: &prevPercent,
+				State:                models.CloneStateSplitting,
+			},
+		},
+	}
+
+	ontapVolume := &vsa.Volume{
+		Volume: ontapmodels.Volume{
+			Space: &ontapmodels.VolumeInlineSpace{
+				LogicalSpace: &ontapmodels.VolumeInlineSpaceInlineLogicalSpace{
+					Used: nillable.ToPointer(int64(2048)),
+				},
+			},
+			Clone: &ontapmodels.VolumeInlineClone{
+				IsFlexclone:          nillable.ToPointer(true),
+				SplitCompletePercent: nil,
+			},
+		},
+	}
+
+	mockStorage.On("GetJobByResourceUUID", mock.Anything, "vol-uuid", string(models.JobTypeSplitVolume)).Return(nil, errors.New("job not found"))
+
+	input := &ProcessOntapVolumeMatchingInput{
+		DbVolumes: []*datamodel.Volume{dbVolume},
+		OntapVolumesResults: map[string]*GetOntapVolumesReturnValue{
+			"pool-uuid": {
+				OntapVolumeMap: map[string]*vsa.Volume{
+					"external-uuid": ontapVolume,
+				},
+			},
+		},
+	}
+
+	val, err := env.ExecuteActivity(activity.ProcessOntapVolumeMatching, input)
+
+	assert.NoError(t, err)
+	var result *ProcessOntapVolumeMatchingResult
+	_ = val.Get(&result)
+	assert.NotNil(t, result)
+	assert.Len(t, result.UpdatedVolumeByUUID, 1)
+	updatedVol := result.UpdatedVolumeByUUID["vol-uuid"]
+	assert.Equal(t, models.CloneStateErrorInSplitting, updatedVol.VolumeAttributes.CloneParentInfo.State)
+	assert.Equal(t, "Split operation encountered an error in ONTAP", updatedVol.VolumeAttributes.CloneParentInfo.StateDetails)
+	mockStorage.AssertExpectations(t)
+}
+
+// Test split error detection when GetJobByResourceUUID returns nil job — covers lines 464-467
+func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_SplitError_NilJob(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := &VolumeRefreshActivity{SE: mockStorage}
+	env.RegisterActivity(activity.ProcessOntapVolumeMatching)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:      "test-pool",
+	}
+
+	prevPercent := int64(10)
+
+	dbVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
+		Pool:      pool,
+		UsedBytes: 2048,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid",
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID:     "parent-vol-uuid",
+				ParentSnapshotUUID:   "parent-snap-uuid",
+				SplitCompletePercent: &prevPercent,
+				State:                models.CloneStateSplitting,
+			},
+		},
+	}
+
+	ontapVolume := &vsa.Volume{
+		Volume: ontapmodels.Volume{
+			Space: &ontapmodels.VolumeInlineSpace{
+				LogicalSpace: &ontapmodels.VolumeInlineSpaceInlineLogicalSpace{
+					Used: nillable.ToPointer(int64(2048)),
+				},
+			},
+			Clone: &ontapmodels.VolumeInlineClone{
+				IsFlexclone:          nillable.ToPointer(true),
+				SplitCompletePercent: nil,
+			},
+		},
+	}
+
+	// Job exists but has no error details
+	mockStorage.On("GetJobByResourceUUID", mock.Anything, "vol-uuid", string(models.JobTypeSplitVolume)).Return(nil, nil)
+
+	input := &ProcessOntapVolumeMatchingInput{
+		DbVolumes: []*datamodel.Volume{dbVolume},
+		OntapVolumesResults: map[string]*GetOntapVolumesReturnValue{
+			"pool-uuid": {
+				OntapVolumeMap: map[string]*vsa.Volume{
+					"external-uuid": ontapVolume,
+				},
+			},
+		},
+	}
+
+	val, err := env.ExecuteActivity(activity.ProcessOntapVolumeMatching, input)
+
+	assert.NoError(t, err)
+	var result *ProcessOntapVolumeMatchingResult
+	_ = val.Get(&result)
+	assert.NotNil(t, result)
+	assert.Len(t, result.UpdatedVolumeByUUID, 1)
+	updatedVol := result.UpdatedVolumeByUUID["vol-uuid"]
+	assert.Equal(t, models.CloneStateErrorInSplitting, updatedVol.VolumeAttributes.CloneParentInfo.State)
+	assert.Equal(t, "Split operation encountered an error in ONTAP", updatedVol.VolumeAttributes.CloneParentInfo.StateDetails)
+	mockStorage.AssertExpectations(t)
+}
+
+// Test that already-SPLIT_FAILED volumes are not re-processed — covers line 455 guard
+func TestVolumeRefreshActivity_ProcessOntapVolumeMatching_SplitError_AlreadyFailed(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := &VolumeRefreshActivity{SE: mockStorage}
+	env.RegisterActivity(activity.ProcessOntapVolumeMatching)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
+		Name:      "test-pool",
+	}
+
+	prevPercent := int64(40)
+
+	dbVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid", ID: 123},
+		Pool:      pool,
+		UsedBytes: 2048,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid",
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID:     "parent-vol-uuid",
+				ParentSnapshotUUID:   "parent-snap-uuid",
+				SplitCompletePercent: &prevPercent,
+				State:                models.CloneStateErrorInSplitting, // already SPLIT_FAILED
+				StateDetails:         "existing error",
+			},
+		},
+	}
+
+	ontapVolume := &vsa.Volume{
+		Volume: ontapmodels.Volume{
+			Space: &ontapmodels.VolumeInlineSpace{
+				LogicalSpace: &ontapmodels.VolumeInlineSpaceInlineLogicalSpace{
+					Used: nillable.ToPointer(int64(2048)),
+				},
+			},
+			Clone: &ontapmodels.VolumeInlineClone{
+				IsFlexclone:          nillable.ToPointer(true),
+				SplitCompletePercent: nil,
+			},
+		},
+	}
+
+	input := &ProcessOntapVolumeMatchingInput{
+		DbVolumes: []*datamodel.Volume{dbVolume},
+		OntapVolumesResults: map[string]*GetOntapVolumesReturnValue{
+			"pool-uuid": {
+				OntapVolumeMap: map[string]*vsa.Volume{
+					"external-uuid": ontapVolume,
+				},
+			},
+		},
+	}
+
+	val, err := env.ExecuteActivity(activity.ProcessOntapVolumeMatching, input)
+
+	assert.NoError(t, err)
+	var result *ProcessOntapVolumeMatchingResult
+	_ = val.Get(&result)
+	assert.NotNil(t, result)
+	// No changes — volume already in SPLIT_FAILED, nothing to update
+	assert.Len(t, result.UpdatedVolumeByUUID, 0)
+	// GetJobByResourceUUID must NOT be called since the guard prevents re-entry
+	mockStorage.AssertExpectations(t)
+}
+
+// Test that _syncUpdatedVolumesToDatabase writes both clones_shared_bytes=0 and volume_attributes
+// when the UUID is in the reset set alongside a clone info update.
+func Test_syncUpdatedVolumesToDatabase_ClonesSharedBytesReset_WithCloneInfo(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+
+	dbVols := map[string]*datamodel.Volume{
+		"vol-1": {
+			BaseModel: datamodel.BaseModel{UUID: "vol-1", ID: 1},
+			UsedBytes: 2048,
+			// VolumeAttributes set with CloneParentInfo nil = remove clone info from DB
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: nil,
+			},
+		},
+	}
+
+	existingVolume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-1", ID: 1},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "external-uuid-1",
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID:   "old-parent-uuid",
+				ParentSnapshotUUID: "old-snap-uuid",
+			},
+		},
+	}
+
+	mockStorage.On("GetVolume", mock.Anything, "vol-1").Return(existingVolume, nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, "vol-1",
+		mock.MatchedBy(func(fields map[string]interface{}) bool {
+			csb, hasCsb := fields["clones_shared_bytes"]
+			ub, hasUb := fields["used_bytes"]
+			_, hasVA := fields["volume_attributes"]
+			return hasCsb && csb == uint64(0) &&
+				hasUb && ub == uint64(2048) &&
+				hasVA // volume_attributes must also be written
+		}),
+	).Return(nil)
+
+	wrapper := &testSyncActivityWrapper{
+		SE:     mockStorage,
+		DBVols: dbVols,
+		ClonesSharedBytesResetUUIDs: map[string]bool{"vol-1": true},
+	}
+	env.RegisterActivity(wrapper.TestSyncActivity)
+
+	_, err := env.ExecuteActivity(wrapper.TestSyncActivity)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+// Test SyncUpdatedVolumesToDatabase with nil input — covers line 101
+func TestVolumeRefreshActivity_SyncUpdatedVolumesToDatabase_NilInput(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	activity := &VolumeRefreshActivity{SE: mockStorage}
+	env.RegisterActivity(activity.SyncUpdatedVolumesToDatabase)
+
+	_, err := env.ExecuteActivity(activity.SyncUpdatedVolumesToDatabase, nil)
+
+	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }
 

@@ -134,6 +134,9 @@ type UpdateDataProtection struct {
 }
 
 type CloneParentInfo struct {
-	ParentVolumeId   *string
-	ParentSnapshotId *string
+	ParentVolumeId       *string
+	ParentSnapshotId     *string
+	SplitCompletePercent *int64
+	State                *string
+	StateDetails         *string
 }

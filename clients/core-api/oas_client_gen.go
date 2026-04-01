@@ -124,6 +124,12 @@ type Invoker interface {
 	//
 	// POST /v1/Storage/GcpKmsConfig/{uuid}/RotateServiceAccountKey
 	V1RotateGcpKmsConfig(ctx context.Context, request *GcpKmsKeyRotateV1, params V1RotateGcpKmsConfigParams) (V1RotateGcpKmsConfigRes, error)
+	// V1SplitStartVolume invokes v1_splitStartVolume operation.
+	//
+	// Initiates a split of a thin clone volume from its parent, making it an independent volume.
+	//
+	// POST /v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstart
+	V1SplitStartVolume(ctx context.Context, params V1SplitStartVolumeParams) (V1SplitStartVolumeRes, error)
 	// V1UpdatePool invokes v1_updatePool operation.
 	//
 	// Update the pool.
@@ -1285,6 +1291,115 @@ func (c *Client) sendV1RotateGcpKmsConfig(ctx context.Context, request *GcpKmsKe
 	defer resp.Body.Close()
 
 	result, err := decodeV1RotateGcpKmsConfigResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1SplitStartVolume invokes v1_splitStartVolume operation.
+//
+// Initiates a split of a thin clone volume from its parent, making it an independent volume.
+//
+// POST /v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstart
+func (c *Client) V1SplitStartVolume(ctx context.Context, params V1SplitStartVolumeParams) (V1SplitStartVolumeRes, error) {
+	res, err := c.sendV1SplitStartVolume(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1SplitStartVolume(ctx context.Context, params V1SplitStartVolumeParams) (res V1SplitStartVolumeRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [7]string
+	pathParts[0] = "/v1/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/volumes/"
+	{
+		// Encode "volumeId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "volumeId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.VolumeId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/splitstart"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1SplitStartVolumeResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

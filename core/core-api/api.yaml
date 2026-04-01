@@ -1145,6 +1145,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstart:
+    post:
+      operationId: v1_splitStartVolume
+      summary: Start a thin clone split
+      description: Initiates a split of a thin clone volume from its parent, making it an independent volume.
+      tags:
+        - volumes
+      parameters:
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/volumeIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      responses:
+        '202':
+          description: Split started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots:
     post:
       operationId: v1_createSnapshot

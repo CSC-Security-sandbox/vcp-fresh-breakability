@@ -15667,3 +15667,167 @@ func TestCreateRestoreWorkflow_GetAccountSuccess_CreateJobFails(t *testing.T) {
 	assert.Contains(t, err.Error(), "db error")
 	mockStorage.AssertExpectations(t)
 }
+
+// --- UpdateCloneParentStateInDB tests ---
+
+func TestUpdateCloneParentStateInDB_GetVolumeError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	act := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(act.UpdateCloneParentStateInDB)
+
+	volumeUUID := "vol-uuid"
+	dbErr := errors.New("db read error")
+	mockStorage.On("GetVolume", mock.Anything, volumeUUID).Return(nil, dbErr)
+
+	_, err := env.ExecuteActivity(act.UpdateCloneParentStateInDB, volumeUUID, "SPLITTING", uint64(0), "", false)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "db read error")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateCloneParentStateInDB_RemoveCloneInfo_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	act := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(act.UpdateCloneParentStateInDB)
+
+	volumeUUID := "vol-uuid"
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "ext-uuid",
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID:   "parent-uuid",
+				ParentSnapshotUUID: "snap-uuid",
+			},
+		},
+	}
+	mockStorage.On("GetVolume", mock.Anything, volumeUUID).Return(volume, nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, volumeUUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
+		attrs, ok := fields["volume_attributes"].(*datamodel.VolumeAttributes)
+		return ok && attrs.CloneParentInfo == nil
+	})).Return(nil)
+
+	_, err := env.ExecuteActivity(act.UpdateCloneParentStateInDB, volumeUUID, "", uint64(512), "", true)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateCloneParentStateInDB_SetSplitFailed_Success(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	act := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(act.UpdateCloneParentStateInDB)
+
+	volumeUUID := "vol-uuid"
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "ext-uuid",
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID:   "parent-uuid",
+				ParentSnapshotUUID: "snap-uuid",
+			},
+		},
+	}
+	mockStorage.On("GetVolume", mock.Anything, volumeUUID).Return(volume, nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, volumeUUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
+		attrs, ok := fields["volume_attributes"].(*datamodel.VolumeAttributes)
+		return ok && attrs.CloneParentInfo != nil && attrs.CloneParentInfo.State == "SPLIT_FAILED"
+	})).Return(nil)
+
+	_, err := env.ExecuteActivity(act.UpdateCloneParentStateInDB, volumeUUID, "SPLIT_FAILED", uint64(0), "ontap error", false)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateCloneParentStateInDB_NilVolumeAttributes(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	act := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(act.UpdateCloneParentStateInDB)
+
+	volumeUUID := "vol-uuid"
+	// Volume has no VolumeAttributes — line 1738 path
+	volume := &datamodel.Volume{
+		BaseModel:        datamodel.BaseModel{UUID: volumeUUID},
+		VolumeAttributes: nil,
+	}
+	mockStorage.On("GetVolume", mock.Anything, volumeUUID).Return(volume, nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, volumeUUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
+		_, hasVA := fields["volume_attributes"]
+		return !hasVA
+	})).Return(nil)
+
+	_, err := env.ExecuteActivity(act.UpdateCloneParentStateInDB, volumeUUID, "SPLIT_FAILED", uint64(0), "", false)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateCloneParentStateInDB_NilCloneParentInfo_RemoveCloneInfoFalse(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	act := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(act.UpdateCloneParentStateInDB)
+
+	volumeUUID := "vol-uuid"
+	// VolumeAttributes exists but CloneParentInfo is nil and removeCloneInfo=false — line 1734 path
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID:    "ext-uuid",
+			CloneParentInfo: nil,
+		},
+	}
+	mockStorage.On("GetVolume", mock.Anything, volumeUUID).Return(volume, nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, volumeUUID, mock.Anything).Return(nil)
+
+	_, err := env.ExecuteActivity(act.UpdateCloneParentStateInDB, volumeUUID, "SPLIT_FAILED", uint64(0), "", false)
+
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateCloneParentStateInDB_UpdateVolumeFieldsError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	act := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(act.UpdateCloneParentStateInDB)
+
+	volumeUUID := "vol-uuid"
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "ext-uuid",
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID:   "parent-uuid",
+				ParentSnapshotUUID: "snap-uuid",
+			},
+		},
+	}
+	mockStorage.On("GetVolume", mock.Anything, volumeUUID).Return(volume, nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, volumeUUID, mock.Anything).Return(errors.New("update failed"))
+
+	_, err := env.ExecuteActivity(act.UpdateCloneParentStateInDB, volumeUUID, "SPLIT_FAILED", uint64(0), "", false)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "update failed")
+	mockStorage.AssertExpectations(t)
+}

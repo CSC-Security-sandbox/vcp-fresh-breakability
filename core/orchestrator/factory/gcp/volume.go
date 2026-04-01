@@ -28,6 +28,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/replicationWorkflows"
 	dbUtils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -54,10 +55,11 @@ var (
 	maxQuotaInBytesFilesVolume           = utils.MaxQuotaInBytesForFileVolume
 	createVolume                         = _createVolume
 	revertVolume                         = _revertVolume
-	splitCloneVolume                     = _splitCloneVolume
+	splitStartVolume                     = _splitStartVolume
+	updateCloneState                     = _updateCloneState
 	validateCreateVolumeParams           = _validateCreateVolumeParams
 	validateVolumeQosParams              = mqos.ValidateVolumeQosParams
-	validateSplitCloneVolumeParams       = _validateSplitCloneVolumeParams
+	validateSplitStartVolumeParams       = _validateSplitStartVolumeParams
 	getIPAddressForVolume                = _getIPAddressForVolume
 	updateVolume                         = _updateVolume
 	deleteVolume                         = _deleteVolume
@@ -453,6 +455,7 @@ func _createVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		volumeObj.VolumeAttributes.CloneParentInfo = &datamodel.CloneParentInfo{
 			ParentSnapshotUUID: params.SnapshotID,
 			ParentVolumeUUID:   parentVolumeUUID,
+			State:              models.CloneStateCloned,
 		}
 	}
 
@@ -1928,6 +1931,7 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 	if attributes != nil && attributes.CloneParentInfo != nil {
 		var parentVolumeId *string
 		var parentSnapshotId *string
+		var cloneState *string
 
 		if attributes.CloneParentInfo.ParentVolumeUUID != "" {
 			parentVolumeId = &attributes.CloneParentInfo.ParentVolumeUUID
@@ -1935,10 +1939,20 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 		if attributes.CloneParentInfo.ParentSnapshotUUID != "" {
 			parentSnapshotId = &attributes.CloneParentInfo.ParentSnapshotUUID
 		}
+		if attributes.CloneParentInfo.State != "" {
+			cloneState = &attributes.CloneParentInfo.State
+		}
+		var cloneStateDetails *string
+		if attributes.CloneParentInfo.StateDetails != "" {
+			cloneStateDetails = &attributes.CloneParentInfo.StateDetails
+		}
 
 		res.CloneParentInfo = &models.CloneParentInfo{
-			ParentVolumeId:   parentVolumeId,
-			ParentSnapshotId: parentSnapshotId,
+			ParentVolumeId:       parentVolumeId,
+			ParentSnapshotId:     parentSnapshotId,
+			State:                cloneState,
+			StateDetails:         cloneStateDetails,
+			SplitCompletePercent: attributes.CloneParentInfo.SplitCompletePercent,
 		}
 	}
 
@@ -3423,11 +3437,65 @@ func _restoreFilesFromBackup(ctx context.Context, se database.Storage, temporal 
 	return createdJob.UUID, nil
 }
 
-func (o *GCPOrchestrator) SplitCloneVolume(ctx context.Context, params *common.SplitCloneVolumeParams) (*models.Volume, string, error) {
-	return splitCloneVolume(ctx, o.storage, o.temporal, params)
+func (o *GCPOrchestrator) SplitStartVolume(ctx context.Context, params *common.SplitStartVolumeParams) (*models.Volume, string, error) {
+	return splitStartVolume(ctx, o.storage, o.temporal, params)
 }
 
-func _splitCloneVolume(ctx context.Context, se database.Storage, temporal client.Client, params *common.SplitCloneVolumeParams) (*models.Volume, string, error) {
+// isOntapError checks if the error is from the ONTAP layer (error codes 5000-5999)
+func isOntapError(err error) bool {
+	if err == nil {
+		return false
+	}
+	customErr := vsaerrors.ExtractCustomError(err)
+	if customErr != nil {
+		// ONTAP errors have TrackingID in the range 5000-5999
+		return customErr.TrackingID >= 5000 && customErr.TrackingID < 6000
+	}
+	return false
+}
+
+// _updateCloneState updates the clone state in volume attributes
+func _updateCloneState(ctx context.Context, se database.Storage, volumeUUID string, cloneState string) error {
+	logger := util.GetLogger(ctx)
+	volume, err := se.GetVolume(ctx, volumeUUID)
+	if err != nil {
+		return err
+	}
+
+	var updatedAttributes *datamodel.VolumeAttributes
+	if volume.VolumeAttributes != nil {
+		// Shallow copy preserves all fields (including kerberos_enabled, ldap_enabled,
+		// account_name, deployment_name, is_regional_ha, etc.) so nothing is silently erased.
+		attrs := *volume.VolumeAttributes
+		updatedAttributes = &attrs
+
+		// Update clone parent info state if it exists
+		if volume.VolumeAttributes.CloneParentInfo != nil {
+			cloneInfo := *volume.VolumeAttributes.CloneParentInfo
+			cloneInfo.State = cloneState
+			updatedAttributes.CloneParentInfo = &cloneInfo
+		}
+	} else {
+		logger.Warnf("Volume %s has no VolumeAttributes, cannot update clone state", volumeUUID)
+		return nil
+	}
+
+	// Update volume with new attributes
+	updateFields := map[string]interface{}{
+		"volume_attributes": updatedAttributes,
+	}
+
+	err = se.UpdateVolumeFields(ctx, volumeUUID, updateFields)
+	if err != nil {
+		logger.Errorf("Failed to update clone state to %s for volume %s: %v", cloneState, volumeUUID, err)
+		return err
+	}
+
+	logger.Debugf("Successfully updated clone state to %s for volume %s", cloneState, volumeUUID)
+	return nil
+}
+
+func _splitStartVolume(ctx context.Context, se database.Storage, temporal client.Client, params *common.SplitStartVolumeParams) (*models.Volume, string, error) {
 	logger := util.GetLogger(ctx)
 	workflowExecutor := workflows.NewWorkflowExecutor(temporal, logger)
 
@@ -3458,7 +3526,7 @@ func _splitCloneVolume(ctx context.Context, se database.Storage, temporal client
 		return nil, "", customerrors.NewConflictErr("Volume is not in READY state, state: " + volume.State)
 	}
 
-	err = validateSplitCloneVolumeParams(ctx, volume, pool)
+	err = validateSplitStartVolumeParams(ctx, volume, pool)
 	if err != nil {
 		return nil, "", err
 	}
@@ -3491,44 +3559,143 @@ func _splitCloneVolume(ctx context.Context, se database.Storage, temporal client
 		}
 	}()
 
-	previousState := volume.State
-	previousStateDetails := volume.StateDetails
-	volume, err = updateVolumeStatus(ctx, se, volume, models.LifeCycleStateSplitting, models.LifeCycleStateSplittingDetails)
+	previousClonesSharedBytes := volume.ClonesSharedBytes
+	previousCloneState := ""
+	if volume.VolumeAttributes != nil && volume.VolumeAttributes.CloneParentInfo != nil {
+		previousCloneState = volume.VolumeAttributes.CloneParentInfo.State
+	}
+
+	// Update clone state to SPLITTING when split starts
+	if volume.VolumeAttributes != nil && volume.VolumeAttributes.CloneParentInfo != nil {
+		err = updateCloneState(ctx, se, volume.UUID, models.CloneStateSplitting)
+		if err != nil {
+			logger.Error("Failed to update clone state to SPLITTING", "error", err)
+			return nil, "", err
+		}
+		volume.VolumeAttributes.CloneParentInfo.State = models.CloneStateSplitting
+	}
+
+	// Reserve the clonesharedbytes space by setting it to 0 before starting the workflow
+	// This prevents other volume creation operations from using this space during the split
+	logger.Infof("Reserving clonesharedbytes (%d) for volume split by setting clones_shared_bytes to 0. Volume UUID: %s", previousClonesSharedBytes, volume.UUID)
+	err = se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
+		"clones_shared_bytes": uint64(0),
+	})
 	if err != nil {
-		logger.Error("Failed to update volume state in database", "error", err)
+		logger.Error("Failed to reserve clonesharedbytes for volume split", "error", err)
 		return nil, "", err
 	}
-	// Defer to revert the resource state
+
+	// Fetch the updated pool details after reserving the clones_shared_bytes to ensure we have the latest state for validation in the workflow
+	pool, err = se.GetPool(ctx, pool.UUID, account.ID)
+	if err != nil {
+		logger.Error("Failed to fetch pool for the given account ID", "error", err)
+		return nil, "", err
+	}
+
+	// Defer to revert the resource state and clones_shared_bytes if any error happens
+	// Note: If error is from ONTAP layer, we leave clones_shared_bytes as 0 to preserve the quota reservation
 	defer func() {
 		if err != nil {
-			// Revert volume state back to previous state if it was set to SPLITTING
-			if volume.State == models.LifeCycleStateSplitting {
-				logger.Warnf("Error occurred during volume split, reverting volume state to previous state '%s'. Volume UUID: %s", previousState, volume.UUID)
-				volumeUpdateErr := se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
-					"state":         previousState,
-					"state_details": previousStateDetails,
-				})
+			// Check if error is from ONTAP layer
+			isOntapErr := isOntapError(err)
+			updateFields := map[string]interface{}{}
+
+			// Only revert clones_shared_bytes if error is NOT from ONTAP layer
+			// If it's an ONTAP error, leave clones_shared_bytes as 0 to preserve quota reservation
+			if !isOntapErr {
+				updateFields["clones_shared_bytes"] = previousClonesSharedBytes
+				logger.Infof("Non-ONTAP error detected, will revert clones_shared_bytes to %d for volume UUID: %s", previousClonesSharedBytes, volume.UUID)
+			} else {
+				logger.Infof("ONTAP error detected, keeping clones_shared_bytes as 0 to preserve quota reservation for volume UUID: %s", volume.UUID)
+			}
+
+			if updateFields != nil {
+				volumeUpdateErr := se.UpdateVolumeFields(ctx, volume.UUID, updateFields)
 				if volumeUpdateErr != nil {
-					logger.Errorf("Failed to revert volume state to previous volume state: %v", volumeUpdateErr)
+					logger.Errorf("Failed to revert volume state and clones_shared_bytes to previous values: %v", volumeUpdateErr)
+				} else {
+					if !isOntapErr {
+						logger.Infof("Successfully reverted clones_shared_bytes to %d for volume UUID: %s", previousClonesSharedBytes, volume.UUID)
+					} else {
+						logger.Infof("Successfully reverted volume state, clones_shared_bytes remains 0 for volume UUID: %s", volume.UUID)
+					}
+				}
+			}
+
+			// Handle clone state: revert to CLONED if error before ONTAP, set to ERROR IN SPLITTING if error from ONTAP
+			if volume.VolumeAttributes != nil && volume.VolumeAttributes.CloneParentInfo != nil && previousCloneState != "" {
+				var cloneStateToSet string
+				if isOntapErr {
+					cloneStateToSet = models.CloneStateErrorInSplitting
+					logger.Infof("ONTAP error detected, setting clone state to ERROR IN SPLITTING for volume UUID: %s", volume.UUID)
+				} else {
+					cloneStateToSet = models.CloneStateCloned
+					logger.Infof("Non-ONTAP error detected, reverting clone state to CLONED for volume UUID: %s", volume.UUID)
+				}
+				cloneStateErr := updateCloneState(ctx, se, volume.UUID, cloneStateToSet)
+				if cloneStateErr != nil {
+					logger.Errorf("Failed to update clone state to %s: %v", cloneStateToSet, cloneStateErr)
 				}
 			}
 		}
 	}()
 
-	location, err := utils.GetLocationFromVendorID(volume.Pool.VendorID)
+	// Resolve ONTAP nodes for this pool synchronously (was previously done inside the Temporal workflow).
+	dbNodes, err := se.GetNodesByPoolID(ctx, volume.Pool.ID)
 	if err != nil {
-		logger.Error("Failed to get location from vendor ID: ", "error", err)
+		logger.Error("Failed to fetch nodes for pool", "error", err)
+		return nil, "", err
+	}
+	if len(dbNodes) == 0 {
+		err = vsaerrors.NewVCPError(vsaerrors.ErrUnexpectedNodeCountForPool, fmt.Errorf("no nodes found for pool %s", volume.Pool.UUID))
+		logger.Error("No nodes found for pool", "error", err)
 		return nil, "", err
 	}
 
-	// controlWorkflowID defines the workflow ID for the control workflow
-	controlWorkflowID := workflows.GenerateControlWorkflowID(volume.Account.ID, location, volume.Pool.Name)
-	workflowOptions := workflows.DefaultSequentialWorkflowOptions(controlWorkflowID, createdJob.WorkflowID)
-	err = workflowExecutor.ExecuteSequentialWorkflow(
+	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
+		Nodes:            dbNodes,
+		DeploymentName:   volume.Pool.DeploymentName,
+		OntapCredentials: volume.Pool.PoolCredentials,
+	})
+
+	// Obtain an ONTAP provider and call InitiateSplitVolume synchronously.
+	// This sends the split request to ONTAP and returns the ONTAP job UUID that
+	// tracks the background data-movement; the Temporal workflow will poll it.
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		logger.Error("Failed to get ONTAP provider for split", "error", err)
+		return nil, "", err
+	}
+
+	if volume.VolumeAttributes == nil || volume.VolumeAttributes.ExternalUUID == "" {
+		err = customerrors.NewUserInputValidationErr("volume has no external UUID, cannot initiate split in ONTAP")
+		logger.Error("Volume missing ExternalUUID", "error", err)
+		return nil, "", err
+	}
+
+	ontapJobUUID, err := provider.InitiateSplitVolume(volume.VolumeAttributes.ExternalUUID)
+	if err != nil {
+		logger.Errorf("Failed to initiate split for volume %s in ONTAP: %v", volume.Name, err)
+		return nil, "", err
+	}
+	logger.Infof("Split initiated in ONTAP for volume %s, ONTAP job UUID: %q", volume.Name, ontapJobUUID)
+
+	// Fire the Temporal workflow that will poll the ONTAP job and clean up the clone snapshot.
+	// The workflow receives the ONTAP job UUID so it can poll without re-calling ONTAP.
+	// We set a per-run timeout that is slightly larger than the ContinueAsNew poll window so
+	// Temporal does not kill an individual run before it has a chance to restart itself.
+	splitWorkflowTimeout := workflowengine.GetSplitVolumeWorkflowTimeout()
+	taskQueue := workflowengine.BackgroundTaskQueue
+	err = workflowExecutor.ExecuteWorkflow(
 		ctx,
-		workflowOptions,
+		createdJob.WorkflowID,
+		taskQueue,
 		workflows.SplitVolumeWorkflow,
+		splitWorkflowTimeout,
 		volume,
+		node,
+		ontapJobUUID,
 	)
 	if err != nil {
 		logger.Error("Failed to start split clone workflow after retries: ", "error", err)
@@ -3538,8 +3705,16 @@ func _splitCloneVolume(ctx context.Context, se database.Storage, temporal client
 	return convertDatastoreVolumeToModel(volume, nil), createdJob.UUID, nil
 }
 
-func _validateSplitCloneVolumeParams(ctx context.Context, volume *datamodel.Volume, pool *datamodel.PoolView) error {
+func _validateSplitStartVolumeParams(ctx context.Context, volume *datamodel.Volume, pool *datamodel.PoolView) error {
 	logger := util.GetLogger(ctx)
+
+	if volume.VolumeAttributes == nil || volume.VolumeAttributes.CloneParentInfo == nil {
+		logger.Errorf("Volume %s is not a thin clone volume (missing clone parent metadata), cannot perform split operation", volume.Name)
+		return customerrors.NewUserInputValidationErr("volume is not a thin clone volume, cannot perform split operation")
+	}
+	if volume.VolumeAttributes.CloneParentInfo.State == models.CloneStateSplitting {
+		return customerrors.NewConflictErr("volume split is already in progress")
+	}
 
 	if volume.ClonesSharedBytes == 0 {
 		logger.Errorf("Volume %s is not a thin clone volume, cannot perform split operation", volume.Name)

@@ -398,7 +398,7 @@ func (rc *OntapRestProvider) GetVolumes() ([]*Volume, error) {
 	}
 
 	// Build base fields list
-	fields := []string{"uuid", "name", "space.*", "svm", "is_svm_root", "style", "type"}
+	fields := []string{"uuid", "name", "space.*", "svm", "is_svm_root", "style", "type", "clone.split_complete_percent", "clone.is_flexclone"}
 
 	// Conditionally add clone fields if feature flag is enabled
 	if enableCloneInfoRefresh {
@@ -515,6 +515,32 @@ func (rc *OntapRestProvider) UpdateVolume(params UpdateVolumeParams) error {
 		return nil
 	}
 	return client.Poll(job.JobUUID)
+}
+
+// InitiateSplitVolume sends the split-initiation request to ONTAP for the given volume UUID
+// and returns the ONTAP job UUID that tracks the background data-movement operation.
+// this method does NOT poll the job to completion — the caller is
+// responsible for polling via GetOntapJob / WaitForONTAPJob.
+func (rc *OntapRestProvider) InitiateSplitVolume(volumeUUID string) (string, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return "", err
+	}
+	splitInitiated := true
+	volumeModifyParams := &ontapRest.VolumeModifyParams{
+		UUID:                   volumeUUID,
+		SplitInitiated:         &splitInitiated,
+		MatchParentStorageTier: false,
+	}
+	success, job, err := client.Storage().VolumeModify(volumeModifyParams)
+	if err != nil {
+		return "", vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
+	}
+	if success || job == nil {
+		// ONTAP completed synchronously or returned no job — treat as success with no job UUID.
+		return "", nil
+	}
+	return job.JobUUID, nil
 }
 
 // UnassignQoSPolicyFromVolume unassigns the QoS policy from a volume by setting it to "none".

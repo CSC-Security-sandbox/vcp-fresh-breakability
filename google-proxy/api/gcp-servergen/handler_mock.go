@@ -6321,28 +6321,28 @@ func (_c *MockHandler_V1betaRotateCmekBackups_Call) RunAndReturn(run func(contex
 	return _c
 }
 
-// V1betaSplitCloneVolume provides a mock function with given fields: ctx, params
-func (_m *MockHandler) V1betaSplitCloneVolume(ctx context.Context, params V1betaSplitCloneVolumeParams) (V1betaSplitCloneVolumeRes, error) {
+// V1betaSplitStartVolume provides a mock function with given fields: ctx, params
+func (_m *MockHandler) V1betaSplitStartVolume(ctx context.Context, params V1betaSplitStartVolumeParams) (V1betaSplitStartVolumeRes, error) {
 	ret := _m.Called(ctx, params)
 
 	if len(ret) == 0 {
-		panic("no return value specified for V1betaSplitCloneVolume")
+		panic("no return value specified for V1betaSplitStartVolume")
 	}
 
-	var r0 V1betaSplitCloneVolumeRes
+	var r0 V1betaSplitStartVolumeRes
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, V1betaSplitCloneVolumeParams) (V1betaSplitCloneVolumeRes, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaSplitStartVolumeParams) (V1betaSplitStartVolumeRes, error)); ok {
 		return rf(ctx, params)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, V1betaSplitCloneVolumeParams) V1betaSplitCloneVolumeRes); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, V1betaSplitStartVolumeParams) V1betaSplitStartVolumeRes); ok {
 		r0 = rf(ctx, params)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(V1betaSplitCloneVolumeRes)
+			r0 = ret.Get(0).(V1betaSplitStartVolumeRes)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, V1betaSplitCloneVolumeParams) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, V1betaSplitStartVolumeParams) error); ok {
 		r1 = rf(ctx, params)
 	} else {
 		r1 = ret.Error(1)
@@ -6351,31 +6351,31 @@ func (_m *MockHandler) V1betaSplitCloneVolume(ctx context.Context, params V1beta
 	return r0, r1
 }
 
-// MockHandler_V1betaSplitCloneVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaSplitCloneVolume'
-type MockHandler_V1betaSplitCloneVolume_Call struct {
+// MockHandler_V1betaSplitStartVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaSplitStartVolume'
+type MockHandler_V1betaSplitStartVolume_Call struct {
 	*mock.Call
 }
 
-// V1betaSplitCloneVolume is a helper method to define mock.On call
+// V1betaSplitStartVolume is a helper method to define mock.On call
 //   - ctx context.Context
-//   - params V1betaSplitCloneVolumeParams
-func (_e *MockHandler_Expecter) V1betaSplitCloneVolume(ctx interface{}, params interface{}) *MockHandler_V1betaSplitCloneVolume_Call {
-	return &MockHandler_V1betaSplitCloneVolume_Call{Call: _e.mock.On("V1betaSplitCloneVolume", ctx, params)}
+//   - params V1betaSplitStartVolumeParams
+func (_e *MockHandler_Expecter) V1betaSplitStartVolume(ctx interface{}, params interface{}) *MockHandler_V1betaSplitStartVolume_Call {
+	return &MockHandler_V1betaSplitStartVolume_Call{Call: _e.mock.On("V1betaSplitStartVolume", ctx, params)}
 }
 
-func (_c *MockHandler_V1betaSplitCloneVolume_Call) Run(run func(ctx context.Context, params V1betaSplitCloneVolumeParams)) *MockHandler_V1betaSplitCloneVolume_Call {
+func (_c *MockHandler_V1betaSplitStartVolume_Call) Run(run func(ctx context.Context, params V1betaSplitStartVolumeParams)) *MockHandler_V1betaSplitStartVolume_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(V1betaSplitCloneVolumeParams))
+		run(args[0].(context.Context), args[1].(V1betaSplitStartVolumeParams))
 	})
 	return _c
 }
 
-func (_c *MockHandler_V1betaSplitCloneVolume_Call) Return(_a0 V1betaSplitCloneVolumeRes, _a1 error) *MockHandler_V1betaSplitCloneVolume_Call {
+func (_c *MockHandler_V1betaSplitStartVolume_Call) Return(_a0 V1betaSplitStartVolumeRes, _a1 error) *MockHandler_V1betaSplitStartVolume_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockHandler_V1betaSplitCloneVolume_Call) RunAndReturn(run func(context.Context, V1betaSplitCloneVolumeParams) (V1betaSplitCloneVolumeRes, error)) *MockHandler_V1betaSplitCloneVolume_Call {
+func (_c *MockHandler_V1betaSplitStartVolume_Call) RunAndReturn(run func(context.Context, V1betaSplitStartVolumeParams) (V1betaSplitStartVolumeRes, error)) *MockHandler_V1betaSplitStartVolume_Call {
 	_c.Call.Return(run)
 	return _c
 }

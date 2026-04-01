@@ -3121,10 +3121,41 @@ func (s *CloneDetailsV1beta) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if value, ok := s.State.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "state",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
 	return nil
+}
+
+func (s CloneDetailsV1betaState) Validate() error {
+	switch s {
+	case "CLONED":
+		return nil
+	case "SPLITTING":
+		return nil
+	case "SPLIT_FAILED":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
 }
 
 func (s *ClusterPeerV1) Validate() error {
@@ -17287,7 +17318,7 @@ func (s *V1betaRotateCmekBackupsUnprocessableEntity) Validate() error {
 	return nil
 }
 
-func (s *V1betaSplitCloneVolumeBadRequest) Validate() error {
+func (s *V1betaSplitStartVolumeBadRequest) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -17295,7 +17326,7 @@ func (s *V1betaSplitCloneVolumeBadRequest) Validate() error {
 	return nil
 }
 
-func (s *V1betaSplitCloneVolumeConflict) Validate() error {
+func (s *V1betaSplitStartVolumeConflict) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -17303,7 +17334,7 @@ func (s *V1betaSplitCloneVolumeConflict) Validate() error {
 	return nil
 }
 
-func (s *V1betaSplitCloneVolumeForbidden) Validate() error {
+func (s *V1betaSplitStartVolumeForbidden) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -17311,7 +17342,7 @@ func (s *V1betaSplitCloneVolumeForbidden) Validate() error {
 	return nil
 }
 
-func (s *V1betaSplitCloneVolumeInternalServerError) Validate() error {
+func (s *V1betaSplitStartVolumeInternalServerError) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -17319,7 +17350,7 @@ func (s *V1betaSplitCloneVolumeInternalServerError) Validate() error {
 	return nil
 }
 
-func (s *V1betaSplitCloneVolumeNotFound) Validate() error {
+func (s *V1betaSplitStartVolumeNotFound) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -17327,7 +17358,7 @@ func (s *V1betaSplitCloneVolumeNotFound) Validate() error {
 	return nil
 }
 
-func (s *V1betaSplitCloneVolumeTooManyRequests) Validate() error {
+func (s *V1betaSplitStartVolumeTooManyRequests) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -17335,7 +17366,7 @@ func (s *V1betaSplitCloneVolumeTooManyRequests) Validate() error {
 	return nil
 }
 
-func (s *V1betaSplitCloneVolumeUnauthorized) Validate() error {
+func (s *V1betaSplitStartVolumeUnauthorized) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -17343,7 +17374,7 @@ func (s *V1betaSplitCloneVolumeUnauthorized) Validate() error {
 	return nil
 }
 
-func (s *V1betaSplitCloneVolumeUnprocessableEntity) Validate() error {
+func (s *V1betaSplitStartVolumeUnprocessableEntity) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err

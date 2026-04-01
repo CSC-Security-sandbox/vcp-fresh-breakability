@@ -15,6 +15,7 @@ import (
 	"github.com/go-faster/jx"
 	"github.com/google/uuid"
 	"github.com/robfig/cron"
+	coreapi "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/core-api"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/volumes"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -38,7 +39,6 @@ var (
 	prepareUpdateVolumeParams         = _prepareUpdateVolumeParams
 	prepareCreateVolumeParams         = _prepareCreateVolumeParams
 	prepareRevertVolumeParams         = _prepareRevertVolumeParams
-	prepareSplitCloneVolumeParams     = _prepareSplitCloneVolumeParams
 	hasNfs4KerberosV1beta             = _hasNfs4KerberosV1beta
 	validateKerberosPolicyV1beta      = _validateKerberosPolicyV1beta
 	getKerberosEnabledFlagFromRequest = _getKerberosEnabledFlagFromRequest
@@ -1912,8 +1912,20 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		}
 	}
 
+	// Show cloneDetails whenever CloneParentInfo exists in the DB.
+	// CloneParentInfo is only present while is_flexclone=true; the refresh activity removes it
+	// once is_flexclone flips to false (split fully complete), so no extra suppression is needed
+	// based on volume lifecycle state.
+	// The only case where we suppress cloneDetails while CloneParentInfo still exists is when
+	// split_complete_percent has reached 100 — the split is finishing and is_flexclone is about
+	// to flip; showing a "100% done" clone detail would be misleading.
 	if volume.CloneParentInfo != nil {
-		res.CloneDetails = gcpgenserver.NewOptCloneDetailsV1beta(convertToCloneParentInfoV1(volume.CloneParentInfo, volume.CloneSharedBytes))
+		splitComplete := volume.CloneParentInfo.SplitCompletePercent != nil &&
+			*volume.CloneParentInfo.SplitCompletePercent == 100
+
+		if !splitComplete {
+			res.CloneDetails = gcpgenserver.NewOptCloneDetailsV1beta(convertToCloneParentInfoV1(volume.CloneParentInfo, volume.CloneSharedBytes))
+		}
 	}
 
 	return res
@@ -2870,6 +2882,16 @@ func convertToCloneParentInfoV1(cp *models.CloneParentInfo, cloneSharedBytes uin
 		ParentSnapshotId: gcpgenserver.NewOptString(nillable.GetString(cp.ParentSnapshotId, "")),
 		SharedBytes:      gcpgenserver.NewOptNilFloat64(float64(cloneSharedBytes)),
 	}
+	if cp.State != nil && *cp.State != "" {
+		cloneParentInfo.State = gcpgenserver.NewOptNilCloneDetailsV1betaState(gcpgenserver.CloneDetailsV1betaState(*cp.State))
+	}
+	if cp.SplitCompletePercent != nil {
+		cloneParentInfo.SplitCompletePercent = gcpgenserver.NewOptNilInt64(*cp.SplitCompletePercent)
+	}
+	// Only set stateDetails if non-empty
+	if cp.StateDetails != nil && *cp.StateDetails != "" {
+		cloneParentInfo.StateDetails = gcpgenserver.NewOptNilString(*cp.StateDetails)
+	}
 	return cloneParentInfo
 }
 
@@ -3222,94 +3244,102 @@ func (h Handler) V1betaRestoreBackupFiles(ctx context.Context, req *gcpgenserver
 	}, nil
 }
 
-func (h Handler) V1betaSplitCloneVolume(ctx context.Context, params gcpgenserver.V1betaSplitCloneVolumeParams) (gcpgenserver.V1betaSplitCloneVolumeRes, error) {
+func (h Handler) V1betaSplitStartVolume(ctx context.Context, params gcpgenserver.V1betaSplitStartVolumeParams) (gcpgenserver.V1betaSplitStartVolumeRes, error) {
 	logger := util.GetLogger(ctx)
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 
 	if !thinCloneGASupport {
-		return &gcpgenserver.V1betaSplitCloneVolumeForbidden{
+		return &gcpgenserver.V1betaSplitStartVolumeForbidden{
 			Code:    403,
 			Message: "Thin clone split feature is currently not enabled.",
 		}, nil
 	}
 
-	region, _, parsingErr := utils.ParseAndValidateRegionAndZone(params.LocationId)
-	if parsingErr != nil {
-		return &gcpgenserver.V1betaSplitCloneVolumeBadRequest{
-			Code:    parsingErr.Code,
-			Message: parsingErr.Message,
-		}, nil
-	}
-
-	param, err := prepareSplitCloneVolumeParams(params, region)
-	if err != nil {
-		if errors.IsUserInputValidationErr(err) {
-			return &gcpgenserver.V1betaSplitCloneVolumeBadRequest{
-				Code:    400,
-				Message: err.Error(),
-			}, nil
-		}
-		logger.Error("Failed to split volume", "error", err.Error())
-		return &gcpgenserver.V1betaSplitCloneVolumeInternalServerError{Code: 500, Message: err.Error()}, nil
-	}
-
-	volume, jobUUID, err := h.Orchestrator.SplitCloneVolume(ctx, param)
-	if err != nil {
-		if errors.IsNotFoundErr(err) {
-			return &gcpgenserver.V1betaSplitCloneVolumeNotFound{
-				Code:    404,
-				Message: err.Error(),
-			}, nil
-		} else if errors.IsUserInputValidationErr(err) {
-			return &gcpgenserver.V1betaSplitCloneVolumeBadRequest{
-				Code:    400,
-				Message: err.Error(),
-			}, nil
-		} else if errors.IsConflictErr(err) {
-			return &gcpgenserver.V1betaSplitCloneVolumeConflict{
-				Code:    409,
-				Message: err.Error(),
-			}, nil
-		}
-
-		logger.Error("Failed to split volume", "error", err.Error())
-		return &gcpgenserver.V1betaSplitCloneVolumeInternalServerError{Code: 500, Message: err.Error()}, err
-	}
-
-	resp, err := encodeVolumeV1(convertModelToVCPVolume(volume))
-	if err != nil {
-		return nil, err
-	}
-
-	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + params.LocationId + "/operations/" + jobUUID
-	if volume.LifeCycleState == models.LifeCycleStateSplitting {
-		return &gcpgenserver.OperationV1beta{
-			Name:     gcpgenserver.NewOptString(operationID),
-			Response: resp,
-			Done:     gcpgenserver.NewOptBool(false),
-		}, nil
-	}
-	return &gcpgenserver.OperationV1beta{
-		Name:     gcpgenserver.NewOptString(operationID),
-		Response: resp,
-		Done:     gcpgenserver.NewOptBool(true),
-	}, nil
+	logger.Debugf("Initiating synchronous split start for volume: %s", params.VolumeId)
+	return h.splitStartVolumeViaCoreAPI(ctx, params)
 }
 
-func _prepareSplitCloneVolumeParams(params gcpgenserver.V1betaSplitCloneVolumeParams, region string) (*common.SplitCloneVolumeParams, error) {
-	if params.VolumeId == "" {
-		return nil, errors.NewUserInputValidationErr("No Volume ID given")
-	}
-	if params.ProjectNumber == "" {
-		return nil, errors.NewUserInputValidationErr("No Project Number given")
-	}
-	param := &common.SplitCloneVolumeParams{
-		AccountName: params.ProjectNumber,
-		Region:      region,
-		VolumeID:    params.VolumeId,
+// splitStartVolumeViaCoreAPI forwards the split start request to the core-api service.
+// This ensures ONTAP calls and DB access are performed in the core pod, not in google-proxy.
+func (h Handler) splitStartVolumeViaCoreAPI(ctx context.Context, params gcpgenserver.V1betaSplitStartVolumeParams) (gcpgenserver.V1betaSplitStartVolumeRes, error) {
+	logger := util.GetLogger(ctx)
+	if coreAPIHost == "" {
+		logger.Error("CORE_API_HOST is not set, cannot forward split start to core API")
+		return &gcpgenserver.V1betaSplitStartVolumeInternalServerError{
+			Code:    500,
+			Message: "Core API host not configured",
+		}, nil
 	}
 
-	return param, nil
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	client := createCoreAPIClient(coreAPIHost, jwtToken, logger)
+	if client == nil {
+		logger.Error("Failed to create core API client")
+		return &gcpgenserver.V1betaSplitStartVolumeInternalServerError{
+			Code:    500,
+			Message: "Failed to create core API client",
+		}, nil
+	}
+
+	coreParams := coreapi.V1SplitStartVolumeParams{
+		ProjectNumber: params.ProjectNumber,
+		LocationId:    params.LocationId,
+		VolumeId:      params.VolumeId,
+		XCorrelationID: func() coreapi.OptString {
+			if params.XCorrelationID.IsSet() {
+				return coreapi.NewOptString(params.XCorrelationID.Value)
+			}
+			return coreapi.OptString{}
+		}(),
+	}
+
+	response, err := client.Invoker.V1SplitStartVolume(ctx, coreParams)
+	if err != nil {
+		logger.Errorf("Core API call failed: %v", err)
+		return &gcpgenserver.V1betaSplitStartVolumeInternalServerError{
+			Code:    500,
+			Message: fmt.Sprintf("Core API call failed: %v", err),
+		}, nil
+	}
+
+	switch resp := response.(type) {
+	case *coreapi.OperationV1:
+		operationID := resp.Name.Or("")
+		if operationID == "" {
+			operationID = fmt.Sprintf("/v1beta/projects/%s/locations/%s/operations/%s", params.ProjectNumber, params.LocationId, uuid.New().String())
+		}
+		return &gcpgenserver.OperationV1beta{
+			Name:     gcpgenserver.NewOptString(operationID),
+			Response: resp.Response,
+			Done:     gcpgenserver.NewOptBool(resp.Done.Or(false)),
+		}, nil
+	case *coreapi.V1SplitStartVolumeBadRequest:
+		return &gcpgenserver.V1betaSplitStartVolumeBadRequest{
+			Code:    resp.Code,
+			Message: resp.Message,
+		}, nil
+	case *coreapi.V1SplitStartVolumeNotFound:
+		return &gcpgenserver.V1betaSplitStartVolumeNotFound{
+			Code:    resp.Code,
+			Message: resp.Message,
+		}, nil
+	case *coreapi.V1SplitStartVolumeConflict:
+		return &gcpgenserver.V1betaSplitStartVolumeConflict{
+			Code:    resp.Code,
+			Message: resp.Message,
+		}, nil
+	case *coreapi.V1SplitStartVolumeInternalServerError:
+		return &gcpgenserver.V1betaSplitStartVolumeInternalServerError{
+			Code:    resp.Code,
+			Message: resp.Message,
+		}, nil
+	default:
+		logger.Errorf("Unexpected response type from core API: %T", response)
+		return &gcpgenserver.V1betaSplitStartVolumeInternalServerError{
+			Code:    500,
+			Message: "An internal error occurred",
+		}, nil
+	}
 }
 
 // validateProtocolsV1beta enforces protocol constraints for FlexCache volume requests.

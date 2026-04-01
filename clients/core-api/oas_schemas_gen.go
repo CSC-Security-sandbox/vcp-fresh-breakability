@@ -1742,6 +1742,7 @@ func (*OperationV1) v1CreatePoolRes()                    {}
 func (*OperationV1) v1CreateSnapshotRes()                {}
 func (*OperationV1) v1DeletePoolRes()                    {}
 func (*OperationV1) v1RefreshRbacForExpertModePoolsRes() {}
+func (*OperationV1) v1SplitStartVolumeRes()              {}
 func (*OperationV1) v1UpdatePoolRes()                    {}
 
 // NewOptAnyV1 returns new OptAnyV1 with value set to v.
@@ -4995,6 +4996,38 @@ func (*V1RotateGcpKmsConfigUnauthorized) v1RotateGcpKmsConfigRes() {}
 type V1RotateGcpKmsConfigUnprocessableEntity Error
 
 func (*V1RotateGcpKmsConfigUnprocessableEntity) v1RotateGcpKmsConfigRes() {}
+
+type V1SplitStartVolumeBadRequest Error
+
+func (*V1SplitStartVolumeBadRequest) v1SplitStartVolumeRes() {}
+
+type V1SplitStartVolumeConflict Error
+
+func (*V1SplitStartVolumeConflict) v1SplitStartVolumeRes() {}
+
+type V1SplitStartVolumeForbidden Error
+
+func (*V1SplitStartVolumeForbidden) v1SplitStartVolumeRes() {}
+
+type V1SplitStartVolumeInternalServerError Error
+
+func (*V1SplitStartVolumeInternalServerError) v1SplitStartVolumeRes() {}
+
+type V1SplitStartVolumeNotFound Error
+
+func (*V1SplitStartVolumeNotFound) v1SplitStartVolumeRes() {}
+
+type V1SplitStartVolumeTooManyRequests Error
+
+func (*V1SplitStartVolumeTooManyRequests) v1SplitStartVolumeRes() {}
+
+type V1SplitStartVolumeUnauthorized Error
+
+func (*V1SplitStartVolumeUnauthorized) v1SplitStartVolumeRes() {}
+
+type V1SplitStartVolumeUnprocessableEntity Error
+
+func (*V1SplitStartVolumeUnprocessableEntity) v1SplitStartVolumeRes() {}
 
 type V1UpdatePoolBadRequest Error
 

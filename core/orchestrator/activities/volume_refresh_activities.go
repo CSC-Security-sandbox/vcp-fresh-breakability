@@ -7,6 +7,7 @@ import (
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
@@ -95,8 +96,11 @@ type GetOntapVolumesReturnValue struct {
 	OntapVolumeMap map[string]*vsa.Volume
 }
 
-func (a *VolumeRefreshActivity) SyncUpdatedVolumesToDatabase(ctx context.Context, dbVols map[string]*datamodel.Volume) error {
-	return _syncUpdatedVolumesToDatabase(ctx, a.SE, dbVols)
+func (a *VolumeRefreshActivity) SyncUpdatedVolumesToDatabase(ctx context.Context, input *SyncUpdatedVolumesInput) error {
+	if input == nil {
+		return nil
+	}
+	return _syncUpdatedVolumesToDatabase(ctx, a.SE, input.UpdatedVolumeByUUID, input.VolumesWithClonesSharedBytesReset)
 }
 
 // ProcessVolumePoolMappingInput represents input for pool mapping processing
@@ -168,12 +172,21 @@ type ProcessOntapVolumeMatchingInput struct {
 
 // ProcessOntapVolumeMatchingResult represents the result of ONTAP volume matching
 type ProcessOntapVolumeMatchingResult struct {
-	UpdatedVolumeByUUID    map[string]*datamodel.Volume
-	OntapVolResponse       map[string]*vsa.VolumeResponse
-	VolumesNotFoundInONTAP []*datamodel.Volume
-	VolumesNotCloneInONTAP []*datamodel.Volume // Volumes that are clones in DB but are regular volumes in ONTAP
-	MatchedCount           int
-	NotFoundCount          int
+	UpdatedVolumeByUUID               map[string]*datamodel.Volume
+	OntapVolResponse                  map[string]*vsa.VolumeResponse
+	VolumesNotFoundInONTAP            []*datamodel.Volume
+	VolumesNotCloneInONTAP            []*datamodel.Volume // Volumes that are clones in DB but are regular volumes in ONTAP
+	VolumesWithClonesSharedBytesReset map[string]bool     // UUIDs of volumes whose clones_shared_bytes must be zeroed
+	MatchedCount                      int
+	NotFoundCount                     int
+}
+
+// SyncUpdatedVolumesInput is the input to SyncUpdatedVolumesToDatabase.
+// It carries both the volumes to update and the set of UUIDs whose clones_shared_bytes
+// must be reset to 0 because ONTAP reports them as no longer being flexclones.
+type SyncUpdatedVolumesInput struct {
+	UpdatedVolumeByUUID               map[string]*datamodel.Volume
+	VolumesWithClonesSharedBytesReset map[string]bool
 }
 
 // ProcessOntapVolumeMatching matches database volumes with ONTAP volumes and prepares updates
@@ -188,10 +201,11 @@ func (a *VolumeRefreshActivity) ProcessOntapVolumeMatching(ctx context.Context, 
 	}
 
 	result := &ProcessOntapVolumeMatchingResult{
-		UpdatedVolumeByUUID:    make(map[string]*datamodel.Volume),
-		OntapVolResponse:       make(map[string]*vsa.VolumeResponse),
-		VolumesNotFoundInONTAP: make([]*datamodel.Volume, 0),
-		VolumesNotCloneInONTAP: make([]*datamodel.Volume, 0),
+		UpdatedVolumeByUUID:               make(map[string]*datamodel.Volume),
+		OntapVolResponse:                  make(map[string]*vsa.VolumeResponse),
+		VolumesNotFoundInONTAP:            make([]*datamodel.Volume, 0),
+		VolumesNotCloneInONTAP:            make([]*datamodel.Volume, 0),
+		VolumesWithClonesSharedBytesReset: make(map[string]bool),
 	}
 
 	// Process each database volume
@@ -303,9 +317,50 @@ func (a *VolumeRefreshActivity) processIndividualVolume(
 	// Check if volume is a clone and clone details are missing
 	needsCloneUpdate := false
 	var parentVolumeUUID, parentSnapshotUUID string
+	var splitCompletePercent *int64
+	var isFlexclone bool
+	// cloneState and cloneStateDetails carry the state/stateDetails to write into CloneParentInfo.
+	// They default to the existing DB values so we never silently drop them on unrelated updates.
+	var cloneState, cloneStateDetails string
 
-	// Only process clone info if volume is a clone in database
-	if enableCloneInfoRefresh && dbVolume.ClonesSharedBytes > 0 && !skipCloneInfoUpdate {
+	// Get is_flexclone and split_complete_percent from ONTAP if available
+	// Only set split_complete_percent if is_flexclone is true
+	if ontapVolume != nil && ontapVolume.Clone != nil {
+		if ontapVolume.Clone.IsFlexclone != nil {
+			isFlexclone = *ontapVolume.Clone.IsFlexclone
+		}
+		// Only get split_complete_percent if is_flexclone is true
+		if isFlexclone && ontapVolume.Clone.SplitCompletePercent != nil {
+			splitCompletePercent = ontapVolume.Clone.SplitCompletePercent
+		}
+	}
+
+	// Seed cloneState/cloneStateDetails from the existing DB record so they are preserved
+	// across refresh cycles unless explicitly overwritten below.
+	if dbVolume.VolumeAttributes != nil && dbVolume.VolumeAttributes.CloneParentInfo != nil {
+		cloneState = dbVolume.VolumeAttributes.CloneParentInfo.State
+		cloneStateDetails = dbVolume.VolumeAttributes.CloneParentInfo.StateDetails
+	}
+
+	// If is_flexclone is false and CloneParentInfo exists in DB, we need to remove it.
+	// Also reset clones_shared_bytes to 0 — ONTAP is the source of truth for clone state.
+	if !isFlexclone {
+		if dbVolume.VolumeAttributes != nil && dbVolume.VolumeAttributes.CloneParentInfo != nil {
+			needsCloneUpdate = true
+			hasChanges = true
+			logger.Debugf("Volume %s is_flexclone is false, removing CloneParentInfo from database", dbVolume.UUID)
+		}
+		if dbVolume.ClonesSharedBytes > 0 {
+			hasChanges = true
+			result.VolumesWithClonesSharedBytesReset[dbVolume.UUID] = true
+			logger.Warnf("Volume %s is not a flexclone in ONTAP but has ClonesSharedBytes=%d in DB; resetting to 0",
+				dbVolume.UUID, dbVolume.ClonesSharedBytes)
+		}
+	}
+
+	// Only process clone info if volume is a clone in database and is_flexclone is true
+	// If is_flexclone is false, we'll handle removal of CloneParentInfo separately
+	if enableCloneInfoRefresh && dbVolume.ClonesSharedBytes > 0 && !skipCloneInfoUpdate && isFlexclone {
 		if ontapVolume != nil && ontapVolume.Clone != nil &&
 			ontapVolume.Clone.ParentVolume != nil && ontapVolume.Clone.ParentVolume.Name != nil &&
 			ontapVolume.Clone.ParentSnapshot != nil && ontapVolume.Clone.ParentSnapshot.Name != nil {
@@ -354,6 +409,74 @@ func (a *VolumeRefreshActivity) processIndividualVolume(
 		}
 	}
 
+	// Only process split_complete_percent if is_flexclone is true
+	if isFlexclone && splitCompletePercent != nil {
+		// Check if volume has CloneParentInfo in DB (indicating it's a clone, even if splitting)
+		if dbVolume.VolumeAttributes != nil && dbVolume.VolumeAttributes.CloneParentInfo != nil {
+			// Check if split_complete_percent changed (handle both non-zero and zero values)
+			currentSplitPercent := dbVolume.VolumeAttributes.CloneParentInfo.SplitCompletePercent
+			if currentSplitPercent == nil || *currentSplitPercent != *splitCompletePercent {
+				needsCloneUpdate = true
+				hasChanges = true
+				logger.Debugf("Volume %s split_complete_percent changed: %v -> %d",
+					dbVolume.UUID, currentSplitPercent, *splitCompletePercent)
+				// Preserve existing parent UUIDs if we don't have them from the above block
+				if parentVolumeUUID == "" {
+					parentVolumeUUID = dbVolume.VolumeAttributes.CloneParentInfo.ParentVolumeUUID
+				}
+				if parentSnapshotUUID == "" {
+					parentSnapshotUUID = dbVolume.VolumeAttributes.CloneParentInfo.ParentSnapshotUUID
+				}
+			}
+
+			if *splitCompletePercent != 0 && currentSplitPercent != nil && *currentSplitPercent < *splitCompletePercent {
+				if cloneState == models.CloneStateErrorInSplitting {
+					cloneState = models.CloneStateSplitting
+					cloneStateDetails = ""
+					needsCloneUpdate = true
+					hasChanges = true
+					logger.Debugf("Volume %s split_complete_percent advanced to %d, clearing stale SPLIT_FAILED state",
+						dbVolume.UUID, *splitCompletePercent)
+				}
+			}
+		}
+	}
+
+	// Detect split error: is_flexclone is still true but split_complete_percent dropped to nil/0
+	// after previously being non-zero. This means ONTAP encountered an error while splitting.
+	// Look up the SPLIT_CLONE_VOLUME job for this volume to get the actual error details; there
+	// is at most one such job per volume (a new split cannot start while one is in progress).
+	if isFlexclone &&
+		(splitCompletePercent == nil || *splitCompletePercent == 0) &&
+		dbVolume.VolumeAttributes != nil &&
+		dbVolume.VolumeAttributes.CloneParentInfo != nil &&
+		dbVolume.VolumeAttributes.CloneParentInfo.SplitCompletePercent != nil &&
+		*dbVolume.VolumeAttributes.CloneParentInfo.SplitCompletePercent != 0 &&
+		cloneState != models.CloneStateErrorInSplitting {
+		needsCloneUpdate = true
+		hasChanges = true
+		cloneState = models.CloneStateErrorInSplitting
+		// Attempt to fetch the split job error details from the DB.
+		splitJob, jobErr := a.SE.GetJobByResourceUUID(ctx, dbVolume.UUID, string(models.JobTypeSplitVolume))
+		if jobErr != nil {
+			logger.Warnf("Volume %s: could not fetch split job for error details: %v", dbVolume.UUID, jobErr)
+			cloneStateDetails = "Split operation encountered an error in ONTAP"
+		} else if splitJob != nil && splitJob.ErrorDetails != "" {
+			cloneStateDetails = splitJob.ErrorDetails
+		} else {
+			cloneStateDetails = "Split operation encountered an error in ONTAP"
+		}
+		// Preserve parent UUIDs
+		if parentVolumeUUID == "" {
+			parentVolumeUUID = dbVolume.VolumeAttributes.CloneParentInfo.ParentVolumeUUID
+		}
+		if parentSnapshotUUID == "" {
+			parentSnapshotUUID = dbVolume.VolumeAttributes.CloneParentInfo.ParentSnapshotUUID
+		}
+		logger.Warnf("Volume %s split_complete_percent dropped to nil/0 while is_flexclone is still true; marking as SPLIT_FAILED (details: %s)",
+			dbVolume.UUID, cloneStateDetails)
+	}
+
 	// Only add to update list if there are actual changes
 	if hasChanges {
 		// Create updated volume with ONTAP data
@@ -365,13 +488,25 @@ func (a *VolumeRefreshActivity) processIndividualVolume(
 			UsedBytes: newUsedBytes,
 		}
 
-		// Add clone parent info if needed
-		if needsCloneUpdate {
+		// Add clone parent info if needed (only if is_flexclone is true)
+		// If is_flexclone is false, needsCloneUpdate will be true but we won't set CloneParentInfo (removing it)
+		if needsCloneUpdate && isFlexclone {
+			cloneParentInfo := &datamodel.CloneParentInfo{
+				ParentVolumeUUID:   parentVolumeUUID,
+				ParentSnapshotUUID: parentSnapshotUUID,
+				State:              cloneState,
+				StateDetails:       cloneStateDetails,
+			}
+			if splitCompletePercent != nil {
+				cloneParentInfo.SplitCompletePercent = splitCompletePercent
+			}
 			updatedVolume.VolumeAttributes = &datamodel.VolumeAttributes{
-				CloneParentInfo: &datamodel.CloneParentInfo{
-					ParentVolumeUUID:   parentVolumeUUID,
-					ParentSnapshotUUID: parentSnapshotUUID,
-				},
+				CloneParentInfo: cloneParentInfo,
+			}
+		} else if needsCloneUpdate && !isFlexclone {
+			// is_flexclone is false, remove CloneParentInfo by setting it to nil
+			updatedVolume.VolumeAttributes = &datamodel.VolumeAttributes{
+				CloneParentInfo: nil,
 			}
 		}
 
@@ -419,7 +554,7 @@ func (a *VolumeRefreshActivity) validateOntapVolume(ontapVolume *vsa.Volume) err
 	return nil
 }
 
-func _syncUpdatedVolumesToDatabase(ctx context.Context, se database.Storage, dbVols map[string]*datamodel.Volume) error {
+func _syncUpdatedVolumesToDatabase(ctx context.Context, se database.Storage, dbVols map[string]*datamodel.Volume, clonesSharedBytesResetUUIDs map[string]bool) error {
 	log := util.GetLogger(ctx)
 	activity.RecordHeartbeat(ctx, "Starting SyncUpdatedVolumesToDatabase activity")
 
@@ -436,9 +571,12 @@ func _syncUpdatedVolumesToDatabase(ctx context.Context, se database.Storage, dbV
 	volumesForCloneUpdate := make([]*datamodel.Volume, 0)
 
 	for _, vol := range dbVols {
-		// Check if volume needs clone info update
-		if vol.VolumeAttributes != nil && vol.VolumeAttributes.CloneParentInfo != nil {
-			// Volume needs clone info update - will get both used_bytes and volume_attributes updated
+		// Check if volume needs clone info update (either to add/update or to remove CloneParentInfo)
+		// or needs clones_shared_bytes reset. Both require individual UpdateVolumeFields calls.
+		// If VolumeAttributes is set (even if CloneParentInfo is nil), it means we need to update volume_attributes.
+		if vol.VolumeAttributes != nil || clonesSharedBytesResetUUIDs[vol.UUID] {
+			// Volume needs clone info and/or clones_shared_bytes update - will get both
+			// used_bytes AND volume_attributes/clones_shared_bytes updated via individual UpdateVolumeFields calls
 			volumesForCloneUpdate = append(volumesForCloneUpdate, vol)
 		} else {
 			// Only used_bytes update needed - can use efficient batch update
@@ -469,58 +607,86 @@ func _syncUpdatedVolumesToDatabase(ctx context.Context, se database.Storage, dbV
 		log.Debugf("Batch updated used_bytes for %d volumes", len(volumesForBatchUpdate))
 	}
 
-	// Individual updates for volumes that need clone info
+	// Individual updates for volumes that need clone info and/or clones_shared_bytes reset
 	for _, vol := range volumesForCloneUpdate {
-		// Fetch existing volume to get current volume_attributes
-		dbVolume, err := se.GetVolume(ctx, vol.UUID)
-		if err != nil {
-			log.Errorf("Failed to get volume %s for clone info update: %v", vol.UUID, err)
-			continue
-		}
-
-		// Merge clone parent info into existing volume_attributes
-		var updatedAttributes *datamodel.VolumeAttributes
-		if dbVolume.VolumeAttributes != nil {
-			// Deep copy existing attributes
-			updatedAttributes = &datamodel.VolumeAttributes{
-				CreationToken:      dbVolume.VolumeAttributes.CreationToken,
-				Protocols:          dbVolume.VolumeAttributes.Protocols,
-				VendorSubnetID:     dbVolume.VolumeAttributes.VendorSubnetID,
-				ExternalUUID:       dbVolume.VolumeAttributes.ExternalUUID,
-				BlockProperties:    dbVolume.VolumeAttributes.BlockProperties,
-				BlockDevices:       dbVolume.VolumeAttributes.BlockDevices,
-				FileProperties:     dbVolume.VolumeAttributes.FileProperties,
-				IsDataProtection:   dbVolume.VolumeAttributes.IsDataProtection,
-				Mounted:            dbVolume.VolumeAttributes.Mounted,
-				SnapReserve:        dbVolume.VolumeAttributes.SnapReserve,
-				SnapshotDirectory:  dbVolume.VolumeAttributes.SnapshotDirectory,
-				Labels:             dbVolume.VolumeAttributes.Labels,
-				RestoredBackupID:   dbVolume.VolumeAttributes.RestoredBackupID,
-				RestoredBackupPath: dbVolume.VolumeAttributes.RestoredBackupPath,
-				SecurityStyle:      dbVolume.VolumeAttributes.SecurityStyle,
-				CloneParentInfo:    vol.VolumeAttributes.CloneParentInfo, // Use new clone info
-			}
-		} else {
-			// No existing attributes, create new with clone info
-			updatedAttributes = &datamodel.VolumeAttributes{
-				CloneParentInfo: vol.VolumeAttributes.CloneParentInfo,
-			}
-		}
-
-		// Update volume with merged attributes and used_bytes
 		updateFields := map[string]interface{}{
-			"used_bytes":        vol.UsedBytes,
-			"volume_attributes": updatedAttributes,
+			"used_bytes": vol.UsedBytes,
+		}
+
+		// Include clones_shared_bytes reset when ONTAP reports the volume is no longer a flexclone
+		if clonesSharedBytesResetUUIDs[vol.UUID] {
+			updateFields["clones_shared_bytes"] = uint64(0)
+		}
+
+		// Include volume_attributes update only when clone info needs to change
+		if vol.VolumeAttributes != nil {
+			// Fetch existing volume to get current volume_attributes for merging
+			dbVolume, err := se.GetVolume(ctx, vol.UUID)
+			if err != nil {
+				log.Errorf("Failed to get volume %s for clone info update: %v", vol.UUID, err)
+				continue
+			}
+
+			// Merge clone parent info into existing volume_attributes
+			var updatedAttributes *datamodel.VolumeAttributes
+			if dbVolume.VolumeAttributes != nil {
+				// Deep copy existing attributes
+				updatedAttributes = &datamodel.VolumeAttributes{
+					CreationToken:      dbVolume.VolumeAttributes.CreationToken,
+					Protocols:          dbVolume.VolumeAttributes.Protocols,
+					VendorSubnetID:     dbVolume.VolumeAttributes.VendorSubnetID,
+					ExternalUUID:       dbVolume.VolumeAttributes.ExternalUUID,
+					BlockProperties:    dbVolume.VolumeAttributes.BlockProperties,
+					BlockDevices:       dbVolume.VolumeAttributes.BlockDevices,
+					FileProperties:     dbVolume.VolumeAttributes.FileProperties,
+					IsDataProtection:   dbVolume.VolumeAttributes.IsDataProtection,
+					Mounted:            dbVolume.VolumeAttributes.Mounted,
+					SnapReserve:        dbVolume.VolumeAttributes.SnapReserve,
+					SnapshotDirectory:  dbVolume.VolumeAttributes.SnapshotDirectory,
+					Labels:             dbVolume.VolumeAttributes.Labels,
+					RestoredBackupID:   dbVolume.VolumeAttributes.RestoredBackupID,
+					RestoredBackupPath: dbVolume.VolumeAttributes.RestoredBackupPath,
+					SecurityStyle:      dbVolume.VolumeAttributes.SecurityStyle,
+				}
+				// Merge clone parent info.
+				// If vol.VolumeAttributes.CloneParentInfo is nil, remove it from DB (set to nil).
+				// If it's not nil, update it.
+				if vol.VolumeAttributes.CloneParentInfo != nil {
+					cloneParentInfo := &datamodel.CloneParentInfo{
+						ParentVolumeUUID:     vol.VolumeAttributes.CloneParentInfo.ParentVolumeUUID,
+						ParentSnapshotUUID:   vol.VolumeAttributes.CloneParentInfo.ParentSnapshotUUID,
+						State:                vol.VolumeAttributes.CloneParentInfo.State,
+						StateDetails:         vol.VolumeAttributes.CloneParentInfo.StateDetails,
+						SplitCompletePercent: vol.VolumeAttributes.CloneParentInfo.SplitCompletePercent,
+					}
+					updatedAttributes.CloneParentInfo = cloneParentInfo
+				} else {
+					// Explicitly set to nil to remove CloneParentInfo from DB
+					updatedAttributes.CloneParentInfo = nil
+				}
+			} else {
+				// No existing attributes; create new with clone info
+				updatedAttributes = &datamodel.VolumeAttributes{
+					CloneParentInfo: vol.VolumeAttributes.CloneParentInfo,
+				}
+			}
+
+			updateFields["volume_attributes"] = updatedAttributes
+
+			if vol.VolumeAttributes.CloneParentInfo != nil {
+				log.Debugf("Updated volume %s with clone parent info (Parent Volume: %s, Parent Snapshot: %s)",
+					vol.UUID,
+					vol.VolumeAttributes.CloneParentInfo.ParentVolumeUUID,
+					vol.VolumeAttributes.CloneParentInfo.ParentSnapshotUUID)
+			} else {
+				log.Debugf("Updated volume %s: removed CloneParentInfo from database", vol.UUID)
+			}
 		}
 
 		if err := se.UpdateVolumeFields(ctx, vol.UUID, updateFields); err != nil {
-			log.Errorf("Failed to update volume %s with clone info: %v", vol.UUID, err)
+			log.Errorf("Failed to update volume %s: %v", vol.UUID, err)
 			return err
 		}
-		log.Debugf("Updated volume %s with clone parent info (Parent Volume: %s, Parent Snapshot: %s)",
-			vol.UUID,
-			vol.VolumeAttributes.CloneParentInfo.ParentVolumeUUID,
-			vol.VolumeAttributes.CloneParentInfo.ParentSnapshotUUID)
 	}
 
 	if len(volumesForCloneUpdate) > 0 {

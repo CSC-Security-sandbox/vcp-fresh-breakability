@@ -153,11 +153,6 @@ func (o *OCIOrchestrator) SFROntapModeBackup(ctx context.Context, params *common
 	return "", utilserrors.NewNotImplementedYetErr()
 }
 
-func (o *OCIOrchestrator) SplitCloneVolume(ctx context.Context, params *commonparams.SplitCloneVolumeParams) (*models.Volume, string, error) {
-	// TODO implement me
-	return nil, "", utilserrors.NewNotImplementedYetErr()
-}
-
 func (o *OCIOrchestrator) GetJob(ctx context.Context, operationId string) (*models.Job, error) {
 	return nil, utilserrors.NewNotImplementedYetErr()
 }
@@ -683,4 +678,9 @@ func (o *OCIOrchestrator) DeleteVolumePerformanceGroup(ctx context.Context, para
 
 func (o *OCIOrchestrator) ReplaceDstQuotaRulesWithSrc(ctx context.Context, req *commonparams.UpdateDstWithSrcQuotaRulesV1beta, params commonparams.V1betaUpdateDestinationQuotaRulesVCPParams) ([]*datamodel.QuotaRule, error) {
 	return nil, utilserrors.NewNotImplementedYetErr()
+}
+
+func (o *OCIOrchestrator) SplitStartVolume(ctx context.Context, params *commonparams.SplitStartVolumeParams) (*models.Volume, string, error) {
+	// TODO implement me
+	return nil, "", utilserrors.NewNotImplementedYetErr()
 }

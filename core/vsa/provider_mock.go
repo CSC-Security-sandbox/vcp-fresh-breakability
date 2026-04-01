@@ -5024,6 +5024,62 @@ func (_c *MockProvider_IgroupGet_Call) RunAndReturn(run func(*string, *string) (
 	return _c
 }
 
+// InitiateSplitVolume provides a mock function with given fields: volumeUUID
+func (_m *MockProvider) InitiateSplitVolume(volumeUUID string) (string, error) {
+	ret := _m.Called(volumeUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for InitiateSplitVolume")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (string, error)); ok {
+		return rf(volumeUUID)
+	}
+	if rf, ok := ret.Get(0).(func(string) string); ok {
+		r0 = rf(volumeUUID)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(volumeUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_InitiateSplitVolume_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InitiateSplitVolume'
+type MockProvider_InitiateSplitVolume_Call struct {
+	*mock.Call
+}
+
+// InitiateSplitVolume is a helper method to define mock.On call
+//   - volumeUUID string
+func (_e *MockProvider_Expecter) InitiateSplitVolume(volumeUUID interface{}) *MockProvider_InitiateSplitVolume_Call {
+	return &MockProvider_InitiateSplitVolume_Call{Call: _e.mock.On("InitiateSplitVolume", volumeUUID)}
+}
+
+func (_c *MockProvider_InitiateSplitVolume_Call) Run(run func(volumeUUID string)) *MockProvider_InitiateSplitVolume_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_InitiateSplitVolume_Call) Return(_a0 string, _a1 error) *MockProvider_InitiateSplitVolume_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_InitiateSplitVolume_Call) RunAndReturn(run func(string) (string, error)) *MockProvider_InitiateSplitVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // InstallServerCertificate provides a mock function with given fields: params
 func (_m *MockProvider) InstallServerCertificate(params InstallServerCertificateParams) (*ServerCertificateResponse, error) {
 	ret := _m.Called(params)

@@ -15579,7 +15579,7 @@ func encodeV1betaRotateCmekBackupsResponse(response V1betaRotateCmekBackupsRes, 
 	}
 }
 
-func encodeV1betaSplitCloneVolumeResponse(response V1betaSplitCloneVolumeRes, w http.ResponseWriter, span trace.Span) error {
+func encodeV1betaSplitStartVolumeResponse(response V1betaSplitStartVolumeRes, w http.ResponseWriter, span trace.Span) error {
 	switch response := response.(type) {
 	case *OperationV1beta:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -15594,13 +15594,13 @@ func encodeV1betaSplitCloneVolumeResponse(response V1betaSplitCloneVolumeRes, w 
 
 		return nil
 
-	case *V1betaSplitCloneVolumeNoContent:
+	case *V1betaSplitStartVolumeNoContent:
 		w.WriteHeader(204)
 		span.SetStatus(codes.Ok, http.StatusText(204))
 
 		return nil
 
-	case *V1betaSplitCloneVolumeBadRequest:
+	case *V1betaSplitStartVolumeBadRequest:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(400)
 		span.SetStatus(codes.Error, http.StatusText(400))
@@ -15613,7 +15613,7 @@ func encodeV1betaSplitCloneVolumeResponse(response V1betaSplitCloneVolumeRes, w 
 
 		return nil
 
-	case *V1betaSplitCloneVolumeUnauthorized:
+	case *V1betaSplitStartVolumeUnauthorized:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(401)
 		span.SetStatus(codes.Error, http.StatusText(401))
@@ -15626,7 +15626,7 @@ func encodeV1betaSplitCloneVolumeResponse(response V1betaSplitCloneVolumeRes, w 
 
 		return nil
 
-	case *V1betaSplitCloneVolumeForbidden:
+	case *V1betaSplitStartVolumeForbidden:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(403)
 		span.SetStatus(codes.Error, http.StatusText(403))
@@ -15639,7 +15639,7 @@ func encodeV1betaSplitCloneVolumeResponse(response V1betaSplitCloneVolumeRes, w 
 
 		return nil
 
-	case *V1betaSplitCloneVolumeNotFound:
+	case *V1betaSplitStartVolumeNotFound:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(404)
 		span.SetStatus(codes.Error, http.StatusText(404))
@@ -15652,7 +15652,7 @@ func encodeV1betaSplitCloneVolumeResponse(response V1betaSplitCloneVolumeRes, w 
 
 		return nil
 
-	case *V1betaSplitCloneVolumeConflict:
+	case *V1betaSplitStartVolumeConflict:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(409)
 		span.SetStatus(codes.Error, http.StatusText(409))
@@ -15665,7 +15665,7 @@ func encodeV1betaSplitCloneVolumeResponse(response V1betaSplitCloneVolumeRes, w 
 
 		return nil
 
-	case *V1betaSplitCloneVolumeUnprocessableEntity:
+	case *V1betaSplitStartVolumeUnprocessableEntity:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(422)
 		span.SetStatus(codes.Error, http.StatusText(422))
@@ -15678,7 +15678,7 @@ func encodeV1betaSplitCloneVolumeResponse(response V1betaSplitCloneVolumeRes, w 
 
 		return nil
 
-	case *V1betaSplitCloneVolumeTooManyRequests:
+	case *V1betaSplitStartVolumeTooManyRequests:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(429)
 		span.SetStatus(codes.Error, http.StatusText(429))
@@ -15691,7 +15691,7 @@ func encodeV1betaSplitCloneVolumeResponse(response V1betaSplitCloneVolumeRes, w 
 
 		return nil
 
-	case *V1betaSplitCloneVolumeInternalServerError:
+	case *V1betaSplitStartVolumeInternalServerError:
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(500)
 		span.SetStatus(codes.Error, http.StatusText(500))

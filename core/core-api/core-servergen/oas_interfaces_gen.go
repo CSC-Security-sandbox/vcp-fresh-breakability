@@ -65,6 +65,10 @@ type V1RotateGcpKmsConfigRes interface {
 	v1RotateGcpKmsConfigRes()
 }
 
+type V1SplitStartVolumeRes interface {
+	v1SplitStartVolumeRes()
+}
+
 type V1UpdatePoolRes interface {
 	v1UpdatePoolRes()
 }

@@ -6585,12 +6585,33 @@ func (s *CloneDetailsV1beta) encodeFields(e *jx.Encoder) {
 			s.SharedBytes.Encode(e)
 		}
 	}
+	{
+		if s.State.Set {
+			e.FieldStart("state")
+			s.State.Encode(e)
+		}
+	}
+	{
+		if s.StateDetails.Set {
+			e.FieldStart("stateDetails")
+			s.StateDetails.Encode(e)
+		}
+	}
+	{
+		if s.SplitCompletePercent.Set {
+			e.FieldStart("splitCompletePercent")
+			s.SplitCompletePercent.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfCloneDetailsV1beta = [3]string{
+var jsonFieldsNameOfCloneDetailsV1beta = [6]string{
 	0: "parentVolumeId",
 	1: "parentSnapshotId",
 	2: "sharedBytes",
+	3: "state",
+	4: "stateDetails",
+	5: "splitCompletePercent",
 }
 
 // Decode decodes CloneDetailsV1beta from json.
@@ -6632,6 +6653,36 @@ func (s *CloneDetailsV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"sharedBytes\"")
 			}
+		case "state":
+			if err := func() error {
+				s.State.Reset()
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state\"")
+			}
+		case "stateDetails":
+			if err := func() error {
+				s.StateDetails.Reset()
+				if err := s.StateDetails.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"stateDetails\"")
+			}
+		case "splitCompletePercent":
+			if err := func() error {
+				s.SplitCompletePercent.Reset()
+				if err := s.SplitCompletePercent.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"splitCompletePercent\"")
+			}
 		default:
 			return d.Skip()
 		}
@@ -6652,6 +6703,48 @@ func (s *CloneDetailsV1beta) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CloneDetailsV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CloneDetailsV1betaState as json.
+func (s CloneDetailsV1betaState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes CloneDetailsV1betaState from json.
+func (s *CloneDetailsV1betaState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode CloneDetailsV1betaState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch CloneDetailsV1betaState(v) {
+	case CloneDetailsV1betaStateCLONED:
+		*s = CloneDetailsV1betaStateCLONED
+	case CloneDetailsV1betaStateSPLITTING:
+		*s = CloneDetailsV1betaStateSPLITTING
+	case CloneDetailsV1betaStateSPLITFAILED:
+		*s = CloneDetailsV1betaStateSPLITFAILED
+	default:
+		*s = CloneDetailsV1betaState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s CloneDetailsV1betaState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *CloneDetailsV1betaState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -15876,6 +15969,55 @@ func (s OptNilChildAssetArray) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptNilChildAssetArray) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes CloneDetailsV1betaState as json.
+func (o OptNilCloneDetailsV1betaState) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	if o.Null {
+		e.Null()
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes CloneDetailsV1betaState from json.
+func (o *OptNilCloneDetailsV1betaState) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptNilCloneDetailsV1betaState to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v CloneDetailsV1betaState
+		o.Value = v
+		o.Set = true
+		o.Null = true
+		return nil
+	}
+	o.Set = true
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptNilCloneDetailsV1betaState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptNilCloneDetailsV1betaState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -59975,17 +60117,17 @@ func (s *V1betaRotateCmekBackupsUnprocessableEntity) UnmarshalJSON(data []byte) 
 	return s.Decode(d)
 }
 
-// Encode encodes V1betaSplitCloneVolumeBadRequest as json.
-func (s *V1betaSplitCloneVolumeBadRequest) Encode(e *jx.Encoder) {
+// Encode encodes V1betaSplitStartVolumeBadRequest as json.
+func (s *V1betaSplitStartVolumeBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*Error)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes V1betaSplitCloneVolumeBadRequest from json.
-func (s *V1betaSplitCloneVolumeBadRequest) Decode(d *jx.Decoder) error {
+// Decode decodes V1betaSplitStartVolumeBadRequest from json.
+func (s *V1betaSplitStartVolumeBadRequest) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode V1betaSplitCloneVolumeBadRequest to nil")
+		return errors.New("invalid: unable to decode V1betaSplitStartVolumeBadRequest to nil")
 	}
 	var unwrapped Error
 	if err := func() error {
@@ -59996,34 +60138,34 @@ func (s *V1betaSplitCloneVolumeBadRequest) Decode(d *jx.Decoder) error {
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = V1betaSplitCloneVolumeBadRequest(unwrapped)
+	*s = V1betaSplitStartVolumeBadRequest(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *V1betaSplitCloneVolumeBadRequest) MarshalJSON() ([]byte, error) {
+func (s *V1betaSplitStartVolumeBadRequest) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *V1betaSplitCloneVolumeBadRequest) UnmarshalJSON(data []byte) error {
+func (s *V1betaSplitStartVolumeBadRequest) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes V1betaSplitCloneVolumeConflict as json.
-func (s *V1betaSplitCloneVolumeConflict) Encode(e *jx.Encoder) {
+// Encode encodes V1betaSplitStartVolumeConflict as json.
+func (s *V1betaSplitStartVolumeConflict) Encode(e *jx.Encoder) {
 	unwrapped := (*Error)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes V1betaSplitCloneVolumeConflict from json.
-func (s *V1betaSplitCloneVolumeConflict) Decode(d *jx.Decoder) error {
+// Decode decodes V1betaSplitStartVolumeConflict from json.
+func (s *V1betaSplitStartVolumeConflict) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode V1betaSplitCloneVolumeConflict to nil")
+		return errors.New("invalid: unable to decode V1betaSplitStartVolumeConflict to nil")
 	}
 	var unwrapped Error
 	if err := func() error {
@@ -60034,34 +60176,34 @@ func (s *V1betaSplitCloneVolumeConflict) Decode(d *jx.Decoder) error {
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = V1betaSplitCloneVolumeConflict(unwrapped)
+	*s = V1betaSplitStartVolumeConflict(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *V1betaSplitCloneVolumeConflict) MarshalJSON() ([]byte, error) {
+func (s *V1betaSplitStartVolumeConflict) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *V1betaSplitCloneVolumeConflict) UnmarshalJSON(data []byte) error {
+func (s *V1betaSplitStartVolumeConflict) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes V1betaSplitCloneVolumeForbidden as json.
-func (s *V1betaSplitCloneVolumeForbidden) Encode(e *jx.Encoder) {
+// Encode encodes V1betaSplitStartVolumeForbidden as json.
+func (s *V1betaSplitStartVolumeForbidden) Encode(e *jx.Encoder) {
 	unwrapped := (*Error)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes V1betaSplitCloneVolumeForbidden from json.
-func (s *V1betaSplitCloneVolumeForbidden) Decode(d *jx.Decoder) error {
+// Decode decodes V1betaSplitStartVolumeForbidden from json.
+func (s *V1betaSplitStartVolumeForbidden) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode V1betaSplitCloneVolumeForbidden to nil")
+		return errors.New("invalid: unable to decode V1betaSplitStartVolumeForbidden to nil")
 	}
 	var unwrapped Error
 	if err := func() error {
@@ -60072,34 +60214,34 @@ func (s *V1betaSplitCloneVolumeForbidden) Decode(d *jx.Decoder) error {
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = V1betaSplitCloneVolumeForbidden(unwrapped)
+	*s = V1betaSplitStartVolumeForbidden(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *V1betaSplitCloneVolumeForbidden) MarshalJSON() ([]byte, error) {
+func (s *V1betaSplitStartVolumeForbidden) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *V1betaSplitCloneVolumeForbidden) UnmarshalJSON(data []byte) error {
+func (s *V1betaSplitStartVolumeForbidden) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes V1betaSplitCloneVolumeInternalServerError as json.
-func (s *V1betaSplitCloneVolumeInternalServerError) Encode(e *jx.Encoder) {
+// Encode encodes V1betaSplitStartVolumeInternalServerError as json.
+func (s *V1betaSplitStartVolumeInternalServerError) Encode(e *jx.Encoder) {
 	unwrapped := (*Error)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes V1betaSplitCloneVolumeInternalServerError from json.
-func (s *V1betaSplitCloneVolumeInternalServerError) Decode(d *jx.Decoder) error {
+// Decode decodes V1betaSplitStartVolumeInternalServerError from json.
+func (s *V1betaSplitStartVolumeInternalServerError) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode V1betaSplitCloneVolumeInternalServerError to nil")
+		return errors.New("invalid: unable to decode V1betaSplitStartVolumeInternalServerError to nil")
 	}
 	var unwrapped Error
 	if err := func() error {
@@ -60110,34 +60252,34 @@ func (s *V1betaSplitCloneVolumeInternalServerError) Decode(d *jx.Decoder) error 
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = V1betaSplitCloneVolumeInternalServerError(unwrapped)
+	*s = V1betaSplitStartVolumeInternalServerError(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *V1betaSplitCloneVolumeInternalServerError) MarshalJSON() ([]byte, error) {
+func (s *V1betaSplitStartVolumeInternalServerError) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *V1betaSplitCloneVolumeInternalServerError) UnmarshalJSON(data []byte) error {
+func (s *V1betaSplitStartVolumeInternalServerError) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes V1betaSplitCloneVolumeNotFound as json.
-func (s *V1betaSplitCloneVolumeNotFound) Encode(e *jx.Encoder) {
+// Encode encodes V1betaSplitStartVolumeNotFound as json.
+func (s *V1betaSplitStartVolumeNotFound) Encode(e *jx.Encoder) {
 	unwrapped := (*Error)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes V1betaSplitCloneVolumeNotFound from json.
-func (s *V1betaSplitCloneVolumeNotFound) Decode(d *jx.Decoder) error {
+// Decode decodes V1betaSplitStartVolumeNotFound from json.
+func (s *V1betaSplitStartVolumeNotFound) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode V1betaSplitCloneVolumeNotFound to nil")
+		return errors.New("invalid: unable to decode V1betaSplitStartVolumeNotFound to nil")
 	}
 	var unwrapped Error
 	if err := func() error {
@@ -60148,34 +60290,34 @@ func (s *V1betaSplitCloneVolumeNotFound) Decode(d *jx.Decoder) error {
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = V1betaSplitCloneVolumeNotFound(unwrapped)
+	*s = V1betaSplitStartVolumeNotFound(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *V1betaSplitCloneVolumeNotFound) MarshalJSON() ([]byte, error) {
+func (s *V1betaSplitStartVolumeNotFound) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *V1betaSplitCloneVolumeNotFound) UnmarshalJSON(data []byte) error {
+func (s *V1betaSplitStartVolumeNotFound) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes V1betaSplitCloneVolumeTooManyRequests as json.
-func (s *V1betaSplitCloneVolumeTooManyRequests) Encode(e *jx.Encoder) {
+// Encode encodes V1betaSplitStartVolumeTooManyRequests as json.
+func (s *V1betaSplitStartVolumeTooManyRequests) Encode(e *jx.Encoder) {
 	unwrapped := (*Error)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes V1betaSplitCloneVolumeTooManyRequests from json.
-func (s *V1betaSplitCloneVolumeTooManyRequests) Decode(d *jx.Decoder) error {
+// Decode decodes V1betaSplitStartVolumeTooManyRequests from json.
+func (s *V1betaSplitStartVolumeTooManyRequests) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode V1betaSplitCloneVolumeTooManyRequests to nil")
+		return errors.New("invalid: unable to decode V1betaSplitStartVolumeTooManyRequests to nil")
 	}
 	var unwrapped Error
 	if err := func() error {
@@ -60186,34 +60328,34 @@ func (s *V1betaSplitCloneVolumeTooManyRequests) Decode(d *jx.Decoder) error {
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = V1betaSplitCloneVolumeTooManyRequests(unwrapped)
+	*s = V1betaSplitStartVolumeTooManyRequests(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *V1betaSplitCloneVolumeTooManyRequests) MarshalJSON() ([]byte, error) {
+func (s *V1betaSplitStartVolumeTooManyRequests) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *V1betaSplitCloneVolumeTooManyRequests) UnmarshalJSON(data []byte) error {
+func (s *V1betaSplitStartVolumeTooManyRequests) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes V1betaSplitCloneVolumeUnauthorized as json.
-func (s *V1betaSplitCloneVolumeUnauthorized) Encode(e *jx.Encoder) {
+// Encode encodes V1betaSplitStartVolumeUnauthorized as json.
+func (s *V1betaSplitStartVolumeUnauthorized) Encode(e *jx.Encoder) {
 	unwrapped := (*Error)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes V1betaSplitCloneVolumeUnauthorized from json.
-func (s *V1betaSplitCloneVolumeUnauthorized) Decode(d *jx.Decoder) error {
+// Decode decodes V1betaSplitStartVolumeUnauthorized from json.
+func (s *V1betaSplitStartVolumeUnauthorized) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode V1betaSplitCloneVolumeUnauthorized to nil")
+		return errors.New("invalid: unable to decode V1betaSplitStartVolumeUnauthorized to nil")
 	}
 	var unwrapped Error
 	if err := func() error {
@@ -60224,34 +60366,34 @@ func (s *V1betaSplitCloneVolumeUnauthorized) Decode(d *jx.Decoder) error {
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = V1betaSplitCloneVolumeUnauthorized(unwrapped)
+	*s = V1betaSplitStartVolumeUnauthorized(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *V1betaSplitCloneVolumeUnauthorized) MarshalJSON() ([]byte, error) {
+func (s *V1betaSplitStartVolumeUnauthorized) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *V1betaSplitCloneVolumeUnauthorized) UnmarshalJSON(data []byte) error {
+func (s *V1betaSplitStartVolumeUnauthorized) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes V1betaSplitCloneVolumeUnprocessableEntity as json.
-func (s *V1betaSplitCloneVolumeUnprocessableEntity) Encode(e *jx.Encoder) {
+// Encode encodes V1betaSplitStartVolumeUnprocessableEntity as json.
+func (s *V1betaSplitStartVolumeUnprocessableEntity) Encode(e *jx.Encoder) {
 	unwrapped := (*Error)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes V1betaSplitCloneVolumeUnprocessableEntity from json.
-func (s *V1betaSplitCloneVolumeUnprocessableEntity) Decode(d *jx.Decoder) error {
+// Decode decodes V1betaSplitStartVolumeUnprocessableEntity from json.
+func (s *V1betaSplitStartVolumeUnprocessableEntity) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode V1betaSplitCloneVolumeUnprocessableEntity to nil")
+		return errors.New("invalid: unable to decode V1betaSplitStartVolumeUnprocessableEntity to nil")
 	}
 	var unwrapped Error
 	if err := func() error {
@@ -60262,19 +60404,19 @@ func (s *V1betaSplitCloneVolumeUnprocessableEntity) Decode(d *jx.Decoder) error 
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = V1betaSplitCloneVolumeUnprocessableEntity(unwrapped)
+	*s = V1betaSplitStartVolumeUnprocessableEntity(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *V1betaSplitCloneVolumeUnprocessableEntity) MarshalJSON() ([]byte, error) {
+func (s *V1betaSplitStartVolumeUnprocessableEntity) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *V1betaSplitCloneVolumeUnprocessableEntity) UnmarshalJSON(data []byte) error {
+func (s *V1betaSplitStartVolumeUnprocessableEntity) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

@@ -3656,6 +3656,13 @@ type CloneDetailsV1beta struct {
 	ParentSnapshotId OptString `json:"parentSnapshotId"`
 	// The amount of data (in bytes) shared from parent volume to this thin clone volume.
 	SharedBytes OptNilFloat64 `json:"sharedBytes"`
+	// The current lifecycle state of the clone split operation.
+	State OptNilCloneDetailsV1betaState `json:"state"`
+	// Error details on why the split operation failed, displayed only when state is SPLIT_FAILED.
+	StateDetails OptNilString `json:"stateDetails"`
+	// The progress in percentage of the clone split operation. This field is only relevant for thin
+	// clones.
+	SplitCompletePercent OptNilInt64 `json:"splitCompletePercent"`
 }
 
 // GetParentVolumeId returns the value of ParentVolumeId.
@@ -3673,6 +3680,21 @@ func (s *CloneDetailsV1beta) GetSharedBytes() OptNilFloat64 {
 	return s.SharedBytes
 }
 
+// GetState returns the value of State.
+func (s *CloneDetailsV1beta) GetState() OptNilCloneDetailsV1betaState {
+	return s.State
+}
+
+// GetStateDetails returns the value of StateDetails.
+func (s *CloneDetailsV1beta) GetStateDetails() OptNilString {
+	return s.StateDetails
+}
+
+// GetSplitCompletePercent returns the value of SplitCompletePercent.
+func (s *CloneDetailsV1beta) GetSplitCompletePercent() OptNilInt64 {
+	return s.SplitCompletePercent
+}
+
 // SetParentVolumeId sets the value of ParentVolumeId.
 func (s *CloneDetailsV1beta) SetParentVolumeId(val OptString) {
 	s.ParentVolumeId = val
@@ -3686,6 +3708,70 @@ func (s *CloneDetailsV1beta) SetParentSnapshotId(val OptString) {
 // SetSharedBytes sets the value of SharedBytes.
 func (s *CloneDetailsV1beta) SetSharedBytes(val OptNilFloat64) {
 	s.SharedBytes = val
+}
+
+// SetState sets the value of State.
+func (s *CloneDetailsV1beta) SetState(val OptNilCloneDetailsV1betaState) {
+	s.State = val
+}
+
+// SetStateDetails sets the value of StateDetails.
+func (s *CloneDetailsV1beta) SetStateDetails(val OptNilString) {
+	s.StateDetails = val
+}
+
+// SetSplitCompletePercent sets the value of SplitCompletePercent.
+func (s *CloneDetailsV1beta) SetSplitCompletePercent(val OptNilInt64) {
+	s.SplitCompletePercent = val
+}
+
+// The current lifecycle state of the clone split operation.
+type CloneDetailsV1betaState string
+
+const (
+	CloneDetailsV1betaStateCLONED      CloneDetailsV1betaState = "CLONED"
+	CloneDetailsV1betaStateSPLITTING   CloneDetailsV1betaState = "SPLITTING"
+	CloneDetailsV1betaStateSPLITFAILED CloneDetailsV1betaState = "SPLIT_FAILED"
+)
+
+// AllValues returns all CloneDetailsV1betaState values.
+func (CloneDetailsV1betaState) AllValues() []CloneDetailsV1betaState {
+	return []CloneDetailsV1betaState{
+		CloneDetailsV1betaStateCLONED,
+		CloneDetailsV1betaStateSPLITTING,
+		CloneDetailsV1betaStateSPLITFAILED,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s CloneDetailsV1betaState) MarshalText() ([]byte, error) {
+	switch s {
+	case CloneDetailsV1betaStateCLONED:
+		return []byte(s), nil
+	case CloneDetailsV1betaStateSPLITTING:
+		return []byte(s), nil
+	case CloneDetailsV1betaStateSPLITFAILED:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *CloneDetailsV1betaState) UnmarshalText(data []byte) error {
+	switch CloneDetailsV1betaState(data) {
+	case CloneDetailsV1betaStateCLONED:
+		*s = CloneDetailsV1betaStateCLONED
+		return nil
+	case CloneDetailsV1betaStateSPLITTING:
+		*s = CloneDetailsV1betaStateSPLITTING
+		return nil
+	case CloneDetailsV1betaStateSPLITFAILED:
+		*s = CloneDetailsV1betaStateSPLITFAILED
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Ref: #/components/schemas/ClusterPeer_v1
@@ -4221,7 +4307,7 @@ func (*ErrorStatusCode) v1betaResumeReplicationRes()                         {}
 func (*ErrorStatusCode) v1betaReverseAndResumeReplicationRes()               {}
 func (*ErrorStatusCode) v1betaRevertVolumeRes()                              {}
 func (*ErrorStatusCode) v1betaRotateCmekBackupsRes()                         {}
-func (*ErrorStatusCode) v1betaSplitCloneVolumeRes()                          {}
+func (*ErrorStatusCode) v1betaSplitStartVolumeRes()                          {}
 func (*ErrorStatusCode) v1betaStartProjectEventRes()                         {}
 func (*ErrorStatusCode) v1betaStopReplicationRes()                           {}
 func (*ErrorStatusCode) v1betaSyncReplicationRes()                           {}
@@ -8192,7 +8278,7 @@ func (*OperationV1beta) v1betaResumeReplicationRes()                         {}
 func (*OperationV1beta) v1betaReverseAndResumeReplicationRes()               {}
 func (*OperationV1beta) v1betaRevertVolumeRes()                              {}
 func (*OperationV1beta) v1betaRotateCmekBackupsRes()                         {}
-func (*OperationV1beta) v1betaSplitCloneVolumeRes()                          {}
+func (*OperationV1beta) v1betaSplitStartVolumeRes()                          {}
 func (*OperationV1beta) v1betaStopReplicationRes()                           {}
 func (*OperationV1beta) v1betaSyncReplicationRes()                           {}
 func (*OperationV1beta) v1betaUpdateActiveDirectoryRes()                     {}
@@ -10951,6 +11037,69 @@ func (o OptNilChildAssetArray) Get() (v []ChildAsset, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNilChildAssetArray) Or(d []ChildAsset) []ChildAsset {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilCloneDetailsV1betaState returns new OptNilCloneDetailsV1betaState with value set to v.
+func NewOptNilCloneDetailsV1betaState(v CloneDetailsV1betaState) OptNilCloneDetailsV1betaState {
+	return OptNilCloneDetailsV1betaState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilCloneDetailsV1betaState is optional nullable CloneDetailsV1betaState.
+type OptNilCloneDetailsV1betaState struct {
+	Value CloneDetailsV1betaState
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilCloneDetailsV1betaState was set.
+func (o OptNilCloneDetailsV1betaState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilCloneDetailsV1betaState) Reset() {
+	var v CloneDetailsV1betaState
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilCloneDetailsV1betaState) SetTo(v CloneDetailsV1betaState) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilCloneDetailsV1betaState) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilCloneDetailsV1betaState) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v CloneDetailsV1betaState
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilCloneDetailsV1betaState) Get() (v CloneDetailsV1betaState, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilCloneDetailsV1betaState) Or(d CloneDetailsV1betaState) CloneDetailsV1betaState {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -23681,42 +23830,42 @@ type V1betaRotateCmekBackupsUnprocessableEntity Error
 
 func (*V1betaRotateCmekBackupsUnprocessableEntity) v1betaRotateCmekBackupsRes() {}
 
-type V1betaSplitCloneVolumeBadRequest Error
+type V1betaSplitStartVolumeBadRequest Error
 
-func (*V1betaSplitCloneVolumeBadRequest) v1betaSplitCloneVolumeRes() {}
+func (*V1betaSplitStartVolumeBadRequest) v1betaSplitStartVolumeRes() {}
 
-type V1betaSplitCloneVolumeConflict Error
+type V1betaSplitStartVolumeConflict Error
 
-func (*V1betaSplitCloneVolumeConflict) v1betaSplitCloneVolumeRes() {}
+func (*V1betaSplitStartVolumeConflict) v1betaSplitStartVolumeRes() {}
 
-type V1betaSplitCloneVolumeForbidden Error
+type V1betaSplitStartVolumeForbidden Error
 
-func (*V1betaSplitCloneVolumeForbidden) v1betaSplitCloneVolumeRes() {}
+func (*V1betaSplitStartVolumeForbidden) v1betaSplitStartVolumeRes() {}
 
-type V1betaSplitCloneVolumeInternalServerError Error
+type V1betaSplitStartVolumeInternalServerError Error
 
-func (*V1betaSplitCloneVolumeInternalServerError) v1betaSplitCloneVolumeRes() {}
+func (*V1betaSplitStartVolumeInternalServerError) v1betaSplitStartVolumeRes() {}
 
-// V1betaSplitCloneVolumeNoContent is response for V1betaSplitCloneVolume operation.
-type V1betaSplitCloneVolumeNoContent struct{}
+// V1betaSplitStartVolumeNoContent is response for V1betaSplitStartVolume operation.
+type V1betaSplitStartVolumeNoContent struct{}
 
-func (*V1betaSplitCloneVolumeNoContent) v1betaSplitCloneVolumeRes() {}
+func (*V1betaSplitStartVolumeNoContent) v1betaSplitStartVolumeRes() {}
 
-type V1betaSplitCloneVolumeNotFound Error
+type V1betaSplitStartVolumeNotFound Error
 
-func (*V1betaSplitCloneVolumeNotFound) v1betaSplitCloneVolumeRes() {}
+func (*V1betaSplitStartVolumeNotFound) v1betaSplitStartVolumeRes() {}
 
-type V1betaSplitCloneVolumeTooManyRequests Error
+type V1betaSplitStartVolumeTooManyRequests Error
 
-func (*V1betaSplitCloneVolumeTooManyRequests) v1betaSplitCloneVolumeRes() {}
+func (*V1betaSplitStartVolumeTooManyRequests) v1betaSplitStartVolumeRes() {}
 
-type V1betaSplitCloneVolumeUnauthorized Error
+type V1betaSplitStartVolumeUnauthorized Error
 
-func (*V1betaSplitCloneVolumeUnauthorized) v1betaSplitCloneVolumeRes() {}
+func (*V1betaSplitStartVolumeUnauthorized) v1betaSplitStartVolumeRes() {}
 
-type V1betaSplitCloneVolumeUnprocessableEntity Error
+type V1betaSplitStartVolumeUnprocessableEntity Error
 
-func (*V1betaSplitCloneVolumeUnprocessableEntity) v1betaSplitCloneVolumeRes() {}
+func (*V1betaSplitStartVolumeUnprocessableEntity) v1betaSplitStartVolumeRes() {}
 
 type V1betaStartProjectEventAccepted OperationV1beta
 

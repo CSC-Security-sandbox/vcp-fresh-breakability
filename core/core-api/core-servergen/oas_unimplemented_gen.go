@@ -164,6 +164,15 @@ func (UnimplementedHandler) V1RotateGcpKmsConfig(ctx context.Context, req *GcpKm
 	return r, ht.ErrNotImplemented
 }
 
+// V1SplitStartVolume implements v1_splitStartVolume operation.
+//
+// Initiates a split of a thin clone volume from its parent, making it an independent volume.
+//
+// POST /v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstart
+func (UnimplementedHandler) V1SplitStartVolume(ctx context.Context, params V1SplitStartVolumeParams) (r V1SplitStartVolumeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1UpdatePool implements v1_updatePool operation.
 //
 // Update the pool.

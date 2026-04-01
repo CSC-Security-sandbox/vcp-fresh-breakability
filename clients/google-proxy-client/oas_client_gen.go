@@ -686,12 +686,12 @@ type Invoker interface {
 	//
 	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/backupVaults/{backupVaultId}/rotateCmekBackups
 	V1betaRotateCmekBackups(ctx context.Context, request *BackupVaultRotateCMEKBackupsV1beta, params V1betaRotateCmekBackupsParams) (V1betaRotateCmekBackupsRes, error)
-	// V1betaSplitCloneVolume invokes v1beta_splitCloneVolume operation.
+	// V1betaSplitStartVolume invokes v1beta_splitStartVolume operation.
 	//
 	// Warning! This operation will permanently split the thin clone from its source volume.
 	//
-	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/clonesplit
-	V1betaSplitCloneVolume(ctx context.Context, params V1betaSplitCloneVolumeParams) (V1betaSplitCloneVolumeRes, error)
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstart
+	V1betaSplitStartVolume(ctx context.Context, params V1betaSplitStartVolumeParams) (V1betaSplitStartVolumeRes, error)
 	// V1betaStartProjectEvent invokes v1beta_startProjectEvent operation.
 	//
 	// Updates the project state for a 1P account based on the path parameter and project state value.
@@ -13060,17 +13060,17 @@ func (c *Client) sendV1betaRotateCmekBackups(ctx context.Context, request *Backu
 	return result, nil
 }
 
-// V1betaSplitCloneVolume invokes v1beta_splitCloneVolume operation.
+// V1betaSplitStartVolume invokes v1beta_splitStartVolume operation.
 //
 // Warning! This operation will permanently split the thin clone from its source volume.
 //
-// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/clonesplit
-func (c *Client) V1betaSplitCloneVolume(ctx context.Context, params V1betaSplitCloneVolumeParams) (V1betaSplitCloneVolumeRes, error) {
-	res, err := c.sendV1betaSplitCloneVolume(ctx, params)
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstart
+func (c *Client) V1betaSplitStartVolume(ctx context.Context, params V1betaSplitStartVolumeParams) (V1betaSplitStartVolumeRes, error) {
+	res, err := c.sendV1betaSplitStartVolume(ctx, params)
 	return res, err
 }
 
-func (c *Client) sendV1betaSplitCloneVolume(ctx context.Context, params V1betaSplitCloneVolumeParams) (res V1betaSplitCloneVolumeRes, err error) {
+func (c *Client) sendV1betaSplitStartVolume(ctx context.Context, params V1betaSplitStartVolumeParams) (res V1betaSplitStartVolumeRes, err error) {
 
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [7]string
@@ -13131,7 +13131,7 @@ func (c *Client) sendV1betaSplitCloneVolume(ctx context.Context, params V1betaSp
 		}
 		pathParts[5] = encoded
 	}
-	pathParts[6] = "/clonesplit"
+	pathParts[6] = "/splitstart"
 	uri.AddPathParts(u, pathParts[:]...)
 
 	r, err := ht.NewRequest(ctx, "POST", u)
@@ -13161,7 +13161,7 @@ func (c *Client) sendV1betaSplitCloneVolume(ctx context.Context, params V1betaSp
 	}
 	defer resp.Body.Close()
 
-	result, err := decodeV1betaSplitCloneVolumeResponse(resp)
+	result, err := decodeV1betaSplitStartVolumeResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

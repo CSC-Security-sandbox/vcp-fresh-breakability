@@ -1,15 +1,21 @@
 package workflows
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
-	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
 )
+
+// splitPollInterval is how long we sleep between GetOntapJob polls.
+const splitPollInterval = 5 * time.Second
 
 type volumeSplitWorkflow struct {
 	// add fields needed for split volume workflow
@@ -19,13 +25,24 @@ type volumeSplitWorkflow struct {
 // Enforcing the WorkflowInterface on volumeSplitWorkflow
 var _ WorkflowInterface = &volumeSplitWorkflow{}
 
-// SplitVolumeWorkflow orchestrates the process of splitting a volume as part of a customer request.
-func SplitVolumeWorkflow(ctx workflow.Context, volume *datamodel.Volume) error {
+// SplitVolumeWorkflow polls the ONTAP split job that was already initiated synchronously
+// by _splitStartVolume, then cleans up the clone snapshot once the split succeeds.
+//
+// The workflow uses ContinueAsNew to avoid hitting Temporal's event history limit for
+// long-running splits (large volumes can take hours or days). Each continuation receives
+// the same arguments so polling resumes seamlessly.
+//
+// Arguments:
+//   - volume:       the volume being split (carries CloneParentInfo for snapshot cleanup)
+//   - node:         the ONTAP node to use when polling the job
+//   - ontapJobUUID: the ONTAP job UUID returned by InitiateSplitVolume; may be empty if
+//     ONTAP completed synchronously (no polling needed in that case)
+func SplitVolumeWorkflow(ctx workflow.Context, volume *datamodel.Volume, node *models.Node, ontapJobUUID string) error {
 	log := util.GetLogger(ctx)
 	volumeWf := new(volumeSplitWorkflow)
 	err := volumeWf.Setup(ctx, volume)
 	if err != nil {
-		log.Errorf("Volume update workflow setup executed with error: %v", err)
+		log.Errorf("Volume split workflow setup executed with error: %v", err)
 		return err
 	}
 	volumeWf.Status = WorkflowStatusRunning
@@ -35,13 +52,18 @@ func SplitVolumeWorkflow(ctx workflow.Context, volume *datamodel.Volume) error {
 		return err
 	}
 
-	_, errRun := volumeWf.Run(ctx, volume)
+	_, errRun := volumeWf.Run(ctx, volume, node, ontapJobUUID)
 	if errRun != nil {
+		// ContinueAsNew is not a real failure — propagate it immediately without marking
+		// the job as ERROR or running any cleanup. The new execution takes over.
+		if workflow.IsContinueAsNewError(errRun.OriginalErr) {
+			return errRun.OriginalErr
+		}
 		log.Errorf("SplitVolumeWorkflow completed with error: %v", errRun)
 		volumeWf.Status = WorkflowStatusFailed
 		err2 := volumeWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), errRun)
 		if err2 != nil {
-			log.Errorf("Failed to update job status to Done with err for SplitVolumeWorkflow: %v", err2)
+			log.Errorf("Failed to update job status to ERROR for SplitVolumeWorkflow: %v", err2)
 			return err2
 		}
 		return errRun
@@ -77,6 +99,8 @@ func (wf *volumeSplitWorkflow) Setup(ctx workflow.Context, input interface{}) er
 func (wf *volumeSplitWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	log := util.GetLogger(ctx)
 	volume := args[0].(*datamodel.Volume)
+	node := args[1].(*models.Node)
+	ontapJobUUID := args[2].(string)
 
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
@@ -94,35 +118,114 @@ func (wf *volumeSplitWorkflow) Run(ctx workflow.Context, args ...interface{}) (i
 	}
 	ctx = workflow.WithActivityOptions(ctx, options)
 
+	// runErr is set before every early-return so the cleanup defer can inspect the outcome.
+	var runErr *vsaerrors.CustomError
+
+	// Cleanup defer: always reconcile clone state and clones_shared_bytes when Run exits.
+	//   - Success        → remove CloneParentInfo entirely (volume is no longer a clone)
+	//   - ONTAP failure  → set state to "SPLIT_FAILED", keep bytes at 0, record ONTAP error in stateDetails
+	//   - ContinueAsNew  → skip entirely; the new execution is still polling, nothing to reconcile
 	defer func() {
-		err2 := workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.UpdateVolumeStateInDB, volume.UUID, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil)
-		if err2 != nil {
-			log.Errorf("Failed to update volume state in DB to READY: %v", err2)
+		if volume.VolumeAttributes == nil || volume.VolumeAttributes.CloneParentInfo == nil {
+			return
+		}
+		// Do not update clone state when ContinueAsNew is in progress — the split is still running.
+		if runErr != nil && workflow.IsContinueAsNewError(runErr.OriginalErr) {
+			return
+		}
+		cloneState := ""
+		bytesToSet := uint64(0)
+		stateDetails := ""
+		removeCloneInfo := runErr == nil
+		if runErr != nil {
+			// All errors here are ONTAP poll failures (the ONTAP call already succeeded
+			// synchronously before the workflow was dispatched).
+			cloneState = models.CloneStateErrorInSplitting
+			stateDetails = runErr.Error()
+		}
+		if updateErr := workflow.ExecuteActivity(
+			ctx,
+			activities.VolumeCreateActivity.UpdateCloneParentStateInDB,
+			volume.UUID,
+			cloneState,
+			bytesToSet,
+			stateDetails,
+			removeCloneInfo,
+		).Get(ctx, nil); updateErr != nil {
+			log.Errorf("Failed to update clone parent state for volume %s: %v", volume.UUID, updateErr)
 		}
 	}()
 
-	var dbNodes []*datamodel.Node
-	err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetNode, volume.Pool.ID).Get(ctx, &dbNodes)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
+	// Poll the ONTAP split job until it completes (or we need to ContinueAsNew).
+	// If ontapJobUUID is empty, ONTAP completed synchronously — nothing to poll.
+	if ontapJobUUID != "" {
+		if err = pollONTAPSplitJob(ctx, volume, node, ontapJobUUID); err != nil {
+			runErr = ConvertToVSAError(err)
+			return nil, runErr
+		}
+		log.Infof("ONTAP split job %s completed successfully for volume %s", ontapJobUUID, volume.Name)
+	} else {
+		log.Infof("No ONTAP job UUID provided for volume %s; ONTAP split completed synchronously", volume.Name)
 	}
 
-	node := hyperscaler.CreateNodeForProvider(hyperscaler.NodeProviderInput{
-		Nodes:            dbNodes,
-		DeploymentName:   volume.Pool.DeploymentName,
-		OntapCredentials: volume.Pool.PoolCredentials,
-	})
-
-	err = workflow.ExecuteActivity(ctx, activities.VolumeCreateActivity.InitiateSplitForVolume, &volume, &node, nil).Get(ctx, nil)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
-	}
-
-	// Update cloneSharedBytes to 0 in the database
-	err = workflow.ExecuteActivity(ctx, activities.VolumeSplitActivity.UpdateCloneSharedBytesInDB, volume.UUID, uint64(0)).Get(ctx, nil)
-	if err != nil {
-		return nil, ConvertToVSAError(err)
+	// Clean up the clone snapshot that was created when the volume was cloned.
+	if err = workflow.ExecuteActivity(ctx, activities.VolumeSplitActivity.CleanupSplitSnapshot, volume).Get(ctx, nil); err != nil {
+		// Snapshot cleanup failure is non-fatal — the split itself succeeded.
+		log.Warnf("Failed to clean up split snapshot for volume %s: %v", volume.Name, err)
 	}
 
 	return nil, nil
+}
+
+// pollONTAPSplitJob polls the ONTAP job until it succeeds, fails, or Temporal suggests
+// ContinueAsNew. In the last case it returns a ContinueAsNewError so the caller can restart
+// the workflow with the same ontapJobUUID.
+func pollONTAPSplitJob(ctx workflow.Context, volume *datamodel.Volume, node *models.Node, ontapJobUUID string) error {
+	return pollONTAPSplitJobInternal(ctx, volume, node, ontapJobUUID, -1)
+}
+
+// pollONTAPSplitJobInternal is the testable implementation of pollONTAPSplitJob.
+// maxHistoryLength is an optional fallback threshold used in tests to trigger ContinueAsNew
+// without waiting for Temporal to set GetContinueAsNewSuggested(). Pass -1 to disable the
+// fallback and rely solely on GetContinueAsNewSuggested() (production behaviour).
+func pollONTAPSplitJobInternal(ctx workflow.Context, volume *datamodel.Volume, node *models.Node, ontapJobUUID string, maxHistoryLength int) error {
+	log := util.GetLogger(ctx)
+
+	for {
+		// Check whether Temporal recommends a ContinueAsNew before each poll. This fires
+		// when the event history is approaching the server-side limit, allowing the split
+		// to run indefinitely across restarts.
+		info := workflow.GetInfo(ctx)
+		if info.GetContinueAsNewSuggested() || (maxHistoryLength >= 0 && info.GetCurrentHistoryLength() >= maxHistoryLength) {
+			log.Infof(
+				"ContinueAsNew suggested for split job %s on volume %s; triggering ContinueAsNew",
+				ontapJobUUID, volume.Name,
+			)
+			return workflow.NewContinueAsNewError(ctx, SplitVolumeWorkflow, volume, node, ontapJobUUID)
+		}
+
+		var job *vsa.OntapJob
+		err := workflow.ExecuteActivity(ctx, activities.CommonActivities.GetOntapJob, ontapJobUUID, node).Get(ctx, &job)
+		if err != nil {
+			return err
+		}
+
+		switch job.State {
+		case "success":
+			return nil
+		case "failure":
+			if job.Error != nil {
+				if job.Error.Code != "" {
+					return fmt.Errorf("%s (ONTAP error code: %s)", job.Error.Message, job.Error.Code)
+				}
+				return fmt.Errorf("%s", job.Error.Message)
+			}
+			return fmt.Errorf("ONTAP split job %s failed with no error message", ontapJobUUID)
+		}
+
+		// Job is still running — sleep before the next poll.
+		if err = workflow.Sleep(ctx, splitPollInterval); err != nil {
+			return fmt.Errorf("failed to sleep while waiting for ONTAP split job %s: %w", ontapJobUUID, err)
+		}
+	}
 }

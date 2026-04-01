@@ -3,12 +3,15 @@ package workflows
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -44,19 +47,20 @@ func (s *VolumeSplitUnitTestSuite) AfterTest() {
 	s.env.AssertExpectations(s.T())
 }
 
-func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_Success() {
-	mockStorage := database.NewMockStorage(s.T())
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
-	volumeSplitActivity := activities.VolumeSplitActivity{SE: mockStorage}
-
-	volume := &datamodel.Volume{
+// testVolume returns a standard volume used across tests.
+func testSplitVolume() *datamodel.Volume {
+	return &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{
 			ID:   1,
 			UUID: "volume-uuid",
 		},
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "external-volume-uuid",
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID:   "parent-volume-uuid",
+				ParentSnapshotUUID: "parent-snapshot-uuid",
+				State:              models.CloneStateCloned,
+			},
 		},
 		Pool: &datamodel.Pool{
 			BaseModel: datamodel.BaseModel{
@@ -74,198 +78,139 @@ func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_Success() {
 			Name: "test-account",
 		},
 	}
+}
+
+// testNode returns a standard ONTAP node used across tests.
+func testSplitNode() *models.Node {
+	return &models.Node{
+		Name:            "test-node",
+		EndpointAddress: "127.0.0.1",
+	}
+}
+
+func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_Success_WithOntapJob() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeSplitActivity := activities.VolumeSplitActivity{SE: mockStorage}
+
+	volume := testSplitVolume()
+	node := testSplitNode()
+	ontapJobUUID := "ontap-job-uuid-123"
 
 	// Register activities
 	s.env.RegisterActivity(&commonActivity)
 	s.env.RegisterActivity(&volumeCreateActivity)
 	s.env.RegisterActivity(&volumeSplitActivity)
 
-	// Mock storage method for UpdateVolumeStateInDB activity (using Maybe since activity is mocked)
+	// Mock storage for UpdateCloneParentStateInDB
 	mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockStorage.On("GetVolume", mock.Anything, mock.Anything).Return(volume, nil).Maybe()
 
-	// Set up mock expectations
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{
-		{
-			BaseModel: datamodel.BaseModel{
-				ID: 1,
-			},
-			Name:            "test-node",
-			EndpointAddress: "127.0.0.1",
-		},
+	// Mock GetOntapJob to return success
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, ontapJobUUID, node).Return(&vsa.OntapJob{
+		UUID:  ontapJobUUID,
+		State: "success",
 	}, nil)
-	s.env.OnActivity(volumeCreateActivity.InitiateSplitForVolume, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeSplitActivity.UpdateCloneSharedBytesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume)
+	// Mock CleanupSplitSnapshot
+	mockStorage.On("GetVolume", mock.Anything, volume.VolumeAttributes.CloneParentInfo.ParentVolumeUUID).Return(volume, nil).Maybe()
+	s.env.OnActivity(volumeSplitActivity.CleanupSplitSnapshot, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateCloneParentStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume, node, ontapJobUUID)
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NoError(s.T(), s.env.GetWorkflowError())
 }
 
-func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_GetNodeError() {
-	mockStorage := database.NewMockStorage(s.T())
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
-
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{
-			ID:   1,
-			UUID: "volume-uuid",
-		},
-		VolumeAttributes: &datamodel.VolumeAttributes{
-			ExternalUUID: "external-volume-uuid",
-		},
-		Pool: &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{
-				ID: 1,
-			},
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
-				AuthType:      env.USERNAME_PWD,
-			},
-			DeploymentName: "test-deployment",
-		},
-		Account: &datamodel.Account{
-			Name: "test-account",
-		},
-	}
-
-	// Register activities
-	s.env.RegisterActivity(&commonActivity)
-	s.env.RegisterActivity(&volumeCreateActivity)
-
-	// Mock storage method for UpdateVolumeStateInDB activity (using Maybe since activity is mocked)
-	mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
-
-	// Set up mock expectations
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get node"))
-	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
-	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume)
-
-	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Error(s.T(), s.env.GetWorkflowError())
-}
-
-func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_InitiateSplitForVolumeError() {
+func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_Success_NoOntapJob() {
+	// When ontapJobUUID is empty, ONTAP completed synchronously — no polling needed.
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	volumeSplitActivity := activities.VolumeSplitActivity{SE: mockStorage}
 
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{
-			ID:   1,
-			UUID: "volume-uuid",
-		},
-		VolumeAttributes: &datamodel.VolumeAttributes{
-			ExternalUUID: "external-volume-uuid",
-		},
-		Pool: &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{
-				ID: 1,
-			},
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
-				AuthType:      env.USERNAME_PWD,
-			},
-			DeploymentName: "test-deployment",
-		},
-		Account: &datamodel.Account{
-			Name: "test-account",
-		},
-	}
+	volume := testSplitVolume()
+	node := testSplitNode()
+	ontapJobUUID := "" // empty = sync completion
 
-	// Register activities
 	s.env.RegisterActivity(&commonActivity)
 	s.env.RegisterActivity(&volumeCreateActivity)
 	s.env.RegisterActivity(&volumeSplitActivity)
 
-	// Mock storage method for UpdateVolumeStateInDB activity (using Maybe since activity is mocked)
 	mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockStorage.On("GetVolume", mock.Anything, mock.Anything).Return(volume, nil).Maybe()
 
-	// Set up mock expectations
+	s.env.OnActivity(volumeSplitActivity.CleanupSplitSnapshot, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{
-		{
-			BaseModel: datamodel.BaseModel{
-				ID: 1,
-			},
-			Name:            "test-node",
-			EndpointAddress: "127.0.0.1",
-		},
-	}, nil)
-	s.env.OnActivity(volumeCreateActivity.InitiateSplitForVolume, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to initiate split"))
-	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateCloneParentStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume)
+	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume, node, ontapJobUUID)
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Error(s.T(), s.env.GetWorkflowError())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
 }
 
-func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_UpdateCloneSharedBytesError() {
+func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_OntapJobFails() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	volumeSplitActivity := activities.VolumeSplitActivity{SE: mockStorage}
 
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{
-			ID:   1,
-			UUID: "volume-uuid",
-		},
-		VolumeAttributes: &datamodel.VolumeAttributes{
-			ExternalUUID: "external-volume-uuid",
-		},
-		Pool: &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{
-				ID: 1,
-			},
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
-				AuthType:      env.USERNAME_PWD,
-			},
-			DeploymentName: "test-deployment",
-		},
-		Account: &datamodel.Account{
-			Name: "test-account",
-		},
-	}
+	volume := testSplitVolume()
+	node := testSplitNode()
+	ontapJobUUID := "ontap-job-uuid-456"
 
-	// Register activities
 	s.env.RegisterActivity(&commonActivity)
 	s.env.RegisterActivity(&volumeCreateActivity)
 	s.env.RegisterActivity(&volumeSplitActivity)
 
-	// Mock storage method for UpdateVolumeStateInDB activity (using Maybe since activity is mocked)
 	mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockStorage.On("GetVolume", mock.Anything, mock.Anything).Return(volume, nil).Maybe()
 
-	// Set up mock expectations
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{
-		{
-			BaseModel: datamodel.BaseModel{
-				ID: 1,
-			},
-			Name:            "test-node",
-			EndpointAddress: "127.0.0.1",
-		},
+	// GetOntapJob returns a failure state
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, ontapJobUUID, node).Return(&vsa.OntapJob{
+		UUID:  ontapJobUUID,
+		State: "failure",
+		Error: &vsa.OntapError{Message: "ONTAP split failed: insufficient space"},
 	}, nil)
-	s.env.OnActivity(volumeCreateActivity.InitiateSplitForVolume, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeSplitActivity.UpdateCloneSharedBytesInDB, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update clone shared bytes"))
-	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateCloneParentStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume, node, ontapJobUUID)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+}
+
+func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_OntapJobActivityError() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+	volumeSplitActivity := activities.VolumeSplitActivity{SE: mockStorage}
+
+	volume := testSplitVolume()
+	node := testSplitNode()
+	ontapJobUUID := "ontap-job-uuid-789"
+
+	s.env.RegisterActivity(&commonActivity)
+	s.env.RegisterActivity(&volumeCreateActivity)
+	s.env.RegisterActivity(&volumeSplitActivity)
+
+	mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockStorage.On("GetVolume", mock.Anything, mock.Anything).Return(volume, nil).Maybe()
+
+	// GetOntapJob activity itself errors
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, ontapJobUUID, node).Return(nil, errors.New("failed to reach ONTAP"))
+
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateCloneParentStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume, node, ontapJobUUID)
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
@@ -275,38 +220,15 @@ func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_UpdateJobStatusProce
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{
-			ID:   1,
-			UUID: "volume-uuid",
-		},
-		VolumeAttributes: &datamodel.VolumeAttributes{
-			ExternalUUID: "external-volume-uuid",
-		},
-		Pool: &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{
-				ID: 1,
-			},
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
-				AuthType:      env.USERNAME_PWD,
-			},
-			DeploymentName: "test-deployment",
-		},
-		Account: &datamodel.Account{
-			Name: "test-account",
-		},
-	}
+	volume := testSplitVolume()
+	node := testSplitNode()
 
-	// Register activities
 	s.env.RegisterActivity(&commonActivity)
 
-	// Set up mock expectations - fail on UpdateJobStatus
+	// Fail on UpdateJobStatus PROCESSING
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update job status"))
 
-	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume)
+	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume, node, "")
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
@@ -318,129 +240,33 @@ func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_UpdateJobStatusDoneE
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	volumeSplitActivity := activities.VolumeSplitActivity{SE: mockStorage}
 
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{
-			ID:   1,
-			UUID: "volume-uuid",
-		},
-		VolumeAttributes: &datamodel.VolumeAttributes{
-			ExternalUUID: "external-volume-uuid",
-		},
-		Pool: &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{
-				ID: 1,
-			},
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
-				AuthType:      env.USERNAME_PWD,
-			},
-			DeploymentName: "test-deployment",
-		},
-		Account: &datamodel.Account{
-			Name: "test-account",
-		},
-	}
+	volume := testSplitVolume()
+	node := testSplitNode()
 
-	// Register activities
 	s.env.RegisterActivity(&commonActivity)
 	s.env.RegisterActivity(&volumeCreateActivity)
 	s.env.RegisterActivity(&volumeSplitActivity)
 
-	// Mock storage method for UpdateVolumeStateInDB activity (using Maybe since activity is mocked)
 	mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockStorage.On("GetVolume", mock.Anything, mock.Anything).Return(volume, nil).Maybe()
 
-	// Set up mock expectations
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once() // PROCESSING
-	// DONE update fails - allow retries (Temporal will retry failed activities)
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update job status"))
-	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{
-		{
-			BaseModel: datamodel.BaseModel{
-				ID: 1,
-			},
-			Name:            "test-node",
-			EndpointAddress: "127.0.0.1",
-		},
-	}, nil)
-	s.env.OnActivity(volumeCreateActivity.InitiateSplitForVolume, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeSplitActivity.UpdateCloneSharedBytesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeSplitActivity.CleanupSplitSnapshot, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateCloneParentStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume)
+	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume, node, "")
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	// When UpdateJobStatus for DONE fails, the workflow logs the error but still completes successfully (returns nil)
 	assert.NoError(s.T(), s.env.GetWorkflowError())
 }
 
-func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_UpdateJobStatusErrorDetailsError() {
-	mockStorage := database.NewMockStorage(s.T())
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
-	volumeSplitActivity := activities.VolumeSplitActivity{SE: mockStorage}
-
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{
-			ID:   1,
-			UUID: "volume-uuid",
-		},
-		VolumeAttributes: &datamodel.VolumeAttributes{
-			ExternalUUID: "external-volume-uuid",
-		},
-		Pool: &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{
-				ID: 1,
-			},
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
-				AuthType:      env.USERNAME_PWD,
-			},
-			DeploymentName: "test-deployment",
-		},
-		Account: &datamodel.Account{
-			Name: "test-account",
-		},
-	}
-
-	// Register activities
-	s.env.RegisterActivity(&commonActivity)
-	s.env.RegisterActivity(&volumeCreateActivity)
-	s.env.RegisterActivity(&volumeSplitActivity)
-
-	// Mock storage method for UpdateVolumeStateInDB activity (using Maybe since activity is mocked)
-	mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
-
-	// Set up mock expectations
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once() // PROCESSING
-	// ERROR update fails - allow retries (Temporal will retry failed activities)
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update job status"))
-	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{
-		{
-			BaseModel: datamodel.BaseModel{
-				ID: 1,
-			},
-			Name:            "test-node",
-			EndpointAddress: "127.0.0.1",
-		},
-	}, nil)
-	s.env.OnActivity(volumeCreateActivity.InitiateSplitForVolume, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("split volume failed"))
-	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
-	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume)
-
-	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.Error(s.T(), s.env.GetWorkflowError())
-}
-
 func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_SetupError() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 
-	// Create a volume with nil Account to cause setup error
+	// Volume with nil Account causes setup error
 	volume := &datamodel.Volume{
 		BaseModel: datamodel.BaseModel{
 			ID:   1,
@@ -448,208 +274,336 @@ func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_SetupError() {
 		},
 		VolumeAttributes: &datamodel.VolumeAttributes{
 			ExternalUUID: "external-volume-uuid",
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID:   "parent-volume-uuid",
+				ParentSnapshotUUID: "parent-snapshot-uuid",
+				State:              models.CloneStateCloned,
+			},
 		},
 		Pool: &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{
-				ID: 1,
-			},
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
-				AuthType:      env.USERNAME_PWD,
-			},
-			DeploymentName: "test-deployment",
+			BaseModel: datamodel.BaseModel{ID: 1},
 		},
 		// Account is nil to cause setup error
 	}
+	node := testSplitNode()
 
-	// Register activities
 	s.env.RegisterActivity(&commonActivity)
 
-	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume)
+	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume, node, "")
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
 }
 
-func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_WithCertificateAuth() {
+func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_CleanupSnapshotFailureIsNonFatal() {
+	// Snapshot cleanup failure should not fail the workflow.
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	volumeSplitActivity := activities.VolumeSplitActivity{SE: mockStorage}
 
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{
-			ID:   1,
-			UUID: "volume-uuid",
-		},
-		VolumeAttributes: &datamodel.VolumeAttributes{
-			ExternalUUID: "external-volume-uuid",
-		},
-		Pool: &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{
-				ID: 1,
-			},
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "",
-				SecretID:      "",
-				CertificateID: "cert-id",
-				AuthType:      env.USER_CERTIFICATE,
-			},
-			DeploymentName: "test-deployment",
-		},
-		Account: &datamodel.Account{
-			Name: "test-account",
-		},
-	}
+	volume := testSplitVolume()
+	node := testSplitNode()
 
-	// Register activities
 	s.env.RegisterActivity(&commonActivity)
 	s.env.RegisterActivity(&volumeCreateActivity)
 	s.env.RegisterActivity(&volumeSplitActivity)
 
-	// Mock storage method for UpdateVolumeStateInDB activity (using Maybe since activity is mocked)
 	mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockStorage.On("GetVolume", mock.Anything, mock.Anything).Return(volume, nil).Maybe()
 
-	// Set up mock expectations
+	// CleanupSplitSnapshot fails — workflow should still succeed
+	s.env.OnActivity(volumeSplitActivity.CleanupSplitSnapshot, mock.Anything, mock.Anything).Return(errors.New("snapshot cleanup failed"))
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{
-		{
-			BaseModel: datamodel.BaseModel{
-				ID: 1,
-			},
-			Name:            "test-node",
-			EndpointAddress: "127.0.0.1",
-		},
-	}, nil)
-	s.env.OnActivity(volumeCreateActivity.InitiateSplitForVolume, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeSplitActivity.UpdateCloneSharedBytesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(volumeCreateActivity.UpdateCloneParentStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume)
+	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume, node, "")
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NoError(s.T(), s.env.GetWorkflowError())
 }
 
-func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_WithSecretManagerAuth() {
+func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_UpdateCloneParentStateInDBError() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
 	volumeSplitActivity := activities.VolumeSplitActivity{SE: mockStorage}
 
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{
-			ID:   1,
-			UUID: "volume-uuid",
-		},
-		VolumeAttributes: &datamodel.VolumeAttributes{
-			ExternalUUID: "external-volume-uuid",
-		},
-		Pool: &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{
-				ID: 1,
-			},
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "",
-				SecretID:      "secret-id",
-				CertificateID: "",
-				AuthType:      env.USERNAME_PWD_SEC_MGR,
-			},
-			DeploymentName: "test-deployment",
-		},
-		Account: &datamodel.Account{
-			Name: "test-account",
-		},
-	}
+	volume := testSplitVolume()
+	node := testSplitNode()
+	ontapJobUUID := "ontap-job-uuid-abc"
 
-	// Register activities
 	s.env.RegisterActivity(&commonActivity)
 	s.env.RegisterActivity(&volumeCreateActivity)
 	s.env.RegisterActivity(&volumeSplitActivity)
 
-	// Mock storage method for UpdateVolumeStateInDB activity (using Maybe since activity is mocked)
 	mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockStorage.On("GetVolume", mock.Anything, mock.Anything).Return(volume, nil).Maybe()
 
-	// Set up mock expectations
-	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{
-		{
-			BaseModel: datamodel.BaseModel{
-				ID: 1,
-			},
-			Name:            "test-node",
-			EndpointAddress: "127.0.0.1",
-		},
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, ontapJobUUID, node).Return(&vsa.OntapJob{
+		UUID:  ontapJobUUID,
+		State: "failure",
+		Error: &vsa.OntapError{Message: "split failed"},
 	}, nil)
-	s.env.OnActivity(volumeCreateActivity.InitiateSplitForVolume, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeSplitActivity.UpdateCloneSharedBytesInDB, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume)
-
-	assert.True(s.T(), s.env.IsWorkflowCompleted())
-	assert.NoError(s.T(), s.env.GetWorkflowError())
-}
-
-func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_UpdateVolumeStateInDBError() {
-	mockStorage := database.NewMockStorage(s.T())
-	commonActivity := activities.CommonActivities{SE: mockStorage}
-	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
-	volumeSplitActivity := activities.VolumeSplitActivity{SE: mockStorage}
-
-	volume := &datamodel.Volume{
-		BaseModel: datamodel.BaseModel{
-			ID:   1,
-			UUID: "volume-uuid",
-		},
-		VolumeAttributes: &datamodel.VolumeAttributes{
-			ExternalUUID: "external-volume-uuid",
-		},
-		Pool: &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{
-				ID: 1,
-			},
-			PoolCredentials: &datamodel.PoolCredentials{
-				Password:      "password",
-				SecretID:      "",
-				CertificateID: "",
-				AuthType:      env.USERNAME_PWD,
-			},
-			DeploymentName: "test-deployment",
-		},
-		Account: &datamodel.Account{
-			Name: "test-account",
-		},
-	}
-
-	// Register activities
-	s.env.RegisterActivity(&commonActivity)
-	s.env.RegisterActivity(&volumeCreateActivity)
-	s.env.RegisterActivity(&volumeSplitActivity)
-
-	// Mock storage method for UpdateVolumeStateInDB activity (using Maybe since activity is mocked)
-	mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
-
-	// Set up mock expectations
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	s.env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{
-		{
-			BaseModel: datamodel.BaseModel{
-				ID: 1,
-			},
-			Name:            "test-node",
-			EndpointAddress: "127.0.0.1",
-		},
-	}, nil)
-	s.env.OnActivity(volumeCreateActivity.InitiateSplitForVolume, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("split volume failed"))
-	s.env.OnActivity(volumeCreateActivity.UpdateVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update volume state"))
+	s.env.OnActivity(volumeCreateActivity.UpdateCloneParentStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update clone parent state"))
 
-	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume)
+	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume, node, ontapJobUUID)
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
+}
+
+
+
+// Test_SplitVolumeWorkflow_ContinueAsNewPropagation covers lines 60 and 133-134: when
+// GetContinueAsNewSuggested() returns true, SplitVolumeWorkflow propagates the
+// ContinueAsNewError directly without marking the job as ERROR or calling
+// UpdateCloneParentStateInDB.
+func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_ContinueAsNewPropagation() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	volume := testSplitVolume()
+	node := testSplitNode()
+	ontapJobUUID := "ontap-job-uuid-can-wf"
+
+	s.env.RegisterActivity(&commonActivity)
+	s.env.RegisterActivity(&volumeCreateActivity)
+
+	mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockStorage.On("GetVolume", mock.Anything, mock.Anything).Return(volume, nil).Maybe()
+
+	// Signal ContinueAsNew suggested so pollONTAPSplitJob fires it on the first iteration.
+	s.env.SetContinueAsNewSuggested(true)
+
+	// UpdateJobStatus for PROCESSING succeeds; ERROR must NOT be called.
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+	// UpdateCloneParentStateInDB must NOT be called (defer skips on ContinueAsNew).
+
+	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume, node, ontapJobUUID)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.True(s.T(), workflow.IsContinueAsNewError(s.env.GetWorkflowError()),
+		"expected ContinueAsNewError, got: %v", s.env.GetWorkflowError())
+}
+
+// Test_SplitVolumeWorkflow_UpdateJobStatusErrorFails covers line 66: when UpdateJobStatus
+// for ERROR itself fails, the workflow returns that secondary error.
+func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_UpdateJobStatusErrorFails() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
+
+	volume := testSplitVolume()
+	node := testSplitNode()
+	ontapJobUUID := "ontap-job-uuid-err-fail"
+
+	s.env.RegisterActivity(&commonActivity)
+	s.env.RegisterActivity(&volumeCreateActivity)
+
+	mockStorage.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	mockStorage.On("GetVolume", mock.Anything, mock.Anything).Return(volume, nil).Maybe()
+
+	// GetOntapJob returns failure to trigger the error path.
+	s.env.OnActivity(commonActivity.GetOntapJob, mock.Anything, ontapJobUUID, node).Return(&vsa.OntapJob{
+		UUID:  ontapJobUUID,
+		State: "failure",
+		Error: &vsa.OntapError{Message: "split failed"},
+	}, nil)
+
+	// UpdateJobStatus: PROCESSING succeeds, ERROR fails.
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update ERROR status"))
+	s.env.OnActivity(volumeCreateActivity.UpdateCloneParentStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume, node, ontapJobUUID)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.Error(s.T(), s.env.GetWorkflowError())
+}
+
+// Test_SplitVolumeWorkflow_DeferSkipsWhenNoCloneParentInfo covers line 130: the defer
+// returns early when VolumeAttributes or CloneParentInfo is nil.
+func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_DeferSkipsWhenNoCloneParentInfo() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	volumeSplitActivity := activities.VolumeSplitActivity{SE: mockStorage}
+
+	// Volume without CloneParentInfo — defer should skip UpdateCloneParentStateInDB.
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "volume-uuid"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID:    "external-volume-uuid",
+			CloneParentInfo: nil, // nil triggers the early return on line 130
+		},
+		Pool: &datamodel.Pool{
+			BaseModel:       datamodel.BaseModel{ID: 1},
+			PoolCredentials: &datamodel.PoolCredentials{AuthType: env.USERNAME_PWD},
+			DeploymentName:  "test-deployment",
+		},
+		Account: &datamodel.Account{Name: "test-account"},
+	}
+	node := testSplitNode()
+
+	s.env.RegisterActivity(&commonActivity)
+	s.env.RegisterActivity(&volumeSplitActivity)
+
+	s.env.OnActivity(volumeSplitActivity.CleanupSplitSnapshot, mock.Anything, mock.Anything).Return(nil)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	// UpdateCloneParentStateInDB must NOT be called.
+
+	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume, node, "")
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+}
+
+
+// TestPollONTAPSplitJobInternal_FailureWithErrorCode covers line 219: ONTAP job failure
+// where the error has both a message and a non-empty code.
+func TestPollONTAPSplitJobInternal_FailureWithErrorCode(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
+
+	mockStorage := database.NewMockStorage(t)
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(&commonActivity)
+
+	volume := testSplitVolume()
+	node := testSplitNode()
+	ontapJobUUID := "ontap-job-uuid-errcode"
+
+	env.OnActivity(commonActivity.GetOntapJob, mock.Anything, ontapJobUUID, node).Return(&vsa.OntapJob{
+		UUID:  ontapJobUUID,
+		State: "failure",
+		Error: &vsa.OntapError{
+			Message: "out of space",
+			Code:    "ONTAP-1234",
+		},
+	}, nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		ao := workflow.ActivityOptions{StartToCloseTimeout: 30 * time.Second}
+		ctx = workflow.WithActivityOptions(ctx, ao)
+		return pollONTAPSplitJobInternal(ctx, volume, node, ontapJobUUID, -1)
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	err := env.GetWorkflowError()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "ONTAP-1234")
+	assert.Contains(t, err.Error(), "out of space")
+}
+
+// TestPollONTAPSplitJobInternal_FailureNoMessage covers line 223: ONTAP job failure
+// where the error field is nil (no message, no code).
+func TestPollONTAPSplitJobInternal_FailureNoMessage(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
+
+	mockStorage := database.NewMockStorage(t)
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(&commonActivity)
+
+	volume := testSplitVolume()
+	node := testSplitNode()
+	ontapJobUUID := "ontap-job-uuid-nomsg"
+
+	env.OnActivity(commonActivity.GetOntapJob, mock.Anything, ontapJobUUID, node).Return(&vsa.OntapJob{
+		UUID:  ontapJobUUID,
+		State: "failure",
+		Error: nil, // nil error — triggers the "no error message" fallback on line 223
+	}, nil)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		ao := workflow.ActivityOptions{StartToCloseTimeout: 30 * time.Second}
+		ctx = workflow.WithActivityOptions(ctx, ao)
+		return pollONTAPSplitJobInternal(ctx, volume, node, ontapJobUUID, -1)
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	err := env.GetWorkflowError()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no error message")
+}
+
+// TestPollONTAPSplitJobInternal_SleepError covers lines 227-228: Sleep returns an error
+// (e.g. workflow cancelled) while waiting between polls.
+func TestPollONTAPSplitJobInternal_SleepError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
+
+	mockStorage := database.NewMockStorage(t)
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(&commonActivity)
+
+	volume := testSplitVolume()
+	node := testSplitNode()
+	ontapJobUUID := "ontap-job-uuid-sleep-err"
+
+	// GetOntapJob returns a running state so the loop proceeds to Sleep.
+	env.OnActivity(commonActivity.GetOntapJob, mock.Anything, ontapJobUUID, node).Return(&vsa.OntapJob{
+		UUID:  ontapJobUUID,
+		State: "running",
+	}, nil)
+
+	// Cancel the workflow context after the activity completes so Sleep returns an error.
+	env.RegisterDelayedCallback(func() {
+		env.CancelWorkflow()
+	}, 0)
+
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		ao := workflow.ActivityOptions{StartToCloseTimeout: 30 * time.Second}
+		ctx = workflow.WithActivityOptions(ctx, ao)
+		return pollONTAPSplitJobInternal(ctx, volume, node, ontapJobUUID, -1)
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+}
+
+func TestPollONTAPSplitJobContinueAsNew(t *testing.T) {
+	// pollONTAPSplitJobInternal should return a ContinueAsNewError when the fallback
+	// maxHistoryLength threshold is reached. We use maxHistoryLength=0 so the check fires
+	// immediately on the first iteration (history length starts at 0 in the test env),
+	// before any GetOntapJob activity is called.
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	env.SetHeader(&commonpb.Header{
+		Fields: map[string]*commonpb.Payload{"logParam": encodedValue},
+	})
+	env.RegisterWorkflow(SplitVolumeWorkflow)
+
+	volume := testSplitVolume()
+	node := testSplitNode()
+	ontapJobUUID := "ontap-job-uuid-can"
+
+	// Use maxHistoryLength=0 so ContinueAsNew fires immediately (history length starts at 0).
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		ao := workflow.ActivityOptions{
+			StartToCloseTimeout: 30 * time.Second,
+		}
+		ctx = workflow.WithActivityOptions(ctx, ao)
+		return pollONTAPSplitJobInternal(ctx, volume, node, ontapJobUUID, 0)
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.True(t, workflow.IsContinueAsNewError(env.GetWorkflowError()),
+		"expected ContinueAsNewError, got: %v", env.GetWorkflowError())
 }
 
 func TestVolumeSplitUnitTestSuite(t *testing.T) {

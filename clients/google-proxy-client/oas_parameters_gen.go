@@ -1276,8 +1276,8 @@ type V1betaRotateCmekBackupsParams struct {
 	XCorrelationID OptString
 }
 
-// V1betaSplitCloneVolumeParams is parameters of v1beta_splitCloneVolume operation.
-type V1betaSplitCloneVolumeParams struct {
+// V1betaSplitStartVolumeParams is parameters of v1beta_splitStartVolume operation.
+type V1betaSplitStartVolumeParams struct {
 	// The project number of the GCP project owning the resource being acted upon.
 	ProjectNumber string
 	// The location/region to perform the operation in.

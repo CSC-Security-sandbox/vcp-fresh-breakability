@@ -576,28 +576,66 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									break
 								}
 								switch elem[0] {
-								case '/': // Prefix: "/snapshots"
+								case '/': // Prefix: "/s"
 
-									if l := len("/snapshots"); len(elem) >= l && elem[0:l] == "/snapshots" {
+									if l := len("/s"); len(elem) >= l && elem[0:l] == "/s" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
 									if len(elem) == 0 {
-										// Leaf node.
-										switch r.Method {
-										case "POST":
-											s.handleV1CreateSnapshotRequest([3]string{
-												args[0],
-												args[1],
-												args[2],
-											}, elemIsEscaped, w, r)
-										default:
-											s.notAllowed(w, r, "POST")
+										break
+									}
+									switch elem[0] {
+									case 'n': // Prefix: "napshots"
+
+										if l := len("napshots"); len(elem) >= l && elem[0:l] == "napshots" {
+											elem = elem[l:]
+										} else {
+											break
 										}
 
-										return
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "POST":
+												s.handleV1CreateSnapshotRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, "POST")
+											}
+
+											return
+										}
+
+									case 'p': // Prefix: "plitstart"
+
+										if l := len("plitstart"); len(elem) >= l && elem[0:l] == "plitstart" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "POST":
+												s.handleV1SplitStartVolumeRequest([3]string{
+													args[0],
+													args[1],
+													args[2],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, "POST")
+											}
+
+											return
+										}
+
 									}
 
 								}
@@ -1277,28 +1315,66 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									break
 								}
 								switch elem[0] {
-								case '/': // Prefix: "/snapshots"
+								case '/': // Prefix: "/s"
 
-									if l := len("/snapshots"); len(elem) >= l && elem[0:l] == "/snapshots" {
+									if l := len("/s"); len(elem) >= l && elem[0:l] == "/s" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
 									if len(elem) == 0 {
-										// Leaf node.
-										switch method {
-										case "POST":
-											r.name = V1CreateSnapshotOperation
-											r.summary = "Create a snapshot"
-											r.operationID = "v1_createSnapshot"
-											r.pathPattern = "/v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots"
-											r.args = args
-											r.count = 3
-											return r, true
-										default:
-											return
+										break
+									}
+									switch elem[0] {
+									case 'n': // Prefix: "napshots"
+
+										if l := len("napshots"); len(elem) >= l && elem[0:l] == "napshots" {
+											elem = elem[l:]
+										} else {
+											break
 										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "POST":
+												r.name = V1CreateSnapshotOperation
+												r.summary = "Create a snapshot"
+												r.operationID = "v1_createSnapshot"
+												r.pathPattern = "/v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots"
+												r.args = args
+												r.count = 3
+												return r, true
+											default:
+												return
+											}
+										}
+
+									case 'p': // Prefix: "plitstart"
+
+										if l := len("plitstart"); len(elem) >= l && elem[0:l] == "plitstart" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "POST":
+												r.name = V1SplitStartVolumeOperation
+												r.summary = "Start a thin clone split"
+												r.operationID = "v1_splitStartVolume"
+												r.pathPattern = "/v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstart"
+												r.args = args
+												r.count = 3
+												return r, true
+											default:
+												return
+											}
+										}
+
 									}
 
 								}

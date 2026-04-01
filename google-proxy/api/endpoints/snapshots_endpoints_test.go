@@ -1520,6 +1520,14 @@ type mockInvoker struct {
 	mock.Mock
 }
 
+func (m *mockInvoker) V1SplitStartVolume(ctx context.Context, params coreapi.V1SplitStartVolumeParams) (coreapi.V1SplitStartVolumeRes, error) {
+	args := m.Called(ctx, params)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(coreapi.V1SplitStartVolumeRes), args.Error(1)
+}
+
 // Implement all required Invoker methods with minimal stubs
 func (m *mockInvoker) GetHealth(ctx context.Context) (coreapi.GetHealthRes, error) {
 	return nil, nil

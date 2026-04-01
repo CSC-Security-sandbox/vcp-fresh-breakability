@@ -176,7 +176,10 @@ func (wf *volumeMetricHydrationWorkflow) Run(ctx workflow.Context, args ...inter
 	if len(matchingResult.UpdatedVolumeByUUID) > 0 {
 		log.Debugf("Syncing %d volume updates to database", len(matchingResult.UpdatedVolumeByUUID))
 		err = workflow.ExecuteActivity(ctx, volumeRefreshActivity.SyncUpdatedVolumesToDatabase,
-			matchingResult.UpdatedVolumeByUUID).Get(ctx, nil)
+			&activities.SyncUpdatedVolumesInput{
+				UpdatedVolumeByUUID:               matchingResult.UpdatedVolumeByUUID,
+				VolumesWithClonesSharedBytesReset: matchingResult.VolumesWithClonesSharedBytesReset,
+			}).Get(ctx, nil)
 		if err != nil {
 			log.Errorf("SyncUpdatedVolumesToDatabase activity failed: %v", err)
 			return nil, vsaerrors.ExtractCustomError(err)
