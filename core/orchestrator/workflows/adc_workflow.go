@@ -166,14 +166,32 @@ func (wf *AdcWF) Run(ctx workflow.Context, args ...interface{}) (_ interface{}, 
 		return nil, ConvertToVSAError(fmt.Errorf("endpoint UUID or bucket name is not available"))
 	}
 
+	// Use SA-specific retry policy for IAM eventual consistency around service account operations.
+	saRetryPolicy, err := populateServiceAccountRetryPolicyParams()
+	if err != nil {
+		return nil, ConvertToVSAError(err)
+	}
+	saAO := workflow.ActivityOptions{
+		StartToCloseTimeout: saRetryPolicy.StartToCloseTimeout,
+		HeartbeatTimeout:    time.Duration(adcWorkflowHeartbeatTimeoutSec) * time.Second,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:        saRetryPolicy.InitialInterval,
+			BackoffCoefficient:     saRetryPolicy.BackoffCoefficient,
+			MaximumInterval:        saRetryPolicy.MaximumInterval,
+			MaximumAttempts:        int32(saRetryPolicy.MaximumAttempts),
+			NonRetryableErrorTypes: []string{"PanicError"},
+		},
+	}
+	saCtx := workflow.WithActivityOptions(ctx, saAO)
+
 	// Step 1: Create service account for ADC operations
 	// Generate a short service account ID to comply with Google's 30-character limit
 	serviceAccountID := fmt.Sprintf("adc-sa-%s", saTimestamp)
 	serviceAccountDisplayName := fmt.Sprintf("ADC Service Account for %s", backup.UUID)
 
 	var serviceAccount *hyperscalermodels.ServiceAccount
-	err = workflow.ExecuteActivity(ctx, adcActivity.CreateServiceAccount,
-		bucketDetails.TenantProjectNumber, serviceAccountID, serviceAccountDisplayName).Get(ctx, &serviceAccount)
+	err = workflow.ExecuteActivity(saCtx, adcActivity.CreateServiceAccount,
+		bucketDetails.TenantProjectNumber, serviceAccountID, serviceAccountDisplayName).Get(saCtx, &serviceAccount)
 	if err != nil {
 		log.Errorf("Failed to create service account: %v", err)
 		return nil, ConvertToVSAError(err)
@@ -182,7 +200,7 @@ func (wf *AdcWF) Run(ctx workflow.Context, args ...interface{}) (_ interface{}, 
 
 	// Step 2: Check if service account is created
 	var isCreated bool
-	err = workflow.ExecuteActivity(ctx, adcActivity.IsServiceAccountCreated, serviceAccount.Email).Get(ctx, &isCreated)
+	err = workflow.ExecuteActivity(saCtx, adcActivity.IsServiceAccountCreated, serviceAccount.Email).Get(saCtx, &isCreated)
 	if err != nil {
 		log.Errorf("Failed to check if service account is created: %v", err)
 		return nil, ConvertToVSAError(err)
@@ -194,8 +212,8 @@ func (wf *AdcWF) Run(ctx workflow.Context, args ...interface{}) (_ interface{}, 
 	}
 
 	// Step 2: Attach roles to service account
-	err = workflow.ExecuteActivity(ctx, adcActivity.AttachRolesToServiceAccount,
-		bucketDetails.TenantProjectNumber, serviceAccount.Email, roles).Get(ctx, nil)
+	err = workflow.ExecuteActivity(saCtx, adcActivity.AttachRolesToServiceAccount,
+		bucketDetails.TenantProjectNumber, serviceAccount.Email, roles).Get(saCtx, nil)
 	if err != nil {
 		log.Errorf("Failed to attach roles to service account: %v", err)
 		return nil, ConvertToVSAError(err)
@@ -204,10 +222,10 @@ func (wf *AdcWF) Run(ctx workflow.Context, args ...interface{}) (_ interface{}, 
 
 	// Step 2: Create HMAC keys for ADC operations
 	var encodedHmacKeys *common.HmacKeys
-	err = workflow.ExecuteActivity(ctx, adcActivity.CreateHmacKeys, &common.HmacKeyCreateParams{
+	err = workflow.ExecuteActivity(saCtx, adcActivity.CreateHmacKeys, &common.HmacKeyCreateParams{
 		ServiceAccount: serviceAccount.Email,
 		ProjectNumber:  bucketDetails.TenantProjectNumber,
-	}).Get(ctx, &encodedHmacKeys)
+	}).Get(saCtx, &encodedHmacKeys)
 	if err != nil {
 		log.Errorf("Failed to create HMAC keys: %v", err)
 		return nil, ConvertToVSAError(err)

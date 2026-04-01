@@ -3010,6 +3010,107 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
+	t.Run("IsServiceAccountCreatedRetriesUseServiceAccountPolicy", func(t *testing.T) {
+		origRetryMaxAttempts := RetryMaxAttempts
+		origSARetryStartToCloseTimeout := SARetryStartToCloseTimeout
+		origSARetryInitialInterval := SARetryInitialInterval
+		origSARetryBackoffCoefficient := SARetryBackoffCoefficient
+		origSARetryMaximumInterval := SARetryMaximumInterval
+		origSARetryMaximumAttempts := SARetryMaximumAttempts
+		defer func() {
+			RetryMaxAttempts = origRetryMaxAttempts
+			SARetryStartToCloseTimeout = origSARetryStartToCloseTimeout
+			SARetryInitialInterval = origSARetryInitialInterval
+			SARetryBackoffCoefficient = origSARetryBackoffCoefficient
+			SARetryMaximumInterval = origSARetryMaximumInterval
+			SARetryMaximumAttempts = origSARetryMaximumAttempts
+		}()
+
+		// Keep generic retry low and SA retry high to prove SA context is used.
+		RetryMaxAttempts = 1
+		SARetryStartToCloseTimeout = "5m"
+		SARetryInitialInterval = "1s"
+		SARetryBackoffCoefficient = "1.0"
+		SARetryMaximumInterval = "1s"
+		SARetryMaximumAttempts = 3
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{
+			AccountName:    "test-account",
+			SourceFileList: []string{"/backup.txt"},
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid"},
+			BucketDetails: datamodel.BucketDetailsArray{
+				&datamodel.BucketDetails{
+					BucketName:          "test-bucket",
+					TenantProjectNumber: "123456789",
+				},
+			},
+			Account: account,
+		}
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:   "test-bucket",
+				EndpointUUID: "endpoint-uuid",
+			},
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Account:   account,
+			Pool: &datamodel.Pool{
+				PoolCredentials: &datamodel.PoolCredentials{},
+			},
+		}
+
+		attemptCount := 0
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
+		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
+		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).
+			Run(func(args mock.Arguments) { attemptCount++ }).
+			Return(false, errors.New("failed to check service account"))
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		assert.Equal(t, SARetryMaximumAttempts, attemptCount, "IsServiceAccountCreated should use SA retry attempts")
+		env.AssertExpectations(t)
+	})
 
 	t.Run("ServiceAccountNotCreated", func(t *testing.T) {
 		// Test lines 224-225: Service account is not created

@@ -245,6 +245,92 @@ func TestADCWorkflow(t *testing.T) {
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
+	t.Run("IsServiceAccountCreatedRetriesUseServiceAccountPolicy", func(t *testing.T) {
+		origRetryMaxAttempts := RetryMaxAttempts
+		origSARetryStartToCloseTimeout := SARetryStartToCloseTimeout
+		origSARetryInitialInterval := SARetryInitialInterval
+		origSARetryBackoffCoefficient := SARetryBackoffCoefficient
+		origSARetryMaximumInterval := SARetryMaximumInterval
+		origSARetryMaximumAttempts := SARetryMaximumAttempts
+		defer func() {
+			RetryMaxAttempts = origRetryMaxAttempts
+			SARetryStartToCloseTimeout = origSARetryStartToCloseTimeout
+			SARetryInitialInterval = origSARetryInitialInterval
+			SARetryBackoffCoefficient = origSARetryBackoffCoefficient
+			SARetryMaximumInterval = origSARetryMaximumInterval
+			SARetryMaximumAttempts = origSARetryMaximumAttempts
+		}()
+
+		// Keep generic retry low and SA retry high to prove SA context is used.
+		RetryMaxAttempts = 1
+		SARetryStartToCloseTimeout = "5m"
+		SARetryInitialInterval = "1s"
+		SARetryBackoffCoefficient = "1.0"
+		SARetryMaximumInterval = "1s"
+		SARetryMaximumAttempts = 3
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.RegisterActivity(&activities.CommonActivities{})
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+
+		params := &common.DeleteBackupParams{
+			BackupVaultUUID: "vault-uuid",
+			BackupUUID:      "backup-uuid",
+			AccountName:     "test-account",
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		backupVault := &datamodel.BackupVault{
+			Name: "test-backup-vault",
+			BucketDetails: datamodel.BucketDetailsArray{
+				&datamodel.BucketDetails{
+					BucketName:          "test-bucket",
+					ServiceAccountName:  "sa-test",
+					VendorSubnetID:      "subnet-12345",
+					TenantProjectNumber: "123456789",
+				},
+			},
+			Account: account,
+		}
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:          "test-backup",
+			VolumeUUID:    "test-vol",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:   "test-bucket",
+				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
+			},
+		}
+
+		attemptCount := 0
+		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
+		env.OnActivity("CreateServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&hyperscaler.ServiceAccount{Email: "adc-sa@test-project.iam.gserviceaccount.com"}, nil)
+		env.OnActivity("IsServiceAccountCreated", mock.Anything, mock.Anything).
+			Run(func(args mock.Arguments) { attemptCount++ }).
+			Return(false, errors.New("failed to check service account"))
+		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(ADCWorkflow, params, backupVault, backup, account)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		assert.Equal(t, SARetryMaximumAttempts, attemptCount, "IsServiceAccountCreated should use SA retry attempts")
+		env.AssertExpectations(t)
+	})
 
 	t.Run("AttachRolesToServiceAccountFailure", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
