@@ -136,6 +136,7 @@ workerConfig:
   maxRetryAttemptsForSDEPollJob: "20"
   poolSubnetSupervisorGracePeriod: "30m"
   enableLdap: "false"
+  createNasLifDuringPoolCreation: "true"
   enableSmb: "false"
   enableQuotaRule: "true"
   enableKerberos: "false"

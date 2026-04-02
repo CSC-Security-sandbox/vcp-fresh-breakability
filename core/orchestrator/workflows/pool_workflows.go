@@ -73,6 +73,7 @@ var (
 	ginLoggingFeatureFlag             = env.GetBool("GIN_LOGGING_FEATURE", false)
 	enableSyncPoolZIZS                = env.GetBool("ENABLE_SYNC_POOL_ZIZS", false)
 	enableLdap                        = env.GetBool("ENABLE_LDAP", false)
+	createNasLifDuringPoolCreation    = env.GetBool("CREATE_NAS_LIF_DURING_POOL_CREATION", false)
 	poolSubnetSupervisorGracePeriod   = env.GetDuration("POOL_SUBNET_SUPERVISOR_GRACE_PERIOD", 30*time.Minute)
 )
 
@@ -1952,8 +1953,15 @@ func prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest 
 	if pool.Account != nil {
 		vlmConfig.Deployment.Labels["account_id"] = pool.Account.Name
 		ontapVersion := ExtractOntapVersion(utils.GetOntapVersionBasedOnAllowlisting(pool.Account.Name))
-		if utils.IsOntapVersionGreaterOrEqual(ontapVersion, env.FileSupportOntapVersion) && (pool.APIAccessMode == common.ONTAPMode) || (utils.IsFileProtocolSupportedV2(ontapVersion) && pool.LargeCapacity) {
-			// Set the NFS V3 support flag based on file support
+
+		var enableIlb bool
+		if createNasLifDuringPoolCreation {
+			enableIlb = utils.IsOntapVersionGreaterOrEqual(ontapVersion, env.FileSupportOntapVersion) || utils.IsFileProtocolSupportedV2(ontapVersion)
+		} else {
+			enableIlb = utils.IsOntapVersionGreaterOrEqual(ontapVersion, env.FileSupportOntapVersion) && (pool.APIAccessMode == common.ONTAPMode) || (utils.IsFileProtocolSupportedV2(ontapVersion) && pool.LargeCapacity)
+		}
+
+		if enableIlb {
 			vlmConfig.Deployment.DevFlags.EnableIlbSupport = true
 			vlmConfig.Deployment.DeploymentConfigFlags.EnableNfsV364BitIdentifier = "true"
 		} else {
@@ -1989,6 +1997,9 @@ func prepareCreateSVMRequest(createSVMRequest *vlm.CreateSVMRequest, svmName str
 	createSVMRequest.Name = svmName
 	createSVMRequest.VLMConfig = vlmConfig
 	createSVMRequest.OntapCredentials = ontapCredentials
+	if createNasLifDuringPoolCreation {
+		createSVMRequest.EnableNasLif = vlmConfig.Deployment.DevFlags.EnableIlbSupport
+	}
 }
 
 func prepareDeleteVSAClusterDeployment(deleteVSAClusterDeploymentRequest *vlm.DeleteVSAClusterDeploymentRequest, deploymentID string, cloudProvider string, projectID string) {

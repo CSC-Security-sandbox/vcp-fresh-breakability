@@ -146,6 +146,7 @@ data:
   MAX_RETRY_ATTEMPTS_FOR_SDE_POLL_JOB: {{$.Values.workerConfig.maxRetryAttemptsForSDEPollJob | quote }}
   POOL_SUBNET_SUPERVISOR_GRACE_PERIOD: {{$.Values.workerConfig.poolSubnetSupervisorGracePeriod | default "30m" | quote }}
   ENABLE_LDAP: {{$.Values.workerConfig.enableLdap | quote }}
+  CREATE_NAS_LIF_DURING_POOL_CREATION: {{$.Values.workerConfig.createNasLifDuringPoolCreation | quote }}
   ENABLE_SMB: {{$.Values.workerConfig.enableSmb | quote }}
   ENABLE_QUOTA_RULE: {{$.Values.workerConfig.enableQuotaRule | quote }}
   ENABLE_KERBEROS: {{$.Values.workerConfig.enableKerberos | quote }}
