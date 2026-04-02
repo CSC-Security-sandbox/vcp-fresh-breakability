@@ -57,6 +57,7 @@ type ResourceData struct {
 	IsONTAPMode           bool    // True if pool has APIAccessMode == "ONTAP" (expert mode)
 	PrimaryZone           string  // Pool's primary zone for AT billing location label
 	BackupRegionName      *string // Destination region for cross-region backups
+	CreatedAt             *time.Time
 }
 
 type VolumeReplicationInfo struct {
@@ -213,9 +214,18 @@ func (p *BillingProvider) ProcessBillingMetrics(ctx context.Context, aggregation
 				// datapoint from the previous period for delta calculation. For integral metrics, it
 				// may include the first datapoint from the next period. Returns a slice of TimeSeries,
 				// where each TimeSeries represents a continuous period with consistent metadata.
+				resourceData := p.getResourceDataForAggregationUsage(resourceIdentifier, resourceIdentifier.ResourceType, resourceCollection)
+				var resourceCreatedAt *time.Time
+				if resourceData != nil && resourceData.CreatedAt != nil && !resourceData.CreatedAt.IsZero() {
+					resourceCreatedAt = resourceData.CreatedAt
+				}
+
+				// Set createdAt on counter formatter without mutating the metrics slice
+				if counterFormatter, ok := jobDef.TimeSeriesFormatter.(*common.CounterMetricsFormatter); ok {
+					counterFormatter.CurrentCreatedAt = resourceCreatedAt
+				}
 
 				series := jobDef.TimeSeriesFormatter.Format(ctx, logger, resourceMetrics, aggregationStartTime, aggregationEndTime)
-
 				// loop through each series and process metrics
 				for _, metricseries := range series {
 					logger.Debugf("Collected timeseries %s, %s, %v for resource %s and customer id %s ", metricseries.AggregationStart, metricseries.AggregationEnd, metricseries.DataPoints, resourceIdentifier.ResourceName, resourceIdentifier.ConsumerID)
@@ -287,6 +297,17 @@ func (p *BillingProvider) applyDataSourceAndFormatterOverrides(logger log.Logger
 			common.DefaultAggregationJobDefinitions[key] = jobDef
 		}
 
+		if key.ResourceType == metadata.VolumeReplicationRelationship && key.MeasuredType == metadata.XregionReplicationTotalTransferBytes && p.config.EnableCounterFormatter {
+			backfillLimit := jobDef.TimeSeriesFormatter.GetBackfillLimit()
+			jobDef.TimeSeriesFormatter = &common.CounterMetricsFormatter{
+				BackfillLimit: backfillLimit,
+				Config:        p.config,
+			}
+			if logger != nil {
+				logger.Debugf("Enabled Counter formatter for %s/%s", key.ResourceType, key.MeasuredType)
+			}
+			common.DefaultAggregationJobDefinitions[key] = jobDef
+		}
 		// Override aggregation type for pool-level auto-tiering metrics when EnableATVolumeBasedPoolBilling is enabled
 		if p.config.EnableATVolumeBasedPoolBilling &&
 			(key.ResourceType == metadata.VolumePool || key.ResourceType == metadata.VolumePoolRegionalHA) &&
@@ -452,6 +473,7 @@ func (p *BillingProvider) fetchPoolData(ctx context.Context, aggregationStartTim
 				HasOnlyBlockVolumes: blockOnlyPoolIDs[pool.ID], // Set based on block-only pool IDs map
 				IsONTAPMode:         pool.APIAccessMode == commonparams.ONTAPMode,
 				PrimaryZone:         primaryZone,
+				CreatedAt:           &pool.CreatedAt,
 			}
 			resourceType := metadata.VolumePool
 			if pool.IsRegionalHA() {
@@ -538,6 +560,7 @@ func (p *BillingProvider) fetchVolumeData(ctx context.Context, aggregationStartT
 				Labels:        limitedLabels,
 				LargeCapacity: largeCapacity,
 				VolumeStyle:   getVolumeStyle(largeCapacity),
+				CreatedAt:     &volume.CreatedAt,
 			}
 			resourceType := metadata.Volume
 			if volume.IsRegionalHA() {
@@ -844,6 +867,7 @@ func (p *BillingProvider) fetchVolumeReplicationData(ctx context.Context, aggreg
 				VolumeReplicationInfo: volRepInfo,
 				LargeCapacity:         largeCapacity,
 				VolumeStyle:           volumeStyle,
+				CreatedAt:             &volumeReplication.CreatedAt,
 			}
 			id := ResourceKey{
 				ResourceType:   metadata.VolumeReplicationRelationship,

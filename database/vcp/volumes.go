@@ -918,6 +918,7 @@ type VolumeResourceData struct {
 	AccountID             int64                            `gorm:"column:account_id"`
 	VolumeAttributes      *datamodel.VolumeAttributes      `gorm:"column:volume_attributes;type:jsonb"`
 	LargeVolumeAttributes *datamodel.LargeVolumeAttributes `gorm:"column:large_volume_attributes;type:jsonb"`
+	CreatedAt             time.Time                        `gorm:"column:created_at"`
 }
 
 // GetLargeCapacity returns the large capacity flag from LargeVolumeAttributes
@@ -978,7 +979,8 @@ func (d *DataStoreRepository) ListVolumesForResourceData(ctx context.Context, st
 			name,
 			account_id,
 			volume_attributes,
-			large_volume_attributes
+			large_volume_attributes,
+			created_at
 		`).
 		Where("(deleted_at IS NULL OR (deleted_at >= ? AND deleted_at <= ?))", startTime, endTime)
 

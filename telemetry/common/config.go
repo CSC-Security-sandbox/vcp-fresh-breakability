@@ -57,7 +57,9 @@ type TelemetryConfig struct {
 	EnableLargeVolumesBilling                    bool // When true, enables billing for Large Volumes pools (CRR/Backup/AutoTiering)
 	EnableBackupVaultMetrics                     bool
 	EnableBackupHistoryFormatter                 bool
-	EnableATVolumeBasedPoolBilling                   bool
+	EnableATVolumeBasedPoolBilling               bool
+	InjectionWindowMinutes                       int
+	EnableCounterFormatter                       bool
 }
 
 type MetricItem struct {
@@ -116,6 +118,8 @@ func LoadConfig() *TelemetryConfig {
 	targetMinute := env.GetInt("TARGET_MINUTE", 15)
 	enableLargeVolumesBilling := env.GetBool("ENABLE_LARGE_VOLUMES_BILLING", false)
 	enableATVolumeBasedPoolBilling := env.GetBool("ENABLE_AT_VOLUME_BASED_POOL_BILLING", true)
+	injectionWindowMinutes := env.GetInt("INJECTION_WINDOW_MINUTES", 10)
+	enableCounterFormatter := env.GetBool("ENABLE_COUNTER_FORMATTER", false)
 
 	return &TelemetryConfig{
 		PerformanceRootUrl:                           performanceRootURL,
@@ -160,7 +164,9 @@ func LoadConfig() *TelemetryConfig {
 		IntervalBackfillLimitMinutes:                 intervalBackfillLimitMinutes,
 		CounterBackfillLimitMinutes:                  counterBackfillLimitMinutes,
 		EnableLargeVolumesBilling:                    enableLargeVolumesBilling,
-		EnableATVolumeBasedPoolBilling:                   enableATVolumeBasedPoolBilling,
+		EnableATVolumeBasedPoolBilling:               enableATVolumeBasedPoolBilling,
+		InjectionWindowMinutes:                       injectionWindowMinutes,
+		EnableCounterFormatter:                       enableCounterFormatter,
 	}
 }
 

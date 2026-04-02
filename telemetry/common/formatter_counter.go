@@ -29,8 +29,11 @@ import (
 // previous hour data point on the switchover hour
 type CounterMetricsFormatter struct {
 	BackfillLimit time.Duration
+	Config        *TelemetryConfig
 	Logger        log.Logger
 	MetricsDB     database2.Storage
+	// CurrentCreatedAt holds the resource createdAt time for the current formatting pass.
+	CurrentCreatedAt *time.Time
 }
 
 // trimMetricsBeforeStart handles datapoints that happen before the start of the aggregation period. Of those, only the datapoint closest or
@@ -38,7 +41,7 @@ type CounterMetricsFormatter struct {
 // This function assumes that the metrics passed in are sorted ascending by timestamp. It works backwards through the datapoints until it finds the earliest
 // datapoint that should be included in the time series.
 // If no previous metrics are found and MetricsDB is available, it will fetch the latest metric before the aggregation start from the database.
-func (f CounterMetricsFormatter) trimMetricsBeforeStart(ctx context.Context, metrics []entity.HydratedMetric, start time.Time) []entity.HydratedMetric {
+func (f CounterMetricsFormatter) trimMetricsBeforeStart(metrics []entity.HydratedMetric, start time.Time) []entity.HydratedMetric {
 	if len(metrics) == 0 {
 		return metrics
 	}
@@ -49,6 +52,11 @@ func (f CounterMetricsFormatter) trimMetricsBeforeStart(ctx context.Context, met
 		// the first time we encounter a timestamp that is at or before the time series start, stop. We
 		// will include this point if it is within the allowed backfill period.
 		if mTime == start || mTime.Before(start) {
+			// If the first datapoint is exactly at the start and it's the first sample overall,
+			// attempt createdAt injection to avoid a first-cycle miss.
+			if mTime == start && i == 0 {
+				return f.handleCreatedAt(metrics[i:])
+			}
 			// if the previous period datapoint is beyond the backfill limit, we will drop it. Backfill limit of 0 or below is ignored.
 			if f.BackfillLimit > 0 && start.Sub(mTime) > f.BackfillLimit {
 				if f.Logger != nil {
@@ -61,6 +69,25 @@ func (f CounterMetricsFormatter) trimMetricsBeforeStart(ctx context.Context, met
 		}
 	}
 
+	// No datapoints exist at or before the window start, try createdAt injection.
+	return f.handleCreatedAt(metrics)
+}
+
+func (f CounterMetricsFormatter) handleCreatedAt(metrics []entity.HydratedMetric) []entity.HydratedMetric {
+	if len(metrics) == 0 {
+		return metrics
+	}
+
+	injectionWindow := time.Duration(f.Config.InjectionWindowMinutes) * time.Minute
+
+	firstMetric := metrics[0]
+	if f.CurrentCreatedAt != nil && f.CurrentCreatedAt.Before(firstMetric.Timestamp.ToTime()) &&
+		firstMetric.Timestamp.ToTime().Sub(*f.CurrentCreatedAt) < injectionWindow {
+		metricToAdd := firstMetric
+		metricToAdd.Quantity = 0
+		metricToAdd.Timestamp = entity.MilliToNano(f.CurrentCreatedAt.UnixMilli())
+		return append([]entity.HydratedMetric{metricToAdd}, metrics...)
+	}
 	return metrics
 }
 
@@ -89,7 +116,7 @@ func (f CounterMetricsFormatter) Format(ctx context.Context, logger log.Logger, 
 		return timeSeries
 	}
 
-	trimmedMetrics := f.trimMetricsBeforeStart(ctx, metrics, start)
+	trimmedMetrics := f.trimMetricsBeforeStart(metrics, start)
 	trimmedMetrics = f.trimMetricsAfterEnd(trimmedMetrics, end)
 	if len(trimmedMetrics) < 2 {
 		return timeSeries

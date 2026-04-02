@@ -358,6 +358,7 @@ func (d *DataStoreRepository) ListPoolsWithFilterAndPaginationOrderedByUUID(ctx 
 	}
 	return listPoolWithDetailsPaginationOrderedByUUID(d.db.GORM().WithContext(ctx), pagination)
 }
+
 // ListPoolsWithPagination retrieves pools with pagination support including deleted pools
 func (d *DataStoreRepository) ListPoolsWithPagination(ctx context.Context, conditions [][]interface{}, pagination *utils2.Pagination) ([]*datamodel.PoolView, error) {
 	return listPoolWithDetailsPagination(d.db.ApplyFilter(conditions).Unscoped().GORM().WithContext(ctx), pagination)
@@ -865,6 +866,7 @@ type PoolResourceData struct {
 	AllowAutoTiering bool                      `gorm:"column:allow_auto_tiering"`
 	LargeCapacity    bool                      `gorm:"column:large_capacity"`
 	APIAccessMode    string                    `gorm:"column:api_access_mode"`
+	CreatedAt        time.Time                 `gorm:"column:created_at"`
 }
 
 // GetAccountName returns the account name from PoolAttributes
@@ -911,7 +913,8 @@ func (d *DataStoreRepository) ListPoolsForResourceData(ctx context.Context, star
 			pool_attributes,
 			allow_auto_tiering,
 			large_capacity,
-			api_access_mode
+			api_access_mode,
+			created_at
 		`).
 		Where("(deleted_at IS NULL OR (deleted_at >= ? AND deleted_at <= ?))", startTime, endTime)
 

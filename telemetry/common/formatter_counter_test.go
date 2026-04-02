@@ -28,6 +28,9 @@ func TestCounterMetricsFormatter_Format(t *testing.T) {
 	counterFormatter := CounterMetricsFormatter{
 		BackfillLimit: 2 * time.Hour,
 		Logger:        logger,
+		Config: &TelemetryConfig{
+			InjectionWindowMinutes: 10,
+		},
 	}
 
 	start := time.Date(2022, 11, 22, 15, 00, 00, 00, time.UTC)
@@ -1497,6 +1500,9 @@ func TestCounterMetricsFormatter_Format_Intervals_Backfill_Limit_Exceeded(t *tes
 	formatter := CounterMetricsFormatter{
 		BackfillLimit: 30 * time.Minute,
 		Logger:        log.NewLogger(),
+		Config: &TelemetryConfig{
+			InjectionWindowMinutes: 10,
+		},
 	}
 
 	start := time.Date(2022, 11, 22, 15, 00, 00, 00, time.UTC)
@@ -1677,25 +1683,136 @@ func TestAddingCreatedAtBeforeCurrentHour(t *testing.T) {
 	// for all of these tests, the createdAt datapoint is set 10 minutes before the start of the curent hour
 	formatter := CounterMetricsFormatter{
 		BackfillLimit: 2 * time.Hour,
-		Logger:        log.NewLogger(),
+		Config: &TelemetryConfig{
+			InjectionWindowMinutes: 10,
+		},
+		Logger: log.NewLogger(),
 	}
 
 	start := time.Date(2022, 11, 22, 15, 00, 00, 00, time.UTC)
 	end := time.Date(2022, 11, 22, 16, 00, 00, 00, time.UTC)
-	_ = time.Date(2022, 11, 22, 14, 50, 00, 00, time.UTC) // createdAt - unused for now
-	createHydratedMetricWithCreatedAt := func(timestamp time.Time, deletedAt *time.Time, quantity float64, billable bool, coolTier bool, serviceLevel string) entity.HydratedMetric {
-		m := createHydratedMetric(timestamp, deletedAt, quantity, billable, coolTier, serviceLevel)
-		return m
+	createMetric := func(timestamp time.Time) entity.HydratedMetric {
+		return createHydratedMetric(timestamp, nil, 100, true, false, "low")
 	}
 
-	// Add test cases here for AddingCreatedAtBeforeCurrentHour scenarios
-	t.Run("CreatedAt scenario test", func(t *testing.T) {
-		// This test handles the createdAt scenario where metadata includes creation time
-		metric := createHydratedMetricWithCreatedAt(start.Add(10*time.Minute), nil, 100, true, false, "low")
-		metrics := []entity.HydratedMetric{metric}
+	t.Run("Inject createdAt when no datapoints before start", func(t *testing.T) {
+		createdAt := start.Add(-5 * time.Minute)
+		firstSample := start.Add(2 * time.Minute)
+		formatter.CurrentCreatedAt = &createdAt
+		metrics := []entity.HydratedMetric{
+			createMetric(firstSample),
+		}
 
 		result := formatter.Format(context.Background(), nil, metrics, start, end)
-		require.Equal(t, 0, len(result)) // Not enough metrics to form a time series
+		require.Len(t, result, 1)
+		require.Len(t, result[0].DataPoints, 2)
+		assert.Equal(t, createdAt, result[0].DataPoints[0].Timestamp)
+		assert.Equal(t, float64(0), result[0].DataPoints[0].Quantity)
+		assert.Equal(t, firstSample, result[0].DataPoints[1].Timestamp)
+	})
+
+	t.Run("Inject createdAt when first sample is exactly at start", func(t *testing.T) {
+		createdAt := start.Add(-5 * time.Minute)
+		formatter.CurrentCreatedAt = &createdAt
+		metrics := []entity.HydratedMetric{
+			createMetric(start),
+		}
+
+		result := formatter.Format(context.Background(), nil, metrics, start, end)
+		require.Len(t, result, 1)
+		require.Len(t, result[0].DataPoints, 2)
+		assert.Equal(t, createdAt, result[0].DataPoints[0].Timestamp)
+		assert.Equal(t, float64(0), result[0].DataPoints[0].Quantity)
+		assert.Equal(t, start, result[0].DataPoints[1].Timestamp)
+	})
+
+	t.Run("No injection when createdAt is older than 10 minutes", func(t *testing.T) {
+		createdAt := start.Add(-15 * time.Minute)
+		firstSample := start.Add(2 * time.Minute)
+		formatter.CurrentCreatedAt = &createdAt
+		metrics := []entity.HydratedMetric{
+			createMetric(firstSample),
+		}
+
+		result := formatter.Format(context.Background(), nil, metrics, start, end)
+		require.Len(t, result, 0)
+	})
+
+	t.Run("No injection when outside configured injection window", func(t *testing.T) {
+		formatter.Config = &TelemetryConfig{
+			InjectionWindowMinutes: 3,
+		}
+		createdAt := start.Add(-5 * time.Minute)
+		firstSample := start.Add(2 * time.Minute)
+		formatter.CurrentCreatedAt = &createdAt
+		metrics := []entity.HydratedMetric{
+			createMetric(firstSample),
+		}
+
+		result := formatter.Format(context.Background(), nil, metrics, start, end)
+		require.Len(t, result, 0)
+	})
+
+	t.Run("No injection when createdAt is missing", func(t *testing.T) {
+		firstSample := start.Add(2 * time.Minute)
+		formatter.CurrentCreatedAt = nil
+		metrics := []entity.HydratedMetric{
+			createMetric(firstSample),
+		}
+
+		result := formatter.Format(context.Background(), nil, metrics, start, end)
+		require.Len(t, result, 0)
+	})
+
+	t.Run("No injection when createdAt equals first sample", func(t *testing.T) {
+		firstSample := start.Add(2 * time.Minute)
+		formatter.CurrentCreatedAt = &firstSample
+		metrics := []entity.HydratedMetric{
+			createMetric(firstSample),
+		}
+
+		result := formatter.Format(context.Background(), nil, metrics, start, end)
+		require.Len(t, result, 0)
+	})
+
+	t.Run("No injection when first sample is before start", func(t *testing.T) {
+		createdAt := start.Add(-5 * time.Minute)
+		firstSample := start.Add(-2 * time.Minute)
+		formatter.CurrentCreatedAt = &createdAt
+		metrics := []entity.HydratedMetric{
+			createMetric(firstSample),
+			createMetric(start.Add(10 * time.Minute)),
+		}
+
+		result := formatter.Format(context.Background(), nil, metrics, start, end)
+		require.Len(t, result, 1)
+		require.Len(t, result[0].DataPoints, 2)
+		assert.Equal(t, firstSample, result[0].DataPoints[0].Timestamp)
+	})
+
+	t.Run("No injection when backfill limit exceeded", func(t *testing.T) {
+		createdAt := start.Add(-5 * time.Minute)
+		oldSample := start.Add(-3 * time.Hour)
+		formatter.CurrentCreatedAt = &createdAt
+		metrics := []entity.HydratedMetric{
+			createMetric(oldSample),
+			createMetric(start.Add(10 * time.Minute)),
+		}
+
+		result := formatter.Format(context.Background(), nil, metrics, start, end)
+		require.Len(t, result, 0)
+	})
+
+	t.Run("No injection when createdAt is after first sample", func(t *testing.T) {
+		firstSample := start.Add(2 * time.Minute)
+		createdAt := firstSample.Add(1 * time.Minute)
+		formatter.CurrentCreatedAt = &createdAt
+		metrics := []entity.HydratedMetric{
+			createMetric(firstSample),
+		}
+
+		result := formatter.Format(context.Background(), nil, metrics, start, end)
+		require.Len(t, result, 0)
 	})
 }
 
@@ -1720,6 +1837,9 @@ func TestCounterMetricsFormatter_DatabaseFetch_Success(t *testing.T) {
 		BackfillLimit: 2 * time.Hour,
 		Logger:        logger,
 		MetricsDB:     mockDB,
+		Config: &TelemetryConfig{
+			InjectionWindowMinutes: 10,
+		},
 	}
 
 	start := time.Date(2022, 11, 22, 15, 0, 0, 0, time.UTC)
@@ -1782,6 +1902,9 @@ func TestCounterMetricsFormatter_DatabaseFetch_Error(t *testing.T) {
 		BackfillLimit: 2 * time.Hour,
 		Logger:        logger,
 		MetricsDB:     mockDB,
+		Config: &TelemetryConfig{
+			InjectionWindowMinutes: 10,
+		},
 	}
 
 	start := time.Date(2022, 11, 22, 15, 0, 0, 0, time.UTC)
@@ -1827,6 +1950,9 @@ func TestCounterMetricsFormatter_DatabaseFetch_NoResults(t *testing.T) {
 		BackfillLimit: 2 * time.Hour,
 		Logger:        logger,
 		MetricsDB:     mockDB,
+		Config: &TelemetryConfig{
+			InjectionWindowMinutes: 10,
+		},
 	}
 
 	start := time.Date(2022, 11, 22, 15, 0, 0, 0, time.UTC)
@@ -1870,6 +1996,9 @@ func TestCounterMetricsFormatter_DatabaseFetch_NoDatabase(t *testing.T) {
 		BackfillLimit: 2 * time.Hour,
 		Logger:        logger,
 		MetricsDB:     nil, // No database
+		Config: &TelemetryConfig{
+			InjectionWindowMinutes: 10,
+		},
 	}
 
 	start := time.Date(2022, 11, 22, 15, 0, 0, 0, time.UTC)

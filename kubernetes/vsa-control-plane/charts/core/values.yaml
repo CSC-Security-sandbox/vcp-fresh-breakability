@@ -327,6 +327,8 @@ telemetryDeployer:
   retryIntervalSeconds: 30
   numWorkersBillingRetry: 5
   enableBackupHistoryFormatter: false
+  injectionWindowMinutes: 10
+  enableCounterFormatter: false
 
   numWorkersPerformance: "10"
   numWorkersUsage: "1"

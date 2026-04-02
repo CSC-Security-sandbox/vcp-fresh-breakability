@@ -20,6 +20,7 @@ type ResourceMetadata struct {
 	BackupRegionName    *string
 	SourceRegionName    *string
 	PoolName            *string
+	CreatedAt           *time.Time
 }
 
 func (m *ResourceMetadata) SetResourceUUID(uuid string) {

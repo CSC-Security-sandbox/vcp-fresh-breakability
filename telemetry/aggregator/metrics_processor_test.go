@@ -234,6 +234,44 @@ func TestApplyDataSourceAndFormatterOverrides_UsesHistoricalFormatter(t *testing
 	assert.Equal(t, 5*time.Minute, formatter.GetBackfillLimit())
 }
 
+func TestApplyDataSourceAndFormatterOverrides_UsesCounterFormatterForReplicationMetric(t *testing.T) {
+	original := make(map[metadata.CombinedKeyResourceTypeMeasuredType]common.AggregationJobDefinition, len(common.DefaultAggregationJobDefinitions))
+	for key, value := range common.DefaultAggregationJobDefinitions {
+		original[key] = value
+	}
+	defer func() {
+		common.DefaultAggregationJobDefinitions = original
+	}()
+
+	key := metadata.CombinedKeyResourceTypeMeasuredType{
+		ResourceType: metadata.VolumeReplicationRelationship,
+		MeasuredType: metadata.XregionReplicationTotalTransferBytes,
+	}
+	jobDef := common.DefaultAggregationJobDefinitions[key]
+	jobDef.TimeSeriesFormatter = &common.SampledMetricsFormatter{
+		Mode:          common.Interval,
+		BackfillLimit: 7 * time.Minute,
+	}
+	common.DefaultAggregationJobDefinitions[key] = jobDef
+
+	provider := &BillingProvider{
+		config: &common.TelemetryConfig{
+			EnableCounterFormatter: true,
+			InjectionWindowMinutes: 9,
+		},
+	}
+
+	logger := util.GetLogger(context.Background())
+	provider.applyDataSourceAndFormatterOverrides(logger)
+
+	updated := common.DefaultAggregationJobDefinitions[key]
+	formatter, ok := updated.TimeSeriesFormatter.(*common.CounterMetricsFormatter)
+	require.True(t, ok, "expected CounterMetricsFormatter for replication transfer bytes")
+	assert.Equal(t, 7*time.Minute, formatter.GetBackfillLimit())
+	require.NotNil(t, formatter.Config)
+	assert.Equal(t, 9, formatter.Config.InjectionWindowMinutes)
+}
+
 func TestApplyDataSourceAndFormatterOverrides_OverridesPoolATMetrics(t *testing.T) {
 	original := make(map[metadata.CombinedKeyResourceTypeMeasuredType]common.AggregationJobDefinition, len(common.DefaultAggregationJobDefinitions))
 	for key, value := range common.DefaultAggregationJobDefinitions {
@@ -2457,6 +2495,8 @@ func TestProcessBillingMetrics_NonCounterAggregation(t *testing.T) {
 		MaxGoogleBillingPushRetry:       3,
 		GoogleBillingLabelsMaxEntries:   10,
 		EnableReplicationBillingMetrics: true,
+		EnableAutoTieringBillingMetrics: true,
+		EnableFilesAutoTieringBilling:   true,
 	}
 
 	processor := NewBillingProvider(mockDB, mockVCPDB, config, mockUsageSink)
@@ -2599,6 +2639,82 @@ func TestProcessBillingMetrics_BackupHistoryFormatterBranch(t *testing.T) {
 	assert.Equal(t, aggregationStart, backupRecord.AggregationStart)
 	assert.Equal(t, deletedAt, backupRecord.AggregationEnd)
 
+	mockDB.AssertExpectations(t)
+	mockVCPDB.AssertExpectations(t)
+}
+
+func TestProcessBillingMetrics_CreatedAtInjectionCounterFormatter(t *testing.T) {
+	origJobDefs := common.DefaultAggregationJobDefinitions
+	defer func() {
+		common.DefaultAggregationJobDefinitions = origJobDefs
+	}()
+
+	common.DefaultAggregationJobDefinitions = map[metadata.CombinedKeyResourceTypeMeasuredType]common.AggregationJobDefinition{
+		{ResourceType: metadata.VolumePool, MeasuredType: metadata.CoolTierDataReadSizeRaw}: {
+			AggregationType: common.CounterAggregation,
+			IsBillable:      true,
+			TimeSeriesFormatter: &common.CounterMetricsFormatter{
+				BackfillLimit: 2 * time.Hour,
+			},
+		},
+	}
+
+	mockDB := database.NewMockStorage(t)
+	mockVCPDB := database2.NewMockStorage(t)
+	mockUsageSink := &MockUsageSink{}
+	config := &common.TelemetryConfig{
+		PoolVolumeLabelPageSize:         100,
+		MaxGoogleBillingPushRetry:       3,
+		GoogleBillingLabelsMaxEntries:   10,
+		EnableReplicationBillingMetrics: true,
+	}
+
+	processor := NewBillingProvider(mockDB, mockVCPDB, config, mockUsageSink)
+	ctx := context.Background()
+	now := time.Now()
+	start := now.Add(-1 * time.Hour)
+
+	poolCreatedAt := start.Add(-5 * time.Minute)
+	mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{
+		{
+			UUID:           "pool-uuid-1",
+			Name:           "pool1",
+			AccountID:      1,
+			DeploymentName: "dep1",
+			PoolAttributes: &datamodel.PoolAttributes{
+				AccountName: "account1",
+			},
+			AllowAutoTiering: true,
+			CreatedAt:        poolCreatedAt,
+		},
+	}, nil).Once()
+	mockVCPDB.On("ListPoolsForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.PoolResourceData{}, nil).Once()
+	mockVCPDB.On("ListVolumesForResourceData", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]*database2.VolumeResourceData{}, nil).Once()
+	mockVCPDB.On("ListVolumeReplicationsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.VolumeReplication{}, nil).Once()
+
+	mockDB.On("GetLatestAggregatedUsageForAllResources", mock.Anything, "CounterAggregation", mock.Anything, mock.Anything).Return(
+		[]datamodel2.AggregatedUsage{}, nil,
+	).Maybe()
+
+	hydrated := []datamodel2.HydratedMetrics{
+		{
+			MetricTimestamp: start.Add(2 * time.Minute),
+			Quantity:        100,
+			ResourceType:    metadata.VolumePool,
+			MeasuredType:    metadata.CoolTierDataReadSizeRaw,
+			ResourceName:    "pool1",
+			DeploymentName:  "dep1",
+			ConsumerID:      "account1",
+			Location:        "us-central1",
+		},
+	}
+
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return(hydrated, nil).Maybe()
+	mockDB.On("GetHydratedMetricsWithPagination", mock.Anything, mock.Anything, mock.Anything).Return([]datamodel2.HydratedMetrics{}, nil).Maybe()
+	mockDB.On("CreateAggregatedUsageBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	err := processor.ProcessBillingMetrics(ctx, now)
+	assert.NoError(t, err)
 	mockDB.AssertExpectations(t)
 	mockVCPDB.AssertExpectations(t)
 }
