@@ -15143,6 +15143,66 @@ func (_c *MockStorage_ListPoolsForResourceData_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// ListPoolsSelective provides a mock function with given fields: ctx, filter, opts
+func (_m *MockStorage) ListPoolsSelective(ctx context.Context, filter *utils.Filter, opts PoolPreloadOptions) ([]*datamodel.PoolView, error) {
+	ret := _m.Called(ctx, filter, opts)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListPoolsSelective")
+	}
+
+	var r0 []*datamodel.PoolView
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *utils.Filter, PoolPreloadOptions) ([]*datamodel.PoolView, error)); ok {
+		return rf(ctx, filter, opts)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *utils.Filter, PoolPreloadOptions) []*datamodel.PoolView); ok {
+		r0 = rf(ctx, filter, opts)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.PoolView)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *utils.Filter, PoolPreloadOptions) error); ok {
+		r1 = rf(ctx, filter, opts)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_ListPoolsSelective_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListPoolsSelective'
+type MockStorage_ListPoolsSelective_Call struct {
+	*mock.Call
+}
+
+// ListPoolsSelective is a helper method to define mock.On call
+//   - ctx context.Context
+//   - filter *utils.Filter
+//   - opts PoolPreloadOptions
+func (_e *MockStorage_Expecter) ListPoolsSelective(ctx interface{}, filter interface{}, opts interface{}) *MockStorage_ListPoolsSelective_Call {
+	return &MockStorage_ListPoolsSelective_Call{Call: _e.mock.On("ListPoolsSelective", ctx, filter, opts)}
+}
+
+func (_c *MockStorage_ListPoolsSelective_Call) Run(run func(ctx context.Context, filter *utils.Filter, opts PoolPreloadOptions)) *MockStorage_ListPoolsSelective_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*utils.Filter), args[2].(PoolPreloadOptions))
+	})
+	return _c
+}
+
+func (_c *MockStorage_ListPoolsSelective_Call) Return(_a0 []*datamodel.PoolView, _a1 error) *MockStorage_ListPoolsSelective_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_ListPoolsSelective_Call) RunAndReturn(run func(context.Context, *utils.Filter, PoolPreloadOptions) ([]*datamodel.PoolView, error)) *MockStorage_ListPoolsSelective_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListPoolsWithFilterAndPaginationOrderedByUUID provides a mock function with given fields: ctx, filter, pagination
 func (_m *MockStorage) ListPoolsWithFilterAndPaginationOrderedByUUID(ctx context.Context, filter *utils.Filter, pagination *utils.Pagination) ([]*datamodel.PoolView, error) {
 	ret := _m.Called(ctx, filter, pagination)

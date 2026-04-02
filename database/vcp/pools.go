@@ -316,6 +316,40 @@ func (d *DataStoreRepository) ListPools(ctx context.Context, filter *utils2.Filt
 	return listPoolWithDetails(d.db.GORM().WithContext(ctx))
 }
 
+// PoolPreloadOptions controls which related entities are eagerly loaded alongside a pool query.
+// Skipping unneeded preloads avoids extra DB round-trips for callers that only need a subset of fields.
+type PoolPreloadOptions struct {
+	KmsConfig       bool
+	ActiveDirectory bool
+}
+
+// ListPoolsSelective fetches pools matching filter and only preloads the relations requested via opts.
+// Account is always preloaded because it provides the account name used by the model converter.
+func (d *DataStoreRepository) ListPoolsSelective(ctx context.Context, filter *utils2.Filter, opts PoolPreloadOptions) ([]*datamodel.PoolView, error) {
+	var db *gorm.DB
+	if filter != nil && filter.ShouldIncludeDeleted() {
+		db = d.db.ApplyFilter(filter.Apply()).Unscoped().GORM().WithContext(ctx)
+	} else if filter != nil {
+		db = d.db.ApplyFilter(filter.Apply()).GORM().WithContext(ctx)
+	} else {
+		db = d.db.GORM().WithContext(ctx)
+	}
+
+	db = db.Preload("Account")
+	if opts.KmsConfig {
+		db = db.Preload("KmsConfig")
+	}
+	if opts.ActiveDirectory {
+		db = db.Preload("ActiveDirectory")
+	}
+
+	var pools []*datamodel.PoolView
+	if err := db.Find(&pools).Error; err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return pools, nil
+}
+
 // ListPoolsWithFilterAndPaginationOrderedByUUID returns non-deleted pools matching the filter with limit/offset,
 // ordered by uuid for stable pagination (no overlapping or missing pools across pages). Use for certificate and password rotation.
 func (d *DataStoreRepository) ListPoolsWithFilterAndPaginationOrderedByUUID(ctx context.Context, filter *utils2.Filter, pagination *utils2.Pagination) ([]*datamodel.PoolView, error) {

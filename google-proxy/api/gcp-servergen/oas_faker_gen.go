@@ -1297,6 +1297,312 @@ func (s *BackupVaultV1betaState) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *BatchPoolUUIDListV1beta) SetFake() {
+	{
+		{
+			s.PoolUUIDs = nil
+			for i := 0; i < 0; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.PoolUUIDs = append(s.PoolUUIDs, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BatchPoolV1beta) SetFake() {
+	{
+		{
+			s.PoolId.SetFake()
+		}
+	}
+	{
+		{
+			s.ActiveDirectoryConfigId.SetFake()
+		}
+	}
+	{
+		{
+			s.ActiveDirectoryResourceId.SetFake()
+		}
+	}
+	{
+		{
+			s.KmsConfigId.SetFake()
+		}
+	}
+	{
+		{
+			s.KmsConfigResourceId.SetFake()
+		}
+	}
+	{
+		{
+			s.Network.SetFake()
+		}
+	}
+	{
+		{
+			s.ResourceId.SetFake()
+		}
+	}
+	{
+		{
+			s.ServiceLevel.SetFake()
+		}
+	}
+	{
+		{
+			s.QosType.SetFake()
+		}
+	}
+	{
+		{
+			s.SizeInBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.AllocatedBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.TotalThroughputMibps.SetFake()
+		}
+	}
+	{
+		{
+			s.AvailableThroughputMibps.SetFake()
+		}
+	}
+	{
+		{
+			s.NumberOfVolumes.SetFake()
+		}
+	}
+	{
+		{
+			s.StoragePoolState.SetFake()
+		}
+	}
+	{
+		{
+			s.StoragePoolStateDetails.SetFake()
+		}
+	}
+	{
+		{
+			s.CreatedAt.SetFake()
+		}
+	}
+	{
+		{
+			s.UpdatedAt.SetFake()
+		}
+	}
+	{
+		{
+			s.DeletedAt.SetFake()
+		}
+	}
+	{
+		{
+			s.StorageClass.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.LdapEnabled.SetFake()
+		}
+	}
+	{
+		{
+			s.EncryptionType.SetFake()
+		}
+	}
+	{
+		{
+			s.Zone.SetFake()
+		}
+	}
+	{
+		{
+			s.SecondaryZone.SetFake()
+		}
+	}
+	{
+		{
+			s.Region.SetFake()
+		}
+	}
+	{
+		{
+			s.GlobalAccessAllowed.SetFake()
+		}
+	}
+	{
+		{
+			s.Labels.SetFake()
+		}
+	}
+	{
+		{
+			s.BillingLabels.SetFake()
+		}
+	}
+	{
+		{
+			s.AllowAutoTiering.SetFake()
+		}
+	}
+	{
+		{
+			s.HotTierSizeInBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.EnableHotTierAutoResize.SetFake()
+		}
+	}
+	{
+		{
+			s.SatisfiesPzi.SetFake()
+		}
+	}
+	{
+		{
+			s.SatisfiesPzs.SetFake()
+		}
+	}
+	{
+		{
+			s.AssetLocationMetadata.SetFake()
+		}
+	}
+	{
+		{
+			s.CustomPerformanceEnabled.SetFake()
+		}
+	}
+	{
+		{
+			s.TotalIops.SetFake()
+		}
+	}
+	{
+		{
+			s.Type.SetFake()
+		}
+	}
+	{
+		{
+			s.UnifiedPool.SetFake()
+		}
+	}
+	{
+		{
+			s.LargeCapacity.SetFake()
+		}
+	}
+	{
+		{
+			s.HotTierConsumption.SetFake()
+		}
+	}
+	{
+		{
+			s.ColdTierConsumption.SetFake()
+		}
+	}
+	{
+		{
+			s.Mode.SetFake()
+		}
+	}
+	{
+		{
+			s.ManagedPool.SetFake()
+		}
+	}
+	{
+		{
+			s.IsHyperdiskAvailable.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BatchPoolV1betaAssetLocationMetadata) SetFake() {
+	{
+		{
+			s.ChildAssets.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BatchPoolV1betaBillingLabels) SetFake() {
+	var (
+		elem string
+		m    map[string]string = s.init()
+	)
+	for i := 0; i < 0; i++ {
+		m[fmt.Sprintf("fake%d", i)] = elem
+	}
+}
+
+// SetFake set fake values.
+func (s *BatchPoolV1betaEncryptionType) SetFake() {
+	*s = BatchPoolV1betaEncryptionTypeSERVICEMANAGED
+}
+
+// SetFake set fake values.
+func (s *BatchPoolV1betaLabels) SetFake() {
+	var (
+		elem string
+		m    map[string]string = s.init()
+	)
+	for i := 0; i < 0; i++ {
+		m[fmt.Sprintf("fake%d", i)] = elem
+	}
+}
+
+// SetFake set fake values.
+func (s *BatchPoolV1betaMode) SetFake() {
+	*s = BatchPoolV1betaModeMODEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *BatchPoolV1betaServiceLevel) SetFake() {
+	*s = BatchPoolV1betaServiceLevelSERVICELEVELUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *BatchPoolV1betaStorageClass) SetFake() {
+	*s = BatchPoolV1betaStorageClassSTORAGECLASSUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *BatchPoolV1betaStoragePoolState) SetFake() {
+	*s = BatchPoolV1betaStoragePoolStateSTATEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *BatchPoolV1betaType) SetFake() {
+	*s = BatchPoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED
+}
+
+// SetFake set fake values.
 func (s *BlockDeviceV1beta) SetFake() {
 	{
 		{
@@ -3526,6 +3832,60 @@ func (s *OptMonthlyScheduleV1beta) SetFake() {
 		elem.SetFake()
 	}
 	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptNilBatchPoolV1betaAssetLocationMetadata) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilBatchPoolV1betaBillingLabels) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilBatchPoolV1betaEncryptionType) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilBatchPoolV1betaLabels) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilBatchPoolV1betaMode) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilBatchPoolV1betaServiceLevel) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilBatchPoolV1betaStorageClass) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilBatchPoolV1betaStoragePoolState) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilBatchPoolV1betaType) SetFake() {
+	s.Null = true
+	s.Set = true
 }
 
 // SetFake set fake values.
@@ -5792,6 +6152,58 @@ func (s *UpdateDstWithSrcQuotaRulesV1beta) SetFake() {
 			}
 		}
 	}
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListPoolsBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListPoolsBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListPoolsForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListPoolsForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListPoolsInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListPoolsInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListPoolsOK) SetFake() {
+	{
+		{
+			s.Pools = nil
+			for i := 0; i < 0; i++ {
+				var elem BatchPoolV1beta
+				{
+					elem.SetFake()
+				}
+				s.Pools = append(s.Pools, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListPoolsUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListPoolsUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.

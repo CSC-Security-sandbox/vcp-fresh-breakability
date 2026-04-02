@@ -7075,8 +7075,8 @@ paths:
   /v1beta/locations/{locationId}/batch/pools:
     post:
       operationId: v1beta_batchListPools
-      summary: Batch lists all pools with the given UUIDs
-      description: Batch lists all pools with the given UUIDs
+      summary: Batch list all pools with the given UUIDs
+      description: Batch list all pools with the given UUIDs
       tags:
         - batch
       parameters:
@@ -7091,20 +7091,51 @@ paths:
           items:
             type: string
             enum:
-              - resourceId
-              - created
-              - serviceLevel
-              - sizeInBytes
-              - allocatedBytes
-              - poolState
-              - poolStateDetails
-              - numberOfVolumes
-              - activeDirectoryResourceId
+              - poolId
               - activeDirectoryConfigId
-              - encryptionType
-              - description
+              - activeDirectoryResourceId
               - kmsConfigId
               - kmsConfigResourceId
+              - network
+              - resourceId
+              - serviceLevel
+              - qosType
+              - sizeInBytes
+              - allocatedBytes
+              - totalThroughputMibps
+              - availableThroughputMibps
+              - numberOfVolumes
+              - storagePoolState
+              - storagePoolStateDetails
+              - createdAt
+              - updatedAt
+              - deletedAt
+              - storageClass
+              - description
+              - ldapEnabled
+              - encryptionType
+              - zone
+              - secondaryZone
+              - region
+              - globalAccessAllowed
+              - labels
+              - billingLabels
+              - allowAutoTiering
+              - hotTierSizeInBytes
+              - enableHotTierAutoResize
+              - satisfies_pzi
+              - satisfies_pzs
+              - assetLocationMetadata
+              - customPerformanceEnabled
+              - totalIops
+              - type
+              - unifiedPool
+              - largeCapacity
+              - hotTierConsumption
+              - coldTierConsumption
+              - mode
+              - managedPool
+              - isHyperdiskAvailable
         - name: body
           in: body
           required: true
@@ -7115,9 +7146,13 @@ paths:
         '200':
           description: OK
           schema:
-            type: array
-            items:
-              $ref: '#/definitions/BatchPool_v1beta'
+            type: object
+            allOf:
+              - properties:
+                  pools:
+                    type: array
+                    items:
+                      $ref: '#/definitions/BatchPool_v1beta'
         '400':
           $ref: '#/responses/StandardError-400'
         '401':
@@ -14063,137 +14098,422 @@ definitions:
           - batman
           - clarkkent
   BatchPool_v1beta:
-    type: object
-    title: Pool
-    properties:
-      poolId:
-        title: poolId
-        type: string
-        readOnly: true
-        description: UUID v4 used to identify a resource - PoolID, netapp_uuid
-        pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
-        maxLength: 36
-        minLength: 36
-        example: 87654321-4638-11e7-9bdb-123456789012
-      created:
-        title: created
-        type: string
-        x-omitempty: true
-        x-nullable: true
-        format: date-time
-        readOnly: true
-        description: Creation date of the resource
-        example: '2016-11-30T20:32:50.459Z'
-      resourceId:
-        title: resourceId
-        type: string
-        x-omitempty: true
-        x-nullable: true
-        readOnly: true
-        description: The resource ID of the pool.
-        example: some-weird-name
-      description:
-        title: description
-        type: string
-        x-omitempty: true
-        description: Description of the volume.
-        maxLength: 2048
-        example: My Pool description
-      serviceLevel:
-        title: serviceLevel
-        type: string
-        x-omitempty: true
-        readOnly: true
-        description: The service level of the pool
-        example: EXTREME
-      poolState:
-        type: string
-        x-omitempty: true
-        readOnly: true
-        description: The current lifecycle state of the pool
-        example: READY
-      poolStateDetails:
-        title: poolStateDetails
-        type: string
-        x-omitempty: true
-        x-nullable: true
-        readOnly: true
-        description: Details about the current lifecycle state
-        example: Available for use
-      sizeInBytes:
-        title: size
-        type: number
-        format: double
-        x-omitempty: true
-        x-nullable: true
-        description: Size of the pool in bytes
-        default: 2199023255552.0
-        example: 2199023255552.0
-      allocatedBytes:
-        title: allocatedBytes
-        type: number
-        format: double
-        readOnly: true
-        description: Total size of allocated volumes in bytes.
-        example: 100000000000000.0
-        x-omitempty: true
-        x-nullable: true
-      numberOfVolumes:
-        title: numberOfVolumes
-        type: number
-        x-omitempty: true
-        x-nullable: true
-        format: int
-        readOnly: true
-        description: Number of volumes in a pool
-        example: 20
-      kmsConfigId:
-        type: string
-        x-omitempty: true
-        x-nullable: true
-        description: UUID of the key to be used for encryption.
-        readOnly: true
-        pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
-        maxLength: 36
-        minLength: 36
-        example: 9760acf5-4638-11e7-9bdb-020073ca7772
-      kmsConfigResourceId:
-        title: kmsConfigResourceId
-        type: string
-        description: The resource ID for the connected KMS configuration
-        example: myconfig
-        readOnly: true
-        x-omitempty: true
-        x-nullable: true
-      activeDirectoryConfigId:
-        type: string
-        description: UUID of Active Directory configuration
-        pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
-        maxLength: 36
-        minLength: 36
-        example: 9760acf5-4638-11e7-9bdb-020073ca7773
-        x-nullable: true
-        x-omitempty: true
-      activeDirectoryResourceId:
-        title: activeDirectoryResourceId
-        type: string
-        description: The resource ID for the connected Active Directory
-        example: mydirectory
-        x-omitempty: true
-        x-nullable: true
-        readOnly: true
-      encryptionType:
-        title: encryptionType
-        description: Type of encryption used for volumes; Can either be service managed
-          key (service_managed) or cloud_kms
-        type: string
-        readOnly: true
-        x-omitempty: true
-        enum:
-          - ENCRYPTION_TYPE_UNSPECIFIED
-          - SERVICE_MANAGED
-          - CLOUD_KMS
-        example: SERVICE_MANAGED
+      type: object
+      title: Pool
+      properties:
+        poolId:
+          title: poolId
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          readOnly: true
+          description: Uuid v4 used to identify the pool
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          maxLength: 36
+          minLength: 36
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+        activeDirectoryConfigId:
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          description: Uuid of Active Directory configuration
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+        activeDirectoryResourceId:
+          title: activeDirectoryResourceId
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          description: The resource Id for the connected Active Directory
+          readOnly: true
+          example: projects/my-project-1/locations/eu-west-1/activeDirectories/mydirectory
+        kmsConfigId:
+          maxLength: 36
+          minLength: 36
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          description: Uuid of the key to be used for encryption.
+          readOnly: true
+          example: 6aae31f1-f685-4fda-b875-db0ea99235fc
+        kmsConfigResourceId:
+          title: kmsConfigResourceId
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          description: The resource Id for the connected KMS configuration
+          readOnly: true
+          example: projects/my-project-1/locations/eu-west-1/kmsConfigs/myconfig
+        network:
+          title: network
+          pattern: "^projects\\/\\d+\\/global\\/networks\\/(![0-9]+$)?(!.*-$)?(!-)?[a-zA-Z0-9-]{1,63}$"
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          description: Servicenetworking.connections.network value that is returned
+            after creating a successful VPC peering connection via the GCP service-networking
+            API
+          example: projects/123456789/global/networks/network-to-netapp2
+        resourceId:
+          title: resourceId
+          maxLength: 63
+          pattern: "^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$"
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          description: "A human readable label for the resource which is restricted\
+            \ to letters, numbers, and hyphen, with the first character a letter,\
+            \ the last a letter or a number, and a 63 character maximum"
+          example: some-pool-name
+        serviceLevel:
+          title: serviceLevel
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          description: "The service level of the storage pool can either be premium,\
+            \ standard, flex or extreme."
+          example: PREMIUM
+          enum:
+            - SERVICE_LEVEL_UNSPECIFIED
+            - FLEX
+            - STANDARD
+            - PREMIUM
+            - EXTREME
+        qosType:
+          title: qosType
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          description: The type of QoS for the pool
+          example: auto
+          default: auto
+        sizeInBytes:
+          title: size
+          type: number
+          format: double
+          x-omitempty: true
+          x-nullable: true
+          description: Size of the pool in bytes
+          multipleOf: 1073741824
+          example: 2199023255552
+          default: 2199023255552
+        allocatedBytes:
+          title: allocatedBytes
+          type: number
+          format: double
+          x-omitempty: true
+          x-nullable: true
+          readOnly: true
+          description: Total size of allocated volumes in bytes.
+          example: 100000000000000
+        totalThroughputMibps:
+          title: totalThroughputMibps
+          type: number
+          format: double
+          x-omitempty: true
+          x-nullable: true
+          description: Total throughput of the pool in MiBps
+          example: 10.0
+        availableThroughputMibps:
+          title: availableThroughputMibps
+          type: number
+          format: double
+          x-omitempty: true
+          x-nullable: true
+          readOnly: true
+          description: Throughput available for the volumes in MiBps
+          example: 10.0
+        numberOfVolumes:
+          title: numberOfVolumes
+          type: integer
+          format: int32
+          x-omitempty: true
+          x-nullable: true
+          readOnly: true
+          description: Number of volumes in a pool
+          example: 20
+        storagePoolState:
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          readOnly: true
+          description: The current lifecycle state of the resource. DEGRADED state is applicable only in case of Flex UNIFIED pools.
+          example: READY
+          enum:
+            - STATE_UNSPECIFIED
+            - CREATING
+            - READY
+            - UPDATING
+            - RESTORING
+            - DISABLED
+            - DELETED
+            - DELETING
+            - ERROR
+            - DEGRADED
+        storagePoolStateDetails:
+          title: storagePoolStateDetails
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          readOnly: true
+          description: Details about the current lifecycle state
+          example: Error connecting to remote service
+        createdAt:
+          title: createdAt
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          format: date-time
+          readOnly: true
+          description: Creation date of the resource
+          example: 2016-11-28T19:30:23.123Z
+        updatedAt:
+          title: updatedAt
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          format: date-time
+          readOnly: true
+          description: Date of last update of the resource
+          example: 2016-11-29T20:32:50.459Z
+        deletedAt:
+          title: deletedAt
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          format: date-time
+          readOnly: true
+          description: Date the resource was deleted
+          example: 2016-11-30T23:59:59.999Z
+        storageClass:
+          title: storageClass
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          description: Storage class of the pool.
+          enum:
+            - STORAGE_CLASS_UNSPECIFIED
+            - SOFTWARE
+            - HARDWARE
+          default: HARDWARE
+        description:
+          title: description
+          maxLength: 2048
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          description: Description of the pool
+          example: My Pool description
+        ldapEnabled:
+          title: ldapEnabled
+          type: boolean
+          x-omitempty: true
+          x-nullable: true
+          description: Flag indicating if the pool supports LDAP enabled volumes or
+            not.
+          default: false
+        encryptionType:
+          title: encryptionType
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          description: "Type of encryption used for pool, Can either service managed\
+            \ key (service_managed) or cloud_kms"
+          readOnly: true
+          enum:
+            - SERVICE_MANAGED
+            - CLOUD_KMS
+        zone:
+          title: zone
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          description: The desired zone for the storage pool.
+          example: us-east1-b
+        secondaryZone:
+          title: secondaryZone
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          description: The desired zone for the failover.
+          example: us-east1-c
+        region:
+          title: region
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          readOnly: true
+          description: The region name of the pool
+          example: us-east4
+        globalAccessAllowed:
+          title: globalAccessAllowed
+          type: boolean
+          x-omitempty: true
+          x-nullable: true
+          description: Flag indicating the enablement of global access on the load
+            balancers
+          example: true
+        labels:
+          title: labels
+          type: object
+          x-omitempty: true
+          x-nullable: true
+          additionalProperties:
+            type: string
+          description: JSON dictionary of resource labels to allow linking of billing
+            labels to a pool
+          example:
+            someKey: SomeValue
+            someKey2: SomeValue2
+        billingLabels:
+          title: billingLabels
+          type: object
+          x-omitempty: true
+          x-nullable: true
+          additionalProperties:
+            type: string
+          description: Billing labels
+        allowAutoTiering:
+          title: allowAutoTiering
+          type: boolean
+          x-omitempty: true
+          x-nullable: true
+          description: Flag indicating if the pool supports auto tiering enabled volumes
+            or not.
+        hotTierSizeInBytes:
+          title: hotTierSizeInBytes
+          type: number
+          format: double
+          x-omitempty: true
+          x-nullable: true
+          description: Hot-tier size of the pool (in bytes) if auto-tiering is enabled
+            (valid only for FLEX)
+          example: 1099511627776
+        enableHotTierAutoResize:
+          title: enableHotTierAutoResize
+          type: boolean
+          x-omitempty: true
+          x-nullable: true
+          description: Flag indicating if the pool supports hot-tier resize on reaching
+            the hot-tier threshold (not valid for FLEX)
+        satisfies_pzi:
+          title: satisfies_pzi
+          type: boolean
+          x-omitempty: true
+          x-nullable: true
+          description: Flag indicating if the pool satisfies zonal isolation
+          readOnly: true
+        satisfies_pzs:
+          title: satisfies_pzs
+          type: boolean
+          x-omitempty: true
+          x-nullable: true
+          description: Flag indicating if the pool satisfies zonal separation
+          readOnly: true
+        assetLocationMetadata:
+          title: assetLocationMetadata
+          type: object
+          x-omitempty: true
+          x-nullable: true
+          description: Location metadata
+          properties:
+            child_assets:
+              title: child_assets
+              type: array
+              x-nullable: true
+              readOnly: true
+              items:
+                $ref: '#/definitions/ChildAsset'
+        customPerformanceEnabled:
+          title: customPerformanceEnabled
+          type: boolean
+          x-omitempty: true
+          x-nullable: true
+          description: Flag indicating if the custom performance is enabled for the
+            pool.
+        totalIops:
+          title: totalIops
+          type: number
+          format: double
+          x-omitempty: true
+          x-nullable: true
+          description: The total iops set for a pool.
+          example: 1600.0
+        type:
+          title: type
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          description: "The type of storage pool. STORAGE_POOL_TYPE_UNSPECIFIED is\
+            \ the default value and should not be used. STANDARD represents the classic/legacy\
+            \ storage pool. UNIFIED represents the VSA-based storage pool."
+          example: UNIFIED
+          enum:
+            - STORAGE_POOL_TYPE_UNSPECIFIED
+            - FILE
+            - UNIFIED
+        unifiedPool:
+          title: unifiedPool
+          type: boolean
+          x-omitempty: true
+          x-nullable: true
+          description: Indicates if the pool type is unified (deprecated, use 'type'
+            field instead)
+          example: false
+          x-deprecated-message: "Use 'type' field with value 'UNIFIED' instead. This field will be removed in a future version."
+        largeCapacity:
+          title: largeCapacity
+          type: boolean
+          x-omitempty: true
+          x-nullable: true
+          description: Indicates if the pool is a large capacity pool
+          default: false
+          example: false
+        hotTierConsumption:
+          title: hotTierConsumption
+          type: integer
+          format: int64
+          x-omitempty: true
+          x-nullable: true
+          readOnly: true
+          description: Total StoragePool Hottier usages.
+          example: 4000000000000
+        coldTierConsumption:
+          title: coldTierConsumption
+          type: integer
+          format: int64
+          x-omitempty: true
+          x-nullable: true
+          readOnly: true
+          description: Total StoragePool Coldtier usages.
+          example: 4000000000000
+        mode:
+          title: mode
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          enum:
+            - MODE_UNSPECIFIED
+            - DEFAULT
+            - ONTAP
+          description: Flag indicating if the pool supports expert mode
+          default: DEFAULT
+          example: DEFAULT
+        managedPool:
+          title: managedPool
+          type: boolean
+          x-omitempty: true
+          x-nullable: true
+          description: Whether the pool is managed
+        isHyperdiskAvailable:
+          title: isHyperdiskAvailable
+          type: boolean
+          x-omitempty: true
+          x-nullable: true
+          description: Flag indicating if region has C4/hyperdisk machines.
   BatchReplication_v1beta:
     type: object
     title: Replication

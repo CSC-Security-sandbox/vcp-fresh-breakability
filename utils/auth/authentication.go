@@ -49,7 +49,7 @@ var (
 	validateIssuerAndAudience   = _validateIssuerAndAudience
 
 	authSkipExactPaths  = []string{"/health", "/metrics", "/v1/expertMode"}
-	authSkipPrefixPaths = []string{"/v1/expertMode/"}
+	authSkipPrefixPaths = []string{"/v1/expertMode/", "/v1beta/locations/"}
 )
 
 type googleClaims struct {
@@ -101,6 +101,8 @@ func AuthMiddleware(skipProjectNumberValidation bool) func(http.Handler) http.Ha
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if shouldSkipAuthPath(r.URL.Path) {
+				ctx := context.WithValue(r.Context(), utilsmiddleware.HeaderContextKey, r.Header)
+				r = r.WithContext(ctx)
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -172,11 +174,11 @@ func BatchAuthenticatedGCP(req *http.Request, handler func() middleware.Responde
 		token, err = jwtParseWithClaims(authorizationHeader, &googleClaims{}, jwtKeyFunc)
 	}
 	if err != nil {
-		slogger.Error("Authentication failure", err)
+		slogger.Error("Authentication failure", "error", err)
 		return &authenticationResponderGCP{code: http.StatusUnauthorized, message: "Authentication failure"}
 	}
 	if token == nil || !token.Valid {
-		slogger.Error("Authentication failure", "Received a nil token after parsing")
+		slogger.Error("Authentication failure", "error", "Received a nil token after parsing")
 		return &authenticationResponderGCP{code: http.StatusUnauthorized, message: "Authentication failure"}
 	}
 

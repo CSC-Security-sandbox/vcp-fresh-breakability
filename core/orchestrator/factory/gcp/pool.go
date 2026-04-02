@@ -680,6 +680,31 @@ func (o *GCPOrchestrator) GetMultiplePools(ctx context.Context, accountName stri
 	return convertDatastorePoolsToModel(pools, account.Name), nil
 }
 
+// GetPoolsByUUIDs returns pools matching the given UUIDs across all accounts.
+func (o *GCPOrchestrator) GetPoolsByUUIDs(ctx context.Context, poolUUIDs []string, opts commonparams.PoolFetchOptions) ([]*models.Pool, error) {
+	se := o.storage
+
+	filter := utils2.CreateFilterWithConditions(
+		utils2.NewFilterCondition("uuid", "in", poolUUIDs))
+
+	preloadOpts := database.PoolPreloadOptions{
+		KmsConfig:       opts.NeedKmsConfig,
+		ActiveDirectory: opts.NeedActiveDirectory,
+	}
+	pools, err := se.ListPoolsSelective(ctx, filter, preloadOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	if opts.NeedExpertModeCapacity {
+		if err = enrichPoolsWithExpertModeCapacity(ctx, se, pools); err != nil {
+			return nil, err
+		}
+	}
+
+	return convertDatastorePoolsToModelWithoutAccountNameParam(pools), nil
+}
+
 // GetPoolByVendorID retrieves a pool by its VendorID.
 func (o *GCPOrchestrator) GetPoolByVendorID(ctx context.Context, vendorID string, accountName string) (*models.Pool, error) {
 	se := o.storage

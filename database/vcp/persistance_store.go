@@ -443,6 +443,10 @@ func (s *PersistenceStore) ListPools(ctx context.Context, filter *dbutils.Filter
 	return s.dataStore.ListPools(ctx, filter)
 }
 
+func (s *PersistenceStore) ListPoolsSelective(ctx context.Context, filter *dbutils.Filter, opts PoolPreloadOptions) ([]*datamodel.PoolView, error) {
+	return s.dataStore.ListPoolsSelective(ctx, filter, opts)
+}
+
 func (s *PersistenceStore) ListPoolsWithFilterAndPaginationOrderedByUUID(ctx context.Context, filter *dbutils.Filter, pagination *dbutils.Pagination) ([]*datamodel.PoolView, error) {
 	return s.dataStore.ListPoolsWithFilterAndPaginationOrderedByUUID(ctx, filter, pagination)
 }

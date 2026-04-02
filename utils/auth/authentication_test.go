@@ -577,8 +577,10 @@ func TestValidateProjectNumber(t *testing.T) {
 
 func TestAuthMiddleware_BypassForHealthAndMetrics(t *testing.T) {
 	called := false
+	var capturedHeaders http.Header
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		called = true
+		capturedHeaders, _ = r.Context().Value(utilsmiddleware.HeaderContextKey).(http.Header)
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -592,12 +594,16 @@ func TestAuthMiddleware_BypassForHealthAndMetrics(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
 			called = false
+			capturedHeaders = nil
 			req := httptest.NewRequest("GET", tt.path, nil)
+			req.Header.Set("Authorization", "Bearer test-token")
 			rr := httptest.NewRecorder()
 			handler := AuthMiddleware(true)(next)
 			handler.ServeHTTP(rr, req)
 			assert.True(t, called, "Handler should be called for %s", tt.path)
 			assert.Equal(t, http.StatusOK, rr.Code)
+			assert.NotNil(t, capturedHeaders, "Headers should be injected into context for %s", tt.path)
+			assert.Equal(t, "Bearer test-token", capturedHeaders.Get("Authorization"))
 		})
 	}
 }
@@ -927,6 +933,52 @@ func TestAuthMiddleware_DoesNotBypassForNonExpertModePaths(t *testing.T) {
 			handler := AuthMiddleware(true)(next)
 			handler.ServeHTTP(rr, req)
 			t.Errorf("Handler should not return normally for %s", tt.path)
+		})
+	}
+}
+
+func TestAuthMiddleware_BypassPathsInjectHeaders(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+	}{
+		{
+			name: "batch pool endpoint",
+			path: "/v1beta/locations/us-central1-a/batch/pools",
+		},
+		{
+			name: "v1beta locations prefix",
+			path: "/v1beta/locations/us-east1/some/other/path",
+		},
+		{
+			name: "expert mode sub-path",
+			path: "/v1/expertMode/projects/123/locations/us-east1/volumes",
+		},
+		{
+			name: "health endpoint",
+			path: "/health",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var capturedHeaders http.Header
+			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				capturedHeaders, _ = r.Context().Value(utilsmiddleware.HeaderContextKey).(http.Header)
+				w.WriteHeader(http.StatusOK)
+			})
+
+			req := httptest.NewRequest("POST", tt.path, nil)
+			req.Header.Set("Authorization", "Bearer my-jwt")
+			req.Header.Set("X-Correlation-ID", "test-corr-id")
+			rr := httptest.NewRecorder()
+			handler := AuthMiddleware(false)(next)
+			handler.ServeHTTP(rr, req)
+
+			assert.Equal(t, http.StatusOK, rr.Code)
+			assert.NotNil(t, capturedHeaders, "Headers should be injected into context for skipped path %s", tt.path)
+			assert.Equal(t, "Bearer my-jwt", capturedHeaders.Get("Authorization"))
+			assert.Equal(t, "test-corr-id", capturedHeaders.Get("X-Correlation-ID"))
 		})
 	}
 }

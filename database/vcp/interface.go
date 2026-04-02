@@ -51,6 +51,9 @@ type (
 		GetPoolByID(ctx context.Context, poolID int64) (*datamodel.Pool, error)
 		GetPoolStateByUUID(ctx context.Context, poolUUID string) (string, error)
 		ListPools(ctx context.Context, filter *dbutils.Filter) ([]*datamodel.PoolView, error)
+		// ListPoolsSelective fetches pools matching filter and only preloads relations requested via opts,
+		// avoiding extra DB round-trips for callers that need only a subset of fields.
+		ListPoolsSelective(ctx context.Context, filter *dbutils.Filter, opts PoolPreloadOptions) ([]*datamodel.PoolView, error)
 		// ListPoolsWithFilterAndPaginationOrderedByUUID returns non-deleted pools matching the filter with limit/offset, ordered by uuid for stable pagination (cert/password rotation).
 		ListPoolsWithFilterAndPaginationOrderedByUUID(ctx context.Context, filter *dbutils.Filter, pagination *dbutils.Pagination) ([]*datamodel.PoolView, error)
 		// ListPoolsWithPagination includes deleted pools as well, it's using unscoped for fetching all pools.

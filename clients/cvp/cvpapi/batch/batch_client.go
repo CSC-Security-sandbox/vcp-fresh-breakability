@@ -222,9 +222,9 @@ func (a *Client) V1betaBatchListKmsConfigs(params *V1betaBatchListKmsConfigsPara
 }
 
 /*
-V1betaBatchListPools batches lists all pools with the given u UI ds
+V1betaBatchListPools batches list all pools with the given u UI ds
 
-Batch lists all pools with the given UUIDs
+Batch list all pools with the given UUIDs
 */
 func (a *Client) V1betaBatchListPools(params *V1betaBatchListPoolsParams) (*V1betaBatchListPoolsOK, error) {
 	// TODO: Validate the params before sending

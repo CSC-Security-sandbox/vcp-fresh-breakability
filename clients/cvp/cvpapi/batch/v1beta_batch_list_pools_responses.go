@@ -8,9 +8,12 @@ package batch
 import (
 	"fmt"
 	"io"
+	"strconv"
 
+	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
@@ -76,21 +79,23 @@ V1betaBatchListPoolsOK handles this case with default header values.
 OK
 */
 type V1betaBatchListPoolsOK struct {
-	Payload []*models.BatchPoolV1beta
+	Payload *V1betaBatchListPoolsOKBody
 }
 
 func (o *V1betaBatchListPoolsOK) Error() string {
 	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/pools][%d] v1betaBatchListPoolsOK  %+v", 200, o.Payload)
 }
 
-func (o *V1betaBatchListPoolsOK) GetPayload() []*models.BatchPoolV1beta {
+func (o *V1betaBatchListPoolsOK) GetPayload() *V1betaBatchListPoolsOKBody {
 	return o.Payload
 }
 
 func (o *V1betaBatchListPoolsOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
+	o.Payload = new(V1betaBatchListPoolsOKBody)
+
 	// response payload
-	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
 		return err
 	}
 
@@ -273,5 +278,105 @@ func (o *V1betaBatchListPoolsDefault) readResponse(response runtime.ClientRespon
 		return err
 	}
 
+	return nil
+}
+
+/*
+V1betaBatchListPoolsOKBody v1beta batch list pools o k body
+swagger:model V1betaBatchListPoolsOKBody
+*/
+type V1betaBatchListPoolsOKBody struct {
+
+	// pools
+	Pools []*models.BatchPoolV1beta `json:"pools"`
+}
+
+// UnmarshalJSON unmarshals this object from a JSON structure
+func (o *V1betaBatchListPoolsOKBody) UnmarshalJSON(raw []byte) error {
+	// V1betaBatchListPoolsOKBodyAO0
+	var dataV1betaBatchListPoolsOKBodyAO0 struct {
+		Pools []*models.BatchPoolV1beta `json:"pools"`
+	}
+	if err := swag.ReadJSON(raw, &dataV1betaBatchListPoolsOKBodyAO0); err != nil {
+		return err
+	}
+
+	o.Pools = dataV1betaBatchListPoolsOKBodyAO0.Pools
+
+	return nil
+}
+
+// MarshalJSON marshals this object to a JSON structure
+func (o V1betaBatchListPoolsOKBody) MarshalJSON() ([]byte, error) {
+	_parts := make([][]byte, 0, 1)
+
+	var dataV1betaBatchListPoolsOKBodyAO0 struct {
+		Pools []*models.BatchPoolV1beta `json:"pools"`
+	}
+
+	dataV1betaBatchListPoolsOKBodyAO0.Pools = o.Pools
+
+	jsonDataV1betaBatchListPoolsOKBodyAO0, errV1betaBatchListPoolsOKBodyAO0 := swag.WriteJSON(dataV1betaBatchListPoolsOKBodyAO0)
+	if errV1betaBatchListPoolsOKBodyAO0 != nil {
+		return nil, errV1betaBatchListPoolsOKBodyAO0
+	}
+	_parts = append(_parts, jsonDataV1betaBatchListPoolsOKBodyAO0)
+	return swag.ConcatJSON(_parts...), nil
+}
+
+// Validate validates this v1beta batch list pools o k body
+func (o *V1betaBatchListPoolsOKBody) Validate(formats strfmt.Registry) error {
+	var res []error
+
+	if err := o.validatePools(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (o *V1betaBatchListPoolsOKBody) validatePools(formats strfmt.Registry) error {
+
+	if swag.IsZero(o.Pools) { // not required
+		return nil
+	}
+
+	for i := 0; i < len(o.Pools); i++ {
+		if swag.IsZero(o.Pools[i]) { // not required
+			continue
+		}
+
+		if o.Pools[i] != nil {
+			if err := o.Pools[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("v1betaBatchListPoolsOK" + "." + "pools" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+// MarshalBinary interface implementation
+func (o *V1betaBatchListPoolsOKBody) MarshalBinary() ([]byte, error) {
+	if o == nil {
+		return nil, nil
+	}
+	return swag.WriteJSON(o)
+}
+
+// UnmarshalBinary interface implementation
+func (o *V1betaBatchListPoolsOKBody) UnmarshalBinary(b []byte) error {
+	var res V1betaBatchListPoolsOKBody
+	if err := swag.ReadJSON(b, &res); err != nil {
+		return err
+	}
+	*o = res
 	return nil
 }

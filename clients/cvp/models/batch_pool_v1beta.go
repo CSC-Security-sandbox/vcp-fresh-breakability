@@ -7,6 +7,7 @@ package models
 
 import (
 	"encoding/json"
+	"strconv"
 
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
@@ -19,7 +20,7 @@ import (
 // swagger:model BatchPool_v1beta
 type BatchPoolV1beta struct {
 
-	// UUID of Active Directory configuration
+	// Uuid of Active Directory configuration
 	// Max Length: 36
 	// Min Length: 36
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
@@ -27,7 +28,7 @@ type BatchPoolV1beta struct {
 
 	// activeDirectoryResourceId
 	//
-	// The resource ID for the connected Active Directory
+	// The resource Id for the connected Active Directory
 	// Read Only: true
 	ActiveDirectoryResourceID *string `json:"activeDirectoryResourceId,omitempty"`
 
@@ -37,27 +38,90 @@ type BatchPoolV1beta struct {
 	// Read Only: true
 	AllocatedBytes *float64 `json:"allocatedBytes,omitempty"`
 
-	// created
+	// allowAutoTiering
+	//
+	// Flag indicating if the pool supports auto tiering enabled volumes or not.
+	AllowAutoTiering *bool `json:"allowAutoTiering,omitempty"`
+
+	// asset location metadata
+	AssetLocationMetadata *BatchPoolV1betaAssetLocationMetadata `json:"assetLocationMetadata,omitempty"`
+
+	// availableThroughputMibps
+	//
+	// Throughput available for the volumes in MiBps
+	// Read Only: true
+	AvailableThroughputMibps *float64 `json:"availableThroughputMibps,omitempty"`
+
+	// billingLabels
+	//
+	// Billing labels
+	BillingLabels map[string]string `json:"billingLabels,omitempty"`
+
+	// coldTierConsumption
+	//
+	// Total StoragePool Coldtier usages.
+	// Read Only: true
+	ColdTierConsumption *int64 `json:"coldTierConsumption,omitempty"`
+
+	// createdAt
 	//
 	// Creation date of the resource
 	// Read Only: true
 	// Format: date-time
-	Created *strfmt.DateTime `json:"created,omitempty"`
+	CreatedAt *strfmt.DateTime `json:"createdAt,omitempty"`
+
+	// customPerformanceEnabled
+	//
+	// Flag indicating if the custom performance is enabled for the pool.
+	CustomPerformanceEnabled *bool `json:"customPerformanceEnabled,omitempty"`
+
+	// deletedAt
+	//
+	// Date the resource was deleted
+	// Read Only: true
+	// Format: date-time
+	DeletedAt *strfmt.DateTime `json:"deletedAt,omitempty"`
 
 	// description
 	//
-	// Description of the volume.
+	// Description of the pool
 	// Max Length: 2048
-	Description string `json:"description,omitempty"`
+	Description *string `json:"description,omitempty"`
+
+	// enableHotTierAutoResize
+	//
+	// Flag indicating if the pool supports hot-tier resize on reaching the hot-tier threshold (not valid for FLEX)
+	EnableHotTierAutoResize *bool `json:"enableHotTierAutoResize,omitempty"`
 
 	// encryptionType
 	//
-	// Type of encryption used for volumes; Can either be service managed key (service_managed) or cloud_kms
+	// Type of encryption used for pool, Can either service managed key (service_managed) or cloud_kms
 	// Read Only: true
-	// Enum: [ENCRYPTION_TYPE_UNSPECIFIED SERVICE_MANAGED CLOUD_KMS]
-	EncryptionType string `json:"encryptionType,omitempty"`
+	// Enum: [SERVICE_MANAGED CLOUD_KMS]
+	EncryptionType *string `json:"encryptionType,omitempty"`
 
-	// UUID of the key to be used for encryption.
+	// globalAccessAllowed
+	//
+	// Flag indicating the enablement of global access on the load balancers
+	GlobalAccessAllowed *bool `json:"globalAccessAllowed,omitempty"`
+
+	// hotTierConsumption
+	//
+	// Total StoragePool Hottier usages.
+	// Read Only: true
+	HotTierConsumption *int64 `json:"hotTierConsumption,omitempty"`
+
+	// hotTierSizeInBytes
+	//
+	// Hot-tier size of the pool (in bytes) if auto-tiering is enabled (valid only for FLEX)
+	HotTierSizeInBytes *float64 `json:"hotTierSizeInBytes,omitempty"`
+
+	// isHyperdiskAvailable
+	//
+	// Flag indicating if region has C4/hyperdisk machines.
+	IsHyperdiskAvailable *bool `json:"isHyperdiskAvailable,omitempty"`
+
+	// Uuid of the key to be used for encryption.
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
@@ -66,51 +130,153 @@ type BatchPoolV1beta struct {
 
 	// kmsConfigResourceId
 	//
-	// The resource ID for the connected KMS configuration
+	// The resource Id for the connected KMS configuration
 	// Read Only: true
 	KmsConfigResourceID *string `json:"kmsConfigResourceId,omitempty"`
+
+	// labels
+	//
+	// JSON dictionary of resource labels to allow linking of billing labels to a pool
+	Labels map[string]string `json:"labels,omitempty"`
+
+	// largeCapacity
+	//
+	// Indicates if the pool is a large capacity pool
+	LargeCapacity *bool `json:"largeCapacity,omitempty"`
+
+	// ldapEnabled
+	//
+	// Flag indicating if the pool supports LDAP enabled volumes or not.
+	LdapEnabled *bool `json:"ldapEnabled,omitempty"`
+
+	// managedPool
+	//
+	// Whether the pool is managed
+	ManagedPool *bool `json:"managedPool,omitempty"`
+
+	// mode
+	//
+	// Flag indicating if the pool supports expert mode
+	// Enum: [MODE_UNSPECIFIED DEFAULT ONTAP]
+	Mode *string `json:"mode,omitempty"`
+
+	// network
+	//
+	// Servicenetworking.connections.network value that is returned after creating a successful VPC peering connection via the GCP service-networking API
+	// Pattern: ^projects\/\d+\/global\/networks\/(![0-9]+$)?(!.*-$)?(!-)?[a-zA-Z0-9-]{1,63}$
+	Network *string `json:"network,omitempty"`
 
 	// numberOfVolumes
 	//
 	// Number of volumes in a pool
 	// Read Only: true
-	NumberOfVolumes *int64 `json:"numberOfVolumes,omitempty"`
+	NumberOfVolumes *int32 `json:"numberOfVolumes,omitempty"`
 
 	// poolId
 	//
-	// UUID v4 used to identify a resource - PoolID, netapp_uuid
+	// Uuid v4 used to identify the pool
 	// Read Only: true
 	// Max Length: 36
 	// Min Length: 36
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
-	PoolID string `json:"poolId,omitempty"`
+	PoolID *string `json:"poolId,omitempty"`
 
-	// The current lifecycle state of the pool
-	// Read Only: true
-	PoolState string `json:"poolState,omitempty"`
-
-	// poolStateDetails
+	// qosType
 	//
-	// Details about the current lifecycle state
+	// The type of QoS for the pool
+	QosType *string `json:"qosType,omitempty"`
+
+	// region
+	//
+	// The region name of the pool
 	// Read Only: true
-	PoolStateDetails *string `json:"poolStateDetails,omitempty"`
+	Region *string `json:"region,omitempty"`
 
 	// resourceId
 	//
-	// The resource ID of the pool.
-	// Read Only: true
+	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum
+	// Max Length: 63
+	// Pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
 	ResourceID *string `json:"resourceId,omitempty"`
+
+	// satisfies_pzi
+	//
+	// Flag indicating if the pool satisfies zonal isolation
+	// Read Only: true
+	SatisfiesPzi *bool `json:"satisfies_pzi,omitempty"`
+
+	// satisfies_pzs
+	//
+	// Flag indicating if the pool satisfies zonal separation
+	// Read Only: true
+	SatisfiesPzs *bool `json:"satisfies_pzs,omitempty"`
+
+	// secondaryZone
+	//
+	// The desired zone for the failover.
+	SecondaryZone *string `json:"secondaryZone,omitempty"`
 
 	// serviceLevel
 	//
-	// The service level of the pool
-	// Read Only: true
-	ServiceLevel string `json:"serviceLevel,omitempty"`
+	// The service level of the storage pool can either be premium, standard, flex or extreme.
+	// Enum: [SERVICE_LEVEL_UNSPECIFIED FLEX STANDARD PREMIUM EXTREME]
+	ServiceLevel *string `json:"serviceLevel,omitempty"`
 
 	// size
 	//
 	// Size of the pool in bytes
+	// Multiple Of: 1.073741824e+09
 	SizeInBytes *float64 `json:"sizeInBytes,omitempty"`
+
+	// storageClass
+	//
+	// Storage class of the pool.
+	// Enum: [STORAGE_CLASS_UNSPECIFIED SOFTWARE HARDWARE]
+	StorageClass *string `json:"storageClass,omitempty"`
+
+	// The current lifecycle state of the resource. DEGRADED state is applicable only in case of Flex UNIFIED pools.
+	// Read Only: true
+	// Enum: [STATE_UNSPECIFIED CREATING READY UPDATING RESTORING DISABLED DELETED DELETING ERROR DEGRADED]
+	StoragePoolState *string `json:"storagePoolState,omitempty"`
+
+	// storagePoolStateDetails
+	//
+	// Details about the current lifecycle state
+	// Read Only: true
+	StoragePoolStateDetails *string `json:"storagePoolStateDetails,omitempty"`
+
+	// totalIops
+	//
+	// The total iops set for a pool.
+	TotalIops *float64 `json:"totalIops,omitempty"`
+
+	// totalThroughputMibps
+	//
+	// Total throughput of the pool in MiBps
+	TotalThroughputMibps *float64 `json:"totalThroughputMibps,omitempty"`
+
+	// type
+	//
+	// The type of storage pool. STORAGE_POOL_TYPE_UNSPECIFIED is the default value and should not be used. STANDARD represents the classic/legacy storage pool. UNIFIED represents the VSA-based storage pool.
+	// Enum: [STORAGE_POOL_TYPE_UNSPECIFIED FILE UNIFIED]
+	Type *string `json:"type,omitempty"`
+
+	// unifiedPool
+	//
+	// Indicates if the pool type is unified (deprecated, use 'type' field instead)
+	UnifiedPool *bool `json:"unifiedPool,omitempty"`
+
+	// updatedAt
+	//
+	// Date of last update of the resource
+	// Read Only: true
+	// Format: date-time
+	UpdatedAt *strfmt.DateTime `json:"updatedAt,omitempty"`
+
+	// zone
+	//
+	// The desired zone for the storage pool.
+	Zone *string `json:"zone,omitempty"`
 }
 
 // Validate validates this batch pool v1beta
@@ -121,7 +287,15 @@ func (m *BatchPoolV1beta) Validate(formats strfmt.Registry) error {
 		res = append(res, err)
 	}
 
-	if err := m.validateCreated(formats); err != nil {
+	if err := m.validateAssetLocationMetadata(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateCreatedAt(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateDeletedAt(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -137,7 +311,43 @@ func (m *BatchPoolV1beta) Validate(formats strfmt.Registry) error {
 		res = append(res, err)
 	}
 
+	if err := m.validateMode(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateNetwork(formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.validatePoolID(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateResourceID(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateServiceLevel(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateSizeInBytes(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateStorageClass(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateStoragePoolState(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateType(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateUpdatedAt(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -168,13 +378,44 @@ func (m *BatchPoolV1beta) validateActiveDirectoryConfigID(formats strfmt.Registr
 	return nil
 }
 
-func (m *BatchPoolV1beta) validateCreated(formats strfmt.Registry) error {
+func (m *BatchPoolV1beta) validateAssetLocationMetadata(formats strfmt.Registry) error {
 
-	if swag.IsZero(m.Created) { // not required
+	if swag.IsZero(m.AssetLocationMetadata) { // not required
 		return nil
 	}
 
-	if err := validate.FormatOf("created", "body", "date-time", m.Created.String(), formats); err != nil {
+	if m.AssetLocationMetadata != nil {
+		if err := m.AssetLocationMetadata.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("assetLocationMetadata")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *BatchPoolV1beta) validateCreatedAt(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.CreatedAt) { // not required
+		return nil
+	}
+
+	if err := validate.FormatOf("createdAt", "body", "date-time", m.CreatedAt.String(), formats); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *BatchPoolV1beta) validateDeletedAt(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.DeletedAt) { // not required
+		return nil
+	}
+
+	if err := validate.FormatOf("deletedAt", "body", "date-time", m.DeletedAt.String(), formats); err != nil {
 		return err
 	}
 
@@ -187,7 +428,7 @@ func (m *BatchPoolV1beta) validateDescription(formats strfmt.Registry) error {
 		return nil
 	}
 
-	if err := validate.MaxLength("description", "body", string(m.Description), 2048); err != nil {
+	if err := validate.MaxLength("description", "body", string(*m.Description), 2048); err != nil {
 		return err
 	}
 
@@ -198,7 +439,7 @@ var batchPoolV1betaTypeEncryptionTypePropEnum []interface{}
 
 func init() {
 	var res []string
-	if err := json.Unmarshal([]byte(`["ENCRYPTION_TYPE_UNSPECIFIED","SERVICE_MANAGED","CLOUD_KMS"]`), &res); err != nil {
+	if err := json.Unmarshal([]byte(`["SERVICE_MANAGED","CLOUD_KMS"]`), &res); err != nil {
 		panic(err)
 	}
 	for _, v := range res {
@@ -207,9 +448,6 @@ func init() {
 }
 
 const (
-
-	// BatchPoolV1betaEncryptionTypeENCRYPTIONTYPEUNSPECIFIED captures enum value "ENCRYPTION_TYPE_UNSPECIFIED"
-	BatchPoolV1betaEncryptionTypeENCRYPTIONTYPEUNSPECIFIED string = "ENCRYPTION_TYPE_UNSPECIFIED"
 
 	// BatchPoolV1betaEncryptionTypeSERVICEMANAGED captures enum value "SERVICE_MANAGED"
 	BatchPoolV1betaEncryptionTypeSERVICEMANAGED string = "SERVICE_MANAGED"
@@ -233,7 +471,7 @@ func (m *BatchPoolV1beta) validateEncryptionType(formats strfmt.Registry) error 
 	}
 
 	// value enum
-	if err := m.validateEncryptionTypeEnum("encryptionType", "body", m.EncryptionType); err != nil {
+	if err := m.validateEncryptionTypeEnum("encryptionType", "body", *m.EncryptionType); err != nil {
 		return err
 	}
 
@@ -261,21 +499,334 @@ func (m *BatchPoolV1beta) validateKmsConfigID(formats strfmt.Registry) error {
 	return nil
 }
 
+var batchPoolV1betaTypeModePropEnum []interface{}
+
+func init() {
+	var res []string
+	if err := json.Unmarshal([]byte(`["MODE_UNSPECIFIED","DEFAULT","ONTAP"]`), &res); err != nil {
+		panic(err)
+	}
+	for _, v := range res {
+		batchPoolV1betaTypeModePropEnum = append(batchPoolV1betaTypeModePropEnum, v)
+	}
+}
+
+const (
+
+	// BatchPoolV1betaModeMODEUNSPECIFIED captures enum value "MODE_UNSPECIFIED"
+	BatchPoolV1betaModeMODEUNSPECIFIED string = "MODE_UNSPECIFIED"
+
+	// BatchPoolV1betaModeDEFAULT captures enum value "DEFAULT"
+	BatchPoolV1betaModeDEFAULT string = "DEFAULT"
+
+	// BatchPoolV1betaModeONTAP captures enum value "ONTAP"
+	BatchPoolV1betaModeONTAP string = "ONTAP"
+)
+
+// prop value enum
+func (m *BatchPoolV1beta) validateModeEnum(path, location string, value string) error {
+	if err := validate.EnumCase(path, location, value, batchPoolV1betaTypeModePropEnum, true); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *BatchPoolV1beta) validateMode(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.Mode) { // not required
+		return nil
+	}
+
+	// value enum
+	if err := m.validateModeEnum("mode", "body", *m.Mode); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *BatchPoolV1beta) validateNetwork(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.Network) { // not required
+		return nil
+	}
+
+	if err := validate.Pattern("network", "body", string(*m.Network), `^projects\/\d+\/global\/networks\/(![0-9]+$)?(!.*-$)?(!-)?[a-zA-Z0-9-]{1,63}$`); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (m *BatchPoolV1beta) validatePoolID(formats strfmt.Registry) error {
 
 	if swag.IsZero(m.PoolID) { // not required
 		return nil
 	}
 
-	if err := validate.MinLength("poolId", "body", string(m.PoolID), 36); err != nil {
+	if err := validate.MinLength("poolId", "body", string(*m.PoolID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.MaxLength("poolId", "body", string(m.PoolID), 36); err != nil {
+	if err := validate.MaxLength("poolId", "body", string(*m.PoolID), 36); err != nil {
 		return err
 	}
 
-	if err := validate.Pattern("poolId", "body", string(m.PoolID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+	if err := validate.Pattern("poolId", "body", string(*m.PoolID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *BatchPoolV1beta) validateResourceID(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.ResourceID) { // not required
+		return nil
+	}
+
+	if err := validate.MaxLength("resourceId", "body", string(*m.ResourceID), 63); err != nil {
+		return err
+	}
+
+	if err := validate.Pattern("resourceId", "body", string(*m.ResourceID), `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+var batchPoolV1betaTypeServiceLevelPropEnum []interface{}
+
+func init() {
+	var res []string
+	if err := json.Unmarshal([]byte(`["SERVICE_LEVEL_UNSPECIFIED","FLEX","STANDARD","PREMIUM","EXTREME"]`), &res); err != nil {
+		panic(err)
+	}
+	for _, v := range res {
+		batchPoolV1betaTypeServiceLevelPropEnum = append(batchPoolV1betaTypeServiceLevelPropEnum, v)
+	}
+}
+
+const (
+
+	// BatchPoolV1betaServiceLevelSERVICELEVELUNSPECIFIED captures enum value "SERVICE_LEVEL_UNSPECIFIED"
+	BatchPoolV1betaServiceLevelSERVICELEVELUNSPECIFIED string = "SERVICE_LEVEL_UNSPECIFIED"
+
+	// BatchPoolV1betaServiceLevelFLEX captures enum value "FLEX"
+	BatchPoolV1betaServiceLevelFLEX string = "FLEX"
+
+	// BatchPoolV1betaServiceLevelSTANDARD captures enum value "STANDARD"
+	BatchPoolV1betaServiceLevelSTANDARD string = "STANDARD"
+
+	// BatchPoolV1betaServiceLevelPREMIUM captures enum value "PREMIUM"
+	BatchPoolV1betaServiceLevelPREMIUM string = "PREMIUM"
+
+	// BatchPoolV1betaServiceLevelEXTREME captures enum value "EXTREME"
+	BatchPoolV1betaServiceLevelEXTREME string = "EXTREME"
+)
+
+// prop value enum
+func (m *BatchPoolV1beta) validateServiceLevelEnum(path, location string, value string) error {
+	if err := validate.EnumCase(path, location, value, batchPoolV1betaTypeServiceLevelPropEnum, true); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *BatchPoolV1beta) validateServiceLevel(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.ServiceLevel) { // not required
+		return nil
+	}
+
+	// value enum
+	if err := m.validateServiceLevelEnum("serviceLevel", "body", *m.ServiceLevel); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *BatchPoolV1beta) validateSizeInBytes(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.SizeInBytes) { // not required
+		return nil
+	}
+
+	if err := validate.MultipleOf("sizeInBytes", "body", float64(*m.SizeInBytes), 1.073741824e+09); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+var batchPoolV1betaTypeStorageClassPropEnum []interface{}
+
+func init() {
+	var res []string
+	if err := json.Unmarshal([]byte(`["STORAGE_CLASS_UNSPECIFIED","SOFTWARE","HARDWARE"]`), &res); err != nil {
+		panic(err)
+	}
+	for _, v := range res {
+		batchPoolV1betaTypeStorageClassPropEnum = append(batchPoolV1betaTypeStorageClassPropEnum, v)
+	}
+}
+
+const (
+
+	// BatchPoolV1betaStorageClassSTORAGECLASSUNSPECIFIED captures enum value "STORAGE_CLASS_UNSPECIFIED"
+	BatchPoolV1betaStorageClassSTORAGECLASSUNSPECIFIED string = "STORAGE_CLASS_UNSPECIFIED"
+
+	// BatchPoolV1betaStorageClassSOFTWARE captures enum value "SOFTWARE"
+	BatchPoolV1betaStorageClassSOFTWARE string = "SOFTWARE"
+
+	// BatchPoolV1betaStorageClassHARDWARE captures enum value "HARDWARE"
+	BatchPoolV1betaStorageClassHARDWARE string = "HARDWARE"
+)
+
+// prop value enum
+func (m *BatchPoolV1beta) validateStorageClassEnum(path, location string, value string) error {
+	if err := validate.EnumCase(path, location, value, batchPoolV1betaTypeStorageClassPropEnum, true); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *BatchPoolV1beta) validateStorageClass(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.StorageClass) { // not required
+		return nil
+	}
+
+	// value enum
+	if err := m.validateStorageClassEnum("storageClass", "body", *m.StorageClass); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+var batchPoolV1betaTypeStoragePoolStatePropEnum []interface{}
+
+func init() {
+	var res []string
+	if err := json.Unmarshal([]byte(`["STATE_UNSPECIFIED","CREATING","READY","UPDATING","RESTORING","DISABLED","DELETED","DELETING","ERROR","DEGRADED"]`), &res); err != nil {
+		panic(err)
+	}
+	for _, v := range res {
+		batchPoolV1betaTypeStoragePoolStatePropEnum = append(batchPoolV1betaTypeStoragePoolStatePropEnum, v)
+	}
+}
+
+const (
+
+	// BatchPoolV1betaStoragePoolStateSTATEUNSPECIFIED captures enum value "STATE_UNSPECIFIED"
+	BatchPoolV1betaStoragePoolStateSTATEUNSPECIFIED string = "STATE_UNSPECIFIED"
+
+	// BatchPoolV1betaStoragePoolStateCREATING captures enum value "CREATING"
+	BatchPoolV1betaStoragePoolStateCREATING string = "CREATING"
+
+	// BatchPoolV1betaStoragePoolStateREADY captures enum value "READY"
+	BatchPoolV1betaStoragePoolStateREADY string = "READY"
+
+	// BatchPoolV1betaStoragePoolStateUPDATING captures enum value "UPDATING"
+	BatchPoolV1betaStoragePoolStateUPDATING string = "UPDATING"
+
+	// BatchPoolV1betaStoragePoolStateRESTORING captures enum value "RESTORING"
+	BatchPoolV1betaStoragePoolStateRESTORING string = "RESTORING"
+
+	// BatchPoolV1betaStoragePoolStateDISABLED captures enum value "DISABLED"
+	BatchPoolV1betaStoragePoolStateDISABLED string = "DISABLED"
+
+	// BatchPoolV1betaStoragePoolStateDELETED captures enum value "DELETED"
+	BatchPoolV1betaStoragePoolStateDELETED string = "DELETED"
+
+	// BatchPoolV1betaStoragePoolStateDELETING captures enum value "DELETING"
+	BatchPoolV1betaStoragePoolStateDELETING string = "DELETING"
+
+	// BatchPoolV1betaStoragePoolStateERROR captures enum value "ERROR"
+	BatchPoolV1betaStoragePoolStateERROR string = "ERROR"
+
+	// BatchPoolV1betaStoragePoolStateDEGRADED captures enum value "DEGRADED"
+	BatchPoolV1betaStoragePoolStateDEGRADED string = "DEGRADED"
+)
+
+// prop value enum
+func (m *BatchPoolV1beta) validateStoragePoolStateEnum(path, location string, value string) error {
+	if err := validate.EnumCase(path, location, value, batchPoolV1betaTypeStoragePoolStatePropEnum, true); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *BatchPoolV1beta) validateStoragePoolState(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.StoragePoolState) { // not required
+		return nil
+	}
+
+	// value enum
+	if err := m.validateStoragePoolStateEnum("storagePoolState", "body", *m.StoragePoolState); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+var batchPoolV1betaTypeTypePropEnum []interface{}
+
+func init() {
+	var res []string
+	if err := json.Unmarshal([]byte(`["STORAGE_POOL_TYPE_UNSPECIFIED","FILE","UNIFIED"]`), &res); err != nil {
+		panic(err)
+	}
+	for _, v := range res {
+		batchPoolV1betaTypeTypePropEnum = append(batchPoolV1betaTypeTypePropEnum, v)
+	}
+}
+
+const (
+
+	// BatchPoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED captures enum value "STORAGE_POOL_TYPE_UNSPECIFIED"
+	BatchPoolV1betaTypeSTORAGEPOOLTYPEUNSPECIFIED string = "STORAGE_POOL_TYPE_UNSPECIFIED"
+
+	// BatchPoolV1betaTypeFILE captures enum value "FILE"
+	BatchPoolV1betaTypeFILE string = "FILE"
+
+	// BatchPoolV1betaTypeUNIFIED captures enum value "UNIFIED"
+	BatchPoolV1betaTypeUNIFIED string = "UNIFIED"
+)
+
+// prop value enum
+func (m *BatchPoolV1beta) validateTypeEnum(path, location string, value string) error {
+	if err := validate.EnumCase(path, location, value, batchPoolV1betaTypeTypePropEnum, true); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *BatchPoolV1beta) validateType(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.Type) { // not required
+		return nil
+	}
+
+	// value enum
+	if err := m.validateTypeEnum("type", "body", *m.Type); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *BatchPoolV1beta) validateUpdatedAt(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.UpdatedAt) { // not required
+		return nil
+	}
+
+	if err := validate.FormatOf("updatedAt", "body", "date-time", m.UpdatedAt.String(), formats); err != nil {
 		return err
 	}
 
@@ -293,6 +844,75 @@ func (m *BatchPoolV1beta) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary interface implementation
 func (m *BatchPoolV1beta) UnmarshalBinary(b []byte) error {
 	var res BatchPoolV1beta
+	if err := swag.ReadJSON(b, &res); err != nil {
+		return err
+	}
+	*m = res
+	return nil
+}
+
+// BatchPoolV1betaAssetLocationMetadata assetLocationMetadata
+//
+// # Location metadata
+//
+// swagger:model BatchPoolV1betaAssetLocationMetadata
+type BatchPoolV1betaAssetLocationMetadata struct {
+
+	// child_assets
+	// Read Only: true
+	ChildAssets []*ChildAsset `json:"child_assets"`
+}
+
+// Validate validates this batch pool v1beta asset location metadata
+func (m *BatchPoolV1betaAssetLocationMetadata) Validate(formats strfmt.Registry) error {
+	var res []error
+
+	if err := m.validateChildAssets(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (m *BatchPoolV1betaAssetLocationMetadata) validateChildAssets(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.ChildAssets) { // not required
+		return nil
+	}
+
+	for i := 0; i < len(m.ChildAssets); i++ {
+		if swag.IsZero(m.ChildAssets[i]) { // not required
+			continue
+		}
+
+		if m.ChildAssets[i] != nil {
+			if err := m.ChildAssets[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("assetLocationMetadata" + "." + "child_assets" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+// MarshalBinary interface implementation
+func (m *BatchPoolV1betaAssetLocationMetadata) MarshalBinary() ([]byte, error) {
+	if m == nil {
+		return nil, nil
+	}
+	return swag.WriteJSON(m)
+}
+
+// UnmarshalBinary interface implementation
+func (m *BatchPoolV1betaAssetLocationMetadata) UnmarshalBinary(b []byte) error {
+	var res BatchPoolV1betaAssetLocationMetadata
 	if err := swag.ReadJSON(b, &res); err != nil {
 		return err
 	}

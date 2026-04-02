@@ -987,6 +987,51 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 					}
 
+				case 'l': // Prefix: "locations/"
+
+					if l := len("locations/"); len(elem) >= l && elem[0:l] == "locations/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					// Param: "locationId"
+					// Match until "/"
+					idx := strings.IndexByte(elem, '/')
+					if idx < 0 {
+						idx = len(elem)
+					}
+					args[0] = elem[:idx]
+					elem = elem[idx:]
+
+					if len(elem) == 0 {
+						break
+					}
+					switch elem[0] {
+					case '/': // Prefix: "/batch/pools"
+
+						if l := len("/batch/pools"); len(elem) >= l && elem[0:l] == "/batch/pools" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch r.Method {
+							case "POST":
+								s.handleV1betaBatchListPoolsRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, "POST")
+							}
+
+							return
+						}
+
+					}
+
 				case 'p': // Prefix: "projects/"
 
 					if l := len("projects/"); len(elem) >= l && elem[0:l] == "projects/" {
@@ -3949,6 +3994,53 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 
 							}
 
+						}
+
+					}
+
+				case 'l': // Prefix: "locations/"
+
+					if l := len("locations/"); len(elem) >= l && elem[0:l] == "locations/" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					// Param: "locationId"
+					// Match until "/"
+					idx := strings.IndexByte(elem, '/')
+					if idx < 0 {
+						idx = len(elem)
+					}
+					args[0] = elem[:idx]
+					elem = elem[idx:]
+
+					if len(elem) == 0 {
+						break
+					}
+					switch elem[0] {
+					case '/': // Prefix: "/batch/pools"
+
+						if l := len("/batch/pools"); len(elem) >= l && elem[0:l] == "/batch/pools" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						if len(elem) == 0 {
+							// Leaf node.
+							switch method {
+							case "POST":
+								r.name = V1betaBatchListPoolsOperation
+								r.summary = "Batch lists all pools with the given UUIDs"
+								r.operationID = "v1beta_batchListPools"
+								r.pathPattern = "/v1beta/locations/{locationId}/batch/pools"
+								r.args = args
+								r.count = 1
+								return r, true
+							default:
+								return
+							}
 						}
 
 					}

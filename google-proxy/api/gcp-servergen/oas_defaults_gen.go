@@ -123,6 +123,34 @@ func (s *BackupV1beta) setDefaults() {
 }
 
 // setDefaults set default value of fields.
+func (s *BatchPoolV1beta) setDefaults() {
+	{
+		val := string("auto")
+		s.QosType.SetTo(val)
+	}
+	{
+		val := float64(2199023255552)
+		s.SizeInBytes.SetTo(val)
+	}
+	{
+		val := BatchPoolV1betaStorageClass("HARDWARE")
+		s.StorageClass.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.LdapEnabled.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.LargeCapacity.SetTo(val)
+	}
+	{
+		val := BatchPoolV1betaMode("DEFAULT")
+		s.Mode.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *CloneDetailsV1beta) setDefaults() {
 	{
 		val := float64(0)

@@ -264,6 +264,22 @@ func (re *retryEngine) ListPools(ctx context.Context, filter *dbutils.Filter) ([
 	return var0, err
 }
 
+func (re *retryEngine) ListPoolsSelective(ctx context.Context, filter *dbutils.Filter, opts PoolPreloadOptions) ([]*datamodel.PoolView, error) {
+	var var0 []*datamodel.PoolView
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListPoolsSelective(ctx, filter, opts)
+		if err != nil {
+			re.logError("ListPoolsSelective", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) ListPoolsWithFilterAndPaginationOrderedByUUID(ctx context.Context, filter *dbutils.Filter, pagination *dbutils.Pagination) ([]*datamodel.PoolView, error) {
 	var var0 []*datamodel.PoolView
 	err := retry.Do(func(attempt int) (bool, error) {

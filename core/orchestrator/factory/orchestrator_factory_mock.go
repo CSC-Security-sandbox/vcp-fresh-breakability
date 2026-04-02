@@ -5225,6 +5225,66 @@ func (_c *MockOrchestratorFactory_GetPoolByVendorID_Call) RunAndReturn(run func(
 	return _c
 }
 
+// GetPoolsByUUIDs provides a mock function with given fields: ctx, poolUUIDs, opts
+func (_m *MockOrchestratorFactory) GetPoolsByUUIDs(ctx context.Context, poolUUIDs []string, opts common.PoolFetchOptions) ([]*models.Pool, error) {
+	ret := _m.Called(ctx, poolUUIDs, opts)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetPoolsByUUIDs")
+	}
+
+	var r0 []*models.Pool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []string, common.PoolFetchOptions) ([]*models.Pool, error)); ok {
+		return rf(ctx, poolUUIDs, opts)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []string, common.PoolFetchOptions) []*models.Pool); ok {
+		r0 = rf(ctx, poolUUIDs, opts)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*models.Pool)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []string, common.PoolFetchOptions) error); ok {
+		r1 = rf(ctx, poolUUIDs, opts)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetPoolsByUUIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetPoolsByUUIDs'
+type MockOrchestratorFactory_GetPoolsByUUIDs_Call struct {
+	*mock.Call
+}
+
+// GetPoolsByUUIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - poolUUIDs []string
+//   - opts common.PoolFetchOptions
+func (_e *MockOrchestratorFactory_Expecter) GetPoolsByUUIDs(ctx interface{}, poolUUIDs interface{}, opts interface{}) *MockOrchestratorFactory_GetPoolsByUUIDs_Call {
+	return &MockOrchestratorFactory_GetPoolsByUUIDs_Call{Call: _e.mock.On("GetPoolsByUUIDs", ctx, poolUUIDs, opts)}
+}
+
+func (_c *MockOrchestratorFactory_GetPoolsByUUIDs_Call) Run(run func(ctx context.Context, poolUUIDs []string, opts common.PoolFetchOptions)) *MockOrchestratorFactory_GetPoolsByUUIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]string), args[2].(common.PoolFetchOptions))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetPoolsByUUIDs_Call) Return(_a0 []*models.Pool, _a1 error) *MockOrchestratorFactory_GetPoolsByUUIDs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetPoolsByUUIDs_Call) RunAndReturn(run func(context.Context, []string, common.PoolFetchOptions) ([]*models.Pool, error)) *MockOrchestratorFactory_GetPoolsByUUIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetReplication provides a mock function with given fields: ctx, volumeReplicationId
 func (_m *MockOrchestratorFactory) GetReplication(ctx context.Context, volumeReplicationId string) (*models.VolumeReplication, error) {
 	ret := _m.Called(ctx, volumeReplicationId)

@@ -2,6 +2,16 @@
 
 package googleproxyclient
 
+// V1betaBatchListPoolsParams is parameters of v1beta_batchListPools operation.
+type V1betaBatchListPoolsParams struct {
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+	// Specify the fields to return.
+	Fields []V1betaBatchListPoolsFieldsItem
+}
+
 // V1betaCheckKmsConfigParams is parameters of v1beta_checkKmsConfig operation.
 type V1betaCheckKmsConfigParams struct {
 	// The project number of the GCP project owning the resource being acted upon.

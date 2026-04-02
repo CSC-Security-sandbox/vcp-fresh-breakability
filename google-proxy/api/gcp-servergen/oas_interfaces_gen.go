@@ -5,6 +5,10 @@ type GetHealthRes interface {
 	getHealthRes()
 }
 
+type V1betaBatchListPoolsRes interface {
+	v1betaBatchListPoolsRes()
+}
+
 type V1betaCheckKmsConfigRes interface {
 	v1betaCheckKmsConfigRes()
 }

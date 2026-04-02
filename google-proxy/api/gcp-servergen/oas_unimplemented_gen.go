@@ -22,6 +22,15 @@ func (UnimplementedHandler) GetHealth(ctx context.Context) (r GetHealthRes, _ er
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaBatchListPools implements v1beta_batchListPools operation.
+//
+// Batch lists all pools with the given UUIDs across all accounts.
+//
+// POST /v1beta/locations/{locationId}/batch/pools
+func (UnimplementedHandler) V1betaBatchListPools(ctx context.Context, req *BatchPoolUUIDListV1beta, params V1betaBatchListPoolsParams) (r V1betaBatchListPoolsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaCheckKmsConfig implements v1beta_checkKmsConfig operation.
 //
 // Verifies whether service account can access the configured key.

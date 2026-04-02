@@ -14,6 +14,12 @@ type Handler interface {
 	//
 	// GET /health
 	GetHealth(ctx context.Context) (GetHealthRes, error)
+	// V1betaBatchListPools implements v1beta_batchListPools operation.
+	//
+	// Batch lists all pools with the given UUIDs across all accounts.
+	//
+	// POST /v1beta/locations/{locationId}/batch/pools
+	V1betaBatchListPools(ctx context.Context, req *BatchPoolUUIDListV1beta, params V1betaBatchListPoolsParams) (V1betaBatchListPoolsRes, error)
 	// V1betaCheckKmsConfig implements v1beta_checkKmsConfig operation.
 	//
 	// Verifies whether service account can access the configured key.

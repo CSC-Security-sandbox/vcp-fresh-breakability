@@ -27,6 +27,10 @@ func NewOCIOrchestrator(storage database.Storage, temporalClient client.Client) 
 	}
 }
 
+func (o *OCIOrchestrator) GetPoolsByUUIDs(ctx context.Context, poolUUIDs []string, opts commonparams.PoolFetchOptions) ([]*models.Pool, error) {
+	return nil, utilserrors.NewNotImplementedYetErr()
+}
+
 func (o *OCIOrchestrator) UpdatePool(ctx context.Context, params *commonparams.UpdatePoolParams) (*models.Pool, string, error) {
 	return nil, "", utilserrors.NewNotImplementedYetErr()
 }
