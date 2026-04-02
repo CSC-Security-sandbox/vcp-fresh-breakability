@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	leakedResourcesMeterName = "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/leakedresources"
+	leakedResourcesMeterName = "vcp.core.leakedresources"
 	leakedResourcesCountName = "vcp.leaked_resources.count"
 	monitoringRunsName       = "vcp.leaked_resources.monitoring_runs"
 )
