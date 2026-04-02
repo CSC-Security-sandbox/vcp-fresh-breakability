@@ -2514,6 +2514,47 @@ func TestParseCommaSeparatedStringToMap_EdgeCases(t *testing.T) {
 	}
 }
 
+func TestSplitAndTrimString(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		delimiter string
+		expected  []string
+	}{
+		{
+			name:      "Comma separated values",
+			input:     "a,b,c",
+			delimiter: ",",
+			expected:  []string{"a", "b", "c"},
+		},
+		{
+			name:      "Comma separated values with spaces and empty tokens",
+			input:     "a, b, , c ,,",
+			delimiter: ",",
+			expected:  []string{"a", "b", "c"},
+		},
+		{
+			name:      "Slash separated values",
+			input:     "one / two / three",
+			delimiter: "/",
+			expected:  []string{"one", "two", "three"},
+		},
+		{
+			name:      "Empty input",
+			input:     "",
+			delimiter: ",",
+			expected:  []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := SplitAndTrimString(tt.input, tt.delimiter)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func TestGetSnHostProject(t *testing.T) {
 	t.Run("ReturnsSnHostProject_WhenPoolIsNotNil", func(t *testing.T) {
 		pool := &datamodel.Pool{SnHostProject: "test-sn-host-project"}

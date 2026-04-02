@@ -1102,16 +1102,30 @@ func ParseCommaSeparatedStringToMap(input string) map[string]struct{} {
 		return make(map[string]struct{})
 	}
 
-	items := strings.Split(input, ",")
+	items := SplitAndTrimString(input, ",")
 	parsedItems := make(map[string]struct{}, len(items))
 
 	for _, item := range items {
-		trimmedItem := strings.TrimSpace(item)
-		if trimmedItem != "" {
-			parsedItems[trimmedItem] = struct{}{}
-		}
+		parsedItems[item] = struct{}{}
 	}
 
+	return parsedItems
+}
+
+// SplitAndTrimString splits input by delimiter, trims each token, and drops empty tokens.
+func SplitAndTrimString(input, delimiter string) []string {
+	if input == "" {
+		return []string{}
+	}
+
+	items := strings.Split(input, delimiter)
+	parsedItems := make([]string, 0, len(items))
+	for _, item := range items {
+		trimmedItem := strings.TrimSpace(item)
+		if trimmedItem != "" {
+			parsedItems = append(parsedItems, trimmedItem)
+		}
+	}
 	return parsedItems
 }
 

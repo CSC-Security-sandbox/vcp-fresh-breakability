@@ -4325,7 +4325,7 @@ func exportPolicyCreateParamsToONTAP(params *ExportPolicyCreateParams, trace log
 		superuser[0] = (*models.ExportAuthenticationFlavor)(&rule.SuperUserRule)
 
 		rules[i] = &models.ExportRules{
-			ExportRulesInlineClients:   []*models.ExportClients{{Match: &rule.ClientMatch}},
+			ExportRulesInlineClients:   buildExportClients(rule.ClientMatch),
 			ExportRulesInlineRoRule:    roRules,
 			ExportRulesInlineRwRule:    rwRules,
 			ExportRulesInlineSuperuser: superuser,
@@ -4343,6 +4343,18 @@ func exportPolicyCreateParamsToONTAP(params *ExportPolicyCreateParams, trace log
 
 	otParams.SetReturnRecords(nillable.ToPointer("true"))
 	return otParams
+}
+
+func buildExportClients(clientMatch string) []*models.ExportClients {
+	matches := utils.SplitAndTrimString(clientMatch, ",")
+	clients := make([]*models.ExportClients, 0, len(matches))
+	for _, match := range matches {
+		clients = append(clients, &models.ExportClients{Match: &match})
+	}
+	if len(clients) == 0 {
+		return []*models.ExportClients{{Match: &clientMatch}}
+	}
+	return clients
 }
 
 // exportPolicyGetParamsToONTAP converts ExportPolicyGetParams to ONTAP API parameters
@@ -4390,7 +4402,7 @@ func exportPolicyModifyParamsToONTAP(params *ExportPolicyModifyParams) *nas.Expo
 		superuser[0] = (*models.ExportAuthenticationFlavor)(&rule.SuperUserRule)
 
 		rules[i] = &models.ExportRules{
-			ExportRulesInlineClients:   []*models.ExportClients{{Match: &rule.ClientMatch}},
+			ExportRulesInlineClients:   buildExportClients(rule.ClientMatch),
 			ExportRulesInlineRoRule:    roRule,
 			ExportRulesInlineRwRule:    rwRule,
 			ExportRulesInlineSuperuser: superuser,

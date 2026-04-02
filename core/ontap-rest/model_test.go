@@ -1840,7 +1840,7 @@ func TestExportPolicyCreateParamsToONTAP(t *testing.T) {
 			SvmName: "test-svm",
 			Rules: []*ExportRule{
 				{
-					ClientMatch:   "10.0.0.8",
+					ClientMatch:   "10.0.0.8,10.0.0.9, 10.0.0.10",
 					ReadOnlyRule:  "any",
 					ReadWriteRule: "any",
 					SuperUserRule: "any",
@@ -1856,6 +1856,8 @@ func TestExportPolicyCreateParamsToONTAP(t *testing.T) {
 		assert.Equal(tt, "test-svm", *otParams.Info.Svm.Name)
 		assert.Len(tt, otParams.Info.ExportPolicyInlineRules, 1)
 		assert.Equal(tt, "10.0.0.8", *otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineClients[0].Match)
+		assert.Equal(tt, "10.0.0.9", *otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineClients[1].Match)
+		assert.Equal(tt, "10.0.0.10", *otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineClients[2].Match)
 		assert.Equal(tt, "any", string(*otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineRoRule[0]))
 		assert.Equal(tt, "any", string(*otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineRwRule[0]))
 		assert.Equal(tt, "any", string(*otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineSuperuser[0]))
@@ -1903,7 +1905,7 @@ func TestExportPolicyModifyParamsToONTAP(t *testing.T) {
 			SvmName:    "test-svm",
 			Rules: []*ExportRule{
 				{
-					ClientMatch:   "192.168.0.16",
+					ClientMatch:   "192.168.0.16,192.168.0.17, 192.168.0.18",
 					ReadOnlyRule:  "none",
 					ReadWriteRule: "none",
 					SuperUserRule: "none",
@@ -1919,6 +1921,8 @@ func TestExportPolicyModifyParamsToONTAP(t *testing.T) {
 		assert.Equal(tt, "modified-policy", *otParams.Info.Name)
 		assert.Len(tt, otParams.Info.ExportPolicyInlineRules, 1)
 		assert.Equal(tt, "192.168.0.16", *otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineClients[0].Match)
+		assert.Equal(tt, "192.168.0.17", *otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineClients[1].Match)
+		assert.Equal(tt, "192.168.0.18", *otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineClients[2].Match)
 		assert.Equal(tt, "none", string(*otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineRoRule[0]))
 		assert.Equal(tt, "none", string(*otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineRwRule[0]))
 		assert.Equal(tt, "none", string(*otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineSuperuser[0]))
