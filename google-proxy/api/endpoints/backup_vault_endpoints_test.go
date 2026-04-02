@@ -284,6 +284,84 @@ func TestConvertBackupVaultV1Beta_CrossProjectVaultNotSetForNonCrossProject(t *t
 	assert.False(t, result.CrossProjectVault.IsSet())
 }
 
+func TestBuildCreateBackupVaultParams(t *testing.T) {
+	t.Run("BuildsAllOptionalFieldsWhenSet", func(t *testing.T) {
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:               gcpgenserver.NewOptString("vault-1"),
+			Description:              gcpgenserver.NewOptString("test vault"),
+			KmsConfigResourcePath:    gcpgenserver.NewOptString("projects/p/locations/l/keyRings/r/cryptoKeys/k"),
+			BackupsPrimaryKeyVersion: gcpgenserver.NewOptString("projects/p/locations/l/kmsConfigs/c/cryptoKeys/k/cryptoKeyVersions/1"),
+			TenantProject:            gcpgenserver.NewOptString("tenant-project-1"),
+			BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyV1beta(gcpgenserver.BackupRetentionPolicyV1beta{
+				BackupMinimumEnforcedRetentionDays: gcpgenserver.NewOptInt(30),
+				DailyBackupImmutable:               gcpgenserver.NewOptBool(true),
+				ManualBackupImmutable:              gcpgenserver.NewOptBool(true),
+				MonthlyBackupImmutable:             gcpgenserver.NewOptBool(false),
+				WeeklyBackupImmutable:              gcpgenserver.NewOptBool(true),
+			}),
+		}
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			LocationId:    "us-central1",
+			ProjectNumber: "12345",
+		}
+		backupRegion := "us-east4"
+
+		result := buildCreateBackupVaultParams(req, params, &backupRegion)
+
+		require.NotNil(t, result)
+		assert.Equal(t, "vault-1", result.ResourceId)
+		assert.Equal(t, "test vault", result.Description)
+		require.NotNil(t, result.BackupRegion)
+		assert.Equal(t, "us-east4", *result.BackupRegion)
+		assert.Equal(t, "us-central1", result.LocationId)
+		assert.Equal(t, "12345", result.ProjectNumber)
+		require.NotNil(t, result.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration)
+		assert.Equal(t, int64(30), *result.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration)
+		require.NotNil(t, result.BackupRetentionPolicy.IsDailyBackupImmutable)
+		assert.True(t, *result.BackupRetentionPolicy.IsDailyBackupImmutable)
+		require.NotNil(t, result.BackupRetentionPolicy.IsAdhocBackupImmutable)
+		assert.True(t, *result.BackupRetentionPolicy.IsAdhocBackupImmutable)
+		require.NotNil(t, result.BackupRetentionPolicy.IsMonthlyBackupImmutable)
+		assert.False(t, *result.BackupRetentionPolicy.IsMonthlyBackupImmutable)
+		require.NotNil(t, result.BackupRetentionPolicy.IsWeeklyBackupImmutable)
+		assert.True(t, *result.BackupRetentionPolicy.IsWeeklyBackupImmutable)
+		require.NotNil(t, result.KmsConfigResourcePath)
+		assert.Equal(t, "projects/p/locations/l/keyRings/r/cryptoKeys/k", *result.KmsConfigResourcePath)
+		require.NotNil(t, result.BackupsPrimaryKeyVersion)
+		assert.Equal(t, "projects/p/locations/l/kmsConfigs/c/cryptoKeys/k/cryptoKeyVersions/1", *result.BackupsPrimaryKeyVersion)
+		require.NotNil(t, result.TenantProject)
+		assert.Equal(t, "tenant-project-1", *result.TenantProject)
+	})
+
+	t.Run("LeavesOptionalFieldsUnsetWhenNotProvided", func(t *testing.T) {
+		req := &gcpgenserver.BackupVaultCreateV1beta{
+			ResourceId:  gcpgenserver.NewOptString("vault-2"),
+			Description: gcpgenserver.NewOptString("minimal vault"),
+		}
+		params := gcpgenserver.V1betaCreateBackupVaultParams{
+			LocationId:    "us-west1",
+			ProjectNumber: "99999",
+		}
+
+		result := buildCreateBackupVaultParams(req, params, nil)
+
+		require.NotNil(t, result)
+		assert.Equal(t, "vault-2", result.ResourceId)
+		assert.Equal(t, "minimal vault", result.Description)
+		assert.Nil(t, result.BackupRegion)
+		assert.Equal(t, "us-west1", result.LocationId)
+		assert.Equal(t, "99999", result.ProjectNumber)
+		assert.Nil(t, result.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration)
+		assert.Nil(t, result.BackupRetentionPolicy.IsDailyBackupImmutable)
+		assert.Nil(t, result.BackupRetentionPolicy.IsAdhocBackupImmutable)
+		assert.Nil(t, result.BackupRetentionPolicy.IsMonthlyBackupImmutable)
+		assert.Nil(t, result.BackupRetentionPolicy.IsWeeklyBackupImmutable)
+		assert.Nil(t, result.KmsConfigResourcePath)
+		assert.Nil(t, result.BackupsPrimaryKeyVersion)
+		assert.Nil(t, result.TenantProject)
+	})
+}
+
 func TestV1betaListBackupVaultsOrchError(t *testing.T) {
 	origBackupEnabled := backupEnabled
 	origUseVCPRegion := env.UseVCPRegion

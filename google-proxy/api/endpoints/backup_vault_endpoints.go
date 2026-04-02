@@ -483,6 +483,9 @@ func buildCreateBackupVaultParams(req *gcpgenserver.BackupVaultCreateV1beta, par
 	if req.BackupsPrimaryKeyVersion.IsSet() {
 		createParams.BackupsPrimaryKeyVersion = &req.BackupsPrimaryKeyVersion.Value
 	}
+	if req.TenantProject.IsSet() {
+		createParams.TenantProject = &req.TenantProject.Value
+	}
 	return createParams
 }
 
@@ -1551,8 +1554,6 @@ func convertCoreToCvpBackupVault(coreBV *coremodels.BackupVaultV1beta) *models.B
 func convertCoreModelsToBackupVaultV1beta(beta *coremodels.BackupVaultV1beta) *gcpgenserver.BackupVaultV1beta {
 	var (
 		description, sourceBackupVault, destinationBackupVault, sourceRegion, backupRegion, backupVaultType string
-		kmsConfigResourcePath, backupsPrimaryKeyVersion, encryptionState                                    string
-		crossProjectVault                                                                                   bool
 	)
 	var backupMinimumEnforcedRetentionDuration int
 	if beta.Description != nil {
@@ -1576,19 +1577,7 @@ func convertCoreModelsToBackupVaultV1beta(beta *coremodels.BackupVaultV1beta) *g
 	if beta.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration != nil {
 		backupMinimumEnforcedRetentionDuration = int(*beta.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration)
 	}
-	if beta.KmsConfigResourcePath != nil {
-		kmsConfigResourcePath = *beta.KmsConfigResourcePath
-	}
-	if beta.BackupsPrimaryKeyVersion != nil {
-		backupsPrimaryKeyVersion = *beta.BackupsPrimaryKeyVersion
-	}
-	if beta.EncryptionState != nil {
-		encryptionState = *beta.EncryptionState
-	}
-	if beta.ServiceType != "" {
-		crossProjectVault = beta.ServiceType == coremodels.ServiceTypeCrossProject
-	}
-	return &gcpgenserver.BackupVaultV1beta{
+	result := &gcpgenserver.BackupVaultV1beta{
 		BackupVaultId:          gcpgenserver.NewOptString(beta.BackupVaultID),
 		State:                  gcpgenserver.NewOptBackupVaultV1betaState(gcpgenserver.BackupVaultV1betaState(beta.LifeCycleState)),
 		StateDetails:           gcpgenserver.NewOptString(beta.LifeCycleStateDetails),
@@ -1607,11 +1596,21 @@ func convertCoreModelsToBackupVaultV1beta(beta *coremodels.BackupVaultV1beta) *g
 			MonthlyBackupImmutable:             gcpgenserver.NewOptBool(beta.BackupRetentionPolicy.IsMonthlyBackupImmutable),
 			WeeklyBackupImmutable:              gcpgenserver.NewOptBool(beta.BackupRetentionPolicy.IsWeeklyBackupImmutable),
 		}),
-		KmsConfigResourcePath:    gcpgenserver.NewOptString(kmsConfigResourcePath),
-		BackupsPrimaryKeyVersion: gcpgenserver.NewOptString(backupsPrimaryKeyVersion),
-		EncryptionState:          gcpgenserver.NewOptBackupVaultV1betaEncryptionState(gcpgenserver.BackupVaultV1betaEncryptionState(encryptionState)),
-		CrossProjectVault:        gcpgenserver.NewOptBool(crossProjectVault),
 	}
+
+	if beta.KmsConfigResourcePath != nil {
+		result.KmsConfigResourcePath = gcpgenserver.NewOptString(*beta.KmsConfigResourcePath)
+	}
+	if beta.BackupsPrimaryKeyVersion != nil {
+		result.BackupsPrimaryKeyVersion = gcpgenserver.NewOptString(*beta.BackupsPrimaryKeyVersion)
+	}
+	if beta.EncryptionState != nil {
+		result.EncryptionState = gcpgenserver.NewOptBackupVaultV1betaEncryptionState(gcpgenserver.BackupVaultV1betaEncryptionState(*beta.EncryptionState))
+	}
+	if beta.ServiceType == coremodels.ServiceTypeCrossProject {
+		result.CrossProjectVault = gcpgenserver.NewOptBool(true)
+	}
+	return result
 }
 
 func encodeBackupVaultConfigV1(BackupVault *gcpgenserver.BackupVaultV1beta) (jx.Raw, error) {
