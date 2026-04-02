@@ -119,7 +119,7 @@ type OrchestratorFactory interface {
 	IsBackupVaultAttachedToVolume(ctx context.Context, backupVaultUUID string) (bool, error)
 	GetBackupVaultUUIDsFromBackupPolicyUUID(ctx context.Context, backupPolicyUUID string, accountName string) ([]string, error)
 
-	CreateBackupVaultEntryInVCP(ctx context.Context, bv *datamodel.BackupVault, accountName string) (*datamodel.BackupVault, error)
+	CreateBackupVaultEntryInVCP(ctx context.Context, bv *datamodel.BackupVault, params *commonparams.BackupVaultParams) (*datamodel.BackupVault, error)
 	CreateBackupVault(ctx context.Context, params *commonparams.CreateBackupVaultParams) (*models.BackupVaultV1beta, error)
 	GetBackupVaultByExternalUUIDAndOwnerID(ctx context.Context, externalUUID string, ownerID string) (*datamodel.BackupVault, error)
 

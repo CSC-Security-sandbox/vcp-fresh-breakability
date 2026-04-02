@@ -446,6 +446,7 @@ type CreateBackupVaultParams struct {
 	BackupRegion             *string
 	LocationId               string
 	ProjectNumber            string
+	TenantProject            *string
 	BackupRetentionPolicy    BackupRetentionPolicyParams
 	KmsConfigResourcePath    *string
 	BackupsPrimaryKeyVersion *string

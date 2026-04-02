@@ -3102,6 +3102,19 @@ func convertDatamodelToInternalAPI(datamodelBackupVault *datamodel.BackupVault) 
 		apiBackupVault.ExternalUuid = googleproxyclient.NewOptString(*datamodelBackupVault.ExternalUUID)
 	}
 
+	if datamodelBackupVault.ImmutableAttributes != nil {
+		immutableAttrs := googleproxyclient.BackupVaultInternalV1betaImmutableAttributes{
+			IsDailyBackupImmutable:   googleproxyclient.NewOptBool(datamodelBackupVault.ImmutableAttributes.IsDailyBackupImmutable),
+			IsWeeklyBackupImmutable:  googleproxyclient.NewOptBool(datamodelBackupVault.ImmutableAttributes.IsWeeklyBackupImmutable),
+			IsMonthlyBackupImmutable: googleproxyclient.NewOptBool(datamodelBackupVault.ImmutableAttributes.IsMonthlyBackupImmutable),
+			IsAdhocBackupImmutable:   googleproxyclient.NewOptBool(datamodelBackupVault.ImmutableAttributes.IsAdhocBackupImmutable),
+		}
+		if datamodelBackupVault.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration != nil {
+			immutableAttrs.BackupMinimumEnforcedRetentionDuration = googleproxyclient.NewOptInt(int(*datamodelBackupVault.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration))
+		}
+		apiBackupVault.ImmutableAttributes = googleproxyclient.NewOptBackupVaultInternalV1betaImmutableAttributes(immutableAttrs)
+	}
+
 	if len(datamodelBackupVault.BucketDetails) > 0 {
 		var bucketDetails []googleproxyclient.BackupVaultInternalV1betaBucketDetailsItem
 		for _, bucket := range datamodelBackupVault.BucketDetails {

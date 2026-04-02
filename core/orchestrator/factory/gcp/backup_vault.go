@@ -13,6 +13,8 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
@@ -31,6 +33,8 @@ var (
 	getBackupVaultByNameAndOwnerID     = _getBackupVaultByNameAndOwnerID
 	updateBackupVault                  = _updateBackupVault
 	deleteBackupVault                  = _deleteBackupVault
+	hydrateCreatedBackupVaults         = _hydrateCreatedBackupVaults
+	hydrateDeletedBackupVaults         = _hydrateDeletedBackupVaults
 )
 
 // CreateBackupVaultParams describes parameters supplied to CreateBackupVault
@@ -76,21 +80,44 @@ func (o *GCPOrchestrator) DeleteBackupVault(ctx context.Context, params *commonp
 
 func (o *GCPOrchestrator) DeleteBackupVaultInternal(ctx context.Context, params *commonparams.BackupVaultParams) (string, error) {
 	se := o.storage
+	logger := util.GetLogger(ctx)
+
 	account, err := se.GetAccount(ctx, params.OwnerID)
 	if err != nil {
 		return "", err
 	}
-	RemoteBV, err := se.GetBackupVaultByExternalUUIDAndOwnerID(ctx, params.BackupVaultID, account.ID)
+	remoteBv, err := se.GetBackupVaultByExternalUUIDAndOwnerID(ctx, params.BackupVaultID, account.ID)
 	if err != nil {
 		return "", err
 	}
-	params.BackupVaultID = RemoteBV.UUID
-	// TODO: Add dehydration for cross-project backup vaults
-	_, err = se.DeleteBackupVaultInVCP(ctx, RemoteBV.UUID)
+	params.BackupVaultID = remoteBv.UUID
+	_, err = se.DeleteBackupVaultInVCP(ctx, remoteBv.UUID)
 	if err != nil {
 		return "", err
+	}
+
+	if hydrationEnabled && (env.UseVCPRegion || remoteBv.ServiceType == models.ServiceTypeCrossProject) {
+		err = hydrateDeletedBackupVaults(ctx, remoteBv, params)
+		if err != nil {
+			logger.Errorf("Failed to hydrate deleted backup vault to CCFE: %v", err)
+			return "", err
+		}
 	}
 	return "", nil
+}
+
+func _hydrateDeletedBackupVaults(ctx context.Context, backupVault *datamodel.BackupVault, params *commonparams.BackupVaultParams) error {
+	logger := util.GetLogger(ctx)
+	token, err := auth.GenerateCallbackToken(ctx)
+	if err != nil {
+		return err
+	}
+	requests := commonparams.ConvertToGCPHydrateBackupVaultDeleteRequests([]*datamodel.BackupVault{backupVault})
+	err = commonparams.HydrateDeletedBackupVaults(ctx, logger, requests, backupVault.Name, *backupVault.BackupRegionName, params.OwnerID, token)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func _deleteBackupVault(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.BackupVaultParams) (*models.BackupVaultV1beta, string, error) {
@@ -442,34 +469,97 @@ func (o *GCPOrchestrator) GetBackupVaultUUIDsFromBackupPolicyUUID(ctx context.Co
 }
 
 // CreateBackupVaultEntryInVCP creates a BackupVault entry directly in the VCP database for cross-region operations
-func (o *GCPOrchestrator) CreateBackupVaultEntryInVCP(ctx context.Context, bv *datamodel.BackupVault, accountName string) (*datamodel.BackupVault, error) {
+func (o *GCPOrchestrator) CreateBackupVaultEntryInVCP(ctx context.Context, bv *datamodel.BackupVault, params *commonparams.BackupVaultParams) (*datamodel.BackupVault, error) {
 	se := o.storage
 	logger := util.GetLogger(ctx)
 
-	account, err := getOrCreateAccount(ctx, se, accountName)
+	account, err := getOrCreateAccount(ctx, se, params.AccountName)
 	if err != nil {
 		return nil, err
 	}
 	bv.AccountID = account.ID
-	backupVault, err := se.CreateBackupVaultEntryInVCP(ctx, bv)
+
+	var createdBv *datamodel.BackupVault
+	defer func() {
+		if err != nil {
+			if createdBv != nil {
+				_, deleteErr := se.DeleteBackupVaultInVCP(ctx, createdBv.UUID)
+				if deleteErr != nil {
+					logger.Errorf("Failed to rollback backup vault creation in VCP for backup vault UUID %s. Error: %v", createdBv.UUID, deleteErr)
+				} else {
+					logger.Infof("Successfully rolled back backup vault creation in VCP for backup vault UUID %s", createdBv.UUID)
+				}
+			}
+		}
+	}()
+
+	createdBv, err = se.CreateBackupVaultEntryInVCP(ctx, bv)
 	if err != nil {
 		logger.Errorf("Failed to create cross-region backup vault entry in VCP: %v", err)
 		return nil, err
 	}
-	return backupVault, nil
+
+	if hydrationEnabled && (env.UseVCPRegion || createdBv.ServiceType == models.ServiceTypeCrossProject) {
+		err = hydrateCreatedBackupVaults(ctx, createdBv, params)
+		if err != nil {
+			logger.Errorf("Failed to hydrate created backup vault to CCFE: %v", err)
+			return nil, err
+		}
+	}
+	return createdBv, nil
+}
+
+func _hydrateCreatedBackupVaults(ctx context.Context, backupVault *datamodel.BackupVault, params *commonparams.BackupVaultParams) error {
+	logger := util.GetLogger(ctx)
+	token, err := auth.GenerateCallbackToken(ctx)
+	if err != nil {
+		return err
+	}
+	requests := commonparams.ConvertToGCPHydrateBackupVaultCreateRequests([]*datamodel.BackupVault{backupVault})
+	err = commonparams.HydrateCreatedBackupVaults(ctx, logger, requests, backupVault.Name, *backupVault.BackupRegionName, params.OwnerID, token)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // CreateBackupVault creates a new BackupVault entry in the VCP database and returns its model representation.
 func (o *GCPOrchestrator) CreateBackupVault(ctx context.Context, params *commonparams.CreateBackupVaultParams) (*models.BackupVaultV1beta, error) {
 	se := o.storage
+	logger := util.GetLogger(ctx)
+
 	account, err := getOrCreateAccount(ctx, se, params.ProjectNumber)
 	if err != nil {
 		return nil, err
 	}
+
+	var createdBv *datamodel.BackupVault
+	defer func() {
+		if err != nil {
+			logger.Errorf("Failed to create backup vault entry in VCP, rolling back. Error: %v", err)
+			if createdBv != nil {
+				_, deleteErr := se.DeleteBackupVaultInVCP(ctx, createdBv.UUID)
+				if deleteErr != nil {
+					logger.Errorf("Failed to rollback backup vault creation in VCP for backup vault UUID %s. Error: %v", createdBv.UUID, deleteErr)
+				} else {
+					logger.Infof("Successfully rolled back backup vault creation in VCP for backup vault UUID %s", createdBv.UUID)
+				}
+			}
+		}
+	}()
+
 	bv := buildBackupVaultFromCreateParams(params, account)
-	createdBv, err := o.storage.CreateBackupVaultEntryInVCP(ctx, bv)
+	createdBv, err = o.storage.CreateBackupVaultEntryInVCP(ctx, bv)
 	if err != nil {
 		return nil, err
+	}
+
+	if createdBv.BackupVaultType == CrossRegionBackupType {
+		bucketDetails := &commonparams.BucketDetails{}
+		_, err = activities.CreateRemoteBackupVaultInVCP(ctx, params.ProjectNumber, createdBv, bucketDetails)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return convertDatastoreBackupVaultToModel(createdBv), nil
 }
@@ -526,6 +616,16 @@ func buildBackupVaultFromCreateParams(params *commonparams.CreateBackupVaultPara
 		if params.BackupsPrimaryKeyVersion != nil {
 			bv.CmekAttributes.BackupsPrimaryKeyVersion = params.BackupsPrimaryKeyVersion
 		}
+	}
+	if params.TenantProject != nil {
+		bv.ServiceType = models.ServiceTypeCrossProject
+		bv.BucketDetails = datamodel.BucketDetailsArray{
+			&datamodel.BucketDetails{
+				TenantProjectNumber: *params.TenantProject,
+			},
+		}
+	} else {
+		bv.ServiceType = models.ServiceTypeGCNV
 	}
 	return bv
 }

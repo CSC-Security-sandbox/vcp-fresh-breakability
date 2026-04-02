@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -124,7 +125,7 @@ func TestInternalDescribePool(t *testing.T) {
 			TotalIops:                gcpgenserver.NewOptNilFloat64(float64(pool.CustomPerformanceParams.Iops)),
 			SatisfiesPzs:             gcpgenserver.NewOptNilBool(false),
 			SatisfiesPzi:             gcpgenserver.NewOptNilBool(false),
-			LargeCapacity:           gcpgenserver.NewOptBool(pool.LargeCapacity),
+			LargeCapacity:            gcpgenserver.NewOptBool(pool.LargeCapacity),
 			HasActiveClusterUpgrade:  gcpgenserver.NewOptBool(false),
 		}
 		resp, err := handler.V1betaInternalDescribePool(context.Background(), params)
@@ -892,7 +893,7 @@ func TestV1betaInternalDeleteVolumeReplication(t *testing.T) {
 			SourceVolumeUuid:      gcpgenserver.NewOptString(volumeReplication.ReplicationAttributes.SourceVolumeUUID),
 			SourcePoolUuid:        gcpgenserver.NewOptString(volumeReplication.ReplicationAttributes.SourcePoolUUID),
 			DestinationHostName:   volumeReplication.ReplicationAttributes.DestinationHostName,
-			DestinationServerName:  volumeReplication.ReplicationAttributes.DestinationSvmName,
+			DestinationServerName: volumeReplication.ReplicationAttributes.DestinationSvmName,
 			DestinationVolumeName: volumeReplication.ReplicationAttributes.DestinationVolumeName,
 			DestinationVolumeUuid: gcpgenserver.NewOptString(volumeReplication.ReplicationAttributes.DestinationVolumeUUID),
 			DestinationPoolUuid:   gcpgenserver.NewOptString(volumeReplication.ReplicationAttributes.DestinationPoolUUID),
@@ -5261,6 +5262,104 @@ func TestV1betaInternalUpdateBackup(t *testing.T) {
 	})
 }
 
+func TestConvertInternalBackupVaultToDataModelFunction(t *testing.T) {
+	t.Run("AllFieldsAreMapped", func(tt *testing.T) {
+		req := &gcpgenserver.BackupVaultInternalV1beta{
+			BackupVaultId:         "backup-vault-id",
+			ResourceId:            "resource-id",
+			AccountVendorId:       "project-number",
+			BackupVaultType:       gcpgenserver.BackupVaultInternalV1betaBackupVaultTypeCROSSREGION,
+			LifeCycleState:        gcpgenserver.BackupVaultInternalV1betaLifeCycleStateCREATING,
+			Description:           gcpgenserver.NewOptString("description"),
+			BackupRegion:          gcpgenserver.NewOptString("us-east1"),
+			SourceRegion:          gcpgenserver.NewOptString("us-west1"),
+			LifeCycleStateDetails: gcpgenserver.NewOptString("creating destination resources"),
+			ImmutableAttributes: gcpgenserver.NewOptBackupVaultInternalV1betaImmutableAttributes(gcpgenserver.BackupVaultInternalV1betaImmutableAttributes{
+				IsDailyBackupImmutable:                 gcpgenserver.NewOptBool(true),
+				IsWeeklyBackupImmutable:                gcpgenserver.NewOptBool(true),
+				IsMonthlyBackupImmutable:               gcpgenserver.NewOptBool(false),
+				IsAdhocBackupImmutable:                 gcpgenserver.NewOptBool(true),
+				BackupMinimumEnforcedRetentionDuration: gcpgenserver.NewOptInt(14),
+			}),
+			BucketDetails: []gcpgenserver.BackupVaultInternalV1betaBucketDetailsItem{
+				{
+					BucketName:          gcpgenserver.NewOptString("bucket-name"),
+					ServiceAccountName:  gcpgenserver.NewOptString("service-account"),
+					VendorSubnetId:      gcpgenserver.NewOptString("subnet-id"),
+					TenantProjectNumber: gcpgenserver.NewOptString("tenant-project"),
+					SatisfiesPzs:        gcpgenserver.NewOptBool(true),
+					SatisfiesPzi:        gcpgenserver.NewOptBool(false),
+				},
+			},
+			KmsConfigResourcePath:    gcpgenserver.NewOptString("projects/p/locations/l/kmsConfigs/c"),
+			EncryptionState:          gcpgenserver.NewOptBackupVaultInternalV1betaEncryptionState(gcpgenserver.BackupVaultInternalV1betaEncryptionStateENCRYPTIONSTATECOMPLETED),
+			BackupsPrimaryKeyVersion: gcpgenserver.NewOptString("projects/p/locations/l/keyRings/r/cryptoKeys/k/cryptoKeyVersions/1"),
+		}
+
+		result := _convertInternalBackupVaultToDataModel(req)
+
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "resource-id", result.Name)
+		assert.Equal(tt, "project-number", result.AccountVendorID)
+		assert.Equal(tt, "CREATING", result.LifeCycleState)
+		assert.Equal(tt, "CROSS_REGION", result.BackupVaultType)
+		assert.Equal(tt, models.ServiceTypeGCNV, result.ServiceType)
+
+		assert.NotNil(tt, result.Description)
+		assert.Equal(tt, "description", *result.Description)
+		assert.NotNil(tt, result.BackupRegionName)
+		assert.Equal(tt, "us-east1", *result.BackupRegionName)
+		assert.NotNil(tt, result.SourceRegionName)
+		assert.Equal(tt, "us-west1", *result.SourceRegionName)
+		assert.Equal(tt, "creating destination resources", result.LifeCycleStateDetails)
+
+		assert.NotNil(tt, result.ImmutableAttributes)
+		assert.True(tt, result.ImmutableAttributes.IsDailyBackupImmutable)
+		assert.True(tt, result.ImmutableAttributes.IsWeeklyBackupImmutable)
+		assert.False(tt, result.ImmutableAttributes.IsMonthlyBackupImmutable)
+		assert.True(tt, result.ImmutableAttributes.IsAdhocBackupImmutable)
+		assert.NotNil(tt, result.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration)
+		assert.EqualValues(tt, 14, *result.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration)
+
+		assert.Len(tt, result.BucketDetails, 1)
+		assert.Equal(tt, "bucket-name", result.BucketDetails[0].BucketName)
+		assert.Equal(tt, "service-account", result.BucketDetails[0].ServiceAccountName)
+		assert.Equal(tt, "subnet-id", result.BucketDetails[0].VendorSubnetID)
+		assert.Equal(tt, "tenant-project", result.BucketDetails[0].TenantProjectNumber)
+		assert.True(tt, result.BucketDetails[0].SatisfiesPzs)
+		assert.False(tt, result.BucketDetails[0].SatisfiesPzi)
+
+		assert.NotNil(tt, result.CmekAttributes)
+		assert.NotNil(tt, result.CmekAttributes.KmsConfigResourcePath)
+		assert.Equal(tt, "projects/p/locations/l/kmsConfigs/c", *result.CmekAttributes.KmsConfigResourcePath)
+		assert.NotNil(tt, result.CmekAttributes.EncryptionState)
+		assert.Equal(tt, "ENCRYPTION_STATE_COMPLETED", *result.CmekAttributes.EncryptionState)
+		assert.NotNil(tt, result.CmekAttributes.BackupsPrimaryKeyVersion)
+		assert.Equal(tt, "projects/p/locations/l/keyRings/r/cryptoKeys/k/cryptoKeyVersions/1", *result.CmekAttributes.BackupsPrimaryKeyVersion)
+	})
+
+	t.Run("OptionalFieldsUnsetRemainEmpty", func(tt *testing.T) {
+		req := &gcpgenserver.BackupVaultInternalV1beta{
+			ResourceId:      "resource-id",
+			AccountVendorId: "project-number",
+			BackupVaultType: gcpgenserver.BackupVaultInternalV1betaBackupVaultTypeINREGION,
+			LifeCycleState:  gcpgenserver.BackupVaultInternalV1betaLifeCycleStateCREATING,
+		}
+
+		result := _convertInternalBackupVaultToDataModel(req)
+
+		assert.NotNil(tt, result)
+		assert.Nil(tt, result.Description)
+		assert.Nil(tt, result.BackupRegionName)
+		assert.Nil(tt, result.SourceRegionName)
+		assert.Equal(tt, "", result.LifeCycleStateDetails)
+		assert.Nil(tt, result.ImmutableAttributes)
+		assert.Empty(tt, result.BucketDetails)
+		assert.Nil(tt, result.CmekAttributes)
+		assert.Equal(tt, models.ServiceTypeGCNV, result.ServiceType)
+	})
+}
+
 func TestCreateInternalBackupParams(t *testing.T) {
 	t.Run("WhenAllFieldsSet", func(tt *testing.T) {
 		completionTime := time.Now()
@@ -5657,63 +5756,6 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 		assert.True(tt, ok)
 		assert.Equal(tt, float64(404), result.Code)
 		assert.Contains(tt, result.Message, "BackupVault test-backup-vault-id not found in CVP")
-	})
-
-	t.Run("WhenConvertToBackupVaultDataModelFails", func(tt *testing.T) {
-		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
-		mockCVPClient := backup_vault.NewMockClientService(tt)
-
-		handler := Handler{
-			Orchestrator: mockOrchestrator,
-		}
-
-		req := &gcpgenserver.BackupVaultInternalV1beta{
-			BackupVaultId: "test-backup-vault-id",
-			ResourceId:    "test-resource-id",
-		}
-		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
-			ProjectNumber: "test-project",
-			LocationId:    "us-central1",
-		}
-
-		// Mock CVP client with matching vault
-		backupVaultType := activities.CrossRegionBackupType
-		sourceBackupVault := "/projects/test-project/locations/us-west1/backupVaults/test-resource-id"
-		mockResponse := &backup_vault.V1betaListBackupVaultsOK{
-			Payload: &backup_vault.V1betaListBackupVaultsOKBody{
-				BackupVaults: []*cvpmodels.BackupVaultV1beta{
-					{
-						BackupVaultID:     "test-backup-vault-id",
-						ResourceID:        nillable.GetStringPtr("test-resource-id"),
-						BackupVaultType:   &backupVaultType,
-						SourceBackupVault: &sourceBackupVault,
-					},
-				},
-			},
-		}
-		mockCVPClient.EXPECT().V1betaListBackupVaults(mock.Anything).Return(mockResponse, nil)
-		cvpClient := &cvpapi.Cvp{BackupVault: mockCVPClient}
-		originalCvpCreateClient := cvpCreateClient
-		defer func() { cvpCreateClient = originalCvpCreateClient }()
-		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
-			return *cvpClient
-		}
-
-		// Mock ConvertToBackupVaultDataModel to return error
-		originalConvertFunc := _convertToBackupVaultDataModel
-		defer func() { _convertToBackupVaultDataModel = originalConvertFunc }()
-		_convertToBackupVaultDataModel = func(cvpBackupVault *cvpmodels.BackupVaultV1beta, locationId string) (*datamodel.BackupVault, error) {
-			return nil, errors.New("conversion error")
-		}
-
-		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
-		assert.Error(tt, err)
-		assert.Equal(tt, "conversion error", err.Error())
-
-		result, ok := resp.(*gcpgenserver.V1betaInternalCreateBackupVaultBadRequest)
-		assert.True(tt, ok)
-		assert.Equal(tt, float64(400), result.Code)
-		assert.Contains(tt, result.Message, "Failed to convert CVP BackupVault to internal model")
 	})
 
 	t.Run("WhenCreateBackupVaultEntryInVCPReturnsConflictErr", func(tt *testing.T) {
@@ -6387,5 +6429,21 @@ func TestV1betaInternalUpdateState(t *testing.T) {
 		assert.Equal(tt, models.LifeCycleStateError, updateStateResp.State.Value)
 		assert.True(tt, updateStateResp.StateDetails.IsSet())
 		assert.Equal(tt, "deletion error details", updateStateResp.StateDetails.Value)
+	})
+}
+
+func TestConvertSourceBackupVaultNameToRemoteBackupVaultName(t *testing.T) {
+	t.Run("NoTruncationWithStandardUUID", func(tt *testing.T) {
+		result := ConvertSourceBackupVaultNameToRemoteBackupVaultName("source-vault", "abcd-1234-5678")
+		assert.Equal(tt, "source-vault-destination-abcd", result)
+	})
+
+	t.Run("TruncatesSourceToMaxLength", func(tt *testing.T) {
+		sourceName := strings.Repeat("s", 60)
+		result := ConvertSourceBackupVaultNameToRemoteBackupVaultName(sourceName, "12345678-1234-1234-1234-1234567890ab")
+
+		expected := strings.Repeat("s", 46) + "-destination-" + "1234"
+		assert.Equal(tt, expected, result)
+		assert.Equal(tt, 63, len(result))
 	})
 }

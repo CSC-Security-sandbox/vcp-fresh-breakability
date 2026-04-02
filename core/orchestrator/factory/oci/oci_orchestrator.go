@@ -484,7 +484,7 @@ func (o *OCIOrchestrator) GetBackupVaultUUIDsFromBackupPolicyUUID(ctx context.Co
 	return nil, utilserrors.NewNotImplementedYetErr()
 }
 
-func (o *OCIOrchestrator) CreateBackupVaultEntryInVCP(ctx context.Context, bv *datamodel.BackupVault, accountName string) (*datamodel.BackupVault, error) {
+func (o *OCIOrchestrator) CreateBackupVaultEntryInVCP(ctx context.Context, bv *datamodel.BackupVault, params *commonparams.BackupVaultParams) (*datamodel.BackupVault, error) {
 	return nil, utilserrors.NewNotImplementedYetErr()
 }
 

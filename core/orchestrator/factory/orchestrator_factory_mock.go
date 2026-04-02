@@ -579,9 +579,9 @@ func (_c *MockOrchestratorFactory_CreateBackupVault_Call) RunAndReturn(run func(
 	return _c
 }
 
-// CreateBackupVaultEntryInVCP provides a mock function with given fields: ctx, bv, accountName
-func (_m *MockOrchestratorFactory) CreateBackupVaultEntryInVCP(ctx context.Context, bv *datamodel.BackupVault, accountName string) (*datamodel.BackupVault, error) {
-	ret := _m.Called(ctx, bv, accountName)
+// CreateBackupVaultEntryInVCP provides a mock function with given fields: ctx, bv, params
+func (_m *MockOrchestratorFactory) CreateBackupVaultEntryInVCP(ctx context.Context, bv *datamodel.BackupVault, params *common.BackupVaultParams) (*datamodel.BackupVault, error) {
+	ret := _m.Called(ctx, bv, params)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateBackupVaultEntryInVCP")
@@ -589,19 +589,19 @@ func (_m *MockOrchestratorFactory) CreateBackupVaultEntryInVCP(ctx context.Conte
 
 	var r0 *datamodel.BackupVault
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.BackupVault, string) (*datamodel.BackupVault, error)); ok {
-		return rf(ctx, bv, accountName)
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.BackupVault, *common.BackupVaultParams) (*datamodel.BackupVault, error)); ok {
+		return rf(ctx, bv, params)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.BackupVault, string) *datamodel.BackupVault); ok {
-		r0 = rf(ctx, bv, accountName)
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.BackupVault, *common.BackupVaultParams) *datamodel.BackupVault); ok {
+		r0 = rf(ctx, bv, params)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*datamodel.BackupVault)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.BackupVault, string) error); ok {
-		r1 = rf(ctx, bv, accountName)
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.BackupVault, *common.BackupVaultParams) error); ok {
+		r1 = rf(ctx, bv, params)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -617,14 +617,14 @@ type MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call struct {
 // CreateBackupVaultEntryInVCP is a helper method to define mock.On call
 //   - ctx context.Context
 //   - bv *datamodel.BackupVault
-//   - accountName string
-func (_e *MockOrchestratorFactory_Expecter) CreateBackupVaultEntryInVCP(ctx interface{}, bv interface{}, accountName interface{}) *MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call {
-	return &MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call{Call: _e.mock.On("CreateBackupVaultEntryInVCP", ctx, bv, accountName)}
+//   - params *common.BackupVaultParams
+func (_e *MockOrchestratorFactory_Expecter) CreateBackupVaultEntryInVCP(ctx interface{}, bv interface{}, params interface{}) *MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call {
+	return &MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call{Call: _e.mock.On("CreateBackupVaultEntryInVCP", ctx, bv, params)}
 }
 
-func (_c *MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call) Run(run func(ctx context.Context, bv *datamodel.BackupVault, accountName string)) *MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call {
+func (_c *MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call) Run(run func(ctx context.Context, bv *datamodel.BackupVault, params *common.BackupVaultParams)) *MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*datamodel.BackupVault), args[2].(string))
+		run(args[0].(context.Context), args[1].(*datamodel.BackupVault), args[2].(*common.BackupVaultParams))
 	})
 	return _c
 }
@@ -634,7 +634,7 @@ func (_c *MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call) Return(_a0 *
 	return _c
 }
 
-func (_c *MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call) RunAndReturn(run func(context.Context, *datamodel.BackupVault, string) (*datamodel.BackupVault, error)) *MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call {
+func (_c *MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call) RunAndReturn(run func(context.Context, *datamodel.BackupVault, *common.BackupVaultParams) (*datamodel.BackupVault, error)) *MockOrchestratorFactory_CreateBackupVaultEntryInVCP_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -1445,7 +1445,7 @@ func TestOCIOrchestrator_CreateBackupVaultEntryInVCP(t *testing.T) {
 		ctx := context.Background()
 		bv := &datamodel.BackupVault{}
 
-		result, err := orch.CreateBackupVaultEntryInVCP(ctx, bv, "account-name")
+		result, err := orch.CreateBackupVaultEntryInVCP(ctx, bv, &common.BackupVaultParams{})
 
 		assert.Error(tt, err)
 		assert.True(tt, errors.IsNotImplementedYetErr(err))

@@ -9828,6 +9828,136 @@ func TestCreateRemoteBackupVaultInVCP(t *testing.T) {
 		mockInvoker.AssertExpectations(t)
 	})
 
+	t.Run("Success_MapsImmutableAttributesInCreateRequest", func(t *testing.T) {
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
+		}
+
+		minRetention := int64(30)
+		backupVaultWithImmutable := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "test-bv-immutable-uuid"},
+			BackupRegionName: &backupRegion,
+			ImmutableAttributes: &datamodel.ImmutableAttributes{
+				BackupMinimumEnforcedRetentionDuration: &minRetention,
+				IsDailyBackupImmutable:                 true,
+				IsWeeklyBackupImmutable:                true,
+				IsMonthlyBackupImmutable:               false,
+				IsAdhocBackupImmutable:                 true,
+			},
+		}
+
+		createdVault := &googleproxyclient.BackupVaultInternalV1beta{
+			BackupVaultId:   "test-bv-immutable-uuid",
+			ResourceId:      "test-resource-id",
+			AccountVendorId: "123456789",
+			BackupVaultType: googleproxyclient.BackupVaultInternalV1betaBackupVaultTypeCROSSREGION,
+			LifeCycleState:  googleproxyclient.BackupVaultInternalV1betaLifeCycleStateREADY,
+			BackupRegion:    googleproxyclient.NewOptString("us-west1"),
+		}
+
+		mockInvoker.On("V1betaInternalCreateBackupVault", mock.Anything,
+			mock.MatchedBy(func(req *googleproxyclient.BackupVaultInternalV1beta) bool {
+				if req == nil || !req.ImmutableAttributes.IsSet() {
+					return false
+				}
+				immutable := req.ImmutableAttributes.Value
+				return immutable.IsDailyBackupImmutable.IsSet() && immutable.IsDailyBackupImmutable.Value &&
+					immutable.IsWeeklyBackupImmutable.IsSet() && immutable.IsWeeklyBackupImmutable.Value &&
+					immutable.IsMonthlyBackupImmutable.IsSet() && !immutable.IsMonthlyBackupImmutable.Value &&
+					immutable.IsAdhocBackupImmutable.IsSet() && immutable.IsAdhocBackupImmutable.Value &&
+					immutable.BackupMinimumEnforcedRetentionDuration.IsSet() &&
+					immutable.BackupMinimumEnforcedRetentionDuration.Value == int(minRetention)
+			}),
+			mock.Anything).Return(createdVault, nil)
+
+		result, err := activities.CreateRemoteBackupVaultInVCP(ctx, projectNumber, backupVaultWithImmutable, bucketDetails)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "test-bv-immutable-uuid", result.Name)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("Success_MapsCMEKAttributesInCreateRequest", func(t *testing.T) {
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockProxyClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() {
+			googleproxyclient.GetGProxyClient = originalGetGProxyClient
+			common.GetRemoteRegionConfig = originalGetRemoteRegionConfig
+		}()
+
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockProxyClient
+		}
+
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return "https://us-west1.example.com", "mock-jwt-token", nil
+		}
+
+		kmsConfigPath := "projects/p1/locations/us-central1/kmsConfigs/cfg1"
+		encryptionState := "ENCRYPTION_STATE_COMPLETED"
+		keyVersion := "projects/p1/locations/us-central1/keyRings/r1/cryptoKeys/k1/cryptoKeyVersions/1"
+		backupVaultWithCMEK := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: "test-bv-cmek-uuid"},
+			BackupRegionName: &backupRegion,
+			CmekAttributes: &datamodel.CmekAttributes{
+				KmsConfigResourcePath:    nillable.GetStringPtr(kmsConfigPath),
+				EncryptionState:          nillable.GetStringPtr(encryptionState),
+				BackupsPrimaryKeyVersion: nillable.GetStringPtr(keyVersion),
+			},
+		}
+
+		createdVault := &googleproxyclient.BackupVaultInternalV1beta{
+			BackupVaultId:   "test-bv-cmek-uuid",
+			ResourceId:      "test-resource-id",
+			AccountVendorId: "123456789",
+			BackupVaultType: googleproxyclient.BackupVaultInternalV1betaBackupVaultTypeCROSSREGION,
+			LifeCycleState:  googleproxyclient.BackupVaultInternalV1betaLifeCycleStateREADY,
+			BackupRegion:    googleproxyclient.NewOptString("us-west1"),
+		}
+
+		mockInvoker.On("V1betaInternalCreateBackupVault", mock.Anything,
+			mock.MatchedBy(func(req *googleproxyclient.BackupVaultInternalV1beta) bool {
+				if req == nil {
+					return false
+				}
+				return req.KmsConfigResourcePath.IsSet() && req.KmsConfigResourcePath.Value == kmsConfigPath &&
+					req.EncryptionState.IsSet() &&
+					req.EncryptionState.Value == googleproxyclient.BackupVaultInternalV1betaEncryptionState(encryptionState) &&
+					req.BackupsPrimaryKeyVersion.IsSet() &&
+					req.BackupsPrimaryKeyVersion.Value == keyVersion
+			}),
+			mock.Anything).Return(createdVault, nil)
+
+		result, err := activities.CreateRemoteBackupVaultInVCP(ctx, projectNumber, backupVaultWithCMEK, bucketDetails)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, "test-bv-cmek-uuid", result.Name)
+		mockInvoker.AssertExpectations(t)
+	})
+
 	t.Run("Error_BadRequest", func(t *testing.T) {
 		// Arrange
 		mockInvoker := googleproxyclient.NewMockInvoker(t)

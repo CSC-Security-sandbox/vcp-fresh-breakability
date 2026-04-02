@@ -1503,7 +1503,12 @@ func checkAndFetchBackupVault(ctx context.Context, handler *Handler, expertModeV
 		return nil, err
 	}
 
-	createdBackupVault, err := handler.Orchestrator.CreateBackupVaultEntryInVCP(ctx, backupVault, expertModeVol.Account.Name)
+	param := &common.BackupVaultParams{
+		OwnerID:     expertModeVol.Account.Name,
+		Region:      region,
+		AccountName: expertModeVol.Account.Name,
+	}
+	createdBackupVault, err := handler.Orchestrator.CreateBackupVaultEntryInVCP(ctx, backupVault, param)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create backup vault entry in VCP: %w", err)
 	}

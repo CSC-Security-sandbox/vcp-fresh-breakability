@@ -17,14 +17,19 @@ import (
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/helper"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 )
 
 var (
-	jsonUnmarshal                  = json.Unmarshal
-	convertLabelsMapToJSONB        = utils.ConvertLabelsMapToJSONB
-	_convertToBackupVaultDataModel = activities.ConvertToBackupVaultDataModel
+	jsonUnmarshal                           = json.Unmarshal
+	convertLabelsMapToJSONB                 = utils.ConvertLabelsMapToJSONB
+	_convertToBackupVaultDataModel          = activities.ConvertToBackupVaultDataModel
+	convertInternalBackupVaultToDataModel   = _convertInternalBackupVaultToDataModel
+	remoteBackupVaultHydrationNameMaxLength = 63
+	remoteBackupVaultHydrationNamePrefix    = "-destination-"
 )
 
 func (h Handler) V1betaInternalDescribePool(ctx context.Context, params gcpgenserver.V1betaInternalDescribePoolParams) (gcpgenserver.V1betaInternalDescribePoolRes, error) {
@@ -675,98 +680,77 @@ func (h Handler) V1betaInternalCreateBackupVault(ctx context.Context, req *gcpge
 
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
-	cvpClient := cvpCreateClient(logger, jwtToken)
-	correlationID := utils.GetCoRelationIDFromContext(ctx)
+	backupVault := convertInternalBackupVaultToDataModel(req)
+	if env.UseVCPRegion {
+		backupVault.UUID = utils.RandomUUID()
+		backupVault.Name = ConvertSourceBackupVaultNameToRemoteBackupVaultName(req.ResourceId, req.BackupVaultId)
+		backupVault.CrossRegionBackupVaultName = nillable.ToPointer(
+			fmt.Sprintf("projects/%s/locations/%s/backupVaults/%s", params.ProjectNumber, req.SourceRegion.Value, req.ResourceId))
+	} else {
+		jwtToken := utils.GetJWTTokenFromContext(ctx)
+		cvpClient := cvpCreateClient(logger, jwtToken)
+		correlationID := utils.GetCoRelationIDFromContext(ctx)
 
-	listParams := &backup_vault.V1betaListBackupVaultsParams{
-		LocationID:     params.LocationId,
-		ProjectNumber:  params.ProjectNumber,
-		XCorrelationID: &correlationID,
-	}
+		listParams := &backup_vault.V1betaListBackupVaultsParams{
+			LocationID:     params.LocationId,
+			ProjectNumber:  params.ProjectNumber,
+			XCorrelationID: &correlationID,
+		}
 
-	vaults, err := cvpClient.BackupVault.V1betaListBackupVaults(listParams)
-	if err != nil {
-		logger.Error("Failed to list backup vaults from CVP", "error", err.Error())
-		if errors.IsNotFoundErr(err) {
+		vaults, err := cvpClient.BackupVault.V1betaListBackupVaults(listParams)
+		if err != nil {
+			logger.Error("Failed to list backup vaults from CVP", "error", err.Error())
+			if errors.IsNotFoundErr(err) {
+				return &gcpgenserver.V1betaInternalCreateBackupVaultBadRequest{
+					Code:    404,
+					Message: fmt.Sprintf("No backup vaults found in CVP for project %s in region %s", params.ProjectNumber, params.LocationId),
+				}, nil
+			}
+			return &gcpgenserver.V1betaInternalCreateBackupVaultInternalServerError{
+				Code:    500,
+				Message: fmt.Sprintf("Failed to list backup vaults from CVP: %v", err),
+			}, err
+		}
+
+		if vaults == nil || vaults.Payload == nil || vaults.Payload.BackupVaults == nil {
 			return &gcpgenserver.V1betaInternalCreateBackupVaultBadRequest{
 				Code:    404,
-				Message: fmt.Sprintf("No backup vaults found in CVP for project %s in region %s", params.ProjectNumber, params.LocationId),
+				Message: "No backup vaults found in CVP",
 			}, nil
 		}
-		return &gcpgenserver.V1betaInternalCreateBackupVaultInternalServerError{
-			Code:    500,
-			Message: fmt.Sprintf("Failed to list backup vaults from CVP: %v", err),
-		}, err
-	}
 
-	if vaults == nil || vaults.Payload == nil || vaults.Payload.BackupVaults == nil {
-		return &gcpgenserver.V1betaInternalCreateBackupVaultBadRequest{
-			Code:    404,
-			Message: "No backup vaults found in CVP",
-		}, nil
-	}
-
-	var cvpBackupVault *cvpmodels.BackupVaultV1beta
-	for _, bv := range vaults.Payload.BackupVaults {
-		if bv.BackupVaultType != nil && *bv.BackupVaultType != activities.CrossRegionBackupType {
-			continue
+		var cvpBackupVault *cvpmodels.BackupVaultV1beta
+		for _, bv := range vaults.Payload.BackupVaults {
+			if bv.BackupVaultType != nil && *bv.BackupVaultType != activities.CrossRegionBackupType {
+				continue
+			}
+			if bv.SourceBackupVault != nil && strings.HasSuffix(*bv.SourceBackupVault, req.ResourceId) {
+				cvpBackupVault = bv
+				logger.Info("Found Remote Backup Vault with matching resource IDs", "cvpResourceID", *bv.ResourceID, "reqResourceID", req.ResourceId)
+				break
+			}
 		}
-		if bv.SourceBackupVault != nil && strings.HasSuffix(*bv.SourceBackupVault, req.ResourceId) {
-			cvpBackupVault = bv
-			logger.Info("Found Remote Backup Vault with matching resource IDs", "cvpResourceID", *bv.ResourceID, "reqResourceID", req.ResourceId)
-			break
+
+		if cvpBackupVault == nil {
+			logger.Error("BackupVault not found in CVP", "backupVaultId", req.BackupVaultId)
+			return &gcpgenserver.V1betaInternalCreateBackupVaultBadRequest{
+				Code:    404,
+				Message: fmt.Sprintf("BackupVault %s not found in CVP", req.BackupVaultId),
+			}, nil
 		}
+
+		backupVault.UUID = cvpBackupVault.BackupVaultID
+		backupVault.CrossRegionBackupVaultName = cvpBackupVault.SourceBackupVault // overriding for CRB destination case
 	}
 
-	if cvpBackupVault == nil {
-		logger.Error("BackupVault not found in CVP", "backupVaultId", req.BackupVaultId)
-		return &gcpgenserver.V1betaInternalCreateBackupVaultBadRequest{
-			Code:    404,
-			Message: fmt.Sprintf("BackupVault %s not found in CVP", req.BackupVaultId),
-		}, nil
+	backupVault.ExternalUUID = &req.BackupVaultId // Setting External UUID CRB destination case
+
+	backupVaultParams := &commonparams.BackupVaultParams{
+		OwnerID:     params.ProjectNumber,
+		Region:      params.LocationId,
+		AccountName: params.ProjectNumber,
 	}
-
-	backupVault, err := _convertToBackupVaultDataModel(cvpBackupVault, params.LocationId)
-	if err != nil {
-		logger.Error("Failed to convert CVP BackupVault to datamodel", "error", err.Error())
-		return &gcpgenserver.V1betaInternalCreateBackupVaultBadRequest{
-			Code:    400,
-			Message: "Failed to convert CVP BackupVault to internal model",
-		}, err
-	}
-
-	if len(req.BucketDetails) > 0 {
-		var bucketDetails datamodel.BucketDetailsArray
-		for _, bucket := range req.BucketDetails {
-			bucketDetail := &datamodel.BucketDetails{}
-			if bucket.BucketName.IsSet() {
-				bucketDetail.BucketName = bucket.BucketName.Value
-			}
-			if bucket.ServiceAccountName.IsSet() {
-				bucketDetail.ServiceAccountName = bucket.ServiceAccountName.Value
-			}
-			if bucket.VendorSubnetId.IsSet() {
-				bucketDetail.VendorSubnetID = bucket.VendorSubnetId.Value
-			}
-			if bucket.TenantProjectNumber.IsSet() {
-				bucketDetail.TenantProjectNumber = bucket.TenantProjectNumber.Value
-			}
-			if bucket.SatisfiesPzs.IsSet() {
-				bucketDetail.SatisfiesPzs = bucket.SatisfiesPzs.Value
-			}
-			if bucket.SatisfiesPzi.IsSet() {
-				bucketDetail.SatisfiesPzi = bucket.SatisfiesPzi.Value
-			}
-			bucketDetails = append(bucketDetails, bucketDetail)
-		}
-		backupVault.BucketDetails = bucketDetails
-	}
-
-	backupVault.ExternalUUID = &req.BackupVaultId                             // Setting External UUID CRB destination case
-	backupVault.CrossRegionBackupVaultName = cvpBackupVault.SourceBackupVault // overriding for CRB destination case
-
-	createdBackupVault, err := h.Orchestrator.CreateBackupVaultEntryInVCP(ctx, backupVault, params.ProjectNumber)
+	createdBackupVault, err := h.Orchestrator.CreateBackupVaultEntryInVCP(ctx, backupVault, backupVaultParams)
 	if err != nil {
 		if errors.IsConflictErr(err) {
 			logger.Info("BackupVault already exists in VCP", "uuid", backupVault.UUID)
@@ -891,6 +875,101 @@ func convertDataModelToBackupVaultInternal(bv *datamodel.BackupVault) gcpgenserv
 			result.BackupsPrimaryKeyVersion = gcpgenserver.NewOptString(*bv.CmekAttributes.BackupsPrimaryKeyVersion)
 		}
 	}
+
+	return result
+}
+
+// _convertInternalBackupVaultToDataModel converts API BackupVaultInternal model to datamodel.BackupVault.
+func _convertInternalBackupVaultToDataModel(req *gcpgenserver.BackupVaultInternalV1beta) *datamodel.BackupVault {
+	result := &datamodel.BackupVault{
+		Name:            req.ResourceId,
+		AccountVendorID: req.AccountVendorId,
+		LifeCycleState:  string(req.LifeCycleState),
+		BackupVaultType: string(req.BackupVaultType),
+	}
+
+	if req.Description.IsSet() {
+		description := req.Description.Value
+		result.Description = &description
+	}
+	if req.BackupRegion.IsSet() {
+		backupRegion := req.BackupRegion.Value
+		result.BackupRegionName = &backupRegion
+	}
+	if req.SourceRegion.IsSet() {
+		sourceRegion := req.SourceRegion.Value
+		result.SourceRegionName = &sourceRegion
+	}
+	if req.LifeCycleStateDetails.IsSet() {
+		result.LifeCycleStateDetails = req.LifeCycleStateDetails.Value
+	}
+
+	if req.ImmutableAttributes.IsSet() {
+		immutableAttrs := req.ImmutableAttributes.Value
+		result.ImmutableAttributes = &datamodel.ImmutableAttributes{}
+		if immutableAttrs.IsDailyBackupImmutable.IsSet() {
+			result.ImmutableAttributes.IsDailyBackupImmutable = immutableAttrs.IsDailyBackupImmutable.Value
+		}
+		if immutableAttrs.IsWeeklyBackupImmutable.IsSet() {
+			result.ImmutableAttributes.IsWeeklyBackupImmutable = immutableAttrs.IsWeeklyBackupImmutable.Value
+		}
+		if immutableAttrs.IsMonthlyBackupImmutable.IsSet() {
+			result.ImmutableAttributes.IsMonthlyBackupImmutable = immutableAttrs.IsMonthlyBackupImmutable.Value
+		}
+		if immutableAttrs.IsAdhocBackupImmutable.IsSet() {
+			result.ImmutableAttributes.IsAdhocBackupImmutable = immutableAttrs.IsAdhocBackupImmutable.Value
+		}
+		if immutableAttrs.BackupMinimumEnforcedRetentionDuration.IsSet() {
+			duration := int64(immutableAttrs.BackupMinimumEnforcedRetentionDuration.Value)
+			result.ImmutableAttributes.BackupMinimumEnforcedRetentionDuration = &duration
+		}
+	}
+
+	if len(req.BucketDetails) > 0 {
+		bucketDetails := make(datamodel.BucketDetailsArray, 0, len(req.BucketDetails))
+		for _, bucket := range req.BucketDetails {
+			bucketDetail := &datamodel.BucketDetails{}
+			if bucket.BucketName.IsSet() {
+				bucketDetail.BucketName = bucket.BucketName.Value
+			}
+			if bucket.ServiceAccountName.IsSet() {
+				bucketDetail.ServiceAccountName = bucket.ServiceAccountName.Value
+			}
+			if bucket.VendorSubnetId.IsSet() {
+				bucketDetail.VendorSubnetID = bucket.VendorSubnetId.Value
+			}
+			if bucket.TenantProjectNumber.IsSet() {
+				bucketDetail.TenantProjectNumber = bucket.TenantProjectNumber.Value
+			}
+			if bucket.SatisfiesPzs.IsSet() {
+				bucketDetail.SatisfiesPzs = bucket.SatisfiesPzs.Value
+			}
+			if bucket.SatisfiesPzi.IsSet() {
+				bucketDetail.SatisfiesPzi = bucket.SatisfiesPzi.Value
+			}
+			bucketDetails = append(bucketDetails, bucketDetail)
+		}
+		result.BucketDetails = bucketDetails
+	}
+
+	if req.KmsConfigResourcePath.IsSet() || req.EncryptionState.IsSet() || req.BackupsPrimaryKeyVersion.IsSet() {
+		cmekAttrs := &datamodel.CmekAttributes{}
+		if req.KmsConfigResourcePath.IsSet() {
+			kmsConfigResourcePath := req.KmsConfigResourcePath.Value
+			cmekAttrs.KmsConfigResourcePath = &kmsConfigResourcePath
+		}
+		if req.EncryptionState.IsSet() {
+			encryptionState := string(req.EncryptionState.Value)
+			cmekAttrs.EncryptionState = &encryptionState
+		}
+		if req.BackupsPrimaryKeyVersion.IsSet() {
+			backupsPrimaryKeyVersion := req.BackupsPrimaryKeyVersion.Value
+			cmekAttrs.BackupsPrimaryKeyVersion = &backupsPrimaryKeyVersion
+		}
+		result.CmekAttributes = cmekAttrs
+	}
+	// TODO: Add a parameter to API
+	result.ServiceType = models.ServiceTypeGCNV
 
 	return result
 }
@@ -1431,4 +1510,9 @@ func (h Handler) V1betaInternalDeleteBackupUnderBackupVault(ctx context.Context,
 		Name: gcpgenserver.NewOptString(operationID),
 		Done: gcpgenserver.NewOptBool(false),
 	}, nil
+}
+
+// ConvertSourceBackupVaultNameToRemoteBackupVaultName converts source backup vault name to remote backup vault name
+func ConvertSourceBackupVaultNameToRemoteBackupVaultName(sourceBackupVaultName, backupVaultUUID string) string {
+	return sourceBackupVaultName[:min(len(sourceBackupVaultName), remoteBackupVaultHydrationNameMaxLength-len(remoteBackupVaultHydrationNamePrefix)-4)] + remoteBackupVaultHydrationNamePrefix + strings.Split(backupVaultUUID, "-")[0][:4]
 }
