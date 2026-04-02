@@ -77,6 +77,29 @@ Event Retention Period: 7 years
 func TestListEventRetentionPolicies(t *testing.T) {
 	listParams := listEventRetentionParams()
 	handler := Handler{}
+	ctx := enableSnaplockForEventRetentionTests(t)
+
+	t.Run("WhenOperationDisabled_ReturnsBadRequest", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = false
+		defer func() { snapLockOperationEnabled = original }()
+
+		res, err := handler.V1ListEventRetentionPolicies(ctx, listParams)
+		require.NoError(t, err)
+		badReq, ok := res.(*oasgenserver.V1ListEventRetentionPoliciesBadRequest)
+		require.True(t, ok, "expected BadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Equal(t, "Event retention policy operation is disabled", badReq.Message)
+	})
+
+	t.Run("WhenIAMRoleMissing_ReturnsForbidden", func(t *testing.T) {
+		res, err := handler.V1ListEventRetentionPolicies(context.Background(), listParams)
+		require.NoError(t, err)
+		forbidden, ok := res.(*oasgenserver.V1ListEventRetentionPoliciesForbidden)
+		require.True(t, ok, "expected Forbidden, got %T", res)
+		assert.Equal(t, 403, forbidden.Code)
+		assert.Equal(t, snaplockIAMRoleRequiredMessage, forbidden.Message)
+	})
 
 	t.Run("WhenSetupCredentialsFails_ReturnsUnauthorized", func(t *testing.T) {
 		oldSetup := setupCredentialsForHandler
@@ -85,7 +108,7 @@ func TestListEventRetentionPolicies(t *testing.T) {
 			return nil, errors.New("no credentials")
 		}
 
-		res, err := handler.V1ListEventRetentionPolicies(context.Background(), listParams)
+		res, err := handler.V1ListEventRetentionPolicies(ctx, listParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		unauth, ok := res.(*oasgenserver.V1ListEventRetentionPoliciesUnauthorized)
@@ -104,7 +127,7 @@ func TestListEventRetentionPolicies(t *testing.T) {
 		setupCredentialsForHandler = func(ctx context.Context, _, _ string, _ string) (context.Context, error) { return ctx, nil }
 		ensureCertificateOrPassword = func(context.Context) error { return errors.New("no cert") }
 
-		res, err := handler.V1ListEventRetentionPolicies(context.Background(), listParams)
+		res, err := handler.V1ListEventRetentionPolicies(ctx, listParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		unauth, ok := res.(*oasgenserver.V1ListEventRetentionPoliciesUnauthorized)
@@ -127,7 +150,7 @@ func TestListEventRetentionPolicies(t *testing.T) {
 			return nil, errors.New("no client")
 		}
 
-		res, err := handler.V1ListEventRetentionPolicies(context.Background(), listParams)
+		res, err := handler.V1ListEventRetentionPolicies(ctx, listParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		internal, ok := res.(*oasgenserver.V1ListEventRetentionPoliciesInternalServerError)
@@ -152,7 +175,7 @@ func TestListEventRetentionPolicies(t *testing.T) {
 		ensureCertificateOrPassword = func(context.Context) error { return nil }
 		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return mockClient, nil }
 
-		res, err := handler.V1ListEventRetentionPolicies(context.Background(), listParams)
+		res, err := handler.V1ListEventRetentionPolicies(ctx, listParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		body, ok := res.(*oasgenserver.EBRPolicyResponse)
@@ -183,7 +206,7 @@ func TestListEventRetentionPolicies(t *testing.T) {
 		ensureCertificateOrPassword = func(context.Context) error { return nil }
 		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return mockClient, nil }
 
-		res, err := handler.V1ListEventRetentionPolicies(context.Background(), listParams)
+		res, err := handler.V1ListEventRetentionPolicies(ctx, listParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		internal, ok := res.(*oasgenserver.V1ListEventRetentionPoliciesInternalServerError)
@@ -208,7 +231,7 @@ func TestListEventRetentionPolicies(t *testing.T) {
 		ensureCertificateOrPassword = func(context.Context) error { return nil }
 		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return mockClient, nil }
 
-		res, err := handler.V1ListEventRetentionPolicies(context.Background(), listParams)
+		res, err := handler.V1ListEventRetentionPolicies(ctx, listParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		internal, ok := res.(*oasgenserver.V1ListEventRetentionPoliciesInternalServerError)
@@ -234,7 +257,7 @@ func TestListEventRetentionPolicies(t *testing.T) {
 		ensureCertificateOrPassword = func(context.Context) error { return nil }
 		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return mockClient, nil }
 
-		res, err := handler.V1ListEventRetentionPolicies(context.Background(), listParams)
+		res, err := handler.V1ListEventRetentionPolicies(ctx, listParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		internal, ok := res.(*oasgenserver.V1ListEventRetentionPoliciesInternalServerError)
@@ -248,6 +271,29 @@ func TestListEventRetentionPolicies(t *testing.T) {
 func TestGetEventRetentionPolicy(t *testing.T) {
 	getParams := getEventRetentionParams()
 	handler := Handler{}
+	ctx := enableSnaplockForEventRetentionTests(t)
+
+	t.Run("WhenOperationDisabled_ReturnsBadRequest", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = false
+		defer func() { snapLockOperationEnabled = original }()
+
+		res, err := handler.V1GetEventRetentionPolicy(ctx, getParams)
+		require.NoError(t, err)
+		badReq, ok := res.(*oasgenserver.V1GetEventRetentionPolicyBadRequest)
+		require.True(t, ok, "expected BadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Equal(t, "Event retention policy operation is disabled", badReq.Message)
+	})
+
+	t.Run("WhenIAMRoleMissing_ReturnsForbidden", func(t *testing.T) {
+		res, err := handler.V1GetEventRetentionPolicy(context.Background(), getParams)
+		require.NoError(t, err)
+		forbidden, ok := res.(*oasgenserver.V1GetEventRetentionPolicyForbidden)
+		require.True(t, ok, "expected Forbidden, got %T", res)
+		assert.Equal(t, 403, forbidden.Code)
+		assert.Equal(t, snaplockIAMRoleRequiredMessage, forbidden.Message)
+	})
 
 	t.Run("WhenSetupCredentialsFails_ReturnsUnauthorized", func(t *testing.T) {
 		oldSetup := setupCredentialsForHandler
@@ -256,7 +302,7 @@ func TestGetEventRetentionPolicy(t *testing.T) {
 			return nil, errors.New("no credentials")
 		}
 
-		res, err := handler.V1GetEventRetentionPolicy(context.Background(), getParams)
+		res, err := handler.V1GetEventRetentionPolicy(ctx, getParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		unauth, ok := res.(*oasgenserver.V1GetEventRetentionPolicyUnauthorized)
@@ -280,7 +326,7 @@ func TestGetEventRetentionPolicy(t *testing.T) {
 		ensureCertificateOrPassword = func(context.Context) error { return nil }
 		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return mockClient, nil }
 
-		res, err := handler.V1GetEventRetentionPolicy(context.Background(), getParams)
+		res, err := handler.V1GetEventRetentionPolicy(ctx, getParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		notFound, ok := res.(*oasgenserver.V1GetEventRetentionPolicyNotFound)
@@ -305,7 +351,7 @@ func TestGetEventRetentionPolicy(t *testing.T) {
 		ensureCertificateOrPassword = func(context.Context) error { return nil }
 		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return mockClient, nil }
 
-		res, err := handler.V1GetEventRetentionPolicy(context.Background(), getParams)
+		res, err := handler.V1GetEventRetentionPolicy(ctx, getParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		policy, ok := res.(*oasgenserver.EBRPolicy)
@@ -331,7 +377,7 @@ func TestGetEventRetentionPolicy(t *testing.T) {
 		ensureCertificateOrPassword = func(context.Context) error { return nil }
 		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return mockClient, nil }
 
-		res, err := handler.V1GetEventRetentionPolicy(context.Background(), getParams)
+		res, err := handler.V1GetEventRetentionPolicy(ctx, getParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		internal, ok := res.(*oasgenserver.V1GetEventRetentionPolicyInternalServerError)
@@ -356,7 +402,7 @@ func TestGetEventRetentionPolicy(t *testing.T) {
 		ensureCertificateOrPassword = func(context.Context) error { return nil }
 		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return mockClient, nil }
 
-		res, err := handler.V1GetEventRetentionPolicy(context.Background(), getParams)
+		res, err := handler.V1GetEventRetentionPolicy(ctx, getParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		notFound, ok := res.(*oasgenserver.V1GetEventRetentionPolicyNotFound)
@@ -381,7 +427,7 @@ func TestGetEventRetentionPolicy(t *testing.T) {
 		ensureCertificateOrPassword = func(context.Context) error { return nil }
 		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return mockClient, nil }
 
-		res, err := handler.V1GetEventRetentionPolicy(context.Background(), getParams)
+		res, err := handler.V1GetEventRetentionPolicy(ctx, getParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		internal, ok := res.(*oasgenserver.V1GetEventRetentionPolicyInternalServerError)
@@ -411,7 +457,7 @@ Vserver           Name                Retention Period
 		ensureCertificateOrPassword = func(context.Context) error { return nil }
 		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return mockClient, nil }
 
-		res, err := handler.V1GetEventRetentionPolicy(context.Background(), getParams)
+		res, err := handler.V1GetEventRetentionPolicy(ctx, getParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		notFound, ok := res.(*oasgenserver.V1GetEventRetentionPolicyNotFound)
@@ -425,7 +471,30 @@ Vserver           Name                Retention Period
 func TestCreateEventRetentionPolicy(t *testing.T) {
 	createParams := createEventRetentionParams()
 	handler := Handler{}
+	ctx := enableSnaplockForEventRetentionTests(t)
 	req := &oasgenserver.EBRPolicy{Name: "new-policy", RetentionPeriod: "P7Y"}
+
+	t.Run("WhenOperationDisabled_ReturnsBadRequest", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = false
+		defer func() { snapLockOperationEnabled = original }()
+
+		res, err := handler.V1CreateEventRetentionPolicy(ctx, req, createParams)
+		require.NoError(t, err)
+		badReq, ok := res.(*oasgenserver.V1CreateEventRetentionPolicyBadRequest)
+		require.True(t, ok, "expected BadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Equal(t, "Event retention policy operation is disabled", badReq.Message)
+	})
+
+	t.Run("WhenIAMRoleMissing_ReturnsForbidden", func(t *testing.T) {
+		res, err := handler.V1CreateEventRetentionPolicy(context.Background(), req, createParams)
+		require.NoError(t, err)
+		forbidden, ok := res.(*oasgenserver.V1CreateEventRetentionPolicyForbidden)
+		require.True(t, ok, "expected Forbidden, got %T", res)
+		assert.Equal(t, 403, forbidden.Code)
+		assert.Equal(t, snaplockIAMRoleRequiredMessage, forbidden.Message)
+	})
 
 	t.Run("WhenSetupCredentialsFails_ReturnsUnauthorized", func(t *testing.T) {
 		oldSetup := setupCredentialsForHandler
@@ -434,7 +503,7 @@ func TestCreateEventRetentionPolicy(t *testing.T) {
 			return nil, errors.New("no credentials")
 		}
 
-		res, err := handler.V1CreateEventRetentionPolicy(context.Background(), req, createParams)
+		res, err := handler.V1CreateEventRetentionPolicy(ctx, req, createParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		unauth, ok := res.(*oasgenserver.V1CreateEventRetentionPolicyUnauthorized)
@@ -458,7 +527,7 @@ func TestCreateEventRetentionPolicy(t *testing.T) {
 		ensureCertificateOrPassword = func(context.Context) error { return nil }
 		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return mockClient, nil }
 
-		res, err := handler.V1CreateEventRetentionPolicy(context.Background(), req, createParams)
+		res, err := handler.V1CreateEventRetentionPolicy(ctx, req, createParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		policy, ok := res.(*oasgenserver.EBRPolicy)
@@ -484,7 +553,7 @@ func TestCreateEventRetentionPolicy(t *testing.T) {
 		ensureCertificateOrPassword = func(context.Context) error { return nil }
 		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return mockClient, nil }
 
-		res, err := handler.V1CreateEventRetentionPolicy(context.Background(), req, createParams)
+		res, err := handler.V1CreateEventRetentionPolicy(ctx, req, createParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1CreateEventRetentionPolicyBadRequest)
@@ -509,7 +578,7 @@ func TestCreateEventRetentionPolicy(t *testing.T) {
 		ensureCertificateOrPassword = func(context.Context) error { return nil }
 		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return mockClient, nil }
 
-		res, err := handler.V1CreateEventRetentionPolicy(context.Background(), req, createParams)
+		res, err := handler.V1CreateEventRetentionPolicy(ctx, req, createParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1CreateEventRetentionPolicyBadRequest)
@@ -534,7 +603,7 @@ func TestCreateEventRetentionPolicy(t *testing.T) {
 		ensureCertificateOrPassword = func(context.Context) error { return nil }
 		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return mockClient, nil }
 
-		res, err := handler.V1CreateEventRetentionPolicy(context.Background(), req, createParams)
+		res, err := handler.V1CreateEventRetentionPolicy(ctx, req, createParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1CreateEventRetentionPolicyBadRequest)
@@ -547,6 +616,31 @@ func TestCreateEventRetentionPolicy(t *testing.T) {
 func TestUpdateEventRetentionPolicy(t *testing.T) {
 	updateParams := updateEventRetentionPolicyParams()
 	handler := Handler{}
+	ctx := enableSnaplockForEventRetentionTests(t)
+
+	t.Run("WhenOperationDisabled_ReturnsBadRequest", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = false
+		defer func() { snapLockOperationEnabled = original }()
+		req := &oasgenserver.V1UpdateEventRetentionPolicyReq{RetentionPeriod: oasgenserver.NewOptString("P30M")}
+
+		res, err := handler.V1UpdateEventRetentionPolicy(ctx, req, updateParams)
+		require.NoError(t, err)
+		badReq, ok := res.(*oasgenserver.V1UpdateEventRetentionPolicyBadRequest)
+		require.True(t, ok, "expected BadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Equal(t, "Event retention policy operation is disabled", badReq.Message)
+	})
+
+	t.Run("WhenIAMRoleMissing_ReturnsForbidden", func(t *testing.T) {
+		req := &oasgenserver.V1UpdateEventRetentionPolicyReq{RetentionPeriod: oasgenserver.NewOptString("P30M")}
+		res, err := handler.V1UpdateEventRetentionPolicy(context.Background(), req, updateParams)
+		require.NoError(t, err)
+		forbidden, ok := res.(*oasgenserver.V1UpdateEventRetentionPolicyForbidden)
+		require.True(t, ok, "expected Forbidden, got %T", res)
+		assert.Equal(t, 403, forbidden.Code)
+		assert.Equal(t, snaplockIAMRoleRequiredMessage, forbidden.Message)
+	})
 
 	t.Run("WhenRetentionPeriodNotSet_ReturnsBadRequest", func(t *testing.T) {
 		// Handler validates before calling ONTAP; no ExecuteCLI call.
@@ -564,7 +658,7 @@ func TestUpdateEventRetentionPolicy(t *testing.T) {
 		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return mockClient, nil }
 
 		req := &oasgenserver.V1UpdateEventRetentionPolicyReq{} // RetentionPeriod not set
-		res, err := handler.V1UpdateEventRetentionPolicy(context.Background(), req, updateParams)
+		res, err := handler.V1UpdateEventRetentionPolicy(ctx, req, updateParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1UpdateEventRetentionPolicyBadRequest)
@@ -584,7 +678,7 @@ func TestUpdateEventRetentionPolicy(t *testing.T) {
 			RetentionPeriod: oasgenserver.NewOptString("P30M"),
 		}
 
-		res, err := handler.V1UpdateEventRetentionPolicy(context.Background(), req, updateParams)
+		res, err := handler.V1UpdateEventRetentionPolicy(ctx, req, updateParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		unauth, ok := res.(*oasgenserver.V1UpdateEventRetentionPolicyUnauthorized)
@@ -611,7 +705,7 @@ func TestUpdateEventRetentionPolicy(t *testing.T) {
 		req := &oasgenserver.V1UpdateEventRetentionPolicyReq{
 			RetentionPeriod: oasgenserver.NewOptString("P30M"),
 		}
-		res, err := handler.V1UpdateEventRetentionPolicy(context.Background(), req, updateParams)
+		res, err := handler.V1UpdateEventRetentionPolicy(ctx, req, updateParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		_, ok := res.(*oasgenserver.V1UpdateEventRetentionPolicyOK)
@@ -638,7 +732,7 @@ func TestUpdateEventRetentionPolicy(t *testing.T) {
 		req := &oasgenserver.V1UpdateEventRetentionPolicyReq{
 			RetentionPeriod: oasgenserver.NewOptString("P30M"),
 		}
-		res, err := handler.V1UpdateEventRetentionPolicy(context.Background(), req, updateParams)
+		res, err := handler.V1UpdateEventRetentionPolicy(ctx, req, updateParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1UpdateEventRetentionPolicyBadRequest)
@@ -667,7 +761,7 @@ func TestUpdateEventRetentionPolicy(t *testing.T) {
 		req := &oasgenserver.V1UpdateEventRetentionPolicyReq{
 			RetentionPeriod: oasgenserver.NewOptString("P30M"),
 		}
-		res, err := handler.V1UpdateEventRetentionPolicy(context.Background(), req, updateParams)
+		res, err := handler.V1UpdateEventRetentionPolicy(ctx, req, updateParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1UpdateEventRetentionPolicyBadRequest)
@@ -680,6 +774,29 @@ func TestUpdateEventRetentionPolicy(t *testing.T) {
 func TestDeleteEventRetentionPolicy(t *testing.T) {
 	deleteParams := deleteEventRetentionPolicyParams()
 	handler := Handler{}
+	ctx := enableSnaplockForEventRetentionTests(t)
+
+	t.Run("WhenOperationDisabled_ReturnsBadRequest", func(t *testing.T) {
+		original := snapLockOperationEnabled
+		snapLockOperationEnabled = false
+		defer func() { snapLockOperationEnabled = original }()
+
+		res, err := handler.V1DeleteEventRetentionPolicy(ctx, deleteParams)
+		require.NoError(t, err)
+		badReq, ok := res.(*oasgenserver.V1DeleteEventRetentionPolicyBadRequest)
+		require.True(t, ok, "expected BadRequest, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Equal(t, "Event retention policy operation is disabled", badReq.Message)
+	})
+
+	t.Run("WhenIAMRoleMissing_ReturnsForbidden", func(t *testing.T) {
+		res, err := handler.V1DeleteEventRetentionPolicy(context.Background(), deleteParams)
+		require.NoError(t, err)
+		forbidden, ok := res.(*oasgenserver.V1DeleteEventRetentionPolicyForbidden)
+		require.True(t, ok, "expected Forbidden, got %T", res)
+		assert.Equal(t, 403, forbidden.Code)
+		assert.Equal(t, snaplockIAMRoleRequiredMessage, forbidden.Message)
+	})
 
 	t.Run("WhenSetupCredentialsFails_ReturnsUnauthorized", func(t *testing.T) {
 		oldSetup := setupCredentialsForHandler
@@ -688,7 +805,7 @@ func TestDeleteEventRetentionPolicy(t *testing.T) {
 			return nil, errors.New("no credentials")
 		}
 
-		res, err := handler.V1DeleteEventRetentionPolicy(context.Background(), deleteParams)
+		res, err := handler.V1DeleteEventRetentionPolicy(ctx, deleteParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		unauth, ok := res.(*oasgenserver.V1DeleteEventRetentionPolicyUnauthorized)
@@ -712,7 +829,7 @@ func TestDeleteEventRetentionPolicy(t *testing.T) {
 		ensureCertificateOrPassword = func(context.Context) error { return nil }
 		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return mockClient, nil }
 
-		res, err := handler.V1DeleteEventRetentionPolicy(context.Background(), deleteParams)
+		res, err := handler.V1DeleteEventRetentionPolicy(ctx, deleteParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		_, ok := res.(*oasgenserver.V1DeleteEventRetentionPolicyOK)
@@ -736,7 +853,7 @@ func TestDeleteEventRetentionPolicy(t *testing.T) {
 		ensureCertificateOrPassword = func(context.Context) error { return nil }
 		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return mockClient, nil }
 
-		res, err := handler.V1DeleteEventRetentionPolicy(context.Background(), deleteParams)
+		res, err := handler.V1DeleteEventRetentionPolicy(ctx, deleteParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1DeleteEventRetentionPolicyBadRequest)
@@ -761,7 +878,7 @@ func TestDeleteEventRetentionPolicy(t *testing.T) {
 		ensureCertificateOrPassword = func(context.Context) error { return nil }
 		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return mockClient, nil }
 
-		res, err := handler.V1DeleteEventRetentionPolicy(context.Background(), deleteParams)
+		res, err := handler.V1DeleteEventRetentionPolicy(ctx, deleteParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		notFound, ok := res.(*oasgenserver.V1DeleteEventRetentionPolicyNotFound)
@@ -786,7 +903,7 @@ func TestDeleteEventRetentionPolicy(t *testing.T) {
 		ensureCertificateOrPassword = func(context.Context) error { return nil }
 		newOntapClientFromContext = func(context.Context) (handlers.OntapClient, error) { return mockClient, nil }
 
-		res, err := handler.V1DeleteEventRetentionPolicy(context.Background(), deleteParams)
+		res, err := handler.V1DeleteEventRetentionPolicy(ctx, deleteParams)
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		badReq, ok := res.(*oasgenserver.V1DeleteEventRetentionPolicyBadRequest)

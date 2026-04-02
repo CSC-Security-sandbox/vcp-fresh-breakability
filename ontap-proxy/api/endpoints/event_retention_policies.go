@@ -2,6 +2,7 @@ package endpoints
 
 import (
 	"context"
+	"net/http"
 	"errors"
 	"fmt"
 	"strings"
@@ -21,37 +22,52 @@ func (h Handler) V1ListEventRetentionPolicies(
 	logger.InfoContext(ctx, "Processing list event retention policies request",
 		"projectNumber", params.ProjectNumber, "poolId", params.PoolId.String())
 
+	if !snapLockOperationEnabled {
+		logger.Debug("V1ListEventRetentionPolicies: operation is disabled")
+		return &oasgenserver.V1ListEventRetentionPoliciesBadRequest{
+			Code: http.StatusBadRequest,
+			Message: "Event retention policy operation is disabled",
+		}, nil
+	}
+
+	if !middleware.IsIAMRoleHeaderSnaplockExistInContext(ctx, middleware.ManageSnaplockRole) {
+		return &oasgenserver.V1ListEventRetentionPoliciesForbidden{
+			Code: http.StatusForbidden,
+			Message: snaplockIAMRoleRequiredMessage,
+		}, nil
+	}
+
 	ctx, err := setupCredentialsForHandler(ctx, params.ProjectNumber, params.PoolId.String(), middleware.CredentialTypeAdmin)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to setup credentials", "error", err)
-		return &oasgenserver.V1ListEventRetentionPoliciesUnauthorized{Code: 401, Message: fmt.Sprintf("authentication error: %s", err.Error())}, nil
+		return &oasgenserver.V1ListEventRetentionPoliciesUnauthorized{Code: http.StatusUnauthorized, Message: fmt.Sprintf("authentication error: %s", err.Error())}, nil
 	}
 	if err := ensureCertificateOrPassword(ctx); err != nil {
 		logger.ErrorContext(ctx, "Failed to setup certificate/password", "error", err)
-		return &oasgenserver.V1ListEventRetentionPoliciesUnauthorized{Code: 401, Message: fmt.Sprintf("authentication error: %s", err.Error())}, nil
+		return &oasgenserver.V1ListEventRetentionPoliciesUnauthorized{Code: http.StatusUnauthorized, Message: fmt.Sprintf("authentication error: %s", err.Error())}, nil
 	}
 	ontapClient, err := newOntapClientFromContext(ctx)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to get ONTAP client", "error", err)
-		return &oasgenserver.V1ListEventRetentionPoliciesInternalServerError{Code: 500, Message: fmt.Sprintf("failed to connect to ONTAP: %s", err.Error())}, nil
+		return &oasgenserver.V1ListEventRetentionPoliciesInternalServerError{Code: http.StatusInternalServerError, Message: fmt.Sprintf("failed to connect to ONTAP: %s", err.Error())}, nil
 	}
 	cliCommand := handlers.BuildEventRetentionPolicyShowCommand("")
 	cliResponse, err := ontapClient.ExecuteCLI(ctx, cliCommand, handlers.SnaplockPrivilegeLevel)
 	if err != nil {
 		logger.ErrorContext(ctx, "CLI execution failed", "error", err)
-		return &oasgenserver.V1ListEventRetentionPoliciesInternalServerError{Code: 500, Message: fmt.Sprintf("ONTAP operation failed: %s", err.Error())}, nil
+		return &oasgenserver.V1ListEventRetentionPoliciesInternalServerError{Code: http.StatusInternalServerError, Message: fmt.Sprintf("ONTAP operation failed: %s", err.Error())}, nil
 	}
 
 	logger.InfoContext(ctx, "Event retention CLI output", "operation", "list", "cliOutput", cliResponse.Output)
 	if !handlers.IsCLISuccess(cliResponse.Output) {
 		message := handlers.ParseCLIError(cliResponse.Output)
 		logger.WarnContext(ctx, "Event retention policy show failed", "cliOutput", cliResponse.Output)
-		return &oasgenserver.V1ListEventRetentionPoliciesInternalServerError{Code: 500, Message: message}, nil
+		return &oasgenserver.V1ListEventRetentionPoliciesInternalServerError{Code: http.StatusInternalServerError, Message: message}, nil
 	}
 	rows, err := handlers.ParseEventRetentionPolicyShowOutput(cliResponse.Output)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to parse CLI output", "error", err)
-		return &oasgenserver.V1ListEventRetentionPoliciesInternalServerError{Code: 500, Message: fmt.Sprintf("failed to parse event retention policies: %s", err.Error())}, nil
+		return &oasgenserver.V1ListEventRetentionPoliciesInternalServerError{Code: http.StatusInternalServerError, Message: fmt.Sprintf("failed to parse event retention policies: %s", err.Error())}, nil
 	}
 
 	records := make([]oasgenserver.EBRPolicy, 0, len(rows))
@@ -78,22 +94,37 @@ func (h Handler) V1CreateEventRetentionPolicy(
 	logger.InfoContext(ctx, "Processing create event retention policy request",
 		"projectNumber", params.ProjectNumber, "poolId", params.PoolId.String(), "policyName", req.Name)
 
+	if !snapLockOperationEnabled {
+		logger.Debug("V1CreateEventRetentionPolicy: operation is disabled")
+		return &oasgenserver.V1CreateEventRetentionPolicyBadRequest{
+			Code: http.StatusBadRequest,
+			Message: "Event retention policy operation is disabled",
+		}, nil
+	}
+
+	if !middleware.IsIAMRoleHeaderSnaplockExistInContext(ctx, middleware.ManageSnaplockRole) {
+		return &oasgenserver.V1CreateEventRetentionPolicyForbidden{
+			Code: http.StatusForbidden,
+			Message: snaplockIAMRoleRequiredMessage,
+		}, nil
+	}
+
 	if req.Name == "" {
-		return &oasgenserver.V1CreateEventRetentionPolicyBadRequest{Code: 400, Message: "policy name is required"}, nil
+		return &oasgenserver.V1CreateEventRetentionPolicyBadRequest{Code: http.StatusBadRequest, Message: "policy name is required"}, nil
 	}
 	ctx, err := setupCredentialsForHandler(ctx, params.ProjectNumber, params.PoolId.String(), middleware.CredentialTypeAdmin)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to setup credentials", "error", err)
-		return &oasgenserver.V1CreateEventRetentionPolicyUnauthorized{Code: 401, Message: fmt.Sprintf("authentication error: %s", err.Error())}, nil
+		return &oasgenserver.V1CreateEventRetentionPolicyUnauthorized{Code: http.StatusUnauthorized, Message: fmt.Sprintf("authentication error: %s", err.Error())}, nil
 	}
 	if err := ensureCertificateOrPassword(ctx); err != nil {
 		logger.ErrorContext(ctx, "Failed to setup certificate/password", "error", err)
-		return &oasgenserver.V1CreateEventRetentionPolicyUnauthorized{Code: 401, Message: fmt.Sprintf("authentication error: %s", err.Error())}, nil
+		return &oasgenserver.V1CreateEventRetentionPolicyUnauthorized{Code: http.StatusUnauthorized, Message: fmt.Sprintf("authentication error: %s", err.Error())}, nil
 	}
 	ontapClient, err := newOntapClientFromContext(ctx)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to get ONTAP client", "error", err)
-		return &oasgenserver.V1CreateEventRetentionPolicyInternalServerError{Code: 500, Message: fmt.Sprintf("failed to connect to ONTAP: %s", err.Error())}, nil
+		return &oasgenserver.V1CreateEventRetentionPolicyInternalServerError{Code: http.StatusInternalServerError, Message: fmt.Sprintf("failed to connect to ONTAP: %s", err.Error())}, nil
 	}
 	retentionCLI := handlers.RetentionPeriodAPIToCLI(req.RetentionPeriod)
 	cliCommand := handlers.BuildEventRetentionPolicyCreateCommand(req.Name, retentionCLI)
@@ -106,13 +137,13 @@ func (h Handler) V1CreateEventRetentionPolicy(
 		if errors.As(err, &cliErr) {
 			return &oasgenserver.V1CreateEventRetentionPolicyBadRequest{Code: handlers.OntapCodeToInt(cliErr.Code), Message: cliErr.Message}, nil
 		}
-		return &oasgenserver.V1CreateEventRetentionPolicyInternalServerError{Code: 500, Message: fmt.Sprintf("ONTAP operation failed: %s", err.Error())}, nil
+		return &oasgenserver.V1CreateEventRetentionPolicyInternalServerError{Code: http.StatusInternalServerError, Message: fmt.Sprintf("ONTAP operation failed: %s", err.Error())}, nil
 	}
 	logger.InfoContext(ctx, "Event retention CLI output", "operation", "create", "policyName", req.Name, "cliOutput", cliResponse.Output)
 	if !handlers.IsCLISuccess(cliResponse.Output) {
 		message := handlers.ParseCLIError(cliResponse.Output)
 		logger.WarnContext(ctx, "Event retention policy create failed", "policyName", req.Name, "cliOutput", cliResponse.Output)
-		return &oasgenserver.V1CreateEventRetentionPolicyBadRequest{Code: 400, Message: message}, nil
+		return &oasgenserver.V1CreateEventRetentionPolicyBadRequest{Code: http.StatusBadRequest, Message: message}, nil
 	}
 	logger.InfoContext(ctx, "Event retention policy create completed successfully", "policyName", req.Name)
 	return req, nil
@@ -127,19 +158,34 @@ func (h Handler) V1GetEventRetentionPolicy(
 	logger.InfoContext(ctx, "Processing get event retention policy request",
 		"projectNumber", params.ProjectNumber, "poolId", params.PoolId.String(), "policyName", params.PolicyName)
 
+	if !snapLockOperationEnabled {
+		logger.Debug("V1GetEventRetentionPolicy: operation is disabled")
+		return &oasgenserver.V1GetEventRetentionPolicyBadRequest{
+			Code: http.StatusBadRequest,
+			Message: "Event retention policy operation is disabled",
+		}, nil
+	}
+
+	if !middleware.IsIAMRoleHeaderSnaplockExistInContext(ctx, middleware.ManageSnaplockRole) {
+		return &oasgenserver.V1GetEventRetentionPolicyForbidden{
+			Code: http.StatusForbidden,
+			Message: snaplockIAMRoleRequiredMessage,
+		}, nil
+	}
+
 	ctx, err := setupCredentialsForHandler(ctx, params.ProjectNumber, params.PoolId.String(), middleware.CredentialTypeAdmin)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to setup credentials", "error", err)
-		return &oasgenserver.V1GetEventRetentionPolicyUnauthorized{Code: 401, Message: fmt.Sprintf("authentication error: %s", err.Error())}, nil
+		return &oasgenserver.V1GetEventRetentionPolicyUnauthorized{Code: http.StatusUnauthorized, Message: fmt.Sprintf("authentication error: %s", err.Error())}, nil
 	}
 	if err := ensureCertificateOrPassword(ctx); err != nil {
 		logger.ErrorContext(ctx, "Failed to setup certificate/password", "error", err)
-		return &oasgenserver.V1GetEventRetentionPolicyUnauthorized{Code: 401, Message: fmt.Sprintf("authentication error: %s", err.Error())}, nil
+		return &oasgenserver.V1GetEventRetentionPolicyUnauthorized{Code: http.StatusUnauthorized, Message: fmt.Sprintf("authentication error: %s", err.Error())}, nil
 	}
 	ontapClient, err := newOntapClientFromContext(ctx)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to get ONTAP client", "error", err)
-		return &oasgenserver.V1GetEventRetentionPolicyInternalServerError{Code: 500, Message: fmt.Sprintf("failed to connect to ONTAP: %s", err.Error())}, nil
+		return &oasgenserver.V1GetEventRetentionPolicyInternalServerError{Code: http.StatusInternalServerError, Message: fmt.Sprintf("failed to connect to ONTAP: %s", err.Error())}, nil
 	}
 	cliCommand := handlers.BuildEventRetentionPolicyShowCommand(params.PolicyName)
 	cliResponse, err := ontapClient.ExecuteCLI(ctx, cliCommand, handlers.SnaplockPrivilegeLevel)
@@ -147,25 +193,25 @@ func (h Handler) V1GetEventRetentionPolicy(
 		logger.ErrorContext(ctx, "CLI execution failed", "error", err)
 		var cliErr *handlers.OntapCLIError
 		if errors.As(err, &cliErr) && (cliErr.Code == "4" || strings.Contains(strings.ToLower(cliErr.Message), "doesn't exist") || strings.Contains(strings.ToLower(cliErr.Message), "does not exist")) {
-			return &oasgenserver.V1GetEventRetentionPolicyNotFound{Code: 404, Message: cliErr.Message}, nil
+			return &oasgenserver.V1GetEventRetentionPolicyNotFound{Code: http.StatusNotFound, Message: cliErr.Message}, nil
 		}
-		return &oasgenserver.V1GetEventRetentionPolicyInternalServerError{Code: 500, Message: fmt.Sprintf("ONTAP operation failed: %s", err.Error())}, nil
+		return &oasgenserver.V1GetEventRetentionPolicyInternalServerError{Code: http.StatusInternalServerError, Message: fmt.Sprintf("ONTAP operation failed: %s", err.Error())}, nil
 	}
 	logger.InfoContext(ctx, "Event retention CLI output", "operation", "get", "policyName", params.PolicyName, "cliOutput", cliResponse.Output)
 	if !handlers.IsCLISuccess(cliResponse.Output) {
 		message := handlers.ParseCLIError(cliResponse.Output)
 		if strings.Contains(strings.ToLower(message), "not found") || strings.Contains(strings.ToLower(message), "does not exist") {
-			return &oasgenserver.V1GetEventRetentionPolicyNotFound{Code: 404, Message: message}, nil
+			return &oasgenserver.V1GetEventRetentionPolicyNotFound{Code: http.StatusNotFound, Message: message}, nil
 		}
-		return &oasgenserver.V1GetEventRetentionPolicyInternalServerError{Code: 500, Message: message}, nil
+		return &oasgenserver.V1GetEventRetentionPolicyInternalServerError{Code: http.StatusInternalServerError, Message: message}, nil
 	}
 	rows, err := handlers.ParseEventRetentionPolicyShowOutput(cliResponse.Output)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to parse CLI output", "error", err)
-		return &oasgenserver.V1GetEventRetentionPolicyInternalServerError{Code: 500, Message: fmt.Sprintf("failed to parse event retention policy: %s", err.Error())}, nil
+		return &oasgenserver.V1GetEventRetentionPolicyInternalServerError{Code: http.StatusInternalServerError, Message: fmt.Sprintf("failed to parse event retention policy: %s", err.Error())}, nil
 	}
 	if len(rows) == 0 {
-		return &oasgenserver.V1GetEventRetentionPolicyNotFound{Code: 404, Message: "event retention policy not found"}, nil
+		return &oasgenserver.V1GetEventRetentionPolicyNotFound{Code: http.StatusNotFound, Message: "event retention policy not found"}, nil
 	}
 	row := rows[0]
 	res := &oasgenserver.EBRPolicy{
@@ -188,22 +234,37 @@ func (h Handler) V1UpdateEventRetentionPolicy(
 	logger.InfoContext(ctx, "Processing update event retention policy request",
 		"projectNumber", params.ProjectNumber, "poolId", params.PoolId.String(), "policyName", params.PolicyName)
 
+	if !snapLockOperationEnabled {
+		logger.Debug("V1UpdateEventRetentionPolicy: operation is disabled")
+		return &oasgenserver.V1UpdateEventRetentionPolicyBadRequest{
+			Code: http.StatusBadRequest,
+			Message: "Event retention policy operation is disabled",
+		}, nil
+	}
+
+	if !middleware.IsIAMRoleHeaderSnaplockExistInContext(ctx, middleware.ManageSnaplockRole) {
+		return &oasgenserver.V1UpdateEventRetentionPolicyForbidden{
+			Code: http.StatusForbidden,
+			Message: snaplockIAMRoleRequiredMessage,
+		}, nil
+	}
+
 	ctx, err := setupCredentialsForHandler(ctx, params.ProjectNumber, params.PoolId.String(), middleware.CredentialTypeAdmin)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to setup credentials", "error", err)
-		return &oasgenserver.V1UpdateEventRetentionPolicyUnauthorized{Code: 401, Message: fmt.Sprintf("authentication error: %s", err.Error())}, nil
+		return &oasgenserver.V1UpdateEventRetentionPolicyUnauthorized{Code: http.StatusUnauthorized, Message: fmt.Sprintf("authentication error: %s", err.Error())}, nil
 	}
 	if err := ensureCertificateOrPassword(ctx); err != nil {
 		logger.ErrorContext(ctx, "Failed to setup certificate/password", "error", err)
-		return &oasgenserver.V1UpdateEventRetentionPolicyUnauthorized{Code: 401, Message: fmt.Sprintf("authentication error: %s", err.Error())}, nil
+		return &oasgenserver.V1UpdateEventRetentionPolicyUnauthorized{Code: http.StatusUnauthorized, Message: fmt.Sprintf("authentication error: %s", err.Error())}, nil
 	}
 	ontapClient, err := newOntapClientFromContext(ctx)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to get ONTAP client", "error", err)
-		return &oasgenserver.V1UpdateEventRetentionPolicyInternalServerError{Code: 500, Message: fmt.Sprintf("failed to connect to ONTAP: %s", err.Error())}, nil
+		return &oasgenserver.V1UpdateEventRetentionPolicyInternalServerError{Code: http.StatusInternalServerError, Message: fmt.Sprintf("failed to connect to ONTAP: %s", err.Error())}, nil
 	}
 	if !req.RetentionPeriod.IsSet() {
-		return &oasgenserver.V1UpdateEventRetentionPolicyBadRequest{Code: 400, Message: "retention_period is required"}, nil
+		return &oasgenserver.V1UpdateEventRetentionPolicyBadRequest{Code: http.StatusBadRequest, Message: "retention_period is required"}, nil
 	}
 	apiPeriod := req.RetentionPeriod.Or("")
 	retentionCLI := handlers.RetentionPeriodAPIToCLI(apiPeriod)
@@ -217,13 +278,13 @@ func (h Handler) V1UpdateEventRetentionPolicy(
 		if errors.As(err, &cliErr) {
 			return &oasgenserver.V1UpdateEventRetentionPolicyBadRequest{Code: handlers.OntapCodeToInt(cliErr.Code), Message: cliErr.Message}, nil
 		}
-		return &oasgenserver.V1UpdateEventRetentionPolicyInternalServerError{Code: 500, Message: fmt.Sprintf("ONTAP operation failed: %s", err.Error())}, nil
+		return &oasgenserver.V1UpdateEventRetentionPolicyInternalServerError{Code: http.StatusInternalServerError, Message: fmt.Sprintf("ONTAP operation failed: %s", err.Error())}, nil
 	}
 	logger.InfoContext(ctx, "Event retention CLI output", "operation", "update", "policyName", params.PolicyName, "cliOutput", cliResponse.Output)
 	if !handlers.IsCLISuccess(cliResponse.Output) {
 		message := handlers.ParseCLIError(cliResponse.Output)
 		logger.WarnContext(ctx, "Event retention policy modify failed", "policyName", params.PolicyName, "cliOutput", cliResponse.Output)
-		return &oasgenserver.V1UpdateEventRetentionPolicyBadRequest{Code: 400, Message: message}, nil
+		return &oasgenserver.V1UpdateEventRetentionPolicyBadRequest{Code: http.StatusBadRequest, Message: message}, nil
 	}
 	logger.InfoContext(ctx, "Event retention policy modify completed successfully", "policyName", params.PolicyName)
 	return &oasgenserver.V1UpdateEventRetentionPolicyOK{}, nil
@@ -238,19 +299,34 @@ func (h Handler) V1DeleteEventRetentionPolicy(
 	logger.InfoContext(ctx, "Processing delete event retention policy request",
 		"projectNumber", params.ProjectNumber, "poolId", params.PoolId.String(), "policyName", params.PolicyName)
 
+	if !snapLockOperationEnabled {
+		logger.Debug("V1DeleteEventRetentionPolicy: operation is disabled")
+		return &oasgenserver.V1DeleteEventRetentionPolicyBadRequest{
+			Code: http.StatusBadRequest,
+			Message: "Event retention policy operation is disabled",
+		}, nil
+	}
+
+	if !middleware.IsIAMRoleHeaderSnaplockExistInContext(ctx, middleware.ManageSnaplockRole) {
+		return &oasgenserver.V1DeleteEventRetentionPolicyForbidden{
+			Code: http.StatusForbidden,
+			Message: snaplockIAMRoleRequiredMessage,
+		}, nil
+	}
+
 	ctx, err := setupCredentialsForHandler(ctx, params.ProjectNumber, params.PoolId.String(), middleware.CredentialTypeAdmin)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to setup credentials", "error", err)
-		return &oasgenserver.V1DeleteEventRetentionPolicyUnauthorized{Code: 401, Message: fmt.Sprintf("authentication error: %s", err.Error())}, nil
+		return &oasgenserver.V1DeleteEventRetentionPolicyUnauthorized{Code: http.StatusUnauthorized, Message: fmt.Sprintf("authentication error: %s", err.Error())}, nil
 	}
 	if err := ensureCertificateOrPassword(ctx); err != nil {
 		logger.ErrorContext(ctx, "Failed to setup certificate/password", "error", err)
-		return &oasgenserver.V1DeleteEventRetentionPolicyUnauthorized{Code: 401, Message: fmt.Sprintf("authentication error: %s", err.Error())}, nil
+		return &oasgenserver.V1DeleteEventRetentionPolicyUnauthorized{Code: http.StatusUnauthorized, Message: fmt.Sprintf("authentication error: %s", err.Error())}, nil
 	}
 	ontapClient, err := newOntapClientFromContext(ctx)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to get ONTAP client", "error", err)
-		return &oasgenserver.V1DeleteEventRetentionPolicyInternalServerError{Code: 500, Message: fmt.Sprintf("failed to connect to ONTAP: %s", err.Error())}, nil
+		return &oasgenserver.V1DeleteEventRetentionPolicyInternalServerError{Code: http.StatusInternalServerError, Message: fmt.Sprintf("failed to connect to ONTAP: %s", err.Error())}, nil
 	}
 	cliCommand := handlers.BuildEventRetentionPolicyDeleteCommand(params.PolicyName)
 	logger.InfoContext(ctx, "Executing snaplock event-retention policy delete", "policyName", params.PolicyName)
@@ -262,16 +338,16 @@ func (h Handler) V1DeleteEventRetentionPolicy(
 		if errors.As(err, &cliErr) {
 			return &oasgenserver.V1DeleteEventRetentionPolicyBadRequest{Code: handlers.OntapCodeToInt(cliErr.Code), Message: cliErr.Message}, nil
 		}
-		return &oasgenserver.V1DeleteEventRetentionPolicyInternalServerError{Code: 500, Message: fmt.Sprintf("ONTAP operation failed: %s", err.Error())}, nil
+		return &oasgenserver.V1DeleteEventRetentionPolicyInternalServerError{Code: http.StatusInternalServerError, Message: fmt.Sprintf("ONTAP operation failed: %s", err.Error())}, nil
 	}
 	logger.InfoContext(ctx, "Event retention CLI output", "operation", "delete", "policyName", params.PolicyName, "cliOutput", cliResponse.Output)
 	if !handlers.IsCLISuccess(cliResponse.Output) {
 		message := handlers.ParseCLIError(cliResponse.Output)
 		logger.WarnContext(ctx, "Event retention policy delete failed", "policyName", params.PolicyName, "cliOutput", cliResponse.Output)
 		if message != "" && (strings.Contains(strings.ToLower(message), "not found") || strings.Contains(strings.ToLower(message), "does not exist")) {
-			return &oasgenserver.V1DeleteEventRetentionPolicyNotFound{Code: 404, Message: message}, nil
+			return &oasgenserver.V1DeleteEventRetentionPolicyNotFound{Code: http.StatusNotFound, Message: message}, nil
 		}
-		return &oasgenserver.V1DeleteEventRetentionPolicyBadRequest{Code: 400, Message: message}, nil
+		return &oasgenserver.V1DeleteEventRetentionPolicyBadRequest{Code: http.StatusBadRequest, Message: message}, nil
 	}
 	logger.InfoContext(ctx, "Event retention policy delete completed successfully", "policyName", params.PolicyName)
 	return &oasgenserver.V1DeleteEventRetentionPolicyOK{}, nil
