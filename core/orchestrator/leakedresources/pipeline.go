@@ -21,12 +21,12 @@ type Pipeline struct {
 	reporter  Reporter
 }
 
-// NewPipeline returns a pipeline with the default log reporter. Call RegisterDetector
-// to add resource-specific detectors (pool, volume, snapshot, etc.).
+// NewPipeline returns a pipeline with default reporters (log + metrics) via MultiReporter.
+// Call RegisterDetector to add resource-specific detectors (pool, volume, snapshot, etc.).
 func NewPipeline() *Pipeline {
 	return &Pipeline{
 		detectors: nil,
-		reporter:  LogReporter{},
+		reporter:  NewMultiReporter(LogReporter{}, NewMetricsReporter()),
 	}
 }
 
@@ -38,7 +38,7 @@ func (p *Pipeline) RegisterDetector(d model.Detector) {
 	p.detectors = append(p.detectors, d)
 }
 
-// SetReporter sets the reporter (e.g. to swap in a GCS reporter). Default is LogReporter.
+// SetReporter sets the reporter (e.g. to swap in a GCS reporter). Default is MultiReporter(LogReporter, MetricsReporter).
 func (p *Pipeline) SetReporter(r Reporter) {
 	if r != nil {
 		p.reporter = r
@@ -50,13 +50,19 @@ func (p *Pipeline) SetReporter(r Reporter) {
 func (p *Pipeline) Run(ctx context.Context, storage database.Storage) error {
 	logger := util.GetLogger(ctx)
 	logger.Infof("Leaked resources pipeline started (detectors=%d)", len(p.detectors))
+	runStatus := "success"
+	defer func() {
+		recordMonitoringRun(ctx, runStatus)
+	}()
 
 	var all []model.LeakRecord
+	failedDetectors := 0
 	for _, d := range p.detectors {
 		logger.Infof("Leaked resources: checking detector=%s", d.Name())
 		records, err := d.Detect(ctx, storage)
 		if err != nil {
 			logger.Errorf("Leaked resources detector %s failed: %v", d.Name(), err)
+			failedDetectors++
 			continue
 		}
 		logger.Infof("Leaked resources: detector=%s completed, leaks_found=%d", d.Name(), len(records))
@@ -67,11 +73,15 @@ func (p *Pipeline) Run(ctx context.Context, storage database.Storage) error {
 	}
 
 	if err := p.reporter.Report(ctx, all); err != nil {
-		logger.Errorf("Leaked resources monitoring failed: %v", err)
+		runStatus = "error"
+		logger.Errorf("Leaked resources monitoring failed (total_leaks=%d, failed_detectors=%d): %v", len(all), failedDetectors, err)
 		return err
 	}
+	if failedDetectors > 0 {
+		runStatus = "partial_error"
+	}
 
-	logger.Infof("Leaked resources pipeline finished (total_leaks=%d)", len(all))
+	logger.Infof("Leaked resources pipeline finished (total_leaks=%d, failed_detectors=%d, status=%s)", len(all), failedDetectors, runStatus)
 	return nil
 }
 
