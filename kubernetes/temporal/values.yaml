@@ -43,6 +43,9 @@ cloudSqlProxy:
 
 server:
   enabled: true
+  # Runtime tuning for Go TLS/FIPS behavior in temporal server components.
+  # Applied to frontend, internal-frontend, history, matching, and worker deployments.
+  goDebug: "fips140=on,tlsmlkem=0"
   image:
     repository: ghcr.io/vcp-vsa-control-plane/temporalio-server
     tag: 1.29.1

@@ -53,6 +53,10 @@ spec:
                   fieldPath: status.podIP
             - name: SERVICES
               value: {{ $service }}
+            {{- if $.Values.server.goDebug }}
+            - name: GODEBUG
+              value: {{ $.Values.server.goDebug | quote }}
+            {{- end }}
             {{- if not (include "temporal.cloudSqlIamAuthEnabled" (list $) | toString | eq "true") }}
             - name: TEMPORAL_STORE_PASSWORD
               valueFrom:

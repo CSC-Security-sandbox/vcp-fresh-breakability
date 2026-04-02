@@ -54,7 +54,17 @@ data:
 
     archival_state() {
       temporal operator namespace describe -n "$1" 2>&1 \
-        | grep -i "$2" | awk '{print $NF}' | tr '[:upper:]' '[:lower:]'
+        | awk -v key="$2" '
+            BEGIN {
+              key_l = tolower(key)
+            }
+            {
+              line_l = tolower($0)
+              if (index(line_l, key_l) > 0) {
+                print tolower($NF)
+              }
+            }
+          '
     }
 
     # Runs update command, then verifies archival state(s) match what was
