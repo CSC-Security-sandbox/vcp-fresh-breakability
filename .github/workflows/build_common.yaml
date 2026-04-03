@@ -358,7 +358,15 @@ jobs:
       - name: Package Helm Charts
         if: ${{ inputs.push_charts }}
         run: |
-          charts=( vsa-control-plane vcp-worker-chart vsa-harvest-otel vlm-worker temporal ontap-proxy)
+          charts=( vsa-control-plane vcp-worker-chart vsa-harvest-otel vlm-worker ontap-proxy )
+          # Only include temporal chart when building from main branch to prevent
+          # release branches from overwriting the current temporal tag with older code
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "Building from main branch - including temporal chart"
+            charts+=( temporal )
+          else
+            echo "Building from ref ${{ github.ref }} (${{ github.ref_name }}) - skipping temporal chart"
+          fi
           for chart in ${charts[*]}; do
             echo "Package helm Chart for ${chart}"
             helm package kubernetes/${chart} --destination ./helm-packages
