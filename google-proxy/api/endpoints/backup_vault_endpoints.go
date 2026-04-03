@@ -1548,6 +1548,9 @@ func convertCoreToCvpBackupVault(coreBV *coremodels.BackupVaultV1beta) *models.B
 		DeletedAt:              (*strfmt.DateTime)(coreBV.DeletedAt),
 		BackupRetentionPolicy:  backupRetentionPolicy,
 	}
+	if coreBV.ServiceType == coremodels.ServiceTypeCrossProject {
+		cvpBV.CrossProjectVault = nillable.ToPointer(true)
+	}
 	return cvpBV
 }
 

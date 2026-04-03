@@ -284,6 +284,33 @@ func TestConvertBackupVaultV1Beta_CrossProjectVaultNotSetForNonCrossProject(t *t
 	assert.False(t, result.CrossProjectVault.IsSet())
 }
 
+func TestConvertCoreToCvpBackupVault_SetsCrossProjectVaultForCrossProject(t *testing.T) {
+	coreBV := &coremodels.BackupVaultV1beta{
+		BackupVaultID:  "vault-id",
+		Name:           "cross-project-vault",
+		LifeCycleState: "READY",
+		ServiceType:    coremodels.ServiceTypeCrossProject,
+		CreatedAt:      time.Now(),
+	}
+
+	result := convertCoreToCvpBackupVault(coreBV)
+	require.NotNil(t, result.CrossProjectVault)
+	assert.True(t, *result.CrossProjectVault)
+}
+
+func TestConvertCoreToCvpBackupVault_DoesNotSetCrossProjectVaultForGCNV(t *testing.T) {
+	coreBV := &coremodels.BackupVaultV1beta{
+		BackupVaultID:  "vault-id",
+		Name:           "gcnv-vault",
+		LifeCycleState: "READY",
+		ServiceType:    coremodels.ServiceTypeGCNV,
+		CreatedAt:      time.Now(),
+	}
+
+	result := convertCoreToCvpBackupVault(coreBV)
+	assert.Nil(t, result.CrossProjectVault)
+}
+
 func TestBuildCreateBackupVaultParams(t *testing.T) {
 	t.Run("BuildsAllOptionalFieldsWhenSet", func(t *testing.T) {
 		req := &gcpgenserver.BackupVaultCreateV1beta{
