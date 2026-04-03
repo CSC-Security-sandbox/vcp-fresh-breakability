@@ -93,7 +93,7 @@ spec:
         - name: LOG_TO_CONSOLE
           value: "1"
         - name: DISABLE_VERIFY_SSL
-          value: "0"
+          value: "{{ .Values.disableVerifySSL }}"
         ports:
         - containerPort: {{ .Values.adcport }}
           name: adc

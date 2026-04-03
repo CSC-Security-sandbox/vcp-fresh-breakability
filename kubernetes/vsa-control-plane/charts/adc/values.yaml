@@ -30,6 +30,7 @@ nameOverride: adc
 replicas: 2
 adcport: 8085
 threshold: 50
+disableVerifySSL: "0"
 
 # Secret configuration
 secret:
