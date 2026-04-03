@@ -11,7 +11,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	utilerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -1520,6 +1522,7 @@ func TestUpdateBackupPolicy(t *testing.T) {
 func TestCreateBackupPolicy(tt *testing.T) {
 	tt.Run("CreateBackupPolicySucceeds", func(tt *testing.T) {
 		mockStorage := new(database.MockStorage)
+		mockTemporal := new(mocks.Client)
 		ctx := context.Background()
 
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
@@ -1544,8 +1547,15 @@ func TestCreateBackupPolicy(tt *testing.T) {
 
 		mockStorage.On("GetBackupPolicyByNameAndOwnerID", ctx, "test-backup-policy", account.ID).Return(nil, utilerrors.NewNotFoundErr("backup policy", nil))
 		mockStorage.On("CreateBackupPolicyEntryInVCP", ctx, mock.Anything).Return(createdBackupPolicy, nil)
+		mockTemporal.On("ScheduleClient").Return(nil)
 
-		o := &GCPOrchestrator{storage: mockStorage}
+		originalCreateBackupPolicySchedule := activities.CreateBackupPolicySchedule
+		defer func() { activities.CreateBackupPolicySchedule = originalCreateBackupPolicySchedule }()
+		activities.CreateBackupPolicySchedule = func(ctx context.Context, temporalScheduler *scheduler.TemporalScheduler, vcpBackupPolicy *datamodel.BackupPolicy, customSchedule string) error {
+			return nil
+		}
+
+		o := &GCPOrchestrator{storage: mockStorage, temporal: mockTemporal}
 		params := &commonparams.CreateBackupPolicyParams{
 			Name:               "test-backup-policy",
 			AccountName:        "owner-uuid",
@@ -1674,6 +1684,7 @@ func TestCreateBackupPolicy(tt *testing.T) {
 	})
 	tt.Run("CreateBackupPolicySucceedsWithAllOptionalFields", func(tt *testing.T) {
 		mockStorage := new(database.MockStorage)
+		mockTemporal := new(mocks.Client)
 		ctx := context.Background()
 
 		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
@@ -1698,8 +1709,15 @@ func TestCreateBackupPolicy(tt *testing.T) {
 
 		mockStorage.On("GetBackupPolicyByNameAndOwnerID", ctx, "test-backup-policy", account.ID).Return(nil, utilerrors.NewNotFoundErr("backup policy", nil))
 		mockStorage.On("CreateBackupPolicyEntryInVCP", ctx, mock.Anything).Return(createdBackupPolicy, nil)
+		mockTemporal.On("ScheduleClient").Return(nil)
 
-		o := &GCPOrchestrator{storage: mockStorage}
+		originalCreateBackupPolicySchedule := activities.CreateBackupPolicySchedule
+		defer func() { activities.CreateBackupPolicySchedule = originalCreateBackupPolicySchedule }()
+		activities.CreateBackupPolicySchedule = func(ctx context.Context, temporalScheduler *scheduler.TemporalScheduler, vcpBackupPolicy *datamodel.BackupPolicy, customSchedule string) error {
+			return nil
+		}
+
+		o := &GCPOrchestrator{storage: mockStorage, temporal: mockTemporal}
 		params := &commonparams.CreateBackupPolicyParams{
 			Name:               "test-backup-policy",
 			AccountName:        "owner-uuid",
@@ -1722,6 +1740,142 @@ func TestCreateBackupPolicy(tt *testing.T) {
 		assert.Equal(tt, createdBackupPolicy.PolicyEnabled, result.Enabled)
 		assert.Equal(tt, models.LifeCycleStateREADY, result.State)
 		mockStorage.AssertExpectations(tt)
+	})
+	tt.Run("CreateBackupPolicyFailsWhenScheduleCreationFailsAndRollsBack", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(mocks.Client)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		createdBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "backup-policy-uuid"},
+			Name:      "test-backup-policy",
+			AccountID: account.ID,
+		}
+
+		oldGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = oldGetOrCreateAccount }()
+
+		mockStorage.On("GetBackupPolicyByNameAndOwnerID", ctx, "test-backup-policy", account.ID).Return(nil, utilerrors.NewNotFoundErr("backup policy", nil))
+		mockStorage.On("CreateBackupPolicyEntryInVCP", ctx, mock.Anything).Return(createdBackupPolicy, nil)
+		mockStorage.On("DeleteBackupPolicy", ctx, createdBackupPolicy.UUID).Return(createdBackupPolicy, nil)
+		mockTemporal.On("ScheduleClient").Return(nil)
+
+		originalCreateBackupPolicySchedule := activities.CreateBackupPolicySchedule
+		defer func() { activities.CreateBackupPolicySchedule = originalCreateBackupPolicySchedule }()
+		activities.CreateBackupPolicySchedule = func(ctx context.Context, temporalScheduler *scheduler.TemporalScheduler, vcpBackupPolicy *datamodel.BackupPolicy, customSchedule string) error {
+			return errors.New("failed to create backup policy schedule")
+		}
+
+		o := &GCPOrchestrator{storage: mockStorage, temporal: mockTemporal}
+		params := &commonparams.CreateBackupPolicyParams{
+			Name:        "test-backup-policy",
+			AccountName: "owner-uuid",
+			LocationID:  "test-location",
+		}
+
+		result, err := o.CreateBackupPolicy(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "failed to create backup policy schedule", err.Error())
+		mockStorage.AssertExpectations(tt)
+	})
+	tt.Run("CreateBackupPolicyFailsWhenScheduleCreationFailsAndRollbackFails", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(mocks.Client)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		createdBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "backup-policy-uuid"},
+			Name:      "test-backup-policy",
+			AccountID: account.ID,
+		}
+
+		oldGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = oldGetOrCreateAccount }()
+
+		mockStorage.On("GetBackupPolicyByNameAndOwnerID", ctx, "test-backup-policy", account.ID).Return(nil, utilerrors.NewNotFoundErr("backup policy", nil))
+		mockStorage.On("CreateBackupPolicyEntryInVCP", ctx, mock.Anything).Return(createdBackupPolicy, nil)
+		mockStorage.On("DeleteBackupPolicy", ctx, createdBackupPolicy.UUID).Return(nil, errors.New("rollback delete failed"))
+		mockTemporal.On("ScheduleClient").Return(nil)
+
+		originalCreateBackupPolicySchedule := activities.CreateBackupPolicySchedule
+		defer func() { activities.CreateBackupPolicySchedule = originalCreateBackupPolicySchedule }()
+		activities.CreateBackupPolicySchedule = func(ctx context.Context, temporalScheduler *scheduler.TemporalScheduler, vcpBackupPolicy *datamodel.BackupPolicy, customSchedule string) error {
+			return errors.New("failed to create backup policy schedule")
+		}
+
+		o := &GCPOrchestrator{storage: mockStorage, temporal: mockTemporal}
+		params := &commonparams.CreateBackupPolicyParams{
+			Name:        "test-backup-policy",
+			AccountName: "owner-uuid",
+			LocationID:  "test-location",
+		}
+
+		result, err := o.CreateBackupPolicy(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "failed to create backup policy schedule", err.Error())
+		mockStorage.AssertExpectations(tt)
+	})
+	tt.Run("CreateBackupPolicyFailsWhenSchedulePauseFailsAndRollsBackScheduleAndDB", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		mockTemporal := new(mocks.Client)
+		mockScheduleClient := new(mocks.ScheduleClient)
+		mockScheduleHandle := new(mocks.ScheduleHandle)
+		ctx := context.Background()
+
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "owner-uuid"}}
+		createdBackupPolicy := &datamodel.BackupPolicy{
+			BaseModel:     datamodel.BaseModel{ID: 1, UUID: "backup-policy-uuid"},
+			Name:          "test-backup-policy",
+			AccountID:     account.ID,
+			PolicyEnabled: false,
+		}
+
+		oldGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = oldGetOrCreateAccount }()
+
+		mockStorage.On("GetBackupPolicyByNameAndOwnerID", ctx, "test-backup-policy", account.ID).Return(nil, utilerrors.NewNotFoundErr("backup policy", nil))
+		mockStorage.On("CreateBackupPolicyEntryInVCP", ctx, mock.Anything).Return(createdBackupPolicy, nil)
+		mockStorage.On("DeleteBackupPolicy", ctx, createdBackupPolicy.UUID).Return(createdBackupPolicy, nil)
+
+		mockTemporal.On("ScheduleClient").Return(mockScheduleClient)
+		mockScheduleClient.On("GetHandle", mock.Anything, createdBackupPolicy.UUID).Return(mockScheduleHandle)
+		mockScheduleHandle.On("Pause", mock.Anything, mock.Anything).Return(errors.New("pause failed"))
+		mockScheduleHandle.On("Delete", mock.Anything).Return(nil)
+
+		originalCreateBackupPolicySchedule := activities.CreateBackupPolicySchedule
+		defer func() { activities.CreateBackupPolicySchedule = originalCreateBackupPolicySchedule }()
+		activities.CreateBackupPolicySchedule = func(ctx context.Context, temporalScheduler *scheduler.TemporalScheduler, vcpBackupPolicy *datamodel.BackupPolicy, customSchedule string) error {
+			return nil
+		}
+
+		o := &GCPOrchestrator{storage: mockStorage, temporal: mockTemporal}
+		params := &commonparams.CreateBackupPolicyParams{
+			Name:        "test-backup-policy",
+			AccountName: "owner-uuid",
+			LocationID:  "test-location",
+		}
+
+		result, err := o.CreateBackupPolicy(ctx, params)
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Equal(tt, "pause failed", err.Error())
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+		mockScheduleClient.AssertExpectations(tt)
+		mockScheduleHandle.AssertExpectations(tt)
 	})
 }
 

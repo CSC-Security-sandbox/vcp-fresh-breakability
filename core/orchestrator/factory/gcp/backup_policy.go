@@ -4,12 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/scheduler"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -420,5 +421,38 @@ func (o *GCPOrchestrator) CreateBackupPolicy(ctx context.Context, params *common
 		logger.Errorf("Failed to create backup policy in database: %v", err)
 		return nil, err
 	}
+
+	temporalScheduler := scheduler.NewTemporalScheduler(o.temporal.ScheduleClient())
+	var scheduleCreateErr, pauseScheduleErr error
+	defer func() {
+		if scheduleCreateErr != nil {
+			logger.Errorf("Failed to create backup policy schedule for policy %s: %v", readyBackupPolicy.UUID, scheduleCreateErr)
+			if _, rollbackErr := se.DeleteBackupPolicy(ctx, readyBackupPolicy.UUID); rollbackErr != nil {
+				logger.Errorf("Failed to rollback backup policy entry %s after schedule creation failure: %v", readyBackupPolicy.UUID, rollbackErr)
+			}
+		}
+		if pauseScheduleErr != nil {
+			logger.Errorf("Failed to pause backup policy schedule for policy %s: %v", readyBackupPolicy.UUID, pauseScheduleErr)
+			if _, deleteScheduleErr := temporalScheduler.Delete(ctx, scheduler.DeleteScheduleParams{ScheduleParams: scheduler.ScheduleParams{ScheduleID: readyBackupPolicy.UUID}}); deleteScheduleErr != nil {
+				logger.Errorf("Failed to delete backup policy schedule for policy %s after pause failure: %v", readyBackupPolicy.UUID, deleteScheduleErr)
+			}
+			if _, rollbackErr := se.DeleteBackupPolicy(ctx, readyBackupPolicy.UUID); rollbackErr != nil {
+				logger.Errorf("Failed to rollback backup policy entry %s after pause failure: %v", readyBackupPolicy.UUID, rollbackErr)
+			}
+		}
+	}()
+
+	scheduleCreateErr = activities.CreateBackupPolicySchedule(ctx, temporalScheduler, readyBackupPolicy, "")
+	if scheduleCreateErr != nil {
+		return nil, scheduleCreateErr
+	}
+
+	if !readyBackupPolicy.PolicyEnabled {
+		_, pauseScheduleErr = temporalScheduler.Pause(ctx, scheduler.PauseScheduleParams{ScheduleParams: scheduler.ScheduleParams{ScheduleID: readyBackupPolicy.UUID}})
+		if pauseScheduleErr != nil {
+			return nil, pauseScheduleErr
+		}
+	}
+
 	return convertDatastoreBackupPolicyToModel(readyBackupPolicy), nil
 }
