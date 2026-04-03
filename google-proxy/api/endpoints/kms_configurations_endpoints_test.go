@@ -931,6 +931,76 @@ func TestV1betaCreateKmsConfigurations(t *testing.T) {
 		assert.NotNil(t, result)
 		assert.Equal(t, float64(500), result.(*gcpgenserver.V1betaCreateKmsConfigurationInternalServerError).Code)
 	})
+	t.Run("GetExistingKmsConfigReturnsKmsConfigInErrorStateWithDifferentResourceID_ReturnsConflict", func(t *testing.T) {
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		expectCreateJobMaybe(mockOrchestrator)
+		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "test-project",
+		}
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		req := &gcpgenserver.KmsConfigV1beta{
+			KeyFullPath: "projects/test-project/locations/us-east4/keyRings/test-keyring/cryptoKeys/test-key",
+			ResourceId:  gcpgenserver.NewOptString("req-resource-id"),
+		}
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		kmsConfig := &vsaCoreModels.KmsConfig{
+			State:         vsaCoreModels.LifeCycleStateError,
+			ResourceID:    "existing-resource-id",
+			KmsAttributes: &vsaCoreModels.KmsAttributes{},
+		}
+		mockOrchestrator.EXPECT().GetExistingKmsConfig(mock.Anything, mock.Anything).Return(kmsConfig, nil)
+
+		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, float64(http.StatusConflict), result.(*gcpgenserver.V1betaCreateKmsConfigurationConflict).Code)
+		assert.Contains(t, result.(*gcpgenserver.V1betaCreateKmsConfigurationConflict).Message, "existing-resource-id")
+	})
+	t.Run("GetExistingKmsConfigReturnsKmsConfigInErrorStateWithSameResourceID", func(t *testing.T) {
+		mockOrchestrator := factory.NewMockOrchestratorFactory(t)
+		expectCreateJobMaybe(mockOrchestrator)
+		params := gcpgenserver.V1betaCreateKmsConfigurationParams{
+			LocationId:    "us-east4",
+			ProjectNumber: "test-project",
+		}
+		originalParseAndValidateRegionAndZone := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = originalParseAndValidateRegionAndZone }()
+
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "us-east4", nil
+		}
+
+		req := &gcpgenserver.KmsConfigV1beta{
+			KeyFullPath: "projects/test-project/locations/us-east4/keyRings/test-keyring/cryptoKeys/test-key",
+			ResourceId:  gcpgenserver.NewOptString("req-resource-id"),
+		}
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+		job := &vsaCoreModels.Job{BaseModel: vsaCoreModels.BaseModel{UUID: "operation-123"}}
+		kmsConfig := &vsaCoreModels.KmsConfig{
+			State:         vsaCoreModels.LifeCycleStateError,
+			ResourceID:    "req-resource-id",
+			KmsAttributes: &vsaCoreModels.KmsAttributes{},
+		}
+		mockOrchestrator.EXPECT().GetExistingKmsConfig(mock.Anything, mock.Anything).Return(kmsConfig, nil)
+		mockOrchestrator.EXPECT().GetJobByResourceUUID(mock.Anything, mock.Anything, mock.Anything).Return(job, nil)
+
+		result, err := handler.V1betaCreateKmsConfiguration(context.Background(), req, params)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Contains(t, result.(*gcpgenserver.OperationV1beta).Response.String(), kmsConfig.ResourceID)
+		assert.Contains(t, result.(*gcpgenserver.OperationV1beta).Name.Value, job.UUID)
+	})
 }
 
 // V1betaEncryptVolumes' unit-tests

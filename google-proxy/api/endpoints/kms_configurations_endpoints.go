@@ -437,10 +437,8 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 		return nil, true
 	}
 
-	done := true
+var done bool
 	switch kmsConfig.State {
-	case coremodel.LifeCycleStateError:
-		// do nothing, return the error state kms config, so that it can be cleaned up with delete later
 	case coremodel.LifeCycleStateDeleting, coremodel.LifeCycleStateUpdating, coremodel.LifeCycleStateMigrating:
 		return &gcpgenserver.V1betaCreateKmsConfigurationConflict{
 			Message: "A KMS configuration already exists for this region and project and another operation is in progress.",
@@ -452,7 +450,7 @@ func (h Handler) V1betaCreateKmsConfiguration(ctx context.Context, req *gcpgense
 		}
 		done = false
 	default:
-		// For all other states (READY, CREATED, IN_USE, DISABLED, etc.), a KMS config already exists.
+		// For all other states (ERROR, READY, CREATED, IN_USE, DISABLED, etc.), a KMS config already exists.
 		// Verify resource ID to ensure idempotent creates succeed but conflicting creates are rejected.
 		if res, ok := checkResourceID(); !ok {
 			return res, nil
