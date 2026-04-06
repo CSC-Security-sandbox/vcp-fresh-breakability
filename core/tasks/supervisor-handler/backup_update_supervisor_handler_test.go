@@ -234,7 +234,7 @@ func TestBackupUpdateHandler_Handle_InvalidPayloadAttributeTypes(t *testing.T) {
 		JobAttributes: &datamodel.JobAttributes{
 			ResourceUUID: "backup-uuid",
 			PayloadAttributes: map[string]interface{}{
-				"backup_vault_uuid": 123, // Wrong type
+				"backup_vault_uuid": 123,  // Wrong type
 				"account_name":      true, // Wrong type
 			},
 		},
@@ -276,4 +276,3 @@ func TestBackupUpdateHandler_Handle_PartialPayloadAttributes(t *testing.T) {
 	err := handler.Handle(context.Background(), job, EventTimeout, storage)
 	require.NoError(t, err)
 }
-

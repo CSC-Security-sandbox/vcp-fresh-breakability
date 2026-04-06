@@ -91,4 +91,3 @@ func (h *BackupUpdateHandler) Handle(ctx context.Context, job *datamodel.Job, ev
 	logger.Infof("workflow-supervisor-task: reverted backup %s from UPDATING to %s", backup.UUID, previousState)
 	return nil
 }
-

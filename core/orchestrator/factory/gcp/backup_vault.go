@@ -169,6 +169,11 @@ func _deleteBackupVault(ctx context.Context, se database.Storage, temporal clien
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID:         params.BackupVaultID,
+			PreviousState:        dbBv.LifeCycleState,
+			PreviousStateDetails: dbBv.LifeCycleStateDetails,
+		},
 	}
 
 	// Store original state for rollback
@@ -258,6 +263,11 @@ func _updateBackupVault(ctx context.Context, se database.Storage, temporal clien
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID:         params.BackupVaultID,
+			PreviousState:        dbBv.LifeCycleState,
+			PreviousStateDetails: dbBv.LifeCycleStateDetails,
+		},
 	}
 
 	// Store original state for rollback
