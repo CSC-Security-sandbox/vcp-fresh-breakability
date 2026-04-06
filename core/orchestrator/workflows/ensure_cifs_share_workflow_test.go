@@ -1,11 +1,13 @@
 package workflows
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -177,6 +179,39 @@ func TestEnsureCIFSShareWorkflow(t *testing.T) {
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
+	})
+
+	t.Run("error_create_dns_unreachable_preserves_tracking_id", func(t *testing.T) {
+		env := ts.NewTestWorkflowEnvironment()
+		setupTestWorkflowEnvironment(t, env)
+
+		adActivity := &active_directory_activities.ActiveDirectoryActivity{}
+		restoreFactory := overrideActiveDirectoryActivityFactory(adActivity)
+		defer restoreFactory()
+
+		env.RegisterWorkflow(EnsureCIFSShareWorkflow)
+		env.RegisterActivity(adActivity.CreateOrModifyADDNS)
+
+		// Return a properly wrapped ONTAP DNS error (exactly what the activity returns in production)
+		dnsErr := vsaerrors.WrapOntapError(errors.New("DNS server 10.0.0.1 cannot be reached"), vsaerrors.DomainDNS)
+		env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(dnsErr)
+
+		env.ExecuteWorkflow(EnsureCIFSShareWorkflow, volume, node, ad, svmName, externalSVMUUID)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		wfErr := env.GetWorkflowError()
+		assert.Error(t, wfErr)
+
+		// Note: EnsureCIFSShareWorkflow returns *CustomError (not ApplicationError).
+		// In production, it's called as a regular function (not as a child workflow),
+		// so the *CustomError is passed directly without Temporal serialization.
+		// In this test, the test environment serializes the workflow error through
+		// ErrorToFailure/FailureToError, which loses the CustomError type since
+		// *CustomError is not a Temporal ApplicationError.
+		// The real tracking-ID preservation test is at the PostFileVolumeWorkflow
+		// level, which uses WrapErrorForChildWorkflow to wrap as ApplicationError.
+		assert.Contains(t, wfErr.Error(), "cannot be reached",
+			"Error message should contain the original ONTAP DNS error")
 	})
 
 	t.Run("error_get_or_create_cifs_fails", func(t *testing.T) {

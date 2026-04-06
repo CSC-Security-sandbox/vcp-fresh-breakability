@@ -1634,6 +1634,48 @@ func TestConvertToVSAError(t *testing.T) {
 	})
 }
 
+func TestExtractCustomError_AcrossTemporalBoundary(t *testing.T) {
+	// Simulate what happens when an ApplicationError with CustomError details
+	// goes through Temporal's failure serialization/deserialization cycle
+	// (i.e. crossing the activity boundary).
+	fc := temporal.GetDefaultFailureConverter()
+
+	// Create the error exactly like WrapOntapError does in production
+	classified := vsaerrors.ClassifyOntapError(errors.New("DNS server 10.0.0.1 cannot be reached"), vsaerrors.DomainDNS)
+	require.Equal(t, vsaerrors.ErrDNSServerUnreachable, classified.TrackingID)
+
+	wrapped := vsaerrors.WrapAsTemporalApplicationError(classified)
+
+	// Step 1: Serialize to Failure proto (ErrorToFailure)
+	failure := fc.ErrorToFailure(wrapped)
+	require.NotNil(t, failure)
+	require.NotNil(t, failure.GetApplicationFailureInfo())
+	assert.Equal(t, vsaerrors.CustomErrorType, failure.GetApplicationFailureInfo().GetType())
+
+	// Step 2: Deserialize from Failure proto (FailureToError) — this is what the workflow receives
+	deserialized := fc.FailureToError(failure)
+	require.NotNil(t, deserialized)
+
+	var appErr *temporal.ApplicationError
+	require.True(t, errors.As(deserialized, &appErr), "Expected ApplicationError after deserialization")
+	assert.Equal(t, vsaerrors.CustomErrorType, appErr.Type())
+
+	// Step 3: Try extracting details (this is the critical assertion)
+	var trackingID int
+	var errorDetails string
+	err := appErr.Details(&trackingID, &errorDetails)
+	assert.NoError(t, err, "Details() should decode successfully after Temporal serialization round-trip")
+	assert.Equal(t, vsaerrors.ErrDNSServerUnreachable, trackingID, "TrackingID should be 5016")
+
+	// Step 4: Verify ConvertToVSAError works on the deserialized error
+	customErr := ConvertToVSAError(deserialized)
+	assert.Equal(t, vsaerrors.ErrDNSServerUnreachable, customErr.TrackingID, "ConvertToVSAError should preserve tracking ID 5016 after Temporal round-trip")
+
+	errMsg := vsaerrors.GetErrorMessageByTrackingID(customErr.TrackingID)
+	assert.NotNil(t, errMsg.HttpCode)
+	assert.Equal(t, 400, *errMsg.HttpCode)
+}
+
 func TestPopulateRotationRetryPolicyParams(t *testing.T) {
 	// Save original values
 	originalRetryInterval := RetryInterval

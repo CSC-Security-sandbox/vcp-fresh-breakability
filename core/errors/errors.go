@@ -745,7 +745,11 @@ func WrapAsTemporalApplicationError(err error) error {
 func WrapAsNonRetryableTemporalApplicationError(err error) error {
 	var customError *CustomError
 	if As(err, &customError) {
-		return temporal.NewNonRetryableApplicationError(err.Error(), "CustomError", err, customError.TrackingID, customError.OriginalErr.Error())
+		originalErrMsg := customError.Message
+		if customError.OriginalErr != nil {
+			originalErrMsg = customError.OriginalErr.Error()
+		}
+		return temporal.NewNonRetryableApplicationError(err.Error(), CustomErrorType, err, customError.TrackingID, originalErrMsg)
 	}
 
 	return err

@@ -1263,6 +1263,146 @@ func TestErrTooManyRequestsMapping(t *testing.T) {
 	}
 }
 
+func TestWrapAsNonRetryableTemporalApplicationError_NilOriginalErr(t *testing.T) {
+	errorsJSON = embeddedErrorsJSON
+	handler := &ErrorHandler{}
+	if err := handler.loadErrorMessages(); err != nil {
+		t.Fatalf("Failed to load error messages: %v", err)
+	}
+
+	customErr := NewVCPError(ErrBadRequest, nil)
+	result := WrapAsNonRetryableTemporalApplicationError(customErr)
+
+	var appErr *temporal.ApplicationError
+	if !As(result, &appErr) {
+		t.Fatalf("Expected temporal.ApplicationError, got %T", result)
+	}
+	if appErr.Type() != CustomErrorType {
+		t.Errorf("Expected type %q, got %q", CustomErrorType, appErr.Type())
+	}
+
+	var trackingID int
+	var errorDetails string
+	if err := appErr.Details(&trackingID, &errorDetails); err != nil {
+		t.Fatalf("Failed to extract details: %v", err)
+	}
+	if trackingID != ErrBadRequest {
+		t.Errorf("Expected TrackingID %d, got %d", ErrBadRequest, trackingID)
+	}
+}
+
+func TestWrapAsNonRetryableTemporalApplicationError_WithOriginalErr(t *testing.T) {
+	errorsJSON = embeddedErrorsJSON
+	handler := &ErrorHandler{}
+	if err := handler.loadErrorMessages(); err != nil {
+		t.Fatalf("Failed to load error messages: %v", err)
+	}
+
+	customErr := NewVCPError(ErrDNSServerUnreachable, New("DNS server 10.0.0.1 cannot be reached"))
+	result := WrapAsNonRetryableTemporalApplicationError(customErr)
+
+	var appErr *temporal.ApplicationError
+	if !As(result, &appErr) {
+		t.Fatalf("Expected temporal.ApplicationError, got %T", result)
+	}
+
+	var trackingID int
+	var errorDetails string
+	if err := appErr.Details(&trackingID, &errorDetails); err != nil {
+		t.Fatalf("Failed to extract details: %v", err)
+	}
+	if trackingID != ErrDNSServerUnreachable {
+		t.Errorf("Expected TrackingID %d, got %d", ErrDNSServerUnreachable, trackingID)
+	}
+	if errorDetails != "DNS server 10.0.0.1 cannot be reached" {
+		t.Errorf("Expected original error message, got %q", errorDetails)
+	}
+}
+
+func TestDNSErrorPropagation_ActivityToWorkflow(t *testing.T) {
+	errorsJSON = embeddedErrorsJSON
+	handler := &ErrorHandler{}
+	if err := handler.loadErrorMessages(); err != nil {
+		t.Fatalf("Failed to load error messages: %v", err)
+	}
+
+	ontapErr := New("The DNS IP address specified for SVM svm-test cannot be reached")
+
+	// Step 1: Activity wraps with WrapOntapError (ClassifyOntapError + WrapAsTemporalApplicationError)
+	classified := ClassifyOntapError(ontapErr, DomainDNS)
+	if classified.TrackingID != ErrDNSServerUnreachable {
+		t.Fatalf("ClassifyOntapError: expected TrackingID %d, got %d", ErrDNSServerUnreachable, classified.TrackingID)
+	}
+	activityErr := WrapAsTemporalApplicationError(classified)
+
+	// Step 2: EnsureCIFSShareWorkflow calls ConvertToVSAError (= ExtractCustomError)
+	extracted := ExtractCustomError(activityErr)
+	if extracted.TrackingID != ErrDNSServerUnreachable {
+		t.Fatalf("ExtractCustomError from activity: expected TrackingID %d, got %d", ErrDNSServerUnreachable, extracted.TrackingID)
+	}
+
+	// Step 3: PostFileVolumeWorkflow wraps for child boundary (ExtractCustomError + WrapAsTemporalApplicationError)
+	reExtracted := ExtractCustomError(extracted)
+	childErr := WrapAsTemporalApplicationError(reExtracted)
+
+	// Step 4: Parent receives child error — simulate extracting across the boundary
+	parentExtracted := ExtractCustomError(childErr)
+	if parentExtracted.TrackingID != ErrDNSServerUnreachable {
+		t.Fatalf("Parent ExtractCustomError: expected TrackingID %d, got %d", ErrDNSServerUnreachable, parentExtracted.TrackingID)
+	}
+
+	// Step 5: Verify GetErrorMessageByTrackingID returns 400
+	errMsg := GetErrorMessageByTrackingID(parentExtracted.TrackingID)
+	if errMsg.HttpCode == nil || *errMsg.HttpCode != 400 {
+		t.Fatalf("Expected HTTP 400 for TrackingID %d, got %v", parentExtracted.TrackingID, errMsg.HttpCode)
+	}
+	if errMsg.Message == "" || errMsg.Message == "undefined error" {
+		t.Fatalf("Expected user-facing message, got %q", errMsg.Message)
+	}
+}
+
+func TestDNSErrorPropagation_WrapOntapError_EndToEnd(t *testing.T) {
+	errorsJSON = embeddedErrorsJSON
+	handler := &ErrorHandler{}
+	if err := handler.loadErrorMessages(); err != nil {
+		t.Fatalf("Failed to load error messages: %v", err)
+	}
+
+	ontapErr := New("The DNS IP address specified for SVM svm-test cannot be reached")
+
+	// WrapOntapError: the one-call convenience used in activities
+	wrapped := WrapOntapError(ontapErr, DomainDNS)
+
+	// Verify it's a temporal ApplicationError with correct type and details
+	var appErr *temporal.ApplicationError
+	if !As(wrapped, &appErr) {
+		t.Fatalf("Expected temporal.ApplicationError, got %T", wrapped)
+	}
+	if appErr.Type() != CustomErrorType {
+		t.Errorf("Expected type %q, got %q", CustomErrorType, appErr.Type())
+	}
+	var trackingID int
+	var errorDetails string
+	if err := appErr.Details(&trackingID, &errorDetails); err != nil {
+		t.Fatalf("Failed to extract details: %v", err)
+	}
+	if trackingID != ErrDNSServerUnreachable {
+		t.Errorf("WrapOntapError: expected TrackingID %d, got %d", ErrDNSServerUnreachable, trackingID)
+	}
+
+	// ExtractCustomError on the wrapped error (simulates ConvertToVSAError)
+	custom := ExtractCustomError(wrapped)
+	if custom.TrackingID != ErrDNSServerUnreachable {
+		t.Errorf("ExtractCustomError: expected TrackingID %d, got %d", ErrDNSServerUnreachable, custom.TrackingID)
+	}
+
+	// Final: HTTP code should be 400
+	errMsg := GetErrorMessageByTrackingID(custom.TrackingID)
+	if errMsg.HttpCode == nil || *errMsg.HttpCode != 400 {
+		t.Errorf("Expected HTTP 400, got %v", errMsg.HttpCode)
+	}
+}
+
 func TestIsCVPError(t *testing.T) {
 	tests := []struct {
 		name       string

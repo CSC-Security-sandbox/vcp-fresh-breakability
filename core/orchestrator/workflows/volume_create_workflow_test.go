@@ -3522,6 +3522,121 @@ func (s *UnitTestSuite) Test_PostFileVolumeWorkflowForSMB_EnsureCIFSShareWorkflo
 	assert.NotNil(s.T(), s.env.GetWorkflowError())
 }
 
+func (s *UnitTestSuite) Test_PostFileVolumeWorkflowForSMB_DNSError_PreservesTrackingID() {
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	volume := &datamodel.Volume{
+		Name:   "vol-smb",
+		PoolID: int64(42),
+		Pool: &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
+			ClusterDetails: datamodel.ClusterDetails{SnHostProject: "sn-host-project", Network: "data-network"},
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{FileProperties: &datamodel.FileProperties{JunctionPath: "/vol/vol-smb"}},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+	svm := &datamodel.Svm{
+		BaseModel:  datamodel.BaseModel{UUID: "svm-uuid"},
+		Name:       "svm-name",
+		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-external-uuid"},
+	}
+	activeDirectory := &vsa.ActiveDirectory{UUID: "ad-uuid"}
+
+	// Use non-retryable to avoid retries and mock exhaustion; in production the error
+	// is retryable, but the tracking-ID propagation path is the same.
+	dnsErr := vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+		vsaerrors.ClassifyOntapError(errors.New("DNS server 10.0.0.1 cannot be reached"), vsaerrors.DomainDNS),
+	)
+	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(svm, nil).Once()
+	s.env.OnActivity(adActivity.GetActiveDirectoryForPool, mock.Anything, mock.Anything).Return(activeDirectory, nil).Once()
+	s.env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(dnsErr).Once()
+
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflowForSMB, volume, node)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	wfErr := s.env.GetWorkflowError()
+	assert.NotNil(s.T(), wfErr)
+
+	var appErr *temporal.ApplicationError
+	assert.True(s.T(), errors.As(wfErr, &appErr), "Expected temporal.ApplicationError in error chain")
+	assert.Equal(s.T(), vsaerrors.CustomErrorType, appErr.Type())
+
+	var trackingID int
+	var errorDetails string
+	err := appErr.Details(&trackingID, &errorDetails)
+	assert.NoError(s.T(), err, "Details() should decode successfully")
+	assert.Equal(s.T(), vsaerrors.ErrDNSServerUnreachable, trackingID, "TrackingID should be 5016 (ErrDNSServerUnreachable)")
+
+	errMsg := vsaerrors.GetErrorMessageByTrackingID(trackingID)
+	assert.NotNil(s.T(), errMsg.HttpCode)
+	assert.Equal(s.T(), 400, *errMsg.HttpCode, "DNS error should return HTTP 400, not 500")
+}
+
+func (s *UnitTestSuite) Test_PostFileVolumeWorkflow_LDAP_DNSError_PreservesTrackingID() {
+	originalEnableLdap := enableLdap
+	defer func() { enableLdap = originalEnableLdap }()
+	enableLdap = true
+
+	utils.SetFileProtocolSupportedForTesting(true)
+	defer utils.SetFileProtocolSupportedForTesting(false)
+
+	mockStorage := database.NewMockStorage(s.T())
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	adActivity := active_directory_activities.ActiveDirectoryActivity{SE: mockStorage}
+
+	svm := &datamodel.Svm{
+		BaseModel:  datamodel.BaseModel{UUID: "svm-uuid"},
+		Name:       "svm-name",
+		SvmDetails: &datamodel.SvmDetails{ExternalUUID: "svm-external-uuid"},
+	}
+	activeDirectory := &vsa.ActiveDirectory{UUID: "ad-uuid"}
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "test-uuid"},
+		PoolID:    123,
+		Pool: &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{ID: int64(1)},
+			PoolAttributes: &datamodel.PoolAttributes{LdapEnabled: true},
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			Protocols:      []string{utils.ProtocolNFSv3},
+			FileProperties: &datamodel.FileProperties{JunctionPath: "/vol/test"},
+		},
+	}
+	node := &models.Node{EndpointAddress: "127.0.0.1"}
+
+	// Use non-retryable to avoid retries and mock exhaustion; in production the error
+	// is retryable, but the tracking-ID propagation path is the same.
+	dnsErr := vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+		vsaerrors.ClassifyOntapError(errors.New("DNS server 10.0.0.1 cannot be reached"), vsaerrors.DomainDNS),
+	)
+	s.env.OnActivity(commonActivity.GetSVM, mock.Anything, mock.Anything).Return(svm, nil).Once()
+	s.env.OnActivity(adActivity.GetActiveDirectoryForPool, mock.Anything, mock.Anything).Return(activeDirectory, nil).Once()
+	s.env.OnActivity(adActivity.CreateOrModifyADDNS, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(dnsErr).Once()
+
+	s.env.ExecuteWorkflow(PostFileVolumeWorkflow, volume, node)
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	wfErr := s.env.GetWorkflowError()
+	assert.NotNil(s.T(), wfErr)
+
+	var appErr *temporal.ApplicationError
+	assert.True(s.T(), errors.As(wfErr, &appErr), "Expected temporal.ApplicationError in error chain")
+	assert.Equal(s.T(), vsaerrors.CustomErrorType, appErr.Type())
+
+	var trackingID int
+	var errorDetails string
+	err := appErr.Details(&trackingID, &errorDetails)
+	assert.NoError(s.T(), err, "Details() should decode successfully")
+	assert.Equal(s.T(), vsaerrors.ErrDNSServerUnreachable, trackingID, "TrackingID should be 5016 (ErrDNSServerUnreachable)")
+
+	errMsg := vsaerrors.GetErrorMessageByTrackingID(trackingID)
+	assert.NotNil(s.T(), errMsg.HttpCode)
+	assert.Equal(s.T(), 400, *errMsg.HttpCode, "DNS error should return HTTP 400, not 500")
+}
+
 func (s *UnitTestSuite) Test_PostFileVolumeWorkflowForSMB_UpdateSvmActiveDirectoryError() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
