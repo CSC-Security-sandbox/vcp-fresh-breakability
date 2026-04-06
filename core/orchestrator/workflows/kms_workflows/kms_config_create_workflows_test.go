@@ -699,7 +699,7 @@ func TestCreateKmsConfig(t *testing.T) {
 		}
 		expectJobIsNew(env)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
-		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil)
+		env.OnActivity("GetSignedTokenActivity", mock.Anything, mock.Anything).Return("test-jwt-token", nil).Maybe()
 
 		// Send cancellation signal before PollKmsConfigOperationActivity
 		env.RegisterDelayedCallback(func() {

@@ -32,6 +32,7 @@ func TestJobTypeConstants(t *testing.T) {
 		JobTypeDeleteBackup,
 		JobTypeCreateBackupVault,
 		JobTypeDeleteBackupVault,
+		JobTypeCreateBackupPolicy,
 		JobTypeCreateKmsConfig,
 		JobTypeUpdateKmsConfig,
 		JobTypeDeleteKmsConfig,

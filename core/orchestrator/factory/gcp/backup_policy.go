@@ -142,6 +142,11 @@ func (o *GCPOrchestrator) UpdateBackupPolicy(ctx context.Context, params *common
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID:         dbBackupPolicy.UUID,
+			PreviousState:        dbBackupPolicy.LifeCycleState,
+			PreviousStateDetails: dbBackupPolicy.LifeCycleStateDetails,
+		},
 	}
 	createdJob, jobCreationErr = se.CreateJob(ctx, job)
 	if jobCreationErr != nil {
@@ -280,6 +285,11 @@ func (o *GCPOrchestrator) DeleteBackupPolicy(ctx context.Context, params *common
 		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
 		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
 		RequestID:     utils.GetRequestIDFromContext(ctx),
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID:         dbBackupPolicy.UUID,
+			PreviousState:        dbBackupPolicy.LifeCycleState,
+			PreviousStateDetails: dbBackupPolicy.LifeCycleStateDetails,
+		},
 	}
 
 	createdJob, err = se.CreateJob(ctx, job)
