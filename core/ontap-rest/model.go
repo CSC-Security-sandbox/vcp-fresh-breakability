@@ -4290,6 +4290,15 @@ type CifsShareDeleteParams struct {
 // NAS Client Parameter Conversion Functions
 // =============================================================================
 
+// defaultExportAuthFlavorForEmptyRule returns "sys" when the rule string is empty.
+// ONTAP treats rorule/rwrule "none" as mapping unlisted AUTH_SYS clients to anonymous; empty must not imply that.
+func defaultExportAuthFlavorForEmptyRule(s string) models.ExportAuthenticationFlavor {
+	if strings.TrimSpace(s) == "" {
+		return models.ExportAuthenticationFlavorSys
+	}
+	return models.ExportAuthenticationFlavor(s)
+}
+
 // exportPolicyCreateParamsToONTAP converts ExportPolicyCreateParams to ONTAP API parameters
 func exportPolicyCreateParamsToONTAP(params *ExportPolicyCreateParams, trace log.Logger) *nas.ExportPolicyCreateParams {
 	otParams := nas.NewExportPolicyCreateParams()
@@ -4314,12 +4323,23 @@ func exportPolicyCreateParamsToONTAP(params *ExportPolicyCreateParams, trace log
 				roRules = append(roRules, &readOnlyRuleExportAuthFlavor)
 			}
 		}
+		if len(roRules) == 0 {
+			sysRO := defaultExportAuthFlavorForEmptyRule("")
+			roRules = append(roRules, &sysRO)
+		}
 
 		readWriteRules := strings.Split(strings.TrimSpace(rule.ReadWriteRule), ",")
 		rwRules := make([]*models.ExportAuthenticationFlavor, 0)
 		for _, readWriteRule := range readWriteRules {
+			if readWriteRule == "" {
+				continue
+			}
 			readWriteRuleExportAuthFlavor := models.ExportAuthenticationFlavor(readWriteRule)
 			rwRules = append(rwRules, &readWriteRuleExportAuthFlavor)
+		}
+		if len(rwRules) == 0 {
+			sysRW := defaultExportAuthFlavorForEmptyRule("")
+			rwRules = append(rwRules, &sysRW)
 		}
 		superuser := make([]*models.ExportAuthenticationFlavor, 1)
 		superuser[0] = (*models.ExportAuthenticationFlavor)(&rule.SuperUserRule)
@@ -4392,11 +4412,10 @@ func exportPolicyModifyParamsToONTAP(params *ExportPolicyModifyParams) *nas.Expo
 		}
 
 		// Convert authentication flavors
-		roRule := make([]*models.ExportAuthenticationFlavor, 1)
-		roRule[0] = (*models.ExportAuthenticationFlavor)(&rule.ReadOnlyRule)
-
-		rwRule := make([]*models.ExportAuthenticationFlavor, 1)
-		rwRule[0] = (*models.ExportAuthenticationFlavor)(&rule.ReadWriteRule)
+		roFlavor := defaultExportAuthFlavorForEmptyRule(rule.ReadOnlyRule)
+		rwFlavor := defaultExportAuthFlavorForEmptyRule(rule.ReadWriteRule)
+		roRule := []*models.ExportAuthenticationFlavor{&roFlavor}
+		rwRule := []*models.ExportAuthenticationFlavor{&rwFlavor}
 
 		superuser := make([]*models.ExportAuthenticationFlavor, 1)
 		superuser[0] = (*models.ExportAuthenticationFlavor)(&rule.SuperUserRule)

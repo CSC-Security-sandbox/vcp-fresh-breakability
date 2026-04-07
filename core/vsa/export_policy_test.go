@@ -449,11 +449,26 @@ func TestIsDefaultRule(t *testing.T) {
 				Index:                      nillable.ToPointer(int64(7)),
 				ChownMode:                  nillable.ToPointer("restricted"),
 				Protocols:                  []*string{nillable.ToPointer("nfs")},
+				ExportRulesInlineRoRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorSys))},
+				ExportRulesInlineRwRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorSys))},
+				ExportRulesInlineSuperuser: []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
+			},
+			expected: true,
+		},
+		{
+			name: "Legacy default with none ro/rw should not count as satisfied",
+			rule: &ontaprestmodels.ExportRules{
+				ExportRulesInlineClients: []*ontaprestmodels.ExportClients{
+					{Match: nillable.ToPointer("0.0.0.0/0")},
+				},
+				Index:                      nillable.ToPointer(int64(7)),
+				ChownMode:                  nillable.ToPointer("restricted"),
+				Protocols:                  []*string{nillable.ToPointer("nfs")},
 				ExportRulesInlineRoRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
 				ExportRulesInlineRwRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
 				ExportRulesInlineSuperuser: []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
 			},
-			expected: true,
+			expected: false,
 		},
 		{
 			name: "Wrong client match",
@@ -555,8 +570,8 @@ func TestIsDefaultRule(t *testing.T) {
 				Index:                      nillable.ToPointer(int64(7)),
 				ChownMode:                  nillable.ToPointer("restricted"),
 				Protocols:                  []*string{nillable.ToPointer("nfs")},
-				ExportRulesInlineRoRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorSys))},
-				ExportRulesInlineRwRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
+				ExportRulesInlineRoRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorAny))},
+				ExportRulesInlineRwRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorSys))},
 				ExportRulesInlineSuperuser: []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
 			},
 			expected: false,
@@ -570,8 +585,8 @@ func TestIsDefaultRule(t *testing.T) {
 				Index:                      nillable.ToPointer(int64(7)),
 				ChownMode:                  nillable.ToPointer("restricted"),
 				Protocols:                  []*string{nillable.ToPointer("nfs")},
-				ExportRulesInlineRoRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
-				ExportRulesInlineRwRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorSys))},
+				ExportRulesInlineRoRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorSys))},
+				ExportRulesInlineRwRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorAny))},
 				ExportRulesInlineSuperuser: []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
 			},
 			expected: false,
@@ -649,8 +664,8 @@ func TestExportPolicyEnsureDefault_Success_DefaultRuleExists(t *testing.T) {
 		Index:                      nillable.ToPointer(int64(7)),
 		ChownMode:                  nillable.ToPointer("restricted"),
 		Protocols:                  []*string{nillable.ToPointer("nfs")},
-		ExportRulesInlineRoRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
-		ExportRulesInlineRwRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
+		ExportRulesInlineRoRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorSys))},
+		ExportRulesInlineRwRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorSys))},
 		ExportRulesInlineSuperuser: []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
 	}
 
@@ -700,7 +715,9 @@ func TestExportPolicyEnsureDefault_Success_CreatesDefaultRule(t *testing.T) {
 			params.ID == 123 &&
 			len(params.Rules) == 1 &&
 			params.Rules[0].Index == 7 &&
-			params.Rules[0].ChownMode == models.ChownModeRestricted
+			params.Rules[0].ChownMode == models.ChownModeRestricted &&
+			params.Rules[0].ReadOnlyRule == models.ExportAuthenticationFlavorSys &&
+			params.Rules[0].ReadWriteRule == models.ExportAuthenticationFlavorSys
 	})).Return(nil)
 
 	err := rc.ExportPolicyEnsureDefault(svmName)
@@ -831,8 +848,8 @@ func TestCreateExportPolicy_Success(t *testing.T) {
 		Index:                      nillable.ToPointer(int64(7)),
 		ChownMode:                  nillable.ToPointer("restricted"),
 		Protocols:                  []*string{nillable.ToPointer("nfs")},
-		ExportRulesInlineRoRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
-		ExportRulesInlineRwRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
+		ExportRulesInlineRoRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorSys))},
+		ExportRulesInlineRwRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorSys))},
 		ExportRulesInlineSuperuser: []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
 	}
 
@@ -1076,8 +1093,8 @@ func TestCreateExportPolicy_Error_CreateFails(t *testing.T) {
 		Index:                      nillable.ToPointer(int64(7)),
 		ChownMode:                  nillable.ToPointer("restricted"),
 		Protocols:                  []*string{nillable.ToPointer("nfs")},
-		ExportRulesInlineRoRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
-		ExportRulesInlineRwRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
+		ExportRulesInlineRoRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorSys))},
+		ExportRulesInlineRwRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorSys))},
 		ExportRulesInlineSuperuser: []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
 	}
 
@@ -1127,8 +1144,8 @@ func TestCreateExportPolicy_Success_EmptyRules(t *testing.T) {
 		Index:                      nillable.ToPointer(int64(7)),
 		ChownMode:                  nillable.ToPointer("restricted"),
 		Protocols:                  []*string{nillable.ToPointer("nfs")},
-		ExportRulesInlineRoRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
-		ExportRulesInlineRwRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
+		ExportRulesInlineRoRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorSys))},
+		ExportRulesInlineRwRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorSys))},
 		ExportRulesInlineSuperuser: []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
 	}
 
@@ -1507,8 +1524,8 @@ func TestCreateExportPolicy_ExtensiveEdgeCases(t *testing.T) {
 					Index:                      nillable.ToPointer(int64(7)),
 					ChownMode:                  nillable.ToPointer("restricted"),
 					Protocols:                  []*string{nillable.ToPointer("nfs")},
-					ExportRulesInlineRoRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
-					ExportRulesInlineRwRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
+					ExportRulesInlineRoRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorSys))},
+					ExportRulesInlineRwRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorSys))},
 					ExportRulesInlineSuperuser: []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
 				}
 
@@ -1557,8 +1574,8 @@ func TestCreateExportPolicy_ExtensiveEdgeCases(t *testing.T) {
 					Index:                      nillable.ToPointer(int64(7)),
 					ChownMode:                  nillable.ToPointer("restricted"),
 					Protocols:                  []*string{nillable.ToPointer("nfs")},
-					ExportRulesInlineRoRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
-					ExportRulesInlineRwRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
+					ExportRulesInlineRoRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorSys))},
+					ExportRulesInlineRwRule:    []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorSys))},
 					ExportRulesInlineSuperuser: []*ontaprestmodels.ExportAuthenticationFlavor{(*ontaprestmodels.ExportAuthenticationFlavor)(nillable.ToPointer(ontaprestmodels.ExportAuthenticationFlavorNone))},
 				}
 

@@ -72,11 +72,12 @@ func convertStorageExportPolicyRuleToONTAP(rule ExportRule) *ontapRest.ExportRul
 }
 
 func isDefaultRule(rule *ontaprestmodels.ExportRules) bool {
+	// Satisfied default: AUTH_SYS for ro/rw so UNIX UIDs are honored; "none" maps clients to anonymous per ONTAP semantics.
 	return len(rule.ExportRulesInlineClients) == 1 && *rule.ExportRulesInlineClients[0].Match == models.AllowedAllClients && int64(*rule.Index) == models.DefaultIndexExportPolicyRule &&
 		*rule.ChownMode == models.ChownModeRestricted &&
 		len(rule.Protocols) == 1 && *rule.Protocols[0] == utils.GetOntapValue(utils.ProtocolNFS) &&
-		len(rule.ExportRulesInlineRoRule) == 1 && *rule.ExportRulesInlineRoRule[0] == ontaprestmodels.ExportAuthenticationFlavorNone &&
-		len(rule.ExportRulesInlineRwRule) == 1 && *rule.ExportRulesInlineRwRule[0] == ontaprestmodels.ExportAuthenticationFlavorNone &&
+		len(rule.ExportRulesInlineRoRule) == 1 && *rule.ExportRulesInlineRoRule[0] == ontaprestmodels.ExportAuthenticationFlavorSys &&
+		len(rule.ExportRulesInlineRwRule) == 1 && *rule.ExportRulesInlineRwRule[0] == ontaprestmodels.ExportAuthenticationFlavorSys &&
 		len(rule.ExportRulesInlineSuperuser) == 1 && *rule.ExportRulesInlineSuperuser[0] == ontaprestmodels.ExportAuthenticationFlavorNone
 }
 
@@ -145,8 +146,8 @@ func (rc *OntapRestProvider) ExportPolicyEnsureDefault(svmName string) error {
 		ChownMode:     models.ChownModeRestricted,
 		Protocols:     []string{utils.GetOntapValue(utils.ProtocolNFS)},
 		ClientMatch:   models.AllowedAllClients,
-		ReadOnlyRule:  models.NoneAccessProtocol,
-		ReadWriteRule: models.NoneAccessProtocol,
+		ReadOnlyRule:  models.ExportAuthenticationFlavorSys,
+		ReadWriteRule: models.ExportAuthenticationFlavorSys,
 		SuperUserRule: models.NoneAccessProtocol,
 		AnonymousUser: models.RootAnonymousUser,
 	}

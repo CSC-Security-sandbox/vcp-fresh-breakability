@@ -1867,6 +1867,26 @@ func TestExportPolicyCreateParamsToONTAP(t *testing.T) {
 		assert.Equal(tt, "nfs3", *otParams.Info.ExportPolicyInlineRules[0].Protocols[0])
 		assert.Equal(tt, "nfs4", *otParams.Info.ExportPolicyInlineRules[0].Protocols[1])
 	})
+	t.Run("WhenReadOnlyAndReadWriteRulesEmpty_DefaultsToSys", func(tt *testing.T) {
+		params := &ExportPolicyCreateParams{
+			Name:    "p",
+			SvmName: "svm",
+			Rules: []*ExportRule{
+				{
+					ClientMatch:   "10.0.0.1",
+					SuperUserRule: "none",
+					AnonymousUser: "65534",
+					Index:         1,
+					Protocols:     []string{"nfs"},
+				},
+			},
+		}
+		otParams := exportPolicyCreateParamsToONTAP(params, logger)
+		assert.Len(tt, otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineRoRule, 1)
+		assert.Len(tt, otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineRwRule, 1)
+		assert.Equal(tt, "sys", string(*otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineRoRule[0]))
+		assert.Equal(tt, "sys", string(*otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineRwRule[0]))
+	})
 }
 
 func TestExportPolicyGetParamsToONTAP(t *testing.T) {
@@ -1929,6 +1949,26 @@ func TestExportPolicyModifyParamsToONTAP(t *testing.T) {
 		assert.Equal(tt, "65534", *otParams.Info.ExportPolicyInlineRules[0].AnonymousUser)
 		assert.Len(tt, otParams.Info.ExportPolicyInlineRules[0].Protocols, 1)
 		assert.Equal(tt, "nfs3", *otParams.Info.ExportPolicyInlineRules[0].Protocols[0])
+	})
+	t.Run("WhenReadOnlyAndReadWriteRulesEmpty_DefaultsToSys", func(tt *testing.T) {
+		params := &ExportPolicyModifyParams{
+			BaseParams: BaseParams{},
+			ID:         1,
+			SvmName:    "svm",
+			Rules: []*ExportRule{
+				{
+					ClientMatch:   "10.0.0.2",
+					SuperUserRule: "none",
+					AnonymousUser: "65534",
+					Protocols:     []string{"nfs3"},
+				},
+			},
+		}
+		otParams := exportPolicyModifyParamsToONTAP(params)
+		assert.Len(tt, otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineRoRule, 1)
+		assert.Len(tt, otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineRwRule, 1)
+		assert.Equal(tt, "sys", string(*otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineRoRule[0]))
+		assert.Equal(tt, "sys", string(*otParams.Info.ExportPolicyInlineRules[0].ExportRulesInlineRwRule[0]))
 	})
 }
 
