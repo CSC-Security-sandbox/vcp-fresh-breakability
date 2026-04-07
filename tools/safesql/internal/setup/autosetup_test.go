@@ -256,6 +256,8 @@ func TestShowEnvironmentPasswordHidden(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
+	os.Setenv("SAFESQL_USE_IAM", "false")
+	defer os.Unsetenv("SAFESQL_USE_IAM")
 	os.Setenv("DB_PASSWORD", "super-secret")
 	defer os.Unsetenv("DB_PASSWORD")
 
@@ -284,6 +286,8 @@ func TestShowEnvironmentNoPassword(t *testing.T) {
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
+	os.Setenv("SAFESQL_USE_IAM", "false")
+	defer os.Unsetenv("SAFESQL_USE_IAM")
 	os.Unsetenv("DB_PASSWORD")
 
 	ShowEnvironment()
@@ -298,6 +302,36 @@ func TestShowEnvironmentNoPassword(t *testing.T) {
 
 	if !strings.Contains(output, "DB_PASSWORD=***not set***") {
 		t.Error("expected DB_PASSWORD to show as ***not set***")
+	}
+}
+
+func TestShowEnvironmentIAMMode(t *testing.T) {
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	os.Unsetenv("SAFESQL_USE_IAM") // default = IAM enabled
+	os.Setenv("DB_PASSWORD", "should-be-ignored")
+	defer os.Unsetenv("DB_PASSWORD")
+
+	ShowEnvironment()
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+
+	output := buf.String()
+
+	if !strings.Contains(output, "SAFESQL_USE_IAM=(auto-detected from cluster)") {
+		t.Error("expected SAFESQL_USE_IAM=(auto-detected from cluster) in output when env var is unset")
+	}
+	if !strings.Contains(output, "DB_PASSWORD=(ignored, IAM authentication)") {
+		t.Error("expected DB_PASSWORD to show IAM message")
+	}
+	if strings.Contains(output, "should-be-ignored") {
+		t.Error("password value should not be displayed in IAM mode")
 	}
 }
 

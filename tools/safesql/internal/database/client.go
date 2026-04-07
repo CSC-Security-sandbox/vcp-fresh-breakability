@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -24,12 +25,24 @@ type Config struct {
 	Password string
 	DBName   string
 	SSLMode  string
+	UseIAM   bool
 }
 
 // New creates a new database client.
 func New(cfg Config) (*Client, error) {
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.DBName, cfg.SSLMode)
+	password := cfg.Password
+	if cfg.UseIAM {
+		password = ""
+	}
+
+	// Quote values that may contain special characters (e.g. "@" in IAM emails).
+	// pq key=value format: single-quote values, escape interior single-quotes as \'.
+	dsn := fmt.Sprintf("host=%s port=%s user='%s' password='%s' dbname='%s' sslmode=%s",
+		cfg.Host, cfg.Port,
+		escapePQValue(cfg.User),
+		escapePQValue(password),
+		escapePQValue(cfg.DBName),
+		cfg.SSLMode)
 
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
@@ -111,6 +124,14 @@ func (c *Client) GetRowsSnapshot(ctx context.Context, table, whereClause string,
 	}
 
 	return result, rows.Err()
+}
+
+// escapePQValue escapes a value for use inside single-quoted pq DSN fields.
+func escapePQValue(s string) string {
+	// In pq key=value format, single-quoted values escape ' as \' and \ as \\.
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `'`, `\'`)
+	return s
 }
 
 func convertValue(v interface{}) interface{} {

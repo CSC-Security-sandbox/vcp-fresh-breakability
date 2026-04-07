@@ -174,7 +174,7 @@ func runPlan(args []string) error {
 	if cfg.Database.User == "" {
 		return fmt.Errorf("database user not configured. Set DB_USER environment variable or create .safesql/config.yaml")
 	}
-	if cfg.Database.Password == "" {
+	if cfg.Database.Password == "" && !cfg.Database.UseIAM {
 		return fmt.Errorf("database password not configured. Set DB_PASSWORD environment variable or create .safesql/config.yaml")
 	}
 	if cfg.Database.DBName == "" {
@@ -189,6 +189,7 @@ func runPlan(args []string) error {
 		Password: cfg.Database.Password,
 		DBName:   cfg.Database.DBName,
 		SSLMode:  cfg.Database.SSLMode,
+		UseIAM:   cfg.Database.UseIAM,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)

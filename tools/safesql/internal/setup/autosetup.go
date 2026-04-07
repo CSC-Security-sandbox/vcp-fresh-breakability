@@ -13,36 +13,71 @@ import (
 
 // AutoSetup performs automatic environment setup based on environment variables.
 // It returns an error if critical setup fails.
+//
+// Auth mode is resolved in this order:
+//  1. SAFESQL_USE_IAM=false explicitly set → password mode (no discovery)
+//  2. Otherwise → auto-discover: find a core pod; if its sidecar has
+//     --auto-iam-authn, derive DB_USER from Workload Identity and use IAM mode.
+//  3. If discovery fails or sidecar lacks the flag → fall back to password mode.
 func AutoSetup() error {
-	// Check if auto-setup is disabled
 	if os.Getenv("SAFESQL_NO_AUTO_SETUP") == "true" {
 		return nil
 	}
 
-	// 1. Create necessary directories
 	if err := createDirectories(); err != nil {
 		return fmt.Errorf("failed to create directories: %w", err)
 	}
 
-	// 2. Fetch DB password from Kubernetes if not set
-	if os.Getenv("DB_PASSWORD") == "" && os.Getenv("SAFESQL_AUTO_FETCH_PASSWORD") != "false" {
-		if err := fetchDBPasswordFromK8s(); err != nil {
-			// Non-fatal: warn but continue
+	// Resolve auth mode unless the user has explicitly disabled IAM.
+	if os.Getenv("SAFESQL_USE_IAM") == "false" {
+		fmt.Fprintln(os.Stderr, "[INFO] SAFESQL_USE_IAM=false: using password authentication")
+		if err := maybeAutoFetchPassword(); err != nil {
 			fmt.Fprintf(os.Stderr, "[WARNING] Could not auto-fetch DB password: %v\n", err)
-			fmt.Fprintln(os.Stderr, "[INFO] Set DB_PASSWORD manually or ensure kubectl access to secrets")
+		}
+	} else {
+		// Auto-discover IAM from the cluster.
+		namespace := getEnvOrDefault("DB_PORT_FORWARD_NAMESPACE", "vcp")
+		podLabel := getEnvOrDefault("DB_PORT_FORWARD_POD_LABEL", "app=core")
+
+		disc, err := discoverIAM(namespace, podLabel)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[INFO] IAM auto-discovery: %v — falling back to password auth\n", err)
+		}
+
+		if disc.enabled {
+			os.Setenv("SAFESQL_USE_IAM", "true")
+			if disc.dbUser != "" {
+				existing := os.Getenv("DB_USER")
+				// Override DB_USER if it is unset or is not an IAM principal (no "@").
+				// This handles stale env vars like DB_USER=postgres from a previous session.
+				if existing == "" || !strings.Contains(existing, "@") {
+					os.Setenv("DB_USER", disc.dbUser)
+					fmt.Fprintf(os.Stderr, "[INFO] IAM auto-discovered: DB_USER=%s\n", disc.dbUser)
+				}
+			}
+			// Guard against DB_NAME accidentally set to an email address (e.g. from a
+			// previous manual test where someone exported DB_NAME=$DB_USER by mistake).
+			if dbName := os.Getenv("DB_NAME"); strings.Contains(dbName, "@") {
+				fmt.Fprintf(os.Stderr, "[WARNING] DB_NAME=%q looks like an email — resetting to default 'vcp'\n", dbName)
+				os.Setenv("DB_NAME", "vcp")
+			}
+		} else {
+			os.Setenv("SAFESQL_USE_IAM", "false")
+			fmt.Fprintln(os.Stderr, "[INFO] IAM not available on cluster — using password authentication")
+			if err := maybeAutoFetchPassword(); err != nil {
+				fmt.Fprintf(os.Stderr, "[WARNING] Could not auto-fetch DB password: %v\n", err)
+			}
 		}
 	}
 
-	// 3. Setup port-forward if needed
+	// Setup port-forward to the right target (pod sidecar for IAM, service for password).
 	if shouldSetupPortForward() {
 		if err := setupPortForward(); err != nil {
-			// Non-fatal for some commands
 			fmt.Fprintf(os.Stderr, "[WARNING] Could not setup port-forward: %v\n", err)
-			fmt.Fprintln(os.Stderr, "[INFO] Ensure kubectl is configured or set DB_HOST to accessible host")
+			fmt.Fprintln(os.Stderr, "[INFO] Ensure kubectl is configured or set DB_HOST to an accessible host")
 		}
 	}
 
-	// 4. Set default operator if not set
 	if os.Getenv("SAFESQL_OPERATOR") == "" {
 		if username := getCurrentUsername(); username != "" {
 			os.Setenv("SAFESQL_OPERATOR", username)
@@ -50,6 +85,87 @@ func AutoSetup() error {
 	}
 
 	return nil
+}
+
+// iamDiscovery holds the result of auto-detecting IAM auth from the cluster.
+type iamDiscovery struct {
+	enabled bool
+	dbUser  string // Cloud SQL IAM username derived from Workload Identity SA
+}
+
+// discoverIAM finds a running pod matching podLabel in namespace, checks whether
+// its Cloud SQL Proxy sidecar carries --auto-iam-authn, and if so derives the
+// DB username from the pod's Workload Identity GCP service account.
+func discoverIAM(namespace, podLabel string) (iamDiscovery, error) {
+	podName, err := resolveIAMPod(namespace, podLabel)
+	if err != nil {
+		return iamDiscovery{}, fmt.Errorf("no running pod with label %q in ns %q: %w", podLabel, namespace, err)
+	}
+
+	if !podHasIAMAuthn(namespace, podName) {
+		return iamDiscovery{}, fmt.Errorf("pod %s sidecar does not have --auto-iam-authn", podName)
+	}
+
+	dbUser, err := dbUserFromPod(namespace, podName)
+	if err != nil {
+		// IAM is available but we couldn't derive the user; caller must set DB_USER manually.
+		fmt.Fprintf(os.Stderr, "[WARNING] Could not derive DB_USER from pod Workload Identity: %v\n", err)
+		fmt.Fprintln(os.Stderr, "[INFO] Set DB_USER manually (IAM email, e.g. sa@project.iam.gserviceaccount.com)")
+		return iamDiscovery{enabled: true}, nil
+	}
+
+	return iamDiscovery{enabled: true, dbUser: dbUser}, nil
+}
+
+// podHasIAMAuthn reports whether any container in the pod has --auto-iam-authn in its args.
+// podName may be in "pod/name" form (as returned by kubectl -o name) or bare "name".
+func podHasIAMAuthn(namespace, podName string) bool {
+	out, err := exec.Command("kubectl", "get",
+		"-n", namespace, podName,
+		"-o", "jsonpath={.spec.containers[*].args}").Output()
+	if err != nil {
+		return false
+	}
+	return strings.Contains(string(out), "--auto-iam-authn")
+}
+
+// dbUserFromPod derives the Cloud SQL IAM username by reading the pod's
+// Kubernetes service account and its iam.gke.io/gcp-service-account annotation.
+//
+// GCP SA email:  vcp-core@project.iam.gserviceaccount.com
+// DB username:   vcp-core@project.iam   (strip ".gserviceaccount.com")
+func dbUserFromPod(namespace, podName string) (string, error) {
+	ksaOut, err := exec.Command("kubectl", "get",
+		"-n", namespace, podName,
+		"-o", "jsonpath={.spec.serviceAccountName}").Output()
+	if err != nil {
+		return "", fmt.Errorf("get pod serviceAccountName: %w", err)
+	}
+	ksa := strings.TrimSpace(string(ksaOut))
+	if ksa == "" {
+		return "", fmt.Errorf("pod has no serviceAccountName")
+	}
+
+	gcpSAOut, err := exec.Command("kubectl", "get", "serviceaccount",
+		"-n", namespace, ksa,
+		"-o", `jsonpath={.metadata.annotations.iam\.gke\.io/gcp-service-account}`).Output()
+	if err != nil {
+		return "", fmt.Errorf("get serviceaccount annotation: %w", err)
+	}
+	gcpSA := strings.TrimSpace(string(gcpSAOut))
+	if gcpSA == "" {
+		return "", fmt.Errorf("no iam.gke.io/gcp-service-account annotation on serviceaccount %q", ksa)
+	}
+
+	// Cloud SQL IAM username = GCP SA email without the ".gserviceaccount.com" suffix.
+	return strings.TrimSuffix(gcpSA, ".gserviceaccount.com"), nil
+}
+
+func maybeAutoFetchPassword() error {
+	if os.Getenv("DB_PASSWORD") != "" || os.Getenv("SAFESQL_AUTO_FETCH_PASSWORD") == "false" {
+		return nil
+	}
+	return fetchDBPasswordFromK8s()
 }
 
 func createDirectories() error {
@@ -141,24 +257,39 @@ func shouldSetupPortForward() bool {
 
 func setupPortForward() error {
 	dbPort := getEnvOrDefault("DB_PORT", "5432")
-	service := getEnvOrDefault("DB_PORT_FORWARD_SERVICE", "cloud-sql-proxy")
-	namespace := getEnvOrDefault("DB_PORT_FORWARD_NAMESPACE", "sde")
+	namespace := getEnvOrDefault("DB_PORT_FORWARD_NAMESPACE", "vcp")
 	targetPort := getEnvOrDefault("DB_PORT_FORWARD_PORT", "5432")
-
-	fmt.Fprintf(os.Stderr, "🔌 Setting up port-forward to %s/%s...\n", namespace, service)
 
 	// Check if kubectl is available and configured
 	if err := exec.Command("kubectl", "cluster-info").Run(); err != nil {
 		return fmt.Errorf("kubectl not configured or not accessible")
 	}
 
-	// Start port-forward in background
+	// When IAM is enabled, port-forward to a running pod whose Cloud SQL Proxy
+	// sidecar was started with --auto-iam-authn (e.g. core-api, worker).
+	// The standalone cloud-sql-proxy service does NOT carry that flag.
+	useIAM := os.Getenv("SAFESQL_USE_IAM") != "false"
+
+	var target string
+	if useIAM {
+		podLabel := getEnvOrDefault("DB_PORT_FORWARD_POD_LABEL", "app=core")
+		podName, err := resolveIAMPod(namespace, podLabel)
+		if err != nil {
+			return fmt.Errorf("no IAM-enabled pod found (label %s in ns %s): %w", podLabel, namespace, err)
+		}
+		target = podName
+		fmt.Fprintf(os.Stderr, "[INFO] Port-forwarding to pod %s/%s (IAM proxy sidecar)\n", namespace, podName)
+	} else {
+		service := getEnvOrDefault("DB_PORT_FORWARD_SERVICE", "cloud-sql-proxy")
+		target = fmt.Sprintf("svc/%s", service)
+		fmt.Fprintf(os.Stderr, "[INFO] Port-forwarding to %s/%s\n", namespace, service)
+	}
+
 	cmd := exec.Command("kubectl", "port-forward",
 		"-n", namespace,
-		fmt.Sprintf("svc/%s", service),
+		target,
 		fmt.Sprintf("%s:%s", dbPort, targetPort))
 
-	// Redirect output to log file
 	logFile := "/tmp/safesql-portforward.log"
 	f, err := os.Create(logFile)
 	if err != nil {
@@ -173,13 +304,11 @@ func setupPortForward() error {
 		return fmt.Errorf("failed to start port-forward: %w", err)
 	}
 
-	// Save PID for cleanup'
 	pidFile := "/tmp/safesql-portforward.pid"
 	if err := os.WriteFile(pidFile, []byte(fmt.Sprintf("%d", cmd.Process.Pid)), 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "[WARNING] Could not save PID: %v\n", err)
 	}
 
-	// Wait for port to become accessible (max 10 seconds)
 	dbHost := getEnvOrDefault("DB_HOST", "127.0.0.1")
 	for i := 0; i < 20; i++ {
 		if isPortAccessible(dbHost, dbPort) {
@@ -190,6 +319,30 @@ func setupPortForward() error {
 	}
 
 	return fmt.Errorf("port-forward failed to become ready within 10 seconds")
+}
+
+// resolveIAMPod returns the full pod resource path (e.g. "pod/core-abc-xyz") of
+// any Running pod matched by labelSelector in namespace, ready to be passed directly
+// to kubectl port-forward.
+func resolveIAMPod(namespace, labelSelector string) (string, error) {
+	cmd := exec.Command("kubectl", "get", "pod",
+		"-n", namespace,
+		"-l", labelSelector,
+		"--field-selector=status.phase=Running",
+		"-o", "name")
+
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("kubectl get pod failed: %w", err)
+	}
+
+	for _, line := range strings.Split(strings.TrimSpace(string(output)), "\n") {
+		if name := strings.TrimSpace(line); name != "" {
+			return name, nil
+		}
+	}
+
+	return "", fmt.Errorf("no running pod with label %q found in namespace %q", labelSelector, namespace)
 }
 
 func isPortAccessible(host, port string) bool {
@@ -226,18 +379,40 @@ func getEnvOrDefault(key, defaultValue string) string {
 func ShowEnvironment() {
 	fmt.Println("SafeSQL Environment Configuration:")
 	fmt.Println()
+
+	useIAMEnv := os.Getenv("SAFESQL_USE_IAM")
+	iamExplicit := useIAMEnv != ""
+	useIAM := useIAMEnv != "false"
+
 	fmt.Println("Database:")
 	fmt.Printf("  DB_HOST=%s\n", getEnvOrDefault("DB_HOST", "127.0.0.1"))
 	fmt.Printf("  DB_PORT=%s\n", getEnvOrDefault("DB_PORT", "5432"))
 	fmt.Printf("  DB_NAME=%s\n", getEnvOrDefault("DB_NAME", "vcp"))
-	fmt.Printf("  DB_USER=%s\n", getEnvOrDefault("DB_USER", "postgres"))
-	if os.Getenv("DB_PASSWORD") != "" {
+	if useIAM {
+		dbUser := os.Getenv("DB_USER")
+		if dbUser == "" {
+			fmt.Println("  DB_USER=(auto-discovered from cluster Workload Identity)")
+		} else {
+			fmt.Printf("  DB_USER=%s\n", dbUser)
+		}
+	} else {
+		fmt.Printf("  DB_USER=%s\n", getEnvOrDefault("DB_USER", "postgres"))
+	}
+	if iamExplicit {
+		fmt.Printf("  SAFESQL_USE_IAM=%s (explicit)\n", useIAMEnv)
+	} else {
+		fmt.Println("  SAFESQL_USE_IAM=(auto-detected from cluster)")
+	}
+	if useIAM {
+		fmt.Println("  DB_PASSWORD=(ignored, IAM authentication)")
+	} else if os.Getenv("DB_PASSWORD") != "" {
 		fmt.Println("  DB_PASSWORD=***set***")
 	} else {
 		fmt.Println("  DB_PASSWORD=***not set***")
 	}
 	fmt.Printf("  DB_SSL_MODE=%s\n", getEnvOrDefault("DB_SSL_MODE", "disable"))
 	fmt.Println()
+
 	fmt.Println("GitHub:")
 	if os.Getenv("GITHUB_TOKEN") != "" {
 		fmt.Println("  GITHUB_TOKEN=***set***")
@@ -247,24 +422,31 @@ func ShowEnvironment() {
 	fmt.Printf("  SAFESQL_GITHUB_REPO=%s\n", getEnvOrDefault("SAFESQL_GITHUB_REPO", "VCP-VSA-control-Plane/vsa-control-plane"))
 	fmt.Printf("  SAFESQL_GITHUB_BRANCH=%s\n", getEnvOrDefault("SAFESQL_GITHUB_BRANCH", "main"))
 	fmt.Println()
+
 	fmt.Println("Storage:")
 	fmt.Printf("  SAFESQL_CONFIG_DIR=%s (local config only)\n", getEnvOrDefault("SAFESQL_CONFIG_DIR", fmt.Sprintf("%s/.safesql", os.Getenv("HOME"))))
 	fmt.Printf("  SAFESQL_GCS_BUCKET=%s (plans & audit logs)\n", os.Getenv("SAFESQL_GCS_BUCKET"))
 	fmt.Println()
+
 	fmt.Println("Operator:")
 	fmt.Printf("  SAFESQL_OPERATOR=%s\n", getEnvOrDefault("SAFESQL_OPERATOR", getCurrentUsername()))
 	fmt.Println()
+
 	fmt.Println("Auto-Setup:")
 	fmt.Printf("  SAFESQL_NO_AUTO_SETUP=%s\n", getEnvOrDefault("SAFESQL_NO_AUTO_SETUP", "false"))
 	fmt.Printf("  SAFESQL_AUTO_FETCH_PASSWORD=%s\n", getEnvOrDefault("SAFESQL_AUTO_FETCH_PASSWORD", "true"))
 	fmt.Printf("  SAFESQL_AUTO_PORT_FORWARD=%s\n", getEnvOrDefault("SAFESQL_AUTO_PORT_FORWARD", "true"))
 	fmt.Println()
+
 	fmt.Println("Kubernetes (for auto-setup):")
+	fmt.Printf("  DB_PORT_FORWARD_NAMESPACE=%s\n", getEnvOrDefault("DB_PORT_FORWARD_NAMESPACE", "vcp"))
+	fmt.Printf("  DB_PORT_FORWARD_PORT=%s\n", getEnvOrDefault("DB_PORT_FORWARD_PORT", "5432"))
+	fmt.Printf("  DB_PORT_FORWARD_POD_LABEL=%s  (IAM: pod label to find sidecar with --auto-iam-authn)\n",
+		getEnvOrDefault("DB_PORT_FORWARD_POD_LABEL", "app=core"))
+	fmt.Printf("  DB_PORT_FORWARD_SERVICE=%s  (password fallback: standalone proxy service)\n",
+		getEnvOrDefault("DB_PORT_FORWARD_SERVICE", "cloud-sql-proxy"))
 	fmt.Printf("  DB_SECRET_NAME=%s\n", getEnvOrDefault("DB_SECRET_NAME", "postgres-credentials"))
 	fmt.Printf("  DB_SECRET_NAMESPACE=%s\n", getEnvOrDefault("DB_SECRET_NAMESPACE", "sde"))
-	fmt.Printf("  DB_PORT_FORWARD_SERVICE=%s\n", getEnvOrDefault("DB_PORT_FORWARD_SERVICE", "cloud-sql-proxy"))
-	fmt.Printf("  DB_PORT_FORWARD_NAMESPACE=%s\n", getEnvOrDefault("DB_PORT_FORWARD_NAMESPACE", "sde"))
-	fmt.Printf("  DB_PORT_FORWARD_PORT=%s\n", getEnvOrDefault("DB_PORT_FORWARD_PORT", "5432"))
 }
 
 // CheckDatabaseConnectivity tests database connection.
@@ -292,7 +474,8 @@ func CheckDatabaseConnectivity() error {
 	}
 
 	// Try actual connection if psql is available
-	if _, err := exec.LookPath("psql"); err == nil && dbPassword != "" {
+	isIAM := os.Getenv("SAFESQL_USE_IAM") != "false"
+	if _, err := exec.LookPath("psql"); err == nil && (dbPassword != "" || isIAM) {
 		fmt.Println("[INFO] Testing database authentication...")
 
 		cmd := exec.Command("psql",
@@ -301,7 +484,9 @@ func CheckDatabaseConnectivity() error {
 			"-U", dbUser,
 			"-d", dbName,
 			"-c", "SELECT version();")
-		cmd.Env = append(os.Environ(), fmt.Sprintf("PGPASSWORD=%s", dbPassword))
+		if !isIAM {
+			cmd.Env = append(os.Environ(), fmt.Sprintf("PGPASSWORD=%s", dbPassword))
+		}
 
 		if output, err := cmd.CombinedOutput(); err == nil {
 			fmt.Println("[PASS] Database connection successful")
@@ -315,7 +500,7 @@ func CheckDatabaseConnectivity() error {
 			return fmt.Errorf("database authentication failed")
 		}
 	} else {
-		if dbPassword == "" {
+		if !isIAM && dbPassword == "" {
 			fmt.Println("[WARNING] DB_PASSWORD not set, skipping authentication test")
 		}
 	}

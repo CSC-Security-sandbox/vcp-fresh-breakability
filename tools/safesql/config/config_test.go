@@ -43,6 +43,9 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.Database.SSLMode != "disable" {
 		t.Errorf("expected SSLMode to be 'disable', got %q", cfg.Database.SSLMode)
 	}
+	if !cfg.Database.UseIAM {
+		t.Error("expected UseIAM to be true by default")
+	}
 
 	// Test Thresholds defaults
 	if cfg.Thresholds.MaxRowsDefault != 100 {
@@ -89,6 +92,7 @@ func TestLoadFromEnv(t *testing.T) {
 		"DB_NAME":               os.Getenv("DB_NAME"),
 		"DB_SSLMODE":            os.Getenv("DB_SSLMODE"),
 		"SAFESQL_GCS_BUCKET":    os.Getenv("SAFESQL_GCS_BUCKET"),
+		"SAFESQL_USE_IAM":       os.Getenv("SAFESQL_USE_IAM"),
 	}
 	defer func() {
 		for k, v := range origVars {
@@ -149,6 +153,41 @@ func TestLoadFromEnv(t *testing.T) {
 	}
 	if cfg.Storage.GCSBucket != "test-bucket" {
 		t.Errorf("expected GCSBucket to be 'test-bucket', got %q", cfg.Storage.GCSBucket)
+	}
+}
+
+func TestLoadFromEnvIAMDisable(t *testing.T) {
+	origVal := os.Getenv("SAFESQL_USE_IAM")
+	defer func() {
+		if origVal != "" {
+			os.Setenv("SAFESQL_USE_IAM", origVal)
+		} else {
+			os.Unsetenv("SAFESQL_USE_IAM")
+		}
+	}()
+
+	// Default: UseIAM is true
+	os.Unsetenv("SAFESQL_USE_IAM")
+	cfg := DefaultConfig()
+	cfg.loadFromEnv()
+	if !cfg.Database.UseIAM {
+		t.Error("expected UseIAM to remain true when SAFESQL_USE_IAM is not set")
+	}
+
+	// Explicit "false" disables IAM
+	os.Setenv("SAFESQL_USE_IAM", "false")
+	cfg = DefaultConfig()
+	cfg.loadFromEnv()
+	if cfg.Database.UseIAM {
+		t.Error("expected UseIAM to be false when SAFESQL_USE_IAM=false")
+	}
+
+	// Any other value keeps IAM enabled
+	os.Setenv("SAFESQL_USE_IAM", "true")
+	cfg = DefaultConfig()
+	cfg.loadFromEnv()
+	if !cfg.Database.UseIAM {
+		t.Error("expected UseIAM to be true when SAFESQL_USE_IAM=true")
 	}
 }
 
@@ -256,6 +295,7 @@ func TestValidate(t *testing.T) {
 			setupConfig: func(c *Config) {
 				c.GitHub.RequireGitHubSource = false
 				c.Database.Host = "localhost"
+				c.Database.UseIAM = false
 				c.Storage.Backend = "gcs"
 				c.Storage.GCSBucket = "test-bucket"
 			},
@@ -268,6 +308,7 @@ func TestValidate(t *testing.T) {
 				c.GitHub.Repository = ""
 				c.GitHub.Token = "token"
 				c.Database.Host = "localhost"
+				c.Database.UseIAM = false
 			},
 			wantErr:     true,
 			errContains: "github.repository is required",
@@ -279,6 +320,7 @@ func TestValidate(t *testing.T) {
 				c.GitHub.Repository = "test/repo"
 				c.GitHub.Token = ""
 				c.Database.Host = "localhost"
+				c.Database.UseIAM = false
 			},
 			wantErr:     true,
 			errContains: "github.token is required",
@@ -288,6 +330,7 @@ func TestValidate(t *testing.T) {
 			setupConfig: func(c *Config) {
 				c.GitHub.RequireGitHubSource = false
 				c.Database.Host = ""
+				c.Database.UseIAM = false
 			},
 			wantErr:     true,
 			errContains: "database host not configured",
@@ -297,6 +340,7 @@ func TestValidate(t *testing.T) {
 			setupConfig: func(c *Config) {
 				c.GitHub.RequireGitHubSource = false
 				c.Database.Host = "localhost"
+				c.Database.UseIAM = false
 				c.Thresholds.MaxRowsDefault = 0
 			},
 			wantErr:     true,
@@ -307,11 +351,61 @@ func TestValidate(t *testing.T) {
 			setupConfig: func(c *Config) {
 				c.GitHub.RequireGitHubSource = false
 				c.Database.Host = "localhost"
+				c.Database.UseIAM = false
 				c.Storage.Backend = "gcs"
 				c.Storage.GCSBucket = ""
 			},
 			wantErr:     true,
 			errContains: "GCS bucket is required",
+		},
+		{
+			name: "IAM enabled with service account email",
+			setupConfig: func(c *Config) {
+				c.GitHub.RequireGitHubSource = false
+				c.Database.Host = "localhost"
+				c.Database.UseIAM = true
+				c.Database.User = "sa@project.iam.gserviceaccount.com"
+				c.Storage.Backend = "gcs"
+				c.Storage.GCSBucket = "test-bucket"
+			},
+			wantErr: false,
+		},
+		{
+			name: "IAM enabled with user email",
+			setupConfig: func(c *Config) {
+				c.GitHub.RequireGitHubSource = false
+				c.Database.Host = "localhost"
+				c.Database.UseIAM = true
+				c.Database.User = "user@company.com"
+				c.Storage.Backend = "gcs"
+				c.Storage.GCSBucket = "test-bucket"
+			},
+			wantErr: false,
+		},
+		{
+			name: "IAM enabled with non-email user",
+			setupConfig: func(c *Config) {
+				c.GitHub.RequireGitHubSource = false
+				c.Database.Host = "localhost"
+				c.Database.UseIAM = true
+				c.Database.User = "postgres"
+				c.Storage.Backend = "gcs"
+				c.Storage.GCSBucket = "test-bucket"
+			},
+			wantErr:     true,
+			errContains: "does not look like an IAM principal",
+		},
+		{
+			name: "IAM disabled with regular user",
+			setupConfig: func(c *Config) {
+				c.GitHub.RequireGitHubSource = false
+				c.Database.Host = "localhost"
+				c.Database.UseIAM = false
+				c.Database.User = "postgres"
+				c.Storage.Backend = "gcs"
+				c.Storage.GCSBucket = "test-bucket"
+			},
+			wantErr: false,
 		},
 	}
 

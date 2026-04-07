@@ -65,86 +65,54 @@ export SAFESQL_GCS_BUCKET="safesql-<your-project>-<environment>"
 
 ### Running in Kubernetes Cluster
 
-For executing SafeSQL against production databases in Kubernetes, follow these steps:
-
 #### Step 1: Login to Jump Host
 
 ```bash
-# SSH to your Kubernetes jump host
 gcloud compute ssh <jump-host-name> --zone=<zone> --project=<project>
-# Or using your organization's SSH method
 ```
 
-#### Step 2: Port Forward to Database
+#### Step 2: Download the Binary
 
 ```bash
-# Port forward to the cloud-sql-proxy service in the cluster
-kubectl port-forward -n sde svc/cloud-sql-proxy 5432:5432
-
-# If port 5432 is already in use locally, use an alternative port:
-kubectl port-forward -n sde svc/cloud-sql-proxy 5433:5432
-
-# Keep this terminal session running
-```
-
-**Note:** The port-forward must remain active in a separate terminal session while executing SafeSQL.
-
-#### Step 3: Set Database Environment Variables
-
-In a new terminal (or after port-forwarding in the background), set the database connection environment variables:
-
-```bash
-# Database connection
-export DB_HOST="localhost"          # Use localhost since we're port-forwarding
-export DB_PORT="5432"                # Or 5433 if using alternative port
-export DB_USER="<your-db-user>"
-export DB_PASSWORD="<your-db-password>"
-export DB_NAME="<your-database-name>"
-export DB_SSLMODE="disable"           # SSL not needed for localhost port-forward
-
-# GCS storage (REQUIRED)
-export SAFESQL_GCS_BUCKET="safesql-<your-project>-<environment>"
-
-# GitHub integration (REQUIRED for PR workflow)
-export SAFESQL_GITHUB_TOKEN="<your-github-token>"
-# Or
-export GITHUB_TOKEN="<your-github-token>"
-```
-
-#### Step 4: Download or Build the Binary
-
-**Option 1: Download from GitHub Release (Recommended)**
-
-```bash
-# Download the latest release (Linux AMD64)
 curl -L \
   -H "Accept: application/octet-stream" \
   -H "Authorization: Bearer ${GITHUB_TOKEN}" \
   -H "X-GitHub-Api-Version: 2022-11-28" \
-  https://api.github.com/repos/VCP-VSA-control-Plane/vsa-control-plane/releases/assets/372289464 \
-  -o safesql
+  https://api.github.com/repos/VCP-VSA-control-Plane/vsa-control-plane/releases/assets/386204794 \
+  -o safesql && chmod +x safesql
 
-chmod +x safesql
+# Verify it downloaded correctly (must report ELF binary, not text/JSON)
+file safesql
 ```
 
-**Option 2: Build Locally**
+#### Step 3: Set the Minimum Required Variables
+
+SafeSQL auto-discovers everything else from the cluster (auth mode, DB user, port-forward target).
 
 ```bash
-# On your local machine, build Linux binary
-cd /path/to/vsa-control-plane
-GOOS=linux GOARCH=amd64 go build -o safesql ./tools/safesql
-
-# Copy to jump host
-scp safesql <user>@<jump-host>:/home/<user>/safesql
-# Or using gcloud
-gcloud compute scp safesql <jump-host-name>:/home/<user>/safesql \
-  --zone=<zone> --project=<project>
-
-# On jump host, make it executable
-chmod +x ~/safesql
+export SAFESQL_GCS_BUCKET="safesql-<your-project>-<environment>"   # REQUIRED
+export GITHUB_TOKEN="<your-github-token>"                           # REQUIRED for PR workflow
+export DB_NAME="vcp"                                                # default is already vcp
 ```
 
-#### Step 5: Execute SafeSQL
+That's it. On first run SafeSQL will:
+
+1. Find a running `core` pod in the `vcp` namespace.
+2. Check whether its Cloud SQL Proxy sidecar has `--auto-iam-authn`.
+3. **If yes (IAM available):** read the pod's Workload Identity GCP service account, derive
+   `DB_USER` automatically (e.g. `vcp-core@project.iam`), and port-forward to that pod.
+4. **If no (IAM not available):** fall back to password auth — auto-fetch the password from
+   the `postgres-credentials` secret in the `sde` namespace and port-forward to `svc/cloud-sql-proxy`.
+
+**Force password mode** (e.g. for local testing or when kubectl is unavailable):
+
+```bash
+export SAFESQL_USE_IAM="false"
+export DB_USER="postgres"
+export DB_PASSWORD="<your-db-password>"
+```
+
+#### Step 4: Execute SafeSQL
 
 Now you can execute SafeSQL commands on the jump host:
 
@@ -172,6 +140,96 @@ Now you can execute SafeSQL commands on the jump host:
 - Set `DB_SSLMODE=disable` for localhost connections
 - The binary must be in a directory that allows execution (not `/tmp` if mounted with `noexec`)
 - Plans and audit logs are stored in `~/.safesql/` directory
+
+## Database Authentication
+
+SafeSQL supports two authentication modes for connecting to Cloud SQL.
+
+### IAM Authentication (Default — fully automatic)
+
+SafeSQL auto-discovers IAM authentication from the cluster. You do not need to set `SAFESQL_USE_IAM` or `DB_USER` manually. On startup SafeSQL:
+
+1. Finds a running `app=core` pod in the `vcp` namespace
+2. Checks if its Cloud SQL Proxy sidecar has `--auto-iam-authn`
+3. If yes: reads the pod's Workload Identity GCP service account and derives `DB_USER` automatically (e.g. `vcp-core@project.iam`)
+4. If no: falls back to password mode (see below)
+
+When IAM mode is active:
+- `DB_USER` is set automatically — no manual configuration needed
+- `DB_PASSWORD` is ignored — the Cloud SQL Proxy handles authentication using an IAM token
+- No passwords are stored on disk or in environment variables
+- If `DB_USER` is already set in the environment but is not an IAM principal (no `@`), it is overridden by the auto-discovered value
+- If `DB_NAME` is accidentally set to an email address, SafeSQL warns and resets it to `vcp`
+
+**How it works:**
+
+```
+SafeSQL binary                Cloud SQL Proxy              Cloud SQL
+    │                              │                           │
+    │  connect(user=DB_USER,       │                           │
+    │          password="")        │                           │
+    ├─────────────────────────────►│                           │
+    │                              │  authenticate DB_USER     │
+    │                              │  identity via IAM token   │
+    │                              ├──────────────────────────►│
+    │                              │                           │
+    │            connection established                        │
+    │◄─────────────────────────────────────────────────────────│
+```
+
+**Prerequisites for IAM mode:**
+
+1. Cloud SQL instance has IAM authentication enabled (`cloudsql.iam_authentication=on`)
+2. An IAM database user exists for the identity in `DB_USER`:
+   - For service accounts: `gcloud sql users create ... --type=CLOUD_IAM_SERVICE_ACCOUNT`
+   - For user accounts: `gcloud sql users create ... --type=CLOUD_IAM_USER`
+3. The IAM user has been granted the necessary database permissions (`GRANT` statements)
+4. The identity has the `roles/cloudsql.client` IAM role
+5. SafeSQL auto-selects a **pod sidecar** for port-forwarding (not `svc/cloud-sql-proxy`). Pod sidecars
+   are deployed with `--auto-iam-authn` via `cloudSqlIamAuthEnabled: true` in the Helm chart.
+   The standalone `cloud-sql-proxy` service does **not** carry this flag.
+
+**Validation:** When IAM mode is active, `DB_USER` must contain `@`. If auto-discovery sets it or the
+user provides it explicitly, this is handled automatically. SafeSQL exits with a clear error if the
+value is invalid.
+
+### Password Authentication (Legacy)
+
+To use traditional username/password authentication, set `SAFESQL_USE_IAM=false`:
+
+```bash
+export SAFESQL_USE_IAM="false"
+export DB_USER="postgres"
+export DB_PASSWORD="your-password"
+```
+
+When IAM is disabled:
+- SafeSQL will auto-fetch the password from Kubernetes secrets if `DB_PASSWORD` is not set
+- Auto port-forwarding to `svc/cloud-sql-proxy` is attempted if the database port is not reachable
+
+### Environment Variables Reference
+
+| Variable | IAM mode (default) | Password mode | Description |
+|----------|-------------------|---------------|-------------|
+| `SAFESQL_USE_IAM` | auto-detected | `false` | Auth mode — omit to auto-detect; set `false` to force password |
+| `DB_HOST` | `localhost` | `localhost` | Database host |
+| `DB_PORT` | `5432` | `5432` | Database port |
+| `DB_USER` | **auto-discovered** from Workload Identity | `postgres` | DB user — set only to override auto-discovery |
+| `DB_PASSWORD` | Ignored | Required (or auto-fetched) | Database password |
+| `DB_NAME` | `vcp` | `vcp` | Database name — do not set to an email address |
+| `DB_SSLMODE` | `disable` | `disable` | SSL mode |
+
+**Auto-setup port-forward variables:**
+
+| Variable | Default | Used when | Description |
+|----------|---------|-----------|-------------|
+| `DB_PORT_FORWARD_POD_LABEL` | `app=core` | IAM mode | Label selector for a pod whose sidecar has `--auto-iam-authn` |
+| `DB_PORT_FORWARD_NAMESPACE` | `vcp` | IAM mode | Kubernetes namespace where `app=core` pods run |
+| `DB_PORT_FORWARD_SERVICE` | `cloud-sql-proxy` | Password mode | Standalone proxy service name |
+| `DB_PORT_FORWARD_PORT` | `5432` | Both | Target port inside the pod/service |
+| `SAFESQL_AUTO_PORT_FORWARD` | `true` | Both | Set to `false` to disable automatic port-forward |
+| `DB_SECRET_NAME` | `postgres-credentials` | Password mode | Secret name containing the DB password |
+| `DB_SECRET_NAMESPACE` | `sde` | Password mode | Namespace where the password secret lives |
 
 ## PR Workflow (Recommended for Production)
 
@@ -364,8 +422,14 @@ EOF
 
 # Set environment variables
 export SAFESQL_GITHUB_TOKEN="your-github-token"
-export DB_USER="your-db-user"
-export DB_PASSWORD="your-db-password"
+
+# IAM mode (default) - no password needed
+export DB_USER="sa@project.iam.gserviceaccount.com"
+
+# Or password mode
+# export SAFESQL_USE_IAM="false"
+# export DB_USER="your-db-user"
+# export DB_PASSWORD="your-db-password"
 ```
 
 ### 2. Create a Query
@@ -725,13 +789,28 @@ export GITHUB_TOKEN="ghp_xxxx"
 
 ### "Failed to connect to database"
 
-Check environment variables:
+Check environment variables. With IAM (default):
 ```bash
-export DB_HOST="your-host"
-export DB_USER="your-user"  
-export DB_PASSWORD="your-password"
-export DB_NAME="your-database"
+export DB_HOST="localhost"
+export DB_USER="sa@project.iam.gserviceaccount.com"
+export DB_NAME="vcp"
+# Ensure Cloud SQL Proxy is running with --auto-iam-authn
 ```
+
+With password auth:
+```bash
+export SAFESQL_USE_IAM="false"
+export DB_HOST="localhost"
+export DB_USER="postgres"
+export DB_PASSWORD="your-password"
+export DB_NAME="vcp"
+```
+
+### "DB_USER does not look like an IAM principal"
+
+`DB_USER` must be an email address (containing `@`) when IAM mode is active. Either:
+- Set `DB_USER` to an IAM email: `export DB_USER="sa@project.iam.gserviceaccount.com"` or `export DB_USER="user@company.com"`
+- Or disable IAM: `export SAFESQL_USE_IAM="false"`
 
 ### "Table does not exist"
 

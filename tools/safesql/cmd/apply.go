@@ -71,6 +71,7 @@ func runApply(args []string) error {
 		Password: cfg.Database.Password,
 		DBName:   cfg.Database.DBName,
 		SSLMode:  cfg.Database.SSLMode,
+		UseIAM:   cfg.Database.UseIAM,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)

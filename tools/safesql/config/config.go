@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -38,6 +39,7 @@ type DatabaseConfig struct {
 	Password     string `yaml:"password"`
 	DBName       string `yaml:"dbname"`
 	SSLMode      string `yaml:"sslmode"`
+	UseIAM       bool   `yaml:"use_iam"`
 }
 
 // ThresholdsConfig holds safety threshold settings.
@@ -73,11 +75,12 @@ func DefaultConfig() *Config {
 		},
 		Database: DatabaseConfig{
 			UseVCPConfig: true,
-			Host:         "127.0.0.1", // Default host
+			Host:         "127.0.0.1",
 			Port:         "5432",
-			User:         "postgres",  // Default user
-			DBName:       "vcp",       // Default database
-			SSLMode:      "disable",   // Default SSL mode
+			User:         "postgres",
+			DBName:       "vcp",
+			SSLMode:      "disable",
+			UseIAM:       true,
 		},
 		Thresholds: ThresholdsConfig{
 			MaxRowsDefault:   100,
@@ -169,6 +172,11 @@ func (c *Config) loadFromEnv() {
 		c.Database.SSLMode = sslmode
 	}
 
+	// IAM override (default is true; only explicit "false" disables it)
+	if useIAM := os.Getenv("SAFESQL_USE_IAM"); useIAM == "false" {
+		c.Database.UseIAM = false
+	}
+
 	// Storage overrides
 	if bucket := os.Getenv("SAFESQL_GCS_BUCKET"); bucket != "" {
 		c.Storage.GCSBucket = bucket
@@ -188,8 +196,18 @@ func (c *Config) Validate() error {
 	}
 
 	// Always require database host
-		if c.Database.Host == "" {
+	if c.Database.Host == "" {
 		return fmt.Errorf("database host not configured. Set DB_HOST environment variable or create .safesql/config.yaml")
+	}
+
+	// When IAM is enabled, DB_USER must be an IAM principal (any email address containing "@")
+	if c.Database.UseIAM && !strings.Contains(c.Database.User, "@") {
+		return fmt.Errorf(
+			"IAM authentication is enabled but DB_USER (%q) does not look like an IAM principal. "+
+				"Set DB_USER to an IAM email address (e.g. sa@project.iam.gserviceaccount.com or user@company.com) "+
+				"or set SAFESQL_USE_IAM=false to use password authentication",
+			c.Database.User,
+		)
 	}
 
 	if c.Thresholds.MaxRowsDefault <= 0 {
