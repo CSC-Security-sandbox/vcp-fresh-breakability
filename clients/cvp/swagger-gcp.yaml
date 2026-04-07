@@ -7010,8 +7010,8 @@ paths:
   /v1beta/locations/{locationId}/batch/activeDirectories:
     post:
       operationId: v1beta_batchListActiveDirectories
-      summary: Batch lists all Active Directories with the given UUIDs
-      description: Batch lists all Active Directories with the given UUIDs
+      summary: Batch list all Active Directories with the given UUIDs
+      description: Batch list all Active Directories with the given UUIDs
       tags:
         - batch
       parameters:
@@ -7057,9 +7057,13 @@ paths:
         '200':
           description: OK
           schema:
-            type: array
-            items:
-              $ref: '#/definitions/BatchActiveDirectory_v1beta'
+            type: object
+            allOf:
+              - properties:
+                  activeDirectories:
+                    type: array
+                    items:
+                      $ref: '#/definitions/BatchActiveDirectory_v1beta'
         '400':
           $ref: '#/responses/StandardError-400'
         '401':

@@ -5975,6 +5975,584 @@ func (s *BackupVaultV1betaState) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *BatchActiveDirectoryUUIDListV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *BatchActiveDirectoryUUIDListV1beta) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("activeDirectoryUUIDs")
+		e.ArrStart()
+		for _, elem := range s.ActiveDirectoryUUIDs {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfBatchActiveDirectoryUUIDListV1beta = [1]string{
+	0: "activeDirectoryUUIDs",
+}
+
+// Decode decodes BatchActiveDirectoryUUIDListV1beta from json.
+func (s *BatchActiveDirectoryUUIDListV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BatchActiveDirectoryUUIDListV1beta to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "activeDirectoryUUIDs":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.ActiveDirectoryUUIDs = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.ActiveDirectoryUUIDs = append(s.ActiveDirectoryUUIDs, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"activeDirectoryUUIDs\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode BatchActiveDirectoryUUIDListV1beta")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfBatchActiveDirectoryUUIDListV1beta) {
+					name = jsonFieldsNameOfBatchActiveDirectoryUUIDListV1beta[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *BatchActiveDirectoryUUIDListV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BatchActiveDirectoryUUIDListV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *BatchActiveDirectoryV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *BatchActiveDirectoryV1beta) encodeFields(e *jx.Encoder) {
+	{
+		if s.ActiveDirectoryId.Set {
+			e.FieldStart("activeDirectoryId")
+			s.ActiveDirectoryId.Encode(e)
+		}
+	}
+	{
+		if s.ResourceId.Set {
+			e.FieldStart("resourceId")
+			s.ResourceId.Encode(e)
+		}
+	}
+	{
+		if s.Username.Set {
+			e.FieldStart("username")
+			s.Username.Encode(e)
+		}
+	}
+	{
+		if s.Password.Set {
+			e.FieldStart("password")
+			s.Password.Encode(e)
+		}
+	}
+	{
+		if s.Domain.Set {
+			e.FieldStart("domain")
+			s.Domain.Encode(e)
+		}
+	}
+	{
+		if s.DNS.Set {
+			e.FieldStart("DNS")
+			s.DNS.Encode(e)
+		}
+	}
+	{
+		if s.NetBIOS.Set {
+			e.FieldStart("netBIOS")
+			s.NetBIOS.Encode(e)
+		}
+	}
+	{
+		if s.OrganizationalUnit.Set {
+			e.FieldStart("organizationalUnit")
+			s.OrganizationalUnit.Encode(e)
+		}
+	}
+	{
+		if s.Site.Set {
+			e.FieldStart("site")
+			s.Site.Encode(e)
+		}
+	}
+	{
+		if s.KdcIP.Set {
+			e.FieldStart("kdcIP")
+			s.KdcIP.Encode(e)
+		}
+	}
+	{
+		if s.KdcHostname.Set {
+			e.FieldStart("kdcHostname")
+			s.KdcHostname.Encode(e)
+		}
+	}
+	{
+		if s.ActiveDirectoryState.Set {
+			e.FieldStart("activeDirectoryState")
+			s.ActiveDirectoryState.Encode(e)
+		}
+	}
+	{
+		if s.ActiveDirectoryStateDetails.Set {
+			e.FieldStart("activeDirectoryStateDetails")
+			s.ActiveDirectoryStateDetails.Encode(e)
+		}
+	}
+	{
+		if s.CreatedAt.Set {
+			e.FieldStart("createdAt")
+			s.CreatedAt.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.EncryptDCConnections.Set {
+			e.FieldStart("encryptDCConnections")
+			s.EncryptDCConnections.Encode(e)
+		}
+	}
+	{
+		if s.BackupOperators.Set {
+			e.FieldStart("backupOperators")
+			s.BackupOperators.Encode(e)
+		}
+	}
+	{
+		if s.AesEncryption.Set {
+			e.FieldStart("aesEncryption")
+			s.AesEncryption.Encode(e)
+		}
+	}
+	{
+		if s.LdapSigning.Set {
+			e.FieldStart("ldapSigning")
+			s.LdapSigning.Encode(e)
+		}
+	}
+	{
+		if s.SecurityOperators.Set {
+			e.FieldStart("securityOperators")
+			s.SecurityOperators.Encode(e)
+		}
+	}
+	{
+		if s.AllowLocalNFSUsersWithLdap.Set {
+			e.FieldStart("allowLocalNFSUsersWithLdap")
+			s.AllowLocalNFSUsersWithLdap.Encode(e)
+		}
+	}
+	{
+		if s.Description.Set {
+			e.FieldStart("description")
+			s.Description.Encode(e)
+		}
+	}
+	{
+		if s.Administrators.Set {
+			e.FieldStart("administrators")
+			s.Administrators.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfBatchActiveDirectoryV1beta = [22]string{
+	0:  "activeDirectoryId",
+	1:  "resourceId",
+	2:  "username",
+	3:  "password",
+	4:  "domain",
+	5:  "DNS",
+	6:  "netBIOS",
+	7:  "organizationalUnit",
+	8:  "site",
+	9:  "kdcIP",
+	10: "kdcHostname",
+	11: "activeDirectoryState",
+	12: "activeDirectoryStateDetails",
+	13: "createdAt",
+	14: "encryptDCConnections",
+	15: "backupOperators",
+	16: "aesEncryption",
+	17: "ldapSigning",
+	18: "securityOperators",
+	19: "allowLocalNFSUsersWithLdap",
+	20: "description",
+	21: "administrators",
+}
+
+// Decode decodes BatchActiveDirectoryV1beta from json.
+func (s *BatchActiveDirectoryV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BatchActiveDirectoryV1beta to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "activeDirectoryId":
+			if err := func() error {
+				s.ActiveDirectoryId.Reset()
+				if err := s.ActiveDirectoryId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"activeDirectoryId\"")
+			}
+		case "resourceId":
+			if err := func() error {
+				s.ResourceId.Reset()
+				if err := s.ResourceId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resourceId\"")
+			}
+		case "username":
+			if err := func() error {
+				s.Username.Reset()
+				if err := s.Username.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"username\"")
+			}
+		case "password":
+			if err := func() error {
+				s.Password.Reset()
+				if err := s.Password.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"password\"")
+			}
+		case "domain":
+			if err := func() error {
+				s.Domain.Reset()
+				if err := s.Domain.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"domain\"")
+			}
+		case "DNS":
+			if err := func() error {
+				s.DNS.Reset()
+				if err := s.DNS.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"DNS\"")
+			}
+		case "netBIOS":
+			if err := func() error {
+				s.NetBIOS.Reset()
+				if err := s.NetBIOS.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"netBIOS\"")
+			}
+		case "organizationalUnit":
+			if err := func() error {
+				s.OrganizationalUnit.Reset()
+				if err := s.OrganizationalUnit.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"organizationalUnit\"")
+			}
+		case "site":
+			if err := func() error {
+				s.Site.Reset()
+				if err := s.Site.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"site\"")
+			}
+		case "kdcIP":
+			if err := func() error {
+				s.KdcIP.Reset()
+				if err := s.KdcIP.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kdcIP\"")
+			}
+		case "kdcHostname":
+			if err := func() error {
+				s.KdcHostname.Reset()
+				if err := s.KdcHostname.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kdcHostname\"")
+			}
+		case "activeDirectoryState":
+			if err := func() error {
+				s.ActiveDirectoryState.Reset()
+				if err := s.ActiveDirectoryState.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"activeDirectoryState\"")
+			}
+		case "activeDirectoryStateDetails":
+			if err := func() error {
+				s.ActiveDirectoryStateDetails.Reset()
+				if err := s.ActiveDirectoryStateDetails.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"activeDirectoryStateDetails\"")
+			}
+		case "createdAt":
+			if err := func() error {
+				s.CreatedAt.Reset()
+				if err := s.CreatedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"createdAt\"")
+			}
+		case "encryptDCConnections":
+			if err := func() error {
+				s.EncryptDCConnections.Reset()
+				if err := s.EncryptDCConnections.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"encryptDCConnections\"")
+			}
+		case "backupOperators":
+			if err := func() error {
+				s.BackupOperators.Reset()
+				if err := s.BackupOperators.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"backupOperators\"")
+			}
+		case "aesEncryption":
+			if err := func() error {
+				s.AesEncryption.Reset()
+				if err := s.AesEncryption.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"aesEncryption\"")
+			}
+		case "ldapSigning":
+			if err := func() error {
+				s.LdapSigning.Reset()
+				if err := s.LdapSigning.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ldapSigning\"")
+			}
+		case "securityOperators":
+			if err := func() error {
+				s.SecurityOperators.Reset()
+				if err := s.SecurityOperators.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"securityOperators\"")
+			}
+		case "allowLocalNFSUsersWithLdap":
+			if err := func() error {
+				s.AllowLocalNFSUsersWithLdap.Reset()
+				if err := s.AllowLocalNFSUsersWithLdap.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"allowLocalNFSUsersWithLdap\"")
+			}
+		case "description":
+			if err := func() error {
+				s.Description.Reset()
+				if err := s.Description.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"description\"")
+			}
+		case "administrators":
+			if err := func() error {
+				s.Administrators.Reset()
+				if err := s.Administrators.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"administrators\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode BatchActiveDirectoryV1beta")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *BatchActiveDirectoryV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BatchActiveDirectoryV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes BatchActiveDirectoryV1betaActiveDirectoryState as json.
+func (s BatchActiveDirectoryV1betaActiveDirectoryState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes BatchActiveDirectoryV1betaActiveDirectoryState from json.
+func (s *BatchActiveDirectoryV1betaActiveDirectoryState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BatchActiveDirectoryV1betaActiveDirectoryState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch BatchActiveDirectoryV1betaActiveDirectoryState(v) {
+	case BatchActiveDirectoryV1betaActiveDirectoryStateSTATEUNSPECIFIED:
+		*s = BatchActiveDirectoryV1betaActiveDirectoryStateSTATEUNSPECIFIED
+	case BatchActiveDirectoryV1betaActiveDirectoryStateCREATING:
+		*s = BatchActiveDirectoryV1betaActiveDirectoryStateCREATING
+	case BatchActiveDirectoryV1betaActiveDirectoryStateREADY:
+		*s = BatchActiveDirectoryV1betaActiveDirectoryStateREADY
+	case BatchActiveDirectoryV1betaActiveDirectoryStateUPDATING:
+		*s = BatchActiveDirectoryV1betaActiveDirectoryStateUPDATING
+	case BatchActiveDirectoryV1betaActiveDirectoryStateINUSE:
+		*s = BatchActiveDirectoryV1betaActiveDirectoryStateINUSE
+	case BatchActiveDirectoryV1betaActiveDirectoryStateDELETING:
+		*s = BatchActiveDirectoryV1betaActiveDirectoryStateDELETING
+	case BatchActiveDirectoryV1betaActiveDirectoryStateERROR:
+		*s = BatchActiveDirectoryV1betaActiveDirectoryStateERROR
+	default:
+		*s = BatchActiveDirectoryV1betaActiveDirectoryState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s BatchActiveDirectoryV1betaActiveDirectoryState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BatchActiveDirectoryV1betaActiveDirectoryState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *BatchPoolUUIDListV1beta) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -17220,6 +17798,55 @@ func (s OptMonthlyScheduleV1beta) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptMonthlyScheduleV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes BatchActiveDirectoryV1betaActiveDirectoryState as json.
+func (o OptNilBatchActiveDirectoryV1betaActiveDirectoryState) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	if o.Null {
+		e.Null()
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes BatchActiveDirectoryV1betaActiveDirectoryState from json.
+func (o *OptNilBatchActiveDirectoryV1betaActiveDirectoryState) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptNilBatchActiveDirectoryV1betaActiveDirectoryState to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v BatchActiveDirectoryV1betaActiveDirectoryState
+		o.Value = v
+		o.Set = true
+		o.Null = true
+		return nil
+	}
+	o.Set = true
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptNilBatchActiveDirectoryV1betaActiveDirectoryState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptNilBatchActiveDirectoryV1betaActiveDirectoryState) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -28545,6 +29172,232 @@ func (s *UpdateDstWithSrcQuotaRulesV1beta) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *UpdateDstWithSrcQuotaRulesV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaBatchListActiveDirectoriesBadRequest as json.
+func (s *V1betaBatchListActiveDirectoriesBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaBatchListActiveDirectoriesBadRequest from json.
+func (s *V1betaBatchListActiveDirectoriesBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaBatchListActiveDirectoriesBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaBatchListActiveDirectoriesBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaBatchListActiveDirectoriesBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaBatchListActiveDirectoriesBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaBatchListActiveDirectoriesForbidden as json.
+func (s *V1betaBatchListActiveDirectoriesForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaBatchListActiveDirectoriesForbidden from json.
+func (s *V1betaBatchListActiveDirectoriesForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaBatchListActiveDirectoriesForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaBatchListActiveDirectoriesForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaBatchListActiveDirectoriesForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaBatchListActiveDirectoriesForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaBatchListActiveDirectoriesInternalServerError as json.
+func (s *V1betaBatchListActiveDirectoriesInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaBatchListActiveDirectoriesInternalServerError from json.
+func (s *V1betaBatchListActiveDirectoriesInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaBatchListActiveDirectoriesInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaBatchListActiveDirectoriesInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaBatchListActiveDirectoriesInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaBatchListActiveDirectoriesInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *V1betaBatchListActiveDirectoriesOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *V1betaBatchListActiveDirectoriesOK) encodeFields(e *jx.Encoder) {
+	{
+		if s.ActiveDirectories != nil {
+			e.FieldStart("activeDirectories")
+			e.ArrStart()
+			for _, elem := range s.ActiveDirectories {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+}
+
+var jsonFieldsNameOfV1betaBatchListActiveDirectoriesOK = [1]string{
+	0: "activeDirectories",
+}
+
+// Decode decodes V1betaBatchListActiveDirectoriesOK from json.
+func (s *V1betaBatchListActiveDirectoriesOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaBatchListActiveDirectoriesOK to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "activeDirectories":
+			if err := func() error {
+				s.ActiveDirectories = make([]BatchActiveDirectoryV1beta, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem BatchActiveDirectoryV1beta
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.ActiveDirectories = append(s.ActiveDirectories, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"activeDirectories\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode V1betaBatchListActiveDirectoriesOK")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaBatchListActiveDirectoriesOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaBatchListActiveDirectoriesOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaBatchListActiveDirectoriesUnauthorized as json.
+func (s *V1betaBatchListActiveDirectoriesUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaBatchListActiveDirectoriesUnauthorized from json.
+func (s *V1betaBatchListActiveDirectoriesUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaBatchListActiveDirectoriesUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaBatchListActiveDirectoriesUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaBatchListActiveDirectoriesUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaBatchListActiveDirectoriesUnauthorized) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

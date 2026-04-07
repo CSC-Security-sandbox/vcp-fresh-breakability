@@ -14,6 +14,12 @@ type Handler interface {
 	//
 	// GET /health
 	GetHealth(ctx context.Context) (GetHealthRes, error)
+	// V1betaBatchListActiveDirectories implements v1beta_batchListActiveDirectories operation.
+	//
+	// Batch lists all Active Directories with the given UUIDs across all accounts.
+	//
+	// POST /v1beta/locations/{locationId}/batch/activeDirectories
+	V1betaBatchListActiveDirectories(ctx context.Context, req *BatchActiveDirectoryUUIDListV1beta, params V1betaBatchListActiveDirectoriesParams) (V1betaBatchListActiveDirectoriesRes, error)
 	// V1betaBatchListPools implements v1beta_batchListPools operation.
 	//
 	// Batch lists all pools with the given UUIDs across all accounts.

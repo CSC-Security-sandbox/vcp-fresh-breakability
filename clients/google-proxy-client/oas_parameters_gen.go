@@ -2,6 +2,16 @@
 
 package googleproxyclient
 
+// V1betaBatchListActiveDirectoriesParams is parameters of v1beta_batchListActiveDirectories operation.
+type V1betaBatchListActiveDirectoriesParams struct {
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+	// Specify the fields to return.
+	Fields []V1betaBatchListActiveDirectoriesFieldsItem
+}
+
 // V1betaBatchListPoolsParams is parameters of v1beta_batchListPools operation.
 type V1betaBatchListPoolsParams struct {
 	// The location/region to perform the operation in.

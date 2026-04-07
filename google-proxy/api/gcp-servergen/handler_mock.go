@@ -79,6 +79,66 @@ func (_c *MockHandler_GetHealth_Call) RunAndReturn(run func(context.Context) (Ge
 	return _c
 }
 
+// V1betaBatchListActiveDirectories provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaBatchListActiveDirectories(ctx context.Context, req *BatchActiveDirectoryUUIDListV1beta, params V1betaBatchListActiveDirectoriesParams) (V1betaBatchListActiveDirectoriesRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaBatchListActiveDirectories")
+	}
+
+	var r0 V1betaBatchListActiveDirectoriesRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *BatchActiveDirectoryUUIDListV1beta, V1betaBatchListActiveDirectoriesParams) (V1betaBatchListActiveDirectoriesRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *BatchActiveDirectoryUUIDListV1beta, V1betaBatchListActiveDirectoriesParams) V1betaBatchListActiveDirectoriesRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaBatchListActiveDirectoriesRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *BatchActiveDirectoryUUIDListV1beta, V1betaBatchListActiveDirectoriesParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaBatchListActiveDirectories_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaBatchListActiveDirectories'
+type MockHandler_V1betaBatchListActiveDirectories_Call struct {
+	*mock.Call
+}
+
+// V1betaBatchListActiveDirectories is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *BatchActiveDirectoryUUIDListV1beta
+//   - params V1betaBatchListActiveDirectoriesParams
+func (_e *MockHandler_Expecter) V1betaBatchListActiveDirectories(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaBatchListActiveDirectories_Call {
+	return &MockHandler_V1betaBatchListActiveDirectories_Call{Call: _e.mock.On("V1betaBatchListActiveDirectories", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaBatchListActiveDirectories_Call) Run(run func(ctx context.Context, req *BatchActiveDirectoryUUIDListV1beta, params V1betaBatchListActiveDirectoriesParams)) *MockHandler_V1betaBatchListActiveDirectories_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*BatchActiveDirectoryUUIDListV1beta), args[2].(V1betaBatchListActiveDirectoriesParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaBatchListActiveDirectories_Call) Return(_a0 V1betaBatchListActiveDirectoriesRes, _a1 error) *MockHandler_V1betaBatchListActiveDirectories_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaBatchListActiveDirectories_Call) RunAndReturn(run func(context.Context, *BatchActiveDirectoryUUIDListV1beta, V1betaBatchListActiveDirectoriesParams) (V1betaBatchListActiveDirectoriesRes, error)) *MockHandler_V1betaBatchListActiveDirectories_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaBatchListPools provides a mock function with given fields: ctx, req, params
 func (_m *MockHandler) V1betaBatchListPools(ctx context.Context, req *BatchPoolUUIDListV1beta, params V1betaBatchListPoolsParams) (V1betaBatchListPoolsRes, error) {
 	ret := _m.Called(ctx, req, params)

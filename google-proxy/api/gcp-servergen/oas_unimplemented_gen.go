@@ -22,6 +22,15 @@ func (UnimplementedHandler) GetHealth(ctx context.Context) (r GetHealthRes, _ er
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaBatchListActiveDirectories implements v1beta_batchListActiveDirectories operation.
+//
+// Batch lists all Active Directories with the given UUIDs across all accounts.
+//
+// POST /v1beta/locations/{locationId}/batch/activeDirectories
+func (UnimplementedHandler) V1betaBatchListActiveDirectories(ctx context.Context, req *BatchActiveDirectoryUUIDListV1beta, params V1betaBatchListActiveDirectoriesParams) (r V1betaBatchListActiveDirectoriesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaBatchListPools implements v1beta_batchListPools operation.
 //
 // Batch lists all pools with the given UUIDs across all accounts.

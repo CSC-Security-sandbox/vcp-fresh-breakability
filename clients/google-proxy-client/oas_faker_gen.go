@@ -1297,6 +1297,141 @@ func (s *BackupVaultV1betaState) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *BatchActiveDirectoryUUIDListV1beta) SetFake() {
+	{
+		{
+			s.ActiveDirectoryUUIDs = nil
+			for i := 0; i < 0; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.ActiveDirectoryUUIDs = append(s.ActiveDirectoryUUIDs, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BatchActiveDirectoryV1beta) SetFake() {
+	{
+		{
+			s.ActiveDirectoryId.SetFake()
+		}
+	}
+	{
+		{
+			s.ResourceId.SetFake()
+		}
+	}
+	{
+		{
+			s.Username.SetFake()
+		}
+	}
+	{
+		{
+			s.Password.SetFake()
+		}
+	}
+	{
+		{
+			s.Domain.SetFake()
+		}
+	}
+	{
+		{
+			s.DNS.SetFake()
+		}
+	}
+	{
+		{
+			s.NetBIOS.SetFake()
+		}
+	}
+	{
+		{
+			s.OrganizationalUnit.SetFake()
+		}
+	}
+	{
+		{
+			s.Site.SetFake()
+		}
+	}
+	{
+		{
+			s.KdcIP.SetFake()
+		}
+	}
+	{
+		{
+			s.KdcHostname.SetFake()
+		}
+	}
+	{
+		{
+			s.ActiveDirectoryState.SetFake()
+		}
+	}
+	{
+		{
+			s.ActiveDirectoryStateDetails.SetFake()
+		}
+	}
+	{
+		{
+			s.CreatedAt.SetFake()
+		}
+	}
+	{
+		{
+			s.EncryptDCConnections.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupOperators.SetFake()
+		}
+	}
+	{
+		{
+			s.AesEncryption.SetFake()
+		}
+	}
+	{
+		{
+			s.LdapSigning.SetFake()
+		}
+	}
+	{
+		{
+			s.SecurityOperators.SetFake()
+		}
+	}
+	{
+		{
+			s.AllowLocalNFSUsersWithLdap.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.Administrators.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BatchActiveDirectoryV1betaActiveDirectoryState) SetFake() {
+	*s = BatchActiveDirectoryV1betaActiveDirectoryStateSTATEUNSPECIFIED
+}
+
+// SetFake set fake values.
 func (s *BatchPoolUUIDListV1beta) SetFake() {
 	{
 		{
@@ -3835,6 +3970,12 @@ func (s *OptMonthlyScheduleV1beta) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptNilBatchActiveDirectoryV1betaActiveDirectoryState) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
 func (s *OptNilBatchPoolV1betaAssetLocationMetadata) SetFake() {
 	s.Null = true
 	s.Set = true
@@ -6152,6 +6293,58 @@ func (s *UpdateDstWithSrcQuotaRulesV1beta) SetFake() {
 			}
 		}
 	}
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListActiveDirectoriesBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListActiveDirectoriesBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListActiveDirectoriesForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListActiveDirectoriesForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListActiveDirectoriesInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListActiveDirectoriesInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListActiveDirectoriesOK) SetFake() {
+	{
+		{
+			s.ActiveDirectories = nil
+			for i := 0; i < 0; i++ {
+				var elem BatchActiveDirectoryV1beta
+				{
+					elem.SetFake()
+				}
+				s.ActiveDirectories = append(s.ActiveDirectories, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListActiveDirectoriesUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListActiveDirectoriesUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.

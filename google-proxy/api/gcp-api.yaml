@@ -8068,6 +8068,76 @@ paths:
         '500':
           $ref: '#/components/responses/StandardError-500'
       x-codegen-request-body-name: body
+  /v1beta/locations/{locationId}/batch/activeDirectories:
+    post:
+      operationId: v1beta_batchListActiveDirectories
+      summary: Batch lists all Active Directories with the given UUIDs
+      description: Batch lists all Active Directories with the given UUIDs across all accounts
+      tags:
+        - batch
+      parameters:
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - name: fields
+          in: query
+          description: Specify the fields to return.
+          style: form
+          explode: false
+          schema:
+            type: array
+            minItems: 1
+            items:
+              type: string
+              enum:
+                - username
+                - password
+                - domain
+                - DNS
+                - netBIOS
+                - organizationalUnit
+                - site
+                - kdcIP
+                - kdcHostname
+                - activeDirectoryState
+                - activeDirectoryStateDetails
+                - createdAt
+                - encryptDCConnections
+                - backupOperators
+                - aesEncryption
+                - ldapSigning
+                - securityOperators
+                - allowLocalNFSUsersWithLdap
+                - description
+                - resourceId
+                - administrators
+      requestBody:
+        description: A list of Active Directory UUIDs to return.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchActiveDirectoryUUIDList_v1beta'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  activeDirectories:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BatchActiveDirectory_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+      x-codegen-request-body-name: body
 components:
   schemas:
     Health:
@@ -8509,6 +8579,206 @@ components:
           x-omitempty: true
           nullable: true
           description: Flag indicating if region has C4/hyperdisk machines.
+    BatchActiveDirectoryUUIDList_v1beta:
+      type: object
+      title: BatchActiveDirectoryUUIDList
+      required:
+        - activeDirectoryUUIDs
+      properties:
+        activeDirectoryUUIDs:
+          title: activeDirectoryUUIDs
+          type: array
+          items:
+            type: string
+          description: List of Active Directory UUIDs to return
+    BatchActiveDirectory_v1beta:
+      type: object
+      title: ActiveDirectory
+      properties:
+        activeDirectoryId:
+          title: activeDirectoryId
+          type: string
+          x-omitempty: true
+          nullable: true
+          readOnly: true
+          description: UUID v4 used to identify the Active Directory credentials
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+        resourceId:
+          title: resourceId
+          type: string
+          x-omitempty: true
+          nullable: true
+          description: A human readable label for the resource
+          example: my-active-directory
+        username:
+          title: username
+          type: string
+          x-omitempty: true
+          nullable: true
+          description: Username of the Active Directory domain administrator
+          example: superman
+        password:
+          title: password
+          type: string
+          x-omitempty: true
+          nullable: true
+          description: Password of the Active Directory domain administrator
+          example: '******************'
+        domain:
+          title: domain
+          type: string
+          x-omitempty: true
+          nullable: true
+          description: Name of the Active Directory domain
+          example: krypton.com
+        DNS:
+          title: DNS
+          type: string
+          x-omitempty: true
+          nullable: true
+          description: Comma separated list of DNS server IP addresses for the Active Directory domain. Can only include a maximum of 3 items
+          example: 101.102.103.104
+        netBIOS:
+          title: netBIOS
+          type: string
+          x-omitempty: true
+          nullable: true
+          description: NetBIOS name prefix of the server
+          example: cvserver
+        organizationalUnit:
+          title: organizationalUnit
+          type: string
+          x-omitempty: true
+          nullable: true
+          description: The Organizational Unit (OU) within the Windows Active Directory the user belongs to.
+          example: CN=Computers
+        site:
+          title: site
+          type: string
+          x-omitempty: true
+          nullable: true
+          description: The Active Directory site the service will limit domain controller discovery to.
+          example: Default-First-Site-Name
+        kdcIP:
+          title: kdcIP
+          type: string
+          x-omitempty: true
+          nullable: true
+          minLength: 7
+          maxLength: 15
+          description: KDC server IP address for the Active Directory machine. This optional parameter is used only while creating kerberos volume.
+          example: 101.102.103.104
+        kdcHostname:
+          title: kdcHostname
+          type: string
+          x-omitempty: true
+          nullable: true
+          minLength: 1
+          maxLength: 64
+          description: Name of the Active Directory machine. This optional parameter is used only while creating kerberos volume
+          example: 2BOVAEKB44B
+        activeDirectoryState:
+          title: activeDirectoryState
+          type: string
+          x-omitempty: true
+          nullable: true
+          readOnly: true
+          description: The current lifecycle state of the Active Directory
+          enum:
+            - STATE_UNSPECIFIED
+            - CREATING
+            - READY
+            - UPDATING
+            - IN_USE
+            - DELETING
+            - ERROR
+          example: READY
+        activeDirectoryStateDetails:
+          title: activeDirectoryStateDetails
+          type: string
+          x-omitempty: true
+          nullable: true
+          readOnly: true
+          description: Details about the current Active Directory credentials state
+          example: Credentials saved and available for use
+        createdAt:
+          title: createdAt
+          type: string
+          x-omitempty: true
+          nullable: true
+          format: date-time
+          description: Creation date of the resource
+          example: '2016-11-28T19:30:23.123Z'
+        encryptDCConnections:
+          title: encryptDCConnections
+          type: boolean
+          x-omitempty: true
+          nullable: true
+          description: If enabled, traffic between the SMB server to domain controller (DC) will be encrypted.
+          example: false
+        backupOperators:
+          title: backupOperators
+          type: array
+          x-omitempty: true
+          nullable: true
+          items:
+            type: string
+          description: Users to be added to the built-in backup operators Active-directory group
+          example:
+            - batman
+            - clarkkent
+        aesEncryption:
+          title: aesEncryption
+          type: boolean
+          x-omitempty: true
+          nullable: true
+          description: If enabled, AES encryption will be enabled for SMB communication.
+          example: false
+        ldapSigning:
+          title: ldapSigning
+          type: boolean
+          x-omitempty: true
+          nullable: true
+          description: Specifies whether or not the LDAP traffic needs to be signed.
+          example: false
+        securityOperators:
+          title: securityOperators
+          type: array
+          x-omitempty: true
+          nullable: true
+          items:
+            type: string
+          description: Domain users to be given the SeSecurityPrivilege
+          example:
+            - batman
+        allowLocalNFSUsersWithLdap:
+          title: allowLocalNFSUsersWithLdap
+          type: boolean
+          x-omitempty: true
+          nullable: true
+          description: If enabled, allowLocalNFSUsersWithLdap will allow access to local users as well as LDAP users. If access is needed for only LDAP users, it has to be disabled.
+          example: false
+        description:
+          title: description
+          type: string
+          x-omitempty: true
+          nullable: true
+          description: Description of the Active Directory
+          example: fortress of solitude
+        administrators:
+          title: administrators
+          type: array
+          x-omitempty: true
+          nullable: true
+          items:
+            type: string
+            minLength: 1
+            maxLength: 255
+          description: Users to be added to the built-in administrators Active-directory group. The usernames must be unique, and entries cannot include @ or \. The entire list will be validated and rejected as whole if one or more entries are invalid.
+          example:
+            - superman
+            - wonderwoman
     Error:
       required:
         - code

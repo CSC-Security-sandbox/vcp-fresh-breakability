@@ -3351,6 +3351,373 @@ func (s *BackupVaultV1betaState) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/BatchActiveDirectoryUUIDList_v1beta
+type BatchActiveDirectoryUUIDListV1beta struct {
+	// List of Active Directory UUIDs to return.
+	ActiveDirectoryUUIDs []string `json:"activeDirectoryUUIDs"`
+}
+
+// GetActiveDirectoryUUIDs returns the value of ActiveDirectoryUUIDs.
+func (s *BatchActiveDirectoryUUIDListV1beta) GetActiveDirectoryUUIDs() []string {
+	return s.ActiveDirectoryUUIDs
+}
+
+// SetActiveDirectoryUUIDs sets the value of ActiveDirectoryUUIDs.
+func (s *BatchActiveDirectoryUUIDListV1beta) SetActiveDirectoryUUIDs(val []string) {
+	s.ActiveDirectoryUUIDs = val
+}
+
+// Ref: #/components/schemas/BatchActiveDirectory_v1beta
+type BatchActiveDirectoryV1beta struct {
+	// UUID v4 used to identify the Active Directory credentials.
+	ActiveDirectoryId OptNilString `json:"activeDirectoryId"`
+	// A human readable label for the resource.
+	ResourceId OptNilString `json:"resourceId"`
+	// Username of the Active Directory domain administrator.
+	Username OptNilString `json:"username"`
+	// Password of the Active Directory domain administrator.
+	Password OptNilString `json:"password"`
+	// Name of the Active Directory domain.
+	Domain OptNilString `json:"domain"`
+	// Comma separated list of DNS server IP addresses for the Active Directory domain. Can only include
+	// a maximum of 3 items.
+	DNS OptNilString `json:"DNS"`
+	// NetBIOS name prefix of the server.
+	NetBIOS OptNilString `json:"netBIOS"`
+	// The Organizational Unit (OU) within the Windows Active Directory the user belongs to.
+	OrganizationalUnit OptNilString `json:"organizationalUnit"`
+	// The Active Directory site the service will limit domain controller discovery to.
+	Site OptNilString `json:"site"`
+	// KDC server IP address for the Active Directory machine. This optional parameter is used only while
+	// creating kerberos volume.
+	KdcIP OptNilString `json:"kdcIP"`
+	// Name of the Active Directory machine. This optional parameter is used only while creating kerberos
+	// volume.
+	KdcHostname OptNilString `json:"kdcHostname"`
+	// The current lifecycle state of the Active Directory.
+	ActiveDirectoryState OptNilBatchActiveDirectoryV1betaActiveDirectoryState `json:"activeDirectoryState"`
+	// Details about the current Active Directory credentials state.
+	ActiveDirectoryStateDetails OptNilString `json:"activeDirectoryStateDetails"`
+	// Creation date of the resource.
+	CreatedAt OptNilDateTime `json:"createdAt"`
+	// If enabled, traffic between the SMB server to domain controller (DC) will be encrypted.
+	EncryptDCConnections OptNilBool `json:"encryptDCConnections"`
+	// Users to be added to the built-in backup operators Active-directory group.
+	BackupOperators OptNilStringArray `json:"backupOperators"`
+	// If enabled, AES encryption will be enabled for SMB communication.
+	AesEncryption OptNilBool `json:"aesEncryption"`
+	// Specifies whether or not the LDAP traffic needs to be signed.
+	LdapSigning OptNilBool `json:"ldapSigning"`
+	// Domain users to be given the SeSecurityPrivilege.
+	SecurityOperators OptNilStringArray `json:"securityOperators"`
+	// If enabled, allowLocalNFSUsersWithLdap will allow access to local users as well as LDAP users. If
+	// access is needed for only LDAP users, it has to be disabled.
+	AllowLocalNFSUsersWithLdap OptNilBool `json:"allowLocalNFSUsersWithLdap"`
+	// Description of the Active Directory.
+	Description OptNilString `json:"description"`
+	// Users to be added to the built-in administrators Active-directory group. The usernames must be
+	// unique, and entries cannot include @ or \. The entire list will be validated and rejected as whole
+	// if one or more entries are invalid.
+	Administrators OptNilStringArray `json:"administrators"`
+}
+
+// GetActiveDirectoryId returns the value of ActiveDirectoryId.
+func (s *BatchActiveDirectoryV1beta) GetActiveDirectoryId() OptNilString {
+	return s.ActiveDirectoryId
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *BatchActiveDirectoryV1beta) GetResourceId() OptNilString {
+	return s.ResourceId
+}
+
+// GetUsername returns the value of Username.
+func (s *BatchActiveDirectoryV1beta) GetUsername() OptNilString {
+	return s.Username
+}
+
+// GetPassword returns the value of Password.
+func (s *BatchActiveDirectoryV1beta) GetPassword() OptNilString {
+	return s.Password
+}
+
+// GetDomain returns the value of Domain.
+func (s *BatchActiveDirectoryV1beta) GetDomain() OptNilString {
+	return s.Domain
+}
+
+// GetDNS returns the value of DNS.
+func (s *BatchActiveDirectoryV1beta) GetDNS() OptNilString {
+	return s.DNS
+}
+
+// GetNetBIOS returns the value of NetBIOS.
+func (s *BatchActiveDirectoryV1beta) GetNetBIOS() OptNilString {
+	return s.NetBIOS
+}
+
+// GetOrganizationalUnit returns the value of OrganizationalUnit.
+func (s *BatchActiveDirectoryV1beta) GetOrganizationalUnit() OptNilString {
+	return s.OrganizationalUnit
+}
+
+// GetSite returns the value of Site.
+func (s *BatchActiveDirectoryV1beta) GetSite() OptNilString {
+	return s.Site
+}
+
+// GetKdcIP returns the value of KdcIP.
+func (s *BatchActiveDirectoryV1beta) GetKdcIP() OptNilString {
+	return s.KdcIP
+}
+
+// GetKdcHostname returns the value of KdcHostname.
+func (s *BatchActiveDirectoryV1beta) GetKdcHostname() OptNilString {
+	return s.KdcHostname
+}
+
+// GetActiveDirectoryState returns the value of ActiveDirectoryState.
+func (s *BatchActiveDirectoryV1beta) GetActiveDirectoryState() OptNilBatchActiveDirectoryV1betaActiveDirectoryState {
+	return s.ActiveDirectoryState
+}
+
+// GetActiveDirectoryStateDetails returns the value of ActiveDirectoryStateDetails.
+func (s *BatchActiveDirectoryV1beta) GetActiveDirectoryStateDetails() OptNilString {
+	return s.ActiveDirectoryStateDetails
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *BatchActiveDirectoryV1beta) GetCreatedAt() OptNilDateTime {
+	return s.CreatedAt
+}
+
+// GetEncryptDCConnections returns the value of EncryptDCConnections.
+func (s *BatchActiveDirectoryV1beta) GetEncryptDCConnections() OptNilBool {
+	return s.EncryptDCConnections
+}
+
+// GetBackupOperators returns the value of BackupOperators.
+func (s *BatchActiveDirectoryV1beta) GetBackupOperators() OptNilStringArray {
+	return s.BackupOperators
+}
+
+// GetAesEncryption returns the value of AesEncryption.
+func (s *BatchActiveDirectoryV1beta) GetAesEncryption() OptNilBool {
+	return s.AesEncryption
+}
+
+// GetLdapSigning returns the value of LdapSigning.
+func (s *BatchActiveDirectoryV1beta) GetLdapSigning() OptNilBool {
+	return s.LdapSigning
+}
+
+// GetSecurityOperators returns the value of SecurityOperators.
+func (s *BatchActiveDirectoryV1beta) GetSecurityOperators() OptNilStringArray {
+	return s.SecurityOperators
+}
+
+// GetAllowLocalNFSUsersWithLdap returns the value of AllowLocalNFSUsersWithLdap.
+func (s *BatchActiveDirectoryV1beta) GetAllowLocalNFSUsersWithLdap() OptNilBool {
+	return s.AllowLocalNFSUsersWithLdap
+}
+
+// GetDescription returns the value of Description.
+func (s *BatchActiveDirectoryV1beta) GetDescription() OptNilString {
+	return s.Description
+}
+
+// GetAdministrators returns the value of Administrators.
+func (s *BatchActiveDirectoryV1beta) GetAdministrators() OptNilStringArray {
+	return s.Administrators
+}
+
+// SetActiveDirectoryId sets the value of ActiveDirectoryId.
+func (s *BatchActiveDirectoryV1beta) SetActiveDirectoryId(val OptNilString) {
+	s.ActiveDirectoryId = val
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *BatchActiveDirectoryV1beta) SetResourceId(val OptNilString) {
+	s.ResourceId = val
+}
+
+// SetUsername sets the value of Username.
+func (s *BatchActiveDirectoryV1beta) SetUsername(val OptNilString) {
+	s.Username = val
+}
+
+// SetPassword sets the value of Password.
+func (s *BatchActiveDirectoryV1beta) SetPassword(val OptNilString) {
+	s.Password = val
+}
+
+// SetDomain sets the value of Domain.
+func (s *BatchActiveDirectoryV1beta) SetDomain(val OptNilString) {
+	s.Domain = val
+}
+
+// SetDNS sets the value of DNS.
+func (s *BatchActiveDirectoryV1beta) SetDNS(val OptNilString) {
+	s.DNS = val
+}
+
+// SetNetBIOS sets the value of NetBIOS.
+func (s *BatchActiveDirectoryV1beta) SetNetBIOS(val OptNilString) {
+	s.NetBIOS = val
+}
+
+// SetOrganizationalUnit sets the value of OrganizationalUnit.
+func (s *BatchActiveDirectoryV1beta) SetOrganizationalUnit(val OptNilString) {
+	s.OrganizationalUnit = val
+}
+
+// SetSite sets the value of Site.
+func (s *BatchActiveDirectoryV1beta) SetSite(val OptNilString) {
+	s.Site = val
+}
+
+// SetKdcIP sets the value of KdcIP.
+func (s *BatchActiveDirectoryV1beta) SetKdcIP(val OptNilString) {
+	s.KdcIP = val
+}
+
+// SetKdcHostname sets the value of KdcHostname.
+func (s *BatchActiveDirectoryV1beta) SetKdcHostname(val OptNilString) {
+	s.KdcHostname = val
+}
+
+// SetActiveDirectoryState sets the value of ActiveDirectoryState.
+func (s *BatchActiveDirectoryV1beta) SetActiveDirectoryState(val OptNilBatchActiveDirectoryV1betaActiveDirectoryState) {
+	s.ActiveDirectoryState = val
+}
+
+// SetActiveDirectoryStateDetails sets the value of ActiveDirectoryStateDetails.
+func (s *BatchActiveDirectoryV1beta) SetActiveDirectoryStateDetails(val OptNilString) {
+	s.ActiveDirectoryStateDetails = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *BatchActiveDirectoryV1beta) SetCreatedAt(val OptNilDateTime) {
+	s.CreatedAt = val
+}
+
+// SetEncryptDCConnections sets the value of EncryptDCConnections.
+func (s *BatchActiveDirectoryV1beta) SetEncryptDCConnections(val OptNilBool) {
+	s.EncryptDCConnections = val
+}
+
+// SetBackupOperators sets the value of BackupOperators.
+func (s *BatchActiveDirectoryV1beta) SetBackupOperators(val OptNilStringArray) {
+	s.BackupOperators = val
+}
+
+// SetAesEncryption sets the value of AesEncryption.
+func (s *BatchActiveDirectoryV1beta) SetAesEncryption(val OptNilBool) {
+	s.AesEncryption = val
+}
+
+// SetLdapSigning sets the value of LdapSigning.
+func (s *BatchActiveDirectoryV1beta) SetLdapSigning(val OptNilBool) {
+	s.LdapSigning = val
+}
+
+// SetSecurityOperators sets the value of SecurityOperators.
+func (s *BatchActiveDirectoryV1beta) SetSecurityOperators(val OptNilStringArray) {
+	s.SecurityOperators = val
+}
+
+// SetAllowLocalNFSUsersWithLdap sets the value of AllowLocalNFSUsersWithLdap.
+func (s *BatchActiveDirectoryV1beta) SetAllowLocalNFSUsersWithLdap(val OptNilBool) {
+	s.AllowLocalNFSUsersWithLdap = val
+}
+
+// SetDescription sets the value of Description.
+func (s *BatchActiveDirectoryV1beta) SetDescription(val OptNilString) {
+	s.Description = val
+}
+
+// SetAdministrators sets the value of Administrators.
+func (s *BatchActiveDirectoryV1beta) SetAdministrators(val OptNilStringArray) {
+	s.Administrators = val
+}
+
+// The current lifecycle state of the Active Directory.
+type BatchActiveDirectoryV1betaActiveDirectoryState string
+
+const (
+	BatchActiveDirectoryV1betaActiveDirectoryStateSTATEUNSPECIFIED BatchActiveDirectoryV1betaActiveDirectoryState = "STATE_UNSPECIFIED"
+	BatchActiveDirectoryV1betaActiveDirectoryStateCREATING         BatchActiveDirectoryV1betaActiveDirectoryState = "CREATING"
+	BatchActiveDirectoryV1betaActiveDirectoryStateREADY            BatchActiveDirectoryV1betaActiveDirectoryState = "READY"
+	BatchActiveDirectoryV1betaActiveDirectoryStateUPDATING         BatchActiveDirectoryV1betaActiveDirectoryState = "UPDATING"
+	BatchActiveDirectoryV1betaActiveDirectoryStateINUSE            BatchActiveDirectoryV1betaActiveDirectoryState = "IN_USE"
+	BatchActiveDirectoryV1betaActiveDirectoryStateDELETING         BatchActiveDirectoryV1betaActiveDirectoryState = "DELETING"
+	BatchActiveDirectoryV1betaActiveDirectoryStateERROR            BatchActiveDirectoryV1betaActiveDirectoryState = "ERROR"
+)
+
+// AllValues returns all BatchActiveDirectoryV1betaActiveDirectoryState values.
+func (BatchActiveDirectoryV1betaActiveDirectoryState) AllValues() []BatchActiveDirectoryV1betaActiveDirectoryState {
+	return []BatchActiveDirectoryV1betaActiveDirectoryState{
+		BatchActiveDirectoryV1betaActiveDirectoryStateSTATEUNSPECIFIED,
+		BatchActiveDirectoryV1betaActiveDirectoryStateCREATING,
+		BatchActiveDirectoryV1betaActiveDirectoryStateREADY,
+		BatchActiveDirectoryV1betaActiveDirectoryStateUPDATING,
+		BatchActiveDirectoryV1betaActiveDirectoryStateINUSE,
+		BatchActiveDirectoryV1betaActiveDirectoryStateDELETING,
+		BatchActiveDirectoryV1betaActiveDirectoryStateERROR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchActiveDirectoryV1betaActiveDirectoryState) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchActiveDirectoryV1betaActiveDirectoryStateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case BatchActiveDirectoryV1betaActiveDirectoryStateCREATING:
+		return []byte(s), nil
+	case BatchActiveDirectoryV1betaActiveDirectoryStateREADY:
+		return []byte(s), nil
+	case BatchActiveDirectoryV1betaActiveDirectoryStateUPDATING:
+		return []byte(s), nil
+	case BatchActiveDirectoryV1betaActiveDirectoryStateINUSE:
+		return []byte(s), nil
+	case BatchActiveDirectoryV1betaActiveDirectoryStateDELETING:
+		return []byte(s), nil
+	case BatchActiveDirectoryV1betaActiveDirectoryStateERROR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchActiveDirectoryV1betaActiveDirectoryState) UnmarshalText(data []byte) error {
+	switch BatchActiveDirectoryV1betaActiveDirectoryState(data) {
+	case BatchActiveDirectoryV1betaActiveDirectoryStateSTATEUNSPECIFIED:
+		*s = BatchActiveDirectoryV1betaActiveDirectoryStateSTATEUNSPECIFIED
+		return nil
+	case BatchActiveDirectoryV1betaActiveDirectoryStateCREATING:
+		*s = BatchActiveDirectoryV1betaActiveDirectoryStateCREATING
+		return nil
+	case BatchActiveDirectoryV1betaActiveDirectoryStateREADY:
+		*s = BatchActiveDirectoryV1betaActiveDirectoryStateREADY
+		return nil
+	case BatchActiveDirectoryV1betaActiveDirectoryStateUPDATING:
+		*s = BatchActiveDirectoryV1betaActiveDirectoryStateUPDATING
+		return nil
+	case BatchActiveDirectoryV1betaActiveDirectoryStateINUSE:
+		*s = BatchActiveDirectoryV1betaActiveDirectoryStateINUSE
+		return nil
+	case BatchActiveDirectoryV1betaActiveDirectoryStateDELETING:
+		*s = BatchActiveDirectoryV1betaActiveDirectoryStateDELETING
+		return nil
+	case BatchActiveDirectoryV1betaActiveDirectoryStateERROR:
+		*s = BatchActiveDirectoryV1betaActiveDirectoryStateERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/BatchPoolUUIDList_v1beta
 type BatchPoolUUIDListV1beta struct {
 	// List of pool UUIDs to return.
@@ -11869,6 +12236,69 @@ func (o OptMonthlyScheduleV1beta) Get() (v MonthlyScheduleV1beta, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptMonthlyScheduleV1beta) Or(d MonthlyScheduleV1beta) MonthlyScheduleV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchActiveDirectoryV1betaActiveDirectoryState returns new OptNilBatchActiveDirectoryV1betaActiveDirectoryState with value set to v.
+func NewOptNilBatchActiveDirectoryV1betaActiveDirectoryState(v BatchActiveDirectoryV1betaActiveDirectoryState) OptNilBatchActiveDirectoryV1betaActiveDirectoryState {
+	return OptNilBatchActiveDirectoryV1betaActiveDirectoryState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchActiveDirectoryV1betaActiveDirectoryState is optional nullable BatchActiveDirectoryV1betaActiveDirectoryState.
+type OptNilBatchActiveDirectoryV1betaActiveDirectoryState struct {
+	Value BatchActiveDirectoryV1betaActiveDirectoryState
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchActiveDirectoryV1betaActiveDirectoryState was set.
+func (o OptNilBatchActiveDirectoryV1betaActiveDirectoryState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchActiveDirectoryV1betaActiveDirectoryState) Reset() {
+	var v BatchActiveDirectoryV1betaActiveDirectoryState
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchActiveDirectoryV1betaActiveDirectoryState) SetTo(v BatchActiveDirectoryV1betaActiveDirectoryState) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchActiveDirectoryV1betaActiveDirectoryState) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchActiveDirectoryV1betaActiveDirectoryState) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchActiveDirectoryV1betaActiveDirectoryState
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchActiveDirectoryV1betaActiveDirectoryState) Get() (v BatchActiveDirectoryV1betaActiveDirectoryState, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchActiveDirectoryV1betaActiveDirectoryState) Or(d BatchActiveDirectoryV1betaActiveDirectoryState) BatchActiveDirectoryV1betaActiveDirectoryState {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -21418,6 +21848,212 @@ func (s *UpdateDstWithSrcQuotaRulesV1beta) SetSrcQuotaRules(val []QuotaRulesV1be
 func (s *UpdateDstWithSrcQuotaRulesV1beta) SetDstQuotaRules(val []QuotaRulesV1beta) {
 	s.DstQuotaRules = val
 }
+
+type V1betaBatchListActiveDirectoriesBadRequest Error
+
+func (*V1betaBatchListActiveDirectoriesBadRequest) v1betaBatchListActiveDirectoriesRes() {}
+
+type V1betaBatchListActiveDirectoriesFieldsItem string
+
+const (
+	V1betaBatchListActiveDirectoriesFieldsItemUsername                    V1betaBatchListActiveDirectoriesFieldsItem = "username"
+	V1betaBatchListActiveDirectoriesFieldsItemPassword                    V1betaBatchListActiveDirectoriesFieldsItem = "password"
+	V1betaBatchListActiveDirectoriesFieldsItemDomain                      V1betaBatchListActiveDirectoriesFieldsItem = "domain"
+	V1betaBatchListActiveDirectoriesFieldsItemDNS                         V1betaBatchListActiveDirectoriesFieldsItem = "DNS"
+	V1betaBatchListActiveDirectoriesFieldsItemNetBIOS                     V1betaBatchListActiveDirectoriesFieldsItem = "netBIOS"
+	V1betaBatchListActiveDirectoriesFieldsItemOrganizationalUnit          V1betaBatchListActiveDirectoriesFieldsItem = "organizationalUnit"
+	V1betaBatchListActiveDirectoriesFieldsItemSite                        V1betaBatchListActiveDirectoriesFieldsItem = "site"
+	V1betaBatchListActiveDirectoriesFieldsItemKdcIP                       V1betaBatchListActiveDirectoriesFieldsItem = "kdcIP"
+	V1betaBatchListActiveDirectoriesFieldsItemKdcHostname                 V1betaBatchListActiveDirectoriesFieldsItem = "kdcHostname"
+	V1betaBatchListActiveDirectoriesFieldsItemActiveDirectoryState        V1betaBatchListActiveDirectoriesFieldsItem = "activeDirectoryState"
+	V1betaBatchListActiveDirectoriesFieldsItemActiveDirectoryStateDetails V1betaBatchListActiveDirectoriesFieldsItem = "activeDirectoryStateDetails"
+	V1betaBatchListActiveDirectoriesFieldsItemCreatedAt                   V1betaBatchListActiveDirectoriesFieldsItem = "createdAt"
+	V1betaBatchListActiveDirectoriesFieldsItemEncryptDCConnections        V1betaBatchListActiveDirectoriesFieldsItem = "encryptDCConnections"
+	V1betaBatchListActiveDirectoriesFieldsItemBackupOperators             V1betaBatchListActiveDirectoriesFieldsItem = "backupOperators"
+	V1betaBatchListActiveDirectoriesFieldsItemAesEncryption               V1betaBatchListActiveDirectoriesFieldsItem = "aesEncryption"
+	V1betaBatchListActiveDirectoriesFieldsItemLdapSigning                 V1betaBatchListActiveDirectoriesFieldsItem = "ldapSigning"
+	V1betaBatchListActiveDirectoriesFieldsItemSecurityOperators           V1betaBatchListActiveDirectoriesFieldsItem = "securityOperators"
+	V1betaBatchListActiveDirectoriesFieldsItemAllowLocalNFSUsersWithLdap  V1betaBatchListActiveDirectoriesFieldsItem = "allowLocalNFSUsersWithLdap"
+	V1betaBatchListActiveDirectoriesFieldsItemDescription                 V1betaBatchListActiveDirectoriesFieldsItem = "description"
+	V1betaBatchListActiveDirectoriesFieldsItemResourceId                  V1betaBatchListActiveDirectoriesFieldsItem = "resourceId"
+	V1betaBatchListActiveDirectoriesFieldsItemAdministrators              V1betaBatchListActiveDirectoriesFieldsItem = "administrators"
+)
+
+// AllValues returns all V1betaBatchListActiveDirectoriesFieldsItem values.
+func (V1betaBatchListActiveDirectoriesFieldsItem) AllValues() []V1betaBatchListActiveDirectoriesFieldsItem {
+	return []V1betaBatchListActiveDirectoriesFieldsItem{
+		V1betaBatchListActiveDirectoriesFieldsItemUsername,
+		V1betaBatchListActiveDirectoriesFieldsItemPassword,
+		V1betaBatchListActiveDirectoriesFieldsItemDomain,
+		V1betaBatchListActiveDirectoriesFieldsItemDNS,
+		V1betaBatchListActiveDirectoriesFieldsItemNetBIOS,
+		V1betaBatchListActiveDirectoriesFieldsItemOrganizationalUnit,
+		V1betaBatchListActiveDirectoriesFieldsItemSite,
+		V1betaBatchListActiveDirectoriesFieldsItemKdcIP,
+		V1betaBatchListActiveDirectoriesFieldsItemKdcHostname,
+		V1betaBatchListActiveDirectoriesFieldsItemActiveDirectoryState,
+		V1betaBatchListActiveDirectoriesFieldsItemActiveDirectoryStateDetails,
+		V1betaBatchListActiveDirectoriesFieldsItemCreatedAt,
+		V1betaBatchListActiveDirectoriesFieldsItemEncryptDCConnections,
+		V1betaBatchListActiveDirectoriesFieldsItemBackupOperators,
+		V1betaBatchListActiveDirectoriesFieldsItemAesEncryption,
+		V1betaBatchListActiveDirectoriesFieldsItemLdapSigning,
+		V1betaBatchListActiveDirectoriesFieldsItemSecurityOperators,
+		V1betaBatchListActiveDirectoriesFieldsItemAllowLocalNFSUsersWithLdap,
+		V1betaBatchListActiveDirectoriesFieldsItemDescription,
+		V1betaBatchListActiveDirectoriesFieldsItemResourceId,
+		V1betaBatchListActiveDirectoriesFieldsItemAdministrators,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s V1betaBatchListActiveDirectoriesFieldsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case V1betaBatchListActiveDirectoriesFieldsItemUsername:
+		return []byte(s), nil
+	case V1betaBatchListActiveDirectoriesFieldsItemPassword:
+		return []byte(s), nil
+	case V1betaBatchListActiveDirectoriesFieldsItemDomain:
+		return []byte(s), nil
+	case V1betaBatchListActiveDirectoriesFieldsItemDNS:
+		return []byte(s), nil
+	case V1betaBatchListActiveDirectoriesFieldsItemNetBIOS:
+		return []byte(s), nil
+	case V1betaBatchListActiveDirectoriesFieldsItemOrganizationalUnit:
+		return []byte(s), nil
+	case V1betaBatchListActiveDirectoriesFieldsItemSite:
+		return []byte(s), nil
+	case V1betaBatchListActiveDirectoriesFieldsItemKdcIP:
+		return []byte(s), nil
+	case V1betaBatchListActiveDirectoriesFieldsItemKdcHostname:
+		return []byte(s), nil
+	case V1betaBatchListActiveDirectoriesFieldsItemActiveDirectoryState:
+		return []byte(s), nil
+	case V1betaBatchListActiveDirectoriesFieldsItemActiveDirectoryStateDetails:
+		return []byte(s), nil
+	case V1betaBatchListActiveDirectoriesFieldsItemCreatedAt:
+		return []byte(s), nil
+	case V1betaBatchListActiveDirectoriesFieldsItemEncryptDCConnections:
+		return []byte(s), nil
+	case V1betaBatchListActiveDirectoriesFieldsItemBackupOperators:
+		return []byte(s), nil
+	case V1betaBatchListActiveDirectoriesFieldsItemAesEncryption:
+		return []byte(s), nil
+	case V1betaBatchListActiveDirectoriesFieldsItemLdapSigning:
+		return []byte(s), nil
+	case V1betaBatchListActiveDirectoriesFieldsItemSecurityOperators:
+		return []byte(s), nil
+	case V1betaBatchListActiveDirectoriesFieldsItemAllowLocalNFSUsersWithLdap:
+		return []byte(s), nil
+	case V1betaBatchListActiveDirectoriesFieldsItemDescription:
+		return []byte(s), nil
+	case V1betaBatchListActiveDirectoriesFieldsItemResourceId:
+		return []byte(s), nil
+	case V1betaBatchListActiveDirectoriesFieldsItemAdministrators:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *V1betaBatchListActiveDirectoriesFieldsItem) UnmarshalText(data []byte) error {
+	switch V1betaBatchListActiveDirectoriesFieldsItem(data) {
+	case V1betaBatchListActiveDirectoriesFieldsItemUsername:
+		*s = V1betaBatchListActiveDirectoriesFieldsItemUsername
+		return nil
+	case V1betaBatchListActiveDirectoriesFieldsItemPassword:
+		*s = V1betaBatchListActiveDirectoriesFieldsItemPassword
+		return nil
+	case V1betaBatchListActiveDirectoriesFieldsItemDomain:
+		*s = V1betaBatchListActiveDirectoriesFieldsItemDomain
+		return nil
+	case V1betaBatchListActiveDirectoriesFieldsItemDNS:
+		*s = V1betaBatchListActiveDirectoriesFieldsItemDNS
+		return nil
+	case V1betaBatchListActiveDirectoriesFieldsItemNetBIOS:
+		*s = V1betaBatchListActiveDirectoriesFieldsItemNetBIOS
+		return nil
+	case V1betaBatchListActiveDirectoriesFieldsItemOrganizationalUnit:
+		*s = V1betaBatchListActiveDirectoriesFieldsItemOrganizationalUnit
+		return nil
+	case V1betaBatchListActiveDirectoriesFieldsItemSite:
+		*s = V1betaBatchListActiveDirectoriesFieldsItemSite
+		return nil
+	case V1betaBatchListActiveDirectoriesFieldsItemKdcIP:
+		*s = V1betaBatchListActiveDirectoriesFieldsItemKdcIP
+		return nil
+	case V1betaBatchListActiveDirectoriesFieldsItemKdcHostname:
+		*s = V1betaBatchListActiveDirectoriesFieldsItemKdcHostname
+		return nil
+	case V1betaBatchListActiveDirectoriesFieldsItemActiveDirectoryState:
+		*s = V1betaBatchListActiveDirectoriesFieldsItemActiveDirectoryState
+		return nil
+	case V1betaBatchListActiveDirectoriesFieldsItemActiveDirectoryStateDetails:
+		*s = V1betaBatchListActiveDirectoriesFieldsItemActiveDirectoryStateDetails
+		return nil
+	case V1betaBatchListActiveDirectoriesFieldsItemCreatedAt:
+		*s = V1betaBatchListActiveDirectoriesFieldsItemCreatedAt
+		return nil
+	case V1betaBatchListActiveDirectoriesFieldsItemEncryptDCConnections:
+		*s = V1betaBatchListActiveDirectoriesFieldsItemEncryptDCConnections
+		return nil
+	case V1betaBatchListActiveDirectoriesFieldsItemBackupOperators:
+		*s = V1betaBatchListActiveDirectoriesFieldsItemBackupOperators
+		return nil
+	case V1betaBatchListActiveDirectoriesFieldsItemAesEncryption:
+		*s = V1betaBatchListActiveDirectoriesFieldsItemAesEncryption
+		return nil
+	case V1betaBatchListActiveDirectoriesFieldsItemLdapSigning:
+		*s = V1betaBatchListActiveDirectoriesFieldsItemLdapSigning
+		return nil
+	case V1betaBatchListActiveDirectoriesFieldsItemSecurityOperators:
+		*s = V1betaBatchListActiveDirectoriesFieldsItemSecurityOperators
+		return nil
+	case V1betaBatchListActiveDirectoriesFieldsItemAllowLocalNFSUsersWithLdap:
+		*s = V1betaBatchListActiveDirectoriesFieldsItemAllowLocalNFSUsersWithLdap
+		return nil
+	case V1betaBatchListActiveDirectoriesFieldsItemDescription:
+		*s = V1betaBatchListActiveDirectoriesFieldsItemDescription
+		return nil
+	case V1betaBatchListActiveDirectoriesFieldsItemResourceId:
+		*s = V1betaBatchListActiveDirectoriesFieldsItemResourceId
+		return nil
+	case V1betaBatchListActiveDirectoriesFieldsItemAdministrators:
+		*s = V1betaBatchListActiveDirectoriesFieldsItemAdministrators
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type V1betaBatchListActiveDirectoriesForbidden Error
+
+func (*V1betaBatchListActiveDirectoriesForbidden) v1betaBatchListActiveDirectoriesRes() {}
+
+type V1betaBatchListActiveDirectoriesInternalServerError Error
+
+func (*V1betaBatchListActiveDirectoriesInternalServerError) v1betaBatchListActiveDirectoriesRes() {}
+
+type V1betaBatchListActiveDirectoriesOK struct {
+	ActiveDirectories []BatchActiveDirectoryV1beta `json:"activeDirectories"`
+}
+
+// GetActiveDirectories returns the value of ActiveDirectories.
+func (s *V1betaBatchListActiveDirectoriesOK) GetActiveDirectories() []BatchActiveDirectoryV1beta {
+	return s.ActiveDirectories
+}
+
+// SetActiveDirectories sets the value of ActiveDirectories.
+func (s *V1betaBatchListActiveDirectoriesOK) SetActiveDirectories(val []BatchActiveDirectoryV1beta) {
+	s.ActiveDirectories = val
+}
+
+func (*V1betaBatchListActiveDirectoriesOK) v1betaBatchListActiveDirectoriesRes() {}
+
+type V1betaBatchListActiveDirectoriesUnauthorized Error
+
+func (*V1betaBatchListActiveDirectoriesUnauthorized) v1betaBatchListActiveDirectoriesRes() {}
 
 type V1betaBatchListPoolsBadRequest Error
 

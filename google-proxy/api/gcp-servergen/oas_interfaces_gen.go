@@ -5,6 +5,10 @@ type GetHealthRes interface {
 	getHealthRes()
 }
 
+type V1betaBatchListActiveDirectoriesRes interface {
+	v1betaBatchListActiveDirectoriesRes()
+}
+
 type V1betaBatchListPoolsRes interface {
 	v1betaBatchListPoolsRes()
 }

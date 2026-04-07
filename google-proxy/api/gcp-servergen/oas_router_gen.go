@@ -1008,26 +1008,62 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						break
 					}
 					switch elem[0] {
-					case '/': // Prefix: "/batch/pools"
+					case '/': // Prefix: "/batch/"
 
-						if l := len("/batch/pools"); len(elem) >= l && elem[0:l] == "/batch/pools" {
+						if l := len("/batch/"); len(elem) >= l && elem[0:l] == "/batch/" {
 							elem = elem[l:]
 						} else {
 							break
 						}
 
 						if len(elem) == 0 {
-							// Leaf node.
-							switch r.Method {
-							case "POST":
-								s.handleV1betaBatchListPoolsRequest([1]string{
-									args[0],
-								}, elemIsEscaped, w, r)
-							default:
-								s.notAllowed(w, r, "POST")
+							break
+						}
+						switch elem[0] {
+						case 'a': // Prefix: "activeDirectories"
+
+							if l := len("activeDirectories"); len(elem) >= l && elem[0:l] == "activeDirectories" {
+								elem = elem[l:]
+							} else {
+								break
 							}
 
-							return
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "POST":
+									s.handleV1betaBatchListActiveDirectoriesRequest([1]string{
+										args[0],
+									}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "POST")
+								}
+
+								return
+							}
+
+						case 'p': // Prefix: "pools"
+
+							if l := len("pools"); len(elem) >= l && elem[0:l] == "pools" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "POST":
+									s.handleV1betaBatchListPoolsRequest([1]string{
+										args[0],
+									}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "POST")
+								}
+
+								return
+							}
+
 						}
 
 					}
@@ -4019,28 +4055,66 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 						break
 					}
 					switch elem[0] {
-					case '/': // Prefix: "/batch/pools"
+					case '/': // Prefix: "/batch/"
 
-						if l := len("/batch/pools"); len(elem) >= l && elem[0:l] == "/batch/pools" {
+						if l := len("/batch/"); len(elem) >= l && elem[0:l] == "/batch/" {
 							elem = elem[l:]
 						} else {
 							break
 						}
 
 						if len(elem) == 0 {
-							// Leaf node.
-							switch method {
-							case "POST":
-								r.name = V1betaBatchListPoolsOperation
-								r.summary = "Batch lists all pools with the given UUIDs"
-								r.operationID = "v1beta_batchListPools"
-								r.pathPattern = "/v1beta/locations/{locationId}/batch/pools"
-								r.args = args
-								r.count = 1
-								return r, true
-							default:
-								return
+							break
+						}
+						switch elem[0] {
+						case 'a': // Prefix: "activeDirectories"
+
+							if l := len("activeDirectories"); len(elem) >= l && elem[0:l] == "activeDirectories" {
+								elem = elem[l:]
+							} else {
+								break
 							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "POST":
+									r.name = V1betaBatchListActiveDirectoriesOperation
+									r.summary = "Batch lists all Active Directories with the given UUIDs"
+									r.operationID = "v1beta_batchListActiveDirectories"
+									r.pathPattern = "/v1beta/locations/{locationId}/batch/activeDirectories"
+									r.args = args
+									r.count = 1
+									return r, true
+								default:
+									return
+								}
+							}
+
+						case 'p': // Prefix: "pools"
+
+							if l := len("pools"); len(elem) >= l && elem[0:l] == "pools" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "POST":
+									r.name = V1betaBatchListPoolsOperation
+									r.summary = "Batch lists all pools with the given UUIDs"
+									r.operationID = "v1beta_batchListPools"
+									r.pathPattern = "/v1beta/locations/{locationId}/batch/pools"
+									r.args = args
+									r.count = 1
+									return r, true
+								default:
+									return
+								}
+							}
+
 						}
 
 					}

@@ -2862,6 +2862,237 @@ func (s BackupVaultV1betaState) Validate() error {
 	}
 }
 
+func (s *BatchActiveDirectoryUUIDListV1beta) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.ActiveDirectoryUUIDs == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "activeDirectoryUUIDs",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *BatchActiveDirectoryV1beta) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.ActiveDirectoryId.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    0,
+					MaxLengthSet: false,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "activeDirectoryId",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.KdcIP.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    7,
+					MinLengthSet: true,
+					MaxLength:    15,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kdcIP",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.KdcHostname.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    1,
+					MinLengthSet: true,
+					MaxLength:    64,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "kdcHostname",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.ActiveDirectoryState.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "activeDirectoryState",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.BackupOperators.Get(); ok {
+			if err := func() error {
+				if value == nil {
+					return errors.New("nil is invalid value")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "backupOperators",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.SecurityOperators.Get(); ok {
+			if err := func() error {
+				if value == nil {
+					return errors.New("nil is invalid value")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "securityOperators",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Administrators.Get(); ok {
+			if err := func() error {
+				if value == nil {
+					return errors.New("nil is invalid value")
+				}
+				var failures []validate.FieldError
+				for i, elem := range value {
+					if err := func() error {
+						if err := (validate.String{
+							MinLength:    1,
+							MinLengthSet: true,
+							MaxLength:    255,
+							MaxLengthSet: true,
+							Email:        false,
+							Hostname:     false,
+							Regex:        nil,
+						}).Validate(string(elem)); err != nil {
+							return errors.Wrap(err, "string")
+						}
+						return nil
+					}(); err != nil {
+						failures = append(failures, validate.FieldError{
+							Name:  fmt.Sprintf("[%d]", i),
+							Error: err,
+						})
+					}
+				}
+				if len(failures) > 0 {
+					return &validate.Error{Fields: failures}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "administrators",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s BatchActiveDirectoryV1betaActiveDirectoryState) Validate() error {
+	switch s {
+	case "STATE_UNSPECIFIED":
+		return nil
+	case "CREATING":
+		return nil
+	case "READY":
+		return nil
+	case "UPDATING":
+		return nil
+	case "IN_USE":
+		return nil
+	case "DELETING":
+		return nil
+	case "ERROR":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *BatchPoolUUIDListV1beta) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -10357,6 +10588,124 @@ func (s *UpdateDstWithSrcQuotaRulesV1beta) Validate() error {
 	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *V1betaBatchListActiveDirectoriesBadRequest) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s V1betaBatchListActiveDirectoriesFieldsItem) Validate() error {
+	switch s {
+	case "username":
+		return nil
+	case "password":
+		return nil
+	case "domain":
+		return nil
+	case "DNS":
+		return nil
+	case "netBIOS":
+		return nil
+	case "organizationalUnit":
+		return nil
+	case "site":
+		return nil
+	case "kdcIP":
+		return nil
+	case "kdcHostname":
+		return nil
+	case "activeDirectoryState":
+		return nil
+	case "activeDirectoryStateDetails":
+		return nil
+	case "createdAt":
+		return nil
+	case "encryptDCConnections":
+		return nil
+	case "backupOperators":
+		return nil
+	case "aesEncryption":
+		return nil
+	case "ldapSigning":
+		return nil
+	case "securityOperators":
+		return nil
+	case "allowLocalNFSUsersWithLdap":
+		return nil
+	case "description":
+		return nil
+	case "resourceId":
+		return nil
+	case "administrators":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *V1betaBatchListActiveDirectoriesForbidden) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaBatchListActiveDirectoriesInternalServerError) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaBatchListActiveDirectoriesOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.ActiveDirectories {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "activeDirectories",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *V1betaBatchListActiveDirectoriesUnauthorized) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
 	}
 	return nil
 }

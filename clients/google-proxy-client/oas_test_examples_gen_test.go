@@ -815,6 +815,71 @@ func TestBackupVaultV1betaState_Examples(t *testing.T) {
 		})
 	}
 }
+func TestBatchActiveDirectoryUUIDListV1beta_EncodeDecode(t *testing.T) {
+	var typ BatchActiveDirectoryUUIDListV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchActiveDirectoryUUIDListV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchActiveDirectoryV1beta_EncodeDecode(t *testing.T) {
+	var typ BatchActiveDirectoryV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchActiveDirectoryV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchActiveDirectoryV1betaActiveDirectoryState_EncodeDecode(t *testing.T) {
+	var typ BatchActiveDirectoryV1betaActiveDirectoryState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchActiveDirectoryV1betaActiveDirectoryState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestBatchActiveDirectoryV1betaActiveDirectoryState_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"READY\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ BatchActiveDirectoryV1betaActiveDirectoryState
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 BatchActiveDirectoryV1betaActiveDirectoryState
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
 func TestBatchPoolUUIDListV1beta_EncodeDecode(t *testing.T) {
 	var typ BatchPoolUUIDListV1beta
 	typ.SetFake()
@@ -4810,6 +4875,66 @@ func TestUpdateDstWithSrcQuotaRulesV1beta_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 UpdateDstWithSrcQuotaRulesV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBatchListActiveDirectoriesBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaBatchListActiveDirectoriesBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBatchListActiveDirectoriesBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBatchListActiveDirectoriesForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaBatchListActiveDirectoriesForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBatchListActiveDirectoriesForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBatchListActiveDirectoriesInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaBatchListActiveDirectoriesInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBatchListActiveDirectoriesInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBatchListActiveDirectoriesOK_EncodeDecode(t *testing.T) {
+	var typ V1betaBatchListActiveDirectoriesOK
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBatchListActiveDirectoriesOK
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBatchListActiveDirectoriesUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaBatchListActiveDirectoriesUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBatchListActiveDirectoriesUnauthorized
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaBatchListPoolsBadRequest_EncodeDecode(t *testing.T) {
