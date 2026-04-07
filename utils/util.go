@@ -113,6 +113,7 @@ var (
 	RestoreVolumeBufferEnabled             = env.GetBool("RESTORE_VOLUME_BUFFER_ENABLED", false)
 	EnableBackupVaultSwitching             = env.GetBool("ENABLE_BACKUP_VAULT_SWITCHING", false)
 	enableKerberos                         = env.GetBool("ENABLE_KERBEROS", false)
+	EnableJobResourceUUIDIndex             = env.GetBool("ENABLE_JOB_RESOURCE_UUID_INDEX", false)
 	// TODO: Remove FORCE_VCP_KMS_PATH_FOR_TESTING once CMEK VPC-SC testing is complete.
 	ForceVCPKMSPathForTesting = env.GetBool("FORCE_VCP_KMS_PATH_FOR_TESTING", false)
 

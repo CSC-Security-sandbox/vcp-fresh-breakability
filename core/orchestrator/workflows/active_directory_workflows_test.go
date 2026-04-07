@@ -2380,6 +2380,43 @@ func TestPushAdUpdatesToSVMWorkflow(t *testing.T) {
 	})
 }
 
+func TestDeleteActiveDirectoryWorkflow_EnsureJobStateError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	mockStorage := database.NewMockStorage(t)
+
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logger": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	commonActivity := activities.CommonActivities{SE: mockStorage}
+	env.RegisterActivity(commonActivity.GetJob)
+	env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	// Return a job in PROCESSING state (not NEW) so EnsureJobState returns an error.
+	env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+		State:     string(models.JobsStatePROCESSING),
+	}, nil)
+
+	params := &common.DeleteActiveDirectoryParams{
+		AccountId:           int64(1),
+		ActiveDirectoryUUID: "ad-uuid-ensure-state",
+		ProjectNumber:       "test-project-ensure",
+	}
+
+	env.SetTestTimeout(1 * time.Minute)
+	env.ExecuteWorkflow(DeleteActiveDirectoryWorkflow, params)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+}
+
 // TestDeleteActiveDirectoryWorkflow tests the DeleteActiveDirectoryWorkflow
 func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 	t.Run("Success_VcpOnly_ADExists", func(t *testing.T) {
@@ -2416,6 +2453,10 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 			DeletionAllowed: true,
 		}
 
+		env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
 		env.OnActivity("DeleteVcpActiveDirectory", mock.Anything, params).Return(nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
@@ -2468,6 +2509,10 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 			DeletionAllowed: true,
 		}
 
+		env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.ProjectNumber).Return("test-jwt-token", nil)
 		env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
 		env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(nil)
@@ -2523,6 +2568,10 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 			DeletionAllowed: true,
 		}
 
+		env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.ProjectNumber).Return("test-jwt-token", nil)
 		env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
 		env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(nil)
@@ -2570,6 +2619,10 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 			DeletionAllowed: false,
 		}
 
+		env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
@@ -2618,6 +2671,10 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 		cvp.CVP_HOST = ""
 		defer func() { cvp.CVP_HOST = originalHost }()
 
+		env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(nil, errors.New("database error"))
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
 
@@ -2663,6 +2720,10 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 			DeletionAllowed: true,
 		}
 
+		env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
 		env.OnActivity("DeleteVcpActiveDirectory", mock.Anything, params).Return(errors.New("VCP deletion failed"))
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
@@ -2715,6 +2776,10 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 			DeletionAllowed: true,
 		}
 
+		env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.ProjectNumber).Return("test-jwt-token", nil)
 		env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
 		env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(errors.New("SDE deletion failed"))
@@ -2757,6 +2822,10 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 		cvp.CVP_HOST = ""
 		defer func() { cvp.CVP_HOST = originalHost }()
 
+		env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(errors.NewUserInputValidationErr("job status update failed"))
 
 		env.SetTestTimeout(1 * time.Minute)
@@ -2808,6 +2877,10 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 			DeletionAllowed: true,
 		}
 
+		env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.ProjectNumber).Return("test-jwt-token", nil)
 		env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
 		env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(nil)
@@ -2864,6 +2937,10 @@ func TestDeleteActiveDirectoryWorkflow(t *testing.T) {
 			DeletionAllowed: true,
 		}
 
+		env.OnActivity(commonActivity.GetJob, mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
 		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, params.ProjectNumber).Return("test-jwt-token", nil)
 		env.OnActivity("CheckDeletionAllowed", mock.Anything, params).Return(checkResult, nil)
 		env.OnActivity("DeleteSdeActiveDirectory", mock.Anything, params).Return(errors.New("SDE deletion failed"))

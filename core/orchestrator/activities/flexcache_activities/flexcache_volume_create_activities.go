@@ -950,8 +950,12 @@ func (a *FlexCacheVolumeCreateActivity) UpdateClusterPeeringInVolume(ctx context
 // Returns all jobs that are not DONE or ERROR for the given resource/jobType.
 func (a *FlexCacheVolumeCreateActivity) getActiveJobs(ctx context.Context, resourceUUID string,
 	jobType coremodels.JobType) ([]*datamodel.Job, error) {
+	resourceUUIDCol := "job_attributes ->> 'resource_uuid'"
+	if utils.EnableJobResourceUUIDIndex {
+		resourceUUIDCol = "resource_uuid"
+	}
 	filter := dbutils.CreateFilterWithConditions(
-		dbutils.NewFilterCondition("job_attributes ->> 'resource_uuid'", "=", resourceUUID),
+		dbutils.NewFilterCondition(resourceUUIDCol, "=", resourceUUID),
 		dbutils.NewFilterCondition("type", "=", jobType),
 		dbutils.NewFilterCondition("state", "!=", string(coremodels.JobsStateDONE)),
 		dbutils.NewFilterCondition("state", "!=", string(coremodels.JobsStateERROR)),

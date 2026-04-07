@@ -22504,6 +22504,113 @@ func TestRevertVolume(t *testing.T) {
 		assert.Equal(tt, volume.Name, resultVolume.DisplayName)
 		assert.Equal(tt, models.LifeCycleStateReverting, resultVolume.LifeCycleState)
 	})
+
+	t.Run("WhenEnableJobResourceUUIDIndex_RevertVolumeReturnsOngoingJob", func(tt *testing.T) {
+		utils.EnableJobResourceUUIDIndex = true
+		defer func() { utils.EnableJobResourceUUIDIndex = false }()
+
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		orch := GCPOrchestrator{storage: store, temporal: temporal}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid-idx"},
+			Name:      "test_account_idx",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid-idx"},
+			Name:      "test_pool_idx",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/location123/pools/pool-idx",
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+		pool.PoolAttributes = &datamodel.PoolAttributes{PrimaryZone: "us-west1-a", IsRegionalHA: false}
+		err = store.DB().Save(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to update pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid-idx"},
+			Name:      "test_volume_idx",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			Pool:      pool,
+			Account:   account,
+			State:     models.LifeCycleStateReverting,
+			VolumeAttributes: &datamodel.VolumeAttributes{IsDataProtection: false},
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+		volume, err = store.GetVolumeWithAccountID(ctx, volume.UUID, account.ID)
+		if err != nil {
+			tt.Fatalf("Failed to reload volume: %v", err)
+		}
+		if volume.Pool != nil {
+			volume.Pool.PoolAttributes = pool.PoolAttributes
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid-idx"},
+			Name:      "test_snapshot_idx",
+			AccountID: account.ID,
+			VolumeID:  volume.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		// Set ResourceUUID directly so the resource_uuid column filter can find the job.
+		job := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{UUID: "test-revert-job-uuid-idx"},
+			Type:         string(models.JobTypeRevertVolume),
+			State:        string(models.JobsStatePROCESSING),
+			ResourceName: volume.Name,
+			AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+			ResourceUUID: volume.UUID,
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: volume.UUID,
+			},
+		}
+		err = store.DB().Create(job).Error
+		assert.NoError(tt, err)
+
+		params := &common.RevertVolumeParams{
+			AccountName: account.Name,
+			VolumeID:    volume.UUID,
+			SnapshotID:  snapshot.UUID,
+		}
+
+		resultVolume, jobUUID, err := orch.RevertVolume(ctx, params)
+		assert.NoError(tt, err, "Failed to revert volume with index flag enabled")
+		assert.Equal(tt, "test-revert-job-uuid-idx", jobUUID)
+		assert.NotNil(tt, resultVolume)
+		assert.Equal(tt, volume.UUID, resultVolume.UUID)
+		assert.Equal(tt, models.LifeCycleStateReverting, resultVolume.LifeCycleState)
+	})
 }
 
 // Helper function to set up common test infrastructure

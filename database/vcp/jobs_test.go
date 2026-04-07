@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
+	vcputils "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 )
 
 func TestGetJob(t *testing.T) {
@@ -1123,5 +1124,107 @@ func TestCancelRunningJobsForResource(t *testing.T) {
 		// Attempt to cancel running jobs for a resource
 		err = store.CancelRunningJobsForResource(context.Background(), "non-existent-resource-uuid")
 		assert.Error(tt, err, "Expected an error due to no jobs found, got nil")
+	})
+}
+
+func TestGetJobByResourceUUID(t *testing.T) {
+	t.Run("WhenJobFoundViaJSONB", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "job-uuid-jsonb"},
+			Type:      string(models.JobTypeCreatePool),
+			State:     string(models.JobsStateNEW),
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: "res-jsonb",
+			},
+		}
+		_, err = store.CreateJob(context.Background(), job)
+		assert.NoError(tt, err)
+
+		result, err := store.GetJobByResourceUUID(context.Background(), "res-jsonb", string(models.JobTypeCreatePool))
+		assert.NoError(tt, err)
+		assert.Equal(tt, job.UUID, result.UUID)
+	})
+
+	t.Run("WhenEnableJobResourceUUIDIndex_JobFoundViaColumn", func(tt *testing.T) {
+		vcputils.EnableJobResourceUUIDIndex = true
+		defer func() { vcputils.EnableJobResourceUUIDIndex = false }()
+
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		job := &datamodel.Job{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "job-uuid-col"},
+			Type:      string(models.JobTypeCreatePool),
+			State:     string(models.JobsStateNEW),
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: "res-col",
+			},
+		}
+		_, err = store.CreateJob(context.Background(), job)
+		assert.NoError(tt, err)
+
+		result, err := store.GetJobByResourceUUID(context.Background(), "res-col", string(models.JobTypeCreatePool))
+		assert.NoError(tt, err)
+		assert.Equal(tt, job.UUID, result.UUID)
+	})
+
+	t.Run("WhenJobNotFound_ReturnsNotFoundError", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		_, err = store.GetJobByResourceUUID(context.Background(), "non-existent-uuid", "")
+		assert.Error(tt, err)
+	})
+}
+
+func TestCancelRunningJobsForResource_WithIndexFlag(t *testing.T) {
+	t.Run("WhenEnableJobResourceUUIDIndex_CancelsViaColumn", func(tt *testing.T) {
+		vcputils.EnableJobResourceUUIDIndex = true
+		defer func() { vcputils.EnableJobResourceUUIDIndex = false }()
+
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		job := &datamodel.Job{
+			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "job-uuid-idx"},
+			ResourceName: "test-resource",
+			State:        string(models.JobsStatePROCESSING),
+			Type:         string(models.JobTypeFlexCacheCreateVolume),
+			JobAttributes: &datamodel.JobAttributes{
+				ResourceUUID: "resource-uuid-idx",
+			},
+		}
+		_, err = store.CreateJob(context.Background(), job)
+		assert.NoError(tt, err)
+
+		err = store.CancelRunningJobsForResource(context.Background(), "resource-uuid-idx")
+		assert.NoError(tt, err)
+
+		updated, err := store.GetJob(context.Background(), job.UUID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, string(models.JobsStateCANCELLED), updated.State)
 	})
 }

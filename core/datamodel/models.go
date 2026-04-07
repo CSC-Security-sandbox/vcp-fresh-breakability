@@ -591,6 +591,7 @@ type Job struct {
 	WorkflowID    string         `json:"workflowID"`
 	ScheduledAt   time.Time      `json:"scheduledAt"`
 	ResourceName  string         `json:"resourceName"`
+	ResourceUUID  string         `json:"resourceUUID" gorm:"column:resource_uuid;size:255;index"`
 	JobAttributes *JobAttributes `gorm:"column:job_attributes;type:jsonb"`
 }
 

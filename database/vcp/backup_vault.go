@@ -376,10 +376,19 @@ func (d *DataStoreRepository) GetCmekRotationJobStatuses(ctx context.Context, st
 	db := d.db.GORM().WithContext(ctx)
 	var results []*CmekRotationJobStatus
 
+	var selectClause, resourceUUIDFilter string
+	if utils.EnableJobResourceUUIDIndex {
+		selectClause = "id, state as status, resource_uuid as backup_vault_uuid, updated_at, resource_name as backup_vault_name, (job_attributes->>'location')::text as region, (job_attributes->'kms_attributes'->>'new_kms_key_url')::text as new_kms_key_url, COALESCE((job_attributes->'kms_attributes'->>'account_identifier')::text, '') as account_identifier"
+		resourceUUIDFilter = "resource_uuid IS NOT NULL AND resource_uuid != ''"
+	} else {
+		selectClause = "id, state as status, (job_attributes->>'resource_uuid')::text as backup_vault_uuid, updated_at, resource_name as backup_vault_name, (job_attributes->>'location')::text as region, (job_attributes->'kms_attributes'->>'new_kms_key_url')::text as new_kms_key_url, COALESCE((job_attributes->'kms_attributes'->>'account_identifier')::text, '') as account_identifier"
+		resourceUUIDFilter = "(job_attributes->>'resource_uuid') IS NOT NULL"
+	}
+
 	err := db.Model(&datamodel.Job{}).
-		Select("id, state as status, (job_attributes->>'resource_uuid')::text as backup_vault_uuid, updated_at, resource_name as backup_vault_name, (job_attributes->>'location')::text as region, (job_attributes->'kms_attributes'->>'new_kms_key_url')::text as new_kms_key_url, COALESCE((job_attributes->'kms_attributes'->>'account_identifier')::text, '') as account_identifier").
+		Select(selectClause).
 		Where("type = ? AND updated_at >= ? AND updated_at <= ? AND deleted_at IS NULL", models.JobTypeRotateCmekBackups, startTime, endTime).
-		Where("(job_attributes->>'resource_uuid') IS NOT NULL AND resource_name IS NOT NULL AND resource_name != '' AND (job_attributes->>'location') IS NOT NULL AND (job_attributes->'kms_attributes'->>'new_kms_key_url') IS NOT NULL AND (job_attributes->'kms_attributes'->>'account_identifier') IS NOT NULL").
+		Where(resourceUUIDFilter+" AND resource_name IS NOT NULL AND resource_name != '' AND (job_attributes->>'location') IS NOT NULL AND (job_attributes->'kms_attributes'->>'new_kms_key_url') IS NOT NULL AND (job_attributes->'kms_attributes'->>'account_identifier') IS NOT NULL").
 		Order("updated_at").
 		Limit(limit).
 		Offset(offset).

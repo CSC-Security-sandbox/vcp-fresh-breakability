@@ -131,6 +131,7 @@ data:
   AUTO_POOL_SCALING_LIMITS:  {{ index .Values "autoPoolScalingLimits" | toJson | quote }}
   NUMBER_OF_HA_PAIRS_LARGE_CAPACITY: {{ index .Values "numberOfHaPairsLargeCapacity" | quote }}
   SNAPSHOT_API_SYNC_MODE: {{index .Values "snapshotApiSyncMode" | toString | quote}}
+  ENABLE_JOB_RESOURCE_UUID_INDEX: {{index .Values "enableJobResourceUuidIndex" | toString | quote}}
   SYNC_SNAPSHOT_ONTAP_JOB_POLL_TIMEOUT_MILLISECONDS: {{ index .Values "syncSnapshotOntapJobPollTimeoutMilliseconds" | quote }}
   SYNC_SNAPSHOT_ONTAP_JOB_POLL_INTERVAL_MILLISECONDS: {{ index .Values "syncSnapshotOntapJobPollIntervalMilliseconds" | quote }}
   MAX_APP_CONSISTENT_SNAPSHOT_COUNT: {{ index .Values "maxAppConsistentSnapshotCount" | quote }}

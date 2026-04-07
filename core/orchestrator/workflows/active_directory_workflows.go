@@ -165,6 +165,9 @@ func DeleteActiveDirectoryWorkflow(ctx workflow.Context, params *common.DeleteAc
 		log.Errorf("Failed to setup ActiveDirectoryDeleteWorkflow: %v", err)
 		return nil, err
 	}
+	if err = activeDirectoryWf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+		return nil, err
+	}
 
 	activeDirectoryWf.Status = WorkflowStatusRunning
 	err = activeDirectoryWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)

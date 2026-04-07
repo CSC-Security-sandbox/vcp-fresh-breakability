@@ -12,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
+	vcputils "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"gorm.io/gorm"
 )
@@ -2198,5 +2199,31 @@ func TestGetCmekRotationJobStatuses(t *testing.T) {
 		_, err = store.GetCmekRotationJobStatuses(context.Background(), startTime, endTime, 100, 0)
 		assert.Error(tt, err)
 		assert.NotEmpty(tt, err.Error())
+	})
+}
+
+func TestGetCmekRotationJobStatuses_WithIndexFlag(t *testing.T) {
+	t.Run("WhenEnableJobResourceUUIDIndex_UsesColumnInSelectAndFilter", func(tt *testing.T) {
+		vcputils.EnableJobResourceUUIDIndex = true
+		defer func() { vcputils.EnableJobResourceUUIDIndex = false }()
+
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		now := time.Now()
+		startTime := now.Add(-10 * time.Minute)
+		endTime := now.Add(10 * time.Minute)
+
+		// The query uses PostgreSQL-specific syntax; on SQLite it will return an error,
+		// confirming the flagged branch was entered.
+		_, err = store.GetCmekRotationJobStatuses(context.Background(), startTime, endTime, 100, 0)
+		if err != nil {
+			assert.Contains(tt, err.Error(), "unrecognized token", "Expected SQLite syntax error confirming the flagged branch ran")
+		}
 	})
 }

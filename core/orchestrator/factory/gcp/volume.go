@@ -707,13 +707,17 @@ func _revertVolume(ctx context.Context, se database.Storage, temporal client.Cli
 
 	// Check if volume is in REVERTING state - if so, check for existing revert jobs for idempotency
 	if volume.State == models.LifeCycleStateReverting {
+		resourceUUIDCol := "job_attributes ->> 'resource_uuid'"
+		if utils.EnableJobResourceUUIDIndex {
+			resourceUUIDCol = "resource_uuid"
+		}
 		filter := dbUtils.CreateFilterWithConditions(
 			dbUtils.NewFilterCondition("resource_name", "=", volume.Name),
 			dbUtils.NewFilterCondition("account_id", "=", volume.AccountID),
 			dbUtils.NewFilterCondition("type", "=", string(models.JobTypeRevertVolume)),
 			dbUtils.NewFilterCondition("state", "!=", string(models.JobsStateDONE)),
 			dbUtils.NewFilterCondition("state", "!=", string(models.JobsStateERROR)),
-			dbUtils.NewFilterCondition("job_attributes ->> 'resource_uuid'", "=", volume.UUID))
+			dbUtils.NewFilterCondition(resourceUUIDCol, "=", volume.UUID))
 
 		jobs, err := se.GetJobsWithCondition(ctx, *filter)
 		if err != nil {

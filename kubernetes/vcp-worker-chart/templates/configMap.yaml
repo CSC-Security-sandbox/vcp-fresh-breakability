@@ -141,6 +141,7 @@ data:
   ENABLE_BACKUP_VAULT_SWITCHING: {{$.Values.workerConfig.enableBackupVaultSwitching | quote }}
   GCBDR_VAULT_ENABLED: {{$.Values.workerConfig.gcbdrVaultEnabled | quote }}
   THIN_CLONE_GA_SUPPORT: {{$.Values.workerConfig.thinCloneGASupport | quote }}
+  ENABLE_JOB_RESOURCE_UUID_INDEX: {{$.Values.workerConfig.enableJobResourceUuidIndex | quote }}
   ENABLE_CLONE_INFO_REFRESH: {{$.Values.workerConfig.enableCloneInfoRefresh | quote }}
   RESTORE_VOLUME_BUFFER_ENABLED: {{$.Values.workerConfig.restoreVolumeBufferEnabled | quote }}
   MAX_RETRY_ATTEMPTS_FOR_SDE_POLL_JOB: {{$.Values.workerConfig.maxRetryAttemptsForSDEPollJob | quote }}

@@ -1,0 +1,4 @@
+-- Rollback: no-op. The resource_uuid column is managed by GORM AutoMigrate.
+-- We do not drop the column here so that rollback of application code can still
+-- read from the column if needed. To remove the column, revert the struct change
+-- and run a separate migration if desired.

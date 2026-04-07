@@ -32,6 +32,9 @@ func (d *DataStoreRepository) CreateJob(ctx context.Context, job *datamodel.Job)
 	job.CreatedAt = time.Now()
 	job.UpdatedAt = job.CreatedAt
 	job.WorkflowID = job.UUID
+	if job.JobAttributes != nil {
+		job.ResourceUUID = job.JobAttributes.ResourceUUID
+	}
 
 	if err := tx.Create(job).Error; err != nil {
 		return nil, err
@@ -87,6 +90,9 @@ func (d *DataStoreRepository) UpdateJobAttributes(ctx context.Context, uuid stri
 	}
 	job.UpdatedAt = time.Now()
 	job.JobAttributes = jobAttributes
+	if jobAttributes != nil {
+		job.ResourceUUID = jobAttributes.ResourceUUID
+	}
 	if err = tx.Updates(job).Error; err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
 	}
@@ -137,12 +143,17 @@ func (d *DataStoreRepository) GetJobsWithCondition(ctx context.Context, filter u
 	return jobs, nil
 }
 
-// GetJobByResourceUUID retrieves the job by its resource UUID
+// GetJobByResourceUUID retrieves the job by its resource UUID.
+// When utils.EnableJobResourceUUIDIndex is true, queries the indexed resource_uuid column.
+// Otherwise uses the JSONB path job_attributes->>'resource_uuid'.
 func (d *DataStoreRepository) GetJobByResourceUUID(ctx context.Context, resourceUUID string, jobType string) (*datamodel.Job, error) {
 	job := &datamodel.Job{}
-	query := d.db.GORM().WithContext(ctx).Where("job_attributes ->> 'resource_uuid' = ?", resourceUUID)
-
-	// Add job type filter if provided
+	var query *gorm.DB
+	if utils.EnableJobResourceUUIDIndex {
+		query = d.db.GORM().WithContext(ctx).Where("resource_uuid = ?", resourceUUID)
+	} else {
+		query = d.db.GORM().WithContext(ctx).Where("job_attributes ->> 'resource_uuid' = ?", resourceUUID)
+	}
 	if jobType != "" {
 		query = query.Where("type = ?", jobType)
 	}
@@ -203,8 +214,14 @@ func (d *DataStoreRepository) CheckAndFetchDuplicateJobs(ctx context.Context, jo
 
 func (d *DataStoreRepository) CancelRunningJobsForResource(ctx context.Context, resourceUUID string) error {
 	db := d.db.GORM().WithContext(ctx)
+	var whereClause string
+	if utils.EnableJobResourceUUIDIndex {
+		whereClause = "resource_uuid = ? AND state = ?"
+	} else {
+		whereClause = "job_attributes ->> 'resource_uuid' = ? AND state = ?"
+	}
 	err := db.Model(&datamodel.Job{}).
-		Where("job_attributes ->> 'resource_uuid' = ? AND state = ?", resourceUUID, models.JobsStatePROCESSING).
+		Where(whereClause, resourceUUID, models.JobsStatePROCESSING).
 		Update("state", string(models.JobsStateCANCELLED)).Error
 	if err != nil {
 		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)

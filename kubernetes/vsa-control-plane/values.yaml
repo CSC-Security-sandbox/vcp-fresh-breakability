@@ -125,6 +125,7 @@ global:
     metricsDbPostRollbackSteps: "0"
     workflowSupervisorNotFoundGracePeriod: "5m"
     snapshotApiSyncMode: "false"
+    enableJobResourceUuidIndex: "true"
     maxAppConsistentSnapshotCount: "10"
     # Make sure to update the regionNumberMap if new regions are added. In both Google proxy and vcp-worker-chart
     regionNumberMap:

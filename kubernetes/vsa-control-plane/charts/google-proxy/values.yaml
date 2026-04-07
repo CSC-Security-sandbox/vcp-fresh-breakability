@@ -108,6 +108,7 @@ enableCloneInfoRefresh: true
 maxThinClonesPerPool: 100
 enableAutoPoolScaling: true
 snapshotApiSyncMode: false
+enableJobResourceUuidIndex: true
 syncSnapshotOntapJobPollTimeoutMilliseconds: 40000
 syncSnapshotOntapJobPollIntervalMilliseconds: 2000
 maxAppConsistentSnapshotCount: "10"

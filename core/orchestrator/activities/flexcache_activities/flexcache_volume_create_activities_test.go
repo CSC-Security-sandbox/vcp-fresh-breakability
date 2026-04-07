@@ -21,6 +21,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/flexcache"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	vcputils "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
@@ -2939,6 +2940,24 @@ func Test_getActiveJobs(t *testing.T) {
 		got, err := act.getActiveJobs(ctx, resourceUUID, jobType)
 		assert.Error(tt, err)
 		assert.Nil(tt, got)
+		ms.AssertExpectations(tt)
+	})
+
+	t.Run("WhenEnableJobResourceUUIDIndex_UsesColumnFilter", func(tt *testing.T) {
+		vcputils.EnableJobResourceUUIDIndex = true
+		defer func() { vcputils.EnableJobResourceUUIDIndex = false }()
+
+		ms := database.NewMockStorage(tt)
+		act := &FlexCacheVolumeCreateActivity{SE: ms}
+
+		active1 := testJob("j1", coremodels.JobsStatePROCESSING, resourceUUID, jobType)
+		ms.
+			On("GetJobsWithCondition", ctx, mock.Anything).
+			Return([]*datamodel.Job{active1}, nil).Once()
+
+		got, err := act.getActiveJobs(ctx, resourceUUID, jobType)
+		assert.NoError(tt, err)
+		assert.Equal(tt, []*datamodel.Job{active1}, got)
 		ms.AssertExpectations(tt)
 	})
 }
