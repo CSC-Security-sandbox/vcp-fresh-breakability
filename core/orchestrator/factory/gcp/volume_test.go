@@ -18745,6 +18745,180 @@ func Test_validateUpdateVolumeRequest_QoSAndVPGValidation(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 
+	t.Run("VPG_MoveToSharedVPGWithExistingVolumes_ShouldNotAddContribution", func(tt *testing.T) {
+		originalValue := enableVolumePerformanceGroupAssignment
+		defer func() {
+			enableVolumePerformanceGroupAssignment = originalValue
+		}()
+		enableVolumePerformanceGroupAssignment = true
+
+		mockStorage := &database.MockStorage{}
+		pool := createPoolWithQosType(utils.QosTypeManual)
+		pool.Throughput = 128
+		pool.Iops = 2048
+
+		oldVPG := createVPG(1, "vpg-old", 1, 40, 700, true, false)
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(1024 * 1024 * 1024),
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+			},
+			VolumePerformanceGroupID: sql.NullInt64{Int64: 1, Valid: true},
+			VolumePerformanceGroup:   oldVPG,
+		}
+		vpgID := "vpg-shared-existing"
+		params := &common.UpdateVolumeParams{
+			VolumePerformanceGroupId: &vpgID,
+		}
+
+		newVPG := createVPG(2, vpgID, 1, 60, 900, true, false)
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, vpgID).Return(newVPG, nil)
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(2), nil) // old shared has other volumes
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(2)).Return(int64(3), nil) // target shared already counted
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("VPG_MoveToSharedVPGWithZeroVolumes_ShouldAddContribution", func(tt *testing.T) {
+		originalValue := enableVolumePerformanceGroupAssignment
+		defer func() {
+			enableVolumePerformanceGroupAssignment = originalValue
+		}()
+		enableVolumePerformanceGroupAssignment = true
+
+		mockStorage := &database.MockStorage{}
+		pool := createPoolWithQosType(utils.QosTypeManual)
+		oldVPG := createVPG(1, "vpg-old", 1, 20, 300, false, false)
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(1024 * 1024 * 1024),
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+			},
+			VolumePerformanceGroupID: sql.NullInt64{Int64: 1, Valid: true},
+			VolumePerformanceGroup:   oldVPG,
+		}
+		vpgID := "vpg-shared-empty"
+		params := &common.UpdateVolumeParams{
+			VolumePerformanceGroupId: &vpgID,
+		}
+
+		newVPG := createVPG(2, vpgID, 1, 30, 500, true, false)
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, vpgID).Return(newVPG, nil)
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(2)).Return(int64(0), nil)
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("VPG_MoveToSharedVPGWithZeroVolumes_ExceedsCapacity_ShouldFail", func(tt *testing.T) {
+		originalValue := enableVolumePerformanceGroupAssignment
+		defer func() {
+			enableVolumePerformanceGroupAssignment = originalValue
+		}()
+		enableVolumePerformanceGroupAssignment = true
+
+		mockStorage := &database.MockStorage{}
+		pool := createPoolWithQosType(utils.QosTypeManual)
+		oldVPG := createVPG(1, "vpg-old", 1, 20, 300, false, false)
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(1024 * 1024 * 1024),
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+			},
+			VolumePerformanceGroupID: sql.NullInt64{Int64: 1, Valid: true},
+			VolumePerformanceGroup:   oldVPG,
+		}
+		vpgID := "vpg-shared-empty-overlimit"
+		params := &common.UpdateVolumeParams{
+			VolumePerformanceGroupId: &vpgID,
+		}
+
+		newVPG := createVPG(2, vpgID, 1, 90, 1500, true, false)
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, vpgID).Return(newVPG, nil)
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(2)).Return(int64(0), nil)
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "throughput limit")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("VPG_MoveToSharedVPGWithExistingVolumes_AtPoolMax_ShouldPass", func(tt *testing.T) {
+		originalValue := enableVolumePerformanceGroupAssignment
+		defer func() {
+			enableVolumePerformanceGroupAssignment = originalValue
+		}()
+		enableVolumePerformanceGroupAssignment = true
+
+		mockStorage := &database.MockStorage{}
+		pool := createPoolWithQosType(utils.QosTypeManual)
+		pool.Throughput = 128
+		pool.Iops = 2048
+
+		oldVPG := createVPG(1, "vpg-old", 1, 20, 300, false, false)
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(1024 * 1024 * 1024),
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+			},
+			VolumePerformanceGroupID: sql.NullInt64{Int64: 1, Valid: true},
+			VolumePerformanceGroup:   oldVPG,
+		}
+		vpgID := "vpg-shared-existing-at-max"
+		params := &common.UpdateVolumeParams{
+			VolumePerformanceGroupId: &vpgID,
+		}
+
+		newVPG := createVPG(2, vpgID, 1, 60, 900, true, false)
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, vpgID).Return(newVPG, nil)
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(2)).Return(int64(4), nil) // already-populated shared target
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("VPG_MoveToNewVPG_GetVolumeCountFails_ShouldReturnError", func(tt *testing.T) {
+		originalValue := enableVolumePerformanceGroupAssignment
+		defer func() {
+			enableVolumePerformanceGroupAssignment = originalValue
+		}()
+		enableVolumePerformanceGroupAssignment = true
+
+		mockStorage := &database.MockStorage{}
+		pool := createPoolWithQosType(utils.QosTypeManual)
+		oldVPG := createVPG(1, "vpg-old", 1, 20, 300, false, false)
+		volume := &datamodel.Volume{
+			State:       "READY",
+			SizeInBytes: int64(1024 * 1024 * 1024),
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{UUID: "test-account-uuid", ID: 1},
+			},
+			VolumePerformanceGroupID: sql.NullInt64{Int64: 1, Valid: true},
+			VolumePerformanceGroup:   oldVPG,
+		}
+		vpgID := "vpg-shared-db-error"
+		params := &common.UpdateVolumeParams{
+			VolumePerformanceGroupId: &vpgID,
+		}
+
+		newVPG := createVPG(2, vpgID, 1, 30, 500, true, false)
+		mockStorage.On("GetVolumePerformanceGroupByUUID", ctx, vpgID).Return(newVPG, nil)
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(2)).Return(int64(0), errors2.New("database error"))
+
+		err := validateUpdateVolumeRequest(ctx, mockStorage, volume, params, pool)
+		assert.Error(tt, err)
+		assert.Equal(tt, "database error", err.Error())
+		mockStorage.AssertExpectations(tt)
+	})
+
 	t.Run("VPG_GetVolumeCountByVolumePerformanceGroupIDError_ShouldReturnError", func(tt *testing.T) {
 		originalValue := enableVolumePerformanceGroupAssignment
 		defer func() {

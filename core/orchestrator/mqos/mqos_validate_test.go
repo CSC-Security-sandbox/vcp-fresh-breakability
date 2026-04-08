@@ -599,3 +599,89 @@ func TestValidatePoolCapacityForVolume(t *testing.T) {
 		assert.Error(tt, err)
 	})
 }
+
+func TestShouldAddNewVpgContribution(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("NilVPG", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		shouldAdd, err := ShouldAddNewVpgContribution(ctx, mockStorage, nil)
+		assert.NoError(tt, err)
+		assert.False(tt, shouldAdd)
+	})
+
+	t.Run("NonSharedVPG", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			IsShared:  false,
+		}
+		shouldAdd, err := ShouldAddNewVpgContribution(ctx, mockStorage, vpg)
+		assert.NoError(tt, err)
+		assert.True(tt, shouldAdd)
+	})
+
+	t.Run("SharedVPG_WithZeroVolumes", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			IsShared:  true,
+		}
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), nil)
+
+		shouldAdd, err := ShouldAddNewVpgContribution(ctx, mockStorage, vpg)
+		assert.NoError(tt, err)
+		assert.True(tt, shouldAdd)
+	})
+
+	t.Run("SharedVPG_WithOneVolume", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			IsShared:  true,
+		}
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(1), nil)
+
+		shouldAdd, err := ShouldAddNewVpgContribution(ctx, mockStorage, vpg)
+		assert.NoError(tt, err)
+		assert.False(tt, shouldAdd)
+	})
+
+	t.Run("SharedVPG_WithMultipleVolumes", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			IsShared:  true,
+		}
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(5), nil)
+
+		shouldAdd, err := ShouldAddNewVpgContribution(ctx, mockStorage, vpg)
+		assert.NoError(tt, err)
+		assert.False(tt, shouldAdd)
+	})
+
+	t.Run("SharedVPG_ZeroID", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel: datamodel.BaseModel{ID: 0},
+			IsShared:  true,
+		}
+		shouldAdd, err := ShouldAddNewVpgContribution(ctx, mockStorage, vpg)
+		assert.NoError(tt, err)
+		assert.True(tt, shouldAdd)
+	})
+
+	t.Run("SharedVPG_DBError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		vpg := &datamodel.VolumePerformanceGroup{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			IsShared:  true,
+		}
+		mockStorage.On("GetVolumeCountByVolumePerformanceGroupID", ctx, int64(1)).Return(int64(0), errors.New("db error"))
+
+		shouldAdd, err := ShouldAddNewVpgContribution(ctx, mockStorage, vpg)
+		assert.Error(tt, err)
+		assert.Equal(tt, "db error", err.Error())
+		assert.False(tt, shouldAdd)
+	})
+}

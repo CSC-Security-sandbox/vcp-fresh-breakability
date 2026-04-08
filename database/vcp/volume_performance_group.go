@@ -18,7 +18,7 @@ func (d *DataStoreRepository) CreateVolumePerformanceGroup(ctx context.Context, 
 }
 
 // UpdateVolumePerformanceGroup updates an existing volume performance group row in the database.
-// Only updatable fields are modified: Name, ThroughputMibps, and Iops.
+// Only updatable fields are modified: Name, ThroughputMibps, Iops, OntapQosPolicyID, and IsAutoGen.
 // IsShared and PoolID cannot be updated.
 func (d *DataStoreRepository) UpdateVolumePerformanceGroup(ctx context.Context, vpg *datamodel.VolumePerformanceGroup) error {
 	return updateVolumePerformanceGroup(d.db.GORM().WithContext(ctx), ctx, vpg)
@@ -135,27 +135,26 @@ func updateVolumePerformanceGroup(db *gorm.DB, ctx context.Context, vpg *datamod
 	}
 	defer commitOrRollbackOnError(util.GetLogger(ctx), tx, &err)
 
-	// Fetch the existing VPG from the database
 	dbVPG, err := getVolumePerformanceGroupByUUID(tx, vpg.UUID)
 	if err != nil {
 		return err
 	}
 
-	// Only update allowed fields: Name, ThroughputMibps, Iops, and OntapQosPolicyID (display name in ONTAP / resource name we call qosPolicyId for VPGs—not the policy UUID—when name changes or when completing VPG creation).
-	// Do NOT update IsShared or PoolID
-	dbVPG.UpdatedAt = time.Now()
-	dbVPG.Name = vpg.Name
-	dbVPG.ThroughputMibps = vpg.ThroughputMibps
-	dbVPG.Iops = vpg.Iops
+	// Map-based update so GORM doesn't skip boolean zero-values. IsShared/PoolID are immutable.
+	updates := map[string]interface{}{
+		"updated_at":          time.Now(),
+		"name":                vpg.Name,
+		"throughput_mibps":    vpg.ThroughputMibps,
+		"iops":                vpg.Iops,
+		"is_auto_gen":         vpg.IsAutoGen,
+	}
 	if vpg.OntapQosPolicyID != "" {
-		dbVPG.OntapQosPolicyID = vpg.OntapQosPolicyID
+		updates["ontap_qos_policy_id"] = vpg.OntapQosPolicyID
 	}
 
-	if err := tx.Updates(dbVPG).Error; err != nil {
-		return err
-	}
-
-	return nil
+	target := &datamodel.VolumePerformanceGroup{BaseModel: datamodel.BaseModel{ID: dbVPG.ID}}
+	err = tx.Model(target).Updates(updates).Error
+	return err
 }
 
 func deleteVolumePerformanceGroup(db *gorm.DB, vpg *datamodel.VolumePerformanceGroup) error {

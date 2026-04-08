@@ -974,7 +974,6 @@ func (a *VolumeUpdateActivity) UpdateVolumePerformanceGroupInDBForVolume(ctx con
 			return vsaerrors.WrapAsTemporalApplicationError(err)
 		}
 
-		// Update volume's VolumePerformanceGroupID to point to the VPG's ID
 		updates["volume_performance_group_id"] = dbVPG.ID
 		logger.Info("Assigning VPG to volume", "volumeUUID", volumeUUID, "vpgUUID", vpg.UUID, "vpgID", dbVPG.ID)
 	}

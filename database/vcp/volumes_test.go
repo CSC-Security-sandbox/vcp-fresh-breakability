@@ -836,6 +836,69 @@ func TestUpdateVolumeFields(t *testing.T) {
 		assert.Equal(tt, "updated details", updated.StateDetails)
 	})
 
+	t.Run("WhenVolumePerformanceGroupIDIsUpdatedByColumnName", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err, "Failed to set up test database")
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err, "Failed to clean up test database")
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		assert.NoError(tt, store.db.Create(account).Error())
+
+		pool := &datamodel.Pool{
+			Name:    "test_pool",
+			Account: account,
+			QosType: "manual",
+		}
+		assert.NoError(tt, store.db.Create(pool).Error())
+
+		oldVPG := &datamodel.VolumePerformanceGroup{
+			BaseModel: datamodel.BaseModel{UUID: "old-vpg-uuid"},
+			Name:      "old-vpg",
+			PoolID:    pool.ID,
+			IsShared:  true,
+		}
+		assert.NoError(tt, store.db.Create(oldVPG).Error())
+
+		newVPG := &datamodel.VolumePerformanceGroup{
+			BaseModel: datamodel.BaseModel{UUID: "new-vpg-uuid"},
+			Name:      "new-vpg",
+			PoolID:    pool.ID,
+			IsShared:  true,
+		}
+		assert.NoError(tt, store.db.Create(newVPG).Error())
+
+		volume := &datamodel.Volume{
+			BaseModel:                datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:                     "test_volume",
+			AccountID:                account.ID,
+			Account:                  account,
+			Pool:                     pool,
+			PoolID:                   pool.ID,
+			State:                    "READY",
+			VolumePerformanceGroupID: sql.NullInt64{Int64: oldVPG.ID, Valid: true},
+		}
+		assert.NoError(tt, store.db.Create(volume).Error())
+
+		updates := map[string]interface{}{
+			"volume_performance_group_id": newVPG.ID,
+		}
+		err = store.UpdateVolumeFields(context.Background(), volume.UUID, updates)
+		assert.NoError(tt, err, "Expected no error updating VPG, got %v", err)
+
+		updated, err := store.GetVolume(context.Background(), volume.UUID)
+		assert.NoError(tt, err)
+		assert.True(tt, updated.VolumePerformanceGroupID.Valid, "VolumePerformanceGroupID should be valid")
+		assert.Equal(tt, newVPG.ID, updated.VolumePerformanceGroupID.Int64, "VolumePerformanceGroupID should be updated to new VPG")
+		assert.NotNil(tt, updated.VolumePerformanceGroup, "VolumePerformanceGroup should be preloaded")
+		assert.Equal(tt, "new-vpg-uuid", updated.VolumePerformanceGroup.UUID, "Preloaded VPG should have the new UUID")
+	})
+
 	t.Run("WhenVolumeIsNotFound", func(tt *testing.T) {
 		db, err := SetupTestDB()
 		assert.NoError(tt, err, "Failed to set up test database")

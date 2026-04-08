@@ -208,9 +208,19 @@ func (d *DataStoreRepository) UpdateVolumeFields(ctx context.Context, volumeUUID
 
 	updates["updated_at"] = time.Now()
 
-	err = tx.Model(&dbVolume).Updates(updates).Error
-	if err != nil {
-		return vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, err)
+	// Use a fresh model with only the primary key. Passing the fully-loaded dbVolume
+	// (which has preloaded associations) causes GORM to save association foreign keys
+	// alongside the map values, overwriting map entries like volume_performance_group_id.
+	target := &datamodel.Volume{BaseModel: datamodel.BaseModel{ID: dbVolume.ID}}
+	result := tx.Model(target).Updates(updates)
+	if result.Error != nil {
+		err = vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, result.Error)
+		return err
+	}
+	if result.RowsAffected == 0 {
+		logger.Error("UpdateVolumeFields affected 0 rows", "volumeUUID", volumeUUID, "volumeID", dbVolume.ID, "updates", updates)
+		err = vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, fmt.Errorf("no rows affected when updating volume %s (ID=%d)", volumeUUID, dbVolume.ID))
+		return err
 	}
 
 	return nil

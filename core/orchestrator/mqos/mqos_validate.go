@@ -206,3 +206,23 @@ func ShouldSubtractCurrentVpgContribution(ctx context.Context, se database.Stora
 	}
 	return volumesInCurrentVPG <= 1, nil
 }
+
+// ShouldAddNewVpgContribution reports whether the target VPG's contribution should
+// be added to pool totals when assigning/reassigning a volume.
+// For shared VPGs, only the first member should add contribution.
+func ShouldAddNewVpgContribution(ctx context.Context, se database.Storage, vpg *datamodel.VolumePerformanceGroup) (bool, error) {
+	if vpg == nil {
+		return false, nil
+	}
+	if !vpg.IsShared {
+		return true, nil
+	}
+	if vpg.ID == 0 {
+		return true, nil
+	}
+	volumesInTargetVPG, err := se.GetVolumeCountByVolumePerformanceGroupID(ctx, vpg.ID)
+	if err != nil {
+		return false, err
+	}
+	return volumesInTargetVPG == 0, nil
+}

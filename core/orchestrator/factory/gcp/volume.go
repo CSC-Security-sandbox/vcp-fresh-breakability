@@ -2888,6 +2888,10 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 		if vpg.PoolID != pool.ID {
 			return customerrors.NewUserInputValidationErr(fmt.Sprintf("VolumePerformanceGroup %s does not belong to the same pool as the volume", vpg.UUID))
 		}
+		if volume.VolumePerformanceGroupID.Valid && volume.VolumePerformanceGroup != nil &&
+			vpg.UUID == volume.VolumePerformanceGroup.UUID {
+			return nil
+		}
 
 		poolThroughputAfterUpdate := int(pool.Throughput)
 		poolIopsAfterUpdate := int(pool.Iops)
@@ -2908,8 +2912,15 @@ func validateUpdateVolumeRequest(ctx context.Context, se database.Storage, volum
 			}
 			// TODO: When updating enableVPGAssignment flag, use create volume utilities to calculate the pool throughput and iops after assignment.
 		}
-		poolThroughputAfterUpdate = poolThroughputAfterUpdate + int(vpg.ThroughputMibps)
-		poolIopsAfterUpdate = poolIopsAfterUpdate + int(vpg.Iops)
+		shouldAdd, err := mqos.ShouldAddNewVpgContribution(ctx, se, vpg)
+		if err != nil {
+			log.Error("Failed to evaluate new VPG contribution for validation", "vpgID", vpg.ID, "error", err)
+			return err
+		}
+		if shouldAdd {
+			poolThroughputAfterUpdate = poolThroughputAfterUpdate + int(vpg.ThroughputMibps)
+			poolIopsAfterUpdate = poolIopsAfterUpdate + int(vpg.Iops)
+		}
 
 		if err := assertQosLimits(pool, poolThroughputAfterUpdate, poolIopsAfterUpdate); err != nil {
 			return err
