@@ -49,7 +49,7 @@ spec:
               {{- if include "temporal.cloudSqlIamAuthEnabled" (list $) | toString | eq "true" }}
               # Wait for cloud-sql-proxy to be ready (accepting connections on 5432)
               echo "Waiting for cloud-sql-proxy to be ready..."
-              until nc -z localhost 5432 2>/dev/null; do
+              until timeout 5 bash -c 'exec 3<>/dev/tcp/127.0.0.1/5432' 2>/dev/null; do
                 echo "Waiting for cloud-sql-proxy..."
                 sleep 2
               done
