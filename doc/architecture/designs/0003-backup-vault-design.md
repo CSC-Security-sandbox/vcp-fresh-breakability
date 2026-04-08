@@ -734,6 +734,12 @@ Based on the code analysis, the following indexes are defined:
 
 When **backup vault switching** is enabled (`ENABLE_BACKUP_VAULT_SWITCHING`), a volume can have backups in **multiple vaults** (multiple endpoints). Chain bytes (logical backup size) are handled as follows.
 
+### GCNV vault switch when the volume has no backups
+
+Volume update uses **`GetDistinctBackupVaultIDsByVolumeUUID`** (the same volume-wide “any vault with available backups” signal as detach). If that list is **empty**, **same-account GCNV→GCNV** backup vault switch is allowed without requiring GCBDR vaults. If the volume **has** any available backups (in any vault), changing the attached vault remains **GCBDR-only**, preserving multi-endpoint chain-byte semantics.
+
+**GCNV API parity:** Workloads that call the **GCNV REST API** directly must enforce the same rule on the service side; VCP-only changes do not alter direct API behavior. Coordinate with the GCNV surface if integration tests hit Google’s API and still return 400.
+
 ### Where Chain Bytes Are Stored
 
 | Location | What is stored |
