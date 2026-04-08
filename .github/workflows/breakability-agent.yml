@@ -105,7 +105,7 @@ jobs:
 
           # Split into batches
           # bash 3.2 compatible (no mapfile on macOS)
-          i=0; while IFS= read -r line; do ALL_PRS[i]="$line"; ((i++)); done <<< "$PR_NUMS"
+          i=0; while IFS= read -r line; do ALL_PRS[$i]="$line"; i=$((i+1)); done <<< "$PR_NUMS"
           PER_BATCH=$(( (TOTAL + BATCH_COUNT - 1) / BATCH_COUNT ))
 
           MATRIX_JSON='{"include":['
