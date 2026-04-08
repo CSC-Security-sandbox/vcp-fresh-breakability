@@ -76,14 +76,23 @@ func NewClient(getToken func(context.Context) (string, error), opts ...ClientOpt
 // ListStoragePools returns pool resource names (last segment of name path) for the given project and location.
 // Location is typically a region (e.g. us-central1) or zone. Returns nil slice and nil error if base URL is empty (CCFE disabled).
 func (c *Client) ListStoragePools(ctx context.Context, projectID, location string) ([]string, error) {
+	logger := util.GetLogger(ctx)
+	relPath := fmt.Sprintf(listStoragePoolsPath, projectID, location)
+
 	if c.baseURL == "" {
+		logger.Infof("leaked resources CCFE: ListStoragePools skipped (GCP_HYDRATE_BASE_URL empty) project=%s location=%s path=%s",
+			projectID, location, relPath)
 		return nil, nil
 	}
+
+	logger.Infof("leaked resources CCFE: ListStoragePools request project=%s location=%s path=%s", projectID, location, relPath)
+
 	token, err := c.getToken(ctx)
 	if err != nil {
+		logger.Warnf("leaked resources CCFE: ListStoragePools token error project=%s location=%s: %v", projectID, location, err)
 		return nil, fmt.Errorf("get token: %w", err)
 	}
-	url := c.baseURL + fmt.Sprintf(listStoragePoolsPath, projectID, location)
+	url := c.baseURL + relPath
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
@@ -93,6 +102,7 @@ func (c *Client) ListStoragePools(ctx context.Context, projectID, location strin
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		logger.Warnf("leaked resources CCFE: ListStoragePools HTTP error project=%s location=%s: %v", projectID, location, err)
 		return nil, fmt.Errorf("do request: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -102,7 +112,7 @@ func (c *Client) ListStoragePools(ctx context.Context, projectID, location strin
 		return nil, fmt.Errorf("read response: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		util.GetLogger(ctx).Warnf("CCFE list storage pools returned status %d for project=%s location=%s", resp.StatusCode, projectID, location)
+		logger.Warnf("leaked resources CCFE: ListStoragePools non-OK status=%d project=%s location=%s", resp.StatusCode, projectID, location)
 		return nil, fmt.Errorf("ccfe list storage pools: status %d", resp.StatusCode)
 	}
 
@@ -117,6 +127,7 @@ func (c *Client) ListStoragePools(ctx context.Context, projectID, location strin
 			names = append(names, resourceName)
 		}
 	}
+	logger.Infof("leaked resources CCFE: ListStoragePools ok project=%s location=%s pool_count=%d", projectID, location, len(names))
 	return names, nil
 }
 

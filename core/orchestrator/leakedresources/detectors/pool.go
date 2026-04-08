@@ -87,6 +87,13 @@ func (d *PoolDetector) Detect(ctx context.Context, storage database.Storage) ([]
 		groups[key] = append(groups[key], p)
 	}
 
+	logger.Infof("leaked resources pool detector: starting CCFE compare (caller=PoolDetector.Detect vcp_pool_rows=%d groups=%d)",
+		len(pools), len(groups))
+	if len(groups) == 0 {
+		logger.Infof("leaked resources pool detector: no (project,location) groups after filtering; skipping CCFE (all pools missing account/attributes/zone or invalid zone)")
+		return records, nil
+	}
+
 	for key, vcpPools := range groups {
 		// Build set of VCP pool resource names for this (project, location).
 		vcpNames := make(map[string]*datamodel.PoolView)
@@ -96,8 +103,12 @@ func (d *PoolDetector) Detect(ctx context.Context, storage database.Storage) ([]
 			}
 		}
 
+		logger.Infof("leaked resources pool detector: calling CCFE client ListStoragePools project=%s location=%s vcp_named_pools_in_group=%d",
+			key.projectID, key.location, len(vcpNames))
+
 		// Fetch CCFE pool list for this (project, location). Location is region or zone; CCFE list uses same path.
 		// If CCFE is disabled (nil) or errors, skip comparison.
+		recordsBefore := len(records)
 		ccfeNames, err := d.ccfe.ListStoragePools(ctx, key.projectID, key.location)
 		if err != nil {
 			logger.Warnf("pool detector: CCFE list failed for project=%s location=%s: %v", key.projectID, key.location, err)
@@ -105,6 +116,8 @@ func (d *PoolDetector) Detect(ctx context.Context, storage database.Storage) ([]
 		}
 		if ccfeNames == nil {
 			// CCFE disabled (e.g. GCP_HYDRATE_BASE_URL empty); skip this pair to avoid false in_vcp_not_in_ccfe.
+			logger.Infof("leaked resources pool detector: CCFE ListStoragePools returned nil slice (CCFE disabled); skipping VCP vs CCFE diff for project=%s location=%s",
+				key.projectID, key.location)
 			continue
 		}
 		ccfeSet := make(map[string]struct{})
@@ -139,6 +152,10 @@ func (d *PoolDetector) Detect(ctx context.Context, storage database.Storage) ([]
 				})
 			}
 		}
+
+		leaksThisGroup := len(records) - recordsBefore
+		logger.Infof("leaked resources pool detector: finished group project=%s location=%s ccfe_pool_names=%d leaks_added=%d",
+			key.projectID, key.location, len(ccfeNames), leaksThisGroup)
 	}
 
 	return records, nil
