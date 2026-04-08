@@ -24,12 +24,10 @@ import (
 )
 
 var (
-	jsonUnmarshal                           = json.Unmarshal
-	convertLabelsMapToJSONB                 = utils.ConvertLabelsMapToJSONB
-	_convertToBackupVaultDataModel          = activities.ConvertToBackupVaultDataModel
-	convertInternalBackupVaultToDataModel   = _convertInternalBackupVaultToDataModel
-	remoteBackupVaultHydrationNameMaxLength = 63
-	remoteBackupVaultHydrationNamePrefix    = "-destination-"
+	jsonUnmarshal                         = json.Unmarshal
+	convertLabelsMapToJSONB               = utils.ConvertLabelsMapToJSONB
+	_convertToBackupVaultDataModel        = activities.ConvertToBackupVaultDataModel
+	convertInternalBackupVaultToDataModel = _convertInternalBackupVaultToDataModel
 )
 
 func (h Handler) V1betaInternalDescribePool(ctx context.Context, params gcpgenserver.V1betaInternalDescribePoolParams) (gcpgenserver.V1betaInternalDescribePoolRes, error) {
@@ -683,7 +681,7 @@ func (h Handler) V1betaInternalCreateBackupVault(ctx context.Context, req *gcpge
 	backupVault := convertInternalBackupVaultToDataModel(req)
 	if env.UseVCPRegion {
 		backupVault.UUID = utils.RandomUUID()
-		backupVault.Name = ConvertSourceBackupVaultNameToRemoteBackupVaultName(req.ResourceId, req.BackupVaultId)
+		backupVault.Name = utils.ConvertSourceBackupVaultNameToRemoteBackupVaultName(req.ResourceId, req.BackupVaultId)
 		backupVault.CrossRegionBackupVaultName = nillable.ToPointer(
 			fmt.Sprintf("projects/%s/locations/%s/backupVaults/%s", params.ProjectNumber, req.SourceRegion.Value, req.ResourceId))
 	} else {
@@ -1510,9 +1508,4 @@ func (h Handler) V1betaInternalDeleteBackupUnderBackupVault(ctx context.Context,
 		Name: gcpgenserver.NewOptString(operationID),
 		Done: gcpgenserver.NewOptBool(false),
 	}, nil
-}
-
-// ConvertSourceBackupVaultNameToRemoteBackupVaultName converts source backup vault name to remote backup vault name
-func ConvertSourceBackupVaultNameToRemoteBackupVaultName(sourceBackupVaultName, backupVaultUUID string) string {
-	return sourceBackupVaultName[:min(len(sourceBackupVaultName), remoteBackupVaultHydrationNameMaxLength-len(remoteBackupVaultHydrationNamePrefix)-4)] + remoteBackupVaultHydrationNamePrefix + strings.Split(backupVaultUUID, "-")[0][:4]
 }

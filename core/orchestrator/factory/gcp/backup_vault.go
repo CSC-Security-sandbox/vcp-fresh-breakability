@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -428,6 +430,26 @@ func _convertDatastoreBackupVaultToModel(bv *datamodel.BackupVault) *models.Back
 		res.EncryptionState = bv.CmekAttributes.EncryptionState
 		res.BackupsPrimaryKeyVersion = bv.CmekAttributes.BackupsPrimaryKeyVersion
 	}
+	if bv.BackupVaultType == CrossRegionBackupType && bv.CrossRegionBackupVaultName != nil {
+		// Extract cross-region backup vault region from its name to determine whether it is the source or destination vault
+		// Source region stores cross-region backup vault name of the destination vault, and destination region stores cross-region backup vault name of the source vault
+		// Cross-region backup vault name format: projects/{project}/locations/{location}/backupVaults/{backupVault}
+		components := strings.Split(*bv.CrossRegionBackupVaultName, "/")
+		if len(components) == 6 {
+			region := components[3]
+			if res.SourceRegion != nil && res.BackupRegion != nil && region == *res.BackupRegion {
+				// If cross-region backup vault region is the same as backup region, then the current backup vault is the source vault and the cross-region backup vault is the destination vault
+				res.SourceBackupVault = nillable.GetStringPtr(
+					fmt.Sprintf("projects/%s/locations/%s/backupVaults/%s", bv.Account.Name, *bv.SourceRegionName, bv.Name))
+				res.DestinationBackupVault = bv.CrossRegionBackupVaultName
+			} else if res.SourceRegion != nil && res.BackupRegion != nil && region == *res.SourceRegion {
+				// If cross-region backup vault region is different from backup region, then the current backup vault is the destination vault and the cross-region backup vault is the source vault
+				res.SourceBackupVault = bv.CrossRegionBackupVaultName
+				res.DestinationBackupVault = nillable.GetStringPtr(
+					fmt.Sprintf("projects/%s/locations/%s/backupVaults/%s", bv.Account.Name, *bv.BackupRegionName, bv.Name))
+			}
+		}
+	}
 	return res
 }
 
@@ -626,6 +648,12 @@ func buildBackupVaultFromCreateParams(params *commonparams.CreateBackupVaultPara
 		if params.BackupsPrimaryKeyVersion != nil {
 			bv.CmekAttributes.BackupsPrimaryKeyVersion = params.BackupsPrimaryKeyVersion
 		}
+		bv.CmekAttributes.EncryptionState = nillable.GetStringPtr(models.EncryptionStateCompleted)
+	}
+	if backupVaultType == CrossRegionBackupType {
+		bv.CrossRegionBackupVaultName = nillable.GetStringPtr(
+			fmt.Sprintf("projects/%s/locations/%s/backupVaults/%s",
+				params.ProjectNumber, *params.BackupRegion, utils.ConvertSourceBackupVaultNameToRemoteBackupVaultName(bv.Name, bv.UUID)))
 	}
 	if params.TenantProject != nil {
 		bv.ServiceType = models.ServiceTypeCrossProject

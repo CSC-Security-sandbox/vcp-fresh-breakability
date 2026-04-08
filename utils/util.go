@@ -115,7 +115,9 @@ var (
 	enableKerberos                         = env.GetBool("ENABLE_KERBEROS", false)
 	EnableJobResourceUUIDIndex             = env.GetBool("ENABLE_JOB_RESOURCE_UUID_INDEX", false)
 	// TODO: Remove FORCE_VCP_KMS_PATH_FOR_TESTING once CMEK VPC-SC testing is complete.
-	ForceVCPKMSPathForTesting = env.GetBool("FORCE_VCP_KMS_PATH_FOR_TESTING", false)
+	ForceVCPKMSPathForTesting               = env.GetBool("FORCE_VCP_KMS_PATH_FOR_TESTING", false)
+	remoteBackupVaultHydrationNameMaxLength = 63
+	remoteBackupVaultHydrationNamePrefix    = "-destination-"
 
 	// Will match ONTAP version strings like "9.7.1", "9.8.2P3", "10.1.0", "10.3.1P2", etc.
 	ontapVersionRegex = regexp.MustCompile(`\d+\.\d+\.\d+(?:P\d+)?`)
@@ -1589,4 +1591,9 @@ func ConvertJSONBToMap(jsonb *datamodel.JSONB) map[string]string {
 		}
 	}
 	return result
+}
+
+// ConvertSourceBackupVaultNameToRemoteBackupVaultName converts source backup vault name to remote backup vault name
+func ConvertSourceBackupVaultNameToRemoteBackupVaultName(sourceBackupVaultName, backupVaultUUID string) string {
+	return sourceBackupVaultName[:min(len(sourceBackupVaultName), remoteBackupVaultHydrationNameMaxLength-len(remoteBackupVaultHydrationNamePrefix)-4)] + remoteBackupVaultHydrationNamePrefix + strings.Split(backupVaultUUID, "-")[0][:4]
 }

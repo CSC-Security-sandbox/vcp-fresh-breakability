@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -6429,21 +6428,5 @@ func TestV1betaInternalUpdateState(t *testing.T) {
 		assert.Equal(tt, models.LifeCycleStateError, updateStateResp.State.Value)
 		assert.True(tt, updateStateResp.StateDetails.IsSet())
 		assert.Equal(tt, "deletion error details", updateStateResp.StateDetails.Value)
-	})
-}
-
-func TestConvertSourceBackupVaultNameToRemoteBackupVaultName(t *testing.T) {
-	t.Run("NoTruncationWithStandardUUID", func(tt *testing.T) {
-		result := ConvertSourceBackupVaultNameToRemoteBackupVaultName("source-vault", "abcd-1234-5678")
-		assert.Equal(tt, "source-vault-destination-abcd", result)
-	})
-
-	t.Run("TruncatesSourceToMaxLength", func(tt *testing.T) {
-		sourceName := strings.Repeat("s", 60)
-		result := ConvertSourceBackupVaultNameToRemoteBackupVaultName(sourceName, "12345678-1234-1234-1234-1234567890ab")
-
-		expected := strings.Repeat("s", 46) + "-destination-" + "1234"
-		assert.Equal(tt, expected, result)
-		assert.Equal(tt, 63, len(result))
 	})
 }

@@ -3,6 +3,7 @@ package gcp
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -199,6 +200,67 @@ func TestCheck(t *testing.T) {
 			tt.Errorf("Expected IsDailyBackupImmutable %v, got %v", bv.ImmutableAttributes.IsDailyBackupImmutable, result.BackupRetentionPolicy.IsDailyBackupImmutable)
 		}
 	})
+}
+
+func Test_convertDatastoreBackupVaultToModel_CrossRegionSourceVaultWhenCRLocationMatchesBackupRegion(t *testing.T) {
+	backupRegion := "us-central1"
+	sourceRegion := "us-east1"
+	accountName := "my-gcp-project"
+	vaultName := "source-vault"
+	crossRegionVaultName := fmt.Sprintf("projects/%s/locations/%s/backupVaults/destination-vault", accountName, backupRegion)
+
+	bv := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{
+			ID:   42,
+			UUID: "bv-uuid",
+		},
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "owner-uuid"},
+			Name:      accountName,
+		},
+		Name:                       vaultName,
+		BackupVaultType:            CrossRegionBackupType,
+		BackupRegionName:           &backupRegion,
+		SourceRegionName:           &sourceRegion,
+		CrossRegionBackupVaultName: &crossRegionVaultName,
+	}
+
+	result := _convertDatastoreBackupVaultToModel(bv)
+
+	assert.Equal(t, fmt.Sprintf("projects/%s/locations/%s/backupVaults/%s", accountName, sourceRegion, vaultName), *result.SourceBackupVault)
+	assert.Equal(t, crossRegionVaultName, *result.DestinationBackupVault)
+}
+
+// When the cross-region vault resource location matches SourceRegion (and not BackupRegion), the current vault is the
+// destination: SourceBackupVault is the peer resource name; DestinationBackupVault is the local backup-region path.
+func Test_convertDatastoreBackupVaultToModel_CrossRegionDestinationVaultWhenCRLocationMatchesSourceRegion(t *testing.T) {
+	backupRegion := "us-central1"
+	sourceRegion := "us-east1"
+	accountName := "my-gcp-project"
+	vaultName := "destination-vault"
+	// Peer vault lives in source region; path location[3] must equal SourceRegion and differ from BackupRegion.
+	crossRegionVaultName := fmt.Sprintf("projects/%s/locations/%s/backupVaults/source-vault-peer", accountName, sourceRegion)
+
+	bv := &datamodel.BackupVault{
+		BaseModel: datamodel.BaseModel{
+			ID:   43,
+			UUID: "bv-uuid-dest",
+		},
+		Account: &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "owner-uuid"},
+			Name:      accountName,
+		},
+		Name:                       vaultName,
+		BackupVaultType:            CrossRegionBackupType,
+		BackupRegionName:           &backupRegion,
+		SourceRegionName:           &sourceRegion,
+		CrossRegionBackupVaultName: &crossRegionVaultName,
+	}
+
+	result := _convertDatastoreBackupVaultToModel(bv)
+
+	assert.Equal(t, crossRegionVaultName, *result.SourceBackupVault)
+	assert.Equal(t, fmt.Sprintf("projects/%s/locations/%s/backupVaults/%s", accountName, backupRegion, vaultName), *result.DestinationBackupVault)
 }
 
 func TestGetBackupVaultByNameAndOwnerIDReturnsBackupVault(tt *testing.T) {
@@ -2385,14 +2447,16 @@ func TestCreateBackupVault(t *testing.T) {
 		}
 
 		backupRegion := "us-west1"
+		crossRegionBackupVaultName := fmt.Sprintf("projects/%s/locations/%s/backupVaults/%s", account.Name, "us-east4", "bv-cross-success-destination")
 		created := &datamodel.BackupVault{
-			BaseModel:        datamodel.BaseModel{ID: 13, UUID: "vault-cross-success-uuid"},
-			Name:             "bv-cross-success",
-			AccountID:        account.ID,
-			Account:          account,
-			RegionName:       "us-east4",
-			BackupRegionName: &backupRegion,
-			BackupVaultType:  CrossRegionBackupType,
+			BaseModel:                  datamodel.BaseModel{ID: 13, UUID: "vault-cross-success-uuid"},
+			Name:                       "bv-cross-success",
+			AccountID:                  account.ID,
+			Account:                    account,
+			RegionName:                 "us-east4",
+			BackupRegionName:           &backupRegion,
+			BackupVaultType:            CrossRegionBackupType,
+			CrossRegionBackupVaultName: &crossRegionBackupVaultName,
 		}
 
 		mockStorage.On("CreateBackupVaultEntryInVCP", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(created, nil)
