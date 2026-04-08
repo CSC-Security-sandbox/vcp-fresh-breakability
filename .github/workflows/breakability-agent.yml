@@ -136,7 +136,7 @@ jobs:
     if: ${{ inputs.skip_deterministic != true }}
     needs: discover
     runs-on: ${{ inputs.runner == 'self-hosted' && 'self-hosted' || 'ubuntu-latest' }}
-    timeout-minutes: 60
+    timeout-minutes: 180
     strategy:
       matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
       fail-fast: false
