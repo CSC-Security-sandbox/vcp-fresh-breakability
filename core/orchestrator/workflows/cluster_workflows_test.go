@@ -2612,6 +2612,536 @@ func TestUpgradePhase_ClusterUpgradeError(t *testing.T) {
 	mockVlm.AssertExpectations(t)
 }
 
+// TestUpgradePhase_LargePool_Success exercises upgradePhase large-capacity path:
+// CalculateBatchPlanForUpdate activity plus batched UpgradeVSAClusterDeploymentWorkflow calls.
+func TestUpgradePhase_LargePool_Success(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockVlm := &vlm.MockVlmWorkflowClient{}
+	poolActivity := &activities.PoolActivity{}
+	commonActivity := &activities.CommonActivities{}
+	env.RegisterActivity(poolActivity.UpdatePoolFields)
+	env.RegisterActivity(poolActivity.CalculateBatchPlanForUpdate)
+	env.RegisterActivity(poolActivity.GetOntapVersion)
+	env.RegisterActivity(commonActivity.GenerateVSASignedURLActivity)
+	env.RegisterActivity(commonActivity.GetNode)
+
+	ontapVersion := "9.17.1"
+	env.OnActivity(poolActivity.UpdatePoolFields, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	env.OnActivity(poolActivity.CalculateBatchPlanForUpdate, mock.Anything, mock.Anything).Return(&activities.CalculateBatchPlanActivityOutput{
+		NumHAPairs:       2,
+		BatchSize:        2,
+		NumWorkflowCalls: 1,
+		BatchIndices:     [][]int{{1, 2}},
+	}, nil)
+	env.OnActivity(commonActivity.GenerateVSASignedURLActivity, mock.Anything, mock.Anything).Return("https://signed-url.example.com", nil)
+	env.OnActivity(commonActivity.GetNode, mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+	env.OnActivity(poolActivity.GetOntapVersion, mock.Anything, mock.Anything).Return(&ontapVersion, nil)
+
+	mockVlm.On("UpgradeVSAClusterDeploymentWorkflow", mock.Anything, mock.MatchedBy(func(req *vlm.UpdateVSAClusterDeploymentRequest) bool {
+		return req != nil && len(req.HAPairIndices) == 2 && req.HAPairIndices[0] == 1 && req.HAPairIndices[1] == 2
+	})).Return(&vlm.UpgradeVSAClusterDeploymentResponse{
+		VLMConfig:    vlm.VLMConfig{},
+		OntapVersion: "9.17.1",
+	}, nil)
+
+	testWorkflow := func(ctx workflow.Context) error {
+		ao := workflow.ActivityOptions{
+			StartToCloseTimeout: 30 * time.Second,
+			RetryPolicy: &temporal.RetryPolicy{
+				MaximumAttempts:        1,
+				NonRetryableErrorTypes: []string{"PanicError"},
+			},
+		}
+		ctx = workflow.WithActivityOptions(ctx, ao)
+
+		wf := &clusterUpgradeWorkflow{
+			BaseWorkflow: BaseWorkflow{
+				Logger: util.GetLogger(ctx),
+			},
+		}
+
+		upgradeContext := &UpgradeContext{
+			Params: &ClusterUpgradeWorkflowParams{
+				JobID:             "test-job",
+				ClusterID:         "test-cluster",
+				TargetVersion:     "9.17.1",
+				MediatorImageName: "mediator-image",
+				VSAImageName:      "vsa-image",
+				VSAImagePath:      "test-image.tgz",
+			},
+			NeedsMediatorUpgrade: false,
+			NeedsVSAUpgrade:      true,
+			Pool: &datamodel.Pool{
+				BaseModel: datamodel.BaseModel{
+					UUID: "test-pool-uuid",
+					ID:   1,
+				},
+				LargeCapacity: true,
+				BuildInfo: &datamodel.PoolBuildInfo{
+					MediatorBuildImage: "existing-mediator",
+					VSABuildImage:      "existing-vsa-image",
+				},
+				PoolCredentials: &datamodel.PoolCredentials{
+					Password:      "password",
+					SecretID:      "secret-id",
+					CertificateID: "cert-id",
+					AuthType:      1,
+				},
+				DeploymentName: "test-deployment",
+			},
+			CurrentVlmConfig: &vlm.VLMConfig{
+				Deployment: vlm.DeploymentConfig{
+					NumHAPair: 2,
+				},
+			},
+			Credentials: &vlm.OntapCredentials{
+				AdminPassword: "password",
+			},
+			VlmClient: mockVlm,
+		}
+
+		result, customErr := wf.upgradePhase(ctx, upgradeContext)
+		if customErr != nil {
+			return customErr
+		}
+		if !result.Success {
+			return errors.New("upgrade failed")
+		}
+		return nil
+	}
+
+	env.ExecuteWorkflow(testWorkflow)
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	mockVlm.AssertExpectations(t)
+}
+
+func TestUpgradePhase_LargePool_CalculateBatchPlanError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockVlm := &vlm.MockVlmWorkflowClient{}
+	poolActivity := &activities.PoolActivity{}
+	env.RegisterActivity(poolActivity.CalculateBatchPlanForUpdate)
+
+	env.OnActivity(poolActivity.CalculateBatchPlanForUpdate, mock.Anything, mock.Anything).
+		Return((*activities.CalculateBatchPlanActivityOutput)(nil), errors.New("calculate batch plan failed"))
+
+	testWorkflow := func(ctx workflow.Context) error {
+		ao := workflow.ActivityOptions{
+			StartToCloseTimeout: 30 * time.Second,
+			RetryPolicy: &temporal.RetryPolicy{
+				MaximumAttempts:        1,
+				NonRetryableErrorTypes: []string{"PanicError"},
+			},
+		}
+		ctx = workflow.WithActivityOptions(ctx, ao)
+
+		wf := &clusterUpgradeWorkflow{
+			BaseWorkflow: BaseWorkflow{Logger: util.GetLogger(ctx)},
+		}
+
+		upgradeContext := &UpgradeContext{
+			Params: &ClusterUpgradeWorkflowParams{
+				JobID:         "test-job",
+				ClusterID:     "test-cluster",
+				TargetVersion: "9.17.1",
+				VSAImagePath:  "test-image.tgz",
+			},
+			NeedsMediatorUpgrade: false,
+			NeedsVSAUpgrade:      true,
+			Pool:                 &datamodel.Pool{LargeCapacity: true},
+			CurrentVlmConfig: &vlm.VLMConfig{
+				Deployment: vlm.DeploymentConfig{NumHAPair: 2},
+			},
+			Credentials: &vlm.OntapCredentials{AdminPassword: "password"},
+			VlmClient:   mockVlm,
+		}
+
+		_, customErr := wf.upgradePhase(ctx, upgradeContext)
+		return customErr
+	}
+
+	env.ExecuteWorkflow(testWorkflow)
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+}
+
+func TestUpgradePhase_LargePool_BatchUpgradeError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockVlm := &vlm.MockVlmWorkflowClient{}
+	poolActivity := &activities.PoolActivity{}
+	commonActivity := &activities.CommonActivities{}
+	env.RegisterActivity(poolActivity.CalculateBatchPlanForUpdate)
+	env.RegisterActivity(commonActivity.GenerateVSASignedURLActivity)
+
+	env.OnActivity(poolActivity.CalculateBatchPlanForUpdate, mock.Anything, mock.Anything).Return(&activities.CalculateBatchPlanActivityOutput{
+		NumHAPairs:       2,
+		BatchSize:        2,
+		NumWorkflowCalls: 1,
+		BatchIndices:     [][]int{{1, 2}},
+	}, nil)
+	env.OnActivity(commonActivity.GenerateVSASignedURLActivity, mock.Anything, mock.Anything).Return("https://signed-url.example.com", nil)
+	mockVlm.On("UpgradeVSAClusterDeploymentWorkflow", mock.Anything, mock.Anything).
+		Return((*vlm.UpgradeVSAClusterDeploymentResponse)(nil), assert.AnError)
+
+	testWorkflow := func(ctx workflow.Context) error {
+		ao := workflow.ActivityOptions{
+			StartToCloseTimeout: 30 * time.Second,
+			RetryPolicy: &temporal.RetryPolicy{
+				MaximumAttempts:        1,
+				NonRetryableErrorTypes: []string{"PanicError"},
+			},
+		}
+		ctx = workflow.WithActivityOptions(ctx, ao)
+
+		wf := &clusterUpgradeWorkflow{
+			BaseWorkflow: BaseWorkflow{Logger: util.GetLogger(ctx)},
+		}
+
+		upgradeContext := &UpgradeContext{
+			Params: &ClusterUpgradeWorkflowParams{
+				JobID:         "test-job",
+				ClusterID:     "test-cluster",
+				TargetVersion: "9.17.1",
+				VSAImagePath:  "test-image.tgz",
+			},
+			NeedsMediatorUpgrade: false,
+			NeedsVSAUpgrade:      true,
+			Pool:                 &datamodel.Pool{LargeCapacity: true},
+			CurrentVlmConfig:     &vlm.VLMConfig{},
+			Credentials:          &vlm.OntapCredentials{AdminPassword: "password"},
+			VlmClient:            mockVlm,
+		}
+
+		_, customErr := wf.upgradePhase(ctx, upgradeContext)
+		return customErr
+	}
+
+	env.ExecuteWorkflow(testWorkflow)
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	mockVlm.AssertExpectations(t)
+}
+
+// TestUpgradePhase_StandardPool_PrepareClusterUpgradeRequestError covers prepareClusterUpgradeRequestActivity
+// failure (signed URL generation) on the non-large-pool path.
+func TestUpgradePhase_StandardPool_PrepareClusterUpgradeRequestError(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockVlm := &vlm.MockVlmWorkflowClient{}
+	commonActivity := &activities.CommonActivities{}
+	env.RegisterActivity(commonActivity.GenerateVSASignedURLActivity)
+	env.OnActivity(commonActivity.GenerateVSASignedURLActivity, mock.Anything, mock.Anything).Return("", assert.AnError)
+
+	testWorkflow := func(ctx workflow.Context) error {
+		ao := workflow.ActivityOptions{
+			StartToCloseTimeout: 30 * time.Second,
+			RetryPolicy: &temporal.RetryPolicy{
+				MaximumAttempts:        1,
+				NonRetryableErrorTypes: []string{"PanicError"},
+			},
+		}
+		ctx = workflow.WithActivityOptions(ctx, ao)
+
+		wf := &clusterUpgradeWorkflow{
+			BaseWorkflow: BaseWorkflow{Logger: util.GetLogger(ctx)},
+		}
+
+		upgradeContext := &UpgradeContext{
+			Params: &ClusterUpgradeWorkflowParams{
+				JobID:             "test-job",
+				ClusterID:         "test-cluster",
+				TargetVersion:     "9.17.1",
+				MediatorImageName: "mediator-image",
+				VSAImageName:      "vsa-image",
+				VSAImagePath:      "test-image.tgz",
+			},
+			NeedsMediatorUpgrade: false,
+			NeedsVSAUpgrade:      true,
+			CurrentVlmConfig:     &vlm.VLMConfig{},
+			Credentials:          &vlm.OntapCredentials{AdminPassword: "password"},
+			Pool:                 &datamodel.Pool{},
+			VlmClient:            mockVlm,
+		}
+
+		_, customErr := wf.upgradePhase(ctx, upgradeContext)
+		return customErr
+	}
+
+	env.ExecuteWorkflow(testWorkflow)
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+}
+
+func TestGetUpgradeStartToCloseTimeout(t *testing.T) {
+	origStandard := StartToCloseTimeoutUpgrade
+	origLarge := StartToCloseTimeoutUpgradeLV
+	StartToCloseTimeoutUpgrade = "300m-standard-test"
+	StartToCloseTimeoutUpgradeLV = "450m-large-test"
+	defer func() {
+		StartToCloseTimeoutUpgrade = origStandard
+		StartToCloseTimeoutUpgradeLV = origLarge
+	}()
+
+	t.Run("nil pool uses standard timeout", func(t *testing.T) {
+		got := getUpgradeStartToCloseTimeout(nil)
+		assert.Equal(t, "300m-standard-test", got)
+	})
+
+	t.Run("standard pool uses standard timeout", func(t *testing.T) {
+		got := getUpgradeStartToCloseTimeout(&datamodel.Pool{LargeCapacity: false})
+		assert.Equal(t, "300m-standard-test", got)
+	})
+
+	t.Run("large pool uses LV timeout", func(t *testing.T) {
+		got := getUpgradeStartToCloseTimeout(&datamodel.Pool{LargeCapacity: true})
+		assert.Equal(t, "450m-large-test", got)
+	})
+}
+
+func TestExecuteClusterUpgradeBatchUpdates_LargePool(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockVlm := &vlm.MockVlmWorkflowClient{}
+	commonActivity := &activities.CommonActivities{}
+	env.RegisterActivity(commonActivity.GenerateVSASignedURLActivity)
+	env.OnActivity(commonActivity.GenerateVSASignedURLActivity, mock.Anything, mock.Anything).Return("https://signed-url.example.com", nil)
+
+	// First batch must use indices [1,2] and initial VLM config.
+	mockVlm.On("UpgradeVSAClusterDeploymentWorkflow", mock.Anything, mock.MatchedBy(func(req *vlm.UpdateVSAClusterDeploymentRequest) bool {
+		return req != nil &&
+			len(req.HAPairIndices) == 2 &&
+			req.HAPairIndices[0] == 1 &&
+			req.HAPairIndices[1] == 2 &&
+			req.VLMConfig.Deployment.DeploymentID == "dep-initial"
+	})).Return(&vlm.UpgradeVSAClusterDeploymentResponse{
+		VLMConfig: vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				DeploymentID: "dep-after-batch-1",
+			},
+		},
+		OntapVersion: "9.18.1",
+	}, nil).Once()
+
+	// Second batch must use indices [3,4] and updated VLM config from batch-1 response.
+	mockVlm.On("UpgradeVSAClusterDeploymentWorkflow", mock.Anything, mock.MatchedBy(func(req *vlm.UpdateVSAClusterDeploymentRequest) bool {
+		return req != nil &&
+			len(req.HAPairIndices) == 2 &&
+			req.HAPairIndices[0] == 3 &&
+			req.HAPairIndices[1] == 4 &&
+			req.VLMConfig.Deployment.DeploymentID == "dep-after-batch-1"
+	})).Return(&vlm.UpgradeVSAClusterDeploymentResponse{
+		VLMConfig: vlm.VLMConfig{
+			Deployment: vlm.DeploymentConfig{
+				DeploymentID: "dep-after-batch-2",
+			},
+		},
+		OntapVersion: "9.18.2",
+	}, nil).Once()
+
+	testWorkflow := func(ctx workflow.Context) error {
+		ao := workflow.ActivityOptions{
+			StartToCloseTimeout: 30 * time.Second,
+			RetryPolicy: &temporal.RetryPolicy{
+				MaximumAttempts:        1,
+				NonRetryableErrorTypes: []string{"PanicError"},
+			},
+		}
+		ctx = workflow.WithActivityOptions(ctx, ao)
+
+		wf := &clusterUpgradeWorkflow{
+			BaseWorkflow: BaseWorkflow{
+				Logger: util.GetLogger(ctx),
+			},
+		}
+
+		upgradeContext := &UpgradeContext{
+			Params: &ClusterUpgradeWorkflowParams{
+				JobID:         "job-batch-test",
+				ClusterID:     "cluster-batch-test",
+				TargetVersion: "9.18.2",
+				VSAImagePath:  "test-image.tgz",
+				Pool: &datamodel.Pool{
+					LargeCapacity: true,
+				},
+			},
+			Pool: &datamodel.Pool{
+				LargeCapacity: true,
+			},
+			CurrentVlmConfig: &vlm.VLMConfig{
+				Deployment: vlm.DeploymentConfig{
+					DeploymentID: "dep-initial",
+					NumHAPair:    4,
+				},
+			},
+			Credentials: &vlm.OntapCredentials{
+				AdminPassword: "test-pass",
+			},
+			VlmClient: mockVlm,
+		}
+
+		batchPlan := &activities.CalculateBatchPlanActivityOutput{
+			NumHAPairs:       4,
+			BatchSize:        2,
+			NumWorkflowCalls: 2,
+			BatchIndices: [][]int{
+				{1, 2},
+				{3, 4},
+			},
+		}
+
+		resp, err := wf.executeClusterUpgradeBatchUpdates(ctx, batchPlan, upgradeContext)
+		if err != nil {
+			return err
+		}
+		if resp == nil || resp.OntapVersion != "9.18.2" {
+			return fmt.Errorf("unexpected batch upgrade response")
+		}
+		if upgradeContext.CurrentVlmConfig.Deployment.DeploymentID != "dep-after-batch-2" {
+			return fmt.Errorf("expected latest VLM config to be preserved")
+		}
+		return nil
+	}
+
+	env.ExecuteWorkflow(testWorkflow)
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+	mockVlm.AssertExpectations(t)
+}
+
+func TestExecuteClusterUpgradeBatchUpdates_PrepareFails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockVlm := &vlm.MockVlmWorkflowClient{}
+	commonActivity := &activities.CommonActivities{}
+	env.RegisterActivity(commonActivity.GenerateVSASignedURLActivity)
+	env.OnActivity(commonActivity.GenerateVSASignedURLActivity, mock.Anything, mock.Anything).Return("", assert.AnError)
+
+	testWorkflow := func(ctx workflow.Context) error {
+		ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+			StartToCloseTimeout: 30 * time.Second,
+			RetryPolicy: &temporal.RetryPolicy{
+				MaximumAttempts:        1,
+				NonRetryableErrorTypes: []string{"PanicError"},
+			},
+		})
+		wf := &clusterUpgradeWorkflow{BaseWorkflow: BaseWorkflow{Logger: util.GetLogger(ctx)}}
+		upgradeContext := &UpgradeContext{
+			Params: &ClusterUpgradeWorkflowParams{
+				JobID: "j", ClusterID: "c", TargetVersion: "9.18", VSAImagePath: "img.tgz",
+			},
+			Pool:             &datamodel.Pool{LargeCapacity: true},
+			CurrentVlmConfig: &vlm.VLMConfig{},
+			Credentials:      &vlm.OntapCredentials{AdminPassword: "p"},
+			VlmClient:        mockVlm,
+		}
+		batchPlan := &activities.CalculateBatchPlanActivityOutput{
+			NumHAPairs: 2, BatchSize: 2, NumWorkflowCalls: 1, BatchIndices: [][]int{{1, 2}},
+		}
+		_, err := wf.executeClusterUpgradeBatchUpdates(ctx, batchPlan, upgradeContext)
+		return err
+	}
+
+	env.ExecuteWorkflow(testWorkflow)
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "failed to prepare cluster upgrade request for batch")
+}
+
+func TestExecuteClusterUpgradeBatchUpdates_VLMFails(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockVlm := &vlm.MockVlmWorkflowClient{}
+	commonActivity := &activities.CommonActivities{}
+	env.RegisterActivity(commonActivity.GenerateVSASignedURLActivity)
+	env.OnActivity(commonActivity.GenerateVSASignedURLActivity, mock.Anything, mock.Anything).Return("https://signed-url.example.com", nil)
+	mockVlm.On("UpgradeVSAClusterDeploymentWorkflow", mock.Anything, mock.Anything).
+		Return((*vlm.UpgradeVSAClusterDeploymentResponse)(nil), errors.New("vlm batch failed"))
+
+	testWorkflow := func(ctx workflow.Context) error {
+		ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+			StartToCloseTimeout: 30 * time.Second,
+			RetryPolicy: &temporal.RetryPolicy{
+				MaximumAttempts:        1,
+				NonRetryableErrorTypes: []string{"PanicError"},
+			},
+		})
+		wf := &clusterUpgradeWorkflow{BaseWorkflow: BaseWorkflow{Logger: util.GetLogger(ctx)}}
+		upgradeContext := &UpgradeContext{
+			Params: &ClusterUpgradeWorkflowParams{
+				JobID: "j", ClusterID: "c", TargetVersion: "9.18", VSAImagePath: "img.tgz",
+			},
+			Pool:             &datamodel.Pool{LargeCapacity: true},
+			CurrentVlmConfig: &vlm.VLMConfig{},
+			Credentials:      &vlm.OntapCredentials{AdminPassword: "p"},
+			VlmClient:        mockVlm,
+		}
+		batchPlan := &activities.CalculateBatchPlanActivityOutput{
+			NumHAPairs: 2, BatchSize: 2, NumWorkflowCalls: 1, BatchIndices: [][]int{{1, 2}},
+		}
+		_, err := wf.executeClusterUpgradeBatchUpdates(ctx, batchPlan, upgradeContext)
+		return err
+	}
+
+	env.ExecuteWorkflow(testWorkflow)
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	mockVlm.AssertExpectations(t)
+}
+
+func TestExecuteClusterUpgradeBatchUpdates_NoWorkflowCalls(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+
+	mockVlm := &vlm.MockVlmWorkflowClient{}
+
+	testWorkflow := func(ctx workflow.Context) error {
+		ctx = workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+			StartToCloseTimeout: 30 * time.Second,
+			RetryPolicy: &temporal.RetryPolicy{
+				MaximumAttempts:        1,
+				NonRetryableErrorTypes: []string{"PanicError"},
+			},
+		})
+		wf := &clusterUpgradeWorkflow{BaseWorkflow: BaseWorkflow{Logger: util.GetLogger(ctx)}}
+		upgradeContext := &UpgradeContext{
+			Params:           &ClusterUpgradeWorkflowParams{},
+			Pool:             &datamodel.Pool{},
+			CurrentVlmConfig: &vlm.VLMConfig{},
+			Credentials:      &vlm.OntapCredentials{},
+			VlmClient:        mockVlm,
+		}
+		batchPlan := &activities.CalculateBatchPlanActivityOutput{
+			NumWorkflowCalls: 0,
+			BatchIndices:     [][]int{},
+		}
+		_, err := wf.executeClusterUpgradeBatchUpdates(ctx, batchPlan, upgradeContext)
+		return err
+	}
+
+	env.ExecuteWorkflow(testWorkflow)
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.Error(t, env.GetWorkflowError())
+	assert.Contains(t, env.GetWorkflowError().Error(), "no cluster upgrade response produced")
+}
+
 // TestPostUpgradePhase tests the postUpgradePhase function
 func TestPostUpgradePhase(t *testing.T) {
 	var ts testsuite.WorkflowTestSuite

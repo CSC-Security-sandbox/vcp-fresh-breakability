@@ -60,6 +60,7 @@ var (
 	RetryBackoff                                      = env.GetString("RETRY_BACKOFF_COEFFICIENT", "2.0")
 	ActivityHeartBeatTimeout                          = env.GetString("POOL_ACTIVITY_HEARTBEAT_TIMEOUT", "5m")
 	maxRetryAttemptsForSDEPollJob                     = env.GetInt("MAX_RETRY_ATTEMPTS_FOR_SDE_POLL_JOB", 20)
+	StartToCloseTimeoutUpgradeLV                      = env.GetString("START_TO_CLOSE_WORKFLOW_TIMEOUT_UPGRADE_LV", "360m")
 
 	// Service Account specific retry policy configurations
 	SARetryStartToCloseTimeout = env.GetString("SA_RETRY_START_TO_CLOSE_TIMEOUT", "15m")

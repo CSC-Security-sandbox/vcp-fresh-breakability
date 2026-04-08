@@ -298,7 +298,8 @@ func (wf *clusterUpgradeWorkflow) preUpgradePhase(ctx workflow.Context, params *
 	if err != nil {
 		return ctx, nil, ConvertToVSAError(err)
 	}
-	activityStartToCloseTimeout, err := time.ParseDuration(StartToCloseTimeoutUpgrade)
+	upgradeStartToCloseTimeout := getUpgradeStartToCloseTimeout(params.Pool)
+	activityStartToCloseTimeout, err := time.ParseDuration(upgradeStartToCloseTimeout)
 	if err != nil {
 		return ctx, nil, ConvertToVSAError(err)
 	}
@@ -467,28 +468,62 @@ func (wf *clusterUpgradeWorkflow) upgradePhase(ctx workflow.Context, upgradeCont
 
 	// Step 2: Upgrade VSA Cluster Deployment if needed
 	if upgradeContext.NeedsVSAUpgrade {
-		upgradeRequest := &vlm.UpdateVSAClusterDeploymentRequest{}
+		var vsaUpgradeResponse *vlm.UpgradeVSAClusterDeploymentResponse
+		var err error
 
-		err := prepareClusterUpgradeRequestActivity(ctx, upgradeRequest, upgradeContext.Params, upgradeContext.Pool, *upgradeContext.CurrentVlmConfig, *upgradeContext.Credentials)
-		if err != nil {
-			wf.Logger.Error("Failed to prepare cluster upgrade request",
-				"jobID", upgradeContext.Params.JobID,
-				"clusterID", upgradeContext.Params.ClusterID,
-				"vsaImagePath", upgradeContext.Params.VSAImagePath,
-				"targetVersion", upgradeContext.Params.TargetVersion,
-				"error", err)
-			customErr := vsaerrors.NewVCPError(vsaerrors.ErrVLMWorkflowError, err)
-			upgradeResult.Error = customErr
-			return upgradeResult, customErr
-		}
+		// Keep current behavior for standard pools.
+		// For large-capacity pools, execute upgrade in HA-pair batches similar to UpdatePool flow.
+		if upgradeContext.Pool.LargeCapacity {
+			batchPlanInput := &activities.CalculateBatchPlanActivityInput{
+				NumHAPairs:                  upgradeContext.CurrentVlmConfig.Deployment.NumHAPair,
+				ParallelNumberOfNodesForITC: parallelNumberOfNodesForITC,
+			}
+			var batchPlan *activities.CalculateBatchPlanActivityOutput
+			err = workflow.ExecuteActivity(ctx, poolActivities.CalculateBatchPlanForUpdate, batchPlanInput).Get(ctx, &batchPlan)
+			if err != nil {
+				wf.Logger.Error("Failed to calculate batch plan for large pool cluster upgrade",
+					"jobID", upgradeContext.Params.JobID,
+					"clusterID", upgradeContext.Params.ClusterID,
+					"error", err)
+				customErr := vsaerrors.NewVCPError(vsaerrors.ErrVLMWorkflowError, err)
+				upgradeResult.Error = customErr
+				return upgradeResult, customErr
+			}
 
-		wf.Logger.Info("Starting VSA cluster deployment upgrade", "jobID", upgradeContext.Params.JobID, "clusterID", upgradeContext.Params.ClusterID, "targetVersion", upgradeContext.Params.TargetVersion)
-		vsaUpgradeResponse, err := upgradeContext.VlmClient.UpgradeVSAClusterDeploymentWorkflow(ctx, upgradeRequest)
-		if err != nil {
-			wf.Logger.Error("VLM cluster upgrade workflow failed", "jobID", upgradeContext.Params.JobID, "clusterID", upgradeContext.Params.ClusterID, "error", err)
-			customErr := vsaerrors.NewVCPError(vsaerrors.ErrVLMWorkflowError, err)
-			upgradeResult.Error = customErr
-			return upgradeResult, customErr
+			vsaUpgradeResponse, err = wf.executeClusterUpgradeBatchUpdates(ctx, batchPlan, upgradeContext)
+			if err != nil {
+				wf.Logger.Error("VLM cluster upgrade workflow failed for large pool",
+					"jobID", upgradeContext.Params.JobID,
+					"clusterID", upgradeContext.Params.ClusterID,
+					"error", err)
+				customErr := vsaerrors.NewVCPError(vsaerrors.ErrVLMWorkflowError, err)
+				upgradeResult.Error = customErr
+				return upgradeResult, customErr
+			}
+		} else {
+			upgradeRequest := &vlm.UpdateVSAClusterDeploymentRequest{}
+
+			err := prepareClusterUpgradeRequestActivity(ctx, upgradeRequest, upgradeContext.Params, upgradeContext.Pool, *upgradeContext.CurrentVlmConfig, *upgradeContext.Credentials)
+			if err != nil {
+				wf.Logger.Error("Failed to prepare cluster upgrade request",
+					"jobID", upgradeContext.Params.JobID,
+					"clusterID", upgradeContext.Params.ClusterID,
+					"vsaImagePath", upgradeContext.Params.VSAImagePath,
+					"targetVersion", upgradeContext.Params.TargetVersion,
+					"error", err)
+				customErr := vsaerrors.NewVCPError(vsaerrors.ErrVLMWorkflowError, err)
+				upgradeResult.Error = customErr
+				return upgradeResult, customErr
+			}
+
+			wf.Logger.Info("Starting VSA cluster deployment upgrade", "jobID", upgradeContext.Params.JobID, "clusterID", upgradeContext.Params.ClusterID, "targetVersion", upgradeContext.Params.TargetVersion)
+			vsaUpgradeResponse, err = upgradeContext.VlmClient.UpgradeVSAClusterDeploymentWorkflow(ctx, upgradeRequest)
+			if err != nil {
+				wf.Logger.Error("VLM cluster upgrade workflow failed", "jobID", upgradeContext.Params.JobID, "clusterID", upgradeContext.Params.ClusterID, "error", err)
+				customErr := vsaerrors.NewVCPError(vsaerrors.ErrVLMWorkflowError, err)
+				upgradeResult.Error = customErr
+				return upgradeResult, customErr
+			}
 		}
 		wf.Logger.Info("VSA cluster deployment upgrade completed successfully", "jobID", upgradeContext.Params.JobID, "clusterID", upgradeContext.Params.ClusterID, "ontapVersion", vsaUpgradeResponse.OntapVersion)
 
@@ -541,6 +576,77 @@ func (wf *clusterUpgradeWorkflow) upgradePhase(ctx workflow.Context, upgradeCont
 
 	wf.Logger.Info("Upgrade phase completed successfully", "jobID", upgradeContext.Params.JobID, "clusterID", upgradeContext.Params.ClusterID)
 	return upgradeResult, nil
+}
+
+func getUpgradeStartToCloseTimeout(pool *datamodel.Pool) string {
+	if pool != nil && pool.LargeCapacity {
+		return StartToCloseTimeoutUpgradeLV
+	}
+	return StartToCloseTimeoutUpgrade
+}
+
+// executeClusterUpgradeBatchUpdates executes cluster upgrade in HA-pair batches.
+// This mirrors UpdatePool batching behavior for large-capacity pools.
+func (wf *clusterUpgradeWorkflow) executeClusterUpgradeBatchUpdates(
+	ctx workflow.Context,
+	batchPlan *activities.CalculateBatchPlanActivityOutput,
+	upgradeContext *UpgradeContext,
+) (*vlm.UpgradeVSAClusterDeploymentResponse, error) {
+	currentConfig := upgradeContext.CurrentVlmConfig
+	var upgradeResponse *vlm.UpgradeVSAClusterDeploymentResponse
+	completedBatches := make([]int, 0, batchPlan.NumWorkflowCalls)
+
+	for batchNum := 0; batchNum < batchPlan.NumWorkflowCalls; batchNum++ {
+		batchIndices := batchPlan.BatchIndices[batchNum]
+
+		upgradeRequest := &vlm.UpdateVSAClusterDeploymentRequest{}
+		if err := prepareClusterUpgradeRequestActivity(
+			ctx,
+			upgradeRequest,
+			upgradeContext.Params,
+			upgradeContext.Pool,
+			*currentConfig,
+			*upgradeContext.Credentials,
+		); err != nil {
+			return nil, fmt.Errorf("failed to prepare cluster upgrade request for batch %d: %w", batchNum+1, err)
+		}
+		upgradeRequest.HAPairIndices = batchIndices
+
+		wf.Logger.Info("Starting large pool cluster upgrade batch",
+			"jobID", upgradeContext.Params.JobID,
+			"clusterID", upgradeContext.Params.ClusterID,
+			"batchNumber", batchNum+1,
+			"totalBatches", batchPlan.NumWorkflowCalls,
+			"indices", batchIndices,
+			"totalHAPairs", batchPlan.NumHAPairs,
+			"batchSize", batchPlan.BatchSize)
+
+		response, err := upgradeContext.VlmClient.UpgradeVSAClusterDeploymentWorkflow(ctx, upgradeRequest)
+		if err != nil {
+			wf.Logger.Errorf(
+				"Large pool cluster upgrade failed at batch %d of %d. Partial completion detected. Completed batches: %v. Original error: %v",
+				batchNum+1, batchPlan.NumWorkflowCalls, completedBatches, err)
+			return nil, err
+		}
+
+		completedBatches = append(completedBatches, batchNum+1)
+		currentConfig = &response.VLMConfig
+		upgradeResponse = response
+
+		wf.Logger.Info("Completed large pool cluster upgrade batch",
+			"jobID", upgradeContext.Params.JobID,
+			"clusterID", upgradeContext.Params.ClusterID,
+			"batchNumber", batchNum+1,
+			"totalBatches", batchPlan.NumWorkflowCalls,
+			"indices", batchIndices)
+	}
+
+	if upgradeResponse == nil {
+		return nil, fmt.Errorf("no cluster upgrade response produced from batch execution")
+	}
+
+	upgradeContext.CurrentVlmConfig = currentConfig
+	return upgradeResponse, nil
 }
 
 // postUpgradePhase handles license updates and power off operations

@@ -71,6 +71,9 @@ global:
     # Must be "false" — non-owner inline migrations fail when Cloud SQL IAM auth is enabled.
     runMigrationOnStart: "false"
     startToCloseWorkflowTimeout: "120s"
+    # Cluster upgrade activity timeout (standard and large-capacity pools)
+    startToCloseWorkflowTimeoutUpgrade: "300m"
+    startToCloseWorkflowTimeoutUpgradeLv: "360m"
     svmPeerTimeout: "30s"
     temporalAddress: ""
     temporalEncryptionId: ""
