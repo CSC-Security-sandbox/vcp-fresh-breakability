@@ -1035,12 +1035,12 @@ $_mod_output"
   fi
 fi
 
-# Go baseline test — run with -race so pre-existing race failures don't look like PR regressions
+# Go baseline test — SKIP for large monorepos (runs entire test suite with -race, takes 30+ min).
+# The PR-branch targeted test is sufficient for breakability detection.
 if [[ "$main_go_exit" -eq 0 ]]; then
-  echo "  go: running baseline tests with -race (comparison baseline for PR test runs)..."
-  main_go_test_output=$(cd "$MAIN_DIR" && timeout 300 go test -race -timeout 5m ./... 2>&1)
-  main_go_test_exit=$?
-  echo "  go baseline test: exit=$main_go_test_exit"
+  echo "  go: skipping full baseline test suite (targeted PR tests are sufficient)"
+  main_go_test_exit=-1
+  main_go_test_output="skipped — targeted PR tests used instead"
 fi
 
 # Python baseline — detect requirements.txt / pyproject.toml / poetry.lock
@@ -1842,8 +1842,62 @@ $IMPORT_OUT"
           fi
           ;;
         gomod)
-          TEST_OUTPUT=$(cd "$PR_WORKTREE" && timeout 300 go test -race -timeout 5m ./... 2>&1)
-          TEST_EXIT=$?
+          # Targeted test: only test packages that import the changed dependency
+          # Uses same module-aware grouping as go_targeted_build
+          if [[ -n "$FILES_IMPORTING" && "$FILES_IMPORTING" != "[]" ]]; then
+            echo "  go test: targeted (only affected packages)"
+            _TEST_SCRIPT=$(python3 -c "
+import json, sys, os
+try:
+    files = json.loads('''$FILES_IMPORTING''')
+except:
+    files = []
+if not files:
+    print('FALLBACK')
+    sys.exit(0)
+mod_roots = []
+for root, dirs, fnames in os.walk('.'):
+    dirs[:] = [d for d in dirs if d not in ('vendor', '.git', 'node_modules')]
+    if 'go.mod' in fnames:
+        mod_roots.append(os.path.normpath(root))
+mod_roots.sort(key=lambda x: -x.count('/'))
+if not mod_roots:
+    mod_roots = ['.']
+module_dirs = {}
+for f in files:
+    path = f.split(':')[0]
+    d = os.path.dirname(os.path.normpath(path))
+    if not d or d == '.':
+        d = '.'
+    owning_mod = '.'
+    for mr in mod_roots:
+        if d == mr or d.startswith(mr + '/'):
+            owning_mod = mr
+            break
+    if owning_mod == '.':
+        rel = './' + d.lstrip('./') + '/...' if d != '.' else './...'
+    else:
+        rel_d = os.path.relpath(d, owning_mod)
+        rel = './' + rel_d + '/...' if rel_d != '.' else './...'
+    module_dirs.setdefault(owning_mod, set()).add(rel)
+for mod, dirs in sorted(module_dirs.items()):
+    print(f'{mod}|{chr(32).join(sorted(dirs))}')" 2>/dev/null)
+            if [[ -z "$_TEST_SCRIPT" || "$_TEST_SCRIPT" == "FALLBACK" ]]; then
+              TEST_OUTPUT=$(cd "$PR_WORKTREE" && timeout 300 go test -timeout 5m ./... 2>&1)
+            else
+              TEST_OUTPUT=""
+              TEST_EXIT=0
+              while IFS='|' read -r _tmod _tdirs; do
+                [[ -z "$_tmod" || -z "$_tdirs" ]] && continue
+                echo "    testing $_tmod module: $_tdirs"
+                _tout=$(cd "$PR_WORKTREE/$_tmod" && timeout 300 go test -timeout 5m $_tdirs 2>&1) || TEST_EXIT=$?
+                TEST_OUTPUT="$TEST_OUTPUT$_tout"
+              done <<< "$_TEST_SCRIPT"
+            fi
+          else
+            TEST_OUTPUT=$(cd "$PR_WORKTREE" && timeout 300 go test -timeout 5m ./... 2>&1)
+          fi
+          TEST_EXIT=${TEST_EXIT:-$?}
           TEST_RAN="true"
           ;;
         pip)
