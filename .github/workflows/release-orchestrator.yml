@@ -109,6 +109,14 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            const allowed = ['autopush', 'staging', 'prod'];
+            const environment = '${{ inputs.environment }}';
+            if (!allowed.includes(environment)) {
+              core.setFailed(
+                `Target environment does not exist or is not supported: '${environment}'. Allowed values: ${allowed.join(', ')}.`
+              );
+              return;
+            }
             await github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -118,7 +126,7 @@ jobs:
                 config_file_name: '${{ inputs.config_file_name }}',
                 run_mode: '${{ inputs.run_mode }}',
                 image_type: '${{ inputs.image_type }}',
-                environment: '${{ inputs.environment }}'
+                environment: environment
               }
             });
             core.notice('Triggered vsa-mediator-image-copy.yml');

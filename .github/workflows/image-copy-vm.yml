@@ -2,7 +2,7 @@ name: VSA Copy Image
 
 # This workflow supports two flows:
 # 1. Full flow (autopush): seclab → Pull VM → Push VM → gcnv-autopush-images (with validation)
-# 2. Copy flow (staging/prod): Push VM copies existing image from gcnv-autopush-images (autopush project) → staging/prod (no validation)
+# 2. Copy flow: Push VM copies existing image — autopush → staging, staging → prod (no COT re-validation)
 
 on:
   workflow_dispatch:
@@ -24,7 +24,7 @@ on:
         required: false
         type: string
       push_vm_project:
-        description: 'Target project: autopush (full flow) or staging/prod (copy from autopush)'
+        description: 'Target project: autopush (full flow), staging (copy from autopush), or prod (copy from staging)'
         required: true
         type: choice
         options:
@@ -288,7 +288,12 @@ jobs:
       - name: Execute image copy on Push VM
         id: copy
         run: |
-          echo "📋 Copying image from gcnv-autopush-images to ${{ inputs.push_vm_project }}: ${{ inputs.image_name }}"
+          if [ "${{ inputs.push_vm_project }}" = "gcnv-prod-images" ]; then
+            echo "📋 Copying image from gcnv-staging-images to ${{ inputs.push_vm_project }}: ${{ inputs.image_name }}"
+            echo "   (promotion path: staging bucket → prod bucket)"
+          else
+            echo "📋 Copying image from gcnv-autopush-images to ${{ inputs.push_vm_project }}: ${{ inputs.image_name }}"
+          fi
           echo "VM: ${PUSH_VM_NAME}"
           echo "VM Project: gcnv-autopush-images"
           echo "VM Zone: ${GCP_ZONE}"
@@ -334,14 +339,23 @@ jobs:
             IMAGE_TYPE="Mediator"
           fi
           
-          echo "## Copy from Autopush Summary" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ inputs.push_vm_project }}" = "gcnv-prod-images" ]; then
+            COPY_TITLE="Copy from Staging Summary"
+            SRC_BUCKET="gcnv-staging-images-bucket"
+            OP_LINE="**Operation**: Copy image from gcnv-staging-images (staging bucket) to ${{ inputs.push_vm_project }}"
+          else
+            COPY_TITLE="Copy from Autopush Summary"
+            SRC_BUCKET="gcnv-autopush-images-bucket"
+            OP_LINE="**Operation**: Copy image from gcnv-autopush-images to ${{ inputs.push_vm_project }}"
+          fi
+          echo "## $COPY_TITLE" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Operation**: Copy image from gcnv-autopush-images to ${{ inputs.push_vm_project }}" >> $GITHUB_STEP_SUMMARY
+          echo "$OP_LINE" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Image Name**: ${{ inputs.image_name }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Image Type**: $IMAGE_TYPE" >> $GITHUB_STEP_SUMMARY
           echo "- **Execution VM**: ${PUSH_VM_NAME} (in gcnv-autopush-images project)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Source Bucket**: gcnv-autopush-images-bucket" >> $GITHUB_STEP_SUMMARY
+          echo "- **Source Bucket**: $SRC_BUCKET" >> $GITHUB_STEP_SUMMARY
           echo "- **Destination Project**: ${{ inputs.push_vm_project }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Destination Bucket**: (from config.yaml via Terraform)" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: ${{ steps.copy.outputs.status || 'unknown' }}" >> $GITHUB_STEP_SUMMARY
@@ -353,8 +367,13 @@ jobs:
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ steps.copy.outputs.status }}" == "source_missing" ]; then
-            echo "⚠️ **Note**: Image does not exist in gcnv-autopush-images-bucket." >> $GITHUB_STEP_SUMMARY
-            echo "Please run the workflow with push_vm_project='gcnv-autopush-images' first." >> $GITHUB_STEP_SUMMARY
+            if [ "${{ inputs.push_vm_project }}" = "gcnv-prod-images" ]; then
+              echo "⚠️ **Note**: Image does not exist in gcnv-staging-images-bucket (or Push VM source for prod)." >> $GITHUB_STEP_SUMMARY
+              echo "Promote to staging first (e.g. push_vm_project='gcnv-staging-images'), then copy to prod." >> $GITHUB_STEP_SUMMARY
+            else
+              echo "⚠️ **Note**: Image does not exist in gcnv-autopush-images-bucket." >> $GITHUB_STEP_SUMMARY
+              echo "Please run the workflow with push_vm_project='gcnv-autopush-images' first." >> $GITHUB_STEP_SUMMARY
+            fi
             echo "" >> $GITHUB_STEP_SUMMARY
           fi
           if [ -f copy-execution.log ]; then
@@ -397,8 +416,13 @@ jobs:
             echo "- **Upgrade Bucket Path**: ${{ inputs.upgrade_bucket_path || 'not set' }}" >> $GITHUB_STEP_SUMMARY
             echo "- **RBAC Bucket Path**: ${{ inputs.rbac_bucket_path || 'not set' }}" >> $GITHUB_STEP_SUMMARY
           else
-            echo "- **Flow Type**: Direct copy from autopush (no validation)" >> $GITHUB_STEP_SUMMARY
-            echo "- **Source Project**: gcnv-autopush-images" >> $GITHUB_STEP_SUMMARY
+            if [ "${{ inputs.push_vm_project }}" = "gcnv-prod-images" ]; then
+              echo "- **Flow Type**: Promote staging → prod (no COT re-validation)" >> $GITHUB_STEP_SUMMARY
+              echo "- **Source**: gcnv-staging-images / gcnv-staging-images-bucket" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- **Flow Type**: Copy autopush → staging (no validation)" >> $GITHUB_STEP_SUMMARY
+              echo "- **Source Project**: gcnv-autopush-images" >> $GITHUB_STEP_SUMMARY
+            fi
           fi
           
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -436,11 +460,19 @@ jobs:
           else
             # Direct copy results
             if [ "$COPY_STATUS" == "success" ]; then
-              echo "✅ **Copy Operation**: Success (autopush → ${{ inputs.push_vm_project }})" >> $GITHUB_STEP_SUMMARY
+              if [ "${{ inputs.push_vm_project }}" = "gcnv-prod-images" ]; then
+                echo "✅ **Copy Operation**: Success (staging → ${{ inputs.push_vm_project }})" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "✅ **Copy Operation**: Success (autopush → ${{ inputs.push_vm_project }})" >> $GITHUB_STEP_SUMMARY
+              fi
             elif [ "$COPY_STATUS" == "exists" ]; then
               echo "⚠️ **Copy Operation**: Image already exists in ${{ inputs.push_vm_project }}" >> $GITHUB_STEP_SUMMARY
             elif [ "$COPY_STATUS" == "source_missing" ]; then
-              echo "❌ **Copy Operation**: Failed - Image not found in gcnv-autopush-images" >> $GITHUB_STEP_SUMMARY
+              if [ "${{ inputs.push_vm_project }}" = "gcnv-prod-images" ]; then
+                echo "❌ **Copy Operation**: Failed - Image not found in staging bucket (promote staging first)" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "❌ **Copy Operation**: Failed - Image not found in gcnv-autopush-images" >> $GITHUB_STEP_SUMMARY
+              fi
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "**Action Required**: Run this workflow with push_vm_project='gcnv-autopush-images' first" >> $GITHUB_STEP_SUMMARY
             elif [ "$COPY_STATUS" == "failure" ]; then

@@ -78,6 +78,15 @@ jobs:
           VERSION="${{ inputs.version }}"
           BUNDLE_NAME="${{ inputs.bundle_name }}"
           
+          case "$ENVIRONMENT" in
+            autopush|staging|prod) ;;
+            *)
+              echo "❌ Target environment does not exist or is not supported: '$ENVIRONMENT'"
+              echo "   Allowed values: autopush, staging, prod"
+              exit 1
+              ;;
+          esac
+          
           # Validate required inputs
           if [ -z "$IMAGE_NAME" ] || [ -z "$VERSION" ] || [ -z "$BUNDLE_NAME" ]; then
             echo "❌ Missing required parameters: IMAGE_NAME, VERSION, and BUNDLE_NAME must be provided"
@@ -119,14 +128,15 @@ jobs:
               DESTINATION_BUCKET="gcnv-staging-images-bucket"
               ;;
             prod)
-              SOURCE_IMAGE_PROJECT="gcnv-autopush-images"
-              SOURCE_PROJECT="gcnv-autopush-images"
-              SOURCE_BUCKET="gcnv-autopush-images-bucket"
+              SOURCE_IMAGE_PROJECT="gcnv-staging-images"
+              SOURCE_PROJECT="gcnv-staging-images"
+              SOURCE_BUCKET="gcnv-staging-images-bucket"
               DESTINATION_PROJECT="gcnv-prod-images"
               DESTINATION_BUCKET="gcnv-prod-images-bucket"
               ;;
             *)
-              echo "❌ Invalid environment: $ENVIRONMENT"
+              echo "❌ Target environment does not exist or is not supported: '$ENVIRONMENT'"
+              echo "   Allowed values: autopush, staging, prod"
               exit 1
               ;;
           esac

@@ -84,6 +84,15 @@ jobs:
           RUN_MODE="${{ inputs.run_mode }}"
           IMAGE_TYPE="$IMAGE_TYPE_INPUT"
           ENVIRONMENT="${{ inputs.environment }}"
+          # Only these target environments are supported; fail before any copy if misconfigured (UI, API, or orchestrator).
+          case "$ENVIRONMENT" in
+            autopush|staging|prod) ;;
+            *)
+              echo "❌ Target environment does not exist or is not supported: '$ENVIRONMENT'"
+              echo "   Allowed values: autopush, staging, prod"
+              exit 1
+              ;;
+          esac
           if [ "$IMAGE_TYPE" = "both" ] && [ "$RUN_MODE" = "all_environments" ]; then
             echo "❌ Image type 'Both' is only supported with Run mode 'Single environment'. For all environments, run twice (VSA then Mediator) or use single environment with Both."
             exit 1
@@ -161,8 +170,12 @@ jobs:
           case "$ENVIRONMENT" in
             autopush) DESTINATION_BUCKET="gcnv-autopush-images-bucket"; SOURCE_BUCKET="vsa-compute-images"; IS_AUTOPUSH="true" ;;
             staging)  DESTINATION_BUCKET="gcnv-staging-images-bucket"; SOURCE_BUCKET="gcnv-autopush-images-bucket"; IS_AUTOPUSH="false" ;;
-            prod)     DESTINATION_BUCKET="gcnv-prod-images-bucket"; SOURCE_BUCKET="gcnv-autopush-images-bucket"; IS_AUTOPUSH="false" ;;
-            *)       DESTINATION_BUCKET=""; SOURCE_BUCKET=""; IS_AUTOPUSH="false" ;;
+            prod)     DESTINATION_BUCKET="gcnv-prod-images-bucket"; SOURCE_BUCKET="gcnv-staging-images-bucket"; IS_AUTOPUSH="false" ;;
+            *)
+              echo "❌ Target environment does not exist or is not supported: '$ENVIRONMENT'"
+              echo "   Allowed values: autopush, staging, prod"
+              exit 1
+              ;;
           esac
           echo "run_mode=$RUN_MODE" >> $GITHUB_OUTPUT
           echo "image_type=$IMAGE_TYPE" >> $GITHUB_OUTPUT
@@ -430,14 +443,15 @@ jobs:
               DESTINATION_BUCKET="gcnv-staging-images-bucket"
               ;;
             prod)
-              SOURCE_IMAGE_PROJECT="gcnv-autopush-images"
-              SOURCE_PROJECT="gcnv-autopush-images"
-              SOURCE_BUCKET="gcnv-autopush-images-bucket"
+              SOURCE_IMAGE_PROJECT="gcnv-staging-images"
+              SOURCE_PROJECT="gcnv-staging-images"
+              SOURCE_BUCKET="gcnv-staging-images-bucket"
               DESTINATION_PROJECT="gcnv-prod-images"
               DESTINATION_BUCKET="gcnv-prod-images-bucket"
               ;;
             *)
-              echo "❌ Invalid environment: $ENVIRONMENT"
+              echo "❌ Target environment does not exist or is not supported: '$ENVIRONMENT'"
+              echo "   Allowed values: autopush, staging, prod"
               exit 1
               ;;
           esac

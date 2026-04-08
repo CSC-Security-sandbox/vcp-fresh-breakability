@@ -11,9 +11,10 @@ This repository manages the complete workflow for copying GCE compute images acr
 - Copies verification files, upgrade files, and RBAC files
 - Runs on Pull VM and Push VM
 
-**Copy Flow (Staging/Prod)**: `gcnv-autopush-images` → `gcnv-staging-images` / `gcnv-prod-images` (latchkey.org)
-- Direct image copy from verified autopush images
-- No verification (images already verified in autopush)
+**Copy Flow (Staging/Prod)**: `gcnv-autopush-images` → `gcnv-staging-images` → `gcnv-prod-images` (latchkey.org)
+- Staging: direct copy from autopush (no re-verification)
+- Prod: copy from **staging** (same bits that were promoted to staging; aligns with `config/versions/vsa-prod.json`)
+- No COT re-verification on staging/prod promotion steps
 - Runs on Push VM (in gcnv-autopush-images project)
 - Bucket configuration managed via Terraform from config.yaml
 
@@ -34,12 +35,12 @@ This repository manages the complete workflow for copying GCE compute images acr
    - **Files:** Copies all files from autopush (image + metadata + upgrade + RBAC)
    
 3. **Production** (`gcnv-prod-images`)
-   - **Flow:** Direct copy from autopush (no validation)
-   - **Process:** Push VM copies from autopush → prod
-   - **Verification:** None (images already verified in autopush)
-   - **Files:** Copies all files from autopush (image + metadata + upgrade + RBAC)
+   - **Flow:** Copy from staging (no COT re-validation)
+   - **Process:** GitHub Actions / Push VM copies from `gcnv-staging-images-bucket` → prod bucket
+   - **Verification:** None (images were verified before autopush; staging holds the promoted artifact)
+   - **Files:** Same layout as staging (image + metadata + upgrade + RBAC as applicable)
 
-**Key Design Decision:** Only autopush receives images with full COT validation. Staging and prod receive pre-verified images from autopush, eliminating redundant verification while maintaining security through the single source of truth (autopush).
+**Key Design Decision:** Only autopush receives images with full COT validation. Staging is promoted from autopush; prod is promoted from staging so production identity does not require read access to the autopush bucket (and prod matches what was validated in staging).
 
 ## Architecture
 
@@ -101,8 +102,8 @@ flowchart TB
     %% Copy Flow to Higher Envs (FLOW 2: No validation)
     autopush_images -.->|"6. Copy image<br/>(via Push VM)"| staging_images
     autopush_bucket -.->|"6. Copy files<br/>(via Push VM)"| staging_bucket
-    autopush_images -.->|"7. Copy image<br/>(via Push VM)"| prod_images
-    autopush_bucket -.->|"7. Copy files<br/>(via Push VM)"| prod_bucket
+    staging_images -.->|"7. Copy image<br/>(via Push VM / Actions)"| prod_images
+    staging_bucket -.->|"7. Copy files<br/>(via Push VM / Actions)"| prod_bucket
     
     %% GitHub Actions
     workflow -->|"Trigger via IAP"| pull_vm
@@ -250,7 +251,7 @@ The system uses **two separate VMs** in different projects with different servic
 #### VM 2: Push VM (in gcnv-autopush-images)
 - **Dual Purpose:**
   1. **Push to Autopush** - Copy images from gcnv-vsa-prod bucket to gcnv-autopush-images, import with verification
-  2. **Copy to Higher Envs** - Copy verified images from autopush to staging/prod (no validation)
+  2. **Copy to Higher Envs** - Copy autopush → staging; copy staging → prod (no COT re-validation)
 - **Service Account:** `gcnv-vsa-image-sa@gcnv-autopush-images.iam.gserviceaccount.com`
 - **Scripts:** `push-image.py` (autopush), `copy-image.py` (staging/prod)
 - **Buckets:** 
@@ -258,7 +259,7 @@ The system uses **two separate VMs** in different projects with different servic
   - Staging/Prod: Configured via Terraform from config.yaml (`BUCKET_*` env vars)
 - **Flows:** 
   - FLOW 1: Full validation (autopush)
-  - FLOW 2: Direct copy (staging/prod)
+  - FLOW 2: Direct copy (staging from autopush; prod from staging)
 
 ### Legacy Deployment Options
 
@@ -439,12 +440,13 @@ gh workflow run image-copy-vm.yml \
 - `image_name` (required): Name of the image to copy (e.g., 'x-9-17-1p1-gcnv')
 - `push_vm_project` (required): Target project - determines flow type
   - `gcnv-autopush-images`: Full flow with COT validation
-  - `gcnv-staging-images` or `gcnv-prod-images`: Direct copy from autopush
+  - `gcnv-staging-images`: Copy from autopush
+  - `gcnv-prod-images`: Copy from staging (promote staging → prod)
 - `cot_bucket_path` (required for autopush): COT verification files path
 - `upgrade_bucket_path` (optional for autopush): Upgrade files path (VSA only)
 - `rbac_bucket_path` (optional for autopush): RBAC files path (VSA only)
 
-**Note:** Staging/prod copies ignore COT/upgrade/RBAC paths - they copy pre-verified images from autopush
+**Note:** Staging/prod copies ignore COT/upgrade/RBAC input paths; they copy blobs already present in the source bucket (autopush for staging, staging for prod).
 
 #### Option 2: Manual Execution
 
@@ -512,7 +514,7 @@ sudo /opt/vsa-push-image/run-push.sh mediator
 tail -f /opt/vsa-push-image/vsa-image-push.log
 ```
 
-##### Step 3: Copy Image to Staging/Prod (autopush → higher envs)
+##### Step 3: Copy Image to Staging/Prod (autopush → staging → prod)
 
 ```bash
 # SSH into Push VM (same VM, in gcnv-autopush-images)
@@ -541,8 +543,8 @@ tail -f /opt/vsa-push-image/vsa-image-copy.log
 - `BUCKET_GCNV_PROD_IMAGES=gcnv-prod-images-bucket`
 
 **What the copy script does:**
-1. Checks if source image exists in gcnv-autopush-images
-2. Copies image tarball from autopush bucket to destination bucket
+1. Checks if source image exists in the configured source bucket (autopush for staging; **staging bucket for prod** — ensure Push VM / `run-copy.sh` matches this)
+2. Copies image tarball from source bucket to destination bucket
 3. Copies verification files (MANIFEST.json, IMAGE_SIG_TGZ, guest-os-features.txt, image-labels.json)
 4. Imports compute image from bucket with guest-os-features and labels
 5. For VSA images: copies upgrade/ and RBAC/ directories
