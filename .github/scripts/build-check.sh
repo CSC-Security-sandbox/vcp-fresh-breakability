@@ -515,67 +515,142 @@ go_free_disk() {
 go_targeted_build() {
   # Usage: go_targeted_build <files_importing_json> [extra_args...]
   # Builds only the directories that import the upgraded package.
+  # Multi-module aware: detects go.mod files and runs from correct module root.
   # Falls back to ./... if no import data available.
   local import_json="${1:-[]}"
   shift 2>/dev/null || true
 
-  # Extract unique directories from files_importing JSON array
-  local build_dirs
-  build_dirs=$(python3 -c "
-import json, sys, os
+  # Generate module-aware build commands
+  local build_script
+  build_script=$(python3 -c "
+import json, sys, os, subprocess
+
 try:
-    files = json.loads('$import_json')
+    files = json.loads('''$import_json''')
 except:
     files = []
-dirs = set()
+
+if not files:
+    print('FALLBACK')
+    sys.exit(0)
+
+# Find all go.mod files to identify module boundaries
+mod_roots = []
+for root, dirs, fnames in os.walk('.'):
+    dirs[:] = [d for d in dirs if d not in ('vendor', '.git', 'node_modules')]
+    if 'go.mod' in fnames:
+        mod_roots.append(os.path.normpath(root))
+
+# Sort by depth (deepest first) for longest-prefix matching
+mod_roots.sort(key=lambda x: -x.count('/'))
+if not mod_roots:
+    mod_roots = ['.']
+
+# Group import files by their owning module
+module_dirs = {}  # mod_root -> set of relative dirs
 for f in files:
-    # Format: './path/to/file.go:linenum'
     path = f.split(':')[0]
-    d = os.path.dirname(path)
-    if d and d != '.':
-        dirs.add('./' + d.lstrip('./') + '/...')
-if dirs:
-    print(' '.join(sorted(dirs)))
+    d = os.path.dirname(os.path.normpath(path))
+    if not d or d == '.':
+        d = '.'
+    # Find which module owns this directory (longest prefix match)
+    owning_mod = '.'
+    for mr in mod_roots:
+        if d == mr or d.startswith(mr + '/'):
+            owning_mod = mr
+            break
+    # Make dir relative to the module root
+    if owning_mod == '.':
+        rel = './' + d.lstrip('./') + '/...' if d != '.' else './...'
+    else:
+        rel_d = os.path.relpath(d, owning_mod)
+        rel = './' + rel_d + '/...' if rel_d != '.' else './...'
+    module_dirs.setdefault(owning_mod, set()).add(rel)
+
+# Output one line per module: MOD_ROOT|dir1 dir2 dir3
+for mod, dirs in sorted(module_dirs.items()):
+    print(f'{mod}|{\" \".join(sorted(dirs))}')
 " 2>/dev/null)
 
-  if [[ -n "$build_dirs" ]]; then
-    local dir_count
-    dir_count=$(echo "$build_dirs" | wc -w | tr -d ' ')
-    echo "  targeted build: $dir_count package dirs (instead of entire repo)"
-    echo "  dirs: $build_dirs"
-    go_free_disk
-    timeout $GO_TIMEOUT go build -o /dev/null $build_dirs "$@"
-  else
+  if [[ -z "$build_script" || "$build_script" == "FALLBACK" ]]; then
     echo "  full build: no import data available, building ./..."
     go_free_disk
     timeout $GO_TIMEOUT go build -o /dev/null ./... "$@"
+    return $?
   fi
+
+  local _RC=0
+  while IFS='|' read -r mod_root dirs; do
+    [[ -z "$mod_root" || -z "$dirs" ]] && continue
+    local dir_count
+    dir_count=$(echo "$dirs" | wc -w | tr -d ' ')
+    if [[ "$mod_root" == "." ]]; then
+      echo "  targeted build (root module): $dir_count dirs"
+    else
+      echo "  targeted build ($mod_root module): $dir_count dirs"
+    fi
+    echo "    dirs: $dirs"
+    go_free_disk
+    (cd "$mod_root" && timeout $GO_TIMEOUT go build -o /dev/null $dirs "$@") || _RC=$?
+  done <<< "$build_script"
+  return $_RC
 }
 
 go_targeted_vet() {
   local import_json="${1:-[]}"
-  local build_dirs
-  build_dirs=$(python3 -c "
+  local build_script
+  build_script=$(python3 -c "
 import json, sys, os
+
 try:
-    files = json.loads('$import_json')
+    files = json.loads('''$import_json''')
 except:
     files = []
-dirs = set()
+
+if not files:
+    print('FALLBACK')
+    sys.exit(0)
+
+mod_roots = []
+for root, dirs, fnames in os.walk('.'):
+    dirs[:] = [d for d in dirs if d not in ('vendor', '.git', 'node_modules')]
+    if 'go.mod' in fnames:
+        mod_roots.append(os.path.normpath(root))
+mod_roots.sort(key=lambda x: -x.count('/'))
+if not mod_roots:
+    mod_roots = ['.']
+
+module_dirs = {}
 for f in files:
     path = f.split(':')[0]
-    d = os.path.dirname(path)
-    if d and d != '.':
-        dirs.add('./' + d.lstrip('./') + '/...')
-if dirs:
-    print(' '.join(sorted(dirs)))
+    d = os.path.dirname(os.path.normpath(path))
+    if not d or d == '.':
+        d = '.'
+    owning_mod = '.'
+    for mr in mod_roots:
+        if d == mr or d.startswith(mr + '/'):
+            owning_mod = mr
+            break
+    if owning_mod == '.':
+        rel = './' + d.lstrip('./') + '/...' if d != '.' else './...'
+    else:
+        rel_d = os.path.relpath(d, owning_mod)
+        rel = './' + rel_d + '/...' if rel_d != '.' else './...'
+    module_dirs.setdefault(owning_mod, set()).add(rel)
+
+for mod, dirs in sorted(module_dirs.items()):
+    print(f'{mod}|{\" \".join(sorted(dirs))}')
 " 2>/dev/null)
 
-  if [[ -n "$build_dirs" ]]; then
-    timeout 60 go vet $build_dirs 2>&1 || true
-  else
+  if [[ -z "$build_script" || "$build_script" == "FALLBACK" ]]; then
     timeout 60 go vet ./... 2>&1 || true
+    return
   fi
+
+  while IFS='|' read -r mod_root dirs; do
+    [[ -z "$mod_root" || -z "$dirs" ]] && continue
+    (cd "$mod_root" && timeout 60 go vet $dirs 2>&1) || true
+  done <<< "$build_script"
 }
 
 scan_usage_pip() {
@@ -894,7 +969,7 @@ else
   main_npm_output=""
 fi
 
-# Go baseline — detect go.work (multi-module workspace) or go.mod (single module)
+# Go baseline — detect go.work (multi-module workspace), multi-module (multiple go.mod), or single module
 if [[ -f "$MAIN_DIR/go.work" ]]; then
   echo "  go: workspace (go.work) detected, syncing..."
   main_go_output=$(cd "$MAIN_DIR" && {
@@ -911,21 +986,53 @@ if [[ -f "$MAIN_DIR/go.work" ]]; then
   main_go_exit=$?
   echo "  go baseline (workspace): exit=$main_go_exit"
 elif [[ -f "$MAIN_DIR/go.mod" ]]; then
-  echo "  go: verifying + building..."
-  # Supply chain check first, then build + vet
-  main_go_output=$(cd "$MAIN_DIR" && {
-    go mod verify 2>&1 || echo "WARNING: go mod verify failed"
-    # _BUILD_RC captures go build exit so go vet warnings don't clobber it (Bug 3).
-    _BUILD_RC=0
-    go_free_disk
-    retry_cmd 3 5 go mod tidy && {
-      timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
-      if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
-      exit $_BUILD_RC
-    }
-  } 2>&1)
-  main_go_exit=$?
-  echo "  go baseline: exit=$main_go_exit"
+  # Check for multi-module layout (multiple go.mod without go.work)
+  _GO_MODULES=$(find "$MAIN_DIR" -name go.mod -not -path '*/vendor/*' -not -path '*/.git/*' 2>/dev/null | sort)
+  _MOD_COUNT=$(echo "$_GO_MODULES" | grep -c . || echo 0)
+
+  if [[ "$_MOD_COUNT" -gt 1 ]]; then
+    echo "  go: multi-module repo detected ($_MOD_COUNT modules) — building each separately..."
+    main_go_output=""
+    main_go_exit=0
+    while IFS= read -r _mod_file; do
+      _mod_dir=$(dirname "$_mod_file")
+      _mod_rel=$(realpath --relative-to="$MAIN_DIR" "$_mod_dir" 2>/dev/null || echo "$_mod_dir")
+      echo "  go baseline: building module $_mod_rel ..."
+      _mod_output=$(cd "$_mod_dir" && {
+        go_free_disk
+        _BUILD_RC=0
+        retry_cmd 3 5 go mod tidy && {
+          timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
+          if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
+          exit $_BUILD_RC
+        }
+      } 2>&1)
+      _mod_exit=$?
+      echo "    module $_mod_rel: exit=$_mod_exit"
+      main_go_output="$main_go_output
+--- module: $_mod_rel (exit=$_mod_exit) ---
+$_mod_output"
+      # Track worst exit code — but 0 from any module still means builds can work
+      [[ "$_mod_exit" -ne 0 ]] && main_go_exit=$_mod_exit
+    done <<< "$_GO_MODULES"
+    echo "  go baseline (multi-module): worst_exit=$main_go_exit"
+  else
+    echo "  go: verifying + building..."
+    # Supply chain check first, then build + vet
+    main_go_output=$(cd "$MAIN_DIR" && {
+      go mod verify 2>&1 || echo "WARNING: go mod verify failed"
+      # _BUILD_RC captures go build exit so go vet warnings don't clobber it (Bug 3).
+      _BUILD_RC=0
+      go_free_disk
+      retry_cmd 3 5 go mod tidy && {
+        timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
+        if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
+        exit $_BUILD_RC
+      }
+    } 2>&1)
+    main_go_exit=$?
+    echo "  go baseline: exit=$main_go_exit"
+  fi
 fi
 
 # Go baseline test — run with -race so pre-existing race failures don't look like PR regressions
