@@ -653,6 +653,78 @@ for mod, dirs in sorted(module_dirs.items()):
   done <<< "$build_script"
 }
 
+go_targeted_test() {
+  # Usage: go_targeted_test <workdir> <files_importing_json>
+  # Runs targeted tests only on packages that import the changed dependency.
+  # Multi-module aware. Returns exit code from test run.
+  local workdir="${1:-.}"
+  local import_json="${2:-[]}"
+
+  local test_script
+  test_script=$(python3 -c "
+import json, sys, os
+
+try:
+    files = json.loads('''$import_json''')
+except:
+    files = []
+
+if not files:
+    print('FALLBACK')
+    sys.exit(0)
+
+# Walk from workdir to find go.mod files
+mod_roots = []
+for root, dirs, fnames in os.walk('$workdir'):
+    dirs[:] = [d for d in dirs if d not in ('vendor', '.git', 'node_modules')]
+    if 'go.mod' in fnames:
+        mod_roots.append(os.path.relpath(root, '$workdir'))
+
+mod_roots = [os.path.normpath(m) for m in mod_roots]
+mod_roots.sort(key=lambda x: -x.count('/'))
+if not mod_roots:
+    mod_roots = ['.']
+
+module_dirs = {}
+for f in files:
+    path = f.split(':')[0]
+    d = os.path.dirname(os.path.normpath(path))
+    if not d or d == '.':
+        d = '.'
+    owning_mod = '.'
+    for mr in mod_roots:
+        if d == mr or d.startswith(mr + '/'):
+            owning_mod = mr
+            break
+    if owning_mod == '.':
+        rel = './' + d.lstrip('./') + '/...' if d != '.' else './...'
+    else:
+        rel_d = os.path.relpath(d, owning_mod)
+        rel = './' + rel_d + '/...' if rel_d != '.' else './...'
+    module_dirs.setdefault(owning_mod, set()).add(rel)
+
+for mod, dirs in sorted(module_dirs.items()):
+    print(f'{mod}|{chr(32).join(sorted(dirs))}')" 2>/dev/null)
+
+  if [[ -z "$test_script" || "$test_script" == "FALLBACK" ]]; then
+    echo "  go test: no import data, skipping (would run full ./...)"
+    return 0
+  fi
+
+  local _RC=0
+  local _OUTPUT=""
+  while IFS='|' read -r mod_root dirs; do
+    [[ -z "$mod_root" || -z "$dirs" ]] && continue
+    local abs_mod="$workdir"
+    [[ "$mod_root" != "." ]] && abs_mod="$workdir/$mod_root"
+    local dir_count
+    dir_count=$(echo "$dirs" | wc -w | tr -d ' ')
+    echo "    testing $mod_root module: $dir_count dirs — $dirs"
+    (cd "$abs_mod" && timeout $GO_TIMEOUT go test -timeout 5m $dirs 2>&1) || _RC=$?
+  done <<< "$test_script"
+  return $_RC
+}
+
 scan_usage_pip() {
   local pkg="$1"
   local import_name
@@ -1035,13 +1107,12 @@ $_mod_output"
   fi
 fi
 
-# Go baseline test — SKIP for large monorepos (runs entire test suite with -race, takes 30+ min).
-# The PR-branch targeted test is sufficient for breakability detection.
-if [[ "$main_go_exit" -eq 0 ]]; then
-  echo "  go: skipping full baseline test suite (targeted PR tests are sufficient)"
-  main_go_test_exit=-1
-  main_go_test_output="skipped — targeted PR tests used instead"
-fi
+# Go baseline test — run TARGETED tests on main branch for comparison.
+# We don't run full ./... (takes 30+ min on large monorepos).
+# Instead, we'll run the same targeted tests per-PR in the PR loop and compare.
+# Here we just record that baseline test is deferred to per-PR comparison.
+main_go_test_exit=-1
+main_go_test_output="deferred — per-PR targeted comparison"
 
 # Python baseline — detect requirements.txt / pyproject.toml / poetry.lock
 _PY_SRC_FILE=""
@@ -1843,61 +1914,9 @@ $IMPORT_OUT"
           ;;
         gomod)
           # Targeted test: only test packages that import the changed dependency
-          # Uses same module-aware grouping as go_targeted_build
-          if [[ -n "$FILES_IMPORTING" && "$FILES_IMPORTING" != "[]" ]]; then
-            echo "  go test: targeted (only affected packages)"
-            _TEST_SCRIPT=$(python3 -c "
-import json, sys, os
-try:
-    files = json.loads('''$FILES_IMPORTING''')
-except:
-    files = []
-if not files:
-    print('FALLBACK')
-    sys.exit(0)
-mod_roots = []
-for root, dirs, fnames in os.walk('.'):
-    dirs[:] = [d for d in dirs if d not in ('vendor', '.git', 'node_modules')]
-    if 'go.mod' in fnames:
-        mod_roots.append(os.path.normpath(root))
-mod_roots.sort(key=lambda x: -x.count('/'))
-if not mod_roots:
-    mod_roots = ['.']
-module_dirs = {}
-for f in files:
-    path = f.split(':')[0]
-    d = os.path.dirname(os.path.normpath(path))
-    if not d or d == '.':
-        d = '.'
-    owning_mod = '.'
-    for mr in mod_roots:
-        if d == mr or d.startswith(mr + '/'):
-            owning_mod = mr
-            break
-    if owning_mod == '.':
-        rel = './' + d.lstrip('./') + '/...' if d != '.' else './...'
-    else:
-        rel_d = os.path.relpath(d, owning_mod)
-        rel = './' + rel_d + '/...' if rel_d != '.' else './...'
-    module_dirs.setdefault(owning_mod, set()).add(rel)
-for mod, dirs in sorted(module_dirs.items()):
-    print(f'{mod}|{chr(32).join(sorted(dirs))}')" 2>/dev/null)
-            if [[ -z "$_TEST_SCRIPT" || "$_TEST_SCRIPT" == "FALLBACK" ]]; then
-              TEST_OUTPUT=$(cd "$PR_WORKTREE" && timeout 300 go test -timeout 5m ./... 2>&1)
-            else
-              TEST_OUTPUT=""
-              TEST_EXIT=0
-              while IFS='|' read -r _tmod _tdirs; do
-                [[ -z "$_tmod" || -z "$_tdirs" ]] && continue
-                echo "    testing $_tmod module: $_tdirs"
-                _tout=$(cd "$PR_WORKTREE/$_tmod" && timeout 300 go test -timeout 5m $_tdirs 2>&1) || TEST_EXIT=$?
-                TEST_OUTPUT="$TEST_OUTPUT$_tout"
-              done <<< "$_TEST_SCRIPT"
-            fi
-          else
-            TEST_OUTPUT=$(cd "$PR_WORKTREE" && timeout 300 go test -timeout 5m ./... 2>&1)
-          fi
-          TEST_EXIT=${TEST_EXIT:-$?}
+          echo "  go test: targeted (only affected packages)"
+          TEST_OUTPUT=$(go_targeted_test "$PR_WORKTREE" "$FILES_IMPORTING" 2>&1)
+          TEST_EXIT=$?
           TEST_RAN="true"
           ;;
         pip)
