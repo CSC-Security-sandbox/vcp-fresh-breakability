@@ -35,6 +35,14 @@ on:
           - '2'
           - '4'
           - '6'
+      runner:
+        description: 'Runner type: ubuntu-latest (GitHub-hosted) or self-hosted Mac'
+        required: false
+        default: 'ubuntu-latest'
+        type: choice
+        options:
+          - 'ubuntu-latest'
+          - 'self-hosted'
 
 concurrency:
   group: breakability-agent
@@ -56,7 +64,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════
   discover:
     if: ${{ inputs.skip_deterministic != true }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner == 'self-hosted' && 'self-hosted' || 'ubuntu-latest' }}
     timeout-minutes: 5
     outputs:
       matrix: ${{ steps.split.outputs.matrix }}
@@ -126,7 +134,7 @@ jobs:
   deterministic:
     if: ${{ inputs.skip_deterministic != true }}
     needs: discover
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner == 'self-hosted' && 'self-hosted' || 'ubuntu-latest' }}
     timeout-minutes: 60
     strategy:
       matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
@@ -156,7 +164,11 @@ jobs:
       - name: Setup Maven
         run: |
           if ! command -v mvn &>/dev/null; then
-            sudo apt-get update -qq && sudo apt-get install -y -qq maven > /dev/null 2>&1 || echo "Maven install skipped"
+            if [[ "$RUNNER_OS" == "Linux" ]]; then
+              sudo apt-get update -qq && sudo apt-get install -y -qq maven > /dev/null 2>&1 || echo "Maven install skipped"
+            elif [[ "$RUNNER_OS" == "macOS" ]]; then
+              brew install maven 2>/dev/null || echo "Maven install skipped"
+            fi
           fi
 
       - name: Run deterministic analysis (batch ${{ matrix.batch_id }})
@@ -188,7 +200,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════
   merge-and-analyze:
     needs: [discover, deterministic]
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner == 'self-hosted' && 'self-hosted' || 'ubuntu-latest' }}
     timeout-minutes: 120
     if: always() && (needs.discover.result == 'success' || inputs.skip_deterministic == true)
 
