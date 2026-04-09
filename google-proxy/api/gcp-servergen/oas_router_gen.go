@@ -1100,6 +1100,28 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 							}
 
+						case 'h': // Prefix: "hostGroups"
+
+							if l := len("hostGroups"); len(elem) >= l && elem[0:l] == "hostGroups" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "POST":
+									s.handleV1betaBatchListHostGroupsRequest([1]string{
+										args[0],
+									}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "POST")
+								}
+
+								return
+							}
+
 						case 'p': // Prefix: "pools"
 
 							if l := len("pools"); len(elem) >= l && elem[0:l] == "pools" {
@@ -4209,6 +4231,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									}
 								}
 
+							}
+
+						case 'h': // Prefix: "hostGroups"
+
+							if l := len("hostGroups"); len(elem) >= l && elem[0:l] == "hostGroups" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "POST":
+									r.name = V1betaBatchListHostGroupsOperation
+									r.summary = "Batch lists all host groups with the given UUIDs"
+									r.operationID = "v1beta_batchListHostGroups"
+									r.pathPattern = "/v1beta/locations/{locationId}/batch/hostGroups"
+									r.args = args
+									r.count = 1
+									return r, true
+								default:
+									return
+								}
 							}
 
 						case 'p': // Prefix: "pools"

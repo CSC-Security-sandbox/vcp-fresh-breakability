@@ -215,6 +215,19 @@ func TestOCIOrchestrator_GetMultipleHostGroups(t *testing.T) {
 	})
 }
 
+func TestOCIOrchestrator_GetHostGroupsByUUIDs(t *testing.T) {
+	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
+		orch := &OCIOrchestrator{}
+		ctx := context.Background()
+
+		result, err := orch.GetHostGroupsByUUIDs(ctx, []string{"uuid1", "uuid2"})
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsNotImplementedYetErr(err))
+		assert.Nil(tt, result)
+	})
+}
+
 func TestOCIOrchestrator_CreateVolume(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}

@@ -4498,6 +4498,309 @@ func (s *BatchBackupVaultV1betaState) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/BatchHostGroupUUIDList_v1beta
+type BatchHostGroupUUIDListV1beta struct {
+	// List of host group UUIDs to return.
+	HostGroupUuids []string `json:"hostGroupUuids"`
+}
+
+// GetHostGroupUuids returns the value of HostGroupUuids.
+func (s *BatchHostGroupUUIDListV1beta) GetHostGroupUuids() []string {
+	return s.HostGroupUuids
+}
+
+// SetHostGroupUuids sets the value of HostGroupUuids.
+func (s *BatchHostGroupUUIDListV1beta) SetHostGroupUuids(val []string) {
+	s.HostGroupUuids = val
+}
+
+// Ref: #/components/schemas/BatchHostGroup_v1beta
+type BatchHostGroupV1beta struct {
+	// UUID v4 used to identify the HostGroup.
+	HostGroupId OptString `json:"hostGroupId"`
+	// The full resource name of the HostGroup.
+	Name OptNilString `json:"name"`
+	// A human readable label for the HostGroup.
+	ResourceId OptNilString `json:"resourceId"`
+	// Description of the HostGroup.
+	Description OptNilString `json:"description"`
+	// Creation date of the resource.
+	Created OptNilDateTime `json:"created"`
+	// The current lifecycle state of the HostGroup.
+	State OptNilBatchHostGroupV1betaState `json:"state"`
+	// The type of initiators.
+	Type OptNilBatchHostGroupV1betaType `json:"type"`
+	// List of iSCSI Qualified Names associated with this HostGroup.
+	Hosts OptNilStringArray `json:"hosts"`
+	// Operating system type of the hosts in this HostGroup.
+	OsType OptNilBatchHostGroupV1betaOsType `json:"osType"`
+}
+
+// GetHostGroupId returns the value of HostGroupId.
+func (s *BatchHostGroupV1beta) GetHostGroupId() OptString {
+	return s.HostGroupId
+}
+
+// GetName returns the value of Name.
+func (s *BatchHostGroupV1beta) GetName() OptNilString {
+	return s.Name
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *BatchHostGroupV1beta) GetResourceId() OptNilString {
+	return s.ResourceId
+}
+
+// GetDescription returns the value of Description.
+func (s *BatchHostGroupV1beta) GetDescription() OptNilString {
+	return s.Description
+}
+
+// GetCreated returns the value of Created.
+func (s *BatchHostGroupV1beta) GetCreated() OptNilDateTime {
+	return s.Created
+}
+
+// GetState returns the value of State.
+func (s *BatchHostGroupV1beta) GetState() OptNilBatchHostGroupV1betaState {
+	return s.State
+}
+
+// GetType returns the value of Type.
+func (s *BatchHostGroupV1beta) GetType() OptNilBatchHostGroupV1betaType {
+	return s.Type
+}
+
+// GetHosts returns the value of Hosts.
+func (s *BatchHostGroupV1beta) GetHosts() OptNilStringArray {
+	return s.Hosts
+}
+
+// GetOsType returns the value of OsType.
+func (s *BatchHostGroupV1beta) GetOsType() OptNilBatchHostGroupV1betaOsType {
+	return s.OsType
+}
+
+// SetHostGroupId sets the value of HostGroupId.
+func (s *BatchHostGroupV1beta) SetHostGroupId(val OptString) {
+	s.HostGroupId = val
+}
+
+// SetName sets the value of Name.
+func (s *BatchHostGroupV1beta) SetName(val OptNilString) {
+	s.Name = val
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *BatchHostGroupV1beta) SetResourceId(val OptNilString) {
+	s.ResourceId = val
+}
+
+// SetDescription sets the value of Description.
+func (s *BatchHostGroupV1beta) SetDescription(val OptNilString) {
+	s.Description = val
+}
+
+// SetCreated sets the value of Created.
+func (s *BatchHostGroupV1beta) SetCreated(val OptNilDateTime) {
+	s.Created = val
+}
+
+// SetState sets the value of State.
+func (s *BatchHostGroupV1beta) SetState(val OptNilBatchHostGroupV1betaState) {
+	s.State = val
+}
+
+// SetType sets the value of Type.
+func (s *BatchHostGroupV1beta) SetType(val OptNilBatchHostGroupV1betaType) {
+	s.Type = val
+}
+
+// SetHosts sets the value of Hosts.
+func (s *BatchHostGroupV1beta) SetHosts(val OptNilStringArray) {
+	s.Hosts = val
+}
+
+// SetOsType sets the value of OsType.
+func (s *BatchHostGroupV1beta) SetOsType(val OptNilBatchHostGroupV1betaOsType) {
+	s.OsType = val
+}
+
+// Operating system type of the hosts in this HostGroup.
+type BatchHostGroupV1betaOsType string
+
+const (
+	BatchHostGroupV1betaOsTypeOSTYPEUNSPECIFIED BatchHostGroupV1betaOsType = "OS_TYPE_UNSPECIFIED"
+	BatchHostGroupV1betaOsTypeLINUX             BatchHostGroupV1betaOsType = "LINUX"
+	BatchHostGroupV1betaOsTypeWINDOWS           BatchHostGroupV1betaOsType = "WINDOWS"
+	BatchHostGroupV1betaOsTypeESXI              BatchHostGroupV1betaOsType = "ESXI"
+)
+
+// AllValues returns all BatchHostGroupV1betaOsType values.
+func (BatchHostGroupV1betaOsType) AllValues() []BatchHostGroupV1betaOsType {
+	return []BatchHostGroupV1betaOsType{
+		BatchHostGroupV1betaOsTypeOSTYPEUNSPECIFIED,
+		BatchHostGroupV1betaOsTypeLINUX,
+		BatchHostGroupV1betaOsTypeWINDOWS,
+		BatchHostGroupV1betaOsTypeESXI,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchHostGroupV1betaOsType) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchHostGroupV1betaOsTypeOSTYPEUNSPECIFIED:
+		return []byte(s), nil
+	case BatchHostGroupV1betaOsTypeLINUX:
+		return []byte(s), nil
+	case BatchHostGroupV1betaOsTypeWINDOWS:
+		return []byte(s), nil
+	case BatchHostGroupV1betaOsTypeESXI:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchHostGroupV1betaOsType) UnmarshalText(data []byte) error {
+	switch BatchHostGroupV1betaOsType(data) {
+	case BatchHostGroupV1betaOsTypeOSTYPEUNSPECIFIED:
+		*s = BatchHostGroupV1betaOsTypeOSTYPEUNSPECIFIED
+		return nil
+	case BatchHostGroupV1betaOsTypeLINUX:
+		*s = BatchHostGroupV1betaOsTypeLINUX
+		return nil
+	case BatchHostGroupV1betaOsTypeWINDOWS:
+		*s = BatchHostGroupV1betaOsTypeWINDOWS
+		return nil
+	case BatchHostGroupV1betaOsTypeESXI:
+		*s = BatchHostGroupV1betaOsTypeESXI
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The current lifecycle state of the HostGroup.
+type BatchHostGroupV1betaState string
+
+const (
+	BatchHostGroupV1betaStateSTATEUNSPECIFIED BatchHostGroupV1betaState = "STATE_UNSPECIFIED"
+	BatchHostGroupV1betaStateCREATING         BatchHostGroupV1betaState = "CREATING"
+	BatchHostGroupV1betaStateREADY            BatchHostGroupV1betaState = "READY"
+	BatchHostGroupV1betaStateUPDATING         BatchHostGroupV1betaState = "UPDATING"
+	BatchHostGroupV1betaStateDELETING         BatchHostGroupV1betaState = "DELETING"
+	BatchHostGroupV1betaStateERROR            BatchHostGroupV1betaState = "ERROR"
+	BatchHostGroupV1betaStateDISABLED         BatchHostGroupV1betaState = "DISABLED"
+)
+
+// AllValues returns all BatchHostGroupV1betaState values.
+func (BatchHostGroupV1betaState) AllValues() []BatchHostGroupV1betaState {
+	return []BatchHostGroupV1betaState{
+		BatchHostGroupV1betaStateSTATEUNSPECIFIED,
+		BatchHostGroupV1betaStateCREATING,
+		BatchHostGroupV1betaStateREADY,
+		BatchHostGroupV1betaStateUPDATING,
+		BatchHostGroupV1betaStateDELETING,
+		BatchHostGroupV1betaStateERROR,
+		BatchHostGroupV1betaStateDISABLED,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchHostGroupV1betaState) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchHostGroupV1betaStateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case BatchHostGroupV1betaStateCREATING:
+		return []byte(s), nil
+	case BatchHostGroupV1betaStateREADY:
+		return []byte(s), nil
+	case BatchHostGroupV1betaStateUPDATING:
+		return []byte(s), nil
+	case BatchHostGroupV1betaStateDELETING:
+		return []byte(s), nil
+	case BatchHostGroupV1betaStateERROR:
+		return []byte(s), nil
+	case BatchHostGroupV1betaStateDISABLED:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchHostGroupV1betaState) UnmarshalText(data []byte) error {
+	switch BatchHostGroupV1betaState(data) {
+	case BatchHostGroupV1betaStateSTATEUNSPECIFIED:
+		*s = BatchHostGroupV1betaStateSTATEUNSPECIFIED
+		return nil
+	case BatchHostGroupV1betaStateCREATING:
+		*s = BatchHostGroupV1betaStateCREATING
+		return nil
+	case BatchHostGroupV1betaStateREADY:
+		*s = BatchHostGroupV1betaStateREADY
+		return nil
+	case BatchHostGroupV1betaStateUPDATING:
+		*s = BatchHostGroupV1betaStateUPDATING
+		return nil
+	case BatchHostGroupV1betaStateDELETING:
+		*s = BatchHostGroupV1betaStateDELETING
+		return nil
+	case BatchHostGroupV1betaStateERROR:
+		*s = BatchHostGroupV1betaStateERROR
+		return nil
+	case BatchHostGroupV1betaStateDISABLED:
+		*s = BatchHostGroupV1betaStateDISABLED
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The type of initiators.
+type BatchHostGroupV1betaType string
+
+const (
+	BatchHostGroupV1betaTypeUNSPECIFIED    BatchHostGroupV1betaType = "UNSPECIFIED"
+	BatchHostGroupV1betaTypeISCSIINITIATOR BatchHostGroupV1betaType = "ISCSI_INITIATOR"
+)
+
+// AllValues returns all BatchHostGroupV1betaType values.
+func (BatchHostGroupV1betaType) AllValues() []BatchHostGroupV1betaType {
+	return []BatchHostGroupV1betaType{
+		BatchHostGroupV1betaTypeUNSPECIFIED,
+		BatchHostGroupV1betaTypeISCSIINITIATOR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchHostGroupV1betaType) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchHostGroupV1betaTypeUNSPECIFIED:
+		return []byte(s), nil
+	case BatchHostGroupV1betaTypeISCSIINITIATOR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchHostGroupV1betaType) UnmarshalText(data []byte) error {
+	switch BatchHostGroupV1betaType(data) {
+	case BatchHostGroupV1betaTypeUNSPECIFIED:
+		*s = BatchHostGroupV1betaTypeUNSPECIFIED
+		return nil
+	case BatchHostGroupV1betaTypeISCSIINITIATOR:
+		*s = BatchHostGroupV1betaTypeISCSIINITIATOR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/BatchPoolUUIDList_v1beta
 type BatchPoolUUIDListV1beta struct {
 	// List of pool UUIDs to return.
@@ -13394,6 +13697,195 @@ func (o OptNilBatchBackupVaultV1betaState) Get() (v BatchBackupVaultV1betaState,
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNilBatchBackupVaultV1betaState) Or(d BatchBackupVaultV1betaState) BatchBackupVaultV1betaState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchHostGroupV1betaOsType returns new OptNilBatchHostGroupV1betaOsType with value set to v.
+func NewOptNilBatchHostGroupV1betaOsType(v BatchHostGroupV1betaOsType) OptNilBatchHostGroupV1betaOsType {
+	return OptNilBatchHostGroupV1betaOsType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchHostGroupV1betaOsType is optional nullable BatchHostGroupV1betaOsType.
+type OptNilBatchHostGroupV1betaOsType struct {
+	Value BatchHostGroupV1betaOsType
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchHostGroupV1betaOsType was set.
+func (o OptNilBatchHostGroupV1betaOsType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchHostGroupV1betaOsType) Reset() {
+	var v BatchHostGroupV1betaOsType
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchHostGroupV1betaOsType) SetTo(v BatchHostGroupV1betaOsType) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchHostGroupV1betaOsType) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchHostGroupV1betaOsType) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchHostGroupV1betaOsType
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchHostGroupV1betaOsType) Get() (v BatchHostGroupV1betaOsType, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchHostGroupV1betaOsType) Or(d BatchHostGroupV1betaOsType) BatchHostGroupV1betaOsType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchHostGroupV1betaState returns new OptNilBatchHostGroupV1betaState with value set to v.
+func NewOptNilBatchHostGroupV1betaState(v BatchHostGroupV1betaState) OptNilBatchHostGroupV1betaState {
+	return OptNilBatchHostGroupV1betaState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchHostGroupV1betaState is optional nullable BatchHostGroupV1betaState.
+type OptNilBatchHostGroupV1betaState struct {
+	Value BatchHostGroupV1betaState
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchHostGroupV1betaState was set.
+func (o OptNilBatchHostGroupV1betaState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchHostGroupV1betaState) Reset() {
+	var v BatchHostGroupV1betaState
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchHostGroupV1betaState) SetTo(v BatchHostGroupV1betaState) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchHostGroupV1betaState) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchHostGroupV1betaState) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchHostGroupV1betaState
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchHostGroupV1betaState) Get() (v BatchHostGroupV1betaState, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchHostGroupV1betaState) Or(d BatchHostGroupV1betaState) BatchHostGroupV1betaState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchHostGroupV1betaType returns new OptNilBatchHostGroupV1betaType with value set to v.
+func NewOptNilBatchHostGroupV1betaType(v BatchHostGroupV1betaType) OptNilBatchHostGroupV1betaType {
+	return OptNilBatchHostGroupV1betaType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchHostGroupV1betaType is optional nullable BatchHostGroupV1betaType.
+type OptNilBatchHostGroupV1betaType struct {
+	Value BatchHostGroupV1betaType
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchHostGroupV1betaType was set.
+func (o OptNilBatchHostGroupV1betaType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchHostGroupV1betaType) Reset() {
+	var v BatchHostGroupV1betaType
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchHostGroupV1betaType) SetTo(v BatchHostGroupV1betaType) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchHostGroupV1betaType) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchHostGroupV1betaType) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchHostGroupV1betaType
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchHostGroupV1betaType) Get() (v BatchHostGroupV1betaType, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchHostGroupV1betaType) Or(d BatchHostGroupV1betaType) BatchHostGroupV1betaType {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -23512,6 +24004,38 @@ func (*V1betaBatchListBackupsOK) v1betaBatchListBackupsRes() {}
 type V1betaBatchListBackupsUnauthorized Error
 
 func (*V1betaBatchListBackupsUnauthorized) v1betaBatchListBackupsRes() {}
+
+type V1betaBatchListHostGroupsBadRequest Error
+
+func (*V1betaBatchListHostGroupsBadRequest) v1betaBatchListHostGroupsRes() {}
+
+type V1betaBatchListHostGroupsForbidden Error
+
+func (*V1betaBatchListHostGroupsForbidden) v1betaBatchListHostGroupsRes() {}
+
+type V1betaBatchListHostGroupsInternalServerError Error
+
+func (*V1betaBatchListHostGroupsInternalServerError) v1betaBatchListHostGroupsRes() {}
+
+type V1betaBatchListHostGroupsOK struct {
+	HostGroups []BatchHostGroupV1beta `json:"hostGroups"`
+}
+
+// GetHostGroups returns the value of HostGroups.
+func (s *V1betaBatchListHostGroupsOK) GetHostGroups() []BatchHostGroupV1beta {
+	return s.HostGroups
+}
+
+// SetHostGroups sets the value of HostGroups.
+func (s *V1betaBatchListHostGroupsOK) SetHostGroups(val []BatchHostGroupV1beta) {
+	s.HostGroups = val
+}
+
+func (*V1betaBatchListHostGroupsOK) v1betaBatchListHostGroupsRes() {}
+
+type V1betaBatchListHostGroupsUnauthorized Error
+
+func (*V1betaBatchListHostGroupsUnauthorized) v1betaBatchListHostGroupsRes() {}
 
 type V1betaBatchListPoolsBadRequest Error
 

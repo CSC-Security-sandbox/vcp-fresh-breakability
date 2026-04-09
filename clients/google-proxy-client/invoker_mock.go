@@ -259,6 +259,66 @@ func (_c *MockInvoker_V1betaBatchListBackups_Call) RunAndReturn(run func(context
 	return _c
 }
 
+// V1betaBatchListHostGroups provides a mock function with given fields: ctx, request, params
+func (_m *MockInvoker) V1betaBatchListHostGroups(ctx context.Context, request *BatchHostGroupUUIDListV1beta, params V1betaBatchListHostGroupsParams) (V1betaBatchListHostGroupsRes, error) {
+	ret := _m.Called(ctx, request, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaBatchListHostGroups")
+	}
+
+	var r0 V1betaBatchListHostGroupsRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *BatchHostGroupUUIDListV1beta, V1betaBatchListHostGroupsParams) (V1betaBatchListHostGroupsRes, error)); ok {
+		return rf(ctx, request, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *BatchHostGroupUUIDListV1beta, V1betaBatchListHostGroupsParams) V1betaBatchListHostGroupsRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaBatchListHostGroupsRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *BatchHostGroupUUIDListV1beta, V1betaBatchListHostGroupsParams) error); ok {
+		r1 = rf(ctx, request, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1betaBatchListHostGroups_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaBatchListHostGroups'
+type MockInvoker_V1betaBatchListHostGroups_Call struct {
+	*mock.Call
+}
+
+// V1betaBatchListHostGroups is a helper method to define mock.On call
+//   - ctx context.Context
+//   - request *BatchHostGroupUUIDListV1beta
+//   - params V1betaBatchListHostGroupsParams
+func (_e *MockInvoker_Expecter) V1betaBatchListHostGroups(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1betaBatchListHostGroups_Call {
+	return &MockInvoker_V1betaBatchListHostGroups_Call{Call: _e.mock.On("V1betaBatchListHostGroups", ctx, request, params)}
+}
+
+func (_c *MockInvoker_V1betaBatchListHostGroups_Call) Run(run func(ctx context.Context, request *BatchHostGroupUUIDListV1beta, params V1betaBatchListHostGroupsParams)) *MockInvoker_V1betaBatchListHostGroups_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*BatchHostGroupUUIDListV1beta), args[2].(V1betaBatchListHostGroupsParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1betaBatchListHostGroups_Call) Return(_a0 V1betaBatchListHostGroupsRes, _a1 error) *MockInvoker_V1betaBatchListHostGroups_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1betaBatchListHostGroups_Call) RunAndReturn(run func(context.Context, *BatchHostGroupUUIDListV1beta, V1betaBatchListHostGroupsParams) (V1betaBatchListHostGroupsRes, error)) *MockInvoker_V1betaBatchListHostGroups_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaBatchListPools provides a mock function with given fields: ctx, request, params
 func (_m *MockInvoker) V1betaBatchListPools(ctx context.Context, request *BatchPoolUUIDListV1beta, params V1betaBatchListPoolsParams) (V1betaBatchListPoolsRes, error) {
 	ret := _m.Called(ctx, request, params)

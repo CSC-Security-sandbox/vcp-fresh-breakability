@@ -32,6 +32,14 @@ type V1betaBatchListBackupsParams struct {
 	Fields []V1betaBatchListBackupsFieldsItem
 }
 
+// V1betaBatchListHostGroupsParams is parameters of v1beta_batchListHostGroups operation.
+type V1betaBatchListHostGroupsParams struct {
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaBatchListPoolsParams is parameters of v1beta_batchListPools operation.
 type V1betaBatchListPoolsParams struct {
 	// The location/region to perform the operation in.

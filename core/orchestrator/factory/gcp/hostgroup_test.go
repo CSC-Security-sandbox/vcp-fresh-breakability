@@ -203,6 +203,151 @@ func TestGetMultipleHostGroups(t *testing.T) {
 	})
 }
 
+func TestGetHostGroupsByUUIDs(t *testing.T) {
+	t.Run("WhenNoHostGroupsFound", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		orch := GCPOrchestrator{
+			storage: store,
+		}
+
+		hgResp, err := orch.GetHostGroupsByUUIDs(ctx, []string{"non-existent-uuid"})
+		assert.NoError(tt, err)
+		assert.Len(tt, hgResp, 0)
+	})
+
+	t.Run("WhenHostGroupsFound", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		orch := GCPOrchestrator{
+			storage: store,
+		}
+
+		hg1 := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{UUID: "test-hg-uuid1"},
+			Name:      "hg-one",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(hg1).Error
+		assert.NoError(tt, err)
+
+		hg2 := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{UUID: "test-hg-uuid2"},
+			Name:      "hg-two",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(hg2).Error
+		assert.NoError(tt, err)
+
+		hgResp, err := orch.GetHostGroupsByUUIDs(ctx, []string{hg1.UUID, hg2.UUID})
+		assert.NoError(tt, err)
+		assert.Len(tt, hgResp, 2)
+	})
+
+	t.Run("WhenHostGroupHasAccount", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		orch := GCPOrchestrator{
+			storage: store,
+		}
+
+		hg := &datamodel.HostGroup{
+			BaseModel: datamodel.BaseModel{UUID: "test-hg-uuid"},
+			Name:      "hg-with-account",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(hg).Error
+		assert.NoError(tt, err)
+
+		hgResp, err := orch.GetHostGroupsByUUIDs(ctx, []string{hg.UUID})
+		assert.NoError(tt, err)
+		assert.Len(tt, hgResp, 1)
+		assert.Equal(tt, "test_account", hgResp[0].AccountName)
+		assert.Equal(tt, "hg-with-account", hgResp[0].Name)
+	})
+
+	t.Run("WhenStorageReturnsError", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		origFn := getHostGroupsByUUIDs
+		defer func() { getHostGroupsByUUIDs = origFn }()
+
+		getHostGroupsByUUIDs = func(ctx context.Context, storage database.Storage, hostGroupUUIDs []string) ([]*models.HostGroup, error) {
+			return nil, customerrors.New("database error")
+		}
+
+		orch := GCPOrchestrator{}
+
+		hgResp, err := orch.GetHostGroupsByUUIDs(ctx, []string{"uuid-1"})
+		assert.Error(tt, err)
+		assert.Nil(tt, hgResp)
+		assert.EqualError(tt, err, "database error")
+	})
+
+	t.Run("WhenStorageReturnsErrorDirectly", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.EXPECT().GetHostGroupsByUUIDs(mock.Anything, []string{"uuid-1"}).
+			Return(nil, customerrors.New("storage failure"))
+
+		hgResp, err := _getHostGroupsByUUIDs(ctx, mockStorage, []string{"uuid-1"})
+		assert.Error(tt, err)
+		assert.Nil(tt, hgResp)
+	})
+}
+
 func TestDeleteHostGroups(t *testing.T) {
 	t.Run("WhenDeleteHostGroupsNotFound", func(tt *testing.T) {
 		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})

@@ -1672,6 +1672,86 @@ func (s *BatchBackupVaultV1betaState) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *BatchHostGroupUUIDListV1beta) SetFake() {
+	{
+		{
+			s.HostGroupUuids = nil
+			for i := 0; i < 1; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.HostGroupUuids = append(s.HostGroupUuids, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BatchHostGroupV1beta) SetFake() {
+	{
+		{
+			s.HostGroupId.SetFake()
+		}
+	}
+	{
+		{
+			s.Name.SetFake()
+		}
+	}
+	{
+		{
+			s.ResourceId.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.Created.SetFake()
+		}
+	}
+	{
+		{
+			s.State.SetFake()
+		}
+	}
+	{
+		{
+			s.Type.SetFake()
+		}
+	}
+	{
+		{
+			s.Hosts.SetFake()
+		}
+	}
+	{
+		{
+			s.OsType.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BatchHostGroupV1betaOsType) SetFake() {
+	*s = BatchHostGroupV1betaOsTypeOSTYPEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *BatchHostGroupV1betaState) SetFake() {
+	*s = BatchHostGroupV1betaStateSTATEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *BatchHostGroupV1betaType) SetFake() {
+	*s = BatchHostGroupV1betaTypeUNSPECIFIED
+}
+
+// SetFake set fake values.
 func (s *BatchPoolUUIDListV1beta) SetFake() {
 	{
 		{
@@ -4246,6 +4326,24 @@ func (s *OptNilBatchBackupVaultV1betaState) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptNilBatchHostGroupV1betaOsType) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilBatchHostGroupV1betaState) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilBatchHostGroupV1betaType) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
 func (s *OptNilBatchPoolV1betaAssetLocationMetadata) SetFake() {
 	s.Null = true
 	s.Set = true
@@ -6719,6 +6817,58 @@ func (s *V1betaBatchListBackupsUnauthorized) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaBatchListBackupsUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListHostGroupsBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListHostGroupsBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListHostGroupsForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListHostGroupsForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListHostGroupsInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListHostGroupsInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListHostGroupsOK) SetFake() {
+	{
+		{
+			s.HostGroups = nil
+			for i := 0; i < 0; i++ {
+				var elem BatchHostGroupV1beta
+				{
+					elem.SetFake()
+				}
+				s.HostGroups = append(s.HostGroups, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListHostGroupsUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListHostGroupsUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.

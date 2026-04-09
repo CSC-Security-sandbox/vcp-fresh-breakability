@@ -17,6 +17,10 @@ type V1betaBatchListBackupsRes interface {
 	v1betaBatchListBackupsRes()
 }
 
+type V1betaBatchListHostGroupsRes interface {
+	v1betaBatchListHostGroupsRes()
+}
+
 type V1betaBatchListPoolsRes interface {
 	v1betaBatchListPoolsRes()
 }

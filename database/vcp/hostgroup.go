@@ -17,6 +17,7 @@ import (
 var (
 	deleteHostGroup           = _deleteHostGroup
 	getMultipleHostGroups     = _getMultipleHostGroups
+	getHostGroupsByUUIDs      = _getHostGroupsByUUIDs
 	updateHostGroupsState     = _updateHostGroupsState
 	updateHostGroup           = _updateHostGroup
 	getHostGroupWithDetails   = _getHostGroupWithDetails
@@ -78,6 +79,19 @@ func (d *DataStoreRepository) GetMultipleHostGroups(ctx context.Context, hostGro
 func _getMultipleHostGroups(db *gorm.DB, hostGroupUUID []string, accountID int64) ([]*datamodel.HostGroup, error) {
 	var dbHostGroups []*datamodel.HostGroup
 	err := db.Where("uuid IN (?)", hostGroupUUID).Where("account_id = ?", accountID).Find(&dbHostGroups).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "host group", nil))
+	}
+	return dbHostGroups, nil
+}
+
+func (d *DataStoreRepository) GetHostGroupsByUUIDs(ctx context.Context, hostGroupUUIDs []string) ([]*datamodel.HostGroup, error) {
+	return getHostGroupsByUUIDs(d.db.GORM().WithContext(ctx), hostGroupUUIDs)
+}
+
+func _getHostGroupsByUUIDs(db *gorm.DB, hostGroupUUIDs []string) ([]*datamodel.HostGroup, error) {
+	var dbHostGroups []*datamodel.HostGroup
+	err := db.Where("uuid IN (?)", hostGroupUUIDs).Preload("Account").Find(&dbHostGroups).Error
 	if err != nil {
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "host group", nil))
 	}

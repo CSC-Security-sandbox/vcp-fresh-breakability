@@ -21,6 +21,7 @@ var (
 	getHostGroup         = _getHostGroup
 	deleteHostGroup      = _deleteHostGroup
 	getMultipleHostGroup = _getMultipleHostGroup
+	getHostGroupsByUUIDs = _getHostGroupsByUUIDs
 )
 
 // GetHostGroup retrieves the specified host group and returns it
@@ -132,6 +133,28 @@ func _getMultipleHostGroup(ctx context.Context, storage database.Storage, hostGr
 	}
 
 	return convHostGroups, nil
+}
+
+func (o *GCPOrchestrator) GetHostGroupsByUUIDs(ctx context.Context, hostGroupUUIDs []string) ([]*models.HostGroup, error) {
+	return getHostGroupsByUUIDs(ctx, o.storage, hostGroupUUIDs)
+}
+
+func _getHostGroupsByUUIDs(ctx context.Context, storage database.Storage, hostGroupUUIDs []string) ([]*models.HostGroup, error) {
+	hostGroups, err := storage.GetHostGroupsByUUIDs(ctx, hostGroupUUIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*models.HostGroup, 0, len(hostGroups))
+	for _, hg := range hostGroups {
+		accountName := ""
+		if hg.Account != nil {
+			accountName = hg.Account.Name
+		}
+		result = append(result, convertDatastoreHostGroupToModel(hg, accountName))
+	}
+
+	return result, nil
 }
 
 func (o *GCPOrchestrator) UpdateHostGroup(ctx context.Context, params *common.UpdateHostGroupParams) (*models.HostGroup, string, error) {

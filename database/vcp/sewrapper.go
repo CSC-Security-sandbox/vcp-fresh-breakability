@@ -1956,6 +1956,22 @@ func (re *retryEngine) GetMultipleHostGroups(ctx context.Context, ids []string, 
 	return var0, err
 }
 
+func (re *retryEngine) GetHostGroupsByUUIDs(ctx context.Context, hostGroupUUIDs []string) ([]*datamodel.HostGroup, error) {
+	var var0 []*datamodel.HostGroup
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetHostGroupsByUUIDs(ctx, hostGroupUUIDs)
+		if err != nil {
+			re.logError("GetHostGroupsByUUIDs", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) DeleteHostGroup(ctx context.Context, hostGroupUUID string, accountID int64) (*datamodel.HostGroup, error) {
 	var var0 *datamodel.HostGroup
 	err := retry.Do(func(attempt int) (bool, error) {

@@ -49,7 +49,9 @@ var (
 	validateIssuerAndAudience   = _validateIssuerAndAudience
 
 	authSkipExactPaths  = []string{"/health", "/metrics", "/v1/expertMode"}
-	authSkipPrefixPaths = []string{"/v1/expertMode/", "/v1beta/locations/"}
+	authSkipPrefixPaths = []string{"/v1/expertMode/"}
+	batchAuthPrefix   = "/v1beta/locations/"
+	batchAuthSuffixes = []string{"/batch/hostGroups", "/batch/pools"}
 )
 
 type googleClaims struct {
@@ -96,6 +98,18 @@ func shouldSkipAuthPath(path string) bool {
 	return false
 }
 
+func isBatchAuthPath(path string) bool {
+	if !strings.HasPrefix(path, batchAuthPrefix) {
+		return false
+	}
+	for _, suffix := range batchAuthSuffixes {
+		if strings.HasSuffix(path, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
 // AuthMiddleware returns a middleware handler that can be parameterized by skipProjectNumberValidation.
 func AuthMiddleware(skipProjectNumberValidation bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -104,6 +118,19 @@ func AuthMiddleware(skipProjectNumberValidation bool) func(http.Handler) http.Ha
 				ctx := context.WithValue(r.Context(), utilsmiddleware.HeaderContextKey, r.Header)
 				r = r.WithContext(ctx)
 				next.ServeHTTP(w, r)
+				return
+			}
+
+			if isBatchAuthPath(r.URL.Path) {
+				responder := AuthenticatedGCP(r, true, func() middleware.Responder {
+					ctx := context.WithValue(r.Context(), utilsmiddleware.HeaderContextKey, r.Header)
+					r = r.WithContext(ctx)
+					next.ServeHTTP(w, r)
+					return nil
+				})
+				if responder != nil {
+					responder.WriteResponse(w, runtime.JSONProducer())
+				}
 				return
 			}
 
@@ -164,6 +191,9 @@ func AuthenticatedGCP(req *http.Request, skipProjectNumberValidation bool, handl
 }
 
 func BatchAuthenticatedGCP(req *http.Request, handler func() middleware.Responder) middleware.Responder {
+	if runningEnv == "local" {
+		return handler()
+	}
 	authorizationHeader := req.Header.Get("authorization")
 	slogger := req.Context().Value(utilsmiddleware.ContextSLoggerKey).(log.Logger)
 	token, err := jwtParseWithClaims(authorizationHeader, &googleClaims{}, jwtKeyFunc)

@@ -7690,6 +7690,447 @@ func (s *BatchBackupVaultV1betaState) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *BatchHostGroupUUIDListV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *BatchHostGroupUUIDListV1beta) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("hostGroupUuids")
+		e.ArrStart()
+		for _, elem := range s.HostGroupUuids {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfBatchHostGroupUUIDListV1beta = [1]string{
+	0: "hostGroupUuids",
+}
+
+// Decode decodes BatchHostGroupUUIDListV1beta from json.
+func (s *BatchHostGroupUUIDListV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BatchHostGroupUUIDListV1beta to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "hostGroupUuids":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.HostGroupUuids = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.HostGroupUuids = append(s.HostGroupUuids, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"hostGroupUuids\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode BatchHostGroupUUIDListV1beta")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfBatchHostGroupUUIDListV1beta) {
+					name = jsonFieldsNameOfBatchHostGroupUUIDListV1beta[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *BatchHostGroupUUIDListV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BatchHostGroupUUIDListV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *BatchHostGroupV1beta) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *BatchHostGroupV1beta) encodeFields(e *jx.Encoder) {
+	{
+		if s.HostGroupId.Set {
+			e.FieldStart("hostGroupId")
+			s.HostGroupId.Encode(e)
+		}
+	}
+	{
+		if s.Name.Set {
+			e.FieldStart("name")
+			s.Name.Encode(e)
+		}
+	}
+	{
+		if s.ResourceId.Set {
+			e.FieldStart("resourceId")
+			s.ResourceId.Encode(e)
+		}
+	}
+	{
+		if s.Description.Set {
+			e.FieldStart("description")
+			s.Description.Encode(e)
+		}
+	}
+	{
+		if s.Created.Set {
+			e.FieldStart("created")
+			s.Created.Encode(e, json.EncodeDateTime)
+		}
+	}
+	{
+		if s.State.Set {
+			e.FieldStart("state")
+			s.State.Encode(e)
+		}
+	}
+	{
+		if s.Type.Set {
+			e.FieldStart("type")
+			s.Type.Encode(e)
+		}
+	}
+	{
+		if s.Hosts.Set {
+			e.FieldStart("hosts")
+			s.Hosts.Encode(e)
+		}
+	}
+	{
+		if s.OsType.Set {
+			e.FieldStart("osType")
+			s.OsType.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfBatchHostGroupV1beta = [9]string{
+	0: "hostGroupId",
+	1: "name",
+	2: "resourceId",
+	3: "description",
+	4: "created",
+	5: "state",
+	6: "type",
+	7: "hosts",
+	8: "osType",
+}
+
+// Decode decodes BatchHostGroupV1beta from json.
+func (s *BatchHostGroupV1beta) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BatchHostGroupV1beta to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "hostGroupId":
+			if err := func() error {
+				s.HostGroupId.Reset()
+				if err := s.HostGroupId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"hostGroupId\"")
+			}
+		case "name":
+			if err := func() error {
+				s.Name.Reset()
+				if err := s.Name.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "resourceId":
+			if err := func() error {
+				s.ResourceId.Reset()
+				if err := s.ResourceId.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"resourceId\"")
+			}
+		case "description":
+			if err := func() error {
+				s.Description.Reset()
+				if err := s.Description.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"description\"")
+			}
+		case "created":
+			if err := func() error {
+				s.Created.Reset()
+				if err := s.Created.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"created\"")
+			}
+		case "state":
+			if err := func() error {
+				s.State.Reset()
+				if err := s.State.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"state\"")
+			}
+		case "type":
+			if err := func() error {
+				s.Type.Reset()
+				if err := s.Type.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"type\"")
+			}
+		case "hosts":
+			if err := func() error {
+				s.Hosts.Reset()
+				if err := s.Hosts.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"hosts\"")
+			}
+		case "osType":
+			if err := func() error {
+				s.OsType.Reset()
+				if err := s.OsType.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"osType\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode BatchHostGroupV1beta")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *BatchHostGroupV1beta) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BatchHostGroupV1beta) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes BatchHostGroupV1betaOsType as json.
+func (s BatchHostGroupV1betaOsType) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes BatchHostGroupV1betaOsType from json.
+func (s *BatchHostGroupV1betaOsType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BatchHostGroupV1betaOsType to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch BatchHostGroupV1betaOsType(v) {
+	case BatchHostGroupV1betaOsTypeOSTYPEUNSPECIFIED:
+		*s = BatchHostGroupV1betaOsTypeOSTYPEUNSPECIFIED
+	case BatchHostGroupV1betaOsTypeLINUX:
+		*s = BatchHostGroupV1betaOsTypeLINUX
+	case BatchHostGroupV1betaOsTypeWINDOWS:
+		*s = BatchHostGroupV1betaOsTypeWINDOWS
+	case BatchHostGroupV1betaOsTypeESXI:
+		*s = BatchHostGroupV1betaOsTypeESXI
+	default:
+		*s = BatchHostGroupV1betaOsType(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s BatchHostGroupV1betaOsType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BatchHostGroupV1betaOsType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes BatchHostGroupV1betaState as json.
+func (s BatchHostGroupV1betaState) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes BatchHostGroupV1betaState from json.
+func (s *BatchHostGroupV1betaState) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BatchHostGroupV1betaState to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch BatchHostGroupV1betaState(v) {
+	case BatchHostGroupV1betaStateSTATEUNSPECIFIED:
+		*s = BatchHostGroupV1betaStateSTATEUNSPECIFIED
+	case BatchHostGroupV1betaStateCREATING:
+		*s = BatchHostGroupV1betaStateCREATING
+	case BatchHostGroupV1betaStateREADY:
+		*s = BatchHostGroupV1betaStateREADY
+	case BatchHostGroupV1betaStateUPDATING:
+		*s = BatchHostGroupV1betaStateUPDATING
+	case BatchHostGroupV1betaStateDELETING:
+		*s = BatchHostGroupV1betaStateDELETING
+	case BatchHostGroupV1betaStateERROR:
+		*s = BatchHostGroupV1betaStateERROR
+	case BatchHostGroupV1betaStateDISABLED:
+		*s = BatchHostGroupV1betaStateDISABLED
+	default:
+		*s = BatchHostGroupV1betaState(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s BatchHostGroupV1betaState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BatchHostGroupV1betaState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes BatchHostGroupV1betaType as json.
+func (s BatchHostGroupV1betaType) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes BatchHostGroupV1betaType from json.
+func (s *BatchHostGroupV1betaType) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode BatchHostGroupV1betaType to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch BatchHostGroupV1betaType(v) {
+	case BatchHostGroupV1betaTypeUNSPECIFIED:
+		*s = BatchHostGroupV1betaTypeUNSPECIFIED
+	case BatchHostGroupV1betaTypeISCSIINITIATOR:
+		*s = BatchHostGroupV1betaTypeISCSIINITIATOR
+	default:
+		*s = BatchHostGroupV1betaType(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s BatchHostGroupV1betaType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *BatchHostGroupV1betaType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *BatchPoolUUIDListV1beta) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -19229,6 +19670,153 @@ func (s OptNilBatchBackupVaultV1betaState) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptNilBatchBackupVaultV1betaState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes BatchHostGroupV1betaOsType as json.
+func (o OptNilBatchHostGroupV1betaOsType) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	if o.Null {
+		e.Null()
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes BatchHostGroupV1betaOsType from json.
+func (o *OptNilBatchHostGroupV1betaOsType) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptNilBatchHostGroupV1betaOsType to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v BatchHostGroupV1betaOsType
+		o.Value = v
+		o.Set = true
+		o.Null = true
+		return nil
+	}
+	o.Set = true
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptNilBatchHostGroupV1betaOsType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptNilBatchHostGroupV1betaOsType) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes BatchHostGroupV1betaState as json.
+func (o OptNilBatchHostGroupV1betaState) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	if o.Null {
+		e.Null()
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes BatchHostGroupV1betaState from json.
+func (o *OptNilBatchHostGroupV1betaState) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptNilBatchHostGroupV1betaState to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v BatchHostGroupV1betaState
+		o.Value = v
+		o.Set = true
+		o.Null = true
+		return nil
+	}
+	o.Set = true
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptNilBatchHostGroupV1betaState) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptNilBatchHostGroupV1betaState) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes BatchHostGroupV1betaType as json.
+func (o OptNilBatchHostGroupV1betaType) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	if o.Null {
+		e.Null()
+		return
+	}
+	e.Str(string(o.Value))
+}
+
+// Decode decodes BatchHostGroupV1betaType from json.
+func (o *OptNilBatchHostGroupV1betaType) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptNilBatchHostGroupV1betaType to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v BatchHostGroupV1betaType
+		o.Value = v
+		o.Set = true
+		o.Null = true
+		return nil
+	}
+	o.Set = true
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptNilBatchHostGroupV1betaType) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptNilBatchHostGroupV1betaType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -31232,6 +31820,232 @@ func (s *V1betaBatchListBackupsUnauthorized) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *V1betaBatchListBackupsUnauthorized) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaBatchListHostGroupsBadRequest as json.
+func (s *V1betaBatchListHostGroupsBadRequest) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaBatchListHostGroupsBadRequest from json.
+func (s *V1betaBatchListHostGroupsBadRequest) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaBatchListHostGroupsBadRequest to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaBatchListHostGroupsBadRequest(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaBatchListHostGroupsBadRequest) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaBatchListHostGroupsBadRequest) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaBatchListHostGroupsForbidden as json.
+func (s *V1betaBatchListHostGroupsForbidden) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaBatchListHostGroupsForbidden from json.
+func (s *V1betaBatchListHostGroupsForbidden) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaBatchListHostGroupsForbidden to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaBatchListHostGroupsForbidden(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaBatchListHostGroupsForbidden) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaBatchListHostGroupsForbidden) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaBatchListHostGroupsInternalServerError as json.
+func (s *V1betaBatchListHostGroupsInternalServerError) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaBatchListHostGroupsInternalServerError from json.
+func (s *V1betaBatchListHostGroupsInternalServerError) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaBatchListHostGroupsInternalServerError to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaBatchListHostGroupsInternalServerError(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaBatchListHostGroupsInternalServerError) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaBatchListHostGroupsInternalServerError) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *V1betaBatchListHostGroupsOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *V1betaBatchListHostGroupsOK) encodeFields(e *jx.Encoder) {
+	{
+		if s.HostGroups != nil {
+			e.FieldStart("hostGroups")
+			e.ArrStart()
+			for _, elem := range s.HostGroups {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
+		}
+	}
+}
+
+var jsonFieldsNameOfV1betaBatchListHostGroupsOK = [1]string{
+	0: "hostGroups",
+}
+
+// Decode decodes V1betaBatchListHostGroupsOK from json.
+func (s *V1betaBatchListHostGroupsOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaBatchListHostGroupsOK to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "hostGroups":
+			if err := func() error {
+				s.HostGroups = make([]BatchHostGroupV1beta, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem BatchHostGroupV1beta
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.HostGroups = append(s.HostGroups, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"hostGroups\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode V1betaBatchListHostGroupsOK")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaBatchListHostGroupsOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaBatchListHostGroupsOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes V1betaBatchListHostGroupsUnauthorized as json.
+func (s *V1betaBatchListHostGroupsUnauthorized) Encode(e *jx.Encoder) {
+	unwrapped := (*Error)(s)
+
+	unwrapped.Encode(e)
+}
+
+// Decode decodes V1betaBatchListHostGroupsUnauthorized from json.
+func (s *V1betaBatchListHostGroupsUnauthorized) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode V1betaBatchListHostGroupsUnauthorized to nil")
+	}
+	var unwrapped Error
+	if err := func() error {
+		if err := unwrapped.Decode(d); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return errors.Wrap(err, "alias")
+	}
+	*s = V1betaBatchListHostGroupsUnauthorized(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *V1betaBatchListHostGroupsUnauthorized) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *V1betaBatchListHostGroupsUnauthorized) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

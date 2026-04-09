@@ -89,6 +89,10 @@ func (o *OCIOrchestrator) GetMultipleHostGroups(ctx context.Context, accountName
 	return nil, utilserrors.NewNotImplementedYetErr()
 }
 
+func (o *OCIOrchestrator) GetHostGroupsByUUIDs(ctx context.Context, hostGroupUUIDs []string) ([]*models.HostGroup, error) {
+	return nil, utilserrors.NewNotImplementedYetErr()
+}
+
 func (o *OCIOrchestrator) CreateVolume(ctx context.Context, params *commonparams.CreateVolumeParams) (*models.Volume, string, error) {
 	// TODO implement me
 	return nil, "", utilserrors.NewNotImplementedYetErr()

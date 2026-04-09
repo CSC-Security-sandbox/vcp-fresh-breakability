@@ -49,6 +49,15 @@ func (UnimplementedHandler) V1betaBatchListBackups(ctx context.Context, req *Bat
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaBatchListHostGroups implements v1beta_batchListHostGroups operation.
+//
+// Batch lists all host groups with the given UUIDs across all accounts.
+//
+// POST /v1beta/locations/{locationId}/batch/hostGroups
+func (UnimplementedHandler) V1betaBatchListHostGroups(ctx context.Context, req *BatchHostGroupUUIDListV1beta, params V1betaBatchListHostGroupsParams) (r V1betaBatchListHostGroupsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaBatchListPools implements v1beta_batchListPools operation.
 //
 // Batch lists all pools with the given UUIDs across all accounts.

@@ -17,6 +17,8 @@ tags:
     description: Volume operations
   - name: HostGroups
     description: HostGroup operations
+  - name: batch
+    description: Batch operations (cross-account)
   - name: activeDirectories
     description: AD operations
   - name: backupVault
@@ -2750,6 +2752,44 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
+  /v1beta/locations/{locationId}/batch/hostGroups:
+    post:
+      operationId: v1beta_batchListHostGroups
+      summary: Batch lists all host groups with the given UUIDs
+      description: Batch lists all host groups with the given UUIDs across all accounts
+      tags:
+        - batch
+      parameters:
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: A list of host group UUIDs to return.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchHostGroupUUIDList_v1beta'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hostGroups:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BatchHostGroup_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
       x-codegen-request-body-name: body
   /v1beta/projects/{projectNumber}/locations/{locationId}/operations/{operationId}:
     get:
@@ -12866,6 +12906,95 @@ components:
             type: string
             description: Uuid v4 used to identify Host group
             example: 9760acf5-4638-11e7-9bdb-020073ca3333
+    BatchHostGroupUUIDList_v1beta:
+      type: object
+      title: BatchHostGroupUUIDList
+      required:
+        - hostGroupUuids
+      properties:
+        hostGroupUuids:
+          title: hostGroupUuids
+          minItems: 1
+          type: array
+          items:
+            pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+            type: string
+            description: UUID v4 used to identify the host group
+            example: 9760acf5-4638-11e7-9bdb-020073ca3333
+          description: List of host group UUIDs to return
+    BatchHostGroup_v1beta:
+      type: object
+      title: BatchHostGroup
+      properties:
+        hostGroupId:
+          type: string
+          readOnly: true
+          description: UUID v4 used to identify the HostGroup
+          example: 123e4567-e89b-12d3-a456-426614174000
+        name:
+          type: string
+          nullable: true
+          readOnly: true
+          description: The full resource name of the HostGroup
+        resourceId:
+          type: string
+          nullable: true
+          readOnly: true
+          description: A human readable label for the HostGroup
+          example: my-host-group
+        description:
+          type: string
+          nullable: true
+          description: Description of the HostGroup
+          example: "HostGroup for storage access"
+        created:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
+          description: Creation date of the resource
+          example: "2024-01-24T13:54:14.374Z"
+        state:
+          type: string
+          nullable: true
+          readOnly: true
+          description: The current lifecycle state of the HostGroup
+          example: READY
+          enum:
+            - STATE_UNSPECIFIED
+            - CREATING
+            - READY
+            - UPDATING
+            - DELETING
+            - ERROR
+            - DISABLED
+        type:
+          type: string
+          nullable: true
+          description: The type of initiators
+          enum:
+            - UNSPECIFIED
+            - ISCSI_INITIATOR
+          example: ISCSI_INITIATOR
+        hosts:
+          type: array
+          nullable: true
+          description: List of iSCSI Qualified Names associated with this HostGroup
+          items:
+            type: string
+          example:
+            - iqn.1998-01.com.vmware:example1
+            - iqn.1998-01.com.vmware:example2
+        osType:
+          type: string
+          nullable: true
+          description: Operating system type of the hosts in this HostGroup
+          enum:
+            - OS_TYPE_UNSPECIFIED
+            - LINUX
+            - WINDOWS
+            - ESXI
+          example: LINUX
     Job_v1beta:
       title: Job
       type: object

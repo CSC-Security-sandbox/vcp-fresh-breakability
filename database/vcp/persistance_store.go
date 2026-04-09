@@ -834,6 +834,10 @@ func (s *PersistenceStore) GetMultipleHostGroups(ctx context.Context, ids []stri
 	return s.dataStore.GetMultipleHostGroups(ctx, ids, accountID)
 }
 
+func (s *PersistenceStore) GetHostGroupsByUUIDs(ctx context.Context, hostGroupUUIDs []string) ([]*datamodel.HostGroup, error) {
+	return s.dataStore.GetHostGroupsByUUIDs(ctx, hostGroupUUIDs)
+}
+
 func (s *PersistenceStore) DeleteHostGroup(ctx context.Context, hostGroupUUID string, accountID int64) (*datamodel.HostGroup, error) {
 	return s.dataStore.DeleteHostGroup(ctx, hostGroupUUID, accountID)
 }

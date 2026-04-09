@@ -7900,6 +7900,65 @@ func (_c *MockDataStore_GetHostGroup_Call) RunAndReturn(run func(context.Context
 	return _c
 }
 
+// GetHostGroupsByUUIDs provides a mock function with given fields: ctx, hostGroupUUIDs
+func (_m *MockDataStore) GetHostGroupsByUUIDs(ctx context.Context, hostGroupUUIDs []string) ([]*datamodel.HostGroup, error) {
+	ret := _m.Called(ctx, hostGroupUUIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetHostGroupsByUUIDs")
+	}
+
+	var r0 []*datamodel.HostGroup
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []string) ([]*datamodel.HostGroup, error)); ok {
+		return rf(ctx, hostGroupUUIDs)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []string) []*datamodel.HostGroup); ok {
+		r0 = rf(ctx, hostGroupUUIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.HostGroup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []string) error); ok {
+		r1 = rf(ctx, hostGroupUUIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetHostGroupsByUUIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetHostGroupsByUUIDs'
+type MockDataStore_GetHostGroupsByUUIDs_Call struct {
+	*mock.Call
+}
+
+// GetHostGroupsByUUIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - hostGroupUUIDs []string
+func (_e *MockDataStore_Expecter) GetHostGroupsByUUIDs(ctx interface{}, hostGroupUUIDs interface{}) *MockDataStore_GetHostGroupsByUUIDs_Call {
+	return &MockDataStore_GetHostGroupsByUUIDs_Call{Call: _e.mock.On("GetHostGroupsByUUIDs", ctx, hostGroupUUIDs)}
+}
+
+func (_c *MockDataStore_GetHostGroupsByUUIDs_Call) Run(run func(ctx context.Context, hostGroupUUIDs []string)) *MockDataStore_GetHostGroupsByUUIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetHostGroupsByUUIDs_Call) Return(_a0 []*datamodel.HostGroup, _a1 error) *MockDataStore_GetHostGroupsByUUIDs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetHostGroupsByUUIDs_Call) RunAndReturn(run func(context.Context, []string) ([]*datamodel.HostGroup, error)) *MockDataStore_GetHostGroupsByUUIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetImageVersionByOntapVersion provides a mock function with given fields: ctx, ontapVersion
 func (_m *MockDataStore) GetImageVersionByOntapVersion(ctx context.Context, ontapVersion string) (*datamodel.ImageVersion, error) {
 	ret := _m.Called(ctx, ontapVersion)
