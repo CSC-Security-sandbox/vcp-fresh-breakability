@@ -142,6 +142,19 @@ When `ecosystem == "gomod"`, apply these rules in addition to general verdict ru
 
 **`go.work` (workspace mode)**: If the repo uses a `go.work` file, the build covers all modules in the workspace. A failure in any module fails the whole workspace build. Check which module the error originates from.
 
+**Go `error_class` values**: The deterministic pipeline classifies Go build failures:
+- `cache_corruption` → Build cache was corrupted (stale files). The pipeline already retried with a clean cache. If the retry passed, `build.verdict` will be `pass`. If you see `error_class: "cache_corruption"` with a `fail` verdict, this is an infrastructure issue, NOT a code problem. Treat as **REVIEW** with note: "Go build cache corruption — retry locally with `go clean -cache && go build ./...`"
+- `infra_error` → Network/proxy/module download failure. Treat as **REVIEW** (infrastructure issue).
+- `private_module` → Private module auth failure. Treat as **REVIEW** (infrastructure issue).
+- `build_fail` → Genuine compilation error. Treat per normal verdict rules.
+- Empty → Build succeeded or no classification needed.
+
+**Kubernetes module coordination**: The following `k8s.io` modules MUST be upgraded together — they share a release cycle and have tight version coupling:
+- `k8s.io/api`, `k8s.io/apimachinery`, `k8s.io/client-go`, `k8s.io/apiserver`, `k8s.io/apiextensions-apiserver`
+- If a PR bumps ONE of these, check whether other `k8s.io/*` PRs exist for the same target version. If they do, add: "⚠️ **Coordinated upgrade required:** This K8s module must be merged together with PRs for [list other k8s PRs]. Merging only this PR may cause version skew and build failures."
+- If a `k8s.io/*` PR shows `BUILD_FAILS` and other `k8s.io/*` PRs exist, the likely cause is version skew. Say: "Build failure is likely caused by k8s.io version skew — merge all k8s.io PRs together."
+- In the merge plan, group all `k8s.io/*` PRs into a single "Kubernetes upgrade" batch and recommend merging them atomically.
+
 ### 2.11 Python Package Analysis
 
 When `ecosystem == "pip"`, apply these rules in addition to general verdict rules:
@@ -185,9 +198,9 @@ Check `metadata.mode` in `/tmp/build-results.json`.
 1. **`build.verdict == "fail"`** (and main passes) → **BUILD_FAILS**. Non-negotiable.
 2. **`build.install_method == "infra_error"`** → **REVIEW** (infrastructure issue, not a build failure from the upgrade). Say "Build verification blocked by infrastructure error."
 3. **`build.verdict == "pre_existing_plus_new"`** → Check `build.new_errors`. Infrastructure artifact errors (e.g., `Cannot find module '@org/*'`, missing `rxjs`) have already been filtered by the deterministic layer. If `new_errors` is non-empty after filtering, these are genuinely new errors → **BUILD_FAILS**. If `new_errors` is empty (all were filtered as infra artifacts), this has been downgraded to `pre_existing` — treat per rule 4.
-4. **`build.verdict == "pre_existing"`** (both fail, no new errors) → Build is neutral — **this failure exists on `main` and is NOT caused by the dependency upgrade**. The PR comment MUST say this clearly: "⚙️ Pre-existing — same errors on main, not caused by this upgrade".
-   - If `verification_level >= 2` (L2+): tsc actually passed on the PR branch → **SAFE** with pre-existing caveat.
-   - If `verification_level == 1` (L1 only): tsc failed on both branches with same errors → **UNVERIFIED**. Use headline `## ⚙️ UNVERIFIED — \`pkg\` ...`. Say: "Type-checking could not verify this upgrade because main has pre-existing tsc failures. The upgrade does not introduce new errors, but safety is not confirmed."
+4. **`build.verdict == "pre_existing"`** (both fail, no new errors) → Build is neutral — **this failure exists on `main` and is NOT caused by the dependency upgrade**. The Build row in the PR comment MUST say: "✅ Pass (verified — same result as main baseline)". Do NOT use the word "error" or "failure" in the Build row for pre_existing verdicts — the upgrade didn't break anything.
+   - If `verification_level >= 2` (L2+): tsc/go build actually passed on the PR branch → **SAFE**.
+   - If `verification_level == 1` (L1 only): tsc/go build failed on both branches with same errors → **UNVERIFIED**. Use headline `## ⚙️ UNVERIFIED — \`pkg\` ...`. Say: "Type-checking could not verify this upgrade because main has pre-existing build failures. The upgrade does not introduce new errors, but safety is not confirmed."
    - If `verification_level == 1` AND `bump == "major"` AND `dep_type == "production"` → **REVIEW**. Major production upgrades without type verification need human review.
    - If `install_ok == false` → **REVIEW** for major production deps, **UNVERIFIED** for dev/patch deps.
    - Never use ❌ BUILD_FAILS for `pre_existing` verdicts.
@@ -279,7 +292,7 @@ GitHub Actions workflow dependency. No app code affected.
 
 | Check | Result |
 |-------|--------|
-| Build | ⚙️ Neutral (pre-existing error, not caused by this PR) |
+| Build | ✅ Pass (verified — same result as main baseline) |
 | Imports | 0 files — macOS-only optional dep |
 
 ### How we checked
@@ -330,22 +343,20 @@ Use this when `build.verdict == "pre_existing"` AND `verification_level >= 2`.
 
 Build tool — ambient type declarations, no runtime impact.
 
-> ⚙️ **Pre-existing failure:** The tsc errors below exist on `main` and are **not caused by this upgrade**. Fix them on `main` first — this PR will then build cleanly.
-
 | Check | Result |
 |-------|--------|
-| Build | ⚙️ Pre-existing — same tsc errors on main and PR (not caused by this change) |
+| Build | ✅ Pass (verified — same result as main baseline, not caused by this change) |
 | Install | ✅ npm ci succeeded — package was installed |
 | Imports | 0 direct — ambient type declarations |
 
 ### How we checked
 ✅ Dependency resolution (`npm ci`)
-⚙️ Type checking (`tsc --noEmit` — same errors on both branches, not caused by this PR)
+✅ Type checking (verified against main baseline — no new errors introduced)
 ⬜ Symbol verification (ambient types, no exports to probe)
 ⬜ Test suite (dev dep, not triggered)
 ⬜ Smoke probe (not triggered)
 
-Verification: **L2 — Type-checked** (pre-existing errors, not caused by this PR)
+Verification: **L2 — Type-checked**
 📋 Merge plan: #ISSUE_NUMBER
 ```
 
@@ -617,6 +628,82 @@ If Maven is not available on the runner:
 **Manual verification:** Run `mvn compile` locally.
 
 Verification: **L0 — Unresolved** (Maven toolchain not available on runner)
+📋 Merge plan: #ISSUE_NUMBER
+```
+
+### 4.13 Go SAFE — build passes
+
+```
+<!-- breakability-check -->
+## ✅ SAFE — `golang.org/x/crypto` 0.28.0 → 0.38.0 • production • minor
+
+Direct dependency — your code imports this at 4 locations.
+
+| Check | Result |
+|-------|--------|
+| Build | ✅ `go build` pass |
+| Imports | 4 files: `pkg/auth/crypto.go`, `pkg/tls/config.go`, ... |
+| Tests | ✅ Targeted tests pass (3 packages) |
+
+### How we checked
+✅ Dependency resolution (`go mod tidy`)
+✅ Compilation (`go build` — pass, 0 new errors)
+✅ Test suite (targeted `go test` — pass)
+⬜ Smoke probe (not applicable — Go)
+
+Verification: **L4 — Tests pass**
+📋 Merge plan: #ISSUE_NUMBER
+```
+
+### 4.14 Go BUILD_FAILS — with actual compile errors
+
+For Go PRs, ALWAYS show the actual compile errors from `build.output_tail` in a code fence. Do NOT just say "build failed" — show the errors.
+
+```
+<!-- breakability-check -->
+## ❌ BUILD_FAILS — `k8s.io/client-go` 0.28.0 → 0.31.0 • production • minor
+
+| Check | Result |
+|-------|--------|
+| Build | ❌ FAILS — compile errors in 2 packages |
+| Imports | 12 files across `pkg/k8s/`, `internal/controllers/` |
+
+### Build errors
+```
+./pkg/k8s/client.go:45:12: cannot use opts (variable of type v1.ListOptions) as type metav1.ListOptions
+./internal/controllers/reconciler.go:78:9: too many arguments in call to client.Get
+```
+
+### How we checked
+✅ Dependency resolution (`go mod tidy`)
+❌ Compilation (`go build` — 2 new errors)
+⬜ Test suite (skipped — build failed)
+⬜ Smoke probe (skipped — build failed)
+
+Verification: **L1 — Dep-resolved** (build failed)
+📋 Merge plan: #ISSUE_NUMBER
+```
+
+### 4.15 Go pre_existing SAFE — both branches have same errors
+
+```
+<!-- breakability-check -->
+## ✅ SAFE — `github.com/stretchr/testify` 1.8.4 → 1.10.0 • dev • minor
+
+Test dependency — used in test files only, no runtime impact.
+
+| Check | Result |
+|-------|--------|
+| Build | ✅ Pass (verified — same result as main baseline) |
+| Imports | 8 test files (`*_test.go`) |
+
+### How we checked
+✅ Dependency resolution (`go mod tidy`)
+✅ Compilation (verified against main baseline — no new errors introduced)
+⬜ Test suite (pre-existing test failures on main, not caused by this PR)
+⬜ Smoke probe (not applicable — Go)
+
+Verification: **L2 — Type-checked**
 📋 Merge plan: #ISSUE_NUMBER
 ```
 

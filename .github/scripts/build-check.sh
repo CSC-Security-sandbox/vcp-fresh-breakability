@@ -822,6 +822,36 @@ classify_npm_error() {
   fi
 }
 
+# ── Go error normalization ────────────────────────────────────────────────
+# Normalize Go compiler/linker error lines so that path-only differences
+# (build cache hashes, GOMODCACHE versions, worktree roots, GOPATH)
+# don't cause false "new error" detections when diffing main vs PR output.
+normalize_go_errors() {
+  # Reads stdin, writes normalized lines to stdout.
+  sed \
+    -e "s|${WORKTREE_BASE}[^/]*/|./|g" \
+    -e 's|go-build/[a-f0-9]*/[a-f0-9]*|go-build/HASH|g' \
+    -e 's|/[^/]*/go/pkg/mod/|GOMODCACHE/|g' \
+    -e 's|@v[0-9][0-9.]*[^/:]*/|@VERSION/|g'
+}
+
+# Classify Go build failures. Detects cache corruption vs real compile errors.
+classify_go_error() {
+  local output="$1"
+  # Cache corruption: "open …/go-build/…: no such file or directory"
+  if echo "$output" | grep -qE 'go-build/[a-f0-9]+.*no such file or directory'; then
+    echo "cache_corruption"
+  # Network / module download failures
+  elif echo "$output" | grep -qE 'GONOSUMDB|GONOSUMCHECK|GOPROXY|connection refused|dial tcp|TLS handshake timeout|module lookup disabled|proxyconnect|i/o timeout'; then
+    echo "infra_error"
+  # Private module access denied
+  elif echo "$output" | grep -qE '410 Gone|404 Not Found.*module|fatal:.*Authentication|could not read Username'; then
+    echo "private_module"
+  else
+    echo "build_fail"
+  fi
+}
+
 # Rewrite private scoped deps to file: links when private registry is inaccessible.
 # In monorepos, @org/foo-lib packages often exist locally at lib/foo-lib/ or packages/foo-lib/.
 # This lets npm install succeed without registry auth for workspace-internal dependencies.
@@ -1056,6 +1086,22 @@ if [[ -f "$MAIN_DIR/go.work" ]]; then
     }
   } 2>&1)
   main_go_exit=$?
+  # Cache corruption retry for baseline
+  if [[ "$main_go_exit" -ne 0 ]] && [[ "$(classify_go_error "$main_go_output")" == "cache_corruption" ]]; then
+    echo "  ⚠ Go build cache corruption on baseline — cleaning and retrying..."
+    (cd "$MAIN_DIR" && go clean -cache 2>/dev/null || true)
+    main_go_output=$(cd "$MAIN_DIR" && {
+      _BUILD_RC=0
+      go_free_disk
+      retry_cmd 3 5 go work sync && {
+        timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
+        if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
+        exit $_BUILD_RC
+      }
+    } 2>&1)
+    main_go_exit=$?
+    echo "  go baseline cache-clean retry: exit=$main_go_exit"
+  fi
   echo "  go baseline (workspace): exit=$main_go_exit"
 elif [[ -f "$MAIN_DIR/go.mod" ]]; then
   # Check for multi-module layout (multiple go.mod without go.work)
@@ -1103,6 +1149,22 @@ $_mod_output"
       }
     } 2>&1)
     main_go_exit=$?
+    # Cache corruption retry for single-module baseline
+    if [[ "$main_go_exit" -ne 0 ]] && [[ "$(classify_go_error "$main_go_output")" == "cache_corruption" ]]; then
+      echo "  ⚠ Go build cache corruption on baseline — cleaning and retrying..."
+      (cd "$MAIN_DIR" && go clean -cache 2>/dev/null || true)
+      main_go_output=$(cd "$MAIN_DIR" && {
+        _BUILD_RC=0
+        go_free_disk
+        retry_cmd 3 5 go mod tidy && {
+          timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
+          if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
+          exit $_BUILD_RC
+        }
+      } 2>&1)
+      main_go_exit=$?
+      echo "  go baseline cache-clean retry: exit=$main_go_exit"
+    fi
     echo "  go baseline: exit=$main_go_exit"
   fi
 fi
@@ -1634,6 +1696,22 @@ $TSC_OUT"
             } 2>&1)
             BUILD_EXIT=$?
             [[ "$BUILD_EXIT" -eq 0 ]] && INSTALL_OK="true"
+            # Cache corruption retry: if build failed due to stale cache, clean and retry
+            if [[ "$BUILD_EXIT" -ne 0 ]] && [[ "$(classify_go_error "$BUILD_OUTPUT")" == "cache_corruption" ]]; then
+              echo "  ⚠ Go build cache corruption detected — cleaning cache and retrying..."
+              (cd "$PR_WORKTREE" && go clean -cache 2>/dev/null || true)
+              BUILD_OUTPUT=$(cd "$PR_WORKTREE" && {
+                _BUILD_RC=0
+                retry_cmd 3 5 go work sync && {
+                  go_targeted_build "$FILES_IMPORTING" || _BUILD_RC=$?
+                  if [[ $_BUILD_RC -eq 0 ]]; then go_targeted_vet "$FILES_IMPORTING"; fi
+                  exit $_BUILD_RC
+                }
+              } 2>&1)
+              BUILD_EXIT=$?
+              [[ "$BUILD_EXIT" -eq 0 ]] && INSTALL_OK="true"
+              echo "  cache-clean retry: exit=$BUILD_EXIT"
+            fi
           else
             echo "  build: go mod verify + tidy + build + vet..."
             GO_VERIFY_OUT=""
@@ -1644,6 +1722,14 @@ $TSC_OUT"
             fi
             BUILD_OUTPUT=$(cd "$PR_WORKTREE" && { retry_cmd 3 5 go mod tidy && go_targeted_build "$FILES_IMPORTING"; } 2>&1)
             BUILD_EXIT=$?
+            # Cache corruption retry: if build failed due to stale cache, clean and retry
+            if [[ "$BUILD_EXIT" -ne 0 ]] && [[ "$(classify_go_error "$BUILD_OUTPUT")" == "cache_corruption" ]]; then
+              echo "  ⚠ Go build cache corruption detected — cleaning cache and retrying..."
+              (cd "$PR_WORKTREE" && go clean -cache 2>/dev/null || true)
+              BUILD_OUTPUT=$(cd "$PR_WORKTREE" && { retry_cmd 3 5 go mod tidy && go_targeted_build "$FILES_IMPORTING"; } 2>&1)
+              BUILD_EXIT=$?
+              echo "  cache-clean retry: exit=$BUILD_EXIT"
+            fi
             # Run go vet if build passed
             GO_VET_OUT=""
             if [[ "$BUILD_EXIT" -eq 0 ]]; then
@@ -1662,6 +1748,10 @@ $GO_VET_OUT"
 $GO_VERIFY_OUT
 $BUILD_OUTPUT"
             fi
+          fi
+          # Classify Go build error for JSON output
+          if [[ "$BUILD_EXIT" -ne 0 && "$ECOSYSTEM" == "gomod" ]]; then
+            ERROR_CLASS=$(classify_go_error "$BUILD_OUTPUT")
           fi
           ;;
         pip)
@@ -1772,8 +1862,8 @@ $IMPORT_OUT"
           if [[ "$ECOSYSTEM" == "gomod" ]]; then
             MAIN_ERR_FILE="/tmp/_bc_main_go_errors.txt"
             PR_ERR_FILE="/tmp/_bc_pr_go_errors_${PR_NUM}.txt"
-            echo "$main_go_output" | grep -E '^.*\.go:[0-9]+' | sed "s|${WORKTREE_BASE}[^/]*/|./|g" | sort -u > "$MAIN_ERR_FILE" 2>/dev/null || true
-            echo "$BUILD_OUTPUT" | grep -E '^.*\.go:[0-9]+' | sed "s|${WORKTREE_BASE}[^/]*/|./|g" | sort -u > "$PR_ERR_FILE" 2>/dev/null || true
+            echo "$main_go_output" | grep -E '^.*\.go:[0-9]+' | normalize_go_errors | sort -u > "$MAIN_ERR_FILE" 2>/dev/null || true
+            echo "$BUILD_OUTPUT"   | grep -E '^.*\.go:[0-9]+' | normalize_go_errors | sort -u > "$PR_ERR_FILE"   2>/dev/null || true
             NEW_ERRORS=$(comm -23 "$PR_ERR_FILE" "$MAIN_ERR_FILE" 2>/dev/null | head -10)
             rm -f "$MAIN_ERR_FILE" "$PR_ERR_FILE"
           elif [[ "$ECOSYSTEM" == "pip" ]]; then
@@ -2064,6 +2154,18 @@ INFRA_ERROR_PATTERNS = [
     "publishBulkToCommandStream",
     "toThrowError",
 ]
+
+# Go-specific infra patterns (added separately for clarity)
+GO_INFRA_PATTERNS = [
+    # Go build cache corruption (stale object files with hash paths)
+    "go-build/HASH",   # After normalize_go_errors, cache paths become go-build/HASH
+    # Go module download / proxy errors (not caused by upgrade)
+    "GOPROXY",
+    "connection refused",
+    "i/o timeout",
+]
+if "$ECOSYSTEM" == "gomod":
+    INFRA_ERROR_PATTERNS.extend(GO_INFRA_PATTERNS)
 # Append project-specific patterns from .github/breakability-config.yml
 extra_raw = """$EXTRA_INFRA_PATTERNS"""
 for line in extra_raw.strip().split('\n'):
@@ -2088,6 +2190,13 @@ test_exit = int(test_exit_raw) if test_exit_raw not in ("null", "") else None
 build_verdict = "$BUILD_VERDICT"
 if build_verdict == "pre_existing_plus_new" and not new_errors:
     build_verdict = "pre_existing"
+
+# For Go builds: if error_class is cache_corruption or infra_error,
+# the failure is NOT caused by the upgrade — downgrade verdict
+error_class = "${ERROR_CLASS:-}"
+if error_class in ("cache_corruption", "infra_error", "private_module"):
+    if build_verdict in ("fail", "pre_existing_plus_new"):
+        build_verdict = "pre_existing"  # treat as infra issue, not code break
 
 pr_data = {
     "package": "$PKG",

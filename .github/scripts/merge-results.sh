@@ -159,6 +159,15 @@ for pkg_dir, entries in nestjs_prs.items():
             for nb, pb in entries[i+1:]:
                 if not any((d["pr_a"]==int(na) and d["pr_b"]==int(nb)) or (d["pr_a"]==int(nb) and d["pr_b"]==int(na)) for d in cross_deps):
                     cross_deps.append({"pr_a": int(na), "pr_b": int(nb), "reason": f"NestJS in {pkg_dir}: {pa} + {pb} must upgrade together", "merge_order": "merge together"})
+# K8s module coordination: k8s.io modules must be upgraded together
+K8S_MODULES = {"k8s.io/api", "k8s.io/apimachinery", "k8s.io/client-go", "k8s.io/apiserver", "k8s.io/apiextensions-apiserver"}
+k8s_prs = [(num, pr["package"]) for num, pr in prs.items() if any(pr.get("package", "").startswith(m) for m in K8S_MODULES)]
+if len(k8s_prs) > 1:
+    for i, (na, pa) in enumerate(k8s_prs):
+        for nb, pb in k8s_prs[i+1:]:
+            if not any((d["pr_a"]==int(na) and d["pr_b"]==int(nb)) or (d["pr_a"]==int(nb) and d["pr_b"]==int(na)) for d in cross_deps):
+                cross_deps.append({"pr_a": int(na), "pr_b": int(nb), "reason": f"K8s module coordination: {pa} + {pb} must match versions", "merge_order": "merge together"})
+    print(f"  K8s module group: {len(k8s_prs)} PRs need coordinated merge")
 try:
     with open("/tmp/_bc_workspace_graph.json") as f: graph = json.load(f)
     for num, pr in prs.items():
