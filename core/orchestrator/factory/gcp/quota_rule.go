@@ -508,6 +508,10 @@ func _createQuotaRule(ctx context.Context, se database.Storage, temporal client.
 		logger.Errorf("Failed to fetch existing quota rules: %v", err)
 		return nil, "", err
 	}
+	if err := validateQuotaRuleState(ctx, volumeDataModel.UUID, existingQuotaRulesData); err != nil {
+		logger.Errorf("Quota rule state validation failed: %v", err)
+		return nil, "", err
+	}
 	// Validate Quota Rules Limit: reject only when volume already has 100 rules (allows creating the 100th when 99 exist).
 	if len(existingQuotaRulesData) >= VolumeQuotaRulesDefaultLimit {
 		logger.Errorf("Quota rules limit validation failed: volume has %d quota rules, limit is %d",
@@ -646,6 +650,10 @@ func _createQuotaRuleInternal(ctx context.Context, se database.Storage, temporal
 	existingQuotaRulesData, err := se.GetQuotaRulesByVolumeID(ctx, volumeDataModel.ID)
 	if err != nil {
 		logger.Errorf("Failed to fetch existing quota rules: %v", err)
+		return nil, nil, err
+	}
+	if err := validateQuotaRuleState(ctx, volumeDataModel.UUID, existingQuotaRulesData); err != nil {
+		logger.Errorf("Quota rule state validation failed: %v", err)
 		return nil, nil, err
 	}
 	// Validate Quota Rules Limit: reject only when volume already has 100 rules (allows creating the 100th when 99 exist).
@@ -817,6 +825,18 @@ func _updateQuotaRule(ctx context.Context, se database.Storage, temporal client.
 	if err != nil {
 		logger.Errorf("Failed to get volume: %v", err)
 		return nil, "", customerrors.NewUserInputValidationErr("Failed to get volume")
+	}
+
+	// Check if any other quota rule on the same volume is in CREATING state
+	// This prevents race conditions with concurrent create operations that may be initializing the quota subsystem
+	existingQuotaRulesData, err := se.GetQuotaRulesByVolumeID(ctx, volume.ID)
+	if err != nil {
+		logger.Errorf("Failed to fetch existing quota rules for volume state validation: %v", err)
+		return nil, "", err
+	}
+	if err := validateQuotaRuleState(ctx, volume.UUID, existingQuotaRulesData); err != nil {
+		logger.Errorf("Quota rule state validation failed: %v", err)
+		return nil, "", err
 	}
 
 	// Validate volume size: quota rule disk limit cannot exceed volume size (only if disk limit is being updated)
@@ -1081,6 +1101,18 @@ func _deleteQuotaRule(ctx context.Context, se database.Storage, temporal client.
 	if err != nil {
 		logger.Errorf("Failed to get volume: %v", err)
 		return nil, "", customerrors.NewUserInputValidationErr("Failed to get volume")
+	}
+
+	// Check if any other quota rule on the same volume is in CREATING state
+	// This prevents race conditions with concurrent create operations that may be initializing the quota subsystem
+	existingQuotaRulesData, err := se.GetQuotaRulesByVolumeID(ctx, volume.ID)
+	if err != nil {
+		logger.Errorf("Failed to fetch existing quota rules for volume state validation: %v", err)
+		return nil, "", err
+	}
+	if err := validateQuotaRuleState(ctx, volume.UUID, existingQuotaRulesData); err != nil {
+		logger.Errorf("Quota rule state validation failed: %v", err)
+		return nil, "", err
 	}
 
 	// Validate replication state: quota rules are not allowed on destination volumes with active replication.
@@ -1370,6 +1402,21 @@ func validateVolumeType(ctx context.Context, volumeDataModel *datamodel.Volume, 
 			"quota rule size can not be greater than volume size, please pass quota rule size less than volume size")
 	}
 
+	return nil
+}
+
+// validateQuotaRuleState rejects starting a new quota rule creation when another quota rule
+// on the same volume is still in CREATING, to avoid parallel ONTAP operations.
+func validateQuotaRuleState(ctx context.Context, volumeUUID string, existingRules []*datamodel.QuotaRule) error {
+	logger := util.GetLogger(ctx)
+	for _, r := range existingRules {
+		if r.State == models.LifeCycleStateCreating {
+			logger.Errorf("Quota rule operation blocked: volume %s already has a quota rule in state %s (uuid=%s)",
+				volumeUUID, r.State, r.UUID)
+			return customerrors.NewUserInputValidationErr(
+				"Another quota rule is being created for this volume. Please wait until it completes before creating another.")
+		}
+	}
 	return nil
 }
 

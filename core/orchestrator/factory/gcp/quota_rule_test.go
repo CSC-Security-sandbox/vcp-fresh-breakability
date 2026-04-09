@@ -688,6 +688,74 @@ func TestCreateQuotaRule(t *testing.T) {
 		assert.Equal(tt, models.LifeCycleStateCreating, quotaRule.LifeCycleState)
 		assert.Equal(tt, params.Description, quotaRule.Description)
 	})
+
+	t.Run("WhenAnotherQuotaRuleIsCreating", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1},
+			Name:      "test-project",
+		}
+
+		params := &common.CreateQuotaRulesParam{
+			ProjectId:      "test-project",
+			Name:           "quota-rule-new",
+			VolumeUUID:     "volume-uuid-1",
+			QuotaType:      IndividualUserQuota,
+			DiskLimitInMib: 100,
+			QuotaTarget:    "1000",
+			LocationId:     "us-central1",
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "volume-uuid-1"},
+			SizeInBytes: 200 * 1024 * 1024,
+			AccountID:   1,
+			Account: &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      "test-project",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"NFSV3"},
+			},
+		}
+
+		existingQuotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "other-in-creating"},
+				Name:      "other-rule",
+				State:     models.LifeCycleStateCreating,
+			},
+		}
+
+		originalGetOrCreateAccount := getOrCreateAccount
+		originalValidateQuotaRuleCreateParams := validateQuotaRuleCreateParams
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		validateQuotaRuleCreateParams = func(params *common.CreateQuotaRulesParam) error {
+			return nil
+		}
+		defer func() {
+			getOrCreateAccount = originalGetOrCreateAccount
+			validateQuotaRuleCreateParams = originalValidateQuotaRuleCreateParams
+		}()
+
+		mockStore.EXPECT().GetVolumeWithAccountID(context.Background(), params.VolumeUUID, account.ID).Return(volume, nil)
+		mockStore.EXPECT().ListVolumeReplications(context.Background(), mock.Anything, database.QueryDepthZero).
+			Return([]*datamodel.VolumeReplication{}, nil)
+		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
+			Return(existingQuotaRules, nil)
+
+		quotaRule, operationID, err := _createQuotaRule(context.Background(), mockStore, mockTemporal, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, quotaRule)
+		assert.Empty(tt, operationID)
+		assert.True(tt, errors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "Another quota rule is being created")
+	})
 }
 
 func TestValidateQuotaRuleCreateParams(t *testing.T) {
@@ -912,6 +980,50 @@ func TestValidateVolumeType(t *testing.T) {
 		}
 
 		err := validateVolumeType(context.Background(), volume, params)
+		assert.NoError(tt, err)
+	})
+}
+
+func TestValidateQuotaRuleState(t *testing.T) {
+	volUUID := "volume-uuid-1"
+
+	t.Run("WhenNoExistingRules", func(tt *testing.T) {
+		err := validateQuotaRuleState(context.Background(), volUUID, nil)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenExistingRulesAreReady", func(tt *testing.T) {
+		rules := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "q1"},
+				State:     models.LifeCycleStateREADY,
+			},
+		}
+		err := validateQuotaRuleState(context.Background(), volUUID, rules)
+		assert.NoError(tt, err)
+	})
+
+	t.Run("WhenExistingRuleIsCreating", func(tt *testing.T) {
+		rules := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "in-flight"},
+				State:     models.LifeCycleStateCreating,
+			},
+		}
+		err := validateQuotaRuleState(context.Background(), volUUID, rules)
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "Another quota rule is being created")
+	})
+
+	t.Run("WhenExistingRuleIsPreparing_Allowed", func(tt *testing.T) {
+		rules := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "preparing"},
+				State:     models.LifeCycleStatePreparing,
+			},
+		}
+		err := validateQuotaRuleState(context.Background(), volUUID, rules)
 		assert.NoError(tt, err)
 	})
 }
@@ -3005,6 +3117,52 @@ func TestCreateQuotaRuleInternal(t *testing.T) {
 		assert.Contains(tt, err.Error(), "failed to fetch quota rules")
 	})
 
+	t.Run("WhenAnotherQuotaRuleIsCreating", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+
+		params := &common.CreateQuotaRulesParam{
+			Name:           "quota-rule-new",
+			VolumeUUID:     "volume-uuid-1",
+			QuotaType:      IndividualUserQuota,
+			DiskLimitInMib: 100,
+			QuotaTarget:    "1000",
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "volume-uuid-1"},
+			SizeInBytes: 200 * 1024 * 1024,
+			AccountID:   1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"NFSV3"},
+			},
+		}
+
+		existingQuotaRules := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "other-creating"},
+				State:     models.LifeCycleStateCreating,
+			},
+		}
+
+		validateQuotaRuleCreateParams = func(params *common.CreateQuotaRulesParam) error {
+			return nil
+		}
+
+		defer func() { validateQuotaRuleCreateParams = originalValidateQuotaRuleCreateParams }()
+		mockStore.EXPECT().GetVolume(context.Background(), params.VolumeUUID).Return(volume, nil)
+		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
+			Return(existingQuotaRules, nil)
+
+		quotaRule, job, err := _createQuotaRuleInternal(context.Background(), mockStore, mockTemporal, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, quotaRule)
+		assert.Nil(tt, job)
+		assert.True(tt, errors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "Another quota rule is being created")
+	})
+
 	t.Run("WhenQuotaRulesLimitReached", func(tt *testing.T) {
 		mockStore := database.NewMockStorage(tt)
 		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
@@ -3819,6 +3977,120 @@ func TestUpdateQuotaRule(t *testing.T) {
 		assert.Contains(tt, err.Error(), "Failed to get volume")
 	})
 
+	t.Run("WhenGetQuotaRulesByVolumeIDFails", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+
+		params := &common.UpdateQuotaRulesParam{
+			ProjectId:      "test-project",
+			QuotaRuleUUID:  "quota-rule-uuid-1",
+			DiskLimitInMib: 100,
+			LocationId:     "us-central1",
+		}
+
+		quotaRuleDataModel := &datamodel.QuotaRule{
+			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "quota-rule-uuid-1"},
+			Name:         "quota-rule-1",
+			VolumeID:     1,
+			AccountID:    1,
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateReadyDetails,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "volume-uuid-1"},
+			SizeInBytes: 200 * 1024 * 1024,
+			AccountID:   1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"NFSV3"},
+			},
+		}
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      accountName,
+			}, nil
+		}
+
+		mockStore.EXPECT().GetQuotaRuleByUUID(context.Background(), params.QuotaRuleUUID, int64(1)).
+			Return(quotaRuleDataModel, nil)
+
+		mockStore.EXPECT().GetVolumeByIDAndAccountID(context.Background(), quotaRuleDataModel.VolumeID, int64(1)).
+			Return(volume, nil)
+
+		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
+			Return(nil, errors.New("failed to fetch quota rules for volume state validation"))
+
+		quotaRule, operationID, err := _updateQuotaRule(context.Background(), mockStore, mockTemporal, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, quotaRule)
+		assert.Empty(tt, operationID)
+		assert.Contains(tt, err.Error(), "failed to fetch quota rules for volume state validation")
+	})
+
+	t.Run("WhenAnotherQuotaRuleIsCreating", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+
+		params := &common.UpdateQuotaRulesParam{
+			ProjectId:      "test-project",
+			QuotaRuleUUID:  "quota-rule-uuid-1",
+			DiskLimitInMib: 100,
+			LocationId:     "us-central1",
+		}
+
+		quotaRuleDataModel := &datamodel.QuotaRule{
+			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "quota-rule-uuid-1"},
+			Name:         "quota-rule-1",
+			VolumeID:     1,
+			AccountID:    1,
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateReadyDetails,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "volume-uuid-1"},
+			SizeInBytes: 200 * 1024 * 1024,
+			AccountID:   1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"NFSV3"},
+			},
+		}
+
+		existingRules := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "other-creating"},
+				State:     models.LifeCycleStateCreating,
+			},
+		}
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      accountName,
+			}, nil
+		}
+
+		mockStore.EXPECT().GetQuotaRuleByUUID(context.Background(), params.QuotaRuleUUID, int64(1)).
+			Return(quotaRuleDataModel, nil)
+
+		mockStore.EXPECT().GetVolumeByIDAndAccountID(context.Background(), quotaRuleDataModel.VolumeID, int64(1)).
+			Return(volume, nil)
+
+		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
+			Return(existingRules, nil)
+
+		quotaRule, operationID, err := _updateQuotaRule(context.Background(), mockStore, mockTemporal, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, quotaRule)
+		assert.Empty(tt, operationID)
+		assert.True(tt, errors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "Another quota rule is being created")
+	})
+
 	t.Run("WhenQuotaRuleSizeExceedsVolumeSize", func(tt *testing.T) {
 		mockStore := database.NewMockStorage(tt)
 		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
@@ -3863,6 +4135,9 @@ func TestUpdateQuotaRule(t *testing.T) {
 		// Mock GetVolumeByIDAndAccountID to succeed
 		mockStore.EXPECT().GetVolumeByIDAndAccountID(context.Background(), quotaRuleDataModel.VolumeID, int64(1)).
 			Return(volume, nil)
+
+		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
+			Return([]*datamodel.QuotaRule{}, nil)
 
 		quotaRule, operationID, err := _updateQuotaRule(context.Background(), mockStore, mockTemporal, params)
 
@@ -3917,6 +4192,9 @@ func TestUpdateQuotaRule(t *testing.T) {
 		// Mock GetVolumeByIDAndAccountID to succeed
 		mockStore.EXPECT().GetVolumeByIDAndAccountID(context.Background(), quotaRuleDataModel.VolumeID, int64(1)).
 			Return(volume, nil)
+
+		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
+			Return([]*datamodel.QuotaRule{}, nil)
 
 		// Mock ListVolumeReplications to return error (causes validateReplicationState to fail)
 		expectedFilter := dbutils.CreateFilterWithConditions(
@@ -3976,6 +4254,9 @@ func TestUpdateQuotaRule(t *testing.T) {
 		// Mock GetVolumeByIDAndAccountID to succeed
 		mockStore.EXPECT().GetVolumeByIDAndAccountID(context.Background(), quotaRuleDataModel.VolumeID, int64(1)).
 			Return(volume, nil)
+
+		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
+			Return([]*datamodel.QuotaRule{}, nil)
 
 		// Mock ListVolumeReplications to succeed (validateReplicationState passes)
 		expectedFilter := dbutils.CreateFilterWithConditions(
@@ -4047,6 +4328,9 @@ func TestUpdateQuotaRule(t *testing.T) {
 		// Mock GetVolumeByIDAndAccountID to succeed
 		mockStore.EXPECT().GetVolumeByIDAndAccountID(context.Background(), quotaRuleDataModel.VolumeID, int64(1)).
 			Return(volume, nil)
+
+		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
+			Return([]*datamodel.QuotaRule{}, nil)
 
 		// Mock ListVolumeReplications to succeed (validateReplicationState passes)
 		expectedFilter := dbutils.CreateFilterWithConditions(
@@ -4139,6 +4423,9 @@ func TestUpdateQuotaRule(t *testing.T) {
 		// Mock GetVolumeByIDAndAccountID to succeed
 		mockStore.EXPECT().GetVolumeByIDAndAccountID(context.Background(), quotaRuleDataModel.VolumeID, int64(1)).
 			Return(volume, nil)
+
+		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
+			Return([]*datamodel.QuotaRule{}, nil)
 
 		// Mock ListVolumeReplications to succeed (validateReplicationState passes)
 		expectedFilter := dbutils.CreateFilterWithConditions(
@@ -4237,6 +4524,9 @@ func TestUpdateQuotaRule(t *testing.T) {
 		mockStore.EXPECT().GetVolumeByIDAndAccountID(context.Background(), quotaRuleDataModel.VolumeID, int64(1)).
 			Return(volume, nil)
 
+		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
+			Return([]*datamodel.QuotaRule{}, nil)
+
 		// Mock ListVolumeReplications to succeed (validateReplicationState passes)
 		expectedFilter := dbutils.CreateFilterWithConditions(
 			dbutils.NewFilterCondition("volume_id", "=", volume.ID))
@@ -4322,6 +4612,9 @@ func TestUpdateQuotaRule(t *testing.T) {
 		// Mock GetVolumeByIDAndAccountID to succeed
 		mockStore.EXPECT().GetVolumeByIDAndAccountID(context.Background(), quotaRuleDataModel.VolumeID, int64(1)).
 			Return(volume, nil)
+
+		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
+			Return([]*datamodel.QuotaRule{}, nil)
 
 		// Mock ListVolumeReplications to succeed (validateReplicationState passes)
 		expectedFilter := dbutils.CreateFilterWithConditions(
@@ -5432,6 +5725,9 @@ func TestDeleteQuotaRule(t *testing.T) {
 		mockStore.EXPECT().GetVolumeByIDAndAccountID(ctxWithCorrelationID, quotaRuleDataModel.VolumeID, int64(1)).
 			Return(volume, nil)
 
+		mockStore.EXPECT().GetQuotaRulesByVolumeID(ctxWithCorrelationID, volume.ID).
+			Return([]*datamodel.QuotaRule{}, nil)
+
 		// Mock ListVolumeReplications to succeed (validateReplicationState passes)
 		expectedFilter := dbutils.CreateFilterWithConditions(
 			dbutils.NewFilterCondition("volume_id", "=", volume.ID))
@@ -5576,6 +5872,9 @@ func TestDeleteQuotaRule(t *testing.T) {
 		mockStore.EXPECT().GetVolumeByIDAndAccountID(context.Background(), quotaRuleDataModel.VolumeID, int64(1)).
 			Return(volume, nil)
 
+		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
+			Return([]*datamodel.QuotaRule{}, nil)
+
 		// Mock ListVolumeReplications to succeed (validateReplicationState passes)
 		expectedFilter := dbutils.CreateFilterWithConditions(
 			dbutils.NewFilterCondition("volume_id", "=", volume.ID))
@@ -5654,6 +5953,9 @@ func TestDeleteQuotaRule(t *testing.T) {
 		mockStore.EXPECT().GetVolumeByIDAndAccountID(context.Background(), quotaRuleDataModel.VolumeID, int64(1)).
 			Return(volume, nil)
 
+		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
+			Return([]*datamodel.QuotaRule{}, nil)
+
 		// Mock ListVolumeReplications to return error (causes validateReplicationState to fail)
 		expectedFilter := dbutils.CreateFilterWithConditions(
 			dbutils.NewFilterCondition("volume_id", "=", volume.ID))
@@ -5666,6 +5968,69 @@ func TestDeleteQuotaRule(t *testing.T) {
 		assert.Nil(tt, quotaRule)
 		assert.Empty(tt, operationID)
 		assert.Contains(tt, err.Error(), "replication validation failed")
+	})
+
+	t.Run("WhenAnotherQuotaRuleIsCreating", func(tt *testing.T) {
+		mockStore := database.NewMockStorage(tt)
+		mockTemporal := workflow_engine_mock.NewMockTemporalTestClient(tt)
+
+		params := &common.DeleteQuotaRulesParam{
+			ProjectId:     "test-project",
+			QuotaRuleUUID: "quota-rule-uuid-1",
+			LocationId:    "us-central1",
+		}
+
+		quotaRuleDataModel := &datamodel.QuotaRule{
+			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "quota-rule-uuid-1"},
+			Name:         "quota-rule-1",
+			VolumeID:     1,
+			AccountID:    1,
+			State:        models.LifeCycleStateAvailable,
+			StateDetails: models.LifeCycleStateReadyDetails,
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:   datamodel.BaseModel{ID: 1, UUID: "volume-uuid-1"},
+			SizeInBytes: 200 * 1024 * 1024,
+			AccountID:   1,
+			SvmID:       1,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"NFSV3"},
+			},
+		}
+
+		existingRules := []*datamodel.QuotaRule{
+			{
+				BaseModel: datamodel.BaseModel{UUID: "other-creating"},
+				State:     models.LifeCycleStateCreating,
+			},
+		}
+
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return &datamodel.Account{
+				BaseModel: datamodel.BaseModel{ID: 1},
+				Name:      accountName,
+			}, nil
+		}
+
+		mockStore.EXPECT().GetQuotaRuleByUUID(context.Background(), params.QuotaRuleUUID, int64(1)).
+			Return(quotaRuleDataModel, nil)
+		mockStore.EXPECT().GetJobByResourceUUID(context.Background(), params.QuotaRuleUUID, string(models.JobTypeDeleteQuotaRule)).
+			Return(nil, nil)
+
+		mockStore.EXPECT().GetVolumeByIDAndAccountID(context.Background(), quotaRuleDataModel.VolumeID, int64(1)).
+			Return(volume, nil)
+
+		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
+			Return(existingRules, nil)
+
+		quotaRule, operationID, err := _deleteQuotaRule(context.Background(), mockStore, mockTemporal, params)
+
+		assert.Error(tt, err)
+		assert.Nil(tt, quotaRule)
+		assert.Empty(tt, operationID)
+		assert.True(tt, errors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "Another quota rule is being created")
 	})
 
 	t.Run("WhenGetQuotaRulesByVolumeIDFails", func(tt *testing.T) {
@@ -5716,22 +6081,15 @@ func TestDeleteQuotaRule(t *testing.T) {
 		mockStore.EXPECT().GetVolumeByIDAndAccountID(context.Background(), quotaRuleDataModel.VolumeID, int64(1)).
 			Return(volume, nil)
 
-		// Mock ListVolumeReplications to succeed (validateReplicationState passes)
-		expectedFilter := dbutils.CreateFilterWithConditions(
-			dbutils.NewFilterCondition("volume_id", "=", volume.ID))
-		mockStore.EXPECT().ListVolumeReplications(context.Background(), *expectedFilter, database.QueryDepthZero).
-			Return([]*datamodel.VolumeReplication{}, nil)
-
-		// Mock GetQuotaRuleCountBySvmID to fail (called by determineRQuota)
-		mockStore.EXPECT().GetQuotaRuleCountBySvmID(context.Background(), volume.SvmID).
-			Return(int64(0), errors.New("failed to get quota rule count"))
+		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
+			Return(nil, errors.New("failed to fetch quota rules for volume"))
 
 		quotaRule, operationID, err := _deleteQuotaRule(context.Background(), mockStore, mockTemporal, params)
 
 		assert.Error(tt, err)
 		assert.Nil(tt, quotaRule)
 		assert.Empty(tt, operationID)
-		assert.Contains(tt, err.Error(), "failed to get quota rule count")
+		assert.Contains(tt, err.Error(), "failed to fetch quota rules for volume")
 	})
 
 	t.Run("WhenDetermineRQuotaFails", func(tt *testing.T) {
@@ -5781,6 +6139,9 @@ func TestDeleteQuotaRule(t *testing.T) {
 		// Mock GetVolumeByIDAndAccountID to succeed
 		mockStore.EXPECT().GetVolumeByIDAndAccountID(context.Background(), quotaRuleDataModel.VolumeID, int64(1)).
 			Return(volume, nil)
+
+		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
+			Return([]*datamodel.QuotaRule{}, nil)
 
 		// Mock ListVolumeReplications to succeed (validateReplicationState passes)
 		expectedFilter := dbutils.CreateFilterWithConditions(
@@ -5847,6 +6208,9 @@ func TestDeleteQuotaRule(t *testing.T) {
 		// Mock GetVolumeByIDAndAccountID to succeed
 		mockStore.EXPECT().GetVolumeByIDAndAccountID(context.Background(), quotaRuleDataModel.VolumeID, int64(1)).
 			Return(volume, nil)
+
+		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
+			Return([]*datamodel.QuotaRule{}, nil)
 
 		// Mock ListVolumeReplications to succeed (validateReplicationState passes)
 		expectedFilter := dbutils.CreateFilterWithConditions(
@@ -5922,6 +6286,9 @@ func TestDeleteQuotaRule(t *testing.T) {
 		// Mock GetVolumeByIDAndAccountID to succeed
 		mockStore.EXPECT().GetVolumeByIDAndAccountID(context.Background(), quotaRuleDataModel.VolumeID, int64(1)).
 			Return(volume, nil)
+
+		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
+			Return([]*datamodel.QuotaRule{}, nil)
 
 		// Mock ListVolumeReplications to succeed (validateReplicationState passes)
 		expectedFilter := dbutils.CreateFilterWithConditions(
@@ -6014,6 +6381,9 @@ func TestDeleteQuotaRule(t *testing.T) {
 		// Mock GetVolumeByIDAndAccountID to succeed
 		mockStore.EXPECT().GetVolumeByIDAndAccountID(context.Background(), quotaRuleDataModel.VolumeID, int64(1)).
 			Return(volume, nil)
+
+		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
+			Return([]*datamodel.QuotaRule{}, nil)
 
 		// Mock ListVolumeReplications to succeed (validateReplicationState passes)
 		expectedFilter := dbutils.CreateFilterWithConditions(
@@ -6118,6 +6488,9 @@ func TestDeleteQuotaRule(t *testing.T) {
 		// Mock GetVolumeByIDAndAccountID to succeed
 		mockStore.EXPECT().GetVolumeByIDAndAccountID(context.Background(), quotaRuleDataModel.VolumeID, int64(1)).
 			Return(volume, nil)
+
+		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
+			Return([]*datamodel.QuotaRule{}, nil)
 
 		// Mock ListVolumeReplications to succeed (validateReplicationState passes)
 		expectedFilter := dbutils.CreateFilterWithConditions(
@@ -6248,6 +6621,9 @@ func TestDeleteQuotaRule(t *testing.T) {
 		// Mock GetVolumeByIDAndAccountID to succeed
 		mockStore.EXPECT().GetVolumeByIDAndAccountID(context.Background(), quotaRuleDataModel.VolumeID, account.ID).
 			Return(volume, nil)
+
+		mockStore.EXPECT().GetQuotaRulesByVolumeID(context.Background(), volume.ID).
+			Return([]*datamodel.QuotaRule{}, nil)
 
 		// Mock validateReplicationState to succeed - use mock storage to return empty replications
 		expectedFilter := dbutils.CreateFilterWithConditions(
