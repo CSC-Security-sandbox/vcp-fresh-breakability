@@ -147,6 +147,7 @@ nfs_clients_get
 nfs_create
 nfs_get
 nfs_modify
+nvme_namespace_collection_get
 node_modify
 nodes_get
 object_store_endpoint_info_get

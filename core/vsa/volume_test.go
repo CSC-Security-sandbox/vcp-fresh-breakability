@@ -4374,3 +4374,197 @@ func TestInitiateSplitVolume(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 	})
 }
+
+func TestGetVolumeSANDetails(t *testing.T) {
+	makeSANMocks := func() (*ontaprest.MockSANClient, *ontaprest.MockNVMeClient, *ontaprest.MockRESTClient) {
+		mockSAN := new(ontaprest.MockSANClient)
+		mockNVMe := new(ontaprest.MockNVMeClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("SAN").Return(mockSAN)
+		mockClient.On("NVMe").Return(mockNVMe)
+		return mockSAN, mockNVMe, mockClient
+	}
+
+	setupClientFunc := func(t *testing.T, mockClient *ontaprest.MockRESTClient) {
+		orig := getOntapClientFunc
+		t.Cleanup(func() { getOntapClientFunc = orig })
+		getOntapClientFunc = func(ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+	}
+
+	t.Run("WhenGetOntapClientFails_ThenReturnError", func(t *testing.T) {
+		orig := getOntapClientFunc
+		t.Cleanup(func() { getOntapClientFunc = orig })
+		getOntapClientFunc = func(ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("connection refused")
+		}
+
+		rc := &OntapRestProvider{}
+		result, err := rc.GetVolumeSANDetails("test-svm", "test-vol")
+
+		assert.Nil(t, result)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "connection refused")
+	})
+
+	t.Run("WhenLunGetFails_ThenReturnError", func(t *testing.T) {
+		mockSAN, _, mockClient := makeSANMocks()
+		setupClientFunc(t, mockClient)
+		rc := &OntapRestProvider{}
+
+		mockSAN.On("LunGet", mock.Anything).Return(nil, errors.New("ontap api failure"))
+
+		result, err := rc.GetVolumeSANDetails("test-svm", "test-vol")
+
+		assert.Nil(t, result)
+		assert.Error(t, err)
+		var vcpErr *vsaerrors.CustomError
+		require.True(t, vsaerrors.As(err, &vcpErr))
+		assert.Contains(t, vcpErr.OriginalErr.Error(), "ontap api failure")
+		mockSAN.AssertExpectations(t)
+	})
+
+	t.Run("WhenLunGetReturnsNotFound_ThenHasLunsFalse", func(t *testing.T) {
+		mockSAN, mockNVMe, mockClient := makeSANMocks()
+		setupClientFunc(t, mockClient)
+		rc := &OntapRestProvider{}
+
+		mockSAN.On("LunGet", mock.Anything).Return(nil, errors.NewNotFoundErr("lun", nil))
+		mockNVMe.On("NamespaceGet", mock.Anything).Return(nil, errors.NewNotFoundErr("nvme namespace", nil))
+
+		result, err := rc.GetVolumeSANDetails("test-svm", "test-vol")
+
+		assert.NoError(t, err)
+		assert.False(t, result.HasLUNs)
+		assert.False(t, result.HasNamespaces)
+		mockSAN.AssertExpectations(t)
+		mockNVMe.AssertExpectations(t)
+	})
+
+	t.Run("WhenNamespaceGetReturnsNotFound_ThenHasNamespacesFalse", func(t *testing.T) {
+		mockSAN, mockNVMe, mockClient := makeSANMocks()
+		setupClientFunc(t, mockClient)
+		rc := &OntapRestProvider{}
+
+		mockSAN.On("LunGet", mock.Anything).Return(nil, errors.NewNotFoundErr("lun", nil))
+		mockNVMe.On("NamespaceGet", mock.Anything).Return(nil, errors.NewNotFoundErr("nvme namespace", nil))
+
+		result, err := rc.GetVolumeSANDetails("test-svm", "test-vol")
+
+		assert.NoError(t, err)
+		assert.False(t, result.HasLUNs)
+		assert.False(t, result.HasNamespaces)
+		mockSAN.AssertExpectations(t)
+		mockNVMe.AssertExpectations(t)
+	})
+
+	t.Run("WhenLunGetReturnsLuns_ThenHasLunsTrue", func(t *testing.T) {
+		mockSAN, mockNVMe, mockClient := makeSANMocks()
+		setupClientFunc(t, mockClient)
+		rc := &OntapRestProvider{}
+
+		svmName := "test-svm"
+		volName := "test-vol"
+		mockSAN.On("LunGet", mock.MatchedBy(func(p *ontaprest.LunGetParams) bool {
+			return *p.SvmName == svmName && *p.VolumeName == volName
+		})).Return([]*ontaprest.Lun{
+			{Lun: models.Lun{Name: nillable.ToPointer("/vol/test-vol/lun0"), UUID: nillable.ToPointer("lun-uuid-1")}},
+		}, nil)
+		mockNVMe.On("NamespaceGet", mock.Anything).Return([]*ontaprest.NvmeNamespace{}, nil)
+
+		result, err := rc.GetVolumeSANDetails(svmName, volName)
+
+		assert.NoError(t, err)
+		assert.True(t, result.HasLUNs)
+		assert.False(t, result.HasNamespaces)
+		mockSAN.AssertExpectations(t)
+		mockNVMe.AssertExpectations(t)
+	})
+
+	t.Run("WhenNamespaceGetFails_ThenReturnError", func(t *testing.T) {
+		mockSAN, mockNVMe, mockClient := makeSANMocks()
+		setupClientFunc(t, mockClient)
+		rc := &OntapRestProvider{}
+
+		mockSAN.On("LunGet", mock.Anything).Return(nil, errors.NewNotFoundErr("lun", nil))
+		mockNVMe.On("NamespaceGet", mock.Anything).Return(nil, errors.New("nvme api failure"))
+
+		result, err := rc.GetVolumeSANDetails("test-svm", "test-vol")
+
+		assert.Nil(t, result)
+		assert.Error(t, err)
+		var vcpErr *vsaerrors.CustomError
+		require.True(t, vsaerrors.As(err, &vcpErr))
+		assert.Contains(t, vcpErr.OriginalErr.Error(), "nvme api failure")
+		mockSAN.AssertExpectations(t)
+		mockNVMe.AssertExpectations(t)
+	})
+
+	t.Run("WhenNamespaceGetReturnsNamespaces_ThenHasNamespacesTrue", func(t *testing.T) {
+		mockSAN, mockNVMe, mockClient := makeSANMocks()
+		setupClientFunc(t, mockClient)
+		rc := &OntapRestProvider{}
+
+		svmName := "test-svm"
+		volName := "test-vol"
+		mockSAN.On("LunGet", mock.Anything).Return(nil, errors.NewNotFoundErr("lun", nil))
+		mockNVMe.On("NamespaceGet", mock.MatchedBy(func(p *ontaprest.NvmeNamespaceGetParams) bool {
+			return *p.SvmName == svmName && *p.VolumeName == volName
+		})).Return([]*ontaprest.NvmeNamespace{
+			{NvmeNamespace: models.NvmeNamespace{Name: nillable.ToPointer("/vol/test-vol/ns0"), UUID: nillable.ToPointer("ns-uuid-1")}},
+		}, nil)
+
+		result, err := rc.GetVolumeSANDetails(svmName, volName)
+
+		assert.NoError(t, err)
+		assert.False(t, result.HasLUNs)
+		assert.True(t, result.HasNamespaces)
+		mockSAN.AssertExpectations(t)
+		mockNVMe.AssertExpectations(t)
+	})
+
+	t.Run("WhenBothLunsAndNamespacesFound_ThenBothFlagsTrue", func(t *testing.T) {
+		mockSAN, mockNVMe, mockClient := makeSANMocks()
+		setupClientFunc(t, mockClient)
+		rc := &OntapRestProvider{}
+
+		mockSAN.On("LunGet", mock.Anything).Return([]*ontaprest.Lun{
+			{Lun: models.Lun{Name: nillable.ToPointer("/vol/test-vol/lun0"), UUID: nillable.ToPointer("lun-uuid-1")}},
+		}, nil)
+		mockNVMe.On("NamespaceGet", mock.Anything).Return([]*ontaprest.NvmeNamespace{
+			{NvmeNamespace: models.NvmeNamespace{Name: nillable.ToPointer("/vol/test-vol/ns0"), UUID: nillable.ToPointer("ns-uuid-1")}},
+		}, nil)
+
+		result, err := rc.GetVolumeSANDetails("test-svm", "test-vol")
+
+		assert.NoError(t, err)
+		assert.True(t, result.HasLUNs)
+		assert.True(t, result.HasNamespaces)
+		mockSAN.AssertExpectations(t)
+		mockNVMe.AssertExpectations(t)
+	})
+
+	t.Run("WhenPassesCorrectParams_ThenSvmAndVolumeNameForwardedToOntap", func(t *testing.T) {
+		mockSAN, mockNVMe, mockClient := makeSANMocks()
+		setupClientFunc(t, mockClient)
+		rc := &OntapRestProvider{}
+
+		svmName := "my-svm"
+		volName := "my-vol"
+		mockSAN.On("LunGet", mock.MatchedBy(func(p *ontaprest.LunGetParams) bool {
+			return p.SvmName != nil && *p.SvmName == svmName &&
+				p.VolumeName != nil && *p.VolumeName == volName
+		})).Return(nil, errors.NewNotFoundErr("lun", nil))
+		mockNVMe.On("NamespaceGet", mock.MatchedBy(func(p *ontaprest.NvmeNamespaceGetParams) bool {
+			return p.SvmName != nil && *p.SvmName == svmName &&
+				p.VolumeName != nil && *p.VolumeName == volName
+		})).Return(nil, errors.NewNotFoundErr("nvme namespace", nil))
+
+		_, err := rc.GetVolumeSANDetails(svmName, volName)
+
+		assert.NoError(t, err)
+		mockSAN.AssertExpectations(t)
+		mockNVMe.AssertExpectations(t)
+	})
+}

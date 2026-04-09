@@ -42,6 +42,7 @@ type Provider interface {
 	GetVolume(params GetVolumeParams) (*VolumeResponse, error)
 	GetVolumeForExpertMode(params GetVolumeParams) (*VolumeResponse, error)
 	GetVolumeNASDetails(volumeUUID string) (*VolumeNASDetails, error)
+	GetVolumeSANDetails(svmName, volumeName string) (*VolumeSANDetails, error)
 	GetVolumeEncryptionStatus(params GetVolumeParams) (*VolumeResponse, error)
 	GetVolumes() ([]*Volume, error)
 	UpdateVolume(params UpdateVolumeParams) error
@@ -57,6 +58,7 @@ type Provider interface {
 	LunGet(params LunGetParams) (*LunResponse, error)
 	LunList(params LunGetParams) ([]*LunResponse, error)
 	LunUpdate(params LunUpdateParams) error
+	NamespaceList(params NvmeNamespaceGetParams) ([]*NvmeNamespaceResponse, error)
 	IgroupAddInitiator(params IgroupAddInitiator) error
 	IgroupDeleteInitiator(params IgroupDeleteInitiator) error
 	LunMapCreate(params LunMapCreateParams) error

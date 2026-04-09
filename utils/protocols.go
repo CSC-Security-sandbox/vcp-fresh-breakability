@@ -7,6 +7,7 @@ const (
 	ProtocolNFSv4       = "NFSV4"
 	ProtocolSMB         = "SMB"
 	ProtocolISCSI       = "ISCSI"
+	ProtocolNVMe        = "NVME"
 	ProtocolUnspecified = "PROTOCOL_UNSPECIFIED"
 )
 
@@ -17,6 +18,7 @@ const (
 	ontapNFSv4 = "nfs4"
 	ontapCIFS  = "cifs"
 	ontapISCSI = "iscsi"
+	ontapNVMe  = "nvme"
 )
 
 const (
@@ -66,6 +68,10 @@ var ProtocolMap = map[string]ProtocolInfo{
 	},
 	ProtocolISCSI: {
 		OntapValue:   ontapISCSI,
+		ProtocolType: ProtocolTypeSAN,
+	},
+	ProtocolNVMe: {
+		OntapValue:   ontapNVMe,
 		ProtocolType: ProtocolTypeSAN,
 	},
 }

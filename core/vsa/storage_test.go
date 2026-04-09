@@ -1641,3 +1641,184 @@ func TestUpdateAggregate_EmptyUUID(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 	mockClient.AssertExpectations(t)
 }
+
+func TestNamespaceList(t *testing.T) {
+	makeNVMeMocks := func() (*ontaprest.MockNVMeClient, *ontaprest.MockRESTClient) {
+		mockNVMe := new(ontaprest.MockNVMeClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("NVMe").Return(mockNVMe)
+		return mockNVMe, mockClient
+	}
+
+	setupClientFunc := func(tt *testing.T, mockClient *ontaprest.MockRESTClient) {
+		original := getOntapClientFunc
+		tt.Cleanup(func() { getOntapClientFunc = original })
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+	}
+
+	t.Run("WhenOntapClientFuncFails_ThenReturnError", func(tt *testing.T) {
+		original := getOntapClientFunc
+		tt.Cleanup(func() { getOntapClientFunc = original })
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("client init error")
+		}
+
+		rc := &OntapRestProvider{}
+		resp, err := rc.NamespaceList(NvmeNamespaceGetParams{SvmName: "svm1", VolumeName: "vol1"})
+
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.EqualError(tt, err, "client init error")
+	})
+
+	t.Run("WhenNamespaceGetReturnsError_ThenReturnVCPError", func(tt *testing.T) {
+		mockNVMe, mockClient := makeNVMeMocks()
+		setupClientFunc(tt, mockClient)
+		rc := &OntapRestProvider{}
+
+		mockNVMe.On("NamespaceGet", mock.Anything).Return(nil, errors.New("ontap api failure"))
+
+		resp, err := rc.NamespaceList(NvmeNamespaceGetParams{SvmName: "svm1", VolumeName: "vol1"})
+
+		assert.Error(tt, err)
+		assert.Nil(tt, resp)
+		assert.EqualError(tt, err, "An internal error occurred.")
+		var customErr *vsaerrors.CustomError
+		if vsaerrors.As(err, &customErr) {
+			assert.Equal(tt, "ontap api failure", customErr.OriginalErr.Error())
+			assert.Equal(tt, vsaerrors.ErrOntapRestAPIError, customErr.TrackingID)
+		} else {
+			tt.Fatalf("expected CustomError, got %T", err)
+		}
+		mockNVMe.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenOneNamespaceFound_ThenReturnMappedResponse", func(tt *testing.T) {
+		mockNVMe, mockClient := makeNVMeMocks()
+		setupClientFunc(tt, mockClient)
+		rc := &OntapRestProvider{}
+
+		ns := &ontaprest.NvmeNamespace{
+			NvmeNamespace: models.NvmeNamespace{
+				Name: nillable.ToPointer("/vol/vol1/ns1"),
+				UUID: nillable.ToPointer("ns-uuid-1"),
+			},
+		}
+		mockNVMe.On("NamespaceGet", mock.Anything).Return([]*ontaprest.NvmeNamespace{ns}, nil)
+
+		resp, err := rc.NamespaceList(NvmeNamespaceGetParams{SvmName: "svm1", VolumeName: "vol1"})
+
+		assert.NoError(tt, err)
+		assert.Len(tt, resp, 1)
+		assert.Equal(tt, "/vol/vol1/ns1", resp[0].Name)
+		assert.Equal(tt, "ns-uuid-1", resp[0].ExternalUUID)
+		mockNVMe.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenMultipleNamespacesFound_ThenReturnAllMapped", func(tt *testing.T) {
+		mockNVMe, mockClient := makeNVMeMocks()
+		setupClientFunc(tt, mockClient)
+		rc := &OntapRestProvider{}
+
+		namespaces := []*ontaprest.NvmeNamespace{
+			{NvmeNamespace: models.NvmeNamespace{Name: nillable.ToPointer("/vol/vol1/ns1"), UUID: nillable.ToPointer("uuid-1")}},
+			{NvmeNamespace: models.NvmeNamespace{Name: nillable.ToPointer("/vol/vol1/ns2"), UUID: nillable.ToPointer("uuid-2")}},
+		}
+		mockNVMe.On("NamespaceGet", mock.Anything).Return(namespaces, nil)
+
+		resp, err := rc.NamespaceList(NvmeNamespaceGetParams{SvmName: "svm1", VolumeName: "vol1"})
+
+		assert.NoError(tt, err)
+		assert.Len(tt, resp, 2)
+		assert.Equal(tt, "/vol/vol1/ns1", resp[0].Name)
+		assert.Equal(tt, "uuid-1", resp[0].ExternalUUID)
+		assert.Equal(tt, "/vol/vol1/ns2", resp[1].Name)
+		assert.Equal(tt, "uuid-2", resp[1].ExternalUUID)
+		mockNVMe.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenNamespaceHasNilFields_ThenReturnEmptyStrings", func(tt *testing.T) {
+		mockNVMe, mockClient := makeNVMeMocks()
+		setupClientFunc(tt, mockClient)
+		rc := &OntapRestProvider{}
+
+		ns := &ontaprest.NvmeNamespace{
+			NvmeNamespace: models.NvmeNamespace{Name: nil, UUID: nil},
+		}
+		mockNVMe.On("NamespaceGet", mock.Anything).Return([]*ontaprest.NvmeNamespace{ns}, nil)
+
+		resp, err := rc.NamespaceList(NvmeNamespaceGetParams{SvmName: "svm1", VolumeName: "vol1"})
+
+		assert.NoError(tt, err)
+		assert.Len(tt, resp, 1)
+		assert.Equal(tt, "", resp[0].Name)
+		assert.Equal(tt, "", resp[0].ExternalUUID)
+		mockNVMe.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenNamespaceNameParamIsSet_ThenPassedToNamespaceGet", func(tt *testing.T) {
+		mockNVMe, mockClient := makeNVMeMocks()
+		setupClientFunc(tt, mockClient)
+		rc := &OntapRestProvider{}
+
+		ns := &ontaprest.NvmeNamespace{
+			NvmeNamespace: models.NvmeNamespace{
+				Name: nillable.ToPointer("/vol/vol1/ns1"),
+				UUID: nillable.ToPointer("ns-uuid-1"),
+			},
+		}
+
+		svmName := "svm1"
+		volName := "vol1"
+		nsName := "ns1"
+		mockNVMe.On("NamespaceGet", &ontaprest.NvmeNamespaceGetParams{
+			BaseParams:    ontaprest.BaseParams{Fields: []string{"name", "uuid", "svm", "location"}},
+			SvmName:       &svmName,
+			VolumeName:    &volName,
+			NamespaceName: &nsName,
+		}).Return([]*ontaprest.NvmeNamespace{ns}, nil)
+
+		resp, err := rc.NamespaceList(NvmeNamespaceGetParams{SvmName: "svm1", VolumeName: "vol1", NamespaceName: "ns1"})
+
+		assert.NoError(tt, err)
+		assert.Len(tt, resp, 1)
+		assert.Equal(tt, "/vol/vol1/ns1", resp[0].Name)
+		mockNVMe.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenNamespaceNameParamIsEmpty_ThenNilPassedToNamespaceGet", func(tt *testing.T) {
+		mockNVMe, mockClient := makeNVMeMocks()
+		setupClientFunc(tt, mockClient)
+		rc := &OntapRestProvider{}
+
+		ns := &ontaprest.NvmeNamespace{
+			NvmeNamespace: models.NvmeNamespace{
+				Name: nillable.ToPointer("/vol/vol1/ns1"),
+				UUID: nillable.ToPointer("ns-uuid-1"),
+			},
+		}
+
+		svmName := "svm1"
+		volName := "vol1"
+		mockNVMe.On("NamespaceGet", &ontaprest.NvmeNamespaceGetParams{
+			BaseParams:    ontaprest.BaseParams{Fields: []string{"name", "uuid", "svm", "location"}},
+			SvmName:       &svmName,
+			VolumeName:    &volName,
+			NamespaceName: nil,
+		}).Return([]*ontaprest.NvmeNamespace{ns}, nil)
+
+		resp, err := rc.NamespaceList(NvmeNamespaceGetParams{SvmName: "svm1", VolumeName: "vol1", NamespaceName: ""})
+
+		assert.NoError(tt, err)
+		assert.Len(tt, resp, 1)
+		mockNVMe.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+}

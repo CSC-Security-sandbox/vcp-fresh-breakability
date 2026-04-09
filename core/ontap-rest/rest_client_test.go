@@ -333,6 +333,12 @@ func TestRESTClient_SAN(t *testing.T) {
 	assert.Equal(t, sanc, client.SAN())
 }
 
+func TestRESTClient_NVMe(t *testing.T) {
+	nvmec := &nvmeClient{}
+	client := &OntapRestClient{nvme: nvmec}
+	assert.Equal(t, nvmec, client.NVMe())
+}
+
 func TestRESTClient_Support(t *testing.T) {
 	sc := &supportClient{}
 	client := &OntapRestClient{support: sc}

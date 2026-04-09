@@ -25,6 +25,7 @@ type RESTClient interface { // generate:mock
 	Host() string
 	Cluster() ClusterClient
 	Cloud() CloudClient
+	NVMe() NVMeClient
 	SAN() SANClient
 	NAS() NASClient
 	Networking() NetworkingClient
@@ -43,6 +44,7 @@ type OntapRestClient struct {
 	cluster                   *clusterClient
 	san                       *sanClient
 	nas                       *nasClient
+	nvme                      *nvmeClient
 	security                  *securityClient
 	networking                *networkingClient
 	storage                   *storageClient
@@ -153,6 +155,7 @@ func NewClient(params RESTClientParams) (RESTClient, error) {
 			networking:                &networkingClient{api: api.Networking, apiPriv: &apiPriv.Operations},
 			storage:                   &storageClient{api: api.Storage},
 			san:                       &sanClient{api: api.San, poller: p},
+			nvme:                      &nvmeClient{api: api.NvMe},
 			nas:                       &nasClient{api: api.Nas, apiPriv: &apiPriv.Operations, poller: p, Trace: tryParams.Trace},
 			snapmirror:                &snapmirrorClient{api: api.Snapmirror, apiPriv: apiPriv.Snapmirror},
 			poller:                    p,
@@ -257,6 +260,11 @@ func (rc *OntapRestClient) Security() SecurityClient {
 // SAN returns a SAN client
 func (rc *OntapRestClient) SAN() SANClient {
 	return rc.san
+}
+
+// NVMe returns an NVMe client
+func (rc *OntapRestClient) NVMe() NVMeClient {
+	return rc.nvme
 }
 
 // NAS returns a NAS client

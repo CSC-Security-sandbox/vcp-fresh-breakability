@@ -281,6 +281,44 @@ func (rc *OntapRestProvider) LunList(params LunGetParams) ([]*LunResponse, error
 	return result, nil
 }
 
+// NamespaceList retrieves all NVMe namespaces for the given SVM and volume.
+func (rc *OntapRestProvider) NamespaceList(params NvmeNamespaceGetParams) ([]*NvmeNamespaceResponse, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+
+	var namespaceName *string
+	if params.NamespaceName != "" {
+		namespaceName = &params.NamespaceName
+	}
+
+	namespaces, err := client.NVMe().NamespaceGet(&ontapRest.NvmeNamespaceGetParams{
+		BaseParams: ontapRest.BaseParams{
+			Fields: []string{"name", "uuid", "svm", "location"},
+		},
+		SvmName:       &params.SvmName,
+		VolumeName:    &params.VolumeName,
+		NamespaceName: namespaceName,
+	})
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, err)
+	}
+
+	result := make([]*NvmeNamespaceResponse, len(namespaces))
+	for i, ns := range namespaces {
+		name := nillable.FromPointer(ns.Name)
+		uuid := nillable.FromPointer(ns.UUID)
+		result[i] = &NvmeNamespaceResponse{
+			ProviderResponse: ProviderResponse{
+				Name:         name,
+				ExternalUUID: uuid,
+			},
+		}
+	}
+	return result, nil
+}
+
 // LunUpdate updates the LUN by calling the ONTAP REST Client
 func (rc *OntapRestProvider) LunUpdate(params LunUpdateParams) error {
 	client, err := getOntapClientFunc(rc.ClientParams)

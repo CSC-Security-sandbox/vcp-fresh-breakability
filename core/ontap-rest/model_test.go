@@ -4652,6 +4652,102 @@ func TestQosPolicyDeleteCollectionParamsToONTAP(t *testing.T) {
 	})
 }
 
+func TestNvmeNamespaceGetParamsToONTAP(t *testing.T) {
+	t.Run("WhenParamsNil", func(tt *testing.T) {
+		otParams := nvmeNamespaceGetParamsToONTAP(nil)
+		assert.NotNil(tt, otParams)
+	})
+	t.Run("WhenSvmNameSet_ThenSvmNameIsSet", func(tt *testing.T) {
+		svmName := "svm1"
+		params := &NvmeNamespaceGetParams{
+			SvmName: &svmName,
+		}
+		otParams := nvmeNamespaceGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, &svmName, otParams.SvmName)
+	})
+	t.Run("WhenVolumeNameSet_ThenVolumeNameIsSet", func(tt *testing.T) {
+		volName := "vol1"
+		params := &NvmeNamespaceGetParams{
+			VolumeName: &volName,
+		}
+		otParams := nvmeNamespaceGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, &volName, otParams.LocationVolumeName)
+	})
+	t.Run("WhenNamespaceNameNonEmpty_ThenFullPathIsSet", func(tt *testing.T) {
+		volName := "vol1"
+		nsName := "ns1"
+		params := &NvmeNamespaceGetParams{
+			VolumeName:    &volName,
+			NamespaceName: &nsName,
+		}
+		otParams := nvmeNamespaceGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.NotNil(tt, otParams.Name)
+		assert.Equal(tt, "/vol/vol1/ns1", *otParams.Name)
+	})
+	t.Run("WhenNamespaceNameEmpty_ThenNameNotSet", func(tt *testing.T) {
+		volName := "vol1"
+		nsName := ""
+		params := &NvmeNamespaceGetParams{
+			VolumeName:    &volName,
+			NamespaceName: &nsName,
+		}
+		otParams := nvmeNamespaceGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Nil(tt, otParams.Name)
+	})
+	t.Run("WhenNamespaceNameNil_ThenNameNotSet", func(tt *testing.T) {
+		volName := "vol1"
+		params := &NvmeNamespaceGetParams{
+			VolumeName:    &volName,
+			NamespaceName: nil,
+		}
+		otParams := nvmeNamespaceGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Nil(tt, otParams.Name)
+	})
+	t.Run("WhenFieldsAndMaxRecordsSet_ThenBothAreSet", func(tt *testing.T) {
+		maxRecords := int64(10)
+		fields := []string{"name", "uuid"}
+		params := &NvmeNamespaceGetParams{
+			BaseParams: BaseParams{
+				Fields:     fields,
+				MaxRecords: &maxRecords,
+			},
+		}
+		otParams := nvmeNamespaceGetParamsToONTAP(params)
+		assert.NotNil(tt, otParams)
+		assert.Equal(tt, fields, otParams.Fields)
+		assert.NotNil(tt, otParams.MaxRecords)
+	})
+}
+
+func TestConstructNamespaceName(t *testing.T) {
+	t.Run("WhenVolumeNameNil_ThenReturnNil", func(tt *testing.T) {
+		nsName := "ns1"
+		result := constructNamespaceName(nil, &nsName)
+		assert.Nil(tt, result)
+	})
+	t.Run("WhenNamespaceNameNil_ThenReturnNil", func(tt *testing.T) {
+		volName := "vol1"
+		result := constructNamespaceName(&volName, nil)
+		assert.Nil(tt, result)
+	})
+	t.Run("WhenBothNil_ThenReturnNil", func(tt *testing.T) {
+		result := constructNamespaceName(nil, nil)
+		assert.Nil(tt, result)
+	})
+	t.Run("WhenBothSet_ThenReturnFullPath", func(tt *testing.T) {
+		volName := "vol1"
+		nsName := "ns1"
+		result := constructNamespaceName(&volName, &nsName)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, "/vol/vol1/ns1", *result)
+	})
+}
+
 func TestSnapmirrorRelationshipCreateParamsToONTAP(t *testing.T) {
 	t.Run("WhenParamsNil", func(tt *testing.T) {
 		otParams := snapmirrorRelationshipCreateParamsToONTAP(nil)

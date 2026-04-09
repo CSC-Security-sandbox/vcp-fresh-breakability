@@ -2376,9 +2376,21 @@ func (b *BackupActivity) GetVolumeProtocolsFromOntapActivity(ctx context.Context
 		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to get volume NAS details: %w", err))
 	}
 
-	isNasVolume := nasDetails.NASPath != "" || nasDetails.ExportPolicyName != "" || nasDetails.SecurityStyle != ""
+	sanDetails, err := provider.GetVolumeSANDetails(svmName, volume.Name)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to get volume SAN details: %w", err))
+	}
 
-	if isNasVolume {
+	isSanVolume := sanDetails.HasLUNs || sanDetails.HasNamespaces
+
+	if sanDetails.HasLUNs {
+		protocols = append(protocols, utils.ProtocolISCSI)
+	}
+	if sanDetails.HasNamespaces {
+		protocols = append(protocols, utils.ProtocolNVMe)
+	}
+
+	if !isSanVolume {
 		if nasDetails.ExportPolicyName != "" {
 			rawProtocols, err := provider.GetExportPolicyProtocols(nasDetails.ExportPolicyName, svmName)
 			if err != nil {
@@ -2391,22 +2403,10 @@ func (b *BackupActivity) GetVolumeProtocolsFromOntapActivity(ctx context.Context
 		if (nasDetails.SecurityStyle == "ntfs" || nasDetails.SecurityStyle == "mixed" || nasDetails.SecurityStyle == "unified") && !containsProtocol(protocols, utils.ProtocolSMB) {
 			protocols = append(protocols, utils.ProtocolSMB)
 		}
-	} else {
-		_, lunErr := provider.LunList(vsa.LunGetParams{
-			SvmName:    svmName,
-			VolumeName: volume.Name,
-		})
-		if lunErr == nil {
-			protocols = append(protocols, utils.ProtocolISCSI)
-		} else if strings.Contains(lunErr.Error(), "lun not found") {
-			logger.Infof("No LUNs found on volume %s, not a SAN volume", volume.Name)
-		} else {
-			return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to list LUNs for volume %s: %w", volume.Name, lunErr))
-		}
 	}
 
 	if len(protocols) == 0 {
-		protocols = append(protocols, utils.ProtocolUnspecified)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("could not determine protocols for volume %s", volume.Name))
 	}
 
 	logger.Infof("Determined protocols for expert mode volume %s: %v", volume.Name, protocols)

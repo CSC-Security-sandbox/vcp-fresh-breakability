@@ -203,6 +203,53 @@ func (_c *MockRESTClient_NAS_Call) RunAndReturn(run func() NASClient) *MockRESTC
 	return _c
 }
 
+// NVMe provides a mock function with no fields
+func (_m *MockRESTClient) NVMe() NVMeClient {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for NVMe")
+	}
+
+	var r0 NVMeClient
+	if rf, ok := ret.Get(0).(func() NVMeClient); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(NVMeClient)
+		}
+	}
+
+	return r0
+}
+
+// MockRESTClient_NVMe_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NVMe'
+type MockRESTClient_NVMe_Call struct {
+	*mock.Call
+}
+
+// NVMe is a helper method to define mock.On call
+func (_e *MockRESTClient_Expecter) NVMe() *MockRESTClient_NVMe_Call {
+	return &MockRESTClient_NVMe_Call{Call: _e.mock.On("NVMe")}
+}
+
+func (_c *MockRESTClient_NVMe_Call) Run(run func()) *MockRESTClient_NVMe_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockRESTClient_NVMe_Call) Return(_a0 NVMeClient) *MockRESTClient_NVMe_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockRESTClient_NVMe_Call) RunAndReturn(run func() NVMeClient) *MockRESTClient_NVMe_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NameServices provides a mock function with no fields
 func (_m *MockRESTClient) NameServices() NameServicesClient {
 	ret := _m.Called()

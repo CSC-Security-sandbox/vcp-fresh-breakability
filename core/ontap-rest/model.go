@@ -12,6 +12,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/cloud"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/cluster"
 	nas "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/n_a_s"
+	nvme "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/n_v_m_e"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/name_services"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/networking"
 	san "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/s_a_n"
@@ -5141,4 +5142,43 @@ func nameMappingCreateParamsToONTAP(params *NameMappingCreateParams) *name_servi
 	}
 	otParams.SetInfo(info)
 	return otParams
+}
+
+// NvmeNamespace is a wrapper around the generated NvmeNamespace model.
+type NvmeNamespace struct {
+	models.NvmeNamespace
+}
+
+// NvmeNamespaceGetParams is the input parameter for listing NVMe namespaces.
+type NvmeNamespaceGetParams struct {
+	BaseParams
+	SvmName       *string
+	VolumeName    *string
+	NamespaceName *string
+}
+
+// nvmeNamespaceGetParamsToONTAP converts NvmeNamespaceGetParams to ONTAP API parameters.
+func nvmeNamespaceGetParamsToONTAP(params *NvmeNamespaceGetParams) *nvme.NvmeNamespaceCollectionGetParams {
+	otParams := nvme.NewNvmeNamespaceCollectionGetParams()
+	if params == nil {
+		return otParams
+	}
+
+	otParams.SetSvmName(params.SvmName)
+	otParams.SetLocationVolumeName(params.VolumeName)
+	if params.NamespaceName != nil && *params.NamespaceName != "" {
+		otParams.SetName(constructNamespaceName(params.VolumeName, params.NamespaceName))
+	}
+	otParams.SetFields(params.Fields)
+	otParams.SetMaxRecords(getConstrainedMaxRecords(params.MaxRecords))
+	return otParams
+}
+
+// constructNamespaceName builds the full namespace path from volume and namespace name.
+// NVMe namespace names follow the same "/vol/<volume>/<name>" convention as LUNs.
+func constructNamespaceName(volumeName, namespaceName *string) *string {
+	if volumeName == nil || namespaceName == nil {
+		return nil
+	}
+	return nillable.ToPointer(lunNamePrefix + *volumeName + "/" + *namespaceName)
 }

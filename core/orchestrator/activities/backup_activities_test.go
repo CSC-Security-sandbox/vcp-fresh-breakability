@@ -13707,6 +13707,8 @@ func TestGetVolumeProtocolsFromOntapActivity(t *testing.T) {
 
 		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
 			Return(&vsa.VolumeNASDetails{NASPath: "/vol/test", ExportPolicyName: "test-policy"}, nil)
+		mockProvider.On("GetVolumeSANDetails", "test-svm", "test-vol").
+			Return(&vsa.VolumeSANDetails{HasLUNs: false, HasNamespaces: false}, nil)
 		mockProvider.On("GetExportPolicyProtocols", "test-policy", "test-svm").
 			Return([]string{"nfs3"}, nil)
 
@@ -13738,6 +13740,8 @@ func TestGetVolumeProtocolsFromOntapActivity(t *testing.T) {
 
 		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
 			Return(&vsa.VolumeNASDetails{NASPath: "/vol/test", ExportPolicyName: "default"}, nil)
+		mockProvider.On("GetVolumeSANDetails", "test-svm", "test-vol").
+			Return(&vsa.VolumeSANDetails{HasLUNs: false, HasNamespaces: false}, nil)
 		mockProvider.On("GetExportPolicyProtocols", "default", "test-svm").
 			Return([]string{"nfs"}, nil)
 
@@ -13769,6 +13773,8 @@ func TestGetVolumeProtocolsFromOntapActivity(t *testing.T) {
 
 		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
 			Return(&vsa.VolumeNASDetails{SecurityStyle: "ntfs"}, nil)
+		mockProvider.On("GetVolumeSANDetails", "test-svm", "test-vol").
+			Return(&vsa.VolumeSANDetails{HasLUNs: false, HasNamespaces: false}, nil)
 
 		encodedValue, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
 
@@ -13798,6 +13804,8 @@ func TestGetVolumeProtocolsFromOntapActivity(t *testing.T) {
 
 		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
 			Return(&vsa.VolumeNASDetails{NASPath: "/vol/test", SecurityStyle: "mixed", ExportPolicyName: "test-policy"}, nil)
+		mockProvider.On("GetVolumeSANDetails", "test-svm", "test-vol").
+			Return(&vsa.VolumeSANDetails{HasLUNs: false, HasNamespaces: false}, nil)
 		mockProvider.On("GetExportPolicyProtocols", "test-policy", "test-svm").
 			Return([]string{"nfs3"}, nil)
 
@@ -13831,6 +13839,8 @@ func TestGetVolumeProtocolsFromOntapActivity(t *testing.T) {
 
 		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
 			Return(&vsa.VolumeNASDetails{NASPath: "/vol/test", SecurityStyle: "mixed", ExportPolicyName: "cifs-policy"}, nil)
+		mockProvider.On("GetVolumeSANDetails", "test-svm", "test-vol").
+			Return(&vsa.VolumeSANDetails{HasLUNs: false, HasNamespaces: false}, nil)
 		mockProvider.On("GetExportPolicyProtocols", "cifs-policy", "test-svm").
 			Return([]string{"cifs"}, nil)
 
@@ -13862,8 +13872,8 @@ func TestGetVolumeProtocolsFromOntapActivity(t *testing.T) {
 
 		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
 			Return(&vsa.VolumeNASDetails{}, nil)
-		mockProvider.On("LunList", vsa.LunGetParams{SvmName: "test-svm", VolumeName: "test-vol"}).
-			Return([]*vsa.LunResponse{{}}, nil)
+		mockProvider.On("GetVolumeSANDetails", "test-svm", "test-vol").
+			Return(&vsa.VolumeSANDetails{HasLUNs: true, HasNamespaces: false}, nil)
 
 		encodedValue, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
 
@@ -13875,7 +13885,7 @@ func TestGetVolumeProtocolsFromOntapActivity(t *testing.T) {
 		mockProvider.AssertExpectations(t)
 	})
 
-	t.Run("WhenNonNasVolumeWithoutLuns_ThenProtocolsContainUnspecified", func(t *testing.T) {
+	t.Run("WhenNonNasVolumeWithoutLunsOrNamespaces_ThenReturnError", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestActivityEnvironment()
 
@@ -13893,20 +13903,17 @@ func TestGetVolumeProtocolsFromOntapActivity(t *testing.T) {
 
 		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
 			Return(&vsa.VolumeNASDetails{}, nil)
-		mockProvider.On("LunList", vsa.LunGetParams{SvmName: "test-svm", VolumeName: "test-vol"}).
-			Return(nil, errors.New("lun not found: svm=test-svm, volume=test-vol, lun="))
+		mockProvider.On("GetVolumeSANDetails", "test-svm", "test-vol").
+			Return(&vsa.VolumeSANDetails{HasLUNs: false, HasNamespaces: false}, nil)
 
-		encodedValue, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
+		_, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
 
-		assert.NoError(t, err)
-		var result *BackupActivitiesContext
-		err = encodedValue.Get(&result)
-		assert.NoError(t, err)
-		assert.Equal(t, []string{utils.ProtocolUnspecified}, result.BackupWorkflowInit.Backup.Attributes.Protocols)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "could not determine protocols for volume test-vol")
 		mockProvider.AssertExpectations(t)
 	})
 
-	t.Run("WhenNonNasVolumeAndLunListFailsWithApiError_ThenReturnError", func(t *testing.T) {
+	t.Run("WhenGetVolumeSANDetailsFails_ThenReturnError", func(t *testing.T) {
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestActivityEnvironment()
 
@@ -13924,13 +13931,13 @@ func TestGetVolumeProtocolsFromOntapActivity(t *testing.T) {
 
 		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
 			Return(&vsa.VolumeNASDetails{}, nil)
-		mockProvider.On("LunList", vsa.LunGetParams{SvmName: "test-svm", VolumeName: "test-vol"}).
+		mockProvider.On("GetVolumeSANDetails", "test-svm", "test-vol").
 			Return(nil, errors.New("ONTAP REST API connection refused"))
 
 		_, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to list LUNs for volume test-vol")
+		assert.Contains(t, err.Error(), "failed to get volume SAN details")
 		mockProvider.AssertExpectations(t)
 	})
 
@@ -13952,6 +13959,8 @@ func TestGetVolumeProtocolsFromOntapActivity(t *testing.T) {
 
 		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
 			Return(&vsa.VolumeNASDetails{NASPath: "/vol/test", SecurityStyle: "ntfs", ExportPolicyName: "test-policy"}, nil)
+		mockProvider.On("GetVolumeSANDetails", "test-svm", "test-vol").
+			Return(&vsa.VolumeSANDetails{HasLUNs: false, HasNamespaces: false}, nil)
 		mockProvider.On("GetExportPolicyProtocols", "test-policy", "test-svm").
 			Return(nil, errors.New("export policy not found"))
 
@@ -13983,6 +13992,8 @@ func TestGetVolumeProtocolsFromOntapActivity(t *testing.T) {
 
 		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
 			Return(&vsa.VolumeNASDetails{SecurityStyle: "unified"}, nil)
+		mockProvider.On("GetVolumeSANDetails", "test-svm", "test-vol").
+			Return(&vsa.VolumeSANDetails{HasLUNs: false, HasNamespaces: false}, nil)
 
 		encodedValue, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
 
@@ -14012,6 +14023,8 @@ func TestGetVolumeProtocolsFromOntapActivity(t *testing.T) {
 
 		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
 			Return(&vsa.VolumeNASDetails{NASPath: "/vol/test", ExportPolicyName: "any-policy"}, nil)
+		mockProvider.On("GetVolumeSANDetails", "test-svm", "test-vol").
+			Return(&vsa.VolumeSANDetails{HasLUNs: false, HasNamespaces: false}, nil)
 		mockProvider.On("GetExportPolicyProtocols", "any-policy", "test-svm").
 			Return([]string{"any"}, nil)
 
@@ -14023,6 +14036,241 @@ func TestGetVolumeProtocolsFromOntapActivity(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, []string{utils.ProtocolNFSv3, utils.ProtocolNFSv4, utils.ProtocolSMB},
 			result.BackupWorkflowInit.Backup.Attributes.Protocols)
+		mockProvider.AssertExpectations(t)
+	})
+
+	// --- NVMe namespace detection (lines 2408-2418) ---
+
+	t.Run("WhenLunNotFoundAndNvmeNamespaceFound_ThenProtocolIsNVMe", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		state := makeState(makeVolume())
+
+		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
+			Return(&vsa.VolumeNASDetails{}, nil)
+		mockProvider.On("GetVolumeSANDetails", "test-svm", "test-vol").
+			Return(&vsa.VolumeSANDetails{HasLUNs: false, HasNamespaces: true}, nil)
+
+		encodedValue, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
+
+		assert.NoError(t, err)
+		var result *BackupActivitiesContext
+		err = encodedValue.Get(&result)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{utils.ProtocolNVMe}, result.BackupWorkflowInit.Backup.Attributes.Protocols)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenLunsFoundAndNvmeNamespacesFound_ThenProtocolsContainISCSIAndNVMe", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		state := makeState(makeVolume())
+
+		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
+			Return(&vsa.VolumeNASDetails{}, nil)
+		mockProvider.On("GetVolumeSANDetails", "test-svm", "test-vol").
+			Return(&vsa.VolumeSANDetails{HasLUNs: true, HasNamespaces: true}, nil)
+
+		encodedValue, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
+
+		assert.NoError(t, err)
+		var result *BackupActivitiesContext
+		err = encodedValue.Get(&result)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{utils.ProtocolISCSI, utils.ProtocolNVMe}, result.BackupWorkflowInit.Backup.Attributes.Protocols)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenLunsFoundAndNvmeNamespaceNotFound_ThenProtocolIsISCSIOnly", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		state := makeState(makeVolume())
+
+		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
+			Return(&vsa.VolumeNASDetails{}, nil)
+		mockProvider.On("GetVolumeSANDetails", "test-svm", "test-vol").
+			Return(&vsa.VolumeSANDetails{HasLUNs: true, HasNamespaces: false}, nil)
+
+		encodedValue, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
+
+		assert.NoError(t, err)
+		var result *BackupActivitiesContext
+		err = encodedValue.Get(&result)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{utils.ProtocolISCSI}, result.BackupWorkflowInit.Backup.Attributes.Protocols)
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenGetVolumeSANDetailsFailsAfterLunsFound_ThenReturnError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		state := makeState(makeVolume())
+
+		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
+			Return(&vsa.VolumeNASDetails{}, nil)
+		mockProvider.On("GetVolumeSANDetails", "test-svm", "test-vol").
+			Return(nil, errors.New("ONTAP REST API connection refused"))
+
+		_, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get volume SAN details")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenLunNotFoundAndNvmeNamespaceNotFound_ThenReturnError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		state := makeState(makeVolume())
+
+		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
+			Return(&vsa.VolumeNASDetails{}, nil)
+		mockProvider.On("GetVolumeSANDetails", "test-svm", "test-vol").
+			Return(&vsa.VolumeSANDetails{HasLUNs: false, HasNamespaces: false}, nil)
+
+		_, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "could not determine protocols for volume test-vol")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenLunApiErrorAndNvmeNamespaceFound_ThenProtocolIsNVMe", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		state := makeState(makeVolume())
+
+		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
+			Return(&vsa.VolumeNASDetails{}, nil)
+		mockProvider.On("GetVolumeSANDetails", "test-svm", "test-vol").
+			Return(nil, errors.New("ONTAP REST API connection refused"))
+
+		_, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get volume SAN details")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenLunApiErrorAndNvmeNamespaceNotFound_ThenReturnError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		state := makeState(makeVolume())
+
+		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
+			Return(&vsa.VolumeNASDetails{}, nil)
+		mockProvider.On("GetVolumeSANDetails", "test-svm", "test-vol").
+			Return(nil, errors.New("ONTAP REST API connection refused"))
+
+		_, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get volume SAN details")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenLunApiErrorAndNvmeNamespaceApiError_ThenReturnError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		state := makeState(makeVolume())
+
+		mockProvider.On("GetVolumeNASDetails", "vol-ext-uuid").
+			Return(&vsa.VolumeNASDetails{}, nil)
+		mockProvider.On("GetVolumeSANDetails", "test-svm", "test-vol").
+			Return(nil, errors.New("ONTAP REST API connection refused"))
+
+		_, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get volume SAN details")
 		mockProvider.AssertExpectations(t)
 	})
 }

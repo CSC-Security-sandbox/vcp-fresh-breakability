@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/cloud"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/cluster"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/n_a_s"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/n_v_m_e"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/name_services"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/networking"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/object_store"
@@ -71,6 +72,7 @@ func New(transport runtime.ClientTransport, formats strfmt.Registry) *ONTAPRESTA
 	cli.Nas = n_a_s.New(transport, formats)
 	cli.NameServices = name_services.New(transport, formats)
 	cli.Networking = networking.New(transport, formats)
+	cli.NvMe = n_v_m_e.New(transport, formats)
 	cli.ObjectStore = object_store.New(transport, formats)
 	cli.San = s_a_n.New(transport, formats)
 	cli.Security = securityops.New(transport, formats)
@@ -132,6 +134,8 @@ type ONTAPRESTAPIOnlineReference struct {
 
 	Networking networking.ClientService
 
+	NvMe n_v_m_e.ClientService
+
 	ObjectStore object_store.ClientService
 
 	San s_a_n.ClientService
@@ -157,6 +161,7 @@ func (c *ONTAPRESTAPIOnlineReference) SetTransport(transport runtime.ClientTrans
 	c.Nas.SetTransport(transport)
 	c.NameServices.SetTransport(transport)
 	c.Networking.SetTransport(transport)
+	c.NvMe.SetTransport(transport)
 	c.ObjectStore.SetTransport(transport)
 	c.San.SetTransport(transport)
 	c.Security.SetTransport(transport)

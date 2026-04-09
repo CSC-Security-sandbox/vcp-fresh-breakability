@@ -135,6 +135,11 @@
 1637017451 6358 ./client/n_a_s/user_group_privileges_create_responses.go
 1982515236 6015 ./client/n_a_s/user_group_privileges_modify_parameters.go
 3255183286 6201 ./client/n_a_s/user_group_privileges_modify_responses.go
+1284825626 5916 ./client/n_v_m_e/client_service_mock.go
+222086362 3536 ./client/n_v_m_e/client_service_mock_test.go
+3849174250 3363 ./client/n_v_m_e/nvme_client.go
+3501165233 8114 ./client/n_v_m_e/nvme_namespace_collection_get_parameters.go
+2822575297 6047 ./client/n_v_m_e/nvme_namespace_collection_get_responses.go
 2706704651 5113 ./client/name_services/dns_create_parameters.go
 665075180 6867 ./client/name_services/dns_create_responses.go
 2091638504 4851 ./client/name_services/dns_get_parameters.go
@@ -227,7 +232,7 @@
 4117183893 16814 ./client/networking/network_ip_service_policies_get_parameters.go
 3472612287 6216 ./client/networking/network_ip_service_policies_get_responses.go
 3456118195 45666 ./client/networking/networking_client.go
-4111954948 5755 ./client/o_n_t_a_p_r_e_s_t_api_online_reference_client.go
+931635538 5948 ./client/o_n_t_a_p_r_e_s_t_api_online_reference_client.go
 557256705 86538 ./client/object_store/buckets_collection_get_parameters.go
 3460810319 5838 ./client/object_store/buckets_collection_get_responses.go
 3014688507 22166 ./client/object_store/client_service_mock.go
@@ -740,6 +745,8 @@
 3251227206 328935 ./models/node_response.go
 322800149 2434 ./models/node_setup_ip.go
 1874487262 2060 ./models/nsswitch_source.go
+2068684609 5058 ./models/nvme_namespace.go
+1320557493 2551 ./models/nvme_namespace_response.go
 2068873214 5512 ./models/object_store.go
 889676473 5733 ./models/object_store_endpoint.go
 33114735 42396 ./models/object_store_endpoint_info.go
@@ -888,4 +895,4 @@
 4173203049 6726 ./models/zapp_s3_bucket_application_components_access_policies.go
 290990735 3069 ./models/zapp_s3_bucket_application_components_access_policies_conditions.go
 1206500269 24022500 swagger.yaml
-264508867 5936 swagger_operations.txt
+3577430978 5966 swagger_operations.txt

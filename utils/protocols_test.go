@@ -150,9 +150,9 @@ func TestGetNASProtocols(t *testing.T) {
 func TestGetSANProtocols(t *testing.T) {
 	t.Run("ReturnsAllSANProtocols", func(tt *testing.T) {
 		sanProtocols := GetSANProtocols()
-		expectedProtocols := []string{ProtocolISCSI}
+		expectedProtocols := []string{ProtocolISCSI, ProtocolNVMe}
 
-		assert.Equal(tt, expectedProtocols, sanProtocols)
+		assert.ElementsMatch(tt, expectedProtocols, sanProtocols)
 	})
 
 	t.Run("DoesNotIncludeNASProtocols", func(tt *testing.T) {
@@ -196,6 +196,10 @@ func TestProtocolMapConsistency(t *testing.T) {
 				ontapValue:   "iscsi",
 				protocolType: ProtocolTypeSAN,
 			},
+			ProtocolNVMe: {
+				ontapValue:   "nvme",
+				protocolType: ProtocolTypeSAN,
+			},
 		}
 
 		for protocol, expected := range expectedMappings {
@@ -207,7 +211,7 @@ func TestProtocolMapConsistency(t *testing.T) {
 	})
 
 	t.Run("ProtocolMapHasExpectedSize", func(tt *testing.T) {
-		assert.Len(tt, ProtocolMap, 5, "ProtocolMap should contain exactly 5 protocols")
+		assert.Len(tt, ProtocolMap, 6, "ProtocolMap should contain exactly 6 protocols")
 	})
 }
 

@@ -508,6 +508,11 @@ type VolumeNASDetails struct {
 	SecurityStyle    string
 }
 
+type VolumeSANDetails struct {
+	HasLUNs       bool
+	HasNamespaces bool
+}
+
 type IgroupCreateParams struct {
 	IgroupName string
 	SvmName    string
@@ -547,6 +552,16 @@ type LunGetParams struct {
 	SvmName    string
 	VolumeName string
 	LunName    string
+}
+
+type NvmeNamespaceGetParams struct {
+	SvmName       string
+	VolumeName    string
+	NamespaceName string
+}
+
+type NvmeNamespaceResponse struct {
+	ProviderResponse
 }
 
 type LunUpdateParams struct {

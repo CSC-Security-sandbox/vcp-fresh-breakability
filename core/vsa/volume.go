@@ -662,6 +662,37 @@ func (rc *OntapRestProvider) GetVolumeNASDetails(volumeUUID string) (*VolumeNASD
 	return result, nil
 }
 
+// GetVolumeSANDetails fetches SAN-related properties (LUN and NVMe namespace presence)
+// for a volume identified by its SVM name and volume name.
+func (rc *OntapRestProvider) GetVolumeSANDetails(svmName, volumeName string) (*VolumeSANDetails, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &VolumeSANDetails{}
+
+	luns, lunErr := client.SAN().LunGet(&ontapRest.LunGetParams{
+		SvmName:    &svmName,
+		VolumeName: &volumeName,
+	})
+	if lunErr != nil && !errors.IsNotFoundErrForObjectTypeInChain(lunErr, "lun") {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, lunErr)
+	}
+	result.HasLUNs = len(luns) > 0
+
+	namespaces, nsErr := client.NVMe().NamespaceGet(&ontapRest.NvmeNamespaceGetParams{
+		SvmName:    &svmName,
+		VolumeName: &volumeName,
+	})
+	if nsErr != nil && !errors.IsNotFoundErrForObjectTypeInChain(nsErr, "nvme namespace") {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, nsErr)
+	}
+	result.HasNamespaces = len(namespaces) > 0
+
+	return result, nil
+}
+
 func (rc *OntapRestProvider) GetVolumeEncryptionStatus(params GetVolumeParams) (*VolumeResponse, error) {
 	client, err := getOntapClientFunc(rc.ClientParams)
 	if err != nil {
