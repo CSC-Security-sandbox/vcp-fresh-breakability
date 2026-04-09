@@ -123,6 +123,30 @@ func (s *BackupV1beta) setDefaults() {
 }
 
 // setDefaults set default value of fields.
+func (s *BatchBackupV1beta) setDefaults() {
+	{
+		val := BatchBackupV1betaState("STATE_UNSPECIFIED")
+		s.State.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *BatchBackupVaultV1beta) setDefaults() {
+	{
+		val := BatchBackupVaultV1betaBackupVaultType("TYPE_UNSPECIFIED")
+		s.BackupVaultType.SetTo(val)
+	}
+	{
+		val := BatchBackupVaultV1betaEncryptionState("ENCRYPTION_STATE_UNSPECIFIED")
+		s.EncryptionState.SetTo(val)
+	}
+	{
+		val := BatchBackupVaultV1betaState("STATE_UNSPECIFIED")
+		s.State.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *BatchPoolV1beta) setDefaults() {
 	{
 		val := string("auto")

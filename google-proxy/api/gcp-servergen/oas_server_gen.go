@@ -20,6 +20,18 @@ type Handler interface {
 	//
 	// POST /v1beta/locations/{locationId}/batch/activeDirectories
 	V1betaBatchListActiveDirectories(ctx context.Context, req *BatchActiveDirectoryUUIDListV1beta, params V1betaBatchListActiveDirectoriesParams) (V1betaBatchListActiveDirectoriesRes, error)
+	// V1betaBatchListBackupVaults implements v1beta_batchListBackupVaults operation.
+	//
+	// Batch list all backup vaults with the given UUIDs.
+	//
+	// POST /v1beta/locations/{locationId}/batch/backupVaults
+	V1betaBatchListBackupVaults(ctx context.Context, req *BatchBackupVaultUUIDListV1beta, params V1betaBatchListBackupVaultsParams) (V1betaBatchListBackupVaultsRes, error)
+	// V1betaBatchListBackups implements v1beta_batchListBackups operation.
+	//
+	// Batch list all backups with the given UUIDs.
+	//
+	// POST /v1beta/locations/{locationId}/batch/backups
+	V1betaBatchListBackups(ctx context.Context, req *BatchBackupUUIDListV1beta, params V1betaBatchListBackupsParams) (V1betaBatchListBackupsRes, error)
 	// V1betaBatchListPools implements v1beta_batchListPools operation.
 	//
 	// Batch lists all pools with the given UUIDs across all accounts.

@@ -31,6 +31,24 @@ func (UnimplementedHandler) V1betaBatchListActiveDirectories(ctx context.Context
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaBatchListBackupVaults implements v1beta_batchListBackupVaults operation.
+//
+// Batch list all backup vaults with the given UUIDs.
+//
+// POST /v1beta/locations/{locationId}/batch/backupVaults
+func (UnimplementedHandler) V1betaBatchListBackupVaults(ctx context.Context, req *BatchBackupVaultUUIDListV1beta, params V1betaBatchListBackupVaultsParams) (r V1betaBatchListBackupVaultsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1betaBatchListBackups implements v1beta_batchListBackups operation.
+//
+// Batch list all backups with the given UUIDs.
+//
+// POST /v1beta/locations/{locationId}/batch/backups
+func (UnimplementedHandler) V1betaBatchListBackups(ctx context.Context, req *BatchBackupUUIDListV1beta, params V1betaBatchListBackupsParams) (r V1betaBatchListBackupsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaBatchListPools implements v1beta_batchListPools operation.
 //
 // Batch lists all pools with the given UUIDs across all accounts.

@@ -8,9 +8,12 @@ package batch
 import (
 	"fmt"
 	"io"
+	"strconv"
 
+	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
@@ -76,21 +79,23 @@ V1betaBatchListBackupsOK handles this case with default header values.
 OK
 */
 type V1betaBatchListBackupsOK struct {
-	Payload []*models.BatchBackupV1beta
+	Payload *V1betaBatchListBackupsOKBody
 }
 
 func (o *V1betaBatchListBackupsOK) Error() string {
 	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/backups][%d] v1betaBatchListBackupsOK  %+v", 200, o.Payload)
 }
 
-func (o *V1betaBatchListBackupsOK) GetPayload() []*models.BatchBackupV1beta {
+func (o *V1betaBatchListBackupsOK) GetPayload() *V1betaBatchListBackupsOKBody {
 	return o.Payload
 }
 
 func (o *V1betaBatchListBackupsOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
+	o.Payload = new(V1betaBatchListBackupsOKBody)
+
 	// response payload
-	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
 		return err
 	}
 
@@ -273,5 +278,105 @@ func (o *V1betaBatchListBackupsDefault) readResponse(response runtime.ClientResp
 		return err
 	}
 
+	return nil
+}
+
+/*
+V1betaBatchListBackupsOKBody v1beta batch list backups o k body
+swagger:model V1betaBatchListBackupsOKBody
+*/
+type V1betaBatchListBackupsOKBody struct {
+
+	// backups
+	Backups []*models.BatchBackupV1beta `json:"backups"`
+}
+
+// UnmarshalJSON unmarshals this object from a JSON structure
+func (o *V1betaBatchListBackupsOKBody) UnmarshalJSON(raw []byte) error {
+	// V1betaBatchListBackupsOKBodyAO0
+	var dataV1betaBatchListBackupsOKBodyAO0 struct {
+		Backups []*models.BatchBackupV1beta `json:"backups"`
+	}
+	if err := swag.ReadJSON(raw, &dataV1betaBatchListBackupsOKBodyAO0); err != nil {
+		return err
+	}
+
+	o.Backups = dataV1betaBatchListBackupsOKBodyAO0.Backups
+
+	return nil
+}
+
+// MarshalJSON marshals this object to a JSON structure
+func (o V1betaBatchListBackupsOKBody) MarshalJSON() ([]byte, error) {
+	_parts := make([][]byte, 0, 1)
+
+	var dataV1betaBatchListBackupsOKBodyAO0 struct {
+		Backups []*models.BatchBackupV1beta `json:"backups"`
+	}
+
+	dataV1betaBatchListBackupsOKBodyAO0.Backups = o.Backups
+
+	jsonDataV1betaBatchListBackupsOKBodyAO0, errV1betaBatchListBackupsOKBodyAO0 := swag.WriteJSON(dataV1betaBatchListBackupsOKBodyAO0)
+	if errV1betaBatchListBackupsOKBodyAO0 != nil {
+		return nil, errV1betaBatchListBackupsOKBodyAO0
+	}
+	_parts = append(_parts, jsonDataV1betaBatchListBackupsOKBodyAO0)
+	return swag.ConcatJSON(_parts...), nil
+}
+
+// Validate validates this v1beta batch list backups o k body
+func (o *V1betaBatchListBackupsOKBody) Validate(formats strfmt.Registry) error {
+	var res []error
+
+	if err := o.validateBackups(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (o *V1betaBatchListBackupsOKBody) validateBackups(formats strfmt.Registry) error {
+
+	if swag.IsZero(o.Backups) { // not required
+		return nil
+	}
+
+	for i := 0; i < len(o.Backups); i++ {
+		if swag.IsZero(o.Backups[i]) { // not required
+			continue
+		}
+
+		if o.Backups[i] != nil {
+			if err := o.Backups[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("v1betaBatchListBackupsOK" + "." + "backups" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+// MarshalBinary interface implementation
+func (o *V1betaBatchListBackupsOKBody) MarshalBinary() ([]byte, error) {
+	if o == nil {
+		return nil, nil
+	}
+	return swag.WriteJSON(o)
+}
+
+// UnmarshalBinary interface implementation
+func (o *V1betaBatchListBackupsOKBody) UnmarshalBinary(b []byte) error {
+	var res V1betaBatchListBackupsOKBody
+	if err := swag.ReadJSON(b, &res); err != nil {
+		return err
+	}
+	*o = res
 	return nil
 }

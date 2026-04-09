@@ -8,9 +8,12 @@ package batch
 import (
 	"fmt"
 	"io"
+	"strconv"
 
+	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
@@ -76,21 +79,23 @@ V1betaBatchListActiveDirectoriesOK handles this case with default header values.
 OK
 */
 type V1betaBatchListActiveDirectoriesOK struct {
-	Payload []*models.BatchActiveDirectoryV1beta
+	Payload *V1betaBatchListActiveDirectoriesOKBody
 }
 
 func (o *V1betaBatchListActiveDirectoriesOK) Error() string {
 	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/activeDirectories][%d] v1betaBatchListActiveDirectoriesOK  %+v", 200, o.Payload)
 }
 
-func (o *V1betaBatchListActiveDirectoriesOK) GetPayload() []*models.BatchActiveDirectoryV1beta {
+func (o *V1betaBatchListActiveDirectoriesOK) GetPayload() *V1betaBatchListActiveDirectoriesOKBody {
 	return o.Payload
 }
 
 func (o *V1betaBatchListActiveDirectoriesOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
+	o.Payload = new(V1betaBatchListActiveDirectoriesOKBody)
+
 	// response payload
-	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
 		return err
 	}
 
@@ -273,5 +278,105 @@ func (o *V1betaBatchListActiveDirectoriesDefault) readResponse(response runtime.
 		return err
 	}
 
+	return nil
+}
+
+/*
+V1betaBatchListActiveDirectoriesOKBody v1beta batch list active directories o k body
+swagger:model V1betaBatchListActiveDirectoriesOKBody
+*/
+type V1betaBatchListActiveDirectoriesOKBody struct {
+
+	// active directories
+	ActiveDirectories []*models.BatchActiveDirectoryV1beta `json:"activeDirectories"`
+}
+
+// UnmarshalJSON unmarshals this object from a JSON structure
+func (o *V1betaBatchListActiveDirectoriesOKBody) UnmarshalJSON(raw []byte) error {
+	// V1betaBatchListActiveDirectoriesOKBodyAO0
+	var dataV1betaBatchListActiveDirectoriesOKBodyAO0 struct {
+		ActiveDirectories []*models.BatchActiveDirectoryV1beta `json:"activeDirectories"`
+	}
+	if err := swag.ReadJSON(raw, &dataV1betaBatchListActiveDirectoriesOKBodyAO0); err != nil {
+		return err
+	}
+
+	o.ActiveDirectories = dataV1betaBatchListActiveDirectoriesOKBodyAO0.ActiveDirectories
+
+	return nil
+}
+
+// MarshalJSON marshals this object to a JSON structure
+func (o V1betaBatchListActiveDirectoriesOKBody) MarshalJSON() ([]byte, error) {
+	_parts := make([][]byte, 0, 1)
+
+	var dataV1betaBatchListActiveDirectoriesOKBodyAO0 struct {
+		ActiveDirectories []*models.BatchActiveDirectoryV1beta `json:"activeDirectories"`
+	}
+
+	dataV1betaBatchListActiveDirectoriesOKBodyAO0.ActiveDirectories = o.ActiveDirectories
+
+	jsonDataV1betaBatchListActiveDirectoriesOKBodyAO0, errV1betaBatchListActiveDirectoriesOKBodyAO0 := swag.WriteJSON(dataV1betaBatchListActiveDirectoriesOKBodyAO0)
+	if errV1betaBatchListActiveDirectoriesOKBodyAO0 != nil {
+		return nil, errV1betaBatchListActiveDirectoriesOKBodyAO0
+	}
+	_parts = append(_parts, jsonDataV1betaBatchListActiveDirectoriesOKBodyAO0)
+	return swag.ConcatJSON(_parts...), nil
+}
+
+// Validate validates this v1beta batch list active directories o k body
+func (o *V1betaBatchListActiveDirectoriesOKBody) Validate(formats strfmt.Registry) error {
+	var res []error
+
+	if err := o.validateActiveDirectories(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (o *V1betaBatchListActiveDirectoriesOKBody) validateActiveDirectories(formats strfmt.Registry) error {
+
+	if swag.IsZero(o.ActiveDirectories) { // not required
+		return nil
+	}
+
+	for i := 0; i < len(o.ActiveDirectories); i++ {
+		if swag.IsZero(o.ActiveDirectories[i]) { // not required
+			continue
+		}
+
+		if o.ActiveDirectories[i] != nil {
+			if err := o.ActiveDirectories[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("v1betaBatchListActiveDirectoriesOK" + "." + "activeDirectories" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+// MarshalBinary interface implementation
+func (o *V1betaBatchListActiveDirectoriesOKBody) MarshalBinary() ([]byte, error) {
+	if o == nil {
+		return nil, nil
+	}
+	return swag.WriteJSON(o)
+}
+
+// UnmarshalBinary interface implementation
+func (o *V1betaBatchListActiveDirectoriesOKBody) UnmarshalBinary(b []byte) error {
+	var res V1betaBatchListActiveDirectoriesOKBody
+	if err := swag.ReadJSON(b, &res); err != nil {
+		return err
+	}
+	*o = res
 	return nil
 }

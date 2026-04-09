@@ -139,6 +139,126 @@ func (_c *MockInvoker_V1betaBatchListActiveDirectories_Call) RunAndReturn(run fu
 	return _c
 }
 
+// V1betaBatchListBackupVaults provides a mock function with given fields: ctx, request, params
+func (_m *MockInvoker) V1betaBatchListBackupVaults(ctx context.Context, request *BatchBackupVaultUUIDListV1beta, params V1betaBatchListBackupVaultsParams) (V1betaBatchListBackupVaultsRes, error) {
+	ret := _m.Called(ctx, request, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaBatchListBackupVaults")
+	}
+
+	var r0 V1betaBatchListBackupVaultsRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *BatchBackupVaultUUIDListV1beta, V1betaBatchListBackupVaultsParams) (V1betaBatchListBackupVaultsRes, error)); ok {
+		return rf(ctx, request, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *BatchBackupVaultUUIDListV1beta, V1betaBatchListBackupVaultsParams) V1betaBatchListBackupVaultsRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaBatchListBackupVaultsRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *BatchBackupVaultUUIDListV1beta, V1betaBatchListBackupVaultsParams) error); ok {
+		r1 = rf(ctx, request, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1betaBatchListBackupVaults_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaBatchListBackupVaults'
+type MockInvoker_V1betaBatchListBackupVaults_Call struct {
+	*mock.Call
+}
+
+// V1betaBatchListBackupVaults is a helper method to define mock.On call
+//   - ctx context.Context
+//   - request *BatchBackupVaultUUIDListV1beta
+//   - params V1betaBatchListBackupVaultsParams
+func (_e *MockInvoker_Expecter) V1betaBatchListBackupVaults(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1betaBatchListBackupVaults_Call {
+	return &MockInvoker_V1betaBatchListBackupVaults_Call{Call: _e.mock.On("V1betaBatchListBackupVaults", ctx, request, params)}
+}
+
+func (_c *MockInvoker_V1betaBatchListBackupVaults_Call) Run(run func(ctx context.Context, request *BatchBackupVaultUUIDListV1beta, params V1betaBatchListBackupVaultsParams)) *MockInvoker_V1betaBatchListBackupVaults_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*BatchBackupVaultUUIDListV1beta), args[2].(V1betaBatchListBackupVaultsParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1betaBatchListBackupVaults_Call) Return(_a0 V1betaBatchListBackupVaultsRes, _a1 error) *MockInvoker_V1betaBatchListBackupVaults_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1betaBatchListBackupVaults_Call) RunAndReturn(run func(context.Context, *BatchBackupVaultUUIDListV1beta, V1betaBatchListBackupVaultsParams) (V1betaBatchListBackupVaultsRes, error)) *MockInvoker_V1betaBatchListBackupVaults_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaBatchListBackups provides a mock function with given fields: ctx, request, params
+func (_m *MockInvoker) V1betaBatchListBackups(ctx context.Context, request *BatchBackupUUIDListV1beta, params V1betaBatchListBackupsParams) (V1betaBatchListBackupsRes, error) {
+	ret := _m.Called(ctx, request, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaBatchListBackups")
+	}
+
+	var r0 V1betaBatchListBackupsRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *BatchBackupUUIDListV1beta, V1betaBatchListBackupsParams) (V1betaBatchListBackupsRes, error)); ok {
+		return rf(ctx, request, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *BatchBackupUUIDListV1beta, V1betaBatchListBackupsParams) V1betaBatchListBackupsRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaBatchListBackupsRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *BatchBackupUUIDListV1beta, V1betaBatchListBackupsParams) error); ok {
+		r1 = rf(ctx, request, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1betaBatchListBackups_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaBatchListBackups'
+type MockInvoker_V1betaBatchListBackups_Call struct {
+	*mock.Call
+}
+
+// V1betaBatchListBackups is a helper method to define mock.On call
+//   - ctx context.Context
+//   - request *BatchBackupUUIDListV1beta
+//   - params V1betaBatchListBackupsParams
+func (_e *MockInvoker_Expecter) V1betaBatchListBackups(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1betaBatchListBackups_Call {
+	return &MockInvoker_V1betaBatchListBackups_Call{Call: _e.mock.On("V1betaBatchListBackups", ctx, request, params)}
+}
+
+func (_c *MockInvoker_V1betaBatchListBackups_Call) Run(run func(ctx context.Context, request *BatchBackupUUIDListV1beta, params V1betaBatchListBackupsParams)) *MockInvoker_V1betaBatchListBackups_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*BatchBackupUUIDListV1beta), args[2].(V1betaBatchListBackupsParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1betaBatchListBackups_Call) Return(_a0 V1betaBatchListBackupsRes, _a1 error) *MockInvoker_V1betaBatchListBackups_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1betaBatchListBackups_Call) RunAndReturn(run func(context.Context, *BatchBackupUUIDListV1beta, V1betaBatchListBackupsParams) (V1betaBatchListBackupsRes, error)) *MockInvoker_V1betaBatchListBackups_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaBatchListPools provides a mock function with given fields: ctx, request, params
 func (_m *MockInvoker) V1betaBatchListPools(ctx context.Context, request *BatchPoolUUIDListV1beta, params V1betaBatchListPoolsParams) (V1betaBatchListPoolsRes, error) {
 	ret := _m.Called(ctx, request, params)

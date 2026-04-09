@@ -8,9 +8,12 @@ package batch
 import (
 	"fmt"
 	"io"
+	"strconv"
 
+	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
@@ -76,21 +79,23 @@ V1betaBatchListBackupVaultsOK handles this case with default header values.
 OK
 */
 type V1betaBatchListBackupVaultsOK struct {
-	Payload []*models.BatchBackupVaultV1beta
+	Payload *V1betaBatchListBackupVaultsOKBody
 }
 
 func (o *V1betaBatchListBackupVaultsOK) Error() string {
 	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/backupVaults][%d] v1betaBatchListBackupVaultsOK  %+v", 200, o.Payload)
 }
 
-func (o *V1betaBatchListBackupVaultsOK) GetPayload() []*models.BatchBackupVaultV1beta {
+func (o *V1betaBatchListBackupVaultsOK) GetPayload() *V1betaBatchListBackupVaultsOKBody {
 	return o.Payload
 }
 
 func (o *V1betaBatchListBackupVaultsOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
+	o.Payload = new(V1betaBatchListBackupVaultsOKBody)
+
 	// response payload
-	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
 		return err
 	}
 
@@ -273,5 +278,105 @@ func (o *V1betaBatchListBackupVaultsDefault) readResponse(response runtime.Clien
 		return err
 	}
 
+	return nil
+}
+
+/*
+V1betaBatchListBackupVaultsOKBody v1beta batch list backup vaults o k body
+swagger:model V1betaBatchListBackupVaultsOKBody
+*/
+type V1betaBatchListBackupVaultsOKBody struct {
+
+	// backup vaults
+	BackupVaults []*models.BatchBackupVaultV1beta `json:"backupVaults"`
+}
+
+// UnmarshalJSON unmarshals this object from a JSON structure
+func (o *V1betaBatchListBackupVaultsOKBody) UnmarshalJSON(raw []byte) error {
+	// V1betaBatchListBackupVaultsOKBodyAO0
+	var dataV1betaBatchListBackupVaultsOKBodyAO0 struct {
+		BackupVaults []*models.BatchBackupVaultV1beta `json:"backupVaults"`
+	}
+	if err := swag.ReadJSON(raw, &dataV1betaBatchListBackupVaultsOKBodyAO0); err != nil {
+		return err
+	}
+
+	o.BackupVaults = dataV1betaBatchListBackupVaultsOKBodyAO0.BackupVaults
+
+	return nil
+}
+
+// MarshalJSON marshals this object to a JSON structure
+func (o V1betaBatchListBackupVaultsOKBody) MarshalJSON() ([]byte, error) {
+	_parts := make([][]byte, 0, 1)
+
+	var dataV1betaBatchListBackupVaultsOKBodyAO0 struct {
+		BackupVaults []*models.BatchBackupVaultV1beta `json:"backupVaults"`
+	}
+
+	dataV1betaBatchListBackupVaultsOKBodyAO0.BackupVaults = o.BackupVaults
+
+	jsonDataV1betaBatchListBackupVaultsOKBodyAO0, errV1betaBatchListBackupVaultsOKBodyAO0 := swag.WriteJSON(dataV1betaBatchListBackupVaultsOKBodyAO0)
+	if errV1betaBatchListBackupVaultsOKBodyAO0 != nil {
+		return nil, errV1betaBatchListBackupVaultsOKBodyAO0
+	}
+	_parts = append(_parts, jsonDataV1betaBatchListBackupVaultsOKBodyAO0)
+	return swag.ConcatJSON(_parts...), nil
+}
+
+// Validate validates this v1beta batch list backup vaults o k body
+func (o *V1betaBatchListBackupVaultsOKBody) Validate(formats strfmt.Registry) error {
+	var res []error
+
+	if err := o.validateBackupVaults(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (o *V1betaBatchListBackupVaultsOKBody) validateBackupVaults(formats strfmt.Registry) error {
+
+	if swag.IsZero(o.BackupVaults) { // not required
+		return nil
+	}
+
+	for i := 0; i < len(o.BackupVaults); i++ {
+		if swag.IsZero(o.BackupVaults[i]) { // not required
+			continue
+		}
+
+		if o.BackupVaults[i] != nil {
+			if err := o.BackupVaults[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("v1betaBatchListBackupVaultsOK" + "." + "backupVaults" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+// MarshalBinary interface implementation
+func (o *V1betaBatchListBackupVaultsOKBody) MarshalBinary() ([]byte, error) {
+	if o == nil {
+		return nil, nil
+	}
+	return swag.WriteJSON(o)
+}
+
+// UnmarshalBinary interface implementation
+func (o *V1betaBatchListBackupVaultsOKBody) UnmarshalBinary(b []byte) error {
+	var res V1betaBatchListBackupVaultsOKBody
+	if err := swag.ReadJSON(b, &res); err != nil {
+		return err
+	}
+	*o = res
 	return nil
 }

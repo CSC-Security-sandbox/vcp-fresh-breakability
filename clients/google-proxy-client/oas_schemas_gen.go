@@ -3718,6 +3718,786 @@ func (s *BatchActiveDirectoryV1betaActiveDirectoryState) UnmarshalText(data []by
 	}
 }
 
+// Ref: #/components/schemas/BatchBackupUUIDList_v1beta
+type BatchBackupUUIDListV1beta struct {
+	// List of backup UUIDs to return.
+	BackupUUIDs []string `json:"backupUUIDs"`
+}
+
+// GetBackupUUIDs returns the value of BackupUUIDs.
+func (s *BatchBackupUUIDListV1beta) GetBackupUUIDs() []string {
+	return s.BackupUUIDs
+}
+
+// SetBackupUUIDs sets the value of BackupUUIDs.
+func (s *BatchBackupUUIDListV1beta) SetBackupUUIDs(val []string) {
+	s.BackupUUIDs = val
+}
+
+// Ref: #/components/schemas/BatchBackup_v1beta
+type BatchBackupV1beta struct {
+	// UUID v4 used to identify the backup.
+	BackupId OptString `json:"backupId"`
+	// Creation date of the resource.
+	Created OptNilDateTime `json:"created"`
+	// Current storage usage for the backup in bytes.
+	VolumeUsageBytes OptNilInt64 `json:"volumeUsageBytes"`
+	// Type of backup, manually created (adhoc) or created by a schedule.
+	BackupType OptNilBatchBackupV1betaBackupType `json:"backupType"`
+	// Display name of the volume.
+	SourceVolume OptNilString `json:"sourceVolume"`
+	// UUID v4 used to identify the backup vault ID.
+	BackupVaultId OptNilString `json:"backupVaultId"`
+	// Name of the snapshot.
+	SourceSnapshot OptNilString `json:"sourceSnapshot"`
+	// Description of the backup.
+	Description OptNilString `json:"description"`
+	// The current state of the backup.
+	State OptNilBatchBackupV1betaState `json:"state"`
+	// Human readable name of the backup.
+	ResourceId OptNilString `json:"resourceId"`
+	// UUID v4 of the snapshot that was used to create the backup.
+	SnapshotId OptNilString `json:"snapshotId"`
+	// UUID v4 of the volume.
+	VolumeId OptNilString `json:"volumeId"`
+	// Size in bytes of the backup of the volume.
+	BackupChainBytes OptNilInt64 `json:"backupChainBytes"`
+	// Flag describing whether backup supports zone separation.
+	SatisfiesPzs OptNilBool `json:"satisfiesPzs"`
+	// Flag describing whether backup supports zone isolation.
+	SatisfiesPzi OptNilBool `json:"satisfiesPzi"`
+	// Name of the volume region.
+	VolumeRegion OptNilString `json:"volumeRegion"`
+	// Name of the backup region.
+	BackupRegion OptNilString `json:"backupRegion"`
+	// Backup enforced-retention end time.
+	EnforcedRetentionEndTime OptNilDateTime             `json:"enforcedRetentionEndTime"`
+	AssetLocationMetadata    OptAssetLocationMetadataV2 `json:"assetLocationMetadata"`
+}
+
+// GetBackupId returns the value of BackupId.
+func (s *BatchBackupV1beta) GetBackupId() OptString {
+	return s.BackupId
+}
+
+// GetCreated returns the value of Created.
+func (s *BatchBackupV1beta) GetCreated() OptNilDateTime {
+	return s.Created
+}
+
+// GetVolumeUsageBytes returns the value of VolumeUsageBytes.
+func (s *BatchBackupV1beta) GetVolumeUsageBytes() OptNilInt64 {
+	return s.VolumeUsageBytes
+}
+
+// GetBackupType returns the value of BackupType.
+func (s *BatchBackupV1beta) GetBackupType() OptNilBatchBackupV1betaBackupType {
+	return s.BackupType
+}
+
+// GetSourceVolume returns the value of SourceVolume.
+func (s *BatchBackupV1beta) GetSourceVolume() OptNilString {
+	return s.SourceVolume
+}
+
+// GetBackupVaultId returns the value of BackupVaultId.
+func (s *BatchBackupV1beta) GetBackupVaultId() OptNilString {
+	return s.BackupVaultId
+}
+
+// GetSourceSnapshot returns the value of SourceSnapshot.
+func (s *BatchBackupV1beta) GetSourceSnapshot() OptNilString {
+	return s.SourceSnapshot
+}
+
+// GetDescription returns the value of Description.
+func (s *BatchBackupV1beta) GetDescription() OptNilString {
+	return s.Description
+}
+
+// GetState returns the value of State.
+func (s *BatchBackupV1beta) GetState() OptNilBatchBackupV1betaState {
+	return s.State
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *BatchBackupV1beta) GetResourceId() OptNilString {
+	return s.ResourceId
+}
+
+// GetSnapshotId returns the value of SnapshotId.
+func (s *BatchBackupV1beta) GetSnapshotId() OptNilString {
+	return s.SnapshotId
+}
+
+// GetVolumeId returns the value of VolumeId.
+func (s *BatchBackupV1beta) GetVolumeId() OptNilString {
+	return s.VolumeId
+}
+
+// GetBackupChainBytes returns the value of BackupChainBytes.
+func (s *BatchBackupV1beta) GetBackupChainBytes() OptNilInt64 {
+	return s.BackupChainBytes
+}
+
+// GetSatisfiesPzs returns the value of SatisfiesPzs.
+func (s *BatchBackupV1beta) GetSatisfiesPzs() OptNilBool {
+	return s.SatisfiesPzs
+}
+
+// GetSatisfiesPzi returns the value of SatisfiesPzi.
+func (s *BatchBackupV1beta) GetSatisfiesPzi() OptNilBool {
+	return s.SatisfiesPzi
+}
+
+// GetVolumeRegion returns the value of VolumeRegion.
+func (s *BatchBackupV1beta) GetVolumeRegion() OptNilString {
+	return s.VolumeRegion
+}
+
+// GetBackupRegion returns the value of BackupRegion.
+func (s *BatchBackupV1beta) GetBackupRegion() OptNilString {
+	return s.BackupRegion
+}
+
+// GetEnforcedRetentionEndTime returns the value of EnforcedRetentionEndTime.
+func (s *BatchBackupV1beta) GetEnforcedRetentionEndTime() OptNilDateTime {
+	return s.EnforcedRetentionEndTime
+}
+
+// GetAssetLocationMetadata returns the value of AssetLocationMetadata.
+func (s *BatchBackupV1beta) GetAssetLocationMetadata() OptAssetLocationMetadataV2 {
+	return s.AssetLocationMetadata
+}
+
+// SetBackupId sets the value of BackupId.
+func (s *BatchBackupV1beta) SetBackupId(val OptString) {
+	s.BackupId = val
+}
+
+// SetCreated sets the value of Created.
+func (s *BatchBackupV1beta) SetCreated(val OptNilDateTime) {
+	s.Created = val
+}
+
+// SetVolumeUsageBytes sets the value of VolumeUsageBytes.
+func (s *BatchBackupV1beta) SetVolumeUsageBytes(val OptNilInt64) {
+	s.VolumeUsageBytes = val
+}
+
+// SetBackupType sets the value of BackupType.
+func (s *BatchBackupV1beta) SetBackupType(val OptNilBatchBackupV1betaBackupType) {
+	s.BackupType = val
+}
+
+// SetSourceVolume sets the value of SourceVolume.
+func (s *BatchBackupV1beta) SetSourceVolume(val OptNilString) {
+	s.SourceVolume = val
+}
+
+// SetBackupVaultId sets the value of BackupVaultId.
+func (s *BatchBackupV1beta) SetBackupVaultId(val OptNilString) {
+	s.BackupVaultId = val
+}
+
+// SetSourceSnapshot sets the value of SourceSnapshot.
+func (s *BatchBackupV1beta) SetSourceSnapshot(val OptNilString) {
+	s.SourceSnapshot = val
+}
+
+// SetDescription sets the value of Description.
+func (s *BatchBackupV1beta) SetDescription(val OptNilString) {
+	s.Description = val
+}
+
+// SetState sets the value of State.
+func (s *BatchBackupV1beta) SetState(val OptNilBatchBackupV1betaState) {
+	s.State = val
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *BatchBackupV1beta) SetResourceId(val OptNilString) {
+	s.ResourceId = val
+}
+
+// SetSnapshotId sets the value of SnapshotId.
+func (s *BatchBackupV1beta) SetSnapshotId(val OptNilString) {
+	s.SnapshotId = val
+}
+
+// SetVolumeId sets the value of VolumeId.
+func (s *BatchBackupV1beta) SetVolumeId(val OptNilString) {
+	s.VolumeId = val
+}
+
+// SetBackupChainBytes sets the value of BackupChainBytes.
+func (s *BatchBackupV1beta) SetBackupChainBytes(val OptNilInt64) {
+	s.BackupChainBytes = val
+}
+
+// SetSatisfiesPzs sets the value of SatisfiesPzs.
+func (s *BatchBackupV1beta) SetSatisfiesPzs(val OptNilBool) {
+	s.SatisfiesPzs = val
+}
+
+// SetSatisfiesPzi sets the value of SatisfiesPzi.
+func (s *BatchBackupV1beta) SetSatisfiesPzi(val OptNilBool) {
+	s.SatisfiesPzi = val
+}
+
+// SetVolumeRegion sets the value of VolumeRegion.
+func (s *BatchBackupV1beta) SetVolumeRegion(val OptNilString) {
+	s.VolumeRegion = val
+}
+
+// SetBackupRegion sets the value of BackupRegion.
+func (s *BatchBackupV1beta) SetBackupRegion(val OptNilString) {
+	s.BackupRegion = val
+}
+
+// SetEnforcedRetentionEndTime sets the value of EnforcedRetentionEndTime.
+func (s *BatchBackupV1beta) SetEnforcedRetentionEndTime(val OptNilDateTime) {
+	s.EnforcedRetentionEndTime = val
+}
+
+// SetAssetLocationMetadata sets the value of AssetLocationMetadata.
+func (s *BatchBackupV1beta) SetAssetLocationMetadata(val OptAssetLocationMetadataV2) {
+	s.AssetLocationMetadata = val
+}
+
+// Type of backup, manually created (adhoc) or created by a schedule.
+type BatchBackupV1betaBackupType string
+
+const (
+	BatchBackupV1betaBackupTypeMANUAL    BatchBackupV1betaBackupType = "MANUAL"
+	BatchBackupV1betaBackupTypeSCHEDULED BatchBackupV1betaBackupType = "SCHEDULED"
+)
+
+// AllValues returns all BatchBackupV1betaBackupType values.
+func (BatchBackupV1betaBackupType) AllValues() []BatchBackupV1betaBackupType {
+	return []BatchBackupV1betaBackupType{
+		BatchBackupV1betaBackupTypeMANUAL,
+		BatchBackupV1betaBackupTypeSCHEDULED,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchBackupV1betaBackupType) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchBackupV1betaBackupTypeMANUAL:
+		return []byte(s), nil
+	case BatchBackupV1betaBackupTypeSCHEDULED:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchBackupV1betaBackupType) UnmarshalText(data []byte) error {
+	switch BatchBackupV1betaBackupType(data) {
+	case BatchBackupV1betaBackupTypeMANUAL:
+		*s = BatchBackupV1betaBackupTypeMANUAL
+		return nil
+	case BatchBackupV1betaBackupTypeSCHEDULED:
+		*s = BatchBackupV1betaBackupTypeSCHEDULED
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The current state of the backup.
+type BatchBackupV1betaState string
+
+const (
+	BatchBackupV1betaStateCREATING         BatchBackupV1betaState = "CREATING"
+	BatchBackupV1betaStateREADY            BatchBackupV1betaState = "READY"
+	BatchBackupV1betaStateUPLOADING        BatchBackupV1betaState = "UPLOADING"
+	BatchBackupV1betaStateRESTORING        BatchBackupV1betaState = "RESTORING"
+	BatchBackupV1betaStateDISABLED         BatchBackupV1betaState = "DISABLED"
+	BatchBackupV1betaStateDELETING         BatchBackupV1betaState = "DELETING"
+	BatchBackupV1betaStateDELETED          BatchBackupV1betaState = "DELETED"
+	BatchBackupV1betaStateERROR            BatchBackupV1betaState = "ERROR"
+	BatchBackupV1betaStateSTATEUNSPECIFIED BatchBackupV1betaState = "STATE_UNSPECIFIED"
+)
+
+// AllValues returns all BatchBackupV1betaState values.
+func (BatchBackupV1betaState) AllValues() []BatchBackupV1betaState {
+	return []BatchBackupV1betaState{
+		BatchBackupV1betaStateCREATING,
+		BatchBackupV1betaStateREADY,
+		BatchBackupV1betaStateUPLOADING,
+		BatchBackupV1betaStateRESTORING,
+		BatchBackupV1betaStateDISABLED,
+		BatchBackupV1betaStateDELETING,
+		BatchBackupV1betaStateDELETED,
+		BatchBackupV1betaStateERROR,
+		BatchBackupV1betaStateSTATEUNSPECIFIED,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchBackupV1betaState) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchBackupV1betaStateCREATING:
+		return []byte(s), nil
+	case BatchBackupV1betaStateREADY:
+		return []byte(s), nil
+	case BatchBackupV1betaStateUPLOADING:
+		return []byte(s), nil
+	case BatchBackupV1betaStateRESTORING:
+		return []byte(s), nil
+	case BatchBackupV1betaStateDISABLED:
+		return []byte(s), nil
+	case BatchBackupV1betaStateDELETING:
+		return []byte(s), nil
+	case BatchBackupV1betaStateDELETED:
+		return []byte(s), nil
+	case BatchBackupV1betaStateERROR:
+		return []byte(s), nil
+	case BatchBackupV1betaStateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchBackupV1betaState) UnmarshalText(data []byte) error {
+	switch BatchBackupV1betaState(data) {
+	case BatchBackupV1betaStateCREATING:
+		*s = BatchBackupV1betaStateCREATING
+		return nil
+	case BatchBackupV1betaStateREADY:
+		*s = BatchBackupV1betaStateREADY
+		return nil
+	case BatchBackupV1betaStateUPLOADING:
+		*s = BatchBackupV1betaStateUPLOADING
+		return nil
+	case BatchBackupV1betaStateRESTORING:
+		*s = BatchBackupV1betaStateRESTORING
+		return nil
+	case BatchBackupV1betaStateDISABLED:
+		*s = BatchBackupV1betaStateDISABLED
+		return nil
+	case BatchBackupV1betaStateDELETING:
+		*s = BatchBackupV1betaStateDELETING
+		return nil
+	case BatchBackupV1betaStateDELETED:
+		*s = BatchBackupV1betaStateDELETED
+		return nil
+	case BatchBackupV1betaStateERROR:
+		*s = BatchBackupV1betaStateERROR
+		return nil
+	case BatchBackupV1betaStateSTATEUNSPECIFIED:
+		*s = BatchBackupV1betaStateSTATEUNSPECIFIED
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/BatchBackupVaultUUIDList_v1beta
+type BatchBackupVaultUUIDListV1beta struct {
+	// List of backup vault UUIDs to return.
+	BackupVaultUUIDs []string `json:"backupVaultUUIDs"`
+}
+
+// GetBackupVaultUUIDs returns the value of BackupVaultUUIDs.
+func (s *BatchBackupVaultUUIDListV1beta) GetBackupVaultUUIDs() []string {
+	return s.BackupVaultUUIDs
+}
+
+// SetBackupVaultUUIDs sets the value of BackupVaultUUIDs.
+func (s *BatchBackupVaultUUIDListV1beta) SetBackupVaultUUIDs(val []string) {
+	s.BackupVaultUUIDs = val
+}
+
+// Ref: #/components/schemas/BatchBackupVault_v1beta
+type BatchBackupVaultV1beta struct {
+	// UUID v4 used to identify the backup vault.
+	BackupVaultId OptString `json:"backupVaultId"`
+	// Human readable name of the backup vault.
+	ResourceId OptNilString `json:"resourceId"`
+	// Description of backup vault.
+	Description OptNilString `json:"description"`
+	// Creation date of the resource.
+	CreatedAt OptNilDateTime `json:"createdAt"`
+	// The destination region the backup needs to be stored in.
+	BackupRegion OptNilString `json:"backupRegion"`
+	// The source region of the backup.
+	SourceRegion OptNilString `json:"sourceRegion"`
+	// Complete resource path of the KMS config.
+	KmsConfigResourcePath OptNilString `json:"kmsConfigResourcePath"`
+	// The destination region backup vault.
+	DestinationBackupVault OptNilString `json:"destinationBackupVault"`
+	// The source region backup vault.
+	SourceBackupVault OptNilString `json:"sourceBackupVault"`
+	// Type of the backup vault.
+	BackupVaultType       OptNilBatchBackupVaultV1betaBackupVaultType `json:"backupVaultType"`
+	BackupRetentionPolicy OptBackupRetentionPolicyV1beta              `json:"backupRetentionPolicy"`
+	// Key version used to encrypt backups in the vault.
+	BackupsPrimaryKeyVersion OptNilString `json:"backupsPrimaryKeyVersion"`
+	// Current state of CMEK encryption for the backup vault.
+	EncryptionState OptNilBatchBackupVaultV1betaEncryptionState `json:"encryptionState"`
+	// The current state of the backup vault.
+	State OptNilBatchBackupVaultV1betaState `json:"state"`
+	// Details about the current lifecycle state.
+	StateDetails OptNilString `json:"stateDetails"`
+	// Indicates if the backup vault is a cross-project vault.
+	CrossProjectVault OptNilBool `json:"crossProjectVault"`
+}
+
+// GetBackupVaultId returns the value of BackupVaultId.
+func (s *BatchBackupVaultV1beta) GetBackupVaultId() OptString {
+	return s.BackupVaultId
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *BatchBackupVaultV1beta) GetResourceId() OptNilString {
+	return s.ResourceId
+}
+
+// GetDescription returns the value of Description.
+func (s *BatchBackupVaultV1beta) GetDescription() OptNilString {
+	return s.Description
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *BatchBackupVaultV1beta) GetCreatedAt() OptNilDateTime {
+	return s.CreatedAt
+}
+
+// GetBackupRegion returns the value of BackupRegion.
+func (s *BatchBackupVaultV1beta) GetBackupRegion() OptNilString {
+	return s.BackupRegion
+}
+
+// GetSourceRegion returns the value of SourceRegion.
+func (s *BatchBackupVaultV1beta) GetSourceRegion() OptNilString {
+	return s.SourceRegion
+}
+
+// GetKmsConfigResourcePath returns the value of KmsConfigResourcePath.
+func (s *BatchBackupVaultV1beta) GetKmsConfigResourcePath() OptNilString {
+	return s.KmsConfigResourcePath
+}
+
+// GetDestinationBackupVault returns the value of DestinationBackupVault.
+func (s *BatchBackupVaultV1beta) GetDestinationBackupVault() OptNilString {
+	return s.DestinationBackupVault
+}
+
+// GetSourceBackupVault returns the value of SourceBackupVault.
+func (s *BatchBackupVaultV1beta) GetSourceBackupVault() OptNilString {
+	return s.SourceBackupVault
+}
+
+// GetBackupVaultType returns the value of BackupVaultType.
+func (s *BatchBackupVaultV1beta) GetBackupVaultType() OptNilBatchBackupVaultV1betaBackupVaultType {
+	return s.BackupVaultType
+}
+
+// GetBackupRetentionPolicy returns the value of BackupRetentionPolicy.
+func (s *BatchBackupVaultV1beta) GetBackupRetentionPolicy() OptBackupRetentionPolicyV1beta {
+	return s.BackupRetentionPolicy
+}
+
+// GetBackupsPrimaryKeyVersion returns the value of BackupsPrimaryKeyVersion.
+func (s *BatchBackupVaultV1beta) GetBackupsPrimaryKeyVersion() OptNilString {
+	return s.BackupsPrimaryKeyVersion
+}
+
+// GetEncryptionState returns the value of EncryptionState.
+func (s *BatchBackupVaultV1beta) GetEncryptionState() OptNilBatchBackupVaultV1betaEncryptionState {
+	return s.EncryptionState
+}
+
+// GetState returns the value of State.
+func (s *BatchBackupVaultV1beta) GetState() OptNilBatchBackupVaultV1betaState {
+	return s.State
+}
+
+// GetStateDetails returns the value of StateDetails.
+func (s *BatchBackupVaultV1beta) GetStateDetails() OptNilString {
+	return s.StateDetails
+}
+
+// GetCrossProjectVault returns the value of CrossProjectVault.
+func (s *BatchBackupVaultV1beta) GetCrossProjectVault() OptNilBool {
+	return s.CrossProjectVault
+}
+
+// SetBackupVaultId sets the value of BackupVaultId.
+func (s *BatchBackupVaultV1beta) SetBackupVaultId(val OptString) {
+	s.BackupVaultId = val
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *BatchBackupVaultV1beta) SetResourceId(val OptNilString) {
+	s.ResourceId = val
+}
+
+// SetDescription sets the value of Description.
+func (s *BatchBackupVaultV1beta) SetDescription(val OptNilString) {
+	s.Description = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *BatchBackupVaultV1beta) SetCreatedAt(val OptNilDateTime) {
+	s.CreatedAt = val
+}
+
+// SetBackupRegion sets the value of BackupRegion.
+func (s *BatchBackupVaultV1beta) SetBackupRegion(val OptNilString) {
+	s.BackupRegion = val
+}
+
+// SetSourceRegion sets the value of SourceRegion.
+func (s *BatchBackupVaultV1beta) SetSourceRegion(val OptNilString) {
+	s.SourceRegion = val
+}
+
+// SetKmsConfigResourcePath sets the value of KmsConfigResourcePath.
+func (s *BatchBackupVaultV1beta) SetKmsConfigResourcePath(val OptNilString) {
+	s.KmsConfigResourcePath = val
+}
+
+// SetDestinationBackupVault sets the value of DestinationBackupVault.
+func (s *BatchBackupVaultV1beta) SetDestinationBackupVault(val OptNilString) {
+	s.DestinationBackupVault = val
+}
+
+// SetSourceBackupVault sets the value of SourceBackupVault.
+func (s *BatchBackupVaultV1beta) SetSourceBackupVault(val OptNilString) {
+	s.SourceBackupVault = val
+}
+
+// SetBackupVaultType sets the value of BackupVaultType.
+func (s *BatchBackupVaultV1beta) SetBackupVaultType(val OptNilBatchBackupVaultV1betaBackupVaultType) {
+	s.BackupVaultType = val
+}
+
+// SetBackupRetentionPolicy sets the value of BackupRetentionPolicy.
+func (s *BatchBackupVaultV1beta) SetBackupRetentionPolicy(val OptBackupRetentionPolicyV1beta) {
+	s.BackupRetentionPolicy = val
+}
+
+// SetBackupsPrimaryKeyVersion sets the value of BackupsPrimaryKeyVersion.
+func (s *BatchBackupVaultV1beta) SetBackupsPrimaryKeyVersion(val OptNilString) {
+	s.BackupsPrimaryKeyVersion = val
+}
+
+// SetEncryptionState sets the value of EncryptionState.
+func (s *BatchBackupVaultV1beta) SetEncryptionState(val OptNilBatchBackupVaultV1betaEncryptionState) {
+	s.EncryptionState = val
+}
+
+// SetState sets the value of State.
+func (s *BatchBackupVaultV1beta) SetState(val OptNilBatchBackupVaultV1betaState) {
+	s.State = val
+}
+
+// SetStateDetails sets the value of StateDetails.
+func (s *BatchBackupVaultV1beta) SetStateDetails(val OptNilString) {
+	s.StateDetails = val
+}
+
+// SetCrossProjectVault sets the value of CrossProjectVault.
+func (s *BatchBackupVaultV1beta) SetCrossProjectVault(val OptNilBool) {
+	s.CrossProjectVault = val
+}
+
+// Type of the backup vault.
+type BatchBackupVaultV1betaBackupVaultType string
+
+const (
+	BatchBackupVaultV1betaBackupVaultTypeINREGION        BatchBackupVaultV1betaBackupVaultType = "IN_REGION"
+	BatchBackupVaultV1betaBackupVaultTypeCROSSREGION     BatchBackupVaultV1betaBackupVaultType = "CROSS_REGION"
+	BatchBackupVaultV1betaBackupVaultTypeTYPEUNSPECIFIED BatchBackupVaultV1betaBackupVaultType = "TYPE_UNSPECIFIED"
+)
+
+// AllValues returns all BatchBackupVaultV1betaBackupVaultType values.
+func (BatchBackupVaultV1betaBackupVaultType) AllValues() []BatchBackupVaultV1betaBackupVaultType {
+	return []BatchBackupVaultV1betaBackupVaultType{
+		BatchBackupVaultV1betaBackupVaultTypeINREGION,
+		BatchBackupVaultV1betaBackupVaultTypeCROSSREGION,
+		BatchBackupVaultV1betaBackupVaultTypeTYPEUNSPECIFIED,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchBackupVaultV1betaBackupVaultType) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchBackupVaultV1betaBackupVaultTypeINREGION:
+		return []byte(s), nil
+	case BatchBackupVaultV1betaBackupVaultTypeCROSSREGION:
+		return []byte(s), nil
+	case BatchBackupVaultV1betaBackupVaultTypeTYPEUNSPECIFIED:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchBackupVaultV1betaBackupVaultType) UnmarshalText(data []byte) error {
+	switch BatchBackupVaultV1betaBackupVaultType(data) {
+	case BatchBackupVaultV1betaBackupVaultTypeINREGION:
+		*s = BatchBackupVaultV1betaBackupVaultTypeINREGION
+		return nil
+	case BatchBackupVaultV1betaBackupVaultTypeCROSSREGION:
+		*s = BatchBackupVaultV1betaBackupVaultTypeCROSSREGION
+		return nil
+	case BatchBackupVaultV1betaBackupVaultTypeTYPEUNSPECIFIED:
+		*s = BatchBackupVaultV1betaBackupVaultTypeTYPEUNSPECIFIED
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Current state of CMEK encryption for the backup vault.
+type BatchBackupVaultV1betaEncryptionState string
+
+const (
+	BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEPENDING     BatchBackupVaultV1betaEncryptionState = "ENCRYPTION_STATE_PENDING"
+	BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATECOMPLETED   BatchBackupVaultV1betaEncryptionState = "ENCRYPTION_STATE_COMPLETED"
+	BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEINPROGRESS  BatchBackupVaultV1betaEncryptionState = "ENCRYPTION_STATE_IN_PROGRESS"
+	BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEFAILED      BatchBackupVaultV1betaEncryptionState = "ENCRYPTION_STATE_FAILED"
+	BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEUNSPECIFIED BatchBackupVaultV1betaEncryptionState = "ENCRYPTION_STATE_UNSPECIFIED"
+)
+
+// AllValues returns all BatchBackupVaultV1betaEncryptionState values.
+func (BatchBackupVaultV1betaEncryptionState) AllValues() []BatchBackupVaultV1betaEncryptionState {
+	return []BatchBackupVaultV1betaEncryptionState{
+		BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEPENDING,
+		BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATECOMPLETED,
+		BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEINPROGRESS,
+		BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEFAILED,
+		BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEUNSPECIFIED,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchBackupVaultV1betaEncryptionState) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEPENDING:
+		return []byte(s), nil
+	case BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATECOMPLETED:
+		return []byte(s), nil
+	case BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEINPROGRESS:
+		return []byte(s), nil
+	case BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEFAILED:
+		return []byte(s), nil
+	case BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEUNSPECIFIED:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchBackupVaultV1betaEncryptionState) UnmarshalText(data []byte) error {
+	switch BatchBackupVaultV1betaEncryptionState(data) {
+	case BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEPENDING:
+		*s = BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEPENDING
+		return nil
+	case BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATECOMPLETED:
+		*s = BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATECOMPLETED
+		return nil
+	case BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEINPROGRESS:
+		*s = BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEINPROGRESS
+		return nil
+	case BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEFAILED:
+		*s = BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEFAILED
+		return nil
+	case BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEUNSPECIFIED:
+		*s = BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEUNSPECIFIED
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The current state of the backup vault.
+type BatchBackupVaultV1betaState string
+
+const (
+	BatchBackupVaultV1betaStateCREATING         BatchBackupVaultV1betaState = "CREATING"
+	BatchBackupVaultV1betaStateUPDATING         BatchBackupVaultV1betaState = "UPDATING"
+	BatchBackupVaultV1betaStateDELETING         BatchBackupVaultV1betaState = "DELETING"
+	BatchBackupVaultV1betaStateREADY            BatchBackupVaultV1betaState = "READY"
+	BatchBackupVaultV1betaStateDELETED          BatchBackupVaultV1betaState = "DELETED"
+	BatchBackupVaultV1betaStateERROR            BatchBackupVaultV1betaState = "ERROR"
+	BatchBackupVaultV1betaStateSTATEUNSPECIFIED BatchBackupVaultV1betaState = "STATE_UNSPECIFIED"
+)
+
+// AllValues returns all BatchBackupVaultV1betaState values.
+func (BatchBackupVaultV1betaState) AllValues() []BatchBackupVaultV1betaState {
+	return []BatchBackupVaultV1betaState{
+		BatchBackupVaultV1betaStateCREATING,
+		BatchBackupVaultV1betaStateUPDATING,
+		BatchBackupVaultV1betaStateDELETING,
+		BatchBackupVaultV1betaStateREADY,
+		BatchBackupVaultV1betaStateDELETED,
+		BatchBackupVaultV1betaStateERROR,
+		BatchBackupVaultV1betaStateSTATEUNSPECIFIED,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchBackupVaultV1betaState) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchBackupVaultV1betaStateCREATING:
+		return []byte(s), nil
+	case BatchBackupVaultV1betaStateUPDATING:
+		return []byte(s), nil
+	case BatchBackupVaultV1betaStateDELETING:
+		return []byte(s), nil
+	case BatchBackupVaultV1betaStateREADY:
+		return []byte(s), nil
+	case BatchBackupVaultV1betaStateDELETED:
+		return []byte(s), nil
+	case BatchBackupVaultV1betaStateERROR:
+		return []byte(s), nil
+	case BatchBackupVaultV1betaStateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchBackupVaultV1betaState) UnmarshalText(data []byte) error {
+	switch BatchBackupVaultV1betaState(data) {
+	case BatchBackupVaultV1betaStateCREATING:
+		*s = BatchBackupVaultV1betaStateCREATING
+		return nil
+	case BatchBackupVaultV1betaStateUPDATING:
+		*s = BatchBackupVaultV1betaStateUPDATING
+		return nil
+	case BatchBackupVaultV1betaStateDELETING:
+		*s = BatchBackupVaultV1betaStateDELETING
+		return nil
+	case BatchBackupVaultV1betaStateREADY:
+		*s = BatchBackupVaultV1betaStateREADY
+		return nil
+	case BatchBackupVaultV1betaStateDELETED:
+		*s = BatchBackupVaultV1betaStateDELETED
+		return nil
+	case BatchBackupVaultV1betaStateERROR:
+		*s = BatchBackupVaultV1betaStateERROR
+		return nil
+	case BatchBackupVaultV1betaStateSTATEUNSPECIFIED:
+		*s = BatchBackupVaultV1betaStateSTATEUNSPECIFIED
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/BatchPoolUUIDList_v1beta
 type BatchPoolUUIDListV1beta struct {
 	// List of pool UUIDs to return.
@@ -12299,6 +13079,321 @@ func (o OptNilBatchActiveDirectoryV1betaActiveDirectoryState) Get() (v BatchActi
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNilBatchActiveDirectoryV1betaActiveDirectoryState) Or(d BatchActiveDirectoryV1betaActiveDirectoryState) BatchActiveDirectoryV1betaActiveDirectoryState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchBackupV1betaBackupType returns new OptNilBatchBackupV1betaBackupType with value set to v.
+func NewOptNilBatchBackupV1betaBackupType(v BatchBackupV1betaBackupType) OptNilBatchBackupV1betaBackupType {
+	return OptNilBatchBackupV1betaBackupType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchBackupV1betaBackupType is optional nullable BatchBackupV1betaBackupType.
+type OptNilBatchBackupV1betaBackupType struct {
+	Value BatchBackupV1betaBackupType
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchBackupV1betaBackupType was set.
+func (o OptNilBatchBackupV1betaBackupType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchBackupV1betaBackupType) Reset() {
+	var v BatchBackupV1betaBackupType
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchBackupV1betaBackupType) SetTo(v BatchBackupV1betaBackupType) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchBackupV1betaBackupType) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchBackupV1betaBackupType) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchBackupV1betaBackupType
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchBackupV1betaBackupType) Get() (v BatchBackupV1betaBackupType, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchBackupV1betaBackupType) Or(d BatchBackupV1betaBackupType) BatchBackupV1betaBackupType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchBackupV1betaState returns new OptNilBatchBackupV1betaState with value set to v.
+func NewOptNilBatchBackupV1betaState(v BatchBackupV1betaState) OptNilBatchBackupV1betaState {
+	return OptNilBatchBackupV1betaState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchBackupV1betaState is optional nullable BatchBackupV1betaState.
+type OptNilBatchBackupV1betaState struct {
+	Value BatchBackupV1betaState
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchBackupV1betaState was set.
+func (o OptNilBatchBackupV1betaState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchBackupV1betaState) Reset() {
+	var v BatchBackupV1betaState
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchBackupV1betaState) SetTo(v BatchBackupV1betaState) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchBackupV1betaState) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchBackupV1betaState) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchBackupV1betaState
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchBackupV1betaState) Get() (v BatchBackupV1betaState, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchBackupV1betaState) Or(d BatchBackupV1betaState) BatchBackupV1betaState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchBackupVaultV1betaBackupVaultType returns new OptNilBatchBackupVaultV1betaBackupVaultType with value set to v.
+func NewOptNilBatchBackupVaultV1betaBackupVaultType(v BatchBackupVaultV1betaBackupVaultType) OptNilBatchBackupVaultV1betaBackupVaultType {
+	return OptNilBatchBackupVaultV1betaBackupVaultType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchBackupVaultV1betaBackupVaultType is optional nullable BatchBackupVaultV1betaBackupVaultType.
+type OptNilBatchBackupVaultV1betaBackupVaultType struct {
+	Value BatchBackupVaultV1betaBackupVaultType
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchBackupVaultV1betaBackupVaultType was set.
+func (o OptNilBatchBackupVaultV1betaBackupVaultType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchBackupVaultV1betaBackupVaultType) Reset() {
+	var v BatchBackupVaultV1betaBackupVaultType
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchBackupVaultV1betaBackupVaultType) SetTo(v BatchBackupVaultV1betaBackupVaultType) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchBackupVaultV1betaBackupVaultType) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchBackupVaultV1betaBackupVaultType) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchBackupVaultV1betaBackupVaultType
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchBackupVaultV1betaBackupVaultType) Get() (v BatchBackupVaultV1betaBackupVaultType, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchBackupVaultV1betaBackupVaultType) Or(d BatchBackupVaultV1betaBackupVaultType) BatchBackupVaultV1betaBackupVaultType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchBackupVaultV1betaEncryptionState returns new OptNilBatchBackupVaultV1betaEncryptionState with value set to v.
+func NewOptNilBatchBackupVaultV1betaEncryptionState(v BatchBackupVaultV1betaEncryptionState) OptNilBatchBackupVaultV1betaEncryptionState {
+	return OptNilBatchBackupVaultV1betaEncryptionState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchBackupVaultV1betaEncryptionState is optional nullable BatchBackupVaultV1betaEncryptionState.
+type OptNilBatchBackupVaultV1betaEncryptionState struct {
+	Value BatchBackupVaultV1betaEncryptionState
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchBackupVaultV1betaEncryptionState was set.
+func (o OptNilBatchBackupVaultV1betaEncryptionState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchBackupVaultV1betaEncryptionState) Reset() {
+	var v BatchBackupVaultV1betaEncryptionState
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchBackupVaultV1betaEncryptionState) SetTo(v BatchBackupVaultV1betaEncryptionState) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchBackupVaultV1betaEncryptionState) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchBackupVaultV1betaEncryptionState) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchBackupVaultV1betaEncryptionState
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchBackupVaultV1betaEncryptionState) Get() (v BatchBackupVaultV1betaEncryptionState, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchBackupVaultV1betaEncryptionState) Or(d BatchBackupVaultV1betaEncryptionState) BatchBackupVaultV1betaEncryptionState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchBackupVaultV1betaState returns new OptNilBatchBackupVaultV1betaState with value set to v.
+func NewOptNilBatchBackupVaultV1betaState(v BatchBackupVaultV1betaState) OptNilBatchBackupVaultV1betaState {
+	return OptNilBatchBackupVaultV1betaState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchBackupVaultV1betaState is optional nullable BatchBackupVaultV1betaState.
+type OptNilBatchBackupVaultV1betaState struct {
+	Value BatchBackupVaultV1betaState
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchBackupVaultV1betaState was set.
+func (o OptNilBatchBackupVaultV1betaState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchBackupVaultV1betaState) Reset() {
+	var v BatchBackupVaultV1betaState
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchBackupVaultV1betaState) SetTo(v BatchBackupVaultV1betaState) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchBackupVaultV1betaState) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchBackupVaultV1betaState) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchBackupVaultV1betaState
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchBackupVaultV1betaState) Get() (v BatchBackupVaultV1betaState, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchBackupVaultV1betaState) Or(d BatchBackupVaultV1betaState) BatchBackupVaultV1betaState {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -22054,6 +23149,369 @@ func (*V1betaBatchListActiveDirectoriesOK) v1betaBatchListActiveDirectoriesRes()
 type V1betaBatchListActiveDirectoriesUnauthorized Error
 
 func (*V1betaBatchListActiveDirectoriesUnauthorized) v1betaBatchListActiveDirectoriesRes() {}
+
+type V1betaBatchListBackupVaultsBadRequest Error
+
+func (*V1betaBatchListBackupVaultsBadRequest) v1betaBatchListBackupVaultsRes() {}
+
+type V1betaBatchListBackupVaultsFieldsItem string
+
+const (
+	V1betaBatchListBackupVaultsFieldsItemResourceId               V1betaBatchListBackupVaultsFieldsItem = "resourceId"
+	V1betaBatchListBackupVaultsFieldsItemDescription              V1betaBatchListBackupVaultsFieldsItem = "description"
+	V1betaBatchListBackupVaultsFieldsItemCreatedAt                V1betaBatchListBackupVaultsFieldsItem = "createdAt"
+	V1betaBatchListBackupVaultsFieldsItemState                    V1betaBatchListBackupVaultsFieldsItem = "state"
+	V1betaBatchListBackupVaultsFieldsItemStateDetails             V1betaBatchListBackupVaultsFieldsItem = "stateDetails"
+	V1betaBatchListBackupVaultsFieldsItemBackupVaultId            V1betaBatchListBackupVaultsFieldsItem = "backupVaultId"
+	V1betaBatchListBackupVaultsFieldsItemBackupVaultType          V1betaBatchListBackupVaultsFieldsItem = "backupVaultType"
+	V1betaBatchListBackupVaultsFieldsItemSourceRegion             V1betaBatchListBackupVaultsFieldsItem = "sourceRegion"
+	V1betaBatchListBackupVaultsFieldsItemBackupRegion             V1betaBatchListBackupVaultsFieldsItem = "backupRegion"
+	V1betaBatchListBackupVaultsFieldsItemSourceBackupVault        V1betaBatchListBackupVaultsFieldsItem = "sourceBackupVault"
+	V1betaBatchListBackupVaultsFieldsItemDestinationBackupVault   V1betaBatchListBackupVaultsFieldsItem = "destinationBackupVault"
+	V1betaBatchListBackupVaultsFieldsItemBackupRetentionPolicy    V1betaBatchListBackupVaultsFieldsItem = "backupRetentionPolicy"
+	V1betaBatchListBackupVaultsFieldsItemEncryptionState          V1betaBatchListBackupVaultsFieldsItem = "encryptionState"
+	V1betaBatchListBackupVaultsFieldsItemBackupsPrimaryKeyVersion V1betaBatchListBackupVaultsFieldsItem = "backupsPrimaryKeyVersion"
+	V1betaBatchListBackupVaultsFieldsItemKmsConfigResourcePath    V1betaBatchListBackupVaultsFieldsItem = "kmsConfigResourcePath"
+	V1betaBatchListBackupVaultsFieldsItemCrossProjectVault        V1betaBatchListBackupVaultsFieldsItem = "crossProjectVault"
+)
+
+// AllValues returns all V1betaBatchListBackupVaultsFieldsItem values.
+func (V1betaBatchListBackupVaultsFieldsItem) AllValues() []V1betaBatchListBackupVaultsFieldsItem {
+	return []V1betaBatchListBackupVaultsFieldsItem{
+		V1betaBatchListBackupVaultsFieldsItemResourceId,
+		V1betaBatchListBackupVaultsFieldsItemDescription,
+		V1betaBatchListBackupVaultsFieldsItemCreatedAt,
+		V1betaBatchListBackupVaultsFieldsItemState,
+		V1betaBatchListBackupVaultsFieldsItemStateDetails,
+		V1betaBatchListBackupVaultsFieldsItemBackupVaultId,
+		V1betaBatchListBackupVaultsFieldsItemBackupVaultType,
+		V1betaBatchListBackupVaultsFieldsItemSourceRegion,
+		V1betaBatchListBackupVaultsFieldsItemBackupRegion,
+		V1betaBatchListBackupVaultsFieldsItemSourceBackupVault,
+		V1betaBatchListBackupVaultsFieldsItemDestinationBackupVault,
+		V1betaBatchListBackupVaultsFieldsItemBackupRetentionPolicy,
+		V1betaBatchListBackupVaultsFieldsItemEncryptionState,
+		V1betaBatchListBackupVaultsFieldsItemBackupsPrimaryKeyVersion,
+		V1betaBatchListBackupVaultsFieldsItemKmsConfigResourcePath,
+		V1betaBatchListBackupVaultsFieldsItemCrossProjectVault,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s V1betaBatchListBackupVaultsFieldsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case V1betaBatchListBackupVaultsFieldsItemResourceId:
+		return []byte(s), nil
+	case V1betaBatchListBackupVaultsFieldsItemDescription:
+		return []byte(s), nil
+	case V1betaBatchListBackupVaultsFieldsItemCreatedAt:
+		return []byte(s), nil
+	case V1betaBatchListBackupVaultsFieldsItemState:
+		return []byte(s), nil
+	case V1betaBatchListBackupVaultsFieldsItemStateDetails:
+		return []byte(s), nil
+	case V1betaBatchListBackupVaultsFieldsItemBackupVaultId:
+		return []byte(s), nil
+	case V1betaBatchListBackupVaultsFieldsItemBackupVaultType:
+		return []byte(s), nil
+	case V1betaBatchListBackupVaultsFieldsItemSourceRegion:
+		return []byte(s), nil
+	case V1betaBatchListBackupVaultsFieldsItemBackupRegion:
+		return []byte(s), nil
+	case V1betaBatchListBackupVaultsFieldsItemSourceBackupVault:
+		return []byte(s), nil
+	case V1betaBatchListBackupVaultsFieldsItemDestinationBackupVault:
+		return []byte(s), nil
+	case V1betaBatchListBackupVaultsFieldsItemBackupRetentionPolicy:
+		return []byte(s), nil
+	case V1betaBatchListBackupVaultsFieldsItemEncryptionState:
+		return []byte(s), nil
+	case V1betaBatchListBackupVaultsFieldsItemBackupsPrimaryKeyVersion:
+		return []byte(s), nil
+	case V1betaBatchListBackupVaultsFieldsItemKmsConfigResourcePath:
+		return []byte(s), nil
+	case V1betaBatchListBackupVaultsFieldsItemCrossProjectVault:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *V1betaBatchListBackupVaultsFieldsItem) UnmarshalText(data []byte) error {
+	switch V1betaBatchListBackupVaultsFieldsItem(data) {
+	case V1betaBatchListBackupVaultsFieldsItemResourceId:
+		*s = V1betaBatchListBackupVaultsFieldsItemResourceId
+		return nil
+	case V1betaBatchListBackupVaultsFieldsItemDescription:
+		*s = V1betaBatchListBackupVaultsFieldsItemDescription
+		return nil
+	case V1betaBatchListBackupVaultsFieldsItemCreatedAt:
+		*s = V1betaBatchListBackupVaultsFieldsItemCreatedAt
+		return nil
+	case V1betaBatchListBackupVaultsFieldsItemState:
+		*s = V1betaBatchListBackupVaultsFieldsItemState
+		return nil
+	case V1betaBatchListBackupVaultsFieldsItemStateDetails:
+		*s = V1betaBatchListBackupVaultsFieldsItemStateDetails
+		return nil
+	case V1betaBatchListBackupVaultsFieldsItemBackupVaultId:
+		*s = V1betaBatchListBackupVaultsFieldsItemBackupVaultId
+		return nil
+	case V1betaBatchListBackupVaultsFieldsItemBackupVaultType:
+		*s = V1betaBatchListBackupVaultsFieldsItemBackupVaultType
+		return nil
+	case V1betaBatchListBackupVaultsFieldsItemSourceRegion:
+		*s = V1betaBatchListBackupVaultsFieldsItemSourceRegion
+		return nil
+	case V1betaBatchListBackupVaultsFieldsItemBackupRegion:
+		*s = V1betaBatchListBackupVaultsFieldsItemBackupRegion
+		return nil
+	case V1betaBatchListBackupVaultsFieldsItemSourceBackupVault:
+		*s = V1betaBatchListBackupVaultsFieldsItemSourceBackupVault
+		return nil
+	case V1betaBatchListBackupVaultsFieldsItemDestinationBackupVault:
+		*s = V1betaBatchListBackupVaultsFieldsItemDestinationBackupVault
+		return nil
+	case V1betaBatchListBackupVaultsFieldsItemBackupRetentionPolicy:
+		*s = V1betaBatchListBackupVaultsFieldsItemBackupRetentionPolicy
+		return nil
+	case V1betaBatchListBackupVaultsFieldsItemEncryptionState:
+		*s = V1betaBatchListBackupVaultsFieldsItemEncryptionState
+		return nil
+	case V1betaBatchListBackupVaultsFieldsItemBackupsPrimaryKeyVersion:
+		*s = V1betaBatchListBackupVaultsFieldsItemBackupsPrimaryKeyVersion
+		return nil
+	case V1betaBatchListBackupVaultsFieldsItemKmsConfigResourcePath:
+		*s = V1betaBatchListBackupVaultsFieldsItemKmsConfigResourcePath
+		return nil
+	case V1betaBatchListBackupVaultsFieldsItemCrossProjectVault:
+		*s = V1betaBatchListBackupVaultsFieldsItemCrossProjectVault
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type V1betaBatchListBackupVaultsForbidden Error
+
+func (*V1betaBatchListBackupVaultsForbidden) v1betaBatchListBackupVaultsRes() {}
+
+type V1betaBatchListBackupVaultsInternalServerError Error
+
+func (*V1betaBatchListBackupVaultsInternalServerError) v1betaBatchListBackupVaultsRes() {}
+
+type V1betaBatchListBackupVaultsOK struct {
+	BackupVaults []BatchBackupVaultV1beta `json:"backupVaults"`
+}
+
+// GetBackupVaults returns the value of BackupVaults.
+func (s *V1betaBatchListBackupVaultsOK) GetBackupVaults() []BatchBackupVaultV1beta {
+	return s.BackupVaults
+}
+
+// SetBackupVaults sets the value of BackupVaults.
+func (s *V1betaBatchListBackupVaultsOK) SetBackupVaults(val []BatchBackupVaultV1beta) {
+	s.BackupVaults = val
+}
+
+func (*V1betaBatchListBackupVaultsOK) v1betaBatchListBackupVaultsRes() {}
+
+type V1betaBatchListBackupVaultsUnauthorized Error
+
+func (*V1betaBatchListBackupVaultsUnauthorized) v1betaBatchListBackupVaultsRes() {}
+
+type V1betaBatchListBackupsBadRequest Error
+
+func (*V1betaBatchListBackupsBadRequest) v1betaBatchListBackupsRes() {}
+
+type V1betaBatchListBackupsFieldsItem string
+
+const (
+	V1betaBatchListBackupsFieldsItemResourceId               V1betaBatchListBackupsFieldsItem = "resourceId"
+	V1betaBatchListBackupsFieldsItemDescription              V1betaBatchListBackupsFieldsItem = "description"
+	V1betaBatchListBackupsFieldsItemCreated                  V1betaBatchListBackupsFieldsItem = "created"
+	V1betaBatchListBackupsFieldsItemState                    V1betaBatchListBackupsFieldsItem = "state"
+	V1betaBatchListBackupsFieldsItemVolumeUsageBytes         V1betaBatchListBackupsFieldsItem = "volumeUsageBytes"
+	V1betaBatchListBackupsFieldsItemBackupType               V1betaBatchListBackupsFieldsItem = "backupType"
+	V1betaBatchListBackupsFieldsItemSourceVolume             V1betaBatchListBackupsFieldsItem = "sourceVolume"
+	V1betaBatchListBackupsFieldsItemBackupVaultId            V1betaBatchListBackupsFieldsItem = "backupVaultId"
+	V1betaBatchListBackupsFieldsItemSourceSnapshot           V1betaBatchListBackupsFieldsItem = "sourceSnapshot"
+	V1betaBatchListBackupsFieldsItemBackupId                 V1betaBatchListBackupsFieldsItem = "backupId"
+	V1betaBatchListBackupsFieldsItemVolumeId                 V1betaBatchListBackupsFieldsItem = "volumeId"
+	V1betaBatchListBackupsFieldsItemBackupChainBytes         V1betaBatchListBackupsFieldsItem = "backupChainBytes"
+	V1betaBatchListBackupsFieldsItemSatisfiesPzi             V1betaBatchListBackupsFieldsItem = "satisfiesPzi"
+	V1betaBatchListBackupsFieldsItemSatisfiesPzs             V1betaBatchListBackupsFieldsItem = "satisfiesPzs"
+	V1betaBatchListBackupsFieldsItemVolumeRegion             V1betaBatchListBackupsFieldsItem = "volumeRegion"
+	V1betaBatchListBackupsFieldsItemBackupRegion             V1betaBatchListBackupsFieldsItem = "backupRegion"
+	V1betaBatchListBackupsFieldsItemAssetLocationMetadata    V1betaBatchListBackupsFieldsItem = "assetLocationMetadata"
+	V1betaBatchListBackupsFieldsItemEnforcedRetentionEndTime V1betaBatchListBackupsFieldsItem = "enforcedRetentionEndTime"
+	V1betaBatchListBackupsFieldsItemSnapshotId               V1betaBatchListBackupsFieldsItem = "snapshotId"
+)
+
+// AllValues returns all V1betaBatchListBackupsFieldsItem values.
+func (V1betaBatchListBackupsFieldsItem) AllValues() []V1betaBatchListBackupsFieldsItem {
+	return []V1betaBatchListBackupsFieldsItem{
+		V1betaBatchListBackupsFieldsItemResourceId,
+		V1betaBatchListBackupsFieldsItemDescription,
+		V1betaBatchListBackupsFieldsItemCreated,
+		V1betaBatchListBackupsFieldsItemState,
+		V1betaBatchListBackupsFieldsItemVolumeUsageBytes,
+		V1betaBatchListBackupsFieldsItemBackupType,
+		V1betaBatchListBackupsFieldsItemSourceVolume,
+		V1betaBatchListBackupsFieldsItemBackupVaultId,
+		V1betaBatchListBackupsFieldsItemSourceSnapshot,
+		V1betaBatchListBackupsFieldsItemBackupId,
+		V1betaBatchListBackupsFieldsItemVolumeId,
+		V1betaBatchListBackupsFieldsItemBackupChainBytes,
+		V1betaBatchListBackupsFieldsItemSatisfiesPzi,
+		V1betaBatchListBackupsFieldsItemSatisfiesPzs,
+		V1betaBatchListBackupsFieldsItemVolumeRegion,
+		V1betaBatchListBackupsFieldsItemBackupRegion,
+		V1betaBatchListBackupsFieldsItemAssetLocationMetadata,
+		V1betaBatchListBackupsFieldsItemEnforcedRetentionEndTime,
+		V1betaBatchListBackupsFieldsItemSnapshotId,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s V1betaBatchListBackupsFieldsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case V1betaBatchListBackupsFieldsItemResourceId:
+		return []byte(s), nil
+	case V1betaBatchListBackupsFieldsItemDescription:
+		return []byte(s), nil
+	case V1betaBatchListBackupsFieldsItemCreated:
+		return []byte(s), nil
+	case V1betaBatchListBackupsFieldsItemState:
+		return []byte(s), nil
+	case V1betaBatchListBackupsFieldsItemVolumeUsageBytes:
+		return []byte(s), nil
+	case V1betaBatchListBackupsFieldsItemBackupType:
+		return []byte(s), nil
+	case V1betaBatchListBackupsFieldsItemSourceVolume:
+		return []byte(s), nil
+	case V1betaBatchListBackupsFieldsItemBackupVaultId:
+		return []byte(s), nil
+	case V1betaBatchListBackupsFieldsItemSourceSnapshot:
+		return []byte(s), nil
+	case V1betaBatchListBackupsFieldsItemBackupId:
+		return []byte(s), nil
+	case V1betaBatchListBackupsFieldsItemVolumeId:
+		return []byte(s), nil
+	case V1betaBatchListBackupsFieldsItemBackupChainBytes:
+		return []byte(s), nil
+	case V1betaBatchListBackupsFieldsItemSatisfiesPzi:
+		return []byte(s), nil
+	case V1betaBatchListBackupsFieldsItemSatisfiesPzs:
+		return []byte(s), nil
+	case V1betaBatchListBackupsFieldsItemVolumeRegion:
+		return []byte(s), nil
+	case V1betaBatchListBackupsFieldsItemBackupRegion:
+		return []byte(s), nil
+	case V1betaBatchListBackupsFieldsItemAssetLocationMetadata:
+		return []byte(s), nil
+	case V1betaBatchListBackupsFieldsItemEnforcedRetentionEndTime:
+		return []byte(s), nil
+	case V1betaBatchListBackupsFieldsItemSnapshotId:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *V1betaBatchListBackupsFieldsItem) UnmarshalText(data []byte) error {
+	switch V1betaBatchListBackupsFieldsItem(data) {
+	case V1betaBatchListBackupsFieldsItemResourceId:
+		*s = V1betaBatchListBackupsFieldsItemResourceId
+		return nil
+	case V1betaBatchListBackupsFieldsItemDescription:
+		*s = V1betaBatchListBackupsFieldsItemDescription
+		return nil
+	case V1betaBatchListBackupsFieldsItemCreated:
+		*s = V1betaBatchListBackupsFieldsItemCreated
+		return nil
+	case V1betaBatchListBackupsFieldsItemState:
+		*s = V1betaBatchListBackupsFieldsItemState
+		return nil
+	case V1betaBatchListBackupsFieldsItemVolumeUsageBytes:
+		*s = V1betaBatchListBackupsFieldsItemVolumeUsageBytes
+		return nil
+	case V1betaBatchListBackupsFieldsItemBackupType:
+		*s = V1betaBatchListBackupsFieldsItemBackupType
+		return nil
+	case V1betaBatchListBackupsFieldsItemSourceVolume:
+		*s = V1betaBatchListBackupsFieldsItemSourceVolume
+		return nil
+	case V1betaBatchListBackupsFieldsItemBackupVaultId:
+		*s = V1betaBatchListBackupsFieldsItemBackupVaultId
+		return nil
+	case V1betaBatchListBackupsFieldsItemSourceSnapshot:
+		*s = V1betaBatchListBackupsFieldsItemSourceSnapshot
+		return nil
+	case V1betaBatchListBackupsFieldsItemBackupId:
+		*s = V1betaBatchListBackupsFieldsItemBackupId
+		return nil
+	case V1betaBatchListBackupsFieldsItemVolumeId:
+		*s = V1betaBatchListBackupsFieldsItemVolumeId
+		return nil
+	case V1betaBatchListBackupsFieldsItemBackupChainBytes:
+		*s = V1betaBatchListBackupsFieldsItemBackupChainBytes
+		return nil
+	case V1betaBatchListBackupsFieldsItemSatisfiesPzi:
+		*s = V1betaBatchListBackupsFieldsItemSatisfiesPzi
+		return nil
+	case V1betaBatchListBackupsFieldsItemSatisfiesPzs:
+		*s = V1betaBatchListBackupsFieldsItemSatisfiesPzs
+		return nil
+	case V1betaBatchListBackupsFieldsItemVolumeRegion:
+		*s = V1betaBatchListBackupsFieldsItemVolumeRegion
+		return nil
+	case V1betaBatchListBackupsFieldsItemBackupRegion:
+		*s = V1betaBatchListBackupsFieldsItemBackupRegion
+		return nil
+	case V1betaBatchListBackupsFieldsItemAssetLocationMetadata:
+		*s = V1betaBatchListBackupsFieldsItemAssetLocationMetadata
+		return nil
+	case V1betaBatchListBackupsFieldsItemEnforcedRetentionEndTime:
+		*s = V1betaBatchListBackupsFieldsItemEnforcedRetentionEndTime
+		return nil
+	case V1betaBatchListBackupsFieldsItemSnapshotId:
+		*s = V1betaBatchListBackupsFieldsItemSnapshotId
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type V1betaBatchListBackupsForbidden Error
+
+func (*V1betaBatchListBackupsForbidden) v1betaBatchListBackupsRes() {}
+
+type V1betaBatchListBackupsInternalServerError Error
+
+func (*V1betaBatchListBackupsInternalServerError) v1betaBatchListBackupsRes() {}
+
+type V1betaBatchListBackupsOK struct {
+	Backups []BatchBackupV1beta `json:"backups"`
+}
+
+// GetBackups returns the value of Backups.
+func (s *V1betaBatchListBackupsOK) GetBackups() []BatchBackupV1beta {
+	return s.Backups
+}
+
+// SetBackups sets the value of Backups.
+func (s *V1betaBatchListBackupsOK) SetBackups(val []BatchBackupV1beta) {
+	s.Backups = val
+}
+
+func (*V1betaBatchListBackupsOK) v1betaBatchListBackupsRes() {}
+
+type V1betaBatchListBackupsUnauthorized Error
+
+func (*V1betaBatchListBackupsUnauthorized) v1betaBatchListBackupsRes() {}
 
 type V1betaBatchListPoolsBadRequest Error
 

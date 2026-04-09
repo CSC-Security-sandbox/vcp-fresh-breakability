@@ -47,9 +47,9 @@ type ClientService interface {
 }
 
 /*
-V1betaBatchListActiveDirectories batches lists all active directories with the given u UI ds
+V1betaBatchListActiveDirectories batches list all active directories with the given u UI ds
 
-Batch lists all Active Directories with the given UUIDs
+Batch list all Active Directories with the given UUIDs
 */
 func (a *Client) V1betaBatchListActiveDirectories(params *V1betaBatchListActiveDirectoriesParams) (*V1betaBatchListActiveDirectoriesOK, error) {
 	// TODO: Validate the params before sending
@@ -117,9 +117,9 @@ func (a *Client) V1betaBatchListBackupPolicies(params *V1betaBatchListBackupPoli
 }
 
 /*
-V1betaBatchListBackupVaults batches lists all backup vaults with the given u UI ds
+V1betaBatchListBackupVaults batches list all backup vaults with the given u UI ds
 
-Batch lists all backup vaults with the given UUIDs
+Batch list all backup vaults with the given UUIDs
 */
 func (a *Client) V1betaBatchListBackupVaults(params *V1betaBatchListBackupVaultsParams) (*V1betaBatchListBackupVaultsOK, error) {
 	// TODO: Validate the params before sending
@@ -152,9 +152,9 @@ func (a *Client) V1betaBatchListBackupVaults(params *V1betaBatchListBackupVaults
 }
 
 /*
-V1betaBatchListBackups batches lists all backups with the given u UI ds
+V1betaBatchListBackups batches list all backups with the given u UI ds
 
-Batch lists all backups with the given UUIDs
+Batch list all backups with the given UUIDs
 */
 func (a *Client) V1betaBatchListBackups(params *V1betaBatchListBackupsParams) (*V1betaBatchListBackupsOK, error) {
 	// TODO: Validate the params before sending

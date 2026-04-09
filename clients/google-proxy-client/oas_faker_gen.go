@@ -1432,6 +1432,246 @@ func (s *BatchActiveDirectoryV1betaActiveDirectoryState) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *BatchBackupUUIDListV1beta) SetFake() {
+	{
+		{
+			s.BackupUUIDs = nil
+			for i := 0; i < 0; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.BackupUUIDs = append(s.BackupUUIDs, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BatchBackupV1beta) SetFake() {
+	{
+		{
+			s.BackupId.SetFake()
+		}
+	}
+	{
+		{
+			s.Created.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeUsageBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupType.SetFake()
+		}
+	}
+	{
+		{
+			s.SourceVolume.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupVaultId.SetFake()
+		}
+	}
+	{
+		{
+			s.SourceSnapshot.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.State.SetFake()
+		}
+	}
+	{
+		{
+			s.ResourceId.SetFake()
+		}
+	}
+	{
+		{
+			s.SnapshotId.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeId.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupChainBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.SatisfiesPzs.SetFake()
+		}
+	}
+	{
+		{
+			s.SatisfiesPzi.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeRegion.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupRegion.SetFake()
+		}
+	}
+	{
+		{
+			s.EnforcedRetentionEndTime.SetFake()
+		}
+	}
+	{
+		{
+			s.AssetLocationMetadata.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BatchBackupV1betaBackupType) SetFake() {
+	*s = BatchBackupV1betaBackupTypeMANUAL
+}
+
+// SetFake set fake values.
+func (s *BatchBackupV1betaState) SetFake() {
+	*s = BatchBackupV1betaStateCREATING
+}
+
+// SetFake set fake values.
+func (s *BatchBackupVaultUUIDListV1beta) SetFake() {
+	{
+		{
+			s.BackupVaultUUIDs = nil
+			for i := 0; i < 0; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.BackupVaultUUIDs = append(s.BackupVaultUUIDs, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BatchBackupVaultV1beta) SetFake() {
+	{
+		{
+			s.BackupVaultId.SetFake()
+		}
+	}
+	{
+		{
+			s.ResourceId.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.CreatedAt.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupRegion.SetFake()
+		}
+	}
+	{
+		{
+			s.SourceRegion.SetFake()
+		}
+	}
+	{
+		{
+			s.KmsConfigResourcePath.SetFake()
+		}
+	}
+	{
+		{
+			s.DestinationBackupVault.SetFake()
+		}
+	}
+	{
+		{
+			s.SourceBackupVault.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupVaultType.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupRetentionPolicy.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupsPrimaryKeyVersion.SetFake()
+		}
+	}
+	{
+		{
+			s.EncryptionState.SetFake()
+		}
+	}
+	{
+		{
+			s.State.SetFake()
+		}
+	}
+	{
+		{
+			s.StateDetails.SetFake()
+		}
+	}
+	{
+		{
+			s.CrossProjectVault.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BatchBackupVaultV1betaBackupVaultType) SetFake() {
+	*s = BatchBackupVaultV1betaBackupVaultTypeINREGION
+}
+
+// SetFake set fake values.
+func (s *BatchBackupVaultV1betaEncryptionState) SetFake() {
+	*s = BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEPENDING
+}
+
+// SetFake set fake values.
+func (s *BatchBackupVaultV1betaState) SetFake() {
+	*s = BatchBackupVaultV1betaStateCREATING
+}
+
+// SetFake set fake values.
 func (s *BatchPoolUUIDListV1beta) SetFake() {
 	{
 		{
@@ -3976,6 +4216,36 @@ func (s *OptNilBatchActiveDirectoryV1betaActiveDirectoryState) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptNilBatchBackupV1betaBackupType) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilBatchBackupV1betaState) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilBatchBackupVaultV1betaBackupVaultType) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilBatchBackupVaultV1betaEncryptionState) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilBatchBackupVaultV1betaState) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
 func (s *OptNilBatchPoolV1betaAssetLocationMetadata) SetFake() {
 	s.Null = true
 	s.Set = true
@@ -6345,6 +6615,110 @@ func (s *V1betaBatchListActiveDirectoriesUnauthorized) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaBatchListActiveDirectoriesUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListBackupVaultsBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListBackupVaultsBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListBackupVaultsForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListBackupVaultsForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListBackupVaultsInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListBackupVaultsInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListBackupVaultsOK) SetFake() {
+	{
+		{
+			s.BackupVaults = nil
+			for i := 0; i < 0; i++ {
+				var elem BatchBackupVaultV1beta
+				{
+					elem.SetFake()
+				}
+				s.BackupVaults = append(s.BackupVaults, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListBackupVaultsUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListBackupVaultsUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListBackupsBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListBackupsBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListBackupsForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListBackupsForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListBackupsInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListBackupsInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListBackupsOK) SetFake() {
+	{
+		{
+			s.Backups = nil
+			for i := 0; i < 0; i++ {
+				var elem BatchBackupV1beta
+				{
+					elem.SetFake()
+				}
+				s.Backups = append(s.Backups, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListBackupsUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListBackupsUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.

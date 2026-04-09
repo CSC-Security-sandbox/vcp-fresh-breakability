@@ -12,6 +12,26 @@ type V1betaBatchListActiveDirectoriesParams struct {
 	Fields []V1betaBatchListActiveDirectoriesFieldsItem
 }
 
+// V1betaBatchListBackupVaultsParams is parameters of v1beta_batchListBackupVaults operation.
+type V1betaBatchListBackupVaultsParams struct {
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+	// Specify the fields to return.
+	Fields []V1betaBatchListBackupVaultsFieldsItem
+}
+
+// V1betaBatchListBackupsParams is parameters of v1beta_batchListBackups operation.
+type V1betaBatchListBackupsParams struct {
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+	// Specify the fields to return.
+	Fields []V1betaBatchListBackupsFieldsItem
+}
+
 // V1betaBatchListPoolsParams is parameters of v1beta_batchListPools operation.
 type V1betaBatchListPoolsParams struct {
 	// The location/region to perform the operation in.

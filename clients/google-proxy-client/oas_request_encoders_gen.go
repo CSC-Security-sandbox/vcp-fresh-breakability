@@ -25,6 +25,34 @@ func encodeV1betaBatchListActiveDirectoriesRequest(
 	return nil
 }
 
+func encodeV1betaBatchListBackupVaultsRequest(
+	req *BatchBackupVaultUUIDListV1beta,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeV1betaBatchListBackupsRequest(
+	req *BatchBackupUUIDListV1beta,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
 func encodeV1betaBatchListPoolsRequest(
 	req *BatchPoolUUIDListV1beta,
 	r *http.Request,

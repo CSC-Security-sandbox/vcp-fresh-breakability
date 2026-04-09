@@ -7280,8 +7280,8 @@ paths:
   /v1beta/locations/{locationId}/batch/backupVaults:
     post:
       operationId: v1beta_batchListBackupVaults
-      summary: Batch lists all backup vaults with the given UUIDs
-      description: Batch lists all backup vaults with the given UUIDs
+      summary: Batch list all backup vaults with the given UUIDs
+      description: Batch list all backup vaults with the given UUIDs
       tags:
         - batch
       parameters:
@@ -7296,11 +7296,22 @@ paths:
           items:
             type: string
             enum:
-              - resourceId
-              - description
-              - createdAt
-              - state
-              - stateDetails
+              - "resourceId"
+              - "description"
+              - "createdAt"
+              - "state"
+              - "stateDetails"
+              - "backupVaultId"
+              - "backupVaultType"
+              - "sourceRegion"
+              - "backupRegion"
+              - "sourceBackupVault"
+              - "destinationBackupVault"
+              - "backupRetentionPolicy"
+              - "encryptionState"
+              - "backupsPrimaryKeyVersion"
+              - "kmsConfigResourcePath"
+              - "crossProjectVault"
         - name: body
           in: body
           required: true
@@ -7311,9 +7322,13 @@ paths:
         '200':
           description: OK
           schema:
-            type: array
-            items:
-              $ref: '#/definitions/BatchBackupVault_v1beta'
+            type: object
+            allOf:
+              - properties:
+                  backupVaults:
+                    type: array
+                    items:
+                      $ref: '#/definitions/BatchBackupVault_v1beta'
         '400':
           $ref: '#/responses/StandardError-400'
         '401':
@@ -7329,8 +7344,8 @@ paths:
   /v1beta/locations/{locationId}/batch/backups:
     post:
       operationId: v1beta_batchListBackups
-      summary: Batch lists all backups with the given UUIDs
-      description: Batch lists all backups with the given UUIDs
+      summary: Batch list all backups with the given UUIDs
+      description: Batch list all backups with the given UUIDs
       tags:
         - batch
       parameters:
@@ -7345,15 +7360,25 @@ paths:
           items:
             type: string
             enum:
-              - resourceId
-              - description
-              - created
-              - state
-              - volumeUsageBytes
-              - backupType
-              - sourceVolume
-              - backupVaultId
-              - sourceSnapshot
+              - "resourceId"
+              - "description"
+              - "created"
+              - "state"
+              - "volumeUsageBytes"
+              - "backupType"
+              - "sourceVolume"
+              - "backupVaultId"
+              - "sourceSnapshot"
+              - "backupId"
+              - "volumeId"
+              - "backupChainBytes"
+              - "satisfiesPzi"
+              - "satisfiesPzs"
+              - "volumeRegion"
+              - "backupRegion"
+              - "assetLocationMetadata"
+              - "enforcedRetentionEndTime"
+              - "snapshotId"
         - name: body
           in: body
           required: true
@@ -7364,9 +7389,13 @@ paths:
         '200':
           description: OK
           schema:
-            type: array
-            items:
-              $ref: '#/definitions/BatchBackup_v1beta'
+            type: object
+            allOf:
+              - properties:
+                  backups:
+                    type: array
+                    items:
+                      $ref: '#/definitions/BatchBackup_v1beta'
         '400':
           $ref: '#/responses/StandardError-400'
         '401':
@@ -14897,37 +14926,117 @@ definitions:
         title: UUID
         type: string
         description: UUID v4 used to identify the backup vault
-        pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+        pattern: >-
+          ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
         maxLength: 36
         minLength: 36
         example: 9760acf5-4638-11e7-9bdb-020073ca7773
       resourceId:
         title: name
         type: string
-        x-omitempty: true
+        x-omitempty: false
         x-nullable: true
         description: Human readable name of the backup vault
         example: my-resource
       description:
         title: description
         type: string
-        x-omitempty: true
+        x-omitempty: false
         x-nullable: true
         description: Description of backup vault
         example: backupVault description
       createdAt:
         title: createdAt
         type: string
-        x-omitempty: true
+        x-omitempty: false
         x-nullable: true
         format: date-time
         description: Creation date of the resource
         example: '2016-11-28T19:30:23.123Z'
+      backupRegion:
+        title: backupRegion
+        type: string
+        pattern: >-
+          ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+        maxLength: 63
+        x-omitempty: false
+        x-nullable: true
+        description: The destination region the backup needs to be stored in.
+      sourceRegion:
+        title: sourceRegion
+        type: string
+        pattern: >-
+          ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+        maxLength: 63
+        x-omitempty: false
+        x-nullable: true
+        description: The source region of the backup
+        example: us-east4
+      kmsConfigResourcePath:
+        title: kmsConfigResourcePath
+        type: string
+        x-omitempty: false
+        x-nullable: true
+        description: Complete resource path of the KMS config
+        example: projects/my-project-1/locations/eu-west-1/kmsConfigs/myconfig
+      destinationBackupVault:
+        title: destinationBackupVault
+        type: string
+        x-omitempty: false
+        x-nullable: true
+        description: The destination region backup vault
+        example: projects/projectID/locations/location/location/backupVaults/name
+      sourceBackupVault:
+        title: sourceBackupVault
+        type: string
+        x-omitempty: false
+        x-nullable: true
+        description: The source region backup vault
+        example: projects/projectID/locations/location/location/backupVaults/name
+      backupVaultType:
+        title: backupVaultType
+        type: string
+        x-omitempty: false
+        x-nullable: true
+        default: TYPE_UNSPECIFIED
+        description: Type of the backup vault
+        enum:
+          - IN_REGION
+          - CROSS_REGION
+          - TYPE_UNSPECIFIED
+      backupRetentionPolicy:
+        $ref: '#/definitions/BackupRetentionPolicy_v1beta'
+        x-omitempty: false
+        x-nullable: true
+      backupsPrimaryKeyVersion:
+        title: backupsPrimaryKeyVersion
+        type: string
+        x-omitempty: false
+        readOnly: true
+        x-nullable: true
+        description: key version used to encrypt backups in the vault
+        example: projects/my-project-1/locations/eu-west-1/keyRings/my-keyring/cryptoKeys/my-key/cryptoKeyVersions/1
+      encryptionState:
+        title: encryptionState
+        type: string
+        x-omitempty: false
+        readOnly: true
+        x-nullable: true
+        default: ENCRYPTION_STATE_UNSPECIFIED
+        description: Current state of CMEK encryption for the backup vault
+        enum:
+          - ENCRYPTION_STATE_PENDING
+          - ENCRYPTION_STATE_COMPLETED
+          - ENCRYPTION_STATE_IN_PROGRESS
+          - ENCRYPTION_STATE_FAILED
+          - ENCRYPTION_STATE_UNSPECIFIED
+        example: ENCRYPTION_STATE_COMPLETED
       state:
         title: lifeCycleState
         type: string
-        x-omitempty: true
-        readOnly: true
+        x-omitempty: false
+        x-nullable: true
+        default: STATE_UNSPECIFIED
         description: The current state of the backup vault
         enum:
           - CREATING
@@ -14936,14 +15045,22 @@ definitions:
           - READY
           - DELETED
           - ERROR
+          - STATE_UNSPECIFIED
         example: READY
       stateDetails:
         title: lifeCycleStateDetails
         type: string
-        x-omitempty: true
+        x-omitempty: false
         x-nullable: true
         description: Details about the current lifecycle state
         example: Available for use
+      crossProjectVault:
+          title: crossProjectVault
+          type: boolean
+          readOnly: true
+          description: Indicates if the backup vault is a cross-project vault
+          x-nullable: true
+          x-omitempty: false
   BatchBackup_v1beta:
     type: object
     title: Backup
@@ -14952,14 +15069,15 @@ definitions:
         title: backupId
         type: string
         description: UUID v4 used to identify the backup
-        pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+        pattern: >-
+          ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
         maxLength: 36
         minLength: 36
         example: 9760acf5-4638-11e7-9bdb-020073ca3333
       created:
         title: created
         type: string
-        x-omitempty: true
+        x-omitempty: false
         x-nullable: true
         format: date-time
         description: Creation date of the resource
@@ -14968,14 +15086,15 @@ definitions:
         title: volumeUsageBytes
         type: number
         format: int64
-        x-omitempty: true
+        x-omitempty: false
         x-nullable: true
         description: Current storage usage for the backup in bytes
         example: 101010
       backupType:
         title: backupType
         type: string
-        x-omitempty: true
+        x-omitempty: false
+        x-nullable: true
         description: Type of backup, manually created (adhoc) or created by a schedule
         enum:
           - MANUAL
@@ -14983,36 +15102,39 @@ definitions:
       sourceVolume:
         title: sourceVolume
         type: string
-        x-omitempty: true
+        x-omitempty: false
         x-nullable: true
         description: Display name of the volume
         example: my-volume
       backupVaultId:
         description: UUID v4 used to identify the backup vault ID
         type: string
-        x-omitempty: true
+        x-omitempty: false
         x-nullable: true
-        pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+        pattern: >-
+          ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
         example: 9760acf5-4638-11e7-9bdb-020073ca3333
       sourceSnapshot:
         title: sourceSnapshot
         type: string
-        x-omitempty: true
+        x-omitempty: false
         x-nullable: true
         description: Name of the snapshot
         example: my-snapshot
       description:
         title: description
         type: string
-        x-omitempty: true
+        x-omitempty: false
         x-nullable: true
         description: Description of the backup
         example: My Backup description
       state:
         title: state
         type: string
-        x-omitempty: true
+        x-omitempty: false
+        x-nullable: true
         readOnly: true
+        default: STATE_UNSPECIFIED
         description: The current state of the backup
         enum:
           - CREATING
@@ -15023,14 +15145,87 @@ definitions:
           - DELETING
           - DELETED
           - ERROR
+          - STATE_UNSPECIFIED
         example: READY
       resourceId:
         title: resourceId
         type: string
-        x-omitempty: true
+        x-omitempty: false
         x-nullable: true
         description: Human readable name of the backup
         example: backup-name
+      snapshotId:
+        title: snapshotId
+        type: string
+        readOnly: true
+        x-omitempty: false
+        x-nullable: true
+        description: UUID v4 of the snapshot that was used to create the backup
+        pattern: >-
+          ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+        maxLength: 36
+        minLength: 36
+        example: 40a79608-dcf8-4b67-8df6-c4ab40a5b246
+      volumeId:
+        title: volumeId
+        type: string
+        readOnly: true
+        x-omitempty: false
+        x-nullable: true
+        description: UUID v4 of the volume
+        pattern: >-
+          ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+        maxLength: 36
+        minLength: 36
+        example: 9760acf5-4638-11e7-9bdb-020073ca0001
+      backupChainBytes:
+        title: backupChainBytes
+        type: integer
+        format: int64
+        readOnly: true
+        x-omitempty: false
+        x-nullable: true
+        description: Size in bytes of the backup of the volume
+      satisfiesPzs:
+        type: boolean
+        x-omitempty: false
+        x-nullable: true
+        description: Flag describing whether backup supports zone separation.
+        example: true
+        readOnly: true
+      satisfiesPzi:
+        type: boolean
+        x-omitempty: false
+        x-nullable: true
+        description: Flag describing whether backup supports zone isolation.
+        example: true
+        readOnly: true
+      volumeRegion:
+        title: volumeRegion
+        type: string
+        x-omitempty: false
+        x-nullable: true
+        description: Name of the volume region
+        example: us-east4
+      backupRegion:
+        title: backupRegion
+        type: string
+        x-omitempty: false
+        x-nullable: true
+        description: Name of the backup region
+        example: us-central1
+      enforcedRetentionEndTime:
+        title: enforcedRetentionEndTime
+        type: string
+        format: date-time
+        readOnly: true
+        x-omitempty: false
+        x-nullable: true
+        description: Backup enforced-retention end time
+        example: '2024-12-06T20:32:50.459Z'
+      assetLocationMetadata:
+        x-omitempty: false
+        $ref: '#/definitions/AssetLocationMetadata_v2'
   BatchBackupPolicy_v1beta:
     type: object
     title: Backup

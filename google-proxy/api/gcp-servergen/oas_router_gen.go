@@ -1042,6 +1042,64 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								return
 							}
 
+						case 'b': // Prefix: "backup"
+
+							if l := len("backup"); len(elem) >= l && elem[0:l] == "backup" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								break
+							}
+							switch elem[0] {
+							case 'V': // Prefix: "Vaults"
+
+								if l := len("Vaults"); len(elem) >= l && elem[0:l] == "Vaults" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "POST":
+										s.handleV1betaBatchListBackupVaultsRequest([1]string{
+											args[0],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "POST")
+									}
+
+									return
+								}
+
+							case 's': // Prefix: "s"
+
+								if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "POST":
+										s.handleV1betaBatchListBackupsRequest([1]string{
+											args[0],
+										}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, "POST")
+									}
+
+									return
+								}
+
+							}
+
 						case 'p': // Prefix: "pools"
 
 							if l := len("pools"); len(elem) >= l && elem[0:l] == "pools" {
@@ -4089,6 +4147,68 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								default:
 									return
 								}
+							}
+
+						case 'b': // Prefix: "backup"
+
+							if l := len("backup"); len(elem) >= l && elem[0:l] == "backup" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								break
+							}
+							switch elem[0] {
+							case 'V': // Prefix: "Vaults"
+
+								if l := len("Vaults"); len(elem) >= l && elem[0:l] == "Vaults" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "POST":
+										r.name = V1betaBatchListBackupVaultsOperation
+										r.summary = "Batch list all backup vaults with the given UUIDs"
+										r.operationID = "v1beta_batchListBackupVaults"
+										r.pathPattern = "/v1beta/locations/{locationId}/batch/backupVaults"
+										r.args = args
+										r.count = 1
+										return r, true
+									default:
+										return
+									}
+								}
+
+							case 's': // Prefix: "s"
+
+								if l := len("s"); len(elem) >= l && elem[0:l] == "s" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "POST":
+										r.name = V1betaBatchListBackupsOperation
+										r.summary = "Batch list all backups with the given UUIDs"
+										r.operationID = "v1beta_batchListBackups"
+										r.pathPattern = "/v1beta/locations/{locationId}/batch/backups"
+										r.args = args
+										r.count = 1
+										return r, true
+									default:
+										return
+									}
+								}
+
 							}
 
 						case 'p': // Prefix: "pools"

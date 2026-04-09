@@ -19,6 +19,16 @@ import (
 // swagger:model BatchBackupVault_v1beta
 type BatchBackupVaultV1beta struct {
 
+	// backupRegion
+	//
+	// The destination region the backup needs to be stored in.
+	// Max Length: 63
+	// Pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+	BackupRegion *string `json:"backupRegion"`
+
+	// backup retention policy
+	BackupRetentionPolicy *BackupRetentionPolicyV1beta `json:"backupRetentionPolicy,omitempty"`
+
 	// UUID
 	//
 	// UUID v4 used to identify the backup vault
@@ -27,44 +37,110 @@ type BatchBackupVaultV1beta struct {
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
 	BackupVaultID string `json:"backupVaultId,omitempty"`
 
+	// backupVaultType
+	//
+	// Type of the backup vault
+	// Enum: [IN_REGION CROSS_REGION TYPE_UNSPECIFIED]
+	BackupVaultType *string `json:"backupVaultType"`
+
+	// backupsPrimaryKeyVersion
+	//
+	// key version used to encrypt backups in the vault
+	// Read Only: true
+	BackupsPrimaryKeyVersion *string `json:"backupsPrimaryKeyVersion"`
+
 	// createdAt
 	//
 	// Creation date of the resource
 	// Format: date-time
-	CreatedAt *strfmt.DateTime `json:"createdAt,omitempty"`
+	CreatedAt *strfmt.DateTime `json:"createdAt"`
+
+	// crossProjectVault
+	//
+	// Indicates if the backup vault is a cross-project vault
+	// Read Only: true
+	CrossProjectVault *bool `json:"crossProjectVault"`
 
 	// description
 	//
 	// Description of backup vault
-	Description *string `json:"description,omitempty"`
+	Description *string `json:"description"`
+
+	// destinationBackupVault
+	//
+	// The destination region backup vault
+	DestinationBackupVault *string `json:"destinationBackupVault"`
+
+	// encryptionState
+	//
+	// Current state of CMEK encryption for the backup vault
+	// Read Only: true
+	// Enum: [ENCRYPTION_STATE_PENDING ENCRYPTION_STATE_COMPLETED ENCRYPTION_STATE_IN_PROGRESS ENCRYPTION_STATE_FAILED ENCRYPTION_STATE_UNSPECIFIED]
+	EncryptionState *string `json:"encryptionState"`
+
+	// kmsConfigResourcePath
+	//
+	// Complete resource path of the KMS config
+	KmsConfigResourcePath *string `json:"kmsConfigResourcePath"`
 
 	// name
 	//
 	// Human readable name of the backup vault
-	ResourceID *string `json:"resourceId,omitempty"`
+	ResourceID *string `json:"resourceId"`
+
+	// sourceBackupVault
+	//
+	// The source region backup vault
+	SourceBackupVault *string `json:"sourceBackupVault"`
+
+	// sourceRegion
+	//
+	// The source region of the backup
+	// Max Length: 63
+	// Pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+	SourceRegion *string `json:"sourceRegion"`
 
 	// lifeCycleState
 	//
 	// The current state of the backup vault
-	// Read Only: true
-	// Enum: [CREATING UPDATING DELETING READY DELETED ERROR]
-	State string `json:"state,omitempty"`
+	// Enum: [CREATING UPDATING DELETING READY DELETED ERROR STATE_UNSPECIFIED]
+	State *string `json:"state"`
 
 	// lifeCycleStateDetails
 	//
 	// Details about the current lifecycle state
-	StateDetails *string `json:"stateDetails,omitempty"`
+	StateDetails *string `json:"stateDetails"`
 }
 
 // Validate validates this batch backup vault v1beta
 func (m *BatchBackupVaultV1beta) Validate(formats strfmt.Registry) error {
 	var res []error
 
+	if err := m.validateBackupRegion(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateBackupRetentionPolicy(formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.validateBackupVaultID(formats); err != nil {
 		res = append(res, err)
 	}
 
+	if err := m.validateBackupVaultType(formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.validateCreatedAt(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateEncryptionState(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateSourceRegion(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -75,6 +151,41 @@ func (m *BatchBackupVaultV1beta) Validate(formats strfmt.Registry) error {
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
+	return nil
+}
+
+func (m *BatchBackupVaultV1beta) validateBackupRegion(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.BackupRegion) { // not required
+		return nil
+	}
+
+	if err := validate.MaxLength("backupRegion", "body", string(*m.BackupRegion), 63); err != nil {
+		return err
+	}
+
+	if err := validate.Pattern("backupRegion", "body", string(*m.BackupRegion), `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *BatchBackupVaultV1beta) validateBackupRetentionPolicy(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.BackupRetentionPolicy) { // not required
+		return nil
+	}
+
+	if m.BackupRetentionPolicy != nil {
+		if err := m.BackupRetentionPolicy.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("backupRetentionPolicy")
+			}
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -99,6 +210,52 @@ func (m *BatchBackupVaultV1beta) validateBackupVaultID(formats strfmt.Registry) 
 	return nil
 }
 
+var batchBackupVaultV1betaTypeBackupVaultTypePropEnum []interface{}
+
+func init() {
+	var res []string
+	if err := json.Unmarshal([]byte(`["IN_REGION","CROSS_REGION","TYPE_UNSPECIFIED"]`), &res); err != nil {
+		panic(err)
+	}
+	for _, v := range res {
+		batchBackupVaultV1betaTypeBackupVaultTypePropEnum = append(batchBackupVaultV1betaTypeBackupVaultTypePropEnum, v)
+	}
+}
+
+const (
+
+	// BatchBackupVaultV1betaBackupVaultTypeINREGION captures enum value "IN_REGION"
+	BatchBackupVaultV1betaBackupVaultTypeINREGION string = "IN_REGION"
+
+	// BatchBackupVaultV1betaBackupVaultTypeCROSSREGION captures enum value "CROSS_REGION"
+	BatchBackupVaultV1betaBackupVaultTypeCROSSREGION string = "CROSS_REGION"
+
+	// BatchBackupVaultV1betaBackupVaultTypeTYPEUNSPECIFIED captures enum value "TYPE_UNSPECIFIED"
+	BatchBackupVaultV1betaBackupVaultTypeTYPEUNSPECIFIED string = "TYPE_UNSPECIFIED"
+)
+
+// prop value enum
+func (m *BatchBackupVaultV1beta) validateBackupVaultTypeEnum(path, location string, value string) error {
+	if err := validate.EnumCase(path, location, value, batchBackupVaultV1betaTypeBackupVaultTypePropEnum, true); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *BatchBackupVaultV1beta) validateBackupVaultType(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.BackupVaultType) { // not required
+		return nil
+	}
+
+	// value enum
+	if err := m.validateBackupVaultTypeEnum("backupVaultType", "body", *m.BackupVaultType); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (m *BatchBackupVaultV1beta) validateCreatedAt(formats strfmt.Registry) error {
 
 	if swag.IsZero(m.CreatedAt) { // not required
@@ -112,11 +269,80 @@ func (m *BatchBackupVaultV1beta) validateCreatedAt(formats strfmt.Registry) erro
 	return nil
 }
 
+var batchBackupVaultV1betaTypeEncryptionStatePropEnum []interface{}
+
+func init() {
+	var res []string
+	if err := json.Unmarshal([]byte(`["ENCRYPTION_STATE_PENDING","ENCRYPTION_STATE_COMPLETED","ENCRYPTION_STATE_IN_PROGRESS","ENCRYPTION_STATE_FAILED","ENCRYPTION_STATE_UNSPECIFIED"]`), &res); err != nil {
+		panic(err)
+	}
+	for _, v := range res {
+		batchBackupVaultV1betaTypeEncryptionStatePropEnum = append(batchBackupVaultV1betaTypeEncryptionStatePropEnum, v)
+	}
+}
+
+const (
+
+	// BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEPENDING captures enum value "ENCRYPTION_STATE_PENDING"
+	BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEPENDING string = "ENCRYPTION_STATE_PENDING"
+
+	// BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATECOMPLETED captures enum value "ENCRYPTION_STATE_COMPLETED"
+	BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATECOMPLETED string = "ENCRYPTION_STATE_COMPLETED"
+
+	// BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEINPROGRESS captures enum value "ENCRYPTION_STATE_IN_PROGRESS"
+	BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEINPROGRESS string = "ENCRYPTION_STATE_IN_PROGRESS"
+
+	// BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEFAILED captures enum value "ENCRYPTION_STATE_FAILED"
+	BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEFAILED string = "ENCRYPTION_STATE_FAILED"
+
+	// BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEUNSPECIFIED captures enum value "ENCRYPTION_STATE_UNSPECIFIED"
+	BatchBackupVaultV1betaEncryptionStateENCRYPTIONSTATEUNSPECIFIED string = "ENCRYPTION_STATE_UNSPECIFIED"
+)
+
+// prop value enum
+func (m *BatchBackupVaultV1beta) validateEncryptionStateEnum(path, location string, value string) error {
+	if err := validate.EnumCase(path, location, value, batchBackupVaultV1betaTypeEncryptionStatePropEnum, true); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *BatchBackupVaultV1beta) validateEncryptionState(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.EncryptionState) { // not required
+		return nil
+	}
+
+	// value enum
+	if err := m.validateEncryptionStateEnum("encryptionState", "body", *m.EncryptionState); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *BatchBackupVaultV1beta) validateSourceRegion(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.SourceRegion) { // not required
+		return nil
+	}
+
+	if err := validate.MaxLength("sourceRegion", "body", string(*m.SourceRegion), 63); err != nil {
+		return err
+	}
+
+	if err := validate.Pattern("sourceRegion", "body", string(*m.SourceRegion), `^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 var batchBackupVaultV1betaTypeStatePropEnum []interface{}
 
 func init() {
 	var res []string
-	if err := json.Unmarshal([]byte(`["CREATING","UPDATING","DELETING","READY","DELETED","ERROR"]`), &res); err != nil {
+	if err := json.Unmarshal([]byte(`["CREATING","UPDATING","DELETING","READY","DELETED","ERROR","STATE_UNSPECIFIED"]`), &res); err != nil {
 		panic(err)
 	}
 	for _, v := range res {
@@ -143,6 +369,9 @@ const (
 
 	// BatchBackupVaultV1betaStateERROR captures enum value "ERROR"
 	BatchBackupVaultV1betaStateERROR string = "ERROR"
+
+	// BatchBackupVaultV1betaStateSTATEUNSPECIFIED captures enum value "STATE_UNSPECIFIED"
+	BatchBackupVaultV1betaStateSTATEUNSPECIFIED string = "STATE_UNSPECIFIED"
 )
 
 // prop value enum
@@ -160,7 +389,7 @@ func (m *BatchBackupVaultV1beta) validateState(formats strfmt.Registry) error {
 	}
 
 	// value enum
-	if err := m.validateStateEnum("state", "body", m.State); err != nil {
+	if err := m.validateStateEnum("state", "body", *m.State); err != nil {
 		return err
 	}
 

@@ -33,6 +33,18 @@ type Invoker interface {
 	//
 	// POST /v1beta/locations/{locationId}/batch/activeDirectories
 	V1betaBatchListActiveDirectories(ctx context.Context, request *BatchActiveDirectoryUUIDListV1beta, params V1betaBatchListActiveDirectoriesParams) (V1betaBatchListActiveDirectoriesRes, error)
+	// V1betaBatchListBackupVaults invokes v1beta_batchListBackupVaults operation.
+	//
+	// Batch list all backup vaults with the given UUIDs.
+	//
+	// POST /v1beta/locations/{locationId}/batch/backupVaults
+	V1betaBatchListBackupVaults(ctx context.Context, request *BatchBackupVaultUUIDListV1beta, params V1betaBatchListBackupVaultsParams) (V1betaBatchListBackupVaultsRes, error)
+	// V1betaBatchListBackups invokes v1beta_batchListBackups operation.
+	//
+	// Batch list all backups with the given UUIDs.
+	//
+	// POST /v1beta/locations/{locationId}/batch/backups
+	V1betaBatchListBackups(ctx context.Context, request *BatchBackupUUIDListV1beta, params V1betaBatchListBackupsParams) (V1betaBatchListBackupsRes, error)
 	// V1betaBatchListPools invokes v1beta_batchListPools operation.
 	//
 	// Batch lists all pools with the given UUIDs across all accounts.
@@ -989,6 +1001,230 @@ func (c *Client) sendV1betaBatchListActiveDirectories(ctx context.Context, reque
 	defer resp.Body.Close()
 
 	result, err := decodeV1betaBatchListActiveDirectoriesResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1betaBatchListBackupVaults invokes v1beta_batchListBackupVaults operation.
+//
+// Batch list all backup vaults with the given UUIDs.
+//
+// POST /v1beta/locations/{locationId}/batch/backupVaults
+func (c *Client) V1betaBatchListBackupVaults(ctx context.Context, request *BatchBackupVaultUUIDListV1beta, params V1betaBatchListBackupVaultsParams) (V1betaBatchListBackupVaultsRes, error) {
+	res, err := c.sendV1betaBatchListBackupVaults(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaBatchListBackupVaults(ctx context.Context, request *BatchBackupVaultUUIDListV1beta, params V1betaBatchListBackupVaultsParams) (res V1betaBatchListBackupVaultsRes, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/v1beta/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/batch/backupVaults"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "fields" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "fields",
+			Style:   uri.QueryStyleForm,
+			Explode: false,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if params.Fields != nil {
+				return e.EncodeArray(func(e uri.Encoder) error {
+					for i, item := range params.Fields {
+						if err := func() error {
+							return e.EncodeValue(conv.StringToString(string(item)))
+						}(); err != nil {
+							return errors.Wrapf(err, "[%d]", i)
+						}
+					}
+					return nil
+				})
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1betaBatchListBackupVaultsRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaBatchListBackupVaultsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1betaBatchListBackups invokes v1beta_batchListBackups operation.
+//
+// Batch list all backups with the given UUIDs.
+//
+// POST /v1beta/locations/{locationId}/batch/backups
+func (c *Client) V1betaBatchListBackups(ctx context.Context, request *BatchBackupUUIDListV1beta, params V1betaBatchListBackupsParams) (V1betaBatchListBackupsRes, error) {
+	res, err := c.sendV1betaBatchListBackups(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaBatchListBackups(ctx context.Context, request *BatchBackupUUIDListV1beta, params V1betaBatchListBackupsParams) (res V1betaBatchListBackupsRes, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/v1beta/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/batch/backups"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "fields" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "fields",
+			Style:   uri.QueryStyleForm,
+			Explode: false,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if params.Fields != nil {
+				return e.EncodeArray(func(e uri.Encoder) error {
+					for i, item := range params.Fields {
+						if err := func() error {
+							return e.EncodeValue(conv.StringToString(string(item)))
+						}(); err != nil {
+							return errors.Wrapf(err, "[%d]", i)
+						}
+					}
+					return nil
+				})
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1betaBatchListBackupsRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaBatchListBackupsResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

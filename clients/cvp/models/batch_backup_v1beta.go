@@ -19,6 +19,15 @@ import (
 // swagger:model BatchBackup_v1beta
 type BatchBackupV1beta struct {
 
+	// asset location metadata
+	AssetLocationMetadata *AssetLocationMetadataV2 `json:"assetLocationMetadata,omitempty"`
+
+	// backupChainBytes
+	//
+	// Size in bytes of the backup of the volume
+	// Read Only: true
+	BackupChainBytes *int64 `json:"backupChainBytes"`
+
 	// backupId
 	//
 	// UUID v4 used to identify the backup
@@ -27,58 +36,105 @@ type BatchBackupV1beta struct {
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
 	BackupID string `json:"backupId,omitempty"`
 
+	// backupRegion
+	//
+	// Name of the backup region
+	BackupRegion *string `json:"backupRegion"`
+
 	// backupType
 	//
 	// Type of backup, manually created (adhoc) or created by a schedule
 	// Enum: [MANUAL SCHEDULED]
-	BackupType string `json:"backupType,omitempty"`
+	BackupType *string `json:"backupType"`
 
 	// UUID v4 used to identify the backup vault ID
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
-	BackupVaultID *string `json:"backupVaultId,omitempty"`
+	BackupVaultID *string `json:"backupVaultId"`
 
 	// created
 	//
 	// Creation date of the resource
 	// Format: date-time
-	Created *strfmt.DateTime `json:"created,omitempty"`
+	Created *strfmt.DateTime `json:"created"`
 
 	// description
 	//
 	// Description of the backup
-	Description *string `json:"description,omitempty"`
+	Description *string `json:"description"`
+
+	// enforcedRetentionEndTime
+	//
+	// Backup enforced-retention end time
+	// Read Only: true
+	// Format: date-time
+	EnforcedRetentionEndTime *strfmt.DateTime `json:"enforcedRetentionEndTime"`
 
 	// resourceId
 	//
 	// Human readable name of the backup
-	ResourceID *string `json:"resourceId,omitempty"`
+	ResourceID *string `json:"resourceId"`
+
+	// Flag describing whether backup supports zone isolation.
+	// Read Only: true
+	SatisfiesPzi *bool `json:"satisfiesPzi"`
+
+	// Flag describing whether backup supports zone separation.
+	// Read Only: true
+	SatisfiesPzs *bool `json:"satisfiesPzs"`
+
+	// snapshotId
+	//
+	// UUID v4 of the snapshot that was used to create the backup
+	// Read Only: true
+	// Max Length: 36
+	// Min Length: 36
+	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+	SnapshotID *string `json:"snapshotId"`
 
 	// sourceSnapshot
 	//
 	// Name of the snapshot
-	SourceSnapshot *string `json:"sourceSnapshot,omitempty"`
+	SourceSnapshot *string `json:"sourceSnapshot"`
 
 	// sourceVolume
 	//
 	// Display name of the volume
-	SourceVolume *string `json:"sourceVolume,omitempty"`
+	SourceVolume *string `json:"sourceVolume"`
 
 	// state
 	//
 	// The current state of the backup
 	// Read Only: true
-	// Enum: [CREATING READY UPLOADING RESTORING DISABLED DELETING DELETED ERROR]
-	State string `json:"state,omitempty"`
+	// Enum: [CREATING READY UPLOADING RESTORING DISABLED DELETING DELETED ERROR STATE_UNSPECIFIED]
+	State *string `json:"state"`
+
+	// volumeId
+	//
+	// UUID v4 of the volume
+	// Read Only: true
+	// Max Length: 36
+	// Min Length: 36
+	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+	VolumeID *string `json:"volumeId"`
+
+	// volumeRegion
+	//
+	// Name of the volume region
+	VolumeRegion *string `json:"volumeRegion"`
 
 	// volumeUsageBytes
 	//
 	// Current storage usage for the backup in bytes
-	VolumeUsageBytes *int64 `json:"volumeUsageBytes,omitempty"`
+	VolumeUsageBytes *int64 `json:"volumeUsageBytes"`
 }
 
 // Validate validates this batch backup v1beta
 func (m *BatchBackupV1beta) Validate(formats strfmt.Registry) error {
 	var res []error
+
+	if err := m.validateAssetLocationMetadata(formats); err != nil {
+		res = append(res, err)
+	}
 
 	if err := m.validateBackupID(formats); err != nil {
 		res = append(res, err)
@@ -96,13 +152,43 @@ func (m *BatchBackupV1beta) Validate(formats strfmt.Registry) error {
 		res = append(res, err)
 	}
 
+	if err := m.validateEnforcedRetentionEndTime(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateSnapshotID(formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.validateState(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateVolumeID(formats); err != nil {
 		res = append(res, err)
 	}
 
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
+	return nil
+}
+
+func (m *BatchBackupV1beta) validateAssetLocationMetadata(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.AssetLocationMetadata) { // not required
+		return nil
+	}
+
+	if m.AssetLocationMetadata != nil {
+		if err := m.AssetLocationMetadata.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("assetLocationMetadata")
+			}
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -163,7 +249,7 @@ func (m *BatchBackupV1beta) validateBackupType(formats strfmt.Registry) error {
 	}
 
 	// value enum
-	if err := m.validateBackupTypeEnum("backupType", "body", m.BackupType); err != nil {
+	if err := m.validateBackupTypeEnum("backupType", "body", *m.BackupType); err != nil {
 		return err
 	}
 
@@ -196,11 +282,45 @@ func (m *BatchBackupV1beta) validateCreated(formats strfmt.Registry) error {
 	return nil
 }
 
+func (m *BatchBackupV1beta) validateEnforcedRetentionEndTime(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.EnforcedRetentionEndTime) { // not required
+		return nil
+	}
+
+	if err := validate.FormatOf("enforcedRetentionEndTime", "body", "date-time", m.EnforcedRetentionEndTime.String(), formats); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *BatchBackupV1beta) validateSnapshotID(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.SnapshotID) { // not required
+		return nil
+	}
+
+	if err := validate.MinLength("snapshotId", "body", string(*m.SnapshotID), 36); err != nil {
+		return err
+	}
+
+	if err := validate.MaxLength("snapshotId", "body", string(*m.SnapshotID), 36); err != nil {
+		return err
+	}
+
+	if err := validate.Pattern("snapshotId", "body", string(*m.SnapshotID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 var batchBackupV1betaTypeStatePropEnum []interface{}
 
 func init() {
 	var res []string
-	if err := json.Unmarshal([]byte(`["CREATING","READY","UPLOADING","RESTORING","DISABLED","DELETING","DELETED","ERROR"]`), &res); err != nil {
+	if err := json.Unmarshal([]byte(`["CREATING","READY","UPLOADING","RESTORING","DISABLED","DELETING","DELETED","ERROR","STATE_UNSPECIFIED"]`), &res); err != nil {
 		panic(err)
 	}
 	for _, v := range res {
@@ -233,6 +353,9 @@ const (
 
 	// BatchBackupV1betaStateERROR captures enum value "ERROR"
 	BatchBackupV1betaStateERROR string = "ERROR"
+
+	// BatchBackupV1betaStateSTATEUNSPECIFIED captures enum value "STATE_UNSPECIFIED"
+	BatchBackupV1betaStateSTATEUNSPECIFIED string = "STATE_UNSPECIFIED"
 )
 
 // prop value enum
@@ -250,7 +373,28 @@ func (m *BatchBackupV1beta) validateState(formats strfmt.Registry) error {
 	}
 
 	// value enum
-	if err := m.validateStateEnum("state", "body", m.State); err != nil {
+	if err := m.validateStateEnum("state", "body", *m.State); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *BatchBackupV1beta) validateVolumeID(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.VolumeID) { // not required
+		return nil
+	}
+
+	if err := validate.MinLength("volumeId", "body", string(*m.VolumeID), 36); err != nil {
+		return err
+	}
+
+	if err := validate.MaxLength("volumeId", "body", string(*m.VolumeID), 36); err != nil {
+		return err
+	}
+
+	if err := validate.Pattern("volumeId", "body", string(*m.VolumeID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
 		return err
 	}
 
