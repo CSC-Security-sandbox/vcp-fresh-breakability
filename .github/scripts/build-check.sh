@@ -1126,6 +1126,22 @@ elif [[ -f "$MAIN_DIR/go.mod" ]]; then
         }
       } 2>&1)
       _mod_exit=$?
+      # Cache corruption retry for this specific module
+      if [[ "$_mod_exit" -ne 0 ]] && [[ "$(classify_go_error "$_mod_output")" == "cache_corruption" ]]; then
+        echo "    ⚠ Go build cache corruption on baseline module $_mod_rel — cleaning and retrying..."
+        (cd "$_mod_dir" && go clean -cache 2>/dev/null || true)
+        _mod_output=$(cd "$_mod_dir" && {
+          go_free_disk
+          _BUILD_RC=0
+          retry_cmd 3 5 go mod tidy && {
+            timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
+            if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
+            exit $_BUILD_RC
+          }
+        } 2>&1)
+        _mod_exit=$?
+        echo "    module $_mod_rel cache-clean retry: exit=$_mod_exit"
+      fi
       echo "    module $_mod_rel: exit=$_mod_exit"
       main_go_output="$main_go_output
 --- module: $_mod_rel (exit=$_mod_exit) ---

@@ -298,16 +298,26 @@ print(' '.join(data.get('prs', {}).keys()))
 ")
 
 DELETED_COUNT=0
+PRESERVED_COUNT=0
 for PR_NUM in $PR_NUMS; do
+  # Only delete old deterministic (breakability-check) comments.
+  # PRESERVE richer AI agent (breakability-agent) comments — they contain
+  # changelog analysis, CVE context, and migration guidance that the
+  # deterministic fallback cannot reproduce.
   COMMENT_IDS=$(gh api "repos/$OWNER/$REPO/issues/$PR_NUM/comments" \
-    --jq '.[] | select(.body | contains("<!-- breakability-check -->") or contains("<!-- breakability-agent -->")) | .id' \
+    --jq '.[] | select(.body | contains("<!-- breakability-check -->")) | select(.body | contains("<!-- breakability-agent -->") | not) | .id' \
     2>/dev/null || true)
   for CID in $COMMENT_IDS; do
     gh api -X DELETE "repos/$OWNER/$REPO/issues/comments/$CID" 2>/dev/null || true
     DELETED_COUNT=$((DELETED_COUNT + 1))
   done
+  # Count preserved AI comments for logging
+  AI_COMMENT_COUNT=$(gh api "repos/$OWNER/$REPO/issues/$PR_NUM/comments" \
+    --jq '[.[] | select(.body | contains("<!-- breakability-agent -->"))] | length' \
+    2>/dev/null || echo "0")
+  [[ "$AI_COMMENT_COUNT" -gt 0 ]] && PRESERVED_COUNT=$((PRESERVED_COUNT + AI_COMMENT_COUNT))
 done
-echo "  Deleted $DELETED_COUNT old comments"
+echo "  Deleted $DELETED_COUNT old deterministic comments, preserved $PRESERVED_COUNT AI agent comments"
 
 # ── Summary ──────────────────────────────────────────────────────────────────
 TOTAL_PRS=$(python3 -c "import json; print(len(json.load(open('/tmp/build-results.json')).get('prs', {})))")

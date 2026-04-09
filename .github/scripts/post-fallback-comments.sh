@@ -90,6 +90,8 @@ print(json.dumps({
     'test_exit':    test.get('exit', -1),
     'verification_label': pr.get('verification_label', ''),
     'files_importing': pr.get('files_importing', []),
+    'cves':         pr.get('cves', []),
+    'error_class':  build.get('error_class', ''),
 }))
 " 2>/dev/null || echo '{}')
 
@@ -106,6 +108,77 @@ print(json.dumps({
   VER_LABEL=$(echo "$PR_FIELDS"      | python3 -c "import json,sys; print(json.load(sys.stdin).get('verification_label',''))")
   NEW_ERR_COUNT=$(echo "$PR_FIELDS"  | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('new_errors',[])))")
   FILES_COUNT=$(echo "$PR_FIELDS"    | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('files_importing',[])))")
+
+  # CVE extraction — core security data
+  CVE_LIST=$(echo "$PR_FIELDS" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+cves = d.get('cves', [])
+if cves:
+    print(','.join(cves))
+else:
+    print('')
+" 2>/dev/null || echo "")
+  CVE_COUNT=$(echo "$PR_FIELDS" | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('cves',[])))")
+
+  # Build security line for comment templates
+  CVE_LINE=""
+  if [[ "$CVE_COUNT" -gt 0 && "$CVE_COUNT" != "0" ]]; then
+    # Format: 🔴 2 CVEs: CVE-2024-1234, CVE-2024-5678
+    CVE_LINE="
+🔴 **Security: $CVE_COUNT CVE(s) fixed by this upgrade:** $CVE_LIST"
+  fi
+
+  # Build "How we checked" checklist from verification_label
+  HOW_CHECKED=""
+  case "$VER_LABEL" in
+    L4*)
+      HOW_CHECKED="
+<details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
+
+- ✅ Dependency resolved successfully
+- ✅ Project builds / type-checks clean
+- ✅ Automated tests pass
+- ✅ No new errors introduced vs. main
+</details>"
+      ;;
+    L3*)
+      HOW_CHECKED="
+<details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
+
+- ✅ Dependency resolved successfully
+- ✅ Project builds / type-checks clean
+- ⬜ Tests not configured or not run
+- ✅ No new errors introduced vs. main
+</details>"
+      ;;
+    L2*)
+      HOW_CHECKED="
+<details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
+
+- ✅ Dependency resolved successfully
+- ❌ Build produced errors (see details above)
+- ⬜ Tests not run (build failed)
+</details>"
+      ;;
+    L1*)
+      HOW_CHECKED="
+<details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
+
+- ✅ Dependency resolved successfully
+- ⬜ Build verification limited
+</details>"
+      ;;
+    *)
+      if [[ -n "$VER_LABEL" ]]; then
+        HOW_CHECKED="
+<details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
+
+- ⬜ Limited verification performed
+</details>"
+      fi
+      ;;
+  esac
 
   # Excerpt of build output (first 10 lines of errors for context)
   BUILD_EXCERPT=$(echo "$PR_FIELDS" | python3 -c "
@@ -145,7 +218,7 @@ else:
 
 GitHub Actions workflow dependency. No application code affected.
 
-Verification: **NA** — CI-only change${PLAN_LINE}${ADVISORY_FOOTER}
+Verification: **NA** — CI-only change${CVE_LINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 > ⚠️ *Fallback comment — AI agent did not run or did not cover this PR*"
 
   elif [[ "$ECOSYSTEM" == "docker" && "$BUMP" != "major" ]]; then
@@ -153,7 +226,7 @@ Verification: **NA** — CI-only change${PLAN_LINE}${ADVISORY_FOOTER}
     COMMENT="<!-- breakability-check -->
 ## ✅ SAFE — \`$PKG\` $FROM → $TO · production · $BUMP
 
-Docker base image $BUMP bump. No application source changes.${PLAN_LINE}${ADVISORY_FOOTER}
+Docker base image $BUMP bump. No application source changes.${CVE_LINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 > ⚠️ *Fallback comment — AI agent did not run or did not cover this PR*"
 
   elif [[ "$VERDICT" == "pass" && "$BUMP" == "patch" && "$FILES_COUNT" -lt 5 ]]; then
@@ -163,7 +236,7 @@ Docker base image $BUMP bump. No application source changes.${PLAN_LINE}${ADVISO
 
 Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)
 
-$BUMP bump with passing build. No new type errors introduced.${PLAN_LINE}${ADVISORY_FOOTER}
+$BUMP bump with passing build. No new type errors introduced.${CVE_LINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 > ⚠️ *Fallback comment — AI agent did not run or did not cover this PR*"
 
   elif [[ "$VERDICT" == "pass" && "$DEP_REL" == "transitive" ]]; then
@@ -173,7 +246,7 @@ $BUMP bump with passing build. No new type errors introduced.${PLAN_LINE}${ADVIS
 
 Build: ✅ passes · Verification: **${VER_LABEL:-L1}**
 
-Transitive dependency — your code does not import it directly. Build passes.${PLAN_LINE}${ADVISORY_FOOTER}
+Transitive dependency — your code does not import it directly. Build passes.${CVE_LINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 > ⚠️ *Fallback comment — AI agent did not run or did not cover this PR*"
 
   elif [[ "$VERDICT" == "pass" ]]; then
@@ -185,7 +258,7 @@ Transitive dependency — your code does not import it directly. Build passes.${
     COMMENT="<!-- breakability-check -->
 ## 🔍 BUILD ANALYSIS — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
 
-Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)$NEW_ERR_NOTE
+Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)$NEW_ERR_NOTE${CVE_LINE}
 
 ### Summary (deterministic fallback — no AI analysis)
 - Package: \`$PKG\` $FROM → $TO ($BUMP bump)
@@ -193,7 +266,7 @@ Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT f
 - Build passes on PR branch
 - New type errors: $NEW_ERR_COUNT
 
-**Recommendation:** Review changelog for $BUMP bump breaking changes. Build passes — merge when ready.${PLAN_LINE}${ADVISORY_FOOTER}
+**Recommendation:** Review changelog for $BUMP bump breaking changes. Build passes — merge when ready.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 > ⚠️ *Fallback comment — AI agent did not run or did not cover this PR. Full AI analysis was not performed.*"
 
   elif [[ "$VERDICT" == "fail" ]]; then
@@ -208,7 +281,7 @@ ${BUILD_EXCERPT}
     COMMENT="<!-- breakability-check -->
 ## ❌ BUILD_FAILS — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
 
-Build: ❌ fails on PR branch, ✅ passes on main · Usage: $FILES_COUNT file(s)
+Build: ❌ fails on PR branch, ✅ passes on main · Usage: $FILES_COUNT file(s)${CVE_LINE}
 
 ### Build errors (excerpt)$EXCERPT_BLOCK
 
@@ -218,7 +291,7 @@ Build: ❌ fails on PR branch, ✅ passes on main · Usage: $FILES_COUNT file(s)
 3. Fix type errors or update your code to match the new API
 4. Re-run the breakability analysis after your fix
 
-**Do not merge — build is broken.** ($BUMP bump)${PLAN_LINE}${ADVISORY_FOOTER}
+**Do not merge — build is broken.** ($BUMP bump)${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 > ⚠️ *Fallback comment — AI agent did not run or did not cover this PR.*"
 
   elif [[ "$VERDICT" == "pre_existing" ]]; then
@@ -226,12 +299,12 @@ Build: ❌ fails on PR branch, ✅ passes on main · Usage: $FILES_COUNT file(s)
     COMMENT="<!-- breakability-check -->
 ## ⚙️ UNVERIFIED — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
 
-Build: ⚙️ same errors on main and PR branch — pre-existing failure, not caused by this upgrade
+Build: ⚙️ same errors on main and PR branch — pre-existing failure, not caused by this upgrade${CVE_LINE}
 
 ### What this means
 The build fails on both \`main\` and this PR with the same errors. This upgrade does **not** introduce new failures. However, build verification could not confirm compatibility because the baseline is broken.
 
-**Recommendation:** Fix pre-existing build failures on \`main\` first, then re-analyze. This upgrade is likely safe but unconfirmed.${PLAN_LINE}${ADVISORY_FOOTER}
+**Recommendation:** Fix pre-existing build failures on \`main\` first, then re-analyze. This upgrade is likely safe but unconfirmed.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 > ⚠️ *Fallback comment — AI agent did not run or did not cover this PR.*"
 
   elif [[ "$VERDICT" == "pre_existing_plus_new" ]]; then
@@ -239,9 +312,9 @@ The build fails on both \`main\` and this PR with the same errors. This upgrade 
     COMMENT="<!-- breakability-check -->
 ## ❌ BUILD_FAILS — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
 
-Build: ❌ new errors introduced by this PR (on top of pre-existing failures)
+Build: ❌ new errors introduced by this PR (on top of pre-existing failures)${CVE_LINE}
 
-This upgrade introduces **$NEW_ERR_COUNT new error(s)** not present on \`main\`. Fix required before merging.${PLAN_LINE}${ADVISORY_FOOTER}
+This upgrade introduces **$NEW_ERR_COUNT new error(s)** not present on \`main\`. Fix required before merging.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 > ⚠️ *Fallback comment — AI agent did not run or did not cover this PR.*"
 
   elif [[ "$INSTALL_METHOD" == "infra_error" ]]; then
@@ -249,12 +322,12 @@ This upgrade introduces **$NEW_ERR_COUNT new error(s)** not present on \`main\`.
     COMMENT="<!-- breakability-check -->
 ## 🔍 REVIEW — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
 
-Build: ⚠️ blocked by infrastructure error — build verification could not run
+Build: ⚠️ blocked by infrastructure error — build verification could not run${CVE_LINE}
 
 ### What happened
 The build check was blocked by an infrastructure issue (private registry, network timeout, or missing dependency not caused by this upgrade). **This is not a build failure from the upgrade.**
 
-**Recommendation:** Verify infrastructure health, then re-run. If infrastructure is healthy, review manually.${PLAN_LINE}${ADVISORY_FOOTER}
+**Recommendation:** Verify infrastructure health, then re-run. If infrastructure is healthy, review manually.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 > ⚠️ *Fallback comment — AI agent did not run or did not cover this PR.*"
 
   else
@@ -262,9 +335,9 @@ The build check was blocked by an infrastructure issue (private registry, networ
     COMMENT="<!-- breakability-check -->
 ## 🔍 REVIEW — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
 
-Build analysis status: \`$VERDICT\` (verification: ${VER_LABEL:-unknown})
+Build analysis status: \`$VERDICT\` (verification: ${VER_LABEL:-unknown})${CVE_LINE}
 
-Automated build analysis was not conclusive for this PR. Manual review recommended.${PLAN_LINE}${ADVISORY_FOOTER}
+Automated build analysis was not conclusive for this PR. Manual review recommended.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 > ⚠️ *Fallback comment — AI agent did not run or did not cover this PR.*"
   fi
 
