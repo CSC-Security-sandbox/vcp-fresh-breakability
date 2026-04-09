@@ -582,6 +582,13 @@ func validateCreateSnapshotOperation(volume *datamodel.Volume, params *common.Cr
 		return customerrors.NewConflictErr("Cannot create a snapshot when volume is in deleting stage.")
 	}
 
+	if volume.VolumeAttributes != nil && volume.VolumeAttributes.CloneParentInfo != nil {
+		cloneState := volume.VolumeAttributes.CloneParentInfo.State
+		if cloneState == models.CloneStateSplitting {
+			return customerrors.NewConflictErr("Cannot create a snapshot when volume is undergoing split operation.")
+		}
+	}
+
 	// @TODO: Include DataProtection check when implemented
 
 	return nil
@@ -604,6 +611,12 @@ func _deleteSnapshot(ctx context.Context, se database.Storage, temporal client.C
 
 	if volume.State == models.LifeCycleStateDeleting {
 		return nil, "", customerrors.NewConflictErr("Volume of the snapshot is being deleted")
+	}
+
+	if volume.VolumeAttributes != nil && volume.VolumeAttributes.CloneParentInfo != nil {
+		if volume.VolumeAttributes.CloneParentInfo.State == models.CloneStateSplitting {
+			return nil, "", customerrors.NewConflictErr("Snapshot deletion is not allowed when the volume is splitting")
+		}
 	}
 
 	snapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotID, volume.Account.ID, volume.ID)

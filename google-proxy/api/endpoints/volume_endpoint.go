@@ -272,6 +272,12 @@ func (h Handler) V1betaRevertVolume(ctx context.Context, req *gcpgenserver.Volum
 				Message: err.Error(),
 			}, nil
 		}
+		if errors.IsConflictErr(err) {
+			return &gcpgenserver.V1betaRevertVolumeConflict{
+				Code:    409,
+				Message: err.Error(),
+			}, nil
+		}
 		if errors.IsUserInputValidationErr(err) || errors.IsConflictErr(err) || strings.Contains(err.Error(), "one or more newer Snapshot copies are currently used as a reference Snapshot copy for data protection operations") {
 			return &gcpgenserver.V1betaRevertVolumeBadRequest{
 				Code:    400,

@@ -1012,6 +1012,49 @@ func Test_validateCreateReplicationParams(t *testing.T) {
 		assert.NotNil(t, replication)
 	})
 
+	t.Run("Fails when source volume is a thin clone undergoing split operation", func(t *testing.T) {
+		eventCopy := *event
+		volumeCopy := baseVolume
+		volumeCopy.VolumeAttributes = &datamodel.VolumeAttributes{
+			IsDataProtection: false,
+			CreationToken:    "token-1",
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-vol-uuid",
+				State:            coreModels.CloneStateSplitting,
+			},
+		}
+		eventCopy.SourceVolume = volumeCopy
+
+		mockStorage := &database.MockStorage{}
+
+		origGetSignedToken := InternalUtilGetSignedToken
+		InternalUtilGetSignedToken = func(p string) (string, error) { return "token", nil }
+		defer func() { InternalUtilGetSignedToken = origGetSignedToken }()
+
+		origParseRegionAndZone := InternalParseRegionAndZone
+		InternalParseRegionAndZone = func(location string) (string, string, error) {
+			if location == locationID {
+				return "us-east1", "us-east1-a", nil
+			}
+			return "us-east4", "us-east4-a", nil
+		}
+		defer func() { InternalParseRegionAndZone = origParseRegionAndZone }()
+
+		origGetPairedRegionURI := InternalUtilGetPairedRegionURI
+		InternalUtilGetPairedRegionURI = func(region string) (string, error) { return "basePath", nil }
+		defer func() { InternalUtilGetPairedRegionURI = origGetPairedRegionURI }()
+
+		origValidateReplicationResourceId := ValidateReplicationResourceId
+		ValidateReplicationResourceId = func(ctx context.Context, projectNumber string, paramReplicationResourceId string, paramsVolumeResourceId string, se database.Storage) error {
+			return nil
+		}
+		defer func() { ValidateReplicationResourceId = origValidateReplicationResourceId }()
+
+		_, err := _validateCreateReplicationParams(ctx, &eventCopy, mockStorage)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "Cannot create replication as source volume is undergoing split operation")
+	})
+
 	t.Run("Fails when replicationSchedule is UNSPECIFIED", func(t *testing.T) {
 		unspecified := models.ReplicationV1betaReplicationScheduleREPLICATIONSCHEDULEUNSPECIFIED
 		eventCopy := *event

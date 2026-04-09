@@ -10674,6 +10674,29 @@ func TestV1betaRevertVolume(t *testing.T) {
 		assert.Equal(tt, float64(404), internalErr.Code)
 		assert.Contains(tt, internalErr.Message, "Volume not found")
 	})
+
+	t.Run("WhenOrchestratorConflictError_Return409Conflict", func(tt *testing.T) {
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		handler := Handler{Orchestrator: mockOrchestrator}
+
+		params := gcpgenserver.V1betaRevertVolumeParams{
+			LocationId:    "location-id",
+			ProjectNumber: "project-number",
+			VolumeId:      "vol-1",
+		}
+		req := &gcpgenserver.VolumeRevertV1beta{
+			SnapshotId: "snapshot-1",
+		}
+
+		mockOrchestrator.EXPECT().RevertVolume(mock.Anything, mock.Anything).Return(nil, "", errors.NewConflictErr("Reverting to a snapshot is not allowed when the volume is splitting"))
+
+		result, err := handler.V1betaRevertVolume(context.Background(), req, params)
+		assert.NoError(tt, err)
+		conflictErr, ok := result.(*gcpgenserver.V1betaRevertVolumeConflict)
+		assert.True(tt, ok)
+		assert.Equal(tt, float64(409), conflictErr.Code)
+		assert.Contains(tt, conflictErr.Message, "Reverting to a snapshot is not allowed when the volume is splitting")
+	})
 }
 
 func TestPrepareRevertVolumeParams(t *testing.T) {

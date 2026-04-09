@@ -743,6 +743,12 @@ func _revertVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", customerrors.NewUserInputValidationErr("Cannot revert a Data Protection Volume")
 	}
 
+	if volume.VolumeAttributes != nil && volume.VolumeAttributes.CloneParentInfo != nil {
+		if volume.VolumeAttributes.CloneParentInfo.State == models.CloneStateSplitting {
+			return nil, "", customerrors.NewConflictErr("Reverting to a snapshot is not allowed when the volume is splitting")
+		}
+	}
+
 	// Validate snapshot exists and is accessible
 	snapshot, err := se.GetSnapshotByUUID(ctx, params.SnapshotID, volume.Account.ID, volume.ID)
 	if err != nil {
@@ -1426,6 +1432,13 @@ func _validateCreateVolumeParams(ctx context.Context, se database.Storage, param
 			return err
 		}
 
+		if dbSnapshot.Volume != nil && dbSnapshot.Volume.VolumeAttributes != nil && dbSnapshot.Volume.VolumeAttributes.CloneParentInfo != nil {
+			if dbSnapshot.Volume.VolumeAttributes.CloneParentInfo.State == models.CloneStateSplitting {
+				logger.Error("Cannot restore volume from snapshot as parent volume is undergoing split operation", "volume_id", dbSnapshot.Volume.UUID)
+				return customerrors.NewConflictErr("Cannot restore volume from snapshot as the parent volume is undergoing split operation")
+			}
+		}
+
 		if !thinCloneGASupport {
 			if pool.ThinCloneVolumeCount+1 > maxThinClonesPerPool {
 				return customerrors.NewUserInputValidationErr("pool has reached maximum clone volume limit")
@@ -1656,6 +1669,13 @@ func _validateDeleteVolumeParams(ctx context.Context, se database.Storage, volum
 
 	if replicationCount > 0 {
 		return customerrors.NewUserInputValidationErr("Cannot delete volume that has active replication. Please delete the replication first.")
+	}
+
+	if volume.VolumeAttributes != nil && volume.VolumeAttributes.CloneParentInfo != nil {
+		cloneState := volume.VolumeAttributes.CloneParentInfo.State
+		if cloneState == models.CloneStateSplitting {
+			return customerrors.NewConflictErr("Volume deletion is not allowed when the volume is splitting")
+		}
 	}
 
 	return nil

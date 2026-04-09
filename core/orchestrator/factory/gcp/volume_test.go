@@ -3654,10 +3654,183 @@ func TestValidateCreateVolumeParamsValidationLogic(t *testing.T) {
 			QuotaInBytes: 0,
 		}
 
+	err = _validateCreateVolumeParams(ctx, store, params, poolView)
+	assert.Error(tt, err, "Should return error for regular capacity volume with quota below minimum")
+	assert.Contains(tt, err.Error(), "Invalid volume capacity", "Error should mention invalid volume capacity")
+	assert.Contains(tt, err.Error(), "Must be between", "Error should mention the valid range")
+	})
+
+	t.Run("RestoreFromSnapshot_BlockedWhenParentVolumeIsSplitting", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			Network:     "test-network",
+			SizeInBytes: int64(100 * 1024 * 1024 * 1024), // 100GB
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		// Parent volume is a thin clone undergoing split
+		parentVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "splitting-parent-volume-uuid"},
+			Name:      "splitting_parent_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID: "grandparent-vol-uuid",
+					State:            models.CloneStateSplitting,
+				},
+			},
+		}
+		err = store.DB().Create(parentVolume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create parent volume: %v", err)
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  parentVolume.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
+			Name:         "restore-volume",
+			PoolID:       pool.UUID,
+			QuotaInBytes: 10 * 1024 * 1024 * 1024, // 10GB
+			Protocols:    []string{utils.ProtocolNFSv3},
+			Network:      "test-network",
+			SnapshotID:   "test-snapshot-uuid",
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
 		err = _validateCreateVolumeParams(ctx, store, params, poolView)
-		assert.Error(tt, err, "Should return error for regular capacity volume with quota below minimum")
-		assert.Contains(tt, err.Error(), "Invalid volume capacity", "Error should mention invalid volume capacity")
-		assert.Contains(tt, err.Error(), "Must be between", "Error should mention the valid range")
+		assert.EqualError(tt, err, "Cannot restore volume from snapshot as the parent volume is undergoing split operation")
+	})
+
+	t.Run("RestoreFromSnapshot_AllowedWhenParentVolumeIsNotSplitting", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:        "test_pool",
+			AccountID:   account.ID,
+			State:       models.LifeCycleStateREADY,
+			Network:     "test-network",
+			SizeInBytes: int64(100 * 1024 * 1024 * 1024), // 100GB
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		// Parent volume is a regular thin clone (not splitting)
+		parentVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "cloned-parent-volume-uuid"},
+			Name:      "cloned_parent_volume",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID: "grandparent-vol-uuid",
+					State:            models.CloneStateCloned,
+				},
+			},
+		}
+		err = store.DB().Create(parentVolume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create parent volume: %v", err)
+		}
+
+		snapshot := &datamodel.Snapshot{
+			BaseModel: datamodel.BaseModel{UUID: "test-snapshot-uuid"},
+			Name:      "test_snapshot",
+			AccountID: account.ID,
+			VolumeID:  parentVolume.ID,
+			State:     models.LifeCycleStateREADY,
+		}
+		err = store.DB().Create(snapshot).Error
+		if err != nil {
+			tt.Fatalf("Failed to create snapshot: %v", err)
+		}
+
+		params := &common.CreateVolumeParams{
+			AccountName:  "test_account",
+			Name:         "restore-volume",
+			PoolID:       pool.UUID,
+			QuotaInBytes: 10 * 1024 * 1024 * 1024, // 10GB
+			Protocols:    []string{utils.ProtocolNFSv3},
+			Network:      "test-network",
+			SnapshotID:   "test-snapshot-uuid",
+		}
+
+		poolView := &datamodel.PoolView{
+			Pool:         *pool,
+			QuotaInBytes: 0,
+		}
+
+		err = _validateCreateVolumeParams(ctx, store, params, poolView)
+		// Splitting check should NOT block; error should not be about splitting
+		if err != nil {
+			assert.NotContains(tt, err.Error(), "undergoing split operation")
+		}
 	})
 }
 
@@ -21325,6 +21498,52 @@ func TestValidateDeleteVolumeParams(t *testing.T) {
 		assert.EqualError(tt, err, "Cannot delete volume that has active replication. Please delete the replication first.")
 		se.AssertExpectations(tt)
 	})
+
+	t.Run("WhenVolumeIsThinCloneUndergoingSplit", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid", ID: 1},
+			Name:      "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID: "parent-vol-uuid",
+					State:            models.CloneStateSplitting,
+				},
+			},
+		}
+
+		var replicationCount int64
+		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, volume.UUID).Return(false, nil)
+		se.On("GetVolumeReplicationCountByVolumeID", ctx, volume.ID).Return(replicationCount, nil)
+
+		err := _validateDeleteVolumeParams(ctx, se, volume)
+		assert.EqualError(tt, err, "Volume deletion is not allowed when the volume is splitting")
+		se.AssertExpectations(tt)
+	})
+
+	t.Run("WhenVolumeIsClonedButNotSplitting", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		se := &database.MockStorage{}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid", ID: 1},
+			Name:      "test-volume",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID: "parent-vol-uuid",
+					State:            models.CloneStateCloned,
+				},
+			},
+		}
+
+		var replicationCount int64
+		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, volume.UUID).Return(false, nil)
+		se.On("GetVolumeReplicationCountByVolumeID", ctx, volume.ID).Return(replicationCount, nil)
+
+		err := _validateDeleteVolumeParams(ctx, se, volume)
+		assert.NoError(tt, err)
+		se.AssertExpectations(tt)
+	})
 }
 
 func TestFileVolumeProcessor_Validate(t *testing.T) {
@@ -22217,6 +22436,70 @@ func TestRevertVolume(t *testing.T) {
 
 		_, _, err = orch.RevertVolume(ctx, params)
 		assert.EqualError(tt, err, "Cannot revert a Data Protection Volume")
+	})
+
+	t.Run("WhenVolumeIsSplittingRevertNotAllowed", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			t.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Pool:      pool,
+			PoolID:    pool.ID,
+			State:     models.LifeCycleStateREADY,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID: "parent-vol-uuid",
+					State:            models.CloneStateSplitting,
+				},
+			},
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		orch := GCPOrchestrator{
+			storage: store,
+		}
+
+		params := &common.RevertVolumeParams{
+			AccountName: account.Name,
+			VolumeID:    volume.UUID,
+			SnapshotID:  "test-snapshot-uuid",
+		}
+
+		_, _, err = orch.RevertVolume(ctx, params)
+		assert.EqualError(tt, err, "Reverting to a snapshot is not allowed when the volume is splitting")
 	})
 
 	t.Run("WhenSnapshotNotFound", func(tt *testing.T) {

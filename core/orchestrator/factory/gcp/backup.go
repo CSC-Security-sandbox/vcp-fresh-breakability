@@ -475,6 +475,12 @@ func _validateCreateBackupParams(ctx context.Context, se database.Storage, param
 		if vol.State != models.LifeCycleStateREADY {
 			return customerrors.NewUserInputValidationErr("Volume is not in available state")
 		}
+		if vol.VolumeAttributes != nil && vol.VolumeAttributes.CloneParentInfo != nil {
+			cloneState := vol.VolumeAttributes.CloneParentInfo.State
+			if cloneState == models.CloneStateSplitting {
+				return customerrors.NewConflictErr("Backup is not allowed when volume is splitting")
+			}
+		}
 		// For GCBDR vaults, skip backup vault association validation
 		if params.BackupVaultServiceType != GCBDRServiceType {
 			if vol.DataProtection == nil {
@@ -781,6 +787,7 @@ func _validateBackupDeleteParams(ctx context.Context, se database.Storage, param
 		}
 		return err
 	}
+
 	// Check if any backup for the same volume is in transition state (CREATING or DELETING)
 	backupInTransition, err := se.IsBackupInCreatingorDeletingStateByVolume(ctx, backup.VolumeUUID)
 	if err != nil {

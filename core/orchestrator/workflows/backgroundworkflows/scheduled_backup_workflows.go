@@ -207,6 +207,12 @@ func (wf *createScheduledBackupInitWorkflow) Run(ctx workflow.Context, args ...i
 		}
 
 		for _, volume := range volumes {
+			if volume.VolumeAttributes != nil && volume.VolumeAttributes.CloneParentInfo != nil {
+				if volume.VolumeAttributes.CloneParentInfo.State == models.CloneStateSplitting {
+					wf.Logger.Info("Scheduled Backup creation is skipped when the volume is splitting", "volume_id", volume.UUID)
+					continue
+				}
+			}
 			wf.Logger.Infof("Creating scheduled backup for volume: %s with backup policy: %s (offset: %d, limit: %d)", volume.UUID, backupPolicy.UUID, offset, scheduledBackupVolumeBatchSize)
 			_ = workflow.ExecuteChildWorkflow(
 				ctx,

@@ -782,6 +782,280 @@ func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_Backup
 	s.env.AssertExpectations(s.T())
 }
 
+func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_SkipsSplittingVolume() {
+	// One volume in SPLITTING state should be skipped; the other should trigger a child workflow.
+	mockStorage := database.NewMockStorage(s.T())
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	s.env.RegisterActivity(commonActivity.CreateJob)
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(scheduledBackupActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	backupPolicyReady := &datamodel.BackupPolicy{
+		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID:      1,
+		LifeCycleState: models.LifeCycleStateREADY,
+	}
+
+	splittingState := models.CloneStateSplitting
+	volumes := []*datamodel.Volume{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "volume-splitting"},
+			Name:      "test-volume-splitting",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					State: splittingState,
+				},
+			},
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "volume-normal"},
+			Name:      "test-volume-normal",
+		},
+	}
+
+	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
+	s.env.OnActivity(scheduledBackupActivity.GetBackupPolicyByUUID, mock.Anything, backupPolicyReady.UUID, backupPolicyReady.AccountID).
+		Return(backupPolicyReady, nil).Once()
+	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything, 20, 0).
+		Return(volumes, nil).Once()
+	// Only the non-splitting volume should trigger a child workflow.
+	s.env.OnWorkflow(CreateScheduledBackupWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(1)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID: 1,
+	}
+	s.env.ExecuteWorkflow(CreateScheduledBackupInitWorkflow, backupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	s.env.AssertExpectations(s.T())
+}
+
+func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_AllVolumesSplitting_NoChildWorkflows() {
+	// All volumes in SPLITTING state — no child workflows should be triggered.
+	mockStorage := database.NewMockStorage(s.T())
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	s.env.RegisterActivity(commonActivity.CreateJob)
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(scheduledBackupActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	backupPolicyReady := &datamodel.BackupPolicy{
+		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID:      1,
+		LifeCycleState: models.LifeCycleStateREADY,
+	}
+
+	splittingState := models.CloneStateSplitting
+	volumes := []*datamodel.Volume{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "volume-splitting-1"},
+			Name:      "test-volume-splitting-1",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{State: splittingState},
+			},
+		},
+		{
+			BaseModel: datamodel.BaseModel{UUID: "volume-splitting-2"},
+			Name:      "test-volume-splitting-2",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{State: splittingState},
+			},
+		},
+	}
+
+	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
+	s.env.OnActivity(scheduledBackupActivity.GetBackupPolicyByUUID, mock.Anything, backupPolicyReady.UUID, backupPolicyReady.AccountID).
+		Return(backupPolicyReady, nil).Once()
+	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything, 20, 0).
+		Return(volumes, nil).Once()
+	// No child workflows should be triggered.
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID: 1,
+	}
+	s.env.ExecuteWorkflow(CreateScheduledBackupInitWorkflow, backupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	s.env.AssertExpectations(s.T())
+}
+
+func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_NilVolumeAttributes_Proceeds() {
+	// Volume with nil VolumeAttributes should not be skipped.
+	mockStorage := database.NewMockStorage(s.T())
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	s.env.RegisterActivity(commonActivity.CreateJob)
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(scheduledBackupActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	backupPolicyReady := &datamodel.BackupPolicy{
+		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID:      1,
+		LifeCycleState: models.LifeCycleStateREADY,
+	}
+
+	volumes := []*datamodel.Volume{
+		{
+			BaseModel:        datamodel.BaseModel{UUID: "volume-nil-attrs"},
+			Name:             "test-volume-nil-attrs",
+			VolumeAttributes: nil,
+		},
+	}
+
+	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
+	s.env.OnActivity(scheduledBackupActivity.GetBackupPolicyByUUID, mock.Anything, backupPolicyReady.UUID, backupPolicyReady.AccountID).
+		Return(backupPolicyReady, nil).Once()
+	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything, 20, 0).
+		Return(volumes, nil).Once()
+	// Child workflow should be triggered since VolumeAttributes is nil (no skip condition met).
+	s.env.OnWorkflow(CreateScheduledBackupWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(1)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID: 1,
+	}
+	s.env.ExecuteWorkflow(CreateScheduledBackupInitWorkflow, backupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	s.env.AssertExpectations(s.T())
+}
+
+func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_NilCloneParentInfo_Proceeds() {
+	// Volume with non-nil VolumeAttributes but nil CloneParentInfo should not be skipped.
+	mockStorage := database.NewMockStorage(s.T())
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	s.env.RegisterActivity(commonActivity.CreateJob)
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(scheduledBackupActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	backupPolicyReady := &datamodel.BackupPolicy{
+		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID:      1,
+		LifeCycleState: models.LifeCycleStateREADY,
+	}
+
+	volumes := []*datamodel.Volume{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "volume-nil-clone"},
+			Name:      "test-volume-nil-clone",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: nil,
+			},
+		},
+	}
+
+	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
+	s.env.OnActivity(scheduledBackupActivity.GetBackupPolicyByUUID, mock.Anything, backupPolicyReady.UUID, backupPolicyReady.AccountID).
+		Return(backupPolicyReady, nil).Once()
+	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything, 20, 0).
+		Return(volumes, nil).Once()
+	// Child workflow should be triggered since CloneParentInfo is nil (no skip condition met).
+	s.env.OnWorkflow(CreateScheduledBackupWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(1)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID: 1,
+	}
+	s.env.ExecuteWorkflow(CreateScheduledBackupInitWorkflow, backupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	s.env.AssertExpectations(s.T())
+}
+
+func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupInitWorkflow_NonSplittingClone_Proceeds() {
+	// Volume with CloneParentInfo in a non-SPLITTING state (e.g. CLONED) should not be skipped.
+	mockStorage := database.NewMockStorage(s.T())
+	mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: "test-job-uuid"},
+		State:     string(models.JobsStateNEW),
+	}, nil).Maybe()
+	commonActivity := &activities.CommonActivities{SE: mockStorage}
+	scheduledBackupActivity := &backgroundactivities.ScheduledBackupActivity{SE: mockStorage}
+
+	s.env.RegisterActivity(commonActivity.CreateJob)
+	s.env.RegisterActivity(commonActivity.GetJob)
+	s.env.RegisterActivity(scheduledBackupActivity.GetBackupPolicyByUUID)
+	s.env.RegisterActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID)
+	s.env.RegisterActivity(commonActivity.UpdateJobStatus)
+
+	backupPolicyReady := &datamodel.BackupPolicy{
+		BaseModel:      datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID:      1,
+		LifeCycleState: models.LifeCycleStateREADY,
+	}
+
+	volumes := []*datamodel.Volume{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "volume-cloned"},
+			Name:      "test-volume-cloned",
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					State: models.CloneStateCloned,
+				},
+			},
+		},
+	}
+
+	s.env.OnActivity(commonActivity.CreateJob, mock.Anything, mock.Anything).Return(
+		&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"}}, nil)
+	s.env.OnActivity(scheduledBackupActivity.GetBackupPolicyByUUID, mock.Anything, backupPolicyReady.UUID, backupPolicyReady.AccountID).
+		Return(backupPolicyReady, nil).Once()
+	s.env.OnActivity(scheduledBackupActivity.GetVolumesByBackupPolicyUUID, mock.Anything, mock.Anything, mock.Anything, 20, 0).
+		Return(volumes, nil).Once()
+	// Child workflow should be triggered since state is CLONED, not SPLITTING.
+	s.env.OnWorkflow(CreateScheduledBackupWorkflow, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(1)
+	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything).Return(nil)
+
+	backupPolicy := &datamodel.BackupPolicy{
+		BaseModel: datamodel.BaseModel{UUID: "backup-policy-uuid"},
+		AccountID: 1,
+	}
+	s.env.ExecuteWorkflow(CreateScheduledBackupInitWorkflow, backupPolicy)
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	s.env.AssertExpectations(s.T())
+}
+
 func (s *ScheduledBackupsTestSuite) TestCreateScheduledBackupWorkflow_Success() {
 	scheduledWeeklyBackupDay = int(time.Now().UTC().Weekday())
 	scheduledMonthlyBackupDay = time.Now().UTC().Day()

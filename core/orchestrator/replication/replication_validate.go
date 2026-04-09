@@ -227,6 +227,14 @@ func _validateCreateReplicationParams(ctx context.Context, event *CreateReplicat
 		return nil, errors.NewVCPError(errors.ErrValidateCreateSourceVolumeNotReady, errors.New("sourceVolume is not in a READY state"))
 	}
 
+	// Block replication if source volume is a thin clone undergoing split operation
+	if event.SourceVolume.VolumeAttributes != nil && event.SourceVolume.VolumeAttributes.CloneParentInfo != nil {
+		if event.SourceVolume.VolumeAttributes.CloneParentInfo.State == coreModels.CloneStateSplitting {
+			logger.Error("Source volume is a thin clone undergoing split operation and cannot be used for replication", "volume_id", event.SourceVolume.UUID)
+			return nil, utilErrors.NewConflictErr("Cannot create replication as source volume is undergoing split operation")
+		}
+	}
+
 	if !isPoolHealthy(event.SourcePool.State) {
 		typeErr := errors.NewVCPError(
 			errors.ErrValidateSourceStoragePoolState, errors.New("source pool is in unhealthy state, please try after some time"))

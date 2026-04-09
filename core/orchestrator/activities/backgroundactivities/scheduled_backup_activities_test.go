@@ -837,11 +837,11 @@ func TestUpdateBackupSize(t *testing.T) {
 		vaultUUID := "vault-uuid-1"
 		accountID := int64(100)
 		volume := &datamodel.Volume{
-			BaseModel:       datamodel.BaseModel{UUID: "volume-uuid"},
-			PoolID:          poolID,
-			AccountID:       accountID,
-			DataProtection:  &datamodel.DataProtection{BackupVaultID: vaultUUID},
-			Pool:            &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: poolID}, DeploymentName: "dep", PoolCredentials: &datamodel.PoolCredentials{}},
+			BaseModel:      datamodel.BaseModel{UUID: "volume-uuid"},
+			PoolID:         poolID,
+			AccountID:      accountID,
+			DataProtection: &datamodel.DataProtection{BackupVaultID: vaultUUID},
+			Pool:           &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: poolID}, DeploymentName: "dep", PoolCredentials: &datamodel.PoolCredentials{}},
 		}
 		latestBackup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "latest-uuid"}, VolumeUUID: "volume-uuid"}
 

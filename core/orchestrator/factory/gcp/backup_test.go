@@ -1217,6 +1217,7 @@ func TestValidateBackupDeleteParams(t *testing.T) {
 		assert.NotNil(t, err)
 		assert.EqualError(t, err, "Cannot delete latest backup")
 	})
+
 	t.Run("OnBackupNotFound", func(t *testing.T) {
 		ctx := context.Background()
 		store := database.NewMockStorage(t)
@@ -2210,6 +2211,52 @@ func TestValidateCreateBackupParams_VolumeValidations(t *testing.T) {
 
 		err := _validateCreateBackupParams(ctx, store, params)
 		assert.EqualError(t, err, "Volume is not in available state")
+	})
+
+	t.Run("VolumeIsSplittingThinClone", func(t *testing.T) {
+		store := database.NewMockStorage(t)
+		params := &common.CreateBackupParams{
+			VolumeUUID: "test-volume-uuid",
+		}
+
+		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(false, nil)
+		store.On("GetVolume", ctx, params.VolumeUUID).Return(&datamodel.Volume{
+			State: models.LifeCycleStateREADY,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID: "parent-vol-uuid",
+					State:            models.CloneStateSplitting,
+				},
+			},
+		}, nil)
+
+		err := _validateCreateBackupParams(ctx, store, params)
+		assert.EqualError(t, err, "Backup is not allowed when volume is splitting")
+	})
+
+	t.Run("VolumeIsClonedButNotSplitting", func(t *testing.T) {
+		// Verify a CLONED (non-splitting) thin clone is NOT blocked by the splitting check.
+		// The volume has no DataProtection so the next guard fires, proving the splitting
+		// check was passed successfully.
+		store := database.NewMockStorage(t)
+		params := &common.CreateBackupParams{
+			VolumeUUID: "test-volume-uuid",
+		}
+
+		store.On("IsBackupInCreatingorDeletingStateByVolume", ctx, params.VolumeUUID).Return(false, nil)
+		store.On("GetVolume", ctx, params.VolumeUUID).Return(&datamodel.Volume{
+			State: models.LifeCycleStateREADY,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID: "parent-vol-uuid",
+					State:            models.CloneStateCloned,
+				},
+			},
+			DataProtection: nil,
+		}, nil)
+
+		err := _validateCreateBackupParams(ctx, store, params)
+		assert.EqualError(t, err, "Volume does not have any backup vault associated with it")
 	})
 
 	t.Run("VolumeWithoutDataProtection", func(t *testing.T) {

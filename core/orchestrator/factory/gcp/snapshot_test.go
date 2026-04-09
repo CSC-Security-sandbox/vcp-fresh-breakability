@@ -1136,6 +1136,52 @@ func TestValidateCreateSnapshotOperation(t *testing.T) {
 		err := validateCreateSnapshotOperation(volume, params, account)
 		assert.ErrorContains(tt, err, "volume is in deleting stage.")
 	})
+
+	t.Run("WhenVolumeIsThinCloneUndergoingSplit", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: 1,
+			State:     models.LifeCycleStateREADY,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID: "parent-vol-uuid",
+					State:            models.CloneStateSplitting,
+				},
+			},
+		}
+		params := &common.CreateSnapshotParams{
+			Name: "test_snapshot",
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		}
+		err := validateCreateSnapshotOperation(volume, params, account)
+		assert.ErrorContains(tt, err, "Cannot create a snapshot when volume is undergoing split operation.")
+	})
+
+	t.Run("WhenVolumeIsClonedButNotSplitting", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: 1,
+			State:     models.LifeCycleStateREADY,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID: "parent-vol-uuid",
+					State:            models.CloneStateCloned,
+				},
+			},
+		}
+		params := &common.CreateSnapshotParams{
+			Name: "test_snapshot",
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+		}
+		err := validateCreateSnapshotOperation(volume, params, account)
+		assert.NoError(tt, err)
+	})
 }
 
 func TestGetSnapshot(t *testing.T) {
@@ -1822,6 +1868,56 @@ func TestDeleteSnapshot(t *testing.T) {
 		assert.NotNil(tt, snapshotResp, "Expected snapshot to be deleted")
 		assert.Equal(tt, snapshotResp.Name, "test_snapshot")
 		assert.Equal(tt, snapshotResp.VolumeUUID, "test-volume-uuid")
+	})
+
+	t.Run("WhenVolumeIsSplittingSnapshotDeletionNotAllowed", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+		orch := GCPOrchestrator{
+			storage:  store,
+			temporal: temporal,
+		}
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				CloneParentInfo: &datamodel.CloneParentInfo{
+					ParentVolumeUUID: "parent-vol-uuid",
+					State:            models.CloneStateSplitting,
+				},
+			},
+		}
+		err = store.DB().Create(volume).Error
+		if err != nil {
+			tt.Fatalf("Failed to create volume: %v", err)
+		}
+		params := &common.DeleteSnapshotParams{
+			SnapshotBaseParams: common.SnapshotBaseParams{
+				VolumeID:    volume.UUID,
+				AccountName: account.Name,
+			},
+			SnapshotID: "test-snapshot-uuid",
+		}
+		_, _, err = orch.DeleteSnapshot(ctx, params)
+		assert.EqualError(tt, err, "Snapshot deletion is not allowed when the volume is splitting")
 	})
 
 	t.Run("WhenSnapshotDeletionFailsDueToVolumeNotFound", func(tt *testing.T) {
