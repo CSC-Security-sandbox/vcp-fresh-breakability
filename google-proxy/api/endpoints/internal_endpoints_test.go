@@ -5980,6 +5980,89 @@ func TestV1betaInternalCreateBackupVault(t *testing.T) {
 		assert.Equal(tt, gcpgenserver.BackupVaultInternalV1betaBackupVaultTypeCROSSREGION, result.BackupVaultType)
 	})
 
+	// Cross-region destination vault: CVP exposes a distinct resourceId in the backup region (e.g. ...-destination-xxxx)
+	// while the internal request still carries the source vault ResourceId. VCP must persist Name = CVP resourceId for CCFE path alignment.
+	t.Run("WhenSuccessfulCreationCrossRegionDestinationUsesCVPResourceIdAsVaultName", func(tt *testing.T) {
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		mockCVPClient := backup_vault.NewMockClientService(tt)
+
+		handler := Handler{
+			Orchestrator: mockOrchestrator,
+		}
+
+		const (
+			sourceResourceID      = "crbtestbv001"
+			destinationResourceID = "crbtestbv001-destination-ae0e"
+			sourceVaultUUID       = "ae0e7884-ff74-617a-4df9-b4b72359bfaa"
+			destinationVaultUUID  = "3850ea0b-2f86-ec69-712f-5c66233aa458"
+		)
+
+		req := &gcpgenserver.BackupVaultInternalV1beta{
+			BackupVaultId:     sourceVaultUUID,
+			ResourceId:        sourceResourceID,
+			SourceBackupVault: gcpgenserver.NewOptString("projects/test-project/locations/us-central1/backupVaults/" + sourceResourceID),
+		}
+		params := gcpgenserver.V1betaInternalCreateBackupVaultParams{
+			ProjectNumber: "test-project",
+			LocationId:    "us-east4",
+		}
+
+		backupVaultType := activities.CrossRegionBackupType
+		sourceBackupVaultPath := "/projects/test-project/locations/us-central1/backupVaults/" + sourceResourceID
+		mockResponse := &backup_vault.V1betaListBackupVaultsOK{
+			Payload: &backup_vault.V1betaListBackupVaultsOKBody{
+				BackupVaults: []*cvpmodels.BackupVaultV1beta{
+					{
+						BackupVaultID:     destinationVaultUUID,
+						ResourceID:        nillable.GetStringPtr(destinationResourceID),
+						BackupVaultType:   &backupVaultType,
+						SourceBackupVault: &sourceBackupVaultPath,
+					},
+				},
+			},
+		}
+		mockCVPClient.EXPECT().V1betaListBackupVaults(mock.Anything).Return(mockResponse, nil)
+		cvpClient := &cvpapi.Cvp{BackupVault: mockCVPClient}
+		originalCvpCreateClient := cvpCreateClient
+		defer func() { cvpCreateClient = originalCvpCreateClient }()
+		cvpCreateClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *cvpClient
+		}
+
+		now := time.Now()
+		created := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{
+				UUID:      destinationVaultUUID,
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			Name:                       destinationResourceID,
+			BackupVaultType:            activities.CrossRegionBackupType,
+			ExternalUUID:               nillable.GetStringPtr(sourceVaultUUID),
+			CrossRegionBackupVaultName: nillable.GetStringPtr(sourceBackupVaultPath),
+		}
+		mockOrchestrator.EXPECT().CreateBackupVaultEntryInVCP(
+			mock.Anything,
+			mock.MatchedBy(func(bv *datamodel.BackupVault) bool {
+				return bv != nil &&
+					bv.Name == destinationResourceID &&
+					bv.UUID == destinationVaultUUID &&
+					bv.ExternalUUID != nil && *bv.ExternalUUID == sourceVaultUUID
+			}),
+			mock.Anything,
+		).Return(created, nil)
+
+		resp, err := handler.V1betaInternalCreateBackupVault(context.Background(), req, params)
+		assert.NoError(tt, err)
+
+		result, ok := resp.(*gcpgenserver.BackupVaultInternalV1beta)
+		assert.True(tt, ok)
+		assert.Equal(tt, destinationVaultUUID, result.BackupVaultId)
+		assert.Equal(tt, destinationResourceID, result.ResourceId)
+		assert.NotEqual(tt, sourceResourceID, result.ResourceId)
+		assert.Equal(tt, gcpgenserver.BackupVaultInternalV1betaBackupVaultTypeCROSSREGION, result.BackupVaultType)
+	})
+
 	t.Run("WhenSuccessfulCreationWithBucketDetails", func(tt *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockCVPClient := backup_vault.NewMockClientService(tt)

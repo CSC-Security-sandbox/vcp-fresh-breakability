@@ -737,6 +737,7 @@ func (h Handler) V1betaInternalCreateBackupVault(ctx context.Context, req *gcpge
 			}, nil
 		}
 
+		backupVault.Name = *cvpBackupVault.ResourceID
 		backupVault.UUID = cvpBackupVault.BackupVaultID
 		backupVault.CrossRegionBackupVaultName = cvpBackupVault.SourceBackupVault // overriding for CRB destination case
 	}
