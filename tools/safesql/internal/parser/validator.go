@@ -137,6 +137,19 @@ func (v *Validator) validateStatement(stmt *Statement, vr *ValidationResult) {
 		})
 	}
 
+	// Rule 7: Warn about transaction control statements
+	// SafeSQL wraps execution in its own transaction; explicit BEGIN/COMMIT/ROLLBACK in
+	// the SQL file will be skipped automatically to prevent early commit/rollback of
+	// SafeSQL's transaction wrapper.
+	if stmt.Type == StatementTransaction {
+		vr.Warnings = append(vr.Warnings, ValidationError{
+			Statement:   stmt,
+			Rule:        "TRANSACTION_CONTROL_SKIPPED",
+			Description: fmt.Sprintf("transaction control statement (%s) will be skipped — SafeSQL manages the transaction boundary", stmt.SQL),
+			Severity:    "warning",
+		})
+	}
+
 	// Rule 5: Warn about statements without specific identifiers
 	if stmt.IsMutatingStatement() && stmt.HasWhereClause && !hasSpecificIdentifier(stmt.WhereClause) {
 		vr.Warnings = append(vr.Warnings, ValidationError{

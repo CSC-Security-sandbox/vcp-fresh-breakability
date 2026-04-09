@@ -211,8 +211,10 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan, confirmFn fu
 	result.Success = true
 	result.RowsAffected = rowsAffected
 	result.Timestamp = result.ExecutedAt
-	for _, count := range rowsAffected {
-		result.TotalRows += count
+	for i, count := range rowsAffected {
+		if i < len(plan.Query.Statements) && plan.Query.Statements[i].IsMutating() {
+			result.TotalRows += count
+		}
 	}
 
 	return result, nil

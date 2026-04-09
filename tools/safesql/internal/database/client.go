@@ -307,6 +307,34 @@ type VerificationQueryInfo struct {
 	ExpectedCount  int64
 }
 
+// isTransactionControl returns true for queries that control transaction boundaries
+// (BEGIN, COMMIT, ROLLBACK, START TRANSACTION, END, SAVEPOINT, etc.).
+// These are skipped during execution because SafeSQL manages the transaction itself;
+// running COMMIT inside an existing tx.ExecContext would commit SafeSQL's own
+// transaction prematurely and cause "tx already committed" errors on the final Commit().
+//
+// NOTE: This keyword list must be kept in sync with isTransactionControl in
+// internal/parser/parser.go. If you add or remove a keyword here, do the same there.
+func isTransactionControl(query string) bool {
+	upper := strings.ToUpper(strings.TrimSpace(query))
+	txKeywords := []string{
+		"BEGIN",
+		"COMMIT",
+		"ROLLBACK",
+		"START TRANSACTION",
+		"END",
+		"SAVEPOINT",
+		"RELEASE SAVEPOINT",
+		"RELEASE ",
+	}
+	for _, kw := range txKeywords {
+		if strings.HasPrefix(upper, kw) {
+			return true
+		}
+	}
+	return false
+}
+
 // ExecuteWithVerification executes queries with pre/post verification SELECT queries.
 // Verification queries are executed before and after each UPDATE/DELETE statement.
 func (c *Client) ExecuteWithVerification(
@@ -336,6 +364,15 @@ func (c *Client) ExecuteWithVerification(
 
 	// Execute queries with verification
 	for i, query := range queries {
+		// Skip transaction control statements: SafeSQL manages the transaction boundary.
+		// Running BEGIN/COMMIT/ROLLBACK inside an already-open tx would cause Postgres to
+		// commit or roll back SafeSQL's own transaction, leading to errors on the final
+		// tx.Commit() call even though the data was already written.
+		if isTransactionControl(query) {
+			results = append(results, 0)
+			continue
+		}
+
 		// Pre-execution verification
 		if preQuery, exists := preQueries[i]; exists {
 			preCount, err := c.executeVerificationQuery(ctx, tx, preQuery.SQL)

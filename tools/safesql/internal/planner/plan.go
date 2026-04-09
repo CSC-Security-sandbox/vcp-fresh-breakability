@@ -60,6 +60,22 @@ type StatementInfo struct {
 	HasWhere bool                 `json:"has_where"`
 }
 
+// IsMutating returns true if this statement modifies data (INSERT/UPDATE/DELETE).
+// SELECT and OTHER statements are not mutating and should not contribute to
+// the affected-rows total used for plan verification.
+func (s StatementInfo) IsMutating() bool {
+	return s.Type == parser.StatementInsert ||
+		s.Type == parser.StatementUpdate ||
+		s.Type == parser.StatementDelete
+}
+
+// IsTransactionControl returns true if this statement controls transaction boundaries
+// (BEGIN, COMMIT, ROLLBACK, etc.). SafeSQL manages its own transaction wrapper, so
+// these statements are skipped during execution to prevent premature commit/rollback.
+func (s StatementInfo) IsTransactionControl() bool {
+	return s.Type == parser.StatementTransaction
+}
+
 // StateSnapshot captures the state before execution.
 type StateSnapshot struct {
 	StatementIndex int                      `json:"statement_index"`

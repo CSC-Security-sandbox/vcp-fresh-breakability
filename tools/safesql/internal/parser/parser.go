@@ -13,11 +13,12 @@ import (
 type StatementType string
 
 const (
-	StatementSelect StatementType = "SELECT"
-	StatementInsert StatementType = "INSERT"
-	StatementUpdate StatementType = "UPDATE"
-	StatementDelete StatementType = "DELETE"
-	StatementOther  StatementType = "OTHER"
+	StatementSelect      StatementType = "SELECT"
+	StatementInsert      StatementType = "INSERT"
+	StatementUpdate      StatementType = "UPDATE"
+	StatementDelete      StatementType = "DELETE"
+	StatementTransaction StatementType = "TRANSACTION" // BEGIN, COMMIT, ROLLBACK, etc.
+	StatementOther       StatementType = "OTHER"
 )
 
 // Statement represents a parsed SQL statement.
@@ -219,9 +220,38 @@ func detectStatementType(sql string) StatementType {
 		return StatementUpdate
 	case strings.HasPrefix(upper, "DELETE"):
 		return StatementDelete
+	case isTransactionControl(upper):
+		return StatementTransaction
 	default:
 		return StatementOther
 	}
+}
+
+// isTransactionControl returns true for SQL that controls transaction boundaries.
+// SafeSQL wraps all statements in its own transaction, so these must be skipped
+// during execution to prevent early COMMIT/ROLLBACK of SafeSQL's own transaction.
+func isTransactionControl(upperSQL string) bool {
+	txKeywords := []string{
+		"BEGIN",
+		"COMMIT",
+		"ROLLBACK",
+		"START TRANSACTION",
+		"END",
+		"SAVEPOINT",
+		"RELEASE SAVEPOINT",
+		"RELEASE ",
+	}
+	for _, kw := range txKeywords {
+		if strings.HasPrefix(upperSQL, kw) {
+			return true
+		}
+	}
+	return false
+}
+
+// IsTransactionControl returns true if this statement controls transaction boundaries.
+func (s *Statement) IsTransactionControl() bool {
+	return s.Type == StatementTransaction
 }
 
 func extractTables(sql string, stmtType StatementType) []string {

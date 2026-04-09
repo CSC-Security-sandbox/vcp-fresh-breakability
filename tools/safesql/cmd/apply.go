@@ -117,7 +117,11 @@ func runApply(args []string) error {
 	logger.Info("")
 
 	for i, stmt := range plan.Query.Statements {
-		logger.Info(fmt.Sprintf("  [%d] %s\n", i+1, truncateSQL(stmt.SQL, 80)))
+		if stmt.IsTransactionControl() {
+			logger.Info(fmt.Sprintf("  [%d] %s  (skipped — SafeSQL manages transactions)\n", i+1, truncateSQL(stmt.SQL, 60)))
+		} else {
+			logger.Info(fmt.Sprintf("  [%d] %s\n", i+1, truncateSQL(stmt.SQL, 80)))
+		}
 	}
 	logger.Info("")
 
@@ -153,13 +157,26 @@ func runApply(args []string) error {
 		logger.Info("  Transaction preview:")
 		var total int64
 		for i, count := range rowsAffected {
-			logger.Info(fmt.Sprintf("    Statement %d: %d rows affected\n", i+1, count))
-			total += count
+			if i < len(plan.Query.Statements) {
+				stmt := plan.Query.Statements[i]
+				switch {
+				case stmt.IsTransactionControl():
+					logger.Info(fmt.Sprintf("    Statement %d (%s): skipped — SafeSQL manages transactions\n", i+1, stmt.SQL))
+				case !stmt.IsMutating():
+					logger.Info(fmt.Sprintf("    Statement %d (%s): %d rows returned\n", i+1, stmt.Type, count))
+				default:
+					logger.Info(fmt.Sprintf("    Statement %d: %d rows affected\n", i+1, count))
+					total += count
+				}
+			} else {
+				logger.Info(fmt.Sprintf("    Statement %d: %d rows affected\n", i+1, count))
+				total += count
+			}
 		}
-		logger.Info(fmt.Sprintf("    Total: %d rows\n", total))
+		logger.Info(fmt.Sprintf("    Total rows affected: %d rows\n", total))
 		logger.Info("")
 
-		// Check if row count matches expected
+		// Check if row count matches expected (only mutating statements are counted)
 		if total != plan.Impact.TotalRows {
 			logger.Info(fmt.Sprintf("  [WARNING] Row count (%d) differs from plan (%d)\n", total, plan.Impact.TotalRows))
 			logger.Info("")

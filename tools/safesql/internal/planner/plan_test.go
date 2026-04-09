@@ -587,3 +587,124 @@ func TestBuildVerificationQueriesNoTable(t *testing.T) {
 		t.Errorf("expected 0 verification queries for statement without table, got %d", len(verificationQueries))
 	}
 }
+
+// ---------------------------------------------------------------------------
+// StatementInfo.IsMutating and IsTransactionControl — scenario coverage
+// ---------------------------------------------------------------------------
+
+func TestStatementInfo_IsMutating(t *testing.T) {
+	cases := []struct {
+		typ      parser.StatementType
+		mutating bool
+	}{
+		{parser.StatementSelect, false},
+		{parser.StatementInsert, true},
+		{parser.StatementUpdate, true},
+		{parser.StatementDelete, true},
+		{parser.StatementTransaction, false},
+		{parser.StatementOther, false},
+	}
+	for _, tc := range cases {
+		t.Run(string(tc.typ), func(t *testing.T) {
+			si := StatementInfo{Type: tc.typ}
+			if si.IsMutating() != tc.mutating {
+				t.Errorf("IsMutating() for %s: expected %v, got %v", tc.typ, tc.mutating, si.IsMutating())
+			}
+		})
+	}
+}
+
+func TestStatementInfo_IsTransactionControl(t *testing.T) {
+	cases := []struct {
+		typ    parser.StatementType
+		isTxCt bool
+	}{
+		{parser.StatementSelect, false},
+		{parser.StatementInsert, false},
+		{parser.StatementUpdate, false},
+		{parser.StatementDelete, false},
+		{parser.StatementTransaction, true},
+		{parser.StatementOther, false},
+	}
+	for _, tc := range cases {
+		t.Run(string(tc.typ), func(t *testing.T) {
+			si := StatementInfo{Type: tc.typ}
+			if si.IsTransactionControl() != tc.isTxCt {
+				t.Errorf("IsTransactionControl() for %s: expected %v, got %v", tc.typ, tc.isTxCt, si.IsTransactionControl())
+			}
+		})
+	}
+}
+
+func TestStatementInfo_MutualExclusivity(t *testing.T) {
+	// A statement cannot be both mutating AND transaction control.
+	allTypes := []parser.StatementType{
+		parser.StatementSelect,
+		parser.StatementInsert,
+		parser.StatementUpdate,
+		parser.StatementDelete,
+		parser.StatementTransaction,
+		parser.StatementOther,
+	}
+	for _, typ := range allTypes {
+		si := StatementInfo{Type: typ}
+		if si.IsMutating() && si.IsTransactionControl() {
+			t.Errorf("type %s cannot be both mutating and transaction control", typ)
+		}
+	}
+}
+
+func TestScenario_TotalRowsOnlyCountsMutating(t *testing.T) {
+	// Simulate the row-counts returned by ExecuteWithVerification for a
+	// BEGIN + SELECT + UPDATE + COMMIT script.
+	// Validates the TotalRows logic in executor.go: only mutating statements count.
+	stmts := []StatementInfo{
+		{Index: 0, Type: parser.StatementTransaction}, // BEGIN
+		{Index: 1, Type: parser.StatementSelect},      // pre-check SELECT
+		{Index: 2, Type: parser.StatementUpdate},      // the actual UPDATE
+		{Index: 3, Type: parser.StatementTransaction}, // COMMIT
+	}
+	rowsAffected := []int64{0, 34, 34, 0} // pq returns 34 for SELECT 34 rows
+
+	var total int64
+	for i, count := range rowsAffected {
+		if i < len(stmts) && stmts[i].IsMutating() {
+			total += count
+		}
+	}
+
+	if total != 34 {
+		t.Errorf("TotalRows should be 34 (only UPDATE), got %d", total)
+	}
+}
+
+func TestScenario_VerificationQueriesNotGeneratedForTxControl(t *testing.T) {
+	// Transaction control statements must not generate pre/post verification queries.
+	storage := newMockStorage()
+	pb := NewPlanBuilder(time.Hour, storage)
+
+	statements := []StatementInfo{
+		{Index: 0, Type: parser.StatementTransaction, SQL: "BEGIN"},
+		{Index: 1, Type: parser.StatementUpdate, Table: "users", HasWhere: true},
+		{Index: 2, Type: parser.StatementTransaction, SQL: "COMMIT"},
+	}
+	impact := &analyzer.AnalysisResult{
+		Statements: []analyzer.StatementImpact{
+			{StatementIndex: 0, AffectedRows: 0},
+			{StatementIndex: 1, AffectedRows: 5, WhereClause: "id = 'abc'"},
+			{StatementIndex: 2, AffectedRows: 0},
+		},
+	}
+
+	vqs := pb.buildVerificationQueries(statements, impact)
+
+	// Only the UPDATE (index 1) should produce verification queries.
+	for _, vq := range vqs {
+		if vq.StatementIndex != 1 {
+			t.Errorf("unexpected verification query for statement index %d (only UPDATE at index 1 should have one)", vq.StatementIndex)
+		}
+	}
+	if len(vqs) == 0 {
+		t.Error("expected verification queries for the UPDATE statement")
+	}
+}
