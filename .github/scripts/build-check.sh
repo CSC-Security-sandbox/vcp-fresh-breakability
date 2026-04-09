@@ -831,7 +831,7 @@ normalize_go_errors() {
   sed \
     -e "s|${WORKTREE_BASE}[^/]*/|./|g" \
     -e 's|go-build/[a-f0-9]*/[a-f0-9]*|go-build/HASH|g' \
-    -e 's|/[^/]*/go/pkg/mod/|GOMODCACHE/|g' \
+    -e 's|[^ ]*/go/pkg/mod/|GOMODCACHE/|g' \
     -e 's|@v[0-9][0-9.]*[^/:]*/|@VERSION/|g'
 }
 

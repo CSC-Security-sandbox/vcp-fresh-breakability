@@ -270,7 +270,7 @@ Automated build analysis was not conclusive for this PR. Manual review recommend
 
   if [[ -n "$COMMENT" ]]; then
     if gh pr comment "$PR_NUM" --body "$COMMENT" 2>/dev/null; then
-      echo "  Posted fallback for PR #$PR_NUM ($PKG $FROM→$TO, $VERDICT)"
+      echo "  Posted fallback for PR #$PR_NUM ($PKG ${FROM}→${TO}, $VERDICT)"
       POSTED=$((POSTED + 1))
     else
       echo "  ⚠️  Failed to post fallback for PR #$PR_NUM"
