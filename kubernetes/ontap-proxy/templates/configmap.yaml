@@ -52,3 +52,7 @@ data:
   PRIVATE_CLI_OPERATION_ENABLED: {{ .Values.privateCliOperationEnabled | default false | quote }}
   SMC_OPERATION_ENABLED: {{ .Values.smcOperationEnabled | default false | quote }}
 
+  # ONTAP error codes (comma-separated) that are client validation failures
+  # incorrectly returned as HTTP 500 by ONTAP. The proxy rewrites these to 400.
+  ONTAP_CLIENT_ERROR_CODES: {{ .Values.ontapClientErrorCodes | default list | join "," | quote }}
+

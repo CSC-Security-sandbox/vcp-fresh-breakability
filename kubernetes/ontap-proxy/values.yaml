@@ -108,3 +108,6 @@ iamRoleToUserMapping:
 snaplockOperationEnabled: false
 privateCliOperationEnabled: false
 smcOperationEnabled: false
+ontapClientErrorCodes:
+  - "917621"
+  - "1254223"
