@@ -475,7 +475,7 @@ func getDefaultEnvVars() map[string]string {
 	}
 
 	return map[string]string{
-		"ENV":                                        getEnvOrDefault("ENV", ""),
+		"ENV":                                        getEnvOrDefault("ENV", "local"),
 		"GCP_PROXY_PORT":                             getEnvOrDefault("GCP_PROXY_PORT", "8090"),
 		"DB_TYPE":                                    getEnvOrDefault("DB_TYPE", "postgres"),
 		"DB_HOST":                                    getEnvOrDefault("DB_HOST", "127.0.0.1"),
@@ -547,10 +547,6 @@ func getDefaultEnvVars() map[string]string {
 		// Always include the flag so callers can reliably read it even if --env-vars omits it.
 		"CLOUD_SQL_IAM_AUTH_ENABLED":      getEnvOrDefault("CLOUD_SQL_IAM_AUTH_ENABLED", "false"),
 		"ENABLE_BACKUP_HISTORY_FORMATTER": getEnvOrDefault("ENABLE_BACKUP_HISTORY_FORMATTER", "false"),
-		"VCP_PAIRED_REGIONS":              getEnvOrDefault("VCP_PAIRED_REGIONS", ""),
-		"PROXY_CLIENT_TRANSPORT_SCHEMA":   getEnvOrDefault("PROXY_CLIENT_TRANSPORT_SCHEMA", "https"),
-		"GCP_AUTH_SERVICE_ACCOUNT":        getEnvOrDefault("GCP_AUTH_SERVICE_ACCOUNT", ""),
-		"GCP_SERVICE_URL":                 getEnvOrDefault("GCP_SERVICE_URL", "https://cloudvolumesgcp-api.netapp.com"),
 		"INJECTION_WINDOW_MINUTES":        getEnvOrDefault("INJECTION_WINDOW_MINUTES", "10"),
 		"ENABLE_COUNTER_FORMATTER":        getEnvOrDefault("ENABLE_COUNTER_FORMATTER", "false"),
 	}

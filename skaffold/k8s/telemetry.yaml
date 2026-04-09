@@ -146,9 +146,5 @@ spec:
               value: "false"
             - name: ENABLE_BACKUP_HISTORY_FORMATTER
               value: "false"
-            - name: VCP_PAIRED_REGIONS
-              value: ""
-            - name: PROXY_CLIENT_TRANSPORT_SCHEMA
-              value: "http"
 
 
