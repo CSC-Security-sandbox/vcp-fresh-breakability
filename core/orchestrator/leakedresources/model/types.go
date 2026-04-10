@@ -2,7 +2,7 @@
 // Detectors and pipeline both use this package to avoid import cycles.
 package model
 
-// ResourceType identifies the kind of resource (pool, volume, snapshot, etc.).
+// ResourceType identifies the kind of resource (pool, volume, snapshot, backup vault, etc.).
 type ResourceType string
 
 const (
@@ -10,6 +10,7 @@ const (
 	ResourceTypeVolume             ResourceType = "volume"
 	ResourceTypeSnapshot           ResourceType = "snapshot"
 	ResourceTypeInternalReservedIP ResourceType = "internal_reserved_ip"
+	ResourceTypeBackupVault        ResourceType = "backup_vault"
 )
 
 // LeakRecord is the unified record for a single leaked resource, produced by

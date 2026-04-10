@@ -1,5 +1,5 @@
 // Package leakedresources provides an extensible framework for detecting and
-// reporting leaked resources (pools, volumes, snapshots). It is triggered every
+// reporting leaked resources (pools, volumes, snapshots, backup vaults). It is triggered every
 // 6 hours via the cron scheduler in core/app.go. Flow: Scan → Detect → Report.
 package leakedresources
 
@@ -16,4 +16,5 @@ const (
 	ResourceTypeVolume             = model.ResourceTypeVolume
 	ResourceTypeSnapshot           = model.ResourceTypeSnapshot
 	ResourceTypeInternalReservedIP = model.ResourceTypeInternalReservedIP
+	ResourceTypeBackupVault        = model.ResourceTypeBackupVault
 )

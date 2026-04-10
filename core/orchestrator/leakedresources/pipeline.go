@@ -93,6 +93,7 @@ func Run(ctx context.Context, storage database.Storage) error {
 	p.RegisterDetector(detectors.NewPoolDetector(ccfeClient))
 	p.RegisterDetector(detectors.NewVolumeOrphanDetector())
 	p.RegisterDetector(detectors.NewSnapshotOrphanDetector())
+	p.RegisterDetector(detectors.NewBackupVaultDetector(ccfeClient))
 
 	// Internal reserved IP detection is part of the same pipeline; enable/disable with LEAKED_RESOURCES_MONITORING_ENABLED (core/app.go).
 	lister, err := newRegionalAddressLister(ctx)

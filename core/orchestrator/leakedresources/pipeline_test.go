@@ -160,6 +160,7 @@ func TestRun(t *testing.T) {
 	storage.EXPECT().GetAccounts(ctx, false, mock.Anything).Return(nil, nil).Once() // snapshot detector accountID→name map
 	storage.EXPECT().ListVolumes(ctx, mock.Anything).Return(nil, nil).Times(2)      // volume detector + snapshot detector
 	storage.EXPECT().GetSnapshotsWithCondition(ctx, mock.Anything).Return(nil, nil).Once()
+	storage.EXPECT().GetMultipleBackupVaults(ctx, mock.Anything).Return(nil, nil).Once()
 
 	err := Run(ctx, storage)
 	assert.NoError(t, err)
@@ -185,6 +186,7 @@ func TestRun_WithInternalReservedIPDetectorRegistered(t *testing.T) {
 	storage.EXPECT().GetAccounts(ctx, false, mock.Anything).Return(nil, nil).Once() // snapshot detector accountID→name map
 	storage.EXPECT().ListVolumes(ctx, mock.Anything).Return(nil, nil).Times(2)      // volume + snapshot
 	storage.EXPECT().GetSnapshotsWithCondition(ctx, mock.Anything).Return(nil, nil).Once()
+	storage.EXPECT().GetMultipleBackupVaults(ctx, mock.Anything).Return(nil, nil).Once()
 
 	err := Run(ctx, storage)
 	assert.NoError(t, err)
