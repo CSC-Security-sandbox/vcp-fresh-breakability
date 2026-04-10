@@ -35,7 +35,7 @@ const (
 var (
 	AutoTierHotTierAutoResizeThresholdPercent    = env.GetInt64("AUTO_TIER_HOT_TIER_AUTO_RESIZE_THRESHOLD_PERCENT", 100)
 	AutoTierHotTierAutoResizeIncreasePercent     = env.GetFloat64("AUTO_TIER_HOT_TIER_AUTO_RESIZE_INCREASE_PERCENT", 10)
-    autoTieringFastOntapConnection               = env.GetBool("AUTO_TIERING_FAST_ONTAP_CONNECTION", true)
+	autoTieringFastOntapConnection               = env.GetBool("AUTO_TIERING_FAST_ONTAP_CONNECTION", true)
 	AllowAutogrowForHTBypassVolumeContainingPool = env.GetBool("ALLOW_AUTOGROW_FOR_HTBYPASS_VOLUME_CONTAINING_POOL", false)
 )
 
@@ -456,9 +456,10 @@ func calculateAndUpdateHotColdTierConsumption(
 		}
 		ratio := coldTierFootprint / denominator
 
-		// Correcting the cold tier consumption based on logical space used
+		// Correcting the cold and hot tier consumption based on logical space used
 		// to avoid over counting where data reduction/compression is applied via ONTAP
 		logicalColdTierConsumption := logicalSpaceUsed * ratio
+		logicalHotTierConsumption := logicalSpaceUsed - logicalColdTierConsumption
 
 		dbUUID, ok := getDBVolumeUUID(*volume.UUID)
 		if !ok {
@@ -467,16 +468,16 @@ func calculateAndUpdateHotColdTierConsumption(
 		}
 
 		tieringUpdates[dbUUID] = datamodel.VolumeTieringUpdate{
-			HotTierSizeGib:  uint64(utils.ConvertBytesToGib(hotTierFootprint)),
+			HotTierSizeGib:  uint64(utils.ConvertBytesToGib(logicalHotTierConsumption)),
 			ColdTierSizeGib: uint64(utils.ConvertBytesToGib(logicalColdTierConsumption)),
 		}
 
 		coldTierConsumption += int64(logicalColdTierConsumption)
-		hotTierConsumption += int64(hotTierFootprint)
+		hotTierConsumption += int64(logicalHotTierConsumption)
 		// Exclude bypass-enabled volumes from auto-resize hot tier calculation to avoid false positives
 		// (bypass volumes temporarily spike hot tier usage as data goes to hot tier first)
 		if shouldExcludeFromHTConsumption == nil || !shouldExcludeFromHTConsumption(*volume.UUID) {
-			hotTierConsumptionForAutoResize += int64(hotTierFootprint)
+			hotTierConsumptionForAutoResize += int64(logicalHotTierConsumption)
 		}
 	}
 
