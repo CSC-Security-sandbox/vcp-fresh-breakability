@@ -11,6 +11,7 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	oModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -4376,10 +4377,10 @@ func TestIsSnapmirrorDeleted_ReturnsErrorWhenGetProviderFails(t *testing.T) {
 	encodedValue, err := env.ExecuteActivity(activity.IsSnapmirrorDeleted, node, params)
 	assert.Error(t, err)
 	if encodedValue != nil && encodedValue.HasValue() {
-		var deleted bool
-		err = encodedValue.Get(&deleted)
+		var result commonparams.SnapmirrorDeletePrecheckResult
+		err = encodedValue.Get(&result)
 		if err == nil {
-			assert.False(t, deleted)
+			assert.False(t, result.RelationshipMissing)
 		}
 	}
 }
@@ -4408,10 +4409,11 @@ func TestIsSnapmirrorDeleted_ReturnsTrueWhenNotFound(t *testing.T) {
 	}
 	encodedValue, err := env.ExecuteActivity(activity.IsSnapmirrorDeleted, node, params)
 	assert.NoError(t, err)
-	var deleted bool
-	err = encodedValue.Get(&deleted)
+	var result commonparams.SnapmirrorDeletePrecheckResult
+	err = encodedValue.Get(&result)
 	assert.NoError(t, err)
-	assert.True(t, deleted)
+	assert.True(t, result.RelationshipMissing)
+	assert.Nil(t, result.Relationship)
 	mockProvider.AssertExpectations(t)
 }
 
@@ -4440,10 +4442,55 @@ func TestIsSnapmirrorDeleted_ReturnsTrueWhenLegacyNotFoundError(t *testing.T) {
 	}
 	encodedValue, err := env.ExecuteActivity(activity.IsSnapmirrorDeleted, node, params)
 	assert.NoError(t, err)
-	var deleted bool
-	err = encodedValue.Get(&deleted)
+	var result commonparams.SnapmirrorDeletePrecheckResult
+	err = encodedValue.Get(&result)
 	assert.NoError(t, err)
-	assert.True(t, deleted)
+	assert.True(t, result.RelationshipMissing)
+	assert.Nil(t, result.Relationship)
+	mockProvider.AssertExpectations(t)
+}
+
+// TestIsSnapmirrorDeleted_ReturnsRelationshipWhenFound tests precheck returns relationship with destination UUID when ONTAP finds a relationship.
+func TestIsSnapmirrorDeleted_ReturnsRelationshipWhenFound(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestActivityEnvironment()
+
+	activity := BackupActivity{}
+	env.RegisterActivity(&activity)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+	mockProvider := new(vsa.MockProvider)
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	relUUID := strfmt.UUID("4ea7a442-86d1-11e0-ae1c-123478563412")
+	destEpUUID := strfmt.UUID("d254cb3e-336c-11f1-8985-f5673706ed49")
+	snapmirror := &ontap_rest.SnapmirrorRelationship{
+		SnapmirrorRelationship: oModels.SnapmirrorRelationship{
+			UUID: &relUUID,
+			Destination: &oModels.SnapmirrorEndpoint{
+				UUID: &destEpUUID,
+			},
+		},
+	}
+	mockProvider.On("SnapmirrorRelationshipGet", "/dest/path", "/src/path").Return(snapmirror, nil)
+
+	node := &models.Node{}
+	params := &commonparams.SnapmirrorRelationshipParams{
+		DestinationPath: "/dest/path",
+		SourcePath:      "/src/path",
+	}
+	encodedValue, err := env.ExecuteActivity(activity.IsSnapmirrorDeleted, node, params)
+	assert.NoError(t, err)
+	var result commonparams.SnapmirrorDeletePrecheckResult
+	err = encodedValue.Get(&result)
+	assert.NoError(t, err)
+	assert.False(t, result.RelationshipMissing)
+	require.NotNil(t, result.Relationship)
+	assert.Equal(t, relUUID.String(), result.Relationship.UUID)
+	require.NotNil(t, result.Relationship.DestinationUUID)
+	assert.Equal(t, destEpUUID.String(), *result.Relationship.DestinationUUID)
 	mockProvider.AssertExpectations(t)
 }
 
@@ -4472,13 +4519,58 @@ func TestIsSnapmirrorDeleted_ReturnsErrorWhenOtherErrorOccurs(t *testing.T) {
 	encodedValue, err := env.ExecuteActivity(activity.IsSnapmirrorDeleted, node, params)
 	assert.Error(t, err)
 	if encodedValue != nil && encodedValue.HasValue() {
-		var deleted bool
-		err = encodedValue.Get(&deleted)
+		var result commonparams.SnapmirrorDeletePrecheckResult
+		err = encodedValue.Get(&result)
 		if err == nil {
-			assert.False(t, deleted)
+			assert.False(t, result.RelationshipMissing)
 		}
 	}
 	mockProvider.AssertExpectations(t)
+}
+
+func TestSnapmirrorOntapRelationshipToCommon(t *testing.T) {
+	t.Run("nil", func(t *testing.T) {
+		assert.Nil(t, snapmirrorOntapRelationshipToCommon(nil))
+	})
+	t.Run("full_fields", func(t *testing.T) {
+		relUUID := strfmt.UUID("4ea7a442-86d1-11e0-ae1c-123478563412")
+		destUUID := strfmt.UUID("d254cb3e-336c-11f1-8985-f5673706ed49")
+		state := "snapmirrored"
+		healthy := true
+		msg1 := "reason one"
+		msg2 := "reason two"
+		var totalBytes int64 = 42
+		in := &ontap_rest.SnapmirrorRelationship{
+			SnapmirrorRelationship: oModels.SnapmirrorRelationship{
+				UUID:    &relUUID,
+				State:   &state,
+				Healthy: &healthy,
+				Destination: &oModels.SnapmirrorEndpoint{
+					UUID: &destUUID,
+				},
+				SnapmirrorRelationshipInlineUnhealthyReason: []*oModels.SnapmirrorError{
+					nil,
+					{Message: &msg1},
+					{Message: nil},
+					{Message: &msg2},
+				},
+				TotalTransferBytes: &totalBytes,
+			},
+		}
+		out := snapmirrorOntapRelationshipToCommon(in)
+		require.NotNil(t, out)
+		assert.Equal(t, relUUID.String(), out.UUID)
+		require.NotNil(t, out.DestinationUUID)
+		assert.Equal(t, destUUID.String(), *out.DestinationUUID)
+		require.NotNil(t, out.State)
+		assert.Equal(t, state, *out.State)
+		require.NotNil(t, out.Healthy)
+		assert.True(t, *out.Healthy)
+		require.NotNil(t, out.UnhealthyReason)
+		assert.Equal(t, []string{"reason one", "reason two"}, *out.UnhealthyReason)
+		require.NotNil(t, out.TotalTransferBytes)
+		assert.Equal(t, totalBytes, *out.TotalTransferBytes)
+	})
 }
 
 func TestGetObjectStoreEndpointInfo(t *testing.T) {

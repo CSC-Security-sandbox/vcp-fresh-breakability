@@ -579,6 +579,11 @@ type SnapmirrorRelationship struct {
 	TotalTransferBytes *int64
 }
 
+type SnapmirrorDeletePrecheckResult struct {
+	RelationshipMissing bool
+	Relationship        *SnapmirrorRelationship
+}
+
 type GetMultipleReplicationsParams struct {
 	ReplicationURIs  []string
 	AccountName      string

@@ -481,14 +481,11 @@ func _validateCreateBackupParams(ctx context.Context, se database.Storage, param
 				return customerrors.NewConflictErr("Backup is not allowed when volume is splitting")
 			}
 		}
-		// For GCBDR vaults, skip backup vault association validation
-		if params.BackupVaultServiceType != GCBDRServiceType {
-			if vol.DataProtection == nil {
-				return customerrors.NewUserInputValidationErr("Volume does not have any backup vault associated with it")
-			}
-			if vol.DataProtection != nil && vol.DataProtection.BackupVaultID != params.BackupVaultID {
-				return customerrors.NewUserInputValidationErr("Volume does not have the specified backup vault associated with it")
-			}
+		if vol.DataProtection == nil {
+			return customerrors.NewUserInputValidationErr("Volume does not have any backup vault associated with it")
+		}
+		if vol.DataProtection != nil && vol.DataProtection.BackupVaultID != params.BackupVaultID {
+			return customerrors.NewUserInputValidationErr("Volume does not have the specified backup vault associated with it")
 		}
 		if vol.VolumeAttributes != nil && vol.VolumeAttributes.IsDataProtection && params.SnapshotID == "" {
 			return customerrors.NewUserInputValidationErr("Backup creation is not supported for destination volumes without specifying an existing snapshot. Please use an existing snapshot to create backups or create a snapshot on the source volume and back that up on this volume once it has been replicated to this volume")

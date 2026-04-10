@@ -1753,7 +1753,7 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetSmDestinationPathActivity", mock.Anything, mock.Anything, mock.Anything).Return("test-bucket:/objstore/test-vol", nil)
 		env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("svm_test:volume_test", nil)
-		env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+		env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorDeletePrecheckResult{RelationshipMissing: false, Relationship: &commonparams.SnapmirrorRelationship{UUID: "test-sm-uuid"}}, nil)
 		env.OnActivity("GetBackupCountByVolumeUUID", mock.Anything, backup.VolumeUUID).Return(int64(1), nil)
 		env.OnActivity("GetObjectStore", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.CloudTarget{UUID: "obj-store-uuid"}, nil)
 		env.OnActivity("GetSnapmirror", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorRelationship{UUID: "snapmirror-uuid"}, nil)
@@ -1835,7 +1835,7 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetSmDestinationPathActivity", mock.Anything, mock.Anything, mock.Anything).Return("test-bucket:/objstore/test-vol", nil)
 		env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("svm_test:volume_test", nil)
-		env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+		env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorDeletePrecheckResult{RelationshipMissing: false, Relationship: &commonparams.SnapmirrorRelationship{UUID: "test-sm-uuid"}}, nil)
 		// When backup vault switching is enabled, workflow uses per-vault count
 		env.OnActivity("GetBackupCountByVolumeAndVault", mock.Anything, backup.VolumeUUID, backup.BackupVaultID).Return(int64(1), nil)
 		env.OnActivity("GetObjectStore", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.CloudTarget{UUID: "obj-store-uuid"}, nil)
@@ -1919,7 +1919,7 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetSmDestinationPathActivity", mock.Anything, mock.Anything, mock.Anything).Return("test-bucket:/objstore/test-vol", nil)
 		env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("svm_test:volume_test", nil)
-		env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+		env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorDeletePrecheckResult{RelationshipMissing: false, Relationship: &commonparams.SnapmirrorRelationship{UUID: "test-sm-uuid"}}, nil)
 		env.OnActivity("GetBackupCountByVolumeUUID", mock.Anything, backup.VolumeUUID).Return(int64(1), nil)
 		env.OnActivity("GetObjectStore", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.CloudTarget{UUID: "obj-store-uuid"}, nil)
 		env.OnActivity("GetSnapmirror", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorRelationship{UUID: "snapmirror-uuid"}, nil)
@@ -2001,7 +2001,89 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("svm_test:volume_test", nil)
 		env.OnActivity("GetSmDestinationPathActivity", mock.Anything, mock.Anything, mock.Anything).Return("test-bucket:/objstore/test-vol", nil)
-		env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
+		env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorDeletePrecheckResult{RelationshipMissing: true}, nil)
+		env.OnWorkflow("ADCWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+		env.RegisterWorkflow(ADCSizeWorkflow)
+		env.OnWorkflow("ADCSizeWorkflow", mock.Anything, mock.Anything).Return(int64(0), nil)
+		env.OnActivity("UpdateVolumeLatestLogicalBackupSize", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("SetGlobalLatestBackupLogicalSizeActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("DeleteBackup", mock.Anything, params.BackupUUID, mock.Anything).Return(nil, nil)
+		env.OnActivity("DeleteBackupMetadataIfLastBackupActivity", mock.Anything, mock.Anything).Return(nil)
+
+		env.ExecuteWorkflow(DeleteBackupWorkflow, params)
+
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	// Endpoint UUID on backup differs from live SnapMirror destination → same ADC path as relationship missing.
+	t.Run("DeleteBackupWithBackupVaultSwitchingEnabled_EndpointMismatch_RunsADC", func(t *testing.T) {
+		originalFlag := utils.EnableBackupVaultSwitching
+		defer utils.SetEnableBackupVaultSwitchingForTest(originalFlag)
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		commonActivity, _ := setupMockCommonActivities(t)
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(setupMockBackupActivity(t))
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterWorkflow(ADCWorkflow)
+		env.RegisterWorkflow(DeleteBackupWorkflow)
+
+		params := &commonparams.DeleteBackupParams{
+			BackupVaultUUID: "vault-uuid",
+			BackupUUID:      "backup-uuid",
+			AccountName:     "test-account",
+		}
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "account-uuid"}}
+		backupVault := &datamodel.BackupVault{
+			Name: "test-backup-vault",
+			BucketDetails: datamodel.BucketDetailsArray{
+				&datamodel.BucketDetails{BucketName: "test-bucket", ServiceAccountName: "sa-test", VendorSubnetID: "subnet-12345"},
+			},
+			Account: account,
+		}
+		volume := &datamodel.Volume{
+			BaseModel:        datamodel.BaseModel{UUID: "test-vol"},
+			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: int64(1)}, PoolCredentials: &datamodel.PoolCredentials{}},
+			Svm:              &datamodel.Svm{Name: "svm_test"},
+			VolumeAttributes: &datamodel.VolumeAttributes{VendorSubnetID: "subnet-12345"},
+			DataProtection:   &datamodel.DataProtection{},
+		}
+		currentEp := "11111111-1111-1111-1111-111111111111"
+		staleEp := "22222222-2222-2222-2222-222222222222"
+		backup := &datamodel.Backup{
+			Name:          "test-backup",
+			VolumeUUID:    "test-vol",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes:    &datamodel.BackupAttributes{BucketName: "test-bucket", EndpointUUID: staleEp},
+		}
+
+		env.OnActivity("GetAccountByName", mock.Anything, params.AccountName).Return(account, nil)
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("GetBackupVault", mock.Anything, params.BackupVaultUUID).Return(backupVault, nil)
+		env.OnActivity("GetBackup", mock.Anything, params.BackupVaultUUID, params.BackupUUID, params.AccountName).Return(backup, nil)
+		env.OnActivity("IsVolumeDeleted", mock.Anything, backup.VolumeUUID).Return(false, nil)
+		env.OnActivity("IsExpertModeVolume", mock.Anything, backup.VolumeUUID).Return(false, nil)
+		env.OnActivity("GetVolume", mock.Anything, backup.VolumeUUID).Return(volume, nil)
+		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
+		env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("svm_test:volume_test", nil)
+		env.OnActivity("GetSmDestinationPathActivity", mock.Anything, mock.Anything, mock.Anything).Return("test-bucket:/objstore/test-vol", nil)
+		env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorDeletePrecheckResult{
+			RelationshipMissing: false,
+			Relationship:        &commonparams.SnapmirrorRelationship{UUID: "snapmirror-uuid", DestinationUUID: nillable.ToPointer(currentEp)},
+		}, nil)
 		env.OnWorkflow("ADCWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
 		env.RegisterWorkflow(ADCSizeWorkflow)
 		env.OnWorkflow("ADCSizeWorkflow", mock.Anything, mock.Anything).Return(int64(0), nil)
@@ -2145,7 +2227,7 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetSmDestinationPathActivity", mock.Anything, mock.Anything, mock.Anything).Return("test-bucket:/objstore/test-vol", nil)
 		env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("svm_test:volume_test", nil)
-		env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+		env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorDeletePrecheckResult{RelationshipMissing: false, Relationship: &commonparams.SnapmirrorRelationship{UUID: "test-sm-uuid"}}, nil)
 		env.OnActivity("GetBackupCountByVolumeUUID", mock.Anything, backup.VolumeUUID).Return(int64(2), nil)
 		env.OnActivity("GetObjectStore", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.CloudTarget{UUID: "obj-store-uuid"}, nil)
 		env.OnActivity("IsBackupShared", mock.Anything, backup).Return(true, nil) // Backup is shared
@@ -2230,7 +2312,7 @@ func TestDeleteBackupWorkflow(t *testing.T) {
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetSmDestinationPathActivity", mock.Anything, mock.Anything, mock.Anything).Return("test-bucket:/objstore/test-vol", nil)
 		env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("svm_test:volume_test", nil)
-		env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+		env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorDeletePrecheckResult{RelationshipMissing: false, Relationship: &commonparams.SnapmirrorRelationship{UUID: "test-sm-uuid"}}, nil)
 		env.OnActivity("GetBackupCountByVolumeUUID", mock.Anything, backup.VolumeUUID).Return(int64(2), nil)
 		env.OnActivity("GetObjectStore", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.CloudTarget{UUID: "obj-store-uuid"}, nil)
 		env.OnActivity("IsBackupShared", mock.Anything, backup).Return(false, nil) // Backup is shared
@@ -6232,7 +6314,7 @@ func TestDeleteBackupWorkflow_DeleteBackupMetadataIfLastBackupActivityFailure(t 
 	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	env.OnActivity("GetSmDestinationPathActivity", mock.Anything, mock.Anything, mock.Anything).Return("test-bucket:/objstore/test-vol", nil)
 	env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("svm_test:volume_test", nil)
-	env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+	env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorDeletePrecheckResult{RelationshipMissing: false, Relationship: &commonparams.SnapmirrorRelationship{UUID: "test-sm-uuid"}}, nil)
 	env.OnActivity("GetBackupCountByVolumeUUID", mock.Anything, backup.VolumeUUID).Return(int64(1), nil)
 	env.OnActivity("GetObjectStore", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.CloudTarget{UUID: "obj-store-uuid"}, nil)
 	env.OnActivity("GetSnapmirror", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorRelationship{UUID: "snapmirror-uuid"}, nil)
@@ -6334,7 +6416,7 @@ func TestDeleteBackupWorkflow_CrossRegionBackupSuccess(t *testing.T) {
 	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	env.OnActivity("GetSmDestinationPathActivity", mock.Anything, mock.Anything, mock.Anything).Return("test-bucket:/objstore/test-vol", nil)
 	env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("svm_test:volume_test", nil)
-	env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+	env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorDeletePrecheckResult{RelationshipMissing: false, Relationship: &commonparams.SnapmirrorRelationship{UUID: "test-sm-uuid"}}, nil)
 	env.OnActivity("GetBackupCountByVolumeUUID", mock.Anything, backup.VolumeUUID).Return(int64(1), nil)
 	env.OnActivity("GetObjectStore", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.CloudTarget{UUID: "obj-store-uuid"}, nil)
 	env.OnActivity("GetSnapmirror", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorRelationship{UUID: "snapmirror-uuid"}, nil)
@@ -6436,7 +6518,7 @@ func TestDeleteBackupWorkflow_CrossRegionBackupFailure(t *testing.T) {
 	env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 	env.OnActivity("GetSmDestinationPathActivity", mock.Anything, mock.Anything, mock.Anything).Return("test-bucket:/objstore/test-vol", nil)
 	env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("svm_test:volume_test", nil)
-	env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+	env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorDeletePrecheckResult{RelationshipMissing: false, Relationship: &commonparams.SnapmirrorRelationship{UUID: "test-sm-uuid"}}, nil)
 	env.OnActivity("GetBackupCountByVolumeUUID", mock.Anything, backup.VolumeUUID).Return(int64(1), nil)
 	env.OnActivity("GetObjectStore", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.CloudTarget{UUID: "obj-store-uuid"}, nil)
 	env.OnActivity("GetSnapmirror", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorRelationship{UUID: "snapmirror-uuid"}, nil)
@@ -7190,7 +7272,7 @@ func TestDeleteBackupWorkflow_IsExpertModeVolumeCheck(t *testing.T) {
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetSmDestinationPathActivity", mock.Anything, mock.Anything, mock.Anything).Return("test-bucket:/objstore/test-vol", nil)
 		env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("svm_test:volume_test", nil)
-		env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+		env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorDeletePrecheckResult{RelationshipMissing: false, Relationship: &commonparams.SnapmirrorRelationship{UUID: "test-sm-uuid"}}, nil)
 		env.OnActivity("GetBackupCountByVolumeUUID", mock.Anything, backup.VolumeUUID).Return(int64(1), nil).Once()
 		env.OnActivity("GetObjectStore", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.CloudTarget{UUID: "obj-store-uuid"}, nil)
 		env.OnActivity("GetSnapmirror", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorRelationship{UUID: "snapmirror-uuid"}, nil)
@@ -7288,7 +7370,7 @@ func TestDeleteBackupWorkflow_IsExpertModeVolumeCheck(t *testing.T) {
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetSmDestinationPathActivity", mock.Anything, mock.Anything, mock.Anything).Return("test-bucket:/objstore/test-vol", nil)
 		env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("svm_test:volume_test", nil)
-		env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+		env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorDeletePrecheckResult{RelationshipMissing: false, Relationship: &commonparams.SnapmirrorRelationship{UUID: "test-sm-uuid"}}, nil)
 		env.OnActivity("GetBackupCountByVolumeUUID", mock.Anything, backup.VolumeUUID).Return(int64(1), nil)
 		env.OnActivity("GetObjectStore", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.CloudTarget{UUID: "obj-store-uuid"}, nil)
 		env.OnActivity("GetSnapmirror", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorRelationship{UUID: "snapmirror-uuid"}, nil)
@@ -7388,7 +7470,7 @@ func TestDeleteBackupWorkflow_IsExpertModeVolumeCheck(t *testing.T) {
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetSmDestinationPathActivity", mock.Anything, mock.Anything, mock.Anything).Return("test-bucket:/objstore/test-vol", nil)
 		env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("svm_test:volume_test", nil)
-		env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+		env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorDeletePrecheckResult{RelationshipMissing: false, Relationship: &commonparams.SnapmirrorRelationship{UUID: "test-sm-uuid"}}, nil)
 		env.OnActivity("GetBackupCountByVolumeUUID", mock.Anything, backup.VolumeUUID).Return(int64(1), nil).Once()
 		env.OnActivity("GetObjectStore", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.CloudTarget{UUID: "obj-store-uuid"}, nil)
 		env.OnActivity("GetSnapmirror", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorRelationship{UUID: "snapmirror-uuid"}, nil)
@@ -7488,7 +7570,7 @@ func TestDeleteBackupWorkflow_IsExpertModeVolumeCheck(t *testing.T) {
 		env.OnActivity("GetNode", mock.Anything, mock.Anything).Return([]*datamodel.Node{{EndpointAddress: "127.0.0.1"}}, nil)
 		env.OnActivity("GetSmDestinationPathActivity", mock.Anything, mock.Anything, mock.Anything).Return("test-bucket:/objstore/test-vol", nil)
 		env.OnActivity("GetSmSourcePathActivity", mock.Anything, mock.Anything).Return("svm_test:volume_test", nil)
-		env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+		env.OnActivity("IsSnapmirrorDeleted", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.SnapmirrorDeletePrecheckResult{RelationshipMissing: false, Relationship: &commonparams.SnapmirrorRelationship{UUID: "test-sm-uuid"}}, nil)
 		env.OnActivity("GetBackupCountByVolumeUUID", mock.Anything, backup.VolumeUUID).Return(int64(2), nil).Once()
 		env.OnActivity("GetObjectStore", mock.Anything, mock.Anything, mock.Anything).Return(&commonparams.CloudTarget{UUID: "obj-store-uuid"}, nil)
 		env.OnActivity("IsBackupShared", mock.Anything, mock.Anything).Return(true, nil) // Backup IS shared -> skip snapmirror deletion
@@ -7503,5 +7585,52 @@ func TestDeleteBackupWorkflow_IsExpertModeVolumeCheck(t *testing.T) {
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
+	})
+}
+
+func TestBackupDeleteEndpointMismatch(t *testing.T) {
+	dest := "d254cb3e-336c-11f1-8985-f5673706ed49"
+	stored := "4ea7a442-86d1-11e0-ae1c-123478563412"
+
+	t.Run("nil_rel", func(t *testing.T) {
+		assert.False(t, backupDeleteEndpointMismatch(nil, &datamodel.Backup{Attributes: &datamodel.BackupAttributes{EndpointUUID: stored}}))
+	})
+	t.Run("nil_DestinationUUID", func(t *testing.T) {
+		rel := &commonparams.SnapmirrorRelationship{UUID: "x"}
+		assert.False(t, backupDeleteEndpointMismatch(rel, &datamodel.Backup{Attributes: &datamodel.BackupAttributes{EndpointUUID: stored}}))
+	})
+	t.Run("empty_DestinationUUID_after_trim", func(t *testing.T) {
+		ws := "   "
+		rel := &commonparams.SnapmirrorRelationship{DestinationUUID: &ws}
+		assert.False(t, backupDeleteEndpointMismatch(rel, &datamodel.Backup{Attributes: &datamodel.BackupAttributes{EndpointUUID: stored}}))
+	})
+	t.Run("nil_dbBackup", func(t *testing.T) {
+		rel := &commonparams.SnapmirrorRelationship{DestinationUUID: &dest}
+		assert.False(t, backupDeleteEndpointMismatch(rel, nil))
+	})
+	t.Run("nil_Attributes", func(t *testing.T) {
+		rel := &commonparams.SnapmirrorRelationship{DestinationUUID: &dest}
+		assert.False(t, backupDeleteEndpointMismatch(rel, &datamodel.Backup{}))
+	})
+	t.Run("empty_stored_endpoint_after_trim", func(t *testing.T) {
+		rel := &commonparams.SnapmirrorRelationship{DestinationUUID: &dest}
+		b := &datamodel.Backup{Attributes: &datamodel.BackupAttributes{EndpointUUID: "  "}}
+		assert.False(t, backupDeleteEndpointMismatch(rel, b))
+	})
+	t.Run("match", func(t *testing.T) {
+		rel := &commonparams.SnapmirrorRelationship{DestinationUUID: &dest}
+		b := &datamodel.Backup{Attributes: &datamodel.BackupAttributes{EndpointUUID: dest}}
+		assert.False(t, backupDeleteEndpointMismatch(rel, b))
+	})
+	t.Run("match_EqualFold", func(t *testing.T) {
+		upper := strings.ToUpper(dest)
+		rel := &commonparams.SnapmirrorRelationship{DestinationUUID: &dest}
+		b := &datamodel.Backup{Attributes: &datamodel.BackupAttributes{EndpointUUID: upper}}
+		assert.False(t, backupDeleteEndpointMismatch(rel, b))
+	})
+	t.Run("mismatch", func(t *testing.T) {
+		rel := &commonparams.SnapmirrorRelationship{DestinationUUID: &dest}
+		b := &datamodel.Backup{Attributes: &datamodel.BackupAttributes{EndpointUUID: stored}}
+		assert.True(t, backupDeleteEndpointMismatch(rel, b))
 	})
 }

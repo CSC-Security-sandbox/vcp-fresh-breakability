@@ -2,6 +2,7 @@ package workflows
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -512,6 +513,20 @@ func getBucketDetailsForBucket(backupVault *datamodel.BackupVault, bucketName st
 	return nil, ConvertToVSAError(fmt.Errorf("no matching bucket details found for bucket %s in backup vault %s", bucketName, backupVault.Name))
 }
 
+func backupDeleteEndpointMismatch(rel *commonparams.SnapmirrorRelationship, dbBackup *datamodel.Backup) bool {
+	if rel == nil || rel.DestinationUUID == nil || strings.TrimSpace(*rel.DestinationUUID) == "" {
+		return false
+	}
+	if dbBackup == nil || dbBackup.Attributes == nil {
+		return false
+	}
+	stored := strings.TrimSpace(dbBackup.Attributes.EndpointUUID)
+	if stored == "" {
+		return false
+	}
+	return !strings.EqualFold(stored, strings.TrimSpace(*rel.DestinationUUID))
+}
+
 func DeleteBackupWorkflow(ctx workflow.Context, params *commonparams.DeleteBackupParams) (interface{}, error) {
 	backupWf := new(BackupDeleteWorkflow)
 	err := backupWf.Setup(ctx, params)
@@ -632,7 +647,7 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	var node *models.Node
 	var smSourcePath string
 	var smDestinationPath string
-	var isSnapmirrorDeleted bool
+	var smPrecheck *commonparams.SnapmirrorDeletePrecheckResult
 	if !isVolumeDeleted {
 		err = workflow.ExecuteActivity(ctx, backupActivity.GetVolume, dbBackup.VolumeUUID).Get(ctx, &volume)
 		if err != nil {
@@ -665,13 +680,19 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			DestinationPath: smDestinationPath,
 		}
 
-		err = workflow.ExecuteActivity(ctx, backupActivity.IsSnapmirrorDeleted, node, params).Get(ctx, &isSnapmirrorDeleted)
+		err = workflow.ExecuteActivity(ctx, backupActivity.IsSnapmirrorDeleted, node, params).Get(ctx, &smPrecheck)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
 	}
 
-	if isVolumeDeleted || isSnapmirrorDeleted {
+	// ADC unless we can use the direct ONTAP delete path: volume exists, relationship found, endpoint matches backup row.
+	directOntapDelete := !isVolumeDeleted && smPrecheck != nil &&
+		!smPrecheck.RelationshipMissing &&
+		!backupDeleteEndpointMismatch(smPrecheck.Relationship, dbBackup)
+	useADC := !directOntapDelete
+
+	if useADC {
 		cloudDeletionIntiated := false
 		// Create a new context for ADCWorkflow with extended timeout to accommodate 6-day maximum sleep duration
 		adcWorkflowCtx := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{

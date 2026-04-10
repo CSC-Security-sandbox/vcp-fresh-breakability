@@ -8,6 +8,7 @@ import (
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -115,23 +116,56 @@ func (a BackupActivity) CreateBackup(ctx context.Context, backup *datamodel.Back
 	return se.CreateBackup(ctx, backup)
 }
 
-func (a BackupActivity) IsSnapmirrorDeleted(ctx context.Context, node *models.Node, params *commonparams.SnapmirrorRelationshipParams) (bool, error) {
+// snapmirrorOntapRelationshipToCommon maps ONTAP SnapmirrorRelationship to common params (shared by GetSnapmirror and IsSnapmirrorDeleted).
+func snapmirrorOntapRelationshipToCommon(snapmirror *ontapRest.SnapmirrorRelationship) *commonparams.SnapmirrorRelationship {
+	if snapmirror == nil {
+		return nil
+	}
+	resp := commonparams.SnapmirrorRelationship{UUID: snapmirror.UUID.String()}
+	if snapmirror.Destination != nil && snapmirror.Destination.UUID != nil {
+		resp.DestinationUUID = nillable.ToPointer(snapmirror.Destination.UUID.String())
+	}
+	if snapmirror.State != nil {
+		resp.State = nillable.ToPointer(*snapmirror.State)
+	}
+	if snapmirror.Healthy != nil {
+		resp.Healthy = nillable.ToPointer(*snapmirror.Healthy)
+	}
+	if len(snapmirror.SnapmirrorRelationshipInlineUnhealthyReason) > 0 {
+		unhealthyReasons := make([]string, 0, len(snapmirror.SnapmirrorRelationshipInlineUnhealthyReason))
+		for _, errObj := range snapmirror.SnapmirrorRelationshipInlineUnhealthyReason {
+			if errObj != nil && errObj.Message != nil {
+				unhealthyReasons = append(unhealthyReasons, *errObj.Message)
+			}
+		}
+		if len(unhealthyReasons) > 0 {
+			resp.UnhealthyReason = &unhealthyReasons
+		}
+	}
+	resp.TotalTransferBytes = snapmirror.TotalTransferBytes
+	return &resp
+}
+
+func (a BackupActivity) IsSnapmirrorDeleted(ctx context.Context, node *models.Node, params *commonparams.SnapmirrorRelationshipParams) (*commonparams.SnapmirrorDeletePrecheckResult, error) {
 	activity.RecordHeartbeat(ctx, "is snapmirror-deleted check started")
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
-		return false, vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
-	_, err = provider.SnapmirrorRelationshipGet(params.DestinationPath, params.SourcePath)
+	snapmirror, err := provider.SnapmirrorRelationshipGet(params.DestinationPath, params.SourcePath)
 	if err != nil {
 		// Convert any error containing "not found" to a proper NotFoundErr
 		err = errors.ConvertToNotFoundErrIfContainsMessage(err, "not found", "snapmirror relationship", nil)
 		if errors.IsNotFoundErr(err) {
-			return true, nil
+			return &commonparams.SnapmirrorDeletePrecheckResult{RelationshipMissing: true}, nil
 		}
-		return false, vsaerrors.WrapAsTemporalApplicationError(err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 	activity.RecordHeartbeat(ctx, "is snapmirror-deleted check completed")
-	return false, nil
+	return &commonparams.SnapmirrorDeletePrecheckResult{
+		RelationshipMissing: false,
+		Relationship:        snapmirrorOntapRelationshipToCommon(snapmirror),
+	}, nil
 }
 
 func (a BackupActivity) GetBackup(ctx context.Context, backupVaultUUID, backupUUID, accountName string) (*datamodel.Backup, error) {
@@ -682,37 +716,8 @@ func (a BackupActivity) GetSnapmirror(ctx context.Context, node *models.Node, so
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	resp := commonparams.SnapmirrorRelationship{UUID: snapmirror.UUID.String()}
-	if snapmirror.Destination != nil && snapmirror.Destination.UUID != nil {
-		resp.DestinationUUID = nillable.ToPointer(snapmirror.Destination.UUID.String())
-	}
-
-	if snapmirror.State != nil {
-		resp.State = nillable.ToPointer(*snapmirror.State)
-	}
-
-	// Populate Healthy field
-	if snapmirror.Healthy != nil {
-		resp.Healthy = nillable.ToPointer(*snapmirror.Healthy)
-	}
-
-	// Populate UnhealthyReason field by extracting messages from SnapmirrorError objects
-	if len(snapmirror.SnapmirrorRelationshipInlineUnhealthyReason) > 0 {
-		unhealthyReasons := make([]string, 0, len(snapmirror.SnapmirrorRelationshipInlineUnhealthyReason))
-		for _, errObj := range snapmirror.SnapmirrorRelationshipInlineUnhealthyReason {
-			if errObj != nil && errObj.Message != nil {
-				unhealthyReasons = append(unhealthyReasons, *errObj.Message)
-			}
-		}
-		if len(unhealthyReasons) > 0 {
-			resp.UnhealthyReason = &unhealthyReasons
-		}
-	}
-
-	resp.TotalTransferBytes = snapmirror.TotalTransferBytes
-
 	activity.RecordHeartbeat(ctx, "GetSnapmirror completed")
-	return &resp, nil
+	return snapmirrorOntapRelationshipToCommon(snapmirror), nil
 }
 
 func (a BackupActivity) SnapshotCreate(ctx context.Context, node *models.Node, volumeUUID, name, comment string) (*vsa.SnapshotProviderResponse, error) {
