@@ -10558,6 +10558,136 @@ func TestDeleteVolume(t *testing.T) {
 		assert.Equal(tt, "job-uuid", jobID)
 		mockStorage.AssertExpectations(tt)
 	})
+
+	t.Run("WhenPoolIsAlreadyDeletedThenVolumeIsDeletedFromDB", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockLogger := log.NewLogger()
+		store, err := database.SetupStorageForTest(mockLogger)
+		if err != nil {
+			tt.Fatalf("Failed to create test storage: %v", err)
+		}
+
+		err = database.ClearInMemoryDB(store.DB())
+		if err != nil {
+			tt.Fatalf("Failed to clean up test storage: %v", err)
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(account).Error
+		if err != nil {
+			tt.Fatalf("Failed to create account: %v", err)
+		}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "test-pool-uuid"},
+			Name:      "test_pool",
+			AccountID: account.ID,
+			VendorID:  "/projects/project123/locations/location123/pools/pool123",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone:  "us-west1-a",
+				IsRegionalHA: false,
+			},
+		}
+		err = store.DB().Create(pool).Error
+		if err != nil {
+			tt.Fatalf("Failed to create pool: %v", err)
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel:    datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:         "test_volume",
+			AccountID:    account.ID,
+			PoolID:       pool.ID,
+			State:        models.LifeCycleStateREADY,
+			StateDetails: models.LifeCycleStateAvailableDetails,
+		}
+		err = store.DB().Create(volume).Error
+		assert.NoError(tt, err, "Failed to create volume")
+
+		// Soft-delete the pool so GetVolume returns volume with Pool == nil
+		err = store.DB().Delete(pool).Error
+		assert.NoError(tt, err, "Failed to delete pool")
+
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		volumeResp, jobUUID, err := deleteVolume(ctx, store, temporal, "test-volume-uuid")
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volumeResp)
+		assert.Empty(tt, jobUUID, "Expected empty job UUID when pool is nil")
+		assert.Equal(tt, models.LifeCycleStateDeleted, volumeResp.LifeCycleState)
+		assert.Equal(tt, models.LifeCycleStateDeletedDetails, volumeResp.LifeCycleStateDetails)
+		assert.Equal(tt, volume.Name, volumeResp.DisplayName)
+		assert.Equal(tt, account.Name, volumeResp.AccountName)
+
+		// Verify volume is soft-deleted in DB
+		var deletedVolume datamodel.Volume
+		err = store.DB().First(&deletedVolume, "uuid = ?", volume.UUID).Error
+		assert.Error(tt, err, "Expected volume to be soft-deleted")
+	})
+
+	t.Run("WhenPoolIsNilAndDBDeleteFails", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      nil,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		mockStorage.EXPECT().GetVolume(ctx, "test-volume-uuid").Return(volume, nil)
+		mockStorage.EXPECT().DeleteVolumeAndChildResources(ctx, "test-volume-uuid").Return(nil, errors2.New("db error"))
+
+		volumeResp, jobUUID, err := deleteVolume(ctx, mockStorage, temporal, "test-volume-uuid")
+		assert.EqualError(tt, err, "db error")
+		assert.Nil(tt, volumeResp)
+		assert.Empty(tt, jobUUID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenPoolIsNilAndDBDeleteReturnsNotFound_SucceedsIdempotent", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "test-volume-uuid"},
+			Name:      "test_volume",
+			AccountID: account.ID,
+			Account:   account,
+			Pool:      nil,
+			State:     models.LifeCycleStateREADY,
+		}
+
+		mockStorage.EXPECT().GetVolume(ctx, "test-volume-uuid").Return(volume, nil)
+		mockStorage.EXPECT().DeleteVolumeAndChildResources(ctx, "test-volume-uuid").Return(nil, customerrors.NewNotFoundErr("volume", nil))
+
+		volumeResp, jobUUID, err := deleteVolume(ctx, mockStorage, temporal, "test-volume-uuid")
+		assert.NoError(tt, err)
+		assert.NotNil(tt, volumeResp)
+		assert.Empty(tt, jobUUID)
+		assert.Equal(tt, models.LifeCycleStateDeleted, volumeResp.LifeCycleState)
+		assert.Equal(tt, volume.UUID, volumeResp.UUID)
+		mockStorage.AssertExpectations(tt)
+	})
 }
 
 func TestDeleteVolume_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
@@ -10761,6 +10891,8 @@ func TestDeleteVolume_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 			Name:      "test_volume",
 			AccountID: account.ID,
 			PoolID:    pool.ID,
+			Account:   account,
+			Pool:      pool,
 			State:     models.LifeCycleStateUpdating, // Transitional state (not DELETING)
 		}
 		err = store.DB().Create(volume).Error
@@ -10769,6 +10901,7 @@ func TestDeleteVolume_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(tt)
 
+		// GetVolume must return Pool populated; otherwise nil Pool triggers DB-only delete before transitional-state check.
 		mockStorage.EXPECT().GetVolume(ctx, "test-volume-uuid").Return(volume, nil)
 		// When volume is in transitional state (not CREATING and not DELETING), function returns early
 		// without calling GetJobByResourceUUID (see line 1721-1723 in volume.go)

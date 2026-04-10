@@ -2006,6 +2006,31 @@ func _deleteVolume(ctx context.Context, se database.Storage, temporal client.Cli
 		return nil, "", err
 	}
 
+	if volume.Pool == nil {
+		logger.Warn("Volume's pool is nil (pool likely already deleted), deleting volume directly from database", "volume_id", volume.UUID)
+		_, err = se.DeleteVolumeAndChildResources(ctx, volumeId)
+		if err != nil {
+			if customerrors.IsNotFoundErr(err) {
+				logger.Info("Orphan volume already removed from database (concurrent delete), treating delete as success", "volume_id", volume.UUID)
+			} else {
+				logger.Error("Failed to delete orphaned volume from database", "volume_id", volume.UUID, "error", err)
+				return nil, "", err
+			}
+		}
+		return &models.Volume{
+			BaseModel: models.BaseModel{
+				UUID:      volume.UUID,
+				CreatedAt: volume.CreatedAt,
+				UpdatedAt: volume.UpdatedAt,
+			},
+			DisplayName:           volume.Name,
+			AccountName:           volume.Account.Name,
+			LifeCycleState:        models.LifeCycleStateDeleted,
+			LifeCycleStateDetails: models.LifeCycleStateDeletedDetails,
+			QuotaInBytes:          uint64(volume.SizeInBytes),
+		}, "", nil
+	}
+
 	correlationID := utils.GetCoRelationIDFromContext(ctx)
 	var existingDeleteJobUUID string
 	// Flag to determine if we should use non-sequential execution (for same correlation ID case)
