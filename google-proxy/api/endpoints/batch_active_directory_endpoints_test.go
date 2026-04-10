@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	utilsmiddleware "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -168,8 +169,12 @@ func TestV1betaBatchListActiveDirectories_Success(t *testing.T) {
 
 		ad := makeVCPAD("ad-1", "my-ad", models.LifeCycleStateREADY)
 		mockOrch := factory.NewMockOrchestratorFactory(tt)
-		mockOrch.On("BatchListActiveDirectories", mock.Anything, mock.Anything).
-			Return([]*models.ActiveDirectory{ad}, nil)
+		mockOrch.On("BatchListActiveDirectories", mock.Anything, mock.MatchedBy(func(p *commonparams.BatchListADsParams) bool {
+			return p != nil && p.LocationID == "us-east4" &&
+				len(p.Fields) == 2 &&
+				p.Fields[0] == "resourceId" &&
+				p.Fields[1] == "activeDirectoryState"
+		})).Return([]*models.ActiveDirectory{ad}, nil)
 		handler := &Handler{Orchestrator: mockOrch}
 		ctx := authContext()
 

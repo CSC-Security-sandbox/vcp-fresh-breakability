@@ -335,6 +335,10 @@ func _getMultipleActiveDirectories(
 		result = append(result, commonfactory.ConvertDatastoreActiveDirectoryToModel(ad))
 	}
 
+	logger.Debug("batch list active directories (VCP DB only, no SDE)",
+		"requested_uuid_count", len(uuids),
+		"found_in_vcp_count", len(result))
+
 	return result, nil
 }
 
@@ -384,6 +388,9 @@ func _batchListActiveDirectories(
 	}
 
 	logger := util.GetLogger(ctx)
+	logger.Debug("batch list active directories: starting parallel SDE (CVP) and VCP DB fetch",
+		"requested_uuid_count", len(params.UUIDs),
+		"location_id", params.LocationID)
 
 	var (
 		sdeADs []*models.ActiveDirectory
@@ -440,6 +447,12 @@ func _batchListActiveDirectories(
 		}
 	}
 
+	logger.Debug("batch list active directories: completed SDE/VCP fetch and state merge",
+		"requested_uuid_count", len(params.UUIDs),
+		"found_in_sde_count", len(sdeADs),
+		"found_in_vcp_db_count", len(vcpADs),
+		"response_active_directory_count", len(sdeADs))
+
 	return sdeADs, nil
 }
 
@@ -458,6 +471,9 @@ func _batchListActiveDirectoriesSDE(
 	cvpParams.SetBody(&cvpmodels.ActiveDirectoryIDListV1beta{
 		ActiveDirectoryUUIDs: params.UUIDs,
 	})
+	if len(params.Fields) > 0 {
+		cvpParams.SetFields(params.Fields)
+	}
 	if params.CorrelationID != "" {
 		cvpParams.SetXCorrelationID(&params.CorrelationID)
 	}

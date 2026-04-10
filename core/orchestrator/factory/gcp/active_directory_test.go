@@ -11,7 +11,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
+	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -4405,6 +4407,29 @@ func Test_batchListActiveDirectories_CVP_VCPError_Returns500(t *testing.T) {
 	mockSe.AssertExpectations(t)
 }
 
+func TestConvertCVPBatchADToModel_NoReadyDefaultWhenStateOmitted(t *testing.T) {
+	batch := &cvpmodels.BatchActiveDirectoryV1beta{
+		ActiveDirectoryID: "11111111-1111-1111-1111-111111111111",
+	}
+	out := adHelper.ConvertCVPBatchADToModel(batch)
+	require.NotNil(t, out)
+	assert.Equal(t, "", out.State)
+	assert.Equal(t, "", out.StateDetails)
+}
+
+func TestConvertCVPBatchADToModel_PreservesStateFromCVP(t *testing.T) {
+	details := "custom detail"
+	batch := &cvpmodels.BatchActiveDirectoryV1beta{
+		ActiveDirectoryID:           "11111111-1111-1111-1111-111111111111",
+		ActiveDirectoryState:        "ERROR",
+		ActiveDirectoryStateDetails: &details,
+	}
+	out := adHelper.ConvertCVPBatchADToModel(batch)
+	require.NotNil(t, out)
+	assert.Equal(t, "ERROR", out.State)
+	assert.Equal(t, "custom detail", out.StateDetails)
+}
+
 func Test_batchListActiveDirectoriesSDE_Success(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -4446,6 +4471,34 @@ func Test_batchListActiveDirectoriesSDE_Success(t *testing.T) {
 	assert.Equal(t, "READY", ads[0].State)
 	assert.Equal(t, "Ready for use", ads[0].StateDetails)
 	assert.Equal(t, "corp.example.com", ads[0].Domain)
+}
+
+func Test_batchListActiveDirectoriesSDE_PropagatesFieldsToCVPQuery(t *testing.T) {
+	var gotFields string
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotFields = r.URL.Query().Get("fields")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"activeDirectories": [{"activeDirectoryId": "ad-1", "activeDirectoryState": "READY"}]}`))
+	}))
+	defer mockServer.Close()
+
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = mockServer.URL[7:]
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	ctx := context.Background()
+	params := &common.BatchListADsParams{
+		UUIDs:      []string{"ad-1"},
+		LocationID: "us-central1",
+		Fields:     []string{"domain", "username"},
+	}
+
+	ads, err := _batchListActiveDirectoriesSDE(ctx, params)
+
+	assert.NoError(t, err)
+	assert.Len(t, ads, 1)
+	assert.Equal(t, "domain,username", gotFields)
 }
 
 func Test_batchListActiveDirectoriesSDE_CVPError(t *testing.T) {

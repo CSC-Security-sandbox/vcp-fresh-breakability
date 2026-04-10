@@ -54,11 +54,24 @@ func (h Handler) V1betaBatchListActiveDirectories(ctx context.Context, req *gcpg
 	logger := util.GetLogger(ctx)
 	fieldSet := buildADBatchFieldSet(params.Fields)
 
-	ads, err := h.Orchestrator.BatchListActiveDirectories(ctx, &commonparams.BatchListADsParams{
-		UUIDs:         req.ActiveDirectoryUUIDs,
-		LocationID:    params.LocationId,
-		CorrelationID: params.XCorrelationID.Value,
-	})
+	var fieldsForCVP []string
+	if len(params.Fields) > 0 {
+		fieldsForCVP = make([]string, len(params.Fields))
+		for i, f := range params.Fields {
+			fieldsForCVP[i] = string(f)
+		}
+	}
+
+	batchParams := &commonparams.BatchListADsParams{
+		UUIDs:      req.ActiveDirectoryUUIDs,
+		LocationID: params.LocationId,
+		Fields:     fieldsForCVP,
+	}
+	if params.XCorrelationID.IsSet() {
+		batchParams.CorrelationID = params.XCorrelationID.Value
+	}
+
+	ads, err := h.Orchestrator.BatchListActiveDirectories(ctx, batchParams)
 	if err != nil {
 		logger.Error("BatchListActiveDirectories failed", "error", err.Error())
 		return &gcpgenserver.V1betaBatchListActiveDirectoriesInternalServerError{

@@ -23,7 +23,7 @@ var (
 	DeleteSecretFromGCP                    = deletePasswordSecret
 	GetPasswordSecret                      = getPasswordSecret
 	ConvertCVPActiveDirectoryV1BetaToModel = convertCVPActiveDirectoryV1BetaToModel
-	ConvertCVPBatchADToModel              = convertCVPBatchADToModel
+	ConvertCVPBatchADToModel               = convertCVPBatchADToModel
 	CompareADStateHierarchy                = compareADStateHierarchy
 	StringToActiveDirectoryState           = stringToActiveDirectoryState
 	GetStatePriority                       = getStatePriority
@@ -283,20 +283,18 @@ func convertCVPActiveDirectoryV1BetaToModel(adV1Beta *models.ActiveDirectoryV1be
 	return ad
 }
 
-// convertCVPBatchADToModel converts a CVP batch Active Directory model to the
-// VCP domain model. It mirrors convertCVPActiveDirectoryV1BetaToModel but
-// accepts the batch-specific CVP type (identical field set, same pointer style).
+// convertCVPBatchADToModel maps CVP batch AD payloads to the VCP model.
 func convertCVPBatchADToModel(batch *models.BatchActiveDirectoryV1beta) *vcpModels.ActiveDirectory {
 	if batch == nil {
 		return nil
 	}
 
-	state := "READY"
+	state := ""
 	if batch.ActiveDirectoryState != "" {
 		state = batch.ActiveDirectoryState
 	}
 
-	stateDetails := "Active Directory is ready"
+	stateDetails := ""
 	if batch.ActiveDirectoryStateDetails != nil && *batch.ActiveDirectoryStateDetails != "" {
 		stateDetails = *batch.ActiveDirectoryStateDetails
 	}

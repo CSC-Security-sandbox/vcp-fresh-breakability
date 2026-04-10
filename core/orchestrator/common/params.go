@@ -853,12 +853,13 @@ type GetADParams struct {
 }
 
 // BatchListADsParams carries parameters for the batch list Active Directories
-// orchestrator method. LocationID and CorrelationID are forwarded to CVP when
-// CVP_HOST is set; in VCP-only mode only UUIDs is used.
+// orchestrator method. LocationID, CorrelationID, and Fields are forwarded to CVP when
+// CVP_HOST is set; in VCP-only mode only UUIDs is used
 type BatchListADsParams struct {
 	UUIDs         []string
 	LocationID    string
 	CorrelationID string
+	Fields        []string
 }
 
 type RestoreFilesFromBackupParams struct {
