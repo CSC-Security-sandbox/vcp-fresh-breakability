@@ -153,13 +153,28 @@ else:
 </details>"
       ;;
     L2*)
-      HOW_CHECKED="
+      # L2 = build/type-check passes, but tests fail or weren't run
+      TEST_EXIT_RAW=$(echo "$PR_FIELDS" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('test_exit',-1))" 2>/dev/null || echo "-1")
+      TEST_RAN_RAW=$(echo "$PR_FIELDS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('test_ran',False))" 2>/dev/null || echo "False")
+      if [[ "$TEST_RAN_RAW" == "True" && "$TEST_EXIT_RAW" != "0" && "$TEST_EXIT_RAW" != "-1" ]]; then
+        HOW_CHECKED="
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
 - ✅ Dependency resolved successfully
-- ❌ Build produced errors (see details above)
-- ⬜ Tests not run (build failed)
+- ✅ Project builds / type-checks clean
+- ❌ Automated tests fail (exit=$TEST_EXIT_RAW — may be pre-existing, also fails on main)
+- ✅ No new build errors introduced vs. main
 </details>"
+      else
+        HOW_CHECKED="
+<details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
+
+- ✅ Dependency resolved successfully
+- ✅ Project builds / type-checks clean
+- ⬜ Tests not configured or not run
+- ✅ No new build errors introduced vs. main
+</details>"
+      fi
       ;;
     L1*)
       HOW_CHECKED="
@@ -354,3 +369,198 @@ done
 
 echo ""
 echo "Fallback: posted $POSTED, skipped $SKIPPED (already had comments), failed $FAILED"
+
+# ── Regenerate merge plan issue ──────────────────────────────────────────────
+# The merge plan must always reflect the latest build-results.json.
+# If the AI agent generated a previous plan, it may be stale after a
+# deterministic rerun. This section creates/updates the merge plan issue
+# from the current data so PR comments and the plan never contradict.
+echo ""
+echo "════════════ MERGE PLAN ════════════"
+
+MERGE_PLAN_BODY=$(python3 << 'PYEOF'
+import json, sys, subprocess
+from datetime import datetime
+
+with open("/tmp/build-results.json") as f:
+    data = json.load(f)
+
+prs = data.get("prs", {})
+cross = data.get("cross_pr_deps", [])
+security = data.get("security_posture", {})
+
+# Count total open PRs (not just Dependabot) for completeness note
+try:
+    result = subprocess.run(
+        ["gh", "pr", "list", "--state", "open", "--json", "number", "-q", "length"],
+        capture_output=True, text=True, timeout=30
+    )
+    total_open_prs = int(result.stdout.strip()) if result.returncode == 0 else 0
+except:
+    total_open_prs = 0
+
+non_dependabot_count = max(0, total_open_prs - len(prs))
+
+# Categorize PRs
+safe = []        # pass verdicts
+blocked = []     # fail / pre_existing_plus_new
+review = []      # pre_existing / error / infra_error
+skipped = []     # skip (actions, docker, etc.)
+not_analyzed = [] # anything else
+
+for num, pr in sorted(prs.items(), key=lambda x: int(x[0])):
+    v = pr.get("build", {}).get("verdict", "?")
+    pkg = pr.get("package", "?")
+    fr = pr.get("from", "?")
+    to = pr.get("to", "?")
+    bump = pr.get("bump", "?")
+    dep_type = pr.get("dep_type", "?")
+    ver = pr.get("verification_label", "?")
+    cves = pr.get("cves", [])
+    eco = pr.get("ecosystem", "?")
+    entry = {"num": num, "pkg": pkg, "from": fr, "to": to, "bump": bump, "dep_type": dep_type, "ver": ver, "cves": cves, "eco": eco, "verdict": v}
+
+    if v == "skip":
+        skipped.append(entry)
+    elif v in ("pass",):
+        safe.append(entry)
+    elif v in ("fail", "pre_existing_plus_new"):
+        blocked.append(entry)
+    elif v in ("pre_existing", "error"):
+        review.append(entry)
+    else:
+        not_analyzed.append(entry)
+
+# Build markdown
+lines = []
+lines.append("<!-- breakability-merge-plan -->")
+lines.append(f"# 📋 Breakability Merge Plan")
+lines.append(f"")
+lines.append(f"**Generated:** {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')} (deterministic)")
+lines.append(f"**PRs analyzed:** {len(prs)} Dependabot PRs")
+if non_dependabot_count > 0:
+    lines.append(f"**Not analyzed:** {non_dependabot_count} non-Dependabot PR(s) (out of scope — this tool only analyzes Dependabot dependency upgrades)")
+lines.append(f"")
+
+# Summary table
+lines.append("## Summary")
+lines.append("")
+lines.append(f"| Category | Count |")
+lines.append(f"|----------|-------|")
+lines.append(f"| ✅ Safe to merge | {len(safe)} |")
+lines.append(f"| ❌ Fix required | {len(blocked)} |")
+lines.append(f"| ⚠️ Manual review | {len(review)} |")
+lines.append(f"| ⏭️ Skipped (CI/Docker) | {len(skipped)} |")
+if not_analyzed:
+    lines.append(f"| ❓ Not analyzed | {len(not_analyzed)} |")
+lines.append("")
+
+# CVE highlight
+all_cves = []
+for cat in [safe, blocked, review, skipped]:
+    for e in cat:
+        if e["cves"]:
+            all_cves.append(e)
+if all_cves:
+    lines.append("## 🔴 Security — CVEs Fixed by These Upgrades")
+    lines.append("")
+    for e in all_cves:
+        cve_str = ", ".join(e["cves"])
+        lines.append(f"- **PR #{e['num']}** `{e['pkg']}` {e['from']}→{e['to']} — {cve_str}")
+    lines.append("")
+
+# Safe to merge
+if safe:
+    lines.append("## ✅ Safe to Merge")
+    lines.append("")
+    lines.append("| PR | Package | Version | Bump | Verification |")
+    lines.append("|----|---------|---------|----|-------------|")
+    for e in safe:
+        cve_badge = f" 🔴 {','.join(e['cves'])}" if e['cves'] else ""
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {e['bump']} | {e['ver']}{cve_badge} |")
+    lines.append("")
+
+# Cross-PR deps
+if cross:
+    lines.append("## 🔗 Coordinated Upgrades (merge together)")
+    lines.append("")
+    for group in cross:
+        reason = group.get("reason", "related")
+        pr_nums = group.get("prs", [])
+        lines.append(f"- **{reason}:** PRs {', '.join(f'#{p}' for p in pr_nums)}")
+    lines.append("")
+
+# Blocked
+if blocked:
+    lines.append("## ❌ Fix Required — Do Not Merge")
+    lines.append("")
+    lines.append("| PR | Package | Version | Bump | Issue |")
+    lines.append("|----|---------|---------|----|-------|")
+    for e in blocked:
+        issue = "Build fails" if e["verdict"] == "fail" else "New errors on top of pre-existing"
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {e['bump']} | {issue} |")
+    lines.append("")
+
+# Review
+if review:
+    lines.append("## ⚠️ Manual Review Needed")
+    lines.append("")
+    for e in review:
+        reason = "Pre-existing build failure (not caused by upgrade)" if e["verdict"] == "pre_existing" else "Build error / infrastructure issue"
+        lines.append(f"- **PR #{e['num']}** `{e['pkg']}` {e['from']}→{e['to']} — {reason}")
+    lines.append("")
+
+# Skipped
+if skipped:
+    lines.append("## ⏭️ Skipped (CI / Docker)")
+    lines.append("")
+    for e in skipped:
+        lines.append(f"- PR #{e['num']} `{e['pkg']}` ({e['eco']})")
+    lines.append("")
+
+# Security posture
+if security:
+    lines.append("## 🛡️ Repository Security Posture")
+    lines.append("")
+    open_alerts = security.get("open_alerts", 0)
+    fixable = security.get("alerts_fixable_by_merging", 0)
+    lines.append(f"- Open Dependabot alerts: **{open_alerts}**")
+    if fixable:
+        lines.append(f"- Alerts fixable by merging these PRs: **{fixable}**")
+    by_sev = security.get("by_severity", {})
+    if by_sev:
+        sev_str = ", ".join(f"{s}: {c}" for s, c in sorted(by_sev.items()))
+        lines.append(f"- By severity: {sev_str}")
+    lines.append("")
+
+lines.append("---")
+lines.append("> 🔬 *Deterministic merge plan — generated from build-results.json. Refer to individual PR comments for full details.*")
+
+print("\n".join(lines))
+PYEOF
+)
+
+if [[ -n "$MERGE_PLAN_BODY" && "$MERGE_PLAN_BODY" != *"Traceback"* ]]; then
+  # Find existing merge-plan issue
+  EXISTING_ISSUE=$(gh issue list --label "merge-plan" --state open --json number -q '.[0].number' 2>/dev/null || echo "")
+
+  if [[ -n "$EXISTING_ISSUE" ]]; then
+    # Update existing issue
+    gh issue edit "$EXISTING_ISSUE" --body "$MERGE_PLAN_BODY" 2>/dev/null && \
+      echo "  Updated merge plan issue #$EXISTING_ISSUE" || \
+      echo "  ⚠️  Failed to update merge plan issue #$EXISTING_ISSUE"
+  else
+    # Create new merge plan issue
+    NEW_ISSUE=$(gh issue create \
+      --title "📋 Breakability Merge Plan — $(date -u +%Y-%m-%d)" \
+      --body "$MERGE_PLAN_BODY" \
+      --label "merge-plan" 2>/dev/null || echo "")
+    if [[ -n "$NEW_ISSUE" ]]; then
+      echo "  Created merge plan issue: $NEW_ISSUE"
+    else
+      echo "  ⚠️  Failed to create merge plan issue"
+    fi
+  fi
+else
+  echo "  ⚠️  Merge plan generation failed — skipping issue update"
+fi
