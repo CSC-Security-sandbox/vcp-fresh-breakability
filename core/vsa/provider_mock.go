@@ -4532,65 +4532,6 @@ func (_c *MockProvider_GetVolumeNASDetails_Call) RunAndReturn(run func(string) (
 	return _c
 }
 
-// GetVolumeSANDetails provides a mock function with given fields: svmName, volumeName
-func (_m *MockProvider) GetVolumeSANDetails(svmName string, volumeName string) (*VolumeSANDetails, error) {
-	ret := _m.Called(svmName, volumeName)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetVolumeSANDetails")
-	}
-
-	var r0 *VolumeSANDetails
-	var r1 error
-	if rf, ok := ret.Get(0).(func(string, string) (*VolumeSANDetails, error)); ok {
-		return rf(svmName, volumeName)
-	}
-	if rf, ok := ret.Get(0).(func(string, string) *VolumeSANDetails); ok {
-		r0 = rf(svmName, volumeName)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*VolumeSANDetails)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(string, string) error); ok {
-		r1 = rf(svmName, volumeName)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockProvider_GetVolumeSANDetails_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumeSANDetails'
-type MockProvider_GetVolumeSANDetails_Call struct {
-	*mock.Call
-}
-
-// GetVolumeSANDetails is a helper method to define mock.On call
-//   - svmName string
-//   - volumeName string
-func (_e *MockProvider_Expecter) GetVolumeSANDetails(svmName interface{}, volumeName interface{}) *MockProvider_GetVolumeSANDetails_Call {
-	return &MockProvider_GetVolumeSANDetails_Call{Call: _e.mock.On("GetVolumeSANDetails", svmName, volumeName)}
-}
-
-func (_c *MockProvider_GetVolumeSANDetails_Call) Run(run func(svmName string, volumeName string)) *MockProvider_GetVolumeSANDetails_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string))
-	})
-	return _c
-}
-
-func (_c *MockProvider_GetVolumeSANDetails_Call) Return(_a0 *VolumeSANDetails, _a1 error) *MockProvider_GetVolumeSANDetails_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockProvider_GetVolumeSANDetails_Call) RunAndReturn(run func(string, string) (*VolumeSANDetails, error)) *MockProvider_GetVolumeSANDetails_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetVolumeReplication provides a mock function with given fields: replication
 func (_m *MockProvider) GetVolumeReplication(replication *VolumeReplication) (*VolumeReplication, error) {
 	ret := _m.Called(replication)
@@ -4703,6 +4644,65 @@ func (_c *MockProvider_GetVolumeReplicationFromSrcAndDstPath_Call) Return(_a0 *V
 }
 
 func (_c *MockProvider_GetVolumeReplicationFromSrcAndDstPath_Call) RunAndReturn(run func(*VolumeReplication) (*VolumeReplication, error)) *MockProvider_GetVolumeReplicationFromSrcAndDstPath_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetVolumeSANDetails provides a mock function with given fields: svmName, volumeName
+func (_m *MockProvider) GetVolumeSANDetails(svmName string, volumeName string) (*VolumeSANDetails, error) {
+	ret := _m.Called(svmName, volumeName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVolumeSANDetails")
+	}
+
+	var r0 *VolumeSANDetails
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string) (*VolumeSANDetails, error)); ok {
+		return rf(svmName, volumeName)
+	}
+	if rf, ok := ret.Get(0).(func(string, string) *VolumeSANDetails); ok {
+		r0 = rf(svmName, volumeName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*VolumeSANDetails)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(svmName, volumeName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetVolumeSANDetails_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumeSANDetails'
+type MockProvider_GetVolumeSANDetails_Call struct {
+	*mock.Call
+}
+
+// GetVolumeSANDetails is a helper method to define mock.On call
+//   - svmName string
+//   - volumeName string
+func (_e *MockProvider_Expecter) GetVolumeSANDetails(svmName interface{}, volumeName interface{}) *MockProvider_GetVolumeSANDetails_Call {
+	return &MockProvider_GetVolumeSANDetails_Call{Call: _e.mock.On("GetVolumeSANDetails", svmName, volumeName)}
+}
+
+func (_c *MockProvider_GetVolumeSANDetails_Call) Run(run func(svmName string, volumeName string)) *MockProvider_GetVolumeSANDetails_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetVolumeSANDetails_Call) Return(_a0 *VolumeSANDetails, _a1 error) *MockProvider_GetVolumeSANDetails_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetVolumeSANDetails_Call) RunAndReturn(run func(string, string) (*VolumeSANDetails, error)) *MockProvider_GetVolumeSANDetails_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -5865,64 +5865,6 @@ func (_c *MockProvider_LunList_Call) RunAndReturn(run func(LunGetParams) ([]*Lun
 	return _c
 }
 
-// NamespaceList provides a mock function with given fields: params
-func (_m *MockProvider) NamespaceList(params NvmeNamespaceGetParams) ([]*NvmeNamespaceResponse, error) {
-	ret := _m.Called(params)
-
-	if len(ret) == 0 {
-		panic("no return value specified for NamespaceList")
-	}
-
-	var r0 []*NvmeNamespaceResponse
-	var r1 error
-	if rf, ok := ret.Get(0).(func(NvmeNamespaceGetParams) ([]*NvmeNamespaceResponse, error)); ok {
-		return rf(params)
-	}
-	if rf, ok := ret.Get(0).(func(NvmeNamespaceGetParams) []*NvmeNamespaceResponse); ok {
-		r0 = rf(params)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*NvmeNamespaceResponse)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(NvmeNamespaceGetParams) error); ok {
-		r1 = rf(params)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockProvider_NamespaceList_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NamespaceList'
-type MockProvider_NamespaceList_Call struct {
-	*mock.Call
-}
-
-// NamespaceList is a helper method to define mock.On call
-//   - params NvmeNamespaceGetParams
-func (_e *MockProvider_Expecter) NamespaceList(params interface{}) *MockProvider_NamespaceList_Call {
-	return &MockProvider_NamespaceList_Call{Call: _e.mock.On("NamespaceList", params)}
-}
-
-func (_c *MockProvider_NamespaceList_Call) Run(run func(params NvmeNamespaceGetParams)) *MockProvider_NamespaceList_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(NvmeNamespaceGetParams))
-	})
-	return _c
-}
-
-func (_c *MockProvider_NamespaceList_Call) Return(_a0 []*NvmeNamespaceResponse, _a1 error) *MockProvider_NamespaceList_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockProvider_NamespaceList_Call) RunAndReturn(run func(NvmeNamespaceGetParams) ([]*NvmeNamespaceResponse, error)) *MockProvider_NamespaceList_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // LunMapCreate provides a mock function with given fields: params
 func (_m *MockProvider) LunMapCreate(params LunMapCreateParams) error {
 	ret := _m.Called(params)
@@ -6381,6 +6323,64 @@ func (_c *MockProvider_MountVolume_Call) Return(_a0 *OntapAsyncResponse, _a1 err
 }
 
 func (_c *MockProvider_MountVolume_Call) RunAndReturn(run func(MountVolumeParams) (*OntapAsyncResponse, error)) *MockProvider_MountVolume_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// NamespaceList provides a mock function with given fields: params
+func (_m *MockProvider) NamespaceList(params NvmeNamespaceGetParams) ([]*NvmeNamespaceResponse, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for NamespaceList")
+	}
+
+	var r0 []*NvmeNamespaceResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(NvmeNamespaceGetParams) ([]*NvmeNamespaceResponse, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(NvmeNamespaceGetParams) []*NvmeNamespaceResponse); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*NvmeNamespaceResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(NvmeNamespaceGetParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_NamespaceList_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NamespaceList'
+type MockProvider_NamespaceList_Call struct {
+	*mock.Call
+}
+
+// NamespaceList is a helper method to define mock.On call
+//   - params NvmeNamespaceGetParams
+func (_e *MockProvider_Expecter) NamespaceList(params interface{}) *MockProvider_NamespaceList_Call {
+	return &MockProvider_NamespaceList_Call{Call: _e.mock.On("NamespaceList", params)}
+}
+
+func (_c *MockProvider_NamespaceList_Call) Run(run func(params NvmeNamespaceGetParams)) *MockProvider_NamespaceList_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(NvmeNamespaceGetParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_NamespaceList_Call) Return(_a0 []*NvmeNamespaceResponse, _a1 error) *MockProvider_NamespaceList_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_NamespaceList_Call) RunAndReturn(run func(NvmeNamespaceGetParams) ([]*NvmeNamespaceResponse, error)) *MockProvider_NamespaceList_Call {
 	_c.Call.Return(run)
 	return _c
 }

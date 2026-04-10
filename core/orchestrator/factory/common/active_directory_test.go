@@ -8,6 +8,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"gorm.io/gorm"
 )
 
 func TestConvertDatastoreActiveDirectoryToModel_Success(t *testing.T) {
@@ -74,6 +75,32 @@ func TestConvertDatastoreActiveDirectoryToModel_Success(t *testing.T) {
 	assert.Equal(t, false, result.ActiveDirectoryAttributes.LdapSigning)
 	assert.Equal(t, true, result.ActiveDirectoryAttributes.AllowLocalNFSUsersWithLdap)
 	assert.Equal(t, "Test Description", result.ActiveDirectoryAttributes.Description)
+}
+
+func TestConvertDatastoreActiveDirectoryToModel_WithDeletedAt(t *testing.T) {
+	now := time.Now()
+	deletedAt := &gorm.DeletedAt{Time: now, Valid: true}
+	ad := &datamodel.ActiveDirectory{
+		BaseModel: datamodel.BaseModel{
+			ID:        10,
+			UUID:      "test-uuid-deleted",
+			CreatedAt: now,
+			UpdatedAt: now,
+			DeletedAt: deletedAt,
+		},
+		AdName:   "deleted-ad",
+		Username: "testuser",
+		Domain:   "example.com",
+		DNS:      "8.8.8.8",
+		NetBIOS:  "EXAMPLE",
+		State:    "READY",
+	}
+
+	result := ConvertDatastoreActiveDirectoryToModel(ad)
+
+	assert.NotNil(t, result)
+	assert.NotNil(t, result.DeletedAt)
+	assert.Equal(t, now.Unix(), result.DeletedAt.Unix())
 }
 
 func TestConvertDatastoreActiveDirectoryToModel_NilInput(t *testing.T) {

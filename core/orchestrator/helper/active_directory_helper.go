@@ -23,6 +23,7 @@ var (
 	DeleteSecretFromGCP                    = deletePasswordSecret
 	GetPasswordSecret                      = getPasswordSecret
 	ConvertCVPActiveDirectoryV1BetaToModel = convertCVPActiveDirectoryV1BetaToModel
+	ConvertCVPBatchADToModel              = convertCVPBatchADToModel
 	CompareADStateHierarchy                = compareADStateHierarchy
 	StringToActiveDirectoryState           = stringToActiveDirectoryState
 	GetStatePriority                       = getStatePriority
@@ -277,6 +278,91 @@ func convertCVPActiveDirectoryV1BetaToModel(adV1Beta *models.ActiveDirectoryV1be
 	}
 	if adV1Beta.Description != nil {
 		ad.ActiveDirectoryAttributes.Description = *adV1Beta.Description
+	}
+
+	return ad
+}
+
+// convertCVPBatchADToModel converts a CVP batch Active Directory model to the
+// VCP domain model. It mirrors convertCVPActiveDirectoryV1BetaToModel but
+// accepts the batch-specific CVP type (identical field set, same pointer style).
+func convertCVPBatchADToModel(batch *models.BatchActiveDirectoryV1beta) *vcpModels.ActiveDirectory {
+	if batch == nil {
+		return nil
+	}
+
+	state := "READY"
+	if batch.ActiveDirectoryState != "" {
+		state = batch.ActiveDirectoryState
+	}
+
+	stateDetails := "Active Directory is ready"
+	if batch.ActiveDirectoryStateDetails != nil && *batch.ActiveDirectoryStateDetails != "" {
+		stateDetails = *batch.ActiveDirectoryStateDetails
+	}
+
+	ad := &vcpModels.ActiveDirectory{
+		State:        state,
+		StateDetails: stateDetails,
+	}
+
+	ad.UUID = batch.ActiveDirectoryID
+
+	if batch.ResourceID != nil {
+		ad.AdName = *batch.ResourceID
+	}
+	if batch.Username != nil {
+		ad.Username = *batch.Username
+	}
+	if batch.Password != nil {
+		ad.Password = *batch.Password
+	}
+	if batch.Domain != nil {
+		ad.Domain = *batch.Domain
+	}
+	if batch.DNS != nil {
+		ad.DNS = *batch.DNS
+	}
+	if batch.NetBIOS != nil {
+		ad.NetBIOS = *batch.NetBIOS
+	}
+
+	if batch.CreatedAt != nil {
+		ad.CreatedAt = time.Time(*batch.CreatedAt)
+	}
+
+	ad.ActiveDirectoryAttributes = &vcpModels.ActiveDirectoryAttributes{
+		BackupOperators:   batch.BackupOperators,
+		SecurityOperators: batch.SecurityOperators,
+		Administrators:    batch.Administrators,
+	}
+
+	if batch.OrganizationalUnit != nil {
+		ad.ActiveDirectoryAttributes.OrganizationalUnit = *batch.OrganizationalUnit
+	}
+	if batch.Site != nil {
+		ad.ActiveDirectoryAttributes.Site = *batch.Site
+	}
+	if batch.KdcIP != "" {
+		ad.ActiveDirectoryAttributes.KdcIP = batch.KdcIP
+	}
+	if batch.KdcHostname != "" {
+		ad.ActiveDirectoryAttributes.KdcHostname = batch.KdcHostname
+	}
+	if batch.AesEncryption != nil {
+		ad.ActiveDirectoryAttributes.AesEncryption = *batch.AesEncryption
+	}
+	if batch.EncryptDCConnections != nil {
+		ad.ActiveDirectoryAttributes.EncryptDCConnections = *batch.EncryptDCConnections
+	}
+	if batch.LdapSigning != nil {
+		ad.ActiveDirectoryAttributes.LdapSigning = *batch.LdapSigning
+	}
+	if batch.AllowLocalNFSUsersWithLdap != nil {
+		ad.ActiveDirectoryAttributes.AllowLocalNFSUsersWithLdap = *batch.AllowLocalNFSUsersWithLdap
+	}
+	if batch.Description != nil {
+		ad.ActiveDirectoryAttributes.Description = *batch.Description
 	}
 
 	return ad

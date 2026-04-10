@@ -1,6 +1,8 @@
 package common
 
 import (
+	"time"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
@@ -13,12 +15,19 @@ func ConvertDatastoreActiveDirectoryToModel(ad *datamodel.ActiveDirectory) *mode
 		return nil
 	}
 
+	var deletedAt *time.Time
+	if ad.DeletedAt != nil && ad.DeletedAt.Valid {
+		t := ad.DeletedAt.Time
+		deletedAt = &t
+	}
+
 	model := &models.ActiveDirectory{
 		BaseModel: models.BaseModel{
 			ID:        ad.ID,
 			UUID:      ad.UUID,
 			CreatedAt: ad.CreatedAt,
 			UpdatedAt: ad.UpdatedAt,
+			DeletedAt: deletedAt,
 		},
 		AdName:       ad.AdName,
 		Username:     ad.Username,

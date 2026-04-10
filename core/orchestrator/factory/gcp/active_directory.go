@@ -5,10 +5,12 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
+	cvpBatch "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/batch"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -35,8 +37,10 @@ var (
 	getActiveDirectoryVcp        = _getActiveDirectoryVCP
 	getActiveDirectorySde        = _getActiveDirectorySDE
 	listActiveDirectories        = _listActiveDirectories
-	getMultipleActiveDirectories = _getMultipleActiveDirectories
-	deleteActiveDirectory        = _deleteActiveDirectory
+	getMultipleActiveDirectories    = _getMultipleActiveDirectories
+	batchListActiveDirectories     = _batchListActiveDirectories
+	batchListActiveDirectoriesSde  = _batchListActiveDirectoriesSDE
+	deleteActiveDirectory          = _deleteActiveDirectory
 	checkIfDomainUpdateAllowed   = _checkIfDomainUpdateAllowed
 	validateMultiADConstraints   = _validateMultiADConstraints
 )
@@ -356,6 +360,123 @@ func (o *GCPOrchestrator) GetMultipleActiveDirectories(
 		return nil, err
 	}
 	return ads, nil
+}
+
+// BatchListActiveDirectories retrieves multiple AD resources, merging CVP and VCP
+// state when CVP_HOST is set. In non-CVP mode it delegates to GetMultipleActiveDirectories.
+func (o *GCPOrchestrator) BatchListActiveDirectories(
+	ctx context.Context,
+	params *common.BatchListADsParams,
+) ([]*models.ActiveDirectory, error) {
+	return batchListActiveDirectories(ctx, o.storage, params)
+}
+
+// _batchListActiveDirectories fetches ADs from CVP and VCP in parallel when
+// CVP_HOST is set, merges state using CompareADStateHierarchy, and returns a
+// unified slice. In non-CVP mode it delegates to getMultipleActiveDirectories.
+func _batchListActiveDirectories(
+	ctx context.Context,
+	se database.Storage,
+	params *common.BatchListADsParams,
+) ([]*models.ActiveDirectory, error) {
+	if cvp.CVP_HOST == "" {
+		return getMultipleActiveDirectories(ctx, se, params.UUIDs)
+	}
+
+	logger := util.GetLogger(ctx)
+
+	var (
+		sdeADs []*models.ActiveDirectory
+		sdeErr error
+		vcpADs []*models.ActiveDirectory
+		vcpErr error
+		wg     sync.WaitGroup
+	)
+
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		sdeADs, sdeErr = batchListActiveDirectoriesSde(ctx, params)
+	}()
+
+	go func() {
+		defer wg.Done()
+		dbADs, err := se.GetMultipleActiveDirectoriesByUUIDs(ctx, params.UUIDs)
+		if err != nil {
+			vcpErr = err
+			return
+		}
+		vcpADs = make([]*models.ActiveDirectory, 0, len(dbADs))
+		for _, ad := range dbADs {
+			vcpADs = append(vcpADs, commonfactory.ConvertDatastoreActiveDirectoryToModel(ad))
+		}
+	}()
+
+	wg.Wait()
+
+	if sdeErr != nil {
+		logger.Error("CVP batch list active directories failed", "error", sdeErr)
+		return nil, sdeErr
+	}
+	if vcpErr != nil {
+		logger.Error("VCP batch list active directories failed", "error", vcpErr)
+		return nil, vcpErr
+	}
+
+	vcpADMap := make(map[string]*models.ActiveDirectory, len(vcpADs))
+	for _, ad := range vcpADs {
+		if ad != nil {
+			vcpADMap[ad.UUID] = ad
+		}
+	}
+
+	for _, sdeAD := range sdeADs {
+		if sdeAD == nil {
+			continue
+		}
+		if vcpAD, ok := vcpADMap[sdeAD.UUID]; ok {
+			adHelper.CompareADStateHierarchy(sdeAD, vcpAD)
+		}
+	}
+
+	return sdeADs, nil
+}
+
+// _batchListActiveDirectoriesSDE fetches multiple ADs from CVP (SDE) via the
+// batch API and converts the results to domain models.
+func _batchListActiveDirectoriesSDE(
+	ctx context.Context,
+	params *common.BatchListADsParams,
+) ([]*models.ActiveDirectory, error) {
+	logger := util.GetLogger(ctx)
+	jwtToken := utils.GetJWTTokenFromContext(ctx)
+	cvpClient := cvp.CreateClient(logger, jwtToken)
+
+	cvpParams := cvpBatch.NewV1betaBatchListActiveDirectoriesParamsWithContext(ctx)
+	cvpParams.SetLocationID(params.LocationID)
+	cvpParams.SetBody(&cvpmodels.ActiveDirectoryIDListV1beta{
+		ActiveDirectoryUUIDs: params.UUIDs,
+	})
+	if params.CorrelationID != "" {
+		cvpParams.SetXCorrelationID(&params.CorrelationID)
+	}
+
+	resp, err := cvpClient.Batch.V1betaBatchListActiveDirectories(cvpParams)
+	if err != nil {
+		return nil, fmt.Errorf("CVP batch list active directories failed: %w", err)
+	}
+
+	var result []*models.ActiveDirectory
+	if resp != nil && resp.Payload != nil {
+		for _, cvpAD := range resp.Payload.ActiveDirectories {
+			if cvpAD != nil {
+				result = append(result, adHelper.ConvertCVPBatchADToModel(cvpAD))
+			}
+		}
+	}
+
+	return result, nil
 }
 
 // GetADConfig retrieves an Active Directory resource by account ID and resource name.

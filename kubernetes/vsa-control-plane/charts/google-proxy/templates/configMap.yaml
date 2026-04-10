@@ -102,6 +102,7 @@ data:
   WORKFLOW_GLOBAL_TIMEOUT_FOR_REPLICATION_MINUTES: {{ index .Values "workflowGlobalTimeoutForReplicationMinutes" | quote }}
   MAX_HOSTS_PER_HOSTGROUP: "{{ index .Values "maxHostsPerHostgroup" }}"
   MAX_BATCH_POOL_UUIDS: "{{ index .Values "maxBatchPoolUUIDs" }}"
+  MAX_BATCH_AD_UUIDS: "{{ index .Values "maxBatchActiveDirectoryUUIDs" }}"
   PROBER_PROJECT_LIST: {{ .Values.proberProjectList | quote }}
   ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION: "{{ index .Values "enableUniqueSerialNumberGeneration" }}"
   CLUSTER_SERIAL_NUMBER_PREFIX: "{{ index .Values "clusterSerialNumberPrefix" }}"

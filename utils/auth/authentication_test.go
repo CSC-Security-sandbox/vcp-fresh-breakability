@@ -938,41 +938,87 @@ func TestAuthMiddleware_DoesNotBypassForNonExpertModePaths(t *testing.T) {
 }
 
 func TestAuthMiddleware_BypassPathsInjectHeaders(t *testing.T) {
-	tests := []struct {
-		name string
-		path string
-	}{
-		{
-			name: "expert mode sub-path",
-			path: "/v1/expertMode/projects/123/locations/us-east1/volumes",
-		},
-		{
-			name: "health endpoint",
-			path: "/health",
-		},
-	}
+	t.Run("shouldSkipAuthPath bypasses", func(t *testing.T) {
+		tests := []struct {
+			name string
+			path string
+		}{
+			{
+				name: "expert mode sub-path",
+				path: "/v1/expertMode/projects/123/locations/us-east1/volumes",
+			},
+			{
+				name: "health endpoint",
+				path: "/health",
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				var capturedHeaders http.Header
+				next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					capturedHeaders, _ = r.Context().Value(utilsmiddleware.HeaderContextKey).(http.Header)
+					w.WriteHeader(http.StatusOK)
+				})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var capturedHeaders http.Header
-			next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				capturedHeaders, _ = r.Context().Value(utilsmiddleware.HeaderContextKey).(http.Header)
-				w.WriteHeader(http.StatusOK)
+				req := httptest.NewRequest("POST", tt.path, nil)
+				req.Header.Set("Authorization", "Bearer my-jwt")
+				req.Header.Set("X-Correlation-ID", "test-corr-id")
+				rr := httptest.NewRecorder()
+				handler := AuthMiddleware(false)(next)
+				handler.ServeHTTP(rr, req)
+
+				assert.Equal(t, http.StatusOK, rr.Code)
+				assert.NotNil(t, capturedHeaders, "Headers should be injected into context for skipped path %s", tt.path)
+				assert.Equal(t, "Bearer my-jwt", capturedHeaders.Get("Authorization"))
+				assert.Equal(t, "test-corr-id", capturedHeaders.Get("X-Correlation-ID"))
 			})
+		}
+	})
 
-			req := httptest.NewRequest("POST", tt.path, nil)
-			req.Header.Set("Authorization", "Bearer my-jwt")
-			req.Header.Set("X-Correlation-ID", "test-corr-id")
-			rr := httptest.NewRecorder()
-			handler := AuthMiddleware(false)(next)
-			handler.ServeHTTP(rr, req)
+	t.Run("isBatchAuthPath bypasses with local env", func(t *testing.T) {
+		origEnv := runningEnv
+		runningEnv = "local"
+		defer func() { runningEnv = origEnv }()
 
-			assert.Equal(t, http.StatusOK, rr.Code)
-			assert.NotNil(t, capturedHeaders, "Headers should be injected into context for skipped path %s", tt.path)
-			assert.Equal(t, "Bearer my-jwt", capturedHeaders.Get("Authorization"))
-			assert.Equal(t, "test-corr-id", capturedHeaders.Get("X-Correlation-ID"))
-		})
-	}
+		tests := []struct {
+			name string
+			path string
+		}{
+			{
+				name: "batch pool endpoint",
+				path: "/v1beta/locations/us-central1-a/batch/pools",
+			},
+			{
+				name: "batch active directory endpoint",
+				path: "/v1beta/locations/us-east4/batch/activeDirectories",
+			},
+			{
+				name: "batch host groups endpoint",
+				path: "/v1beta/locations/us-east4/batch/hostGroups",
+			},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				var capturedHeaders http.Header
+				next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					capturedHeaders, _ = r.Context().Value(utilsmiddleware.HeaderContextKey).(http.Header)
+					w.WriteHeader(http.StatusOK)
+				})
+
+				req := httptest.NewRequest("POST", tt.path, nil)
+				req.Header.Set("Authorization", "Bearer my-jwt")
+				req.Header.Set("X-Correlation-ID", "test-corr-id")
+				rr := httptest.NewRecorder()
+				handler := AuthMiddleware(false)(next)
+				handler.ServeHTTP(rr, req)
+
+				assert.Equal(t, http.StatusOK, rr.Code)
+				assert.NotNil(t, capturedHeaders, "Headers should be injected into context for batch path %s", tt.path)
+				assert.Equal(t, "Bearer my-jwt", capturedHeaders.Get("Authorization"))
+				assert.Equal(t, "test-corr-id", capturedHeaders.Get("X-Correlation-ID"))
+			})
+		}
+	})
 }
 
 func TestShouldSkipAuthPath(t *testing.T) {
@@ -987,6 +1033,8 @@ func TestShouldSkipAuthPath(t *testing.T) {
 		assert.True(tt, shouldSkipAuthPath("/v1/expertMode/"))
 		assert.True(tt, shouldSkipAuthPath("/v1/expertMode/test"))
 		assert.True(tt, shouldSkipAuthPath("/v1/expertMode/projects/123"))
+		assert.False(tt, shouldSkipAuthPath("/v1beta/locations/us-east4/batch/pools"), "batch paths use isBatchAuthPath, not shouldSkipAuthPath")
+		assert.False(tt, shouldSkipAuthPath("/v1beta/locations/us-east4/batch/activeDirectories"), "batch paths use isBatchAuthPath, not shouldSkipAuthPath")
 		assert.False(tt, shouldSkipAuthPath("/v1/api"))
 		assert.False(tt, shouldSkipAuthPath("/api/expertMode"))
 	})

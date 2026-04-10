@@ -4260,3 +4260,300 @@ func TestCreateActiveDirectory_MultiADEnabled_WithinLimit_Success(t *testing.T) 
 	assert.Equal(t, params.ResourceId, ad.AdName)
 	assert.Equal(t, models.LifeCycleStateCreating, ad.State)
 }
+
+func TestOrchestrator_BatchListActiveDirectories(t *testing.T) {
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+	mockTemporal := new(mocks.Client)
+	o := &GCPOrchestrator{storage: mockSe, temporal: mockTemporal}
+
+	origBatchList := batchListActiveDirectories
+	batchListActiveDirectories = func(_ context.Context, _ database.Storage, _ *common.BatchListADsParams) ([]*models.ActiveDirectory, error) {
+		return []*models.ActiveDirectory{
+			{BaseModel: models.BaseModel{UUID: "ad-1"}, AdName: "ad-name-1"},
+		}, nil
+	}
+	defer func() { batchListActiveDirectories = origBatchList }()
+
+	params := &common.BatchListADsParams{UUIDs: []string{"ad-1"}, LocationID: "us-east4"}
+	ads, err := o.BatchListActiveDirectories(ctx, params)
+	assert.NoError(t, err)
+	assert.Len(t, ads, 1)
+	assert.Equal(t, "ad-1", ads[0].UUID)
+}
+
+func Test_batchListActiveDirectories_NonCVP_DelegatesToVCPDB(t *testing.T) {
+	cvp.CVP_HOST = ""
+
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+
+	adsFromDB := []*datamodel.ActiveDirectory{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "ad-1"},
+			AdName:    "ad-name-1",
+			ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+				AdUsers: map[string][]string{},
+			},
+		},
+	}
+	mockSe.On("GetMultipleActiveDirectoriesByUUIDs", mock.Anything, []string{"ad-1"}).Return(adsFromDB, nil)
+
+	params := &common.BatchListADsParams{UUIDs: []string{"ad-1"}, LocationID: "us-east4"}
+	ads, err := _batchListActiveDirectories(ctx, mockSe, params)
+
+	assert.NoError(t, err)
+	assert.Len(t, ads, 1)
+	assert.Equal(t, "ad-1", ads[0].UUID)
+	mockSe.AssertExpectations(t)
+}
+
+func Test_batchListActiveDirectories_CVP_ParallelFetchAndMerge(t *testing.T) {
+	cvp.CVP_HOST = "http://mock-cvp"
+	defer func() { cvp.CVP_HOST = "" }()
+
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+
+	origSdeFn := batchListActiveDirectoriesSde
+	batchListActiveDirectoriesSde = func(_ context.Context, _ *common.BatchListADsParams) ([]*models.ActiveDirectory, error) {
+		return []*models.ActiveDirectory{
+			{BaseModel: models.BaseModel{UUID: "ad-1"}, AdName: "cvp-ad", State: "READY", StateDetails: "CVP ready"},
+			{BaseModel: models.BaseModel{UUID: "ad-2"}, AdName: "cvp-only", State: "CREATING", StateDetails: "CVP creating"},
+		}, nil
+	}
+	defer func() { batchListActiveDirectoriesSde = origSdeFn }()
+
+	vcpFromDB := []*datamodel.ActiveDirectory{
+		{
+			BaseModel: datamodel.BaseModel{UUID: "ad-1"},
+			AdName:    "vcp-ad",
+			State:     "UPDATING",
+			StateDetails: "VCP updating",
+			ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+				AdUsers: map[string][]string{},
+			},
+		},
+	}
+	mockSe.On("GetMultipleActiveDirectoriesByUUIDs", mock.Anything, []string{"ad-1", "ad-2"}).Return(vcpFromDB, nil)
+
+	params := &common.BatchListADsParams{UUIDs: []string{"ad-1", "ad-2"}, LocationID: "us-east4"}
+	ads, err := _batchListActiveDirectories(ctx, mockSe, params)
+
+	assert.NoError(t, err)
+	assert.Len(t, ads, 2)
+
+	assert.Equal(t, "ad-1", ads[0].UUID)
+	assert.Equal(t, "UPDATING", ads[0].State, "VCP UPDATING (priority 0) should beat CVP READY (priority 3)")
+	assert.Equal(t, "VCP updating", ads[0].StateDetails)
+
+	assert.Equal(t, "ad-2", ads[1].UUID)
+	assert.Equal(t, "CREATING", ads[1].State, "AD only in CVP, state preserved")
+	assert.Equal(t, "CVP creating", ads[1].StateDetails)
+
+	mockSe.AssertExpectations(t)
+}
+
+func Test_batchListActiveDirectories_CVP_SDEError_Returns500(t *testing.T) {
+	cvp.CVP_HOST = "http://mock-cvp"
+	defer func() { cvp.CVP_HOST = "" }()
+
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+
+	origSdeFn := batchListActiveDirectoriesSde
+	batchListActiveDirectoriesSde = func(_ context.Context, _ *common.BatchListADsParams) ([]*models.ActiveDirectory, error) {
+		return nil, errors.New("CVP timeout")
+	}
+	defer func() { batchListActiveDirectoriesSde = origSdeFn }()
+
+	mockSe.On("GetMultipleActiveDirectoriesByUUIDs", mock.Anything, []string{"ad-1"}).
+		Return([]*datamodel.ActiveDirectory{}, nil).Maybe()
+
+	params := &common.BatchListADsParams{UUIDs: []string{"ad-1"}, LocationID: "us-east4"}
+	ads, err := _batchListActiveDirectories(ctx, mockSe, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ads)
+	assert.Contains(t, err.Error(), "CVP timeout")
+}
+
+func Test_batchListActiveDirectories_CVP_VCPError_Returns500(t *testing.T) {
+	cvp.CVP_HOST = "http://mock-cvp"
+	defer func() { cvp.CVP_HOST = "" }()
+
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+
+	origSdeFn := batchListActiveDirectoriesSde
+	batchListActiveDirectoriesSde = func(_ context.Context, _ *common.BatchListADsParams) ([]*models.ActiveDirectory, error) {
+		return []*models.ActiveDirectory{
+			{BaseModel: models.BaseModel{UUID: "ad-1"}, State: "READY"},
+		}, nil
+	}
+	defer func() { batchListActiveDirectoriesSde = origSdeFn }()
+
+	mockSe.On("GetMultipleActiveDirectoriesByUUIDs", mock.Anything, []string{"ad-1"}).
+		Return(nil, errors.New("database error"))
+
+	params := &common.BatchListADsParams{UUIDs: []string{"ad-1"}, LocationID: "us-east4"}
+	ads, err := _batchListActiveDirectories(ctx, mockSe, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ads)
+	assert.Contains(t, err.Error(), "database error")
+	mockSe.AssertExpectations(t)
+}
+
+func Test_batchListActiveDirectoriesSDE_Success(t *testing.T) {
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{
+			"activeDirectories": [
+				{
+					"activeDirectoryId": "ad-1",
+					"resourceId": "cvp-ad",
+					"username": "admin",
+					"domain": "corp.example.com",
+					"DNS": "10.0.0.1",
+					"netBIOS": "CORP",
+					"activeDirectoryState": "READY",
+					"activeDirectoryStateDetails": "Ready for use"
+				}
+			]
+		}`))
+	}))
+	defer mockServer.Close()
+
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = mockServer.URL[7:]
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	ctx := context.Background()
+	params := &common.BatchListADsParams{
+		UUIDs:         []string{"ad-1"},
+		LocationID:    "us-central1",
+		CorrelationID: "test-corr-id",
+	}
+
+	ads, err := _batchListActiveDirectoriesSDE(ctx, params)
+
+	assert.NoError(t, err)
+	assert.Len(t, ads, 1)
+	assert.Equal(t, "ad-1", ads[0].UUID)
+	assert.Equal(t, "cvp-ad", ads[0].AdName)
+	assert.Equal(t, "READY", ads[0].State)
+	assert.Equal(t, "Ready for use", ads[0].StateDetails)
+	assert.Equal(t, "corp.example.com", ads[0].Domain)
+}
+
+func Test_batchListActiveDirectoriesSDE_CVPError(t *testing.T) {
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"code": 500, "message": "Internal error"}`))
+	}))
+	defer mockServer.Close()
+
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = mockServer.URL[7:]
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	ctx := context.Background()
+	params := &common.BatchListADsParams{
+		UUIDs:      []string{"ad-1"},
+		LocationID: "us-central1",
+	}
+
+	ads, err := _batchListActiveDirectoriesSDE(ctx, params)
+
+	assert.Error(t, err)
+	assert.Nil(t, ads)
+	assert.Contains(t, err.Error(), "CVP batch list active directories failed")
+}
+
+func Test_batchListActiveDirectoriesSDE_EmptyResponse(t *testing.T) {
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"activeDirectories": []}`))
+	}))
+	defer mockServer.Close()
+
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = mockServer.URL[7:]
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	ctx := context.Background()
+	params := &common.BatchListADsParams{
+		UUIDs:      []string{"non-existent"},
+		LocationID: "us-central1",
+	}
+
+	ads, err := _batchListActiveDirectoriesSDE(ctx, params)
+
+	assert.NoError(t, err)
+	assert.Empty(t, ads)
+}
+
+func Test_batchListActiveDirectoriesSDE_NoCorrelationID(t *testing.T) {
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"activeDirectories": [{"activeDirectoryId": "ad-1", "activeDirectoryState": "READY"}]}`))
+	}))
+	defer mockServer.Close()
+
+	originalCVPHost := cvp.CVP_HOST
+	cvp.CVP_HOST = mockServer.URL[7:]
+	defer func() { cvp.CVP_HOST = originalCVPHost }()
+
+	ctx := context.Background()
+	params := &common.BatchListADsParams{
+		UUIDs:      []string{"ad-1"},
+		LocationID: "us-central1",
+	}
+
+	ads, err := _batchListActiveDirectoriesSDE(ctx, params)
+
+	assert.NoError(t, err)
+	assert.Len(t, ads, 1)
+}
+
+func Test_batchListActiveDirectories_CVP_CVPHigherPriority_KeepsCVP(t *testing.T) {
+	cvp.CVP_HOST = "http://mock-cvp"
+	defer func() { cvp.CVP_HOST = "" }()
+
+	ctx := context.Background()
+	mockSe := new(database.MockStorage)
+
+	origSdeFn := batchListActiveDirectoriesSde
+	batchListActiveDirectoriesSde = func(_ context.Context, _ *common.BatchListADsParams) ([]*models.ActiveDirectory, error) {
+		return []*models.ActiveDirectory{
+			{BaseModel: models.BaseModel{UUID: "ad-1"}, State: "ERROR", StateDetails: "CVP error"},
+		}, nil
+	}
+	defer func() { batchListActiveDirectoriesSde = origSdeFn }()
+
+	vcpFromDB := []*datamodel.ActiveDirectory{
+		{
+			BaseModel:    datamodel.BaseModel{UUID: "ad-1"},
+			State:        "READY",
+			StateDetails: "VCP ready",
+			ActiveDirectoryAttributes: &datamodel.ActiveDirectoryAttributes{
+				AdUsers: map[string][]string{},
+			},
+		},
+	}
+	mockSe.On("GetMultipleActiveDirectoriesByUUIDs", mock.Anything, []string{"ad-1"}).Return(vcpFromDB, nil)
+
+	params := &common.BatchListADsParams{UUIDs: []string{"ad-1"}, LocationID: "us-east4"}
+	ads, err := _batchListActiveDirectories(ctx, mockSe, params)
+
+	assert.NoError(t, err)
+	assert.Len(t, ads, 1)
+	assert.Equal(t, "ERROR", ads[0].State, "CVP ERROR (priority 1) should beat VCP READY (priority 3)")
+	assert.Equal(t, "CVP error", ads[0].StateDetails)
+	mockSe.AssertExpectations(t)
+}

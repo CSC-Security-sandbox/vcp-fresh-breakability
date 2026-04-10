@@ -624,6 +624,10 @@ func (o *OCIOrchestrator) GetMultipleActiveDirectories(ctx context.Context, uuid
 	return nil, utilserrors.NewNotImplementedYetErr()
 }
 
+func (o *OCIOrchestrator) BatchListActiveDirectories(ctx context.Context, params *commonparams.BatchListADsParams) ([]*models.ActiveDirectory, error) {
+	return nil, utilserrors.NewNotImplementedYetErr()
+}
+
 func (o *OCIOrchestrator) GetADConfig(ctx context.Context, params *commonparams.GetADParams) (*models.ActiveDirectory, error) {
 	return nil, utilserrors.NewNotImplementedYetErr()
 }

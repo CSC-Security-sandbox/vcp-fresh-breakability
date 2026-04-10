@@ -145,6 +145,65 @@ func (_c *MockOrchestratorFactory_AccessCryptoKeyAndEncryptDataWithImpersonation
 	return _c
 }
 
+// BatchListActiveDirectories provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) BatchListActiveDirectories(ctx context.Context, params *common.BatchListADsParams) ([]*models.ActiveDirectory, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BatchListActiveDirectories")
+	}
+
+	var r0 []*models.ActiveDirectory
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.BatchListADsParams) ([]*models.ActiveDirectory, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *common.BatchListADsParams) []*models.ActiveDirectory); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*models.ActiveDirectory)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *common.BatchListADsParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_BatchListActiveDirectories_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BatchListActiveDirectories'
+type MockOrchestratorFactory_BatchListActiveDirectories_Call struct {
+	*mock.Call
+}
+
+// BatchListActiveDirectories is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.BatchListADsParams
+func (_e *MockOrchestratorFactory_Expecter) BatchListActiveDirectories(ctx interface{}, params interface{}) *MockOrchestratorFactory_BatchListActiveDirectories_Call {
+	return &MockOrchestratorFactory_BatchListActiveDirectories_Call{Call: _e.mock.On("BatchListActiveDirectories", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_BatchListActiveDirectories_Call) Run(run func(ctx context.Context, params *common.BatchListADsParams)) *MockOrchestratorFactory_BatchListActiveDirectories_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.BatchListADsParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_BatchListActiveDirectories_Call) Return(_a0 []*models.ActiveDirectory, _a1 error) *MockOrchestratorFactory_BatchListActiveDirectories_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_BatchListActiveDirectories_Call) RunAndReturn(run func(context.Context, *common.BatchListADsParams) ([]*models.ActiveDirectory, error)) *MockOrchestratorFactory_BatchListActiveDirectories_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CheckAndUpdateKmsConfigHealth provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) CheckAndUpdateKmsConfigHealth(ctx context.Context, params *models.KmsConfigCheck) (*models.KmsConfig, error) {
 	ret := _m.Called(ctx, params)

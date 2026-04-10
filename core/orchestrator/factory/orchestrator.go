@@ -157,6 +157,7 @@ type OrchestratorFactory interface {
 	GetActiveDirectory(ctx context.Context, params *commonparams.GetADParams) (*models.ActiveDirectory, error)
 	ListActiveDirectories(ctx context.Context, accountName string) ([]*models.ActiveDirectory, error)
 	GetMultipleActiveDirectories(ctx context.Context, uuids []string) ([]*models.ActiveDirectory, error)
+	BatchListActiveDirectories(ctx context.Context, params *commonparams.BatchListADsParams) ([]*models.ActiveDirectory, error)
 	GetADConfig(ctx context.Context, params *commonparams.GetADParams) (*models.ActiveDirectory, error)
 	GetSDEActiveDirectory(ctx context.Context, getADParams *commonparams.GetADParams) (*cvpmodels.ActiveDirectoryV1beta, error)
 	DeleteActiveDirectory(ctx context.Context, params *commonparams.DeleteActiveDirectoryParams) (string, error)

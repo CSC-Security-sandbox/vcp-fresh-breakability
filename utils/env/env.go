@@ -425,6 +425,8 @@ var (
 	Hyperscaler = GetString("HYPERSCALER", "gcp")
 
 	MaxBatchPoolUUIDs = GetInt("MAX_BATCH_POOL_UUIDS", 1000)
+
+	MaxBatchActiveDirectoryUUIDs = GetInt("MAX_BATCH_AD_UUIDS", 1000)
 )
 
 // networkEnvVariables holds the environment variables related to firewall of network configuration for source ranges
