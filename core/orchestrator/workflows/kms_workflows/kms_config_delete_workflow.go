@@ -1,6 +1,8 @@
 package kms_workflows
 
 import (
+	"net/http"
+
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -121,9 +123,11 @@ func (wf *deleteKmsConfigWorkflow) Run(ctx workflow.Context, args ...interface{}
 	}
 	defer func() {
 		if err != nil && kmsConfig.UUID != "" {
-			err = workflow.ExecuteActivity(ctx, deleteActivity.UpdateKmsConfigState, kmsConfig, models.LifeCycleStateError, err.Error()).Get(ctx, nil)
-			util.GetLogger(ctx).Errorf("Failed to update KMS config state to error : %w", err)
-			return
+			rollbackCtx, _ := workflow.NewDisconnectedContext(ctx)
+			targetState, targetStateDetails := resolveDeleteKmsConfigFailureState(rollbackCtx, err, kmsConfig)
+			if restoreErr := workflow.ExecuteActivity(rollbackCtx, deleteActivity.UpdateKmsConfigState, kmsConfig, targetState, targetStateDetails).Get(rollbackCtx, nil); restoreErr != nil {
+				util.GetLogger(ctx).Errorf("Failed to restore KMS config state: %v", restoreErr)
+			}
 		}
 	}()
 
@@ -172,4 +176,44 @@ func (wf *deleteKmsConfigWorkflow) Run(ctx workflow.Context, args ...interface{}
 		}
 	}
 	return nil, nil
+}
+
+func getDeleteKmsConfigRollbackState(ctx workflow.Context) (string, string, error) {
+	commonActivity := &activities.CommonActivities{}
+	var job datamodel.Job
+	if err := workflow.ExecuteActivity(ctx, commonActivity.GetJob, workflow.GetInfo(ctx).WorkflowExecution.ID).Get(ctx, &job); err != nil {
+		return "", "", err
+	}
+	if job.JobAttributes == nil {
+		return "", "", nil
+	}
+	return job.JobAttributes.PreviousState, job.JobAttributes.PreviousStateDetails, nil
+}
+
+func resolveDeleteKmsConfigFailureState(ctx workflow.Context, workflowErr error, kmsConfig *datamodel.KmsConfig) (string, string) {
+	if !shouldRestorePreviousStateOnDeleteFailure(workflowErr, kmsConfig) {
+		return models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails
+	}
+
+	previousState, previousStateDetails, rollbackErr := getDeleteKmsConfigRollbackState(ctx)
+	if rollbackErr != nil {
+		util.GetLogger(ctx).Errorf("Failed to load rollback state for KMS config delete: %v", rollbackErr)
+		return models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails
+	}
+	if previousState == "" {
+		util.GetLogger(ctx).Warnf("Previous KMS config state missing for failed delete, moving config to ERROR: %s", kmsConfig.UUID)
+		return models.LifeCycleStateError, models.LifeCycleStateDeletionErrorDetails
+	}
+
+	return previousState, previousStateDetails
+}
+
+func shouldRestorePreviousStateOnDeleteFailure(workflowErr error, kmsConfig *datamodel.KmsConfig) bool {
+	if workflowErr == nil || kmsConfig == nil || utils.ShouldUseVCPForExistingKMS(kmsConfig) {
+		return false
+	}
+
+	customErr := vsaerrors.ExtractCustomError(workflowErr)
+	hasHTTPCode, httpCode := customErr.GetHttpCode()
+	return hasHTTPCode && httpCode == http.StatusConflict
 }
