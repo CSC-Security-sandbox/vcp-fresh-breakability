@@ -2228,10 +2228,34 @@ func ConvertGoogleProxyBackupVaultToDatamodel(bv *googleproxyclient.BackupVaultV
 		uuid = bv.BackupVaultId.Value
 	}
 
-	// Convert CrossRegionBackupVaultName (DestinationBackupVault)
-	var crossRegionBackupVaultName *string
+	extractVaultName := func(vaultPath string) string {
+		if vaultPath == "" {
+			return ""
+		}
+		idx := strings.LastIndexByte(vaultPath, '/')
+		if idx < 0 || idx == len(vaultPath)-1 {
+			return vaultPath
+		}
+		return vaultPath[idx+1:]
+	}
+
+	sourcePath := ""
+	if bv.SourceBackupVault.IsSet() {
+		sourcePath = strings.TrimSpace(bv.SourceBackupVault.Value)
+	}
+	destinationPath := ""
 	if bv.DestinationBackupVault.IsSet() {
-		crossRegionBackupVaultName = &bv.DestinationBackupVault.Value
+		destinationPath = strings.TrimSpace(bv.DestinationBackupVault.Value)
+	}
+
+	var crossRegionBackupVaultName *string
+	if sourcePath != "" && destinationPath != "" {
+		switch bv.ResourceId {
+		case extractVaultName(sourcePath):
+			crossRegionBackupVaultName = &destinationPath
+		case extractVaultName(destinationPath):
+			crossRegionBackupVaultName = &sourcePath
+		}
 	}
 
 	return &datamodel.BackupVault{
@@ -2552,6 +2576,11 @@ func convertGoogleProxyBackupToDatamodel(ctx context.Context, b *googleproxyclie
 		endpointUUID = b.EndPointUUID.Value
 	}
 
+	var snapshotUUID string
+	if b.SnapshotUUID.IsSet() {
+		snapshotUUID = b.SnapshotUUID.Value
+	}
+
 	// Fetch protocols from API response or CVP (for SDE backups)
 	protocols := FetchProtocolsForBackup(ctx, b, account, region)
 
@@ -2572,6 +2601,7 @@ func convertGoogleProxyBackupToDatamodel(ctx context.Context, b *googleproxyclie
 		Type:          backupType,
 		SizeInBytes:   backupSize,
 		Attributes: &datamodel.BackupAttributes{
+			SnapshotID:        snapshotUUID,
 			SnapshotName:      snapshotName,
 			BucketName:        bucketName,
 			EndpointUUID:      endpointUUID,

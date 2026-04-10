@@ -2429,6 +2429,12 @@
     "retriable": false,
     "http_code": 400
   },
+  "12020": {
+    "description": "Single file restore requires backup snapshot UUID",
+    "message": "Backup snapshot UUID is missing; cannot select the correct backup for restore",
+    "retriable": false,
+    "http_code": 500
+  },
   "13001": {
     "description": "Large Volume Backup Restore Validation failure",
     "message": "Large Volume Restore Validation failure",

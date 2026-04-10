@@ -3,6 +3,7 @@ package workflows
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	hyperscaler "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	appenv "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	commonpb "go.temporal.io/api/common/v1"
@@ -47,6 +49,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -76,6 +79,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
@@ -94,6 +98,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			AccountID: 1,
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -177,7 +182,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("PopulateSfrMetadataActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 		if err != nil {
 			t.Fatalf("Failed to query workflow: %v", err)
@@ -185,6 +195,92 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		// Assert workflow execution
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	// After restore-count increment, the next activity fails; defer must decrement restore count and set volume READY.
+	t.Run("postIncrementFailureTriggersDecrementAndVolumeReady", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{
+			AccountName:    "test-account",
+			SourceFileList: []string{"/backup.txt"},
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "account-uuid", ID: 1},
+			Name:      "test-account",
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid"},
+			Name:      "test-backup-vault",
+			BucketDetails: datamodel.BucketDetailsArray{
+				&datamodel.BucketDetails{
+					BucketName:          "test-bucket",
+					TenantProjectNumber: "123456789",
+				},
+			},
+			Account: account,
+		}
+		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:   "test-bucket",
+				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
+				Protocols:    []string{"nfs"},
+			},
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Account:   account,
+			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
+				PoolCredentials: &datamodel.PoolCredentials{},
+			},
+		}
+
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountIncrement).Return(nil).Times(1)
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil).Times(1)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).
+			Return(errors.New("intentional failure to exercise defer: decrement restore count"))
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(1)
+		env.OnActivity("ValidateAndDeduplicateFileList", mock.Anything, mock.Anything).Return([]string{"/backup.txt"}, nil)
+
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
 
@@ -208,6 +304,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -234,18 +331,21 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
 			Attributes: &datamodel.BackupAttributes{
 				BucketName:   "test-bucket",
 				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
 			},
 		}
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				PoolCredentials: &datamodel.PoolCredentials{},
 			},
 		}
@@ -258,7 +358,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 		if err != nil {
 			t.Fatalf("Failed to query workflow: %v", err)
@@ -289,6 +394,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -315,18 +421,21 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
 			Attributes: &datamodel.BackupAttributes{
 				BucketName:   "test-bucket",
 				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
 			},
 		}
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				PoolCredentials: &datamodel.PoolCredentials{},
 			},
 		}
@@ -340,7 +449,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 		if err != nil {
 			t.Fatalf("Failed to query workflow: %v", err)
@@ -371,6 +485,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -397,6 +512,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			BackupVault:   backupVault,
@@ -411,6 +527,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				PoolCredentials: &datamodel.PoolCredentials{},
 			},
 		}
@@ -444,7 +561,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 		if err != nil {
 			t.Fatalf("Failed to query workflow: %v", err)
@@ -475,6 +597,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -501,6 +624,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			BackupVault:   backupVault,
@@ -516,6 +640,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 			PoolID:    1,
 			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:       datamodel.BaseModel{ID: 1},
 				PoolCredentials: &datamodel.PoolCredentials{},
 			},
@@ -562,7 +687,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 		if err != nil {
 			t.Fatalf("Failed to query workflow: %v", err)
@@ -595,6 +725,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -620,6 +751,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "volume-uuid", // Matches volume.UUID
@@ -639,6 +771,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 				LargeCapacity: true, // All conditions are true
 			},
 			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:       datamodel.BaseModel{ID: 1},
 				PoolCredentials: &datamodel.PoolCredentials{},
 			},
@@ -724,7 +857,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}, nil)
 		env.OnActivity("PopulateSfrMetadataActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -751,6 +889,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -776,6 +915,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "volume-uuid",
@@ -793,6 +933,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			PoolID:                1,
 			LargeVolumeAttributes: nil, // LargeVolumeAttributes is nil
 			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:       datamodel.BaseModel{ID: 1},
 				PoolCredentials: &datamodel.PoolCredentials{},
 			},
@@ -878,7 +1019,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}, nil)
 		env.OnActivity("PopulateSfrMetadataActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -905,6 +1051,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -930,6 +1077,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "volume-uuid",
@@ -949,6 +1097,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 				LargeCapacity: false, // LargeCapacity is false
 			},
 			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:       datamodel.BaseModel{ID: 1},
 				PoolCredentials: &datamodel.PoolCredentials{},
 			},
@@ -1034,7 +1183,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}, nil)
 		env.OnActivity("PopulateSfrMetadataActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -1061,6 +1215,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -1086,6 +1241,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "different-volume-uuid", // Different from volume.UUID
@@ -1105,6 +1261,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 				LargeCapacity: true,
 			},
 			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:       datamodel.BaseModel{ID: 1},
 				PoolCredentials: &datamodel.PoolCredentials{},
 			},
@@ -1190,7 +1347,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}, nil)
 		env.OnActivity("PopulateSfrMetadataActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -1216,6 +1378,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -1242,6 +1405,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			BackupVault:   backupVault,
@@ -1258,6 +1422,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 			PoolID:    1,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -1323,7 +1488,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 		if err != nil {
 			t.Fatalf("Failed to query workflow: %v", err)
@@ -1354,6 +1524,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -1380,6 +1551,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			BackupVault:   backupVault,
@@ -1396,6 +1568,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 			PoolID:    1,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -1462,7 +1635,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 		if err != nil {
 			t.Fatalf("Failed to query workflow: %v", err)
@@ -1491,6 +1669,11 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
 
 		// Set up test data
 		params := &common.RestoreFilesFromBackupParams{
@@ -1513,6 +1696,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			BackupVault:   backupVault,
@@ -1531,6 +1715,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 			PoolID:    1,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -1543,7 +1728,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 
 		// Execute workflow
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 		if err != nil {
 			t.Fatalf("Failed to query workflow: %v", err)
@@ -1573,6 +1763,11 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
 
 		// Set up test data
 		params := &common.RestoreFilesFromBackupParams{
@@ -1595,6 +1790,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			BackupVault:   backupVault,
@@ -1613,6 +1809,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 			PoolID:    1,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -1625,7 +1822,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 
 		// Execute workflow
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 		if err != nil {
 			t.Fatalf("Failed to query workflow: %v", err)
@@ -1658,6 +1860,11 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
 
 		// Set up test data
 		params := &common.RestoreFilesFromBackupParams{
@@ -1680,6 +1887,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			BackupVault:   backupVault,
@@ -1698,6 +1906,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 			PoolID:    1,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -1710,7 +1919,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 
 		// Execute workflow
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 		if err != nil {
 			t.Fatalf("Failed to query workflow: %v", err)
@@ -1744,6 +1958,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -1770,6 +1985,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			BackupVault:   backupVault,
@@ -1788,6 +2004,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 			PoolID:    1,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -1866,7 +2083,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("PopulateSfrMetadataActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to populate SfrMetadata"))
 
 		// Execute workflow
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 		if err != nil {
 			t.Fatalf("Failed to query workflow: %v", err)
@@ -1899,6 +2121,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -1908,7 +2131,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			AccountName:    "test-account",
 			SourceFileList: []string{"/backup.txt"},
 		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid"},
+			Name:      "test-backup-vault",
+		}
 		backup := &datamodel.Backup{
+			State:     models.LifeCycleStateAvailable,
 			BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
 		}
 		volume := &datamodel.Volume{
@@ -1920,7 +2148,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			return job.State == string(models.JobsStatePROCESSING)
 		})).Return(errors.New("failed to update job status"))
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -1947,6 +2180,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -1971,18 +2205,21 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
 			Attributes: &datamodel.BackupAttributes{
 				BucketName:   "test-bucket",
 				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
 			},
 		}
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				PoolCredentials: &datamodel.PoolCredentials{},
 			},
 		}
@@ -1999,7 +2236,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			return job.State == string(models.JobsStateERROR)
 		})).Return(errors.New("failed to update job status to ERROR"))
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -2026,6 +2268,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -2050,6 +2293,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -2065,6 +2309,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 			PoolID:    1,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -2146,14 +2391,19 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			return job.State == string(models.JobsStateDONE)
 		})).Return(errors.New("failed to update job status to DONE"))
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
 	})
 
 	t.Run("BackupVaultNotFound", func(t *testing.T) {
-		// Test line 109: Backup vault not found in backup
+		// Test: FetchBackupVaultMetadataForRestore returns nil backupVault
 		var ts testsuite.WorkflowTestSuite
 		env := ts.NewTestWorkflowEnvironment()
 		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
@@ -2173,6 +2423,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -2187,14 +2438,15 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Name:      "test-account",
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
-			BackupVault:   nil, // Backup vault is nil to trigger error
 			BackupVaultID: 1,
 		}
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				PoolCredentials: &datamodel.PoolCredentials{},
 			},
 		}
@@ -2203,7 +2455,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.BackupVault)(nil), nil)
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.BackupVault)(nil), nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -2231,6 +2488,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -2255,25 +2513,33 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
 			Attributes: &datamodel.BackupAttributes{
-				BucketName: "test-bucket", EndpointUUID: "endpoint-uuid",
+				BucketName: "test-bucket", EndpointUUID: "endpoint-uuid", SnapshotID: "snapshot-uuid",
 			},
 		}
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "emv-volume-uuid"},
 			Account:   account,
-			Pool:      &datamodel.Pool{PoolCredentials: &datamodel.PoolCredentials{}},
+			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
+				PoolCredentials: &datamodel.PoolCredentials{},
+			},
 		}
 
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("cross pool restoration failed"))
 		env.OnActivity("UpdateExpertModeVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -2300,6 +2566,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -2324,25 +2591,33 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
 			Attributes: &datamodel.BackupAttributes{
-				BucketName: "test-bucket", EndpointUUID: "endpoint-uuid",
+				BucketName: "test-bucket", EndpointUUID: "endpoint-uuid", SnapshotID: "snapshot-uuid",
 			},
 		}
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "emv-volume-uuid"},
 			Account:   account,
-			Pool:      &datamodel.Pool{PoolCredentials: &datamodel.PoolCredentials{}},
+			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
+				PoolCredentials: &datamodel.PoolCredentials{},
+			},
 		}
 
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("cross pool restoration failed"))
 		env.OnActivity("UpdateExpertModeVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("db update failed"))
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -2370,6 +2645,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -2401,6 +2677,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}
 		constituentCount := int32(4)
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "volume-uuid",
@@ -2423,6 +2700,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "ext-uuid"},
 			Svm:              &datamodel.Svm{Name: "svm1"},
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -2431,7 +2709,11 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			},
 		}
 
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Times(2)
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
@@ -2478,7 +2760,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}, nil)
 		env.OnActivity("PopulateSfrMetadataActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -2505,6 +2787,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -2530,6 +2813,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -2548,10 +2832,18 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			PoolID:           1,
 			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "ext-uuid"},
 			Svm:              &datamodel.Svm{Name: "svm1"},
-			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, PoolCredentials: &datamodel.PoolCredentials{}},
+			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
+				BaseModel:       datamodel.BaseModel{ID: 1},
+				PoolCredentials: &datamodel.PoolCredentials{},
+			},
 		}
 
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
@@ -2568,7 +2860,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("VerifyCVCountForLargeVolume", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("restore target volume constituent count (2) does not match backup constituent count (4)"))
 		env.OnActivity("UpdateExpertModeVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -2595,6 +2887,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -2620,6 +2913,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -2638,10 +2932,18 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			PoolID:           1,
 			VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "ext-uuid"},
 			Svm:              &datamodel.Svm{Name: "svm1"},
-			Pool:             &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 1}, PoolCredentials: &datamodel.PoolCredentials{}},
+			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
+				BaseModel:       datamodel.BaseModel{ID: 1},
+				PoolCredentials: &datamodel.PoolCredentials{},
+			},
 		}
 
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
@@ -2657,7 +2959,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("FetchConstituentCountForLargeVolume", mock.Anything, mock.Anything, mock.Anything).Return(int32(0), errors.New("failed to get volume from ONTAP"))
 		env.OnActivity("UpdateExpertModeVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -2684,6 +2986,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -2711,6 +3014,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "volume-uuid",
@@ -2721,7 +3025,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 				EndpointUUID:     "endpoint-uuid",
 				SnapshotID:       "snapshot-uuid",
 				SnapshotName:     "snapshot-name",
-				OntapVolumeStyle: "flexvol", // not flexgroup -> CV check skipped
+				OntapVolumeStyle: "flexvol",
 			},
 		}
 		volume := &datamodel.Volume{
@@ -2730,6 +3034,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 			PoolID:    1,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -2738,7 +3043,11 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			},
 		}
 
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Times(2)
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
@@ -2781,7 +3090,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		}, nil)
 		env.OnActivity("PopulateSfrMetadataActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -2808,6 +3117,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -2832,18 +3142,21 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
 			Attributes: &datamodel.BackupAttributes{
 				BucketName:   "test-bucket", // Different from bucket in backupVault
 				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
 			},
 		}
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				PoolCredentials: &datamodel.PoolCredentials{},
 			},
 		}
@@ -2854,7 +3167,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -2881,6 +3199,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -2905,18 +3224,21 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
 			Attributes: &datamodel.BackupAttributes{
 				BucketName:   "test-bucket",
 				EndpointUUID: "", // Empty endpoint UUID
+				SnapshotID:   "snapshot-uuid",
 			},
 		}
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				PoolCredentials: &datamodel.PoolCredentials{},
 			},
 		}
@@ -2927,7 +3249,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -2954,6 +3281,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -2978,18 +3306,21 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
 			Attributes: &datamodel.BackupAttributes{
 				BucketName:   "test-bucket",
 				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
 			},
 		}
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				PoolCredentials: &datamodel.PoolCredentials{},
 			},
 		}
@@ -3005,7 +3336,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -3053,6 +3389,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -3077,24 +3414,31 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
 			Attributes: &datamodel.BackupAttributes{
 				BucketName:   "test-bucket",
 				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
 			},
 		}
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				PoolCredentials: &datamodel.PoolCredentials{},
 			},
 		}
 
 		attemptCount := 0
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
 		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("GenerateResourceTimestamp", mock.Anything).Return("20231201120000abcd", nil)
@@ -3105,7 +3449,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		assert.Equal(t, SARetryMaximumAttempts, attemptCount, "IsServiceAccountCreated should use SA retry attempts")
@@ -3133,6 +3477,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -3157,18 +3502,21 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
 			Attributes: &datamodel.BackupAttributes{
 				BucketName:   "test-bucket",
 				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
 			},
 		}
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				PoolCredentials: &datamodel.PoolCredentials{},
 			},
 		}
@@ -3183,7 +3531,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		// DeleteSA is added to rollback manager after service account creation, but rollback may not execute in test environment
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -3210,6 +3563,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -3234,18 +3588,21 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
 			Attributes: &datamodel.BackupAttributes{
 				BucketName:   "test-bucket",
 				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
 			},
 		}
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				PoolCredentials: &datamodel.PoolCredentials{},
 			},
 		}
@@ -3262,7 +3619,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -3289,6 +3651,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -3313,18 +3676,21 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
 			Attributes: &datamodel.BackupAttributes{
 				BucketName:   "test-bucket",
 				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
 			},
 		}
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				PoolCredentials: &datamodel.PoolCredentials{},
 			},
 		}
@@ -3341,7 +3707,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -3368,6 +3739,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -3392,18 +3764,21 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
 			Attributes: &datamodel.BackupAttributes{
 				BucketName:   "test-bucket",
 				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
 			},
 		}
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				PoolCredentials: &datamodel.PoolCredentials{},
 			},
 		}
@@ -3424,7 +3799,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -3451,6 +3831,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -3475,18 +3856,21 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
 			Attributes: &datamodel.BackupAttributes{
 				BucketName:   "test-bucket",
 				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
 			},
 		}
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				PoolCredentials: &datamodel.PoolCredentials{},
 			},
 		}
@@ -3513,7 +3897,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -3540,6 +3929,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -3564,18 +3954,21 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
 			Attributes: &datamodel.BackupAttributes{
 				BucketName:   "test-bucket",
 				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
 			},
 		}
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				PoolCredentials: &datamodel.PoolCredentials{},
 			},
 		}
@@ -3601,7 +3994,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -3628,6 +4026,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -3652,6 +4051,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -3666,6 +4066,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 			PoolID:    1,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -3710,7 +4111,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -3738,6 +4144,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -3762,6 +4169,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -3777,6 +4185,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 			PoolID:    1,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -3846,7 +4255,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -3873,6 +4287,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -3897,6 +4312,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -3912,6 +4328,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 			PoolID:    1,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -3989,7 +4406,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			State:     string(models.JobsStateNEW),
 		}, nil).Maybe()
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		// Should fail because some files are missing (lines 564-567)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
@@ -4017,6 +4439,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -4041,6 +4464,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -4056,6 +4480,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 			PoolID:    1,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -4120,7 +4545,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -4147,6 +4577,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -4171,6 +4602,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -4186,6 +4618,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 			PoolID:    1,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -4255,7 +4688,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		// UpdateBackupRestoreCount with decrement is called in defer function
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil).Maybe()
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		assert.ErrorContains(t, env.GetWorkflowError(), "failed to get snapmirror relationship")
@@ -4284,6 +4722,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -4308,6 +4747,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -4323,6 +4763,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 			PoolID:    1,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -4401,7 +4842,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		// UpdateBackupRestoreCount with decrement is called in defer function
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		// Assertions - workflow should complete successfully despite NotFound error
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
@@ -4432,6 +4878,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -4456,6 +4903,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -4471,6 +4919,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 			PoolID:    1,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -4546,7 +4995,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		// UpdateBackupRestoreCount with decrement is called in defer function
 		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, activities.BackupRestoreCountDecrement).Return(nil).Maybe()
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		assert.ErrorContains(t, env.GetWorkflowError(), "snapmirror relationship is unhealthy")
@@ -4576,6 +5030,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -4600,6 +5055,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -4614,6 +5070,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 			PoolID:    1,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -4666,7 +5123,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		// Execute workflow
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 
 		// Assertions
 		assert.True(t, env.IsWorkflowCompleted())
@@ -4700,6 +5162,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -4724,6 +5187,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -4738,6 +5202,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 			PoolID:    1,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -4789,7 +5254,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -4816,6 +5286,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -4840,6 +5311,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -4854,6 +5326,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 			PoolID:    1,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -4908,7 +5381,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -4935,6 +5413,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -4959,6 +5438,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -4973,6 +5453,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 			PoolID:    1,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -5028,7 +5509,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -5055,6 +5541,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -5079,6 +5566,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -5093,6 +5581,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 			PoolID:    1,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -5151,7 +5640,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -5178,6 +5672,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -5202,6 +5697,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -5217,6 +5713,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 			PoolID:    1,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -5291,7 +5788,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			State:     string(models.JobsStateNEW),
 		}, nil).Maybe()
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -5318,6 +5820,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -5342,6 +5845,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -5357,6 +5861,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 			PoolID:    1,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -5431,7 +5936,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			State:     string(models.JobsStateNEW),
 		}, nil).Maybe()
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -5458,6 +5968,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -5482,6 +5993,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -5497,6 +6009,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account:   account,
 			PoolID:    1,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -5571,7 +6084,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			State:     string(models.JobsStateNEW),
 		}, nil).Maybe()
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -5598,6 +6116,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -5622,6 +6141,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			BackupVault:   backupVault,
 			BackupVaultID: 1,
@@ -5635,6 +6155,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				PoolCredentials: &datamodel.PoolCredentials{},
 			},
 		}
@@ -5644,7 +6165,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to setup cross VPC restoration"))
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -5672,6 +6198,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -5700,6 +6227,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
@@ -5718,6 +6246,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			AccountID: 1,
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -5802,7 +6331,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("GetJob", mock.Anything, mock.Anything).Return(job, nil)
 		env.OnActivity("PopulateSfrMetadataActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 		if err != nil {
 			t.Fatalf("Failed to query workflow: %v", err)
@@ -5833,6 +6367,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -5861,6 +6396,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
@@ -5879,6 +6415,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			AccountID: 1,
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -5950,7 +6487,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -5976,6 +6518,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -6004,6 +6547,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
@@ -6022,6 +6566,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			AccountID: 1,
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -6095,7 +6640,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		env.AssertExpectations(t)
@@ -6123,6 +6673,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -6151,6 +6702,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
@@ -6169,6 +6721,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			AccountID: 1,
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -6238,7 +6791,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("PopulateSfrMetadataActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
 
@@ -6268,6 +6826,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -6296,6 +6855,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
@@ -6314,6 +6874,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			AccountID: 1,
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -6386,7 +6947,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			}
 		})
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		// Verify the error is related to cancellation/context cancellation
@@ -6414,6 +6980,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -6443,6 +7010,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
@@ -6461,6 +7029,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			AccountID: 1,
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 				PoolCredentials: &datamodel.PoolCredentials{
@@ -6544,7 +7113,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("PopulateSfrMetadataActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.NoError(t, env.GetWorkflowError())
 
@@ -6583,6 +7157,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -6612,6 +7187,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
@@ -6630,6 +7206,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			AccountID: 1,
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 			},
@@ -6685,7 +7262,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			UnhealthyReason: &reasons,
 		}, nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 
 		// Verify workflow failed with unhealthy error
 		assert.True(t, env.IsWorkflowCompleted())
@@ -6719,6 +7301,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -6748,6 +7331,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
@@ -6766,6 +7350,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			AccountID: 1,
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 			},
@@ -6836,7 +7421,12 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 
 		// Verify workflow completes successfully when unhealthy without reasons (no default error message)
 		assert.True(t, env.IsWorkflowCompleted())
@@ -6866,6 +7456,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 		commonActivity := &activities.CommonActivities{SE: mockStorage}
 		env.RegisterActivity(commonActivity)
 		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
 		env.RegisterActivity(&activities.ADCActivity{})
 		env.RegisterActivity(&activities.BackupActivity{})
 		env.RegisterActivity(&activities.SFRActivity{})
@@ -6895,6 +7486,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			Account: account,
 		}
 		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
 			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
 			Name:          "test-backup",
 			VolumeUUID:    "test-vol",
@@ -6913,6 +7505,7 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			AccountID: 1,
 			Account:   account,
 			Pool: &datamodel.Pool{
+				VendorID:       "/projects/test-project/locations/us-east1-b/pools/test-pool",
 				BaseModel:      datamodel.BaseModel{ID: 1},
 				DeploymentName: "deployment-name",
 			},
@@ -6970,12 +7563,1178 @@ func TestRestoreFilesFromBackupWorkflow(t *testing.T) {
 			UnhealthyReason: &reasons,
 		}, nil)
 
-		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, backup, volume)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil).Maybe()
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
 
 		// Verify workflow failed with Incorrect destination path error (400)
 		assert.True(t, env.IsWorkflowCompleted())
 		assert.Error(t, env.GetWorkflowError())
 		assert.Contains(t, env.GetWorkflowError().Error(), "Incorrect destination path")
+	})
+
+	t.Run("GetAuthJWTTokenFailure", func(t *testing.T) {
+		origUseVCPRegion := appenv.UseVCPRegion
+		defer func() { appenv.UseVCPRegion = origUseVCPRegion }()
+		appenv.UseVCPRegion = false
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{
+			AccountName:    "test-account",
+			SourceFileList: []string{"/backup.txt"},
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Account:   account,
+			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
+				PoolCredentials: &datamodel.PoolCredentials{},
+			},
+		}
+
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("", errors.New("token fetch failed"))
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("GetLocationFromVendorIDFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{
+			AccountName:    "test-account",
+			SourceFileList: []string{"/backup.txt"},
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Account:   account,
+			Pool: &datamodel.Pool{
+				VendorID:        "invalid-vendor-id",
+				PoolCredentials: &datamodel.PoolCredentials{},
+			},
+		}
+
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("ParseRegionAndZoneFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{
+			AccountName:    "test-account",
+			SourceFileList: []string{"/backup.txt"},
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Account:   account,
+			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/INVALID_LOCATION/pools/test-pool",
+				PoolCredentials: &datamodel.PoolCredentials{},
+			},
+		}
+
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("FetchBackupVaultMetadataForRestoreFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{
+			AccountName:    "test-account",
+			SourceFileList: []string{"/backup.txt"},
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Account:   account,
+			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
+				PoolCredentials: &datamodel.PoolCredentials{},
+			},
+		}
+
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.BackupVault)(nil), errors.New("vault metadata fetch failed"))
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("FetchBackupMetadataForRestoreFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{
+			AccountName:    "test-account",
+			SourceFileList: []string{"/backup.txt"},
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid"},
+			Name:      "test-backup-vault",
+			Account:   account,
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Account:   account,
+			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
+				PoolCredentials: &datamodel.PoolCredentials{},
+			},
+		}
+
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil)
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Backup)(nil), errors.New("backup metadata fetch failed"))
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("BackupMetadataNil", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{
+			AccountName:    "test-account",
+			SourceFileList: []string{"/backup.txt"},
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid"},
+			Name:      "test-backup-vault",
+			Account:   account,
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Account:   account,
+			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
+				PoolCredentials: &datamodel.PoolCredentials{},
+			},
+		}
+
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil)
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Backup)(nil), nil)
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("BackupStateNotAvailable", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{
+			AccountName:    "test-account",
+			SourceFileList: []string{"/backup.txt"},
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid"},
+			Name:      "test-backup-vault",
+			Account:   account,
+		}
+		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateDeleting,
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:          "test-backup",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:   "test-bucket",
+				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
+			},
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Account:   account,
+			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
+				PoolCredentials: &datamodel.PoolCredentials{},
+			},
+		}
+
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil)
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil)
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("SanProtocolValidation", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{
+			AccountName:    "test-account",
+			SourceFileList: []string{"/backup.txt"},
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid"},
+			Name:      "test-backup-vault",
+			Account:   account,
+		}
+		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:          "test-backup",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:   "test-bucket",
+				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
+				Protocols:    []string{"ISCSI"},
+			},
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Account:   account,
+			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
+				PoolCredentials: &datamodel.PoolCredentials{},
+			},
+		}
+
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil)
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil)
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("FetchBucketMetadataForRestoreFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		mockHeader := &commonpb.Header{
+			Fields: map[string]*commonpb.Payload{
+				"logParam": encodedValue,
+			},
+		}
+		env.SetHeader(mockHeader)
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{
+			AccountName:    "test-account",
+			SourceFileList: []string{"/backup.txt"},
+		}
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+		backupVault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid"},
+			Name:      "test-backup-vault",
+			Account:   account,
+		}
+		backup := &datamodel.Backup{
+			State:         models.LifeCycleStateAvailable,
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:          "test-backup",
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName:   "test-bucket",
+				EndpointUUID: "endpoint-uuid",
+				SnapshotID:   "snapshot-uuid",
+			},
+		}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Account:   account,
+			Pool: &datamodel.Pool{
+				VendorID:        "/projects/test-project/locations/us-east1-b/pools/test-pool",
+				PoolCredentials: &datamodel.PoolCredentials{},
+			},
+		}
+
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("test-token", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil)
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil)
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.BackupVault)(nil), errors.New("bucket metadata fetch failed"))
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("ValidateAndDeduplicateFileListFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{AccountName: "a", SourceFileList: []string{"/f"}}
+		volume := &datamodel.Volume{
+			Account: &datamodel.Account{Name: "a"},
+			Pool:    &datamodel.Pool{VendorID: "/projects/p/locations/us-east1-b/pools/pool", PoolCredentials: &datamodel.PoolCredentials{}},
+		}
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("ValidateAndDeduplicateFileList", mock.Anything, mock.Anything).Return(([]string)(nil), errors.New("dedupe failed"))
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("SFR_backupAttributesNil_ErrSFRSnapshotIDMissing", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{AccountName: "a", SourceFileList: []string{"/f"}}
+		account := &datamodel.Account{Name: "a"}
+		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "v"}, Name: "vault", Account: account}
+		backup := &datamodel.Backup{Name: "b", State: models.LifeCycleStateAvailable, Attributes: nil}
+		volume := &datamodel.Volume{
+			Account: account,
+			Pool:    &datamodel.Pool{VendorID: "/projects/p/locations/us-east1-b/pools/pool", PoolCredentials: &datamodel.PoolCredentials{}},
+		}
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("ValidateAndDeduplicateFileList", mock.Anything, mock.Anything).Return([]string{"/f"}, nil)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("t", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil)
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil)
+		env.OnActivity("PopulateSfrMetadataActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
+		assert.True(t, env.IsWorkflowCompleted())
+		wfErr := env.GetWorkflowError()
+		assert.Error(t, wfErr)
+		assert.Contains(t, wfErr.Error(), "Backup snapshot UUID is missing")
+		env.AssertExpectations(t)
+	})
+
+	t.Run("SFR_emptySnapshotID_missingBackupNameForFallback", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{AccountName: "a", SourceFileList: []string{"/f"}, BackupPath: "bad/path"}
+		account := &datamodel.Account{Name: "a"}
+		cross := "projects/p/locations/us-west1/backupVaults/src"
+		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "v"}, Name: "vault", Account: account, CrossRegionBackupVaultName: &cross}
+		backup := &datamodel.Backup{
+			Name:   "",
+			State:  models.LifeCycleStateAvailable,
+			Attributes: &datamodel.BackupAttributes{SnapshotID: "", BucketName: "b", EndpointUUID: "e"},
+		}
+		volume := &datamodel.Volume{
+			Account: account,
+			Pool:    &datamodel.Pool{VendorID: "/projects/p/locations/us-east1-b/pools/pool", PoolCredentials: &datamodel.PoolCredentials{}},
+		}
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("ValidateAndDeduplicateFileList", mock.Anything, mock.Anything).Return([]string{"/f"}, nil)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("t", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil)
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil)
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
+		assert.True(t, env.IsWorkflowCompleted())
+		wfErr := env.GetWorkflowError()
+		assert.Error(t, wfErr)
+		assert.Contains(t, wfErr.Error(), "Backup snapshot UUID is missing")
+		env.AssertExpectations(t)
+	})
+
+	t.Run("SFR_emptySnapshotID_noCrossRegionVaultPath", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{AccountName: "a", SourceFileList: []string{"/f"}}
+		account := &datamodel.Account{Name: "a"}
+		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "v"}, Name: "vault", Account: account}
+		backup := &datamodel.Backup{
+			Name:  "my-backup",
+			State: models.LifeCycleStateAvailable,
+			Attributes: &datamodel.BackupAttributes{SnapshotID: "", BucketName: "b", EndpointUUID: "e"},
+		}
+		volume := &datamodel.Volume{
+			Account: account,
+			Pool:    &datamodel.Pool{VendorID: "/projects/p/locations/us-east1-b/pools/pool", PoolCredentials: &datamodel.PoolCredentials{}},
+		}
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("ValidateAndDeduplicateFileList", mock.Anything, mock.Anything).Return([]string{"/f"}, nil)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("t", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil)
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil)
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
+		wfErr := env.GetWorkflowError()
+		assert.Error(t, wfErr)
+		assert.Contains(t, wfErr.Error(), "Backup snapshot UUID is missing")
+		env.AssertExpectations(t)
+	})
+
+	t.Run("SFR_emptySnapshotID_fallbackVaultFetchError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{
+			AccountName:    "a",
+			SourceFileList: []string{"/f"},
+			BackupPath:     "projects/1/locations/us-east1/backupVaults/dest-vault/backups/my-backup",
+		}
+		account := &datamodel.Account{Name: "a"}
+		cross := "projects/p/locations/us-west1/backupVaults/source-vault"
+		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "v"}, Name: "vault", Account: account, CrossRegionBackupVaultName: &cross}
+		backup := &datamodel.Backup{
+			Name:  "my-backup",
+			State: models.LifeCycleStateAvailable,
+			Attributes: &datamodel.BackupAttributes{SnapshotID: "", BucketName: "b", EndpointUUID: "e"},
+		}
+		volume := &datamodel.Volume{
+			Account: account,
+			Pool:    &datamodel.Pool{VendorID: "/projects/p/locations/us-east1-b/pools/pool", PoolCredentials: &datamodel.PoolCredentials{}},
+		}
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("ValidateAndDeduplicateFileList", mock.Anything, mock.Anything).Return([]string{"/f"}, nil)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("t", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.MatchedBy(func(p string) bool {
+			return strings.Contains(p, "dest-vault")
+		}), mock.Anything, mock.Anything).Return(backupVault, nil)
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.MatchedBy(func(p string) bool {
+			return strings.Contains(p, "dest-vault")
+		}), mock.Anything, mock.Anything, mock.Anything).Return(backup, nil)
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.MatchedBy(func(p string) bool {
+			return strings.Contains(p, "source-vault")
+		}), mock.Anything, mock.Anything).Return((*datamodel.BackupVault)(nil), errors.New("vault fetch failed"))
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
+		wfErr := env.GetWorkflowError()
+		assert.Error(t, wfErr)
+		assert.Contains(t, wfErr.Error(), "Backup snapshot UUID is missing")
+		env.AssertExpectations(t)
+	})
+
+	t.Run("SFR_emptySnapshotID_fallbackVaultNilResponse", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{AccountName: "a", SourceFileList: []string{"/f"}, BackupPath: "projects/1/locations/us-east1/backupVaults/dest-vault/backups/my-backup"}
+		account := &datamodel.Account{Name: "a"}
+		cross := "projects/1/locations/us-west1/backupVaults/source-vault"
+		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "v"}, Name: "vault", Account: account, CrossRegionBackupVaultName: &cross}
+		backup := &datamodel.Backup{
+			Name:  "my-backup",
+			State: models.LifeCycleStateDeleting,
+			Attributes: &datamodel.BackupAttributes{SnapshotID: "", BucketName: "b", EndpointUUID: "e"},
+		}
+		volume := &datamodel.Volume{
+			Account: account,
+			Pool:    &datamodel.Pool{VendorID: "/projects/p/locations/us-east1-b/pools/pool", PoolCredentials: &datamodel.PoolCredentials{}},
+		}
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("ValidateAndDeduplicateFileList", mock.Anything, mock.Anything).Return([]string{"/f"}, nil)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("t", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.MatchedBy(func(p string) bool {
+			return strings.Contains(p, "dest-vault")
+		}), mock.Anything, mock.Anything).Return(backupVault, nil)
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.MatchedBy(func(p string) bool {
+			return strings.Contains(p, "dest-vault")
+		}), mock.Anything, mock.Anything, mock.Anything).Return(backup, nil)
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.MatchedBy(func(p string) bool {
+			return strings.Contains(p, "source-vault")
+		}), mock.Anything, mock.Anything).Return((*datamodel.BackupVault)(nil), nil)
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
+		wfErr := env.GetWorkflowError()
+		assert.Error(t, wfErr)
+		assert.Contains(t, wfErr.Error(), "Backup snapshot UUID is missing")
+		env.AssertExpectations(t)
+	})
+
+	t.Run("SFR_emptySnapshotID_fallbackBackupFetchError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{AccountName: "a", SourceFileList: []string{"/f"}, BackupPath: "projects/1/locations/us-east1/backupVaults/dest-vault/backups/my-backup"}
+		account := &datamodel.Account{Name: "a"}
+		cross := "projects/1/locations/us-west1/backupVaults/source-vault"
+		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "v"}, Name: "vault", Account: account, CrossRegionBackupVaultName: &cross}
+		sourceVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "sv"}, Name: "source-vault", Account: account}
+		backup := &datamodel.Backup{
+			Name:  "my-backup",
+			State: models.LifeCycleStateDeleting,
+			Attributes: &datamodel.BackupAttributes{SnapshotID: "", BucketName: "b", EndpointUUID: "e"},
+		}
+		volume := &datamodel.Volume{
+			Account: account,
+			Pool:    &datamodel.Pool{VendorID: "/projects/p/locations/us-east1-b/pools/pool", PoolCredentials: &datamodel.PoolCredentials{}},
+		}
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("ValidateAndDeduplicateFileList", mock.Anything, mock.Anything).Return([]string{"/f"}, nil)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("t", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.MatchedBy(func(p string) bool {
+			return strings.Contains(p, "dest-vault")
+		}), mock.Anything, mock.Anything).Return(backupVault, nil)
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.MatchedBy(func(p string) bool {
+			return strings.Contains(p, "dest-vault")
+		}), mock.Anything, mock.Anything, mock.Anything).Return(backup, nil)
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.MatchedBy(func(p string) bool {
+			return strings.Contains(p, "source-vault")
+		}), mock.Anything, mock.Anything).Return(sourceVault, nil)
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.MatchedBy(func(p string) bool {
+			return strings.Contains(p, "source-vault")
+		}), mock.Anything, mock.Anything, mock.Anything).Return((*datamodel.Backup)(nil), errors.New("backup fetch failed"))
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
+		wfErr := env.GetWorkflowError()
+		assert.Error(t, wfErr)
+		assert.Contains(t, wfErr.Error(), "Backup snapshot UUID is missing")
+		env.AssertExpectations(t)
+	})
+
+	t.Run("SFR_emptySnapshotID_sourceBackupStillMissingSnapshotID", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{AccountName: "a", SourceFileList: []string{"/f"}, BackupPath: "projects/1/locations/us-east1/backupVaults/dest-vault/backups/my-backup"}
+		account := &datamodel.Account{Name: "a"}
+		cross := "projects/1/locations/us-west1/backupVaults/source-vault"
+		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "v"}, Name: "vault", Account: account, CrossRegionBackupVaultName: &cross}
+		sourceVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "sv"}, Name: "source-vault", Account: account}
+		destBackup := &datamodel.Backup{
+			Name:  "my-backup",
+			State: models.LifeCycleStateDeleting,
+			Attributes: &datamodel.BackupAttributes{SnapshotID: "", BucketName: "b", EndpointUUID: "e"},
+		}
+		sourceBackup := &datamodel.Backup{
+			Name:  "my-backup",
+			State: models.LifeCycleStateAvailable,
+			Attributes: &datamodel.BackupAttributes{SnapshotID: "", BucketName: "b", EndpointUUID: "e"},
+		}
+		volume := &datamodel.Volume{
+			Account: account,
+			Pool:    &datamodel.Pool{VendorID: "/projects/p/locations/us-east1-b/pools/pool", PoolCredentials: &datamodel.PoolCredentials{}},
+		}
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("ValidateAndDeduplicateFileList", mock.Anything, mock.Anything).Return([]string{"/f"}, nil)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("t", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.MatchedBy(func(p string) bool {
+			return strings.Contains(p, "dest-vault")
+		}), mock.Anything, mock.Anything).Return(backupVault, nil)
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.MatchedBy(func(p string) bool {
+			return strings.Contains(p, "dest-vault")
+		}), mock.Anything, mock.Anything, mock.Anything).Return(destBackup, nil)
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.MatchedBy(func(p string) bool {
+			return strings.Contains(p, "source-vault")
+		}), mock.Anything, mock.Anything).Return(sourceVault, nil)
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.MatchedBy(func(p string) bool {
+			return strings.Contains(p, "source-vault")
+		}), mock.Anything, mock.Anything, mock.Anything).Return(sourceBackup, nil)
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
+		wfErr := env.GetWorkflowError()
+		assert.Error(t, wfErr)
+		assert.Contains(t, wfErr.Error(), "Backup snapshot UUID is missing")
+		env.AssertExpectations(t)
+	})
+
+	t.Run("SFR_crossRegionSnapshotIDFallbackThenFailsStateCheck", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{AccountName: "a", SourceFileList: []string{"/f"}, BackupPath: "projects/1/locations/us-east1/backupVaults/dest-vault/backups/my-backup"}
+		account := &datamodel.Account{Name: "a"}
+		cross := "projects/1/locations/us-west1/backupVaults/source-vault"
+		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "v"}, Name: "vault", Account: account, CrossRegionBackupVaultName: &cross}
+		sourceVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "sv"}, Name: "source-vault", Account: account}
+		destBackup := &datamodel.Backup{
+			Name:  "my-backup",
+			State: models.LifeCycleStateDeleting,
+			Attributes: &datamodel.BackupAttributes{SnapshotID: "", BucketName: "b", EndpointUUID: "e", Protocols: []string{"nfs"}},
+		}
+		sourceBackup := &datamodel.Backup{
+			Name:  "my-backup",
+			State: models.LifeCycleStateAvailable,
+			Attributes: &datamodel.BackupAttributes{SnapshotID: "resolved-snapshot-uuid", BucketName: "b", EndpointUUID: "e"},
+		}
+		volume := &datamodel.Volume{
+			Account: account,
+			Pool:    &datamodel.Pool{VendorID: "/projects/p/locations/us-east1-b/pools/pool", PoolCredentials: &datamodel.PoolCredentials{}},
+		}
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("ValidateAndDeduplicateFileList", mock.Anything, mock.Anything).Return([]string{"/f"}, nil)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("t", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.MatchedBy(func(p string) bool {
+			return strings.Contains(p, "dest-vault")
+		}), mock.Anything, mock.Anything).Return(backupVault, nil)
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.MatchedBy(func(p string) bool {
+			return strings.Contains(p, "dest-vault")
+		}), mock.Anything, mock.Anything, mock.Anything).Return(destBackup, nil)
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.MatchedBy(func(p string) bool {
+			return strings.Contains(p, "source-vault")
+		}), mock.Anything, mock.Anything).Return(sourceVault, nil)
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.MatchedBy(func(p string) bool {
+			return strings.Contains(p, "source-vault")
+		}), mock.Anything, mock.Anything, mock.Anything).Return(sourceBackup, nil)
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("SFR_UpdateBackupRestoreCountFailure", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{AccountName: "a", SourceFileList: []string{"/f"}}
+		account := &datamodel.Account{Name: "a"}
+		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "vault-uuid"}, Name: "vault", Account: account}
+		backup := &datamodel.Backup{
+			BaseModel:     datamodel.BaseModel{UUID: "backup-uuid"},
+			Name:          "b",
+			State:         models.LifeCycleStateAvailable,
+			BackupVault:   backupVault,
+			BackupVaultID: 1,
+			Attributes: &datamodel.BackupAttributes{
+				BucketName: "test-bucket", EndpointUUID: "e", SnapshotID: "snap", Protocols: []string{"nfs"},
+			},
+		}
+		volume := &datamodel.Volume{
+			Account: account,
+			Pool:    &datamodel.Pool{VendorID: "/projects/p/locations/us-east1-b/pools/pool", PoolCredentials: &datamodel.PoolCredentials{}},
+		}
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("increment failed"))
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("ValidateAndDeduplicateFileList", mock.Anything, mock.Anything).Return([]string{"/f"}, nil)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, mock.Anything).Return("t", nil).Maybe()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil)
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil)
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil)
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
+	})
+
+	t.Run("SFR_GetAuthJWTTokenWhenNotLocalAndNotVCPOnlyRegion", func(t *testing.T) {
+		origLocal := appenv.IsLocalEnv
+		origVCP := appenv.UseVCPRegion
+		defer func() {
+			appenv.IsLocalEnv = origLocal
+			appenv.UseVCPRegion = origVCP
+		}()
+		appenv.IsLocalEnv = func() bool { return false }
+		appenv.UseVCPRegion = false
+
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestWorkflowEnvironment()
+		env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+		encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+		env.SetHeader(&commonpb.Header{Fields: map[string]*commonpb.Payload{"logParam": encodedValue}})
+		env.SetTestTimeout(time.Hour)
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetJob", mock.Anything, mock.Anything).Return(&datamodel.Job{
+			BaseModel: datamodel.BaseModel{UUID: "default-test-workflow-id"},
+			State:     string(models.JobsStateNEW),
+		}, nil).Maybe()
+		commonActivity := &activities.CommonActivities{SE: mockStorage}
+		env.RegisterActivity(commonActivity)
+		env.RegisterActivity(commonActivity.GetJob)
+		env.RegisterActivity(commonActivity.GetAuthJWTToken)
+		env.RegisterActivity(&activities.ADCActivity{})
+		env.RegisterActivity(&activities.BackupActivity{})
+		env.RegisterActivity(&activities.SFRActivity{})
+		env.RegisterActivity(&activities.VolumeCreateActivity{})
+
+		params := &common.RestoreFilesFromBackupParams{AccountName: "a", SourceFileList: []string{"/f"}}
+		account := &datamodel.Account{Name: "a"}
+		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "v"}, Name: "vault", Account: account}
+		backup := &datamodel.Backup{
+			Name:  "b",
+			State: models.LifeCycleStateAvailable,
+			Attributes: &datamodel.BackupAttributes{SnapshotID: "s", BucketName: "b", EndpointUUID: "e", Protocols: []string{"nfs"}},
+		}
+		volume := &datamodel.Volume{
+			Account: account,
+			Pool:    &datamodel.Pool{VendorID: "/projects/p/locations/us-east1-b/pools/pool", PoolCredentials: &datamodel.PoolCredentials{}},
+		}
+		env.OnActivity("UpdateJobStatus", mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateBackupRestoreCount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("UpdateVolumeStateInDB", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+		env.OnActivity("ValidateAndDeduplicateFileList", mock.Anything, mock.Anything).Return([]string{"/f"}, nil)
+		env.OnActivity("GetAuthJWTToken", mock.Anything, "a").Return("jwt-from-activity", nil).Once()
+		env.OnActivity("FetchBackupVaultMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil)
+		env.OnActivity("FetchBackupMetadataForRestore", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(backup, nil)
+		env.OnActivity("FetchBucketMetadataForRestore", mock.Anything, mock.Anything, mock.Anything).Return(backupVault, nil)
+		env.OnActivity("CrossPoolOrVPCRestorationActivity", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("stop after jwt path"))
+
+		env.ExecuteWorkflow(RestoreFilesFromBackupWorkflow, params, volume)
+		assert.True(t, env.IsWorkflowCompleted())
+		assert.Error(t, env.GetWorkflowError())
+		env.AssertExpectations(t)
 	})
 }
 

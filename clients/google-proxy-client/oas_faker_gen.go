@@ -798,6 +798,11 @@ func (s *BackupV1beta) SetFake() {
 	}
 	{
 		{
+			s.SnapshotUUID.SetFake()
+		}
+	}
+	{
+		{
 			s.Protocols = nil
 			for i := 0; i < 0; i++ {
 				var elem ProtocolsV1beta

@@ -15,7 +15,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -58,7 +60,7 @@ func matchErrorPattern(errMsg string, patternMap map[string]ontapErrorMapping) *
 var _ WorkflowInterface = &RestoreFilesFromBackupWorkflowStruct{}
 
 // RestoreFilesFromBackupWorkflow processes restore files from backup requests from a customer.
-func RestoreFilesFromBackupWorkflow(ctx workflow.Context, params *commonparams.RestoreFilesFromBackupParams, backup *datamodel.Backup, volume *datamodel.Volume) (interface{}, error) {
+func RestoreFilesFromBackupWorkflow(ctx workflow.Context, params *commonparams.RestoreFilesFromBackupParams, volume *datamodel.Volume) (interface{}, error) {
 	restoreWf := new(RestoreFilesFromBackupWorkflowStruct)
 	err := restoreWf.Setup(ctx, params)
 	if err != nil {
@@ -75,7 +77,7 @@ func RestoreFilesFromBackupWorkflow(ctx workflow.Context, params *commonparams.R
 		return nil, err
 	}
 
-	_, customErr := restoreWf.Run(ctx, params, backup, volume)
+	_, customErr := restoreWf.Run(ctx, params, volume)
 
 	if customErr != nil {
 		// Check if the error is a ContinueAsNewError - if so, don't revert
@@ -125,36 +127,17 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Setup(ctx workflow.Context, inpu
 // Run executes the restore files from backup workflow.
 func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	params := args[0].(*commonparams.RestoreFilesFromBackupParams)
-	backup := args[1].(*datamodel.Backup)
-	volume := args[2].(*datamodel.Volume)
+	volume := args[1].(*datamodel.Volume)
 
 	log := wf.Logger
-	log.Infof("Starting restore files from backup workflow for volume %s, backup %s", volume.UUID, backup.UUID)
-	log.Infof("Restoring %d files to path: %s", len(params.SourceFileList), params.RestoreFilePath)
+	log.Infof("Starting restore files from backup workflow for volume %s", volume.UUID)
+	log.Infof("Restoring %d files from backup path: %s", len(params.SourceFileList), params.BackupPath)
 
 	adcActivity := &activities.ADCActivity{}
 	backupActivity := &activities.BackupActivity{}
 	sfrActivity := &activities.SFRActivity{}
 	volumeActivity := &activities.VolumeCreateActivity{}
 	ontapRestoreActivity := &activities.OntapModeRestoreActivity{}
-
-	// Get backup vault from backup
-	var backupVault *datamodel.BackupVault
-	if backup.BackupVault != nil {
-		backupVault = backup.BackupVault
-	} else {
-		log.Errorf("Failed to get backup vault: backup vault not found in backup")
-		return nil, ConvertToVSAError(fmt.Errorf("backup vault not found in backup"))
-	}
-	backupVault.Account = volume.Account
-
-	// Define roles that will be attached to service account
-	roles := []string{
-		"roles/storage.hmacKeyAdmin",
-		"roles/storage.objectAdmin",
-		"roles/storage.admin",
-		"roles/iam.serviceAccountAdmin",
-	}
 
 	retryPolicy, err := PopulateRetryPolicyParams()
 	if err != nil {
@@ -173,39 +156,23 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 	}
 	ctx = workflow.WithActivityOptions(ctx, ao)
 
-	// Validate and remove duplicate files from SourceFileList
-	var uniqueFiles []string
-	err = workflow.ExecuteActivity(ctx, sfrActivity.ValidateAndDeduplicateFileList, params.SourceFileList).Get(ctx, &uniqueFiles)
-	if err != nil {
-		return nil, ConvertToVSAError(fmt.Errorf("failed to validate and deduplicate file list: %w", err))
-	}
-
-	// Update params with deduplicated file list
-	params.SourceFileList = uniqueFiles
-	log.Infof("Restoring %d unique files after deduplication", len(params.SourceFileList))
-
-	// Increment restore count to indicate that a volume restoration is in-progress for the backup
-	err = workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupRestoreCount,
-		backupVault.UUID,
-		backup.UUID,
-		volume.Account.Name, activities.BackupRestoreCountIncrement).Get(ctx, nil)
-	if err != nil {
-		log.Errorf("Failed to update backup restore count: %v", err)
-		return nil, ConvertToVSAError(err)
-	}
-
+	var backupVault *datamodel.BackupVault
+	var backup *datamodel.Backup
+	restoreCountIncremented := false
 	rollbackManager := commonparams.NewRollbackManager()
+
 	defer func() {
 		// Capture the workflow error before any cleanup operations
 		workflowErr := err
 
 		// Decrement backup restore count after the workflow is complete
-		decrementErr := workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupRestoreCount,
-			backupVault.UUID,
-			backup.UUID,
-			volume.Account.Name, activities.BackupRestoreCountDecrement).Get(ctx, nil)
-		if decrementErr != nil {
-			log.Errorf("Failed to revert backup restore count: %v", decrementErr)
+		if restoreCountIncremented {
+			if decrementErr := workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupRestoreCount,
+				backupVault.UUID,
+				backup.UUID,
+				volume.Account.Name, activities.BackupRestoreCountDecrement).Get(ctx, nil); decrementErr != nil {
+				log.Errorf("Failed to revert backup restore count: %v", decrementErr)
+			}
 		}
 
 		// Check for ContinueAsNewError - if so, don't execute rollback
@@ -224,13 +191,11 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 		}
 		if params.IsExpertModeRestore {
 			expertModeVolumeActivity := &expertmodeactivities.ExpertModeVolumeActivity{}
-			err2 := workflow.ExecuteActivity(ctx, expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, volume.UUID, models.LifeCycleStateREADY).Get(ctx, nil)
-			if err2 != nil {
+			if err2 := workflow.ExecuteActivity(ctx, expertModeVolumeActivity.UpdateExpertModeVolumeStateInDB, volume.UUID, models.LifeCycleStateREADY).Get(ctx, nil); err2 != nil {
 				log.Errorf("Failed to restore expert mode volume state to READY: %v", err2)
 			}
 		} else {
-			err2 := workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeStateInDB, volume.UUID, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil)
-			if err2 != nil {
+			if err2 := workflow.ExecuteActivity(ctx, volumeActivity.UpdateVolumeStateInDB, volume.UUID, models.LifeCycleStateREADY, models.LifeCycleStateAvailableDetails).Get(ctx, nil); err2 != nil {
 				log.Errorf("Failed to restore volume state to READY: %v", err2)
 			}
 		}
@@ -241,6 +206,176 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 			rollbackManager.ExecuteRollback(disconnectedCtx, workflowErr)
 		}
 	}()
+
+	// Validate and remove duplicate files from SourceFileList
+	var uniqueFiles []string
+	err = workflow.ExecuteActivity(ctx, sfrActivity.ValidateAndDeduplicateFileList, params.SourceFileList).Get(ctx, &uniqueFiles)
+	if err != nil {
+		return nil, ConvertToVSAError(fmt.Errorf("failed to validate and deduplicate file list: %w", err))
+	}
+
+	// Update params with deduplicated file list
+	params.SourceFileList = uniqueFiles
+	log.Infof("Restoring %d unique files after deduplication", len(params.SourceFileList))
+
+	// Propagate customer JWT for CVP/SDE calls (e.g. FetchProtocolsForBackup on remote backup conversion).
+	// Skip in local env, and when USE_VCP_REGION is true (VCP-only region; no SDE/CVP dependency).
+	if !env.IsLocalEnv() && !env.UseVCPRegion {
+		var token string
+		err = workflow.ExecuteActivity(ctx, activities.CommonActivities.GetAuthJWTToken, volume.Account.Name).Get(ctx, &token)
+		if err != nil {
+			log.Errorf("Failed to get token for account %s: %v", volume.Account.Name, err)
+			return nil, ConvertToVSAError(err)
+		}
+		ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, token)
+	}
+
+	// Extract volume region from pool vendor ID
+	location, err := utils.GetLocationFromVendorID(volume.Pool.VendorID)
+	if err != nil {
+		log.Errorf("Failed to get location from vendor ID: %v", err)
+		return nil, ConvertToVSAError(err)
+	}
+	volumeRegion, _, err := utils.ParseRegionAndZone(location)
+	if err != nil {
+		log.Errorf("Failed to parse region and zone: %v", err)
+		return nil, ConvertToVSAError(err)
+	}
+	log.Infof("Volume region: %s", volumeRegion)
+
+	// Fetch backup vault metadata from VCP DB or CVP/SDE
+	err = workflow.ExecuteActivity(ctx, volumeActivity.FetchBackupVaultMetadataForRestore,
+		params.BackupPath, volume, volumeRegion).Get(ctx, &backupVault)
+	if err != nil {
+		log.Errorf("Failed to fetch backup vault metadata for restore: %v", err)
+		return nil, ConvertToVSAError(err)
+	}
+
+	if backupVault == nil {
+		log.Errorf("Backup vault metadata is nil after fetch")
+		return nil, ConvertToVSAError(fmt.Errorf("failed to fetch backup vault metadata: received nil response"))
+	}
+	log.Infof("Successfully fetched backup vault metadata: vault='%s'", backupVault.Name)
+
+	// Fetch backup metadata from VCP DB or CVP/SDE
+	err = workflow.ExecuteActivity(ctx, volumeActivity.FetchBackupMetadataForRestore,
+		params.BackupPath, backupVault, volume, volumeRegion).Get(ctx, &backup)
+	if err != nil {
+		log.Errorf("Failed to fetch backup metadata for restore: %v", err)
+		return nil, ConvertToVSAError(err)
+	}
+
+	if backup == nil {
+		log.Errorf("Backup metadata is nil after fetch")
+		return nil, ConvertToVSAError(fmt.Errorf("failed to fetch backup metadata: received nil response"))
+	}
+
+	if backup.Attributes == nil {
+		err = fmt.Errorf("backup attributes are missing for backup '%s'", backup.Name)
+		log.Errorf("%v", err)
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrSFRSnapshotIDMissing, err)
+	}
+
+	if strings.TrimSpace(backup.Attributes.SnapshotID) == "" {
+		backupName := backup.Name
+		if backupName == "" {
+			pathComponents := strings.Split(params.BackupPath, "/")
+			if len(pathComponents) == 8 {
+				backupName = pathComponents[7]
+			}
+		}
+		if backupName == "" {
+			err = fmt.Errorf("backup snapshot ID is missing for backup '%s' and backup name could not be determined for source-path fallback", backup.Name)
+			log.Errorf("%v", err)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrSFRSnapshotIDMissing, err)
+		}
+		if backupVault.CrossRegionBackupVaultName == nil || strings.TrimSpace(*backupVault.CrossRegionBackupVaultName) == "" {
+			err = fmt.Errorf("backup snapshot ID is missing for backup '%s' and cross-region source backup vault path is not set (cannot load snapshot from source backup path)", backup.Name)
+			log.Errorf("%v", err)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrSFRSnapshotIDMissing, err)
+		}
+
+		sourceBackupPath := fmt.Sprintf("%s/backups/%s", *backupVault.CrossRegionBackupVaultName, backupName)
+
+		var sourceBackupVault *datamodel.BackupVault
+		fallbackErr := workflow.ExecuteActivity(ctx, volumeActivity.FetchBackupVaultMetadataForRestore,
+			sourceBackupPath, volume, volumeRegion).Get(ctx, &sourceBackupVault)
+		if fallbackErr != nil {
+			err = fmt.Errorf("failed to fetch source backup vault metadata for snapshot ID fallback (path=%s): %w", sourceBackupPath, fallbackErr)
+			log.Errorf("%v", err)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrSFRSnapshotIDMissing, err)
+		}
+		if sourceBackupVault == nil {
+			err = fmt.Errorf("source backup vault metadata is nil after fallback fetch (path=%s)", sourceBackupPath)
+			log.Errorf("%v", err)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrSFRSnapshotIDMissing, err)
+		}
+
+		var sourceBackup *datamodel.Backup
+		fallbackErr = workflow.ExecuteActivity(ctx, volumeActivity.FetchBackupMetadataForRestore,
+			sourceBackupPath, sourceBackupVault, volume, volumeRegion).Get(ctx, &sourceBackup)
+		if fallbackErr != nil {
+			err = fmt.Errorf("failed to fetch source backup metadata for snapshot ID fallback (path=%s): %w", sourceBackupPath, fallbackErr)
+			log.Errorf("%v", err)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrSFRSnapshotIDMissing, err)
+		}
+		if sourceBackup == nil || sourceBackup.Attributes == nil || strings.TrimSpace(sourceBackup.Attributes.SnapshotID) == "" {
+			err = fmt.Errorf("source backup at path %s did not provide a snapshot ID (needed because destination backup '%s' has none)", sourceBackupPath, backup.Name)
+			log.Errorf("%v", err)
+			return nil, vsaerrors.NewVCPError(vsaerrors.ErrSFRSnapshotIDMissing, err)
+		}
+		backup.Attributes.SnapshotID = sourceBackup.Attributes.SnapshotID
+		log.Infof("Updated backup metadata snapshotID from source backup path fallback, snapshotID='%s'", backup.Attributes.SnapshotID)
+	}
+
+	log.Infof("Successfully fetched backup metadata: backup='%s', state='%s'", backup.Name, backup.State)
+
+	// Validate backup is in available or ready state before proceeding with restore
+	// SDE backups use READY state, VCP backups use AVAILABLE state
+	if backup.State != models.LifeCycleStateAvailable && backup.State != models.LifeCycleStateREADY {
+		err = fmt.Errorf("cannot restore from backup '%s' which is not in available or ready state (current state: %s)",
+			backup.Name, backup.State)
+		log.Errorf("Backup state validation failed: %v", err)
+		return nil, ConvertToVSAError(err)
+	}
+
+	// Validate protocol compatibility (SAN not supported for single file restore)
+	if utils.IsSanProtocols(backup.Attributes.Protocols) {
+		err = fmt.Errorf("single file restore is not supported from a backup of ISCSI volumes")
+		log.Errorf("Protocol validation failed: %v", err)
+		return nil, ConvertToVSAError(err)
+	}
+
+	// Fetch bucket metadata and ensure bucket details exist
+	err = workflow.ExecuteActivity(ctx, volumeActivity.FetchBucketMetadataForRestore,
+		backup, backupVault).Get(ctx, &backupVault)
+	if err != nil {
+		log.Errorf("Failed to fetch bucket metadata for restore: %v", err)
+		return nil, ConvertToVSAError(err)
+	}
+
+	backup.BackupVault = backupVault
+	backupVault.Account = volume.Account
+	log.Infof("Backup metadata with all required details fetched successfully: backup='%s', vault='%s'", backup.Name, backupVault.Name)
+
+	// Define roles that will be attached to service account
+	roles := []string{
+		"roles/storage.hmacKeyAdmin",
+		"roles/storage.objectAdmin",
+		"roles/storage.admin",
+		"roles/iam.serviceAccountAdmin",
+	}
+
+	// Increment restore count to indicate that a volume restoration is in-progress for the backup
+	err = workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupRestoreCount,
+		backupVault.UUID,
+		backup.UUID,
+		volume.Account.Name, activities.BackupRestoreCountIncrement).Get(ctx, nil)
+	if err != nil {
+		log.Errorf("Failed to update backup restore count: %v", err)
+		return nil, ConvertToVSAError(err)
+	}
+	restoreCountIncremented = true
 
 	// Execute VPC pool restoration activity to handle cross-project permissions
 	err = workflow.ExecuteActivity(ctx, volumeActivity.CrossPoolOrVPCRestorationActivity, volume.Pool, backup).Get(ctx, nil)
@@ -746,5 +881,6 @@ func (wf *RestoreFilesFromBackupWorkflowStruct) Run(ctx workflow.Context, args .
 	}
 
 	log.Infof("Restore files from backup workflow completed successfully for %d files", len(transferFiles))
+	err = nil
 	return nil, nil
 }

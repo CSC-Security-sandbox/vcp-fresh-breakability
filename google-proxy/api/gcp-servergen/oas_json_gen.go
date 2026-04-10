@@ -3365,6 +3365,12 @@ func (s *BackupV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.SnapshotUUID.Set {
+			e.FieldStart("snapshotUUID")
+			s.SnapshotUUID.Encode(e)
+		}
+	}
+	{
 		if s.Protocols != nil {
 			e.FieldStart("protocols")
 			e.ArrStart()
@@ -3382,7 +3388,7 @@ func (s *BackupV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfBackupV1beta = [22]string{
+var jsonFieldsNameOfBackupV1beta = [23]string{
 	0:  "resourceId",
 	1:  "volumeId",
 	2:  "state",
@@ -3403,8 +3409,9 @@ var jsonFieldsNameOfBackupV1beta = [22]string{
 	17: "bucketName",
 	18: "snapshotName",
 	19: "endPointUUID",
-	20: "protocols",
-	21: "assetLocationMetadata",
+	20: "snapshotUUID",
+	21: "protocols",
+	22: "assetLocationMetadata",
 }
 
 // Decode decodes BackupV1beta from json.
@@ -3615,6 +3622,16 @@ func (s *BackupV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"endPointUUID\"")
+			}
+		case "snapshotUUID":
+			if err := func() error {
+				s.SnapshotUUID.Reset()
+				if err := s.SnapshotUUID.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"snapshotUUID\"")
 			}
 		case "protocols":
 			if err := func() error {

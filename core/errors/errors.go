@@ -444,6 +444,7 @@ const (
 	ErrInsufficientRestoreVolumeSize                       = 12017
 	ErrCrossRegionBackupVaultAssignmentToDestinationRegion = 12018
 	ErrSFRIncorrectDestinationPath                         = 12019
+	ErrSFRSnapshotIDMissing                                = 12020
 
 	ErrMatchingQuotaRuleNotFoundOnDestination   = 12006
 	ErrQuotaRuleNotFound                        = 12007

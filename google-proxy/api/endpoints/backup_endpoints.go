@@ -926,6 +926,7 @@ func convertToBackupsV1beta(backup *models.BackupV1beta) gcpgenserver.BackupV1be
 			return gcpgenserver.OptString{}
 		}(),
 		EndPointUUID: utils.GetOptString(backup.EndPointUUID),
+		SnapshotUUID: utils.GetOptString(backup.SnapshotUUID),
 		Protocols:    nil, // CVP models don't have protocols field, will be empty for backups fetched from CVP
 		AssetLocationMetadata: func() gcpgenserver.OptAssetLocationMetadataV2 {
 			if backup.AssetLocationMetadata != nil {
@@ -1077,6 +1078,10 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 		EndPointUUID: gcpgenserver.OptString{
 			Value: backup.Attributes.EndpointUUID,
 			Set:   backup.Attributes != nil && backup.Attributes.EndpointUUID != "",
+		},
+		SnapshotUUID: gcpgenserver.OptString{
+			Value: backup.Attributes.SnapshotID,
+			Set:   backup.Attributes != nil && backup.Attributes.SnapshotID != "",
 		},
 		SatisfiesPzi: gcpgenserver.OptBool{
 			Value: satisfiesPzi,

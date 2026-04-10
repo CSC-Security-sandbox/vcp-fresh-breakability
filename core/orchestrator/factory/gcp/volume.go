@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math"
 	"net"
-	"strconv"
 	"strings"
 	"time"
 
@@ -3346,66 +3345,22 @@ func _restoreFilesFromBackup(ctx context.Context, se database.Storage, temporal 
 		return "", customerrors.NewUserInputValidationErr("Volume is not ready")
 	}
 
-	// Get backup either by BackupID or BackupPath
-	var backup *datamodel.Backup
-	var backupVault *datamodel.BackupVault
-
-	if params.BackupPath != "" {
-		components := strings.Split(params.BackupPath, "/")
-
-		// Ensure there are enough components to avoid out of range errors
-		if len(components) < MaxBackupPathComponents {
-			return "", customerrors.NewUserInputValidationErr("Backup path is not in correct format")
-		}
-
-		backupRegion := components[LocationIdIndex]
-		// Get the volume's region from its pool
-		location, err := utils.GetLocationFromVendorID(volume.Pool.VendorID)
-		if err != nil {
-			logger.Error("Failed to get location from vendor ID: ", "error", err)
-			return "", err
-		}
-		volumeRegion, _, err := utils.ParseRegionAndZone(location)
-		if err != nil {
-			return "", err
-		}
-		backupVaultName := components[BackupVaultNameIndex]
-		if backupRegion != volumeRegion {
-			// Construct the complete backup vault path (without the /backups/backup part)
-			backupVaultPath := strings.Join(components[:BackupVaultNameIndex+1], "/")
-			backupVault, err = se.GetBackupVaultByCrossRegionBackupVaultName(ctx, backupVaultPath, account.ID)
-			if err != nil {
-				return "", err
-			}
-		} else {
-			backupVault, err = se.GetBackupVaultByNameAndOwnerID(ctx, backupVaultName, strconv.FormatInt(account.ID, 10))
-			if err != nil {
-				return "", err
-			}
-		}
-
-		backupName := components[BackupNameIndex]
-		// TODO: restore SDE Backup to VCP - need to fetch the details from sde db and store it will bucket details in case if the record is not found in VCP DB
-		backup, err = se.GetBackupByNameAndBackupVaultID(ctx, backupName, backupVault.ID)
-		if err != nil {
-			return "", err
-		}
-	} else {
+	// Validate BackupPath is provided
+	if params.BackupPath == "" {
 		return "", customerrors.NewUserInputValidationErr("BackupPath must be provided")
 	}
 
-	// Validate that backup is in a valid state for restore
-	if backup.State != models.LifeCycleStateAvailable {
-		return "", customerrors.NewUserInputValidationErr("Cannot restore files from backup which is not available")
+	if len(strings.Split(params.BackupPath, "/")) != 8 {
+		return "", customerrors.NewUserInputValidationErr("Backup path is not in correct format - expected format: projects/{project}/locations/{location}/backupVaults/{vaultName}/backups/{backupName}")
 	}
 
-	// check that volume is files not block
+	if volume.VolumeAttributes == nil || volume.VolumeAttributes.Protocols == nil {
+		return "", customerrors.NewUserInputValidationErr("Volume attributes or protocols cannot be nil")
+	}
+
+	// Validate volume protocol (SAN not supported)
 	if utils.IsSanProtocols(volume.VolumeAttributes.Protocols) {
 		return "", customerrors.NewUserInputValidationErr("Single file restore is not supported for ISCSI Volumes")
-	}
-
-	if utils.IsSanProtocols(backup.Attributes.Protocols) {
-		return "", customerrors.NewUserInputValidationErr("Single file restore is not supported from a backup of ISCSI Volumes")
 	}
 
 	originalState := volume.State
@@ -3471,7 +3426,6 @@ func _restoreFilesFromBackup(ctx context.Context, se database.Storage, temporal 
 		workflows.RestoreFilesFromBackupWorkflow,
 		workflowengine.GetSFRWorkflowTimeout(),
 		params,
-		backup,
 		volume,
 	)
 	if err != nil {

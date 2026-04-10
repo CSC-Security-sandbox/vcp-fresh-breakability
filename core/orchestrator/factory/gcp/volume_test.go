@@ -30025,8 +30025,45 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 
-	t.Run("GetBackupVaultError", func(tt *testing.T) {
-		// Test line 2374-2377: GetBackupVaultByNameAndOwnerID error (same region)
+	t.Run("InvalidBackupPathFormat", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
+
+		params := &common.RestoreFilesFromBackupParams{
+			AccountName: "test-account",
+			VolumeUUID:  "volume-uuid",
+			BackupPath:  "invalid/path/format",
+		}
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+			Name:      "test-account",
+		}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			State:     models.LifeCycleStateREADY,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"NFS"},
+			},
+		}
+
+		originalGetOrCreateAccount := getOrCreateAccount
+		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
+
+		mockStorage.EXPECT().GetVolume(mock.Anything, "volume-uuid").Return(volume, nil)
+
+		result, err := _restoreFilesFromBackup(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("VolumeAttributesNil", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
 
@@ -30041,18 +30078,9 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 			Name:      "test-account",
 		}
 
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-			VendorID:  "/projects/123/locations/us-west1/pools/test-pool",
-		}
-
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 			State:     models.LifeCycleStateREADY,
-			Pool:      pool,
-			VolumeAttributes: &datamodel.VolumeAttributes{
-				Protocols: []string{"NFS"},
-			},
 		}
 
 		originalGetOrCreateAccount := getOrCreateAccount
@@ -30062,16 +30090,15 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
 
 		mockStorage.EXPECT().GetVolume(mock.Anything, "volume-uuid").Return(volume, nil)
-		mockStorage.EXPECT().GetBackupVaultByNameAndOwnerID(mock.Anything, "vault", "1").Return(nil, errors.New("vault not found"))
 
 		result, err := _restoreFilesFromBackup(ctx, mockStorage, mockTemporal, params)
 		assert.Error(tt, err)
 		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
 		mockStorage.AssertExpectations(tt)
 	})
 
-	t.Run("GetBackupError", func(tt *testing.T) {
-		// Test line 2379-2382: GetBackupByNameAndBackupVaultID error (same region)
+	t.Run("SANProtocolNotSupported", func(tt *testing.T) {
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
 
@@ -30086,69 +30113,11 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 			Name:      "test-account",
 		}
 
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-			VendorID:  "/projects/123/locations/us-west1/pools/test-pool",
-		}
-
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 			State:     models.LifeCycleStateREADY,
-			Pool:      pool,
 			VolumeAttributes: &datamodel.VolumeAttributes{
-				Protocols: []string{"NFS"},
-			},
-		}
-
-		backupVault := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{ID: 10, UUID: "vault-uuid"},
-			Name:      "vault",
-		}
-
-		originalGetOrCreateAccount := getOrCreateAccount
-		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
-			return account, nil
-		}
-		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
-
-		mockStorage.EXPECT().GetVolume(mock.Anything, "volume-uuid").Return(volume, nil)
-		mockStorage.EXPECT().GetBackupVaultByNameAndOwnerID(mock.Anything, "vault", "1").Return(backupVault, nil)
-		mockStorage.EXPECT().GetBackupByNameAndBackupVaultID(mock.Anything, "backup", int64(10)).Return(nil, errors.New("backup not found"))
-
-		result, err := _restoreFilesFromBackup(ctx, mockStorage, mockTemporal, params)
-		assert.Error(tt, err)
-		assert.Empty(tt, result)
-		mockStorage.AssertExpectations(tt)
-	})
-
-	t.Run("GetBackupVaultErrorCrossRegion", func(tt *testing.T) {
-		// Test cross-region: GetBackupVaultByCrossRegionBackupVaultName error
-		mockStorage := database.NewMockStorage(tt)
-		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
-
-		params := &common.RestoreFilesFromBackupParams{
-			AccountName: "test-account",
-			VolumeUUID:  "volume-uuid",
-			BackupPath:  "projects/123/locations/us-east1/backupVaults/vault/backups/backup",
-		}
-
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
-			Name:      "test-account",
-		}
-
-		// Volume is in us-west1, backup is in us-east1 (cross-region)
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-			VendorID:  "/projects/123/locations/us-west1/pools/test-pool",
-		}
-
-		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
-			State:     models.LifeCycleStateREADY,
-			Pool:      pool,
-			VolumeAttributes: &datamodel.VolumeAttributes{
-				Protocols: []string{"NFS"},
+				Protocols: []string{"ISCSI"},
 			},
 		}
 
@@ -30159,63 +30128,11 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
 
 		mockStorage.EXPECT().GetVolume(mock.Anything, "volume-uuid").Return(volume, nil)
-		mockStorage.EXPECT().GetBackupVaultByCrossRegionBackupVaultName(mock.Anything, "projects/123/locations/us-east1/backupVaults/vault", int64(1)).Return(nil, errors.New("cross-region vault not found"))
 
 		result, err := _restoreFilesFromBackup(ctx, mockStorage, mockTemporal, params)
 		assert.Error(tt, err)
 		assert.Empty(tt, result)
-		mockStorage.AssertExpectations(tt)
-	})
-
-	t.Run("GetBackupErrorCrossRegion", func(tt *testing.T) {
-		// Test cross-region: GetBackupByNameAndBackupVaultID error
-		mockStorage := database.NewMockStorage(tt)
-		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
-
-		params := &common.RestoreFilesFromBackupParams{
-			AccountName: "test-account",
-			VolumeUUID:  "volume-uuid",
-			BackupPath:  "projects/123/locations/us-east1/backupVaults/vault/backups/backup",
-		}
-
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
-			Name:      "test-account",
-		}
-
-		// Volume is in us-west1, backup is in us-east1 (cross-region)
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-			VendorID:  "/projects/123/locations/us-west1/pools/test-pool",
-		}
-
-		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
-			State:     models.LifeCycleStateREADY,
-			Pool:      pool,
-			VolumeAttributes: &datamodel.VolumeAttributes{
-				Protocols: []string{"NFS"},
-			},
-		}
-
-		backupVault := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{ID: 10, UUID: "vault-uuid"},
-			Name:      "vault",
-		}
-
-		originalGetOrCreateAccount := getOrCreateAccount
-		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
-			return account, nil
-		}
-		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
-
-		mockStorage.EXPECT().GetVolume(mock.Anything, "volume-uuid").Return(volume, nil)
-		mockStorage.EXPECT().GetBackupVaultByCrossRegionBackupVaultName(mock.Anything, "projects/123/locations/us-east1/backupVaults/vault", int64(1)).Return(backupVault, nil)
-		mockStorage.EXPECT().GetBackupByNameAndBackupVaultID(mock.Anything, "backup", int64(10)).Return(nil, errors.New("backup not found"))
-
-		result, err := _restoreFilesFromBackup(ctx, mockStorage, mockTemporal, params)
-		assert.Error(tt, err)
-		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
 		mockStorage.AssertExpectations(tt)
 	})
 
@@ -30255,66 +30172,7 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 	})
 
-	t.Run("BackupNotAvailable", func(tt *testing.T) {
-		// Test line 2388-2390: Backup state not Available
-		mockStorage := database.NewMockStorage(tt)
-		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
-
-		params := &common.RestoreFilesFromBackupParams{
-			AccountName: "test-account",
-			VolumeUUID:  "volume-uuid",
-			BackupPath:  "projects/123/locations/us-west1/backupVaults/vault/backups/backup",
-		}
-
-		account := &datamodel.Account{
-			BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
-			Name:      "test-account",
-		}
-
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-			VendorID:  "/projects/123/locations/us-west1/pools/test-pool",
-		}
-
-		volume := &datamodel.Volume{
-			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
-			State:     models.LifeCycleStateREADY,
-			Pool:      pool,
-			VolumeAttributes: &datamodel.VolumeAttributes{
-				Protocols: []string{"NFS"},
-			},
-		}
-
-		backupVault := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{ID: 10, UUID: "vault-uuid"},
-			Name:      "vault",
-		}
-
-		backup := &datamodel.Backup{
-			BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
-			Name:      "backup",
-			State:     models.LifeCycleStateCreating,
-		}
-
-		originalGetOrCreateAccount := getOrCreateAccount
-		getOrCreateAccount = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
-			return account, nil
-		}
-		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
-
-		mockStorage.EXPECT().GetVolume(mock.Anything, "volume-uuid").Return(volume, nil)
-		mockStorage.EXPECT().GetBackupVaultByNameAndOwnerID(mock.Anything, "vault", "1").Return(backupVault, nil)
-		mockStorage.EXPECT().GetBackupByNameAndBackupVaultID(mock.Anything, "backup", int64(10)).Return(backup, nil)
-
-		result, err := _restoreFilesFromBackup(ctx, mockStorage, mockTemporal, params)
-		assert.Error(tt, err)
-		assert.Empty(tt, result)
-		assert.True(tt, customerrors.IsUserInputValidationErr(err))
-		mockStorage.AssertExpectations(tt)
-	})
-
 	t.Run("CreateJobError", func(tt *testing.T) {
-		// Test line 2412-2416: CreateJob error
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
 
@@ -30329,30 +30187,10 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 			Name:      "test-account",
 		}
 
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-			VendorID:  "/projects/123/locations/us-west1/pools/test-pool",
-		}
-
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 			State:     models.LifeCycleStateREADY,
-			Pool:      pool,
 			VolumeAttributes: &datamodel.VolumeAttributes{
-				Protocols: []string{"NFS"},
-			},
-		}
-
-		backupVault := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{ID: 10, UUID: "vault-uuid"},
-			Name:      "vault",
-		}
-
-		backup := &datamodel.Backup{
-			BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
-			Name:      "backup",
-			State:     models.LifeCycleStateAvailable,
-			Attributes: &datamodel.BackupAttributes{
 				Protocols: []string{"NFS"},
 			},
 		}
@@ -30364,8 +30202,6 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
 
 		mockStorage.EXPECT().GetVolume(mock.Anything, "volume-uuid").Return(volume, nil)
-		mockStorage.EXPECT().GetBackupVaultByNameAndOwnerID(mock.Anything, "vault", "1").Return(backupVault, nil)
-		mockStorage.EXPECT().GetBackupByNameAndBackupVaultID(mock.Anything, "backup", int64(10)).Return(backup, nil)
 		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(nil, errors.New("database error"))
 
 		result, err := _restoreFilesFromBackup(ctx, mockStorage, mockTemporal, params)
@@ -30375,7 +30211,6 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 	})
 
 	t.Run("UpdateVolumeStatusError", func(tt *testing.T) {
-		// Test line 2440-2444: updateVolumeStatus error
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
 
@@ -30390,30 +30225,10 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 			Name:      "test-account",
 		}
 
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-			VendorID:  "/projects/123/locations/us-west1/pools/test-pool",
-		}
-
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 			State:     models.LifeCycleStateREADY,
-			Pool:      pool,
 			VolumeAttributes: &datamodel.VolumeAttributes{
-				Protocols: []string{"NFS"},
-			},
-		}
-
-		backupVault := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{ID: 10, UUID: "vault-uuid"},
-			Name:      "vault",
-		}
-
-		backup := &datamodel.Backup{
-			BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
-			Name:      "backup",
-			State:     models.LifeCycleStateAvailable,
-			Attributes: &datamodel.BackupAttributes{
 				Protocols: []string{"NFS"},
 			},
 		}
@@ -30429,12 +30244,7 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
 
 		mockStorage.EXPECT().GetVolume(mock.Anything, "volume-uuid").Return(volume, nil)
-		mockStorage.EXPECT().GetBackupVaultByNameAndOwnerID(mock.Anything, "vault", "1").Return(backupVault, nil)
-		mockStorage.EXPECT().GetBackupByNameAndBackupVaultID(mock.Anything, "backup", int64(10)).Return(backup, nil)
 		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
-		// Mock updateVolumeStatus to fail - we need to check how it's called
-		// Since updateVolumeStatus is a function variable, we can't easily mock it
-		// Instead, we'll use a real storage that will fail on update
 		mockStorage.EXPECT().UpdateVolumeFields(mock.Anything, mock.Anything, mock.Anything).Return(errors.New("update failed"))
 		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
@@ -30445,7 +30255,6 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 	})
 
 	t.Run("ExecuteWorkflowError", func(tt *testing.T) {
-		// Test line 2460-2463: ExecuteWorkflow error
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
 
@@ -30460,30 +30269,10 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 			Name:      "test-account",
 		}
 
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-			VendorID:  "/projects/123/locations/us-west1/pools/test-pool",
-		}
-
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 			State:     models.LifeCycleStateREADY,
-			Pool:      pool,
 			VolumeAttributes: &datamodel.VolumeAttributes{
-				Protocols: []string{"NFS"},
-			},
-		}
-
-		backupVault := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{ID: 10, UUID: "vault-uuid"},
-			Name:      "vault",
-		}
-
-		backup := &datamodel.Backup{
-			BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
-			Name:      "backup",
-			State:     models.LifeCycleStateAvailable,
-			Attributes: &datamodel.BackupAttributes{
 				Protocols: []string{"NFS"},
 			},
 		}
@@ -30499,13 +30288,11 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
 
 		mockStorage.EXPECT().GetVolume(mock.Anything, "volume-uuid").Return(volume, nil)
-		mockStorage.EXPECT().GetBackupVaultByNameAndOwnerID(mock.Anything, "vault", "1").Return(backupVault, nil)
-		mockStorage.EXPECT().GetBackupByNameAndBackupVaultID(mock.Anything, "backup", int64(10)).Return(backup, nil)
 		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
 		mockStorage.EXPECT().UpdateVolumeFields(mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow execution failed"))
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow execution failed"))
 		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
-		mockStorage.EXPECT().UpdateVolumeFields(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe() // Rollback
+		mockStorage.EXPECT().UpdateVolumeFields(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 		result, err := _restoreFilesFromBackup(ctx, mockStorage, mockTemporal, params)
 		assert.Error(tt, err)
@@ -30515,7 +30302,6 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 	})
 
 	t.Run("RollbackVolumeStateError", func(tt *testing.T) {
-		// Test line 2425-2427: Rollback volume state error in defer
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
 
@@ -30530,30 +30316,10 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 			Name:      "test-account",
 		}
 
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-			VendorID:  "/projects/123/locations/us-west1/pools/test-pool",
-		}
-
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 			State:     models.LifeCycleStateREADY,
-			Pool:      pool,
 			VolumeAttributes: &datamodel.VolumeAttributes{
-				Protocols: []string{"NFS"},
-			},
-		}
-
-		backupVault := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{ID: 10, UUID: "vault-uuid"},
-			Name:      "vault",
-		}
-
-		backup := &datamodel.Backup{
-			BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
-			Name:      "backup",
-			State:     models.LifeCycleStateAvailable,
-			Attributes: &datamodel.BackupAttributes{
 				Protocols: []string{"NFS"},
 			},
 		}
@@ -30569,12 +30335,9 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
 
 		mockStorage.EXPECT().GetVolume(mock.Anything, "volume-uuid").Return(volume, nil)
-		mockStorage.EXPECT().GetBackupVaultByNameAndOwnerID(mock.Anything, "vault", "1").Return(backupVault, nil)
-		mockStorage.EXPECT().GetBackupByNameAndBackupVaultID(mock.Anything, "backup", int64(10)).Return(backup, nil)
 		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
 		mockStorage.EXPECT().UpdateVolumeFields(mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow execution failed"))
-		// Rollback should fail
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow execution failed"))
 		mockStorage.EXPECT().UpdateVolumeFields(mock.Anything, mock.Anything, mock.Anything).Return(errors.New("rollback failed"))
 		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
@@ -30586,7 +30349,6 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 	})
 
 	t.Run("UpdateJobErrorInDefer", func(tt *testing.T) {
-		// Test line 2432-2434: UpdateJob error in defer
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
 
@@ -30601,30 +30363,10 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 			Name:      "test-account",
 		}
 
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-			VendorID:  "/projects/123/locations/us-west1/pools/test-pool",
-		}
-
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 			State:     models.LifeCycleStateREADY,
-			Pool:      pool,
 			VolumeAttributes: &datamodel.VolumeAttributes{
-				Protocols: []string{"NFS"},
-			},
-		}
-
-		backupVault := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{ID: 10, UUID: "vault-uuid"},
-			Name:      "vault",
-		}
-
-		backup := &datamodel.Backup{
-			BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
-			Name:      "backup",
-			State:     models.LifeCycleStateAvailable,
-			Attributes: &datamodel.BackupAttributes{
 				Protocols: []string{"NFS"},
 			},
 		}
@@ -30640,12 +30382,10 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
 
 		mockStorage.EXPECT().GetVolume(mock.Anything, "volume-uuid").Return(volume, nil)
-		mockStorage.EXPECT().GetBackupVaultByNameAndOwnerID(mock.Anything, "vault", "1").Return(backupVault, nil)
-		mockStorage.EXPECT().GetBackupByNameAndBackupVaultID(mock.Anything, "backup", int64(10)).Return(backup, nil)
 		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
 		mockStorage.EXPECT().UpdateVolumeFields(mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow execution failed"))
-		mockStorage.EXPECT().UpdateVolumeFields(mock.Anything, mock.Anything, mock.Anything).Return(nil) // Rollback succeeds
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow execution failed"))
+		mockStorage.EXPECT().UpdateVolumeFields(mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("update job failed"))
 
 		result, err := _restoreFilesFromBackup(ctx, mockStorage, mockTemporal, params)
@@ -30656,7 +30396,6 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 	})
 
 	t.Run("Success", func(tt *testing.T) {
-		// Test successful path
 		mockStorage := database.NewMockStorage(tt)
 		mockTemporal := workflowEngineMock.NewMockTemporalTestClient(tt)
 
@@ -30671,30 +30410,10 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 			Name:      "test-account",
 		}
 
-		pool := &datamodel.Pool{
-			BaseModel: datamodel.BaseModel{UUID: "pool-uuid"},
-			VendorID:  "/projects/123/locations/us-west1/pools/test-pool",
-		}
-
 		volume := &datamodel.Volume{
 			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
 			State:     models.LifeCycleStateREADY,
-			Pool:      pool,
 			VolumeAttributes: &datamodel.VolumeAttributes{
-				Protocols: []string{"NFS"},
-			},
-		}
-
-		backupVault := &datamodel.BackupVault{
-			BaseModel: datamodel.BaseModel{ID: 10, UUID: "vault-uuid"},
-			Name:      "vault",
-		}
-
-		backup := &datamodel.Backup{
-			BaseModel: datamodel.BaseModel{UUID: "backup-uuid"},
-			Name:      "backup",
-			State:     models.LifeCycleStateAvailable,
-			Attributes: &datamodel.BackupAttributes{
 				Protocols: []string{"NFS"},
 			},
 		}
@@ -30710,11 +30429,9 @@ func Test_restoreFilesFromBackup(t *testing.T) {
 		defer func() { getOrCreateAccount = originalGetOrCreateAccount }()
 
 		mockStorage.EXPECT().GetVolume(mock.Anything, "volume-uuid").Return(volume, nil)
-		mockStorage.EXPECT().GetBackupVaultByNameAndOwnerID(mock.Anything, "vault", "1").Return(backupVault, nil)
-		mockStorage.EXPECT().GetBackupByNameAndBackupVaultID(mock.Anything, "backup", int64(10)).Return(backup, nil)
 		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
 		mockStorage.EXPECT().UpdateVolumeFields(mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		result, err := _restoreFilesFromBackup(ctx, mockStorage, mockTemporal, params)
 		assert.NoError(tt, err)
