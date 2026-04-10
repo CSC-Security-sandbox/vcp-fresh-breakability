@@ -1544,6 +1544,11 @@ func createLunMapParams(lunName string, svmName string, hostParams []*common.Hos
 	return lunMapParam
 }
 
+// SyncBucketDetailsWithGCP is the exported form of syncBucketDetailsWithGCP, accessible from sub-packages.
+func SyncBucketDetailsWithGCP(ctx workflow.Context, bucketDetails *common.BucketDetails) error {
+	return syncBucketDetailsWithGCP(ctx, bucketDetails)
+}
+
 // syncBucketDetailsWithGCP syncs bucket details with GCP to get the latest ZiZs information
 func syncBucketDetailsWithGCP(ctx workflow.Context, bucketDetails *common.BucketDetails) error {
 	logger := util.GetLogger(ctx)
@@ -1553,9 +1558,16 @@ func syncBucketDetailsWithGCP(ctx workflow.Context, bucketDetails *common.Bucket
 		ServiceAccountName:  bucketDetails.ServiceAccountName,
 		VendorSubnetID:      bucketDetails.VendorSubnetID,
 	}
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: time.Duration(volumeStartToCloseTimeoutSec) * time.Second,
+		RetryPolicy: &temporal.RetryPolicy{
+			NonRetryableErrorTypes: []string{"PanicError"},
+		},
+	}
+	actCtx := workflow.WithActivityOptions(ctx, ao)
 	var updatedBucketDetails *datamodel.BucketDetails
 	syncBackupZiZsActivity := &backgroundactivities.SyncBackupZiZsActivity{}
-	err := workflow.ExecuteActivity(ctx, syncBackupZiZsActivity.SyncBucketDetails, existingBucketDetails).Get(ctx, &updatedBucketDetails)
+	err := workflow.ExecuteActivity(actCtx, syncBackupZiZsActivity.SyncBucketDetails, existingBucketDetails).Get(actCtx, &updatedBucketDetails)
 	if err != nil {
 		// Log the error, but do not fail the workflow
 		logger.Errorf("Failed to sync bucket details for bucket %s: %v", existingBucketDetails.BucketName, err)

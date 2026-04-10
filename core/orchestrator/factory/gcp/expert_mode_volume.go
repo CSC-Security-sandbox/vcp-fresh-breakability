@@ -9,19 +9,301 @@ import (
 	"strings"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
 	expertModeWorkflows "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/expertMode"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
 	"gorm.io/gorm"
 )
+
+// ManageBackupConfigForExpertModeVolume attaches (or updates) a backup vault and optional backup policy
+// on an expert mode volume. It validates that the pool is ONTAP mode, the volume exists and is READY,
+// then creates a job and launches the ManageBackupConfigWorkflow.
+func (o *GCPOrchestrator) ManageBackupConfigForExpertModeVolume(ctx context.Context, params *commonparams.ManageBackupConfigForExpertModeVolumeParams) (*datamodel.DataProtection, string, error) {
+	return manageBackupConfigForExpertModeVolume(ctx, o.storage, o.temporal, params)
+}
+
+func manageBackupConfigForExpertModeVolume(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.ManageBackupConfigForExpertModeVolumeParams) (*datamodel.DataProtection, string, error) {
+	logger := util.GetLogger(ctx)
+
+	account, err := getAccountWithName(ctx, se, params.AccountName)
+	if err != nil {
+		return nil, "", err
+	}
+
+	dbPoolView, err := se.GetPool(ctx, params.PoolUUID, account.ID)
+	if err != nil {
+		logger.Error("Failed to get pool", "poolUUID", params.PoolUUID, "error", err)
+		return nil, "", err
+	}
+
+	if dbPoolView.APIAccessMode != APIAccessModeONTAP {
+		return nil, "", customerrors.NewUserInputValidationErr("manageBackupConfig is only supported for ONTAP mode (expert mode) pools")
+	}
+
+	expertModeVolume, err := se.GetExpertModeVolumeByExternalUUID(ctx, params.VolumeUUID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) || customerrors.IsNotFoundErr(err) {
+			return nil, "", customerrors.NewUserInputValidationErr(fmt.Sprintf("expert mode volume with UUID '%s' not found", params.VolumeUUID))
+		}
+		logger.Error("Failed to get expert mode volume", "volumeUUID", params.VolumeUUID, "error", err)
+		return nil, "", err
+	}
+
+	if expertModeVolume.Pool.UUID != dbPoolView.UUID {
+		return nil, "", customerrors.NewUserInputValidationErr("volume does not belong to the specified pool")
+	}
+
+	if expertModeVolume.State == models.LifeCycleStateDeleting || expertModeVolume.State == models.LifeCycleStateDeleted {
+		return nil, "", customerrors.NewUserInputValidationErr(fmt.Sprintf("volume is not in a ready state (current state: %s)", expertModeVolume.State))
+	}
+
+	kmsGrantProvided := params.KmsGrant != nil && *params.KmsGrant != ""
+	managingPolicyOrKms := (params.BackupPolicyID != nil && *params.BackupPolicyID != "") || kmsGrantProvided
+
+	if params.BackupVaultID == "" {
+		if managingPolicyOrKms {
+			// Policy/KMS requires a vault. If the vault is already on the volume, carry it
+			// forward so the workflow does not accidentally clear it from the DB.
+			existingVaultID := ""
+			if expertModeVolume.BackupConfig != nil {
+				existingVaultID = expertModeVolume.BackupConfig.BackupVaultID
+			}
+			if existingVaultID == "" {
+				return nil, "", customerrors.NewUserInputValidationErr("backup vault id is required to assign a backup policy to a volume")
+			}
+			params.BackupVaultID = existingVaultID
+		} else {
+			// Detach vault: block if a policy is attached, a KMS grant is set, or backups exist.
+			if expertModeVolume.BackupConfig != nil && expertModeVolume.BackupConfig.BackupVaultID != "" {
+				if expertModeVolume.BackupConfig.BackupPolicyID != "" {
+					return nil, "", customerrors.NewUserInputValidationErr("cannot remove backup vault while a backup policy is attached; detach the backup policy first")
+				}
+				if expertModeVolume.BackupConfig.KmsGrant != nil && *expertModeVolume.BackupConfig.KmsGrant != "" {
+					return nil, "", customerrors.NewUserInputValidationErr("cannot remove backup vault while a KMS grant is attached; remove the KMS grant first")
+				}
+				backupCounts, err := se.GetBackupCountByVolumeUUIDs(ctx, []string{expertModeVolume.ExternalUUID}, nil)
+				if err != nil {
+					logger.Error("Failed to check backup count for volume", "volumeUUID", expertModeVolume.ExternalUUID, "error", err)
+					return nil, "", err
+				}
+				if backupCounts[expertModeVolume.ExternalUUID] > 0 {
+					return nil, "", customerrors.NewUserInputValidationErr("cannot remove backup vault as there are backups associated with it")
+				}
+			}
+		}
+	}
+
+	if params.BackupVaultID != "" {
+		// Resolve the vault. When EnableBackupVaultSwitching is on the vault may belong to a
+		// different project (cross-project GCBDR), so look it up by UUID only; otherwise scope
+		// the lookup to the current account to preserve existing ownership checks.
+		var bv *datamodel.BackupVault
+		if utils.EnableBackupVaultSwitching {
+			bv, err = se.GetBackupVault(ctx, params.BackupVaultID)
+		} else {
+			bv, err = se.GetBackupVaultByUUIDndOwnerID(ctx, params.BackupVaultID, account.ID)
+		}
+		if err != nil && !customerrors.IsNotFoundErr(err) {
+			return nil, "", err
+		}
+		// When USE_VCP_REGION is enabled, VCP is the sole source of truth: a vault absent from
+		// the local DB is a hard not-found (no SDE/CVP fallback in the workflow).
+		if bv == nil && env.UseVCPRegion {
+			return nil, "", customerrors.NewNotFoundErr("backup vault", &params.BackupVaultID)
+		}
+		if bv != nil {
+			if bv.LifeCycleState == models.LifeCycleStateError {
+				return nil, "", customerrors.NewUserInputValidationErr("backup vault is in error state, please check the backup vault and try again")
+			}
+			if err := validateCRBBackupVault(bv, params.Region); err != nil {
+				return nil, "", err
+			}
+			if bv.CmekAttributes != nil && !nillable.IsNilOrEmpty(bv.CmekAttributes.KmsConfigResourcePath) && !kmsGrantProvided {
+				return nil, "", customerrors.NewUserInputValidationErr("KMS Grant is required for CMEK Backup vault")
+			}
+
+			// Re-attaching a vault when none is currently set: if the volume already has available
+			// backups tied to a previously detached vault, only a GCBDR vault may be attached
+			// (non-GCBDR cannot consume that backup chain).
+			if utils.EnableBackupVaultSwitching {
+				noVaultAttached := expertModeVolume.BackupConfig == nil || expertModeVolume.BackupConfig.BackupVaultID == ""
+				if noVaultAttached {
+					vaultIDs, errDistinct := se.GetDistinctBackupVaultIDsByVolumeUUID(ctx, expertModeVolume.UUID)
+					if errDistinct != nil {
+						return nil, "", errDistinct
+					}
+					if len(vaultIDs) > 0 && bv.ServiceType != activities.GCBDRServiceType {
+						return nil, "", customerrors.NewUserInputValidationErr("cannot attach a non-GCBDR backup vault while the volume has existing backups from a detached backup vault; delete those backups first, or attach a GCBDR backup vault")
+					}
+				}
+			}
+		}
+
+		if params.BackupPolicyID != nil && *params.BackupPolicyID != "" {
+			// Validate the backup policy exists and is ready.
+			backupPolicy, err := se.GetBackupPolicyByUUIDAndOwnerID(ctx, *params.BackupPolicyID, account.ID)
+			if err != nil && !customerrors.IsNotFoundErr(err) {
+				return nil, "", err
+			}
+			// When USE_VCP_REGION is enabled, a policy absent from VCP is a hard not-found:
+			// the workflow must not fall back to SDE to import it.
+			if backupPolicy == nil && env.UseVCPRegion {
+				return nil, "", customerrors.NewNotFoundErr("backup policy", params.BackupPolicyID)
+			}
+			if backupPolicy != nil && backupPolicy.LifeCycleState != models.LifeCycleStateREADY {
+				return nil, "", customerrors.NewUserInputValidationErr("backup policy is not in ready state, please check the backup policy and try again")
+			}
+			if params.ScheduledBackupEnabled == nil {
+				return nil, "", customerrors.NewUserInputValidationErr("scheduled backups needs to be enabled/disabled when a backup policy is assigned to a volume")
+			}
+
+			// Validate that the backup policy's retention settings comply with the vault's
+			// immutable backup configuration (with retry for concurrent update races).
+			if utils.IsImmutableBackupEnabled() {
+				logger.Debug("Validating immutable backup policy compliance for expert mode volume",
+					"backupPolicyID", *params.BackupPolicyID,
+					"backupVaultID", params.BackupVaultID)
+				if immErr := checkIsValidImmutableBackupPolicyWithRetry(ctx, se, *params.BackupPolicyID, params.BackupVaultID, account.ID, params.Region, params.AccountName); immErr != nil {
+					logger.Errorf("Immutable backup policy validation failed: %v", immErr)
+					if customerrors.IsUnavailableErr(immErr) || customerrors.IsNetworkError(immErr) {
+						return nil, "", customerrors.NewUnavailableErr(fmt.Sprintf("service is temporarily unavailable, please try again later: %v", immErr))
+					}
+					var customErr *vsaerrors.CustomError
+					if vsaerrors.As(immErr, &customErr) {
+						if customErr.TrackingID == vsaerrors.ErrImmutableValidationWithUpdatingBackupPolicy ||
+							customErr.TrackingID == vsaerrors.ErrImmutableValidationWithUpdatingBackupVault {
+							return nil, "", customerrors.NewUnavailableErr(fmt.Sprintf("backup policy or vault is currently being updated, please try again later: %v", immErr))
+						}
+					}
+					return nil, "", customerrors.NewUserInputValidationErr(fmt.Sprintf("backup policy is not compliant with immutable backup vault settings: %v", immErr))
+				}
+			}
+		}
+
+		// Cannot enable scheduled backups without a backup policy.
+		// Resolve the effective policy: newly provided value takes precedence, else fall back to
+		// what is already on the volume so that scheduledBackupEnabled:true alone is valid when
+		// a policy is already attached.
+		effectivePolicyID := ""
+		if params.BackupPolicyID != nil {
+			effectivePolicyID = *params.BackupPolicyID
+		} else if expertModeVolume.BackupConfig != nil {
+			effectivePolicyID = expertModeVolume.BackupConfig.BackupPolicyID
+		}
+		if effectivePolicyID == "" && params.ScheduledBackupEnabled != nil && *params.ScheduledBackupEnabled {
+			return nil, "", customerrors.NewUserInputValidationErr("cannot enable scheduled backups without a backup policy")
+		}
+
+		// Guard against switching to a different backup vault while backups exist.
+		if expertModeVolume.BackupConfig != nil &&
+			expertModeVolume.BackupConfig.BackupVaultID != "" &&
+			expertModeVolume.BackupConfig.BackupVaultID != params.BackupVaultID {
+			currentVault, errVault := se.GetBackupVault(ctx, expertModeVolume.BackupConfig.BackupVaultID)
+			if errVault != nil {
+				logger.Error("Failed to look up current backup vault for vault-switch check", "backupVaultID", expertModeVolume.BackupConfig.BackupVaultID, "error", errVault)
+				return nil, "", errVault
+			}
+			backupCount, errCount := se.GetBackupCountByVolumeAndVault(ctx, expertModeVolume.ExternalUUID, currentVault.ID)
+			if errCount != nil {
+				logger.Error("Failed to check backup count for vault-switch check", "volumeUUID", expertModeVolume.ExternalUUID, "error", errCount)
+				return nil, "", errCount
+			}
+			if backupCount > 0 {
+				return nil, "", customerrors.NewUserInputValidationErr("switching backup vault is not supported while backups exist; delete the existing backups first")
+			}
+		}
+	}
+
+	previousState := expertModeVolume.State
+
+	job := &datamodel.Job{
+		Type:         string(models.JobTypeManageBackupConfigExpertModeVolume),
+		State:        string(models.JobsStateNEW),
+		ResourceName: expertModeVolume.Name,
+		AccountID:    sql.NullInt64{Int64: account.ID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{
+			ResourceUUID:  expertModeVolume.UUID,
+			PoolUUID:      dbPoolView.UUID,
+			PreviousState: previousState,
+		},
+		CorrelationID: utils.GetCoRelationIDFromContext(ctx),
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+	}
+
+	createdJob, err := se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job for manage backup config", "error", err)
+		return nil, "", err
+	}
+
+	// Defer 1: mark job as ERROR if anything after this point fails.
+	defer func() {
+		if err != nil && createdJob != nil {
+			if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, err.Error()); jobErr != nil {
+				logger.Error("Failed to update job status to ERROR", "jobID", createdJob.UUID, "error", jobErr)
+			}
+		}
+	}()
+
+	// Mark volume as UPDATING so concurrent operations are blocked while the workflow runs.
+	// Work on a copy to avoid mutating the struct returned from the DB.
+	volCopy := *expertModeVolume
+	volCopy.State = models.LifeCycleStateUpdating
+	_, err = se.UpdateExpertModeVolume(ctx, &volCopy)
+	if err != nil {
+		logger.Error("Failed to update expert mode volume state to UPDATING", "volumeUUID", expertModeVolume.UUID, "error", err)
+		return nil, "", err
+	}
+
+	// Defer 2: if workflow fails to launch after UPDATING was set, revert volume to its previous
+	// state so the user can retry. Setting ERROR here would be invisible to CCFE (the caller
+	// already receives the launch error) and would permanently block all future update attempts.
+	defer func() {
+		if err != nil && createdJob != nil {
+			volCopy.State = previousState
+			if _, revertErr := se.UpdateExpertModeVolume(ctx, &volCopy); revertErr != nil {
+				logger.Error("Failed to revert expert mode volume state after workflow launch failure", "volumeUUID", expertModeVolume.UUID, "error", revertErr)
+			}
+		}
+	}()
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.CustomerTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    *workflowengine.GetCreateBackupWorkflowTimeout(),
+		},
+		expertModeWorkflows.ManageBackupConfigWorkflow,
+		expertModeVolume,
+		params,
+	)
+	if err != nil {
+		logger.Error("Failed to start manage backup config workflow", "workflowID", createdJob.WorkflowID, "error", err)
+		return nil, "", err
+	}
+
+	backupConfig := &datamodel.DataProtection{
+		BackupVaultID:          params.BackupVaultID,
+		ScheduledBackupEnabled: params.ScheduledBackupEnabled,
+	}
+	if params.BackupPolicyID != nil {
+		backupConfig.BackupPolicyID = *params.BackupPolicyID
+	}
+	return backupConfig, createdJob.UUID, nil
+}
 
 const (
 	ExpertModeVolumeStyleFlexgroup = "flexgroup"
@@ -503,6 +785,16 @@ func _deleteExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 	if params.PoolUUID != volume.Pool.UUID {
 		logger.Error("Volume is not associated to the pool for delete operation", "volumeUUID", volume.ExternalUUID, "poolUUID", params.PoolUUID)
 		return customerrors.NewBadRequestErr("volume is not associated to the specified pool for delete operation")
+	}
+
+	// Block deletion if any backup for this volume is currently in a transition state (CREATING or DELETING).
+	backupInTransition, err := se.IsBackupInCreatingorDeletingStateByVolume(ctx, volume.ExternalUUID)
+	if err != nil {
+		logger.Error("Failed to check backup transition state for expert mode volume", "volumeUUID", volume.ExternalUUID, "error", err)
+		return err
+	}
+	if backupInTransition {
+		return customerrors.NewUserInputValidationErr("A backup operation on volume is currently in progress. Please wait for it to complete before deleting the volume")
 	}
 
 	// Check if volume is already deleted

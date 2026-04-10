@@ -46,8 +46,8 @@ type BackupMetricsData struct {
 	Attributes    *datamodel.BackupAttributes `gorm:"column:attributes;type:jsonb"`
 	BackupVaultID int64                       `gorm:"column:backup_vault_id"`
 	// BackupVault fields (from JOIN)
-	VaultAccountID      int64   `gorm:"column:vault_account_id"`
-	VaultName           string  `gorm:"column:vault_name"`
+	VaultAccountID        int64   `gorm:"column:vault_account_id"`
+	VaultName             string  `gorm:"column:vault_name"`
 	VaultBackupRegionName *string `gorm:"column:vault_backup_region_name"`
 }
 
@@ -624,7 +624,7 @@ func (d *DataStoreRepository) BackupCountByVolumeID(ctx context.Context, volumeU
 	return count, nil
 }
 
-func (d *DataStoreRepository) FetchScheduledBackupsForDeletion(ctx context.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy) ([]*datamodel.Backup, error) {
+func (d *DataStoreRepository) FetchScheduledBackupsForDeletion(ctx context.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy, isExpertMode bool) ([]*datamodel.Backup, error) {
 	db := d.db.GORM().WithContext(ctx)
 	tx, err := startTransaction(db)
 	if err != nil {
@@ -637,9 +637,14 @@ func (d *DataStoreRepository) FetchScheduledBackupsForDeletion(ctx context.Conte
 	}
 
 	var allBackups []*datamodel.Backup
-
+	var volumeUUID string
+	if isExpertMode {
+		volumeUUID = volume.VolumeAttributes.ExternalUUID
+	} else {
+		volumeUUID = volume.UUID
+	}
 	var dailyBackups []*datamodel.Backup
-	err = tx.Where("volume_uuid = ?", volume.UUID).
+	err = tx.Where("volume_uuid = ?", volumeUUID).
 		Where("type = ?", BackupTypeScheduled).
 		Where("schedule_tag = ?", Daily).
 		Order("id desc").
@@ -651,7 +656,7 @@ func (d *DataStoreRepository) FetchScheduledBackupsForDeletion(ctx context.Conte
 	allBackups = append(allBackups, dailyBackups...)
 
 	var weeklyBackups []*datamodel.Backup
-	err = tx.Where("volume_uuid = ?", volume.UUID).
+	err = tx.Where("volume_uuid = ?", volumeUUID).
 		Where("type = ?", BackupTypeScheduled).
 		Where("schedule_tag = ?", Weekly).
 		Order("id desc").
@@ -663,7 +668,7 @@ func (d *DataStoreRepository) FetchScheduledBackupsForDeletion(ctx context.Conte
 	allBackups = append(allBackups, weeklyBackups...)
 
 	var monthlyBackups []*datamodel.Backup
-	err = tx.Where("volume_uuid = ?", volume.UUID).
+	err = tx.Where("volume_uuid = ?", volumeUUID).
 		Where("type = ?", BackupTypeScheduled).
 		Where("schedule_tag = ?", Monthly).
 		Order("id desc").

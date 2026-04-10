@@ -31,10 +31,47 @@ type ScheduledBackupActivity struct {
 	SE database.Storage
 }
 
+// CheckExpertModeVolumeReady verifies that an expert mode volume is not in DELETING or DELETED state.
+// Used as a pre-creation guard: if the volume has started or completed deletion, the backup operation
+// must not proceed.
+func (j *ScheduledBackupActivity) CheckExpertModeVolumeReady(ctx context.Context, volumeExternalUUID string) error {
+	logger := util.GetLogger(ctx)
+	vol, err := j.SE.GetExpertModeVolumeByExternalUUID(ctx, volumeExternalUUID)
+	if err != nil {
+		if customerrors.IsNotFoundErr(err) {
+			logger.Warnf("Expert mode volume %s not found, cannot proceed with backup operation", volumeExternalUUID)
+			return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+				vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, fmt.Errorf("expert mode volume %s not found, cannot proceed with backup operation", volumeExternalUUID)),
+			)
+		}
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	if vol.State == models.LifeCycleStateDeleting || vol.State == models.LifeCycleStateDeleted {
+		logger.Warnf("Expert mode volume %s is in state %s, cannot proceed with backup operation", volumeExternalUUID, vol.State)
+		return vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, fmt.Errorf("expert mode volume %s is in state %s, cannot proceed with backup operation", volumeExternalUUID, vol.State)),
+		)
+	}
+	return nil
+}
+
 // CreateScheduledBackup creates a scheduled backup for the given volume and backup vault.
 // Returns the created Backup object or an error.
-func (j *ScheduledBackupActivity) CreateScheduledBackup(ctx context.Context, volume *datamodel.Volume, backupVault *datamodel.BackupVault, timestamp, scheduleTag string) (*datamodel.Backup, error) {
+func (j *ScheduledBackupActivity) CreateScheduledBackup(ctx context.Context, volume *datamodel.Volume, backupVault *datamodel.BackupVault, timestamp, scheduleTag string, isExpertMode bool) (*datamodel.Backup, error) {
 	se := j.SE
+
+	var volumeUUIDForScheduledBackup string
+	if isExpertMode {
+		volumeUUIDForScheduledBackup = volume.VolumeAttributes.ExternalUUID
+
+		// Guard against the race where deletion started after GetVolumesByBackupPolicyUUID
+		// picked the volume up as READY.
+		if err := j.CheckExpertModeVolumeReady(ctx, volumeUUIDForScheduledBackup); err != nil {
+			return nil, err
+		}
+	} else {
+		volumeUUIDForScheduledBackup = volume.UUID
+	}
 
 	name := fmt.Sprintf(scheduledBackupNameFormat, scheduleTag, RandomString(8), timestamp)
 	backup, err := se.CreateBackup(ctx, &datamodel.Backup{
@@ -46,7 +83,7 @@ func (j *ScheduledBackupActivity) CreateScheduledBackup(ctx context.Context, vol
 		StateDetails:  models.LifeCycleStateCreatingDetails,
 		Type:          backupTypeSCHEDULED,
 		ScheduleTag:   &scheduleTag,
-		VolumeUUID:    volume.UUID,
+		VolumeUUID:    volumeUUIDForScheduledBackup,
 		BackupVaultID: backupVault.ID,
 		BackupVault:   backupVault,
 	})
@@ -148,6 +185,8 @@ func (j *ScheduledBackupActivity) GetBackupPolicyByUUID(ctx context.Context, bac
 func (j *ScheduledBackupActivity) GetVolumesByBackupPolicyUUID(ctx context.Context, backupPolicyUUID string, accountID int64, limit, offset int) ([]*datamodel.Volume, error) {
 	se := j.SE
 	// Get the list of all volumes which have the specified backup policy enabled
+	logger := util.GetLogger(ctx)
+
 	conditions := [][]interface{}{
 		{"account_id = ?", accountID},
 		{"state = ?", models.LifeCycleStateREADY},
@@ -162,14 +201,51 @@ func (j *ScheduledBackupActivity) GetVolumesByBackupPolicyUUID(ctx context.Conte
 	if err != nil {
 		return nil, err
 	}
+
+	// Also fetch expert mode volumes with the same backup policy
+	// Expert mode volumes are stored separately but need to be included for scheduled backups
+	expertModeVolumes, err := se.ListExpertModeVolumesWithPagination(ctx, conditions, pagination)
+	if err != nil {
+		logger.Warnf("Failed to fetch expert mode volumes with backup policy %s: %v", backupPolicyUUID, err)
+		// Don't fail the entire operation, just log and continue with regular volumes
+		return volumes, nil
+	}
+
+	// Convert expert mode volumes to regular volume format for processing
+	for _, expertVol := range expertModeVolumes {
+		// Convert expert mode volume to datamodel.Volume format
+		// This allows the same scheduled backup workflow to process both types
+		convertedVolume := &datamodel.Volume{
+			BaseModel:   expertVol.BaseModel,
+			Name:        expertVol.Name,
+			Description: expertVol.Description,
+			SizeInBytes: expertVol.SizeInBytes,
+			State:       expertVol.State,
+			AccountID:   expertVol.AccountID,
+			PoolID:      expertVol.PoolID,
+			Account:     expertVol.Account,
+			Pool:        expertVol.Pool,
+			Svm:         expertVol.Svm,
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID:   expertVol.ExternalUUID,
+				Protocols:      []string{},
+				VendorSubnetID: expertVol.Pool.Network,
+			},
+			DataProtection: expertVol.BackupConfig,
+		}
+		volumes = append(volumes, convertedVolume)
+	}
+
+	logger.Infof("Found %d total volumes (%d regular + %d expert mode) with backup policy %s",
+		len(volumes), len(volumes)-len(expertModeVolumes), len(expertModeVolumes), backupPolicyUUID)
 	return volumes, nil
 }
 
 // FetchScheduledBackupForDeletion fetches scheduled backups for a volume and backup policy that are eligible for deletion.
 // Returns a slice of Backup objects or an error.
-func (j *ScheduledBackupActivity) FetchScheduledBackupForDeletion(ctx context.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy) ([]*datamodel.Backup, error) {
+func (j *ScheduledBackupActivity) FetchScheduledBackupForDeletion(ctx context.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy, isExpertMode bool) ([]*datamodel.Backup, error) {
 	se := j.SE
-	return se.FetchScheduledBackupsForDeletion(ctx, volume, backupPolicy)
+	return se.FetchScheduledBackupsForDeletion(ctx, volume, backupPolicy, isExpertMode)
 }
 
 func (j *ScheduledBackupActivity) CreateBackupSnapshotInDB(ctx context.Context, volume *datamodel.Volume, snapshotName string) (*datamodel.Snapshot, error) {
@@ -239,9 +315,16 @@ func (j *ScheduledBackupActivity) UpdateBackupState(ctx context.Context, backup 
 
 // UpdateBackupSize updates backup and volume size fields. When vault switching is on and precomputedChainBytes >= 0,
 // that value is used (e.g. from ADCSizeWorkflow).
-func (j *ScheduledBackupActivity) UpdateBackupSize(ctx context.Context, backup *datamodel.Backup, volume *datamodel.Volume, precomputedChainBytes int64) error {
+func (j *ScheduledBackupActivity) UpdateBackupSize(ctx context.Context, backup *datamodel.Backup, volume *datamodel.Volume, precomputedChainBytes int64, isExpertMode bool) error {
 	logger := util.GetLogger(ctx)
 	se := j.SE
+
+	var volUUID string
+	if isExpertMode {
+		volUUID = volume.VolumeAttributes.ExternalUUID
+	} else {
+		volUUID = volume.UUID
+	}
 
 	_, err := se.FinishBackup(ctx, backup)
 	if err != nil {
@@ -257,21 +340,21 @@ func (j *ScheduledBackupActivity) UpdateBackupSize(ctx context.Context, backup *
 			// ADCSizeWorkflow failed or was not run: fall back to this backup's size so we don't record 0 and lose actual size.
 			chainBytes = backup.LatestLogicalBackupSize
 		}
-		latestBackup, latestErr := se.GetLatestBackupByVolumeUUID(ctx, volume.UUID)
+		latestBackup, latestErr := se.GetLatestBackupByVolumeUUID(ctx, volUUID)
 		if latestErr == nil && latestBackup != nil {
 			if updateErr := se.UpdateBackupFields(ctx, latestBackup.UUID, map[string]interface{}{"latest_logical_backup_size": chainBytes}); updateErr != nil {
-				logger.Warnf("Failed to set latest backup chain bytes for volume %s: %v", volume.UUID, updateErr)
+				logger.Warnf("Failed to set latest backup chain bytes for volume %s: %v", volUUID, updateErr)
 			}
-			if err := se.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, volume.UUID, latestBackup.UUID); err != nil {
-				logger.Errorf("Failed to zero other backups for volume %s: %v", volume.UUID, err)
+			if err := se.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, volUUID, latestBackup.UUID); err != nil {
+				logger.Errorf("Failed to zero other backups for volume %s: %v", volUUID, err)
 				return vsaerrors.WrapAsTemporalApplicationError(err)
 			}
 		}
 	} else {
 		if backup.LatestLogicalBackupSize != 0 {
-			err = se.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, volume.UUID, backup.UUID)
+			err = se.UpdateBackupLatestLogicalBackupSizeByVolume(ctx, volUUID, backup.UUID)
 			if err != nil {
-				logger.Errorf("Failed to reset LatestLogicalBackupSize for previous backups of volume %s: %v", volume.UUID, err)
+				logger.Errorf("Failed to reset LatestLogicalBackupSize for previous backups of volume %s: %v", volUUID, err)
 				return vsaerrors.WrapAsTemporalApplicationError(err)
 			}
 		}
@@ -281,13 +364,21 @@ func (j *ScheduledBackupActivity) UpdateBackupSize(ctx context.Context, backup *
 	updates := map[string]interface{}{
 		"data_protection": volume.DataProtection,
 	}
-	err = se.UpdateVolumeFields(ctx, volume.UUID, updates)
-	if err != nil {
-		logger.Errorf("Failed to update volume %s with latest logical backup size: %v", volume.UUID, err)
-		return vsaerrors.WrapAsTemporalApplicationError(err)
+	if isExpertMode {
+		err = se.UpdateExpertModeVolumeFields(ctx, volUUID, updates)
+		if err != nil {
+			logger.Errorf("Failed to update expert mode volume %s with latest logical backup size: %v", volUUID, err)
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+	} else {
+		err = se.UpdateVolumeFields(ctx, volUUID, updates)
+		if err != nil {
+			logger.Errorf("Failed to update volume %s with latest logical backup size: %v", volUUID, err)
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
 	}
 
-	logger.Debugf("Successfully updated backup size fields for backup %s and volume %s", backup.UUID, volume.UUID)
+	logger.Debugf("Successfully updated backup size fields for backup %s and volume %s", backup.UUID, volUUID)
 	return nil
 }
 

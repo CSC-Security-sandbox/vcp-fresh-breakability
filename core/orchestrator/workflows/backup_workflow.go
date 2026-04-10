@@ -191,7 +191,7 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 	isContinuation := info.ContinuedExecutionRunID != ""
 
 	if isContinuation {
-		wf.Logger.Info("Resuming backup workflow from continuation",
+		workflow.GetLogger(ctx).Info("Resuming backup workflow from continuation",
 			"workflowID", wf.ID,
 			"continuedFromRunID", info.OriginalRunID,
 			"snapshotName", backupActivitiesContext.SnapshotName,
@@ -214,7 +214,7 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 
 		// Check if backup vault is attached to volume, if not create bucket and attach it
 		// Only execute for expert mode volumes
-		wf.Logger.Info("IsExpertModeVolumeVolume:", params.IsExpertModeVolume)
+		workflow.GetLogger(ctx).Info("IsExpertModeVolumeVolume:", "isExpertModeVolume", params.IsExpertModeVolume)
 		if params.IsExpertModeVolume {
 			// Initialize DataProtection if it's nil
 			if backupActivitiesContext.BackupWorkflowInit.Volume.DataProtection == nil {
@@ -330,13 +330,13 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 		if smRelationship.Healthy != nil && !*smRelationship.Healthy && smRelationship.UnhealthyReason != nil && len(*smRelationship.UnhealthyReason) > 0 {
 			unhealthyMsg = fmt.Sprintf(" Unhealthy reasons: %v", *smRelationship.UnhealthyReason)
 		}
-		wf.Logger.Infof("Snapmirror relationship state is %s, expected %s.%s", *smRelationship.State, models.OntapSnapmirrored, unhealthyMsg)
+		workflow.GetLogger(ctx).Info(fmt.Sprintf("Snapmirror relationship state is %s, expected %s.%s", *smRelationship.State, models.OntapSnapmirrored, unhealthyMsg))
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, vsaerrors.New("snapmirror relationship state is not snapmirrored"))
 	}
 
 	if smRelationship.Healthy != nil && !*smRelationship.Healthy {
 		if smRelationship.UnhealthyReason != nil && len(*smRelationship.UnhealthyReason) > 0 {
-			wf.Logger.Infof("Snapmirror relationship is unhealthy. Reasons: %v", *smRelationship.UnhealthyReason)
+			workflow.GetLogger(ctx).Info(fmt.Sprintf("Snapmirror relationship is unhealthy. Reasons: %v", *smRelationship.UnhealthyReason))
 		}
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, vsaerrors.New("snapmirror relationship is unhealthy"))
 	}
@@ -373,7 +373,7 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 	err = workflow.ExecuteActivity(ctx, backupActivity.GetObjectStoreSnapshotActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
 	if err != nil {
 		// Log the error but don't fail the entire backup workflow
-		wf.Logger.Errorf("Failed to get snapshot from object store for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
+		workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to get snapshot from object store for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err))
 	}
 	// Update backup size fields in both backup and volume tables.
 	// When vault switching is on, calculate summed size first (ADCSizeWorkflow), then finish backup with that size so backup table and backup_chain_history are correct, then update volume/global.
@@ -388,21 +388,21 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 		}
 		err = workflow.ExecuteChildWorkflow(adcSizeCtx, ADCSizeWorkflow, adcSizeParams).Get(adcSizeCtx, &summedSize)
 		if err != nil {
-			wf.Logger.Errorf("Failed to get summed logical backup size (all vaults) for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
+			workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to get summed logical backup size (all vaults) for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err))
 		} else {
 			// Assign computed size to backup in context so FinishBackup persists it to backup table and backup_chain_history
 			backupActivitiesContext.BackupWorkflowInit.Backup.LatestLogicalBackupSize = summedSize
 			err = workflow.ExecuteActivity(ctx, backupActivity.FinishBackupActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
 			if err != nil {
-				wf.Logger.Errorf("Failed to finish backup for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
+				workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to finish backup for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err))
 			} else {
 				err = workflow.ExecuteActivity(ctx, backupActivity.UpdateVolumeLatestLogicalBackupSize, backupActivitiesContext.BackupWorkflowInit.Volume, summedSize).Get(ctx, nil)
 				if err != nil {
-					wf.Logger.Errorf("Failed to update volume latest logical backup size for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
+					workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to update volume latest logical backup size for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err))
 				}
 				err = workflow.ExecuteActivity(ctx, backupActivity.SetGlobalLatestBackupLogicalSizeActivity, backupActivitiesContext.BackupWorkflowInit.Volume.UUID, summedSize).Get(ctx, nil)
 				if err != nil {
-					wf.Logger.Errorf("Failed to set global latest backup logical size for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
+					workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to set global latest backup logical size for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err))
 				}
 			}
 		}
@@ -411,13 +411,13 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 		err = workflow.ExecuteActivity(ctx, backupActivity.GetObjectStoreEndpointActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
 		if err != nil {
 			// Log the error but don't fail the entire backup workflow
-			wf.Logger.Errorf("Failed to get object store endpoint info for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
+			workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to get object store endpoint info for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err))
 		}
 
 		err = workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupSizeActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
 		if err != nil {
 			// Log the error but don't fail the entire backup workflow
-			wf.Logger.Errorf("Failed to update backup size fields for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
+			workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to update backup size fields for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err))
 		}
 	}
 
@@ -426,7 +426,7 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 	err = workflow.ExecuteActivity(ctx, backupActivity.CreateRemoteBackupFromVCPActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
 	if err != nil {
 		// Log the error but don't fail the entire backup workflow
-		wf.Logger.Errorf("Failed to create remote backup from VCP for backup %s: %v", backupActivitiesContext.BackupWorkflowInit.Backup.UUID, err)
+		workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to create remote backup from VCP for backup %s: %v", backupActivitiesContext.BackupWorkflowInit.Backup.UUID, err))
 	}
 
 	// Cleanup older adhoc-backup snapshots for this volume
@@ -434,14 +434,14 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 		err = workflow.ExecuteActivity(ctx, backupActivity.CleanupOldBackupSnapshotsActivity, backupActivitiesContext.BackupWorkflowInit.Volume, backupActivitiesContext.Node).Get(ctx, nil)
 		if err != nil {
 			// Log the error but don't fail the entire backup workflow
-			wf.Logger.Errorf("Failed to cleanup older backup snapshots for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
+			workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to cleanup older backup snapshots for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err))
 		}
 	} else {
 		// cleanup expertmode backup snapshot from ontap, no snapshot metadata/entry in DB for expert mode backups snapshots
 		err = workflow.ExecuteActivity(ctx, backupActivity.CleanupOldExpertModeSnapshotActivity, backupActivitiesContext.BackupWorkflowInit.Volume, backupActivitiesContext.Node).Get(ctx, nil)
 		if err != nil {
 			// Log the error but don't fail the entire backup workflow
-			wf.Logger.Errorf("Failed to cleanup older expert mode backup snapshots for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
+			workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to cleanup older expert mode backup snapshots for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err))
 		}
 	}
 
@@ -458,7 +458,7 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 			backupActivitiesContext.BackupWorkflowInit.Volume.Account.Name).Get(ctx, nil)
 		if err != nil {
 			// Log the error but don't fail the entire backup workflow
-			wf.Logger.Errorf("Failed to hydrate snapshot to CCFE for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err)
+			workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to hydrate snapshot to CCFE for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err))
 		}
 	}
 
@@ -466,7 +466,7 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 	err = workflow.ExecuteActivity(ctx, backupActivity.CreateBackupMetadataIfFirstBackupActivity, backupActivitiesContext.BackupWorkflowInit.Volume, backupActivitiesContext.IsExpertMode).Get(ctx, nil)
 	if err != nil {
 		// Log the error but don't fail the entire backup workflow
-		wf.Logger.Errorf("Failed to create BackupMetadata for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.UUID, err)
+		workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to create BackupMetadata for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.UUID, err))
 	}
 
 	return backupActivitiesContext, nil
@@ -702,7 +702,7 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		// if volume is deleted then we need to delete the backup with adc
 		err = workflow.ExecuteChildWorkflow(adcWorkflowCtx, ADCWorkflow, deleteBackupParams, dbBackupVault, dbBackup, account).Get(adcWorkflowCtx, &cloudDeletionIntiated)
 		if err != nil {
-			wf.Logger.Errorf("Backup deletion failed with ADC, backupUUID: %s, error: %v", dbBackup.UUID, err)
+			workflow.GetLogger(ctx).Error(fmt.Sprintf("Backup deletion failed with ADC, backupUUID: %s, error: %v", dbBackup.UUID, err))
 			wf.deleteInitiated = true
 			return nil, ConvertToVSAError(err)
 		}
@@ -765,7 +765,7 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			if !isExpertModeVolume {
 				snapshotErr := workflow.ExecuteActivity(ctx, backupActivity.DeleteBackupSnapshotFromDB, dbBackup).Get(ctx, nil)
 				if snapshotErr != nil {
-					wf.Logger.Error("Failed to delete snapshot from database", "error", snapshotErr)
+					workflow.GetLogger(ctx).Error("Failed to delete snapshot from database", "error", snapshotErr)
 				}
 			}
 
@@ -795,7 +795,7 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 					account.Name).Get(ctx, nil)
 				if hydrateSnapshotErr != nil {
 					// Log the error but don't fail the entire backup deletion workflow
-					wf.Logger.Errorf("Failed to hydrate snapshot deletion to CCFE for backup %s: %v", dbBackup.Name, hydrateSnapshotErr)
+					workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to hydrate snapshot deletion to CCFE for backup %s: %v", dbBackup.Name, hydrateSnapshotErr))
 				}
 			}
 		} else {
@@ -858,7 +858,7 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			deleteBackupParams.AccountName,
 			*dbBackupVault.BackupRegionName).Get(ctx, nil)
 		if remoteBackupErr != nil {
-			wf.Logger.Errorf("Failed to delete remote backup from VCP for backup %s: %v", dbBackup.UUID, remoteBackupErr)
+			workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to delete remote backup from VCP for backup %s: %v", dbBackup.UUID, remoteBackupErr))
 		}
 	}
 
@@ -868,12 +868,12 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 		if isExpertModeVolume {
 			countErr := workflow.ExecuteActivity(ctx, backupActivity.GetBackupCountByVolumeUUID, dbBackup.VolumeUUID).Get(ctx, &currentBackupCount)
 			if countErr != nil {
-				wf.Logger.Errorf("Failed to get current backup count for volume %s: %v", dbBackup.VolumeUUID, countErr)
+				workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to get current backup count for volume %s: %v", dbBackup.VolumeUUID, countErr))
 			} else if currentBackupCount == 0 {
 				// This was the last backup, detach the backup vault from the volume
 				detachErr := workflow.ExecuteActivity(ctx, backupActivity.DetachBackupVaultFromVolume, volume, dbBackupVault).Get(ctx, nil)
 				if detachErr != nil {
-					wf.Logger.Errorf("Failed to detach backup vault from expert mode volume %s: %v", volume.UUID, detachErr)
+					workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to detach backup vault from expert mode volume %s: %v", volume.UUID, detachErr))
 				}
 			}
 		}
@@ -891,7 +891,7 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	metadataErr := workflow.ExecuteActivity(ctx, backupActivity.DeleteBackupMetadataIfLastBackupActivity, dbBackup.VolumeUUID).Get(ctx, nil)
 	if metadataErr != nil {
 		// Log the error but don't fail the entire backup deletion workflow
-		wf.Logger.Errorf("Failed to delete BackupMetadata for volume %s: %v", dbBackup.VolumeUUID, metadataErr)
+		workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to delete BackupMetadata for volume %s: %v", dbBackup.VolumeUUID, metadataErr))
 	}
 	return nil, ConvertToVSAError(err)
 }
@@ -923,9 +923,7 @@ func (wf *BackupDeleteWorkflow) HandleError(ctx workflow.Context, params *common
 	}
 	dbBackup.Attributes.DeleteInitiated = wf.deleteInitiated
 	if wf.deleteInitiated {
-		if wf.Logger != nil {
-			wf.Logger.Errorf("Backup to error state as delete has been initiated but failed to complete, backupUUID: %s", dbBackup.UUID)
-		}
+		workflow.GetLogger(ctx).Error(fmt.Sprintf("Backup to error state as delete has been initiated but failed to complete, backupUUID: %s", dbBackup.UUID))
 		err = workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupError, dbBackup, errString).Get(ctx, nil)
 		if err != nil {
 			return ConvertToVSAError(err)
@@ -940,13 +938,11 @@ func (wf *BackupDeleteWorkflow) HandleError(ctx workflow.Context, params *common
 				params.AccountName,
 				*dbBackupVault.BackupRegionName).Get(ctx, nil)
 			if remoteBackupErr != nil {
-				wf.Logger.Errorf("Failed to delete remote backup from VCP for errored backup %s: %v", dbBackup.UUID, remoteBackupErr)
+				workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to delete remote backup from VCP for errored backup %s: %v", dbBackup.UUID, remoteBackupErr))
 			}
 		}
 	} else {
-		if wf.Logger != nil {
-			wf.Logger.Errorf("Reverting backup state to available as delete was not initiated, backupUUID: %s", dbBackup.UUID)
-		}
+		workflow.GetLogger(ctx).Info(fmt.Sprintf("Reverting backup state to available as delete was not initiated, backupUUID: %s", dbBackup.UUID))
 		// mark the backup back to available state
 		err = workflow.ExecuteActivity(ctx, backupActivity.MarkBackupAvailable, dbBackup).Get(ctx, nil)
 		if err != nil {
@@ -1051,7 +1047,7 @@ func (wf *backupUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	err = workflow.ExecuteActivity(ctx, backupUpdateActivity.UpdateRemoteBackupFromVCPActivity, backup).Get(ctx, nil)
 	if err != nil {
 		// Log the error but don't fail the entire backup workflow
-		wf.Logger.Errorf("Failed to update remote backup from VCP for backup %s: %v", backup.UUID, err)
+		workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to update remote backup from VCP for backup %s: %v", backup.UUID, err))
 	}
 
 	return nil, nil

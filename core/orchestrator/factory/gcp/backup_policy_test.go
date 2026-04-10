@@ -1393,6 +1393,7 @@ func TestUpdateBackupPolicy(t *testing.T) {
 		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", mock.Anything, params.BackupPolicyID, account.ID).Return(backupPolicy, nil)
 		mockStorage.On("UpdateBackupPolicy", mock.Anything, backupPolicy.UUID, mock.Anything).Return(backupPolicy, nil).Once()
 		mockStorage.On("GetMultipleVolumes", mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil)
+		mockStorage.On("GetMultipleVolumesWithExpertMode", mock.Anything, mock.Anything).Return([]*datamodel.ExpertModeVolumes{}, nil)
 		mockStorage.On("GetBackupCountByVolumeUUIDs", mock.Anything, mock.Anything, mock.Anything).Return(map[string]int64{}, nil)
 		mockStorage.On("UpdateBackupPolicy", mock.Anything, backupPolicy.UUID, mock.Anything).Return(nil, errors.New("rollback failed")).Once()
 		mockStorage.On("UpdateJob", mock.Anything, job.UUID, string(models.JobsStateERROR), mock.Anything, mock.Anything).Return(nil)
@@ -1444,6 +1445,7 @@ func TestUpdateBackupPolicy(t *testing.T) {
 		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", mock.Anything, params.BackupPolicyID, account.ID).Return(backupPolicy, nil)
 		mockStorage.On("UpdateBackupPolicy", mock.Anything, backupPolicy.UUID, mock.Anything).Return(backupPolicy, nil)
 		mockStorage.On("GetMultipleVolumes", mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil)
+		mockStorage.On("GetMultipleVolumesWithExpertMode", mock.Anything, mock.Anything).Return([]*datamodel.ExpertModeVolumes{}, nil)
 		mockStorage.On("GetBackupCountByVolumeUUIDs", mock.Anything, mock.Anything, mock.Anything).Return(map[string]int64{}, nil)
 		mockStorage.On("UpdateJob", mock.Anything, job.UUID, string(models.JobsStateERROR), mock.Anything, mock.Anything).Return(errors.New("job rollback failed")).Once()
 		mockTemporalClient.On("ExecuteWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mockWorkflowRun, errors.New("could not execute workflow"))
@@ -1453,6 +1455,86 @@ func TestUpdateBackupPolicy(t *testing.T) {
 		assert.Equal(tt, "could not execute workflow", err.Error())
 		mockStorage.AssertNumberOfCalls(tt, "UpdateBackupPolicy", 2)
 		mockStorage.AssertNumberOfCalls(tt, "UpdateJob", 1)
+	})
+
+	t.Run("GetMultipleVolumesWithExpertModeError_ReturnsErr", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockTemporalClient := mocks.NewClient(tt)
+		orchestrator := &GCPOrchestrator{storage: mockStorage, temporal: mockTemporalClient}
+
+		params := &commonparams.UpdateBackupPolicyParams{
+			Name:               "test-backup-policy",
+			AccountName:        "test-account",
+			BackupPolicyID:     "test-backup-policy-uuid",
+			LocationID:         "test-location",
+			DailyBackupLimit:   nillable.ToPointer(int64(5)),
+			WeeklyBackupLimit:  nillable.ToPointer(int64(3)),
+			MonthlyBackupLimit: nillable.ToPointer(int64(2)),
+		}
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"}, Name: "test-account"}
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel:      datamodel.BaseModel{ID: 1, UUID: "test-backup-policy-uuid"},
+			Name:           "test-backup-policy",
+			Account:        account,
+			AccountID:      account.ID,
+			LifeCycleState: models.LifeCycleStateREADY,
+		}
+
+		// validateBackupLimits runs before CreateJob; error here returns early without touching the job.
+		mockStorage.On("GetAccount", mock.Anything, params.AccountName).Return(account, nil)
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", mock.Anything, params.BackupPolicyID, account.ID).Return(backupPolicy, nil)
+		mockStorage.On("GetMultipleVolumes", mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil)
+		mockStorage.On("GetMultipleVolumesWithExpertMode", mock.Anything, mock.Anything).
+			Return(nil, errors.New("expert mode db error"))
+
+		_, _, err := orchestrator.UpdateBackupPolicy(ctx, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "expert mode db error")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ExpertModeVolumeUUIDs_AddedToBackupCheck", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := &database.MockStorage{}
+		mockTemporalClient := mocks.NewClient(tt)
+		orchestrator := &GCPOrchestrator{storage: mockStorage, temporal: mockTemporalClient}
+
+		dailyLimit := int64(2)
+		params := &commonparams.UpdateBackupPolicyParams{
+			Name:               "test-backup-policy",
+			AccountName:        "test-account",
+			BackupPolicyID:     "test-backup-policy-uuid",
+			LocationID:         "test-location",
+			DailyBackupLimit:   &dailyLimit,
+		}
+		account := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"}, Name: "test-account"}
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel:      datamodel.BaseModel{ID: 1, UUID: "test-backup-policy-uuid"},
+			Name:           "test-backup-policy",
+			Account:        account,
+			AccountID:      account.ID,
+			LifeCycleState: models.LifeCycleStateREADY,
+		}
+		job := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "wf-id"}
+		expertVols := []*datamodel.ExpertModeVolumes{
+			{BaseModel: datamodel.BaseModel{UUID: "emv-uuid-1"}, ExternalUUID: "ext-uuid-1"},
+		}
+
+		mockStorage.On("GetAccount", mock.Anything, params.AccountName).Return(account, nil)
+		mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(job, nil)
+		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", mock.Anything, params.BackupPolicyID, account.ID).Return(backupPolicy, nil)
+		mockStorage.On("GetMultipleVolumes", mock.Anything, mock.Anything).Return([]*datamodel.Volume{}, nil)
+		mockStorage.On("GetMultipleVolumesWithExpertMode", mock.Anything, mock.Anything).Return(expertVols, nil)
+		// Verify expert mode volume ExternalUUID is passed to GetBackupCountByVolumeUUIDs
+		mockStorage.On("GetBackupCountByVolumeUUIDs", mock.Anything, []string{"ext-uuid-1"}, mock.Anything).
+			Return(map[string]int64{"ext-uuid-1": 0}, nil)
+		mockStorage.On("UpdateBackupPolicy", mock.Anything, backupPolicy.UUID, mock.Anything).Return(backupPolicy, nil)
+		mockTemporalClient.On("ExecuteWorkflow", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		_, _, err := orchestrator.UpdateBackupPolicy(ctx, params)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
 	})
 
 	t.Run("JobUpdateFailsAfterBackupPolicyUpdateError", func(tt *testing.T) {
@@ -1502,6 +1584,7 @@ func TestUpdateBackupPolicy(t *testing.T) {
 
 		mockStorage.On("GetAccount", mock.Anything, params.AccountName).Return(account, nil)
 		mockStorage.On("GetMultipleVolumes", mock.Anything, mock.Anything).Return([]*datamodel.Volume{volume}, nil)
+		mockStorage.On("GetMultipleVolumesWithExpertMode", mock.Anything, mock.Anything).Return([]*datamodel.ExpertModeVolumes{}, nil)
 		mockStorage.On("GetBackupCountByVolumeUUIDs", mock.Anything, mock.Anything, mock.Anything).Return(map[string]int64{volume.UUID: 1}, nil)
 		mockStorage.On("CreateJob", mock.Anything, mock.Anything).Return(job, nil)
 		mockStorage.On("GetBackupPolicyByUUIDAndOwnerID", mock.Anything, params.BackupPolicyID, account.ID).Return(backupPolicy, nil)

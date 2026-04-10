@@ -1290,8 +1290,8 @@ func (s *PersistenceStore) DeleteBackupPolicy(ctx context.Context, backupPolicyU
 	return s.dataStore.DeleteBackupPolicy(ctx, backupPolicyUUID)
 }
 
-func (s *PersistenceStore) FetchScheduledBackupsForDeletion(ctx context.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy) ([]*datamodel.Backup, error) {
-	return s.dataStore.FetchScheduledBackupsForDeletion(ctx, volume, backupPolicy)
+func (s *PersistenceStore) FetchScheduledBackupsForDeletion(ctx context.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy, isExpertMode bool) ([]*datamodel.Backup, error) {
+	return s.dataStore.FetchScheduledBackupsForDeletion(ctx, volume, backupPolicy, isExpertMode)
 }
 
 func (s *PersistenceStore) IsBackupShared(ctx context.Context, backup *datamodel.Backup) (bool, error) {
@@ -1743,4 +1743,12 @@ func (s *PersistenceStore) GetEligibleExpertModeVolumes(ctx context.Context, con
 
 func (s *PersistenceStore) GetExpertModeBackupsByVolumeExternalUUID(ctx context.Context, volumeExternalUUID string) ([]*datamodel.Backup, error) {
 	return s.dataStore.GetExpertModeBackupsByVolumeExternalUUID(ctx, volumeExternalUUID)
+}
+
+func (s *PersistenceStore) GetMultipleVolumesWithExpertMode(ctx context.Context, conditions [][]interface{}) ([]*datamodel.ExpertModeVolumes, error) {
+	return s.dataStore.GetMultipleVolumesWithExpertMode(ctx, conditions)
+}
+
+func (s *PersistenceStore) ListExpertModeVolumesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.ExpertModeVolumes, error) {
+	return s.dataStore.ListExpertModeVolumesWithPagination(ctx, conditions, pagination)
 }

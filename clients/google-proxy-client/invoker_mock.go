@@ -79,6 +79,66 @@ func (_c *MockInvoker_GetHealth_Call) RunAndReturn(run func(context.Context) (Ge
 	return _c
 }
 
+// V1betaBackupConfig provides a mock function with given fields: ctx, request, params
+func (_m *MockInvoker) V1betaBackupConfig(ctx context.Context, request *BackupConfigRequestV1beta, params V1betaBackupConfigParams) (V1betaBackupConfigRes, error) {
+	ret := _m.Called(ctx, request, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaBackupConfig")
+	}
+
+	var r0 V1betaBackupConfigRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *BackupConfigRequestV1beta, V1betaBackupConfigParams) (V1betaBackupConfigRes, error)); ok {
+		return rf(ctx, request, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *BackupConfigRequestV1beta, V1betaBackupConfigParams) V1betaBackupConfigRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaBackupConfigRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *BackupConfigRequestV1beta, V1betaBackupConfigParams) error); ok {
+		r1 = rf(ctx, request, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1betaBackupConfig_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaBackupConfig'
+type MockInvoker_V1betaBackupConfig_Call struct {
+	*mock.Call
+}
+
+// V1betaBackupConfig is a helper method to define mock.On call
+//   - ctx context.Context
+//   - request *BackupConfigRequestV1beta
+//   - params V1betaBackupConfigParams
+func (_e *MockInvoker_Expecter) V1betaBackupConfig(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1betaBackupConfig_Call {
+	return &MockInvoker_V1betaBackupConfig_Call{Call: _e.mock.On("V1betaBackupConfig", ctx, request, params)}
+}
+
+func (_c *MockInvoker_V1betaBackupConfig_Call) Run(run func(ctx context.Context, request *BackupConfigRequestV1beta, params V1betaBackupConfigParams)) *MockInvoker_V1betaBackupConfig_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*BackupConfigRequestV1beta), args[2].(V1betaBackupConfigParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1betaBackupConfig_Call) Return(_a0 V1betaBackupConfigRes, _a1 error) *MockInvoker_V1betaBackupConfig_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1betaBackupConfig_Call) RunAndReturn(run func(context.Context, *BackupConfigRequestV1beta, V1betaBackupConfigParams) (V1betaBackupConfigRes, error)) *MockInvoker_V1betaBackupConfig_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaBatchListActiveDirectories provides a mock function with given fields: ctx, request, params
 func (_m *MockInvoker) V1betaBatchListActiveDirectories(ctx context.Context, request *BatchActiveDirectoryUUIDListV1beta, params V1betaBatchListActiveDirectoriesParams) (V1betaBatchListActiveDirectoriesRes, error) {
 	ret := _m.Called(ctx, request, params)

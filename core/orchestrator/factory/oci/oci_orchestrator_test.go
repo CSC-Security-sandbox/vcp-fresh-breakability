@@ -2081,3 +2081,18 @@ func TestOCIOrchestrator_ReplaceDstQuotaRulesWithSrc(t *testing.T) {
 		assert.Nil(tt, result)
 	})
 }
+
+func TestOCIOrchestrator_ManageBackupConfigForExpertModeVolume(t *testing.T) {
+	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
+		orch := &OCIOrchestrator{}
+		ctx := context.Background()
+		params := &common.ManageBackupConfigForExpertModeVolumeParams{}
+
+		backupConfig, jobUUID, err := orch.ManageBackupConfigForExpertModeVolume(ctx, params)
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsNotImplementedYetErr(err))
+		assert.Nil(tt, backupConfig)
+		assert.Empty(tt, jobUUID)
+	})
+}

@@ -223,6 +223,17 @@ func convertOntapToONTAPModeVol(ontapVol *vsa.VolumeResponse, dbVolume *datamode
 	return &volume
 }
 
+// UpdateExpertModeVolumeBackupConfigInDB persists the BackupConfig on an expert mode volume.
+func (a *ExpertModeVolumeActivity) UpdateExpertModeVolumeBackupConfigInDB(ctx context.Context, volume *datamodel.ExpertModeVolumes) error {
+	logger := util.GetLogger(ctx)
+	if err := a.SE.UpdateExpertModeVolumeDataProtection(ctx, volume); err != nil {
+		logger.Errorf("Failed to update backup config for expert mode volume %s: %v", volume.UUID, err)
+		return err
+	}
+	logger.Infof("Successfully updated backup config for expert mode volume %s", volume.UUID)
+	return nil
+}
+
 func _fetchOntapVolumeByUUID(ctx context.Context, volume *datamodel.ExpertModeVolumes, node *models.Node) (*vsa.VolumeResponse, error) {
 	logger := util.GetLogger(ctx)
 	activity.RecordHeartbeat(ctx, fmt.Sprintf("Fetching volume %s from ONTAP", volume.Name))

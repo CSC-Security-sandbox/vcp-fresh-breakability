@@ -11,6 +11,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
+	gormwrapper "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils/gorm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"gorm.io/gorm"
@@ -2100,4 +2101,108 @@ func TestGetEligibleExpertModeVolumes_EmptyResult(t *testing.T) {
 	volumes, err := store.GetEligibleExpertModeVolumes(ctx, [][]interface{}{}, pagination)
 	assert.NoError(t, err)
 	assert.Empty(t, volumes)
+}
+
+func TestGetMultipleVolumesWithExpertMode_Success(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+	account, pool := createTestAccountAndPoolForExpertMode(t, store)
+	svmName := fmt.Sprintf("test-svm-%s", utils.GenerateRandomAlphanumeric(8))
+	svm := createTestSVMForExpertMode(t, store, pool.ID, account.ID, svmName, utils.RandomUUID())
+
+	vol := &datamodel.ExpertModeVolumes{
+		Name:         fmt.Sprintf("test-vol-%s", utils.GenerateRandomAlphanumeric(8)),
+		SizeInBytes:  1099511627776,
+		PoolID:       pool.ID,
+		AccountID:    account.ID,
+		SvmID:        svm.ID,
+		Style:        "flexvol",
+		ExternalUUID: utils.RandomUUID(),
+		State:        models.LifeCycleStateREADY,
+	}
+	created, err := store.CreateExpertModeVolume(ctx, vol)
+	assert.NoError(t, err)
+
+	results, err := store.GetMultipleVolumesWithExpertMode(ctx, [][]interface{}{})
+	assert.NoError(t, err)
+	assert.GreaterOrEqual(t, len(results), 1)
+
+	found := false
+	for _, v := range results {
+		if v.UUID == created.UUID {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found)
+}
+
+func TestGetMultipleVolumesWithExpertMode_DBError(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+
+	orig := getMultipleVolumesWithExpertMode
+	defer func() { getMultipleVolumesWithExpertMode = orig }()
+	getMultipleVolumesWithExpertMode = func(db *gorm.DB) ([]*datamodel.ExpertModeVolumes, error) {
+		return nil, errors.New("simulated db error")
+	}
+
+	results, err := store.GetMultipleVolumesWithExpertMode(ctx, [][]interface{}{})
+	assert.Nil(t, results)
+	assert.EqualError(t, err, "simulated db error")
+}
+
+func TestListExpertModeVolumesWithPagination_Success(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+	account, pool := createTestAccountAndPoolForExpertMode(t, store)
+	svmName := fmt.Sprintf("test-svm-%s", utils.GenerateRandomAlphanumeric(8))
+	svm := createTestSVMForExpertMode(t, store, pool.ID, account.ID, svmName, utils.RandomUUID())
+
+	vol := &datamodel.ExpertModeVolumes{
+		Name:         fmt.Sprintf("pag-vol-%s", utils.GenerateRandomAlphanumeric(8)),
+		SizeInBytes:  1099511627776,
+		PoolID:       pool.ID,
+		AccountID:    account.ID,
+		SvmID:        svm.ID,
+		Style:        "flexvol",
+		ExternalUUID: utils.RandomUUID(),
+		State:        models.LifeCycleStateREADY,
+	}
+	created, err := store.CreateExpertModeVolume(ctx, vol)
+	assert.NoError(t, err)
+
+	pagination := &dbutils.Pagination{Offset: 0, Limit: 100}
+	results, err := store.ListExpertModeVolumesWithPagination(ctx, [][]interface{}{}, pagination)
+	assert.NoError(t, err)
+	assert.GreaterOrEqual(t, len(results), 1)
+
+	found := false
+	for _, v := range results {
+		if v.UUID == created.UUID {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found)
+}
+
+func TestListExpertModeVolumesWithPagination_DBError(t *testing.T) {
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+
+	err = ClearInMemoryDB(store.db.GORM())
+	assert.NoError(t, err)
+
+	sqlDB, err := store.db.GORM().DB()
+	assert.NoError(t, err)
+	_ = sqlDB.Close()
+
+	pagination := &dbutils.Pagination{Offset: 0, Limit: 100}
+	results, err := store.ListExpertModeVolumesWithPagination(context.Background(), [][]interface{}{}, pagination)
+	assert.Nil(t, results)
+	assert.Error(t, err)
 }

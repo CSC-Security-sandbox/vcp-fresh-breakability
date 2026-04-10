@@ -147,6 +147,7 @@ const (
 	JobTypeDeleteExpertModeVolume                   JobType = "RECONCILE_EXPERT_MODE_VOLUME_DELETE"
 	JobTypeExpertModeRbacRefresh                    JobType = "EXPERT_MODE_RBAC_REFRESH"
 	JobTypeRotateCmekBackups                        JobType = "ROTATE_CMEK_BACKUPS"
+	JobTypeManageBackupConfigExpertModeVolume       JobType = "MANAGE_BACKUP_CONFIG_EXPERT_MODE_VOLUME"
 )
 
 // GetResourceJobType returns the appropriate job type based on the resource type, operation, and pool category

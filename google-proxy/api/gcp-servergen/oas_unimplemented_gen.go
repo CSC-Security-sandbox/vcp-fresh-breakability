@@ -22,6 +22,19 @@ func (UnimplementedHandler) GetHealth(ctx context.Context) (r GetHealthRes, _ er
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaBackupConfig implements v1beta_backupConfig operation.
+//
+// Attaches or updates the backup configuration (backup vault, backup policy, scheduled backup, and
+// optional KMS grant) for an expert mode (ONTAP) volume. The backup vault is required; all other
+// fields are optional. Supplying a backup policy requires scheduledBackupEnabled to be explicitly
+// set. Scheduled backup cannot be enabled without a backup policy. Switching to a different backup
+// vault is not supported while one is already attached.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/backupConfig
+func (UnimplementedHandler) V1betaBackupConfig(ctx context.Context, req *BackupConfigRequestV1beta, params V1betaBackupConfigParams) (r V1betaBackupConfigRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaBatchListActiveDirectories implements v1beta_batchListActiveDirectories operation.
 //
 // Batch lists all Active Directories with the given UUIDs across all accounts.

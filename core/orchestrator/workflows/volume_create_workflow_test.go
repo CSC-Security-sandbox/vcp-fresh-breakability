@@ -794,6 +794,35 @@ func TestUnitTestSuite(t *testing.T) {
 	suite.Run(t, new(UnitTestSuite))
 }
 
+func (s *UnitTestSuite) Test_SyncBucketDetailsWithGCP_DelegatesToPrivateFunction() {
+	mockStorage := database.NewMockStorage(s.T())
+	syncBackupZiZsActivity := backgroundactivities.SyncBackupZiZsActivity{SE: mockStorage}
+	s.env.RegisterActivity(syncBackupZiZsActivity.SyncBucketDetails)
+
+	s.env.OnActivity(syncBackupZiZsActivity.SyncBucketDetails, mock.Anything, mock.Anything).
+		Return(&datamodel.BucketDetails{
+			BucketName:   "test-bucket",
+			SatisfiesPzi: true,
+			SatisfiesPzs: false,
+		}, nil)
+
+	bucketDetails := &common.BucketDetails{
+		BucketName:          "test-bucket",
+		TenantProjectNumber: "123456789",
+		ServiceAccountName:  "sa@test.iam.gserviceaccount.com",
+		VendorSubnetID:      "projects/p/regions/r/subnetworks/s",
+	}
+
+	s.env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		return SyncBucketDetailsWithGCP(ctx, bucketDetails)
+	})
+
+	assert.True(s.T(), s.env.IsWorkflowCompleted())
+	assert.NoError(s.T(), s.env.GetWorkflowError())
+	assert.True(s.T(), bucketDetails.SatisfiesPzi)
+	assert.False(s.T(), bucketDetails.SatisfiesPzs)
+}
+
 func (s *UnitTestSuite) Test_CreateVolumeWorkflow_FindTenancyError() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}

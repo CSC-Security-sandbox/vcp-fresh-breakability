@@ -19,6 +19,10 @@ type ExpertModePoolCapacity struct {
 	VolumeCount int64
 }
 
+var (
+	getMultipleVolumesWithExpertMode = _getMultipleVolumesWithExpertMode
+)
+
 // CreateExpertModeVolume creates a new expert mode volume record
 func (d *DataStoreRepository) CreateExpertModeVolume(ctx context.Context, expertModeVolume *datamodel.ExpertModeVolumes) (*datamodel.ExpertModeVolumes, error) {
 	db := d.db.GORM().WithContext(ctx)
@@ -229,5 +233,40 @@ func (d *DataStoreRepository) GetEligibleExpertModeVolumes(ctx context.Context, 
 	if err != nil {
 		return nil, err
 	}
+	return volumes, nil
+}
+
+func (d *DataStoreRepository) GetMultipleVolumesWithExpertMode(ctx context.Context, conditions [][]interface{}) ([]*datamodel.ExpertModeVolumes, error) {
+	return getMultipleVolumesWithExpertMode(d.db.ApplyFilter(conditions).GORM().WithContext(ctx))
+}
+
+func _getMultipleVolumesWithExpertMode(db *gorm.DB) ([]*datamodel.ExpertModeVolumes, error) {
+	var expertModeVolumes []*datamodel.ExpertModeVolumes
+	err := db.Preload("Account").
+		Preload("Pool").
+		Preload("Pool.ActiveDirectory").
+		Preload("Svm").
+		Preload("Pool.KmsConfig").
+		Find(&expertModeVolumes).Error
+	if err != nil {
+		return nil, err
+	}
+	return expertModeVolumes, nil
+}
+
+// ListExpertModeVolumesWithPagination retrieves expert mode volumes matching the given conditions with pagination support
+func (d *DataStoreRepository) ListExpertModeVolumesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.ExpertModeVolumes, error) {
+	var volumes []*datamodel.ExpertModeVolumes
+
+	err := d.db.ApplyFilter(conditions).GORM().WithContext(ctx).
+		Preload("Account").
+		Preload("Pool").
+		Preload("Svm").
+		Scopes(dbutils.Paginate(pagination)).
+		Find(&volumes).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
 	return volumes, nil
 }

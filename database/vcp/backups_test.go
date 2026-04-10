@@ -1783,11 +1783,61 @@ func TestFetchScheduledBackupsForDeletion(t *testing.T) {
 			MonthlyBackupsToKeep: 1,
 		}
 
-		resultBackups, err := store.FetchScheduledBackupsForDeletion(context.Background(), volume, backupPolicy)
+		resultBackups, err := store.FetchScheduledBackupsForDeletion(context.Background(), volume, backupPolicy, false)
 		assert.NoError(tt, err)
 		assert.Len(tt, resultBackups, 1)
 		assert.Equal(tt, DailyBackup1.UUID, resultBackups[0].UUID)
 	})
+	t.Run("isExpertMode_usesExternalUUID", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		const externalUUID = "expert-mode-external-uuid"
+
+		// Backup stored under externalUUID as volume_uuid (expert mode path)
+		expertBackup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "expert-backup-uuid",
+				CreatedAt: getTimeNow().Add(-2 * time.Second),
+			},
+			Attributes: &datamodel.BackupAttributes{
+				SnapshotID: "snap-expert-1",
+			},
+			Name:        "Expert-daily-backup",
+			ScheduleTag: nillable.ToPointer(Daily),
+			Type:        BackupTypeScheduled,
+			VolumeUUID:  externalUUID,
+		}
+		err = store.db.Create(expertBackup).Error()
+		assert.NoError(tt, err)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "regular-volume-uuid"},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID:  "bv-uuid",
+				BackupPolicyID: "bp-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: externalUUID,
+			},
+		}
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel:          datamodel.BaseModel{UUID: "bp-uuid"},
+			DailyBackupsToKeep: 0, // keep 0, so the 1 daily backup should be eligible for deletion
+		}
+
+		resultBackups, err := store.FetchScheduledBackupsForDeletion(context.Background(), volume, backupPolicy, true)
+		assert.NoError(tt, err)
+		assert.Len(tt, resultBackups, 1)
+		assert.Equal(tt, expertBackup.UUID, resultBackups[0].UUID)
+	})
+
 	t.Run("whenBackupPolicyIDIsEmpty", func(tt *testing.T) {
 		db, err := SetupTestDB()
 		assert.NoError(tt, err)
@@ -1814,7 +1864,7 @@ func TestFetchScheduledBackupsForDeletion(t *testing.T) {
 		err = store.db.Create(DailyBackup1).Error()
 		assert.NoError(tt, err)
 
-		resultBackups, err := store.FetchScheduledBackupsForDeletion(context.Background(), &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "volume-uuid-1"}}, nil)
+		resultBackups, err := store.FetchScheduledBackupsForDeletion(context.Background(), &datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "volume-uuid-1"}}, nil, false)
 		assert.Nil(tt, resultBackups)
 		assert.NotNil(tt, err)
 		assert.EqualError(tt, err, "volume does not have a backup policy associated with it")

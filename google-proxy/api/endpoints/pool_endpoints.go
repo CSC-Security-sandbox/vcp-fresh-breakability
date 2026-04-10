@@ -969,6 +969,30 @@ func encodePoolV1(pool *gcpgenserver.PoolV1beta) (jx.Raw, error) {
 	return data, nil
 }
 
+// encodeBackupConfigV1 encodes a BackupConfigV1beta struct to JSON.
+func encodeBackupConfigV1(bc *gcpgenserver.BackupConfigV1beta) (jx.Raw, error) {
+	data, err := json.Marshal(bc)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+// convertDataProtectionToBackupConfigV1beta converts a DataProtection datamodel to a BackupConfigV1beta GCP schema type.
+func convertDataProtectionToBackupConfigV1beta(dp *datamodel.DataProtection) *gcpgenserver.BackupConfigV1beta {
+	bc := &gcpgenserver.BackupConfigV1beta{}
+	if dp.BackupVaultID != "" {
+		bc.BackupVaultId = gcpgenserver.NewOptNilString(dp.BackupVaultID)
+	}
+	if dp.BackupPolicyID != "" {
+		bc.BackupPolicyId = gcpgenserver.NewOptNilString(dp.BackupPolicyID)
+	}
+	if dp.ScheduledBackupEnabled != nil {
+		bc.ScheduledBackupEnabled = gcpgenserver.NewOptNilBool(*dp.ScheduledBackupEnabled)
+	}
+	return bc
+}
+
 func convertToPoolsV1beta(pools []*cvpmodels.PoolV1beta) []gcpgenserver.PoolV1beta {
 	poolsV1Beta := make([]gcpgenserver.PoolV1beta, len(pools))
 	for i, pool := range pools {
@@ -1794,4 +1818,128 @@ func (h Handler) V1betaRestoreOntapModeBackup(ctx context.Context, req *gcpgense
 		Name: gcpgenserver.NewOptString(operationID),
 		Done: gcpgenserver.NewOptBool(false),
 	}, nil
+}
+
+// V1betaBackupConfig handles the request to attach a backup vault (and optionally a backup policy)
+// to an expert mode volume.
+func (h Handler) V1betaBackupConfig(ctx context.Context, req *gcpgenserver.BackupConfigRequestV1beta, params gcpgenserver.V1betaBackupConfigParams) (gcpgenserver.V1betaBackupConfigRes, error) {
+	logger := util.GetLogger(ctx)
+	locationId := params.LocationId
+	helper.AddLabelerAttributes(ctx, params.ProjectNumber, locationId, nil)
+
+	if !ExpertModeBackupEnabled {
+		return &gcpgenserver.V1betaBackupConfigBadRequest{
+			Code:    400,
+			Message: "Expert mode backup feature is currently not enabled.",
+		}, nil
+	}
+
+	region, _, parsingErr := parseAndValidateRegionAndZone(locationId)
+	if parsingErr != nil {
+		return &gcpgenserver.V1betaBackupConfigBadRequest{
+			Code:    parsingErr.Code,
+			Message: parsingErr.Message,
+		}, nil
+	}
+
+	if req.VolumeUuid == "" {
+		return &gcpgenserver.V1betaBackupConfigBadRequest{
+			Code:    400,
+			Message: "volumeUuid is required",
+		}, nil
+	}
+
+	reqBackupConfig := req.BackupConfig
+
+	if !reqBackupConfig.BackupVaultId.IsSet() || reqBackupConfig.BackupVaultId.IsNull() || reqBackupConfig.BackupVaultId.Value == "" {
+		return &gcpgenserver.V1betaBackupConfigBadRequest{
+			Code:    400,
+			Message: "backupVaultId is required",
+		}, nil
+	}
+
+	// Patch semantics for optional string fields:
+	//   null / absent → nil       (no-op: preserve existing value in DB)
+	//   ""            → &""       (explicit clear: detach/remove)
+	//   "value"       → &"value"  (attach/set)
+	var backupPolicyID *string
+	if reqBackupConfig.BackupPolicyId.IsSet() && !reqBackupConfig.BackupPolicyId.IsNull() {
+		v := reqBackupConfig.BackupPolicyId.Value
+		backupPolicyID = &v
+	}
+
+	var scheduledBackupEnabled *bool
+	if reqBackupConfig.ScheduledBackupEnabled.IsSet() && !reqBackupConfig.ScheduledBackupEnabled.IsNull() {
+		v := reqBackupConfig.ScheduledBackupEnabled.Value
+		scheduledBackupEnabled = &v
+	}
+
+	var kmsGrant *string
+	if reqBackupConfig.KmsGrant.IsSet() && !reqBackupConfig.KmsGrant.IsNull() {
+		if reqBackupConfig.KmsGrant.Value != "" {
+			if !cmekBackupEnabled {
+				return &gcpgenserver.V1betaBackupConfigBadRequest{
+					Code:    400,
+					Message: "CMEK backup is not enabled",
+				}, nil
+			}
+		}
+		v := reqBackupConfig.KmsGrant.Value
+		kmsGrant = &v
+	}
+
+	var backupSchedule string
+	if params.XNetappBackupSchedule.IsSet() {
+		backupSchedule = params.XNetappBackupSchedule.Value
+		if err := validateBackupScheduleCron(backupSchedule); err != nil {
+			return &gcpgenserver.V1betaBackupConfigBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+	}
+
+	manageParams := &commonparams.ManageBackupConfigForExpertModeVolumeParams{
+		AccountName:            params.ProjectNumber,
+		PoolUUID:               params.PoolId,
+		VolumeUUID:             req.VolumeUuid,
+		BackupVaultID:          reqBackupConfig.BackupVaultId.Value,
+		BackupPolicyID:         backupPolicyID,
+		ScheduledBackupEnabled: scheduledBackupEnabled,
+		KmsGrant:               kmsGrant,
+		BackupSchedule:         backupSchedule,
+		Region:                 region,
+	}
+
+	backupConfig, jobUUID, err := h.Orchestrator.ManageBackupConfigForExpertModeVolume(ctx, manageParams)
+	if err != nil {
+		if errors.IsUserInputValidationErr(err) || errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaBackupConfigBadRequest{
+				Code:    400,
+				Message: err.Error(),
+			}, nil
+		}
+		logger.Error("Failed to manage backup config for expert mode volume", "error", err.Error())
+		return &gcpgenserver.V1betaBackupConfigInternalServerError{
+			Code:    500,
+			Message: err.Error(),
+		}, nil
+	}
+
+	operationID := "/v1beta/projects/" + params.ProjectNumber + "/locations/" + locationId + "/operations/" + jobUUID
+	op := &gcpgenserver.OperationV1beta{
+		Name: gcpgenserver.NewOptString(operationID),
+		Done: gcpgenserver.NewOptBool(false),
+	}
+
+	if backupConfig != nil {
+		backupConfigV1beta := convertDataProtectionToBackupConfigV1beta(backupConfig)
+		if resp, encErr := encodeBackupConfigV1(backupConfigV1beta); encErr != nil {
+			logger.Error("Failed to encode backup config response", "error", encErr.Error())
+		} else {
+			op.Response = resp
+		}
+	}
+
+	return op, nil
 }

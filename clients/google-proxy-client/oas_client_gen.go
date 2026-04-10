@@ -27,6 +27,16 @@ type Invoker interface {
 	//
 	// GET /health
 	GetHealth(ctx context.Context) (GetHealthRes, error)
+	// V1betaBackupConfig invokes v1beta_backupConfig operation.
+	//
+	// Attaches or updates the backup configuration (backup vault, backup policy, scheduled backup, and
+	// optional KMS grant) for an expert mode (ONTAP) volume. The backup vault is required; all other
+	// fields are optional. Supplying a backup policy requires scheduledBackupEnabled to be explicitly
+	// set. Scheduled backup cannot be enabled without a backup policy. Switching to a different backup
+	// vault is not supported while one is already attached.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/backupConfig
+	V1betaBackupConfig(ctx context.Context, request *BackupConfigRequestV1beta, params V1betaBackupConfigParams) (V1betaBackupConfigRes, error)
 	// V1betaBatchListActiveDirectories invokes v1beta_batchListActiveDirectories operation.
 	//
 	// Batch lists all Active Directories with the given UUIDs across all accounts.
@@ -895,6 +905,136 @@ func (c *Client) sendGetHealth(ctx context.Context) (res GetHealthRes, err error
 	defer resp.Body.Close()
 
 	result, err := decodeGetHealthResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1betaBackupConfig invokes v1beta_backupConfig operation.
+//
+// Attaches or updates the backup configuration (backup vault, backup policy, scheduled backup, and
+// optional KMS grant) for an expert mode (ONTAP) volume. The backup vault is required; all other
+// fields are optional. Supplying a backup policy requires scheduledBackupEnabled to be explicitly
+// set. Scheduled backup cannot be enabled without a backup policy. Switching to a different backup
+// vault is not supported while one is already attached.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/backupConfig
+func (c *Client) V1betaBackupConfig(ctx context.Context, request *BackupConfigRequestV1beta, params V1betaBackupConfigParams) (V1betaBackupConfigRes, error) {
+	res, err := c.sendV1betaBackupConfig(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaBackupConfig(ctx context.Context, request *BackupConfigRequestV1beta, params V1betaBackupConfigParams) (res V1betaBackupConfigRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [7]string
+	pathParts[0] = "/v1beta/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/pools/"
+	{
+		// Encode "poolId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "poolId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.PoolId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/backupConfig"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1betaBackupConfigRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Netapp-Backup-Schedule",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XNetappBackupSchedule.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaBackupConfigResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

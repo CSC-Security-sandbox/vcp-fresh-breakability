@@ -535,6 +535,58 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/backupConfig:
+    post:
+      tags:
+        - pools
+      summary: backup configuration for an expert mode volume
+      description: >
+        Attaches or updates the backup configuration (backup vault, backup policy, scheduled backup,
+        and optional KMS grant) for an expert mode (ONTAP) volume. The backup vault is required;
+        all other fields are optional. Supplying a backup policy requires scheduledBackupEnabled to
+        be explicitly set. Scheduled backup cannot be enabled without a backup policy. Switching to
+        a different backup vault is not supported while one is already attached.
+      operationId: v1beta_backupConfig
+      parameters:
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - $ref: '#/components/parameters/xNetappBackupScheduleHeader'
+      requestBody:
+        description: Parameters for managing the backup configuration
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackupConfigRequest_v1beta'
+        required: true
+      responses:
+        '202':
+          description: Backup config operation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                done: false
+                name: /v1beta/projects/123456789/locations/us-east4/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
   /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/restoreBackup:
     post:
       tags:
@@ -13852,6 +13904,25 @@ components:
           nullable: true
           example: 463811e7-9760-acf5-9bdb-020073ca3333
       description: Request object for restoring single file from backups
+    BackupConfigRequest_v1beta:
+      title: BackupConfigRequest
+      type: object
+      required:
+        - volumeUuid
+        - backupConfig
+      properties:
+        volumeUuid:
+          type: string
+          description: Volume ONTAP UUID (externalUUID from expert mode volumes table)
+          example: "9760acf5-4638-11e7-9bdb-020073ca7774"
+        backupConfig:
+          description: >
+            Backup configuration to apply. backupVaultId is required within this object.
+            Supplying backupPolicyId requires scheduledBackupEnabled to be explicitly set.
+            Scheduled backup cannot be enabled without a backup policy.
+            kmsGrant is only accepted when CMEK backup is enabled on the service.
+          allOf:
+            - $ref: '#/components/schemas/BackupConfig_v1beta'
     RestoreBackupRequest_v1beta:
       title: RestoreBackupRequestOntapMode
       type: object

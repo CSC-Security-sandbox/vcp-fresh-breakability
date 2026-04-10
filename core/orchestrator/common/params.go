@@ -875,6 +875,24 @@ type RestoreFilesFromBackupParams struct {
 	IsExpertModeRestore bool
 }
 
+// ManageBackupConfigForExpertModeVolumeParams holds parameters for ManageBackupConfigForExpertModeVolume.
+//
+// Patch semantics for optional pointer fields:
+//   - nil      → field not provided; preserve the existing DB value unchanged.
+//   - &""      → explicit clear; detach / remove the current value.
+//   - &"value" → attach / set to this value.
+type ManageBackupConfigForExpertModeVolumeParams struct {
+	AccountName            string
+	PoolUUID               string
+	VolumeUUID             string
+	BackupVaultID          string
+	BackupPolicyID         *string // nil=no-op, &""=clear, &"uuid"=set
+	ScheduledBackupEnabled *bool
+	KmsGrant               *string // nil=no-op, &""=clear, &"key"=set
+	BackupSchedule         string
+	Region                 string
+}
+
 // RestoreOntapModeBackupParams holds parameters for RestoreOntapModeBackup (pool endpoint full-volume or file-level restore for ONTAP mode).
 type RestoreOntapModeBackupParams struct {
 	AccountName     string

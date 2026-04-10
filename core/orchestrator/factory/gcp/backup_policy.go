@@ -189,10 +189,18 @@ func validateBackupLimits(ctx context.Context, se database.Storage, params *comm
 		return err
 	}
 
+	expertModeVolumes, err := se.GetMultipleVolumesWithExpertMode(ctx, conditions)
+	if err != nil {
+		return err
+	}
+
 	// Fetch the count of existing manual backups for each volume associated with the backup policy
-	volumeUUIDs := make([]string, 0, len(volumes))
+	volumeUUIDs := make([]string, 0, len(volumes)+len(expertModeVolumes))
 	for _, volume := range volumes {
 		volumeUUIDs = append(volumeUUIDs, volume.UUID)
+	}
+	for _, volume := range expertModeVolumes {
+		volumeUUIDs = append(volumeUUIDs, volume.ExternalUUID)
 	}
 	conditions = [][]interface{}{
 		{"type = ?", backupTypeMANUAL},

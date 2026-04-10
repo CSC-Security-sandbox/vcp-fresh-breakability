@@ -9329,3 +9329,360 @@ func TestV1betaRestoreOntapModeBackup(t *testing.T) {
 		mockOrchestrator.AssertExpectations(tt)
 	})
 }
+
+func TestV1betaBackupConfig(t *testing.T) {
+	baseParams := func() gcpgenserver.V1betaBackupConfigParams {
+		return gcpgenserver.V1betaBackupConfigParams{
+			ProjectNumber: "project-number",
+			LocationId:    "us-east4",
+			PoolId:        "pool-uuid",
+		}
+	}
+
+	// makeBackupConfig builds a BackupConfigRequestV1betaBackupConfig with backupVaultId set.
+	makeBackupConfig := func(vaultID string) gcpgenserver.BackupConfigRequestV1betaBackupConfig {
+		bc := gcpgenserver.BackupConfigRequestV1betaBackupConfig{}
+		bc.BackupVaultId.SetTo(vaultID)
+		return bc
+	}
+
+	baseReq := func() *gcpgenserver.BackupConfigRequestV1beta {
+		return &gcpgenserver.BackupConfigRequestV1beta{
+			VolumeUuid:   "volume-uuid",
+			BackupConfig: makeBackupConfig("vault-uuid"),
+		}
+	}
+
+	setupLocation := func(t *testing.T) {
+		t.Helper()
+		orig := parseAndValidateRegionAndZone
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "us-east4", "", nil
+		}
+		t.Cleanup(func() { parseAndValidateRegionAndZone = orig })
+	}
+
+	t.Run("FeatureDisabled", func(tt *testing.T) {
+		orig := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = false
+		defer func() { ExpertModeBackupEnabled = orig }()
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+		result, err := handler.V1betaBackupConfig(context.Background(), baseReq(), baseParams())
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaBackupConfigBadRequest)
+		assert.True(tt, ok)
+		assert.Contains(tt, badReq.Message, "not enabled")
+	})
+
+	t.Run("InvalidLocation", func(tt *testing.T) {
+		orig := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = true
+		defer func() { ExpertModeBackupEnabled = orig }()
+
+		origLoc := parseAndValidateRegionAndZone
+		defer func() { parseAndValidateRegionAndZone = origLoc }()
+		parseAndValidateRegionAndZone = func(locationID string) (string, string, *gcpgenserver.Error) {
+			return "", "", &gcpgenserver.Error{Code: 400, Message: "invalid location"}
+		}
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+		result, err := handler.V1betaBackupConfig(context.Background(), baseReq(), baseParams())
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaBackupConfigBadRequest)
+		assert.True(tt, ok)
+		assert.Contains(tt, badReq.Message, "invalid location")
+	})
+
+	t.Run("BackupConfigMissing_Rejected", func(tt *testing.T) {
+		orig := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = true
+		defer func() { ExpertModeBackupEnabled = orig }()
+
+		setupLocation(tt)
+
+		req := &gcpgenserver.BackupConfigRequestV1beta{VolumeUuid: "volume-uuid"}
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+		result, err := handler.V1betaBackupConfig(context.Background(), req, baseParams())
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaBackupConfigBadRequest)
+		assert.True(tt, ok)
+		assert.Contains(tt, badReq.Message, "backupVaultId is required")
+	})
+
+	t.Run("BackupVaultIdMissing_Rejected", func(tt *testing.T) {
+		orig := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = true
+		defer func() { ExpertModeBackupEnabled = orig }()
+
+		setupLocation(tt)
+
+		req := &gcpgenserver.BackupConfigRequestV1beta{
+			VolumeUuid:   "volume-uuid",
+			BackupConfig: gcpgenserver.BackupConfigRequestV1betaBackupConfig{},
+		}
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+		result, err := handler.V1betaBackupConfig(context.Background(), req, baseParams())
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaBackupConfigBadRequest)
+		assert.True(tt, ok)
+		assert.Contains(tt, badReq.Message, "backupVaultId is required")
+	})
+
+	t.Run("KmsGrant_CmekNotEnabled_Rejected", func(tt *testing.T) {
+		orig := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = true
+		defer func() { ExpertModeBackupEnabled = orig }()
+
+		origCmek := cmekBackupEnabled
+		cmekBackupEnabled = false
+		defer func() { cmekBackupEnabled = origCmek }()
+
+		setupLocation(tt)
+
+		bc := gcpgenserver.BackupConfigRequestV1betaBackupConfig{}
+		bc.BackupVaultId.SetTo("vault-uuid")
+		bc.KmsGrant.SetTo("projects/p/locations/l/keyRings/r/cryptoKeys/k")
+		req := &gcpgenserver.BackupConfigRequestV1beta{
+			VolumeUuid:   "volume-uuid",
+			BackupConfig: bc,
+		}
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+		result, err := handler.V1betaBackupConfig(context.Background(), req, baseParams())
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaBackupConfigBadRequest)
+		assert.True(tt, ok)
+		assert.Contains(tt, badReq.Message, "CMEK backup is not enabled")
+	})
+
+	t.Run("XNetappBackupScheduleHeader_InvalidCron_Rejected", func(tt *testing.T) {
+		orig := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = true
+		defer func() { ExpertModeBackupEnabled = orig }()
+
+		setupLocation(tt)
+
+		params := baseParams()
+		params.XNetappBackupSchedule = gcpgenserver.NewOptString("bad-cron-expr")
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+		result, err := handler.V1betaBackupConfig(context.Background(), baseReq(), params)
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaBackupConfigBadRequest)
+		assert.True(tt, ok)
+		assert.NotEmpty(tt, badReq.Message)
+	})
+
+	t.Run("XNetappBackupScheduleHeader_ValidCron_PassedToOrchestrator", func(tt *testing.T) {
+		orig := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = true
+		defer func() { ExpertModeBackupEnabled = orig }()
+
+		setupLocation(tt)
+
+		const validSchedule = "*/5 * * * *"
+		params := baseParams()
+		params.XNetappBackupSchedule = gcpgenserver.NewOptString(validSchedule)
+
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().ManageBackupConfigForExpertModeVolume(
+			mock.Anything,
+			mock.MatchedBy(func(p *commonparams.ManageBackupConfigForExpertModeVolumeParams) bool {
+				return p.BackupSchedule == validSchedule
+			}),
+		).Return(nil, "job-uuid", nil).Once()
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaBackupConfig(context.Background(), baseReq(), params)
+		assert.NoError(tt, err)
+		_, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		mockOrchestrator.AssertExpectations(tt)
+	})
+
+	t.Run("VolumeUuid_Empty_Rejected", func(tt *testing.T) {
+		orig := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = true
+		defer func() { ExpertModeBackupEnabled = orig }()
+
+		setupLocation(tt)
+
+		req := &gcpgenserver.BackupConfigRequestV1beta{
+			VolumeUuid:   "",
+			BackupConfig: makeBackupConfig("vault-uuid"),
+		}
+
+		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+		result, err := handler.V1betaBackupConfig(context.Background(), req, baseParams())
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaBackupConfigBadRequest)
+		assert.True(tt, ok)
+		assert.Contains(tt, badReq.Message, "volumeUuid is required")
+	})
+
+	t.Run("BackupPolicyId_Set_PassedToOrchestrator", func(tt *testing.T) {
+		orig := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = true
+		defer func() { ExpertModeBackupEnabled = orig }()
+
+		setupLocation(tt)
+
+		const bpID = "my-backup-policy-uuid"
+		bc := makeBackupConfig("vault-uuid")
+		bc.BackupPolicyId.SetTo(bpID)
+		req := &gcpgenserver.BackupConfigRequestV1beta{
+			VolumeUuid:   "volume-uuid",
+			BackupConfig: bc,
+		}
+
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().ManageBackupConfigForExpertModeVolume(
+			mock.Anything,
+			mock.MatchedBy(func(p *commonparams.ManageBackupConfigForExpertModeVolumeParams) bool {
+				return p.BackupPolicyID != nil && *p.BackupPolicyID == bpID
+			}),
+		).Return(nil, "job-uuid", nil).Once()
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaBackupConfig(context.Background(), req, baseParams())
+		assert.NoError(tt, err)
+		_, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		mockOrchestrator.AssertExpectations(tt)
+	})
+
+	t.Run("ScheduledBackupEnabled_Set_PassedToOrchestrator", func(tt *testing.T) {
+		orig := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = true
+		defer func() { ExpertModeBackupEnabled = orig }()
+
+		setupLocation(tt)
+
+		bc := makeBackupConfig("vault-uuid")
+		bc.ScheduledBackupEnabled.SetTo(true)
+		req := &gcpgenserver.BackupConfigRequestV1beta{
+			VolumeUuid:   "volume-uuid",
+			BackupConfig: bc,
+		}
+
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().ManageBackupConfigForExpertModeVolume(
+			mock.Anything,
+			mock.MatchedBy(func(p *commonparams.ManageBackupConfigForExpertModeVolumeParams) bool {
+				return p.ScheduledBackupEnabled != nil && *p.ScheduledBackupEnabled == true
+			}),
+		).Return(nil, "job-uuid", nil).Once()
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaBackupConfig(context.Background(), req, baseParams())
+		assert.NoError(tt, err)
+		_, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		mockOrchestrator.AssertExpectations(tt)
+	})
+
+	t.Run("OrchestratorReturns_ValidationError_ReturnsBadRequest", func(tt *testing.T) {
+		orig := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = true
+		defer func() { ExpertModeBackupEnabled = orig }()
+
+		setupLocation(tt)
+
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().ManageBackupConfigForExpertModeVolume(
+			mock.Anything,
+			mock.Anything,
+		).Return(nil, "", errors.NewUserInputValidationErr("invalid volume uuid")).Once()
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaBackupConfig(context.Background(), baseReq(), baseParams())
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaBackupConfigBadRequest)
+		assert.True(tt, ok)
+		assert.Contains(tt, badReq.Message, "invalid volume uuid")
+		mockOrchestrator.AssertExpectations(tt)
+	})
+
+	t.Run("OrchestratorReturns_NotFoundError_ReturnsBadRequest", func(tt *testing.T) {
+		orig := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = true
+		defer func() { ExpertModeBackupEnabled = orig }()
+
+		setupLocation(tt)
+
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().ManageBackupConfigForExpertModeVolume(
+			mock.Anything,
+			mock.Anything,
+		).Return(nil, "", errors.NewNotFoundErr("volume not found", nil)).Once()
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaBackupConfig(context.Background(), baseReq(), baseParams())
+		assert.NoError(tt, err)
+		badReq, ok := result.(*gcpgenserver.V1betaBackupConfigBadRequest)
+		assert.True(tt, ok)
+		assert.NotEmpty(tt, badReq.Message)
+		mockOrchestrator.AssertExpectations(tt)
+	})
+
+	t.Run("OrchestratorReturns_InternalError_Returns500", func(tt *testing.T) {
+		orig := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = true
+		defer func() { ExpertModeBackupEnabled = orig }()
+
+		setupLocation(tt)
+
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().ManageBackupConfigForExpertModeVolume(
+			mock.Anything,
+			mock.Anything,
+		).Return(nil, "", stderrors.New("internal server error")).Once()
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaBackupConfig(context.Background(), baseReq(), baseParams())
+		assert.NoError(tt, err)
+		serverErr, ok := result.(*gcpgenserver.V1betaBackupConfigInternalServerError)
+		assert.True(tt, ok)
+		assert.Contains(tt, serverErr.Message, "internal server error")
+		mockOrchestrator.AssertExpectations(tt)
+	})
+
+	t.Run("Success_WithKmsGrant", func(tt *testing.T) {
+		orig := ExpertModeBackupEnabled
+		ExpertModeBackupEnabled = true
+		defer func() { ExpertModeBackupEnabled = orig }()
+
+		origCmek := cmekBackupEnabled
+		cmekBackupEnabled = true
+		defer func() { cmekBackupEnabled = origCmek }()
+
+		setupLocation(tt)
+
+		const kmsKey = "projects/p/locations/l/keyRings/r/cryptoKeys/k"
+		bc := gcpgenserver.BackupConfigRequestV1betaBackupConfig{}
+		bc.BackupVaultId.SetTo("vault-uuid")
+		bc.KmsGrant.SetTo(kmsKey)
+		req := &gcpgenserver.BackupConfigRequestV1beta{
+			VolumeUuid:   "volume-uuid",
+			BackupConfig: bc,
+		}
+
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		mockOrchestrator.EXPECT().ManageBackupConfigForExpertModeVolume(
+			mock.Anything,
+			mock.MatchedBy(func(p *commonparams.ManageBackupConfigForExpertModeVolumeParams) bool {
+				return p.KmsGrant != nil && *p.KmsGrant == kmsKey
+			}),
+		).Return(nil, "job-uuid", nil).Once()
+
+		handler := Handler{Orchestrator: mockOrchestrator}
+		result, err := handler.V1betaBackupConfig(context.Background(), req, baseParams())
+		assert.NoError(tt, err)
+		_, ok := result.(*gcpgenserver.OperationV1beta)
+		assert.True(tt, ok)
+		mockOrchestrator.AssertExpectations(tt)
+	})
+}

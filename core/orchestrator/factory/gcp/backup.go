@@ -162,6 +162,25 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 		if err != nil {
 			return nil, "", err
 		}
+		// Guard: if the volume's attached vault differs from the requested vault, block
+		// the backup creation when existing backups are tied to the current vault.
+		if expertModeVol.BackupConfig != nil &&
+			expertModeVol.BackupConfig.BackupVaultID != "" &&
+			expertModeVol.BackupConfig.BackupVaultID != params.BackupVaultID {
+			currentVault, errVault := se.GetBackupVault(ctx, expertModeVol.BackupConfig.BackupVaultID)
+			if errVault != nil {
+				logger.Error("Failed to look up current backup vault for vault-switch check", "backupVaultID", expertModeVol.BackupConfig.BackupVaultID, "error", errVault)
+				return nil, "", errVault
+			}
+			backupCount, errCount := se.GetBackupCountByVolumeAndVault(ctx, expertModeVol.ExternalUUID, currentVault.ID)
+			if errCount != nil {
+				logger.Error("Failed to check backup count for vault-switch check", "volumeUUID", expertModeVol.ExternalUUID, "error", errCount)
+				return nil, "", errCount
+			}
+			if backupCount > 0 {
+				return nil, "", customerrors.NewUserInputValidationErr("switching backup vault is not supported while backups exist; delete the existing backups first")
+			}
+		}
 	} else {
 		// Fetch from regular Volumes table
 		// For GCBDR vaults, skip account validation - fetch by UUID only

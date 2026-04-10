@@ -8,13 +8,18 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	expertModeWorkflows "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows/expertMode"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	customerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	workflowenginemock "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine"
 	"go.temporal.io/sdk/client"
 	"gorm.io/gorm"
@@ -1099,6 +1104,7 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 
 		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+		mockStorage.EXPECT().IsBackupInCreatingorDeletingStateByVolume(ctx, volume.ExternalUUID).Return(false, nil).Once()
 		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(nil, errors.New("failed to update volume state")).Once()
 
 		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
@@ -1157,6 +1163,7 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 
 		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+		mockStorage.EXPECT().IsBackupInCreatingorDeletingStateByVolume(ctx, volume.ExternalUUID).Return(false, nil).Once()
 		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(volume, nil).Once()
 		mockStorage.EXPECT().CreateJob(ctx, mock.AnythingOfType("*datamodel.Job")).Return(nil, errors.New("failed to create job")).Once()
 
@@ -1203,6 +1210,129 @@ func TestDeleteExpertModeVolume(t *testing.T) {
 		assert.NoError(tt, err)
 
 		mockLogger.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+	t.Run("Failure_BackupInCreatingState_BlocksDeletion", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger, store, _, _, _, volume := setupStore(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		// Insert a backup in CREATING state for this volume.
+		backup := &datamodel.Backup{
+			BaseModel:  datamodel.BaseModel{UUID: "backup-creating-uuid"},
+			VolumeUUID: volume.ExternalUUID,
+			State:      models.LifeCycleStateCreating,
+		}
+		err := store.DB().Create(backup).Error
+		assert.NoError(tt, err)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			AccountName: "test_account",
+			PoolUUID:    "550e8400-e29b-41d4-a716-446655440000",
+		}
+
+		orch := &GCPOrchestrator{storage: store, temporal: temporal}
+		err = orch.DeleteExpertModeVolume(ctx, params)
+
+		assert.Error(tt, err)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "backup operation on volume is currently in progress")
+
+		// Volume state must remain unchanged (not set to DELETING).
+		var updatedVolume datamodel.ExpertModeVolumes
+		dbErr := store.DB().Where("uuid = ?", volume.UUID).First(&updatedVolume).Error
+		assert.NoError(tt, dbErr)
+		assert.NotEqual(tt, models.LifeCycleStateDeleting, updatedVolume.State)
+
+		mockLogger.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_BackupInDeletingState_BlocksDeletion", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+		mockLogger, store, _, _, _, volume := setupStore(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		// Insert a backup in DELETING state for this volume.
+		backup := &datamodel.Backup{
+			BaseModel:  datamodel.BaseModel{UUID: "backup-deleting-uuid"},
+			VolumeUUID: volume.ExternalUUID,
+			State:      models.LifeCycleStateDeleting,
+		}
+		err := store.DB().Create(backup).Error
+		assert.NoError(tt, err)
+
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			AccountName: "test_account",
+			PoolUUID:    "550e8400-e29b-41d4-a716-446655440000",
+		}
+
+		orch := &GCPOrchestrator{storage: store, temporal: temporal}
+		err = orch.DeleteExpertModeVolume(ctx, params)
+
+		assert.Error(tt, err)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "backup operation on volume is currently in progress")
+
+		// Volume state must remain unchanged.
+		var updatedVolume datamodel.ExpertModeVolumes
+		dbErr := store.DB().Where("uuid = ?", volume.UUID).First(&updatedVolume).Error
+		assert.NoError(tt, dbErr)
+		assert.NotEqual(tt, models.LifeCycleStateDeleting, updatedVolume.State)
+
+		mockLogger.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_BackupTransitionCheck_DBError_BlocksDeletion", func(tt *testing.T) {
+		ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "550e8400-e29b-41d4-a716-446655440000"},
+			Name:      "test_pool",
+		}
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{ID: 1, UUID: "test-volume-uuid"},
+			Name:         "test-volume",
+			SizeInBytes:  1099511627776,
+			PoolID:       pool.ID,
+			AccountID:    account.ID,
+			Style:        "flexvol",
+			State:        models.LifeCycleStateAvailable,
+			ExternalUUID: "770e8400-e29b-41d4-a716-446655440002",
+			Pool:         pool,
+		}
+
+		mockStorage := database.NewMockStorage(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(&datamodel.PoolView{Pool: *pool}, nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+		mockStorage.EXPECT().IsBackupInCreatingorDeletingStateByVolume(ctx, volume.ExternalUUID).Return(false, errors.New("db query failed")).Once()
+
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		params := &commonparams.ExpertModeVolumeParams{
+			VolumeUUID:  volume.ExternalUUID,
+			AccountName: account.Name,
+			PoolUUID:    pool.UUID,
+		}
+
+		orch := &GCPOrchestrator{storage: mockStorage, temporal: temporal}
+		err := orch.DeleteExpertModeVolume(ctx, params)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "db query failed")
+		mockStorage.AssertExpectations(tt)
 		temporal.AssertExpectations(tt)
 	})
 }
@@ -3271,6 +3401,1422 @@ func TestGetExpertModeVolumeByUUID(t *testing.T) {
 		assert.Nil(tt, result)
 
 		mockLogger.AssertExpectations(tt)
+	})
+}
+
+func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	baseParams := func() *commonparams.ManageBackupConfigForExpertModeVolumeParams {
+		return &commonparams.ManageBackupConfigForExpertModeVolumeParams{
+			AccountName:   "test-account",
+			PoolUUID:      "pool-uuid",
+			VolumeUUID:    "volume-uuid",
+			BackupVaultID: "vault-uuid",
+			Region:        "us-east4",
+		}
+	}
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+		Name:      "test-account",
+	}
+	poolView := &datamodel.PoolView{Pool: datamodel.Pool{
+		BaseModel:     datamodel.BaseModel{UUID: "pool-uuid"},
+		APIAccessMode: commonparams.ONTAPMode,
+	}}
+	expertModeVolume := &datamodel.ExpertModeVolumes{
+		BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
+		ExternalUUID: "volume-uuid",
+		Name:         "expert-vol",
+		State:        models.LifeCycleStateREADY,
+		Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
+	}
+
+	t.Run("GetAccountWithNameError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return nil, errors.New("account not found")
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("GetPoolError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(nil, errors.New("db error"))
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("PoolNotONTAPMode", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		nonONTAPPool := &datamodel.PoolView{Pool: datamodel.Pool{APIAccessMode: "DEFAULT"}}
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(nonONTAPPool, nil)
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "expert mode")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("GetExpertModeVolumeNotFound", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(nil, gorm.ErrRecordNotFound)
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "not found")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("GetExpertModeVolumeDBError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(nil, errors.New("db error"))
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("VolumeNotInPool", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		volumeInDifferentPool := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
+			ExternalUUID: "volume-uuid",
+			State:        models.LifeCycleStateREADY,
+			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "other-pool-uuid"}},
+		}
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(volumeInDifferentPool, nil)
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "does not belong to the specified pool")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("VolumeDeleting_ReturnsError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		deletingVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
+			ExternalUUID: "volume-uuid",
+			State:        models.LifeCycleStateDeleting,
+			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
+		}
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(deletingVolume, nil)
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "not in a ready state")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("VolumeDeleted_ReturnsError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		deletedVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
+			ExternalUUID: "volume-uuid",
+			State:        models.LifeCycleStateDeleted,
+			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
+		}
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(deletedVolume, nil)
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "not in a ready state")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("PolicyRequiresVault_NoVaultAnywhere", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+
+		params := baseParams()
+		params.BackupVaultID = ""
+		params.BackupPolicyID = nillable.ToPointer("policy-uuid")
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "backup vault id is required to assign a backup policy to a volume")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("KmsGrantRequiresVault_NoVaultAnywhere", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+
+		kmsGrant := "projects/p/locations/l/keyRings/r/cryptoKeys/k"
+		params := baseParams()
+		params.BackupVaultID = ""
+		params.KmsGrant = &kmsGrant
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "backup vault id is required to assign a backup policy to a volume")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("PolicyWithExistingVaultCarriedForward", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		volumeWithVault := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
+			ExternalUUID: "volume-uuid",
+			Name:         "expert-vol",
+			State:        models.LifeCycleStateREADY,
+			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
+			BackupConfig: &datamodel.DataProtection{BackupVaultID: "existing-vault-uuid"},
+		}
+		createdJob := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "workflow-id"}
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(volumeWithVault, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "existing-vault-uuid", int64(1)).Return(nil, nil)
+		mockStorage.EXPECT().GetBackupPolicyByUUIDAndOwnerID(mock.Anything, "policy-uuid", int64(1)).Return(nil, nil)
+		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
+		mockStorage.EXPECT().UpdateExpertModeVolume(mock.Anything, mock.Anything).Return(volumeWithVault, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		enabled := true
+		params := baseParams()
+		params.BackupVaultID = ""
+		params.BackupPolicyID = nillable.ToPointer("policy-uuid")
+		params.ScheduledBackupEnabled = &enabled
+		backupConfig, jobUUID, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, backupConfig)
+		assert.Equal(tt, "job-uuid", jobUUID)
+		assert.Equal(tt, "existing-vault-uuid", params.BackupVaultID)
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
+	t.Run("DetachVaultBlockedByExistingPolicy", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		volumeWithPolicy := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
+			ExternalUUID: "volume-uuid",
+			Name:         "expert-vol",
+			State:        models.LifeCycleStateREADY,
+			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
+			BackupConfig: &datamodel.DataProtection{BackupVaultID: "vault-uuid", BackupPolicyID: "policy-uuid"},
+		}
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(volumeWithPolicy, nil)
+
+		params := baseParams()
+		params.BackupVaultID = ""
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "cannot remove backup vault while a backup policy is attached")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("DetachVaultBlockedByExistingKmsGrant", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		kmsGrant := "projects/p/locations/l/keyRings/r/cryptoKeys/k"
+		volumeWithKms := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
+			ExternalUUID: "volume-uuid",
+			Name:         "expert-vol",
+			State:        models.LifeCycleStateREADY,
+			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
+			BackupConfig: &datamodel.DataProtection{BackupVaultID: "vault-uuid", KmsGrant: &kmsGrant},
+		}
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(volumeWithKms, nil)
+
+		params := baseParams()
+		params.BackupVaultID = ""
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "cannot remove backup vault while a KMS grant is attached")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("DetachVaultBlockedByExistingBackups", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		volumeWithVault := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
+			ExternalUUID: "volume-uuid",
+			Name:         "expert-vol",
+			State:        models.LifeCycleStateREADY,
+			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
+			BackupConfig: &datamodel.DataProtection{BackupVaultID: "vault-uuid"},
+		}
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(volumeWithVault, nil)
+		mockStorage.EXPECT().GetBackupCountByVolumeUUIDs(mock.Anything, []string{"volume-uuid"}, mock.Anything).
+			Return(map[string]int64{"volume-uuid": 3}, nil)
+
+		params := baseParams()
+		params.BackupVaultID = ""
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "cannot remove backup vault as there are backups associated with it")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("DetachVaultBackupCountError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		volumeWithVault := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
+			ExternalUUID: "volume-uuid",
+			Name:         "expert-vol",
+			State:        models.LifeCycleStateREADY,
+			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
+			BackupConfig: &datamodel.DataProtection{BackupVaultID: "vault-uuid"},
+		}
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(volumeWithVault, nil)
+		mockStorage.EXPECT().GetBackupCountByVolumeUUIDs(mock.Anything, []string{"volume-uuid"}, mock.Anything).
+			Return(nil, errors.New("db error"))
+
+		params := baseParams()
+		params.BackupVaultID = ""
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.Contains(tt, err.Error(), "db error")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("VaultInErrorStateRejected", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		errorVault := &datamodel.BackupVault{LifeCycleState: models.LifeCycleStateError}
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(errorVault, nil)
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "backup vault is in error state")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CMEKVaultRequiresKmsGrant", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		kmsPath := "projects/p/locations/l/keyRings/r/cryptoKeys/k"
+		cmekVault := &datamodel.BackupVault{
+			LifeCycleState: models.LifeCycleStateREADY,
+			CmekAttributes: &datamodel.CmekAttributes{KmsConfigResourcePath: &kmsPath},
+		}
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(cmekVault, nil)
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "KMS Grant is required for CMEK Backup vault")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("BackupPolicyNotReadyRejected", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		notReadyPolicy := &datamodel.BackupPolicy{LifeCycleState: models.LifeCycleStateCreating}
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
+		mockStorage.EXPECT().GetBackupPolicyByUUIDAndOwnerID(mock.Anything, "policy-uuid", int64(1)).Return(notReadyPolicy, nil)
+
+		enabled := true
+		params := baseParams()
+		params.BackupPolicyID = nillable.ToPointer("policy-uuid")
+		params.ScheduledBackupEnabled = &enabled
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "backup policy is not in ready state")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ScheduledBackupEnabledRequiredWithPolicy", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
+		mockStorage.EXPECT().GetBackupPolicyByUUIDAndOwnerID(mock.Anything, "policy-uuid", int64(1)).Return(nil, nil)
+
+		params := baseParams()
+		params.BackupPolicyID = nillable.ToPointer("policy-uuid")
+		params.ScheduledBackupEnabled = nil
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "scheduled backups needs to be enabled/disabled when a backup policy is assigned")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ScheduledBackupEnabledTrueWithoutPolicy", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
+
+		enabled := true
+		params := baseParams()
+		params.BackupPolicyID = nil // not provided; volume has no existing policy → error expected
+		params.ScheduledBackupEnabled = &enabled
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "cannot enable scheduled backups without a backup policy")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("VaultSwitchNotAllowed_BackupsExist", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		existingVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 42, UUID: "existing-vault-uuid"}, LifeCycleState: models.LifeCycleStateREADY}
+		volumeWithExistingVault := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
+			ExternalUUID: "volume-uuid",
+			Name:         "expert-vol",
+			State:        models.LifeCycleStateREADY,
+			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
+			BackupConfig: &datamodel.DataProtection{BackupVaultID: "existing-vault-uuid"},
+		}
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(volumeWithExistingVault, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "new-different-vault-uuid", int64(1)).Return(nil, nil)
+		mockStorage.EXPECT().GetBackupVault(mock.Anything, "existing-vault-uuid").Return(existingVault, nil)
+		mockStorage.EXPECT().GetBackupCountByVolumeAndVault(mock.Anything, "volume-uuid", int64(42)).Return(int64(3), nil)
+
+		params := baseParams()
+		params.BackupVaultID = "new-different-vault-uuid"
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "switching backup vault is not supported while backups exist")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("VaultSwitchAllowed_NoBackupsExist", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		existingVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 42, UUID: "existing-vault-uuid"}, LifeCycleState: models.LifeCycleStateREADY}
+		newVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: "new-different-vault-uuid"}, LifeCycleState: models.LifeCycleStateREADY}
+		volumeWithExistingVault := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
+			ExternalUUID: "volume-uuid",
+			Name:         "expert-vol",
+			State:        models.LifeCycleStateREADY,
+			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
+			BackupConfig: &datamodel.DataProtection{BackupVaultID: "existing-vault-uuid"},
+		}
+		createdJob := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "wf-id"}
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(volumeWithExistingVault, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "new-different-vault-uuid", int64(1)).Return(newVault, nil)
+		mockStorage.EXPECT().GetBackupVault(mock.Anything, "existing-vault-uuid").Return(existingVault, nil)
+		mockStorage.EXPECT().GetBackupCountByVolumeAndVault(mock.Anything, "volume-uuid", int64(42)).Return(int64(0), nil)
+		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
+		mockStorage.EXPECT().UpdateExpertModeVolume(mock.Anything, mock.Anything).Return(volumeWithExistingVault, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		params := baseParams()
+		params.BackupVaultID = "new-different-vault-uuid"
+		backupConfig, jobUUID, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, backupConfig)
+		assert.Equal(tt, "job-uuid", jobUUID)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	// ── EnableBackupVaultSwitching: cross-project vault lookup ────────────────
+
+	t.Run("BackupVaultSwitchingEnabled_UsesGetBackupVault", func(tt *testing.T) {
+		orig := utils.EnableBackupVaultSwitching
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
+
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		readyVault := &datamodel.BackupVault{LifeCycleState: models.LifeCycleStateREADY}
+		createdJob := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "wf-id"}
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		// Must call GetBackupVault (UUID-only lookup), NOT GetBackupVaultByUUIDndOwnerID.
+		mockStorage.EXPECT().GetBackupVault(mock.Anything, "vault-uuid").Return(readyVault, nil)
+		mockStorage.EXPECT().GetDistinctBackupVaultIDsByVolumeUUID(mock.Anything, "emv-uuid").Return([]int64{}, nil)
+		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
+		mockStorage.EXPECT().UpdateExpertModeVolume(mock.Anything, mock.Anything).Return(expertModeVolume, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		backupConfig, jobUUID, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.NoError(tt, err)
+		assert.NotNil(tt, backupConfig)
+		assert.Equal(tt, "job-uuid", jobUUID)
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
+	// ── GCBDR re-attach guard ─────────────────────────────────────────────────
+
+	t.Run("ReattachVault_NonGCBDR_BlockedByDetachedBackups", func(tt *testing.T) {
+		orig := utils.EnableBackupVaultSwitching
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
+
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		// Volume has no vault attached.
+		volNoVault := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
+			ExternalUUID: "volume-uuid",
+			Name:         "expert-vol",
+			State:        models.LifeCycleStateREADY,
+			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
+		}
+		nonGCBDRVault := &datamodel.BackupVault{
+			LifeCycleState: models.LifeCycleStateREADY,
+			ServiceType:    "GCNV", // not GCBDR
+		}
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(volNoVault, nil)
+		mockStorage.EXPECT().GetBackupVault(mock.Anything, "vault-uuid").Return(nonGCBDRVault, nil)
+		// Volume has backups from a previously detached vault.
+		mockStorage.EXPECT().GetDistinctBackupVaultIDsByVolumeUUID(mock.Anything, "emv-uuid").Return([]int64{99}, nil)
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "non-GCBDR backup vault")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ReattachVault_GCBDR_AllowedWithDetachedBackups", func(tt *testing.T) {
+		orig := utils.EnableBackupVaultSwitching
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
+
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		volNoVault := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
+			ExternalUUID: "volume-uuid",
+			Name:         "expert-vol",
+			State:        models.LifeCycleStateREADY,
+			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
+		}
+		gcbdrVault := &datamodel.BackupVault{
+			LifeCycleState: models.LifeCycleStateREADY,
+			ServiceType:    activities.GCBDRServiceType,
+		}
+		createdJob := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "wf-id"}
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(volNoVault, nil)
+		mockStorage.EXPECT().GetBackupVault(mock.Anything, "vault-uuid").Return(gcbdrVault, nil)
+		// Has detached backups, but GCBDR is allowed.
+		mockStorage.EXPECT().GetDistinctBackupVaultIDsByVolumeUUID(mock.Anything, "emv-uuid").Return([]int64{99}, nil)
+		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
+		mockStorage.EXPECT().UpdateExpertModeVolume(mock.Anything, mock.Anything).Return(volNoVault, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		backupConfig, jobUUID, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.NoError(tt, err)
+		assert.NotNil(tt, backupConfig)
+		assert.Equal(tt, "job-uuid", jobUUID)
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
+	t.Run("ReattachVault_GetDistinctVaultIDsError", func(tt *testing.T) {
+		orig := utils.EnableBackupVaultSwitching
+		utils.SetEnableBackupVaultSwitchingForTest(true)
+		defer utils.SetEnableBackupVaultSwitchingForTest(orig)
+
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		volNoVault := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
+			ExternalUUID: "volume-uuid",
+			Name:         "expert-vol",
+			State:        models.LifeCycleStateREADY,
+			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
+		}
+		nonGCBDRVault := &datamodel.BackupVault{LifeCycleState: models.LifeCycleStateREADY, ServiceType: "GCNV"}
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(volNoVault, nil)
+		mockStorage.EXPECT().GetBackupVault(mock.Anything, "vault-uuid").Return(nonGCBDRVault, nil)
+		mockStorage.EXPECT().GetDistinctBackupVaultIDsByVolumeUUID(mock.Anything, "emv-uuid").Return(nil, errors.New("db error"))
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.Contains(tt, err.Error(), "db error")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	// ── Immutable backup policy validation ────────────────────────────────────
+
+	t.Run("ImmutableBackup_ValidationFails_Rejected", func(tt *testing.T) {
+		utils.SetImmutableBackupEnabledForTest(true)
+		defer utils.SetImmutableBackupEnabledForTest(false)
+
+		origFn := checkIsValidImmutableBackupPolicyWithRetry
+		checkIsValidImmutableBackupPolicyWithRetry = func(_ context.Context, _ database.Storage, _, _ string, _ int64, _, _ string) error {
+			return errors.New("daily backup retention must be at least 7 days for immutable vault")
+		}
+		defer func() { checkIsValidImmutableBackupPolicyWithRetry = origFn }()
+
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		readyPolicy := &datamodel.BackupPolicy{LifeCycleState: models.LifeCycleStateREADY}
+		enabled := true
+		params := baseParams()
+		params.BackupPolicyID = nillable.ToPointer("policy-uuid")
+		params.ScheduledBackupEnabled = &enabled
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
+		mockStorage.EXPECT().GetBackupPolicyByUUIDAndOwnerID(mock.Anything, "policy-uuid", int64(1)).Return(readyPolicy, nil)
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUserInputValidationErr(err))
+		assert.Contains(tt, err.Error(), "immutable backup vault settings")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ImmutableBackup_BackupPolicyUpdating_ReturnsUnavailable", func(tt *testing.T) {
+		utils.SetImmutableBackupEnabledForTest(true)
+		defer utils.SetImmutableBackupEnabledForTest(false)
+
+		origFn := checkIsValidImmutableBackupPolicyWithRetry
+		checkIsValidImmutableBackupPolicyWithRetry = func(_ context.Context, _ database.Storage, _, _ string, _ int64, _, _ string) error {
+			return vsaerrors.NewVCPError(vsaerrors.ErrImmutableValidationWithUpdatingBackupPolicy, errors.New("backup policy is updating"))
+		}
+		defer func() { checkIsValidImmutableBackupPolicyWithRetry = origFn }()
+
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		readyPolicy := &datamodel.BackupPolicy{LifeCycleState: models.LifeCycleStateREADY}
+		enabled := true
+		params := baseParams()
+		params.BackupPolicyID = nillable.ToPointer("policy-uuid")
+		params.ScheduledBackupEnabled = &enabled
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
+		mockStorage.EXPECT().GetBackupPolicyByUUIDAndOwnerID(mock.Anything, "policy-uuid", int64(1)).Return(readyPolicy, nil)
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUnavailableErr(err))
+		assert.Contains(tt, err.Error(), "currently being updated")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ImmutableBackup_BackupVaultUpdating_ReturnsUnavailable", func(tt *testing.T) {
+		utils.SetImmutableBackupEnabledForTest(true)
+		defer utils.SetImmutableBackupEnabledForTest(false)
+
+		origFn := checkIsValidImmutableBackupPolicyWithRetry
+		checkIsValidImmutableBackupPolicyWithRetry = func(_ context.Context, _ database.Storage, _, _ string, _ int64, _, _ string) error {
+			return vsaerrors.NewVCPError(vsaerrors.ErrImmutableValidationWithUpdatingBackupVault, errors.New("backup vault is updating"))
+		}
+		defer func() { checkIsValidImmutableBackupPolicyWithRetry = origFn }()
+
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		readyPolicy := &datamodel.BackupPolicy{LifeCycleState: models.LifeCycleStateREADY}
+		enabled := true
+		params := baseParams()
+		params.BackupPolicyID = nillable.ToPointer("policy-uuid")
+		params.ScheduledBackupEnabled = &enabled
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
+		mockStorage.EXPECT().GetBackupPolicyByUUIDAndOwnerID(mock.Anything, "policy-uuid", int64(1)).Return(readyPolicy, nil)
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUnavailableErr(err))
+		assert.Contains(tt, err.Error(), "currently being updated")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ImmutableBackup_ValidationPasses_Proceeds", func(tt *testing.T) {
+		utils.SetImmutableBackupEnabledForTest(true)
+		defer utils.SetImmutableBackupEnabledForTest(false)
+
+		origFn := checkIsValidImmutableBackupPolicyWithRetry
+		checkIsValidImmutableBackupPolicyWithRetry = func(_ context.Context, _ database.Storage, _, _ string, _ int64, _, _ string) error {
+			return nil
+		}
+		defer func() { checkIsValidImmutableBackupPolicyWithRetry = origFn }()
+
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		readyPolicy := &datamodel.BackupPolicy{LifeCycleState: models.LifeCycleStateREADY}
+		createdJob := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "wf-id"}
+		enabled := true
+		params := baseParams()
+		params.BackupPolicyID = nillable.ToPointer("policy-uuid")
+		params.ScheduledBackupEnabled = &enabled
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
+		mockStorage.EXPECT().GetBackupPolicyByUUIDAndOwnerID(mock.Anything, "policy-uuid", int64(1)).Return(readyPolicy, nil)
+		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
+		mockStorage.EXPECT().UpdateExpertModeVolume(mock.Anything, mock.Anything).Return(expertModeVolume, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		backupConfig, jobUUID, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, backupConfig)
+		assert.Equal(tt, "job-uuid", jobUUID)
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
+	// ─────────────────────────────────────────────────────────────────────────
+
+	t.Run("CreateJobError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
+		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(nil, errors.New("create job failed"))
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.Contains(tt, err.Error(), "create job failed")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WorkflowStartError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		createdJob := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "workflow-id",
+		}
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
+		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
+		// Defer 1: mark job ERROR.
+		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(models.JobsStateERROR), 0, "workflow start failed").Return(nil)
+		// Set volume to UPDATING before launching the workflow.
+		mockStorage.EXPECT().UpdateExpertModeVolume(mock.Anything, mock.Anything).Return(expertModeVolume, nil).Once()
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("workflow start failed"))
+		// Defer 2: mark volume ERROR after workflow launch fails.
+		mockStorage.EXPECT().UpdateExpertModeVolume(mock.Anything, mock.Anything).Return(expertModeVolume, nil).Once()
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "workflow start failed")
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
+	// ── State-management tests (new behaviour) ───────────────────────────────
+
+	t.Run("CreateJobFirst_VolumeStateNotChangedOnCreateJobFailure", func(tt *testing.T) {
+		// Job must be created BEFORE UpdateExpertModeVolume(UPDATING).
+		// If CreateJob fails, UpdateExpertModeVolume must never be called.
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
+		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(nil, errors.New("db unavailable"))
+		// UpdateExpertModeVolume must NOT be called.
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "db unavailable")
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
+	t.Run("UpdateToUpdatingFails_JobMarkedError_VolumeNotLaunched", func(tt *testing.T) {
+		// After CreateJob succeeds, setting volume to UPDATING fails.
+		// Defer 1 must mark the job as ERROR; workflow must not be launched.
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		createdJob := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "wf-id"}
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
+		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
+		// Defer 1: job must be marked ERROR.
+		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(models.JobsStateERROR), mock.Anything, mock.Anything).Return(nil)
+		// Setting UPDATING fails.
+		mockStorage.EXPECT().UpdateExpertModeVolume(mock.Anything, mock.Anything).Return(nil, errors.New("db write failed"))
+		// Workflow must NOT be launched (Defer 2 does not fire since UPDATING was never set).
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "db write failed")
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
+	t.Run("WorkflowLaunchFails_BothDefersFireCorrectly", func(tt *testing.T) {
+		// Workflow launch fails after UPDATING is set.
+		// Defer 1: job → ERROR. Defer 2: volume → ERROR.
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		createdJob := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "wf-id"}
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
+		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
+		// Defer 1: job → ERROR.
+		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(models.JobsStateERROR), mock.Anything, mock.Anything).Return(nil)
+		// Set volume UPDATING (succeeds).
+		mockStorage.EXPECT().UpdateExpertModeVolume(mock.Anything, mock.Anything).Return(expertModeVolume, nil).Once()
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("temporal unavailable"))
+		// Defer 2: volume → ERROR.
+		mockStorage.EXPECT().UpdateExpertModeVolume(mock.Anything, mock.Anything).Return(expertModeVolume, nil).Once()
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		assert.Contains(tt, err.Error(), "temporal unavailable")
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
+	t.Run("Success_BackupConfigFieldsReturnedFromParams", func(tt *testing.T) {
+		// On success, the returned *DataProtection must reflect the params values.
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		createdJob := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "wf-id"}
+		readyPolicy := &datamodel.BackupPolicy{LifeCycleState: models.LifeCycleStateREADY}
+		enabled := true
+		params := baseParams()
+		params.BackupPolicyID = nillable.ToPointer("policy-uuid")
+		params.ScheduledBackupEnabled = &enabled
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
+		mockStorage.EXPECT().GetBackupPolicyByUUIDAndOwnerID(mock.Anything, "policy-uuid", int64(1)).Return(readyPolicy, nil)
+		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
+		mockStorage.EXPECT().UpdateExpertModeVolume(mock.Anything, mock.Anything).Return(expertModeVolume, nil)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		backupConfig, jobUUID, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "job-uuid", jobUUID)
+		assert.NotNil(tt, backupConfig)
+		assert.Equal(tt, "vault-uuid", backupConfig.BackupVaultID)
+		assert.Equal(tt, "policy-uuid", backupConfig.BackupPolicyID)
+		assert.NotNil(tt, backupConfig.ScheduledBackupEnabled)
+		assert.True(tt, *backupConfig.ScheduledBackupEnabled)
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
+	t.Run("Success", func(tt *testing.T) {
+		mockLogger := log.NewMockLogger(tt)
+		mockLogger.EXPECT().InfoContext(mock.Anything, "Running AutoMigrate for model changes")
+		store, err := database.SetupStorageForTest(mockLogger)
+		assert.NoError(tt, err)
+		err = database.ClearInMemoryDB(store.DB())
+		assert.NoError(tt, err)
+
+		dbAccount := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "test-account-uuid"},
+			Name:      "test_account",
+		}
+		err = store.DB().Create(dbAccount).Error
+		assert.NoError(tt, err)
+		dbPool := &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "550e8400-e29b-41d4-a716-446655440000"},
+			Name:           "test_pool",
+			AccountID:      dbAccount.ID,
+			SizeInBytes:    2199023255552,
+			APIAccessMode:  commonparams.ONTAPMode,
+			PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-west1-a"},
+		}
+		err = store.DB().Create(dbPool).Error
+		assert.NoError(tt, err)
+		dbVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
+			ExternalUUID: "ext-volume-uuid",
+			Name:         "expert-vol",
+			State:        models.LifeCycleStateREADY,
+			Style:        models.LifeCycleStateAvailableDetails,
+			PoolID:       dbPool.ID,
+			AccountID:    dbAccount.ID,
+		}
+		err = store.DB().Create(dbVolume).Error
+		assert.NoError(tt, err)
+
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+		params := &commonparams.ManageBackupConfigForExpertModeVolumeParams{
+			AccountName:   "test_account",
+			PoolUUID:      dbPool.UUID,
+			VolumeUUID:    dbVolume.ExternalUUID,
+			BackupVaultID: "vault-uuid",
+			Region:        "us-east4",
+		}
+
+		orch := &GCPOrchestrator{storage: store, temporal: mockTemporal}
+		backupConfig, jobUUID, err := orch.ManageBackupConfigForExpertModeVolume(ctx, params)
+
+		assert.NoError(tt, err)
+		assert.NotNil(tt, backupConfig)
+		assert.NotEmpty(tt, jobUUID)
+		var job datamodel.Job
+		err = store.DB().Where("resource_name = ?", dbVolume.Name).First(&job).Error
+		assert.NoError(tt, err)
+		assert.Equal(tt, jobUUID, job.UUID)
+		assert.Equal(tt, string(models.JobTypeManageBackupConfigExpertModeVolume), job.Type)
+		mockLogger.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
+	t.Run("Success_WithBackupPolicy", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		createdJob := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid-2"},
+			WorkflowID: "workflow-id-2",
+		}
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
+		mockStorage.EXPECT().GetBackupPolicyByUUIDAndOwnerID(mock.Anything, "policy-uuid", int64(1)).Return(nil, nil)
+		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
+		mockStorage.EXPECT().UpdateExpertModeVolume(mock.Anything, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(expertModeVolume, nil).Once()
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+
+		enabled := true
+		params := baseParams()
+		params.BackupPolicyID = nillable.ToPointer("policy-uuid")
+		params.ScheduledBackupEnabled = &enabled
+		backupConfig, jobUUID, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
+		assert.NoError(tt, err)
+		assert.Equal(tt, createdJob.UUID, jobUUID)
+		assert.NotNil(tt, backupConfig)
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
+	})
+
+	// ── Vault lookup non-not-found error (line 119) ───────────────────────────
+	t.Run("GetBackupVaultDBError_ReturnsErr", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).
+			Return(nil, errors.New("db connection error"))
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.Contains(tt, err.Error(), "db connection error")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	// ── bv == nil && UseVCPRegion (line 124) ─────────────────────────────────
+	t.Run("BackupVaultNotFound_UseVCPRegion_ReturnsNotFound", func(tt *testing.T) {
+		origUseVCPRegion := env.UseVCPRegion
+		env.UseVCPRegion = true
+		defer func() { env.UseVCPRegion = origUseVCPRegion }()
+
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsNotFoundErr(err))
+		assert.Contains(tt, err.Error(), "backup vault")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	// ── validateCRBBackupVault error (line 131) ───────────────────────────────
+	t.Run("CRBVaultDisabled_ValidateCRBFails", func(tt *testing.T) {
+		origCRB := utils.IsCrossRegionBackupEnabled()
+		utils.SetCrossRegionBackupEnabledForTest(false)
+		defer utils.SetCrossRegionBackupEnabledForTest(origCRB)
+
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		crbVault := &datamodel.BackupVault{
+			LifeCycleState:  models.LifeCycleStateREADY,
+			BackupVaultType: activities.CrossRegionBackupType,
+		}
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(crbVault, nil)
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.Contains(tt, err.Error(), activities.CrossRegionBackupVaultErrMsg)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	// ── GetBackupPolicyByUUIDAndOwnerID non-not-found error (line 158) ────────
+	t.Run("GetBackupPolicyDBError_ReturnsErr", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
+		mockStorage.EXPECT().GetBackupPolicyByUUIDAndOwnerID(mock.Anything, "policy-uuid", int64(1)).
+			Return(nil, errors.New("policy db error"))
+
+		enabled := true
+		params := baseParams()
+		params.BackupPolicyID = nillable.ToPointer("policy-uuid")
+		params.ScheduledBackupEnabled = &enabled
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.Contains(tt, err.Error(), "policy db error")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	// ── backupPolicy == nil && UseVCPRegion (line 163) ────────────────────────
+	t.Run("BackupPolicyNotFound_UseVCPRegion_ReturnsNotFound", func(tt *testing.T) {
+		origUseVCPRegion := env.UseVCPRegion
+		env.UseVCPRegion = true
+		defer func() { env.UseVCPRegion = origUseVCPRegion }()
+
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		// Vault must be found (non-nil) so code proceeds past vault check to the policy check.
+		readyVault := &datamodel.BackupVault{LifeCycleState: models.LifeCycleStateREADY}
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(readyVault, nil)
+		mockStorage.EXPECT().GetBackupPolicyByUUIDAndOwnerID(mock.Anything, "policy-uuid", int64(1)).Return(nil, nil)
+
+		enabled := true
+		params := baseParams()
+		params.BackupPolicyID = nillable.ToPointer("policy-uuid")
+		params.ScheduledBackupEnabled = &enabled
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsNotFoundErr(err))
+		assert.Contains(tt, err.Error(), "backup policy")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	// ── ImmutableBackup UnavailableErr (line 181) ─────────────────────────────
+	t.Run("ImmutableBackup_UnavailableErr_ReturnsUnavailable", func(tt *testing.T) {
+		utils.SetImmutableBackupEnabledForTest(true)
+		defer utils.SetImmutableBackupEnabledForTest(false)
+
+		origFn := checkIsValidImmutableBackupPolicyWithRetry
+		checkIsValidImmutableBackupPolicyWithRetry = func(_ context.Context, _ database.Storage, _, _ string, _ int64, _, _ string) error {
+			return customerrors.NewUnavailableErr("service temporarily unavailable")
+		}
+		defer func() { checkIsValidImmutableBackupPolicyWithRetry = origFn }()
+
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		readyPolicy := &datamodel.BackupPolicy{LifeCycleState: models.LifeCycleStateREADY}
+		enabled := true
+		params := baseParams()
+		params.BackupPolicyID = nillable.ToPointer("policy-uuid")
+		params.ScheduledBackupEnabled = &enabled
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
+		mockStorage.EXPECT().GetBackupPolicyByUUIDAndOwnerID(mock.Anything, "policy-uuid", int64(1)).Return(readyPolicy, nil)
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.True(tt, customerrors.IsUnavailableErr(err))
+		assert.Contains(tt, err.Error(), "temporarily unavailable")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	// ── Vault-switch GetBackupVault error (lines 206-207) ────────────────────
+	t.Run("VaultSwitchCheck_GetBackupVaultError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		volumeWithDifferentVault := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
+			ExternalUUID: "volume-uuid",
+			Name:         "expert-vol",
+			State:        models.LifeCycleStateREADY,
+			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
+			BackupConfig: &datamodel.DataProtection{BackupVaultID: "old-vault-uuid"},
+		}
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(volumeWithDifferentVault, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
+		mockStorage.EXPECT().GetBackupVault(mock.Anything, "old-vault-uuid").
+			Return(nil, errors.New("vault lookup error"))
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.Contains(tt, err.Error(), "vault lookup error")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	// ── Vault-switch GetBackupCountByVolumeAndVault error (lines 211-212) ────
+	t.Run("VaultSwitchCheck_GetBackupCountError", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		volumeWithDifferentVault := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-uuid"},
+			ExternalUUID: "volume-uuid",
+			Name:         "expert-vol",
+			State:        models.LifeCycleStateREADY,
+			Pool:         &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: "pool-uuid"}},
+			BackupConfig: &datamodel.DataProtection{BackupVaultID: "old-vault-uuid"},
+		}
+		currentVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 10, UUID: "old-vault-uuid"}}
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(volumeWithDifferentVault, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
+		mockStorage.EXPECT().GetBackupVault(mock.Anything, "old-vault-uuid").Return(currentVault, nil)
+		mockStorage.EXPECT().GetBackupCountByVolumeAndVault(mock.Anything, "volume-uuid", int64(10)).
+			Return(int64(0), errors.New("count error"))
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.Error(tt, err)
+		assert.Empty(tt, result)
+		assert.Contains(tt, err.Error(), "count error")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	// ── Deferred UpdateJob fails when workflow start fails (line 239) ─────────
+	t.Run("WorkflowStartError_UpdateJobAlsoFails_LogsButReturnsWorkflowErr", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+		mockTemporal := workflowenginemock.NewMockTemporalTestClient(tt)
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+		createdJob := &datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "workflow-id"}
+		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
+		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
+		mockStorage.EXPECT().CreateJob(mock.Anything, mock.Anything).Return(createdJob, nil)
+		// Set volume to UPDATING before launching the workflow.
+		mockStorage.EXPECT().UpdateExpertModeVolume(mock.Anything, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(expertModeVolume, nil).Once()
+		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return(nil, errors.New("workflow start failed"))
+		// Defer 2: mark volume ERROR after workflow launch fails.
+		mockStorage.EXPECT().UpdateExpertModeVolume(mock.Anything, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).Return(expertModeVolume, nil).Once()
+		// Defer 1: UpdateJob also fails; deferred function logs the error and swallows it
+		mockStorage.EXPECT().UpdateJob(mock.Anything, "job-uuid", string(models.JobsStateERROR), 0, "workflow start failed").
+			Return(errors.New("update job failed"))
+
+		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, baseParams())
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		// The returned error is still the workflow error, not the UpdateJob error
+		assert.Contains(tt, err.Error(), "workflow start failed")
+		mockStorage.AssertExpectations(tt)
+		mockTemporal.AssertExpectations(tt)
 	})
 }
 

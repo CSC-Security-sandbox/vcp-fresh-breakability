@@ -3885,11 +3885,11 @@ func (re *retryEngine) BackupCountByVolumeID(ctx context.Context, volumeUUID str
 	return var0, err
 }
 
-func (re *retryEngine) FetchScheduledBackupsForDeletion(ctx context.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy) ([]*datamodel.Backup, error) {
+func (re *retryEngine) FetchScheduledBackupsForDeletion(ctx context.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy, isExpertMode bool) ([]*datamodel.Backup, error) {
 	var var0 []*datamodel.Backup
 	err := retry.Do(func(attempt int) (bool, error) {
 		var err error
-		var0, err = re.dataStore.FetchScheduledBackupsForDeletion(ctx, volume, backupPolicy)
+		var0, err = re.dataStore.FetchScheduledBackupsForDeletion(ctx, volume, backupPolicy, isExpertMode)
 		if err != nil {
 			re.logError("FetchScheduledBackupsForDeletion", err)
 			if !dbutils.IsTransientErr(err) {
@@ -5503,6 +5503,38 @@ func (re *retryEngine) GetExpertModeBackupsByVolumeExternalUUID(ctx context.Cont
 		var0, err = re.dataStore.GetExpertModeBackupsByVolumeExternalUUID(ctx, volumeExternalUUID)
 		if err != nil {
 			re.logError("GetExpertModeBackupsByVolumeExternalUUID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetMultipleVolumesWithExpertMode(ctx context.Context, conditions [][]interface{}) ([]*datamodel.ExpertModeVolumes, error) {
+	var var0 []*datamodel.ExpertModeVolumes
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetMultipleVolumesWithExpertMode(ctx, conditions)
+		if err != nil {
+			re.logError("GetMultipleVolumesWithExpertMode", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) ListExpertModeVolumesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.ExpertModeVolumes, error) {
+	var var0 []*datamodel.ExpertModeVolumes
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListExpertModeVolumesWithPagination(ctx, conditions, pagination)
+		if err != nil {
+			re.logError("ListExpertModeVolumesWithPagination", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

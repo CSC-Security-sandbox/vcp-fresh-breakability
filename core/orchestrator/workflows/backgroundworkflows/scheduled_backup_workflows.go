@@ -25,6 +25,7 @@ import (
 const (
 	scheduledBackupTimestampFormat = "2006-01-02-150405"
 	scheduledBackupVolumeBatchSize = 20 // Number of volumes to fetch per batch when processing scheduled backups
+	PoolAccessModeOntap            = "ONTAP"
 )
 
 var (
@@ -395,6 +396,11 @@ func (wf *createScheduledBackupWorkflow) RunScheduledBackupWithContext(ctx workf
 			"snapshotName", scheduledBackupContext.SnapshotName,
 			"transferStatus", scheduledBackupContext.TransferStatus)
 	} else {
+		// check if volume is expertMode or not by pool API access mode. If it's ONTAP.
+		if volume.Pool != nil && volume.Pool.APIAccessMode == PoolAccessModeOntap {
+			scheduledBackupContext.IsExpertMode = true
+			volume.VolumeAttributes.VendorSubnetID = volume.Pool.Network
+		}
 		var backupVault *datamodel.BackupVault
 		preTransferErr = workflow.ExecuteActivity(ctx, backupActivities.GetBackupVault, volume.DataProtection.BackupVaultID).Get(ctx, &backupVault)
 		if preTransferErr != nil {
@@ -405,7 +411,7 @@ func (wf *createScheduledBackupWorkflow) RunScheduledBackupWithContext(ctx workf
 		timestamp := workflow.Now(ctx).Format(scheduledBackupTimestampFormat)
 		if backupPolicy.DailyBackupsToKeep >= 2 {
 			var backup *datamodel.Backup
-			preTransferErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.CreateScheduledBackup, volume, backupVault, timestamp, common.ScheduleTagDaily).Get(ctx, &backup)
+			preTransferErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.CreateScheduledBackup, volume, backupVault, timestamp, common.ScheduleTagDaily, scheduledBackupContext.IsExpertMode).Get(ctx, &backup)
 			if preTransferErr != nil {
 				return nil, workflows.ConvertToVSAError(preTransferErr)
 			}
@@ -416,7 +422,7 @@ func (wf *createScheduledBackupWorkflow) RunScheduledBackupWithContext(ctx workf
 		today := workflow.Now(ctx).Weekday()
 		if backupPolicy.WeeklyBackupsToKeep > 0 && today == time.Weekday(scheduledWeeklyBackupDay) {
 			var backup *datamodel.Backup
-			preTransferErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.CreateScheduledBackup, volume, backupVault, timestamp, common.ScheduleTagWeekly).Get(ctx, &backup)
+			preTransferErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.CreateScheduledBackup, volume, backupVault, timestamp, common.ScheduleTagWeekly, scheduledBackupContext.IsExpertMode).Get(ctx, &backup)
 			if preTransferErr != nil {
 				return nil, workflows.ConvertToVSAError(preTransferErr)
 			}
@@ -427,7 +433,7 @@ func (wf *createScheduledBackupWorkflow) RunScheduledBackupWithContext(ctx workf
 		_, _, day := workflow.Now(ctx).Date()
 		if backupPolicy.MonthlyBackupsToKeep > 0 && day == scheduledMonthlyBackupDay {
 			var backup *datamodel.Backup
-			preTransferErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.CreateScheduledBackup, volume, backupVault, timestamp, common.ScheduleTagMonthly).Get(ctx, &backup)
+			preTransferErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.CreateScheduledBackup, volume, backupVault, timestamp, common.ScheduleTagMonthly, scheduledBackupContext.IsExpertMode).Get(ctx, &backup)
 			if preTransferErr != nil {
 				return nil, workflows.ConvertToVSAError(preTransferErr)
 			}
@@ -476,7 +482,12 @@ func (wf *createScheduledBackupWorkflow) RunScheduledBackupWithContext(ctx workf
 		scheduledBackupContext.ObjStore = cloudTarget
 		snapmirrorRelationship := &common.SnapmirrorRelationship{}
 		smSourcePath := activities.GetSmSourcePath(volume)
-		smDestinationPath := fmt.Sprintf("%s:/objstore/%s", cloudTarget.Name, volume.UUID)
+		var smDestinationPath string
+		if scheduledBackupContext.IsExpertMode {
+			smDestinationPath = fmt.Sprintf("%s:/objstore/%s", cloudTarget.Name, volume.VolumeAttributes.ExternalUUID)
+		} else {
+			smDestinationPath = fmt.Sprintf("%s:/objstore/%s", cloudTarget.Name, volume.UUID)
+		}
 		scheduledBackupContext.SmSourcePath = smSourcePath
 		scheduledBackupContext.SmDestinationPath = smDestinationPath
 		SnapmirrorRelationshipParams := &common.SnapmirrorRelationshipParams{
@@ -498,12 +509,23 @@ func (wf *createScheduledBackupWorkflow) RunScheduledBackupWithContext(ctx workf
 		}
 		scheduledBackupContext.SnapshotName = snapshotName
 		var dbSnapshot *datamodel.Snapshot
-		preTransferErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.CreateBackupSnapshotInDB, volume, snapshotName).Get(ctx, &dbSnapshot)
-		if preTransferErr != nil {
-			return nil, workflows.ConvertToVSAError(preTransferErr)
+		if !scheduledBackupContext.IsExpertMode {
+			preTransferErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.CreateBackupSnapshotInDB, volume, snapshotName).Get(ctx, &dbSnapshot)
+			if preTransferErr != nil {
+				return nil, workflows.ConvertToVSAError(preTransferErr)
+			}
+			scheduledBackupContext.DbSnapshot = dbSnapshot
+			preTransferRollbackManager.AddActivity(scheduledBackupActivities.DeleteBackupSnapshotInDB, dbSnapshot.UUID)
 		}
-		scheduledBackupContext.DbSnapshot = dbSnapshot
-		preTransferRollbackManager.AddActivity(scheduledBackupActivities.DeleteBackupSnapshotInDB, dbSnapshot.UUID)
+
+		if scheduledBackupContext.IsExpertMode {
+			// fetch protocol for a volume from ontap
+			preTransferErr = workflow.ExecuteActivity(ctx, backupActivities.GetVolumeProtocolsFromOntapActivity, scheduledBackupContext).Get(ctx, &scheduledBackupContext)
+			if preTransferErr != nil {
+				return nil, workflows.ConvertToVSAError(preTransferErr)
+			}
+			volume.VolumeAttributes.Protocols = scheduledBackupContext.BackupWorkflowInit.Volume.VolumeAttributes.Protocols
+		}
 
 		ontapSnapshot := &vsa.SnapshotProviderResponse{}
 		preTransferErr = workflow.ExecuteActivity(ctx, backupActivities.SnapshotCreate, node, volume.VolumeAttributes.ExternalUUID, snapshotName, activities.BackupComment).Get(ctx, &ontapSnapshot)
@@ -513,9 +535,11 @@ func (wf *createScheduledBackupWorkflow) RunScheduledBackupWithContext(ctx workf
 		scheduledBackupContext.ScheduledBackupParams.OntapSnapshot = ontapSnapshot
 
 		preTransferRollbackManager.AddActivity(backupActivities.DeleteBackupSnapshot, node, ontapSnapshot.ExternalUUID, volume.VolumeAttributes.ExternalUUID)
-		preTransferErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.UpdateBackupSnapshotInDB, dbSnapshot, ontapSnapshot).Get(ctx, &dbSnapshot)
-		if preTransferErr != nil {
-			return nil, workflows.ConvertToVSAError(preTransferErr)
+		if !scheduledBackupContext.IsExpertMode {
+			preTransferErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.UpdateBackupSnapshotInDB, dbSnapshot, ontapSnapshot).Get(ctx, &dbSnapshot)
+			if preTransferErr != nil {
+				return nil, workflows.ConvertToVSAError(preTransferErr)
+			}
 		}
 
 		// Check if any backup for the volume is in CREATING/DELETING state before starting Snapmirror transfer
@@ -536,7 +560,13 @@ func (wf *createScheduledBackupWorkflow) RunScheduledBackupWithContext(ctx workf
 			},
 		}
 		checkBackupStateCtx := workflow.WithActivityOptions(ctx, checkBackupStateActivityOptions)
-		preTransferErr = workflow.ExecuteActivity(checkBackupStateCtx, scheduledBackupActivities.CheckBackupsInProgressByVolume, volume.UUID, excludeBackupUUIDs).Get(ctx, nil)
+		var volumeUUIDToCheckBackupsInProgress string
+		if !scheduledBackupContext.IsExpertMode {
+			volumeUUIDToCheckBackupsInProgress = volume.UUID
+		} else {
+			volumeUUIDToCheckBackupsInProgress = volume.VolumeAttributes.ExternalUUID
+		}
+		preTransferErr = workflow.ExecuteActivity(checkBackupStateCtx, scheduledBackupActivities.CheckBackupsInProgressByVolume, volumeUUIDToCheckBackupsInProgress, excludeBackupUUIDs).Get(ctx, nil)
 		if preTransferErr != nil {
 			return nil, workflows.ConvertToVSAError(preTransferErr)
 		}
@@ -665,7 +695,7 @@ func (wf *createScheduledBackupWorkflow) RunScheduledBackupWithContext(ctx workf
 			wf.Logger.Errorf("Failed to get summed logical backup size via ADCSizeWorkflow for volume %s: %v", volume.Name, err)
 		}
 	}
-	err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.UpdateBackupSize, backup, volume, precomputedChainBytes).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.UpdateBackupSize, backup, volume, precomputedChainBytes, scheduledBackupContext.IsExpertMode).Get(ctx, nil)
 	if err != nil {
 		wf.Logger.Errorf("Failed to update backup size fields for volume %s: %v", volume.Name, err)
 	}
@@ -679,17 +709,18 @@ func (wf *createScheduledBackupWorkflow) RunScheduledBackupWithContext(ctx workf
 	}
 
 	if hydrationEnabled {
-		location := utils.GetLocation(*scheduledBackupContext.DbSnapshot)
-		err = workflow.ExecuteActivity(ctx, backupActivities.HydrateSnapshotToCCFEActivity,
-			scheduledBackupContext.DbSnapshot,
-			volume.Name,
-			location,
-			volume.Account.Name).Get(ctx, nil)
-		if err != nil {
-			// Log the error but don't fail the entire workflow
-			wf.Logger.Errorf("Failed to hydrate snapshot to CCFE for backup %s: %v", backup.Name, err)
+		if !scheduledBackupContext.IsExpertMode {
+			location := utils.GetLocation(*scheduledBackupContext.DbSnapshot)
+			err = workflow.ExecuteActivity(ctx, backupActivities.HydrateSnapshotToCCFEActivity,
+				scheduledBackupContext.DbSnapshot,
+				volume.Name,
+				location,
+				volume.Account.Name).Get(ctx, nil)
+			if err != nil {
+				// Log the error but don't fail the entire workflow
+				wf.Logger.Errorf("Failed to hydrate snapshot to CCFE for backup %s: %v", backup.Name, err)
+			}
 		}
-
 		postTransferErr = workflow.ExecuteActivity(ctx, scheduledBackupActivities.HydrateCreatedBackupsToCCFE, volume, backups, scheduledBackupContext.BackupWorkflowInit.BackupVault.Name).Get(ctx, nil)
 		if postTransferErr != nil {
 			return nil, workflows.ConvertToVSAError(postTransferErr)
@@ -697,8 +728,7 @@ func (wf *createScheduledBackupWorkflow) RunScheduledBackupWithContext(ctx workf
 	}
 
 	// Create BackupMetadata entry if this is the first backup for the volume
-	// TODO: we should check and update the false to isExpertMode flag once we have the expert mode logic in place.
-	err = workflow.ExecuteActivity(ctx, backupActivities.CreateBackupMetadataIfFirstBackupActivity, volume, false).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx, backupActivities.CreateBackupMetadataIfFirstBackupActivity, volume, scheduledBackupContext.IsExpertMode).Get(ctx, nil)
 	if err != nil {
 		// Log the error but don't fail the entire backup workflow
 		wf.Logger.Errorf("Failed to create BackupMetadata for volume %s: %v", volume.UUID, err)
@@ -817,14 +847,24 @@ func (wf *deleteScheduledBackupWorkflow) Run(ctx workflow.Context, args ...inter
 	})
 
 	// Cleanup older backup snapshots for this volume
-	err = workflow.ExecuteActivity(ctx, backupActivities.CleanupOldBackupSnapshotsActivity, volume, node).Get(ctx, nil)
-	if err != nil {
-		// Log the error but don't fail the entire backup workflow
-		wf.Logger.Errorf("Failed to cleanup older backup snapshots for volume %s: %v", volume.Name, err)
+	isExpertMode := volume.Pool.APIAccessMode == PoolAccessModeOntap
+	if isExpertMode {
+		// cleanup expertmode backup snapshot from ontap, no snapshot metadata/entry in DB for expert mode backups snapshots
+		err = workflow.ExecuteActivity(ctx, backupActivities.CleanupOldExpertModeSnapshotActivity, volume, node).Get(ctx, nil)
+		if err != nil {
+			// Log the error but don't fail the entire backup workflow
+			wf.Logger.Errorf("Failed to cleanup older expert mode backup snapshots for volume %s: %v", volume.Name, err)
+		}
+	} else {
+		err = workflow.ExecuteActivity(ctx, backupActivities.CleanupOldBackupSnapshotsActivity, volume, node).Get(ctx, nil)
+		if err != nil {
+			// Log the error but don't fail the entire backup workflow
+			wf.Logger.Errorf("Failed to cleanup older backup snapshots for volume %s: %v", volume.Name, err)
+		}
 	}
 
 	var backupToBeDeleted []*datamodel.Backup
-	err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.FetchScheduledBackupForDeletion, volume, backupPolicy).Get(ctx, &backupToBeDeleted)
+	err = workflow.ExecuteActivity(ctx, scheduledBackupActivities.FetchScheduledBackupForDeletion, volume, backupPolicy, isExpertMode).Get(ctx, &backupToBeDeleted)
 	if err != nil {
 		return nil, workflows.ConvertToVSAError(err)
 	}

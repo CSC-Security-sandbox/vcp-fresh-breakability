@@ -7932,3 +7932,100 @@ func TestPersistenceStore_GetBackupResourceDataForAggregation(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, results)
 }
+
+func TestPersistenceStore_FetchScheduledBackupsForDeletion(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+
+	t.Run("ReturnsErrorWhenVolumeHasNoBackupPolicy", func(tt *testing.T) {
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "ps-vol-no-bp"},
+		}
+		results, fetchErr := store.FetchScheduledBackupsForDeletion(ctx, volume, nil, false)
+		assert.Nil(tt, results)
+		assert.EqualError(tt, fetchErr, "volume does not have a backup policy associated with it")
+	})
+
+	t.Run("isExpertMode_ReturnsResultsUsingExternalUUID", func(tt *testing.T) {
+		err := ClearInMemoryDB(store.DB())
+		require.NoError(tt, err)
+
+		const externalUUID = "ps-expert-ext-uuid"
+		backup := &datamodel.Backup{
+			BaseModel:   datamodel.BaseModel{UUID: "ps-expert-backup-uuid"},
+			Name:        "ps-expert-daily",
+			ScheduleTag: nillable.ToPointer(Daily),
+			Type:        BackupTypeScheduled,
+			VolumeUUID:  externalUUID,
+		}
+		err = store.DB().Create(backup).Error
+		require.NoError(tt, err)
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "ps-regular-vol-uuid"},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID:  "ps-bv-uuid",
+				BackupPolicyID: "ps-bp-uuid",
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: externalUUID,
+			},
+		}
+		backupPolicy := &datamodel.BackupPolicy{
+			BaseModel:          datamodel.BaseModel{UUID: "ps-bp-uuid"},
+			DailyBackupsToKeep: 0,
+		}
+
+		results, fetchErr := store.FetchScheduledBackupsForDeletion(ctx, volume, backupPolicy, true)
+		assert.NoError(tt, fetchErr)
+		assert.Len(tt, results, 1)
+		assert.Equal(tt, backup.UUID, results[0].UUID)
+	})
+}
+
+func TestPersistenceStore_GetMultipleVolumesWithExpertMode(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+	err = ClearInMemoryDB(store.DB())
+	require.NoError(t, err)
+
+	results, err := store.GetMultipleVolumesWithExpertMode(ctx, [][]interface{}{})
+	assert.NoError(t, err)
+	assert.NotNil(t, results)
+}
+
+func TestPersistenceStore_ListExpertModeVolumesWithPagination(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	require.NoError(t, err)
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Logf("Error closing store: %v", err)
+		}
+	}()
+
+	ctx := context.Background()
+	err = ClearInMemoryDB(store.DB())
+	require.NoError(t, err)
+
+	pagination := &dbutils.Pagination{Offset: 0, Limit: 100}
+	results, err := store.ListExpertModeVolumesWithPagination(ctx, [][]interface{}{}, pagination)
+	assert.NoError(t, err)
+	assert.NotNil(t, results)
+}

@@ -668,6 +668,10 @@ func (o *OCIOrchestrator) GetBackupConfigsForPool(ctx context.Context, poolID st
 	return nil, utilserrors.NewNotImplementedYetErr()
 }
 
+func (o *OCIOrchestrator) ManageBackupConfigForExpertModeVolume(ctx context.Context, params *commonparams.ManageBackupConfigForExpertModeVolumeParams) (*datamodel.DataProtection, string, error) {
+	return nil, "", utilserrors.NewNotImplementedYetErr()
+}
+
 func (o *OCIOrchestrator) CreateVolumePerformanceGroup(ctx context.Context, params *commonparams.CreateVolumePerformanceGroupParams) (*models.VolumePerformanceGroup, error) {
 	return nil, utilserrors.NewNotImplementedYetErr()
 }

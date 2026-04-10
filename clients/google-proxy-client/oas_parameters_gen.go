@@ -2,6 +2,20 @@
 
 package googleproxyclient
 
+// V1betaBackupConfigParams is parameters of v1beta_backupConfig operation.
+type V1betaBackupConfigParams struct {
+	// Uuid v4 used to identify the pool.
+	PoolId string
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+	// Backup schedule cron expression.
+	XNetappBackupSchedule OptString
+}
+
 // V1betaBatchListActiveDirectoriesParams is parameters of v1beta_batchListActiveDirectories operation.
 type V1betaBatchListActiveDirectoriesParams struct {
 	// The location/region to perform the operation in.

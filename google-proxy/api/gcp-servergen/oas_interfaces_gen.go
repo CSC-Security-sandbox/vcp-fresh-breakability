@@ -5,6 +5,10 @@ type GetHealthRes interface {
 	getHealthRes()
 }
 
+type V1betaBackupConfigRes interface {
+	v1betaBackupConfigRes()
+}
+
 type V1betaBatchListActiveDirectoriesRes interface {
 	v1betaBatchListActiveDirectoriesRes()
 }

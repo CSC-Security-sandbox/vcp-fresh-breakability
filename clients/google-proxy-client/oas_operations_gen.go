@@ -7,6 +7,7 @@ type OperationName = string
 
 const (
 	GetHealthOperation                                       OperationName = "GetHealth"
+	V1betaBackupConfigOperation                              OperationName = "V1betaBackupConfig"
 	V1betaBatchListActiveDirectoriesOperation                OperationName = "V1betaBatchListActiveDirectories"
 	V1betaBatchListBackupVaultsOperation                     OperationName = "V1betaBatchListBackupVaults"
 	V1betaBatchListBackupsOperation                          OperationName = "V1betaBatchListBackups"

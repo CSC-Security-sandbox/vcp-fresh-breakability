@@ -842,7 +842,7 @@ func (s *RBACWorkflowTestSuite) Test_UpdateRbacHashForPoolsWorkflow_OutOfOrderCo
 	s.env.OnActivity(poolActivity.ValidateRbacHash, mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("*hyperscaler.BucketFileDetails")).Return(nil).Once()
 	s.env.OnActivity(poolActivity.GetOnTapCredentials, mock.Anything, mock.MatchedBy(func(p *datamodel.Pool) bool {
 		return p.UUID == "pool-uuid-2"
-	})).Return(nil, errors.New("credentials error for pool-2")).Once()
+	})).Return(nil, errors.New("credentials error for pool-2")).Times(3)
 
 	pool4 := &datamodel.Pool{
 		BaseModel: datamodel.BaseModel{UUID: "pool-uuid-4"},
@@ -861,7 +861,7 @@ func (s *RBACWorkflowTestSuite) Test_UpdateRbacHashForPoolsWorkflow_OutOfOrderCo
 	})).Return(ontapCredentials, nil).Once()
 	s.env.OnActivity(poolActivity.GetExpertModeCredentials, mock.Anything, mock.MatchedBy(func(p *datamodel.Pool) bool {
 		return p.UUID == "pool-uuid-4"
-	})).Return(nil, errors.New("expert credentials error for pool-4")).Once()
+	})).Return(nil, errors.New("expert credentials error for pool-4")).Times(3)
 
 	// Execute workflow
 	s.env.ExecuteWorkflow(UpdateRbacForPoolsWorkflow)

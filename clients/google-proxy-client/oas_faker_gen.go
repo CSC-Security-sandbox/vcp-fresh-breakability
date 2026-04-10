@@ -314,6 +314,49 @@ func (s *AssetLocationMetadataV2) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *BackupConfigRequestV1beta) SetFake() {
+	{
+		{
+			s.VolumeUuid = "string"
+		}
+	}
+	{
+		{
+			s.BackupConfig.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BackupConfigRequestV1betaBackupConfig) SetFake() {
+	{
+		{
+			s.BackupPolicyId.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupVaultId.SetFake()
+		}
+	}
+	{
+		{
+			s.ScheduledBackupEnabled.SetFake()
+		}
+	}
+	{
+		{
+			s.BackupChainBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.KmsGrant.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *BackupConfigV1beta) SetFake() {
 	{
 		{
@@ -6666,6 +6709,51 @@ func (s *UpdateDstWithSrcQuotaRulesV1beta) SetFake() {
 			}
 		}
 	}
+}
+
+// SetFake set fake values.
+func (s *V1betaBackupConfigBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBackupConfigBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBackupConfigConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBackupConfigConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBackupConfigForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBackupConfigForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBackupConfigInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBackupConfigInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBackupConfigUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBackupConfigUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.

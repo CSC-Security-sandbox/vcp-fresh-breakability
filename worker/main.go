@@ -335,6 +335,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterWorkflow(expertmodeworkflows.UpdateSinglePoolRbacChildWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.RotatePoolCertificateWorkflow)
 	worker.RegisterWorkflow(backgroundworkflows.RotatePoolPasswordWorkflow)
+	worker.RegisterWorkflow(expertmodeworkflows.ManageBackupConfigWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})

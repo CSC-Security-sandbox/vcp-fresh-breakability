@@ -2415,7 +2415,10 @@ func (b *BackupActivity) GetVolumeProtocolsFromOntapActivity(ctx context.Context
 	}
 
 	logger.Infof("Determined protocols for expert mode volume %s: %v", volume.Name, protocols)
-	backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.Protocols = protocols
+	backupActivitiesContext.BackupWorkflowInit.Volume.VolumeAttributes.Protocols = protocols
+	if backupActivitiesContext.BackupWorkflowInit.Backup != nil {
+		backupActivitiesContext.BackupWorkflowInit.Backup.Attributes.Protocols = protocols
+	}
 
 	return backupActivitiesContext, nil
 }

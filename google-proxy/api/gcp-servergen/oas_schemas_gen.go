@@ -671,6 +671,101 @@ func (s *AssetLocationMetadataV2) SetChildAssets(val []ChildAssetV2) {
 	s.ChildAssets = val
 }
 
+// Ref: #/components/schemas/BackupConfigRequest_v1beta
+type BackupConfigRequestV1beta struct {
+	// Volume ONTAP UUID (externalUUID from expert mode volumes table).
+	VolumeUuid string `json:"volumeUuid"`
+	// Backup configuration to apply. backupVaultId is required within this object. Supplying
+	// backupPolicyId requires scheduledBackupEnabled to be explicitly set. Scheduled backup cannot be
+	// enabled without a backup policy. kmsGrant is only accepted when CMEK backup is enabled on the
+	// service.
+	BackupConfig BackupConfigRequestV1betaBackupConfig `json:"backupConfig"`
+}
+
+// GetVolumeUuid returns the value of VolumeUuid.
+func (s *BackupConfigRequestV1beta) GetVolumeUuid() string {
+	return s.VolumeUuid
+}
+
+// GetBackupConfig returns the value of BackupConfig.
+func (s *BackupConfigRequestV1beta) GetBackupConfig() BackupConfigRequestV1betaBackupConfig {
+	return s.BackupConfig
+}
+
+// SetVolumeUuid sets the value of VolumeUuid.
+func (s *BackupConfigRequestV1beta) SetVolumeUuid(val string) {
+	s.VolumeUuid = val
+}
+
+// SetBackupConfig sets the value of BackupConfig.
+func (s *BackupConfigRequestV1beta) SetBackupConfig(val BackupConfigRequestV1betaBackupConfig) {
+	s.BackupConfig = val
+}
+
+// Volume backup properties.
+type BackupConfigRequestV1betaBackupConfig struct {
+	// Backup policy resource Id.
+	BackupPolicyId OptNilString `json:"backupPolicyId"`
+	// Backup vault resource Id.
+	BackupVaultId OptNilString `json:"backupVaultId"`
+	// Indicates whether policy is enable or disabled on the volume.
+	ScheduledBackupEnabled OptNilBool `json:"scheduledBackupEnabled"`
+	// Size in bytes of the backup of the volume.
+	BackupChainBytes OptNilInt64 `json:"backupChainBytes"`
+	// KMS grant.
+	KmsGrant OptNilString `json:"kmsGrant"`
+}
+
+// GetBackupPolicyId returns the value of BackupPolicyId.
+func (s *BackupConfigRequestV1betaBackupConfig) GetBackupPolicyId() OptNilString {
+	return s.BackupPolicyId
+}
+
+// GetBackupVaultId returns the value of BackupVaultId.
+func (s *BackupConfigRequestV1betaBackupConfig) GetBackupVaultId() OptNilString {
+	return s.BackupVaultId
+}
+
+// GetScheduledBackupEnabled returns the value of ScheduledBackupEnabled.
+func (s *BackupConfigRequestV1betaBackupConfig) GetScheduledBackupEnabled() OptNilBool {
+	return s.ScheduledBackupEnabled
+}
+
+// GetBackupChainBytes returns the value of BackupChainBytes.
+func (s *BackupConfigRequestV1betaBackupConfig) GetBackupChainBytes() OptNilInt64 {
+	return s.BackupChainBytes
+}
+
+// GetKmsGrant returns the value of KmsGrant.
+func (s *BackupConfigRequestV1betaBackupConfig) GetKmsGrant() OptNilString {
+	return s.KmsGrant
+}
+
+// SetBackupPolicyId sets the value of BackupPolicyId.
+func (s *BackupConfigRequestV1betaBackupConfig) SetBackupPolicyId(val OptNilString) {
+	s.BackupPolicyId = val
+}
+
+// SetBackupVaultId sets the value of BackupVaultId.
+func (s *BackupConfigRequestV1betaBackupConfig) SetBackupVaultId(val OptNilString) {
+	s.BackupVaultId = val
+}
+
+// SetScheduledBackupEnabled sets the value of ScheduledBackupEnabled.
+func (s *BackupConfigRequestV1betaBackupConfig) SetScheduledBackupEnabled(val OptNilBool) {
+	s.ScheduledBackupEnabled = val
+}
+
+// SetBackupChainBytes sets the value of BackupChainBytes.
+func (s *BackupConfigRequestV1betaBackupConfig) SetBackupChainBytes(val OptNilInt64) {
+	s.BackupChainBytes = val
+}
+
+// SetKmsGrant sets the value of KmsGrant.
+func (s *BackupConfigRequestV1betaBackupConfig) SetKmsGrant(val OptNilString) {
+	s.KmsGrant = val
+}
+
 // Volume backup properties.
 // Ref: #/components/schemas/BackupConfig_v1beta
 type BackupConfigV1beta struct {
@@ -6623,6 +6718,7 @@ func (s *ErrorStatusCode) SetResponse(val Error) {
 }
 
 func (*ErrorStatusCode) getHealthRes()                                       {}
+func (*ErrorStatusCode) v1betaBackupConfigRes()                              {}
 func (*ErrorStatusCode) v1betaCheckKmsConfigRes()                            {}
 func (*ErrorStatusCode) v1betaCreateActiveDirectoryRes()                     {}
 func (*ErrorStatusCode) v1betaCreateBackupPolicyRes()                        {}
@@ -10657,6 +10753,7 @@ func (s *OperationV1beta) SetResponse(val jx.Raw) {
 	s.Response = val
 }
 
+func (*OperationV1beta) v1betaBackupConfigRes()                              {}
 func (*OperationV1beta) v1betaCreateActiveDirectoryRes()                     {}
 func (*OperationV1beta) v1betaCreateBackupPolicyRes()                        {}
 func (*OperationV1beta) v1betaCreateBackupRes()                              {}
@@ -23447,6 +23544,26 @@ func (s *UpdateDstWithSrcQuotaRulesV1beta) SetSrcQuotaRules(val []QuotaRulesV1be
 func (s *UpdateDstWithSrcQuotaRulesV1beta) SetDstQuotaRules(val []QuotaRulesV1beta) {
 	s.DstQuotaRules = val
 }
+
+type V1betaBackupConfigBadRequest Error
+
+func (*V1betaBackupConfigBadRequest) v1betaBackupConfigRes() {}
+
+type V1betaBackupConfigConflict Error
+
+func (*V1betaBackupConfigConflict) v1betaBackupConfigRes() {}
+
+type V1betaBackupConfigForbidden Error
+
+func (*V1betaBackupConfigForbidden) v1betaBackupConfigRes() {}
+
+type V1betaBackupConfigInternalServerError Error
+
+func (*V1betaBackupConfigInternalServerError) v1betaBackupConfigRes() {}
+
+type V1betaBackupConfigUnauthorized Error
+
+func (*V1betaBackupConfigUnauthorized) v1betaBackupConfigRes() {}
 
 type V1betaBatchListActiveDirectoriesBadRequest Error
 

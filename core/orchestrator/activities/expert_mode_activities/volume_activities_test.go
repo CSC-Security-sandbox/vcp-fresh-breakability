@@ -2025,3 +2025,48 @@ func TestExpertModeVolumeActivity_FetchOntapVolumeByUUID(t *testing.T) {
 		assert.Nil(tt, result.Svm)
 	})
 }
+
+func TestUpdateExpertModeVolumeBackupConfigInDB(t *testing.T) {
+	t.Run("WhenUpdateFails_ReturnsError", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(tt)
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.UpdateExpertModeVolumeBackupConfigInDB)
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+		}
+
+		mockStorage.EXPECT().UpdateExpertModeVolumeDataProtection(mock.Anything, volume).
+			Return(errors.New("db write error"))
+
+		_, err := env.ExecuteActivity(activity.UpdateExpertModeVolumeBackupConfigInDB, volume)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "db write error")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateSucceeds_ReturnsNil", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(tt)
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.UpdateExpertModeVolumeBackupConfigInDB)
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+		}
+
+		mockStorage.EXPECT().UpdateExpertModeVolumeDataProtection(mock.Anything, volume).
+			Return(nil)
+
+		_, err := env.ExecuteActivity(activity.UpdateExpertModeVolumeBackupConfigInDB, volume)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+}

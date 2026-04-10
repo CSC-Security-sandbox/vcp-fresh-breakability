@@ -4770,9 +4770,9 @@ func (_c *MockStorage_ErroredSVM_Call) RunAndReturn(run func(context.Context, *d
 	return _c
 }
 
-// FetchScheduledBackupsForDeletion provides a mock function with given fields: ctx, volume, backupPolicy
-func (_m *MockStorage) FetchScheduledBackupsForDeletion(ctx context.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy) ([]*datamodel.Backup, error) {
-	ret := _m.Called(ctx, volume, backupPolicy)
+// FetchScheduledBackupsForDeletion provides a mock function with given fields: ctx, volume, backupPolicy, isExpertMode
+func (_m *MockStorage) FetchScheduledBackupsForDeletion(ctx context.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy, isExpertMode bool) ([]*datamodel.Backup, error) {
+	ret := _m.Called(ctx, volume, backupPolicy, isExpertMode)
 
 	if len(ret) == 0 {
 		panic("no return value specified for FetchScheduledBackupsForDeletion")
@@ -4780,19 +4780,19 @@ func (_m *MockStorage) FetchScheduledBackupsForDeletion(ctx context.Context, vol
 
 	var r0 []*datamodel.Backup
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume, *datamodel.BackupPolicy) ([]*datamodel.Backup, error)); ok {
-		return rf(ctx, volume, backupPolicy)
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume, *datamodel.BackupPolicy, bool) ([]*datamodel.Backup, error)); ok {
+		return rf(ctx, volume, backupPolicy, isExpertMode)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume, *datamodel.BackupPolicy) []*datamodel.Backup); ok {
-		r0 = rf(ctx, volume, backupPolicy)
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.Volume, *datamodel.BackupPolicy, bool) []*datamodel.Backup); ok {
+		r0 = rf(ctx, volume, backupPolicy, isExpertMode)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*datamodel.Backup)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Volume, *datamodel.BackupPolicy) error); ok {
-		r1 = rf(ctx, volume, backupPolicy)
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.Volume, *datamodel.BackupPolicy, bool) error); ok {
+		r1 = rf(ctx, volume, backupPolicy, isExpertMode)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -4809,13 +4809,14 @@ type MockStorage_FetchScheduledBackupsForDeletion_Call struct {
 //   - ctx context.Context
 //   - volume *datamodel.Volume
 //   - backupPolicy *datamodel.BackupPolicy
-func (_e *MockStorage_Expecter) FetchScheduledBackupsForDeletion(ctx interface{}, volume interface{}, backupPolicy interface{}) *MockStorage_FetchScheduledBackupsForDeletion_Call {
-	return &MockStorage_FetchScheduledBackupsForDeletion_Call{Call: _e.mock.On("FetchScheduledBackupsForDeletion", ctx, volume, backupPolicy)}
+//   - isExpertMode bool
+func (_e *MockStorage_Expecter) FetchScheduledBackupsForDeletion(ctx interface{}, volume interface{}, backupPolicy interface{}, isExpertMode interface{}) *MockStorage_FetchScheduledBackupsForDeletion_Call {
+	return &MockStorage_FetchScheduledBackupsForDeletion_Call{Call: _e.mock.On("FetchScheduledBackupsForDeletion", ctx, volume, backupPolicy, isExpertMode)}
 }
 
-func (_c *MockStorage_FetchScheduledBackupsForDeletion_Call) Run(run func(ctx context.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy)) *MockStorage_FetchScheduledBackupsForDeletion_Call {
+func (_c *MockStorage_FetchScheduledBackupsForDeletion_Call) Run(run func(ctx context.Context, volume *datamodel.Volume, backupPolicy *datamodel.BackupPolicy, isExpertMode bool)) *MockStorage_FetchScheduledBackupsForDeletion_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*datamodel.Volume), args[2].(*datamodel.BackupPolicy))
+		run(args[0].(context.Context), args[1].(*datamodel.Volume), args[2].(*datamodel.BackupPolicy), args[3].(bool))
 	})
 	return _c
 }
@@ -4825,7 +4826,7 @@ func (_c *MockStorage_FetchScheduledBackupsForDeletion_Call) Return(_a0 []*datam
 	return _c
 }
 
-func (_c *MockStorage_FetchScheduledBackupsForDeletion_Call) RunAndReturn(run func(context.Context, *datamodel.Volume, *datamodel.BackupPolicy) ([]*datamodel.Backup, error)) *MockStorage_FetchScheduledBackupsForDeletion_Call {
+func (_c *MockStorage_FetchScheduledBackupsForDeletion_Call) RunAndReturn(run func(context.Context, *datamodel.Volume, *datamodel.BackupPolicy, bool) ([]*datamodel.Backup, error)) *MockStorage_FetchScheduledBackupsForDeletion_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -9223,6 +9224,65 @@ func (_c *MockStorage_GetMultipleVolumes_Call) Return(_a0 []*datamodel.Volume, _
 }
 
 func (_c *MockStorage_GetMultipleVolumes_Call) RunAndReturn(run func(context.Context, [][]interface{}) ([]*datamodel.Volume, error)) *MockStorage_GetMultipleVolumes_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetMultipleVolumesWithExpertMode provides a mock function with given fields: ctx, conditions
+func (_m *MockStorage) GetMultipleVolumesWithExpertMode(ctx context.Context, conditions [][]interface{}) ([]*datamodel.ExpertModeVolumes, error) {
+	ret := _m.Called(ctx, conditions)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMultipleVolumesWithExpertMode")
+	}
+
+	var r0 []*datamodel.ExpertModeVolumes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}) ([]*datamodel.ExpertModeVolumes, error)); ok {
+		return rf(ctx, conditions)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}) []*datamodel.ExpertModeVolumes); ok {
+		r0 = rf(ctx, conditions)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.ExpertModeVolumes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, [][]interface{}) error); ok {
+		r1 = rf(ctx, conditions)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetMultipleVolumesWithExpertMode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMultipleVolumesWithExpertMode'
+type MockStorage_GetMultipleVolumesWithExpertMode_Call struct {
+	*mock.Call
+}
+
+// GetMultipleVolumesWithExpertMode is a helper method to define mock.On call
+//   - ctx context.Context
+//   - conditions [][]interface{}
+func (_e *MockStorage_Expecter) GetMultipleVolumesWithExpertMode(ctx interface{}, conditions interface{}) *MockStorage_GetMultipleVolumesWithExpertMode_Call {
+	return &MockStorage_GetMultipleVolumesWithExpertMode_Call{Call: _e.mock.On("GetMultipleVolumesWithExpertMode", ctx, conditions)}
+}
+
+func (_c *MockStorage_GetMultipleVolumesWithExpertMode_Call) Run(run func(ctx context.Context, conditions [][]interface{})) *MockStorage_GetMultipleVolumesWithExpertMode_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([][]interface{}))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetMultipleVolumesWithExpertMode_Call) Return(_a0 []*datamodel.ExpertModeVolumes, _a1 error) *MockStorage_GetMultipleVolumesWithExpertMode_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetMultipleVolumesWithExpertMode_Call) RunAndReturn(run func(context.Context, [][]interface{}) ([]*datamodel.ExpertModeVolumes, error)) *MockStorage_GetMultipleVolumesWithExpertMode_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -14541,6 +14601,66 @@ func (_c *MockStorage_ListExpertModeVolumesByPoolID_Call) Return(_a0 []*datamode
 }
 
 func (_c *MockStorage_ListExpertModeVolumesByPoolID_Call) RunAndReturn(run func(context.Context, int64) ([]*datamodel.ExpertModeVolumes, error)) *MockStorage_ListExpertModeVolumesByPoolID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListExpertModeVolumesWithPagination provides a mock function with given fields: ctx, conditions, pagination
+func (_m *MockStorage) ListExpertModeVolumesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination) ([]*datamodel.ExpertModeVolumes, error) {
+	ret := _m.Called(ctx, conditions, pagination)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListExpertModeVolumesWithPagination")
+	}
+
+	var r0 []*datamodel.ExpertModeVolumes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.ExpertModeVolumes, error)); ok {
+		return rf(ctx, conditions, pagination)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, *utils.Pagination) []*datamodel.ExpertModeVolumes); ok {
+		r0 = rf(ctx, conditions, pagination)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.ExpertModeVolumes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, [][]interface{}, *utils.Pagination) error); ok {
+		r1 = rf(ctx, conditions, pagination)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_ListExpertModeVolumesWithPagination_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListExpertModeVolumesWithPagination'
+type MockStorage_ListExpertModeVolumesWithPagination_Call struct {
+	*mock.Call
+}
+
+// ListExpertModeVolumesWithPagination is a helper method to define mock.On call
+//   - ctx context.Context
+//   - conditions [][]interface{}
+//   - pagination *utils.Pagination
+func (_e *MockStorage_Expecter) ListExpertModeVolumesWithPagination(ctx interface{}, conditions interface{}, pagination interface{}) *MockStorage_ListExpertModeVolumesWithPagination_Call {
+	return &MockStorage_ListExpertModeVolumesWithPagination_Call{Call: _e.mock.On("ListExpertModeVolumesWithPagination", ctx, conditions, pagination)}
+}
+
+func (_c *MockStorage_ListExpertModeVolumesWithPagination_Call) Run(run func(ctx context.Context, conditions [][]interface{}, pagination *utils.Pagination)) *MockStorage_ListExpertModeVolumesWithPagination_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([][]interface{}), args[2].(*utils.Pagination))
+	})
+	return _c
+}
+
+func (_c *MockStorage_ListExpertModeVolumesWithPagination_Call) Return(_a0 []*datamodel.ExpertModeVolumes, _a1 error) *MockStorage_ListExpertModeVolumesWithPagination_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_ListExpertModeVolumesWithPagination_Call) RunAndReturn(run func(context.Context, [][]interface{}, *utils.Pagination) ([]*datamodel.ExpertModeVolumes, error)) *MockStorage_ListExpertModeVolumesWithPagination_Call {
 	_c.Call.Return(run)
 	return _c
 }

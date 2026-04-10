@@ -4039,7 +4039,7 @@ func TestBackupWorkflowWithHydrationActivityFailure(t *testing.T) {
 	assert.NoError(t, err, "Failed to read backup_workflow.go")
 
 	// Verify that hydration errors are logged but don't fail the workflow
-	assert.Contains(t, string(workflowContent), "wf.Logger.Errorf",
+	assert.Contains(t, string(workflowContent), "workflow.GetLogger(ctx).Error",
 		"Workflow should log hydration errors")
 
 	// Verify that the hydration activity call is not in a critical path that would fail the workflow

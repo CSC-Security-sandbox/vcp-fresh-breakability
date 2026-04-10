@@ -146,6 +146,30 @@ func TestAssetLocationMetadataV2_EncodeDecode(t *testing.T) {
 	var typ2 AssetLocationMetadataV2
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestBackupConfigRequestV1beta_EncodeDecode(t *testing.T) {
+	var typ BackupConfigRequestV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BackupConfigRequestV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBackupConfigRequestV1betaBackupConfig_EncodeDecode(t *testing.T) {
+	var typ BackupConfigRequestV1betaBackupConfig
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BackupConfigRequestV1betaBackupConfig
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestBackupConfigV1beta_EncodeDecode(t *testing.T) {
 	var typ BackupConfigV1beta
 	typ.SetFake()
@@ -3146,6 +3170,7 @@ func TestOperationV1beta_Examples(t *testing.T) {
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/us-central1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"cacheParameters\":{\"cacheState\":\"PENDING_CLUSTER_PEERING\",\"command\":\"cluster peer create -peer-addrs 192.140.112.101,192.140.112.102 -initial-allowed-vserver-peers svm_560a3f3cb4d345f18297decc3a5988bc\",\"commandExpiryTime\":\"2025-04-20T16:21:01Z\",\"passphrase\":\"loremIpsum\",\"peerClusterName\":\"my-cluster-name\",\"peerIpAddresses\":[\"101.102.103.104\",\"101.102.103.105\"],\"peerSvmName\":\"svm_560a3f3cb4d345f18297decc3a5988bc\",\"peerVolumeName\":\"volume_myvolname\"},\"created\":\"2025-01-29T09:10:30.384Z\",\"creationToken\":\"suddenly-distinguished-feynman\",\"kmsConfigId\":\"2653acf5-4638-11e7-9bdb-020073ca7773\",\"labels\":{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"},\"quotaInBytes\":50000000000000,\"resourceId\":\"big-data\",\"securityStyle\":\"UNIX\",\"serviceLevel\":\"EXTREME\",\"unixPermissions\":\"0755\",\"usedBytes\":38786062792785,\"volumeId\":\"49b96a2f-4a38-6fa4-2cc6-f598ef2f8a0e\",\"volumeState\":\"READY\",\"volumeStateDetails\":\"Available for use\"}}"},
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/us-east1/operations/123e4567-e89b-12d3-a456-426614174000\",\"response\":{\"created\":\"2024-01-24T13:54:14.374Z\",\"description\":\"HostGroup for storage access\",\"hostGroupId\":\"123e4567-e89b-12d3-a456-426614174000\",\"hosts\":[\"iqn.1998-01.com.vmware:example1\"],\"osType\":\"LINUX\",\"resourceId\":\"my-host-group\",\"state\":\"CREATING\",\"stateDetails\":\"creation in progress\",\"type\":\"ISCSI_INITIATOR\"}}"},
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/us-east1/operations/123e4567-e89b-12d3-a456-426614174000\",\"response\":{\"description\":\"Updated host group description\",\"hostGroupId\":\"123e4567-e89b-12d3-a456-426614174000\",\"hosts\":[\"iqn.1998-01.com.vmware:example1\",\"iqn.1998-01.com.vmware:example3\"],\"osType\":\"WINDOWS\",\"resourceId\":\"my-host-group\",\"state\":\"UPDATING\",\"stateDetails\":\"update in progress\",\"type\":\"ISCSI_INITIATOR\",\"updated\":\"2024-01-26T10:00:00.000Z\"}}"},
+		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/us-east4/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\"}"},
 		{Input: "{\"done\":true,\"error\":{\"code\":400,\"message\":\"Error when creating destination volume - Could not query DNS server. Verify that the network configuration is correct and that DNS servers are available.\",\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\"}}"},
 		{Input: "{\"done\":true,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"ResourceType\":\"Volume\",\"jobs\":[\"ba2c8826-2627-057c-42ba-343ee7ab1ebe\"],\"resourceId\":\"281ea02b-d22d-8115-4d96-f943038ac2a1\"}}"},
 		{Input: "{\"done\":true,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"activeDirectoryConfigId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"activeDirectoryResourceId\":\"projects/123456789/locations/some-location1/activeDirectories/active-directory\",\"allocatedBytes\":10995116277760,\"allowAutoTiering\":false,\"createdAt\":\"2024-01-24T13:54:14.374Z\",\"description\":\"My Pool description\",\"encryptionType\":\"SERVICE_MANAGED\",\"globalAccessAllowed\":true,\"labels\":{\"someKey\":\"SomeValue\",\"someKey2\":\"SomeValue2\"},\"ldapEnabled\":false,\"network\":\"projects/123456789/global/networks/systemic-qa-vpc\",\"numberOfVolumes\":2,\"poolId\":\"bfa46013-1a1e-587b-ef9a-619bae6ba25d\",\"resourceId\":\"my-pool\",\"serviceLevel\":\"PREMIUM\",\"sizeInBytes\":12094627905536,\"storageClass\":\"SOFTWARE\",\"storagePoolState\":\"READY\",\"storagePoolStateDetails\":\"Available for use\",\"updatedAt\":\"2024-01-24T13:54:14.374Z\",\"zone\":\"us-east1-b\"}}"},
@@ -5217,6 +5242,66 @@ func TestUpdateDstWithSrcQuotaRulesV1beta_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 UpdateDstWithSrcQuotaRulesV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBackupConfigBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaBackupConfigBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBackupConfigBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBackupConfigConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaBackupConfigConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBackupConfigConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBackupConfigForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaBackupConfigForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBackupConfigForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBackupConfigInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaBackupConfigInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBackupConfigInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBackupConfigUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaBackupConfigUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBackupConfigUnauthorized
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaBatchListActiveDirectoriesBadRequest_EncodeDecode(t *testing.T) {
