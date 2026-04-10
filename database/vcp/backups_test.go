@@ -6323,6 +6323,116 @@ func TestGetVolumeCountByBackupVaultID(t *testing.T) {
 	})
 }
 
+func TestGetVolumesByBackupVaultID(t *testing.T) {
+	t.Run("Success_ReturnsMatchingVolumes", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		backupVaultUUID := "target-vault-uuid"
+		matchingVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-match-1"},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID: backupVaultUUID,
+			},
+		}
+		otherVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-other-1"},
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID: "another-vault-uuid",
+			},
+		}
+
+		err = store.db.Create(matchingVolume).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(otherVolume).Error()
+		assert.NoError(tt, err)
+
+		volumes, err := store.GetVolumesByBackupVaultID(context.Background(), backupVaultUUID)
+		assert.NoError(tt, err)
+		require.Len(tt, volumes, 1)
+		assert.Equal(tt, "vol-match-1", volumes[0].UUID)
+	})
+
+	t.Run("Error_WhenDBQueryFails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		sqlDB, err := store.db.GORM().DB()
+		assert.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		_, err = store.GetVolumesByBackupVaultID(context.Background(), "target-vault-uuid")
+		assert.Error(tt, err)
+	})
+}
+
+func TestGetExpertModeVolumesByBackupVaultID(t *testing.T) {
+	t.Run("Success_ReturnsMatchingExpertModeVolumes", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		backupVaultUUID := "target-vault-uuid"
+		matchingEMV := &datamodel.ExpertModeVolumes{
+			BaseModel: datamodel.BaseModel{UUID: "emv-match-1"},
+			BackupConfig: &datamodel.DataProtection{
+				BackupVaultID: backupVaultUUID,
+			},
+		}
+		otherEMV := &datamodel.ExpertModeVolumes{
+			BaseModel: datamodel.BaseModel{UUID: "emv-other-1"},
+			BackupConfig: &datamodel.DataProtection{
+				BackupVaultID: "another-vault-uuid",
+			},
+		}
+
+		err = store.db.Create(matchingEMV).Error()
+		assert.NoError(tt, err)
+		err = store.db.Create(otherEMV).Error()
+		assert.NoError(tt, err)
+
+		volumes, err := store.GetExpertModeVolumesByBackupVaultID(context.Background(), backupVaultUUID)
+		assert.NoError(tt, err)
+		require.Len(tt, volumes, 1)
+		assert.Equal(tt, "emv-match-1", volumes[0].UUID)
+	})
+
+	t.Run("Error_WhenDBQueryFails", func(tt *testing.T) {
+		db, err := SetupTestDB()
+		assert.NoError(tt, err)
+
+		wrapper := gormwrapper.New(db)
+		store := NewDataStoreRepository(wrapper)
+
+		err = ClearInMemoryDB(store.db.GORM())
+		assert.NoError(tt, err)
+
+		sqlDB, err := store.db.GORM().DB()
+		assert.NoError(tt, err)
+		_ = sqlDB.Close()
+
+		_, err = store.GetExpertModeVolumesByBackupVaultID(context.Background(), "target-vault-uuid")
+		assert.Error(tt, err)
+	})
+}
+
 func TestUpdateBackupChainHistory(t *testing.T) {
 	t.Run("Success_CreatesNewHistoryEntry", func(tt *testing.T) {
 		db, err := SetupTestDB()

@@ -1118,6 +1118,14 @@ func (a *BackupVaultActivity) CleanupBackupVaultsForAccount(ctx context.Context,
 func (a *BackupVaultActivity) cleanupBackupVault(ctx context.Context, vault *datamodel.BackupVault) error {
 	logger := util.GetLogger(ctx)
 
+	// For cross-project vaults, detach volumes in other projects before cleanup
+	if vault.ServiceType == coremodels.ServiceTypeCrossProject {
+		if err := a.detachCrossProjectVolumesFromVault(ctx, vault); err != nil {
+			logger.Errorf("Failed to detach cross-project volumes from vault %s: %v", vault.UUID, err)
+			return errors.WrapAsTemporalApplicationError(err)
+		}
+	}
+
 	// 1. Delete GCP buckets associated with this vault
 	err := a.deleteGCPBucketsForVault(ctx, vault)
 	if err != nil {
@@ -1140,6 +1148,76 @@ func (a *BackupVaultActivity) cleanupBackupVault(ctx context.Context, vault *dat
 			"DeleteBackupVaultError",
 			err,
 		)
+	}
+
+	return nil
+}
+
+// detachCrossProjectVolumesFromVault finds all volumes in other projects that reference
+// this backup vault and clears their backup vault, backup policy, and scheduled backup
+// references. This prevents orphaned references and failing scheduled backup workflows
+// after the vault's owning project is wiped out.
+func (a *BackupVaultActivity) detachCrossProjectVolumesFromVault(ctx context.Context, vault *datamodel.BackupVault) error {
+	logger := util.GetLogger(ctx)
+
+	// Detach regular volumes
+	volumes, err := a.SE.GetVolumesByBackupVaultID(ctx, vault.UUID)
+	if err != nil {
+		return fmt.Errorf("failed to get volumes for backup vault %s: %w", vault.UUID, err)
+	}
+
+	for _, volume := range volumes {
+		if volume.AccountID == vault.AccountID {
+			continue
+		}
+		if volume.DataProtection == nil {
+			continue
+		}
+
+		logger.Infof("Detaching cross-project vault %s from volume %s (account %d)", vault.UUID, volume.UUID, volume.AccountID)
+
+		scheduledBackupDisabled := false
+		updates := map[string]interface{}{
+			"data_protection": &datamodel.DataProtection{
+				ScheduledBackupEnabled: &scheduledBackupDisabled,
+				BackupVaultID:          "",
+				BackupPolicyID:         "",
+				BackupChainBytes:       volume.DataProtection.BackupChainBytes,
+				KmsGrant:               volume.DataProtection.KmsGrant,
+			},
+		}
+		if err := a.SE.UpdateVolumeFields(ctx, volume.UUID, updates); err != nil {
+			return fmt.Errorf("failed to detach vault from volume %s: %w", volume.UUID, err)
+		}
+	}
+
+	// Detach expert mode volumes
+	expertModeVolumes, err := a.SE.GetExpertModeVolumesByBackupVaultID(ctx, vault.UUID)
+	if err != nil {
+		return fmt.Errorf("failed to get expert mode volumes for backup vault %s: %w", vault.UUID, err)
+	}
+
+	for _, emv := range expertModeVolumes {
+		if emv.AccountID == vault.AccountID {
+			continue
+		}
+		if emv.BackupConfig == nil {
+			continue
+		}
+
+		logger.Infof("Detaching cross-project vault %s from expert mode volume %s (account %d)", vault.UUID, emv.UUID, emv.AccountID)
+
+		scheduledBackupDisabled := false
+		emv.BackupConfig = &datamodel.DataProtection{
+			ScheduledBackupEnabled: &scheduledBackupDisabled,
+			BackupVaultID:          "",
+			BackupPolicyID:         "",
+			BackupChainBytes:       emv.BackupConfig.BackupChainBytes,
+			KmsGrant:               emv.BackupConfig.KmsGrant,
+		}
+		if err := a.SE.UpdateExpertModeVolumeDataProtection(ctx, emv); err != nil {
+			return fmt.Errorf("failed to detach vault from expert mode volume %s: %w", emv.UUID, err)
+		}
 	}
 
 	return nil

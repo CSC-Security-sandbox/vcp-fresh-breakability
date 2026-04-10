@@ -3406,6 +3406,38 @@ func (re *retryEngine) GetVolumeCountByBackupVaultID(ctx context.Context, backup
 	return var0, err
 }
 
+func (re *retryEngine) GetVolumesByBackupVaultID(ctx context.Context, backupVaultUUID string) ([]*datamodel.Volume, error) {
+	var var0 []*datamodel.Volume
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetVolumesByBackupVaultID(ctx, backupVaultUUID)
+		if err != nil {
+			re.logError("GetVolumesByBackupVaultID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetExpertModeVolumesByBackupVaultID(ctx context.Context, backupVaultUUID string) ([]*datamodel.ExpertModeVolumes, error) {
+	var var0 []*datamodel.ExpertModeVolumes
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetExpertModeVolumesByBackupVaultID(ctx, backupVaultUUID)
+		if err != nil {
+			re.logError("GetExpertModeVolumesByBackupVaultID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetBackupCountByBackupVaultID(ctx context.Context, backupVaultID int64) (int64, error) {
 	var var0 int64
 	err := retry.Do(func(attempt int) (bool, error) {

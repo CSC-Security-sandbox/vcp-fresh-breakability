@@ -1098,6 +1098,14 @@ func (s *PersistenceStore) GetVolumeCountByBackupVaultID(ctx context.Context, ba
 	return s.dataStore.GetVolumeCountByBackupVaultID(ctx, backupVaultUUID)
 }
 
+func (s *PersistenceStore) GetVolumesByBackupVaultID(ctx context.Context, backupVaultUUID string) ([]*datamodel.Volume, error) {
+	return s.dataStore.GetVolumesByBackupVaultID(ctx, backupVaultUUID)
+}
+
+func (s *PersistenceStore) GetExpertModeVolumesByBackupVaultID(ctx context.Context, backupVaultUUID string) ([]*datamodel.ExpertModeVolumes, error) {
+	return s.dataStore.GetExpertModeVolumesByBackupVaultID(ctx, backupVaultUUID)
+}
+
 func (s *PersistenceStore) GetBackup(ctx context.Context, backupVaultUUID string, backupUUID string, accountName string) (*datamodel.Backup, error) {
 	return s.dataStore.GetBackup(ctx, backupVaultUUID, backupUUID, accountName)
 }

@@ -241,6 +241,26 @@ func (d *DataStoreRepository) GetVolumeCountByBackupVaultID(ctx context.Context,
 	return volumeCount + expertModeVolumeCount, nil
 }
 
+func (d *DataStoreRepository) GetVolumesByBackupVaultID(ctx context.Context, backupVaultUUID string) ([]*datamodel.Volume, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var volumes []*datamodel.Volume
+	err := db.Where("data_protection->>'backup_vault_id' = ?", backupVaultUUID).Find(&volumes).Error
+	if err != nil {
+		return nil, err
+	}
+	return volumes, nil
+}
+
+func (d *DataStoreRepository) GetExpertModeVolumesByBackupVaultID(ctx context.Context, backupVaultUUID string) ([]*datamodel.ExpertModeVolumes, error) {
+	db := d.db.GORM().WithContext(ctx)
+	var volumes []*datamodel.ExpertModeVolumes
+	err := db.Where("data_protection->>'backup_vault_id' = ?", backupVaultUUID).Find(&volumes).Error
+	if err != nil {
+		return nil, err
+	}
+	return volumes, nil
+}
+
 func (d *DataStoreRepository) GetBackupsByBackupVaultOwnerIDAndFilter(ctx context.Context, backupVaultUUID string, accountID int64, filters [][]interface{}) ([]*datamodel.Backup, error) {
 	bv, err := d.GetBackupVaultByUUIDndOwnerID(ctx, backupVaultUUID, accountID)
 	if err != nil {

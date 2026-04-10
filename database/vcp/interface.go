@@ -276,6 +276,8 @@ type (
 		DeleteBackupVaultInVCP(ctx context.Context, backupVaultId string) (*datamodel.BackupVault, error)
 		RestoreDeletedBackupVault(ctx context.Context, backupVaultUUID string, accountID int64, state, stateDetails string) (*datamodel.BackupVault, error)
 		GetVolumeCountByBackupVaultID(ctx context.Context, backupVaultUUID string) (int64, error)
+		GetVolumesByBackupVaultID(ctx context.Context, backupVaultUUID string) ([]*datamodel.Volume, error)
+		GetExpertModeVolumesByBackupVaultID(ctx context.Context, backupVaultUUID string) ([]*datamodel.ExpertModeVolumes, error)
 		GetBackupCountByBackupVaultID(ctx context.Context, backupVaultID int64) (int64, error)
 
 		GetBackupPolicyByUUIDAndOwnerID(ctx context.Context, backupPolicyUUID string, accountID int64) (*datamodel.BackupPolicy, error)

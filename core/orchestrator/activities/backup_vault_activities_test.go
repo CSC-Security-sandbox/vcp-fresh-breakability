@@ -2081,6 +2081,326 @@ func TestCleanupBackupVault(t *testing.T) {
 		assert.Contains(tt, err.Error(), "cleanup backups failed")
 		mockStorage.AssertExpectations(tt)
 	})
+
+	t.Run("CleanupBackupVault_CrossProject_DetachesVolumesBeforeCleanup", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-cp"},
+			Name:        "cross-project-vault",
+			AccountID:   100,
+			ServiceType: coremodels.ServiceTypeCrossProject,
+		}
+
+		scheduledEnabled := true
+		crossProjectVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid-1"},
+			AccountID: 200,
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID:          "vault-uuid-cp",
+				BackupPolicyID:         "policy-uuid-1",
+				ScheduledBackupEnabled: &scheduledEnabled,
+			},
+		}
+
+		// Mock detach: get volumes, update volume fields
+		mockStorage.On("GetVolumesByBackupVaultID", mock.Anything, "vault-uuid-cp").Return([]*datamodel.Volume{crossProjectVolume}, nil)
+		mockStorage.On("UpdateVolumeFields", mock.Anything, "vol-uuid-1", mock.MatchedBy(func(updates map[string]interface{}) bool {
+			dp, ok := updates["data_protection"].(*datamodel.DataProtection)
+			return ok && dp.BackupVaultID == "" && dp.BackupPolicyID == "" && *dp.ScheduledBackupEnabled == false
+		})).Return(nil)
+		mockStorage.On("GetExpertModeVolumesByBackupVaultID", mock.Anything, "vault-uuid-cp").Return([]*datamodel.ExpertModeVolumes{}, nil)
+
+		// Mock existing cleanup steps
+		mockStorage.On("GetBackupsByBackupVaultOwnerIDAndFilter", mock.Anything, "vault-uuid-cp", int64(100), mock.Anything).Return([]*datamodel.Backup{}, nil)
+		mockStorage.On("DeleteBackupVaultInVCP", mock.Anything, "vault-uuid-cp").Return(&datamodel.BackupVault{}, nil)
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.cleanupBackupVault(context.Background(), vault)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CleanupBackupVault_CrossProject_SkipsSameAccountVolumes", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-cp"},
+			Name:        "cross-project-vault",
+			AccountID:   100,
+			ServiceType: coremodels.ServiceTypeCrossProject,
+		}
+
+		sameAccountVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-same-account"},
+			AccountID: 100,
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID: "vault-uuid-cp",
+			},
+		}
+
+		// Mock detach: returns volume from same account — should NOT call UpdateVolumeFields
+		mockStorage.On("GetVolumesByBackupVaultID", mock.Anything, "vault-uuid-cp").Return([]*datamodel.Volume{sameAccountVolume}, nil)
+		mockStorage.On("GetExpertModeVolumesByBackupVaultID", mock.Anything, "vault-uuid-cp").Return([]*datamodel.ExpertModeVolumes{}, nil)
+
+		// Mock existing cleanup steps
+		mockStorage.On("GetBackupsByBackupVaultOwnerIDAndFilter", mock.Anything, "vault-uuid-cp", int64(100), mock.Anything).Return([]*datamodel.Backup{}, nil)
+		mockStorage.On("DeleteBackupVaultInVCP", mock.Anything, "vault-uuid-cp").Return(&datamodel.BackupVault{}, nil)
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.cleanupBackupVault(context.Background(), vault)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertNotCalled(tt, "UpdateVolumeFields", mock.Anything, "vol-same-account", mock.Anything)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CleanupBackupVault_CrossProject_DetachFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-cp"},
+			Name:        "cross-project-vault",
+			AccountID:   100,
+			ServiceType: coremodels.ServiceTypeCrossProject,
+		}
+
+		// Mock detach failure
+		mockStorage.On("GetVolumesByBackupVaultID", mock.Anything, "vault-uuid-cp").Return(nil, errors.New("db error"))
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.cleanupBackupVault(context.Background(), vault)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to get volumes for backup vault")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("CleanupBackupVault_NonCrossProject_SkipsDetach", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-gcnv"},
+			Name:        "gcnv-vault",
+			AccountID:   100,
+			ServiceType: "GCNV",
+		}
+
+		// Should NOT call GetVolumesByBackupVaultID for non-cross-project vaults
+		mockStorage.On("GetBackupsByBackupVaultOwnerIDAndFilter", mock.Anything, "vault-uuid-gcnv", int64(100), mock.Anything).Return([]*datamodel.Backup{}, nil)
+		mockStorage.On("DeleteBackupVaultInVCP", mock.Anything, "vault-uuid-gcnv").Return(&datamodel.BackupVault{}, nil)
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.cleanupBackupVault(context.Background(), vault)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertNotCalled(tt, "GetVolumesByBackupVaultID", mock.Anything, mock.Anything)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestDetachCrossProjectVolumesFromVault(t *testing.T) {
+	t.Run("DetachesRegularAndExpertModeVolumes", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-cp"},
+			AccountID:   100,
+			ServiceType: coremodels.ServiceTypeCrossProject,
+		}
+
+		scheduledEnabled := true
+		crossProjectVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+			AccountID: 200,
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID:          "vault-uuid-cp",
+				BackupPolicyID:         "policy-1",
+				ScheduledBackupEnabled: &scheduledEnabled,
+			},
+		}
+
+		crossProjectEMV := &datamodel.ExpertModeVolumes{
+			BaseModel: datamodel.BaseModel{UUID: "emv-1"},
+			AccountID: 300,
+			BackupConfig: &datamodel.DataProtection{
+				BackupVaultID:          "vault-uuid-cp",
+				BackupPolicyID:         "policy-2",
+				ScheduledBackupEnabled: &scheduledEnabled,
+			},
+		}
+
+		mockStorage.On("GetVolumesByBackupVaultID", mock.Anything, "vault-uuid-cp").Return([]*datamodel.Volume{crossProjectVolume}, nil)
+		mockStorage.On("UpdateVolumeFields", mock.Anything, "vol-1", mock.MatchedBy(func(updates map[string]interface{}) bool {
+			dp, ok := updates["data_protection"].(*datamodel.DataProtection)
+			return ok && dp.BackupVaultID == "" && dp.BackupPolicyID == "" && *dp.ScheduledBackupEnabled == false
+		})).Return(nil)
+
+		mockStorage.On("GetExpertModeVolumesByBackupVaultID", mock.Anything, "vault-uuid-cp").Return([]*datamodel.ExpertModeVolumes{crossProjectEMV}, nil)
+		mockStorage.On("UpdateExpertModeVolumeDataProtection", mock.Anything, mock.MatchedBy(func(emv *datamodel.ExpertModeVolumes) bool {
+			return emv.UUID == "emv-1" && emv.BackupConfig.BackupVaultID == "" && emv.BackupConfig.BackupPolicyID == "" && *emv.BackupConfig.ScheduledBackupEnabled == false
+		})).Return(nil)
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.detachCrossProjectVolumesFromVault(context.Background(), vault)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("UpdateVolumeFieldsFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-cp"},
+			AccountID:   100,
+			ServiceType: coremodels.ServiceTypeCrossProject,
+		}
+
+		crossProjectVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-1"},
+			AccountID: 200,
+			DataProtection: &datamodel.DataProtection{
+				BackupVaultID: "vault-uuid-cp",
+			},
+		}
+
+		mockStorage.On("GetVolumesByBackupVaultID", mock.Anything, "vault-uuid-cp").Return([]*datamodel.Volume{crossProjectVolume}, nil)
+		mockStorage.On("UpdateVolumeFields", mock.Anything, "vol-1", mock.Anything).Return(errors.New("update failed"))
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.detachCrossProjectVolumesFromVault(context.Background(), vault)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to detach vault from volume vol-1")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("SkipsVolumeWhenDataProtectionIsNil", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-cp"},
+			AccountID: 100,
+		}
+
+		volumeWithoutDP := &datamodel.Volume{
+			BaseModel:      datamodel.BaseModel{UUID: "vol-no-dp"},
+			AccountID:      200,
+			DataProtection: nil,
+		}
+
+		mockStorage.On("GetVolumesByBackupVaultID", mock.Anything, "vault-uuid-cp").Return([]*datamodel.Volume{volumeWithoutDP}, nil)
+		mockStorage.On("GetExpertModeVolumesByBackupVaultID", mock.Anything, "vault-uuid-cp").Return([]*datamodel.ExpertModeVolumes{}, nil)
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.detachCrossProjectVolumesFromVault(context.Background(), vault)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertNotCalled(tt, "UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("GetExpertModeVolumesFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-cp"},
+			AccountID: 100,
+		}
+
+		mockStorage.On("GetVolumesByBackupVaultID", mock.Anything, "vault-uuid-cp").Return([]*datamodel.Volume{}, nil)
+		mockStorage.On("GetExpertModeVolumesByBackupVaultID", mock.Anything, "vault-uuid-cp").Return(nil, errors.New("expert mode query failed"))
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.detachCrossProjectVolumesFromVault(context.Background(), vault)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to get expert mode volumes for backup vault vault-uuid-cp")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("SkipsExpertModeVolumeForSameAccountOrNilBackupConfig", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-cp"},
+			AccountID: 100,
+		}
+
+		sameAccountEMV := &datamodel.ExpertModeVolumes{
+			BaseModel: datamodel.BaseModel{UUID: "emv-same-account"},
+			AccountID: 100,
+			BackupConfig: &datamodel.DataProtection{
+				BackupVaultID: "vault-uuid-cp",
+			},
+		}
+		nilConfigEMV := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-no-config"},
+			AccountID:    200,
+			BackupConfig: nil,
+		}
+
+		mockStorage.On("GetVolumesByBackupVaultID", mock.Anything, "vault-uuid-cp").Return([]*datamodel.Volume{}, nil)
+		mockStorage.On("GetExpertModeVolumesByBackupVaultID", mock.Anything, "vault-uuid-cp").Return([]*datamodel.ExpertModeVolumes{sameAccountEMV, nilConfigEMV}, nil)
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.detachCrossProjectVolumesFromVault(context.Background(), vault)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertNotCalled(tt, "UpdateExpertModeVolumeDataProtection", mock.Anything, mock.Anything)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("UpdateExpertModeVolumeDataProtectionFails", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel: datamodel.BaseModel{UUID: "vault-uuid-cp"},
+			AccountID: 100,
+		}
+
+		emv := &datamodel.ExpertModeVolumes{
+			BaseModel: datamodel.BaseModel{UUID: "emv-1"},
+			AccountID: 200,
+			BackupConfig: &datamodel.DataProtection{
+				BackupVaultID: "vault-uuid-cp",
+				BackupPolicyID: "policy-1",
+			},
+		}
+
+		mockStorage.On("GetVolumesByBackupVaultID", mock.Anything, "vault-uuid-cp").Return([]*datamodel.Volume{}, nil)
+		mockStorage.On("GetExpertModeVolumesByBackupVaultID", mock.Anything, "vault-uuid-cp").Return([]*datamodel.ExpertModeVolumes{emv}, nil)
+		mockStorage.On("UpdateExpertModeVolumeDataProtection", mock.Anything, mock.Anything).Return(errors.New("update emv failed"))
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.detachCrossProjectVolumesFromVault(context.Background(), vault)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to detach vault from expert mode volume emv-1")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("NoVolumesAttached", func(tt *testing.T) {
+		mockStorage := database.NewMockStorage(tt)
+
+		vault := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: "vault-uuid-cp"},
+			AccountID:   100,
+			ServiceType: coremodels.ServiceTypeCrossProject,
+		}
+
+		mockStorage.On("GetVolumesByBackupVaultID", mock.Anything, "vault-uuid-cp").Return([]*datamodel.Volume{}, nil)
+		mockStorage.On("GetExpertModeVolumesByBackupVaultID", mock.Anything, "vault-uuid-cp").Return([]*datamodel.ExpertModeVolumes{}, nil)
+
+		activity := BackupVaultActivity{SE: mockStorage}
+		err := activity.detachCrossProjectVolumesFromVault(context.Background(), vault)
+
+		assert.NoError(tt, err)
+		mockStorage.AssertNotCalled(tt, "UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything)
+		mockStorage.AssertExpectations(tt)
+	})
 }
 
 func TestCleanupBackupsForVault(t *testing.T) {

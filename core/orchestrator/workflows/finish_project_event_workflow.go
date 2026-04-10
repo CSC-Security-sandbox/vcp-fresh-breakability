@@ -268,14 +268,6 @@ func (s *finishProjectEventDeleteStateWorkflow) Run(ctx workflow.Context, args .
 			} else {
 				logger.Infof("Successfully cleaned up backup policies for project %s", finishProjectEventParams.ProjectNumber)
 			}
-			// Cleanup backup policies and their temporal schedulers
-			err = workflow.ExecuteActivity(ctxBackup, backupPolicyActivity.CleanupBackupPoliciesForAccount, finishProjectEventParams.ProjectNumber).Get(ctx, nil)
-			if err != nil {
-				logger.Errorf("Failed to cleanup backup policies for project %s: %v", finishProjectEventParams.ProjectNumber, err)
-				backupCleanupErrors = append(backupCleanupErrors, err)
-			} else {
-				logger.Infof("Successfully cleaned up backup policies for project %s", finishProjectEventParams.ProjectNumber)
-			}
 
 			// Log summary of backup cleanup
 			if len(backupCleanupErrors) == 0 {

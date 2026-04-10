@@ -1748,6 +1748,70 @@ func TestGetVolumeCountByBackupVaultID_Persistence_Store(t *testing.T) {
 	assert.Equal(t, int64(2), count)
 }
 
+func TestGetVolumesByBackupVaultID_Persistence_Store(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	assert.NoError(t, err)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "test-pool-wrapper-uuid"},
+		Name:      "test-pool-wrapper",
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone:  "us-west1-b",
+			IsRegionalHA: false,
+		},
+	}
+	err = store.DB().Create(pool).Error
+	assert.NoError(t, err)
+
+	backupVault := &datamodel.BackupVault{Name: "test-wrapper-vault"}
+	createdVault, err := store.CreatingBackupVault(ctx, backupVault)
+	assert.NoError(t, err)
+
+	vol := &datamodel.Volume{
+		Name:           "wrapper-volume",
+		PoolID:         pool.ID,
+		Pool:           pool,
+		DataProtection: &datamodel.DataProtection{BackupVaultID: createdVault.UUID},
+	}
+	_, err = store.CreateVolume(ctx, vol)
+	assert.NoError(t, err)
+
+	volumes, err := store.GetVolumesByBackupVaultID(ctx, createdVault.UUID)
+	assert.NoError(t, err)
+	require.Len(t, volumes, 1)
+	assert.Equal(t, "wrapper-volume", volumes[0].Name)
+}
+
+func TestGetExpertModeVolumesByBackupVaultID_Persistence_Store(t *testing.T) {
+	logger := log.NewLogger()
+	store, err := SetupStorageForTest(logger)
+	assert.NoError(t, err)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, logger)
+
+	backupVault := &datamodel.BackupVault{Name: "test-wrapper-expert-vault"}
+	createdVault, err := store.CreatingBackupVault(ctx, backupVault)
+	assert.NoError(t, err)
+
+	emv := &datamodel.ExpertModeVolumes{
+		BaseModel: datamodel.BaseModel{UUID: "wrapper-expert-volume-uuid"},
+		Name:      "wrapper-expert-volume",
+		BackupConfig: &datamodel.DataProtection{
+			BackupVaultID: createdVault.UUID,
+		},
+	}
+	err = store.DB().Create(emv).Error
+	assert.NoError(t, err)
+
+	volumes, err := store.GetExpertModeVolumesByBackupVaultID(ctx, createdVault.UUID)
+	assert.NoError(t, err)
+	require.Len(t, volumes, 1)
+	assert.Equal(t, "wrapper-expert-volume", volumes[0].Name)
+}
+
 func TestDeleteBackupVaultInVCP_Success(t *testing.T) {
 	logger := log.NewLogger()
 	store, _ := SetupStorageForTest(logger)
