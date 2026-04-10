@@ -380,7 +380,7 @@ echo "════════════ MERGE PLAN ════════�
 
 MERGE_PLAN_BODY=$(python3 << 'PYEOF'
 import json, sys, subprocess
-from datetime import datetime
+from datetime import datetime, timezone
 
 with open("/tmp/build-results.json") as f:
     data = json.load(f)
@@ -436,7 +436,7 @@ lines = []
 lines.append("<!-- breakability-merge-plan -->")
 lines.append(f"# 📋 Breakability Merge Plan")
 lines.append(f"")
-lines.append(f"**Generated:** {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')} (deterministic)")
+lines.append(f"**Generated:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')} (deterministic)")
 lines.append(f"**PRs analyzed:** {len(prs)} Dependabot PRs")
 if non_dependabot_count > 0:
     lines.append(f"**Not analyzed:** {non_dependabot_count} non-Dependabot PR(s) (out of scope — this tool only analyzes Dependabot dependency upgrades)")
@@ -541,20 +541,22 @@ PYEOF
 )
 
 if [[ -n "$MERGE_PLAN_BODY" && "$MERGE_PLAN_BODY" != *"Traceback"* ]]; then
-  # Find existing merge-plan issue
-  EXISTING_ISSUE=$(gh issue list --label "merge-plan" --state open --json number -q '.[0].number' 2>/dev/null || echo "")
+  # Find existing merge plan issue by title pattern (labels vary across repos)
+  EXISTING_ISSUE=$(gh issue list --state open --json number,title \
+    -q '.[] | select(.title | test("[Mm]erge [Pp]lan")) | .number' \
+    2>/dev/null | head -1 || echo "")
 
   if [[ -n "$EXISTING_ISSUE" ]]; then
-    # Update existing issue
+    # Update existing issue with latest data
     gh issue edit "$EXISTING_ISSUE" --body "$MERGE_PLAN_BODY" 2>/dev/null && \
       echo "  Updated merge plan issue #$EXISTING_ISSUE" || \
       echo "  ⚠️  Failed to update merge plan issue #$EXISTING_ISSUE"
   else
-    # Create new merge plan issue
+    # Create new merge plan issue — use "dependencies" label (exists in most repos)
     NEW_ISSUE=$(gh issue create \
       --title "📋 Breakability Merge Plan — $(date -u +%Y-%m-%d)" \
       --body "$MERGE_PLAN_BODY" \
-      --label "merge-plan" 2>/dev/null || echo "")
+      --label "dependencies" 2>/dev/null || echo "")
     if [[ -n "$NEW_ISSUE" ]]; then
       echo "  Created merge plan issue: $NEW_ISSUE"
     else
