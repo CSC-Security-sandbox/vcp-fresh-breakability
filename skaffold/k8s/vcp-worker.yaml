@@ -26,7 +26,7 @@ data:
   DB_HOST: "postgres.default.svc.cluster.local"
   DB_PORT: "5432"
   DB_USER: "postgres"
-  DB_PASSWORD: "postgres"
+  DB_PASSWORD: "testpass"
   DB_NAME: "vcp"
   DB_SSL_MODE: "disable"
   DB_TIMEZONE: "UTC"

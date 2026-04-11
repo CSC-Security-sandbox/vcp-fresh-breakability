@@ -1129,14 +1129,13 @@ func (p *BillingProvider) fetchMetricsForCounterAndIntegralAggregation(ctx conte
 		"endTime":      aggregationEndTime.Add(backfillLimit),    // Look ahead 1 hour after aggregation end
 		"resourceType": resourceType,
 		"measuredType": measuredType,
-		"order":        "resource_name, deployment_name, consumer_id, metric_timestamp DESC", // Database sorts for us
+		"order":        "resource_name, deployment_name, consumer_id, metric_timestamp ASC", // Database sorts for us
 	})
 	// Fetch all metrics using pagination to handle large datasets efficiently
 	allMetrics, err := p.fetchAllHydratedMetricsWithPagination(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
-	slices.Reverse(allMetrics) // Reverse to have ASC order
 	return allMetrics, nil
 }
 
