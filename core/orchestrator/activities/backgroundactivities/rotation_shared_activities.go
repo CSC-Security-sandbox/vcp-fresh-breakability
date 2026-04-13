@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/vlm"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -69,6 +70,34 @@ func safeRecordHeartbeat(ctx context.Context, details ...interface{}) {
 	activity.RecordHeartbeat(ctx, details...)
 }
 
+func isSVMNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errMsg := strings.ToLower(err.Error())
+	return strings.Contains(errMsg, "does not exist") && strings.Contains(errMsg, "svm")
+}
+
+func getClusterNameFromVLMConfig(pool *datamodel.Pool) string {
+	if pool.VLMConfig == "" {
+		return ""
+	}
+	var vlmConfig vlm.VLMConfig
+	if err := json.Unmarshal([]byte(pool.VLMConfig), &vlmConfig); err != nil {
+		return ""
+	}
+	return vlmConfig.VsaCluster.ClusterName
+}
+
+// resolveVserverName returns the preferred vserver name for ONTAP API calls.
+// It prefers the cluster name from VLMConfig (which includes the region suffix)
+// and falls back to pool.DeploymentName if VLMConfig is unavailable or empty.
+func resolveVserverName(pool *datamodel.Pool) string {
+	if clusterName := getClusterNameFromVLMConfig(pool); clusterName != "" {
+		return clusterName
+	}
+	return pool.DeploymentName
+}
 
 // GetPoolContext retrieves pool information once and returns it in a shared context
 func (a *RotateVcpToVsaCertificateActivity) GetPoolContext(ctx context.Context, poolUUID string) (*PoolContext, error) {
@@ -796,11 +825,8 @@ func (a *RotateVcpToVsaCertificateActivity) installCertificateOnVSA(ctx context.
 		return fmt.Errorf("invalid secret type: %T", secret)
 	}
 
-	// Use cluster vserver name (deployment name) instead of SVM
-	vserverName := pool.DeploymentName
-
-	// Use the username that was already determined earlier (with fallback if needed)
-	// The username variable is already set at the beginning of this function
+	vserverName := resolveVserverName(pool)
+	logger.Infof("Resolved vserver name: %q (deploymentName: %q)", vserverName, pool.DeploymentName)
 
 	installParams := vsa.InstallServerCertificateParams{
 		SvmName:         vserverName,
@@ -813,27 +839,31 @@ func (a *RotateVcpToVsaCertificateActivity) installCertificateOnVSA(ctx context.
 
 	_, err = provider.InstallServerCertificate(installParams)
 	if err != nil {
-		// Check if the error indicates expired certificate - fall back to password auth
-		errMsg := err.Error()
-		isTrulyExpired := strings.Contains(errMsg, "certificate has expired") ||
-			strings.Contains(errMsg, "certificate has expired or is not yet valid")
-
-		if isTrulyExpired {
-			logger.Warnf("Certificate authentication failed with expired certificate error during installation - falling back to password authentication: %v", err)
-			// Fall back to password authentication for certificate installation
-			return a.installCertificateOnVSAWithPasswordAuth(ctx, pool, certificate, secret)
+		if isSVMNotFoundError(err) && vserverName != pool.DeploymentName {
+			logger.Warnf("SVM %q not found, retrying with deployment name: %q", vserverName, pool.DeploymentName)
+			vserverName = pool.DeploymentName
+			installParams.SvmName = pool.DeploymentName
+			_, err = provider.InstallServerCertificate(installParams)
 		}
 
-		logger.Errorf("Failed to install certificate on VSA: %v", err)
-		return err
-	}
-	logger.Info("Certificate installation via REST API completed successfully", "certificateID", cert.CertificateID)
+		if err != nil {
+			errMsg := err.Error()
+			isTrulyExpired := strings.Contains(errMsg, "certificate has expired") ||
+				strings.Contains(errMsg, "certificate has expired or is not yet valid")
 
-	// Now configure SSL to use the new certificate.
-	// Use the same CA name ONTAP derives from the PEM when installing (issuer CN), so "security ssl modify" finds the cert.
+			if isTrulyExpired {
+				logger.Warnf("Certificate authentication failed with expired certificate error during installation - falling back to password authentication: %v", err)
+				return a.installCertificateOnVSAWithPasswordAuth(ctx, pool, certificate, secret)
+			}
+
+			logger.Errorf("Failed to install certificate on VSA: %v", err)
+			return err
+		}
+	}
+	logger.Info("Certificate installation via REST API completed successfully", "certificateID", cert.CertificateID, "vserverName", vserverName)
+
 	logger.Debug("Configuring SSL to use the new certificate")
 
-	// Check if serial number is available
 	if cert.SerialNumber == "" {
 		logger.Warnf("Certificate serial number is empty, cannot configure SSL. Certificate ID: %s", cert.CertificateID)
 		return fmt.Errorf("certificate serial number is empty, cannot configure SSL")
@@ -1041,8 +1071,6 @@ func (a *RotateVcpToVsaCertificateActivity) installCertificateOnVSAWithPasswordA
 			Username:      username, // Use username with fallback if needed
 		},
 	})
-	logger.Debugf("Node endpoint address for AuthType USERNAME_PWD_SEC_MGR,: %s", node.EndpointAddress)
-
 	// Create VSA provider with password authentication
 	provider, err := hyperscaler2.GetProviderByNode(ctx, node)
 	if err != nil {
@@ -1082,8 +1110,8 @@ func (a *RotateVcpToVsaCertificateActivity) installCertificateOnVSAWithPasswordA
 		return fmt.Errorf("invalid secret type: %T", secret)
 	}
 
-	// Use cluster vserver name (deployment name) instead of SVM
-	vserverName := pool.DeploymentName
+	vserverName := resolveVserverName(pool)
+	logger.Infof("Resolved vserver name (password auth): %q (deploymentName: %q)", vserverName, pool.DeploymentName)
 
 	installParams := vsa.InstallServerCertificateParams{
 		SvmName:         vserverName,
@@ -1096,16 +1124,21 @@ func (a *RotateVcpToVsaCertificateActivity) installCertificateOnVSAWithPasswordA
 
 	_, err = provider.InstallServerCertificate(installParams)
 	if err != nil {
-		logger.Errorf("Failed to install certificate on VSA with password auth: %v", err)
-		return err
+		if isSVMNotFoundError(err) && vserverName != pool.DeploymentName {
+			logger.Warnf("SVM %q not found (password auth), retrying with deployment name: %q", vserverName, pool.DeploymentName)
+			vserverName = pool.DeploymentName
+			installParams.SvmName = pool.DeploymentName
+			_, err = provider.InstallServerCertificate(installParams)
+		}
+		if err != nil {
+			logger.Errorf("Failed to install certificate on VSA with password auth: %v", err)
+			return err
+		}
 	}
-	logger.Info("Certificate installation via REST API (password auth) completed successfully", "certificateID", cert.CertificateID)
+	logger.Info("Certificate installation via REST API (password auth) completed successfully", "certificateID", cert.CertificateID, "vserverName", vserverName)
 
-	// Now configure SSL to use the new certificate.
-	// Use the same CA name ONTAP derives from the PEM when installing (issuer CN), so "security ssl modify" finds the cert.
 	logger.Debug("Configuring SSL to use the new certificate")
 
-	// Check if serial number is available
 	if cert.SerialNumber == "" {
 		logger.Warnf("Certificate serial number is empty, cannot configure SSL. Certificate ID: %s", cert.CertificateID)
 		return fmt.Errorf("certificate serial number is empty, cannot configure SSL")
@@ -1674,19 +1707,22 @@ func (a *RotateVcpToVsaCertificateActivity) removeCertificateFromVSA(ctx context
 		return err
 	}
 
-	// Use cluster vserver name (deployment name) instead of SVM
-	vserverName := pool.DeploymentName
-	logger.Debugf("Removing certificate from cluster vserver: %s", vserverName)
+	vserverName := resolveVserverName(pool)
+	logger.Infof("Resolved vserver name for removal: %q (deploymentName: %q)", vserverName, pool.DeploymentName)
 
-	// Attempt to delete the certificate using ONTAP REST API
 	logger.Debugf("Attempting to delete certificate %s from ONTAP using REST API", certificate.CertificateID)
 
-	// Cast provider to OntapRestProvider to access the REST client
 	if ontapProvider, ok := provider.(*vsa.OntapRestProvider); ok {
 		err := a.deleteCertificateFromONTAP(ctx, ontapProvider, certificate, vserverName)
 		if err != nil {
-			logger.Warnf("Failed to delete certificate from ONTAP: %v", err)
-			return err
+			if isSVMNotFoundError(err) && vserverName != pool.DeploymentName {
+				logger.Warnf("SVM %q not found during certificate removal, retrying with deployment name: %q", vserverName, pool.DeploymentName)
+				err = a.deleteCertificateFromONTAP(ctx, ontapProvider, certificate, pool.DeploymentName)
+			}
+			if err != nil {
+				logger.Warnf("Failed to delete certificate from ONTAP: %v", err)
+				return err
+			}
 		}
 	} else {
 		logger.Warnf("Provider is not OntapRestProvider type: %T, cannot delete certificate via REST API", provider)

@@ -8,6 +8,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"math/big"
 	"strings"
 	"testing"
@@ -18,6 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -6360,6 +6362,544 @@ func TestRotateVcpToVsaCertificateActivity_checkPoolStateBeforeCriticalOperation
 		// This is a safety measure as per the implementation
 		assert.NoError(tt, err)
 		assert.True(tt, canProceed)
+		mockSE.AssertExpectations(tt)
+	})
+}
+
+func TestIsSVMNotFoundError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "uppercase SVM does not exist",
+			err:      errors.New(`SVM "gcnv-51ed75079ca1d86" does not exist.`),
+			expected: true,
+		},
+		{
+			name:     "lowercase svm does not exist",
+			err:      errors.New(`svm "test-svm" does not exist`),
+			expected: true,
+		},
+		{
+			name:     "mixed case Svm does not exist",
+			err:      errors.New(`Svm "my-cluster" does not exist`),
+			expected: true,
+		},
+		{
+			name:     "ONTAP JSON error format",
+			err:      errors.New(`{"error":{"message":"SVM \"gcnv-51ed75079ca1d86\" does not exist.","code":"2621462","target":"svm.name"}}`),
+			expected: true,
+		},
+		{
+			name:     "does not exist without svm keyword",
+			err:      errors.New(`volume "vol1" does not exist`),
+			expected: false,
+		},
+		{
+			name:     "svm keyword without does not exist",
+			err:      errors.New(`SVM "test" connection refused`),
+			expected: false,
+		},
+		{
+			name:     "unrelated error",
+			err:      errors.New("connection timeout"),
+			expected: false,
+		},
+		{
+			name:     "empty error message",
+			err:      errors.New(""),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isSVMNotFoundError(tt.err)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestGetClusterNameFromVLMConfig(t *testing.T) {
+	tests := []struct {
+		name     string
+		pool     *datamodel.Pool
+		expected string
+	}{
+		{
+			name:     "empty VLMConfig",
+			pool:     &datamodel.Pool{VLMConfig: ""},
+			expected: "",
+		},
+		{
+			name:     "invalid JSON",
+			pool:     &datamodel.Pool{VLMConfig: "not-json"},
+			expected: "",
+		},
+		{
+			name: "valid VLMConfig with cluster name",
+			pool: &datamodel.Pool{
+				VLMConfig: `{"vsa_cluster":{"cluster_name":"gcnv-51ed75079ca1d86-r11"}}`,
+			},
+			expected: "gcnv-51ed75079ca1d86-r11",
+		},
+		{
+			name: "valid VLMConfig with empty cluster name",
+			pool: &datamodel.Pool{
+				VLMConfig: `{"vsa_cluster":{"cluster_name":""}}`,
+			},
+			expected: "",
+		},
+		{
+			name: "valid VLMConfig without vsa_cluster section",
+			pool: &datamodel.Pool{
+				VLMConfig: `{"cloud":{"ha_pair":[]}}`,
+			},
+			expected: "",
+		},
+		{
+			name: "full VLMConfig with multiple fields",
+			pool: &datamodel.Pool{
+				VLMConfig: `{"cloud":{"ha_pair":[]},"deployment":{},"vsa_cluster":{"cluster_name":"my-cluster-r5","cluster_mgmt_netmask":"255.255.255.0","cluster_mgmt_gateway":"10.0.0.1"}}`,
+			},
+			expected: "my-cluster-r5",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getClusterNameFromVLMConfig(tt.pool)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestResolveVserverName(t *testing.T) {
+	tests := []struct {
+		name     string
+		pool     *datamodel.Pool
+		expected string
+	}{
+		{
+			name: "prefers cluster name from VLMConfig",
+			pool: &datamodel.Pool{
+				DeploymentName: "gcnv-51ed75079ca1d86",
+				VLMConfig:      `{"vsa_cluster":{"cluster_name":"gcnv-51ed75079ca1d86-r11"}}`,
+			},
+			expected: "gcnv-51ed75079ca1d86-r11",
+		},
+		{
+			name: "falls back to deployment name when VLMConfig is empty",
+			pool: &datamodel.Pool{
+				DeploymentName: "gcnv-51ed75079ca1d86",
+				VLMConfig:      "",
+			},
+			expected: "gcnv-51ed75079ca1d86",
+		},
+		{
+			name: "falls back to deployment name when VLMConfig has empty cluster name",
+			pool: &datamodel.Pool{
+				DeploymentName: "gcnv-abc123",
+				VLMConfig:      `{"vsa_cluster":{"cluster_name":""}}`,
+			},
+			expected: "gcnv-abc123",
+		},
+		{
+			name: "falls back to deployment name when VLMConfig is invalid JSON",
+			pool: &datamodel.Pool{
+				DeploymentName: "gcnv-abc123",
+				VLMConfig:      "not-json",
+			},
+			expected: "gcnv-abc123",
+		},
+		{
+			name: "falls back to deployment name when VLMConfig has no vsa_cluster section",
+			pool: &datamodel.Pool{
+				DeploymentName: "gcnv-abc123",
+				VLMConfig:      `{"cloud":{}}`,
+			},
+			expected: "gcnv-abc123",
+		},
+		{
+			name: "cluster name same as deployment name",
+			pool: &datamodel.Pool{
+				DeploymentName: "gcnv-abc123",
+				VLMConfig:      `{"vsa_cluster":{"cluster_name":"gcnv-abc123"}}`,
+			},
+			expected: "gcnv-abc123",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := resolveVserverName(tt.pool)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSA_SVMNotFoundFallback(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("retries_with_deployment_name_on_SVM_not_found", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+				ID:   1,
+			},
+			DeploymentName: "test-deployment",
+			VLMConfig:      `{"vsa_cluster":{"cluster_name":"cluster-with-region"}}`,
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "test-password",
+				CertificateID: "test-cert-id",
+				AuthType:      env.USER_CERTIFICATE,
+				Username:      "test-user",
+			},
+		}
+
+		cert := &hyperscalermodels.CustomCertificate{
+			CertificateID:  "new-cert-id",
+			PemCertificate: "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
+			SerialNumber:   "12345",
+			CaName:         "test-ca",
+		}
+
+		secret := &hyperscalermodels.CustomSecret{
+			SecretVersion: &hyperscalermodels.CustomSecretVersion{
+				Value: "private-key",
+			},
+		}
+
+		nodes := []*datamodel.Node{
+			{BaseModel: datamodel.BaseModel{ID: 1}, EndpointAddress: "1.2.3.4"},
+		}
+
+		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
+
+		mockProvider := &vsa.MockProvider{}
+		originalGetProvider := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		svmNotFoundErr := fmt.Errorf("SVM cluster-with-region does not exist")
+		mockProvider.On("InstallServerCertificate", mock.Anything).Return((*vsa.ServerCertificateResponse)(nil), svmNotFoundErr).Once()
+		mockProvider.On("InstallServerCertificate", mock.Anything).Return(&vsa.ServerCertificateResponse{}, nil).Once()
+		mockProvider.On("ModifySSL", mock.Anything).Return(&vsa.ModifySSLResponse{Success: true}, nil).Once()
+
+		err := activity.installCertificateOnVSA(ctx, pool, cert, secret)
+
+		assert.NoError(tt, err)
+		mockSE.AssertExpectations(tt)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("retries_with_deployment_name_on_SVM_not_found_both_fail", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+				ID:   1,
+			},
+			DeploymentName: "test-deployment",
+			VLMConfig:      `{"vsa_cluster":{"cluster_name":"cluster-with-region"}}`,
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "test-password",
+				CertificateID: "test-cert-id",
+				AuthType:      env.USER_CERTIFICATE,
+				Username:      "test-user",
+			},
+		}
+
+		cert := &hyperscalermodels.CustomCertificate{
+			CertificateID:  "new-cert-id",
+			PemCertificate: "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
+			SerialNumber:   "12345",
+			CaName:         "test-ca",
+		}
+
+		secret := &hyperscalermodels.CustomSecret{
+			SecretVersion: &hyperscalermodels.CustomSecretVersion{
+				Value: "private-key",
+			},
+		}
+
+		nodes := []*datamodel.Node{
+			{BaseModel: datamodel.BaseModel{ID: 1}, EndpointAddress: "1.2.3.4"},
+		}
+
+		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
+
+		mockProvider := &vsa.MockProvider{}
+		originalGetProvider := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		svmNotFoundErr := fmt.Errorf("SVM cluster-with-region does not exist")
+		otherErr := fmt.Errorf("connection refused")
+		mockProvider.On("InstallServerCertificate", mock.Anything).Return((*vsa.ServerCertificateResponse)(nil), svmNotFoundErr).Once()
+		mockProvider.On("InstallServerCertificate", mock.Anything).Return((*vsa.ServerCertificateResponse)(nil), otherErr).Once()
+
+		err := activity.installCertificateOnVSA(ctx, pool, cert, secret)
+
+		assert.Error(tt, err)
+		mockSE.AssertExpectations(tt)
+		mockProvider.AssertExpectations(tt)
+	})
+}
+
+func TestRotateVcpToVsaCertificateActivity_installCertificateOnVSAWithPasswordAuth_SVMNotFoundFallback(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("retries_with_deployment_name_on_SVM_not_found", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+				ID:   1,
+			},
+			DeploymentName: "test-deployment",
+			VLMConfig:      `{"vsa_cluster":{"cluster_name":"cluster-with-region"}}`,
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "test-password",
+				SecretID:      "test-secret-id",
+				CertificateID: "test-cert-id",
+				AuthType:      env.USERNAME_PWD_SEC_MGR,
+				Username:      "test-user",
+			},
+		}
+
+		cert := &hyperscalermodels.CustomCertificate{
+			CertificateID:  "new-cert-id",
+			PemCertificate: "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
+			SerialNumber:   "12345",
+			CaName:         "test-ca",
+		}
+
+		secret := &hyperscalermodels.CustomSecret{
+			SecretVersion: &hyperscalermodels.CustomSecretVersion{
+				Value: "private-key",
+			},
+		}
+
+		nodes := []*datamodel.Node{
+			{BaseModel: datamodel.BaseModel{ID: 1}, EndpointAddress: "1.2.3.4"},
+		}
+
+		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
+
+		mockProvider := &vsa.MockProvider{}
+		originalGetProvider := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		svmNotFoundErr := fmt.Errorf("SVM cluster-with-region does not exist")
+		mockProvider.On("InstallServerCertificate", mock.Anything).Return((*vsa.ServerCertificateResponse)(nil), svmNotFoundErr).Once()
+		mockProvider.On("InstallServerCertificate", mock.Anything).Return(&vsa.ServerCertificateResponse{SerialNumber: "12345"}, nil).Once()
+		mockProvider.On("ModifySSL", mock.Anything).Return(&vsa.ModifySSLResponse{Success: true}, nil).Once()
+
+		err := activity.installCertificateOnVSAWithPasswordAuth(ctx, pool, cert, secret)
+
+		assert.NoError(tt, err)
+		mockSE.AssertExpectations(tt)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("retries_with_deployment_name_on_SVM_not_found_both_fail", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+				ID:   1,
+			},
+			DeploymentName: "test-deployment",
+			VLMConfig:      `{"vsa_cluster":{"cluster_name":"cluster-with-region"}}`,
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "test-password",
+				SecretID:      "test-secret-id",
+				CertificateID: "test-cert-id",
+				AuthType:      env.USERNAME_PWD_SEC_MGR,
+				Username:      "test-user",
+			},
+		}
+
+		cert := &hyperscalermodels.CustomCertificate{
+			CertificateID:  "new-cert-id",
+			PemCertificate: "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----",
+			SerialNumber:   "12345",
+			CaName:         "test-ca",
+		}
+
+		secret := &hyperscalermodels.CustomSecret{
+			SecretVersion: &hyperscalermodels.CustomSecretVersion{
+				Value: "private-key",
+			},
+		}
+
+		nodes := []*datamodel.Node{
+			{BaseModel: datamodel.BaseModel{ID: 1}, EndpointAddress: "1.2.3.4"},
+		}
+
+		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
+
+		mockProvider := &vsa.MockProvider{}
+		originalGetProvider := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		svmNotFoundErr := fmt.Errorf("SVM cluster-with-region does not exist")
+		persistentErr := fmt.Errorf("SVM test-deployment does not exist")
+		mockProvider.On("InstallServerCertificate", mock.Anything).Return((*vsa.ServerCertificateResponse)(nil), svmNotFoundErr).Once()
+		mockProvider.On("InstallServerCertificate", mock.Anything).Return((*vsa.ServerCertificateResponse)(nil), persistentErr).Once()
+
+		err := activity.installCertificateOnVSAWithPasswordAuth(ctx, pool, cert, secret)
+
+		assert.Error(tt, err)
+		mockSE.AssertExpectations(tt)
+		mockProvider.AssertExpectations(tt)
+	})
+}
+
+func TestRotateVcpToVsaCertificateActivity_removeCertificateFromVSA_SVMNotFoundFallback(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("retries_with_deployment_name_on_SVM_not_found_and_succeeds", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+				ID:   1,
+			},
+			DeploymentName: "test-deployment",
+			VLMConfig:      `{"vsa_cluster":{"cluster_name":"cluster-with-region"}}`,
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "test-password",
+				CertificateID: "test-cert-id",
+				AuthType:      env.USER_CERTIFICATE,
+				Username:      "test-user",
+			},
+		}
+
+		certificate := &hyperscalermodels.CustomCertificate{
+			CertificateID: "old-cert-id",
+			SerialNumber:  "99999",
+		}
+
+		nodes := []*datamodel.Node{
+			{BaseModel: datamodel.BaseModel{ID: 1}, EndpointAddress: "1.2.3.4"},
+		}
+
+		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
+
+		originalGetProvider := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
+
+		mockSecurityClient := &ontaprest.MockSecurityClient{}
+		mockRESTClient := &ontaprest.MockRESTClient{}
+		mockRESTClient.On("Security").Return(mockSecurityClient)
+
+		originalNewClient := ontaprest.NewOntapRestClient
+		defer func() { ontaprest.NewOntapRestClient = originalNewClient }()
+
+		svmNotFoundErr := fmt.Errorf("failed to delete certificate from ONTAP: SVM cluster-with-region does not exist")
+		ontaprest.NewOntapRestClient = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockRESTClient, nil
+		}
+
+		mockSecurityClient.On("SecurityCertificateDeleteCollection", mock.Anything).Return(svmNotFoundErr).Once()
+		mockSecurityClient.On("SecurityCertificateDeleteCollection", mock.Anything).Return(nil).Once()
+
+		ontapProvider := &vsa.OntapRestProvider{}
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return ontapProvider, nil
+		}
+
+		err := activity.removeCertificateFromVSA(ctx, pool, certificate)
+
+		assert.NoError(tt, err)
+		mockSE.AssertExpectations(tt)
+	})
+
+	t.Run("retries_with_deployment_name_on_SVM_not_found_both_fail", func(tt *testing.T) {
+		mockSE := database.NewMockStorage(t)
+		activity := &RotateVcpToVsaCertificateActivity{SE: mockSE}
+
+		pool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID: "test-pool-uuid",
+				ID:   1,
+			},
+			DeploymentName: "test-deployment",
+			VLMConfig:      `{"vsa_cluster":{"cluster_name":"cluster-with-region"}}`,
+			PoolCredentials: &datamodel.PoolCredentials{
+				Password:      "test-password",
+				CertificateID: "test-cert-id",
+				AuthType:      env.USER_CERTIFICATE,
+				Username:      "test-user",
+			},
+		}
+
+		certificate := &hyperscalermodels.CustomCertificate{
+			CertificateID: "old-cert-id",
+			SerialNumber:  "99999",
+		}
+
+		nodes := []*datamodel.Node{
+			{BaseModel: datamodel.BaseModel{ID: 1}, EndpointAddress: "1.2.3.4"},
+		}
+
+		mockSE.On("GetNodesByPoolID", ctx, int64(1)).Return(nodes, nil)
+
+		originalGetProvider := hyperscaler2.GetProviderByNode
+		defer func() { hyperscaler2.GetProviderByNode = originalGetProvider }()
+
+		mockSecurityClient := &ontaprest.MockSecurityClient{}
+		mockRESTClient := &ontaprest.MockRESTClient{}
+		mockRESTClient.On("Security").Return(mockSecurityClient)
+
+		originalNewClient := ontaprest.NewOntapRestClient
+		defer func() { ontaprest.NewOntapRestClient = originalNewClient }()
+
+		ontaprest.NewOntapRestClient = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockRESTClient, nil
+		}
+
+		svmNotFoundErr := fmt.Errorf("failed to delete certificate from ONTAP: SVM does not exist")
+		mockSecurityClient.On("SecurityCertificateDeleteCollection", mock.Anything).Return(svmNotFoundErr)
+
+		ontapProvider := &vsa.OntapRestProvider{}
+		hyperscaler2.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return ontapProvider, nil
+		}
+
+		err := activity.removeCertificateFromVSA(ctx, pool, certificate)
+
+		assert.Error(tt, err)
 		mockSE.AssertExpectations(tt)
 	})
 }
