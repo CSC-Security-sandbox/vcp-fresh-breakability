@@ -30,6 +30,7 @@ var (
 	HydrateCreatedBackupVaults     = _hydrateCreatedBackupVaults
 	HydrateDeletedBackupVaults     = _hydrateDeletedBackupVaults
 	HydrateUpdatedPool             = _hydrateUpdatedPool
+	HydrateUpdatedVolume           = _hydrateUpdatedVolume
 	MapStateToGcpState             = _mapStateToGcpState
 	HydrateFlexCacheState          = _hydrateFlexCacheState
 	HydrateReplicationState        = _hydrateReplicationState
@@ -534,6 +535,18 @@ func _hydrateUpdatedPool(ctx context.Context, poolHydrateObj models.PoolHydrateO
 	err := hydrateToCffe(ctx, logger, updatePoolPayload, fullUrl, http.MethodPatch, token)
 	if err != nil {
 		logger.Errorf("Failed to hydrate updated pool to CCFE, poolID: %s, error: %v", poolHydrateObj.Name, err)
+		return err
+	}
+	return nil
+}
+
+func _hydrateUpdatedVolume(ctx context.Context, volumeHydrateObj models.VolumeUpdateCCFERequest, region, projectId, volumeResourceID, token string) error {
+	logger := util.GetLogger(ctx)
+	updateMask := "state,cloneDetails"
+	fullURL := fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/volumes/%s?update_mask=%s", baseUri, projectId, region, volumeResourceID, updateMask)
+	err := hydrateToCffe(ctx, logger, volumeHydrateObj, fullURL, http.MethodPatch, token)
+	if err != nil {
+		logger.Errorf("Failed to hydrate updated volume to CCFE, volumeID: %s, error: %v", volumeResourceID, err)
 		return err
 	}
 	return nil

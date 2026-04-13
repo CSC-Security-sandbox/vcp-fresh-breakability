@@ -140,3 +140,17 @@ type CloneParentInfo struct {
 	State                *string
 	StateDetails         *string
 }
+
+// VolumeCloneDetailsUpdateMaskRequest is used for CCFE volume PATCH hydration payloads.
+type VolumeCloneDetailsUpdateMaskRequest struct {
+	ParentVolumeId       string `json:"parentVolumeId"`
+	ParentSnapshotId     string `json:"parentSnapshotId"`
+	SharedBytes          int64  `json:"sharedBytes"`
+	SplitCompletePercent int64  `json:"splitCompletePercent"`
+}
+
+// VolumeUpdateCCFERequest is used for CCFE volume PATCH hydration.
+type VolumeUpdateCCFERequest struct {
+	State        string                               `json:"state"`
+	CloneDetails *VolumeCloneDetailsUpdateMaskRequest `json:"cloneDetails"`
+}

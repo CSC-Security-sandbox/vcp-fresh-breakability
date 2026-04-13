@@ -30,6 +30,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscaler "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/auth"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
@@ -16080,5 +16081,108 @@ func TestUpdateCloneParentStateInDB_UpdateVolumeFieldsError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "update failed")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestHydrateSplitVolumeAsNormalToCCFE_Success(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	act := activities.VolumeCreateActivity{SE: mockStorage}
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+		Name:      "vol-resource-name",
+		PoolID:    11,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			AccountName: "test-project",
+			Protocols:   []string{"NFSV3"},
+		},
+	}
+
+	mockStorage.On("GetPoolByID", mock.Anything, int64(11)).Return(&datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 11},
+		Name:      "pool-resource-name",
+		VendorID:  "/projects/test-project/locations/us-c1/pools/pool-resource-name",
+	}, nil)
+
+	origToken := auth.GenerateCallbackToken
+	auth.GenerateCallbackToken = func(_ context.Context) (string, error) {
+		return "token-123", nil
+	}
+	defer func() { auth.GenerateCallbackToken = origToken }()
+
+	origHydrateUpdatedVolume := common.HydrateUpdatedVolume
+	defer func() { common.HydrateUpdatedVolume = origHydrateUpdatedVolume }()
+
+	var gotPayload models.VolumeUpdateCCFERequest
+	var gotRegion, gotProject, gotVolumeResourceID, gotToken string
+	common.HydrateUpdatedVolume = func(_ context.Context, payload models.VolumeUpdateCCFERequest, region, projectId, volumeResourceID, token string) error {
+		gotPayload = payload
+		gotRegion = region
+		gotProject = projectId
+		gotVolumeResourceID = volumeResourceID
+		gotToken = token
+		return nil
+	}
+
+	err := act.HydrateSplitVolumeAsNormalToCCFE(ctx, volume)
+	assert.NoError(t, err)
+	assert.Equal(t, "us-c1", gotRegion)
+	assert.Equal(t, "test-project", gotProject)
+	assert.Equal(t, "vol-resource-name", gotVolumeResourceID)
+	assert.Equal(t, "token-123", gotToken)
+	assert.Equal(t, models.LifeCycleStateREADY, gotPayload.State)
+	assert.Nil(t, gotPayload.CloneDetails)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestUpdateCloneParentStateInDB_RemoveCloneInfo_HydrationErrorNonFatal(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockStorage := database.NewMockStorage(t)
+	act := activities.VolumeCreateActivity{SE: mockStorage}
+	env.RegisterActivity(act.UpdateCloneParentStateInDB)
+
+	volumeUUID := "vol-uuid"
+	volume := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+		Name:      "vol-resource-name",
+		PoolID:    11,
+		Account:   &datamodel.Account{Name: "test-project"},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			AccountName: "test-project",
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID:   "parent-uuid",
+				ParentSnapshotUUID: "snap-uuid",
+			},
+		},
+	}
+
+	mockStorage.On("GetVolume", mock.Anything, volumeUUID).Return(volume, nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, volumeUUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
+		attrs, ok := fields["volume_attributes"].(*datamodel.VolumeAttributes)
+		return ok && attrs.CloneParentInfo == nil
+	})).Return(nil)
+	mockStorage.On("GetPoolByID", mock.Anything, int64(11)).Return(&datamodel.Pool{
+		BaseModel: datamodel.BaseModel{ID: 11},
+		Name:      "pool-resource-name",
+		VendorID:  "/projects/test-project/locations/us-c1/pools/pool-resource-name",
+	}, nil)
+
+	origToken := auth.GenerateCallbackToken
+	auth.GenerateCallbackToken = func(_ context.Context) (string, error) {
+		return "token-123", nil
+	}
+	defer func() { auth.GenerateCallbackToken = origToken }()
+
+	origHydrateUpdatedVolume := common.HydrateUpdatedVolume
+	common.HydrateUpdatedVolume = func(_ context.Context, _ models.VolumeUpdateCCFERequest, _, _, _, _ string) error {
+		return errors.New("ccfe patch failed")
+	}
+	defer func() { common.HydrateUpdatedVolume = origHydrateUpdatedVolume }()
+
+	_, err := env.ExecuteActivity(act.UpdateCloneParentStateInDB, volumeUUID, "", uint64(0), "", true)
+	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
 }

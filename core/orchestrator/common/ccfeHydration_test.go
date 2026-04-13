@@ -3,6 +3,7 @@ package common
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -87,6 +88,85 @@ func TestHydrateVolumeCreate(t *testing.T) {
 		}
 		err := _hydrateVolumeCreate(ctx, mockLogger, volume, location, projectId, token)
 		assert.NoError(tt, err, nil)
+	})
+}
+
+func TestHydrateUpdatedVolume(t *testing.T) {
+	ctx := context.Background()
+	volume := models.VolumeUpdateCCFERequest{
+		State: "READY",
+		CloneDetails: &models.VolumeCloneDetailsUpdateMaskRequest{
+			ParentVolumeId:       "",
+			ParentSnapshotId:     "",
+			SharedBytes:          0,
+			SplitCompletePercent: 0,
+		},
+	}
+	region := "mocked-region"
+	projectID := "mocked-project"
+	volumeResourceID := "mocked-volume"
+	token := "mocked-token"
+
+	originalHydrateToCffe := hydrateToCffe
+	defer func() { hydrateToCffe = originalHydrateToCffe }()
+
+	t.Run("WhenHydrateToCffeReturnError", func(tt *testing.T) {
+		expectedErr := &errs.CustomError{
+			OriginalErr: errors.New("some error"),
+		}
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			return expectedErr
+		}
+		err := _hydrateUpdatedVolume(ctx, volume, region, projectID, volumeResourceID, token)
+		assert.Error(tt, err.(*errs.CustomError).Unwrap())
+		assert.Equal(tt, expectedErr, err)
+	})
+
+	t.Run("WhenSuccessful_UsesPatchAndUpdateMask", func(tt *testing.T) {
+		var gotURL, gotMethod string
+		var gotPayload models.VolumeUpdateCCFERequest
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			gotURL = url
+			gotMethod = method
+			gotPayload = v.(models.VolumeUpdateCCFERequest)
+			return nil
+		}
+
+		err := _hydrateUpdatedVolume(ctx, volume, region, projectID, volumeResourceID, token)
+		assert.NoError(tt, err)
+		assert.Equal(tt, http.MethodPatch, gotMethod)
+		assert.Equal(tt, volume, gotPayload)
+		assert.Equal(
+			tt,
+			fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/volumes/%s?update_mask=state,cloneDetails", baseUri, projectID, region, volumeResourceID),
+			gotURL,
+		)
+	})
+
+	t.Run("WhenCloneDetailsNil_SendsNullAndParentUpdateMask", func(tt *testing.T) {
+		clearVol := models.VolumeUpdateCCFERequest{
+			State:        "READY",
+			CloneDetails: nil,
+		}
+		var gotURL, gotMethod string
+		var gotBody []byte
+		hydrateToCffe = func(ctx context.Context, logger log.Logger, v any, url string, method string, token string) error {
+			gotURL = url
+			gotMethod = method
+			var err error
+			gotBody, err = json.Marshal(v)
+			return err
+		}
+
+		err := _hydrateUpdatedVolume(ctx, clearVol, region, projectID, volumeResourceID, token)
+		assert.NoError(tt, err)
+		assert.Equal(tt, http.MethodPatch, gotMethod)
+		assert.JSONEq(tt, `{"state":"READY","cloneDetails":null}`, string(gotBody))
+		assert.Equal(
+			tt,
+			fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/volumes/%s?update_mask=state,cloneDetails", baseUri, projectID, region, volumeResourceID),
+			gotURL,
+		)
 	})
 }
 
