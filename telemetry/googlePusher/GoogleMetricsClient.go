@@ -53,6 +53,8 @@ var (
 		"/replication/source_service_level",
 		"/replication/destination_service_level",
 		"/replication/source_continent",
+		"/replication/source_region",
+		"/replication/destination_region",
 	}
 )
 
@@ -542,9 +544,6 @@ func (client *GoogleMetricsClient) CreateMetricValue(metric common.GoogleMetric)
 	metricValue.EndTime = time.Unix(endTime, 0).Format(time.RFC3339)
 
 	labelKeys := GetLabelKey(metric)
-	if err != nil {
-		return nil, err
-	}
 	valueLabels := make(map[string]string)
 	if labelKeys != nil {
 		for _, labelKey := range labelKeys {
@@ -818,7 +817,17 @@ func GetLabelKey(metric common.GoogleMetric) []string {
 	metricResourceType, _ := metric.GetResourceType()
 	switch metricResourceType {
 	case metadata.VolumeReplicationRelationship:
-		return []string{"/resource_id", "/replication/frequency", "/replication/source_continent", "/replication/destination_continent", "/replication/source_service_level", "/replication/destination_service_level", "/replication/replication_type"}
+		return []string{
+			"/resource_id",
+			"/replication/frequency",
+			"/replication/source_continent",
+			"/replication/destination_continent",
+			"/replication/source_region",
+			"/replication/destination_region",
+			"/replication/source_service_level",
+			"/replication/destination_service_level",
+			"/replication/replication_type",
+		}
 	case metadata.Volume:
 		switch metricMeasuredType {
 		case metadata.BackupEnabledVolumeAllocatedSize:
@@ -893,6 +902,10 @@ func GetLabelValue(key string, metric common.GoogleMetric, logger log.Logger) (s
 			return metric.GetResourceUUID()
 		}
 	case metadata.VolumeReplicationRelationship:
+		repType, err := getReplicationType(metric)
+		if err != nil {
+			return "", err
+		}
 		switch key {
 		case "/resource_id":
 			return getResourceUUID(metric)
@@ -900,10 +913,6 @@ func GetLabelValue(key string, metric common.GoogleMetric, logger log.Logger) (s
 			serviceLevel, err := getServiceLevel(metric)
 			return getFrequency(serviceLevel), err
 		case "/replication/source_continent":
-			repType, err := getReplicationType(metric)
-			if err != nil {
-				return "", err
-			}
 			if repType == string(models.HybridReplicationParametersReplicationTypeMIGRATION) || repType == string(models.HybridReplicationParametersReplicationTypeONPREM) {
 				return "", nil
 			}
@@ -912,8 +921,22 @@ func GetLabelValue(key string, metric common.GoogleMetric, logger log.Logger) (s
 		case "/replication/destination_continent":
 			destinationRegion, err := getDestinationRegion(metric)
 			return getContinent(destinationRegion), err
-		case "/replication/source_service_level", "/replication/destination_service_level":
-			return "", nil
+		case "/replication/source_region":
+			if repType == string(models.HybridReplicationParametersReplicationTypeMIGRATION) || repType == string(models.HybridReplicationParametersReplicationTypeONPREM) {
+				return "", nil
+			}
+			sourceRegion, err := getSourceRegion(metric)
+			return extractRegionValue(sourceRegion), err
+		case "/replication/destination_region":
+			destinationRegion, err := getDestinationRegion(metric)
+			return extractRegionValue(destinationRegion), err
+		case "/replication/source_service_level":
+			if repType == string(models.HybridReplicationParametersReplicationTypeMIGRATION) || repType == string(models.HybridReplicationParametersReplicationTypeONPREM) {
+				return "", nil
+			}
+			return "FLEX_UNIFIED", nil
+		case "/replication/destination_service_level":
+			return "FLEX_UNIFIED", nil
 		case "/replication/replication_type":
 			return getReplicationType(metric)
 		}
@@ -952,6 +975,20 @@ func GetLabelValue(key string, metric common.GoogleMetric, logger log.Logger) (s
 		}
 	}
 	return "", nil
+}
+
+// extractRegionValue returns the GCP region from a value that may be a region (e.g. us-central1)
+// or a zone (e.g. us-central1-a). Other shapes are returned unchanged.
+func extractRegionValue(location string) string {
+	s := strings.TrimSpace(location)
+	if s == "" {
+		return ""
+	}
+	parts := strings.Split(s, "-")
+	if len(parts) == ZonePartsCount {
+		return strings.Join(parts[:2], "-")
+	}
+	return s
 }
 
 // isAllowedEmptyLabel checks if a label key is allowed to have an empty value

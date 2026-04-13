@@ -878,6 +878,23 @@ func Test_GetLabelValue(t *testing.T) {
 	logger := util.GetLogger(ctx)
 
 	t.Run("VolumeReplicationRelationship resource with various keys", func(t *testing.T) {
+		origGetResourceUUID := getResourceUUID
+		origGetFrequency := getFrequency
+		origGetReplicationType := getReplicationType
+		origGetSourceRegion := getSourceRegion
+		origGetDestinationRegion := getDestinationRegion
+		origGetServiceLevel := getServiceLevel
+		origGetContinent := getContinent
+		defer func() {
+			getResourceUUID = origGetResourceUUID
+			getFrequency = origGetFrequency
+			getReplicationType = origGetReplicationType
+			getSourceRegion = origGetSourceRegion
+			getDestinationRegion = origGetDestinationRegion
+			getServiceLevel = origGetServiceLevel
+			getContinent = origGetContinent
+		}()
+
 		// Create a metric with VolumeReplicationRelationship resource type
 		rm := metadata.ResourceMetadata{
 			ResourceType: metadata.VolumeReplicationRelationship,
@@ -923,8 +940,10 @@ func Test_GetLabelValue(t *testing.T) {
 			{"/replication/frequency", "hourly"},
 			{"/replication/source_continent", "continent"},
 			{"/replication/destination_continent", "continent"},
-			{"/replication/source_service_level", ""},
-			{"/replication/destination_service_level", ""},
+			{"/replication/source_region", "us-east4"},
+			{"/replication/destination_region", "us-central1"},
+			{"/replication/source_service_level", "FLEX_UNIFIED"},
+			{"/replication/destination_service_level", "FLEX_UNIFIED"},
 			{"/replication/replication_type", "CROSS_REGION_REPLICATION"},
 			{"/unknown_key", ""},
 		}
@@ -936,22 +955,78 @@ func Test_GetLabelValue(t *testing.T) {
 		}
 	})
 
-	t.Run("Non-VolumeReplicationRelationship resource", func(t *testing.T) {
+	t.Run("VolumeReplicationRelationship source_region and destination_region strip zone to region only", func(t *testing.T) {
+		origGetResourceUUID := getResourceUUID
+		origGetReplicationType := getReplicationType
+		origGetSourceRegion := getSourceRegion
+		origGetDestinationRegion := getDestinationRegion
+		origGetServiceLevel := getServiceLevel
+		origGetContinent := getContinent
+		defer func() {
+			getResourceUUID = origGetResourceUUID
+			getReplicationType = origGetReplicationType
+			getSourceRegion = origGetSourceRegion
+			getDestinationRegion = origGetDestinationRegion
+			getServiceLevel = origGetServiceLevel
+			getContinent = origGetContinent
+		}()
+
 		rm := metadata.ResourceMetadata{
-			ResourceType: metadata.Volume,
+			ResourceType: metadata.VolumeReplicationRelationship,
 		}
 		hydratedM := &entity.HydratedMetric{
 			Metadata: rm,
 		}
 		googleMetric := *common.NewGoogleMetric(hydratedM)
 
-		result, err := GetLabelValue("/resource_id", googleMetric, logger)
+		getResourceUUID = func(m common.GoogleMetric) (string, error) {
+			return "dummy-uuid", nil
+		}
+		getReplicationType = func(m common.GoogleMetric) (string, error) {
+			return "CROSS_REGION_REPLICATION", nil
+		}
+		getSourceRegion = func(m common.GoogleMetric) (string, error) {
+			return "us-east4-b", nil
+		}
+		getDestinationRegion = func(m common.GoogleMetric) (string, error) {
+			return "australia-southeast1-c", nil
+		}
+		getServiceLevel = func(m common.GoogleMetric) (string, error) {
+			return "1", nil
+		}
+		getContinent = func(region string) string {
+			return "continent"
+		}
+
+		src, err := GetLabelValue("/replication/source_region", googleMetric, logger)
 		assert.NoError(t, err)
-		assert.Equal(t, "", result)
+		assert.Equal(t, "us-east4", src)
+
+		dst, err := GetLabelValue("/replication/destination_region", googleMetric, logger)
+		assert.NoError(t, err)
+		assert.Equal(t, "australia-southeast1", dst)
 	})
 
-	t.Run("Panic recovery", func(t *testing.T) {
-		// Create an invalid metric that might cause panic
+	t.Run("Non-VolumeReplicationRelationship resource", func(t *testing.T) {
+		// Billing metric only: GetLabelValue resolves replication type up front via GetReplicationType,
+		// which does not support HydratedMetric.
+		customerID := "test-customer"
+		aggregated := &datamodel.AggregatedUsage{
+			VendorCustomerID: &customerID,
+			ResourceType:     metadata.Volume,
+			MeasuredType:     metadata.BackupEnabledVolumeAllocatedSize,
+			ResourceUUID:     "vol-billing-uuid",
+		}
+		googleMetric := *common.NewGoogleMetric(aggregated)
+
+		result, err := GetLabelValue("/resource_id", googleMetric, logger)
+		assert.NoError(t, err)
+		assert.Equal(t, "vol-billing-uuid", result)
+	})
+
+	t.Run("Invalid GoogleMetric type yields empty value", func(t *testing.T) {
+		// GetResourceType errors are ignored when switching; unknown/invalid records
+		// do not match a resource branch and fall through to "", nil.
 		invalidMetric := common.NewGoogleMetric("invalid")
 		result, err := GetLabelValue("/resource_id", *invalidMetric, logger)
 		assert.NoError(t, err)
@@ -1079,9 +1154,20 @@ func Test_GetLabelValue(t *testing.T) {
 	})
 
 	t.Run("VolumeReplicationRelationship with MIGRATION and ONPREM replication types", func(t *testing.T) {
-		// Test that MIGRATION and ONPREM replication types return empty string for source_continent
-		getReplicationType = func(m common.GoogleMetric) (string, error) {
-			return string(models.HybridReplicationParametersReplicationTypeMIGRATION), nil
+		origGetReplicationType := getReplicationType
+		origGetSourceRegion := getSourceRegion
+		origGetDestinationRegion := getDestinationRegion
+		defer func() {
+			getReplicationType = origGetReplicationType
+			getSourceRegion = origGetSourceRegion
+			getDestinationRegion = origGetDestinationRegion
+		}()
+
+		getSourceRegion = func(m common.GoogleMetric) (string, error) {
+			return "us-east4", nil
+		}
+		getDestinationRegion = func(m common.GoogleMetric) (string, error) {
+			return "us-central1", nil
 		}
 
 		rm := metadata.ResourceMetadata{
@@ -1092,22 +1178,45 @@ func Test_GetLabelValue(t *testing.T) {
 		}
 		googleMetric := *common.NewGoogleMetric(hydratedM)
 
-		// Test MIGRATION replication type
-		result, err := GetLabelValue("/replication/source_continent", googleMetric, logger)
+		// MIGRATION: source_continent, source_region, and source_service_level are suppressed
+		getReplicationType = func(m common.GoogleMetric) (string, error) {
+			return string(models.HybridReplicationParametersReplicationTypeMIGRATION), nil
+		}
+		for _, key := range []string{
+			"/replication/source_continent",
+			"/replication/source_region",
+			"/replication/source_service_level",
+		} {
+			result, err := GetLabelValue(key, googleMetric, logger)
+			assert.NoError(t, err, key)
+			assert.Empty(t, result, "MIGRATION should return empty for %s", key)
+		}
+		dstCont, err := GetLabelValue("/replication/destination_continent", googleMetric, logger)
 		assert.NoError(t, err)
-		assert.Empty(t, result, "MIGRATION replication type should return empty string for source_continent")
+		assert.NotEmpty(t, dstCont, "destination_continent still derived for MIGRATION")
+		dstReg, err := GetLabelValue("/replication/destination_region", googleMetric, logger)
+		assert.NoError(t, err)
+		assert.Equal(t, "us-central1", dstReg)
 
-		// Test ONPREM replication type
+		// ONPREM: same suppression for source-side labels
 		getReplicationType = func(m common.GoogleMetric) (string, error) {
 			return string(models.HybridReplicationParametersReplicationTypeONPREM), nil
 		}
-
-		result, err = GetLabelValue("/replication/source_continent", googleMetric, logger)
-		assert.NoError(t, err)
-		assert.Empty(t, result, "ONPREM replication type should return empty string for source_continent")
+		for _, key := range []string{
+			"/replication/source_continent",
+			"/replication/source_region",
+			"/replication/source_service_level",
+		} {
+			result, err := GetLabelValue(key, googleMetric, logger)
+			assert.NoError(t, err, key)
+			assert.Empty(t, result, "ONPREM should return empty for %s", key)
+		}
 	})
 
 	t.Run("VolumeReplicationRelationship getReplicationType error", func(t *testing.T) {
+		origGetReplicationType := getReplicationType
+		defer func() { getReplicationType = origGetReplicationType }()
+
 		// Test error handling when getReplicationType returns an error
 		expectedError := fmt.Errorf("failed to get replication type")
 		getReplicationType = func(m common.GoogleMetric) (string, error) {
@@ -1139,7 +1248,17 @@ func Test_GetLabelKey(t *testing.T) {
 		googleMetric := *common.NewGoogleMetric(aggregated)
 
 		result := GetLabelKey(googleMetric)
-		expected := []string{"/resource_id", "/replication/frequency", "/replication/source_continent", "/replication/destination_continent", "/replication/source_service_level", "/replication/destination_service_level", "/replication/replication_type"}
+		expected := []string{
+			"/resource_id",
+			"/replication/frequency",
+			"/replication/source_continent",
+			"/replication/destination_continent",
+			"/replication/source_region",
+			"/replication/destination_region",
+			"/replication/source_service_level",
+			"/replication/destination_service_level",
+			"/replication/replication_type",
+		}
 		assert.Equal(t, expected, result)
 	})
 
@@ -1911,10 +2030,19 @@ func Test_GetLabelValue_WithRealMetrics(t *testing.T) {
 	})
 
 	t.Run("non-existing label", func(t *testing.T) {
-		metric := createDummyGoogleMetrics(1)[0]
+		// Billing metric: hydrated dummy metrics fail GetReplicationType before key handling.
+		customerID := "test-customer"
+		regionName := "us-central1"
+		aggregated := &datamodel.AggregatedUsage{
+			VendorCustomerID: &customerID,
+			ResourceType:     metadata.VolumePool,
+			MeasuredType:     metadata.PoolAllocatedSize,
+			ResourceUUID:     uuid.New().String(),
+			RegionName:       &regionName,
+		}
+		metric := *common.NewGoogleMetric(aggregated)
 
 		value, err := GetLabelValue("non-existent-key", metric, logger)
-		// Should return empty string for non-existent key
 		assert.NoError(t, err)
 		assert.Empty(t, value)
 	})
@@ -2605,6 +2733,8 @@ func Test_getContinent_ContinentMapIntegration(t *testing.T) {
 	})
 
 	t.Run("verify continent map integration", func(tt *testing.T) {
+		origGetContinentMap := getContinentMap
+		defer func() { getContinentMap = origGetContinentMap }()
 		getContinentMap = func(continents string) map[string]string {
 			return map[string]string{
 				"australia": "oceania",
@@ -3599,6 +3729,16 @@ func Test_isAllowedEmptyLabel(t *testing.T) {
 	t.Run("Returns true for source_continent", func(t *testing.T) {
 		result := isAllowedEmptyLabel("/replication/source_continent")
 		assert.True(t, result, "Expected /replication/source_continent to be allowed")
+	})
+
+	t.Run("Returns true for source_region", func(t *testing.T) {
+		result := isAllowedEmptyLabel("/replication/source_region")
+		assert.True(t, result, "Expected /replication/source_region to be allowed")
+	})
+
+	t.Run("Returns true for destination_region", func(t *testing.T) {
+		result := isAllowedEmptyLabel("/replication/destination_region")
+		assert.True(t, result, "Expected /replication/destination_region to be allowed")
 	})
 
 	t.Run("Returns false for non-allowed label", func(t *testing.T) {
