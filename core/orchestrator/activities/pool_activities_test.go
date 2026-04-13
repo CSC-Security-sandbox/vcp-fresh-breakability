@@ -756,6 +756,154 @@ func Test_prepareVlmConfig_IsIntegrationTest(t *testing.T) {
 	assert.Equal(t, mockOntapIp, cfg.Cloud.HAPairs[0].VM2.SystemLIFs[vlm.LIFTypeNodeMgmt].IP)
 }
 
+func Test_prepareVlmConfig_NfsOverTlsDisabled_OnlyKeyManagerBootarg(t *testing.T) {
+	oldTls := activities.EnableNfsOverTls
+	oldLimit := activities.NfsTlsConnMaxLimit
+	defer func() {
+		activities.EnableNfsOverTls = oldTls
+		activities.NfsTlsConnMaxLimit = oldLimit
+	}()
+
+	activities.EnableNfsOverTls = false
+	activities.NfsTlsConnMaxLimit = 0
+
+	cfg := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			NetConfig: map[vlm.VSALIFType]vlm.NetworkConfig{},
+			GCPConfig: vlm.GCPConfig{},
+		},
+	}
+	originalReadFile := activities.ReadFile
+	defer func() { activities.ReadFile = originalReadFile }()
+	activities.ReadFile = func(filename string) ([]byte, error) {
+		return []byte("{}"), nil
+	}
+
+	dsc := &vmrs.Decision{
+		ChosenVMs: []string{"c4-standard-4"},
+		StoragePoolRequirements: vmrs.CustomerRequestedPerformance{
+			DesiredIOPS:             1024,
+			DesiredThroughputInMiBs: 64,
+			DesiredCapacityInGiB:    1024,
+		},
+	}
+	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", dsc, "test-tenant-project@xyz.com", "test-tenant-project")
+	assert.NoError(t, err)
+	assert.Equal(t, "bootarg.keymanager.ekmip.svm_context=false", cfg.Deployment.UserBootargs)
+}
+
+func Test_prepareVlmConfig_NfsOverTlsEnabled_NoConnLimit(t *testing.T) {
+	oldTls := activities.EnableNfsOverTls
+	oldLimit := activities.NfsTlsConnMaxLimit
+	defer func() {
+		activities.EnableNfsOverTls = oldTls
+		activities.NfsTlsConnMaxLimit = oldLimit
+	}()
+
+	activities.EnableNfsOverTls = true
+	activities.NfsTlsConnMaxLimit = 0
+
+	cfg := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			NetConfig: map[vlm.VSALIFType]vlm.NetworkConfig{},
+			GCPConfig: vlm.GCPConfig{},
+		},
+	}
+	originalReadFile := activities.ReadFile
+	defer func() { activities.ReadFile = originalReadFile }()
+	activities.ReadFile = func(filename string) ([]byte, error) {
+		return []byte("{}"), nil
+	}
+
+	dsc := &vmrs.Decision{
+		ChosenVMs: []string{"c4-standard-4"},
+		StoragePoolRequirements: vmrs.CustomerRequestedPerformance{
+			DesiredIOPS:             1024,
+			DesiredThroughputInMiBs: 64,
+			DesiredCapacityInGiB:    1024,
+		},
+	}
+	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", dsc, "test-tenant-project@xyz.com", "test-tenant-project")
+	assert.NoError(t, err)
+	expected := "bootarg.keymanager.ekmip.svm_context=false;bootarg.nfs.tls.enabled=true"
+	assert.Equal(t, expected, cfg.Deployment.UserBootargs)
+}
+
+func Test_prepareVlmConfig_NfsOverTlsEnabled_WithConnLimit(t *testing.T) {
+	oldTls := activities.EnableNfsOverTls
+	oldLimit := activities.NfsTlsConnMaxLimit
+	defer func() {
+		activities.EnableNfsOverTls = oldTls
+		activities.NfsTlsConnMaxLimit = oldLimit
+	}()
+
+	activities.EnableNfsOverTls = true
+	activities.NfsTlsConnMaxLimit = 128
+
+	cfg := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			NetConfig: map[vlm.VSALIFType]vlm.NetworkConfig{},
+			GCPConfig: vlm.GCPConfig{},
+		},
+	}
+	originalReadFile := activities.ReadFile
+	defer func() { activities.ReadFile = originalReadFile }()
+	activities.ReadFile = func(filename string) ([]byte, error) {
+		return []byte("{}"), nil
+	}
+
+	dsc := &vmrs.Decision{
+		ChosenVMs: []string{"c4-standard-4"},
+		StoragePoolRequirements: vmrs.CustomerRequestedPerformance{
+			DesiredIOPS:             1024,
+			DesiredThroughputInMiBs: 64,
+			DesiredCapacityInGiB:    1024,
+		},
+	}
+	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", dsc, "test-tenant-project@xyz.com", "test-tenant-project")
+	assert.NoError(t, err)
+	expected := "bootarg.keymanager.ekmip.svm_context=false;bootarg.nfs.tls.enabled=true;bootarg.nblade.nfs_tls_conn_max_limit=128"
+	assert.Equal(t, expected, cfg.Deployment.UserBootargs)
+}
+
+func Test_prepareVlmConfig_NfsOverTlsEnabled_NegativeConnLimit_Ignored(t *testing.T) {
+	oldTls := activities.EnableNfsOverTls
+	oldLimit := activities.NfsTlsConnMaxLimit
+	defer func() {
+		activities.EnableNfsOverTls = oldTls
+		activities.NfsTlsConnMaxLimit = oldLimit
+	}()
+
+	activities.EnableNfsOverTls = true
+	activities.NfsTlsConnMaxLimit = -1
+
+	cfg := &vlm.VLMConfig{
+		Deployment: vlm.DeploymentConfig{
+			NetConfig: map[vlm.VSALIFType]vlm.NetworkConfig{},
+			GCPConfig: vlm.GCPConfig{},
+		},
+	}
+	originalReadFile := activities.ReadFile
+	defer func() { activities.ReadFile = originalReadFile }()
+	activities.ReadFile = func(filename string) ([]byte, error) {
+		return []byte("{}"), nil
+	}
+
+	dsc := &vmrs.Decision{
+		ChosenVMs: []string{"c4-standard-4"},
+		StoragePoolRequirements: vmrs.CustomerRequestedPerformance{
+			DesiredIOPS:             1024,
+			DesiredThroughputInMiBs: 64,
+			DesiredCapacityInGiB:    1024,
+		},
+	}
+	err := activities.PrepareVlmConfig(cfg, "test-deployment", "test-region", "test-zone1", "test-zone2", "test-network", "test-subnet", "test-project", "test-sn-host-project", dsc, "test-tenant-project@xyz.com", "test-tenant-project")
+	assert.NoError(t, err)
+	expected := "bootarg.keymanager.ekmip.svm_context=false;bootarg.nfs.tls.enabled=true"
+	assert.Equal(t, expected, cfg.Deployment.UserBootargs,
+		"negative conn limit should be treated the same as zero (not appended)")
+}
+
 func Test_validateVlmConfigInputs(t *testing.T) {
 	validCfg := &vlm.VLMConfig{}
 	validDecision := &vmrs.Decision{

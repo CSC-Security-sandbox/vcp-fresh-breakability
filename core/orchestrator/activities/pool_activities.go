@@ -97,6 +97,8 @@ var (
 	// Feature flag to enforce minimum values for SPConfig throughput and IOPS.
 	// Set ENFORCE_MIN_SP_CONFIG=true in the environment to enable.
 	enforceMinSPConfig       = env.GetBool("ENFORCE_MIN_SP_CONFIG", false)
+	EnableNfsOverTls         = env.GetBool("ENABLE_NFS_OVER_TLS", false)
+	NfsTlsConnMaxLimit       = env.GetInt("NFS_TLS_CONN_MAX_LIMIT", 0)
 	VsaImageProject          = env.GetString("VSA_IMAGE_PROJECT", "")
 	MediatorImageProject     = env.GetString("VSA_MEDIATOR_IMAGE_PROJECT", "")
 	VsaInstanceTypeOverride  = env.GetBool("VSA_INSTANCE_TYPE_OVERRIDE_LSSD", false)
@@ -176,7 +178,9 @@ const (
 	volStyleFlexGroup = "flexgroup"
 	volStyleFlexVol   = "flexvol"
 
-	keyManagerBootarg = "bootarg.keymanager.ekmip.svm_context=false"
+	keyManagerBootarg         = "bootarg.keymanager.ekmip.svm_context=false"
+	nfsTlsBootarg             = "bootarg.nfs.tls.enabled=true"
+	nfsTlsConnLimitBootargKey = "bootarg.nblade.nfs_tls_conn_max_limit"
 
 	MgmtVpcName      = "mgmt-e0a-vpc-01"
 	MgmtSubnetName   = "mgmt-e0a-subnet-01"
@@ -2136,8 +2140,14 @@ func _prepareVlmConfig(vlmConfig *vlm.VLMConfig, deploymentID, region, primaryZo
 	// assign network configuration for data LIF from snHostProject
 	assignNetworkConfig(vlmConfig, vlm.LIFTypeInterCluster, network, subnet, snHostProject)
 
-	// Bootargs for key manager
-	vlmConfig.Deployment.UserBootargs = keyManagerBootarg
+	bootargs := keyManagerBootarg
+	if EnableNfsOverTls {
+		bootargs += ";" + nfsTlsBootarg
+		if NfsTlsConnMaxLimit > 0 {
+			bootargs += ";" + nfsTlsConnLimitBootargKey + "=" + strconv.Itoa(NfsTlsConnMaxLimit)
+		}
+	}
+	vlmConfig.Deployment.UserBootargs = bootargs
 
 	vlmConfig.Deployment.MediatorInstanceType = mediatorVmInstanceType
 	vlmConfig.Deployment.MediatorDiskType = mediatorVmDiskType

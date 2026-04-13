@@ -141,6 +141,8 @@ workerConfig:
   enableSmb: "false"
   enableQuotaRule: "true"
   enableKerberos: "false"
+  enableNfsOverTls: "false"
+  nfsTlsConnMaxLimit: "100"
   enableMqos: "true"
   enableVpgEndpoints: "false"
   vsaDeployedDnsName: "au-se1.vsa"
