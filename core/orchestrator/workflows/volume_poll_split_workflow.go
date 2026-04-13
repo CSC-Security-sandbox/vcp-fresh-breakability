@@ -17,15 +17,15 @@ import (
 // splitPollInterval is how long we sleep between GetOntapJob polls.
 const splitPollInterval = 5 * time.Second
 
-type volumeSplitWorkflow struct {
+type volumePollSplitWorkflow struct {
 	// add fields needed for split volume workflow
 	BaseWorkflow
 }
 
-// Enforcing the WorkflowInterface on volumeSplitWorkflow
-var _ WorkflowInterface = &volumeSplitWorkflow{}
+// Enforcing the WorkflowInterface on volumePollSplitWorkflow
+var _ WorkflowInterface = &volumePollSplitWorkflow{}
 
-// SplitVolumeWorkflow polls the ONTAP split job that was already initiated synchronously
+// VolumePollSplitWorkflow polls the ONTAP split job that was already initiated synchronously
 // by _splitStartVolume, then cleans up the clone snapshot once the split succeeds.
 //
 // The workflow uses ContinueAsNew to avoid hitting Temporal's event history limit for
@@ -37,9 +37,9 @@ var _ WorkflowInterface = &volumeSplitWorkflow{}
 //   - node:         the ONTAP node to use when polling the job
 //   - ontapJobUUID: the ONTAP job UUID returned by InitiateSplitVolume; may be empty if
 //     ONTAP completed synchronously (no polling needed in that case)
-func SplitVolumeWorkflow(ctx workflow.Context, volume *datamodel.Volume, node *models.Node, ontapJobUUID string) error {
+func VolumePollSplitWorkflow(ctx workflow.Context, volume *datamodel.Volume, node *models.Node, ontapJobUUID string) error {
 	log := util.GetLogger(ctx)
-	volumeWf := new(volumeSplitWorkflow)
+	volumeWf := new(volumePollSplitWorkflow)
 	err := volumeWf.Setup(ctx, volume)
 	if err != nil {
 		log.Errorf("Volume split workflow setup executed with error: %v", err)
@@ -48,7 +48,7 @@ func SplitVolumeWorkflow(ctx workflow.Context, volume *datamodel.Volume, node *m
 	volumeWf.Status = WorkflowStatusRunning
 	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil)
 	if err != nil {
-		log.Errorf("Failed to update job status to Processing for SplitVolumeWorkflow: %v", err)
+		log.Errorf("Failed to update job status to Processing for VolumePollSplitWorkflow: %v", err)
 		return err
 	}
 
@@ -59,11 +59,11 @@ func SplitVolumeWorkflow(ctx workflow.Context, volume *datamodel.Volume, node *m
 		if workflow.IsContinueAsNewError(errRun.OriginalErr) {
 			return errRun.OriginalErr
 		}
-		log.Errorf("SplitVolumeWorkflow completed with error: %v", errRun)
+		log.Errorf("VolumePollSplitWorkflow completed with error: %v", errRun)
 		volumeWf.Status = WorkflowStatusFailed
 		err2 := volumeWf.UpdateJobStatus(ctx, string(models.JobsStateERROR), errRun)
 		if err2 != nil {
-			log.Errorf("Failed to update job status to ERROR for SplitVolumeWorkflow: %v", err2)
+			log.Errorf("Failed to update job status to ERROR for VolumePollSplitWorkflow: %v", err2)
 			return err2
 		}
 		return errRun
@@ -72,12 +72,12 @@ func SplitVolumeWorkflow(ctx workflow.Context, volume *datamodel.Volume, node *m
 	volumeWf.Status = WorkflowStatusCompleted
 	err = volumeWf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil)
 	if err != nil {
-		log.Errorf("Failed to update job status to Done for SplitVolumeWorkflow: %v", err)
+		log.Errorf("Failed to update job status to Done for VolumePollSplitWorkflow: %v", err)
 	}
 	return nil
 }
 
-func (wf *volumeSplitWorkflow) Setup(ctx workflow.Context, input interface{}) error {
+func (wf *volumePollSplitWorkflow) Setup(ctx workflow.Context, input interface{}) error {
 	volume := input.(*datamodel.Volume)
 	info := workflow.GetInfo(ctx)
 	wf.ID = info.WorkflowExecution.ID
@@ -96,7 +96,7 @@ func (wf *volumeSplitWorkflow) Setup(ctx workflow.Context, input interface{}) er
 	})
 }
 
-func (wf *volumeSplitWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
+func (wf *volumePollSplitWorkflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
 	log := util.GetLogger(ctx)
 	volume := args[0].(*datamodel.Volume)
 	node := args[1].(*models.Node)
@@ -201,7 +201,7 @@ func pollONTAPSplitJobInternal(ctx workflow.Context, volume *datamodel.Volume, n
 				"ContinueAsNew suggested for split job %s on volume %s; triggering ContinueAsNew",
 				ontapJobUUID, volume.Name,
 			)
-			return workflow.NewContinueAsNewError(ctx, SplitVolumeWorkflow, volume, node, ontapJobUUID)
+			return workflow.NewContinueAsNewError(ctx, VolumePollSplitWorkflow, volume, node, ontapJobUUID)
 		}
 
 		var job *vsa.OntapJob

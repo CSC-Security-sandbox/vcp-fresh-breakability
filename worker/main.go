@@ -322,7 +322,7 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterWorkflow(workflows.CreateActiveDirectoryWorkflow)
 	worker.RegisterWorkflow(workflows.UpdateActiveDirectoryWorkflow)
 	worker.RegisterWorkflow(workflows.DeleteActiveDirectoryWorkflow)
-	worker.RegisterWorkflow(workflows.SplitVolumeWorkflow)
+	worker.RegisterWorkflow(workflows.VolumePollSplitWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.CreateHybridReplicationWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.HybridReplicationDeleteWorkflow)
 	worker.RegisterWorkflow(replicationWorkflows.HybridDeleteDestinationVolumeWorkflow)
@@ -465,7 +465,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(expertmodeworkflows.VolumeCreateReconciliationWorkflow)
 	worker.RegisterWorkflow(expertmodeworkflows.VolumeDeleteReconciliationWorkflow)
 	worker.RegisterWorkflow(expertmodeworkflows.VolumeUpdateReconciliationWorkflow)
-	worker.RegisterWorkflow(workflows.SplitVolumeWorkflow)
+	worker.RegisterWorkflow(workflows.VolumePollSplitWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&jobmanageractivities.JobManagerActivity{SE: conn, Scheduler: temporalScheduler})

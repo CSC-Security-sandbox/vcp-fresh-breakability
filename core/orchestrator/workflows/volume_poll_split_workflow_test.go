@@ -22,13 +22,13 @@ import (
 	"go.temporal.io/sdk/workflow"
 )
 
-type VolumeSplitUnitTestSuite struct {
+type VolumePollSplitUnitTestSuite struct {
 	suite.Suite
 	testsuite.WorkflowTestSuite
 	env *testsuite.TestWorkflowEnvironment
 }
 
-func (s *VolumeSplitUnitTestSuite) SetupTest() {
+func (s *VolumePollSplitUnitTestSuite) SetupTest() {
 	s.env = s.NewTestWorkflowEnvironment()
 	s.env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
 	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
@@ -40,10 +40,10 @@ func (s *VolumeSplitUnitTestSuite) SetupTest() {
 	s.env.SetHeader(mockHeader)
 
 	// Register workflow
-	s.env.RegisterWorkflow(SplitVolumeWorkflow)
+	s.env.RegisterWorkflow(VolumePollSplitWorkflow)
 }
 
-func (s *VolumeSplitUnitTestSuite) AfterTest() {
+func (s *VolumePollSplitUnitTestSuite) AfterTest() {
 	s.env.AssertExpectations(s.T())
 }
 
@@ -88,7 +88,7 @@ func testSplitNode() *models.Node {
 	}
 }
 
-func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_Success_WithOntapJob() {
+func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_Success_WithOntapJob() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
@@ -120,13 +120,13 @@ func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_Success_WithOntapJob
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateCloneParentStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume, node, ontapJobUUID)
+	s.env.ExecuteWorkflow(VolumePollSplitWorkflow, volume, node, ontapJobUUID)
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NoError(s.T(), s.env.GetWorkflowError())
 }
 
-func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_Success_NoOntapJob() {
+func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_Success_NoOntapJob() {
 	// When ontapJobUUID is empty, ONTAP completed synchronously — no polling needed.
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
@@ -148,13 +148,13 @@ func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_Success_NoOntapJob()
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateCloneParentStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume, node, ontapJobUUID)
+	s.env.ExecuteWorkflow(VolumePollSplitWorkflow, volume, node, ontapJobUUID)
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NoError(s.T(), s.env.GetWorkflowError())
 }
 
-func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_OntapJobFails() {
+func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_OntapJobFails() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
@@ -181,13 +181,13 @@ func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_OntapJobFails() {
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateCloneParentStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume, node, ontapJobUUID)
+	s.env.ExecuteWorkflow(VolumePollSplitWorkflow, volume, node, ontapJobUUID)
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
 }
 
-func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_OntapJobActivityError() {
+func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_OntapJobActivityError() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
@@ -210,13 +210,13 @@ func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_OntapJobActivityErro
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateCloneParentStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume, node, ontapJobUUID)
+	s.env.ExecuteWorkflow(VolumePollSplitWorkflow, volume, node, ontapJobUUID)
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
 }
 
-func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_UpdateJobStatusProcessingError() {
+func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_UpdateJobStatusProcessingError() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 
@@ -228,13 +228,13 @@ func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_UpdateJobStatusProce
 	// Fail on UpdateJobStatus PROCESSING
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update job status"))
 
-	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume, node, "")
+	s.env.ExecuteWorkflow(VolumePollSplitWorkflow, volume, node, "")
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
 }
 
-func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_UpdateJobStatusDoneError() {
+func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_UpdateJobStatusDoneError() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
@@ -255,14 +255,14 @@ func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_UpdateJobStatusDoneE
 	s.env.OnActivity(volumeSplitActivity.CleanupSplitSnapshot, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateCloneParentStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume, node, "")
+	s.env.ExecuteWorkflow(VolumePollSplitWorkflow, volume, node, "")
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	// When UpdateJobStatus for DONE fails, the workflow logs the error but still completes successfully (returns nil)
 	assert.NoError(s.T(), s.env.GetWorkflowError())
 }
 
-func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_SetupError() {
+func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_SetupError() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 
@@ -289,13 +289,13 @@ func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_SetupError() {
 
 	s.env.RegisterActivity(&commonActivity)
 
-	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume, node, "")
+	s.env.ExecuteWorkflow(VolumePollSplitWorkflow, volume, node, "")
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
 }
 
-func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_CleanupSnapshotFailureIsNonFatal() {
+func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_CleanupSnapshotFailureIsNonFatal() {
 	// Snapshot cleanup failure should not fail the workflow.
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
@@ -317,13 +317,13 @@ func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_CleanupSnapshotFailu
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateCloneParentStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume, node, "")
+	s.env.ExecuteWorkflow(VolumePollSplitWorkflow, volume, node, "")
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NoError(s.T(), s.env.GetWorkflowError())
 }
 
-func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_UpdateCloneParentStateInDBError() {
+func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_UpdateCloneParentStateInDBError() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
@@ -349,7 +349,7 @@ func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_UpdateCloneParentSta
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	s.env.OnActivity(volumeCreateActivity.UpdateCloneParentStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update clone parent state"))
 
-	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume, node, ontapJobUUID)
+	s.env.ExecuteWorkflow(VolumePollSplitWorkflow, volume, node, ontapJobUUID)
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
@@ -357,11 +357,11 @@ func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_UpdateCloneParentSta
 
 
 
-// Test_SplitVolumeWorkflow_ContinueAsNewPropagation covers lines 60 and 133-134: when
-// GetContinueAsNewSuggested() returns true, SplitVolumeWorkflow propagates the
+// Test_VolumePollSplitWorkflow_ContinueAsNewPropagation covers lines 60 and 133-134: when
+// GetContinueAsNewSuggested() returns true, VolumePollSplitWorkflow propagates the
 // ContinueAsNewError directly without marking the job as ERROR or calling
 // UpdateCloneParentStateInDB.
-func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_ContinueAsNewPropagation() {
+func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_ContinueAsNewPropagation() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
@@ -383,16 +383,16 @@ func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_ContinueAsNewPropaga
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 	// UpdateCloneParentStateInDB must NOT be called (defer skips on ContinueAsNew).
 
-	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume, node, ontapJobUUID)
+	s.env.ExecuteWorkflow(VolumePollSplitWorkflow, volume, node, ontapJobUUID)
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.True(s.T(), workflow.IsContinueAsNewError(s.env.GetWorkflowError()),
 		"expected ContinueAsNewError, got: %v", s.env.GetWorkflowError())
 }
 
-// Test_SplitVolumeWorkflow_UpdateJobStatusErrorFails covers line 66: when UpdateJobStatus
+// Test_VolumePollSplitWorkflow_UpdateJobStatusErrorFails covers line 66: when UpdateJobStatus
 // for ERROR itself fails, the workflow returns that secondary error.
-func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_UpdateJobStatusErrorFails() {
+func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_UpdateJobStatusErrorFails() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeCreateActivity := activities.VolumeCreateActivity{SE: mockStorage}
@@ -419,15 +419,15 @@ func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_UpdateJobStatusError
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(errors.New("failed to update ERROR status"))
 	s.env.OnActivity(volumeCreateActivity.UpdateCloneParentStateInDB, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume, node, ontapJobUUID)
+	s.env.ExecuteWorkflow(VolumePollSplitWorkflow, volume, node, ontapJobUUID)
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.Error(s.T(), s.env.GetWorkflowError())
 }
 
-// Test_SplitVolumeWorkflow_DeferSkipsWhenNoCloneParentInfo covers line 130: the defer
+// Test_VolumePollSplitWorkflow_DeferSkipsWhenNoCloneParentInfo covers line 130: the defer
 // returns early when VolumeAttributes or CloneParentInfo is nil.
-func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_DeferSkipsWhenNoCloneParentInfo() {
+func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_DeferSkipsWhenNoCloneParentInfo() {
 	mockStorage := database.NewMockStorage(s.T())
 	commonActivity := activities.CommonActivities{SE: mockStorage}
 	volumeSplitActivity := activities.VolumeSplitActivity{SE: mockStorage}
@@ -455,7 +455,7 @@ func (s *VolumeSplitUnitTestSuite) Test_SplitVolumeWorkflow_DeferSkipsWhenNoClon
 	s.env.OnActivity(commonActivity.UpdateJobStatus, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	// UpdateCloneParentStateInDB must NOT be called.
 
-	s.env.ExecuteWorkflow(SplitVolumeWorkflow, volume, node, "")
+	s.env.ExecuteWorkflow(VolumePollSplitWorkflow, volume, node, "")
 
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NoError(s.T(), s.env.GetWorkflowError())
@@ -586,7 +586,7 @@ func TestPollONTAPSplitJobContinueAsNew(t *testing.T) {
 	env.SetHeader(&commonpb.Header{
 		Fields: map[string]*commonpb.Payload{"logParam": encodedValue},
 	})
-	env.RegisterWorkflow(SplitVolumeWorkflow)
+	env.RegisterWorkflow(VolumePollSplitWorkflow)
 
 	volume := testSplitVolume()
 	node := testSplitNode()
@@ -606,6 +606,6 @@ func TestPollONTAPSplitJobContinueAsNew(t *testing.T) {
 		"expected ContinueAsNewError, got: %v", env.GetWorkflowError())
 }
 
-func TestVolumeSplitUnitTestSuite(t *testing.T) {
-	suite.Run(t, new(VolumeSplitUnitTestSuite))
+func TestVolumePollSplitUnitTestSuite(t *testing.T) {
+	suite.Run(t, new(VolumePollSplitUnitTestSuite))
 }

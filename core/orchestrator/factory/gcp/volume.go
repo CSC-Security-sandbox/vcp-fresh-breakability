@@ -3633,7 +3633,7 @@ func _splitStartVolume(ctx context.Context, se database.Storage, temporal client
 				logger.Infof("ONTAP error detected, keeping clones_shared_bytes as 0 to preserve quota reservation for volume UUID: %s", volume.UUID)
 			}
 
-			if updateFields != nil {
+			if len(updateFields) > 0 {
 				volumeUpdateErr := se.UpdateVolumeFields(ctx, volume.UUID, updateFields)
 				if volumeUpdateErr != nil {
 					logger.Errorf("Failed to revert volume state and clones_shared_bytes to previous values: %v", volumeUpdateErr)
@@ -3714,7 +3714,7 @@ func _splitStartVolume(ctx context.Context, se database.Storage, temporal client
 		ctx,
 		createdJob.WorkflowID,
 		taskQueue,
-		workflows.SplitVolumeWorkflow,
+		workflows.VolumePollSplitWorkflow,
 		splitWorkflowTimeout,
 		volume,
 		node,

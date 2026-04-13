@@ -1696,7 +1696,7 @@ func (a VolumeCreateActivity) InitiateSplitForVolume(ctx context.Context, volume
 }
 
 // UpdateCloneParentStateInDB updates the clone parent state and clones_shared_bytes in the database.
-// It is called by SplitVolumeWorkflow as a cleanup activity on both success and failure paths:
+// It is called by VolumePollSplitWorkflow as a cleanup activity on both success and failure paths:
 //   - On success (removeCloneInfo=true): removes CloneParentInfo entirely from volume_attributes,
 //     signalling that the volume is no longer a clone.
 //   - On ONTAP failure (removeCloneInfo=false): sets cloneState="SPLIT_FAILED" and records the
