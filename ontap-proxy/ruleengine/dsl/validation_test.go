@@ -149,6 +149,50 @@ func TestHasExactlyOneOf(t *testing.T) {
 	})
 }
 
+func TestHasAtLeastOneOf(t *testing.T) {
+	missingReason := "missing required field(s): size or space.size"
+
+	t.Run("WhenOnlySize_ShouldReturnTrue", func(t *testing.T) {
+		condition := HasAtLeastOneOf("size", "space.size", missingReason)
+		req := createRequestWithBody(`{"size": 1024}`)
+
+		result, reason := condition(req)
+
+		assert.True(t, result)
+		assert.Empty(t, reason)
+	})
+
+	t.Run("WhenOnlySpaceSize_ShouldReturnTrue", func(t *testing.T) {
+		condition := HasAtLeastOneOf("size", "space.size", missingReason)
+		req := createRequestWithBody(`{"space": {"size": 2048}}`)
+
+		result, reason := condition(req)
+
+		assert.True(t, result)
+		assert.Empty(t, reason)
+	})
+
+	t.Run("WhenBothPresent_ShouldReturnTrue", func(t *testing.T) {
+		condition := HasAtLeastOneOf("size", "space.size", missingReason)
+		req := createRequestWithBody(`{"size": 1024, "space": {"size": 2048}}`)
+
+		result, reason := condition(req)
+
+		assert.True(t, result)
+		assert.Empty(t, reason)
+	})
+
+	t.Run("WhenNeitherPresent_ShouldReturnFalse", func(t *testing.T) {
+		condition := HasAtLeastOneOf("size", "space.size", missingReason)
+		req := createRequestWithBody(`{"name": "vol1"}`)
+
+		result, reason := condition(req)
+
+		assert.False(t, result)
+		assert.Equal(t, missingReason, reason)
+	})
+}
+
 func TestHasAtMostOneOf(t *testing.T) {
 	bothReason := "cannot specify both 'size' and 'space.size'; use one or the other"
 

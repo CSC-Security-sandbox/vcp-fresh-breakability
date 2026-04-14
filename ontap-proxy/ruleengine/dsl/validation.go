@@ -38,6 +38,21 @@ func HasExactlyOneOf(fieldA, fieldB, missingReason, bothReason string) Condition
 	}
 }
 
+// HasAtLeastOneOf creates a condition that passes when at least one of the two fields exists.
+func HasAtLeastOneOf(fieldA, fieldB, missingReason string) Condition {
+	return func(r *http.Request) (bool, string) {
+		data, parseErr := GetParsedBody(r)
+		if parseErr != "" {
+			return false, parseErr
+		}
+		hasA, hasB := checkTwoFieldsExist(data, fieldA, fieldB)
+		if !hasA && !hasB {
+			return false, missingReason
+		}
+		return true, ""
+	}
+}
+
 // HasAtMostOneOf creates a condition that checks that at most one of the two fields exists.
 // Fails with bothReason only when both exist; passes when zero or one is present.
 // Uses cached parsed body from context if available.

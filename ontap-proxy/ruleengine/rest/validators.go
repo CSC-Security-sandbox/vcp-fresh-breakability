@@ -80,18 +80,19 @@ func parseVolumeRequestFields(requestBody map[string]interface{}) VolumeRequestF
 }
 
 // getSizeRawFromVolumeBody returns the raw size value and the JSON path it came from
-// ("size", "space.size", or "" if neither is present). Single place for body-walk logic.
+// ("size", "space.size", or "" if neither is present). When both top-level "size" and
+// "space.size" are set, space.size is used so the proxy forwards the same value to core.
 func getSizeRawFromVolumeBody(requestBody map[string]interface{}) (raw interface{}, fieldPath string) {
 	if requestBody == nil {
 		return nil, ""
-	}
-	if raw, ok := requestBody["size"]; ok {
-		return raw, "size"
 	}
 	if space, ok := requestBody["space"].(map[string]interface{}); ok && space != nil {
 		if raw, ok := space["size"]; ok {
 			return raw, "space.size"
 		}
+	}
+	if raw, ok := requestBody["size"]; ok {
+		return raw, "size"
 	}
 	return nil, ""
 }
@@ -142,12 +143,13 @@ func isCloneCreateRequest(requestBody map[string]interface{}) bool {
 }
 
 // volumePostCreateSizeFieldsCondition validates size-related fields on POST /api/storage/volumes create:
-// flexclone create must not send size or space.size; non-clone create must supply exactly one of them.
+// flexclone create must not send size or space.size; non-clone create must supply at least one of them
+// (if both are set, validateVolumeCreation uses space.size for core).
 // Logically this is:
 //
 //	Or(
 //	  And(isCloneCreateRequest, no top-level size or space.size),
-//	  And(not clone, HasExactlyOneOf("size", "space.size", ...)),
+//	  And(not clone, HasAtLeastOneOf("size", "space.size", ...)),
 //	)
 //
 // Implemented as one function (not nested dsl.Or/And) because dsl.Or keeps only the last failure
@@ -164,10 +166,9 @@ func volumePostCreateSizeFieldsCondition(r *http.Request) (bool, string) {
 		}
 		return true, ""
 	}
-	return dsl.HasExactlyOneOf(
+	return dsl.HasAtLeastOneOf(
 		"size", "space.size",
 		"missing required field(s): size or space.size",
-		"cannot specify both 'size' and 'space.size'; use one or the other",
 	)(r)
 }
 

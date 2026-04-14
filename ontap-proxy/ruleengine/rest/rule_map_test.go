@@ -517,7 +517,7 @@ func TestStorageVolumesRule(t *testing.T) {
 		assert.True(t, allowed, "POST with name and space.size (no top-level size) should be allowed")
 	})
 
-	t.Run("WhenPOSTWithBothSizeAndSpaceSize_ShouldDeny", func(t *testing.T) {
+	t.Run("WhenPOSTWithBothSizeAndSpaceSize_ShouldAllow", func(t *testing.T) {
 		rules := GetProxyRules()
 		rule := rules["/api/storage/volumes"]
 		body := bytes.NewBufferString(`{"size": 1073741824, "name": "test-volume", "space": {"size": 2147483648}}`)
@@ -528,8 +528,7 @@ func TestStorageVolumesRule(t *testing.T) {
 
 		assert.NotNil(t, action)
 		allowed, reason := action.ShouldAllow(req)
-		assert.False(t, allowed, "POST with both 'size' and 'space.size' should be denied")
-		assert.Contains(t, reason, "use one or the other")
+		assert.True(t, allowed, "POST with both 'size' and 'space.size' should be allowed (core uses space.size); reason: %s", reason)
 	})
 
 	t.Run("WhenPOSTWithoutSizeOrSpaceSize_ShouldDeny", func(t *testing.T) {

@@ -42,6 +42,19 @@ func TestGetSizeRawFromVolumeBody(t *testing.T) {
 			t.Fatalf("raw = %v; want 2048", raw)
 		}
 	})
+	t.Run("BothTopLevelSizeAndSpaceSize_ReturnsSpaceSize", func(t *testing.T) {
+		body := map[string]interface{}{
+			"size":  float64(1024),
+			"space": map[string]interface{}{"size": float64(2048)},
+		}
+		raw, path := getSizeRawFromVolumeBody(body)
+		if path != "space.size" || raw == nil {
+			t.Fatalf("getSizeRawFromVolumeBody(both) = %v, %q; want 2048, \"space.size\"", raw, path)
+		}
+		if r, ok := raw.(float64); !ok || r != 2048 {
+			t.Fatalf("raw = %v; want 2048", raw)
+		}
+	})
 	t.Run("NeitherSizeNorSpaceSize_ReturnsNilAndEmptyPath", func(t *testing.T) {
 		body := map[string]interface{}{"name": "vol1"}
 		raw, path := getSizeRawFromVolumeBody(body)
@@ -89,6 +102,16 @@ func TestParseSizeFromVolumeBody(t *testing.T) {
 			t.Fatalf("parseSizeFromVolumeBody(space.size:2048) = %v, %v; want 2048, true", size, found)
 		}
 	})
+	t.Run("BothSizeAndSpaceSize_PrefersSpaceSize", func(t *testing.T) {
+		body := map[string]interface{}{
+			"size":  float64(1024),
+			"space": map[string]interface{}{"size": float64(2048)},
+		}
+		size, found := parseSizeFromVolumeBody(body)
+		if size != 2048 || !found {
+			t.Fatalf("parseSizeFromVolumeBody(both) = %v, %v; want 2048, true", size, found)
+		}
+	})
 	t.Run("SizePresentButInvalid_ReturnsZeroAndTrue", func(t *testing.T) {
 		body := map[string]interface{}{"size": "abc"}
 		size, found := parseSizeFromVolumeBody(body)
@@ -127,6 +150,20 @@ func TestParseVolumeRequestFields_SizeProvided(t *testing.T) {
 		}
 		if fields.SizeInBytes != 2048 {
 			t.Fatalf("SizeInBytes = %v; want 2048", fields.SizeInBytes)
+		}
+	})
+	t.Run("BothSizeAndSpaceSize_PrefersSpaceSize", func(t *testing.T) {
+		body := map[string]interface{}{
+			"name":  "vol1",
+			"size":  float64(1024),
+			"space": map[string]interface{}{"size": float64(2048)},
+		}
+		fields := parseVolumeRequestFields(body)
+		if !fields.SizeProvided {
+			t.Fatalf("parseVolumeRequestFields(both): SizeProvided = false; want true")
+		}
+		if fields.SizeInBytes != 2048 {
+			t.Fatalf("SizeInBytes = %v; want 2048 from space.size", fields.SizeInBytes)
 		}
 	})
 }
@@ -405,6 +442,27 @@ func TestVailidateVolumeCreation(t *testing.T) {
 		ok, reason := _validateVolumeCreation(r)
 		if !ok || reason != "" {
 			t.Fatalf("expected success with space.size, got ok=%v reason=%q", ok, reason)
+		}
+		if capturedReq == nil || capturedReq.SizeInBytes.Or(0) != 2048 {
+			t.Fatalf("expected submitted SizeInBytes 2048 from space.size, got %v", capturedReq)
+		}
+	})
+
+	t.Run("WhenBothSizeAndSpaceSize_ShouldSucceedAndSubmitSpaceSize", func(t *testing.T) {
+		var capturedReq *coreapi.ExpertModeVolumeV1
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			capturedReq = req
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(http.MethodPost, "/api/storage/volumes", bytes.NewBufferString(`{"name":"vol1","size":1024,"space":{"size":2048}}`))
+		r = r.WithContext(ctx)
+		r.Header.Set("Content-Type", "application/json")
+		ok, reason := _validateVolumeCreation(r)
+		if !ok || reason != "" {
+			t.Fatalf("expected success when both size fields set, got ok=%v reason=%q", ok, reason)
 		}
 		if capturedReq == nil || capturedReq.SizeInBytes.Or(0) != 2048 {
 			t.Fatalf("expected submitted SizeInBytes 2048 from space.size, got %v", capturedReq)
