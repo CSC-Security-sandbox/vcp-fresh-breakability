@@ -364,6 +364,42 @@ func TestExpertModeVolumeV1Action_Examples(t *testing.T) {
 		})
 	}
 }
+func TestExpertModeVolumeV1Clone_EncodeDecode(t *testing.T) {
+	var typ ExpertModeVolumeV1Clone
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ExpertModeVolumeV1Clone
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestExpertModeVolumeV1CloneParentSnapshot_EncodeDecode(t *testing.T) {
+	var typ ExpertModeVolumeV1CloneParentSnapshot
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ExpertModeVolumeV1CloneParentSnapshot
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestExpertModeVolumeV1CloneParentVolume_EncodeDecode(t *testing.T) {
+	var typ ExpertModeVolumeV1CloneParentVolume
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ExpertModeVolumeV1CloneParentVolume
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestExpertModeVolumeV1Style_EncodeDecode(t *testing.T) {
 	var typ ExpertModeVolumeV1Style
 	typ.SetFake()

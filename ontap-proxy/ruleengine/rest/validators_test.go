@@ -131,7 +131,38 @@ func TestParseVolumeRequestFields_SizeProvided(t *testing.T) {
 	})
 }
 
-func TestValidateVolumeCreation(t *testing.T) {
+func TestParseVolumeRequestFields_CloneUUIDFields(t *testing.T) {
+	body := map[string]interface{}{
+		"name": "clone-vol",
+		"clone": map[string]interface{}{
+			"is_flexclone": true,
+			"parent_volume": map[string]interface{}{
+				"uuid": "11111111-1111-1111-1111-111111111111",
+			},
+			"parent_snapshot": map[string]interface{}{
+				"uuid": "22222222-2222-2222-2222-222222222222",
+				"name": "snap-1",
+			},
+		},
+	}
+
+	fields := parseVolumeRequestFields(body)
+	if !fields.Clone.IsSet() {
+		t.Fatalf("expected clone to be set")
+	}
+	clone := fields.Clone.Value
+	if !clone.ParentVolume.IsSet() || clone.ParentVolume.Value.UUID.Or("") == "" {
+		t.Fatalf("expected parent volume uuid to be parsed")
+	}
+	if !clone.ParentSnapshot.IsSet() || clone.ParentSnapshot.Value.UUID.Or("") == "" {
+		t.Fatalf("expected parent snapshot uuid to be parsed")
+	}
+	if clone.ParentSnapshot.Value.Name.Or("") != "snap-1" {
+		t.Fatalf("expected parent snapshot name to be parsed")
+	}
+}
+
+func TestVailidateVolumeCreation(t *testing.T) {
 	// Save and restore original function
 	origSubmit := submitExpertModeVolumeOperation
 	defer func() { submitExpertModeVolumeOperation = origSubmit }()
@@ -154,6 +185,106 @@ func TestValidateVolumeCreation(t *testing.T) {
 		}
 	})
 
+	t.Run("WhenCloneCreateWithoutSize_ShouldSucceed", func(t *testing.T) {
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(
+			http.MethodPost,
+			"/api/storage/volumes",
+			bytes.NewBufferString(`{"name":"clone_vol1","clone":{"is_flexclone":true,"parent_volume":{"name":"src_vol1"}}}`),
+		)
+		r = r.WithContext(ctx)
+		ok, reason := _validateVolumeCreation(r)
+		if !ok || reason != "" {
+			t.Fatalf("expected clone create without size to succeed, got ok=%v reason=%q", ok, reason)
+		}
+	})
+
+	t.Run("WhenCloneCreateWithoutParent_ShouldForwardCloneFlag", func(t *testing.T) {
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			if !req.Clone.IsSet() {
+				t.Fatalf("expected clone to be forwarded when clone.is_flexclone=true")
+			}
+			if !req.Clone.Value.IsFlexclone.IsSet() || !req.Clone.Value.IsFlexclone.Value {
+				t.Fatalf("expected clone.isFlexclone=true in forwarded core request")
+			}
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(
+			http.MethodPost,
+			"/api/storage/volumes",
+			bytes.NewBufferString(`{"name":"clone_flag_only","clone":{"is_flexclone":true}}`),
+		)
+		r = r.WithContext(ctx)
+		ok, reason := _validateVolumeCreation(r)
+		if !ok || reason != "" {
+			t.Fatalf("expected validation pass and core to return payload error, got ok=%v reason=%q", ok, reason)
+		}
+	})
+
+	t.Run("WhenNonCloneCreateWithoutSize_ShouldFail", func(t *testing.T) {
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(http.MethodPost, "/api/storage/volumes", bytes.NewBufferString(`{"name":"vol1"}`))
+		r = r.WithContext(ctx)
+		ok, reason := _validateVolumeCreation(r)
+		if ok || !strings.Contains(reason, "\"size\" is a required field") {
+			t.Fatalf("expected missing size error for non-clone create, got ok=%v reason=%q", ok, reason)
+		}
+	})
+
+	t.Run("WhenCloneCreateWithSize_ShouldFail", func(t *testing.T) {
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(
+			http.MethodPost,
+			"/api/storage/volumes",
+			bytes.NewBufferString(`{"name":"clone_vol2","size":1048576,"clone":{"is_flexclone":true,"parent_volume":{"name":"src_vol2"}}}`),
+		)
+		r = r.WithContext(ctx)
+		ok, reason := _validateVolumeCreation(r)
+		if ok || !strings.Contains(reason, "must not be provided for clone volume create") {
+			t.Fatalf("expected clone create with size to fail, got ok=%v reason=%q", ok, reason)
+		}
+	})
+
+	t.Run("WhenIsFlexcloneFalse_ParentRefsIgnoredForCoreRequest", func(t *testing.T) {
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			if req.Clone.IsSet() {
+				t.Fatalf("expected clone refs to be ignored when clone.is_flexclone=false")
+			}
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(
+			http.MethodPost,
+			"/api/storage/volumes",
+			bytes.NewBufferString(`{"name":"vol-nonclone","size":1048576,"clone":{"is_flexclone":false,"parent_volume":{"name":"src_vol"}}}`),
+		)
+		r = r.WithContext(ctx)
+		ok, reason := _validateVolumeCreation(r)
+		if !ok || reason != "" {
+			t.Fatalf("expected request to succeed, got ok=%v reason=%q", ok, reason)
+		}
+	})
+
 	t.Run("WhenParseError", func(t *testing.T) {
 		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
 			return nil
@@ -166,6 +297,25 @@ func TestValidateVolumeCreation(t *testing.T) {
 		ok, reason := _validateVolumeCreation(r)
 		if ok || !strings.Contains(reason, "invalid JSON") {
 			t.Fatalf("expected parse error, got ok=%v reason=%q", ok, reason)
+		}
+	})
+
+	t.Run("WhenCloneParentProvidedWithoutIsFlexclone_ShouldFailWithoutSize", func(t *testing.T) {
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(
+			http.MethodPost,
+			"/api/storage/volumes",
+			bytes.NewBufferString(`{"name":"clone_vol3","clone":{"parent_volume":{"name":"src_vol3"}}}`),
+		)
+		r = r.WithContext(ctx)
+		ok, reason := _validateVolumeCreation(r)
+		if ok || !strings.Contains(reason, "\"size\" is a required field") {
+			t.Fatalf("expected missing size error when is_flexclone not set, got ok=%v reason=%q", ok, reason)
 		}
 	})
 
@@ -256,7 +406,7 @@ func TestValidateVolumeCreation(t *testing.T) {
 		if !ok || reason != "" {
 			t.Fatalf("expected success with space.size, got ok=%v reason=%q", ok, reason)
 		}
-		if capturedReq == nil || capturedReq.SizeInBytes != 2048 {
+		if capturedReq == nil || capturedReq.SizeInBytes.Or(0) != 2048 {
 			t.Fatalf("expected submitted SizeInBytes 2048 from space.size, got %v", capturedReq)
 		}
 	})
@@ -564,7 +714,7 @@ func TestValidateVolumeModification(t *testing.T) {
 		if !ok || reason != "" {
 			t.Fatalf("expected success with space.size on PATCH, got ok=%v reason=%q", ok, reason)
 		}
-		if capturedReq == nil || capturedReq.SizeInBytes != 4096 {
+		if capturedReq == nil || capturedReq.SizeInBytes.Or(0) != 4096 {
 			t.Fatalf("expected submitted SizeInBytes 4096 from space.size, got %v", capturedReq)
 		}
 	})
@@ -975,6 +1125,36 @@ func TestValidatePrivateCLIVolumeRename(t *testing.T) {
 		ok, reason := _validatePrivateCLIVolumeRename(r)
 		if ok || !strings.Contains(reason, "rename failed") {
 			t.Fatalf("expected submit failure, got ok=%v reason=%q", ok, reason)
+		}
+	})
+}
+
+func TestIsCloneCreateRequest_NilBody(t *testing.T) {
+	if isCloneCreateRequest(nil) {
+		t.Fatal("isCloneCreateRequest(nil) = true; want false")
+	}
+}
+
+func TestVolumePostCreateSizeFieldsCondition(t *testing.T) {
+	t.Run("InvalidJSON_ReturnsParseError", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodPost, "/api/storage/volumes", bytes.NewBufferString(`{invalid`))
+		r.Header.Set("Content-Type", "application/json")
+		ok, reason := volumePostCreateSizeFieldsCondition(r)
+		if ok || reason == "" {
+			t.Fatalf("expected parse failure, ok=%v reason=%q", ok, reason)
+		}
+	})
+
+	t.Run("CloneCreateWithTopLevelSize_Rejected", func(t *testing.T) {
+		body := `{"name":"c1","clone":{"is_flexclone":true,"parent_volume":{"name":"p"}},"size":1}`
+		r := httptest.NewRequest(http.MethodPost, "/api/storage/volumes", bytes.NewBufferString(body))
+		r.Header.Set("Content-Type", "application/json")
+		ok, reason := volumePostCreateSizeFieldsCondition(r)
+		if ok {
+			t.Fatal("expected validation failure for clone with size")
+		}
+		if !strings.Contains(reason, "must not be provided for clone volume create") {
+			t.Fatalf("reason %q", reason)
 		}
 	})
 }

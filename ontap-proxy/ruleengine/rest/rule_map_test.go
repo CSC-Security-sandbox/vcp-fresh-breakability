@@ -547,6 +547,20 @@ func TestStorageVolumesRule(t *testing.T) {
 		assert.NotEmpty(t, reason)
 	})
 
+	t.Run("WhenPOSTCloneWithIsFlexcloneWithoutSize_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/volumes"]
+		body := bytes.NewBufferString(`{"name":"clone-volume","clone":{"is_flexclone":true,"parent_volume":{"name":"src-volume"}}}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/storage/volumes", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.True(t, allowed, "POST clone with is_flexclone should be allowed without size; reason: %s", reason)
+	})
+
 	t.Run("WhenPOSTWithoutNameField_ShouldDeny", func(t *testing.T) {
 		rules := GetProxyRules()
 		rule := rules["/api/storage/volumes"]

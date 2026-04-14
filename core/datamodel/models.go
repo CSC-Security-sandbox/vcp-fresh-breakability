@@ -654,10 +654,46 @@ type ExpertModeVolumes struct {
 	Style            string                      `gorm:"column:style"`                      // {flexvol|flexgroup}
 	BackupConfig     *DataProtection             `gorm:"column:data_protection;type:jsonb"` // DataProtection is an existing type which holds backup config in Volume
 	VolumeAttributes *ExpertModeVolumeAttributes `gorm:"column:volume_attributes;type:jsonb"`
+	SharedBytes      int64                       `gorm:"column:shared_bytes"`
 }
 
 type ExpertModeVolumeAttributes struct {
-	Protocols []string `json:"protocols"`
+	Protocols   []string             `json:"protocols"`
+	IsFlexclone bool                 `json:"isFlexclone,omitempty"`
+	Clone       *ExpertModeCloneInfo `json:"clone,omitempty"`
+}
+
+func (v *ExpertModeVolumeAttributes) Scan(value interface{}) error {
+	if value == nil {
+		*v = ExpertModeVolumeAttributes{}
+		return nil
+	}
+
+	var b []byte
+	switch x := value.(type) {
+	case []byte:
+		b = x
+	case string:
+		b = []byte(x)
+	default:
+		return errors.New("type assertion to []byte failed")
+	}
+	return json.Unmarshal(b, v)
+}
+
+func (v *ExpertModeVolumeAttributes) Value() (driver.Value, error) {
+	return json.Marshal(v)
+}
+
+type ExpertModeCloneInfo struct {
+	ParentVolume   *ExpertModeCloneParent `json:"parentVolume,omitempty"`
+	ParentSnapshot *ExpertModeCloneParent `json:"parentSnapshot,omitempty"`
+}
+
+// ExpertModeCloneParent identifies a clone parent volume or snapshot by external UUID and/or name.
+type ExpertModeCloneParent struct {
+	UUID string `json:"uuid,omitempty"`
+	Name string `json:"name,omitempty"`
 }
 
 type Lif struct {

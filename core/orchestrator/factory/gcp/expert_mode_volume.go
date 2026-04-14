@@ -629,23 +629,29 @@ func _createExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 		return customerrors.NewBadRequestErr(fmt.Sprintf("a volume named '%s' already exists in this pool; if the previous volume was deleted or creation failed, wait at least 180 seconds before reusing the name", volumeName))
 	}
 
-	err = canFitInPool(ctx, se, dbPoolView.ID, dbPoolView.SizeInBytes, params.SizeInBytes)
+	var svm *datamodel.Svm
+
+	isCloneCreate, parentVolumeUUID, parentVolumeName, parentSnapshotUUID, parentSnapshotName := resolveCloneIdentifiers(params.Clone)
+	effectiveSizeInBytes := params.SizeInBytes
+	if isCloneCreate {
+		if parentVolumeUUID == "" && parentVolumeName == "" {
+			return customerrors.NewBadRequestErr("clone.parentVolume.uuid or clone.parentVolume.name is required for clone create")
+		}
+		parentSizeInBytes, resolvedParentVolumeUUID, resolvedParentVolumeName, err := fetchParentVolumeSizeForCloneCreate(ctx, se, dbPoolView.Pool, parentVolumeUUID, parentVolumeName)
+		if err != nil {
+			return err
+		}
+		effectiveSizeInBytes = parentSizeInBytes
+		parentVolumeUUID = resolvedParentVolumeUUID
+		parentVolumeName = resolvedParentVolumeName
+	}
+
+	err = canFitInPool(ctx, se, dbPoolView.ID, dbPoolView.SizeInBytes, effectiveSizeInBytes)
 	if err != nil {
 		return err
 	}
 
-	// Create expert mode volume record
-	expertModeVolume := &datamodel.ExpertModeVolumes{
-		Name:        params.VolumeName,
-		SizeInBytes: params.SizeInBytes,
-		PoolID:      dbPoolView.ID,
-		AccountID:   dbPoolView.AccountID,
-		Style:       params.Style,
-		State:       models.LifeCycleStateCreating,
-	}
-
 	// Look up SVM based on provided parameters
-	var svm *datamodel.Svm
 	if params.SvmUuid != "" {
 		// If svmUUID is provided, fetch SVM by external UUID and validate it belongs to the pool
 		svm, err = se.GetSvmByExternalUUID(ctx, params.SvmUuid, dbPoolView.ID)
@@ -656,7 +662,6 @@ func _createExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 			}
 			return err
 		}
-		expertModeVolume.SvmID = svm.ID
 	} else if params.SvmName != "" {
 		// If svmName is provided, fetch SVM by name and poolID
 		svm, err = se.GetSvmByNameAndPoolID(ctx, params.SvmName, dbPoolView.ID)
@@ -667,11 +672,36 @@ func _createExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 			}
 			return err
 		}
-		expertModeVolume.SvmID = svm.ID
 	} else {
 		// Neither svmUUID nor svmName is provided
 		logger.Error("Neither svmName nor svmUUID has been passed")
 		return customerrors.NewBadRequestErr("neither svmName nor svmUUID has been passed")
+	}
+
+	// Create expert mode volume record
+	expertModeVolume := &datamodel.ExpertModeVolumes{
+		Name:        params.VolumeName,
+		SizeInBytes: effectiveSizeInBytes,
+		PoolID:      dbPoolView.ID,
+		AccountID:   dbPoolView.AccountID,
+		Style:       params.Style,
+		State:       models.LifeCycleStateCreating,
+		SvmID:       svm.ID,
+	}
+	if isCloneCreate {
+		expertModeVolume.VolumeAttributes = &datamodel.ExpertModeVolumeAttributes{
+			IsFlexclone: true,
+			Clone: &datamodel.ExpertModeCloneInfo{
+				ParentVolume: &datamodel.ExpertModeCloneParent{
+					UUID: parentVolumeUUID,
+					Name: parentVolumeName,
+				},
+				ParentSnapshot: &datamodel.ExpertModeCloneParent{
+					UUID: parentSnapshotUUID,
+					Name: parentSnapshotName,
+				},
+			},
+		}
 	}
 
 	createdVolume, err := se.CreateExpertModeVolume(ctx, expertModeVolume)
@@ -730,6 +760,64 @@ func _createExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 	}
 
 	return nil
+}
+
+func fetchParentVolumeSizeForCloneCreate(ctx context.Context, se database.Storage, pool datamodel.Pool, parentVolumeUUID string, parentVolumeName string) (int64, string, string, error) {
+	logger := util.GetLogger(ctx)
+
+	var parentVolume *datamodel.ExpertModeVolumes
+	var err error
+
+	if parentVolumeUUID != "" {
+		parentVolume, err = se.GetExpertModeVolumeByExternalUUID(ctx, parentVolumeUUID)
+		if err != nil {
+			logger.Error("Failed to fetch parent volume by external UUID for clone create", "parentVolumeUUID", parentVolumeUUID, "error", err)
+			if errors.Is(err, gorm.ErrRecordNotFound) || customerrors.IsNotFoundErr(err) {
+				return 0, "", "", customerrors.NewBadRequestErr(fmt.Sprintf("parent volume '%s' not found", parentVolumeUUID))
+			}
+			return 0, "", "", err
+		}
+		if parentVolume.PoolID != pool.ID {
+			return 0, "", "", customerrors.NewBadRequestErr("parent volume is not in the requested pool")
+		}
+		if parentVolumeName != "" && parentVolume.Name != parentVolumeName {
+			return 0, "", "", customerrors.NewBadRequestErr("parent volume name does not match parent volume UUID")
+		}
+	} else {
+		parentVolume, err = se.GetExpertModeVolumeByNameAndPoolID(ctx, parentVolumeName, pool.ID)
+		if err != nil {
+			logger.Error("Failed to fetch parent volume by name for clone create", "parentVolumeName", parentVolumeName, "poolID", pool.ID, "error", err)
+			if errors.Is(err, gorm.ErrRecordNotFound) || customerrors.IsNotFoundErr(err) {
+				return 0, "", "", customerrors.NewBadRequestErr(fmt.Sprintf("parent volume '%s' not found", parentVolumeName))
+			}
+			return 0, "", "", err
+		}
+	}
+	if parentVolume == nil || parentVolume.SizeInBytes <= 0 {
+		return 0, "", "", customerrors.NewBadRequestErr("invalid parent volume size for clone create")
+	}
+	return parentVolume.SizeInBytes, parentVolume.ExternalUUID, parentVolume.Name, nil
+}
+
+func resolveCloneIdentifiers(clone *commonparams.ExpertModeVolumeCloneParams) (bool, string, string, string, string) {
+	isCloneCreate := false
+	parentVolumeUUID := ""
+	parentVolumeName := ""
+	parentSnapshotUUID := ""
+	parentSnapshotName := ""
+
+	if clone != nil {
+		isCloneCreate = clone.IsFlexclone
+		if clone.ParentVolume != nil {
+			parentVolumeUUID = clone.ParentVolume.UUID
+			parentVolumeName = clone.ParentVolume.Name
+		}
+		if clone.ParentSnapshot != nil {
+			parentSnapshotUUID = clone.ParentSnapshot.UUID
+			parentSnapshotName = clone.ParentSnapshot.Name
+		}
+	}
+	return isCloneCreate, parentVolumeUUID, parentVolumeName, parentSnapshotUUID, parentSnapshotName
 }
 
 // returns error if the new volume cannot fit in the pool

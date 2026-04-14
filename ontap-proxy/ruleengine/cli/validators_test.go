@@ -493,7 +493,7 @@ func Test_validateVolumeUpdate(t *testing.T) {
 		if capturedReq.VolumeName != "vol1" {
 			t.Errorf("VolumeName = %q, want vol1", capturedReq.VolumeName)
 		}
-		if capturedReq.SizeInBytes == 0 {
+		if !capturedReq.SizeInBytes.IsSet() {
 			t.Error("Expected SizeInBytes to be set")
 		}
 	})

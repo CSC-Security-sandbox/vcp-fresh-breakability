@@ -43,27 +43,57 @@ func (d *DataStoreRepository) CreateExpertModeVolume(ctx context.Context, expert
 	return expertModeVolume, nil
 }
 
-// GetExpertModePoolUsedCapacityAndVolumeCount calculates the total size and count of all expert mode volumes for a given pool ID, returns total size in bytes and volume count
+// GetExpertModePoolUsedCapacityAndVolumeCount calculates effective pool used size and count of all expert mode volumes for a given pool ID.
+// Effective used size is max(total volume size - total shared bytes, 0).
 func (d *DataStoreRepository) GetExpertModePoolUsedCapacityAndVolumeCount(ctx context.Context, poolID int64) (*ExpertModePoolCapacity, error) {
+	totalVolumeSize, volumeCount, err := d.getExpertModePoolTotalVolumeSizeAndCount(ctx, poolID)
+	if err != nil {
+		return nil, err
+	}
+	totalSharedBytes, err := d.getExpertModePoolTotalSharedBytes(ctx, poolID)
+	if err != nil {
+		return nil, err
+	}
+	effectiveUsed := totalVolumeSize - totalSharedBytes
+	if effectiveUsed < 0 {
+		effectiveUsed = 0
+	}
+
+	return &ExpertModePoolCapacity{
+		TotalSize:   effectiveUsed,
+		VolumeCount: volumeCount,
+	}, nil
+}
+
+func (d *DataStoreRepository) getExpertModePoolTotalVolumeSizeAndCount(ctx context.Context, poolID int64) (int64, int64, error) {
 	var result struct {
 		TotalSize   int64 `gorm:"column:total_size"`
 		VolumeCount int64 `gorm:"column:volume_count"`
 	}
-
 	err := d.db.GORM().WithContext(ctx).
 		Model(&datamodel.ExpertModeVolumes{}).
 		Select("COALESCE(SUM(size_in_bytes), 0) as total_size, COUNT(*) as volume_count").
 		Where("pool_id = ?", poolID).
 		Scan(&result).Error
-
 	if err != nil {
-		return nil, err
+		return 0, 0, err
 	}
+	return result.TotalSize, result.VolumeCount, nil
+}
 
-	return &ExpertModePoolCapacity{
-		TotalSize:   result.TotalSize,
-		VolumeCount: result.VolumeCount,
-	}, nil
+func (d *DataStoreRepository) getExpertModePoolTotalSharedBytes(ctx context.Context, poolID int64) (int64, error) {
+	var result struct {
+		TotalSharedBytes int64 `gorm:"column:total_shared_bytes"`
+	}
+	err := d.db.GORM().WithContext(ctx).
+		Model(&datamodel.ExpertModeVolumes{}).
+		Select("COALESCE(SUM(COALESCE(shared_bytes, 0)), 0) as total_shared_bytes").
+		Where("pool_id = ?", poolID).
+		Scan(&result).Error
+	if err != nil {
+		return 0, err
+	}
+	return result.TotalSharedBytes, nil
 }
 
 // GetExpertModeVolumeByNameAndPoolID retrieves an expert mode volume by its name and pool ID
@@ -113,6 +143,8 @@ func (d *DataStoreRepository) UpdateExpertModeVolume(ctx context.Context, expert
 	dbVolume.Style = expertModeVolume.Style
 	dbVolume.State = expertModeVolume.State
 	dbVolume.ExternalUUID = expertModeVolume.ExternalUUID
+	dbVolume.VolumeAttributes = expertModeVolume.VolumeAttributes
+	dbVolume.SharedBytes = expertModeVolume.SharedBytes
 
 	err = tx.Save(dbVolume).Error
 	if err != nil {

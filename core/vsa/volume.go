@@ -370,6 +370,52 @@ func (rc *OntapRestProvider) GetVolumeForExpertMode(params GetVolumeParams) (*Vo
 	return res, nil
 }
 
+// GetCloneVolumeForExpertMode fetches clone metadata for expert mode workflows.
+func (rc *OntapRestProvider) GetCloneVolumeForExpertMode(params GetVolumeParams) (*VolumeResponse, error) {
+	client, err := getOntapClientFunc(rc.ClientParams)
+	if err != nil {
+		return nil, err
+	}
+	vol, err := client.Storage().VolumeGet(&ontapRest.VolumeGetParams{
+		UUID:    params.UUID,
+		Name:    params.VolumeName,
+		SvmName: &params.SvmName,
+		BaseParams: ontapRest.BaseParams{
+			Fields: []string{"uuid", "name", "state", "type", "size", "style", "clone.*"},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if vol.Name == nil || vol.UUID == nil || vol.Size == nil || vol.State == nil {
+		return nil, fmt.Errorf("GetCloneVolumeForExpertMode: incomplete ONTAP volume response: missing required fields (name/uuid/size/state)")
+	}
+	volStyle := ""
+	if vol.Style != nil {
+		volStyle = *vol.Style
+	}
+	res := &VolumeResponse{
+		ProviderResponse: ProviderResponse{
+			Name:         *vol.Name,
+			ExternalUUID: *vol.UUID,
+		},
+		Size:  *vol.Size,
+		State: *vol.State,
+		Style: volStyle,
+	}
+	if vol.Clone != nil {
+		if vol.Clone.ParentVolume != nil {
+			res.CloneParentVolumeName = nillable.FromPointer(vol.Clone.ParentVolume.Name)
+			res.CloneParentVolumeUUID = nillable.FromPointer(vol.Clone.ParentVolume.UUID)
+		}
+		if vol.Clone.ParentSnapshot != nil {
+			res.CloneParentSnapshotName = nillable.FromPointer(vol.Clone.ParentSnapshot.Name)
+			res.CloneParentSnapshotUUID = nillable.FromPointer(vol.Clone.ParentSnapshot.UUID)
+		}
+	}
+	return res, nil
+}
+
 func (rc *OntapRestProvider) GetVolumes() ([]*Volume, error) {
 	var resultVolumes []*Volume
 

@@ -593,8 +593,12 @@ type ExpertModeVolumeV1 struct {
 	VolumeName string `json:"volumeName"`
 	// Volume UUID (for update/delete actions).
 	VolumeUUID OptString `json:"volumeUUID"`
-	// Volume size in bytes.
-	SizeInBytes float64 `json:"sizeInBytes"`
+	// Volume size in bytes. Optional only when clone.isFlexclone=true and clone.parentVolume (uuid or
+	// name) is provided. For non-clone create, size is required.
+	SizeInBytes OptFloat64 `json:"sizeInBytes"`
+	// Clone source information. Either UUID or name may be provided for parent volume and parent
+	// snapshot.
+	Clone OptExpertModeVolumeV1Clone `json:"clone"`
 	// Volume style.
 	Style ExpertModeVolumeV1Style `json:"style"`
 	// SVM UUID.
@@ -629,8 +633,13 @@ func (s *ExpertModeVolumeV1) GetVolumeUUID() OptString {
 }
 
 // GetSizeInBytes returns the value of SizeInBytes.
-func (s *ExpertModeVolumeV1) GetSizeInBytes() float64 {
+func (s *ExpertModeVolumeV1) GetSizeInBytes() OptFloat64 {
 	return s.SizeInBytes
+}
+
+// GetClone returns the value of Clone.
+func (s *ExpertModeVolumeV1) GetClone() OptExpertModeVolumeV1Clone {
+	return s.Clone
 }
 
 // GetStyle returns the value of Style.
@@ -674,8 +683,13 @@ func (s *ExpertModeVolumeV1) SetVolumeUUID(val OptString) {
 }
 
 // SetSizeInBytes sets the value of SizeInBytes.
-func (s *ExpertModeVolumeV1) SetSizeInBytes(val float64) {
+func (s *ExpertModeVolumeV1) SetSizeInBytes(val OptFloat64) {
 	s.SizeInBytes = val
+}
+
+// SetClone sets the value of Clone.
+func (s *ExpertModeVolumeV1) SetClone(val OptExpertModeVolumeV1Clone) {
+	s.Clone = val
 }
 
 // SetStyle sets the value of Style.
@@ -740,6 +754,103 @@ func (s *ExpertModeVolumeV1Action) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+// Clone source information. Either UUID or name may be provided for parent volume and parent
+// snapshot.
+type ExpertModeVolumeV1Clone struct {
+	// When true, request is treated as FlexClone create.
+	IsFlexclone OptBool `json:"isFlexclone"`
+	// Parent volume reference for clone create. Required when clone.isFlexclone=true.
+	ParentVolume OptExpertModeVolumeV1CloneParentVolume `json:"parentVolume"`
+	// Optional parent snapshot reference for clone create.
+	ParentSnapshot OptExpertModeVolumeV1CloneParentSnapshot `json:"parentSnapshot"`
+}
+
+// GetIsFlexclone returns the value of IsFlexclone.
+func (s *ExpertModeVolumeV1Clone) GetIsFlexclone() OptBool {
+	return s.IsFlexclone
+}
+
+// GetParentVolume returns the value of ParentVolume.
+func (s *ExpertModeVolumeV1Clone) GetParentVolume() OptExpertModeVolumeV1CloneParentVolume {
+	return s.ParentVolume
+}
+
+// GetParentSnapshot returns the value of ParentSnapshot.
+func (s *ExpertModeVolumeV1Clone) GetParentSnapshot() OptExpertModeVolumeV1CloneParentSnapshot {
+	return s.ParentSnapshot
+}
+
+// SetIsFlexclone sets the value of IsFlexclone.
+func (s *ExpertModeVolumeV1Clone) SetIsFlexclone(val OptBool) {
+	s.IsFlexclone = val
+}
+
+// SetParentVolume sets the value of ParentVolume.
+func (s *ExpertModeVolumeV1Clone) SetParentVolume(val OptExpertModeVolumeV1CloneParentVolume) {
+	s.ParentVolume = val
+}
+
+// SetParentSnapshot sets the value of ParentSnapshot.
+func (s *ExpertModeVolumeV1Clone) SetParentSnapshot(val OptExpertModeVolumeV1CloneParentSnapshot) {
+	s.ParentSnapshot = val
+}
+
+// Optional parent snapshot reference for clone create.
+type ExpertModeVolumeV1CloneParentSnapshot struct {
+	// Parent snapshot UUID for clone create.
+	UUID OptString `json:"uuid"`
+	// Parent snapshot name for clone create.
+	Name OptString `json:"name"`
+}
+
+// GetUUID returns the value of UUID.
+func (s *ExpertModeVolumeV1CloneParentSnapshot) GetUUID() OptString {
+	return s.UUID
+}
+
+// GetName returns the value of Name.
+func (s *ExpertModeVolumeV1CloneParentSnapshot) GetName() OptString {
+	return s.Name
+}
+
+// SetUUID sets the value of UUID.
+func (s *ExpertModeVolumeV1CloneParentSnapshot) SetUUID(val OptString) {
+	s.UUID = val
+}
+
+// SetName sets the value of Name.
+func (s *ExpertModeVolumeV1CloneParentSnapshot) SetName(val OptString) {
+	s.Name = val
+}
+
+// Parent volume reference for clone create. Required when clone.isFlexclone=true.
+type ExpertModeVolumeV1CloneParentVolume struct {
+	// Parent volume UUID for clone create.
+	UUID OptString `json:"uuid"`
+	// Parent volume name for clone create.
+	Name OptString `json:"name"`
+}
+
+// GetUUID returns the value of UUID.
+func (s *ExpertModeVolumeV1CloneParentVolume) GetUUID() OptString {
+	return s.UUID
+}
+
+// GetName returns the value of Name.
+func (s *ExpertModeVolumeV1CloneParentVolume) GetName() OptString {
+	return s.Name
+}
+
+// SetUUID sets the value of UUID.
+func (s *ExpertModeVolumeV1CloneParentVolume) SetUUID(val OptString) {
+	s.UUID = val
+}
+
+// SetName sets the value of Name.
+func (s *ExpertModeVolumeV1CloneParentVolume) SetName(val OptString) {
+	s.Name = val
 }
 
 // Volume style.
@@ -1923,6 +2034,144 @@ func (o OptDateTime) Get() (v time.Time, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptDateTime) Or(d time.Time) time.Time {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExpertModeVolumeV1Clone returns new OptExpertModeVolumeV1Clone with value set to v.
+func NewOptExpertModeVolumeV1Clone(v ExpertModeVolumeV1Clone) OptExpertModeVolumeV1Clone {
+	return OptExpertModeVolumeV1Clone{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExpertModeVolumeV1Clone is optional ExpertModeVolumeV1Clone.
+type OptExpertModeVolumeV1Clone struct {
+	Value ExpertModeVolumeV1Clone
+	Set   bool
+}
+
+// IsSet returns true if OptExpertModeVolumeV1Clone was set.
+func (o OptExpertModeVolumeV1Clone) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExpertModeVolumeV1Clone) Reset() {
+	var v ExpertModeVolumeV1Clone
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExpertModeVolumeV1Clone) SetTo(v ExpertModeVolumeV1Clone) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExpertModeVolumeV1Clone) Get() (v ExpertModeVolumeV1Clone, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExpertModeVolumeV1Clone) Or(d ExpertModeVolumeV1Clone) ExpertModeVolumeV1Clone {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExpertModeVolumeV1CloneParentSnapshot returns new OptExpertModeVolumeV1CloneParentSnapshot with value set to v.
+func NewOptExpertModeVolumeV1CloneParentSnapshot(v ExpertModeVolumeV1CloneParentSnapshot) OptExpertModeVolumeV1CloneParentSnapshot {
+	return OptExpertModeVolumeV1CloneParentSnapshot{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExpertModeVolumeV1CloneParentSnapshot is optional ExpertModeVolumeV1CloneParentSnapshot.
+type OptExpertModeVolumeV1CloneParentSnapshot struct {
+	Value ExpertModeVolumeV1CloneParentSnapshot
+	Set   bool
+}
+
+// IsSet returns true if OptExpertModeVolumeV1CloneParentSnapshot was set.
+func (o OptExpertModeVolumeV1CloneParentSnapshot) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExpertModeVolumeV1CloneParentSnapshot) Reset() {
+	var v ExpertModeVolumeV1CloneParentSnapshot
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExpertModeVolumeV1CloneParentSnapshot) SetTo(v ExpertModeVolumeV1CloneParentSnapshot) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExpertModeVolumeV1CloneParentSnapshot) Get() (v ExpertModeVolumeV1CloneParentSnapshot, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExpertModeVolumeV1CloneParentSnapshot) Or(d ExpertModeVolumeV1CloneParentSnapshot) ExpertModeVolumeV1CloneParentSnapshot {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExpertModeVolumeV1CloneParentVolume returns new OptExpertModeVolumeV1CloneParentVolume with value set to v.
+func NewOptExpertModeVolumeV1CloneParentVolume(v ExpertModeVolumeV1CloneParentVolume) OptExpertModeVolumeV1CloneParentVolume {
+	return OptExpertModeVolumeV1CloneParentVolume{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExpertModeVolumeV1CloneParentVolume is optional ExpertModeVolumeV1CloneParentVolume.
+type OptExpertModeVolumeV1CloneParentVolume struct {
+	Value ExpertModeVolumeV1CloneParentVolume
+	Set   bool
+}
+
+// IsSet returns true if OptExpertModeVolumeV1CloneParentVolume was set.
+func (o OptExpertModeVolumeV1CloneParentVolume) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExpertModeVolumeV1CloneParentVolume) Reset() {
+	var v ExpertModeVolumeV1CloneParentVolume
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExpertModeVolumeV1CloneParentVolume) SetTo(v ExpertModeVolumeV1CloneParentVolume) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExpertModeVolumeV1CloneParentVolume) Get() (v ExpertModeVolumeV1CloneParentVolume, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExpertModeVolumeV1CloneParentVolume) Or(d ExpertModeVolumeV1CloneParentVolume) ExpertModeVolumeV1CloneParentVolume {
 	if v, ok := o.Get(); ok {
 		return v
 	}

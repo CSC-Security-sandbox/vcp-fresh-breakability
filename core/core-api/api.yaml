@@ -2479,7 +2479,6 @@ components:
         - projectNumber
         - poolUUID
         - volumeName
-        - sizeInBytes
         - style
         - action
       properties:
@@ -2520,8 +2519,50 @@ components:
           title: sizeInBytes
           type: number
           format: integer
-          description: Volume size in bytes
+          description: Volume size in bytes. Optional only when clone.isFlexclone=true and clone.parentVolume (uuid or name) is provided. For non-clone create, size is required.
           example: 1099511627776
+        clone:
+          title: clone
+          type: object
+          description: Clone source information. Either UUID or name may be provided for parent volume and parent snapshot.
+          properties:
+            isFlexclone:
+              title: isFlexclone
+              type: boolean
+              description: When true, request is treated as FlexClone create.
+              example: true
+            parentVolume:
+              title: parentVolume
+              type: object
+              description: Parent volume reference for clone create. Required when clone.isFlexclone=true.
+              properties:
+                uuid:
+                  title: uuid
+                  type: string
+                  pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+                  description: Parent volume UUID for clone create.
+                  example: "f5d0bf36-5282-45c2-a837-ed7d8181c860"
+                name:
+                  title: name
+                  type: string
+                  description: Parent volume name for clone create.
+                  example: "src_volume_01"
+            parentSnapshot:
+              title: parentSnapshot
+              type: object
+              description: Optional parent snapshot reference for clone create.
+              properties:
+                uuid:
+                  title: uuid
+                  type: string
+                  pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+                  description: Parent snapshot UUID for clone create.
+                  example: "8f9fbd5f-2c09-4b54-a321-f99bc9f1988e"
+                name:
+                  title: name
+                  type: string
+                  description: Parent snapshot name for clone create.
+                  example: "snap_01"
         style:
           title: style
           type: string

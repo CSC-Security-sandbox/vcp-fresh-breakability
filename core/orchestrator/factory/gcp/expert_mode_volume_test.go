@@ -720,6 +720,288 @@ func TestCreateExpertModeVolume(t *testing.T) {
 	})
 }
 
+func TestResolveCloneIdentifiers(t *testing.T) {
+	t.Run("NilClone", func(t *testing.T) {
+		isClone, pvUUID, pvName, psUUID, psName := resolveCloneIdentifiers(nil)
+		assert.False(t, isClone)
+		assert.Equal(t, "", pvUUID)
+		assert.Equal(t, "", pvName)
+		assert.Equal(t, "", psUUID)
+		assert.Equal(t, "", psName)
+	})
+
+	t.Run("CloneWithUUIDAndNames", func(t *testing.T) {
+		isClone, pvUUID, pvName, psUUID, psName := resolveCloneIdentifiers(&commonparams.ExpertModeVolumeCloneParams{
+			IsFlexclone: true,
+			ParentVolume: &commonparams.ExpertModeVolumeCloneParent{
+				UUID: "pv-uuid",
+				Name: "pv-name",
+			},
+			ParentSnapshot: &commonparams.ExpertModeVolumeCloneParent{
+				UUID: "ps-uuid",
+				Name: "ps-name",
+			},
+		})
+		assert.True(t, isClone)
+		assert.Equal(t, "pv-uuid", pvUUID)
+		assert.Equal(t, "pv-name", pvName)
+		assert.Equal(t, "ps-uuid", psUUID)
+		assert.Equal(t, "ps-name", psName)
+	})
+}
+
+func TestFetchParentVolumeSizeForCloneCreate(t *testing.T) {
+	ctx := context.Background()
+	pool := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 10}}
+
+	t.Run("UUIDNotFoundReturnsBadRequest", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetExpertModeVolumeByExternalUUID", mock.Anything, "pv-uuid").Return(nil, gorm.ErrRecordNotFound)
+
+		_, _, _, err := fetchParentVolumeSizeForCloneCreate(ctx, mockStorage, pool, "pv-uuid", "")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "parent volume 'pv-uuid' not found")
+	})
+
+	t.Run("UUIDPoolMismatchReturnsBadRequest", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetExpertModeVolumeByExternalUUID", mock.Anything, "pv-uuid").Return(&datamodel.ExpertModeVolumes{
+			PoolID: 999,
+		}, nil)
+
+		_, _, _, err := fetchParentVolumeSizeForCloneCreate(ctx, mockStorage, pool, "pv-uuid", "")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "parent volume is not in the requested pool")
+	})
+
+	t.Run("UUIDNameMismatchReturnsBadRequest", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetExpertModeVolumeByExternalUUID", mock.Anything, "pv-uuid").Return(&datamodel.ExpertModeVolumes{
+			Name:   "actual-name",
+			PoolID: 10,
+		}, nil)
+
+		_, _, _, err := fetchParentVolumeSizeForCloneCreate(ctx, mockStorage, pool, "pv-uuid", "requested-name")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "parent volume name does not match parent volume UUID")
+	})
+
+	t.Run("NameNotFoundReturnsBadRequest", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetExpertModeVolumeByNameAndPoolID", mock.Anything, "missing", int64(10)).Return(nil, gorm.ErrRecordNotFound)
+
+		_, _, _, err := fetchParentVolumeSizeForCloneCreate(ctx, mockStorage, pool, "", "missing")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "parent volume 'missing' not found")
+	})
+
+	t.Run("NameLookupUnexpectedErrorReturnedAsIs", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		boom := errors.New("db down")
+		mockStorage.On("GetExpertModeVolumeByNameAndPoolID", mock.Anything, "pv-name", int64(10)).Return(nil, boom)
+
+		_, _, _, err := fetchParentVolumeSizeForCloneCreate(ctx, mockStorage, pool, "", "pv-name")
+		assert.ErrorIs(t, err, boom)
+	})
+
+	t.Run("InvalidParentSizeReturnsBadRequest", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetExpertModeVolumeByNameAndPoolID", mock.Anything, "pv-name", int64(10)).Return(&datamodel.ExpertModeVolumes{
+			Name:         "pv-name",
+			ExternalUUID: "pv-uuid",
+			SizeInBytes:  0,
+			PoolID:       10,
+		}, nil)
+
+		_, _, _, err := fetchParentVolumeSizeForCloneCreate(ctx, mockStorage, pool, "", "pv-name")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid parent volume size for clone create")
+	})
+
+	t.Run("NameLookupSuccess", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.On("GetExpertModeVolumeByNameAndPoolID", mock.Anything, "pv-name", int64(10)).Return(&datamodel.ExpertModeVolumes{
+			Name:         "pv-name",
+			ExternalUUID: "pv-uuid",
+			SizeInBytes:  1024,
+			PoolID:       10,
+		}, nil)
+
+		size, resolvedUUID, resolvedName, err := fetchParentVolumeSizeForCloneCreate(ctx, mockStorage, pool, "", "pv-name")
+		assert.NoError(t, err)
+		assert.Equal(t, int64(1024), size)
+		assert.Equal(t, "pv-uuid", resolvedUUID)
+		assert.Equal(t, "pv-name", resolvedName)
+	})
+}
+
+func TestCreateExpertModeVolume_CloneValidationBranches(t *testing.T) {
+	setup := func(t *testing.T) database.Storage {
+		mockLogger := log.NewMockLogger(t)
+		mockLogger.EXPECT().InfoContext(mock.Anything, "Running AutoMigrate for model changes")
+		store, err := database.SetupStorageForTest(mockLogger)
+		assert.NoError(t, err)
+		assert.NoError(t, database.ClearInMemoryDB(store.DB()))
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{UUID: "acct-uuid-1"},
+			Name:      "acct-1",
+		}
+		assert.NoError(t, store.DB().Create(account).Error)
+
+		pool := &datamodel.Pool{
+			BaseModel:   datamodel.BaseModel{UUID: "pool-uuid-1"},
+			Name:        "pool-1",
+			AccountID:   account.ID,
+			SizeInBytes: 10 * 1024 * 1024,
+		}
+		assert.NoError(t, store.DB().Create(pool).Error)
+
+		svm := &datamodel.Svm{
+			BaseModel: datamodel.BaseModel{UUID: "svm-uuid-1"},
+			Name:      "svm-1",
+			AccountID: account.ID,
+			PoolID:    pool.ID,
+		}
+		assert.NoError(t, store.DB().Create(svm).Error)
+
+		parent := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "emv-parent-1"},
+			Name:         "parent-vol",
+			ExternalUUID: "parent-ext-1",
+			AccountID:    account.ID,
+			PoolID:       pool.ID,
+			SvmID:        svm.ID,
+			SizeInBytes:  1024,
+			Style:        "flexvol",
+			State:        models.LifeCycleStateAvailable,
+		}
+		assert.NoError(t, store.DB().Create(parent).Error)
+
+		return store
+	}
+
+	t.Run("CloneMissingParentVolumeRef", func(t *testing.T) {
+		store := setup(t)
+		err := _createExpertModeVolume(context.Background(), store, nil, &commonparams.ExpertModeVolumeParams{
+			AccountName: "acct-1",
+			PoolUUID:    "pool-uuid-1",
+			Action:      "Create",
+			VolumeName:  "clone-a",
+			Style:       "flexvol",
+			Clone: &commonparams.ExpertModeVolumeCloneParams{
+				IsFlexclone: true,
+			},
+		})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "clone.parentVolume.uuid or clone.parentVolume.name is required")
+	})
+
+	t.Run("CloneParentResolvedBeforeSvmValidation", func(t *testing.T) {
+		store := setup(t)
+		err := _createExpertModeVolume(context.Background(), store, nil, &commonparams.ExpertModeVolumeParams{
+			AccountName: "acct-1",
+			PoolUUID:    "pool-uuid-1",
+			Action:      "Create",
+			VolumeName:  "clone-b",
+			Style:       "flexvol",
+			Clone: &commonparams.ExpertModeVolumeCloneParams{
+				IsFlexclone: true,
+				ParentVolume: &commonparams.ExpertModeVolumeCloneParent{
+					Name: "parent-vol",
+				},
+			},
+			// intentionally omit svm fields to fail after clone size resolution path
+		})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "neither svmName nor svmUUID has been passed")
+	})
+
+	t.Run("CloneCreatePersistsCloneMetadata", func(t *testing.T) {
+		store := setup(t)
+		temporal := workflowenginemock.NewMockTemporalTestClient(t)
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+		err := _createExpertModeVolume(context.Background(), store, temporal, &commonparams.ExpertModeVolumeParams{
+			AccountName: "acct-1",
+			PoolUUID:    "pool-uuid-1",
+			Action:      "Create",
+			VolumeName:  "clone-ok-vol",
+			Style:       "flexvol",
+			SvmName:     "svm-1",
+			Clone: &commonparams.ExpertModeVolumeCloneParams{
+				IsFlexclone: true,
+				ParentVolume: &commonparams.ExpertModeVolumeCloneParent{
+					Name: "parent-vol",
+				},
+				ParentSnapshot: &commonparams.ExpertModeVolumeCloneParent{
+					UUID: "snap-ext",
+					Name: "snap-n",
+				},
+			},
+		})
+		assert.NoError(t, err)
+
+		var created datamodel.ExpertModeVolumes
+		assert.NoError(t, store.DB().Where("name = ?", "clone-ok-vol").First(&created).Error)
+		if assert.NotNil(t, created.VolumeAttributes) {
+			assert.True(t, created.VolumeAttributes.IsFlexclone)
+			if assert.NotNil(t, created.VolumeAttributes.Clone) {
+				assert.Equal(t, "parent-ext-1", created.VolumeAttributes.Clone.ParentVolume.UUID)
+				assert.Equal(t, "parent-vol", created.VolumeAttributes.Clone.ParentVolume.Name)
+				assert.Equal(t, "snap-ext", created.VolumeAttributes.Clone.ParentSnapshot.UUID)
+				assert.Equal(t, "snap-n", created.VolumeAttributes.Clone.ParentSnapshot.Name)
+			}
+		}
+		temporal.AssertExpectations(t)
+	})
+}
+
+func TestFetchParentVolumeSizeForCloneCreate_UUIDNonNotFoundErrorPropagates(t *testing.T) {
+	ctx := context.Background()
+	pool := datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 10}}
+	mockStorage := database.NewMockStorage(t)
+	dbErr := errors.New("db read failure")
+	mockStorage.On("GetExpertModeVolumeByExternalUUID", mock.Anything, "pv-uuid").Return(nil, dbErr)
+
+	_, _, _, err := fetchParentVolumeSizeForCloneCreate(ctx, mockStorage, pool, "pv-uuid", "")
+	assert.ErrorIs(t, err, dbErr)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestCreateExpertModeVolume_CloneParentFetchPropagatesDatabaseError(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+	orig := getAccountWithName
+	getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+		return &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: accountName}, nil
+	}
+	defer func() { getAccountWithName = orig }()
+
+	poolUUID := "pool-uuid-1"
+	mockStorage.On("GetPool", mock.Anything, poolUUID, int64(1)).Return(&datamodel.PoolView{
+		Pool: datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 10}, SizeInBytes: 1 << 40},
+	}, nil)
+	mockStorage.On("GetExpertModeVolumeByNameAndPoolID", mock.Anything, "clone-d", int64(10)).Return(nil, gorm.ErrRecordNotFound)
+	dbErr := errors.New("parent lookup failed")
+	mockStorage.On("GetExpertModeVolumeByExternalUUID", mock.Anything, "bad-parent").Return(nil, dbErr)
+
+	err := _createExpertModeVolume(ctx, mockStorage, nil, &commonparams.ExpertModeVolumeParams{
+		AccountName: "acct",
+		PoolUUID:    poolUUID,
+		Action:      "Create",
+		VolumeName:  "clone-d",
+		Style:       "flexvol",
+		SvmName:     "svm-1",
+		Clone: &commonparams.ExpertModeVolumeCloneParams{
+			IsFlexclone:  true,
+			ParentVolume: &commonparams.ExpertModeVolumeCloneParent{UUID: "bad-parent"},
+		},
+	})
+	assert.ErrorIs(t, err, dbErr)
+	mockStorage.AssertExpectations(t)
+}
+
 func TestVolumeReconciliationWorkflow(t *testing.T) {
 	t.Run("WorkflowExists", func(tt *testing.T) {
 		expertModeVolume := &datamodel.ExpertModeVolumes{

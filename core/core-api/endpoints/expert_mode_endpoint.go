@@ -18,11 +18,28 @@ func (h Handler) V1ExpertModeVolume(ctx context.Context, req *oasgenserver.Exper
 		Action:      string(req.Action),
 		VolumeName:  req.VolumeName,
 		VolumeUUID:  req.VolumeUUID.Or(""),
-		SizeInBytes: int64(req.SizeInBytes),
+		SizeInBytes: int64(req.SizeInBytes.Or(0)),
 		Style:       string(req.Style),
 		SvmUuid:     req.SvmUuid.Or(""),
 		SvmName:     req.SvmName.Or(""),
 		AccountName: req.ProjectNumber,
+	}
+	if cloneReq, ok := req.Clone.Get(); ok {
+		orchestratorParams.Clone = &commonparams.ExpertModeVolumeCloneParams{
+			IsFlexclone: cloneReq.IsFlexclone.Or(false),
+		}
+		if pv, pvOk := cloneReq.ParentVolume.Get(); pvOk {
+			orchestratorParams.Clone.ParentVolume = &commonparams.ExpertModeVolumeCloneParent{
+				UUID: pv.UUID.Or(""),
+				Name: pv.Name.Or(""),
+			}
+		}
+		if ps, psOk := cloneReq.ParentSnapshot.Get(); psOk {
+			orchestratorParams.Clone.ParentSnapshot = &commonparams.ExpertModeVolumeCloneParent{
+				UUID: ps.UUID.Or(""),
+				Name: ps.Name.Or(""),
+			}
+		}
 	}
 
 	var err error

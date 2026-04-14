@@ -59,7 +59,7 @@ func validateVolumeCreationByStyle(ctx context.Context, cmd *CLICommand, style c
 		PoolUUID:      authData.PoolID,
 		Action:        coreapi.ExpertModeVolumeV1ActionCreate,
 		VolumeName:    volumeName,
-		SizeInBytes:   sizeInBytes,
+		SizeInBytes:   coreapi.NewOptFloat64(sizeInBytes),
 		Style:         style,
 		SvmName:       coreapi.NewOptString(vserverName),
 	}
@@ -153,7 +153,7 @@ func _validateVolumeUpdate(ctx context.Context, cmd *CLICommand) (bool, string) 
 		PoolUUID:      authData.PoolID,
 		Action:        coreapi.ExpertModeVolumeV1ActionUpdate,
 		VolumeName:    volumeName,
-		SizeInBytes:   sizeInBytes,
+		SizeInBytes:   coreapi.NewOptFloat64(sizeInBytes),
 		Style:         coreapi.ExpertModeVolumeV1StyleFlexvol,
 		SvmName:       coreapi.NewOptString(vserverName),
 	}

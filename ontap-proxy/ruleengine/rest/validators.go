@@ -24,7 +24,7 @@ var (
 	validatePrivateCLIVolumeCreation     = _validatePrivateCLIVolumeCreation
 	validatePrivateCLIVolumeModification = _validatePrivateCLIVolumeModification
 	validatePrivateCLIVolumeDeletion     = _validatePrivateCLIVolumeDeletion
-	validatePrivateCLIVolumeRename        = _validatePrivateCLIVolumeRename
+	validatePrivateCLIVolumeRename       = _validatePrivateCLIVolumeRename
 )
 
 type VolumeRequestFields struct {
@@ -33,6 +33,7 @@ type VolumeRequestFields struct {
 	SizeProvided bool // true when "size" or "space.size" was present in the request (so 0 can mean "invalid" not "absent")
 	SvmUuid      coreapi.OptString
 	SvmName      coreapi.OptString
+	Clone        coreapi.OptExpertModeVolumeV1Clone
 }
 
 func parseVolumeRequestFields(requestBody map[string]interface{}) VolumeRequestFields {
@@ -47,6 +48,32 @@ func parseVolumeRequestFields(requestBody map[string]interface{}) VolumeRequestF
 			if name, ok := svm["name"].(string); ok && name != "" {
 				fields.SvmName = coreapi.NewOptString(name)
 			}
+		}
+		if isCloneCreateRequest(requestBody) {
+			cloneObj, _ := requestBody["clone"].(map[string]interface{})
+			clone := coreapi.ExpertModeVolumeV1Clone{}
+			clone.IsFlexclone = coreapi.NewOptBool(true)
+			if parentVolume, ok := cloneObj["parent_volume"].(map[string]interface{}); ok && parentVolume != nil {
+				parentVolumeObj := coreapi.ExpertModeVolumeV1CloneParentVolume{}
+				if name, ok := parentVolume["name"].(string); ok && name != "" {
+					parentVolumeObj.Name = coreapi.NewOptString(name)
+				}
+				if uuid, ok := parentVolume["uuid"].(string); ok && uuid != "" {
+					parentVolumeObj.UUID = coreapi.NewOptString(uuid)
+				}
+				clone.ParentVolume = coreapi.NewOptExpertModeVolumeV1CloneParentVolume(parentVolumeObj)
+			}
+			if parentSnapshot, ok := cloneObj["parent_snapshot"].(map[string]interface{}); ok && parentSnapshot != nil {
+				parentSnapshotObj := coreapi.ExpertModeVolumeV1CloneParentSnapshot{}
+				if name, ok := parentSnapshot["name"].(string); ok && name != "" {
+					parentSnapshotObj.Name = coreapi.NewOptString(name)
+				}
+				if uuid, ok := parentSnapshot["uuid"].(string); ok && uuid != "" {
+					parentSnapshotObj.UUID = coreapi.NewOptString(uuid)
+				}
+				clone.ParentSnapshot = coreapi.NewOptExpertModeVolumeV1CloneParentSnapshot(parentSnapshotObj)
+			}
+			fields.Clone = coreapi.NewOptExpertModeVolumeV1Clone(clone)
 		}
 	}
 	return fields
@@ -99,6 +126,51 @@ func hasSpaceSize(requestBody map[string]interface{}) bool {
 	return path == "space.size"
 }
 
+// isCloneCreateRequest returns true only when ONTAP clone flag is explicitly set.
+// We intentionally key off clone.is_flexclone for validator behavior.
+func isCloneCreateRequest(requestBody map[string]interface{}) bool {
+	if requestBody == nil {
+		return false
+	}
+
+	cloneObj, ok := requestBody["clone"].(map[string]interface{})
+	if !ok || cloneObj == nil {
+		return false
+	}
+	isFlexclone, _ := cloneObj["is_flexclone"].(bool)
+	return isFlexclone
+}
+
+// volumePostCreateSizeFieldsCondition validates size-related fields on POST /api/storage/volumes create:
+// flexclone create must not send size or space.size; non-clone create must supply exactly one of them.
+// Logically this is:
+//
+//	Or(
+//	  And(isCloneCreateRequest, no top-level size or space.size),
+//	  And(not clone, HasExactlyOneOf("size", "space.size", ...)),
+//	)
+//
+// Implemented as one function (not nested dsl.Or/And) because dsl.Or keeps only the last failure
+// reason, which would surface the wrong error for some combinations.
+func volumePostCreateSizeFieldsCondition(r *http.Request) (bool, string) {
+	requestBody, parseErr := dsl.GetParsedBody(r)
+	if parseErr != "" {
+		return false, parseErr
+	}
+	if isCloneCreateRequest(requestBody) {
+		_, path := getSizeRawFromVolumeBody(requestBody)
+		if path != "" {
+			return false, "\"size\" and \"space.size\" must not be provided for clone volume create"
+		}
+		return true, ""
+	}
+	return dsl.HasExactlyOneOf(
+		"size", "space.size",
+		"missing required field(s): size or space.size",
+		"cannot specify both 'size' and 'space.size'; use one or the other",
+	)(r)
+}
+
 // getSizeFieldPath returns the JSON path that supplied the size value ("size" or "space.size")
 // so error messages match the client's input.
 func getSizeFieldPath(requestBody map[string]interface{}) string {
@@ -130,6 +202,16 @@ func validateVolumeCreationByStyle(r *http.Request, style coreapi.ExpertModeVolu
 	}
 
 	fields := parseVolumeRequestFields(requestBody)
+	isCloneRequest := isCloneCreateRequest(requestBody)
+
+	// For non-clone volume create, size is mandatory.
+	if !isCloneRequest && !fields.SizeProvided {
+		return false, "\"size\" is a required field for non-clone volume create"
+	}
+
+	if isCloneRequest && fields.SizeProvided {
+		return false, "\"size\" and \"space.size\" must not be provided for clone volume create"
+	}
 
 	// Reject invalid size only when a size field was provided and parsed to 0
 	if fields.SizeProvided && fields.SizeInBytes == 0 {
@@ -143,10 +225,13 @@ func validateVolumeCreationByStyle(r *http.Request, style coreapi.ExpertModeVolu
 		PoolUUID:      authData.PoolID,
 		Action:        coreapi.ExpertModeVolumeV1ActionCreate,
 		VolumeName:    fields.VolumeName,
-		SizeInBytes:   fields.SizeInBytes,
 		Style:         style,
 		SvmUuid:       fields.SvmUuid,
 		SvmName:       fields.SvmName,
+		Clone:         fields.Clone,
+	}
+	if fields.SizeProvided {
+		expertVolumeRequest.SizeInBytes = coreapi.NewOptFloat64(fields.SizeInBytes)
 	}
 
 	if err := submitExpertModeVolumeOperation(r.Context(), expertVolumeRequest, "", logger); err != nil {
@@ -196,11 +281,13 @@ func _validateVolumeModification(r *http.Request) (bool, string) {
 		PoolUUID:      authData.PoolID,
 		Action:        coreapi.ExpertModeVolumeV1ActionUpdate,
 		VolumeName:    fields.VolumeName,
-		SizeInBytes:   fields.SizeInBytes,
 		Style:         coreapi.ExpertModeVolumeV1StyleFlexvol,
 		SvmUuid:       fields.SvmUuid,
 		SvmName:       fields.SvmName,
 		VolumeUUID:    volumeUUID,
+	}
+	if fields.SizeProvided {
+		expertVolumeRequest.SizeInBytes = coreapi.NewOptFloat64(fields.SizeInBytes)
 	}
 
 	if err := submitExpertModeVolumeOperation(r.Context(), expertVolumeRequest, "", logger); err != nil {
@@ -280,10 +367,10 @@ func _validatePrivateCLIVolumeCreation(r *http.Request) (bool, string) {
 		PoolUUID:      authData.PoolID,
 		Action:        coreapi.ExpertModeVolumeV1ActionCreate,
 		VolumeName:    fields.VolumeName,
-		SizeInBytes:   fields.SizeInBytes,
 		Style:         coreapi.ExpertModeVolumeV1StyleFlexvol,
 		SvmName:       fields.SvmName,
 	}
+	expertVolumeRequest.SizeInBytes = coreapi.NewOptFloat64(fields.SizeInBytes)
 
 	if err := submitExpertModeVolumeOperation(r.Context(), expertVolumeRequest, "", logger); err != nil {
 		return false, err.Error()
@@ -329,10 +416,10 @@ func _validatePrivateCLIVolumeModification(r *http.Request) (bool, string) {
 		PoolUUID:      authData.PoolID,
 		Action:        coreapi.ExpertModeVolumeV1ActionUpdate,
 		VolumeName:    volumeName,
-		SizeInBytes:   fields.SizeInBytes,
 		Style:         coreapi.ExpertModeVolumeV1StyleFlexvol,
 		SvmName:       coreapi.NewOptString(svmName),
 	}
+	expertVolumeRequest.SizeInBytes = coreapi.NewOptFloat64(fields.SizeInBytes)
 
 	if err := submitExpertModeVolumeOperation(r.Context(), expertVolumeRequest, "", logger); err != nil {
 		return false, err.Error()

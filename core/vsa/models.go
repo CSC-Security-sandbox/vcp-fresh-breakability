@@ -70,6 +70,10 @@ type VolumeResponse struct {
 	ProviderResponse
 	AvailableSpace                 int64
 	Size                           int64
+	CloneParentVolumeName          string
+	CloneParentVolumeUUID          string
+	CloneParentSnapshotName        string
+	CloneParentSnapshotUUID        string
 	State                          string
 	SnapshotPolicyName             string
 	SnapReserve                    int64

@@ -236,7 +236,20 @@ type ExpertModeVolumeParams struct {
 	Style       string // flexvol|flexgroup|flexcache
 	SvmUuid     string
 	SvmName     string
+	Clone       *ExpertModeVolumeCloneParams
 	AccountName string
+}
+
+// ExpertModeVolumeCloneParent holds optional parent volume or snapshot identifiers for expert-mode clone create (orchestrator input; not a persistence model).
+type ExpertModeVolumeCloneParent struct {
+	UUID string
+	Name string
+}
+
+type ExpertModeVolumeCloneParams struct {
+	IsFlexclone    bool
+	ParentVolume   *ExpertModeVolumeCloneParent
+	ParentSnapshot *ExpertModeVolumeCloneParent
 }
 
 // ExpertModeVolumeRenameParams describes parameters for RenameExpertModeVolume.

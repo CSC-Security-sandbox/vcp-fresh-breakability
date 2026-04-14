@@ -17,6 +17,48 @@ import (
 	"go.temporal.io/sdk/testsuite"
 )
 
+func TestResolveExpertModeFlexcloneSharedBytes(t *testing.T) {
+	ctx := context.Background()
+	parentVolUUID := "parent-ontap-uuid"
+	snapUUID := "snap-ontap-uuid"
+
+	t.Run("FromParentSnapshotUUIDViaGetSnapshot", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		mockProvider.On("GetSnapshot", snapUUID, parentVolUUID).Return(&vsa.SnapshotProviderResponse{
+			LogicalSizeInBytes: 4096,
+		}, nil)
+
+		n, err := resolveExpertModeFlexcloneSharedBytes(ctx, mockProvider, parentVolUUID, snapUUID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(4096), n)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("MissingParentSnapshotUUIDReturnsZero", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		n, err := resolveExpertModeFlexcloneSharedBytes(ctx, mockProvider, parentVolUUID, "")
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(0), n)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("MissingParentVolumeUUIDReturnsZero", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		n, err := resolveExpertModeFlexcloneSharedBytes(ctx, mockProvider, "", snapUUID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(0), n)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("EmptyParentUUIDsReturnZero", func(tt *testing.T) {
+		mockProvider := new(vsa.MockProvider)
+		n, err := resolveExpertModeFlexcloneSharedBytes(ctx, mockProvider, "", "")
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(0), n)
+		mockProvider.AssertExpectations(tt)
+	})
+}
+
 // containsIgnoreCase checks if a string contains a substring (case-insensitive)
 func containsIgnoreCase(s, substr string) bool {
 	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
@@ -389,6 +431,173 @@ func TestFetchOntapVolumeByName(t *testing.T) {
 			"Expected error to contain 'resource not found' or 'not found', got: %v", err)
 		mockProvider.AssertExpectations(tt)
 	})
+}
+
+func TestFetchOntapVolumeByName_FlexcloneSharedBytesFromParentSnapshot(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+
+	mockProvider := new(vsa.MockProvider)
+	mockStorage := database.NewMockStorage(t)
+	originalGetProviderByNode := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+
+	activity := ExpertModeVolumeActivity{SE: mockStorage}
+	env.RegisterActivity(activity.FetchOntapVolumeByName)
+
+	parentVolUUID := "parent-ontap-uuid"
+	snapUUID := "snap-ontap-uuid"
+	volume := &datamodel.ExpertModeVolumes{
+		Name:         "clone-vol",
+		Style:        "flexvol",
+		ExternalUUID: "original-uuid",
+		VolumeAttributes: &datamodel.ExpertModeVolumeAttributes{
+			IsFlexclone: true,
+			Clone: &datamodel.ExpertModeCloneInfo{
+				ParentVolume:   &datamodel.ExpertModeCloneParent{UUID: parentVolUUID},
+				ParentSnapshot: &datamodel.ExpertModeCloneParent{UUID: snapUUID},
+			},
+		},
+		Svm: &datamodel.Svm{Name: "svm-a"},
+	}
+	node := &models.Node{Name: "n1"}
+
+	mockProvider.On("GetVolumeForExpertMode", vsa.GetVolumeParams{
+		VolumeName: "clone-vol",
+		SvmName:    "svm-a",
+		IsRestore:  false,
+	}).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{
+			Name:         "clone-vol",
+			ExternalUUID: "ontap-uuid-1",
+		},
+		Size:  1234,
+		Style: "flexvol",
+		State: "online",
+	}, nil).Once()
+
+	mockProvider.On("GetCloneVolumeForExpertMode", vsa.GetVolumeParams{
+		UUID:      "ontap-uuid-1",
+		SvmName:   "svm-a",
+		IsRestore: false,
+	}).Return(&vsa.VolumeResponse{
+		CloneParentVolumeUUID:   parentVolUUID,
+		CloneParentSnapshotUUID: snapUUID,
+	}, nil).Once()
+
+	mockProvider.On("GetSnapshot", snapUUID, parentVolUUID).Return(&vsa.SnapshotProviderResponse{
+		LogicalSizeInBytes: 8192,
+	}, nil).Once()
+
+	encodedValue, err := env.ExecuteActivity(activity.FetchOntapVolumeByName, volume, node)
+	assert.NoError(t, err)
+
+	var result *datamodel.ExpertModeVolumes
+	err = encodedValue.Get(&result)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(8192), result.SharedBytes)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestFetchOntapVolumeByName_GetCloneVolumeForExpertModeError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	mockProvider := new(vsa.MockProvider)
+	mockStorage := database.NewMockStorage(t)
+	orig := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = orig }()
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	activity := ExpertModeVolumeActivity{SE: mockStorage}
+	env.RegisterActivity(activity.FetchOntapVolumeByName)
+
+	volume := &datamodel.ExpertModeVolumes{
+		Name: "clone-vol",
+		VolumeAttributes: &datamodel.ExpertModeVolumeAttributes{
+			IsFlexclone: true,
+			Clone: &datamodel.ExpertModeCloneInfo{
+				ParentVolume:   &datamodel.ExpertModeCloneParent{UUID: "pv"},
+				ParentSnapshot: &datamodel.ExpertModeCloneParent{UUID: "ps"},
+			},
+		},
+		Svm: &datamodel.Svm{Name: "svm-a"},
+	}
+	node := &models.Node{Name: "n1"}
+
+	mockProvider.On("GetVolumeForExpertMode", mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{Name: "clone-vol", ExternalUUID: "ontap-uuid-1"},
+		Size:             100,
+		Style:            "flexvol",
+		State:            "online",
+	}, nil)
+	cloneErr := errors.New("clone get failed")
+	mockProvider.On("GetCloneVolumeForExpertMode", mock.Anything).Return(nil, cloneErr)
+
+	_, err := env.ExecuteActivity(activity.FetchOntapVolumeByName, volume, node)
+	assert.Error(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestFetchOntapVolumeByName_ResolveSharedBytesError(t *testing.T) {
+	testSuite := &testsuite.WorkflowTestSuite{}
+	env := testSuite.NewTestActivityEnvironment()
+	mockProvider := new(vsa.MockProvider)
+	mockStorage := database.NewMockStorage(t)
+	orig := hyperscaler.GetProviderByNode
+	defer func() { hyperscaler.GetProviderByNode = orig }()
+	hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	activity := ExpertModeVolumeActivity{SE: mockStorage}
+	env.RegisterActivity(activity.FetchOntapVolumeByName)
+
+	parentVolUUID := "parent-ontap-uuid"
+	snapUUID := "snap-ontap-uuid"
+	volume := &datamodel.ExpertModeVolumes{
+		Name: "clone-vol",
+		VolumeAttributes: &datamodel.ExpertModeVolumeAttributes{
+			IsFlexclone: true,
+			Clone: &datamodel.ExpertModeCloneInfo{
+				ParentVolume:   &datamodel.ExpertModeCloneParent{UUID: parentVolUUID},
+				ParentSnapshot: &datamodel.ExpertModeCloneParent{UUID: snapUUID},
+			},
+		},
+		Svm: &datamodel.Svm{Name: "svm-a"},
+	}
+	node := &models.Node{Name: "n1"}
+
+	mockProvider.On("GetVolumeForExpertMode", mock.Anything).Return(&vsa.VolumeResponse{
+		ProviderResponse: vsa.ProviderResponse{Name: "clone-vol", ExternalUUID: "ontap-uuid-1"},
+		Size:             100,
+		Style:            "flexvol",
+		State:            "online",
+	}, nil)
+	mockProvider.On("GetCloneVolumeForExpertMode", mock.Anything).Return(&vsa.VolumeResponse{
+		CloneParentVolumeUUID:   parentVolUUID,
+		CloneParentSnapshotUUID: snapUUID,
+	}, nil)
+	snapErr := errors.New("snapshot read failed")
+	mockProvider.On("GetSnapshot", snapUUID, parentVolUUID).Return(nil, snapErr)
+
+	_, err := env.ExecuteActivity(activity.FetchOntapVolumeByName, volume, node)
+	assert.Error(t, err)
+	mockProvider.AssertExpectations(t)
+}
+
+func TestResolveExpertModeFlexcloneSharedBytes_NilSnapshotResponse(t *testing.T) {
+	ctx := context.Background()
+	mockProvider := new(vsa.MockProvider)
+	mockProvider.On("GetSnapshot", "snap-1", "vol-1").Return(nil, nil)
+
+	n, err := resolveExpertModeFlexcloneSharedBytes(ctx, mockProvider, "vol-1", "snap-1")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "nil snapshot response")
+	assert.Equal(t, int64(0), n)
+	mockProvider.AssertExpectations(t)
 }
 
 func TestUpdateExpertModeVolumeInDB(t *testing.T) {

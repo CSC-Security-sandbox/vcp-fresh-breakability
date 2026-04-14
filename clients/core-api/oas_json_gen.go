@@ -1283,8 +1283,16 @@ func (s *ExpertModeVolumeV1) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
-		e.FieldStart("sizeInBytes")
-		e.Float64(s.SizeInBytes)
+		if s.SizeInBytes.Set {
+			e.FieldStart("sizeInBytes")
+			s.SizeInBytes.Encode(e)
+		}
+	}
+	{
+		if s.Clone.Set {
+			e.FieldStart("clone")
+			s.Clone.Encode(e)
+		}
 	}
 	{
 		e.FieldStart("style")
@@ -1304,16 +1312,17 @@ func (s *ExpertModeVolumeV1) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfExpertModeVolumeV1 = [9]string{
+var jsonFieldsNameOfExpertModeVolumeV1 = [10]string{
 	0: "projectNumber",
 	1: "poolUUID",
 	2: "action",
 	3: "volumeName",
 	4: "volumeUUID",
 	5: "sizeInBytes",
-	6: "style",
-	7: "svmUuid",
-	8: "svmName",
+	6: "clone",
+	7: "style",
+	8: "svmUuid",
+	9: "svmName",
 }
 
 // Decode decodes ExpertModeVolumeV1 from json.
@@ -1382,19 +1391,27 @@ func (s *ExpertModeVolumeV1) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"volumeUUID\"")
 			}
 		case "sizeInBytes":
-			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
-				v, err := d.Float64()
-				s.SizeInBytes = float64(v)
-				if err != nil {
+				s.SizeInBytes.Reset()
+				if err := s.SizeInBytes.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"sizeInBytes\"")
 			}
+		case "clone":
+			if err := func() error {
+				s.Clone.Reset()
+				if err := s.Clone.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"clone\"")
+			}
 		case "style":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Style.Decode(d); err != nil {
 					return err
@@ -1433,7 +1450,7 @@ func (s *ExpertModeVolumeV1) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b01101111,
+		0b10001111,
 		0b00000000,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
@@ -1518,6 +1535,263 @@ func (s ExpertModeVolumeV1Action) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *ExpertModeVolumeV1Action) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ExpertModeVolumeV1Clone) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ExpertModeVolumeV1Clone) encodeFields(e *jx.Encoder) {
+	{
+		if s.IsFlexclone.Set {
+			e.FieldStart("isFlexclone")
+			s.IsFlexclone.Encode(e)
+		}
+	}
+	{
+		if s.ParentVolume.Set {
+			e.FieldStart("parentVolume")
+			s.ParentVolume.Encode(e)
+		}
+	}
+	{
+		if s.ParentSnapshot.Set {
+			e.FieldStart("parentSnapshot")
+			s.ParentSnapshot.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfExpertModeVolumeV1Clone = [3]string{
+	0: "isFlexclone",
+	1: "parentVolume",
+	2: "parentSnapshot",
+}
+
+// Decode decodes ExpertModeVolumeV1Clone from json.
+func (s *ExpertModeVolumeV1Clone) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExpertModeVolumeV1Clone to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "isFlexclone":
+			if err := func() error {
+				s.IsFlexclone.Reset()
+				if err := s.IsFlexclone.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"isFlexclone\"")
+			}
+		case "parentVolume":
+			if err := func() error {
+				s.ParentVolume.Reset()
+				if err := s.ParentVolume.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"parentVolume\"")
+			}
+		case "parentSnapshot":
+			if err := func() error {
+				s.ParentSnapshot.Reset()
+				if err := s.ParentSnapshot.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"parentSnapshot\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ExpertModeVolumeV1Clone")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ExpertModeVolumeV1Clone) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExpertModeVolumeV1Clone) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ExpertModeVolumeV1CloneParentSnapshot) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ExpertModeVolumeV1CloneParentSnapshot) encodeFields(e *jx.Encoder) {
+	{
+		if s.UUID.Set {
+			e.FieldStart("uuid")
+			s.UUID.Encode(e)
+		}
+	}
+	{
+		if s.Name.Set {
+			e.FieldStart("name")
+			s.Name.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfExpertModeVolumeV1CloneParentSnapshot = [2]string{
+	0: "uuid",
+	1: "name",
+}
+
+// Decode decodes ExpertModeVolumeV1CloneParentSnapshot from json.
+func (s *ExpertModeVolumeV1CloneParentSnapshot) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExpertModeVolumeV1CloneParentSnapshot to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "uuid":
+			if err := func() error {
+				s.UUID.Reset()
+				if err := s.UUID.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"uuid\"")
+			}
+		case "name":
+			if err := func() error {
+				s.Name.Reset()
+				if err := s.Name.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ExpertModeVolumeV1CloneParentSnapshot")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ExpertModeVolumeV1CloneParentSnapshot) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExpertModeVolumeV1CloneParentSnapshot) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ExpertModeVolumeV1CloneParentVolume) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ExpertModeVolumeV1CloneParentVolume) encodeFields(e *jx.Encoder) {
+	{
+		if s.UUID.Set {
+			e.FieldStart("uuid")
+			s.UUID.Encode(e)
+		}
+	}
+	{
+		if s.Name.Set {
+			e.FieldStart("name")
+			s.Name.Encode(e)
+		}
+	}
+}
+
+var jsonFieldsNameOfExpertModeVolumeV1CloneParentVolume = [2]string{
+	0: "uuid",
+	1: "name",
+}
+
+// Decode decodes ExpertModeVolumeV1CloneParentVolume from json.
+func (s *ExpertModeVolumeV1CloneParentVolume) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ExpertModeVolumeV1CloneParentVolume to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "uuid":
+			if err := func() error {
+				s.UUID.Reset()
+				if err := s.UUID.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"uuid\"")
+			}
+		case "name":
+			if err := func() error {
+				s.Name.Reset()
+				if err := s.Name.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ExpertModeVolumeV1CloneParentVolume")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ExpertModeVolumeV1CloneParentVolume) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ExpertModeVolumeV1CloneParentVolume) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -3509,6 +3783,105 @@ func (s OptDateTime) MarshalJSON() ([]byte, error) {
 func (s *OptDateTime) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d, json.DecodeDateTime)
+}
+
+// Encode encodes ExpertModeVolumeV1Clone as json.
+func (o OptExpertModeVolumeV1Clone) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes ExpertModeVolumeV1Clone from json.
+func (o *OptExpertModeVolumeV1Clone) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptExpertModeVolumeV1Clone to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptExpertModeVolumeV1Clone) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptExpertModeVolumeV1Clone) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExpertModeVolumeV1CloneParentSnapshot as json.
+func (o OptExpertModeVolumeV1CloneParentSnapshot) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes ExpertModeVolumeV1CloneParentSnapshot from json.
+func (o *OptExpertModeVolumeV1CloneParentSnapshot) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptExpertModeVolumeV1CloneParentSnapshot to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptExpertModeVolumeV1CloneParentSnapshot) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptExpertModeVolumeV1CloneParentSnapshot) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ExpertModeVolumeV1CloneParentVolume as json.
+func (o OptExpertModeVolumeV1CloneParentVolume) Encode(e *jx.Encoder) {
+	if !o.Set {
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes ExpertModeVolumeV1CloneParentVolume from json.
+func (o *OptExpertModeVolumeV1CloneParentVolume) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode OptExpertModeVolumeV1CloneParentVolume to nil")
+	}
+	o.Set = true
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s OptExpertModeVolumeV1CloneParentVolume) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OptExpertModeVolumeV1CloneParentVolume) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
 }
 
 // Encode encodes float64 as json.

@@ -16,6 +16,71 @@ import (
 )
 
 func TestV1ExpertModeVolume(t *testing.T) {
+	t.Run("SuccessWithCloneFieldsMapped", func(t *testing.T) {
+		mockOrch := factory.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+
+		poolUUID := "550e8400-e29b-41d4-a716-446655440000"
+		volumeName := "clone-volume"
+		svmName := "svm-a"
+		projectNumber := "123456789"
+		parentVolUUID := "11111111-1111-1111-1111-111111111111"
+		parentVolName := "src-vol"
+		parentSnapUUID := "22222222-2222-2222-2222-222222222222"
+		parentSnapName := "snap-1"
+
+		req := &oasgenserver.ExpertModeVolumeV1{
+			ProjectNumber: projectNumber,
+			PoolUUID:      poolUUID,
+			Action:        oasgenserver.ExpertModeVolumeV1ActionCreate,
+			VolumeName:    volumeName,
+			Style:         oasgenserver.ExpertModeVolumeV1StyleFlexvol,
+			SvmName:       oasgenserver.NewOptString(svmName),
+			Clone: oasgenserver.NewOptExpertModeVolumeV1Clone(oasgenserver.ExpertModeVolumeV1Clone{
+				IsFlexclone: oasgenserver.NewOptBool(true),
+				ParentVolume: oasgenserver.NewOptExpertModeVolumeV1CloneParentVolume(
+					oasgenserver.ExpertModeVolumeV1CloneParentVolume{
+						UUID: oasgenserver.NewOptString(parentVolUUID),
+						Name: oasgenserver.NewOptString(parentVolName),
+					},
+				),
+				ParentSnapshot: oasgenserver.NewOptExpertModeVolumeV1CloneParentSnapshot(
+					oasgenserver.ExpertModeVolumeV1CloneParentSnapshot{
+						UUID: oasgenserver.NewOptString(parentSnapUUID),
+						Name: oasgenserver.NewOptString(parentSnapName),
+					},
+				),
+			}),
+		}
+
+		expectedParams := &commonparams.ExpertModeVolumeParams{
+			PoolUUID:    poolUUID,
+			Action:      string(oasgenserver.ExpertModeVolumeV1ActionCreate),
+			VolumeName:  volumeName,
+			Style:       string(oasgenserver.ExpertModeVolumeV1StyleFlexvol),
+			SvmName:     svmName,
+			AccountName: projectNumber,
+			Clone: &commonparams.ExpertModeVolumeCloneParams{
+				IsFlexclone: true,
+				ParentVolume: &commonparams.ExpertModeVolumeCloneParent{
+					UUID: parentVolUUID,
+					Name: parentVolName,
+				},
+				ParentSnapshot: &commonparams.ExpertModeVolumeCloneParent{
+					UUID: parentSnapUUID,
+					Name: parentSnapName,
+				},
+			},
+		}
+
+		mockOrch.EXPECT().CreateExpertModeVolume(mock.Anything, expectedParams).Return(nil)
+
+		result, err := handler.V1ExpertModeVolume(context.Background(), req, oasgenserver.V1ExpertModeVolumeParams{})
+		assert.NoError(t, err)
+		assert.IsType(t, &oasgenserver.V1ExpertModeVolumeOK{}, result)
+		mockOrch.AssertExpectations(t)
+	})
+
 	t.Run("SuccessWithSvmUUID", func(t *testing.T) {
 		// Setup
 		mockOrch := factory.NewMockOrchestratorFactory(t)
@@ -392,7 +457,7 @@ func TestV1ExpertModeVolume(t *testing.T) {
 			PoolUUID:      poolUUID,
 			Action:        oasgenserver.ExpertModeVolumeV1ActionDelete,
 			VolumeUUID:    oasgenserver.NewOptString(volumeUUID),
-			SizeInBytes:   0,
+			SizeInBytes:   oasgenserver.NewOptFloat64(0),
 			Style:         oasgenserver.ExpertModeVolumeV1StyleFlexvol,
 			ProjectNumber: projectNumber,
 		}
@@ -440,7 +505,7 @@ func TestV1ExpertModeVolume(t *testing.T) {
 			Action:        oasgenserver.ExpertModeVolumeV1ActionUpdate,
 			VolumeUUID:    oasgenserver.NewOptString(volumeUUID),
 			VolumeName:    volumeName,
-			SizeInBytes:   sizeInBytes,
+			SizeInBytes:   oasgenserver.NewOptFloat64(sizeInBytes),
 			Style:         oasgenserver.ExpertModeVolumeV1StyleFlexvol,
 			ProjectNumber: projectNumber,
 		}
@@ -660,7 +725,7 @@ func newExpertModeVolumeRequest(poolUUID string, action oasgenserver.ExpertModeV
 		PoolUUID:      poolUUID,
 		Action:        action,
 		VolumeName:    name,
-		SizeInBytes:   sizeInBytes,
+		SizeInBytes:   oasgenserver.NewOptFloat64(sizeInBytes),
 		Style:         style,
 		SvmUuid:       oasgenserver.OptString{},
 		SvmName:       oasgenserver.OptString{},

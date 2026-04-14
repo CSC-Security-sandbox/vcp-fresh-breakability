@@ -44,11 +44,7 @@ func GetProxyRules() map[string]Rule {
 				// All conditions return (bool, reason) - And() returns the first failure reason
 				Condition: And(
 					HasFields("name"),
-					HasExactlyOneOf(
-						"size", "space.size",
-						"missing required field(s): size or space.size",
-						"cannot specify both 'size' and 'space.size'; use one or the other",
-					),
+					volumePostCreateSizeFieldsCondition, // TODO: Implement volumePostCreateSizeFieldsCondition logic in the rule engine DSL pattern.
 					IfPresentThenValue("guarantee.type", "none"),
 					IfPresentThenEquals("space.logical_space.enforcement", true),
 					IfPresentThenEquals("space.logical_space.reporting", true),

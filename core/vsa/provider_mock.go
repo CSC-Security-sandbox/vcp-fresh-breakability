@@ -4474,6 +4474,64 @@ func (_c *MockProvider_GetVolumeForExpertMode_Call) RunAndReturn(run func(GetVol
 	return _c
 }
 
+// GetCloneVolumeForExpertMode provides a mock function with given fields: params
+func (_m *MockProvider) GetCloneVolumeForExpertMode(params GetVolumeParams) (*VolumeResponse, error) {
+	ret := _m.Called(params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCloneVolumeForExpertMode")
+	}
+
+	var r0 *VolumeResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(GetVolumeParams) (*VolumeResponse, error)); ok {
+		return rf(params)
+	}
+	if rf, ok := ret.Get(0).(func(GetVolumeParams) *VolumeResponse); ok {
+		r0 = rf(params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*VolumeResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(GetVolumeParams) error); ok {
+		r1 = rf(params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockProvider_GetCloneVolumeForExpertMode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCloneVolumeForExpertMode'
+type MockProvider_GetCloneVolumeForExpertMode_Call struct {
+	*mock.Call
+}
+
+// GetCloneVolumeForExpertMode is a helper method to define mock.On call
+//   - params GetVolumeParams
+func (_e *MockProvider_Expecter) GetCloneVolumeForExpertMode(params interface{}) *MockProvider_GetCloneVolumeForExpertMode_Call {
+	return &MockProvider_GetCloneVolumeForExpertMode_Call{Call: _e.mock.On("GetCloneVolumeForExpertMode", params)}
+}
+
+func (_c *MockProvider_GetCloneVolumeForExpertMode_Call) Run(run func(params GetVolumeParams)) *MockProvider_GetCloneVolumeForExpertMode_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(GetVolumeParams))
+	})
+	return _c
+}
+
+func (_c *MockProvider_GetCloneVolumeForExpertMode_Call) Return(_a0 *VolumeResponse, _a1 error) *MockProvider_GetCloneVolumeForExpertMode_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockProvider_GetCloneVolumeForExpertMode_Call) RunAndReturn(run func(GetVolumeParams) (*VolumeResponse, error)) *MockProvider_GetCloneVolumeForExpertMode_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetVolumeNASDetails provides a mock function with given fields: volumeUUID
 func (_m *MockProvider) GetVolumeNASDetails(volumeUUID string) (*VolumeNASDetails, error) {
 	ret := _m.Called(volumeUUID)

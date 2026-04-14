@@ -704,6 +704,45 @@ func TestResourceAttributes_Value(t *testing.T) {
 	assert.Equal(t, ra, result)
 }
 
+func TestExpertModeVolumeAttributes_ScanAndValue(t *testing.T) {
+	t.Run("ScanNilResetsStruct", func(t *testing.T) {
+		attr := ExpertModeVolumeAttributes{
+			IsFlexclone: true,
+		}
+		err := attr.Scan(nil)
+		assert.NoError(t, err)
+		assert.Equal(t, ExpertModeVolumeAttributes{}, attr)
+	})
+
+	t.Run("ScanInvalidTypeReturnsError", func(t *testing.T) {
+		var attr ExpertModeVolumeAttributes
+		err := attr.Scan(12345)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "type assertion to []byte failed")
+	})
+
+	t.Run("ScanStringJSONIgnoresLegacySharedBytesKey", func(t *testing.T) {
+		var attr ExpertModeVolumeAttributes
+		err := attr.Scan(`{"isFlexclone":true,"sharedBytes":7}`)
+		assert.NoError(t, err)
+		assert.True(t, attr.IsFlexclone)
+	})
+
+	t.Run("ScanValidJSONAndValueRoundTrip", func(t *testing.T) {
+		var attr ExpertModeVolumeAttributes
+		input := []byte(`{"isFlexclone":true,"sharedBytes":42,"clone":{"parentVolume":{"uuid":"pv-1","name":"pv"},"parentSnapshot":{"uuid":"ps-1","name":"snap"}}}`)
+		err := attr.Scan(input)
+		assert.NoError(t, err)
+		assert.True(t, attr.IsFlexclone)
+		assert.Equal(t, "pv-1", attr.Clone.ParentVolume.UUID)
+		assert.Equal(t, "ps-1", attr.Clone.ParentSnapshot.UUID)
+
+		val, err := attr.Value()
+		assert.NoError(t, err)
+		assert.NotNil(t, val)
+	})
+}
+
 func TestPoolBuildInfo_Scan(t *testing.T) {
 	tests := []struct {
 		name     string

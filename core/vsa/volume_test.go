@@ -3796,6 +3796,61 @@ func TestGetVolumeForExpertMode(t *testing.T) {
 		mockClient.AssertExpectations(tt)
 	})
 
+	t.Run("WhenGetVolumeForExpertMode_ThenCloneFieldsAreNotMapped", func(tt *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalGetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalGetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		volumeName := "testVolume"
+		volumeUUID := "testUUID"
+		svmName := "testSVM"
+		volumeSize := int64(200000)
+		volumeState := models.VolumeStateOnline
+		parentVolName := "parent-vol"
+		parentVolUUID := "parent-vol-uuid"
+		parentSnapName := "parent-snap"
+		parentSnapUUID := "parent-snap-uuid"
+
+		mockVolume := &ontaprest.Volume{
+			Volume: models.Volume{
+				UUID:  nillable.ToPointer(volumeUUID),
+				Name:  &volumeName,
+				Size:  &volumeSize,
+				State: nillable.ToPointer(volumeState),
+				Clone: &models.VolumeInlineClone{
+					ParentVolume: &models.VolumeInlineCloneInlineParentVolume{
+						Name: &parentVolName,
+						UUID: &parentVolUUID,
+					},
+					ParentSnapshot: &models.SnapshotReference{
+						Name: &parentSnapName,
+						UUID: &parentSnapUUID,
+					},
+				},
+			},
+		}
+		mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)
+
+		resp, err := rc.GetVolumeForExpertMode(GetVolumeParams{
+			UUID:       volumeUUID,
+			VolumeName: volumeName,
+			SvmName:    svmName,
+		})
+		assert.NoError(tt, err)
+		assert.Equal(tt, "", resp.CloneParentVolumeName)
+		assert.Equal(tt, "", resp.CloneParentVolumeUUID)
+		assert.Equal(tt, "", resp.CloneParentSnapshotName)
+		assert.Equal(tt, "", resp.CloneParentSnapshotUUID)
+	})
+
 	t.Run("WhenGetOntapClientFuncFails_ThenReturnError", func(tt *testing.T) {
 		originalGetOntapClientFunc := getOntapClientFunc
 		defer func() {
@@ -4042,6 +4097,139 @@ func TestGetVolumeForExpertMode(t *testing.T) {
 			_, _ = rc.GetVolumeForExpertMode(params)
 		})
 
+		mockStorage.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+}
+
+func TestGetCloneVolumeForExpertMode(t *testing.T) {
+	t.Run("WhenCloneParentMetadataPresent_ThenReturnCloneParentFields", func(tt *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalGetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalGetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		volumeName := "clone-vol"
+		volumeUUID := "clone-vol-uuid"
+		svmName := "testSVM"
+		volumeSize := int64(200000)
+		volumeState := models.VolumeStateOnline
+		parentVolName := "parent-vol"
+		parentVolUUID := "parent-vol-uuid"
+		parentSnapName := "snap-1"
+		parentSnapUUID := "snap-uuid-1"
+
+		mockVolume := &ontaprest.Volume{
+			Volume: models.Volume{
+				UUID:  nillable.ToPointer(volumeUUID),
+				Name:  &volumeName,
+				Size:  &volumeSize,
+				State: nillable.ToPointer(volumeState),
+				Clone: &models.VolumeInlineClone{
+					ParentVolume: &models.VolumeInlineCloneInlineParentVolume{
+						Name: &parentVolName,
+						UUID: &parentVolUUID,
+					},
+					ParentSnapshot: &models.SnapshotReference{
+						Name: &parentSnapName,
+						UUID: &parentSnapUUID,
+					},
+				},
+			},
+		}
+		mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)
+
+		resp, err := rc.GetCloneVolumeForExpertMode(GetVolumeParams{
+			UUID:       volumeUUID,
+			VolumeName: volumeName,
+			SvmName:    svmName,
+		})
+		assert.NoError(tt, err)
+		assert.Equal(tt, parentVolName, resp.CloneParentVolumeName)
+		assert.Equal(tt, parentVolUUID, resp.CloneParentVolumeUUID)
+		assert.Equal(tt, parentSnapName, resp.CloneParentSnapshotName)
+		assert.Equal(tt, parentSnapUUID, resp.CloneParentSnapshotUUID)
+
+		mockStorage.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenVolumeGetReturnsIncompleteVolume_ThenReturnError", func(tt *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalGetOntapClientFunc := getOntapClientFunc
+		defer func() {
+			getOntapClientFunc = originalGetOntapClientFunc
+		}()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		rc := &OntapRestProvider{}
+
+		volumeName := "clone-vol"
+		volumeUUID := "clone-vol-uuid"
+		volumeSize := int64(200000)
+
+		mockVolume := &ontaprest.Volume{
+			Volume: models.Volume{
+				UUID:  nillable.ToPointer(volumeUUID),
+				Name:  &volumeName,
+				Size:  &volumeSize,
+				State: nil,
+			},
+		}
+		mockStorage.On("VolumeGet", mock.Anything).Return(mockVolume, nil)
+
+		resp, err := rc.GetCloneVolumeForExpertMode(GetVolumeParams{
+			UUID:       volumeUUID,
+			VolumeName: volumeName,
+			SvmName:    "testSVM",
+		})
+		assert.Nil(tt, resp)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "GetCloneVolumeForExpertMode")
+		assert.Contains(tt, err.Error(), "incomplete ONTAP volume response")
+
+		mockStorage.AssertExpectations(tt)
+		mockClient.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetOntapClientFails_ThenReturnError", func(tt *testing.T) {
+		originalGetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalGetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return nil, errors.New("client unavailable")
+		}
+		rc := &OntapRestProvider{}
+		resp, err := rc.GetCloneVolumeForExpertMode(GetVolumeParams{SvmName: "svm"})
+		assert.Nil(tt, resp)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "client unavailable")
+	})
+
+	t.Run("WhenVolumeGetFails_ThenReturnError", func(tt *testing.T) {
+		mockStorage := new(ontaprest.MockStorageClient)
+		mockClient := new(ontaprest.MockRESTClient)
+		mockClient.On("Storage").Return(mockStorage)
+		originalGetOntapClientFunc := getOntapClientFunc
+		defer func() { getOntapClientFunc = originalGetOntapClientFunc }()
+		getOntapClientFunc = func(params ontaprest.RESTClientParams) (ontaprest.RESTClient, error) {
+			return mockClient, nil
+		}
+		mockStorage.On("VolumeGet", mock.Anything).Return(nil, errors.New("ontap timeout"))
+		rc := &OntapRestProvider{}
+		resp, err := rc.GetCloneVolumeForExpertMode(GetVolumeParams{VolumeName: "v1", SvmName: "svm"})
+		assert.Nil(tt, resp)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "ontap timeout")
 		mockStorage.AssertExpectations(tt)
 		mockClient.AssertExpectations(tt)
 	})

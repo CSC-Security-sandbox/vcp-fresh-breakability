@@ -35,7 +35,7 @@ func TestSubmitExpertModeVolumeOperation(t *testing.T) {
 				VolumeName:    "test-volume",
 				Action:        coreapi.ExpertModeVolumeV1ActionCreate,
 				Style:         coreapi.ExpertModeVolumeV1StyleFlexvol,
-				SizeInBytes:   1073741824,
+				SizeInBytes:   coreapi.NewOptFloat64(1073741824),
 			}
 
 			mockInvoker.On("V1ExpertModeVolume", mock.Anything, request, mock.MatchedBy(func(params coreapi.V1ExpertModeVolumeParams) bool {
@@ -69,7 +69,7 @@ func TestSubmitExpertModeVolumeOperation(t *testing.T) {
 				VolumeName:    "test-volume",
 				Action:        coreapi.ExpertModeVolumeV1ActionUpdate,
 				Style:         coreapi.ExpertModeVolumeV1StyleFlexvol,
-				SizeInBytes:   2147483648,
+				SizeInBytes:   coreapi.NewOptFloat64(2147483648),
 			}
 
 			mockInvoker.On("V1ExpertModeVolume", mock.Anything, request, mock.MatchedBy(func(params coreapi.V1ExpertModeVolumeParams) bool {
@@ -131,7 +131,7 @@ func TestSubmitExpertModeVolumeOperation(t *testing.T) {
 				VolumeName:    "test-volume",
 				Action:        coreapi.ExpertModeVolumeV1ActionCreate,
 				Style:         coreapi.ExpertModeVolumeV1StyleFlexvol,
-				SizeInBytes:   1073741824,
+				SizeInBytes:   coreapi.NewOptFloat64(1073741824),
 			}
 
 			mockInvoker.On("V1ExpertModeVolume", mock.Anything, request, mock.MatchedBy(func(params coreapi.V1ExpertModeVolumeParams) bool {

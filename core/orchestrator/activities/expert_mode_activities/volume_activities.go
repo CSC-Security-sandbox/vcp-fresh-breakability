@@ -64,7 +64,52 @@ func (a *ExpertModeVolumeActivity) FetchOntapVolumeByName(ctx context.Context, v
 	volume.State = models.LifeCycleStateAvailable
 	volume.ExternalUUID = volumeResponse.ExternalUUID
 
+	if volume.VolumeAttributes != nil && volume.VolumeAttributes.IsFlexclone {
+		cloneVolumeResponse, cloneErr := provider.GetCloneVolumeForExpertMode(vsa.GetVolumeParams{
+			UUID:      volume.ExternalUUID,
+			SvmName:   svmName,
+			IsRestore: false,
+		})
+		if cloneErr != nil {
+			logger.Errorf("Failed to fetch clone metadata for volume %s (%s): %v", volume.Name, volume.ExternalUUID, cloneErr)
+			return nil, vsaerrors.WrapAsTemporalApplicationError(cloneErr)
+		}
+		sharedBytes, sharedErr := resolveExpertModeFlexcloneSharedBytes(
+			ctx,
+			provider,
+			cloneVolumeResponse.CloneParentVolumeUUID,
+			cloneVolumeResponse.CloneParentSnapshotUUID,
+		)
+		if sharedErr != nil {
+			logger.Errorf("Failed to resolve clone shared bytes from parent snapshot for volume %s: %v", volume.Name, sharedErr)
+			return nil, vsaerrors.WrapAsTemporalApplicationError(sharedErr)
+		}
+		volume.SharedBytes = sharedBytes
+	}
+
 	return volume, nil
+}
+
+// resolveExpertModeFlexcloneSharedBytes sets shared space to the parent snapshot logical size from ONTAP.
+func resolveExpertModeFlexcloneSharedBytes(ctx context.Context, provider vsa.Provider, parentVolumeUUID, parentSnapshotUUID string) (int64, error) {
+	logger := util.GetLogger(ctx)
+	if parentVolumeUUID == "" {
+		logger.Warnf("flexclone parentVolume UUID missing in clone metadata; sharedBytes=0")
+		return 0, nil
+	}
+	if parentSnapshotUUID == "" {
+		logger.Warnf("flexclone parentSnapshot UUID missing in clone metadata; sharedBytes=0")
+		return 0, nil
+	}
+
+	snapResp, err := provider.GetSnapshot(parentSnapshotUUID, parentVolumeUUID)
+	if err != nil {
+		return 0, err
+	}
+	if snapResp == nil {
+		return 0, fmt.Errorf("nil snapshot response for parent snapshot uuid %s", parentSnapshotUUID)
+	}
+	return snapResp.LogicalSizeInBytes, nil
 }
 
 // CheckVolumeDeletedInOntap checks if a volume is deleted in ONTAP.

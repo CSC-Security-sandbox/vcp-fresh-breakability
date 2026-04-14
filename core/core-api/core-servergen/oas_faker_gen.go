@@ -246,7 +246,12 @@ func (s *ExpertModeVolumeV1) SetFake() {
 	}
 	{
 		{
-			s.SizeInBytes = float64(0)
+			s.SizeInBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.Clone.SetFake()
 		}
 	}
 	{
@@ -269,6 +274,53 @@ func (s *ExpertModeVolumeV1) SetFake() {
 // SetFake set fake values.
 func (s *ExpertModeVolumeV1Action) SetFake() {
 	*s = ExpertModeVolumeV1ActionCreate
+}
+
+// SetFake set fake values.
+func (s *ExpertModeVolumeV1Clone) SetFake() {
+	{
+		{
+			s.IsFlexclone.SetFake()
+		}
+	}
+	{
+		{
+			s.ParentVolume.SetFake()
+		}
+	}
+	{
+		{
+			s.ParentSnapshot.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ExpertModeVolumeV1CloneParentSnapshot) SetFake() {
+	{
+		{
+			s.UUID.SetFake()
+		}
+	}
+	{
+		{
+			s.Name.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *ExpertModeVolumeV1CloneParentVolume) SetFake() {
+	{
+		{
+			s.UUID.SetFake()
+		}
+	}
+	{
+		{
+			s.Name.SetFake()
+		}
+	}
 }
 
 // SetFake set fake values.
@@ -674,6 +726,33 @@ func (s *OptDateTime) SetFake() {
 	var elem time.Time
 	{
 		elem = time.Now()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptExpertModeVolumeV1Clone) SetFake() {
+	var elem ExpertModeVolumeV1Clone
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptExpertModeVolumeV1CloneParentSnapshot) SetFake() {
+	var elem ExpertModeVolumeV1CloneParentSnapshot
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptExpertModeVolumeV1CloneParentVolume) SetFake() {
+	var elem ExpertModeVolumeV1CloneParentVolume
+	{
+		elem.SetFake()
 	}
 	s.SetTo(elem)
 }

@@ -310,6 +310,104 @@ func TestGetExpertModePoolUsedCapacity_WithDeletedVolumes(t *testing.T) {
 	assert.Equal(t, int64(0), capacity.VolumeCount)
 }
 
+func TestGetExpertModePoolUsedCapacity_SubtractsSharedBytes(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+	account, pool := createTestAccountAndPoolForExpertMode(t, store)
+	svmName := fmt.Sprintf("test-svm-%s", utils.GenerateRandomAlphanumeric(8))
+	svmExternalUUID := utils.RandomUUID()
+	svm := createTestSVMForExpertMode(t, store, pool.ID, account.ID, svmName, svmExternalUUID)
+
+	vol := &datamodel.ExpertModeVolumes{
+		Name:        "clone-volume-shared",
+		SizeInBytes: 1000,
+		PoolID:      pool.ID,
+		AccountID:   account.ID,
+		SvmID:       svm.ID,
+		Style:       "flexvol",
+		ExternalUUID: utils.RandomUUID(),
+		State:        models.LifeCycleStateAvailable,
+	}
+	created, err := store.CreateExpertModeVolume(ctx, vol)
+	assert.NoError(t, err)
+	reloaded, err := store.GetExpertModeVolumeByUUID(ctx, created.UUID)
+	assert.NoError(t, err)
+	reloaded.VolumeAttributes = &datamodel.ExpertModeVolumeAttributes{IsFlexclone: true}
+	reloaded.SharedBytes = 200
+	_, err = store.UpdateExpertModeVolume(ctx, reloaded)
+	assert.NoError(t, err)
+
+	capacity, err := store.GetExpertModePoolUsedCapacityAndVolumeCount(ctx, pool.ID)
+	assert.NoError(t, err)
+	assert.NotNil(t, capacity)
+	assert.Equal(t, int64(800), capacity.TotalSize)
+	assert.Equal(t, int64(1), capacity.VolumeCount)
+}
+
+func TestGetExpertModePoolUsedCapacity_EffectiveUsedFloorsAtZeroWhenSharedBytesExceedTotalSize(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+	account, pool := createTestAccountAndPoolForExpertMode(t, store)
+	svmName := fmt.Sprintf("test-svm-%s", utils.GenerateRandomAlphanumeric(8))
+	svm := createTestSVMForExpertMode(t, store, pool.ID, account.ID, svmName, utils.RandomUUID())
+
+	v1 := &datamodel.ExpertModeVolumes{
+		Name:         "v-high-shared",
+		SizeInBytes:  100,
+		PoolID:       pool.ID,
+		AccountID:    account.ID,
+		SvmID:        svm.ID,
+		Style:        "flexvol",
+		ExternalUUID: utils.RandomUUID(),
+		State:        models.LifeCycleStateAvailable,
+	}
+	created, err := store.CreateExpertModeVolume(ctx, v1)
+	assert.NoError(t, err)
+	reloaded, err := store.GetExpertModeVolumeByUUID(ctx, created.UUID)
+	assert.NoError(t, err)
+	reloaded.VolumeAttributes = &datamodel.ExpertModeVolumeAttributes{IsFlexclone: true}
+	reloaded.SharedBytes = 250
+	_, err = store.UpdateExpertModeVolume(ctx, reloaded)
+	assert.NoError(t, err)
+
+	capacity, err := store.GetExpertModePoolUsedCapacityAndVolumeCount(ctx, pool.ID)
+	assert.NoError(t, err)
+	assert.NotNil(t, capacity)
+	assert.Equal(t, int64(0), capacity.TotalSize)
+	assert.Equal(t, int64(1), capacity.VolumeCount)
+}
+
+func TestUpdateExpertModeVolumeFields_UpdatesSharedBytesColumn(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+	account, pool := createTestAccountAndPoolForExpertMode(t, store)
+	svmName := fmt.Sprintf("test-svm-%s", utils.GenerateRandomAlphanumeric(8))
+	svm := createTestSVMForExpertMode(t, store, pool.ID, account.ID, svmName, utils.RandomUUID())
+
+	vol := &datamodel.ExpertModeVolumes{
+		Name:         "attrs-str-update",
+		SizeInBytes:  500,
+		PoolID:       pool.ID,
+		AccountID:    account.ID,
+		SvmID:        svm.ID,
+		Style:        "flexvol",
+		ExternalUUID: utils.RandomUUID(),
+		State:        models.LifeCycleStateAvailable,
+	}
+	created, err := store.CreateExpertModeVolume(ctx, vol)
+	assert.NoError(t, err)
+
+	err = store.UpdateExpertModeVolumeFields(ctx, created.ExternalUUID, map[string]interface{}{
+		"shared_bytes": int64(55),
+	})
+	assert.NoError(t, err)
+
+	var row datamodel.ExpertModeVolumes
+	err = store.db.GORM().WithContext(ctx).Where("id = ?", created.ID).First(&row).Error
+	assert.NoError(t, err)
+	assert.Equal(t, int64(55), row.SharedBytes)
+}
+
 func TestGetActiveExpertModeVolumesCountByAccountID(t *testing.T) {
 	store := setup(t)
 	ctx := context.Background()
