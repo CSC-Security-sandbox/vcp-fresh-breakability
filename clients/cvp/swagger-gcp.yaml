@@ -8316,6 +8316,12 @@ definitions:
           - ENCRYPTION_STATE_FAILED
         example: ENCRYPTION_STATE_COMPLETED
         x-nullable: true
+      crossProjectVault:
+        title: crossProjectVault
+        type: boolean
+        readOnly: true
+        description: Indicates if the backup vault is a cross-project vault
+        x-nullable: true
   SnapshotId_v1beta:
     title: SnapshotId
     type: object

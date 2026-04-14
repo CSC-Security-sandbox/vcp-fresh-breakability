@@ -7784,6 +7784,65 @@ func (_c *MockDataStore_GetExpertModeVolumeByUUID_Call) RunAndReturn(run func(co
 	return _c
 }
 
+// GetExpertModeVolumesByBackupVaultID provides a mock function with given fields: ctx, backupVaultUUID
+func (_m *MockDataStore) GetExpertModeVolumesByBackupVaultID(ctx context.Context, backupVaultUUID string) ([]*datamodel.ExpertModeVolumes, error) {
+	ret := _m.Called(ctx, backupVaultUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetExpertModeVolumesByBackupVaultID")
+	}
+
+	var r0 []*datamodel.ExpertModeVolumes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]*datamodel.ExpertModeVolumes, error)); ok {
+		return rf(ctx, backupVaultUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) []*datamodel.ExpertModeVolumes); ok {
+		r0 = rf(ctx, backupVaultUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.ExpertModeVolumes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, backupVaultUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetExpertModeVolumesByBackupVaultID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetExpertModeVolumesByBackupVaultID'
+type MockDataStore_GetExpertModeVolumesByBackupVaultID_Call struct {
+	*mock.Call
+}
+
+// GetExpertModeVolumesByBackupVaultID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupVaultUUID string
+func (_e *MockDataStore_Expecter) GetExpertModeVolumesByBackupVaultID(ctx interface{}, backupVaultUUID interface{}) *MockDataStore_GetExpertModeVolumesByBackupVaultID_Call {
+	return &MockDataStore_GetExpertModeVolumesByBackupVaultID_Call{Call: _e.mock.On("GetExpertModeVolumesByBackupVaultID", ctx, backupVaultUUID)}
+}
+
+func (_c *MockDataStore_GetExpertModeVolumesByBackupVaultID_Call) Run(run func(ctx context.Context, backupVaultUUID string)) *MockDataStore_GetExpertModeVolumesByBackupVaultID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetExpertModeVolumesByBackupVaultID_Call) Return(_a0 []*datamodel.ExpertModeVolumes, _a1 error) *MockDataStore_GetExpertModeVolumesByBackupVaultID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetExpertModeVolumesByBackupVaultID_Call) RunAndReturn(run func(context.Context, string) ([]*datamodel.ExpertModeVolumes, error)) *MockDataStore_GetExpertModeVolumesByBackupVaultID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetFlexCacheVolumeCountByClusterPeerID provides a mock function with given fields: ctx, clusterPeerID
 func (_m *MockDataStore) GetFlexCacheVolumeCountByClusterPeerID(ctx context.Context, clusterPeerID int64) (int64, error) {
 	ret := _m.Called(ctx, clusterPeerID)
@@ -12969,6 +13028,65 @@ func (_c *MockDataStore_GetVolumeWithAccountID_Call) Return(_a0 *datamodel.Volum
 }
 
 func (_c *MockDataStore_GetVolumeWithAccountID_Call) RunAndReturn(run func(context.Context, string, int64) (*datamodel.Volume, error)) *MockDataStore_GetVolumeWithAccountID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetVolumesByBackupVaultID provides a mock function with given fields: ctx, backupVaultUUID
+func (_m *MockDataStore) GetVolumesByBackupVaultID(ctx context.Context, backupVaultUUID string) ([]*datamodel.Volume, error) {
+	ret := _m.Called(ctx, backupVaultUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVolumesByBackupVaultID")
+	}
+
+	var r0 []*datamodel.Volume
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]*datamodel.Volume, error)); ok {
+		return rf(ctx, backupVaultUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) []*datamodel.Volume); ok {
+		r0 = rf(ctx, backupVaultUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Volume)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, backupVaultUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetVolumesByBackupVaultID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumesByBackupVaultID'
+type MockDataStore_GetVolumesByBackupVaultID_Call struct {
+	*mock.Call
+}
+
+// GetVolumesByBackupVaultID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - backupVaultUUID string
+func (_e *MockDataStore_Expecter) GetVolumesByBackupVaultID(ctx interface{}, backupVaultUUID interface{}) *MockDataStore_GetVolumesByBackupVaultID_Call {
+	return &MockDataStore_GetVolumesByBackupVaultID_Call{Call: _e.mock.On("GetVolumesByBackupVaultID", ctx, backupVaultUUID)}
+}
+
+func (_c *MockDataStore_GetVolumesByBackupVaultID_Call) Run(run func(ctx context.Context, backupVaultUUID string)) *MockDataStore_GetVolumesByBackupVaultID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetVolumesByBackupVaultID_Call) Return(_a0 []*datamodel.Volume, _a1 error) *MockDataStore_GetVolumesByBackupVaultID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetVolumesByBackupVaultID_Call) RunAndReturn(run func(context.Context, string) ([]*datamodel.Volume, error)) *MockDataStore_GetVolumesByBackupVaultID_Call {
 	_c.Call.Return(run)
 	return _c
 }
