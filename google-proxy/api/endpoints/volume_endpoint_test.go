@@ -7801,6 +7801,34 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		}
 	})
 
+	t.Run("InReplication_OmittedWhenFalse_SetWhenTrue", func(t *testing.T) {
+		t.Run("false_omits_inReplication", func(t *testing.T) {
+			vol := &models.Volume{
+				CreationToken:  "tok",
+				PoolID:         "pool",
+				QuotaInBytes:   100,
+				LifeCycleState: "READY",
+				InReplication:  false,
+			}
+			out := convertModelToVCPVolume(vol)
+			require.NotNil(t, out)
+			assert.False(t, out.InReplication.Set, "inReplication must be omitted when volume is not in replication")
+		})
+		t.Run("true_sets_inReplication", func(t *testing.T) {
+			vol := &models.Volume{
+				CreationToken:  "tok",
+				PoolID:         "pool",
+				QuotaInBytes:   100,
+				LifeCycleState: "READY",
+				InReplication:  true,
+			}
+			out := convertModelToVCPVolume(vol)
+			require.NotNil(t, out)
+			require.True(t, out.InReplication.Set)
+			assert.True(t, out.InReplication.Value)
+		})
+	})
+
 	t.Run("WithBlockDevicesNoHostGroups_ShouldConvertCorrectly", func(t *testing.T) {
 		blockDevices := []models.BlockDevice{
 			{

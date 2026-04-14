@@ -1,13 +1,17 @@
 package gcp
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 )
 
@@ -271,5 +275,67 @@ func TestConvertDatastoreVolumeToModel_VolumePerformanceGroupId(t *testing.T) {
 		assert.Equal(t, "", result.VolumePerformanceGroupId)
 		assert.Nil(t, result.ThroughputMibps)
 		assert.Nil(t, result.Iops)
+	})
+}
+
+// minimalVolumeForConversion returns a volume with required fields for conversion + populateVolumeInReplication tests.
+func minimalVolumeForConversion(volumeID int64) *datamodel.Volume {
+	return &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vol-uuid", ID: volumeID},
+		Name:      "vol-name",
+		Account:   &datamodel.Account{BaseModel: datamodel.BaseModel{UUID: "acct-uuid"}, Name: "acct"},
+		Pool: &datamodel.Pool{
+			BaseModel:      datamodel.BaseModel{UUID: "pool-uuid"},
+			Name:           "pool",
+			PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-central1-a"},
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CreationToken:     "token",
+			Protocols:         []string{"NFSV3"},
+			VendorSubnetID:    "network",
+			IsDataProtection:  false,
+			SnapReserve:       0,
+			SnapshotDirectory: true,
+		},
+	}
+}
+
+func TestPopulateVolumeInReplication(t *testing.T) {
+	ctx := context.Background()
+	volumeID := int64(42)
+	volume := minimalVolumeForConversion(volumeID)
+
+	t.Run("StorageNil_NoOp", func(t *testing.T) {
+		result := convertDatastoreVolumeToModel(volume, nil)
+		require.NotNil(t, result)
+		populateVolumeInReplication(ctx, nil, volume, result)
+		assert.False(t, result.InReplication)
+	})
+
+	t.Run("ReplicationCountZero_SetsInReplicationFalse", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.EXPECT().GetVolumeReplicationCountByVolumeID(mock.Anything, volumeID).Return(int64(0), nil)
+		result := convertDatastoreVolumeToModel(volume, nil)
+		require.NotNil(t, result)
+		populateVolumeInReplication(ctx, mockStorage, volume, result)
+		assert.False(t, result.InReplication)
+	})
+
+	t.Run("ReplicationCountPositive_SetsInReplicationTrue", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.EXPECT().GetVolumeReplicationCountByVolumeID(mock.Anything, volumeID).Return(int64(1), nil)
+		result := convertDatastoreVolumeToModel(volume, nil)
+		require.NotNil(t, result)
+		populateVolumeInReplication(ctx, mockStorage, volume, result)
+		assert.True(t, result.InReplication)
+	})
+
+	t.Run("GetVolumeReplicationCountError_LeavesInReplicationFalse", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		mockStorage.EXPECT().GetVolumeReplicationCountByVolumeID(mock.Anything, volumeID).Return(int64(0), errors.New("db error"))
+		result := convertDatastoreVolumeToModel(volume, nil)
+		require.NotNil(t, result)
+		populateVolumeInReplication(ctx, mockStorage, volume, result)
+		assert.False(t, result.InReplication)
 	})
 }

@@ -9498,7 +9498,8 @@ type InternalVolumeV1beta struct {
 	IsDataProtection OptBool `json:"isDataProtection"`
 	// Flag indicating if the volume is migrating from on premise Ontap or not.
 	IsOnPremMigration OptNilBool `json:"isOnPremMigration"`
-	// Flag indicating if the volume is in a cross region replication.
+	// Indicates if the volume is participating in replication as a source or destination. Read-only;
+	// omitted when not in replication.
 	InReplication   OptBool                  `json:"inReplication"`
 	BlockProperties OptBlockPropertiesV1beta `json:"blockProperties"`
 	// Protocol type through which volume can be accessed.
@@ -32496,7 +32497,8 @@ type VolumeV1beta struct {
 	IsDataProtection OptBool `json:"isDataProtection"`
 	// Flag indicating if the volume is migrating from on premise Ontap or not.
 	IsOnPremMigration OptNilBool `json:"isOnPremMigration"`
-	// Flag indicating if the volume is in a cross region replication.
+	// Indicates if the volume is participating in replication as a source or destination. Read-only;
+	// omitted when not in replication.
 	InReplication   OptBool                  `json:"inReplication"`
 	SnapshotPolicy  OptSnapshotPolicyV1beta  `json:"snapshotPolicy"`
 	StorageClass    OptStorageClassV1beta    `json:"storageClass"`

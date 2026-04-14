@@ -1673,6 +1673,10 @@ func convertModelToVCPVolume(volume *models.Volume) *gcpgenserver.VolumeV1beta {
 		UsedBytes:          gcpgenserver.NewOptNilFloat64(float64(volume.UsedBytes)), // default value for now
 		LargeCapacity:      gcpgenserver.NewOptNilBool(volume.LargeCapacity),
 	}
+	// inReplication: only set when true (source or destination); omit when not in replication
+	if volume.InReplication {
+		res.InReplication = gcpgenserver.NewOptBool(true)
+	}
 	// Include throughput and iops if they were set from VPG (nullable int64; only for autogen VPG / individual values)
 	if volume.ThroughputMibps != nil {
 		throughputMibps := float64(*volume.ThroughputMibps)

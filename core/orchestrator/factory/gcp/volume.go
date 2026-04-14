@@ -1982,6 +1982,19 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 	return res
 }
 
+// populateVolumeInReplication sets models.Volume.InReplication for getMultipleVolumes only (UI batch path).
+func populateVolumeInReplication(ctx context.Context, se database.Storage, dbVolume *datamodel.Volume, modelVol *models.Volume) {
+	if se == nil {
+		return
+	}
+	count, err := se.GetVolumeReplicationCountByVolumeID(ctx, dbVolume.ID)
+	if err != nil {
+		util.GetLogger(ctx).Warn("Error populating inReplication for volume", "volumeID", dbVolume.ID, "error", err)
+		return
+	}
+	modelVol.InReplication = count > 0
+}
+
 func convertHostGroupDetails(hgs []datamodel.HostGroupDetail) []models.HostGroupDetails {
 	resp := make([]models.HostGroupDetails, 0)
 	for _, hg := range hgs {
@@ -2216,7 +2229,9 @@ func (o *GCPOrchestrator) GetMultipleVolumes(ctx context.Context, volumeIds []st
 		if ipErr != nil {
 			return nil, ipErr
 		}
-		result = append(result, convertDatastoreVolumeToModel(volume, &ipAddresses))
+		p := convertDatastoreVolumeToModel(volume, &ipAddresses)
+		populateVolumeInReplication(ctx, se, volume, p)
+		result = append(result, p)
 	}
 
 	wfErr := o.TriggerRefreshWorkflow(ctx, account, volumes)

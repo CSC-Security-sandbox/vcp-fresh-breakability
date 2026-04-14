@@ -11061,9 +11061,9 @@ components:
         inReplication:
           title: inReplication
           type: boolean
-          description: Flag indicating if the volume is in a cross region replication
-          readOnly: true
           default: false
+          description: Indicates if the volume is participating in replication as a source or destination. Read-only; omitted when not in replication.
+          readOnly: true
         snapshotPolicy:
           $ref: '#/components/schemas/SnapshotPolicy_v1beta'
         storageClass:
@@ -11399,9 +11399,9 @@ components:
         inReplication:
           title: inReplication
           type: boolean
-          description: Flag indicating if the volume is in a cross region replication
-          readOnly: true
           default: false
+          description: Indicates if the volume is participating in replication as a source or destination. Read-only; omitted when not in replication.
+          readOnly: true
         blockProperties:
           $ref: '#/components/schemas/BlockProperties_v1beta'
         protocols:

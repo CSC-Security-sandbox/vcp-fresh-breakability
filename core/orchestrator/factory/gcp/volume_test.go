@@ -10309,7 +10309,7 @@ func TestDeleteVolume(t *testing.T) {
 		// Mock IsBackupInCreatingOrDeletingStateByVolume to return false
 		mockStorage.On("IsBackupInCreatingorDeletingStateByVolume", ctx, volume.UUID).Return(false, nil)
 		// Mock GetVolumeReplicationCountByVolumeID to return 0
-		mockStorage.On("GetVolumeReplicationCountByVolumeID", ctx, mock.Anything).Return(int64(0), nil)
+		mockStorage.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(int64(0), nil)
 		// Mock UpdateJob call when error occurs in defer function
 		mockStorage.On("UpdateJob", ctx, jobUUID, string(models.JobsStateERROR), 0, "update failed").Return(nil)
 
@@ -10402,7 +10402,7 @@ func TestDeleteVolume(t *testing.T) {
 		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeDeleteLargeVolume)).Return(nil, nil)
 		// Mock validateDeleteVolumeParams and rest of the flow
 		mockStorage.EXPECT().IsBackupInCreatingorDeletingStateByVolume(ctx, volume.UUID).Return(false, nil)
-		mockStorage.EXPECT().GetVolumeReplicationCountByVolumeID(ctx, volume.ID).Return(int64(0), nil)
+		mockStorage.EXPECT().GetVolumeReplicationCountByVolumeID(mock.Anything, volume.ID).Return(int64(0), nil)
 		mockStorage.EXPECT().CreateJob(ctx, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "workflow-id"}, nil)
 
 		// Mock ExecuteWorkflow for non-sequential execution (matching correlation ID case)
@@ -10544,7 +10544,7 @@ func TestDeleteVolume(t *testing.T) {
 		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeDeleteVolume)).Return(nil, nil)
 		// Mock validateDeleteVolumeParams and rest of the flow
 		mockStorage.EXPECT().IsBackupInCreatingorDeletingStateByVolume(ctx, volume.UUID).Return(false, nil)
-		mockStorage.EXPECT().GetVolumeReplicationCountByVolumeID(ctx, volume.ID).Return(int64(0), nil)
+		mockStorage.EXPECT().GetVolumeReplicationCountByVolumeID(mock.Anything, volume.ID).Return(int64(0), nil)
 		mockStorage.EXPECT().CreateJob(ctx, mock.Anything).Return(&datamodel.Job{BaseModel: datamodel.BaseModel{UUID: "job-uuid"}, WorkflowID: "workflow-id"}, nil)
 
 		// Mock ExecuteWorkflow for non-sequential execution (matching correlation ID case)
@@ -10755,7 +10755,7 @@ func TestDeleteVolume_PreviousStateAndDetailsInJobAttributes(t *testing.T) {
 
 		mockStorage.EXPECT().GetVolume(ctx, "test-volume-uuid").Return(volume, nil)
 		mockStorage.EXPECT().IsBackupInCreatingorDeletingStateByVolume(ctx, volume.UUID).Return(false, nil)
-		mockStorage.EXPECT().GetVolumeReplicationCountByVolumeID(ctx, volume.ID).Return(int64(0), nil)
+		mockStorage.EXPECT().GetVolumeReplicationCountByVolumeID(mock.Anything, volume.ID).Return(int64(0), nil)
 		// Mock GetJobByResourceUUID for DELETE_VOLUME (called in GetExistingDeleteJobForDeletingState for non-transitional states)
 		mockStorage.EXPECT().GetJobByResourceUUID(ctx, volume.UUID, string(models.JobTypeDeleteVolume)).Return(nil, errors.New("no delete job found"))
 		mockStorage.EXPECT().CreateJob(ctx, mock.MatchedBy(func(job *datamodel.Job) bool {
@@ -14509,6 +14509,7 @@ func TestUpdateVolume(t *testing.T) {
 		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "vault-2", mock.Anything, mock.Anything).Return([]*datamodel.Backup{}, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(int64(0), nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
@@ -14690,6 +14691,7 @@ func TestUpdateVolume(t *testing.T) {
 		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "vault-2", mock.Anything, mock.Anything).Return([]*datamodel.Backup{}, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(int64(0), nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
@@ -14739,6 +14741,7 @@ func TestUpdateVolume(t *testing.T) {
 		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "vault-2", mock.Anything, mock.Anything).Return([]*datamodel.Backup{}, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(int64(0), nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
@@ -14776,6 +14779,7 @@ func TestUpdateVolume(t *testing.T) {
 		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "vault-2", mock.Anything, mock.Anything).Return([]*datamodel.Backup{}, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(int64(0), nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
 		volume, _, err := updateVolume(ctx, se, temporal, param, true)
@@ -14810,6 +14814,7 @@ func TestUpdateVolume(t *testing.T) {
 		se.On("GetPool", ctx, "1", dbVolume.AccountID).Return(poolView, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(int64(0), nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
@@ -14848,6 +14853,7 @@ func TestUpdateVolume(t *testing.T) {
 		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "vault-1", mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Backup{}, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(int64(0), nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
@@ -14895,6 +14901,7 @@ func TestUpdateVolume(t *testing.T) {
 		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "vault-1", mock.Anything, [][]interface{}{{"volume_uuid = ?", "vid"}}).Return([]*datamodel.Backup{}, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(int64(0), nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
 
@@ -15013,6 +15020,7 @@ func TestUpdateVolume(t *testing.T) {
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		se.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultId, mock.Anything).Return(dbBackupVault, nil)
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(int64(0), nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
@@ -15214,6 +15222,7 @@ func TestUpdateVolume(t *testing.T) {
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(int64(0), nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
 
@@ -15255,6 +15264,7 @@ func TestUpdateVolume(t *testing.T) {
 		se.On("GetBackupVault", ctx, "vault-1").Return(currentVault, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(int64(0), nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
 
@@ -15366,6 +15376,7 @@ func TestUpdateVolume(t *testing.T) {
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateJob", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(int64(0), nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
 
@@ -15707,6 +15718,7 @@ func TestUpdateVolume(t *testing.T) {
 		se.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyId, poolView.Account.ID).Return(nil, errors.NewNotFoundErr("backup policy", &backupPolicyId))
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(int64(0), nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
@@ -15750,6 +15762,7 @@ func TestUpdateVolume(t *testing.T) {
 		se.On("GetBackupPolicyByUUIDAndOwnerID", ctx, backupPolicyId, poolView.Account.ID).Return(nil, errors.NewNotFoundErr("backup policy", &backupPolicyId))
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(int64(0), nil)
 		temporal := workflowEngineMock.NewMockTemporalTestClient(t)
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
@@ -15906,6 +15919,7 @@ func TestUpdateVolume(t *testing.T) {
 		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, "vault-2", mock.Anything, mock.Anything).Return([]*datamodel.Backup{}, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(int64(0), nil)
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
 		assert.NoError(tt, err)
@@ -15941,6 +15955,7 @@ func TestUpdateVolume(t *testing.T) {
 		se.On("GetBackupsByBackupVaultOwnerIDAndFilter", ctx, mock.Anything, mock.Anything, mock.Anything).Return([]*datamodel.Backup{}, nil)
 		se.On("CreateJob", ctx, mock.Anything).Return(job, nil)
 		se.On("UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(int64(0), nil)
 		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
 		volume, _, err := updateVolume(ctx, se, temporal, param, false)
 		assert.NoError(tt, err)
@@ -16176,6 +16191,7 @@ func TestListVolumes(t *testing.T) {
 		mockStorage.On("ListVolumes", ctx, conditions).Return([]*datamodel.Volume{volumeObj}, nil)
 		mockStorage.On("GetNodesByPoolID", ctx, int64(1)).Return([]*datamodel.Node{node}, nil)
 		mockStorage.On("GetLifForNode", ctx, int64(1), account.ID).Return(lif, nil)
+		mockStorage.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(int64(0), nil)
 
 		volumes, err := mockOrchestrator.ListVolumes(ctx, projectNumber)
 		assert.NoError(tt, err)
@@ -21527,7 +21543,7 @@ func TestValidateDeleteVolumeParams(t *testing.T) {
 		var replicationCount int64
 		// Mock the storage method to return false (no backup in transition state)
 		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, volume.UUID).Return(false, nil)
-		se.On("GetVolumeReplicationCountByVolumeID", ctx, volume.ID).Return(replicationCount, nil)
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, volume.ID).Return(replicationCount, nil)
 
 		err := _validateDeleteVolumeParams(ctx, se, volume)
 		assert.NoError(tt, err)
@@ -21573,7 +21589,7 @@ func TestValidateDeleteVolumeParams(t *testing.T) {
 		var replicationCount int64
 		// Mock the storage method to return false for empty UUID
 		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, "").Return(false, nil)
-		se.On("GetVolumeReplicationCountByVolumeID", ctx, mock.Anything).Return(replicationCount, nil)
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything).Return(replicationCount, nil)
 
 		err := _validateDeleteVolumeParams(ctx, se, &datamodel.Volume{})
 		assert.NoError(tt, err)
@@ -21607,7 +21623,7 @@ func TestValidateDeleteVolumeParams(t *testing.T) {
 		var replicationCount int64
 		// Mock the storage method to return false (no backup in transition state)
 		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, volume.UUID).Return(false, nil)
-		se.On("GetVolumeReplicationCountByVolumeID", ctx, volume.ID).Return(replicationCount, errors.New("database error"))
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, volume.ID).Return(replicationCount, errors.New("database error"))
 
 		err := _validateDeleteVolumeParams(ctx, se, volume)
 		assert.EqualError(tt, err, "database error")
@@ -21625,7 +21641,7 @@ func TestValidateDeleteVolumeParams(t *testing.T) {
 		var replicationCount int64 = 1
 		// Mock the storage method to return false (no backup in transition state)
 		se.On("IsBackupInCreatingorDeletingStateByVolume", ctx, volume.UUID).Return(false, nil)
-		se.On("GetVolumeReplicationCountByVolumeID", ctx, volume.ID).Return(replicationCount, nil)
+		se.On("GetVolumeReplicationCountByVolumeID", mock.Anything, volume.ID).Return(replicationCount, nil)
 
 		err := _validateDeleteVolumeParams(ctx, se, volume)
 		assert.EqualError(tt, err, "Cannot delete volume that has active replication. Please delete the replication first.")
