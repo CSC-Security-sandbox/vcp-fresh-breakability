@@ -173,7 +173,11 @@ server:
   #  memory: 128Mi
   # Container lifecycle hooks (preStop/postStart) for graceful shutdown.
   # Set at server level to apply to all services, or per-service to override.
-  lifecycle: {}
+  # 15s sleep gives Temporal time to transfer shards before SIGTERM.
+  lifecycle:
+    preStop:
+      exec:
+        command: ["sh", "-c", "sleep 15"]
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -248,6 +252,7 @@ server:
           #     state: "enabled"
           #     URI: "gs://<env>-temporal-archival/visibility"
   frontend:
+    replicaCount: 3
     service:
       # Evaluated as template
       annotations: {}
@@ -303,7 +308,8 @@ server:
           matchLabels:
             app.kubernetes.io/name: temporal
             app.kubernetes.io/component: frontend
-    podDisruptionBudget: {}
+    podDisruptionBudget:
+      minAvailable: "66%"
   internalFrontend:
     # Enable this to create internal-frontend
     enabled: false
@@ -349,6 +355,7 @@ server:
             app.kubernetes.io/component: internal-frontend
     podDisruptionBudget: {}
   history:
+    replicaCount: 3
     service:
       # type: ClusterIP
       port: 7234
@@ -387,8 +394,10 @@ server:
           matchLabels:
             app.kubernetes.io/name: temporal
             app.kubernetes.io/component: history
-    podDisruptionBudget: {}
+    podDisruptionBudget:
+      minAvailable: "66%"
   matching:
+    replicaCount: 3
     service:
       # type: ClusterIP
       port: 7235
@@ -426,8 +435,10 @@ server:
           matchLabels:
             app.kubernetes.io/name: temporal
             app.kubernetes.io/component: matching
-    podDisruptionBudget: {}
+    podDisruptionBudget:
+      minAvailable: "66%"
   worker:
+    replicaCount: 3
     service:
       # type: ClusterIP
       port: 7239
@@ -465,7 +476,8 @@ server:
           matchLabels:
             app.kubernetes.io/name: temporal
             app.kubernetes.io/component: worker
-    podDisruptionBudget: {}
+    podDisruptionBudget:
+      minAvailable: "66%"
 admintools:
   enabled: true
   image:
