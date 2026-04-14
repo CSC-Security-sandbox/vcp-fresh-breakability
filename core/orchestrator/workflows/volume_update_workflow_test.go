@@ -4776,6 +4776,42 @@ func TestIsUpdateFlexCacheRequired(t *testing.T) {
 	})
 }
 
+func TestSanitizeUpdateParamsForFlexCache(t *testing.T) {
+	t.Run("SkipForNormalVolume", func(t *testing.T) {
+		snapshotDirectoryAccess := true
+		snapReserve := int64(25)
+		params := &common.UpdateVolumeParams{
+			SnapshotDirectoryAccess: &snapshotDirectoryAccess,
+			SnapReserve:             &snapReserve,
+		}
+		volume := &datamodel.Volume{}
+
+		sanitizeUpdateParamsForFlexCache(params, volume)
+
+		assert.NotNil(t, params.SnapshotDirectoryAccess)
+		assert.NotNil(t, params.SnapReserve)
+		assert.True(t, *params.SnapshotDirectoryAccess)
+		assert.Equal(t, int64(25), *params.SnapReserve)
+	})
+
+	t.Run("ApplyForFlexCacheVolume", func(t *testing.T) {
+		snapshotDirectoryAccess := true
+		snapReserve := int64(25)
+		params := &common.UpdateVolumeParams{
+			SnapshotDirectoryAccess: &snapshotDirectoryAccess,
+			SnapReserve:             &snapReserve,
+		}
+		volume := &datamodel.Volume{
+			CacheParameters: &datamodel.CacheParameters{},
+		}
+
+		sanitizeUpdateParamsForFlexCache(params, volume)
+
+		assert.Nil(t, params.SnapshotDirectoryAccess)
+		assert.Nil(t, params.SnapReserve)
+	})
+}
+
 func Test_isUpdateFlexCachePrepopulateRequired(t *testing.T) {
 	tests := []struct {
 		name           string

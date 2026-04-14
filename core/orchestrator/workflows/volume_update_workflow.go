@@ -100,6 +100,7 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	log := util.GetLogger(ctx)
 	params := args[0].(*common.UpdateVolumeParams)
 	volume := args[1].(*datamodel.Volume)
+	sanitizeUpdateParamsForFlexCache(params, volume)
 	updateActivity := &activities.VolumeUpdateActivity{}
 	deleteActivity := &activities.VolumeDeleteActivity{}
 	flexCacheUpdateActivity := &flexcache_activities.FlexCacheVolumeUpdateActivity{}
@@ -811,6 +812,14 @@ func (wf *volumeUpdateWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	}
 
 	return nil, ConvertToVSAError(err)
+}
+
+func sanitizeUpdateParamsForFlexCache(params *common.UpdateVolumeParams, volume *datamodel.Volume) {
+	// FlexCache volumes don't support snapshot directory and snap reserve updates.
+	if volume.CacheParameters != nil {
+		params.SnapshotDirectoryAccess = nil
+		params.SnapReserve = nil
+	}
 }
 
 // updateOrAddBlockDevice updates existing BlockDevice or adds new one to params
