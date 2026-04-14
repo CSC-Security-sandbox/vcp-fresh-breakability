@@ -136,6 +136,7 @@ var workflowSleep = workflow.Sleep
 func PollOntapJobActivity(ctx context.Context, clientParams RESTClientParams, UUID string) (*models.Job, error) {
 	logger := util.GetLogger(ctx)
 	clientParams.Trace = logger
+	clientParams.Ctx = ctx
 	api, err := NewOntapRestClient(clientParams)
 	if err != nil {
 		logger.Errorf("Failed to create Ontap REST client, error: %v", err)
