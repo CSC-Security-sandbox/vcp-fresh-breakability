@@ -16131,7 +16131,6 @@ func TestHydrateSplitVolumeAsNormalToCCFE_Success(t *testing.T) {
 	assert.Equal(t, "test-project", gotProject)
 	assert.Equal(t, "vol-resource-name", gotVolumeResourceID)
 	assert.Equal(t, "token-123", gotToken)
-	assert.Equal(t, models.LifeCycleStateREADY, gotPayload.State)
 	assert.Nil(t, gotPayload.CloneDetails)
 	mockStorage.AssertExpectations(t)
 }

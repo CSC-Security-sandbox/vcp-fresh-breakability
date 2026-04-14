@@ -542,8 +542,7 @@ func _hydrateUpdatedPool(ctx context.Context, poolHydrateObj models.PoolHydrateO
 
 func _hydrateUpdatedVolume(ctx context.Context, volumeHydrateObj models.VolumeUpdateCCFERequest, region, projectId, volumeResourceID, token string) error {
 	logger := util.GetLogger(ctx)
-	updateMask := "state,cloneDetails"
-	fullURL := fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/volumes/%s?update_mask=%s", baseUri, projectId, region, volumeResourceID, updateMask)
+	fullURL := fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/volumes/%s?update_mask=cloneDetails", baseUri, projectId, region, volumeResourceID)
 	err := hydrateToCffe(ctx, logger, volumeHydrateObj, fullURL, http.MethodPatch, token)
 	if err != nil {
 		logger.Errorf("Failed to hydrate updated volume to CCFE, volumeID: %s, error: %v", volumeResourceID, err)

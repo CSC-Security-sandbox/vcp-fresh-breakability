@@ -94,7 +94,6 @@ func TestHydrateVolumeCreate(t *testing.T) {
 func TestHydrateUpdatedVolume(t *testing.T) {
 	ctx := context.Background()
 	volume := models.VolumeUpdateCCFERequest{
-		State: "READY",
 		CloneDetails: &models.VolumeCloneDetailsUpdateMaskRequest{
 			ParentVolumeId:       "",
 			ParentSnapshotId:     "",
@@ -138,14 +137,13 @@ func TestHydrateUpdatedVolume(t *testing.T) {
 		assert.Equal(tt, volume, gotPayload)
 		assert.Equal(
 			tt,
-			fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/volumes/%s?update_mask=state,cloneDetails", baseUri, projectID, region, volumeResourceID),
+			fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/volumes/%s?update_mask=cloneDetails", baseUri, projectID, region, volumeResourceID),
 			gotURL,
 		)
 	})
 
 	t.Run("WhenCloneDetailsNil_SendsNullAndParentUpdateMask", func(tt *testing.T) {
 		clearVol := models.VolumeUpdateCCFERequest{
-			State:        "READY",
 			CloneDetails: nil,
 		}
 		var gotURL, gotMethod string
@@ -161,10 +159,10 @@ func TestHydrateUpdatedVolume(t *testing.T) {
 		err := _hydrateUpdatedVolume(ctx, clearVol, region, projectID, volumeResourceID, token)
 		assert.NoError(tt, err)
 		assert.Equal(tt, http.MethodPatch, gotMethod)
-		assert.JSONEq(tt, `{"state":"READY","cloneDetails":null}`, string(gotBody))
+		assert.JSONEq(tt, `{"cloneDetails":null}`, string(gotBody))
 		assert.Equal(
 			tt,
-			fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/volumes/%s?update_mask=state,cloneDetails", baseUri, projectID, region, volumeResourceID),
+			fmt.Sprintf("%s/v1internal/projects/%s/locations/%s/volumes/%s?update_mask=cloneDetails", baseUri, projectID, region, volumeResourceID),
 			gotURL,
 		)
 	})

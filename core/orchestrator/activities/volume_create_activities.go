@@ -1792,7 +1792,6 @@ func (a VolumeCreateActivity) HydrateSplitVolumeAsNormalToCCFE(ctx context.Conte
 	}
 
 	volumeHydrateObject := models.VolumeUpdateCCFERequest{
-		State:        models.LifeCycleStateREADY,
 		CloneDetails: nil,
 	}
 
