@@ -19,7 +19,7 @@ var (
 )
 
 func FetchCredentials(ctx context.Context, poolDetails *models.PoolDetails, jwtToken string, logger log.Logger) (*coreapi.OntapCredentialsV1, error) {
-	logger.InfoContext(ctx, "Fetching credentials from Core API",
+	logger.DebugContext(ctx, "Fetching credentials from Core API",
 		"poolID", poolDetails.PoolID,
 		"accountName", poolDetails.AccountName,
 		"userName", poolDetails.UserName)
@@ -49,7 +49,8 @@ func FetchCredentials(ctx context.Context, poolDetails *models.PoolDetails, jwtT
 			respJSONStr = string(respJSON)
 		}
 
-		logger.InfoContext(ctx, "Successfully validated pool and got credentials",
+		logger.InfoContext(ctx, "Core API credentials fetched", "poolID", poolDetails.PoolID)
+		logger.DebugContext(ctx, "Core API credential response",
 			"poolID", poolDetails.PoolID,
 			"authType", resp.AuthType.Value,
 			"caURI", getStringValue(resp.CaURI),
@@ -96,7 +97,7 @@ func getStringValue(opt coreapi.OptString) string {
 
 // SubmitExpertModeVolumeOperation submits a volume operation (Create/Update/Delete) to the Core API.
 func SubmitExpertModeVolumeOperation(ctx context.Context, request *coreapi.ExpertModeVolumeV1, jwtToken string, logger log.Logger) error {
-	logger.InfoContext(ctx, "Submitting expert mode volume operation",
+	logger.DebugContext(ctx, "Submitting expert mode volume operation",
 		"projectNumber", request.ProjectNumber,
 		"poolUUID", request.PoolUUID,
 		"volumeName", request.VolumeName,
@@ -123,10 +124,13 @@ func SubmitExpertModeVolumeOperation(ctx context.Context, request *coreapi.Exper
 	// Handle different response types
 	switch resp := response.(type) {
 	case *coreapi.V1ExpertModeVolumeOK:
-		logger.InfoContext(ctx, "Successfully submitted expert mode volume operation",
-			"volumeName", request.VolumeName,
+		logger.InfoContext(ctx, "Expert mode volume operation submitted",
 			"poolUUID", request.PoolUUID,
 			"action", request.Action)
+		logger.DebugContext(ctx, "Expert mode volume operation submitted details",
+			"volumeName", request.VolumeName,
+			"projectNumber", request.ProjectNumber,
+			"style", request.Style)
 		return nil
 
 	case *coreapi.V1ExpertModeVolumeBadRequest:
@@ -154,7 +158,7 @@ func SubmitExpertModeVolumeOperation(ctx context.Context, request *coreapi.Exper
 // SubmitExpertModeVolumeRename submits a volume rename to the Core API.
 // Params.Name is the current volume name (path); request.Name is the new name.
 func SubmitExpertModeVolumeRename(ctx context.Context, request *coreapi.ExpertModeVolumeRenameV1, params coreapi.V1ExpertModeVolumeRenameParams, jwtToken string, logger log.Logger) error {
-	logger.InfoContext(ctx, "Submitting expert mode volume rename",
+	logger.DebugContext(ctx, "Submitting expert mode volume rename",
 		"projectNumber", request.ProjectNumber,
 		"poolUUID", request.PoolUUID,
 		"currentName", params.Name,
@@ -177,7 +181,8 @@ func SubmitExpertModeVolumeRename(ctx context.Context, request *coreapi.ExpertMo
 
 	switch resp := response.(type) {
 	case *coreapi.V1ExpertModeVolumeRenameOK:
-		logger.InfoContext(ctx, "Successfully submitted expert mode volume rename",
+		logger.InfoContext(ctx, "Expert mode volume rename submitted", "poolUUID", request.PoolUUID)
+		logger.DebugContext(ctx, "Expert mode volume rename submitted details",
 			"currentName", params.Name,
 			"newName", request.Name)
 		return nil

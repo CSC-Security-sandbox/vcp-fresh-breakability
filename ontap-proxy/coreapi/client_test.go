@@ -7,21 +7,82 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	coreapi "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/core-api"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
+
+// noopTestLogger implements log.Logger with no side effects. These tests assert
+// behavior via the Core API invoker mock; logging is not under test here.
+type noopTestLogger struct{}
+
+func (noopTestLogger) Errorf(string, ...any) {}
+func (noopTestLogger) Error(string, ...any)  {}
+func (noopTestLogger) Warnf(string, ...any)  {}
+func (noopTestLogger) Warn(string, ...any)   {}
+func (noopTestLogger) Infof(string, ...any)  {}
+func (noopTestLogger) Info(string, ...any)   {}
+func (noopTestLogger) Debugf(string, ...any) {}
+func (noopTestLogger) Debug(string, ...any)  {}
+
+func (noopTestLogger) InfoContext(context.Context, string, ...any)  {}
+func (noopTestLogger) WarnContext(context.Context, string, ...any)  {}
+func (noopTestLogger) ErrorContext(context.Context, string, ...any) {}
+func (noopTestLogger) DebugContext(context.Context, string, ...any) {}
+
+func (n noopTestLogger) WithFields(string, log.Fields) log.Logger { return n }
+func (n noopTestLogger) With(log.Fields) log.Logger               { return n }
+
+func TestFetchCredentials(t *testing.T) {
+	originalCreateClient := createCoreAPIClient
+	originalHost := coreAPIHost
+	defer func() {
+		createCoreAPIClient = originalCreateClient
+		coreAPIHost = originalHost
+	}()
+
+	var logger log.Logger = noopTestLogger{}
+	mockInvoker := coreapi.NewMockInvoker(t)
+
+	coreAPIHost = "test-host"
+	createCoreAPIClient = func(host, jwtToken string, logger log.Logger) *coreapi.CoreAPIClient {
+		assert.Equal(t, "test-host", host)
+		assert.Equal(t, "test-jwt", jwtToken)
+		return &coreapi.CoreAPIClient{Invoker: mockInvoker}
+	}
+
+	poolDetails := &models.PoolDetails{
+		PoolID:      "pool-1",
+		AccountName: "acct-1",
+		UserName:    "user-1",
+	}
+
+	mockInvoker.On("V1GetOntapCredentials", mock.Anything, mock.MatchedBy(func(p coreapi.V1GetOntapCredentialsParams) bool {
+		return p.PoolId == poolDetails.PoolID &&
+			p.AccountName.IsSet() && p.AccountName.Value == poolDetails.AccountName &&
+			p.UserName.IsSet() && p.UserName.Value == poolDetails.UserName
+	})).Return(&coreapi.OntapCredentialsV1{
+		AuthType: coreapi.NewOptInt(2),
+		CaURI:    coreapi.NewOptString("proj/pool/ca"),
+	}, nil)
+
+	got, err := FetchCredentials(context.Background(), poolDetails, "test-jwt", logger)
+	assert.NoError(t, err)
+	assert.NotNil(t, got)
+	assert.True(t, got.AuthType.IsSet())
+	assert.Equal(t, 2, got.AuthType.Value)
+	mockInvoker.AssertExpectations(t)
+}
 
 func TestSubmitExpertModeVolumeOperation(t *testing.T) {
 	originalCreateClient := createCoreAPIClient
 	defer func() { createCoreAPIClient = originalCreateClient }()
 
+	var logger log.Logger = noopTestLogger{}
+
 	t.Run("SuccessCases", func(tt *testing.T) {
 		tt.Run("VolumeCreatedSuccessfully", func(ttt *testing.T) {
 			mockInvoker := coreapi.NewMockInvoker(ttt)
-			mockLogger := &log.MockLogger{}
-
-			mockLogger.On("InfoContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
-			mockLogger.On("ErrorContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
 
 			createCoreAPIClient = func(host, jwtToken string, logger log.Logger) *coreapi.CoreAPIClient {
 				return &coreapi.CoreAPIClient{
@@ -43,7 +104,7 @@ func TestSubmitExpertModeVolumeOperation(t *testing.T) {
 			})).Return(&coreapi.V1ExpertModeVolumeOK{}, nil)
 
 			ctx := context.WithValue(context.Background(), middleware.CorrelationContextKey, "corr-id-123")
-			err := SubmitExpertModeVolumeOperation(ctx, request, "test-jwt-token", mockLogger)
+			err := SubmitExpertModeVolumeOperation(ctx, request, "test-jwt-token", logger)
 
 			assert.NoError(ttt, err)
 			mockInvoker.AssertExpectations(ttt)
@@ -51,10 +112,6 @@ func TestSubmitExpertModeVolumeOperation(t *testing.T) {
 
 		tt.Run("VolumeUpdatedSuccessfully", func(ttt *testing.T) {
 			mockInvoker := coreapi.NewMockInvoker(ttt)
-			mockLogger := &log.MockLogger{}
-
-			mockLogger.On("InfoContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
-			mockLogger.On("ErrorContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
 
 			createCoreAPIClient = func(host, jwtToken string, logger log.Logger) *coreapi.CoreAPIClient {
 				return &coreapi.CoreAPIClient{
@@ -77,7 +134,7 @@ func TestSubmitExpertModeVolumeOperation(t *testing.T) {
 			})).Return(&coreapi.V1ExpertModeVolumeOK{}, nil)
 
 			ctx := context.WithValue(context.Background(), middleware.CorrelationContextKey, "corr-id-456")
-			err := SubmitExpertModeVolumeOperation(ctx, request, "test-jwt-token", mockLogger)
+			err := SubmitExpertModeVolumeOperation(ctx, request, "test-jwt-token", logger)
 
 			assert.NoError(ttt, err)
 			mockInvoker.AssertExpectations(ttt)
@@ -85,10 +142,6 @@ func TestSubmitExpertModeVolumeOperation(t *testing.T) {
 
 		tt.Run("VolumeDeletedSuccessfully", func(ttt *testing.T) {
 			mockInvoker := coreapi.NewMockInvoker(ttt)
-			mockLogger := &log.MockLogger{}
-
-			mockLogger.On("InfoContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
-			mockLogger.On("ErrorContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
 
 			createCoreAPIClient = func(host, jwtToken string, logger log.Logger) *coreapi.CoreAPIClient {
 				return &coreapi.CoreAPIClient{
@@ -106,7 +159,7 @@ func TestSubmitExpertModeVolumeOperation(t *testing.T) {
 			mockInvoker.On("V1ExpertModeVolume", mock.Anything, request, mock.Anything).Return(&coreapi.V1ExpertModeVolumeOK{}, nil)
 
 			ctx := context.Background()
-			err := SubmitExpertModeVolumeOperation(ctx, request, "test-jwt-token", mockLogger)
+			err := SubmitExpertModeVolumeOperation(ctx, request, "test-jwt-token", logger)
 
 			assert.NoError(ttt, err)
 			mockInvoker.AssertExpectations(ttt)
@@ -114,10 +167,6 @@ func TestSubmitExpertModeVolumeOperation(t *testing.T) {
 
 		tt.Run("NoCorrelationIDInContext", func(ttt *testing.T) {
 			mockInvoker := coreapi.NewMockInvoker(ttt)
-			mockLogger := &log.MockLogger{}
-
-			mockLogger.On("InfoContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
-			mockLogger.On("ErrorContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
 
 			createCoreAPIClient = func(host, jwtToken string, logger log.Logger) *coreapi.CoreAPIClient {
 				return &coreapi.CoreAPIClient{
@@ -139,7 +188,7 @@ func TestSubmitExpertModeVolumeOperation(t *testing.T) {
 			})).Return(&coreapi.V1ExpertModeVolumeOK{}, nil)
 
 			ctx := context.Background()
-			err := SubmitExpertModeVolumeOperation(ctx, request, "test-jwt-token", mockLogger)
+			err := SubmitExpertModeVolumeOperation(ctx, request, "test-jwt-token", logger)
 
 			assert.NoError(ttt, err)
 			mockInvoker.AssertExpectations(ttt)
@@ -149,10 +198,6 @@ func TestSubmitExpertModeVolumeOperation(t *testing.T) {
 	t.Run("ErrorCases", func(tt *testing.T) {
 		tt.Run("BadRequest", func(ttt *testing.T) {
 			mockInvoker := coreapi.NewMockInvoker(ttt)
-			mockLogger := &log.MockLogger{}
-
-			mockLogger.On("InfoContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
-			mockLogger.On("ErrorContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
 
 			createCoreAPIClient = func(host, jwtToken string, logger log.Logger) *coreapi.CoreAPIClient {
 				return &coreapi.CoreAPIClient{
@@ -173,7 +218,7 @@ func TestSubmitExpertModeVolumeOperation(t *testing.T) {
 			}, nil)
 
 			ctx := context.Background()
-			err := SubmitExpertModeVolumeOperation(ctx, request, "test-jwt-token", mockLogger)
+			err := SubmitExpertModeVolumeOperation(ctx, request, "test-jwt-token", logger)
 
 			assert.Error(ttt, err)
 			assert.Contains(ttt, err.Error(), "bad request: Volume name is required")
@@ -182,10 +227,6 @@ func TestSubmitExpertModeVolumeOperation(t *testing.T) {
 
 		tt.Run("Conflict", func(ttt *testing.T) {
 			mockInvoker := coreapi.NewMockInvoker(ttt)
-			mockLogger := &log.MockLogger{}
-
-			mockLogger.On("InfoContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
-			mockLogger.On("ErrorContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
 
 			createCoreAPIClient = func(host, jwtToken string, logger log.Logger) *coreapi.CoreAPIClient {
 				return &coreapi.CoreAPIClient{
@@ -206,7 +247,7 @@ func TestSubmitExpertModeVolumeOperation(t *testing.T) {
 			}, nil)
 
 			ctx := context.Background()
-			err := SubmitExpertModeVolumeOperation(ctx, request, "test-jwt-token", mockLogger)
+			err := SubmitExpertModeVolumeOperation(ctx, request, "test-jwt-token", logger)
 
 			assert.Error(ttt, err)
 			assert.Contains(ttt, err.Error(), "conflict: Volume already exists")
@@ -219,12 +260,10 @@ func TestSubmitExpertModeVolumeRename(t *testing.T) {
 	originalCreateClient := createCoreAPIClient
 	defer func() { createCoreAPIClient = originalCreateClient }()
 
+	var logger log.Logger = noopTestLogger{}
+
 	t.Run("VolumeRenamedSuccessfully", func(tt *testing.T) {
 		mockInvoker := coreapi.NewMockInvoker(tt)
-		mockLogger := &log.MockLogger{}
-
-		mockLogger.On("InfoContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
-		mockLogger.On("ErrorContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
 
 		createCoreAPIClient = func(host, jwtToken string, logger log.Logger) *coreapi.CoreAPIClient {
 			return &coreapi.CoreAPIClient{
@@ -247,7 +286,7 @@ func TestSubmitExpertModeVolumeRename(t *testing.T) {
 		})).Return(&coreapi.V1ExpertModeVolumeRenameOK{}, nil)
 
 		ctx := context.WithValue(context.Background(), middleware.CorrelationContextKey, "corr-id-rename")
-		err := SubmitExpertModeVolumeRename(ctx, request, params, "test-jwt-token", mockLogger)
+		err := SubmitExpertModeVolumeRename(ctx, request, params, "test-jwt-token", logger)
 
 		assert.NoError(tt, err)
 		mockInvoker.AssertExpectations(tt)
@@ -255,10 +294,6 @@ func TestSubmitExpertModeVolumeRename(t *testing.T) {
 
 	t.Run("RenameBadRequest", func(tt *testing.T) {
 		mockInvoker := coreapi.NewMockInvoker(tt)
-		mockLogger := &log.MockLogger{}
-
-		mockLogger.On("InfoContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
-		mockLogger.On("ErrorContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
 
 		createCoreAPIClient = func(host, jwtToken string, logger log.Logger) *coreapi.CoreAPIClient {
 			return &coreapi.CoreAPIClient{
@@ -280,7 +315,7 @@ func TestSubmitExpertModeVolumeRename(t *testing.T) {
 		}, nil)
 
 		ctx := context.Background()
-		err := SubmitExpertModeVolumeRename(ctx, request, params, "test-jwt-token", mockLogger)
+		err := SubmitExpertModeVolumeRename(ctx, request, params, "test-jwt-token", logger)
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "bad request: Invalid new volume name")
@@ -289,10 +324,6 @@ func TestSubmitExpertModeVolumeRename(t *testing.T) {
 
 	t.Run("RenameNotFound", func(tt *testing.T) {
 		mockInvoker := coreapi.NewMockInvoker(tt)
-		mockLogger := &log.MockLogger{}
-
-		mockLogger.On("InfoContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
-		mockLogger.On("ErrorContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
 
 		createCoreAPIClient = func(host, jwtToken string, logger log.Logger) *coreapi.CoreAPIClient {
 			return &coreapi.CoreAPIClient{
@@ -314,7 +345,7 @@ func TestSubmitExpertModeVolumeRename(t *testing.T) {
 		}, nil)
 
 		ctx := context.Background()
-		err := SubmitExpertModeVolumeRename(ctx, request, params, "test-jwt-token", mockLogger)
+		err := SubmitExpertModeVolumeRename(ctx, request, params, "test-jwt-token", logger)
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "volume not found: Volume not found")
