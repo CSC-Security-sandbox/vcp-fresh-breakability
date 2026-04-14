@@ -27,6 +27,12 @@ type BatchSnapshotV1beta struct {
 	// Description of the snapshot
 	Description *string `json:"description,omitempty"`
 
+	// isAppConsistent
+	//
+	// Whether the snapshot is application-consistent
+	// Read Only: true
+	IsAppConsistent *bool `json:"isAppConsistent,omitempty"`
+
 	// A human readable label for the resource
 	// Max Length: 255
 	ResourceID *string `json:"resourceId,omitempty"`
@@ -46,12 +52,6 @@ type BatchSnapshotV1beta struct {
 	// Details about the current lifecycle state
 	SnapshotStateDetails *string `json:"snapshotStateDetails,omitempty"`
 
-	// storageClass
-	//
-	// Storage class of the volume, either software or hardware
-	// Read Only: true
-	StorageClass string `json:"storageClass,omitempty"`
-
 	// usedBytes
 	//
 	// Current storage usage for the snapshot in bytes
@@ -65,15 +65,6 @@ type BatchSnapshotV1beta struct {
 	// Min Length: 36
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
 	VolumeID *string `json:"volumeId,omitempty"`
-
-	// A human readable label for the volume resource
-	// Max Length: 255
-	VolumeResourceID *string `json:"volumeResourceId,omitempty"`
-
-	// zone
-	//
-	// The name of the zone in which the snapshot is present
-	Zone *string `json:"zone,omitempty"`
 }
 
 // Validate validates this batch snapshot v1beta
@@ -101,10 +92,6 @@ func (m *BatchSnapshotV1beta) Validate(formats strfmt.Registry) error {
 	}
 
 	if err := m.validateVolumeID(formats); err != nil {
-		res = append(res, err)
-	}
-
-	if err := m.validateVolumeResourceID(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -253,19 +240,6 @@ func (m *BatchSnapshotV1beta) validateVolumeID(formats strfmt.Registry) error {
 	}
 
 	if err := validate.Pattern("volumeId", "body", string(*m.VolumeID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *BatchSnapshotV1beta) validateVolumeResourceID(formats strfmt.Registry) error {
-
-	if swag.IsZero(m.VolumeResourceID) { // not required
-		return nil
-	}
-
-	if err := validate.MaxLength("volumeResourceId", "body", string(*m.VolumeResourceID), 255); err != nil {
 		return err
 	}
 

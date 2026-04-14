@@ -151,27 +151,13 @@ func fetchBatchPoolsFromCVP(
 	params gcpgenserver.V1betaBatchListPoolsParams,
 	fieldSet map[string]bool,
 ) ([]gcpgenserver.BatchPoolV1beta, error) {
-	logger := util.GetLogger(ctx)
-	jwtToken := utils.GetJWTTokenFromContext(ctx)
-	cvpClient := createClient(logger, jwtToken)
-
-	var fields []string
-	for _, f := range params.Fields {
-		fields = append(fields, string(f))
-	}
+	cvpClient := cvpClientFromContext(ctx)
 
 	cvpParams := cvpBatch.NewV1betaBatchListPoolsParamsWithContext(ctx)
-	cvpParams.SetLocationID(params.LocationId)
 	cvpParams.SetBody(&cvpmodels.PoolIDListV1beta{
 		PoolUUIDs: poolUUIDs,
 	})
-	if len(fields) > 0 {
-		cvpParams.SetFields(fields)
-	}
-	if params.XCorrelationID.IsSet() {
-		correlationID := params.XCorrelationID.Value
-		cvpParams.SetXCorrelationID(&correlationID)
-	}
+	applyBatchCvpListCommonParams(cvpParams, params.LocationId, batchListFieldStrings(params.Fields), params.XCorrelationID)
 
 	cviResponse, err := cvpClient.Batch.V1betaBatchListPools(cvpParams)
 	if err != nil {

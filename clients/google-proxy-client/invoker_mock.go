@@ -439,6 +439,66 @@ func (_c *MockInvoker_V1betaBatchListPools_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
+// V1betaBatchListSnapshots provides a mock function with given fields: ctx, request, params
+func (_m *MockInvoker) V1betaBatchListSnapshots(ctx context.Context, request *BatchSnapshotUUIDListV1beta, params V1betaBatchListSnapshotsParams) (V1betaBatchListSnapshotsRes, error) {
+	ret := _m.Called(ctx, request, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaBatchListSnapshots")
+	}
+
+	var r0 V1betaBatchListSnapshotsRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *BatchSnapshotUUIDListV1beta, V1betaBatchListSnapshotsParams) (V1betaBatchListSnapshotsRes, error)); ok {
+		return rf(ctx, request, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *BatchSnapshotUUIDListV1beta, V1betaBatchListSnapshotsParams) V1betaBatchListSnapshotsRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaBatchListSnapshotsRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *BatchSnapshotUUIDListV1beta, V1betaBatchListSnapshotsParams) error); ok {
+		r1 = rf(ctx, request, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1betaBatchListSnapshots_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaBatchListSnapshots'
+type MockInvoker_V1betaBatchListSnapshots_Call struct {
+	*mock.Call
+}
+
+// V1betaBatchListSnapshots is a helper method to define mock.On call
+//   - ctx context.Context
+//   - request *BatchSnapshotUUIDListV1beta
+//   - params V1betaBatchListSnapshotsParams
+func (_e *MockInvoker_Expecter) V1betaBatchListSnapshots(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1betaBatchListSnapshots_Call {
+	return &MockInvoker_V1betaBatchListSnapshots_Call{Call: _e.mock.On("V1betaBatchListSnapshots", ctx, request, params)}
+}
+
+func (_c *MockInvoker_V1betaBatchListSnapshots_Call) Run(run func(ctx context.Context, request *BatchSnapshotUUIDListV1beta, params V1betaBatchListSnapshotsParams)) *MockInvoker_V1betaBatchListSnapshots_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*BatchSnapshotUUIDListV1beta), args[2].(V1betaBatchListSnapshotsParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1betaBatchListSnapshots_Call) Return(_a0 V1betaBatchListSnapshotsRes, _a1 error) *MockInvoker_V1betaBatchListSnapshots_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1betaBatchListSnapshots_Call) RunAndReturn(run func(context.Context, *BatchSnapshotUUIDListV1beta, V1betaBatchListSnapshotsParams) (V1betaBatchListSnapshotsRes, error)) *MockInvoker_V1betaBatchListSnapshots_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaCheckKmsConfig provides a mock function with given fields: ctx, params
 func (_m *MockInvoker) V1betaCheckKmsConfig(ctx context.Context, params V1betaCheckKmsConfigParams) (V1betaCheckKmsConfigRes, error) {
 	ret := _m.Called(ctx, params)

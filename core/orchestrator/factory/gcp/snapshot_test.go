@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/client/cluster"
 	ontapRestModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -915,9 +916,10 @@ func TestConvertDatastoreSnapshotToModel(t *testing.T) {
 				UUID:      "test-snapshot-uuid",
 				DeletedAt: nil,
 			},
-			Name:        "test_snapshot",
-			Description: "test description",
-			VolumeID:    123,
+			Name:            "test_snapshot",
+			Description:     "test description",
+			VolumeID:        123,
+			IsAppConsistent: true,
 			Volume: &datamodel.Volume{
 				BaseModel: datamodel.BaseModel{
 					UUID: "test-volume-uuid",
@@ -940,13 +942,14 @@ func TestConvertDatastoreSnapshotToModel(t *testing.T) {
 			BaseModel: models.BaseModel{
 				UUID: "test-snapshot-uuid",
 			},
-			Name:           "test_snapshot",
-			Description:    "test description",
-			VolumeUUID:     "test-volume-uuid",
-			LifeCycleState: "READY",
-			AccountName:    "test_account",
-			StorageClass:   STORAGE_CLASS_SOFTWARE,
-			SizeInBytes:    1234,
+			Name:            "test_snapshot",
+			Description:     "test description",
+			VolumeUUID:      "test-volume-uuid",
+			LifeCycleState:  "READY",
+			AccountName:     "test_account",
+			StorageClass:    STORAGE_CLASS_SOFTWARE,
+			SizeInBytes:     1234,
+			IsAppConsistent: true,
 		}
 
 		result := ConvertDatastoreSnapshotToModel(input)
@@ -954,6 +957,7 @@ func TestConvertDatastoreSnapshotToModel(t *testing.T) {
 		assert.Equal(tt, expected.Name, result.Name, "Expected result to match the expected snapshot model")
 		assert.Equal(tt, expected.SizeInBytes, result.SizeInBytes, "Expected result to match the expected snapshot model")
 		assert.Equal(tt, expected.StorageClass, result.StorageClass, "Expected result to match the expected snapshot model")
+		assert.Equal(tt, expected.IsAppConsistent, result.IsAppConsistent)
 	})
 }
 
@@ -1510,6 +1514,46 @@ func TestListSnapshots(t *testing.T) {
 		names := []string{snaps[0].Name, snaps[1].Name}
 		assert.Contains(tt, names, "snap1")
 		assert.Contains(tt, names, "snap2")
+	})
+}
+
+func TestGCPOrchestrator_GetSnapshotsByUUIDs(t *testing.T) {
+	t.Run("success_converts_models", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		vol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Name:      "vol-name",
+		}
+		ds := &datamodel.Snapshot{
+			BaseModel:          datamodel.BaseModel{UUID: "snap-1"},
+			Name:               "snap-name",
+			Description:        "d",
+			State:              models.LifeCycleStateREADY,
+			StateDetails:       "sd",
+			Volume:             vol,
+			SnapshotAttributes: &datamodel.SnapshotAttributes{SizeInBytes: 10},
+		}
+		mockStorage.EXPECT().BatchGetSnapshotsByUUIDs(ctx, []string{"snap-1"}).Return([]*datamodel.Snapshot{ds}, nil)
+
+		orch := GCPOrchestrator{storage: mockStorage}
+		out, err := orch.GetSnapshotsByUUIDs(ctx, []string{"snap-1"})
+		require.NoError(tt, err)
+		require.Len(tt, out, 1)
+		assert.Equal(tt, "snap-1", out[0].UUID)
+		assert.Equal(tt, "vol-uuid", out[0].VolumeUUID)
+		assert.Equal(tt, "vol-name", out[0].VolumeName)
+	})
+
+	t.Run("storage_error", func(tt *testing.T) {
+		ctx := context.Background()
+		mockStorage := database.NewMockStorage(tt)
+		mockStorage.EXPECT().BatchGetSnapshotsByUUIDs(ctx, []string{"x"}).Return(nil, errors.New("db"))
+
+		orch := GCPOrchestrator{storage: mockStorage}
+		out, err := orch.GetSnapshotsByUUIDs(ctx, []string{"x"})
+		assert.Error(tt, err)
+		assert.Nil(tt, out)
 	})
 }
 

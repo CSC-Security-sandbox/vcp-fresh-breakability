@@ -288,6 +288,18 @@ func _listSnapshots(ctx context.Context, se database.Storage, params *common.Lis
 	return snapshotsToReturn, nil
 }
 
+func (o *GCPOrchestrator) GetSnapshotsByUUIDs(ctx context.Context, snapshotUUIDs []string) ([]*models.Snapshot, error) {
+	dbSnaps, err := o.storage.BatchGetSnapshotsByUUIDs(ctx, snapshotUUIDs)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*models.Snapshot, len(dbSnaps))
+	for i, s := range dbSnaps {
+		out[i] = ConvertDatastoreSnapshotToModel(s)
+	}
+	return out, nil
+}
+
 func (o *GCPOrchestrator) GetMultipleSnapshots(ctx context.Context, volumeUuid string, accountName string, snapshotUUIDs []string) ([]*models.Snapshot, error) {
 	se := o.storage
 
@@ -566,6 +578,7 @@ func _convertDatastoreSnapshotToModel(snapshot *datamodel.Snapshot) *models.Snap
 		VolumeName:            snapshot.Volume.Name,
 		SizeInBytes:           uint64(snapshot.SnapshotAttributes.SizeInBytes),
 		StorageClass:          STORAGE_CLASS_SOFTWARE,
+		IsAppConsistent:       snapshot.IsAppConsistent,
 	}
 	return res
 }

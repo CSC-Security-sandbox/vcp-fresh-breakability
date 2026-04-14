@@ -13,6 +13,7 @@ type Snapshot struct {
 	LifeCycleState        string
 	LifeCycleStateDetails string
 	StorageClass          string
+	IsAppConsistent       bool
 }
 
 type SnapshotPolicy struct {

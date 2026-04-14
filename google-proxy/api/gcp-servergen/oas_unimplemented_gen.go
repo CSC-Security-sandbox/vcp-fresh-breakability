@@ -80,6 +80,15 @@ func (UnimplementedHandler) V1betaBatchListPools(ctx context.Context, req *Batch
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaBatchListSnapshots implements v1beta_batchListSnapshots operation.
+//
+// Batch list all snapshots with the given UUIDs across all accounts.
+//
+// POST /v1beta/locations/{locationId}/batch/snapshots
+func (UnimplementedHandler) V1betaBatchListSnapshots(ctx context.Context, req *BatchSnapshotUUIDListV1beta, params V1betaBatchListSnapshotsParams) (r V1betaBatchListSnapshotsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaCheckKmsConfig implements v1beta_checkKmsConfig operation.
 //
 // Verifies whether service account can access the configured key.

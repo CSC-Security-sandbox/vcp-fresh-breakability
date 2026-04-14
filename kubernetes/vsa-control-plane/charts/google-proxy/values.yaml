@@ -79,6 +79,7 @@ jwkKidsUrl: "https://www.googleapis.com/service_accounts/v1/metadata/x509/"
 workflowGlobalTimeoutMinutes: "60" # Global timeout for workflows in minutes
 maxHostsPerHostgroup: "128"
 maxBatchPoolUUIDs: "1000"
+maxBatchSnapshotUUIDs: "1000"
 maxBatchActiveDirectoryUUIDs: "1000"
 cmekWorkflowGlobalTimeoutMinutes: "14" # Global timeout for CMEK workflows in minutes
 cmekGlobalProjectId: ""

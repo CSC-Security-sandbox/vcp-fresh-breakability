@@ -64,6 +64,16 @@ type V1betaBatchListPoolsParams struct {
 	Fields []V1betaBatchListPoolsFieldsItem
 }
 
+// V1betaBatchListSnapshotsParams is parameters of v1beta_batchListSnapshots operation.
+type V1betaBatchListSnapshotsParams struct {
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+	// Specify the fields to return.
+	Fields []V1betaBatchListSnapshotsFieldsItem
+}
+
 // V1betaCheckKmsConfigParams is parameters of v1beta_checkKmsConfig operation.
 type V1betaCheckKmsConfigParams struct {
 	// The project number of the GCP project owning the resource being acted upon.

@@ -31,6 +31,10 @@ func (o *OCIOrchestrator) GetPoolsByUUIDs(ctx context.Context, poolUUIDs []strin
 	return nil, utilserrors.NewNotImplementedYetErr()
 }
 
+func (o *OCIOrchestrator) GetSnapshotsByUUIDs(ctx context.Context, snapshotUUIDs []string) ([]*models.Snapshot, error) {
+	return nil, utilserrors.NewNotImplementedYetErr()
+}
+
 func (o *OCIOrchestrator) UpdatePool(ctx context.Context, params *commonparams.UpdatePoolParams) (*models.Pool, string, error) {
 	return nil, "", utilserrors.NewNotImplementedYetErr()
 }

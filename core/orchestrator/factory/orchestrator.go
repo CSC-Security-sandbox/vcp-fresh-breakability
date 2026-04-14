@@ -22,6 +22,7 @@ type OrchestratorFactory interface {
 	DeletePool(ctx context.Context, params *commonparams.DeletePoolParams) (*models.Pool, string, error)
 	GetMultiplePools(ctx context.Context, accountName string, poolUUIDs []string) ([]*models.Pool, error)
 	GetPoolsByUUIDs(ctx context.Context, poolUUIDs []string, opts commonparams.PoolFetchOptions) ([]*models.Pool, error)
+	GetSnapshotsByUUIDs(ctx context.Context, snapshotUUIDs []string) ([]*models.Snapshot, error)
 	GetPoolByVendorID(ctx context.Context, vendorID string, accountName string) (*models.Pool, error)
 	GetPoolByName(ctx context.Context, poolName string, accountName string, queryDepth int) (*models.Pool, error)
 	ListPools(ctx context.Context, accountName string, includeDeleted bool) ([]*models.Pool, error)

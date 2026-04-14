@@ -6907,10 +6907,8 @@ paths:
               - snapshotState
               - snapshotStateDetails
               - volumeId
-              - volumeResourceId
               - usedBytes
-              - zone
-              - storageClass
+              - isAppConsistent
               - description
         - name: body
           in: body
@@ -13676,13 +13674,6 @@ definitions:
         maxLength: 36
         minLength: 36
         example: 9760acf5-4638-11e7-9bdb-020073ca0001
-      volumeResourceId:
-        type: string
-        x-omitempty: true
-        x-nullable: true
-        description: A human readable label for the volume resource
-        maxLength: 255
-        example: volume
       usedBytes:
         title: usedBytes
         type: number
@@ -13693,20 +13684,13 @@ definitions:
         minimum: 0.0
         default: 0.0
         example: 101010.0
-      zone:
-        title: zone
-        type: string
-        x-omitempty: true
-        x-nullable: true
-        description: The name of the zone in which the snapshot is present
-        example: us-east4-a
-      storageClass:
-        title: storageClass
-        type: string
+      isAppConsistent:
+        title: isAppConsistent
+        type: boolean
         x-omitempty: true
         readOnly: true
-        description: Storage class of the volume, either software or hardware
-        example: HARDWARE
+        description: Whether the snapshot is application-consistent
+        example: false
       description:
         type: string
         x-omitempty: true

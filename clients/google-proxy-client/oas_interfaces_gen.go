@@ -29,6 +29,10 @@ type V1betaBatchListPoolsRes interface {
 	v1betaBatchListPoolsRes()
 }
 
+type V1betaBatchListSnapshotsRes interface {
+	v1betaBatchListSnapshotsRes()
+}
+
 type V1betaCheckKmsConfigRes interface {
 	v1betaCheckKmsConfigRes()
 }

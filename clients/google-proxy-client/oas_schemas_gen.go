@@ -5866,6 +5866,225 @@ func (s *BatchPoolV1betaType) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/BatchSnapshotUUIDList_v1beta
+type BatchSnapshotUUIDListV1beta struct {
+	// List of snapshot UUIDs to return.
+	SnapshotUUIDs []string `json:"snapshotUUIDs"`
+}
+
+// GetSnapshotUUIDs returns the value of SnapshotUUIDs.
+func (s *BatchSnapshotUUIDListV1beta) GetSnapshotUUIDs() []string {
+	return s.SnapshotUUIDs
+}
+
+// SetSnapshotUUIDs sets the value of SnapshotUUIDs.
+func (s *BatchSnapshotUUIDListV1beta) SetSnapshotUUIDs(val []string) {
+	s.SnapshotUUIDs = val
+}
+
+// Ref: #/components/schemas/BatchSnapshot_v1beta
+type BatchSnapshotV1beta struct {
+	// UUID v4 used to identify the snapshot.
+	SnapshotId OptString `json:"snapshotId"`
+	// Creation date of the resource.
+	Created OptDateTime `json:"created"`
+	// A human readable label for the resource.
+	ResourceId OptString `json:"resourceId"`
+	// The current lifecycle state of the snapshot.
+	SnapshotState OptBatchSnapshotV1betaSnapshotState `json:"snapshotState"`
+	// Details about the current lifecycle state.
+	SnapshotStateDetails OptString `json:"snapshotStateDetails"`
+	// UUID v4 of the volume.
+	VolumeId OptString `json:"volumeId"`
+	// Current storage usage for the snapshot in bytes.
+	UsedBytes OptFloat64 `json:"usedBytes"`
+	// Whether the snapshot is application-consistent.
+	IsAppConsistent OptBool `json:"isAppConsistent"`
+	// Description of the snapshot.
+	Description OptString `json:"description"`
+}
+
+// GetSnapshotId returns the value of SnapshotId.
+func (s *BatchSnapshotV1beta) GetSnapshotId() OptString {
+	return s.SnapshotId
+}
+
+// GetCreated returns the value of Created.
+func (s *BatchSnapshotV1beta) GetCreated() OptDateTime {
+	return s.Created
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *BatchSnapshotV1beta) GetResourceId() OptString {
+	return s.ResourceId
+}
+
+// GetSnapshotState returns the value of SnapshotState.
+func (s *BatchSnapshotV1beta) GetSnapshotState() OptBatchSnapshotV1betaSnapshotState {
+	return s.SnapshotState
+}
+
+// GetSnapshotStateDetails returns the value of SnapshotStateDetails.
+func (s *BatchSnapshotV1beta) GetSnapshotStateDetails() OptString {
+	return s.SnapshotStateDetails
+}
+
+// GetVolumeId returns the value of VolumeId.
+func (s *BatchSnapshotV1beta) GetVolumeId() OptString {
+	return s.VolumeId
+}
+
+// GetUsedBytes returns the value of UsedBytes.
+func (s *BatchSnapshotV1beta) GetUsedBytes() OptFloat64 {
+	return s.UsedBytes
+}
+
+// GetIsAppConsistent returns the value of IsAppConsistent.
+func (s *BatchSnapshotV1beta) GetIsAppConsistent() OptBool {
+	return s.IsAppConsistent
+}
+
+// GetDescription returns the value of Description.
+func (s *BatchSnapshotV1beta) GetDescription() OptString {
+	return s.Description
+}
+
+// SetSnapshotId sets the value of SnapshotId.
+func (s *BatchSnapshotV1beta) SetSnapshotId(val OptString) {
+	s.SnapshotId = val
+}
+
+// SetCreated sets the value of Created.
+func (s *BatchSnapshotV1beta) SetCreated(val OptDateTime) {
+	s.Created = val
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *BatchSnapshotV1beta) SetResourceId(val OptString) {
+	s.ResourceId = val
+}
+
+// SetSnapshotState sets the value of SnapshotState.
+func (s *BatchSnapshotV1beta) SetSnapshotState(val OptBatchSnapshotV1betaSnapshotState) {
+	s.SnapshotState = val
+}
+
+// SetSnapshotStateDetails sets the value of SnapshotStateDetails.
+func (s *BatchSnapshotV1beta) SetSnapshotStateDetails(val OptString) {
+	s.SnapshotStateDetails = val
+}
+
+// SetVolumeId sets the value of VolumeId.
+func (s *BatchSnapshotV1beta) SetVolumeId(val OptString) {
+	s.VolumeId = val
+}
+
+// SetUsedBytes sets the value of UsedBytes.
+func (s *BatchSnapshotV1beta) SetUsedBytes(val OptFloat64) {
+	s.UsedBytes = val
+}
+
+// SetIsAppConsistent sets the value of IsAppConsistent.
+func (s *BatchSnapshotV1beta) SetIsAppConsistent(val OptBool) {
+	s.IsAppConsistent = val
+}
+
+// SetDescription sets the value of Description.
+func (s *BatchSnapshotV1beta) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// The current lifecycle state of the snapshot.
+type BatchSnapshotV1betaSnapshotState string
+
+const (
+	BatchSnapshotV1betaSnapshotStateSTATEUNSPECIFIED BatchSnapshotV1betaSnapshotState = "STATE_UNSPECIFIED"
+	BatchSnapshotV1betaSnapshotStateCREATING         BatchSnapshotV1betaSnapshotState = "CREATING"
+	BatchSnapshotV1betaSnapshotStateREADY            BatchSnapshotV1betaSnapshotState = "READY"
+	BatchSnapshotV1betaSnapshotStateUPDATING         BatchSnapshotV1betaSnapshotState = "UPDATING"
+	BatchSnapshotV1betaSnapshotStateRESTORING        BatchSnapshotV1betaSnapshotState = "RESTORING"
+	BatchSnapshotV1betaSnapshotStateDELETED          BatchSnapshotV1betaSnapshotState = "DELETED"
+	BatchSnapshotV1betaSnapshotStateDISABLED         BatchSnapshotV1betaSnapshotState = "DISABLED"
+	BatchSnapshotV1betaSnapshotStateDELETING         BatchSnapshotV1betaSnapshotState = "DELETING"
+	BatchSnapshotV1betaSnapshotStateERROR            BatchSnapshotV1betaSnapshotState = "ERROR"
+)
+
+// AllValues returns all BatchSnapshotV1betaSnapshotState values.
+func (BatchSnapshotV1betaSnapshotState) AllValues() []BatchSnapshotV1betaSnapshotState {
+	return []BatchSnapshotV1betaSnapshotState{
+		BatchSnapshotV1betaSnapshotStateSTATEUNSPECIFIED,
+		BatchSnapshotV1betaSnapshotStateCREATING,
+		BatchSnapshotV1betaSnapshotStateREADY,
+		BatchSnapshotV1betaSnapshotStateUPDATING,
+		BatchSnapshotV1betaSnapshotStateRESTORING,
+		BatchSnapshotV1betaSnapshotStateDELETED,
+		BatchSnapshotV1betaSnapshotStateDISABLED,
+		BatchSnapshotV1betaSnapshotStateDELETING,
+		BatchSnapshotV1betaSnapshotStateERROR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchSnapshotV1betaSnapshotState) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchSnapshotV1betaSnapshotStateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case BatchSnapshotV1betaSnapshotStateCREATING:
+		return []byte(s), nil
+	case BatchSnapshotV1betaSnapshotStateREADY:
+		return []byte(s), nil
+	case BatchSnapshotV1betaSnapshotStateUPDATING:
+		return []byte(s), nil
+	case BatchSnapshotV1betaSnapshotStateRESTORING:
+		return []byte(s), nil
+	case BatchSnapshotV1betaSnapshotStateDELETED:
+		return []byte(s), nil
+	case BatchSnapshotV1betaSnapshotStateDISABLED:
+		return []byte(s), nil
+	case BatchSnapshotV1betaSnapshotStateDELETING:
+		return []byte(s), nil
+	case BatchSnapshotV1betaSnapshotStateERROR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchSnapshotV1betaSnapshotState) UnmarshalText(data []byte) error {
+	switch BatchSnapshotV1betaSnapshotState(data) {
+	case BatchSnapshotV1betaSnapshotStateSTATEUNSPECIFIED:
+		*s = BatchSnapshotV1betaSnapshotStateSTATEUNSPECIFIED
+		return nil
+	case BatchSnapshotV1betaSnapshotStateCREATING:
+		*s = BatchSnapshotV1betaSnapshotStateCREATING
+		return nil
+	case BatchSnapshotV1betaSnapshotStateREADY:
+		*s = BatchSnapshotV1betaSnapshotStateREADY
+		return nil
+	case BatchSnapshotV1betaSnapshotStateUPDATING:
+		*s = BatchSnapshotV1betaSnapshotStateUPDATING
+		return nil
+	case BatchSnapshotV1betaSnapshotStateRESTORING:
+		*s = BatchSnapshotV1betaSnapshotStateRESTORING
+		return nil
+	case BatchSnapshotV1betaSnapshotStateDELETED:
+		*s = BatchSnapshotV1betaSnapshotStateDELETED
+		return nil
+	case BatchSnapshotV1betaSnapshotStateDISABLED:
+		*s = BatchSnapshotV1betaSnapshotStateDISABLED
+		return nil
+	case BatchSnapshotV1betaSnapshotStateDELETING:
+		*s = BatchSnapshotV1betaSnapshotStateDELETING
+		return nil
+	case BatchSnapshotV1betaSnapshotStateERROR:
+		*s = BatchSnapshotV1betaSnapshotStateERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/BlockDevice_v1beta
 type BlockDeviceV1beta struct {
 	// User-defined name for the block device, unique within the Volume. In case no user input is provide
@@ -11542,6 +11761,52 @@ func (o OptBackupVaultV1betaState) Get() (v BackupVaultV1betaState, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptBackupVaultV1betaState) Or(d BackupVaultV1betaState) BackupVaultV1betaState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBatchSnapshotV1betaSnapshotState returns new OptBatchSnapshotV1betaSnapshotState with value set to v.
+func NewOptBatchSnapshotV1betaSnapshotState(v BatchSnapshotV1betaSnapshotState) OptBatchSnapshotV1betaSnapshotState {
+	return OptBatchSnapshotV1betaSnapshotState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBatchSnapshotV1betaSnapshotState is optional BatchSnapshotV1betaSnapshotState.
+type OptBatchSnapshotV1betaSnapshotState struct {
+	Value BatchSnapshotV1betaSnapshotState
+	Set   bool
+}
+
+// IsSet returns true if OptBatchSnapshotV1betaSnapshotState was set.
+func (o OptBatchSnapshotV1betaSnapshotState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBatchSnapshotV1betaSnapshotState) Reset() {
+	var v BatchSnapshotV1betaSnapshotState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBatchSnapshotV1betaSnapshotState) SetTo(v BatchSnapshotV1betaSnapshotState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBatchSnapshotV1betaSnapshotState) Get() (v BatchSnapshotV1betaSnapshotState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBatchSnapshotV1betaSnapshotState) Or(d BatchSnapshotV1betaSnapshotState) BatchSnapshotV1betaSnapshotState {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -24539,6 +24804,121 @@ func (*V1betaBatchListPoolsOK) v1betaBatchListPoolsRes() {}
 type V1betaBatchListPoolsUnauthorized Error
 
 func (*V1betaBatchListPoolsUnauthorized) v1betaBatchListPoolsRes() {}
+
+type V1betaBatchListSnapshotsBadRequest Error
+
+func (*V1betaBatchListSnapshotsBadRequest) v1betaBatchListSnapshotsRes() {}
+
+type V1betaBatchListSnapshotsFieldsItem string
+
+const (
+	V1betaBatchListSnapshotsFieldsItemCreated              V1betaBatchListSnapshotsFieldsItem = "created"
+	V1betaBatchListSnapshotsFieldsItemResourceId           V1betaBatchListSnapshotsFieldsItem = "resourceId"
+	V1betaBatchListSnapshotsFieldsItemSnapshotState        V1betaBatchListSnapshotsFieldsItem = "snapshotState"
+	V1betaBatchListSnapshotsFieldsItemSnapshotStateDetails V1betaBatchListSnapshotsFieldsItem = "snapshotStateDetails"
+	V1betaBatchListSnapshotsFieldsItemVolumeId             V1betaBatchListSnapshotsFieldsItem = "volumeId"
+	V1betaBatchListSnapshotsFieldsItemUsedBytes            V1betaBatchListSnapshotsFieldsItem = "usedBytes"
+	V1betaBatchListSnapshotsFieldsItemIsAppConsistent      V1betaBatchListSnapshotsFieldsItem = "isAppConsistent"
+	V1betaBatchListSnapshotsFieldsItemDescription          V1betaBatchListSnapshotsFieldsItem = "description"
+)
+
+// AllValues returns all V1betaBatchListSnapshotsFieldsItem values.
+func (V1betaBatchListSnapshotsFieldsItem) AllValues() []V1betaBatchListSnapshotsFieldsItem {
+	return []V1betaBatchListSnapshotsFieldsItem{
+		V1betaBatchListSnapshotsFieldsItemCreated,
+		V1betaBatchListSnapshotsFieldsItemResourceId,
+		V1betaBatchListSnapshotsFieldsItemSnapshotState,
+		V1betaBatchListSnapshotsFieldsItemSnapshotStateDetails,
+		V1betaBatchListSnapshotsFieldsItemVolumeId,
+		V1betaBatchListSnapshotsFieldsItemUsedBytes,
+		V1betaBatchListSnapshotsFieldsItemIsAppConsistent,
+		V1betaBatchListSnapshotsFieldsItemDescription,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s V1betaBatchListSnapshotsFieldsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case V1betaBatchListSnapshotsFieldsItemCreated:
+		return []byte(s), nil
+	case V1betaBatchListSnapshotsFieldsItemResourceId:
+		return []byte(s), nil
+	case V1betaBatchListSnapshotsFieldsItemSnapshotState:
+		return []byte(s), nil
+	case V1betaBatchListSnapshotsFieldsItemSnapshotStateDetails:
+		return []byte(s), nil
+	case V1betaBatchListSnapshotsFieldsItemVolumeId:
+		return []byte(s), nil
+	case V1betaBatchListSnapshotsFieldsItemUsedBytes:
+		return []byte(s), nil
+	case V1betaBatchListSnapshotsFieldsItemIsAppConsistent:
+		return []byte(s), nil
+	case V1betaBatchListSnapshotsFieldsItemDescription:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *V1betaBatchListSnapshotsFieldsItem) UnmarshalText(data []byte) error {
+	switch V1betaBatchListSnapshotsFieldsItem(data) {
+	case V1betaBatchListSnapshotsFieldsItemCreated:
+		*s = V1betaBatchListSnapshotsFieldsItemCreated
+		return nil
+	case V1betaBatchListSnapshotsFieldsItemResourceId:
+		*s = V1betaBatchListSnapshotsFieldsItemResourceId
+		return nil
+	case V1betaBatchListSnapshotsFieldsItemSnapshotState:
+		*s = V1betaBatchListSnapshotsFieldsItemSnapshotState
+		return nil
+	case V1betaBatchListSnapshotsFieldsItemSnapshotStateDetails:
+		*s = V1betaBatchListSnapshotsFieldsItemSnapshotStateDetails
+		return nil
+	case V1betaBatchListSnapshotsFieldsItemVolumeId:
+		*s = V1betaBatchListSnapshotsFieldsItemVolumeId
+		return nil
+	case V1betaBatchListSnapshotsFieldsItemUsedBytes:
+		*s = V1betaBatchListSnapshotsFieldsItemUsedBytes
+		return nil
+	case V1betaBatchListSnapshotsFieldsItemIsAppConsistent:
+		*s = V1betaBatchListSnapshotsFieldsItemIsAppConsistent
+		return nil
+	case V1betaBatchListSnapshotsFieldsItemDescription:
+		*s = V1betaBatchListSnapshotsFieldsItemDescription
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type V1betaBatchListSnapshotsForbidden Error
+
+func (*V1betaBatchListSnapshotsForbidden) v1betaBatchListSnapshotsRes() {}
+
+type V1betaBatchListSnapshotsInternalServerError Error
+
+func (*V1betaBatchListSnapshotsInternalServerError) v1betaBatchListSnapshotsRes() {}
+
+type V1betaBatchListSnapshotsOK struct {
+	Snapshots []BatchSnapshotV1beta `json:"snapshots"`
+}
+
+// GetSnapshots returns the value of Snapshots.
+func (s *V1betaBatchListSnapshotsOK) GetSnapshots() []BatchSnapshotV1beta {
+	return s.Snapshots
+}
+
+// SetSnapshots sets the value of Snapshots.
+func (s *V1betaBatchListSnapshotsOK) SetSnapshots(val []BatchSnapshotV1beta) {
+	s.Snapshots = val
+}
+
+func (*V1betaBatchListSnapshotsOK) v1betaBatchListSnapshotsRes() {}
+
+type V1betaBatchListSnapshotsUnauthorized Error
+
+func (*V1betaBatchListSnapshotsUnauthorized) v1betaBatchListSnapshotsRes() {}
 
 type V1betaCheckKmsConfigBadRequest Error
 

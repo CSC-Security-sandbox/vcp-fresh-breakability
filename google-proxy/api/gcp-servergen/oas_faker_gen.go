@@ -2106,6 +2106,76 @@ func (s *BatchPoolV1betaType) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *BatchSnapshotUUIDListV1beta) SetFake() {
+	{
+		{
+			s.SnapshotUUIDs = nil
+			for i := 0; i < 1; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.SnapshotUUIDs = append(s.SnapshotUUIDs, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BatchSnapshotV1beta) SetFake() {
+	{
+		{
+			s.SnapshotId.SetFake()
+		}
+	}
+	{
+		{
+			s.Created.SetFake()
+		}
+	}
+	{
+		{
+			s.ResourceId.SetFake()
+		}
+	}
+	{
+		{
+			s.SnapshotState.SetFake()
+		}
+	}
+	{
+		{
+			s.SnapshotStateDetails.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeId.SetFake()
+		}
+	}
+	{
+		{
+			s.UsedBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.IsAppConsistent.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BatchSnapshotV1betaSnapshotState) SetFake() {
+	*s = BatchSnapshotV1betaSnapshotStateSTATEUNSPECIFIED
+}
+
+// SetFake set fake values.
 func (s *BlockDeviceV1beta) SetFake() {
 	{
 		{
@@ -3962,6 +4032,15 @@ func (s *OptBackupVaultV1betaEncryptionState) SetFake() {
 // SetFake set fake values.
 func (s *OptBackupVaultV1betaState) SetFake() {
 	var elem BackupVaultV1betaState
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptBatchSnapshotV1betaSnapshotState) SetFake() {
+	var elem BatchSnapshotV1betaSnapshotState
 	{
 		elem.SetFake()
 	}
@@ -7014,6 +7093,58 @@ func (s *V1betaBatchListPoolsUnauthorized) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaBatchListPoolsUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListSnapshotsBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListSnapshotsBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListSnapshotsForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListSnapshotsForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListSnapshotsInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListSnapshotsInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListSnapshotsOK) SetFake() {
+	{
+		{
+			s.Snapshots = nil
+			for i := 0; i < 0; i++ {
+				var elem BatchSnapshotV1beta
+				{
+					elem.SetFake()
+				}
+				s.Snapshots = append(s.Snapshots, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListSnapshotsUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListSnapshotsUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.

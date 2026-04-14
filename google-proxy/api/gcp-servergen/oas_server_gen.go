@@ -54,6 +54,12 @@ type Handler interface {
 	//
 	// POST /v1beta/locations/{locationId}/batch/pools
 	V1betaBatchListPools(ctx context.Context, req *BatchPoolUUIDListV1beta, params V1betaBatchListPoolsParams) (V1betaBatchListPoolsRes, error)
+	// V1betaBatchListSnapshots implements v1beta_batchListSnapshots operation.
+	//
+	// Batch list all snapshots with the given UUIDs across all accounts.
+	//
+	// POST /v1beta/locations/{locationId}/batch/snapshots
+	V1betaBatchListSnapshots(ctx context.Context, req *BatchSnapshotUUIDListV1beta, params V1betaBatchListSnapshotsParams) (V1betaBatchListSnapshotsRes, error)
 	// V1betaCheckKmsConfig implements v1beta_checkKmsConfig operation.
 	//
 	// Verifies whether service account can access the configured key.
