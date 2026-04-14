@@ -290,7 +290,8 @@ workerConfig:
   maxAppConsistentSnapshotCount: "10" # Maximum number of app-consistent snapshots allowed per volume
   revertVolumeWorkflowTimeoutMinutes: "95" # Revert volume workflow run timeout in minutes
   volumeRefreshWorkflowTimeoutMinutes: "20" # Volume refresh workflow run timeout in minutes
-  splitVolumeWorkflowTimeoutMinutes: "70" # Split volume workflow run timeout in minutes
+  splitVolumeWorkflowTimeoutMinutes: "120" # Split volume workflow run timeout in minutes
+  splitVolumeRunContinueAsNewMinutes: "60" # Duration after which split volume workflow will run continue-as-new to avoid hitting workflow history size limit
   workflowGlobalTimeoutForReplicationMinutes: 20
   cmekGlobalProjectId: ""
   # Default cancellation timeouts

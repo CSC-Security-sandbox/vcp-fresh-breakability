@@ -170,6 +170,7 @@ data:
   REVERT_VOLUME_WORKFLOW_TIMEOUT_MINUTES: {{$.Values.workerConfig.revertVolumeWorkflowTimeoutMinutes | quote }}
   VOLUME_REFRESH_WORKFLOW_TIMEOUT_MINUTES: {{$.Values.workerConfig.volumeRefreshWorkflowTimeoutMinutes | quote }}
   SPLIT_VOLUME_WORKFLOW_TIMEOUT_MINUTES: {{$.Values.workerConfig.splitVolumeWorkflowTimeoutMinutes | quote }}
+  SPLIT_VOLUME_RUN_CONTINUE_AS_NEW_MINUTES: {{$.Values.workerConfig.splitVolumeRunContinueAsNewMinutes | quote }}
   CMEK_ROTATION_PAGE_SIZE: {{$.Values.workerConfig.cmekRotationPageSize | quote }}
   CMEK_ROTATION_MAX_WORKERS: {{$.Values.workerConfig.cmekRotationMaxWorkers | quote }}
   MAX_CMEK_ROTATION_PASSES: {{$.Values.workerConfig.cmekRotationMaxPasses | quote }}

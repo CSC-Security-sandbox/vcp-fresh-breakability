@@ -23,7 +23,8 @@ var (
 	DeleteSnapshotWorkflowTimeoutMinutes = env.GetString("DELETE_SNAPSHOT_WORKFLOW_TIMEOUT_MINUTES", "65")
 	RevertVolumeWorkflowTimeoutMinutes   = env.GetString("REVERT_VOLUME_WORKFLOW_TIMEOUT_MINUTES", "95")
 	VolumeRefreshWorkflowTimeoutMinutes  = env.GetString("VOLUME_REFRESH_WORKFLOW_TIMEOUT_MINUTES", "20")
-	SplitVolumeWorkflowTimeoutMinutes    = env.GetString("SPLIT_VOLUME_WORKFLOW_TIMEOUT_MINUTES", "70")
+	SplitVolumeWorkflowTimeoutMinutes    = env.GetString("SPLIT_VOLUME_WORKFLOW_TIMEOUT_MINUTES", "120")
+	SplitVolumeRunContinueAsNewMinutes   = env.GetString("SPLIT_VOLUME_RUN_CONTINUE_AS_NEW_MINUTES", "60")
 )
 
 // Struct for RetryPolicy configuration
@@ -175,5 +176,16 @@ func GetVolumeRefreshWorkflowTimeout() *time.Duration {
 }
 
 func GetSplitVolumeWorkflowTimeout() *time.Duration {
-	return getWorkflowTimeoutWithDefault(SplitVolumeWorkflowTimeoutMinutes, 70)
+	return getWorkflowTimeoutWithDefault(SplitVolumeWorkflowTimeoutMinutes, 120)
+}
+
+// GetSplitVolumeRunContinueAsNewDuration returns how long a single split workflow run
+// may poll before triggering ContinueAsNew. This must be less than
+// SplitVolumeWorkflowTimeoutMinutes so the run always restarts before Temporal kills it.
+func GetSplitVolumeRunContinueAsNewDuration() time.Duration {
+	d, err := time.ParseDuration(SplitVolumeRunContinueAsNewMinutes + "m")
+	if err != nil {
+		return 60 * time.Minute
+	}
+	return d
 }

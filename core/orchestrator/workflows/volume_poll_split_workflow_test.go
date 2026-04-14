@@ -491,7 +491,7 @@ func TestPollONTAPSplitJobInternal_FailureWithErrorCode(t *testing.T) {
 	env.ExecuteWorkflow(func(ctx workflow.Context) error {
 		ao := workflow.ActivityOptions{StartToCloseTimeout: 30 * time.Second}
 		ctx = workflow.WithActivityOptions(ctx, ao)
-		return pollONTAPSplitJobInternal(ctx, volume, node, ontapJobUUID, -1)
+		return pollONTAPSplitJobInternal(ctx, volume, node, ontapJobUUID, -1, workflow.Now(ctx))
 	})
 
 	assert.True(t, env.IsWorkflowCompleted())
@@ -527,7 +527,7 @@ func TestPollONTAPSplitJobInternal_FailureNoMessage(t *testing.T) {
 	env.ExecuteWorkflow(func(ctx workflow.Context) error {
 		ao := workflow.ActivityOptions{StartToCloseTimeout: 30 * time.Second}
 		ctx = workflow.WithActivityOptions(ctx, ao)
-		return pollONTAPSplitJobInternal(ctx, volume, node, ontapJobUUID, -1)
+		return pollONTAPSplitJobInternal(ctx, volume, node, ontapJobUUID, -1, workflow.Now(ctx))
 	})
 
 	assert.True(t, env.IsWorkflowCompleted())
@@ -567,7 +567,7 @@ func TestPollONTAPSplitJobInternal_SleepError(t *testing.T) {
 	env.ExecuteWorkflow(func(ctx workflow.Context) error {
 		ao := workflow.ActivityOptions{StartToCloseTimeout: 30 * time.Second}
 		ctx = workflow.WithActivityOptions(ctx, ao)
-		return pollONTAPSplitJobInternal(ctx, volume, node, ontapJobUUID, -1)
+		return pollONTAPSplitJobInternal(ctx, volume, node, ontapJobUUID, -1, workflow.Now(ctx))
 	})
 
 	assert.True(t, env.IsWorkflowCompleted())
@@ -593,17 +593,50 @@ func TestPollONTAPSplitJobContinueAsNew(t *testing.T) {
 	ontapJobUUID := "ontap-job-uuid-can"
 
 	// Use maxHistoryLength=0 so ContinueAsNew fires immediately (history length starts at 0).
+	// runStart = workflow.Now(ctx) so elapsed ~0 and the time-based check does not interfere.
 	env.ExecuteWorkflow(func(ctx workflow.Context) error {
 		ao := workflow.ActivityOptions{
 			StartToCloseTimeout: 30 * time.Second,
 		}
 		ctx = workflow.WithActivityOptions(ctx, ao)
-		return pollONTAPSplitJobInternal(ctx, volume, node, ontapJobUUID, 0)
+		return pollONTAPSplitJobInternal(ctx, volume, node, ontapJobUUID, 0, workflow.Now(ctx))
 	})
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.True(t, workflow.IsContinueAsNewError(env.GetWorkflowError()),
 		"expected ContinueAsNewError, got: %v", env.GetWorkflowError())
+}
+
+// TestPollONTAPSplitJobContinueAsNew_TimeBased verifies that the time-based ContinueAsNew
+// trigger fires when the run has been alive longer than the configured threshold, even when
+// the history-size check would not fire. We pass a runStart that is already 2 hours in the
+// past so that elapsed > GetSplitVolumeRunContinueAsNewDuration() on the very first loop
+// iteration, before any GetOntapJob activity is called.
+func TestPollONTAPSplitJobContinueAsNew_TimeBased(t *testing.T) {
+	var ts testsuite.WorkflowTestSuite
+	env := ts.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	env.SetHeader(&commonpb.Header{
+		Fields: map[string]*commonpb.Payload{"logParam": encodedValue},
+	})
+	env.RegisterWorkflow(VolumePollSplitWorkflow)
+
+	volume := testSplitVolume()
+	node := testSplitNode()
+	ontapJobUUID := "ontap-job-uuid-time-can"
+
+	// runStart is 2 hours before workflow.Now(ctx), so elapsed > 60m threshold immediately.
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		ao := workflow.ActivityOptions{StartToCloseTimeout: 30 * time.Second}
+		ctx = workflow.WithActivityOptions(ctx, ao)
+		pastRunStart := workflow.Now(ctx).Add(-2 * time.Hour)
+		return pollONTAPSplitJobInternal(ctx, volume, node, ontapJobUUID, -1, pastRunStart)
+	})
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.True(t, workflow.IsContinueAsNewError(env.GetWorkflowError()),
+		"expected ContinueAsNewError from time-based trigger, got: %v", env.GetWorkflowError())
 }
 
 func TestVolumePollSplitUnitTestSuite(t *testing.T) {

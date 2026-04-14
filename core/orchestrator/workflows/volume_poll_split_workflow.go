@@ -9,6 +9,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
+	workflowengine "github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/temporal"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/workflow"
@@ -177,29 +178,46 @@ func (wf *volumePollSplitWorkflow) Run(ctx workflow.Context, args ...interface{}
 	return nil, nil
 }
 
-// pollONTAPSplitJob polls the ONTAP job until it succeeds, fails, or Temporal suggests
-// ContinueAsNew. In the last case it returns a ContinueAsNewError so the caller can restart
-// the workflow with the same ontapJobUUID.
+// pollONTAPSplitJob polls the ONTAP job until it succeeds, fails, or a ContinueAsNew
+// condition is met. In the last case it returns a ContinueAsNewError so the caller can
+// restart the workflow with the same ontapJobUUID.
 func pollONTAPSplitJob(ctx workflow.Context, volume *datamodel.Volume, node *models.Node, ontapJobUUID string) error {
-	return pollONTAPSplitJobInternal(ctx, volume, node, ontapJobUUID, -1)
+	// Capture the run-start time once using workflow.Now (replay-safe) so the poll loop
+	// can trigger ContinueAsNew after a configurable elapsed duration, well before the
+	// WorkflowRunTimeout would kill the run.
+	runStart := workflow.Now(ctx)
+	return pollONTAPSplitJobInternal(ctx, volume, node, ontapJobUUID, -1, runStart)
 }
 
 // pollONTAPSplitJobInternal is the testable implementation of pollONTAPSplitJob.
+//
 // maxHistoryLength is an optional fallback threshold used in tests to trigger ContinueAsNew
-// without waiting for Temporal to set GetContinueAsNewSuggested(). Pass -1 to disable the
-// fallback and rely solely on GetContinueAsNewSuggested() (production behaviour).
-func pollONTAPSplitJobInternal(ctx workflow.Context, volume *datamodel.Volume, node *models.Node, ontapJobUUID string, maxHistoryLength int) error {
+// by history size; pass -1 to disable it (production uses the time-based trigger instead).
+//
+// runStart is the time this workflow run began (workflow.Now at run entry). ContinueAsNew
+// is triggered when the elapsed time exceeds GetSplitVolumeRunContinueAsNewDuration(),
+// ensuring every run restarts well before WorkflowRunTimeout regardless of history size.
+func pollONTAPSplitJobInternal(ctx workflow.Context, volume *datamodel.Volume, node *models.Node, ontapJobUUID string, maxHistoryLength int, runStart time.Time) error {
 	log := util.GetLogger(ctx)
+	continueAsNewAfter := workflowengine.GetSplitVolumeRunContinueAsNewDuration()
 
 	for {
-		// Check whether Temporal recommends a ContinueAsNew before each poll. This fires
-		// when the event history is approaching the server-side limit, allowing the split
-		// to run indefinitely across restarts.
 		info := workflow.GetInfo(ctx)
-		if info.GetContinueAsNewSuggested() || (maxHistoryLength >= 0 && info.GetCurrentHistoryLength() >= maxHistoryLength) {
+		elapsed := workflow.Now(ctx).Sub(runStart)
+
+		// Trigger ContinueAsNew when:
+		//   1. Temporal server recommends it (history approaching server-side limit), OR
+		//   2. This run has been alive longer than the configured threshold — ensures we
+		//      restart before WorkflowRunTimeout even for splits that complete in a single
+		//      run without ever hitting the history limit (e.g. a 120-minute split with a
+		//      70-minute run timeout would previously be killed; now it restarts at ~60m), OR
+		//   3. A test-supplied maxHistoryLength threshold is reached.
+		if info.GetContinueAsNewSuggested() ||
+			elapsed >= continueAsNewAfter ||
+			(maxHistoryLength >= 0 && info.GetCurrentHistoryLength() >= maxHistoryLength) {
 			log.Infof(
-				"ContinueAsNew suggested for split job %s on volume %s; triggering ContinueAsNew",
-				ontapJobUUID, volume.Name,
+				"ContinueAsNew triggered for split job %s on volume %s (elapsed=%s, historyLen=%d)",
+				ontapJobUUID, volume.Name, elapsed, info.GetCurrentHistoryLength(),
 			)
 			return workflow.NewContinueAsNewError(ctx, VolumePollSplitWorkflow, volume, node, ontapJobUUID)
 		}

@@ -456,7 +456,7 @@ func TestGetSplitVolumeWorkflowTimeout_InvalidEnv(t *testing.T) {
 
 	SplitVolumeWorkflowTimeoutMinutes = "invalid"
 	got := GetSplitVolumeWorkflowTimeout()
-	want := 70 * time.Minute
+	want := 120 * time.Minute
 	if got == nil {
 		t.Fatal("expected non-nil timeout, got nil")
 	}
@@ -477,5 +477,29 @@ func TestGetSplitVolumeWorkflowTimeout_ValidEnv(t *testing.T) {
 	}
 	if *got != want {
 		t.Errorf("expected %v, got %v", want, *got)
+	}
+}
+
+func TestGetSplitVolumeRunContinueAsNewDuration_InvalidEnv(t *testing.T) {
+	original := SplitVolumeRunContinueAsNewMinutes
+	defer func() { SplitVolumeRunContinueAsNewMinutes = original }()
+
+	SplitVolumeRunContinueAsNewMinutes = "invalid"
+	got := GetSplitVolumeRunContinueAsNewDuration()
+	want := 60 * time.Minute
+	if got != want {
+		t.Errorf("expected fallback %v, got %v", want, got)
+	}
+}
+
+func TestGetSplitVolumeRunContinueAsNewDuration_ValidEnv(t *testing.T) {
+	original := SplitVolumeRunContinueAsNewMinutes
+	defer func() { SplitVolumeRunContinueAsNewMinutes = original }()
+
+	SplitVolumeRunContinueAsNewMinutes = "45"
+	got := GetSplitVolumeRunContinueAsNewDuration()
+	want := 45 * time.Minute
+	if got != want {
+		t.Errorf("expected %v, got %v", want, got)
 	}
 }

@@ -55,7 +55,7 @@ func (d *DataStoreRepository) CreatingSnapshot(ctx context.Context, snapshot *da
 
 func getSnapshotWithDetails(db *gorm.DB, query *datamodel.Snapshot) (*datamodel.Snapshot, error) {
 	snapshot := &datamodel.Snapshot{}
-	db = db.Preload("Account").Preload("Volume")
+	db = db.Preload("Account").Preload("Volume").Preload("Volume.Pool")
 	err := db.First(&snapshot, query).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
