@@ -56,8 +56,9 @@ var (
 	pathTraversalCombinedPattern = regexp.MustCompile(`(?i)(\.\./|\.\.\\|\.\.%2f|\.\.%5c|%2e%2e%2f|%2e%2e%5c)`)
 
 	// Allowlist regexes (OWASP: define allowed characters; reject everything else)
-	// ontapPathValidStructure: path segments separated by /; each segment is either exactly *
-	ontapPathValidStructure     = regexp.MustCompile(`^/?(\*|[a-zA-Z0-9\-_.]+)(/(\*|[a-zA-Z0-9\-_.]+))*$`)
+	// ontapPathValidStructure: path segments separated by /; each segment is either exactly *;
+	// a single trailing / is allowed (ONTAP and clients often use directory-style URLs).
+	ontapPathValidStructure     = regexp.MustCompile(`^/?(\*|[a-zA-Z0-9\-_.]+)(/(\*|[a-zA-Z0-9\-_.]+))*/?$`)
 	queryParamNameAllowedChars  = regexp.MustCompile(`^[a-zA-Z0-9_.\-]+$`)
 	// Backslash allowed for ONTAP APIs that use Windows-style domain\group in query params (e.g. CIFS local-groups).
 	// Also allow decoded quote and ampersand for common filter/query patterns.

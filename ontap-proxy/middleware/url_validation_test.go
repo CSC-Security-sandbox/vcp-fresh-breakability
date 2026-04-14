@@ -1501,6 +1501,15 @@ func TestValidateOntapPath(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("WhenOntapPathHasTrailingSlash_ShouldPass", func(t *testing.T) {
+		err := validateOntapPath("api/storage/volumes/")
+		assert.NoError(t, err)
+		err = validateOntapPath("api/storage/volumes/c0e9addc-1787-11f1-aba9-9792a9e0f884/files/.snapshot/testGcnvBackup1/")
+		assert.NoError(t, err)
+		err = validateOntapPath("api/application/consistency-groups/*/snapshots/")
+		assert.NoError(t, err)
+	})
+
 	t.Run("WhenOntapPathHasInvalidUTF8_ShouldFail", func(t *testing.T) {
 		err := validateOntapPath("api/storage/volumes\x80\x81")
 		assert.Error(t, err)
