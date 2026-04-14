@@ -2365,7 +2365,7 @@ func TestDetachCrossProjectVolumesFromVault(t *testing.T) {
 			BaseModel: datamodel.BaseModel{UUID: "emv-1"},
 			AccountID: 200,
 			BackupConfig: &datamodel.DataProtection{
-				BackupVaultID: "vault-uuid-cp",
+				BackupVaultID:  "vault-uuid-cp",
 				BackupPolicyID: "policy-1",
 			},
 		}
@@ -3105,9 +3105,8 @@ func TestDeleteRemoteBackupVaultInVCP(t *testing.T) {
 
 		result, err := DeleteRemoteBackupVaultInVCP(ctx, params)
 
-		assert.Error(tt, err)
+		assert.NoError(tt, err)
 		assert.Nil(tt, result)
-		assert.Contains(tt, err.Error(), "Remote backup vault not found")
 		mockInvoker.AssertExpectations(tt)
 	})
 

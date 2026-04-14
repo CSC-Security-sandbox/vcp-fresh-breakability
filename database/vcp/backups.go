@@ -206,11 +206,22 @@ func _getBackupWithDetails(db *gorm.DB, query *datamodel.Backup) (*datamodel.Bac
 	backup := &datamodel.Backup{}
 	err := db.Preload("BackupVault").First(&backup, query).Error
 	if err != nil {
-		return nil, customerrors.ConvertToNotFoundErrIfContainsMessage(err, "record not found", "backup", &backup.UUID)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			var identifier *string
+			if query != nil {
+				switch {
+				case query.UUID != "":
+					identifier = &query.UUID
+				case query.ExternalUUID != "":
+					identifier = &query.ExternalUUID
+				}
+			}
+			return nil, customerrors.NewNotFoundErr("backup", identifier)
+		}
+		return nil, err
 	}
 	return backup, nil
 }
-
 
 func (d *DataStoreRepository) GetBackupCountByBackupVaultID(ctx context.Context, backupVaultID int64) (int64, error) {
 	var count int64

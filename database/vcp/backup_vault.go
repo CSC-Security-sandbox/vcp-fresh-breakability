@@ -107,7 +107,16 @@ func _getBackupVaultWithDetails(db *gorm.DB, query *datamodel.BackupVault) (*dat
 	err := db.Preload("Account").First(&bv, query).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, customerrors.NewNotFoundErr("backup vault", &query.UUID)
+			var identifier *string
+			if query != nil {
+				switch {
+				case query.UUID != "":
+					identifier = &query.UUID
+				case query.ExternalUUID != nil:
+					identifier = query.ExternalUUID
+				}
+			}
+			return nil, customerrors.NewNotFoundErr("backup vault", identifier)
 		}
 		return nil, err
 	}
@@ -388,7 +397,7 @@ func (d *DataStoreRepository) GetCmekRotationJobStatuses(ctx context.Context, st
 	err := db.Model(&datamodel.Job{}).
 		Select(selectClause).
 		Where("type = ? AND updated_at >= ? AND updated_at <= ? AND deleted_at IS NULL", models.JobTypeRotateCmekBackups, startTime, endTime).
-		Where(resourceUUIDFilter+" AND resource_name IS NOT NULL AND resource_name != '' AND (job_attributes->>'location') IS NOT NULL AND (job_attributes->'kms_attributes'->>'new_kms_key_url') IS NOT NULL AND (job_attributes->'kms_attributes'->>'account_identifier') IS NOT NULL").
+		Where(resourceUUIDFilter + " AND resource_name IS NOT NULL AND resource_name != '' AND (job_attributes->>'location') IS NOT NULL AND (job_attributes->'kms_attributes'->>'new_kms_key_url') IS NOT NULL AND (job_attributes->'kms_attributes'->>'account_identifier') IS NOT NULL").
 		Order("updated_at").
 		Limit(limit).
 		Offset(offset).

@@ -1445,6 +1445,12 @@ func (h Handler) V1betaInternalDescribeBackup(ctx context.Context, params gcpgen
 	}
 	backup, err := h.Orchestrator.GetBackupByExternalUUID(ctx, params.BackupVaultId, params.BackupId, params.ProjectNumber)
 	if err != nil {
+		if errors.IsNotFoundErr(err) {
+			return &gcpgenserver.V1betaInternalDescribeBackupNotFound{
+				Code:    404,
+				Message: "Backup not found",
+			}, nil
+		}
 		logger.Error("Failed to get backup", "error", err.Error())
 		return &gcpgenserver.V1betaInternalDescribeBackupInternalServerError{Code: 500, Message: err.Error()}, err
 	}

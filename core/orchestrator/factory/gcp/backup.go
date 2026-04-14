@@ -596,7 +596,7 @@ func (o *GCPOrchestrator) DeleteBackupInternal(ctx context.Context, params *comm
 	backup, err := se.GetBackupByExternalUUID(ctx, params.BackupVaultUUID, params.BackupUUID, params.AccountName)
 	if err != nil {
 		if customerrors.IsNotFoundErr(err) {
-			logger.Infof("Backup %s not found, nothing to delete", params.BackupUUID)
+			logger.Infof("Backup with external uuid %s not found, nothing to delete", params.BackupUUID)
 			return "", nil
 		}
 		return "", err
@@ -709,12 +709,12 @@ func _deleteBackup(ctx context.Context, se database.Storage, temporal client.Cli
 
 	if backup.BackupVault != nil && backup.BackupVault.BackupVaultType == activities.CrossRegionBackupType {
 		remoteBackup, err := fetchRemoteBackupFromVCP(ctx, backup.UUID, backup.BackupVault.UUID, params.AccountName, *backup.BackupVault.BackupRegionName)
-		if err != nil {
+		if err != nil && !customerrors.IsNotFoundErr(err) {
 			logger.Errorf("Failed to fetch remote backup from VCP: %v", err)
 			return nil, "", err
 		}
 
-		if remoteBackup.IsRestoring.Value {
+		if remoteBackup.IsRestoring.Set && remoteBackup.IsRestoring.Value {
 			logger.Errorf("Cannot delete backup %s as restore is in progress for this backup in remote region", backup.UUID)
 			return nil, "", customerrors.NewUserInputValidationErr("Cannot delete backup as restore is in progress for this backup in remote region")
 		}
@@ -946,24 +946,26 @@ func _fetchRemoteBackupFromVCP(ctx context.Context, backupUUID, backupVaultUUID,
 	res, err := googleProxyClient.Invoker.V1betaInternalDescribeBackup(ctx, params)
 	if err != nil {
 		logger.Errorf("Failed to fetch remote Backup: %v, region=%s, backupVaultID=%s, backupID=%s", err, region, backupVaultUUID, backupUUID)
-		return googleproxyclient.InternalBackupV1beta{}, customerrors.NewNotFoundErr("remote backup", &backupUUID)
+		return googleproxyclient.InternalBackupV1beta{}, err
 	}
 
-	backupResponse, ok := res.(*googleproxyclient.V1betaInternalDescribeBackupOK)
-	if !ok {
-		logger.Error("Unexpected response type from remote Backup fetch", "type", fmt.Sprintf("%T", res))
+	switch r := res.(type) {
+	case *googleproxyclient.V1betaInternalDescribeBackupOK:
+		if len(r.Backups) == 0 {
+			logger.Errorf("No backups found in remote response, backupID=%s", backupUUID)
+			return googleproxyclient.InternalBackupV1beta{}, customerrors.NewNotFoundErr("remote backup", &backupUUID)
+		}
+		backup := r.Backups[0]
+		logger.Infof("Successfully fetched remote Backup, backupID=%s, region=%s", backup.ResourceId.Value, region)
+		return backup, nil
+	case *googleproxyclient.V1betaInternalDescribeBackupNotFound:
+		logger.Warnf("Remote backup not found in region %s, backupVaultID=%s, backupID=%s: %s", region, backupVaultUUID, backupUUID, r.Message)
 		return googleproxyclient.InternalBackupV1beta{}, customerrors.NewNotFoundErr("remote backup", &backupUUID)
+	default:
+		apiErr := fmt.Errorf("remote describe backup failed: %v (%T)", res, res)
+		logger.Errorf("Remote describe backup returned error response: %v, region=%s, backupVaultID=%s, backupID=%s", apiErr, region, backupVaultUUID, backupUUID)
+		return googleproxyclient.InternalBackupV1beta{}, apiErr
 	}
-
-	if len(backupResponse.Backups) == 0 {
-		logger.Errorf("No backups found in remote response, backupID=%s", backupUUID)
-		return googleproxyclient.InternalBackupV1beta{}, customerrors.NewNotFoundErr("remote backup", &backupUUID)
-	}
-
-	// Take the first backup from the array
-	backup := backupResponse.Backups[0]
-	logger.Infof("Successfully fetched remote Backup, backupID=%s, region=%s", backup.ResourceId.Value, region)
-	return backup, nil
 }
 
 // _createBackupInternal creates a backup without starting a workflow (for internal cross-region operations)

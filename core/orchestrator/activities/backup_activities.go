@@ -8,9 +8,9 @@ import (
 
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
-	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -1639,11 +1639,8 @@ func (a *BackupActivity) DeleteRemoteBackupFromVCPActivity(ctx context.Context, 
 		)
 
 	case *googleproxyclient.V1betaInternalDeleteBackupUnderBackupVaultNotFound:
-		return temporal.NewNonRetryableApplicationError(
-			fmt.Sprintf("Remote backup not found: %s", r.Message),
-			"V1betaInternalDeleteBackupUnderBackupVaultNotFound",
-			errors.New(r.Message),
-		)
+		logger.Warnf("Remote backup (corresponding to %s) not found when attempting to delete: %s", backupUUID, r.Message)
+		return nil
 
 	case *googleproxyclient.V1betaInternalDeleteBackupUnderBackupVaultConflict:
 		return temporal.NewNonRetryableApplicationError(

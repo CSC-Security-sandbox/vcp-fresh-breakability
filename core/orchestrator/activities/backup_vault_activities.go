@@ -732,11 +732,8 @@ func DeleteRemoteBackupVaultInVCP(ctx context.Context, params *common.BackupVaul
 		)
 
 	case *googleproxyclient.V1betaInternalDeleteBackupVaultNotFound:
-		return nil, temporal.NewNonRetryableApplicationError(
-			fmt.Sprintf("Remote backup vault not found: %s", r.Message),
-			"V1betaInternalDeleteBackupVaultNotFound",
-			errors.New(r.Message),
-		)
+		logger.Warnf("Remote backup vault (corresponding to %s) not found when attempting to delete: %s", params.BackupVaultID, r.Message)
+		return nil, nil
 
 	case *googleproxyclient.V1betaInternalDeleteBackupVaultConflict:
 		return nil, temporal.NewNonRetryableApplicationError(

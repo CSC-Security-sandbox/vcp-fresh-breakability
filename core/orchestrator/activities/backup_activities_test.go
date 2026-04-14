@@ -8639,8 +8639,7 @@ func TestDeleteRemoteBackupFromVCPActivity(t *testing.T) {
 		err := activity.DeleteRemoteBackupFromVCPActivity(ctx, backupUUID, backupVaultUUID, projectNumber, region)
 
 		// Assert
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Remote backup not found")
+		assert.NoError(t, err)
 		mockInvoker.AssertExpectations(t)
 	})
 

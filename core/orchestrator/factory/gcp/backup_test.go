@@ -4507,6 +4507,38 @@ func Test_fetchRemoteBackupFromVCP(t *testing.T) {
 
 		// Assert
 		assert.Error(t, err)
+		assert.False(t, vsaerror.IsNotFoundErr(err))
+		assert.Equal(t, expectedError, err)
+		assert.Equal(t, googleproxyclient.InternalBackupV1beta{}, result)
+		mockInvoker.AssertExpectations(t)
+	})
+
+	t.Run("HTTPNotFoundResponse", func(t *testing.T) {
+		// Arrange
+		ctx := context.WithValue(context.Background(), middleware.ContextSLoggerKey, log.NewLogger())
+
+		originalGetRemoteRegionConfig := common.GetRemoteRegionConfig
+		defer func() { common.GetRemoteRegionConfig = originalGetRemoteRegionConfig }()
+		common.GetRemoteRegionConfig = func(region, projectNumber string) (string, string, error) {
+			return basePath, jwtToken, nil
+		}
+
+		mockInvoker := googleproxyclient.NewMockInvoker(t)
+		mockClient := &googleproxyclient.ProxyClient{
+			Invoker: mockInvoker,
+		}
+		originalGetGProxyClient := googleproxyclient.GetGProxyClient
+		defer func() { googleproxyclient.GetGProxyClient = originalGetGProxyClient }()
+		googleproxyclient.GetGProxyClient = func(basePath string, jwt string, logger log.Logger) *googleproxyclient.ProxyClient {
+			return mockClient
+		}
+
+		mockInvoker.On("V1betaInternalDescribeBackup", mock.Anything, mock.Anything).Return(
+			&googleproxyclient.V1betaInternalDescribeBackupNotFound{Message: "backup not found"}, nil)
+
+		result, err := _fetchRemoteBackupFromVCP(ctx, backupUUID, backupVaultUUID, projectNumber, region)
+
+		assert.Error(t, err)
 		assert.True(t, vsaerror.IsNotFoundErr(err))
 		assert.Contains(t, err.Error(), "remote backup")
 		assert.Equal(t, googleproxyclient.InternalBackupV1beta{}, result)
@@ -4535,8 +4567,8 @@ func Test_fetchRemoteBackupFromVCP(t *testing.T) {
 			return mockClient
 		}
 
-		// Mock V1betaInternalDescribeBackup to return unexpected response type
-		unexpectedResponse := &googleproxyclient.V1betaInternalDescribeBackupBadRequest{}
+		// Mock V1betaInternalDescribeBackup to return a non-OK, non-NotFound API error body
+		unexpectedResponse := &googleproxyclient.V1betaInternalDescribeBackupBadRequest{Message: "invalid request"}
 		mockInvoker.On("V1betaInternalDescribeBackup", mock.Anything, mock.Anything).Return(unexpectedResponse, nil)
 
 		// Act
@@ -4544,8 +4576,8 @@ func Test_fetchRemoteBackupFromVCP(t *testing.T) {
 
 		// Assert
 		assert.Error(t, err)
-		assert.True(t, vsaerror.IsNotFoundErr(err))
-		assert.Contains(t, err.Error(), "remote backup")
+		assert.False(t, vsaerror.IsNotFoundErr(err))
+		assert.Contains(t, err.Error(), "remote describe backup failed")
 		assert.Equal(t, googleproxyclient.InternalBackupV1beta{}, result)
 		mockInvoker.AssertExpectations(t)
 	})
