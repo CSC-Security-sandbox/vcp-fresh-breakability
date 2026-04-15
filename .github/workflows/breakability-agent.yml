@@ -52,7 +52,7 @@ jobs:
   # Job 1: Discover PRs and split into batches
   # ═══════════════════════════════════════════════════════════════════
   discover:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     # Skip non-Dependabot PRs to avoid wasting CI time (Finding-2.7).
     # pull_request:opened fires for ALL PRs; filter early to avoid empty runs
     # that could cancel real batch scans via the concurrency group.
@@ -125,7 +125,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════
   deterministic:
     needs: discover
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 60
     strategy:
       matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
@@ -195,7 +195,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════
   merge-and-analyze:
     needs: [discover, deterministic]
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 120
     if: always() && needs.discover.result == 'success'
 
