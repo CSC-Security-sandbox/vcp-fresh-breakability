@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
+	orchcommon "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	ontaprest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities/active_directory_activities"
@@ -72,19 +73,23 @@ func main() {
 			logger.Error("Failed to shutdown OpenTelemetry", "error", err.Error())
 		}
 	}()
-	// Register your custom metric
-	metrics.RegisterJobStatusCounter()
-	metrics.RegisterAutoTierEnabledGauge()
-	metrics.RegisterCRREnabledGauge()
-	metrics.RegisterLargeVolumeEnabledGauge()
-	metrics.RegisterCBSEnabledGauge()
-	metrics.RegisterEligibilityStringGauge()
-	metrics.RegisterBackupSizeGauge()
-	metrics.RegisterCertificateRotationFailureCounter()
-	metrics.RegisterPasswordRotationFailureCounter()
-	metrics.RegisterKmsKeyLimitReachedCounter()
-	metrics.RegisterKmsRotationFailureCounter()
-	metrics.RegisterCmekBackupRewriteErrorGauge()
+
+	// Register GCP-only custom metrics (not used on OCI)
+	if env.GetHyperscaler() != orchcommon.ProviderOCI {
+		metrics.RegisterJobStatusCounter()
+		metrics.RegisterAutoTierEnabledGauge()
+		metrics.RegisterCRREnabledGauge()
+		metrics.RegisterLargeVolumeEnabledGauge()
+		metrics.RegisterCBSEnabledGauge()
+		metrics.RegisterEligibilityStringGauge()
+		metrics.RegisterBackupSizeGauge()
+		metrics.RegisterCertificateRotationFailureCounter()
+		metrics.RegisterPasswordRotationFailureCounter()
+		metrics.RegisterKmsKeyLimitReachedCounter()
+		metrics.RegisterKmsRotationFailureCounter()
+		metrics.RegisterCmekBackupRewriteErrorGauge()
+	}
+
 	// Start metrics HTTP server
 	metricsPort := os.Getenv("METRICS_PORT")
 	if metricsPort == "" {
@@ -181,18 +186,36 @@ func main() {
 
 	var worker *tManagerPkg.Worker
 
+	cloudProvider := env.GetHyperscaler()
+	logger.Info("Cloud provider", "provider", cloudProvider)
+
 	switch workerType {
 	case workflowEngine.CustomerWorkerType:
 		worker = tManagerPkg.NewWorker(temporalManager.GetClient(), workflowEngine.CustomerTaskQueue)
 
-		logger.Info("registering customer workflows and activities")
-		RegisterCustomerWorkflowsAndActivities(*worker, dbConn, workflowClient.GetTemporalClient())
+		if cloudProvider == orchcommon.ProviderOCI {
+			if err := ociworkflows.ValidateOCIVSAImageEnv(); err != nil {
+				logger.Error("OCI VSA image environment validation failed", "error", err.Error())
+				os.Exit(1)
+			}
+			logger.Info("OCI VSA image environment validation passed")
+			logger.Info("registering OCI customer workflows and activities")
+			RegisterOCICustomerWorkflowsAndActivities(*worker, dbConn, workflowClient.GetTemporalClient())
+		} else {
+			logger.Info("registering customer workflows and activities")
+			RegisterCustomerWorkflowsAndActivities(*worker, dbConn, workflowClient.GetTemporalClient())
+		}
 
 	case workflowEngine.BackgroundWorkerType:
 		worker = tManagerPkg.NewWorker(temporalManager.GetClient(), workflowEngine.BackgroundTaskQueue)
 
-		logger.Info("registering background workflows and activities")
-		RegisterBackgroundWorkflowsAndActivities(*worker, workflowClient.GetTemporalClient(), dbConn, telemetryDBConn)
+		if cloudProvider == orchcommon.ProviderOCI {
+			logger.Info("registering OCI background workflows and activities")
+			RegisterOCIBackgroundWorkflowsAndActivities(*worker, workflowClient.GetTemporalClient(), dbConn, telemetryDBConn)
+		} else {
+			logger.Info("registering background workflows and activities")
+			RegisterBackgroundWorkflowsAndActivities(*worker, workflowClient.GetTemporalClient(), dbConn, telemetryDBConn)
+		}
 
 	default:
 		logger.Error("Unknown worker type", "type", workerType)
@@ -229,11 +252,26 @@ func initializeTemporalClient(logger log.Logger) (workflowEngine.WorkflowEngine,
 	return workflowClient, nil
 }
 
-// main is the entry point of the worker application. It initializes the Temporal worker
+// RegisterOCICustomerWorkflowsAndActivities registers only OCI-related workflows and activities for the customer worker.
+// Used when HYPERSCALER=oci. For GCP, RegisterCustomerWorkflowsAndActivities registers the full set.
+func RegisterOCICustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.Storage, temporal client.Client) {
+	// Register OCI workflows
+	worker.RegisterWorkflow(ociworkflows.OCICreatePoolWorkflow)
+	worker.RegisterWorkflow(ociworkflows.OCIDeletePoolWorkflow)
+
+	// Register activities used by OCI workflows
+	// CommonActivities is needed for UpdateJobStatus and EnsureJobState (used by BaseWorkflow)
+	worker.RegisterActivity(&activities.CommonActivities{SE: dbcon})
+	// PoolActivity is needed for pool operations (SaveVSANodeDetails, AllocateSVMName, SaveSVMAndLifData, UpdatePoolState, GetPool, DeletePoolResources)
+	worker.RegisterActivity(&activities.PoolActivity{SE: dbcon})
+	// CancellationActivity is needed for workflow cancellation support
+	worker.RegisterActivity(activities.NewCancellationActivity(temporal))
+}
+
+// RegisterCustomerWorkflowsAndActivities registers all customer workflows and activities (GCP and shared).
 func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon database.Storage, temporal client.Client) {
 	worker.RegisterWorkflow(workflows.SequenceWorkflow)
 	worker.RegisterWorkflow(workflows.CreatePoolWorkflow)
-	worker.RegisterWorkflow(ociworkflows.OCICreatePoolWorkflow)
 	worker.RegisterWorkflow(workflows.DataSubnetSequentialPoller)
 	worker.RegisterWorkflow(workflows.PoolDataSubnetWorkFlow)
 	worker.RegisterWorkflow(workflows.ConfigureNetworkWorkflow)
@@ -413,6 +451,11 @@ func RegisterCustomerWorkflowsAndActivities(worker tManagerPkg.Worker, dbcon dat
 	worker.RegisterActivity(&active_directory_activities.ActiveDirectorySyncActivity{SE: dbcon, Scheduler: temporalScheduler})
 	worker.RegisterActivity(backgroundactivities.EmitKmsKeyLimitReachedMetric)
 	worker.RegisterActivity(backgroundactivities.EmitKmsRotationFailureMetric)
+}
+
+// RegisterOCIBackgroundWorkflowsAndActivities registers only OCI-related background workflows and activities.
+// Used when HYPERSCALER=oci. For GCP, RegisterBackgroundWorkflowsAndActivities registers the full set.
+func RegisterOCIBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, temporal client.Client, conn database.Storage, telemetryDBConn metricsdb.Storage) {
 }
 
 func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, temporal client.Client, conn database.Storage, telemetryDBConn metricsdb.Storage) {

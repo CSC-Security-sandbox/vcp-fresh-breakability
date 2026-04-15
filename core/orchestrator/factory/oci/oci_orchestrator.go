@@ -47,11 +47,6 @@ func (o *OCIOrchestrator) GetExpertModePoolCreds(ctx context.Context, poolId str
 	return nil, utilserrors.NewNotImplementedYetErr()
 }
 
-func (o *OCIOrchestrator) DeletePool(ctx context.Context, params *commonparams.DeletePoolParams) (*models.Pool, string, error) {
-	// TODO implement me
-	return nil, "", utilserrors.NewNotImplementedYetErr()
-}
-
 func (o *OCIOrchestrator) GetMultiplePools(ctx context.Context, accountName string, poolUUIDs []string) ([]*models.Pool, error) {
 	return nil, utilserrors.NewNotImplementedYetErr()
 }

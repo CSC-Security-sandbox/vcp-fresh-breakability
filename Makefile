@@ -139,6 +139,7 @@ build-all-binaries-dev:
 		vsa-binaries-builder sh -c '\
 		go build -gcflags="all=-N -l" -o /src/app/vcp-worker ./worker/ && \
 		go build -gcflags="all=-N -l" -o /src/app/google-proxy ./google-proxy/ && \
+		go build -gcflags="all=-N -l" -o /src/app/oci-proxy ./oci-proxy/ && \
 		go build -gcflags="all=-N -l" -o /src/app/core ./core && \
 		go build -gcflags="all=-N -l" -o /src/app/telemetry ./telemetry/ && \
 		go build -gcflags="all=-N -l" -o /src/app/ontap-proxy ./ontap-proxy/'
@@ -157,6 +158,7 @@ build-all-binaries-test:
 		vsa-binaries-builder sh -c '\
 		go build -gcflags="all=-N -l" -buildvcs=false -o /src/app/vcp-worker ./worker/ && \
 		go build -gcflags="all=-N -l" -buildvcs=false -o /src/app/google-proxy ./google-proxy/ && \
+		go build -gcflags="all=-N -l" -buildvcs=false -o /src/app/oci-proxy ./oci-proxy/ && \
 		go build -gcflags="all=-N -l" -buildvcs=false -o /src/app/core ./core && \
 		go build -gcflags="all=-N -l" -buildvcs=false -o /src/app/telemetry ./telemetry/ && \
 		go build -gcflags="all=-N -l" -buildvcs=false -o /src/app/ontap-proxy ./ontap-proxy/'
@@ -181,6 +183,7 @@ build-all-binaries-prod:
 		vsa-binaries-builder sh -c '\
 		go build -o /src/artifacts/vcp-worker ./worker/ && \
 		go build -o /src/artifacts/google-proxy ./google-proxy/ && \
+		go build -o /src/artifacts/oci-proxy ./oci-proxy/ && \
 		go build -o /src/artifacts/core ./core && \
 		go build -o /src/artifacts/telemetry ./telemetry/ && \
         go build -o /src/artifacts/ontap-proxy ./ontap-proxy/'
@@ -203,6 +206,7 @@ build-all-binaries-prod-on-mac:
 		vsa-binaries-builder sh -c '\
 		GOOS=linux GOARCH=amd64  go build -o /src/artifacts/vcp-worker ./worker/ && \
 		GOOS=linux GOARCH=amd64  go build -o /src/artifacts/google-proxy ./google-proxy/ && \
+		GOOS=linux GOARCH=amd64  go build -o /src/artifacts/oci-proxy ./oci-proxy/ && \
 		GOOS=linux GOARCH=amd64  go build -o /src/artifacts/core ./core && \
 		GOOS=linux GOARCH=amd64  go build -o /src/artifacts/telemetry ./telemetry/ && \
         GOOS=linux GOARCH=amd64  go build -o /src/artifacts/ontap-proxy ./ontap-proxy/'
@@ -230,6 +234,20 @@ build-google-proxy:
 		-e GOCACHE=/go-build-cache \
 		-e GOMODCACHE=/go/pkg/mod \
 		vsa-binaries-builder sh -c 'go build -gcflags="all=-N -l" -o /src/app/google-proxy ./google-proxy'
+
+.PHONY: build-oci-proxy
+build-oci-proxy:
+	@echo "Building oci-proxy service..."
+	docker build --build-arg GHVSA_PAT=$(GHVSA_PAT) -f builder/Dockerfile.build-all.dev -t vsa-binaries-builder builder
+	mkdir -p app
+	docker run --rm \
+		-e GHVSA_PAT=$(GHVSA_PAT) \
+		-v $(PWD):/src \
+		-v $(GOCACHE):/go-build-cache \
+		-v $(GOMODCACHE):/go/pkg/mod \
+		-e GOCACHE=/go-build-cache \
+		-e GOMODCACHE=/go/pkg/mod \
+		vsa-binaries-builder sh -c 'go build -gcflags="all=-N -l" -o /src/app/oci-proxy ./oci-proxy'
 
 .PHONY: build-ontap-proxy
 build-ontap-proxy:
@@ -297,6 +315,11 @@ worker-dev-image: build-worker base-image
 ontap-proxy-dev-image: build-ontap-proxy base-image
 	@echo "Building ontap-proxy development Docker image..."
 	docker build --build-arg BASE=base:dev --build-arg GHVSA_PAT=$(GHVSA_PAT) -f ontap-proxy/Dockerfile.dev -t $(DEV_REGISTRY)/ontap-proxy:$(IMAGE_TAG) .
+
+.PHONY: oci-proxy-dev-image
+oci-proxy-dev-image: build-oci-proxy base-image
+	@echo "Building oci-proxy development Docker image..."
+	docker build --build-arg BASE=base:dev --build-arg GHVSA_PAT=$(GHVSA_PAT) -f oci-proxy/Dockerfile.dev -t $(DEV_REGISTRY)/oci-proxy:$(IMAGE_TAG) .
 
 # Error Framework Validation
 .PHONY: validate-errors

@@ -15,11 +15,13 @@ import (
 
 type Pool struct {
 	BaseModel
-	Name              string             `gorm:"column:name"`
-	Description       string             `gorm:"column:description"`
-	State             string             `gorm:"column:state"`
-	StateDetails      string             `gorm:"column:state_details"`
-	VendorID          string             `gorm:"column:vendor_id"`
+	Name         string `gorm:"column:name"`
+	Description  string `gorm:"column:description"`
+	State        string `gorm:"column:state"`
+	StateDetails string `gorm:"column:state_details"`
+	VendorID     string `gorm:"column:vendor_id"`
+	// Partial unique index (not a table CHECK): duplicate non-empty OCIDs rejected; many rows may have empty pool_ocid (GCP).
+	PoolOCID          string             `gorm:"column:pool_ocid;type:text;uniqueIndex:idx_pools_pool_ocid_unique,where:pool_ocid <> ''"`
 	ServiceLevel      string             `gorm:"column:service_level"`
 	SizeInBytes       int64              `gorm:"column:size_in_bytes"`
 	UsedBytes         int64              `gorm:"column:used_bytes"`
@@ -167,6 +169,7 @@ type ClusterDetails struct {
 	ExternalName          string         `json:"external_name"`
 	OntapVersion          string         `json:"ontap_version"`
 	RegionalTenantProject string         `json:"regional_tenant_project"`
+	CompartmentOCID       string         `json:"compartment_ocid,omitempty"`
 	SnHostProject         string         `json:"sn_host_project"`
 	Network               string         `json:"network"`
 	SubnetNames           []string       `json:"subnet_names"`

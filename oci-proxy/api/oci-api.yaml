@@ -1,0 +1,844 @@
+openapi: 3.0.4
+info:
+  title: OCI NetApp Files API
+  description: |
+    Oracle Cloud Infrastructure (OCI) NetApp Files API for VSA.
+  version: "1.0.0"
+servers:
+  - url: https://api.example.com
+  - url: http://localhost:8080
+tags:
+  - name: health
+    description: Health check
+  - name: pools
+    description: Pool operations
+  - name: workflows
+    description: Asynchronous workflow status
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Get the server health status
+      description: Returns the server health status.
+      tags:
+        - health
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /v1beta/pools:
+    post:
+      tags:
+        - pools
+      summary: Create a pool
+      description: |
+        Creates a new storage pool in the specified compartment and region. The service
+        provisions the underlying VSA cluster and required OCI resources. You only supply
+        high-level parameters (compartment, region, subnet, size, performance); the service
+        applies instance types, images, and other deployment defaults.
+
+        The operation is asynchronous. Use opc-work-request-id to poll for completion.
+      operationId: createPool
+      parameters:
+        - $ref: '#/components/parameters/opcRequestIdHeader'
+        - $ref: '#/components/parameters/tenancyOCIDHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePoolRequest'
+            example:
+              poolOCID: "ocid1.pool.oc1.eu-frankfurt-1.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              compartmentOCID: "ocid1.compartment.oc1..aaaaaaaapat5pvypcyr7xjb33om5j6howstzg2wfztjhbrlxcf2pz2wfen6a"
+              displayName: "my-pool"
+              subnetId: "ocid1.subnet.oc1.eu-frankfurt-1.aaaaaaaatzpssgybncib5yer7nh6eclwoz7vijeie5l37f7volgrjxfhrc5q"
+              sizeInGiB: 1024
+              primaryAvailabilityDomain: "IMtu:EU-FRANKFURT-1-AD-1"
+              secondaryAvailabilityDomain: "IMtu:EU-FRANKFURT-1-AD-2"
+              mediatorAvailabilityDomain: "IMtu:EU-FRANKFURT-1-AD-3"
+              serialNumberPrefix: "12345"
+              throughputGBps: 1.0
+              iops: 3000
+              description: "Demo pool"
+      responses:
+        "202":
+          description: Accepted. Pool creation in progress.
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatePoolAcceptedResponse'
+              example:
+                status: "in_progress"
+                workflowId: "ad134355-08ad-cfd1-a728-b62c3cf754a5"
+                poolOCID: "ocid1.pool.oc1.ashburn-1.testing-pool1"
+        "400":
+          description: Bad request
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "401":
+          description: Unauthorized
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "403":
+          description: Forbidden
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "404":
+          description: Not found
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "409":
+          description: Conflict
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "422":
+          description: Unprocessable entity
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "429":
+          description: Too many requests
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "500":
+          description: Internal server error
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        default:
+          $ref: '#/components/responses/CreatePoolDefaultError'
+      x-codegen-request-body-name: body
+  /v1beta/pools/{poolOCID}:
+    delete:
+      tags:
+        - pools
+      summary: Delete pool
+      description: |
+        Deletes the specified pool and its underlying cluster and associated OCI resources.
+        The operation is asynchronous.
+      operationId: deletePool
+      parameters:
+        - $ref: '#/components/parameters/opcRequestIdHeader'
+        - $ref: '#/components/parameters/tenancyOCIDHeader'
+        - $ref: '#/components/parameters/poolOCIDPathParameter'
+      responses:
+        "202":
+          description: Accepted. Pool deletion in progress.
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeletePoolAcceptedResponse'
+              example:
+                status: "in_progress"
+                workflowId: "ad134355-08ad-cfd1-a728-b62c3cf754a5"
+                poolOCID: "ocid1.pool.oc1.ashburn-1.testing-pool1"
+        "204":
+          description: No content. Pool deleted successfully.
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+        "400":
+          description: Bad request
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "401":
+          description: Unauthorized
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "403":
+          description: Forbidden
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "404":
+          description: Not found
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "409":
+          description: Conflict
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "429":
+          description: Too many requests
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        "500":
+          description: Internal server error
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolOperationErrorResponse'
+        default:
+          $ref: '#/components/responses/DeletePoolDefaultError'
+      x-codegen-request-body-name: body
+
+  /v1beta/workRequests/{workRequestId}:
+    get:
+      tags:
+        - workflows
+      summary: Get operation status
+      description: Returns the status of an asynchronous operation (workflow) by its work request ID.
+      operationId: getWorkflow
+      parameters:
+        - $ref: '#/components/parameters/opcRequestIdHeader'
+        - $ref: '#/components/parameters/workRequestIdPathParameter'
+      responses:
+        "200":
+          description: OK. Workflow status.
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetWorkflowStatusResponse'
+              example:
+                workflow_type: "OCICreatePoolWorkflow"
+                status: "in_progress"
+        "400":
+          description: Bad request
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetWorkflowErrorResponse'
+        "401":
+          description: Unauthorized
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetWorkflowErrorResponse'
+        "403":
+          description: Forbidden
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetWorkflowErrorResponse'
+        "404":
+          description: Not found
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetWorkflowErrorResponse'
+        "409":
+          description: Conflict
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetWorkflowErrorResponse'
+        "422":
+          description: Unprocessable entity
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetWorkflowErrorResponse'
+        "429":
+          description: Too many requests
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetWorkflowErrorResponse'
+        "500":
+          description: Internal server error
+          headers:
+            Opc-Request-Id:
+              $ref: '#/components/headers/opcRequestIdResponseHeader'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetWorkflowErrorResponse'
+        default:
+          $ref: '#/components/responses/GetWorkflowDefaultError'
+
+components:
+  headers:
+    opcRequestIdResponseHeader:
+      description: |
+        Correlation ID for the request. Always returned on this response; include when contacting support.
+        Echoes a valid client-provided Opc-Request-Id when supplied; otherwise the server-generated value.
+      required: true
+      schema:
+        type: string
+    opcWorkRequestIdResponseHeader:
+      description: |
+        Asynchronous operation identifier. Always returned on this response.
+        Use as `workRequestId` when polling workflow status (e.g. GET /v1beta/workRequests/{workRequestId}).
+      required: true
+      schema:
+        type: string
+  parameters:
+    opcRequestIdHeader:
+      name: Opc-Request-Id
+      in: header
+      required: false
+      description: |
+        Optional correlation ID for the request. If omitted, the server generates one and returns it in the response.
+        When provided, use the same value when contacting support.
+      schema:
+        type: string
+    tenancyOCIDHeader:
+      name: Tenancy-Ocid
+      in: header
+      required: true
+      description: |
+        Tenant OCID for the request context.
+      schema:
+        type: string
+    workRequestIdPathParameter:
+      name: workRequestId
+      in: path
+      required: true
+      description: |
+        Work request identifier (e.g. value returned in opc-work-request-id from Create Pool / Delete Pool).
+      schema:
+        type: string
+    poolOCIDPathParameter:
+      name: poolOCID
+      in: path
+      required: true
+      description: Pool OCID path parameter.
+      schema:
+        type: string
+
+  schemas:
+    DeletePoolAcceptedResponse:
+      type: object
+      required:
+        - status
+        - workflowId
+        - poolOCID
+      properties:
+        status:
+          type: string
+          description: Current workflow status for the delete operation.
+          example: in_progress
+        workflowId:
+          type: string
+          description: Workflow identifier used to poll operation status.
+        poolOCID:
+          type: string
+          description: Pool OCID for the requested pool.
+
+    GetWorkflowStatusResponse:
+      type: object
+      required:
+        - workflow_type
+        - status
+      properties:
+        workflow_type:
+          type: string
+          description: Workflow type name.
+        status:
+          type: string
+          description: Current workflow status.
+        error:
+          $ref: '#/components/schemas/WorkflowStatusError'
+          description: |
+            Present when workflow execution has failure details (for example failed or timed out).
+        metadata:
+          $ref: '#/components/schemas/OCICreatePoolWorkflowMetadata'
+          description: |
+            Present only when `workflow_type` is `OCICreatePoolWorkflow` and `status` is `completed`.
+            Omitted for all other workflow types and statuses.
+
+    GetWorkflowErrorResponse:
+      type: object
+      required:
+        - errorMessage
+      properties:
+        errorMessage:
+          type: string
+          description: Error message for failed request.
+
+    PoolOperationErrorResponse:
+      type: object
+      required:
+        - status
+        - poolOCID
+        - errorMessage
+      properties:
+        status:
+          type: string
+          description: Operation status.
+          example: failed
+        poolOCID:
+          type: string
+          description: Pool OCID for the request.
+        errorMessage:
+          type: string
+          description: Error message for the failed operation.
+
+    CreatePoolAcceptedResponse:
+      type: object
+      required:
+        - status
+        - workflowId
+        - poolOCID
+      properties:
+        status:
+          type: string
+          description: Current workflow status for the create operation.
+          example: in_progress
+        workflowId:
+          type: string
+          description: Workflow identifier used to poll operation status.
+        poolOCID:
+          type: string
+          description: Pool OCID for the requested pool.
+
+    CreatePoolRequest:
+      type: object
+      required:
+        - poolOCID
+        - compartmentOCID
+        - displayName
+        - subnetId
+        - sizeInGiB
+        - primaryAvailabilityDomain
+        - throughputGBps
+        - iops
+        - ociAdminPassword
+      properties:
+        poolOCID:
+          type: string
+          description: OCI pool resource OCID for the pool being created.
+        compartmentOCID:
+          type: string
+          description: OCI compartment OCID (scope for the pool).
+        displayName:
+          type: string
+          description: Human-readable pool name. Must be unique within the compartment.
+        subnetId:
+          type: string
+          description: OCI subnet OCID for the pool. This is the service subnet in your VCN where pool resources will be placed.
+        sizeInGiB:
+          type: integer
+          format: int64
+          description: Total pool capacity in GiB. Typically a multiple of 1 TiB.
+        primaryAvailabilityDomain:
+          type: string
+          description: Availability domain for the primary HA node (e.g. IMtu:EU-FRANKFURT-1-AD-1).
+        secondaryAvailabilityDomain:
+          type: string
+          description: Availability domain for the secondary HA node. Required for HA deployments.
+        mediatorAvailabilityDomain:
+          type: string
+          description: Availability domain for the mediator VM. Required for HA deployments.
+        serialNumberPrefix:
+          type: string
+          description: Mandatory serial number prefix used for provisioning.
+        throughputGBps:
+          type: number
+          format: double
+          description: Total pool throughput in GBps.
+        iops:
+          type: integer
+          format: int64
+          description: Target IOPS for the pool.
+        ociAdminPassword:
+          $ref: '#/components/schemas/OCIOCIDVersionRef'
+          description: OCI secret reference for admin password.
+        customerVnicInfo:
+          type: object
+          description: |
+            Customer VNIC information for the data path. Reserved; structure TBD.
+            Open question: How do we obtain or specify the customer VNIC information used for the data path?
+        description:
+          type: string
+          description: Optional description for the pool.
+
+    DeletePoolRequest:
+      type: object
+      required:
+        - compartmentOCID
+      properties:
+        compartmentOCID:
+          type: string
+          description: OCI compartment OCID (scope for the pool). Used for authorization.
+
+
+    WorkflowStatus:
+      type: object
+      description: Status of an asynchronous workflow (operation).
+      properties:
+        status:
+          type: string
+          description: Current workflow status (in_progress, completed, failed, timed_out).
+        workflow_type:
+          type: string
+          description: Temporal workflow type name (from workflow execution info).
+        error:
+          $ref: '#/components/schemas/WorkflowStatusError'
+        metadata:
+          $ref: '#/components/schemas/OCICreatePoolWorkflowMetadata'
+          description: |
+            Present only when `workflow_type` is `OCICreatePoolWorkflow` and `status` is `completed`.
+            Omitted for all other workflow types and statuses.
+
+    OCICreatePoolWorkflowMetadata:
+      type: object
+      required:
+        - interclusterIPs
+        - nodeIPs
+        - credentials
+      properties:
+        interclusterIPs:
+          type: array
+          description: Intercluster IP addresses for the created OCI pool nodes.
+          items:
+            type: string
+        nodeIPs:
+          type: array
+          description: Node management/data IP addresses for the created OCI pool nodes.
+          items:
+            type: string
+        credentials:
+          $ref: '#/components/schemas/OCICreatePoolWorkflowCredentials'
+
+    OCICreatePoolWorkflowCredentials:
+      type: object
+      required:
+        - secret
+        - certificate
+      properties:
+        secret:
+          $ref: '#/components/schemas/OCIOCIDVersionRef'
+        certificate:
+          $ref: '#/components/schemas/OCIOCIDVersionRef'
+
+    OCIOCIDVersionRef:
+      type: object
+      required:
+        - ocid
+        - version
+      properties:
+        ocid:
+          type: string
+          description: OCI resource OCID.
+        version:
+          type: string
+          description: Resource version identifier.
+
+    WorkflowStatusError:
+      type: object
+      description: Present when the workflow failed or timed out.
+      properties:
+        message:
+          type: string
+          description: Primary error message.
+        cause:
+          type: string
+          description: Root cause of the failure, if available.
+
+    Health:
+      type: object
+      description: Server health status.
+      properties:
+        status:
+          type: string
+          description: Server health status (e.g. healthy).
+          example: healthy
+
+    NetworkSummary:
+      type: object
+      description: Network-related summary for the pool (e.g. VCN, subnets, NSGs).
+      properties:
+        vcnId:
+          type: string
+          description: OCI VCN OCID.
+        managementSubnetId:
+          type: string
+          description: Management subnet OCID.
+        dataSubnetId:
+          type: string
+          description: Data subnet OCID.
+        nsgIds:
+          type: array
+          items:
+            type: string
+          description: List of network security group OCIDs.
+
+    Any_v1Beta:
+      title: Any
+      required:
+        - '@type'
+      type: object
+      properties:
+        '@type':
+          type: string
+          description: The URL of the type
+          example: type.googleapis.com/google.protobuf.Struct
+        AnyValue:
+          title: response
+          additionalProperties:
+            type: object
+    Status_v1Beta:
+      title: Status
+      type: object
+      properties:
+        code:
+          type: number
+          format: double
+          description: The status code
+          example: 7.0
+        message:
+          type: string
+          description: A developer-facing error message
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/Any_v1Beta'
+    Operation_v1beta:
+      title: Operation
+      type: object
+      description: Long-running operation. Use opc-work-request-id to poll for completion.
+      properties:
+        name:
+          type: string
+          description: The full resource name of the operation (use to poll for status).
+          example: /v1beta/pools/pool-id/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+        metadata:
+          $ref: '#/components/schemas/Any_v1Beta'
+        done:
+          type: boolean
+          description: Is the operation done yet.
+          default: false
+        error:
+          $ref: '#/components/schemas/Status_v1Beta'
+        response:
+          title: response
+          additionalProperties:
+            type: object
+
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: number
+          description: OCI error code or HTTP status.
+        message:
+          type: string
+          description: Human-readable error message.
+
+  responses:
+    CreatePoolDefaultError:
+      description: Internal server error
+      headers:
+        Opc-Request-Id:
+          $ref: '#/components/headers/opcRequestIdResponseHeader'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PoolOperationErrorResponse'
+    DeletePoolDefaultError:
+      description: Internal server error
+      headers:
+        Opc-Request-Id:
+          $ref: '#/components/headers/opcRequestIdResponseHeader'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PoolOperationErrorResponse'
+    GetWorkflowDefaultError:
+      description: Internal server error
+      headers:
+        Opc-Request-Id:
+          $ref: '#/components/headers/opcRequestIdResponseHeader'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/GetWorkflowErrorResponse'
+    StandardError-400:
+      description: Bad request
+      headers:
+        Opc-Request-Id:
+          $ref: '#/components/headers/opcRequestIdResponseHeader'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    StandardError-401:
+      description: Unauthorized
+      headers:
+        Opc-Request-Id:
+          $ref: '#/components/headers/opcRequestIdResponseHeader'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    StandardError-403:
+      description: Forbidden
+      headers:
+        Opc-Request-Id:
+          $ref: '#/components/headers/opcRequestIdResponseHeader'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    StandardError-404:
+      description: Not found
+      headers:
+        Opc-Request-Id:
+          $ref: '#/components/headers/opcRequestIdResponseHeader'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    StandardError-409:
+      description: Conflict
+      headers:
+        Opc-Request-Id:
+          $ref: '#/components/headers/opcRequestIdResponseHeader'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    StandardError-422:
+      description: Unprocessable entity
+      headers:
+        Opc-Request-Id:
+          $ref: '#/components/headers/opcRequestIdResponseHeader'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    StandardError-429:
+      description: Too many requests
+      headers:
+        Opc-Request-Id:
+          $ref: '#/components/headers/opcRequestIdResponseHeader'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    StandardError-500:
+      description: Internal server error
+      headers:
+        Opc-Request-Id:
+          $ref: '#/components/headers/opcRequestIdResponseHeader'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

@@ -7,13 +7,16 @@ import (
 )
 
 const (
-	GCPCloud string = "gcp"
+	GCPCloud   string = "gcp"
+	OCICloud   string = "oci"
+	AzureCloud string = "azure"
 
 	DeploymentTypeSharedHA    string = "shared_ha"
 	DeploymentTypeNonSharedHA string = "non_shared_ha"
 
-	CorrelationIDKey string = "x-correlation-id"
-	DeploymentIDKey  string = "x-deployment-id"
+	CorrelationIDKey   string = "x-correlation-id"
+	DeploymentIDKey    string = "x-deployment-id"
+	DeploymentIDTagKey string = "deployment_id"
 )
 
 // VLMWorkflowName is the name of the workflow
@@ -30,6 +33,7 @@ const (
 	GetClusterZiZsDetailsWorkflowName          = "vlm.GetClusterZiZsDetails"
 	UpdateVSAMediatorWorkflowName              = "vlm.UpdateVSAMediatorWorkflow"
 	CreateVSAExpertModeUserWorkflowName        = "vlm.CreateVSAExpertModeUserWorkflow"
+	AddExpertModeUserWorkflowName              = "vlm.AddExpertModeUserWorkflow"
 	UpdateLicenseWorkflowName                  = "vlm.UpdateLicenseWorkflow"
 	ASUPTriggerWaitWorkflowName                = "vlm.ASUPTriggerWaitWorkflow"
 
@@ -91,24 +95,26 @@ type CloudConfig struct {
 
 type DeploymentConfigFlags struct {
 	EnableAASupportSvm         bool   `json:"enable_aa_support_svm"`          // Enable AA support for svm
+	EnableAAConfig             bool   `json:"enable_aa_config"`               // Enable AA Config for active-active deployments
 	EnableIlbSupport           bool   `json:"enable_ilb_support"`             // Enable ILB support
 	EnableNfsV364BitIdentifier string `json:"enable_nfs_v3_64bit_identifier"` // Enable NFS v3 64-bit identifier support
 	EnableNonLssdInstanceType  bool   `json:"enable_non_lssd_instance_type"`  // Enable Non LSSD instance type support
 	EnableTcpUdpBasedIlb       bool   `json:"enable_tcp_udp_based_ilb"`       // Enable TCP/UDP based ILB support
+	EnableFlashCache           bool   `json:"enable_flash_cache"`             // Enable Flash Cache support
 }
 
 type DeploymentConfig struct {
 	Provider     string `json:"provider"`      // (gcp/aws/azure)
 	DeploymentID string `json:"deployment_id"` // Added
 	// If the Serial number Prefix is provided then it will be used to generate serial numbers for the VMs.
-	SerialNumberPrefix string      `json:"serial_number_prefix"` //used to generate serial number for all the VMs
+	SerialNumberPrefix string      `json:"serial_number_prefix"` // used to generate serial number for all the VMs
 	VMSerialNumbers    []string    `json:"vm_serial_numbers"`    // List of serial numbers for the VMs
 	Region             string      `json:"region" `              // Added
 	Zone               ZoneInfo    `json:"zone"`                 // Added
 	Images             ImageConfig `json:"images"`               // Added
 
-	Tags           string            `json:"tags"`             //Comma separated list of tags to be attached for the VMs created by the deployment
-	Labels         map[string]string `json:"labels"`           //List of labels to attach to resources
+	Tags           string            `json:"tags"`             // Comma separated list of tags to be attached for the VMs created by the deployment
+	Labels         map[string]string `json:"labels"`           // List of labels to attach to resources
 	UserBootargs   string            `json:"user_boot_args"`   // The input is a list of key-value pairs with semicolons as delimiters.
 	UserCustomdata map[string]string `json:"user_custom_data"` // Additional Custom data to be passed to the VMs by user
 
@@ -123,25 +129,29 @@ type DeploymentConfig struct {
 	VSASystemDiskConfig  map[OntapDiskType]DiskConfig `json:"vsa_system_disk_config"` // System disk configuration for VSA
 
 	// TODO: check if zone wise netconfig is required
-	NetConfig  map[VSALIFType]NetworkConfig `json:"net_config"`  // Network configuration for the deployment
-	GCPConfig  GCPConfig                    `json:"gcpconfig"`   //GCP specific configuration
-	SPConfig   SPConfig                     `json:"spconfig"`    //Storagepool specific configuration
-	DevFlags   DevFlags                     `json:"dev_flags"`   // Development flags
-	NTPServers []string                     `json:"ntp_servers"` // NTP servers for time synchronization
-	DNSServers []string                     `json:"dns_servers"` // DNS servers for name resolution
+	NetConfig   map[VSALIFType]NetworkConfig `json:"net_config"`  // Network configuration for the deployment
+	GCPConfig   GCPConfig                    `json:"gcpconfig"`   // GCP specific configuration
+	OCIConfig   OCIConfig                    `json:"ociconfig"`   // OCI specific configuration
+	AzureConfig AzureConfig                  `json:"azureconfig"` // Azure specific configuration
+	SPConfig    SPConfig                     `json:"spconfig"`    // Storagepool specific configuration
+	DevFlags    DevFlags                     `json:"dev_flags"`   // Development flags
+	NTPServers  []string                     `json:"ntp_servers"` // NTP servers for time synchronization
+	DNSServers  []string                     `json:"dns_servers"` // DNS servers for name resolution
 	// DeploymentConfigFlags added for future flags
 	DeploymentConfigFlags DeploymentConfigFlags `json:"additional_deployment_config_flags"`
 	PlacementPolicyConfig PlacementPolicyConfig `json:"placement_policy_config"`
 }
 
 type DevFlags struct {
-	ExtIPForNodeMgmt              bool `json:"ext_ip_for_node_mgmt"`     // External IP for node management
-	DisableDataNicTier1           bool `json:"disable_data_nic_tier1"`   // Disable Tier 1 for data NIC
-	EnablePremiumTierData         bool `json:"enable_premium_tier_data"` // Enable Premium Tier for data NIC
+	ExtIPForNodeMgmt              bool `json:"ext_ip_for_node_mgmt"`          // External IP for node management
+	AllowNonDenseShapeForVsa      bool `json:"allow_non_dense_shape_for_vsa"` // Allow using non DenseIO shapes for VSA Node VMs
+	DisableDataNicTier1           bool `json:"disable_data_nic_tier1"`        // Disable Tier 1 for data NIC
+	EnablePremiumTierData         bool `json:"enable_premium_tier_data"`      // Enable Premium Tier for data NIC
 	DisableGVNIC                  bool
 	EnableNfsV3Support            bool `json:"enable_nfs_v3_support"`             // Enable NFS v3 support
 	EnableIlbSupport              bool `json:"enable_ilb_support"`                // Enable ILB support
 	DisableBootDiskSnapshotPolicy bool `json:"disable_boot_disk_snapshot_policy"` // Disable boot disk snapshot policy creation and attachment (default: false/enabled)
+	DisableAzureVNetCreation      bool `json:"disable_azure_vnet_creation"`       // Skip Azure VNet/subnet/NSG creation and use existing network
 }
 
 type SnapshotConfig struct {
@@ -151,7 +161,7 @@ type SnapshotConfig struct {
 
 type SnapshotConfigList struct {
 	BootDiskConfig SnapshotConfig `json:"boot_disk_config,omitempty"` // Snapshot configuration for boot disks
-	//MrootDiskConfig SnapshotConfig `json:"mroot_disk_config,omitempty"` // TODO: Snapshot configuration for mroot disks (future use)
+	// MrootDiskConfig SnapshotConfig `json:"mroot_disk_config,omitempty"` // TODO: Snapshot configuration for mroot disks (future use)
 }
 
 type GCPConfig struct {
@@ -163,14 +173,86 @@ type GCPConfig struct {
 	SnapshotConfigList     SnapshotConfigList `json:"snapshot_config_list"`      // Snapshot configuration container for different disk types
 }
 
+type OCIConfig struct {
+	CompartmentID      string                            `json:"compartment_id"` // OCI Compartment ID
+	SubnetID           string                            `json:"subnet_id"`
+	AvailabilityDomain AvailabilityDomainInfo            `json:"availability_domain_info"`         // OCI Availability Domain Info
+	VSAInstanceShape   string                            `json:"vsa_instance_shape"`               // Instance shape for VSA
+	VSAFlexOcpus       float32                           `json:"vsa_flex_ocpus,omitempty"`         // OCPUs for VSA flex (non-mediator); 0 = default 4
+	VSAFlexMemoryInGBs float32                           `json:"vsa_flex_memory_in_gbs,omitempty"` // Memory in GB for VSA flex (non-mediator); 0 = default 32
+	Creator            string                            `json:"creator"`                          // Creator for OCI mandatory tags (netapp_tags); overridable by CLI --creator
+	FreeFormTags       map[string]string                 `json:"freeform_tags"`                    // Free form tags for OCI resources
+	DefinedTags        map[string]map[string]interface{} `json:"defined_tags"`                     // Defined tags for OCI resources
+	SubnetDomainName   string                            `json:"subnet_domain_name"`               // Domain name of subnet
+}
+
+type AzureConfig struct {
+	ResourceGroup        string     `json:"resource_group"`
+	VNetName             string     `json:"vnet_name"`
+	SubnetName           string     `json:"subnet_name"`
+	AddressSpace         []string   `json:"address_space"`
+	SubnetCIDR           string     `json:"subnet_cidr"`
+	NetworkSecurityGroup string     `json:"network_security_group"`
+	AdminUsername        string     `json:"admin_username"`
+	AdminPassword        string     `json:"admin_password"`
+	SSHPublicKey         string     `json:"ssh_public_key"`
+	SharedHAType         string     `json:"shared_ha_type"`    // Valid values: lrs, zrs, pageblob
+	DataStorageType      string     `json:"data_storage_type"` // "esan", "pv2", or "both" (default: "both")
+	RootStorageType      string     `json:"root_storage_type"` // "esan", "pv2", or "both" (default: "both")
+	ESANConfig           ESANConfig `json:"esan_config"`
+}
+
+// ESANConfig holds Azure Elastic SAN configuration.
+// Names are derived from deployment_id if not provided.
+type ESANConfig struct {
+	ESANName        string           `json:"esan_name"`         // derived: {deployment_id}-esan
+	VolumeGroupName string           `json:"volume_group_name"` // derived: {deployment_id}-vg
+	Volumes         []ESANVolumeInfo `json:"volumes"`           // populated after creation
+}
+
+// ESANVolumeInfo holds iSCSI target info for a single ESAN volume.
+type ESANVolumeInfo struct {
+	VolumeName       string `json:"volume_name"`
+	TargetIQN        string `json:"target_iqn"`
+	TargetPortalHost string `json:"target_portal_host"`
+	TargetPortalPort int32  `json:"target_portal_port"`
+	SizeGiB          int64  `json:"size_gib"`
+	VolumeType       string `json:"volume_type"` // "data" or "root"
+}
+
+// Storage type constants for Azure data/root disk configuration.
+const (
+	StorageTypeESAN = "esan"
+	StorageTypePV2  = "pv2"
+	StorageTypeBoth = "both"
+)
+
 type GCPNetworkConfig struct {
 	SubnetProjectID string `json:"subnet_project_id"` // Project ID for the subnet
+}
+
+type OCINetworkConfig struct {
+	SubnetOCID string `json:"subnet_ocid"` // OCID for the subnet
+}
+
+type AzureNetworkConfig struct {
+	SubnetID   string `json:"subnet_id"`
+	VNetID     string `json:"vnet_id"`
+	NICID      string `json:"nic_id"`
+	PublicIPID string `json:"public_ip_id"`
+	NSGID      string `json:"nsg_id"`
 }
 
 type ZoneInfo struct {
 	Zone1        string `json:"zone1"`
 	Zone2        string `json:"zone2"`
 	MediatorZone string `json:"mediator_zone"`
+}
+
+type AvailabilityDomainInfo struct {
+	AvailabilityDomain1        string `json:"availability_domain1"`
+	AvailabilityDomain2        string `json:"availability_domain2"`
+	MediatorAvailabilityDomain string `json:"mediator_availability_domain"`
 }
 
 type ImageConfig struct {
@@ -216,6 +298,17 @@ type OntapExpertModeUserConfig struct {
 	RbacFileChecksum          string           `json:"rbac_file_checksum,omitempty"`  // Checksum of the RBAC file
 }
 
+type AddExpertModeUserRequest struct {
+	OntapCredential      OntapCredentials `json:"ontap_credential"`       // ONTAP admin credentials
+	ExpertModeCredential OntapCredentials `json:"expert_mode_credential"` // expert mode user credentials
+	Username             string           `json:"username"`               // expert mode username
+	Vserver              string           `json:"vserver"`                // cluster name / vserver
+	NodeMgmtIP           string           `json:"node_mgmt_ip"`           // cluster management IP
+	AuthenticationType   string           `json:"authentication_type"`    // "password" or "certificate"
+	RoleName             string           `json:"role_name"`              // RBAC role name to assign
+	Provider             string           `json:"provider"`               // cloud provider (gcp, oci, etc.)
+}
+
 type OntapExpertModeUserResponse struct {
 	RbacFileChecksum string `json:"rbac_checksum,omitempty"` // Checksum of the applied RBAC file
 }
@@ -252,6 +345,7 @@ type VMConfig struct {
 	DataDisks             []DiskConfig             `json:"data_disks"`              // List of data disks for the VM
 	VSAManagementIP       string                   `json:"vsa_management_ip"`       // VSA management IP for the VM
 	AdditionalVmResources AdditionalVmResources    `json:"additional_vm_resources"` // additional resources
+	OCIVMInstanceID       string                   `json:"oci_vm_instance_id"`      // OCI VM instance ID
 }
 
 // GCP Only: Used for ZiZs workflow
@@ -291,24 +385,28 @@ const (
 	LIFTypeNas              VSALIFType = "nas"
 	LIFTypeMediator         VSALIFType = "mediator"
 	LIFTypeIlbNas           VSALIFType = "ilbnas"
+	LIFTypeRbac             VSALIFType = "rbac"
 )
 
 type LIFConfig struct {
-	Name          string        `json:"lif_name"`       //Name of the LIF
-	VSALIFType    VSALIFType    `json:"vsa_ip_type"`    //Type of VSA LIF
-	IP            string        `json:"ip"`             //IP for the LIF
-	Uuid          string        `json:"lif_uuid"`       //UUID of the LIF
-	NetworkConfig NetworkConfig `json:"network_config"` //Network configuration for the LIF
-	Region        string        `json:"region"`         //Region for the LIF
-	HomeNode      string        `json:"home_node"`      //Home node for the LIF
+	Name          string        `json:"lif_name"`       // Name of the LIF
+	VSALIFType    VSALIFType    `json:"vsa_ip_type"`    // Type of VSA LIF
+	IP            string        `json:"ip"`             // IP for the LIF
+	Uuid          string        `json:"lif_uuid"`       // UUID of the LIF
+	NetworkConfig NetworkConfig `json:"network_config"` // Network configuration for the LIF
+	Region        string        `json:"region"`         // Region for the LIF
+	HomeNode      string        `json:"home_node"`      // Home node for the LIF
 	ProbePort     int32         `json:"probe_port"`     // NFS probe port for the LIF only used for nas lif
 }
 
 type NetworkConfig struct {
-	Subnet           string           `json:"subnet"`  //Subnet for the NIC
-	VPC              string           `json:"vpc"`     //VPC for the NIC
-	Gateway          string           `json:"gateway"` //Gateway for the subnet
-	GCPNetworkConfig GCPNetworkConfig `json:"gcp_network_config"`
+	Subnet             string             `json:"subnet"`  //Subnet for the NIC
+	VPC                string             `json:"vpc"`     //VPC for the NIC
+	Gateway            string             `json:"gateway"` //Gateway for the subnet
+	Netmask            string             `json:"netmask"` //Netmask for the subnet
+	GCPNetworkConfig   GCPNetworkConfig   `json:"gcp_network_config"`
+	OCINetworkConfig   OCINetworkConfig   `json:"oci_network_config"`
+	AzureNetworkConfig AzureNetworkConfig `json:"azure_network_config"`
 }
 
 type VsaClusterConfig struct {
@@ -348,12 +446,26 @@ type DiskConfig struct {
 	ResourceStatus string        `json:"resource_status"` // Status of the resource
 	Zone           string        `json:"zone"`            // Zone for the disk
 	GCPDiskConfig  GCPDiskConfig `json:"gcp_disk_config"` // GCP specific disk configuration
+	OCIDiskConfig  OCIDiskConfig `json:"oci_disk_config"` // OCI specific disk configuration
 	// TODO: Add resource status
 }
 
 type GCPDiskConfig struct {
 	DeviceName string `json:"device_name,omitempty"` // Device name for the disk (only when attached)
 	// Add other GCP-specific fields here if needed
+}
+
+type OCIDiskConfig struct {
+	DeviceName          string                            `json:"device_name,omitempty"` // Device name for the disk (only when attached)
+	AvailabilityDomain  string                            `json:"availability_domain"`   // Availability Domain for the disk
+	Vpus                int64                             `json:"vpus"`                  // Vpus for the disk
+	DiskMinVPUMultiPath int64                             `json:"disk_min_vpu_multi_path"`
+	DevicePath          string                            `json:"device_path"`
+	DiskOciID           string                            `json:"disk_oci_id"`    // OCID for the disk
+	CompartmentID       string                            `json:"compartment_id"` // OCI Compartment ID
+	FreeFormTags        map[string]string                 `json:"freeform_tags"`  // Free form tags for OCI resources
+	DefinedTags         map[string]map[string]interface{} `json:"defined_tags"`   // Defined tags for OCI resources
+	// Add other OCI-specific fields here if needed
 }
 
 type CreateSVMRequest struct {
@@ -382,7 +494,7 @@ type ModifySVMResponse struct {
 type UpdateVSAClusterDeploymentRequest struct {
 	VLMConfig                VLMConfig          `json:"vlm_config"`                   // VLM configuration
 	NumHAPair                int                `json:"num_ha_pair"`                  // Number of HA pairs to be created
-	SPConfig                 SPConfig           `json:"spconfig"`                     //Storagepool specific configuration
+	SPConfig                 SPConfig           `json:"spconfig"`                     // Storagepool specific configuration
 	OntapCredentials         OntapCredentials   `json:"ontap_credentials"`            // ONTAP credentials for the VSA cluster
 	NewInstanceType          string             `json:"new_instance_type"`            // Instance type for the storage pool
 	OntapUpgrade             OntapUpgradeConfig `json:"ontap_upgrade"`                // ONTAP upgrade configuration
@@ -450,9 +562,15 @@ type UpgradeVSAClusterDeploymentResponse struct {
 }
 
 type DeleteVSAClusterDeploymentRequest struct {
-	CloudProvider string `json:"cloud_provider"`
-	DeploymentID  string `json:"deployment_id"`
-	ProjectID     string `json:"project_id"`
+	CloudProvider     string             `json:"cloud_provider"`
+	DeploymentID      string             `json:"deployment_id"`
+	ProjectID         string             `json:"project_id"`
+	HyperScalerConfig *HyperScalerConfig `json:"hyper_scaler_config"`
+}
+
+type HyperScalerConfig struct {
+	GCPConfig GCPConfig `json:"gcp_config"`
+	OCIConfig OCIConfig `json:"oci_config"`
 }
 
 // DeployVSACluster deploys a VSA cluster using the provided deployment configuration.
@@ -510,6 +628,7 @@ type UpdateLicenseRequest struct {
 	OntapLicense     OntapLicense     `json:"ontap_license"`
 	OntapCredentials OntapCredentials `json:"ontap_credentials"`
 	VSAManagementIP  string           `json:"vsa_management_ip"` // VSA management IP for the VM
+	Provider         string           `json:"provider"`          // Provider for the license
 }
 
 type PlacementPolicyConfig struct {

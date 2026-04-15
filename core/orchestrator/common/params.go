@@ -38,8 +38,9 @@ type CreatePoolParams struct {
 	HotTierSizeInBytes      uint64
 	EnableHotTierAutoResize bool
 	PrimaryZone             string
-	VendorSubNetID          string
+	VendorSubNetID          string // For GCP: subnet ID; For OCI: service subnet OCID (subnetId)
 	SecondaryZone           string
+	MediatorZone            string // For GCP: mediator zone; For OCI: mediator availability domain
 	IsRegionalHA            bool
 	HostUUID                string
 	CustomPerformanceParams *CustomPerformanceParams
@@ -54,6 +55,14 @@ type CreatePoolParams struct {
 	Mode                    string
 	XCorrelationID          string
 	ADExistsInVCP           bool
+	// OCI-specific fields (only fields that don't map to existing GCP fields)
+	// Note: CompartmentId maps to AccountName (for OCI, AccountName is the compartment OCID)
+	CustomerSubnet     string // OCI subnet OCID for the customer data path - OCI has separate customer subnet
+	CustomerDataNicIP  string // IP address for the customer data NIC (optional, may be assigned by service)
+	PoolOCID           string // OCI pool OCID - used to generate deployment name following OCI naming convention
+	DeploymentName     string // Pre-generated deployment name (if set, CreatePoolInDB will use it instead of generating)
+	CompartmentOCID    string
+	SerialNumberPrefix string
 }
 
 // CustomPerformanceParams is used to specify the custom performance parameters for a pool
@@ -211,7 +220,8 @@ type CreateLunMapParams struct {
 // DeletePoolParams describes parameters supplied to DeletePool
 type DeletePoolParams struct {
 	AccountName string
-	PoolID      string
+	PoolID      string // Pool UUID - if provided, pool will be looked up and VendorID (PoolOCID for OCI) will be extracted
+	PoolOCID    string // OCI pool OCID - used to generate deployment name following OCI naming convention (preferred over PoolName)
 }
 
 type SnapshotBaseParams struct {

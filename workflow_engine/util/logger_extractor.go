@@ -26,8 +26,7 @@ func (c apiContext) extractLogger() (log.Logger, error) {
 	}
 
 	if loggerFields, ok := c.ctx.Value(middleware.TemporalSLoggerKey).(log.Fields); ok {
-		// Constructing back the logger with the fields extracted from the api context
-		logger := log.NewLogger().WithFields("requestFields", loggerFields)
+		logger := log.NewLogger().WithFields("requestFields", requestFieldsForStructuredLog(loggerFields))
 		return logger, nil
 	}
 	return nil, errors.New("no logger found in api context")
@@ -44,8 +43,7 @@ func (c workflowContext) extractLogger() (log.Logger, error) {
 	}
 
 	if loggerFields, ok := c.ctx.Value(middleware.TemporalSLoggerKey).(log.Fields); ok {
-		// Constructing back the logger with the fields extracted from the workflow context
-		logger := log.NewLogger().WithFields("requestFields", loggerFields)
+		logger := log.NewLogger().WithFields("requestFields", requestFieldsForStructuredLog(loggerFields))
 		return logger, nil
 	}
 	return nil, errors.New("no logger found in workflow context")
@@ -85,4 +83,22 @@ func AddExtraLoggerFields(ctx workflow.Context, keyValMap map[string]interface{}
 		}
 	}
 	return ctx
+}
+
+// requestFieldsForStructuredLog limits JSON requestFields for OCI: when opc-request-id is present
+// in propagated fields, log only opc-request-id, traceMethod, and traceURL. Other services keep the
+// full field map.
+func requestFieldsForStructuredLog(fields log.Fields) log.Fields {
+	opcKey := string(middleware.OPCRequestIDHeaderName)
+	if opc, ok := fields[opcKey].(string); ok && opc != "" {
+		out := log.Fields{opcKey: opc}
+		if m, ok := fields["traceMethod"].(string); ok && m != "" {
+			out["traceMethod"] = m
+		}
+		if u, ok := fields["traceURL"].(string); ok && u != "" {
+			out["traceURL"] = u
+		}
+		return out
+	}
+	return fields
 }

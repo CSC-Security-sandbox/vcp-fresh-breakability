@@ -99,6 +99,8 @@ run:
     - clients/cvp
     - core/core-api/core-servergen
     - google-proxy/api/gcp-servergen
+    # ogen output: import grouping and brace spacing do not match custom checkGoFormat() rules
+    - oci-proxy/api/oci-servergen
     - telemetry/api/telemetry-servergen
     - ontap-proxy/api/ontap-proxy-servergen
     - cicd/cmd/lint

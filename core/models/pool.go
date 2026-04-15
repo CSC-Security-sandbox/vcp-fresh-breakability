@@ -11,6 +11,7 @@ type Pool struct {
 	SizeInBytes               uint64
 	AccountName               string
 	VendorID                  string
+	PoolOCID                  string
 	Region                    string
 	Zone                      string
 	TotalThroughputMibps      float64
@@ -68,6 +69,7 @@ type ClusterDetails struct {
 	InterClusterLifs  []string
 
 	RegionalTenantProject string
+	CompartmentOCID       string
 	SnHostProject         string
 	Network               string
 	SubnetNames           []string

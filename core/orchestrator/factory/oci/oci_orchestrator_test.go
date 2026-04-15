@@ -68,7 +68,7 @@ func TestOCIOrchestrator_GetExpertModePoolCreds(t *testing.T) {
 }
 
 func TestOCIOrchestrator_DeletePool(t *testing.T) {
-	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
+	t.Run("ReturnsBadRequestWhenPoolOCIDMissing", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}
 		ctx := context.Background()
 		params := &common.DeletePoolParams{}
@@ -76,7 +76,7 @@ func TestOCIOrchestrator_DeletePool(t *testing.T) {
 		result, jobID, err := orch.DeletePool(ctx, params)
 
 		assert.Error(tt, err)
-		assert.True(tt, errors.IsNotImplementedYetErr(err))
+		assert.True(tt, errors.IsBadRequestErr(err))
 		assert.Nil(tt, result)
 		assert.Empty(tt, jobID)
 	})

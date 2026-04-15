@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: oci-proxy-service
+  namespace: vcp
+  labels:
+    app: oci-proxy
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+  selector:
+    app: oci-proxy
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oci-proxy
+  namespace: vcp
+  labels:
+    app: oci-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oci-proxy
+  template:
+    metadata:
+      labels:
+        app: oci-proxy
+    spec:
+      serviceAccountName: vcp-service-account
+      containers:
+        - name: oci-proxy
+          image: oci-proxy
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            # HTTP server (common.Config uses GCP_PROXY_* for proxy host/port)
+            - name: GCP_PROXY_PORT
+              value: "8080"
+            - name: GCP_PROXY_HOST
+              value: ""
+            # Database (required for orchestrator)
+            - name: DB_HOST
+              value: postgres.default.svc.cluster.local
+            - name: DB_USER
+              value: postgres
+            - name: DB_PASSWORD
+              value: testpass
+            - name: DB_NAME
+              value: vcp
+            - name: DB_ADMIN_USER
+              value: postgres
+            - name: DB_ADMIN_PASSWORD
+              value: testpass
+            - name: RUN_MIGRATION_ON_START
+              value: "true"
+            - name: VCP_DB_RETRY_MAX
+              value: "10"
+            - name: VCP_DB_RETRY_DELAY_MS
+              value: "250"
+            # Temporal (required for workflow client used by orchestrator)
+            - name: TEMPORAL_ADDRESS
+              value: "local-temporal-frontend.default.svc.cluster.local:7233"
+            - name: TEMPORAL_NAMESPACE
+              value: "default"
+            # Region (required by common.LoadConfig region validation)
+            - name: ENV
+              value: "local"
+            - name: LOCAL_REGION
+              value: "us-ashburn-1"
+            - name: REGION_NUMBER_MAP
+              value: '{"ap-sydney-1":"01","ap-melbourne-1":"02","sa-saopaulo-1":"03","sa-vinhedo-1":"04","ca-montreal-1":"05","ca-toronto-1":"06","sa-santiago-1":"07","sa-valparaiso-1":"08","sa-bogota-1":"09","eu-paris-1":"10","eu-marseille-1":"11","eu-frankfurt-1":"12","ap-hyderabad-1":"13","ap-mumbai-1":"14","ap-batam-1":"15","il-jerusalem-1":"16","eu-milan-1":"17","eu-turin-1":"18","ap-osaka-1":"19","ap-tokyo-1":"20","ap-kulai-2":"21","mx-queretaro-1":"22","mx-monterrey-1":"23","af-casablanca-1":"24","eu-amsterdam-1":"25","me-riyadh-1":"26","me-jeddah-1":"27","eu-jovanovac-1":"28","ap-singapore-1":"29","ap-singapore-2":"30","af-johannesburg-1":"31","ap-seoul-1":"32","ap-chuncheon-1":"33","eu-madrid-1":"34","eu-madrid-3":"35","eu-stockholm-1":"36","eu-zurich-1":"37","me-abudhabi-1":"38","me-dubai-1":"39","uk-london-1":"40","uk-cardiff-1":"41","us-ashburn-1":"42","us-chicago-1":"43","us-phoenix-1":"44","us-sanjose-1":"45"}'
+            - name: HYPERSCALER
+              value: "oci"
+            # ONTAP admin password for OCI pool credentials (preparePool); matches Go default—use a Secret in real deployments.
+            - name: OCI_ONTAP_ADMIN_PASSWORD
+              value: "Netapp1!"
+            - name: OCI_ONTAP_ADMIN_USERNAME
+              value: "admin"
+          resources:
+            limits:
+              cpu: 500m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi

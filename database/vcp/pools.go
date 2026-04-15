@@ -501,6 +501,7 @@ func ConvertPoolViewToPool(view *datamodel.PoolView) *datamodel.Pool {
 		State:                 view.State,
 		StateDetails:          view.StateDetails,
 		VendorID:              view.VendorID,
+		PoolOCID:              view.PoolOCID,
 		ServiceLevel:          view.ServiceLevel,
 		SizeInBytes:           view.SizeInBytes,
 		UsedBytes:             view.UsedBytes,

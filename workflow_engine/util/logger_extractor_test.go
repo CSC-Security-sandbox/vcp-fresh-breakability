@@ -81,3 +81,52 @@ func (s *LoggerExtractorTestSuite) TestAddExtraLoggerFields() {
 	s.True(env.IsWorkflowCompleted())
 	s.NoError(env.GetWorkflowError())
 }
+
+func (s *LoggerExtractorTestSuite) TestWorkflowContextExtractLoggerFromContextSLoggerKey() {
+	env := s.NewTestWorkflowEnvironment()
+	mockL := log.NewLogger()
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		ctx = workflow.WithValue(ctx, middleware.ContextSLoggerKey, mockL)
+		wc := workflowContext{ctx: ctx}
+		l, err := wc.extractLogger()
+		s.NoError(err)
+		s.Equal(mockL, l)
+		return nil
+	})
+	s.True(env.IsWorkflowCompleted())
+	s.NoError(env.GetWorkflowError())
+}
+
+func (s *LoggerExtractorTestSuite) TestWorkflowContextExtractLoggerFromTemporalFieldsWithOPC() {
+	env := s.NewTestWorkflowEnvironment()
+	opcKey := string(middleware.OPCRequestIDHeaderName)
+	env.ExecuteWorkflow(func(ctx workflow.Context) error {
+		ctx = workflow.WithValue(ctx, middleware.TemporalSLoggerKey, log.Fields{
+			opcKey:        "req-id-1",
+			"traceMethod": "GET",
+			"traceURL":    "/pools",
+			"other":       "hidden",
+		})
+		wc := workflowContext{ctx: ctx}
+		l, err := wc.extractLogger()
+		s.NoError(err)
+		s.NotNil(l)
+		return nil
+	})
+	s.True(env.IsWorkflowCompleted())
+	s.NoError(env.GetWorkflowError())
+}
+
+func (s *LoggerExtractorTestSuite) TestAPIContextTemporalFieldsWithOPC() {
+	ctx := context.Background()
+	opcKey := string(middleware.OPCRequestIDHeaderName)
+	ctx = context.WithValue(ctx, middleware.TemporalSLoggerKey, log.Fields{
+		opcKey:        "opc-1",
+		"traceMethod": "POST",
+		"traceURL":    "/api",
+	})
+	ac := apiContext{ctx: ctx}
+	l, err := ac.extractLogger()
+	s.NoError(err)
+	s.NotNil(l)
+}

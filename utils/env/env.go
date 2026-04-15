@@ -422,6 +422,8 @@ var (
 	ExpertModeUserSuffix     = GetString("EXPERT_MODE_USER_SUFFIX", "gadmin")
 	PrivExpertModeUserSuffix = GetString("PRIV_EXPERT_MODE_USER_SUFFIX", "padmin")
 
+	// Hyperscaler is the cloud provider: "gcp" or "oci". Read from env HYPERSCALER at init.
+	// In OCI deployments this is set via the vcp-worker ConfigMap (global.hyperscaler in values.yaml).
 	Hyperscaler = GetString("HYPERSCALER", "gcp")
 
 	MaxBatchPoolUUIDs              = GetInt("MAX_BATCH_POOL_UUIDS", 1000)
@@ -446,6 +448,14 @@ var NetworkIpRanges = map[string]string{
 }
 
 func ValidateEnvironmentVariables() error {
+	// OCI deployments do not use GCP-specific env vars (CA, Secret Manager, Cloud DNS, etc.)
+	if Hyperscaler == "oci" {
+		if WorkerTaskQueue == "" {
+			return errors.New(500, "WORKER_TASK_QUEUE must be set for worker configuration")
+		}
+		return nil
+	}
+	// GCP validations
 	if Region == "" {
 		return errors.New(500, "LOCAL_REGION must be set for authentication")
 	}
@@ -531,6 +541,9 @@ func validateIpRange(ipRange, basicErrorString, envVariableName string) error {
 // ValidateCertificateLifetime validates that the certificate lifetime meets the minimum requirement
 // This prevents the worker service from starting if the certificate lifetime is too short
 func ValidateCertificateLifetime() error {
+	if Hyperscaler == "oci" {
+		return nil // OCI does not use GCP certificate lifecycle
+	}
 	// Get current values from environment variables (not package-level variables)
 	certificateLifetime := GetString("CERTIFICATE_LIFETIME", "94608000s")
 	minimumCertificateLifetime := GetString("MINIMUM_CERTIFICATE_LIFETIME", "5184000s")

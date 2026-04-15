@@ -34,6 +34,16 @@ build:
       requires:
         - image: base
           alias: BASE
+    - image: oci-proxy
+      context: .
+      docker:
+        dockerfile: oci-proxy/Dockerfile
+        buildArgs:
+          GHVSA_PAT: "{{.GHVSA_PAT}}"
+          noCache: true
+      requires:
+        - image: base
+          alias: BASE
     - image: core
       context: .
       docker:
@@ -110,6 +120,11 @@ portForward:
     namespace: vcp
     port: 8080
     localPort: 9003
+  - resourceType: service
+    resourceName: oci-proxy-service
+    namespace: vcp
+    port: 8080
+    localPort: 9004
 profiles:
   - name: gcb
     build:
@@ -165,6 +180,17 @@ profiles:
           requires:
             - image: base
               alias: BASE
+        - image: oci-proxy
+          context: .
+          sync:
+            manual:
+              - src: "artifacts/oci-proxy"
+                dest: "/app"
+          docker:
+            dockerfile: oci-proxy/Dockerfile.dev
+          requires:
+            - image: base
+              alias: BASE
         - image: telemetry
           context: .
           sync:
@@ -212,6 +238,13 @@ profiles:
           context: .
           docker:
             dockerfile: ontap-proxy/Dockerfile.dev
+          requires:
+            - image: base
+              alias: BASE
+        - image: oci-proxy
+          context: .
+          docker:
+            dockerfile: oci-proxy/Dockerfile.dev
           requires:
             - image: base
               alias: BASE

@@ -2559,3 +2559,27 @@ func TestValidateCertificateLifetime(t *testing.T) {
 		assert.NoError(tt, err)
 	})
 }
+
+func TestValidateEnvironmentVariables_OCIRequiresWorkerTaskQueue(t *testing.T) {
+	origH, origW := Hyperscaler, WorkerTaskQueue
+	t.Cleanup(func() {
+		Hyperscaler = origH
+		WorkerTaskQueue = origW
+	})
+	Hyperscaler = "oci"
+	WorkerTaskQueue = ""
+	err := ValidateEnvironmentVariables()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "WORKER_TASK_QUEUE")
+
+	Hyperscaler = "oci"
+	WorkerTaskQueue = "customer-workflows"
+	assert.NoError(t, ValidateEnvironmentVariables())
+}
+
+func TestValidateCertificateLifetime_OCIESkip(t *testing.T) {
+	orig := Hyperscaler
+	t.Cleanup(func() { Hyperscaler = orig })
+	Hyperscaler = "oci"
+	assert.NoError(t, ValidateCertificateLifetime())
+}
