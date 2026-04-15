@@ -12,7 +12,7 @@
 #   - /tmp/batch-results/batch-*/_bc_peer_groups.json   (from any batch)
 #   - GH_TOKEN / GITHUB_TOKEN env
 # ──────────────────────────────────────────────────────────────────────────────
-set -u
+set -euo pipefail
 
 RESULTS_FILE="/tmp/build-results.json"
 OWNER_REPO="${GITHUB_REPOSITORY:-}"
@@ -95,7 +95,7 @@ for diff_file in /tmp/batch-results/batch-*/pr-*.diff; do
   [[ -f "$diff_file" ]] || continue
   cp "$diff_file" /tmp/ 2>/dev/null || true
 done
-DIFF_COUNT=$(ls /tmp/pr-*.diff 2>/dev/null | wc -l | tr -d ' ')
+DIFF_COUNT=$(find /tmp -maxdepth 1 -name 'pr-*.diff' 2>/dev/null | wc -l | tr -d ' ')
 echo "  Collected $DIFF_COUNT PR diffs"
 
 # ── Step 3: Collect workspace graph + peer groups ─────────────────────────────

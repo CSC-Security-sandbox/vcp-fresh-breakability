@@ -310,8 +310,22 @@ Build: ❌ fails on PR branch, ✅ passes on main · Usage: $FILES_COUNT file(s)
 > ⚠️ *Fallback comment — AI agent did not run or did not cover this PR.*"
 
   elif [[ "$VERDICT" == "pre_existing" ]]; then
-    # Pre-existing failures
-    COMMENT="<!-- breakability-check -->
+    # Pre-existing failures — split on verification level (Finding-3.3).
+    # L2+ means tsc/go-build actually passed (identical errors = no new problems) → SAFE.
+    # L1 only means type-check inconclusive → UNVERIFIED.
+    if [[ "$VER_LABEL" == L2* || "$VER_LABEL" == L3* || "$VER_LABEL" == L4* || "$VER_LABEL" == L5* ]]; then
+      COMMENT="<!-- breakability-check -->
+## ✅ SAFE — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
+
+Build: ✅ verified — same result as main baseline, not caused by this change · Verification: **${VER_LABEL}** · Usage: $FILES_COUNT file(s)${CVE_LINE}
+
+### What this means
+The build produces the same errors on both \`main\` and this PR branch. This upgrade does **not** introduce new failures. Verified at **${VER_LABEL}**.
+
+**Recommendation:** Safe to merge. Pre-existing build issues are unrelated to this upgrade.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+> ⚠️ *Fallback comment — AI agent did not run or did not cover this PR.*"
+    else
+      COMMENT="<!-- breakability-check -->
 ## ⚙️ UNVERIFIED — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
 
 Build: ⚙️ same errors on main and PR branch — pre-existing failure, not caused by this upgrade${CVE_LINE}
@@ -321,6 +335,7 @@ The build fails on both \`main\` and this PR with the same errors. This upgrade 
 
 **Recommendation:** Fix pre-existing build failures on \`main\` first, then re-analyze. This upgrade is likely safe but unconfirmed.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 > ⚠️ *Fallback comment — AI agent did not run or did not cover this PR.*"
+    fi
 
   elif [[ "$VERDICT" == "pre_existing_plus_new" ]]; then
     # Pre-existing + new errors
@@ -330,6 +345,19 @@ The build fails on both \`main\` and this PR with the same errors. This upgrade 
 Build: ❌ new errors introduced by this PR (on top of pre-existing failures)${CVE_LINE}
 
 This upgrade introduces **$NEW_ERR_COUNT new error(s)** not present on \`main\`. Fix required before merging.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+> ⚠️ *Fallback comment — AI agent did not run or did not cover this PR.*"
+
+  elif [[ "$VERDICT" == "security_review" ]]; then
+    # Build passes but npm audit found CRITICAL/HIGH vulnerabilities
+    COMMENT="<!-- breakability-check -->
+## ⚠️ SECURITY REVIEW — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
+
+Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${CVE_LINE}
+
+### Security concern
+Build passes, but \`npm audit\` found **critical or high** vulnerabilities in this upgrade. Manual security review recommended before merging.
+
+**Recommendation:** Review the npm audit output and CVE details. If vulnerabilities are in transitive deps not used by your code, merge may still be safe.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 > ⚠️ *Fallback comment — AI agent did not run or did not cover this PR.*"
 
   elif [[ "$INSTALL_METHOD" == "infra_error" ]]; then
@@ -343,6 +371,15 @@ Build: ⚠️ blocked by infrastructure error — build verification could not r
 The build check was blocked by an infrastructure issue (private registry, network timeout, or missing dependency not caused by this upgrade). **This is not a build failure from the upgrade.**
 
 **Recommendation:** Verify infrastructure health, then re-run. If infrastructure is healthy, review manually.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+> ⚠️ *Fallback comment — AI agent did not run or did not cover this PR.*"
+
+  elif [[ "$VERDICT" == "conflict" ]]; then
+    # Conflicted PR — cannot merge or analyze until rebased (Finding-3.6)
+    COMMENT="<!-- breakability-check -->
+## ⚠️ CONFLICTED — \`$PKG\` $FROM → $TO — rebase required
+
+This PR has merge conflicts and cannot be merged or analyzed until rebased.
+Run \`@dependabot recreate\` or rebase manually.${PLAN_LINE}${ADVISORY_FOOTER}
 > ⚠️ *Fallback comment — AI agent did not run or did not cover this PR.*"
 
   else
@@ -426,8 +463,10 @@ for num, pr in sorted(prs.items(), key=lambda x: int(x[0])):
         safe.append(entry)
     elif v in ("fail", "pre_existing_plus_new"):
         blocked.append(entry)
-    elif v in ("pre_existing", "error"):
+    elif v in ("pre_existing", "error", "security_review"):
         review.append(entry)
+    elif v == "conflict":
+        blocked.append(entry)
     else:
         not_analyzed.append(entry)
 
@@ -486,8 +525,11 @@ if cross:
     lines.append("")
     for group in cross:
         reason = group.get("reason", "related")
-        pr_nums = group.get("prs", [])
-        lines.append(f"- **{reason}:** PRs {', '.join(f'#{p}' for p in pr_nums)}")
+        pr_a = group.get("pr_a", "?")
+        pr_b = group.get("pr_b", "?")
+        order = group.get("merge_order", "")
+        order_text = f" ({order})" if order else ""
+        lines.append(f"- **{reason}:** #{pr_a} + #{pr_b}{order_text}")
     lines.append("")
 
 # Blocked
@@ -497,7 +539,12 @@ if blocked:
     lines.append("| PR | Package | Version | Bump | Issue |")
     lines.append("|----|---------|---------|----|-------|")
     for e in blocked:
-        issue = "Build fails" if e["verdict"] == "fail" else "New errors on top of pre-existing"
+        if e["verdict"] == "fail":
+            issue = "Build fails"
+        elif e["verdict"] == "conflict":
+            issue = "Merge conflicts — rebase required"
+        else:
+            issue = "New errors on top of pre-existing"
         lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {e['bump']} | {issue} |")
     lines.append("")
 
@@ -506,7 +553,12 @@ if review:
     lines.append("## ⚠️ Manual Review Needed")
     lines.append("")
     for e in review:
-        reason = "Pre-existing build failure (not caused by upgrade)" if e["verdict"] == "pre_existing" else "Build error / infrastructure issue"
+        if e["verdict"] == "pre_existing":
+            reason = "Pre-existing build failure (not caused by upgrade)"
+        elif e["verdict"] == "security_review":
+            reason = "Build passes but npm audit found critical/high vulnerabilities"
+        else:
+            reason = "Build error / infrastructure issue"
         lines.append(f"- **PR #{e['num']}** `{e['pkg']}` {e['from']}→{e['to']} — {reason}")
     lines.append("")
 
@@ -522,12 +574,12 @@ if skipped:
 if security:
     lines.append("## 🛡️ Repository Security Posture")
     lines.append("")
-    open_alerts = security.get("open_alerts", 0)
+    open_alerts = security.get("total_open_alerts", 0)
     fixable = security.get("alerts_fixable_by_merging", 0)
     lines.append(f"- Open Dependabot alerts: **{open_alerts}**")
     if fixable:
         lines.append(f"- Alerts fixable by merging these PRs: **{fixable}**")
-    by_sev = security.get("by_severity", {})
+    by_sev = security.get("severity_counts", {})
     if by_sev:
         sev_str = ", ".join(f"{s}: {c}" for s, c in sorted(by_sev.items()))
         lines.append(f"- By severity: {sev_str}")

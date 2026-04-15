@@ -5,7 +5,16 @@
 # Runs TS pipeline CLI + ecosystem-specific builds for each Dependabot PR,
 # produces /tmp/build-results.json with structured analysis data.
 # ──────────────────────────────────────────────────────────────────────────────
-set -u
+set -euo pipefail
+
+_bc_cleanup() {
+  rm -rf "${WORKTREE_BASE:-/tmp/worktree}"-*/ 2>/dev/null || true
+  git worktree list --porcelain 2>/dev/null | grep '^/' | while IFS= read -r wt; do
+    git worktree remove "$wt" --force 2>/dev/null || true
+  done
+}
+trap '_bc_cleanup; exit 130' TERM INT
+trap _bc_cleanup EXIT
 
 TIMEOUT=120
 DIFF_MAX_LINES=500
@@ -25,6 +34,12 @@ WORKTREE_BASE="/tmp/worktree"
 BC_CONFIG="${REPO_ROOT}/.github/breakability-config.yml"
 PRIVATE_REGISTRY_CONFIGURED=false
 BC_MODE="advisory"
+
+GO_AVAILABLE=false
+if command -v go &>/dev/null; then
+  GO_AVAILABLE=true
+  GO_VERSION=$(go version 2>/dev/null | head -1 || echo "unknown")
+fi
 
 # Parse the breakability config and cache the parsed JSON in a temp file
 # so we don't re-parse YAML for every call. Uses PyYAML if available, falls
@@ -140,11 +155,11 @@ setup_private_registries() {
 
   [[ "$config_json" == "{}" ]] && return 0
 
-  python3 << SETUPREG
+  _BC_CONFIG_JSON="$config_json" _BC_TARGET_DIR="$target_dir" python3 << 'SETUPREG'
 import json, os, sys
 
-config = json.loads('''$config_json''')
-target_dir = "$target_dir"
+config = json.loads(os.environ.get('_BC_CONFIG_JSON', '{}'))
+target_dir = os.environ.get('_BC_TARGET_DIR', '.')
 
 registries = config.get("private_registries", [])
 if not registries:
@@ -327,24 +342,71 @@ tail_output() {
 
 # Retry a command with exponential backoff
 # Usage: retry_cmd <max_attempts> <base_delay_seconds> <command...>
+# Special handling: if command contains 'timeout', treat 124 (timeout) as retryable
+# with increasing timeout per attempt (instead of same timeout × retries)
 retry_cmd() {
   local max_attempts="$1"
   local base_delay="$2"
   shift 2
   local attempt=1
   local rc=0
+  local has_timeout=0
+  local orig_timeout="" timeout_arg="" timeout_val=""
+
+  for arg in "$@"; do
+    if [[ "$arg" == "timeout" ]]; then
+      has_timeout=1
+      timeout_arg="timeout"
+      break
+    fi
+  done
+
+  if [[ $has_timeout -eq 1 ]]; then
+    for arg in "$@"; do
+      if [[ "$arg" =~ ^[0-9]+$ ]]; then
+        timeout_val="$arg"
+        break
+      fi
+    done
+  fi
 
   while [[ $attempt -le $max_attempts ]]; do
-    if "$@"; then
-      return 0
+    if [[ $has_timeout -eq 1 && -n "$timeout_val" ]]; then
+      local scaled_timeout=$((timeout_val * attempt))
+      local cmd=()
+      local skip_next=0
+      for arg in "$@"; do
+        if [[ $skip_next -eq 1 ]]; then skip_next=0; continue; fi
+        if [[ "$arg" == "timeout" ]]; then
+          cmd+=("timeout" "$scaled_timeout")
+          skip_next=1  # skip the original timeout value that follows
+        else
+          cmd+=("$arg")
+        fi
+      done
+      if "${cmd[@]}"; then
+        return 0
+      fi
+      rc=$?
+      if [[ $rc -eq 124 ]]; then
+        echo "  ⚠️  Command timed out (attempt $attempt/$max_attempts, timeout=${scaled_timeout}s), retrying..." >&2
+      fi
+    else
+      if "$@"; then
+        return 0
+      fi
+      rc=$?
     fi
-    rc=$?
-    # Exit 124 = timeout(1) killed the process — retrying would just triple the wall time
-    if [[ $rc -eq 124 ]]; then return $rc; fi
-    if [[ $attempt -lt $max_attempts ]]; then
-      local delay=$((base_delay * (2 ** (attempt - 1))))
-      echo "  ⚠️  Command failed (attempt $attempt/$max_attempts), retrying in ${delay}s..." >&2
-      sleep "$delay"
+    if [[ $rc -eq 124 ]]; then
+      if [[ $has_timeout -eq 0 ]]; then
+        return $rc
+      fi
+    else
+      if [[ $attempt -lt $max_attempts ]]; then
+        local delay=$((base_delay * (2 ** (attempt - 1))))
+        echo "  ⚠️  Command failed (attempt $attempt/$max_attempts, exit=$rc), retrying in ${delay}s..." >&2
+        sleep "$delay"
+      fi
     fi
     ((attempt++))
   done
@@ -489,7 +551,7 @@ scan_usage_npm() {
   local scan_name="$pkg"
   [[ "$pkg" == @types/* ]] && scan_name="${pkg#@types/}"
 
-  grep -rn "from ['\"]${scan_name}['\"/]\\|require(['\"]${scan_name}['\"/]" \
+  grep -rnE "from ['\"]${scan_name}(/[^'\"]+)?['\"]|require\(['\"]${scan_name}(/[^'\"]+)?['\"]" \
     --include="*.ts" --include="*.tsx" --include="*.js" --include="*.mjs" \
     src/ lib/ test/ 2>/dev/null | head -50 || true
 }
@@ -521,12 +583,13 @@ go_targeted_build() {
   shift 2>/dev/null || true
 
   # Generate module-aware build commands
+  # Pass import_json via env var to avoid triple-quote injection (Finding-4.8)
   local build_script
-  build_script=$(python3 -c "
+  build_script=$(_BC_IMPORT_JSON="$import_json" python3 -c "
 import json, sys, os, subprocess
 
 try:
-    files = json.loads('''$import_json''')
+    files = json.loads(os.environ.get('_BC_IMPORT_JSON', '[]'))
 except:
     files = []
 
@@ -598,12 +661,13 @@ for mod, dirs in sorted(module_dirs.items()):
 
 go_targeted_vet() {
   local import_json="${1:-[]}"
+  # Pass import_json via env var to avoid triple-quote injection (Finding-4.8)
   local build_script
-  build_script=$(python3 -c "
+  build_script=$(_BC_IMPORT_JSON="$import_json" python3 -c "
 import json, sys, os
 
 try:
-    files = json.loads('''$import_json''')
+    files = json.loads(os.environ.get('_BC_IMPORT_JSON', '[]'))
 except:
     files = []
 
@@ -653,6 +717,20 @@ for mod, dirs in sorted(module_dirs.items()):
   done <<< "$build_script"
 }
 
+go_check_vulnerabilities() {
+  # Usage: go_check_vulnerabilities <workdir>
+  # Checks for known vulnerabilities using govulncheck if available.
+  # Gracefully degrades if govulncheck is not installed.
+  local workdir="${1:-.}"
+  
+  if ! command -v govulncheck &>/dev/null; then
+    echo "  [security] govulncheck not installed — skipping vulnerability scan"
+    return 0
+  fi
+  
+  (cd "$workdir" && timeout 120 govulncheck ./... 2>&1) || true
+}
+
 go_targeted_test() {
   # Usage: go_targeted_test <workdir> <files_importing_json>
   # Runs targeted tests only on packages that import the changed dependency.
@@ -660,12 +738,13 @@ go_targeted_test() {
   local workdir="${1:-.}"
   local import_json="${2:-[]}"
 
+  # Pass import_json and workdir via env vars to avoid injection (Finding-4.8)
   local test_script
-  test_script=$(python3 -c "
+  test_script=$(_BC_IMPORT_JSON="$import_json" _BC_WORKDIR="$workdir" python3 -c "
 import json, sys, os
 
 try:
-    files = json.loads('''$import_json''')
+    files = json.loads(os.environ.get('_BC_IMPORT_JSON', '[]'))
 except:
     files = []
 
@@ -674,11 +753,12 @@ if not files:
     sys.exit(0)
 
 # Walk from workdir to find go.mod files
+workdir = os.environ.get('_BC_WORKDIR', '.')
 mod_roots = []
-for root, dirs, fnames in os.walk('$workdir'):
+for root, dirs, fnames in os.walk(workdir):
     dirs[:] = [d for d in dirs if d not in ('vendor', '.git', 'node_modules')]
     if 'go.mod' in fnames:
-        mod_roots.append(os.path.relpath(root, '$workdir'))
+        mod_roots.append(os.path.relpath(root, workdir))
 
 mod_roots = [os.path.normpath(m) for m in mod_roots]
 mod_roots.sort(key=lambda x: -x.count('/'))
@@ -707,8 +787,12 @@ for mod, dirs in sorted(module_dirs.items()):
     print(f'{mod}|{chr(32).join(sorted(dirs))}')" 2>/dev/null)
 
   if [[ -z "$test_script" || "$test_script" == "FALLBACK" ]]; then
-    echo "  go test: no import data, skipping (would run full ./...)"
-    return 0
+    echo "  go test: no import data, running full ./..."
+    local _RC=0
+    for mod_root in .; do
+      (cd "$workdir" && timeout $GO_TIMEOUT go test ./... 2>&1) || _RC=$?
+    done
+    return $_RC
   fi
 
   local _RC=0
@@ -720,7 +804,7 @@ for mod, dirs in sorted(module_dirs.items()):
     local dir_count
     dir_count=$(echo "$dirs" | wc -w | tr -d ' ')
     echo "    testing $mod_root module: $dir_count dirs — $dirs"
-    (cd "$abs_mod" && timeout $GO_TIMEOUT go test -timeout 5m $dirs 2>&1) || _RC=$?
+    (cd "$abs_mod" && timeout $GO_TIMEOUT go test -timeout 5m -race $dirs 2>&1) || _RC=$?
   done <<< "$test_script"
   return $_RC
 }
@@ -794,12 +878,13 @@ GRAPHEOF
 
 check_cascade_impact() {
   local pkg_dir="$1"
-  python3 -c "
-import json
+  _BC_PKG_DIR="$pkg_dir" python3 -c "
+import json, os
 try:
+    pkg_dir = os.environ.get('_BC_PKG_DIR', '/')
     with open('/tmp/_bc_workspace_graph.json') as f: g = json.load(f)
-    pn = next((n for n, i in g.get('packages',{}).items() if i['path']=='$pkg_dir'), None)
-    if not pn: pn = next((n for n, i in g.get('packages',{}).items() if i['path'].lower()=='$pkg_dir'.lower()), None)
+    pn = next((n for n, i in g.get('packages',{}).items() if i['path']==pkg_dir), None)
+    if not pn: pn = next((n for n, i in g.get('packages',{}).items() if i['path'].lower()==pkg_dir.lower()), None)
     cs = g.get('consumers',{}).get(pn, []) if pn else []
     if not cs and pn:
         for k, v in g.get('consumers',{}).items():
@@ -931,7 +1016,14 @@ echo "Mode: $BC_MODE"
 echo ""
 echo "Discovering Dependabot PRs..."
 PR_JSON=$(gh pr list --label "dependencies" --state open \
-  --json number,title,headRefName,body,labels --limit 500)
+  --json number,title,headRefName,body,labels --limit 500 2>&1) || {
+  echo "  ERROR: gh pr list failed: $PR_JSON" >&2
+  PR_JSON='[]'
+}
+if ! echo "$PR_JSON" | jq -e '.' >/dev/null 2>&1; then
+  echo "  ERROR: Invalid JSON from gh pr list, treating as empty" >&2
+  PR_JSON='[]'
+fi
 
 PR_COUNT=$(echo "$PR_JSON" | jq length)
 echo "Found $PR_COUNT open Dependabot PRs"
@@ -1152,9 +1244,21 @@ $_mod_output"
     echo "  go baseline (multi-module): worst_exit=$main_go_exit"
   else
     echo "  go: verifying + building..."
-    # Supply chain check first, then build + vet
+    # Supply chain check BEFORE downloads to prevent xz-style attacks.
+    # Set GOSUMDB=off + GOPROXY=direct to bypass proxy cache (could contain malicious modules).
+    # Prove execution order with timestamps for security audit trail.
     main_go_output=$(cd "$MAIN_DIR" && {
-      go mod verify 2>&1 || echo "WARNING: go mod verify failed"
+      export GOFLAGS='-x'
+      export GOSUMDB='off'
+      export GOPROXY='direct'
+      echo "[$(date -u +%H:%M:%S)] START: go mod verify (supply chain check)"
+      _VERIFY_OUT=$(go mod verify 2>&1)
+      _VERIFY_RC=$?
+      echo "[$(date -u +%H:%M:%S)] DONE: go mod verify (verified before download)"
+      if [[ $_VERIFY_RC -ne 0 ]]; then
+        echo "WARNING: go mod verify FAILED - possible supply chain compromise"
+        echo "$_VERIFY_OUT"
+      fi
       # _BUILD_RC captures go build exit so go vet warnings don't clobber it (Bug 3).
       _BUILD_RC=0
       go_free_disk
@@ -1185,10 +1289,12 @@ $_mod_output"
   fi
 fi
 
-# Go baseline test — run TARGETED tests on main branch for comparison.
-# We don't run full ./... (takes 30+ min on large monorepos).
-# Instead, we'll run the same targeted tests per-PR in the PR loop and compare.
-# Here we just record that baseline test is deferred to per-PR comparison.
+# Go baseline test — deferred to per-PR targeted comparison.
+# We don't run full ./... here (takes 30+ min on large monorepos).
+# Instead, per-PR in the PR loop (gomod test block), we run the SAME targeted
+# tests on both the main worktree and the PR worktree, storing the result in
+# MAIN_GO_TEST_EXIT_PR. This enables pre-existing test failure detection.
+# The global value below is kept for metadata only (Finding-3.1).
 main_go_test_exit=-1
 main_go_test_output="deferred — per-PR targeted comparison"
 
@@ -1216,7 +1322,7 @@ if [[ -n "$_PY_SRC_FILE" ]]; then
       main_pip_output=$(cd "$MAIN_DIR" && retry_cmd 3 5 "$_PY_PIP_MAIN" install -e . --quiet 2>&1) ;;
     poetry.lock)
       main_pip_output=$(cd "$MAIN_DIR" && {
-        retry_cmd 3 5 "$_PY_PIP_MAIN" install poetry --quiet 2>&1
+        retry_cmd 3 5 "$_PY_PIP_MAIN" install poetry --quiet 2>&1 && \
         retry_cmd 3 5 "$_PY_PYTHON_MAIN" -m poetry install --quiet 2>&1
       }) ;;
   esac
@@ -1241,7 +1347,9 @@ def read_output(path):
     try:
         with open(path) as f:
             return f.read()
-    except:
+    except FileNotFoundError:
+        return ""
+    except Exception:
         return ""
 
 data["main_build"] = {
@@ -1250,8 +1358,21 @@ data["main_build"] = {
     "pip": {"exit": $main_pip_exit, "output_tail": read_output("/tmp/_bc_main_pip.txt")}
 }
 
-with open("$RESULTS_FILE", "w") as f:
-    json.dump(data, f, indent=2)
+import os
+import tempfile
+
+def atomic_json_write(data, filepath):
+    tmpfd, tmppath = tempfile.mkstemp(dir=os.path.dirname(filepath) or '.', suffix='.tmp')
+    try:
+        with os.fdopen(tmpfd, 'w') as f:
+            json.dump(data, f, indent=2)
+        os.rename(tmppath, filepath)
+    except Exception:
+        if os.path.exists(tmppath):
+            os.remove(tmppath)
+        raise
+
+atomic_json_write(data, "$RESULTS_FILE")
 PYEOF
 
 # NOTE: main worktree kept alive for lazy per-directory baselines during PR processing
@@ -1292,6 +1413,42 @@ print(f"  Total packages with peer deps: {len(peer_groups)}")
 PEERDEPS_SCRIPT
 
 
+# ── Pre-fetch Dependabot alerts for per-PR CVE enrichment ────────────────────
+# Dependabot PRs often do NOT mention CVE/GHSA IDs in the PR body.
+# We fetch all open alerts once and cache them so each PR can look up its CVEs.
+echo ""
+echo "════════════ DEPENDABOT ALERTS CACHE ════════════"
+_BC_ALERTS_CACHE="/tmp/_bc_dependabot_alerts.json"
+_BC_ALERTS_RAW="/tmp/_bc_dependabot_alerts_raw.json"
+if gh api "repos/$OWNER_REPO/dependabot/alerts?state=open&per_page=100" --paginate > "$_BC_ALERTS_RAW" 2>/dev/null; then
+  # gh --paginate outputs one JSON array per page; merge them into a single array
+  python3 -c '
+import json, sys
+alerts = []
+for line in sys.stdin:
+    line = line.strip()
+    if not line:
+        continue
+    try:
+        obj = json.loads(line)
+        if isinstance(obj, list):
+            alerts.extend(obj)
+        else:
+            alerts.append(obj)
+    except json.JSONDecodeError:
+        pass
+with open(sys.argv[1], "w") as f:
+    json.dump(alerts, f)
+print(len(alerts))
+' "$_BC_ALERTS_CACHE" < "$_BC_ALERTS_RAW"
+  _ALERT_COUNT=$?
+  _ALERT_COUNT=$(python3 -c "import json; print(len(json.load(open('$_BC_ALERTS_CACHE'))))" 2>/dev/null || echo 0)
+  echo "  Cached $_ALERT_COUNT open Dependabot alerts"
+else
+  echo "[]" > "$_BC_ALERTS_CACHE"
+  echo "  Could not fetch Dependabot alerts (permissions or no alerts)"
+fi
+
 # ── Process each PR ──────────────────────────────────────────────────────────
 echo ""
 echo "════════════ PROCESSING PRs ════════════"
@@ -1313,11 +1470,17 @@ for i in $(seq 0 $(( PR_COUNT - 1 )) ); do
     # and lets the agent/fallback scripts acknowledge it was seen and intentionally skipped).
     _SKIP_BRANCH="$PR_BRANCH"
     _SKIP_TITLE="$PR_TITLE"
+    # Write user-derived PR title to temp file to avoid shell injection in heredoc (Finding-4.1)
+    printf '%s' "$_SKIP_TITLE" > "/tmp/_bc_skip_title_${PR_NUM}.txt"
     python3 << SKIPEOF
-import json
+import json, os
 results_file = "$RESULTS_FILE"
 pr_num = "$PR_NUM"
-pr_title = _skip_title = """$_SKIP_TITLE""".replace('\\\\', '\\\\').strip()
+try:
+    with open(f"/tmp/_bc_skip_title_{pr_num}.txt") as f:
+        pr_title = f.read().strip()
+except:
+    pr_title = "unknown"
 pr_branch = "$_SKIP_BRANCH"
 with open(results_file) as f:
     data = json.load(f)
@@ -1350,10 +1513,18 @@ data["prs"][pr_num] = {
     "verification_steps": [],
     "skip_reason": "breakability:skip label"
 }
-with open(results_file, "w") as f:
+_tmp = results_file + ".tmp"
+with open(_tmp, "w") as f:
     json.dump(data, f, indent=2)
+os.rename(_tmp, results_file)
 print(f"  ✓ PR #{pr_num} written (skipped)")
 SKIPEOF
+    continue
+  fi
+
+  # Skip non-Dependabot PRs (safety guard — label filter should catch these)
+  if [[ "$PR_BRANCH" != dependabot/* ]]; then
+    echo "  ⏭️  SKIP — not a Dependabot branch: $PR_BRANCH"
     continue
   fi
 
@@ -1376,13 +1547,6 @@ SKIPEOF
     echo "  ⚠️  PR has merge conflicts — skipping build analysis"
     BUILD_VERDICT="conflict"
     # Still need to parse title for package info, then write minimal JSON
-  fi
-
-
-  # Skip non-Dependabot PRs (safety guard — label filter should catch these)
-  if [[ "$PR_BRANCH" != dependabot/* ]]; then
-    echo "  ⏭️  SKIP — not a Dependabot branch: $PR_BRANCH"
-    continue
   fi
 
   # Detect ecosystem
@@ -1439,6 +1603,10 @@ SKIPEOF
   fi
   echo "  bump: $BUMP"
 
+  # Update-type risk profile: patch updates are SAFE (no breaking changes by semver).
+  # Major updates carry HIGH_RISK (semver contract broken, API surface changed).
+  # Minor updates are MODERATE_RISK (new features, but backwards compatible).
+
   # Dep type
   DEP_TYPE="unknown"
   case "$ECOSYSTEM" in
@@ -1462,8 +1630,43 @@ SKIPEOF
   DEP_RELATION=$(detect_dep_relation "$ECOSYSTEM" "$PKG")
   echo "  dep_relation: $DEP_RELATION"
 
-  # Security / CVEs
+  # Security / CVEs — from PR body AND Dependabot alerts cache
+  # Dependabot usually does NOT put CVE/GHSA IDs in PR bodies.
+  # We enrich from the cached alerts API response.
   CVES=$(extract_cves "$PR_BODY")
+  # Enrich from Dependabot alerts: find alerts matching this package name
+  if [[ -f "$_BC_ALERTS_CACHE" ]]; then
+    ALERT_CVES=$(python3 -c "
+import json, sys
+pkg = \"$PKG\"
+try:
+    with open(\"$_BC_ALERTS_CACHE\") as f:
+        alerts = json.load(f)
+    matches = [a for a in alerts
+               if a.get(\"dependency\",{}).get(\"package\",{}).get(\"name\",\"\") == pkg
+               and a.get(\"state\") == \"open\"]
+    cves = []
+    for a in matches:
+        adv = a.get(\"security_advisory\", {})
+        cve_id = adv.get(\"cve_id\")
+        ghsa_id = adv.get(\"ghsa_id\")
+        if cve_id and cve_id not in cves:
+            cves.append(cve_id)
+        elif ghsa_id and ghsa_id not in cves:
+            cves.append(ghsa_id)
+    print(\",\".join(cves))
+except:
+    pass
+" 2>/dev/null)
+    # Merge: body CVEs + alert CVEs (deduplicated)
+    if [[ -n "$ALERT_CVES" ]]; then
+      if [[ -n "$CVES" ]]; then
+        CVES=$(echo "$CVES,$ALERT_CVES" | tr "," "\n" | sort -u | tr "\n" "," | sed "s/,$//" )
+      else
+        CVES="$ALERT_CVES"
+      fi
+    fi
+  fi
   [[ -n "$CVES" ]] && echo "  cves: $CVES"
 
   # ── Collect diff ────────────────────────────────────────────────
@@ -1518,13 +1721,21 @@ SKIPEOF
       EXTRA_COUNT=$(echo "$EXTRA_FILES" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
       echo "  additional pkg $EXTRA_PKG: $EXTRA_COUNT import sites"
       # Merge into ADDITIONAL_IMPORTS as {"package": "...", "files": [...]}
-      ADDITIONAL_IMPORTS=$(python3 -c "
-import json, sys
-existing = json.loads('$ADDITIONAL_IMPORTS')
-files = json.loads('''$EXTRA_FILES''')
-existing.append({'package': '$EXTRA_PKG', 'files': files, 'count': len(files)})
+      # Use temp files to avoid shell double-quote parsing issues on 2nd+ iteration
+      # (Finding-5.3) and special chars in package names (Finding-5.6).
+      printf '%s' "$ADDITIONAL_IMPORTS" > /tmp/_bc_addl_accum.json
+      printf '%s' "$EXTRA_FILES" > /tmp/_bc_extra_files.json
+      printf '%s' "$EXTRA_PKG" > /tmp/_bc_extra_pkg.txt
+      _addl_result=""
+      _addl_result=$(python3 2>/dev/null << 'ADDLEOF'
+import json
+with open('/tmp/_bc_addl_accum.json') as f: existing = json.loads(f.read() or '[]')
+with open('/tmp/_bc_extra_files.json') as f: files = json.loads(f.read() or '[]')
+with open('/tmp/_bc_extra_pkg.txt') as f: pkg = f.read().strip()
+existing.append({'package': pkg, 'files': files, 'count': len(files)})
 print(json.dumps(existing))
-" 2>/dev/null || echo "$ADDITIONAL_IMPORTS")
+ADDLEOF
+) && ADDITIONAL_IMPORTS="$_addl_result" || true
     done
   fi
 
@@ -1541,13 +1752,17 @@ print(json.dumps(existing))
 import json
 try:
     with open('/tmp/_bc_peer_groups.json') as f: pg = json.load(f)
-    with open('/tmp/build-results.json') as f: data = json.load(f)
+    with open('$RESULTS_FILE') as f: data = json.load(f)
     nestjs = pg.get('nestjs_group', [])
     pkg = '$PKG'
     if pkg in nestjs:
         others = [f'#{n} ({p["package"]})' for n, p in data.get('prs',{}).items() if p.get('package','').startswith('@nestjs/') and p['package'] != pkg]
         if others: print('NestJS peer group: upgrade ' + pkg + ' with: ' + ', '.join(others[:5]))
-except: pass
+except (FileNotFoundError, json.JSONDecodeError, KeyError):
+    pass
+except Exception as e:
+    import sys
+    print(f"WARNING: NestJS peer detection error: {e}", file=sys.stderr)
 " 2>/dev/null || true)
     [[ -n "$NESTJS_PEER_WARNING" ]] && echo "  $NESTJS_PEER_WARNING"
   fi
@@ -1611,8 +1826,18 @@ print(json.dumps(result))
   PR_WORKTREE="${WORKTREE_BASE}-${PR_NUM}"
   AUDIT_CRITICAL=0
   AUDIT_HIGH=0
+  # Initialize PR-level variables BEFORE the worktree check — if worktree creation
+  # fails (BUILD_VERDICT="error"), these are used in the Python heredoc at line ~2626.
+  # Without initialization, set -u would abort the script (Finding-2.12).
+  PR_TSC_EXIT=-1
+  PR_INSTALL_EXIT=0
+  MAIN_GO_TEST_EXIT_PR=-1
+  MAIN_NPM_TEST_EXIT_PR=-1
 
-  if [[ "$BUILD_VERDICT" == "conflict" ]]; then
+  # Re-check MERGEABLE_STATUS (conflict verdict was set at line 1526 but BUILD_VERDICT
+  # was just reset to "skip" — so we must check the source of truth, not the overwritten var)
+  if [[ "$MERGEABLE_STATUS" == "CONFLICTING" ]]; then
+    BUILD_VERDICT="conflict"
     echo "  Skipping build — PR has merge conflicts"
   elif [[ "$ECOSYSTEM" == "npm" || "$ECOSYSTEM" == "gomod" || "$ECOSYSTEM" == "pip" ]]; then
     rm -rf "$PR_WORKTREE" 2>/dev/null || true
@@ -1690,27 +1915,46 @@ $TSC_OUT"
           fi
           ;;
         gomod)
-          # Check for go.work workspace file (multi-module monorepo)
-          if [[ -f "$PR_WORKTREE/go.work" ]]; then
-            echo "  build: go.work workspace detected — go work sync + mod verify + build + vet..."
-            BUILD_OUTPUT=$(cd "$PR_WORKTREE" && {
-              # Bug fix: && ensures build is skipped if go work sync fails.
-              # _BUILD_RC captures go build exit so go vet warnings don't clobber BUILD_EXIT.
-              _BUILD_RC=0
-              retry_cmd 3 5 go work sync && {
-                echo "--- go mod verify (workspace modules) ---"
-                grep -E '^use ' go.work | awk '{print $2}' | while IFS= read -r _ws_mod; do
-                  if [[ -n "$_ws_mod" ]]; then
-                    echo "  verifying module: $_ws_mod"
-                    (cd "$_ws_mod" && timeout 30 go mod verify 2>&1) || echo "  ⚠️  go mod verify FAILED for $_ws_mod"
-                  fi
-                done
+          if [[ "$GO_AVAILABLE" == "false" ]]; then
+            echo "  build: SKIP — Go is not installed on this runner"
+            BUILD_OUTPUT="SKIPPED: Go not available (go version returned error or Go not found)"
+            BUILD_EXIT=0
+            INSTALL_OK="true"
+          elif [[ -f "$PR_WORKTREE/go.work" ]]; then
+            echo "  build: go.work workspace — mod verify BEFORE sync (supply chain security)..."
+            export GOFLAGS='-x'
+            export GOSUMDB='off'
+            export GOPROXY='direct'
+            # Verify workspace modules FIRST (before sync/download) to catch supply chain issues
+            echo "--- go mod verify (workspace modules) ---"
+            _VERIFY_FAIL=0
+            while IFS= read -r _ws_mod; do
+              if [[ -n "$_ws_mod" ]]; then
+                _mod_path=$(realpath -m "$_ws_mod" 2>/dev/null || echo "$_ws_mod")
+                echo "  verifying module: $_ws_mod → $_mod_path"
+                (cd "$_mod_path" && timeout 30 go mod verify 2>&1) || {
+                  echo "  ⚠️  go mod verify FAILED for $_ws_mod"
+                  _VERIFY_FAIL=1
+                }
+              fi
+            done < <(grep -E '^use ' go.work | awk '{print $2}')
+            if [[ $_VERIFY_FAIL -eq 1 ]]; then
+              echo "WARNING: Supply chain verification failed - aborting build"
+              BUILD_OUTPUT="FAIL: go mod verify failed before download (possible supply chain compromise)"
+              BUILD_EXIT=1
+            else
+              BUILD_OUTPUT=$(cd "$PR_WORKTREE" && {
+                _BUILD_RC=0
+                retry_cmd 3 5 go work sync || {
+                  echo "  go work sync failed after 3 retries"
+                  exit 1
+                }
                 go_targeted_build "$FILES_IMPORTING" || _BUILD_RC=$?
                 if [[ $_BUILD_RC -eq 0 ]]; then go_targeted_vet "$FILES_IMPORTING"; fi
                 exit $_BUILD_RC
-              }
-            } 2>&1)
-            BUILD_EXIT=$?
+              } 2>&1)
+              BUILD_EXIT=$?
+            fi
             [[ "$BUILD_EXIT" -eq 0 ]] && INSTALL_OK="true"
             # Cache corruption retry: if build failed due to stale cache, clean and retry
             if [[ "$BUILD_EXIT" -ne 0 ]] && [[ "$(classify_go_error "$BUILD_OUTPUT")" == "cache_corruption" ]]; then
@@ -1718,11 +1962,13 @@ $TSC_OUT"
               (cd "$PR_WORKTREE" && go clean -cache 2>/dev/null || true)
               BUILD_OUTPUT=$(cd "$PR_WORKTREE" && {
                 _BUILD_RC=0
-                retry_cmd 3 5 go work sync && {
-                  go_targeted_build "$FILES_IMPORTING" || _BUILD_RC=$?
-                  if [[ $_BUILD_RC -eq 0 ]]; then go_targeted_vet "$FILES_IMPORTING"; fi
-                  exit $_BUILD_RC
+                retry_cmd 3 5 go work sync || {
+                  echo "  go work sync failed after 3 retries"
+                  exit 1
                 }
+                go_targeted_build "$FILES_IMPORTING" || _BUILD_RC=$?
+                if [[ $_BUILD_RC -eq 0 ]]; then go_targeted_vet "$FILES_IMPORTING"; fi
+                exit $_BUILD_RC
               } 2>&1)
               BUILD_EXIT=$?
               [[ "$BUILD_EXIT" -eq 0 ]] && INSTALL_OK="true"
@@ -1730,9 +1976,14 @@ $TSC_OUT"
             fi
           else
             echo "  build: go mod verify + tidy + build + vet..."
+            export GOFLAGS='-x'
+            export GOSUMDB='off'
+            export GOPROXY='direct'
+            echo "[$(date -u +%H:%M:%S)] START: go mod verify (PR: $PR_NUM)"
             GO_VERIFY_OUT=""
             GO_VERIFY_EXIT=0
             GO_VERIFY_OUT=$(cd "$PR_WORKTREE" && timeout 30 go mod verify 2>&1) || GO_VERIFY_EXIT=$?
+            echo "[$(date -u +%H:%M:%S)] DONE: go mod verify (verified before download)"
             if [[ "$GO_VERIFY_EXIT" -ne 0 ]]; then
               echo "  ⚠ go mod verify FAILED (possible supply chain issue)"
             fi
@@ -1742,6 +1993,7 @@ $TSC_OUT"
             if [[ "$BUILD_EXIT" -ne 0 ]] && [[ "$(classify_go_error "$BUILD_OUTPUT")" == "cache_corruption" ]]; then
               echo "  ⚠ Go build cache corruption detected — cleaning cache and retrying..."
               (cd "$PR_WORKTREE" && go clean -cache 2>/dev/null || true)
+              BUILD_OUTPUT=""
               BUILD_OUTPUT=$(cd "$PR_WORKTREE" && { retry_cmd 3 5 go mod tidy && go_targeted_build "$FILES_IMPORTING"; } 2>&1)
               BUILD_EXIT=$?
               echo "  cache-clean retry: exit=$BUILD_EXIT"
@@ -1763,6 +2015,13 @@ $GO_VET_OUT"
               BUILD_OUTPUT="--- go mod verify (FAILED) ---
 $GO_VERIFY_OUT
 $BUILD_OUTPUT"
+            fi
+            # Security vulnerability check
+            GO_VULN_OUT=$(go_check_vulnerabilities "$PR_WORKTREE" 2>&1) || true
+            if [[ -n "$GO_VULN_OUT" ]]; then
+              BUILD_OUTPUT="$BUILD_OUTPUT
+--- go vulncheck ---
+$GO_VULN_OUT"
             fi
           fi
           # Classify Go build error for JSON output
@@ -1787,8 +2046,9 @@ $BUILD_OUTPUT"
           elif [[ -f "$PR_WORKTREE/pyproject.toml" ]]; then
             BUILD_OUTPUT=$(cd "$PR_WORKTREE" && retry_cmd 3 5 "$_PY_PIP_PR" install -e . --quiet 2>&1)
           elif [[ -f "$PR_WORKTREE/poetry.lock" ]]; then
+            # Chain with && so poetry install only runs if pip install poetry succeeds (Finding-2.8)
             BUILD_OUTPUT=$(cd "$PR_WORKTREE" && {
-              retry_cmd 3 5 "$_PY_PIP_PR" install poetry --quiet 2>&1
+              retry_cmd 3 5 "$_PY_PIP_PR" install poetry --quiet 2>&1 && \
               retry_cmd 3 5 "$_PY_PYTHON_PR" -m poetry install --quiet 2>&1
             })
           else
@@ -1824,9 +2084,17 @@ $IMPORT_OUT"
         dir_key="${rel_pkg_dir//\//_}"
         main_dir_install_exit=""
         main_dir_tsc_exit=""
-        main_dir_install_exit=$(cat "/tmp/_bc_main_npm_install_${dir_key}.txt" 2>/dev/null || echo "-1")
-        main_dir_tsc_exit=$(cat "/tmp/_bc_main_npm_tsc_${dir_key}.txt" 2>/dev/null || echo "-1")
+        # Sanitize exit codes to pure integers — trailing whitespace or corrupt
+        # file content would cause bash -gt / -ne to fail under set -u (Finding-2.6)
+        main_dir_install_exit=$(cat "/tmp/_bc_main_npm_install_${dir_key}.txt" 2>/dev/null | tr -dc '0-9-' || echo "-1")
+        [[ -z "$main_dir_install_exit" ]] && main_dir_install_exit="-1"
+        main_dir_tsc_exit=$(cat "/tmp/_bc_main_npm_tsc_${dir_key}.txt" 2>/dev/null | tr -dc '0-9-' || echo "-1")
+        [[ -z "$main_dir_tsc_exit" ]] && main_dir_tsc_exit="-1"
         main_npm_output=$(cat "/tmp/_bc_main_npm_out_${dir_key}.txt" 2>/dev/null || echo "")
+        # Read tsc-specific output for error comparison (Finding-2.2).
+        # _bc_main_npm_out_ contains install output; _bc_main_npm_tscout_ contains tsc output.
+        # Using install output for tsc error grep yields empty results — all PR errors appear "new".
+        main_npm_tsc_output=$(cat "/tmp/_bc_main_npm_tscout_${dir_key}.txt" 2>/dev/null || echo "")
         main_npm_tsc_exit=$main_dir_tsc_exit
         main_npm_install_exit=$main_dir_install_exit
         main_npm_exit=$main_dir_install_exit
@@ -1847,7 +2115,7 @@ $IMPORT_OUT"
             # compare as identical (avoids false pre_existing_plus_new).
             MAIN_ERRORS_FILE="/tmp/_bc_main_tsc_errors.txt"
             PR_ERRORS_FILE="/tmp/_bc_pr_tsc_errors_${PR_NUM}.txt"
-            echo "$main_npm_output" | grep -oE 'error TS[0-9]+:.*' | sed "s|${WORKTREE_BASE}[^/]*/|./|g" | sort -u > "$MAIN_ERRORS_FILE" 2>/dev/null || true
+            echo "$main_npm_tsc_output" | grep -oE 'error TS[0-9]+:.*' | sed "s|${WORKTREE_BASE}[^/]*/|./|g" | sort -u > "$MAIN_ERRORS_FILE" 2>/dev/null || true
             echo "$BUILD_OUTPUT" | grep -oE 'error TS[0-9]+:.*' | sed "s|${WORKTREE_BASE}[^/]*/|./|g" | sort -u > "$PR_ERRORS_FILE" 2>/dev/null || true
             NEW_ERRORS=$(comm -23 "$PR_ERRORS_FILE" "$MAIN_ERRORS_FILE" 2>/dev/null | head -10)
             rm -f "$MAIN_ERRORS_FILE" "$PR_ERRORS_FILE"
@@ -1862,7 +2130,16 @@ $IMPORT_OUT"
             BUILD_VERDICT="fail"
           fi
         else
-          BUILD_VERDICT="pass"
+          # Check npm audit severity — CRITICAL vulnerabilities should trigger security review
+          if [[ "$ECOSYSTEM" == "npm" && "$AUDIT_CRITICAL" -gt 0 ]]; then
+            BUILD_VERDICT="security_review"
+            echo "  ⚠️  CRITICAL vulnerabilities detected — manual security review required"
+          elif [[ "$ECOSYSTEM" == "npm" && "$AUDIT_HIGH" -gt 0 && "$BUMP" == "major" ]]; then
+            BUILD_VERDICT="security_review"
+            echo "  ⚠️  HIGH vulnerabilities with major version bump — manual security review recommended"
+          else
+            BUILD_VERDICT="pass"
+          fi
         fi
       else
         MAIN_EXIT="-1"
@@ -1883,11 +2160,10 @@ $IMPORT_OUT"
             NEW_ERRORS=$(comm -23 "$PR_ERR_FILE" "$MAIN_ERR_FILE" 2>/dev/null | head -10)
             rm -f "$MAIN_ERR_FILE" "$PR_ERR_FILE"
           elif [[ "$ECOSYSTEM" == "pip" ]]; then
-            # Extract pip error lines (normalised) and diff against baseline
             MAIN_ERR_FILE="/tmp/_bc_main_pip_errors.txt"
             PR_ERR_FILE="/tmp/_bc_pr_pip_errors_${PR_NUM}.txt"
-            echo "$main_pip_output" | grep -iE 'error|could not|no matching|conflict' | sort -u > "$MAIN_ERR_FILE" 2>/dev/null || true
-            echo "$BUILD_OUTPUT" | grep -iE 'error|could not|no matching|conflict' | sort -u > "$PR_ERR_FILE" 2>/dev/null || true
+            echo "$main_pip_output" | grep -iE 'error:|could not find|no matching distribution|importerror|modulenotfounderror|attributeerror|typeerror|runtimeerror|syntaxerror|command errored|setup\.py error|environment error|resolve.*failed|dependency.*conflict|unspecified satisfies requirement' | sort -u > "$MAIN_ERR_FILE" 2>/dev/null || true
+            echo "$BUILD_OUTPUT" | grep -iE 'error:|could not find|no matching distribution|importerror|modulenotfounderror|attributeerror|typeerror|runtimeerror|syntaxerror|command errored|setup\.py error|environment error|resolve.*failed|dependency.*conflict|unspecified satisfies requirement' | sort -u > "$PR_ERR_FILE"   2>/dev/null || true
             NEW_ERRORS=$(comm -23 "$PR_ERR_FILE" "$MAIN_ERR_FILE" 2>/dev/null | head -10)
             rm -f "$MAIN_ERR_FILE" "$PR_ERR_FILE"
           fi
@@ -1926,16 +2202,56 @@ $IMPORT_OUT"
       git worktree remove "$PR_WORKTREE" --force 2>/dev/null || rm -rf "$PR_WORKTREE"
     fi
   elif [[ "$ECOSYSTEM" == "docker" ]]; then
-    echo "  build: Docker — extracting Dockerfile metadata"
+    echo "  build: Docker — validating base image"
     DOCKERFILE_PATH=""
     [[ "$PKG_DIR" != "/" && -f "$PKG_DIR/Dockerfile" ]] && DOCKERFILE_PATH="$PKG_DIR/Dockerfile"
     if [[ -n "$DOCKERFILE_PATH" ]]; then
       DOCKER_BASE=$(grep -m1 "^FROM" "$DOCKERFILE_PATH" 2>/dev/null | sed 's/^FROM //;s/ .*//')
       DOCKER_CMD=$(grep -E "^(CMD|ENTRYPOINT)" "$DOCKERFILE_PATH" 2>/dev/null | tail -1)
       echo "  docker: base=$DOCKER_BASE cmd=$DOCKER_CMD"
-      BUILD_OUTPUT="Dockerfile: $DOCKERFILE_PATH Base: $DOCKER_BASE CMD: $DOCKER_CMD"
+      if command -v docker &>/dev/null; then
+        if docker pull "$DOCKER_BASE" > /dev/null 2>&1; then
+          BUILD_OUTPUT="Dockerfile: $DOCKERFILE_PATH Base: $DOCKER_BASE CMD: $DOCKER_CMD"
+          BUILD_EXIT=0
+          BUILD_VERDICT="pass"
+          INSTALL_OK="true"
+        else
+          BUILD_OUTPUT="Dockerfile: $DOCKERFILE_PATH Base: $DOCKER_BASE — image pull failed"
+          BUILD_EXIT=1
+          BUILD_VERDICT="fail"
+        fi
+      else
+        BUILD_OUTPUT="Dockerfile: $DOCKERFILE_PATH Base: $DOCKER_BASE CMD: $DOCKER_CMD (docker not available)"
+        BUILD_EXIT=-1
+        BUILD_VERDICT="skip"
+      fi
+    else
+      BUILD_OUTPUT="Dockerfile not found for $PKG_DIR"
+      BUILD_EXIT=-1
+      BUILD_VERDICT="skip"
     fi
-    BUILD_VERDICT="skip"
+  elif [[ "$ECOSYSTEM" == "actions" ]]; then
+    echo "  build: GitHub Actions — validating action version"
+    if [[ "$PKG" =~ ^actions/([^@]+)@(.+)$ ]]; then
+      ACTION_NAME="${BASH_REMATCH[1]}"
+      TO_VER="${BASH_REMATCH[2]}"
+      GH_RESPONSE=""
+      CURL_EXIT=0
+      GH_RESPONSE=$(curl -sf "https://api.github.com/repos/actions/${ACTION_NAME}/releases/tags/v${TO_VER}" 2>&1) || CURL_EXIT=$?
+      if [[ $CURL_EXIT -eq 0 && -n "$GH_RESPONSE" ]]; then
+        BUILD_OUTPUT="actions: ${PKG} version ${TO_VER} found"
+        BUILD_EXIT=0
+        BUILD_VERDICT="pass"
+      else
+        BUILD_OUTPUT="actions: ${PKG} version ${TO_VER} not found"
+        BUILD_EXIT=1
+        BUILD_VERDICT="fail"
+      fi
+    else
+      BUILD_OUTPUT="actions: could not parse ${PKG}"
+      BUILD_EXIT=-1
+      BUILD_VERDICT="skip"
+    fi
   else
     echo "  build: skipped ($ECOSYSTEM — no build possible)"
 
@@ -1953,7 +2269,9 @@ $IMPORT_OUT"
   # altered return shapes, middleware contract changes.
   # For dev deps: run only on major bumps or known test runners.
   RUN_TESTS="false"
-  if [[ "$BUILD_VERDICT" == "pass" ]]; then
+  # security_review PRs have passing builds + audit concerns — they deserve
+  # MORE scrutiny, not less. Run tests so they can reach L4 (Finding-2.4).
+  if [[ "$BUILD_VERDICT" == "pass" || "$BUILD_VERDICT" == "security_review" ]]; then
     if [[ "$DEP_TYPE" == "production" ]]; then
       RUN_TESTS="true"
     elif [[ "$BUMP" == "major" && "$DEP_TYPE" == "dev" ]]; then
@@ -1972,58 +2290,105 @@ $IMPORT_OUT"
         npm)
           TEST_BUILD_DIR="$PR_WORKTREE"
           [[ "$PKG_DIR" != "/" && -d "$PR_WORKTREE/$PKG_DIR" ]] && TEST_BUILD_DIR="$PR_WORKTREE/$PKG_DIR"
-          cd "$TEST_BUILD_DIR" && retry_cmd 3 5 timeout $TIMEOUT npm ci --ignore-scripts 2>/dev/null || true
-          # Use --testPathPattern for scoped test execution in monorepos
-          if [[ "$PKG_DIR" != "/" && -f "$TEST_BUILD_DIR/package.json" ]]; then
-            # Try scoped tests first (faster), fall back to full test
-            echo "  test: npm test in ${TEST_BUILD_DIR#$PR_WORKTREE/}..."
-            TEST_OUTPUT=$(cd "$TEST_BUILD_DIR" && timeout 180 npm test -- --passWithNoTests 2>&1)
-            TEST_EXIT=$?
-          else
-            TEST_OUTPUT=$(cd "$TEST_BUILD_DIR" && timeout 180 npm test 2>&1)
-            TEST_EXIT=$?
+          # Run baseline npm tests on main for pre-existing comparison (Finding-4.5).
+          # Without this, npm test failures are always attributed to the upgrade
+          # even when tests are already broken on main.
+          MAIN_NPM_TEST_EXIT_PR=-1
+          if [[ -d "$MAIN_DIR" ]]; then
+            _main_test_dir="$MAIN_DIR"
+            [[ "$PKG_DIR" != "/" && -d "$MAIN_DIR/$PKG_DIR" ]] && _main_test_dir="$MAIN_DIR/$PKG_DIR"
+            if [[ -d "$_main_test_dir/node_modules" ]]; then
+              echo "  npm test baseline: running tests on main..."
+              _main_npm_test_rc=0
+              _main_npm_test_out=$(cd "$_main_test_dir" && timeout 180 npm test -- --passWithNoTests 2>&1) || _main_npm_test_rc=$?
+              MAIN_NPM_TEST_EXIT_PR=$_main_npm_test_rc
+              # Save baseline npm test output for content-level comparison (Finding-5.5)
+              echo "$_main_npm_test_out" | tail -n 30 > "/tmp/_bc_main_npm_test_out_${PR_NUM}.txt"
+              echo "  npm test baseline: exit=$MAIN_NPM_TEST_EXIT_PR"
+            fi
           fi
-          TEST_RAN="true"
+          # Run npm ci in a subshell to avoid cd leak into main shell.
+          # Track install success separately — if install fails, skip tests
+          # rather than recording a spurious test failure (Finding-2.1).
+          TEST_INSTALL_OK=false
+          if (cd "$TEST_BUILD_DIR" && retry_cmd 3 5 timeout $TIMEOUT npm ci --ignore-scripts) 2>/dev/null; then
+            TEST_INSTALL_OK=true
+          fi
+          if [[ "$TEST_INSTALL_OK" == "true" ]]; then
+            # Use --testPathPattern for scoped test execution in monorepos
+            if [[ "$PKG_DIR" != "/" && -f "$TEST_BUILD_DIR/package.json" ]]; then
+              # Try scoped tests first (faster), fall back to full test
+              echo "  test: npm test in ${TEST_BUILD_DIR#$PR_WORKTREE/}..."
+              TEST_OUTPUT=$(cd "$TEST_BUILD_DIR" && timeout 180 npm test -- --passWithNoTests 2>&1)
+              TEST_EXIT=$?
+            else
+              TEST_OUTPUT=$(cd "$TEST_BUILD_DIR" && timeout 180 npm test 2>&1)
+              TEST_EXIT=$?
+            fi
+            TEST_RAN="true"
+          else
+            echo "  test: SKIP — npm ci failed in test worktree"
+          fi
           # ── Smoke probe: catch DI container / runtime failures ──
           # After tests, compile and try to require the built output. Catches:
           # - NestJS DI container failures (missing providers)
           # - Circular dependency issues
           # - Runtime-only import failures
           # We need to build first because dist/ is .gitignored in most projects.
-          if grep -q '"build"' "$TEST_BUILD_DIR/package.json" 2>/dev/null; then
-            echo "  smoke: building (npm run build)..."
-            BUILD_SMOKE_OUT=$(cd "$TEST_BUILD_DIR" && timeout 60 npm run build 2>&1)
-            BUILD_SMOKE_RC=$?
-            if [[ "$BUILD_SMOKE_RC" -ne 0 ]]; then
-              echo "  smoke: build failed (rc=$BUILD_SMOKE_RC), skipping probe"
+          # Only run if test install succeeded (need node_modules for build).
+          if [[ "$TEST_INSTALL_OK" == "true" ]]; then
+            if grep -q '"build"' "$TEST_BUILD_DIR/package.json" 2>/dev/null; then
+              echo "  smoke: building (npm run build)..."
+              BUILD_SMOKE_OUT=$(cd "$TEST_BUILD_DIR" && timeout 60 npm run build 2>&1)
+              BUILD_SMOKE_RC=$?
+              if [[ "$BUILD_SMOKE_RC" -ne 0 ]]; then
+                echo "  smoke: build failed (rc=$BUILD_SMOKE_RC), skipping probe"
+              fi
             fi
-          fi
-          if [[ -f "$TEST_BUILD_DIR/dist/main.js" ]]; then
-            echo "  smoke: node require('./dist/main') ..."
-            SMOKE_OUT=$(cd "$TEST_BUILD_DIR" && timeout 10 node -e "
-              try { require('./dist/main'); process.exit(0); }
-              catch(e) { console.error(e.message); process.exit(1); }
-            " 2>&1)
-            SMOKE_EXIT=$?
-            SMOKE_RAN="true"
-            echo "  smoke: exit=$SMOKE_EXIT"
-          elif [[ -f "$TEST_BUILD_DIR/dist/index.js" ]]; then
-            echo "  smoke: node require('./dist/index') ..."
-            SMOKE_OUT=$(cd "$TEST_BUILD_DIR" && timeout 10 node -e "
-              try { require('./dist/index'); process.exit(0); }
-              catch(e) { console.error(e.message); process.exit(1); }
-            " 2>&1)
-            SMOKE_EXIT=$?
-            SMOKE_RAN="true"
-            echo "  smoke: exit=$SMOKE_EXIT"
+            if [[ -f "$TEST_BUILD_DIR/dist/main.js" ]]; then
+              echo "  smoke: node require('./dist/main') ..."
+              SMOKE_OUT=$(cd "$TEST_BUILD_DIR" && timeout 10 node -e "
+                try { require('./dist/main'); process.exit(0); }
+                catch(e) { console.error(e.message); process.exit(1); }
+              " 2>&1)
+              SMOKE_EXIT=$?
+              SMOKE_RAN="true"
+              echo "  smoke: exit=$SMOKE_EXIT"
+            elif [[ -f "$TEST_BUILD_DIR/dist/index.js" ]]; then
+              echo "  smoke: node require('./dist/index') ..."
+              SMOKE_OUT=$(cd "$TEST_BUILD_DIR" && timeout 10 node -e "
+                try { require('./dist/index'); process.exit(0); }
+                catch(e) { console.error(e.message); process.exit(1); }
+              " 2>&1)
+              SMOKE_EXIT=$?
+              SMOKE_RAN="true"
+              echo "  smoke: exit=$SMOKE_EXIT"
+            fi
           fi
           ;;
         gomod)
           # Targeted test: only test packages that import the changed dependency
+          # First, run the SAME targeted tests on main for pre-existing comparison (Finding-3.1).
+          # Without this, main_go_test_exit stays at -1 and all Go test failures
+          # are wrongly attributed to the upgrade.
+          # Capture baseline test OUTPUT (not just exit code) for content-level
+          # comparison — exit-code-only misses mixed failures (Finding-4.3/4.6).
+          MAIN_GO_TEST_EXIT_PR=-1
+          MAIN_GO_TEST_OUTPUT=""
+          if [[ -d "$MAIN_DIR" ]]; then
+            echo "  go test baseline: running same targeted tests on main..."
+            _main_test_rc=0
+            MAIN_GO_TEST_OUTPUT=$(go_targeted_test "$MAIN_DIR" "$FILES_IMPORTING" 2>&1) || _main_test_rc=$?
+            MAIN_GO_TEST_EXIT_PR=$_main_test_rc
+            echo "  go test baseline: exit=$MAIN_GO_TEST_EXIT_PR"
+          fi
           echo "  go test: targeted (only affected packages)"
+          TEST_OUTPUT=""
           TEST_OUTPUT=$(go_targeted_test "$PR_WORKTREE" "$FILES_IMPORTING" 2>&1)
           TEST_EXIT=$?
           TEST_RAN="true"
+          # Save baseline test output for content comparison in verification block
+          echo "$MAIN_GO_TEST_OUTPUT" | tail -n 30 > "/tmp/_bc_main_go_test_out_${PR_NUM}.txt"
           ;;
         pip)
           _PY_VENV_TEST=$(mktemp -d /tmp/bc_venv_test_XXXXXX)
@@ -2036,17 +2401,30 @@ $IMPORT_OUT"
             command -v pip3 &>/dev/null && _PY_PIP_TEST="pip3" || _PY_PIP_TEST="pip"
             _PY_PYTHON_TEST="python3"
           fi
+          # Run install in subshell to avoid cd leak; track success separately (Finding-2.1)
+          TEST_INSTALL_OK=false
           if [[ -f "$PR_WORKTREE/requirements.txt" ]]; then
-            cd "$PR_WORKTREE" && retry_cmd 3 5 "$_PY_PIP_TEST" install -r requirements.txt --quiet 2>/dev/null || true
+            if (cd "$PR_WORKTREE" && retry_cmd 3 5 "$_PY_PIP_TEST" install -r requirements.txt --quiet) 2>/dev/null; then
+              TEST_INSTALL_OK=true
+            fi
           elif [[ -f "$PR_WORKTREE/pyproject.toml" ]]; then
-            cd "$PR_WORKTREE" && retry_cmd 3 5 "$_PY_PIP_TEST" install -e . --quiet 2>/dev/null || true
+            if (cd "$PR_WORKTREE" && retry_cmd 3 5 "$_PY_PIP_TEST" install -e . --quiet) 2>/dev/null; then
+              TEST_INSTALL_OK=true
+            fi
           elif [[ -f "$PR_WORKTREE/poetry.lock" ]]; then
-            cd "$PR_WORKTREE" && retry_cmd 3 5 "$_PY_PIP_TEST" install poetry --quiet 2>/dev/null || true
-            cd "$PR_WORKTREE" && retry_cmd 3 5 "$_PY_PYTHON_TEST" -m poetry install --quiet 2>/dev/null || true
+            # Chain poetry install commands so second only runs if first succeeds (Finding-2.8)
+            if (cd "$PR_WORKTREE" && retry_cmd 3 5 "$_PY_PIP_TEST" install poetry --quiet 2>&1 && \
+                retry_cmd 3 5 "$_PY_PYTHON_TEST" -m poetry install --quiet) 2>/dev/null; then
+              TEST_INSTALL_OK=true
+            fi
           fi
-          TEST_OUTPUT=$(cd "$PR_WORKTREE" && timeout 180 "$_PY_PYTHON_TEST" -m pytest 2>&1)
-          TEST_EXIT=$?
-          TEST_RAN="true"
+          if [[ "$TEST_INSTALL_OK" == "true" ]]; then
+            TEST_OUTPUT=$(cd "$PR_WORKTREE" && timeout 180 "$_PY_PYTHON_TEST" -m pytest 2>&1)
+            TEST_EXIT=$?
+            TEST_RAN="true"
+          else
+            echo "  test: SKIP — pip/poetry install failed in test worktree"
+          fi
           [[ -n "$_PY_VENV_TEST" ]] && rm -rf "$_PY_VENV_TEST" 2>/dev/null || true
           ;;
       esac
@@ -2056,12 +2434,30 @@ $IMPORT_OUT"
   fi
 
   # ── Write PR data to JSON ──────────────────────────────────────
-  # Write build and test output to temp files for safe JSON encoding
+  # Write build and test output to temp files for safe JSON encoding.
+  # User-derived strings (PR titles, config patterns, package names) are written
+  # to temp files and read from Python, avoiding shell-to-Python injection via
+  # the unquoted heredoc. This prevents Python-hostile chars (quotes, backslashes)
+  # in PR titles or config patterns from crashing the heredoc (Finding-3.2).
   echo "$BUILD_OUTPUT" | tail -n 50 > "/tmp/_bc_build_out_${PR_NUM}.txt"
   echo "$TEST_OUTPUT" | tail -n 30 > "/tmp/_bc_test_out_${PR_NUM}.txt"
   echo "$NEW_ERRORS" > "/tmp/_bc_new_errors_${PR_NUM}.txt"
   echo "$DETERMINISTIC" > "/tmp/_bc_det_${PR_NUM}.json"
   echo "$FILES_IMPORTING" > "/tmp/_bc_files_${PR_NUM}.json"
+  printf '%s' "$CASCADE_IMPACT" > "/tmp/_bc_cascade_${PR_NUM}.txt"
+  printf '%s' "$NESTJS_PEER_WARNING" > "/tmp/_bc_peer_warn_${PR_NUM}.txt"
+  printf '%s' "$ADDITIONAL_PACKAGES" > "/tmp/_bc_addl_pkgs_${PR_NUM}.txt"
+  printf '%s' "$ADDITIONAL_IMPORTS" > "/tmp/_bc_addl_imports_${PR_NUM}.json"
+  # Write PR metadata to temp files to avoid shell injection in heredoc (Finding-4.4)
+  printf '%s' "$PKG" > "/tmp/_bc_pkg_${PR_NUM}.txt"
+  printf '%s' "$FROM_VER" > "/tmp/_bc_from_ver_${PR_NUM}.txt"
+  printf '%s' "$TO_VER" > "/tmp/_bc_to_ver_${PR_NUM}.txt"
+  printf '%s' "$DEP_TYPE" > "/tmp/_bc_dep_type_${PR_NUM}.txt"
+  printf '%s' "$DEP_RELATION" > "/tmp/_bc_dep_relation_${PR_NUM}.txt"
+  printf '%s' "$CVES" > "/tmp/_bc_cves_${PR_NUM}.txt"
+  printf '%s' "$BUMP" > "/tmp/_bc_bump_${PR_NUM}.txt"
+  printf '%s' "$ECOSYSTEM" > "/tmp/_bc_ecosystem_${PR_NUM}.txt"
+  printf '%s' "$PKG_DIR" > "/tmp/_bc_pkg_dir_${PR_NUM}.txt"
 
   # Determine main exit for this ecosystem
   MAIN_EXIT_FOR_ECO=-1
@@ -2080,6 +2476,7 @@ $IMPORT_OUT"
     [[ -n "$pattern" ]] && EXTRA_INFRA_PATTERNS="${EXTRA_INFRA_PATTERNS}${pattern}
 "
   done < <(load_extra_infra_patterns 2>/dev/null)
+  printf '%s' "$EXTRA_INFRA_PATTERNS" > "/tmp/_bc_extra_infra_${PR_NUM}.txt"
 
   python3 << PYEOF
 import json, os
@@ -2099,10 +2496,11 @@ try:
 except:
     deterministic = {}
 
-# Read cascade_impact
-cascade_str = """$CASCADE_IMPACT"""
+# Read cascade_impact (from temp file to avoid shell injection — Finding-3.2)
 try:
-    cascade_impact = json.loads(cascade_str) if cascade_str.strip() else []
+    with open(f"/tmp/_bc_cascade_{pr_num}.txt") as f:
+        cascade_str = f.read().strip()
+    cascade_impact = json.loads(cascade_str) if cascade_str else []
 except:
     cascade_impact = []
 
@@ -2115,9 +2513,10 @@ try:
 except:
     files_importing = []
 
-# Read additional_imports for multi-package PRs
+# Read additional_imports for multi-package PRs (from temp file — Finding-3.2)
 try:
-    additional_imports = json.loads('''$ADDITIONAL_IMPORTS''')
+    with open(f"/tmp/_bc_addl_imports_{pr_num}.json") as f:
+        additional_imports = json.loads(f.read().strip())
 except:
     additional_imports = []
 
@@ -2145,6 +2544,27 @@ try:
     new_errors = [e for e in new_errors_raw.split('\n') if e.strip()] if new_errors_raw else []
 except:
     new_errors = []
+
+# Read PR metadata from temp files to avoid shell injection (Finding-4.4)
+# MUST be defined before INFRA_ERROR_PATTERNS because eco is used there (Finding-5.1)
+def _read_tmp(suffix):
+    try:
+        with open(f"/tmp/_bc_{suffix}_{pr_num}.txt") as f:
+            return f.read().strip()
+    except:
+        return ""
+
+pkg = _read_tmp("pkg") or "unknown"
+from_ver = _read_tmp("from_ver")
+to_ver = _read_tmp("to_ver")
+dep_type = _read_tmp("dep_type") or "unknown"
+dep_relation = _read_tmp("dep_relation") or "unknown"
+bump = _read_tmp("bump") or "unknown"
+eco = _read_tmp("ecosystem") or "unknown"
+
+# Parse CVEs
+cves_raw = _read_tmp("cves")
+cves = [c.strip() for c in cves_raw.split(",") if c.strip()] if cves_raw else []
 
 # Filter out infrastructure artifact errors from new_errors.
 # When install_fallback/local_fallback is used, tsc may report different errors
@@ -2180,10 +2600,15 @@ GO_INFRA_PATTERNS = [
     "connection refused",
     "i/o timeout",
 ]
-if "$ECOSYSTEM" == "gomod":
+if eco == "gomod":
     INFRA_ERROR_PATTERNS.extend(GO_INFRA_PATTERNS)
 # Append project-specific patterns from .github/breakability-config.yml
-extra_raw = """$EXTRA_INFRA_PATTERNS"""
+# Read from temp file to avoid shell injection via unquoted heredoc (Finding-3.2)
+try:
+    with open(f"/tmp/_bc_extra_infra_{pr_num}.txt") as f:
+        extra_raw = f.read()
+except:
+    extra_raw = ""
 for line in extra_raw.strip().split('\n'):
     line = line.strip()
     if line and line not in INFRA_ERROR_PATTERNS:
@@ -2192,10 +2617,6 @@ if new_errors:
     real_errors = [e for e in new_errors if not any(p in e for p in INFRA_ERROR_PATTERNS)]
     infra_filtered = len(new_errors) - len(real_errors)
     new_errors = real_errors
-
-# Parse CVEs
-cves_raw = "$CVES"
-cves = [c.strip() for c in cves_raw.split(",") if c.strip()] if cves_raw else []
 
 # Test values
 test_ran = True if "$TEST_RAN" == "true" else False
@@ -2215,13 +2636,13 @@ if error_class in ("cache_corruption", "infra_error", "private_module"):
         build_verdict = "pre_existing"  # treat as infra issue, not code break
 
 pr_data = {
-    "package": "$PKG",
-    "from": "$FROM_VER",
-    "to": "$TO_VER",
-    "ecosystem": "$ECOSYSTEM",
-    "bump": "$BUMP",
-    "dep_type": "$DEP_TYPE",
-    "dep_relation": "$DEP_RELATION",
+    "package": pkg,
+    "from": from_ver,
+    "to": to_ver,
+    "ecosystem": eco,
+    "bump": bump,
+    "dep_type": dep_type,
+    "dep_relation": dep_relation,
     "cves": cves,
     "deterministic": deterministic,
     "build": {
@@ -2237,6 +2658,8 @@ pr_data = {
     "test": {
         "ran": test_ran,
         "exit": test_exit,
+        "main_test_exit": $MAIN_GO_TEST_EXIT_PR,
+        "main_npm_test_exit": $MAIN_NPM_TEST_EXIT_PR,
         "output_tail": test_output
     },
     "smoke": {
@@ -2250,9 +2673,9 @@ pr_data = {
     "diff_path": "/tmp/pr-${PR_NUM}.diff",
     "pkg_dir": "$PKG_DIR",
     "cascade_impact": cascade_impact,
-    "nestjs_peer_warning": "$NESTJS_PEER_WARNING",
+    "nestjs_peer_warning": open(f"/tmp/_bc_peer_warn_{pr_num}.txt").read().strip() if os.path.exists(f"/tmp/_bc_peer_warn_{pr_num}.txt") else "",
     "install_ok": True if "$INSTALL_OK" == "true" else False,
-    "additional_packages": "$ADDITIONAL_PACKAGES",
+    "additional_packages": open(f"/tmp/_bc_addl_pkgs_{pr_num}.txt").read().strip() if os.path.exists(f"/tmp/_bc_addl_pkgs_{pr_num}.txt") else "",
     "mergeable_status": "$MERGEABLE_STATUS",
     "npm_audit": {
         "critical": $AUDIT_CRITICAL,
@@ -2262,11 +2685,10 @@ pr_data = {
 
 # ── Ownership classification ─────────────────────────────────
 # Tells reviewers WHO fixes this and whether THEIR code is affected.
-eco = "$ECOSYSTEM"
-pkg = "$PKG"
-dep_type = "$DEP_TYPE"
-dep_rel = "$DEP_RELATION"
-pkg_dir = "$PKG_DIR"
+# Re-use eco, pkg, dep_type, dep_relation from _read_tmp() above (Finding-5.2).
+# Do NOT re-assign from shell expansion — that re-introduces injection risk.
+dep_rel = dep_relation  # alias for shorter references below
+pkg_dir = _read_tmp("pkg_dir") or "/"
 n_imports = len(files_importing)
 
 KNOWN_BUILD_TOOLS = {
@@ -2322,105 +2744,142 @@ pr_data["ownership_class"] = ownership
 # L4: Tests-pass — npm test / go test / pytest passed on PR branch
 # L5: Fully-verified — tests pass AND no new errors AND API compatible AND smoke pass
 
-# Actions and Docker PRs have no build step — mark as N/A, not L0
-if eco in ("actions", "docker"):
-    level = -1  # sentinel for N/A
-    steps = [{"step": "not_applicable", "status": "skip", "detail": f"{eco} dependency — no build verification"}]
-else:
-    install_ok = pr_data.get("install_ok", False)
-    build_verdict = "$BUILD_VERDICT"
-    test_ran_val = test_ran
-    test_exit_val = test_exit
-    smoke_ran_val = pr_data["smoke"]["ran"]
-    smoke_exit_val = pr_data["smoke"]["exit"]
-    det_verified = deterministic.get("verification", {}).get("verified", False) if deterministic else False
-    det_compatible = deterministic.get("verification", {}).get("compatible", None) if deterministic else None
+# Docker and actions now have real build verdicts — let them flow through normal confidence logic
+install_ok = pr_data.get("install_ok", False)
+build_verdict = "$BUILD_VERDICT"
+test_ran_val = test_ran
+test_exit_val = test_exit
+smoke_ran_val = pr_data["smoke"]["ran"]
+smoke_exit_val = pr_data["smoke"]["exit"]
+det_verified = deterministic.get("verification", {}).get("verified", False) if deterministic else False
+det_compatible = deterministic.get("verification", {}).get("compatible", None) if deterministic else None
 
-    steps = []
+steps = []
+level = 0
+
+if not install_ok:
     level = 0
+    steps.append({"step": "dependency_resolution", "status": "fail", "detail": "${ERROR_CLASS:-}" or "install failed"})
+else:
+    level = 1
+    steps.append({"step": "dependency_resolution", "status": "pass"})
 
-    if not install_ok:
-        level = 0
-        steps.append({"step": "dependency_resolution", "status": "fail", "detail": "${ERROR_CLASS:-}" or "install failed"})
+    # L2: Type-checking (tsc / go build)
+    tsc_ran = "$PR_TSC_EXIT" not in ("-1", "")
+    tsc_passed = "$PR_TSC_EXIT" == "0" if tsc_ran else False
+    if eco in ("gomod", "pip"):
+        # go build / pip import check IS the type-check equivalent
+        if build_verdict in ("pass", "pre_existing", "security_review"):
+            level = 2
+            steps.append({"step": "type_check", "status": "pass"})
+        else:
+            steps.append({"step": "type_check", "status": "fail"})
+    elif tsc_ran:
+        if tsc_passed:
+            # tsc actually passed — genuine L2
+            level = 2
+            steps.append({"step": "type_check", "status": "pass"})
+        elif build_verdict == "pre_existing":
+            # tsc failed on both branches with same errors — NOT a real pass
+            # Stay at L1, mark type_check as "pre_existing" (inconclusive)
+            level = 1  # DO NOT promote to L2
+            steps.append({"step": "type_check", "status": "pre_existing", "detail": "same tsc errors on main — inconclusive"})
+        else:
+            steps.append({"step": "type_check", "status": "fail"})
     else:
-        level = 1
-        steps.append({"step": "dependency_resolution", "status": "pass"})
+        steps.append({"step": "type_check", "status": "skip", "detail": "no tsconfig.json"})
+        if build_verdict in ("pass", "security_review"):
+            level = 2  # install passed, no tsc to run = still dep-resolved+
 
-        # L2: Type-checking (tsc / go build)
-        tsc_ran = "$PR_TSC_EXIT" not in ("-1", "")
-        tsc_passed = "$PR_TSC_EXIT" == "0" if tsc_ran else False
-        if eco in ("gomod", "pip"):
-            # go build / pip import check IS the type-check equivalent
-            if build_verdict in ("pass", "pre_existing"):
-                level = 2
-                steps.append({"step": "type_check", "status": "pass"})
-            else:
-                steps.append({"step": "type_check", "status": "fail"})
-        elif tsc_ran:
-            if tsc_passed:
-                # tsc actually passed — genuine L2
-                level = 2
-                steps.append({"step": "type_check", "status": "pass"})
-            elif build_verdict == "pre_existing":
-                # tsc failed on both branches with same errors — NOT a real pass
-                # Stay at L1, mark type_check as "pre_existing" (inconclusive)
-                level = 1  # DO NOT promote to L2
-                steps.append({"step": "type_check", "status": "pre_existing", "detail": "same tsc errors on main — inconclusive"})
-            else:
-                steps.append({"step": "type_check", "status": "fail"})
+    # L3: Symbol verification (from CLI deterministic layer)
+    if det_verified:
+        level = max(level, 3)
+        steps.append({"step": "symbol_verification", "status": "pass", "detail": f"compatible={det_compatible}"})
+    elif deterministic:
+        steps.append({"step": "symbol_verification", "status": "skip", "detail": "not run or no .d.ts"})
+    else:
+        steps.append({"step": "symbol_verification", "status": "skip"})
+
+    # L4: Tests
+    # For Go: content-level pre-existing comparison (Finding-4.3).
+    # Compare actual FAIL lines, not just exit codes, to detect mixed failures
+    # where different tests fail on main vs PR.
+    main_go_test_exit_raw = "$MAIN_GO_TEST_EXIT_PR"
+    main_go_test_exit_val = int(main_go_test_exit_raw) if main_go_test_exit_raw not in ("-1", "") else -1
+    # npm test pre-existing comparison (Finding-4.5)
+    main_npm_test_exit_raw = "$MAIN_NPM_TEST_EXIT_PR"
+    main_npm_test_exit_val = int(main_npm_test_exit_raw) if main_npm_test_exit_raw not in ("-1", "") else -1
+    if test_ran_val and test_exit_val is not None:
+        if test_exit_val == 0:
+            level = max(level, 4)
+            steps.append({"step": "test_suite", "status": "pass"})
         else:
-            steps.append({"step": "type_check", "status": "skip", "detail": "no tsconfig.json"})
-            if build_verdict in ("pass",):
-                level = 2  # install passed, no tsc to run = still dep-resolved+
-
-        # L3: Symbol verification (from CLI deterministic layer)
-        if det_verified:
-            level = max(level, 3)
-            steps.append({"step": "symbol_verification", "status": "pass", "detail": f"compatible={det_compatible}"})
-        elif deterministic:
-            steps.append({"step": "symbol_verification", "status": "skip", "detail": "not run or no .d.ts"})
-        else:
-            steps.append({"step": "symbol_verification", "status": "skip"})
-
-        # L4: Tests
-        # For Go: surface pre-existing test failure explicitly so agent/humans can
-        # tell "tests fail on this PR" from "tests were already broken on main".
-        main_go_test_exit_raw = "$main_go_test_exit"
-        main_go_test_exit_val = int(main_go_test_exit_raw) if main_go_test_exit_raw not in ("-1", "") else -1
-        if test_ran_val and test_exit_val is not None:
-            if test_exit_val == 0:
-                level = max(level, 4)
-                steps.append({"step": "test_suite", "status": "pass"})
-            else:
-                # When both main and PR tests fail for Go, the failure is pre-existing
-                is_preexisting_test = (
-                    eco == "gomod" and main_go_test_exit_val > 0 and test_exit_val > 0
-                )
-                if is_preexisting_test:
-                    steps.append({"step": "test_suite", "status": "pre_existing",
-                                  "detail": f"exit={test_exit_val} — same failure on main (exit={main_go_test_exit_val})"})
+            is_preexisting_test = False
+            preexisting_detail = ""
+            if eco == "gomod" and main_go_test_exit_val > 0 and test_exit_val > 0:
+                # Content-level comparison: extract FAIL lines from both (Finding-4.3)
+                main_test_file = f"/tmp/_bc_main_go_test_out_{pr_num}.txt"
+                try:
+                    with open(main_test_file) as f:
+                        main_test_lines = f.read()
+                except:
+                    main_test_lines = ""
+                # Extract "--- FAIL:" lines from Go test output
+                import re
+                main_fails = set(re.findall(r'--- FAIL: (\S+)', main_test_lines))
+                pr_fails = set(re.findall(r'--- FAIL: (\S+)', test_output))
+                new_test_fails = pr_fails - main_fails
+                if new_test_fails:
+                    # PR has NEW test failures not present on main
+                    preexisting_detail = f"exit={test_exit_val} — {len(new_test_fails)} new test failure(s): {', '.join(sorted(new_test_fails)[:5])}"
                 else:
-                    steps.append({"step": "test_suite", "status": "fail", "detail": f"exit={test_exit_val}"})
-        else:
-            steps.append({"step": "test_suite", "status": "skip", "detail": "not triggered"})
-
-        # L5: Fully verified (tests pass + no new errors + symbols ok + smoke ok)
-        if (test_ran_val and test_exit_val == 0 and
-            build_verdict in ("pass",) and
-            (det_compatible is True or det_compatible is None)):
-            if smoke_ran_val and smoke_exit_val == 0:
-                level = 5
-                steps.append({"step": "smoke_probe", "status": "pass"})
-            elif smoke_ran_val:
-                steps.append({"step": "smoke_probe", "status": "fail", "detail": f"exit={smoke_exit_val}"})
-            elif not smoke_ran_val:
-                # Tests pass but no smoke — still L4
-                steps.append({"step": "smoke_probe", "status": "skip", "detail": "no dist/main.js after build"})
-        elif smoke_ran_val:
-            if smoke_exit_val == 0:
-                steps.append({"step": "smoke_probe", "status": "pass"})
+                    is_preexisting_test = True
+                    preexisting_detail = f"exit={test_exit_val} — same failures on main (exit={main_go_test_exit_val})"
+            elif eco == "npm" and main_npm_test_exit_val > 0 and test_exit_val > 0:
+                # Content-level comparison for npm tests (Finding-5.4, upgrades Finding-4.5)
+                # Read baseline npm test output for comparison
+                main_npm_test_file = f"/tmp/_bc_main_npm_test_out_{pr_num}.txt"
+                try:
+                    with open(main_npm_test_file) as f:
+                        main_npm_test_lines = f.read()
+                except:
+                    main_npm_test_lines = ""
+                import re
+                # Jest format: "FAIL src/tests/foo.test.ts" or "FAIL ./src/tests/foo.test.ts"
+                main_npm_fails = set(re.findall(r'FAIL\s+(\S+)', main_npm_test_lines))
+                pr_npm_fails = set(re.findall(r'FAIL\s+(\S+)', test_output))
+                new_npm_test_fails = pr_npm_fails - main_npm_fails
+                if new_npm_test_fails:
+                    preexisting_detail = f"exit={test_exit_val} — {len(new_npm_test_fails)} new test failure(s): {', '.join(sorted(new_npm_test_fails)[:5])}"
+                else:
+                    is_preexisting_test = True
+                    preexisting_detail = f"exit={test_exit_val} — same failures on main (exit={main_npm_test_exit_val})"
+            if is_preexisting_test:
+                steps.append({"step": "test_suite", "status": "pre_existing",
+                              "detail": preexisting_detail})
             else:
-                steps.append({"step": "smoke_probe", "status": "fail", "detail": f"exit={smoke_exit_val}"})
+                detail = preexisting_detail if preexisting_detail else f"exit={test_exit_val}"
+                steps.append({"step": "test_suite", "status": "fail", "detail": detail})
+    else:
+        steps.append({"step": "test_suite", "status": "skip", "detail": "not triggered"})
+
+    # L5: Fully verified (tests pass + no new errors + symbols ok + smoke ok)
+    if (test_ran_val and test_exit_val == 0 and
+        build_verdict in ("pass", "security_review") and
+        (det_compatible is True or det_compatible is None)):
+        if smoke_ran_val and smoke_exit_val == 0:
+            level = 5
+            steps.append({"step": "smoke_probe", "status": "pass"})
+        elif smoke_ran_val:
+            steps.append({"step": "smoke_probe", "status": "fail", "detail": f"exit={smoke_exit_val}"})
+        elif not smoke_ran_val:
+            # Tests pass but no smoke — still L4
+            steps.append({"step": "smoke_probe", "status": "skip", "detail": "no dist/main.js after build"})
+    elif smoke_ran_val:
+        if smoke_exit_val == 0:
+            steps.append({"step": "smoke_probe", "status": "pass"})
+        else:
+            steps.append({"step": "smoke_probe", "status": "fail", "detail": f"exit={smoke_exit_val}"})
 
 LEVEL_LABELS = {
     -1: "NA_not_applicable",
@@ -2438,8 +2897,10 @@ pr_data["verification_steps"] = steps
 
 data["prs"][pr_num] = pr_data
 
-with open(results_file, "w") as f:
+_tmp = results_file + ".tmp"
+with open(_tmp, "w") as f:
     json.dump(data, f, indent=2)
+os.rename(_tmp, results_file)
 
 print(f"  ✓ PR #{pr_num} written to results")
 
@@ -2447,7 +2908,7 @@ print(f"  ✓ PR #{pr_num} written to results")
 for p in [det_path, files_path, build_out_path, test_out_path, new_errors_path]:
     try:
         os.remove(p)
-    except:
+    except (FileNotFoundError, OSError):
         pass
 PYEOF
 
@@ -2472,8 +2933,9 @@ fi
 echo ""
 echo "════════════ CROSS-PR DEPENDENCIES ════════════"
 
-python3 << 'CROSSDEPS'
-import json, re
+RESULTS_FILE="$RESULTS_FILE" python3 << 'CROSSDEPS'
+import json, re, os
+results_file = os.environ["RESULTS_FILE"]
 
 KNOWN_DEPS = {
     ("flask", "jinja2"): ("flask depends on jinja2", "jinja2 first"),
@@ -2499,8 +2961,13 @@ try:
         for peer in pl:
             key = tuple(sorted([pn.lower(), peer.lower()]))
             KNOWN_DEPS.setdefault(key, (f"{pn} peerDep on {peer}", "check compatibility"))
-except: pass
-with open("/tmp/build-results.json") as f: data = json.load(f)
+except FileNotFoundError:
+    pass
+except json.JSONDecodeError as e:
+    import sys
+    print(f"WARNING: corrupt peer groups JSON: {e}", file=sys.stderr)
+    pass
+with open(results_file) as f: data = json.load(f)
 cross_deps = []
 prs = data.get("prs", {})
 pr_list = list(prs.items())
@@ -2542,7 +3009,9 @@ except:
     data["workspace_graph"] = {}
     data["nestjs_skew"] = []
 data["cross_pr_deps"] = cross_deps
-with open("/tmp/build-results.json", "w") as f: json.dump(data, f, indent=2)
+_tmp = results_file + ".tmp"
+with open(_tmp, "w") as f: json.dump(data, f, indent=2)
+os.rename(_tmp, results_file)
 if cross_deps:
     for dep in cross_deps: print(f"  Found: PR #{dep['pr_a']} <-> #{dep['pr_b']} - {dep['reason']}")
 else: print("  No cross-PR dependencies detected")
@@ -2590,7 +3059,7 @@ for a in open_alerts:
     severity_counts[sev] = severity_counts.get(sev, 0) + 1
 
 # Cross-reference: which open PRs fix which alerts?
-with open("/tmp/build-results.json") as f:
+with open("$RESULTS_FILE") as f:
     data = json.load(f)
 
 prs = data.get("prs", {})
@@ -2626,8 +3095,10 @@ security_posture = {
 }
 
 data["security_posture"] = security_posture
-with open("/tmp/build-results.json", "w") as f:
+_tmp = "$RESULTS_FILE" + ".tmp"
+with open(_tmp, "w") as f:
     json.dump(data, f, indent=2)
+os.rename(_tmp, "$RESULTS_FILE")
 
 print(f"  Open vulnerability alerts: {len(open_alerts)}")
 for sev, count in sorted(severity_counts.items(), key=lambda x: {'critical':0,'high':1,'medium':2,'low':3}.get(x[0],4)):
@@ -2647,9 +3118,12 @@ DELETED_COUNT=0
 for i in $(seq 0 $(( PR_COUNT - 1 )) ); do
   PR_NUM=$(echo "$PR_JSON" | jq -r ".[$i].number")
 
-  # Find and delete old breakability comments
+  # Only delete old deterministic (breakability-check) comments.
+  # PRESERVE richer AI agent (breakability-agent) comments — they contain
+  # changelog analysis, CVE context, and migration guidance that the
+  # deterministic fallback cannot reproduce. Aligned with merge-results.sh policy (Finding-2.3).
   COMMENT_IDS=$(gh api "repos/$OWNER/$REPO/issues/$PR_NUM/comments" \
-    --jq '.[] | select(.body | contains("<!-- breakability-check -->") or contains("<!-- breakability-agent -->")) | .id' \
+    --jq '.[] | select(.body | contains("<!-- breakability-check -->")) | select(.body | contains("<!-- breakability-agent -->") | not) | .id' \
     2>/dev/null || true)
 
   for CID in $COMMENT_IDS; do

@@ -192,7 +192,20 @@ Check `metadata.mode` in `/tmp/build-results.json`.
 
 ---
 
-## 3 — Verdict Rules (apply in order)
+## 3 — Risk Classification
+
+Use these tiers to communicate actual risk to developers:
+
+- **✅ SAFE (LOW_RISK equivalent)**: Build passes + verification_level >= 2 + compatible. Patch/minor bumps with verified compatibility.
+- **🟡 REVIEW (MODERATE_RISK equivalent)**: Major bumps, 0-import production deps, pre_existing with L1 verification, or behavioral concerns.
+- **❌ BUILD_FAILS (HIGH_RISK equivalent)**: New errors introduced, hard API breaks, incompatible symbols, known CVEs.
+- **⚙️ UNVERIFIED**: Could not verify due to infra errors or pre-existing failures on main.
+
+Use these tiers consistently in comments. A "safe" upgrade isn't zero-risk — it's LOW_RISK with verification. Always show the verification level to give developers confidence.
+
+---
+
+## 4 — Verdict Rules (apply in order)
 
 0. **`mergeable_status == "CONFLICTING"`** → **CONFLICTED**. Post a one-liner: `## ⚠️ CONFLICTED — rebase required before analysis`. Do not analyze further. In the merge plan, list in the "⚠️ Conflicted" section.
 1. **`build.verdict == "fail"`** (and main passes) → **BUILD_FAILS**. Non-negotiable.
@@ -225,7 +238,7 @@ Check `metadata.mode` in `/tmp/build-results.json`.
 
 ---
 
-## 4 — Comment Formats (Visual UX)
+## 5 — Comment Formats (Visual UX)
 
 Every comment starts with `<!-- breakability-check -->` on line 1 (hidden marker).
 
@@ -762,7 +775,7 @@ Use ✅ for pass, ❌ for fail, ⬜ for skip/not-run. Read the `verification_ste
 
 ---
 
-## 5 — Merge Plan as GitHub Issue
+## 6 — Merge Plan as GitHub Issue
 
 After posting all individual PR comments, create a **GitHub Issue** for the merge plan.
 
@@ -772,7 +785,7 @@ After posting all individual PR comments, create a **GitHub Issue** for the merg
 - **DO** find the existing merge plan issue: `PLAN_ISSUE_NUMBER=$(gh issue list --label "merge-plan" --state open --json number -q '.[0].number')`.
 - **DO** update the existing issue body to reflect the new results for the targeted PRs. Fetch the current body with `gh issue view $PLAN_ISSUE_NUMBER --json body -q '.body'`, find the table rows for each re-analyzed PR (match `| #NN |`), replace those rows with updated verdicts/confidence/verification levels from the new JSON, then write back with `gh issue edit $PLAN_ISSUE_NUMBER --body "$UPDATED_BODY"`. If a PR moved categories (e.g., from Fix Required to Safe), move its row to the correct table.
 - **DO** reference `$PLAN_ISSUE_NUMBER` in all PR comments.
-- Skip the rest of Section 5 (no new issue creation, no old issue closing).
+- Skip the rest of Section 6 (no new issue creation, no old issue closing).
 
 For full runs (≥10 PRs), follow the full merge plan creation below.
 
@@ -981,7 +994,7 @@ Every individual PR comment must end with `📋 Merge plan: #ISSUE_NUMBER`.
 
 ---
 
-## 6 — Comment Cleanup
+## 8 — Comment Cleanup
 
 Before posting ANY new comment, FIRST delete ALL existing comments containing `<!-- breakability-check -->` or `<!-- breakability-agent -->`:
 
@@ -997,7 +1010,7 @@ Do this for EVERY PR. No exceptions. Both markers must be searched.
 
 ---
 
-## 7 — Execution
+## 7 — Execution (last section)
 
 **CRITICAL: Follow these steps IN ORDER. Do NOT repeat any step. Do NOT create more than one issue.**
 

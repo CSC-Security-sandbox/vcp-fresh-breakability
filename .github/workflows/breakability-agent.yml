@@ -5,8 +5,7 @@ on:
   #   # Weekdays at 6 AM UTC — disabled to save CI costs
   #   - cron: '0 6 * * 1-5'
   pull_request:
-    # Scenario 2A: analyze a Dependabot PR immediately when it opens, without
-    # waiting for the next batch run.
+    # Scenario 2A: analyze a Dependabot PR immediately when it opens, without waiting for the next batch run.
     # Non-Dependabot PRs are filtered out in the discover job via the 'dependencies' label check.
     types: [opened]
   workflow_dispatch:
@@ -20,11 +19,6 @@ on:
         required: false
         default: 'false'
         type: boolean
-      skip_deterministic:
-        description: 'Skip deterministic steps — re-run AI agent only using previous results from breakability-results branch'
-        required: false
-        default: 'false'
-        type: boolean
       batch_count:
         description: 'Number of parallel batches (1 = sequential, 4 = default)'
         required: false
@@ -35,23 +29,18 @@ on:
           - '2'
           - '4'
           - '6'
-      runner:
-        description: 'Runner type: ubuntu-latest (GitHub-hosted) or self-hosted Mac'
-        required: false
-        default: 'ubuntu-latest'
-        type: choice
-        options:
-          - 'ubuntu-latest'
-          - 'self-hosted'
 
 concurrency:
-  group: breakability-agent
+  # Scope concurrency per event type so single-PR analysis (pull_request:opened)
+  # doesn't cancel running batch scans (workflow_dispatch) (Finding-1.12).
+  group: breakability-agent-${{ github.event_name }}-${{ github.event.pull_request.number || 'batch' }}
   cancel-in-progress: true
 
 permissions:
   contents: write
   pull-requests: write
   issues: write
+  security-events: read
 
 env:
   NODE_VERSION: '20'
@@ -63,8 +52,11 @@ jobs:
   # Job 1: Discover PRs and split into batches
   # ═══════════════════════════════════════════════════════════════════
   discover:
-    if: ${{ inputs.skip_deterministic != true }}
-    runs-on: ${{ inputs.runner == 'self-hosted' && 'self-hosted' || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
+    # Skip non-Dependabot PRs to avoid wasting CI time (Finding-2.7).
+    # pull_request:opened fires for ALL PRs; filter early to avoid empty runs
+    # that could cancel real batch scans via the concurrency group.
+    if: github.event_name != 'pull_request' || github.actor == 'dependabot[bot]'
     timeout-minutes: 5
     outputs:
       matrix: ${{ steps.split.outputs.matrix }}
@@ -104,8 +96,7 @@ jobs:
           fi
 
           # Split into batches
-          # bash 3.2 compatible (no mapfile on macOS)
-          i=0; while IFS= read -r line; do ALL_PRS[$i]="$line"; i=$((i+1)); done <<< "$PR_NUMS"
+          mapfile -t ALL_PRS < <(echo "$PR_NUMS")
           PER_BATCH=$(( (TOTAL + BATCH_COUNT - 1) / BATCH_COUNT ))
 
           MATRIX_JSON='{"include":['
@@ -133,10 +124,9 @@ jobs:
   # Job 2: Deterministic analysis (parallel matrix)
   # ═══════════════════════════════════════════════════════════════════
   deterministic:
-    if: ${{ inputs.skip_deterministic != true }}
     needs: discover
-    runs-on: ${{ inputs.runner == 'self-hosted' && 'self-hosted' || 'ubuntu-latest' }}
-    timeout-minutes: 180
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
       fail-fast: false
@@ -148,38 +138,24 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Node.js
-        if: ${{ inputs.runner != 'self-hosted' }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup Go
-        if: ${{ inputs.runner != 'self-hosted' }}
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
 
       - name: Setup Python
-        if: ${{ inputs.runner != 'self-hosted' }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Verify tools (self-hosted)
-        if: ${{ inputs.runner == 'self-hosted' }}
-        run: |
-          echo "=== Self-hosted tool versions ==="
-          node --version && go version && python3 --version
-          echo "go: $(which go)" && echo "node: $(which node)" && echo "python3: $(which python3)"
-
       - name: Setup Maven
         run: |
           if ! command -v mvn &>/dev/null; then
-            if [[ "$RUNNER_OS" == "Linux" ]]; then
-              sudo apt-get update -qq && sudo apt-get install -y -qq maven > /dev/null 2>&1 || echo "Maven install skipped"
-            elif [[ "$RUNNER_OS" == "macOS" ]]; then
-              brew install maven 2>/dev/null || echo "Maven install skipped"
-            fi
+            sudo apt-get update -qq && sudo apt-get install -y -qq maven > /dev/null 2>&1 || echo "Maven install skipped"
           fi
 
       - name: Run deterministic analysis (batch ${{ matrix.batch_id }})
@@ -193,6 +169,14 @@ jobs:
           PR_FILTER: ${{ matrix.pr_filter }}
           BATCH_ID: ${{ matrix.batch_id }}
           REPO_ROOT: ${{ github.workspace }}
+          # ── Private Registry Auth (see docs/PRIVATE_REGISTRIES.md) ──
+          # Add your registry auth tokens as GitHub secrets, then
+          # pass them here with the same env var names used in
+          # .github/breakability-config.yml → private_registries[].auth_token_env
+          # Example:
+          #   AZURE_ARTIFACTS_TOKEN: ${{ secrets.AZURE_ARTIFACTS_TOKEN }}
+          #   GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+          #   ACR_NPM_TOKEN: ${{ secrets.ACR_NPM_TOKEN }}
 
       - name: Upload batch results
         if: always()
@@ -211,62 +195,31 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════
   merge-and-analyze:
     needs: [discover, deterministic]
-    runs-on: ${{ inputs.runner == 'self-hosted' && 'self-hosted' || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 120
-    if: always() && (needs.discover.result == 'success' || inputs.skip_deterministic == true)
+    if: always() && needs.discover.result == 'success'
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Node.js
-        if: ${{ inputs.runner != 'self-hosted' }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup Python
-        if: ${{ inputs.runner != 'self-hosted' }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Verify tools (self-hosted)
-        if: ${{ inputs.runner == 'self-hosted' }}
-        run: |
-          echo "=== Self-hosted tool versions ==="
-          node --version && python3 --version
-
-      # ── When skipping deterministic: load results from breakability-results branch ──
-      - name: Load previous results (AI-only mode)
-        if: ${{ inputs.skip_deterministic == true }}
-        run: |
-          echo "═══════════ AI-ONLY MODE ════════════"
-          echo "Skipping deterministic analysis — loading results from breakability-results branch"
-          git fetch origin breakability-results
-          git show origin/breakability-results:build-results.json > /tmp/build-results.json
-          PR_COUNT=$(python3 -c "import json; print(len(json.load(open('/tmp/build-results.json')).get('prs', {})))")
-          echo "Loaded $PR_COUNT PRs from breakability-results branch"
-          if [[ "$PR_COUNT" -eq 0 ]]; then
-            echo "::error::breakability-results branch has 0 PRs — run a full deterministic analysis first"
-            exit 1
-          fi
-          # Extract PR diffs if available
-          git show origin/breakability-results:pr-diffs.tar.gz > /tmp/pr-diffs.tar.gz 2>/dev/null && \
-            tar xzf /tmp/pr-diffs.tar.gz -C /tmp/ || echo "No PR diffs archive on branch — agent will fetch diffs via API"
-
-      # ── When running full pipeline: download and merge batch artifacts ──
       - name: Download all batch artifacts
-        if: ${{ inputs.skip_deterministic != true }}
         uses: actions/download-artifact@v4
         with:
           path: /tmp/batch-results
           pattern: batch-*
 
       - name: List downloaded artifacts
-        if: ${{ inputs.skip_deterministic != true }}
         run: |
           echo "=== Downloaded artifacts ==="
           find /tmp/batch-results -type f | sort | head -60
@@ -274,58 +227,12 @@ jobs:
           ls -la /tmp/batch-results/batch-*/build-results-*.json 2>/dev/null || echo "No batch files found"
 
       - name: Merge results
-        if: ${{ inputs.skip_deterministic != true }}
         run: |
           chmod +x .github/scripts/merge-results.sh
           bash .github/scripts/merge-results.sh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # ── Push merged results to breakability-results branch ──
-      # This ensures BOTH code paths in the prompt (branch + /tmp) have fresh data.
-      # Also enables AI-only re-runs via skip_deterministic=true.
-      - name: Push results to breakability-results branch
-        if: always()
-        run: |
-          RESULTS="/tmp/build-results.json"
-          if [[ ! -f "$RESULTS" ]]; then
-            echo "No build-results.json to push — skipping"
-            exit 0
-          fi
-          PR_COUNT=$(python3 -c "import json; print(len(json.load(open('$RESULTS')).get('prs', {})))")
-          if [[ "$PR_COUNT" -eq 0 ]]; then
-            echo "Results have 0 PRs — skipping branch push to avoid overwriting good data"
-            exit 0
-          fi
-          echo "Pushing $PR_COUNT PRs to breakability-results branch..."
-
-          # Package PR diffs into a tar for the branch
-          if ls /tmp/pr-*.diff 1>/dev/null 2>&1; then
-            tar czf /tmp/pr-diffs.tar.gz -C /tmp/ $(ls /tmp/pr-*.diff | xargs -n1 basename)
-          fi
-
-          # Create or update the breakability-results branch
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Switch to orphan branch (no history bloat)
-          git checkout --orphan breakability-results-tmp
-          git rm -rf . > /dev/null 2>&1 || true
-
-          cp "$RESULTS" build-results.json
-          git add build-results.json
-          if [[ -f /tmp/pr-diffs.tar.gz ]]; then
-            cp /tmp/pr-diffs.tar.gz pr-diffs.tar.gz
-            git add pr-diffs.tar.gz
-          fi
-
-          git commit -m "Update breakability results — $PR_COUNT PRs — $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          git push --force origin HEAD:breakability-results
-          echo "✅ breakability-results branch updated with $PR_COUNT PRs"
-
-          # Switch back to main for remaining steps
-          git checkout -f main 2>/dev/null || git checkout -f - 2>/dev/null || true
 
       - name: Upload merged results
         if: always()
@@ -365,29 +272,108 @@ jobs:
               print(f'Cross-PR deps: {len(cross)}')
           " || echo "Failed to parse build-results.json"
 
-      # ── Agent Analysis (Cursor Agent CLI) ────────────────────────
-      - name: Install Cursor Agent CLI
+      # ── Agent Analysis (Copilot Coding Agent) ──────────────────────
+      - name: Commit build results to temp branch
         if: ${{ inputs.skip_agent != true }}
+        id: commit_results
         run: |
-          curl -fsS https://cursor.com/install | bash
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          RESULTS_BRANCH="breakability-results"
+          echo "results_branch=$RESULTS_BRANCH" >> "$GITHUB_OUTPUT"
 
-      - name: Verify agent CLI
-        if: ${{ inputs.skip_agent != true }}
-        run: |
-          agent --version || echo "WARNING: agent CLI not on PATH"
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Run Cursor agent analysis
+          # Create or switch to the results branch (orphan — no history needed)
+          # On first run, --orphan stages ALL tracked files. git rm -rf removes them
+          # so the commit only contains results, not the entire repo (Finding-3.7).
+          git checkout --orphan "$RESULTS_BRANCH" 2>/dev/null || git checkout "$RESULTS_BRANCH" 2>/dev/null || true
+          git rm -rf . 2>/dev/null || true
+          git reset --hard HEAD 2>/dev/null || true
+
+          # Stage build results
+          cp /tmp/build-results.json ./build-results.json
+
+          # Bundle PR diffs into a tarball if they exist
+          if ls /tmp/pr-*.diff 1>/dev/null 2>&1; then
+            tar czf ./pr-diffs.tar.gz -C /tmp/ $(ls /tmp/pr-*.diff | xargs -I{} basename {})
+          fi
+
+          git add build-results.json pr-diffs.tar.gz 2>/dev/null || git add build-results.json
+          git commit -m "Breakability results $(date -u +%Y-%m-%dT%H:%M:%SZ)" --allow-empty
+          git push origin "$RESULTS_BRANCH" --force
+
+          # Switch back to main branch for subsequent steps
+          git checkout "${{ github.ref_name }}" 2>/dev/null || git checkout main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Trigger Copilot coding agent via Issue
         if: ${{ inputs.skip_agent != true }}
         id: agent
         continue-on-error: true
         run: |
-          agent -p --force --model claude-4-sonnet "$(cat .github/breakability-prompt.md)"
+          RESULTS_BRANCH="${{ steps.commit_results.outputs.results_branch }}"
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+          PR_COUNT=$(python3 -c "import json; print(len(json.load(open('/tmp/build-results.json')).get('prs',{})))" 2>/dev/null || echo "?")
+
+          # Close any previous breakability analysis issues
+          OLD_ISSUES=$(gh issue list --repo "$GITHUB_REPOSITORY" \
+            --label "breakability-analysis" --state open \
+            --json number --jq '.[].number' 2>/dev/null || true)
+          for ISSUE_NUM in $OLD_ISSUES; do
+            gh issue close "$ISSUE_NUM" --repo "$GITHUB_REPOSITORY" \
+              --comment "Superseded by new analysis run at $TIMESTAMP" 2>/dev/null || true
+          done
+
+          # Create the analysis task Issue and assign to Copilot
+          ISSUE_BODY=$(cat <<'ISSUE_EOF'
+          ## Breakability Analysis Task
+
+          **Run:** $TIMESTAMP
+          **PRs to analyze:** $PR_COUNT
+          **Results branch:** `$RESULTS_BRANCH`
+
+          ### Instructions
+
+          You are the `breakability-analyst` agent. Execute the following:
+
+          1. Fetch build results: `git fetch origin $RESULTS_BRANCH && git show origin/$RESULTS_BRANCH:build-results.json > /tmp/build-results.json`
+          2. Read the full analysis instructions from `.github/breakability-prompt.md`
+          3. Follow Section 7 (Execution) of that file exactly:
+             - Read build-results.json
+             - Create ONE merge plan Issue
+             - Post structured comments on EVERY PR (100% coverage)
+             - Verify counts
+
+          ### Key Rules
+          - NEVER close, merge, or modify any PR
+          - NEVER override build verdicts
+          - Copy `verification_label` from JSON verbatim
+          - 100% PR comment coverage is mandatory
+          - Use the comment formats from Section 4 of breakability-prompt.md
+          ISSUE_EOF
+          )
+
+          # Substitute variables into the issue body
+          ISSUE_BODY=$(echo "$ISSUE_BODY" | sed "s|\$TIMESTAMP|$TIMESTAMP|g; s|\$PR_COUNT|$PR_COUNT|g; s|\$RESULTS_BRANCH|$RESULTS_BRANCH|g")
+
+          ISSUE_URL=$(gh issue create \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "🔍 Breakability Analysis — $TIMESTAMP ($PR_COUNT PRs)" \
+            --body "$ISSUE_BODY" \
+            --assignee "copilot" \
+            --label "breakability-analysis")
+
+          echo "issue_url=$ISSUE_URL" >> "$GITHUB_OUTPUT"
+          echo "✅ Created analysis task: $ISSUE_URL"
+          echo "   Copilot coding agent will pick this up and work autonomously."
+          echo "   Monitor progress at: $ISSUE_URL"
         env:
-          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        timeout-minutes: 60
+        timeout-minutes: 5
 
       # ── Fallback ───────────────────────────────────────────────────
       - name: Post fallback comments for missed PRs
