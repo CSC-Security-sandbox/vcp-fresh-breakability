@@ -12,7 +12,7 @@
 #   - /tmp/batch-results/batch-*/_bc_peer_groups.json   (from any batch)
 #   - GH_TOKEN / GITHUB_TOKEN env
 # ──────────────────────────────────────────────────────────────────────────────
-set -euo pipefail
+set -u
 
 RESULTS_FILE="/tmp/build-results.json"
 OWNER_REPO="${GITHUB_REPOSITORY:-}"

@@ -5,7 +5,7 @@
 # Runs TS pipeline CLI + ecosystem-specific builds for each Dependabot PR,
 # produces /tmp/build-results.json with structured analysis data.
 # ──────────────────────────────────────────────────────────────────────────────
-set -euo pipefail
+set -u
 
 _bc_cleanup() {
   rm -rf "${WORKTREE_BASE:-/tmp/worktree}"-*/ 2>/dev/null || true
