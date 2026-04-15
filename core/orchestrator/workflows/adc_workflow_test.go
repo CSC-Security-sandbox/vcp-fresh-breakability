@@ -1592,9 +1592,9 @@ func TestADCWorkflow(t *testing.T) {
 		env.OnActivity("CheckOperationStatus", mock.Anything, "operations/cleanup-operation-123").Return(true, nil)
 		env.OnActivity("RemoveRolesFromServiceAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		env.OnActivity("DeleteSA", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		// When backup vault switching is enabled, workflow uses per-vault latest check and multi-vault summed logical size activity
+		// When backup vault switching is enabled, workflow uses per-vault latest check.
 		env.OnActivity("IsLatestBackupInVaultActivity", mock.Anything, backup.UUID, backup.VolumeUUID, backup.BackupVaultID).Return(false, nil)
-		env.OnActivity("FetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		env.OnActivity("FetchLogicalSizeAndUpdateActivity", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 		env.ExecuteWorkflow(ADCWorkflow, params, backupVault, backup, account)
 		_, err := env.QueryWorkflowByID("default-test-workflow-id", "status")

@@ -375,50 +375,17 @@ func (wf *BackupCreateWorkflow) RunBackupCreateWithContext(ctx workflow.Context,
 		// Log the error but don't fail the entire backup workflow
 		workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to get snapshot from object store for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err))
 	}
-	// Update backup size fields in both backup and volume tables.
-	// When vault switching is on, calculate summed size first (ADCSizeWorkflow), then finish backup with that size so backup table and backup_chain_history are correct, then update volume/global.
-	if utils.EnableBackupVaultSwitching && backupActivitiesContext.BackupWorkflowInit != nil && backupActivitiesContext.Node != nil {
-		var summedSize int64
-		adcSizeCtx := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
-			WorkflowExecutionTimeout: AdcSizeWorkflowTimeout,
-		})
-		adcSizeParams := &ADCSizeWFParams{
-			VolumeUUID: backupActivitiesContext.BackupWorkflowInit.Volume.UUID,
-			Node:       backupActivitiesContext.Node,
-		}
-		err = workflow.ExecuteChildWorkflow(adcSizeCtx, ADCSizeWorkflow, adcSizeParams).Get(adcSizeCtx, &summedSize)
-		if err != nil {
-			workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to get summed logical backup size (all vaults) for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err))
-		} else {
-			// Assign computed size to backup in context so FinishBackup persists it to backup table and backup_chain_history
-			backupActivitiesContext.BackupWorkflowInit.Backup.LatestLogicalBackupSize = summedSize
-			err = workflow.ExecuteActivity(ctx, backupActivity.FinishBackupActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
-			if err != nil {
-				workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to finish backup for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err))
-			} else {
-				err = workflow.ExecuteActivity(ctx, backupActivity.UpdateVolumeLatestLogicalBackupSize, backupActivitiesContext.BackupWorkflowInit.Volume, summedSize).Get(ctx, nil)
-				if err != nil {
-					workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to update volume latest logical backup size for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err))
-				}
-				err = workflow.ExecuteActivity(ctx, backupActivity.SetGlobalLatestBackupLogicalSizeActivity, backupActivitiesContext.BackupWorkflowInit.Volume.UUID, summedSize).Get(ctx, nil)
-				if err != nil {
-					workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to set global latest backup logical size for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err))
-				}
-			}
-		}
-	} else {
-		// Get object store endpoint info
-		err = workflow.ExecuteActivity(ctx, backupActivity.GetObjectStoreEndpointActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
-		if err != nil {
-			// Log the error but don't fail the entire backup workflow
-			workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to get object store endpoint info for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err))
-		}
+	// Get object store endpoint info
+	err = workflow.ExecuteActivity(ctx, backupActivity.GetObjectStoreEndpointActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+	if err != nil {
+		// Log the error but don't fail the entire backup workflow
+		workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to get object store endpoint info for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err))
+	}
 
-		err = workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupSizeActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
-		if err != nil {
-			// Log the error but don't fail the entire backup workflow
-			workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to update backup size fields for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err))
-		}
+	err = workflow.ExecuteActivity(ctx, backupActivity.UpdateBackupSizeActivity, backupActivitiesContext).Get(ctx, &backupActivitiesContext)
+	if err != nil {
+		// Log the error but don't fail the entire backup workflow
+		workflow.GetLogger(ctx).Error(fmt.Sprintf("Failed to update backup size fields for volume %s: %v", backupActivitiesContext.BackupWorkflowInit.Volume.Name, err))
 	}
 
 	// Create remote backup from VCP if this is a cross-region backup
@@ -824,30 +791,6 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 	err = workflow.ExecuteActivity(ctx, backupActivity.DeleteBackup, deleteBackupParams.BackupUUID).Get(ctx, &dbBackup)
 	if err != nil {
 		return nil, ConvertToVSAError(err)
-	}
-
-	// When vault switching is on, recompute volume BackupChainBytes via ADCSizeWorkflow (all vaults: active from endpoint, detached from ADC).
-	if utils.EnableBackupVaultSwitching && !isVolumeDeleted && volume != nil {
-		var summedSize int64
-		adcSizeCtx := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
-			WorkflowExecutionTimeout: AdcSizeWorkflowTimeout,
-		})
-		adcSizeParams := &ADCSizeWFParams{
-			VolumeUUID: volume.UUID,
-			Node:       node,
-		}
-		err = workflow.ExecuteChildWorkflow(adcSizeCtx, ADCSizeWorkflow, adcSizeParams).Get(adcSizeCtx, &summedSize)
-		if err != nil {
-			return nil, ConvertToVSAError(err)
-		}
-		err = workflow.ExecuteActivity(ctx, backupActivity.UpdateVolumeLatestLogicalBackupSize, volume, summedSize).Get(ctx, nil)
-		if err != nil {
-			return nil, ConvertToVSAError(err)
-		}
-		err = workflow.ExecuteActivity(ctx, backupActivity.SetGlobalLatestBackupLogicalSizeActivity, volume.UUID, summedSize).Get(ctx, nil)
-		if err != nil {
-			return nil, ConvertToVSAError(err)
-		}
 	}
 
 	// Delete remote backup from VCP if this is a cross-region backup

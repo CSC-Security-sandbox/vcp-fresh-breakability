@@ -992,7 +992,7 @@ func TestUpdateBackupSize(t *testing.T) {
 		mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "volume-uuid", "backup-uuid").Return(nil).Once()
 		mockStorage.On("UpdateVolumeFields", ctx, "volume-uuid", mock.Anything).Return(nil).Once()
 
-		err := activity.UpdateBackupSize(ctx, backup, volume, PrecomputedChainBytesNotSet, false)
+		err := activity.UpdateBackupSize(ctx, backup, volume, false)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 	})
@@ -1019,7 +1019,7 @@ func TestUpdateBackupSize(t *testing.T) {
 		// UpdateBackupLatestLogicalBackupSizeByVolume should NOT be called when LatestLogicalBackupSize == 0
 		mockStorage.On("UpdateVolumeFields", ctx, "volume-uuid", mock.Anything).Return(nil).Once()
 
-		err := activity.UpdateBackupSize(ctx, backup, volume, PrecomputedChainBytesNotSet, false)
+		err := activity.UpdateBackupSize(ctx, backup, volume, false)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 	})
@@ -1042,7 +1042,7 @@ func TestUpdateBackupSize(t *testing.T) {
 		// Mock UpdateBackup call to fail
 		mockStorage.On("FinishBackup", ctx, backup).Return(nil, errors.New("database error")).Once()
 
-		err := activity.UpdateBackupSize(ctx, backup, volume, PrecomputedChainBytesNotSet, false)
+		err := activity.UpdateBackupSize(ctx, backup, volume, false)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "database error")
 		mockStorage.AssertExpectations(t)
@@ -1069,7 +1069,7 @@ func TestUpdateBackupSize(t *testing.T) {
 		// Mock UpdateBackupLatestLogicalBackupSizeByVolume call to fail
 		mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "volume-uuid", "backup-uuid").Return(errors.New("reset error")).Once()
 
-		err := activity.UpdateBackupSize(ctx, backup, volume, PrecomputedChainBytesNotSet, false)
+		err := activity.UpdateBackupSize(ctx, backup, volume, false)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "reset error")
 		mockStorage.AssertExpectations(t)
@@ -1099,7 +1099,7 @@ func TestUpdateBackupSize(t *testing.T) {
 
 		mockStorage.On("UpdateVolumeFields", ctx, "volume-uuid", mock.Anything).Return(errors.New("volume update error")).Once()
 
-		err := activity.UpdateBackupSize(ctx, backup, volume, PrecomputedChainBytesNotSet, false)
+		err := activity.UpdateBackupSize(ctx, backup, volume, false)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "volume update error")
 		mockStorage.AssertExpectations(t)
@@ -1127,7 +1127,7 @@ func TestUpdateBackupSize(t *testing.T) {
 		// UpdateBackupLatestLogicalBackupSizeByVolume should NOT be called when LatestLogicalBackupSize == 0
 		mockStorage.On("UpdateVolumeFields", ctx, "volume-uuid", mock.Anything).Return(errors.New("volume update error")).Once()
 
-		err := activity.UpdateBackupSize(ctx, backup, volume, PrecomputedChainBytesNotSet, false)
+		err := activity.UpdateBackupSize(ctx, backup, volume, false)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "volume update error")
 		mockStorage.AssertExpectations(t)
@@ -1160,7 +1160,7 @@ func TestUpdateBackupSize(t *testing.T) {
 
 		mockStorage.On("FinishBackup", mock.Anything, backup).Return(backup, nil).Once()
 		mockStorage.On("GetLatestBackupByVolumeUUID", mock.Anything, "volume-uuid").Return(latestBackup, nil).Once()
-		// When PrecomputedChainBytesNotSet and backup has no LatestLogicalBackupSize, chainBytes is 0.
+		// With vault switching and no LatestLogicalBackupSize on the backup, chainBytes is 0.
 		mockStorage.On("UpdateBackupFields", mock.Anything, "latest-uuid", mock.MatchedBy(func(updates map[string]interface{}) bool {
 			v, ok := updates["latest_logical_backup_size"].(int64)
 			return ok && v == 0
@@ -1168,14 +1168,12 @@ func TestUpdateBackupSize(t *testing.T) {
 		mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", mock.Anything, "volume-uuid", "latest-uuid").Return(nil).Once()
 		mockStorage.On("UpdateVolumeFields", mock.Anything, "volume-uuid", mock.Anything).Return(nil).Once()
 
-		_, err := env.ExecuteActivity(activity.UpdateBackupSize, backup, volume, PrecomputedChainBytesNotSet, false)
+		_, err := env.ExecuteActivity(activity.UpdateBackupSize, backup, volume, false)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 	})
 
-	// UpdateBackupSizeWithVaultSwitchingEnabled_ADCSizeFailed_FallbackToBackupSize: when ADCSizeWorkflow failed,
-	// precomputedChainBytes is PrecomputedChainBytesNotSet (-1); activity must use backup.LatestLogicalBackupSize so we don't record 0.
-	t.Run("UpdateBackupSizeWithVaultSwitchingEnabled_ADCSizeFailed_FallbackToBackupSize", func(t *testing.T) {
+	t.Run("UpdateBackupSizeWithVaultSwitchingEnabled_UsesBackupLatestLogicalBackupSize", func(t *testing.T) {
 		origFlag := utils.EnableBackupVaultSwitching
 		defer utils.SetEnableBackupVaultSwitchingForTest(origFlag)
 		utils.SetEnableBackupVaultSwitchingForTest(true)
@@ -1208,38 +1206,7 @@ func TestUpdateBackupSize(t *testing.T) {
 			return ok && dp != nil && dp.BackupChainBytes != nil && *dp.BackupChainBytes == fallbackSize
 		})).Return(nil).Once()
 
-		err := activity.UpdateBackupSize(ctx, backup, volume, PrecomputedChainBytesNotSet, false)
-		assert.NoError(t, err)
-		mockStorage.AssertExpectations(t)
-	})
-
-	t.Run("UpdateBackupSizeWithVaultSwitchingEnabled_PrecomputedChainBytes", func(t *testing.T) {
-		origFlag := utils.EnableBackupVaultSwitching
-		defer utils.SetEnableBackupVaultSwitchingForTest(origFlag)
-		utils.SetEnableBackupVaultSwitchingForTest(true)
-
-		ctx := context.Background()
-		mockStorage := database.NewMockStorage(t)
-		activity := ScheduledBackupActivity{SE: mockStorage}
-
-		backup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "backup-uuid"}, VolumeUUID: "volume-uuid"}
-		volume := &datamodel.Volume{
-			BaseModel:      datamodel.BaseModel{UUID: "volume-uuid"},
-			DataProtection: &datamodel.DataProtection{BackupVaultID: "v1"},
-		}
-		latestBackup := &datamodel.Backup{BaseModel: datamodel.BaseModel{UUID: "latest-uuid"}, VolumeUUID: "volume-uuid"}
-		precomputed := int64(12345)
-
-		mockStorage.On("FinishBackup", ctx, backup).Return(backup, nil).Once()
-		mockStorage.On("GetLatestBackupByVolumeUUID", ctx, "volume-uuid").Return(latestBackup, nil).Once()
-		mockStorage.On("UpdateBackupFields", ctx, "latest-uuid", mock.MatchedBy(func(updates map[string]interface{}) bool {
-			v, ok := updates["latest_logical_backup_size"].(int64)
-			return ok && v == precomputed
-		})).Return(nil).Once()
-		mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "volume-uuid", "latest-uuid").Return(nil).Once()
-		mockStorage.On("UpdateVolumeFields", ctx, "volume-uuid", mock.Anything).Return(nil).Once()
-
-		err := activity.UpdateBackupSize(ctx, backup, volume, precomputed, false)
+		err := activity.UpdateBackupSize(ctx, backup, volume, false)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 	})
@@ -1266,7 +1233,7 @@ func TestUpdateBackupSize(t *testing.T) {
 		mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "volume-uuid", "latest-uuid").Return(nil).Once()
 		mockStorage.On("UpdateVolumeFields", ctx, "volume-uuid", mock.Anything).Return(nil).Once()
 
-		err := activity.UpdateBackupSize(ctx, backup, volume, 0, false)
+		err := activity.UpdateBackupSize(ctx, backup, volume, false)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 	})
@@ -1292,7 +1259,7 @@ func TestUpdateBackupSize(t *testing.T) {
 		mockStorage.On("UpdateBackupFields", ctx, "latest-uuid", mock.Anything).Return(nil).Once()
 		mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, "volume-uuid", "latest-uuid").Return(errors.New("zero other backups failed")).Once()
 
-		err := activity.UpdateBackupSize(ctx, backup, volume, 0, false)
+		err := activity.UpdateBackupSize(ctx, backup, volume, false)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "zero other backups failed")
 		mockStorage.AssertExpectations(t)
@@ -1323,7 +1290,7 @@ func TestUpdateBackupSize(t *testing.T) {
 		// For expert mode, UpdateExpertModeVolumeFields must be called (not UpdateVolumeFields)
 		mockStorage.On("UpdateExpertModeVolumeFields", ctx, externalUUID, mock.Anything).Return(nil).Once()
 
-		err := activity.UpdateBackupSize(ctx, backup, volume, PrecomputedChainBytesNotSet, true)
+		err := activity.UpdateBackupSize(ctx, backup, volume, true)
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
 	})
@@ -1351,7 +1318,7 @@ func TestUpdateBackupSize(t *testing.T) {
 		mockStorage.On("UpdateBackupLatestLogicalBackupSizeByVolume", ctx, externalUUID, "backup-uuid").Return(nil).Once()
 		mockStorage.On("UpdateExpertModeVolumeFields", ctx, externalUUID, mock.Anything).Return(errors.New("expert mode update error")).Once()
 
-		err := activity.UpdateBackupSize(ctx, backup, volume, PrecomputedChainBytesNotSet, true)
+		err := activity.UpdateBackupSize(ctx, backup, volume, true)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "expert mode update error")
 		mockStorage.AssertExpectations(t)
@@ -1380,7 +1347,7 @@ func TestUpdateBackupSize(t *testing.T) {
 		// UpdateExpertModeVolumeFields called; UpdateVolumeFields must NOT be called
 		mockStorage.On("UpdateExpertModeVolumeFields", ctx, externalUUID, mock.Anything).Return(nil).Once()
 
-		err := activity.UpdateBackupSize(ctx, backup, volume, PrecomputedChainBytesNotSet, true)
+		err := activity.UpdateBackupSize(ctx, backup, volume, true)
 		assert.NoError(t, err)
 		// Verify UpdateVolumeFields was never called
 		mockStorage.AssertNotCalled(t, "UpdateVolumeFields", mock.Anything, mock.Anything, mock.Anything)

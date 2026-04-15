@@ -420,7 +420,7 @@ func (wf *AdcWF) Run(ctx workflow.Context, args ...interface{}) (_ interface{}, 
 		},
 	})
 
-	// Check if backup is latest and update logical size if needed (per-vault when backup vault switching is enabled)
+	// Check if backup is latest and update logical size if needed
 	var isLatestBackup bool
 	if utils.EnableBackupVaultSwitching {
 		err = workflow.ExecuteActivity(logicalSizeCtx, backupActivity.IsLatestBackupInVaultActivity, backup.UUID, backup.VolumeUUID, backup.BackupVaultID).Get(logicalSizeCtx, &isLatestBackup)
@@ -430,11 +430,7 @@ func (wf *AdcWF) Run(ctx workflow.Context, args ...interface{}) (_ interface{}, 
 	if err != nil {
 		log.Warnf("Skipping logical size calculation due to error: %v", err)
 	} else if !isLatestBackup {
-		if utils.EnableBackupVaultSwitching {
-			err = workflow.ExecuteActivity(logicalSizeCtx, adcActivity.FetchSummedLogicalSizeFromAllVaultsViaADCAndUpdateActivity, backup.VolumeUUID, adcParams, serviceURL, backup.BackupVaultID).Get(logicalSizeCtx, nil)
-		} else {
-			err = workflow.ExecuteActivity(logicalSizeCtx, adcActivity.FetchLogicalSizeAndUpdateActivity, backup.VolumeUUID, adcParams, serviceURL).Get(logicalSizeCtx, nil)
-		}
+		err = workflow.ExecuteActivity(logicalSizeCtx, adcActivity.FetchLogicalSizeAndUpdateActivity, backup.VolumeUUID, adcParams, serviceURL).Get(logicalSizeCtx, nil)
 		if err != nil {
 			log.Warnf("Failed to update logical size after 3 attempts: %v", err)
 		}

@@ -20,10 +20,8 @@ import (
 )
 
 const (
-	backupTypeSCHEDULED       = "SCHEDULED"
+	backupTypeSCHEDULED         = "SCHEDULED"
 	scheduledBackupNameFormat = "%s-scheduled-backup-%s-%s"
-	// PrecomputedChainBytesNotSet is passed to UpdateBackupSize when the caller has not precomputed chain bytes (e.g. workflow did not run ADCSizeWorkflow).
-	PrecomputedChainBytesNotSet int64 = -1
 )
 
 // ScheduledBackupActivity represents activities related to scheduled backups.
@@ -313,9 +311,9 @@ func (j *ScheduledBackupActivity) UpdateBackupState(ctx context.Context, backup 
 	return updated, nil
 }
 
-// UpdateBackupSize updates backup and volume size fields. When vault switching is on and precomputedChainBytes >= 0,
-// that value is used (e.g. from ADCSizeWorkflow).
-func (j *ScheduledBackupActivity) UpdateBackupSize(ctx context.Context, backup *datamodel.Backup, volume *datamodel.Volume, precomputedChainBytes int64, isExpertMode bool) error {
+// UpdateBackupSize updates backup and volume size fields. When backup vault switching is on, chain bytes come from
+// backup.LatestLogicalBackupSize (set by the workflow from object store endpoint info before this activity).
+func (j *ScheduledBackupActivity) UpdateBackupSize(ctx context.Context, backup *datamodel.Backup, volume *datamodel.Volume, isExpertMode bool) error {
 	logger := util.GetLogger(ctx)
 	se := j.SE
 
@@ -334,12 +332,7 @@ func (j *ScheduledBackupActivity) UpdateBackupSize(ctx context.Context, backup *
 
 	var chainBytes int64
 	if utils.EnableBackupVaultSwitching {
-		if precomputedChainBytes >= 0 {
-			chainBytes = precomputedChainBytes
-		} else {
-			// ADCSizeWorkflow failed or was not run: fall back to this backup's size so we don't record 0 and lose actual size.
-			chainBytes = backup.LatestLogicalBackupSize
-		}
+		chainBytes = backup.LatestLogicalBackupSize
 		latestBackup, latestErr := se.GetLatestBackupByVolumeUUID(ctx, volUUID)
 		if latestErr == nil && latestBackup != nil {
 			if updateErr := se.UpdateBackupFields(ctx, latestBackup.UUID, map[string]interface{}{"latest_logical_backup_size": chainBytes}); updateErr != nil {
