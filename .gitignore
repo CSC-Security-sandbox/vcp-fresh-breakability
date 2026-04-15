@@ -22,10 +22,18 @@ go.work
 
 # VS Code settings
 .vscode/
-# Ignore .cursor except rules (track .cursor/rules/)
+# Ignore .cursor except tracked triagebot config
 .cursor/*
 !.cursor/rules/
 !.cursor/rules/*/
+!.cursor/triagebot-agents/
+!.cursor/triagebot-agents/**
+!.cursor/deps/
+!.cursor/state/
+.cursor/deps/*
+!.cursor/deps/README.md
+.cursor/state/*
+!.cursor/state/memory.md
 
 # macOS specific files
 .DS_Store
