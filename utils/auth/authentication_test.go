@@ -996,6 +996,10 @@ func TestAuthMiddleware_BypassPathsInjectHeaders(t *testing.T) {
 				name: "batch host groups endpoint",
 				path: "/v1beta/locations/us-east4/batch/hostGroups",
 			},
+			{
+				name: "batch snapshots endpoint",
+				path: "/v1beta/locations/us-central1-a/batch/snapshots",
+			},
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
@@ -1101,6 +1105,59 @@ func TestAuthMiddleware_BatchAuthPath(t *testing.T) {
 		assert.Equal(tt, "Bearer valid-token", capturedHeaders.Get("Authorization"))
 	})
 
+	t.Run("WhenBatchSnapshotsPathSucceedsWithoutProjectInURL", func(tt *testing.T) {
+		originalEnv := runningEnv
+		runningEnv = "test"
+		defer func() { runningEnv = originalEnv }()
+
+		jwtParseWithClaims = func(tokenString string, claims jwt.Claims, keyFunc jwt.Keyfunc, options ...jwt.ParserOption) (*jwt.Token, error) {
+			return &jwt.Token{
+				Valid: true,
+				Claims: &googleClaims{
+					Google: &google{ConsumerProjectNumber: 123},
+				},
+			}, nil
+		}
+		defer func() { jwtParseWithClaims = jwt.ParseWithClaims }()
+
+		fetchGoogleCertificates = func(string, string) (map[string]string, error) {
+			return map[string]string{"test-kid": "test-cert"}, nil
+		}
+		defer func() { fetchGoogleCertificates = _fetchGoogleCertificates }()
+
+		jwtParseRSAPublicKeyFromPEM = func(key []byte) (*rsa.PublicKey, error) {
+			return &rsa.PublicKey{}, nil
+		}
+		defer func() { jwtParseRSAPublicKeyFromPEM = jwt.ParseRSAPublicKeyFromPEM }()
+
+		validateIssuerAndAudience = func(claims googleClaims) bool {
+			return true
+		}
+		defer func() { validateIssuerAndAudience = _validateIssuerAndAudience }()
+
+		called := false
+		var capturedHeaders http.Header
+		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			called = true
+			capturedHeaders, _ = r.Context().Value(utilsmiddleware.HeaderContextKey).(http.Header)
+			w.WriteHeader(http.StatusOK)
+		})
+
+		req := httptest.NewRequest("POST", "/v1beta/locations/us-central1-a/batch/snapshots?fields=resourceId", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		mockLogger := log.NewLogger()
+		req = req.WithContext(context.WithValue(req.Context(), utilsmiddleware.ContextSLoggerKey, mockLogger))
+
+		rr := httptest.NewRecorder()
+		handler := AuthMiddleware(false)(next)
+		handler.ServeHTTP(rr, req)
+
+		assert.True(tt, called, "Next handler should be called for batch snapshots path without /projects in URL")
+		assert.Equal(tt, http.StatusOK, rr.Code)
+		assert.NotNil(tt, capturedHeaders)
+		assert.Equal(tt, "Bearer valid-token", capturedHeaders.Get("Authorization"))
+	})
+
 	t.Run("WhenBatchAuthFails", func(tt *testing.T) {
 		originalEnv := runningEnv
 		runningEnv = "test"
@@ -1159,6 +1216,11 @@ func TestIsBatchAuthPath(t *testing.T) {
 	t.Run("batch pools path", func(tt *testing.T) {
 		assert.True(tt, isBatchAuthPath("/v1beta/locations/us-east4/batch/pools"))
 		assert.True(tt, isBatchAuthPath("/v1beta/locations/us-central1/batch/pools"))
+	})
+
+	t.Run("batch snapshots path", func(tt *testing.T) {
+		assert.True(tt, isBatchAuthPath("/v1beta/locations/us-central1-a/batch/snapshots"))
+		assert.True(tt, isBatchAuthPath("/v1beta/locations/us-east4/batch/snapshots"))
 	})
 
 	t.Run("other batch resources are not matched", func(tt *testing.T) {
