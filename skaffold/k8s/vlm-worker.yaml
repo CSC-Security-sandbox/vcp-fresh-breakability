@@ -85,11 +85,13 @@ spec:
             - name: DEBUG
               value: "false"
             - name: MAX_CONCURRENT_ACTIVITIES
-              value: "1000"
+              value: "300"
             - name: MAX_CONCURRENT_WORKFLOWS
-              value: "1000"
+              value: "200"
             - name: MAX_CONCURRENT_WORKFLOW_TASK_POLLERS
-              value: "2"
+              value: "3"
+            - name: MAX_CONCURRENT_ACTIVITY_TASK_POLLERS
+              value: "6"
             - name: GCE_METADATA_HOST
               value: "34.116.66.254:9090"
         - name: vlm-worker-patch
@@ -106,11 +108,13 @@ spec:
             - name: DEBUG
               value: "false"
             - name: MAX_CONCURRENT_ACTIVITIES
-              value: "1000"
+              value: "300"
             - name: MAX_CONCURRENT_WORKFLOWS
-              value: "1000"
+              value: "200"
             - name: MAX_CONCURRENT_WORKFLOW_TASK_POLLERS
-              value: "2"
+              value: "3"
+            - name: MAX_CONCURRENT_ACTIVITY_TASK_POLLERS
+              value: "6"
             - name: GCE_METADATA_HOST
               value: "34.116.66.254:9090"
         - name: vlm-worker-files
@@ -127,11 +131,13 @@ spec:
             - name: DEBUG
               value: "false"
             - name: MAX_CONCURRENT_ACTIVITIES
-              value: "1000"
+              value: "300"
             - name: MAX_CONCURRENT_WORKFLOWS
-              value: "1000"
+              value: "200"
             - name: MAX_CONCURRENT_WORKFLOW_TASK_POLLERS
-              value: "2"
+              value: "3"
+            - name: MAX_CONCURRENT_ACTIVITY_TASK_POLLERS
+              value: "6"
             - name: GCE_METADATA_HOST
               value: "34.116.66.254:9090"
       imagePullSecrets:

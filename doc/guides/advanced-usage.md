@@ -49,9 +49,10 @@ docker run --rm -it \
   -e SERVER_PORT="7233" \
   -e TASK_QUEUE="vsa-lifecycle-manager-9.17.1" \
   -e DEBUG="false" \
-  -e MAX_CONCURRENT_ACTIVITIES="1000" \
-  -e MAX_CONCURRENT_WORKFLOWS="1000" \
-  -e MAX_CONCURRENT_WORKFLOW_TASK_POLLERS="2" \
+  -e MAX_CONCURRENT_ACTIVITIES="300" \
+  -e MAX_CONCURRENT_WORKFLOWS="200" \
+  -e MAX_CONCURRENT_WORKFLOW_TASK_POLLERS="3" \
+  -e MAX_CONCURRENT_ACTIVITY_TASK_POLLERS="6" \
   -e GCE_METADATA_HOST="34.116.66.254:9090" \
   ghcr.io/vcp-vsa-control-plane/vcp-container-images-us/vlm-worker:r9.17.1px_7825887
 ```
@@ -67,9 +68,10 @@ docker run --rm -it \
   -e SERVER_PORT="7234" \
   -e TASK_QUEUE="vsa-lifecycle-manager-9.17.1" \
   -e DEBUG="false" \
-  -e MAX_CONCURRENT_ACTIVITIES="1000" \
-  -e MAX_CONCURRENT_WORKFLOWS="1000" \
-  -e MAX_CONCURRENT_WORKFLOW_TASK_POLLERS="2" \
+  -e MAX_CONCURRENT_ACTIVITIES="300" \
+  -e MAX_CONCURRENT_WORKFLOWS="200" \
+  -e MAX_CONCURRENT_WORKFLOW_TASK_POLLERS="3" \
+  -e MAX_CONCURRENT_ACTIVITY_TASK_POLLERS="6" \
   -e GCE_METADATA_HOST="34.116.66.254:9090" \
   ghcr.io/vcp-vsa-control-plane/vcp-container-images-us/vlm-worker:r9.17.1px_7825887
 ```

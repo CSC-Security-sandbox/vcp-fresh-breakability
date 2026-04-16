@@ -18,8 +18,9 @@ data:
   TASK_QUEUE: {{ printf "%s-%s" $.Values.workerConfig.taskQueuePrefix $versionName | quote }}
   DEBUG: {{ $.Values.workerConfig.debug | quote }}
   MAX_CONCURRENT_ACTIVITIES: {{ $.Values.workerConfig.maxConcurrentActivities | quote }}
-  MAX_CONCURRENT_WORKFLOW: {{ $.Values.workerConfig.maxConcurrentWorkflow | quote }}
+  MAX_CONCURRENT_WORKFLOWS: {{ $.Values.workerConfig.maxConcurrentWorkflows | quote }}
   MAX_CONCURRENT_WORKFLOW_TASK_POLLERS: {{ $.Values.workerConfig.maxConcurrentWorkflowTaskPollers | quote }}
+  MAX_CONCURRENT_ACTIVITY_TASK_POLLERS: {{ $.Values.workerConfig.maxConcurrentActivityTaskPollers | quote }}
   GCE_METADATA_HOST: {{ $.Values.workerConfig.gceMetadataHost | quote }}
   ENABLE_GLOBAL_GCP_CLIENTS: {{ $.Values.workerConfig.enableGlobalGcpClients | quote }}
   USE_VM_RESERVATIONS: {{ $.Values.workerConfig.useVmReservations | quote }}
