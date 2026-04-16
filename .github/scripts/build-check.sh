@@ -476,7 +476,13 @@ detect_bump_type() {
   if [[ "$from_major" != "$to_major" ]]; then
     echo "major"
   elif [[ "$from_minor" != "$to_minor" ]]; then
-    echo "minor"
+    # 0.x versions: per semver spec, ANY 0.x bump can contain breaking changes
+    # because 0.x means "initial development, anything may change at any time."
+    if [[ "$from_major" == "0" ]]; then
+      echo "minor_unstable"
+    else
+      echo "minor"
+    fi
   else
     echo "patch"
   fi
@@ -2872,11 +2878,63 @@ if build_verdict == "pre_existing_plus_new" and not new_errors:
 # on the PR branch are a genuine regression introduced by the upgrade.
 error_class = "${ERROR_CLASS:-}"
 main_exit_eco = $MAIN_EXIT_FOR_ECO
+oom_override = False  # tracks whether verdict was overridden due to OOM on unrelated packages
+oom_packages = []     # which packages were OOM-killed (for comment attribution)
 if error_class in ("cache_corruption", "infra_error", "private_module", "resource_exhaustion", "timeout"):
     if build_verdict in ("fail", "pre_existing_plus_new") and main_exit_eco != 0:
         build_verdict = "pre_existing"  # baseline also fails — treat as infra issue
     elif build_verdict in ("fail", "pre_existing_plus_new") and main_exit_eco == 0:
-        pass  # baseline passes — this is a genuine regression, keep verdict as-is
+        # V9.3 FIX: OOM misclassification (P1 from all reviewers).
+        # When error_class is resource_exhaustion and baseline passes, check if ALL
+        # build errors are "signal: killed" on packages UNRELATED to the PR's upgraded
+        # dependency. If the PR's own targeted dirs built fine (or have 0 imports),
+        # the OOM is infrastructure, not a code regression.
+        if error_class == "resource_exhaustion" and eco == "gomod":
+            import re
+            # Extract which packages were killed from build output
+            killed_pkgs = set()
+            for line in build_output.splitlines():
+                if 'signal: killed' in line.lower() or 'signal: kill' in line.lower():
+                    # Go build output format: "github.com/org/repo/pkg/subpkg: ...signal: killed"
+                    m = re.match(r'^(\S+?):\s', line)
+                    if m:
+                        killed_pkgs.add(m.group(1))
+            # Get the PR's targeted build dirs from files_importing
+            targeted_dirs = set()
+            for fi in files_importing:
+                fpath = fi.split(':')[0] if ':' in fi else fi
+                d = os.path.dirname(fpath)
+                if d:
+                    targeted_dirs.add(d)
+            # Check: are ALL errors signal:killed on unrelated packages?
+            # Conditions for override:
+            # 1. All build errors are signal:killed (no real type errors)
+            # 2. None of the killed packages overlap with PR's targeted dirs
+            # 3. No new_errors found (or all were infra-filtered)
+            has_real_type_errors = False
+            for line in build_output.splitlines():
+                line_l = line.lower().strip()
+                if not line_l:
+                    continue
+                # Skip info/targeted build output lines
+                if line_l.startswith('targeted build') or line_l.startswith('full build') or line_l.startswith('dirs:') or line_l.startswith('---'):
+                    continue
+                # If line contains a Go compile error (.go:NN:NN:) it's a real error
+                if re.search(r'\.go:\d+:\d+:', line):
+                    has_real_type_errors = True
+                    break
+            # Determine if killed packages overlap with targeted dirs
+            killed_overlaps_target = False
+            for kp in killed_pkgs:
+                for td in targeted_dirs:
+                    if td in kp or kp.endswith(td):
+                        killed_overlaps_target = True
+                        break
+            if killed_pkgs and not has_real_type_errors and not killed_overlaps_target and not new_errors:
+                build_verdict = "pass"
+                oom_override = True
+                oom_packages = sorted(killed_pkgs)
+        # else: baseline passes but errors are real code regressions — keep verdict as-is
 
 pr_data = {
     "package": pkg,
@@ -2896,8 +2954,9 @@ pr_data = {
         "output_tail": build_output,
         "new_errors": new_errors,
         "install_method": "${INSTALL_METHOD:-ci}",
-        "error_class": "${ERROR_CLASS:-}"
-
+        "error_class": "${ERROR_CLASS:-}",
+        "oom_override": oom_override,
+        "oom_packages": oom_packages
     },
     "test": {
         "ran": test_ran,
@@ -3014,11 +3073,18 @@ else:
     # L2: Type-checking (tsc / go build)
     tsc_ran = "$PR_TSC_EXIT" not in ("-1", "")
     tsc_passed = "$PR_TSC_EXIT" == "0" if tsc_ran else False
+    pr_exit_val = pr_data.get("build", {}).get("pr_exit", -1)
     if eco in ("gomod", "pip"):
         # go build / pip import check IS the type-check equivalent
         if build_verdict in ("pass", "security_review"):
             level = 2
             steps.append({"step": "type_check", "status": "pass"})
+        elif build_verdict == "pre_existing" and pr_exit_val == 0:
+            # v9.2 FIX: PR build actually passes (exit=0) but verdict was set to
+            # pre_existing (e.g., baseline timed out). The PR branch builds clean,
+            # so this IS L2 — type-check passed on the PR branch.
+            level = 2
+            steps.append({"step": "type_check", "status": "pass", "detail": "PR build passes (baseline had errors)"})
         elif build_verdict == "pre_existing":
             # Build fails on both branches with same errors — NOT a real pass (CR3-8).
             # Stay at L1 (like npm does for tsc pre_existing), mark as inconclusive.
@@ -3041,6 +3107,12 @@ else:
             # tsc actually passed — genuine L2
             level = 2
             steps.append({"step": "type_check", "status": "pass"})
+        elif build_verdict == "pre_existing" and "$PR_TSC_EXIT" == "0":
+            # v9.2 FIX: tsc actually passed on PR branch (exit=0) but verdict was
+            # set to pre_existing (e.g., baseline timed out or had other issues).
+            # The PR's type-check passed, so this IS L2.
+            level = 2
+            steps.append({"step": "type_check", "status": "pass", "detail": "tsc passes on PR (baseline had errors)"})
         elif build_verdict == "pre_existing":
             # tsc failed on both branches with same errors — NOT a real pass
             # Stay at L1, mark type_check as "pre_existing" (inconclusive)

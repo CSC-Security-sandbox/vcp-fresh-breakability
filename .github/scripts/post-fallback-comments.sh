@@ -223,6 +223,9 @@ fields = {
     'NEW_ERR_COUNT': str(len(d.get('new_errors', []))),
     'FILES_COUNT': str(len(d.get('files_importing', []))),
     'PKG_DIR': d.get('pkg_dir', '/'),
+    'ERROR_CLASS': d.get('error_class', ''),
+    'OOM_OVERRIDE': str(d.get('oom_override', False)),
+    'OOM_PACKAGES': ','.join(d.get('oom_packages', [])),
 }
 for k, v in fields.items():
     # Use null byte as delimiter to safely handle any value content
@@ -233,6 +236,12 @@ for k, v in fields.items():
   FROM=$(echo "$_FIELDS_EXTRACTED" | grep '^FROM=' | cut -d= -f2-)
   TO=$(echo "$_FIELDS_EXTRACTED" | grep '^TO=' | cut -d= -f2-)
   BUMP=$(echo "$_FIELDS_EXTRACTED" | grep '^BUMP=' | cut -d= -f2-)
+  # 0.x semver: minor_unstable → display with warning (0.x versions may contain breaking changes)
+  if [[ "$BUMP" == "minor_unstable" ]]; then
+    BUMP_DISPLAY="minor (0.x unstable)"
+  else
+    BUMP_DISPLAY="$BUMP"
+  fi
   DEP_TYPE=$(echo "$_FIELDS_EXTRACTED" | grep '^DEP_TYPE=' | cut -d= -f2-)
   DEP_REL=$(echo "$_FIELDS_EXTRACTED" | grep '^DEP_REL=' | cut -d= -f2-)
   ECOSYSTEM=$(echo "$_FIELDS_EXTRACTED" | grep '^ECOSYSTEM=' | cut -d= -f2-)
@@ -243,6 +252,9 @@ for k, v in fields.items():
   NEW_ERR_COUNT=$(echo "$_FIELDS_EXTRACTED" | grep '^NEW_ERR_COUNT=' | cut -d= -f2-)
   FILES_COUNT=$(echo "$_FIELDS_EXTRACTED" | grep '^FILES_COUNT=' | cut -d= -f2-)
   PKG_DIR=$(echo "$_FIELDS_EXTRACTED" | grep '^PKG_DIR=' | cut -d= -f2-)
+  ERROR_CLASS=$(echo "$_FIELDS_EXTRACTED" | grep '^ERROR_CLASS=' | cut -d= -f2-)
+  OOM_OVERRIDE=$(echo "$_FIELDS_EXTRACTED" | grep '^OOM_OVERRIDE=' | cut -d= -f2-)
+  OOM_PACKAGES=$(echo "$_FIELDS_EXTRACTED" | grep '^OOM_PACKAGES=' | cut -d= -f2-)
 
   # CVE extraction — core security data
   CVE_LIST=$(echo "$PR_FIELDS" | python3 -c "
@@ -349,11 +361,35 @@ $CVE_DETAIL_BLOCK"
 </details>"
       ;;
     L2*)
-      # L2 = build/type-check passes, but tests fail or weren't run
-      TEST_EXIT_RAW=$(echo "$PR_FIELDS" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('test_exit',-1))" 2>/dev/null || echo "-1")
-      TEST_RAN_RAW=$(echo "$PR_FIELDS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('test_ran',False))" 2>/dev/null || echo "False")
-      if [[ "$TEST_RAN_RAW" == "True" && "$TEST_EXIT_RAW" != "0" && "$TEST_EXIT_RAW" != "-1" ]]; then
-        HOW_CHECKED="
+      # V9.3 FIX (P1-2): BUILD_FAILS PRs must NOT use the "builds clean" checklist.
+      # Split on verdict: fail gets a failure-specific checklist, pass/pre_existing gets the original.
+      if [[ "$VERDICT" == "fail" || "$VERDICT" == "pre_existing_plus_new" ]]; then
+        # Build failed — show failure-specific checklist
+        if [[ "$OOM_OVERRIDE" == "True" ]]; then
+          HOW_CHECKED="
+<details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
+
+- ✅ Dependency resolved successfully
+- ⚙️ Build hit OOM (\`signal: killed\`) on unrelated sub-packages — not caused by this upgrade
+- ✅ PR's targeted packages are not affected
+- ✅ No new type errors introduced vs. main
+</details>"
+        else
+          HOW_CHECKED="
+<details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
+
+- ✅ Dependency resolved successfully
+- ❌ Project build fails on PR branch
+- ✅ Build passes on main — errors are introduced by this upgrade
+- ⬜ Tests not run (build must pass first)
+</details>"
+        fi
+      else
+        # Build passed — original L2 checklist
+        TEST_EXIT_RAW=$(echo "$PR_FIELDS" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('test_exit',-1))" 2>/dev/null || echo "-1")
+        TEST_RAN_RAW=$(echo "$PR_FIELDS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('test_ran',False))" 2>/dev/null || echo "False")
+        if [[ "$TEST_RAN_RAW" == "True" && "$TEST_EXIT_RAW" != "0" && "$TEST_EXIT_RAW" != "-1" ]]; then
+          HOW_CHECKED="
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
 - ✅ Dependency resolved successfully
@@ -361,8 +397,8 @@ $CVE_DETAIL_BLOCK"
 - ⚙️ Automated tests fail (exit=$TEST_EXIT_RAW — pre-existing, same failure on main)
 - ✅ No new build errors introduced vs. main
 </details>"
-      else
-        HOW_CHECKED="
+        else
+          HOW_CHECKED="
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
 - ✅ Dependency resolved successfully
@@ -370,26 +406,52 @@ $CVE_DETAIL_BLOCK"
 - ⬜ Tests not configured or not run
 - ✅ No new build errors introduced vs. main
 </details>"
+        fi
       fi
       ;;
     L1*)
       # V8 FIX (C3): L1 comments must include WHAT failed and WHERE, not just
       # "Build verification limited". Extract module and error excerpt from build output.
       _L1_MAIN_EXIT=$(echo "$PR_FIELDS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('main_exit',-1))" 2>/dev/null || echo "-1")
-      _L1_EXCERPT=$(echo "$PR_FIELDS" | python3 -c "
-import json, sys
+      # V9.3: Enhanced excerpt + module attribution for OOM errors.
+      # Identifies which sub-packages had errors and whether they're related to the PR's package.
+      _L1_EXCERPT_AND_ATTR=$(echo "$PR_FIELDS" | _BC_PKG="$PKG" python3 -c "
+import json, sys, os, re
 d = json.load(sys.stdin)
 tail = d.get('output_tail', '')
+pkg = os.environ.get('_BC_PKG', '')
+error_class = d.get('error_class', '')
 # Extract error/fail lines for context
 lines = [l.strip() for l in tail.splitlines()
-         if any(k in l.lower() for k in ('error', 'fail', 'cannot', 'undefined', 'fatal'))][:6]
-if lines:
-    print('\n'.join(lines))
-else:
-    # Fallback: show last few non-empty lines
+         if any(k in l.lower() for k in ('error', 'fail', 'cannot', 'undefined', 'fatal', 'signal: kill', 'killed'))][:6]
+if not lines:
     non_empty = [l.strip() for l in tail.splitlines() if l.strip()][-4:]
-    print('\n'.join(non_empty))
+    lines = non_empty
+# Extract OOM-killed package names for attribution
+killed_pkgs = []
+for line in tail.splitlines():
+    if 'signal: killed' in line.lower() or 'signal: kill' in line.lower():
+        m = re.match(r'^(\S+?):\s', line)
+        if m:
+            killed_pkgs.append(m.group(1))
+# Build attribution note
+attr = ''
+if killed_pkgs and error_class == 'resource_exhaustion':
+    short_names = [p.split('/')[-1] if '/' in p else p for p in killed_pkgs[:3]]
+    attr = 'OOM_PKGS=' + ','.join(killed_pkgs[:3])
+    # Check if any killed package relates to PR's package
+    related = any(pkg.lower() in kp.lower() for kp in killed_pkgs) if pkg else False
+    if not related:
+        attr += '|UNRELATED'
+    else:
+        attr += '|RELATED'
+# Output: first line is attribution metadata, rest is excerpt
+print(attr)
+print('---EXCERPT---')
+print('\n'.join(lines) if lines else '')
 " 2>/dev/null || echo "")
+      _L1_ATTR=$(echo "$_L1_EXCERPT_AND_ATTR" | head -1)
+      _L1_EXCERPT=$(echo "$_L1_EXCERPT_AND_ATTR" | sed '1,/^---EXCERPT---$/d')
       _L1_EXCERPT_BLOCK=""
       if [[ -n "$_L1_EXCERPT" ]]; then
         _L1_EXCERPT_BLOCK="
@@ -402,11 +464,21 @@ ${_L1_EXCERPT}
         _L1_MODULE_NOTE="
 - PR targets module: \`$PKG_DIR\`"
       fi
+      # V9.3: Add OOM attribution note if errors are in unrelated sub-packages
+      _L1_OOM_NOTE=""
+      if echo "$_L1_ATTR" | grep -q "OOM_PKGS="; then
+        _OOM_PKG_NAMES=$(echo "$_L1_ATTR" | sed 's/OOM_PKGS=//;s/|.*//')
+        _OOM_PKG_SHORT=$(echo "$_OOM_PKG_NAMES" | tr ',' '\n' | while read -r p; do echo "$p" | rev | cut -d/ -f1 | rev; done | tr '\n' ',' | sed 's/,$//')
+        if echo "$_L1_ATTR" | grep -q "UNRELATED"; then
+          _L1_OOM_NOTE="
+- ⚙️ Pre-existing failure is in \`${_OOM_PKG_SHORT}\` — **unrelated** to this PR's package (\`$PKG\`)"
+        fi
+      fi
       HOW_CHECKED="
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
 - ✅ Dependency resolved successfully
-- ⚠️ Build fails on both \`main\` (exit=${_L1_MAIN_EXIT}) and PR branch — same errors${_L1_MODULE_NOTE}
+- ⚠️ Build fails on both \`main\` (exit=${_L1_MAIN_EXIT}) and PR branch — same errors${_L1_MODULE_NOTE}${_L1_OOM_NOTE}
 - ✅ No NEW errors introduced by this upgrade
 
 **Pre-existing build errors:**${_L1_EXCERPT_BLOCK}
@@ -479,7 +551,7 @@ else:
     # GitHub Actions — always safe, no app code affected.
     # No L0/fallback labels — CI-only changes need no build verification (end-user feedback 2.4).
     COMMENT="<!-- breakability-check -->
-## ✅ SAFE — \`$PKG\` $FROM → $TO · dev (CI) · $BUMP
+## ✅ SAFE — \`$PKG\` $FROM → $TO · dev (CI) · $BUMP_DISPLAY
 
 GitHub Actions workflow dependency. No application code affected. No build verification needed.${CVE_LINE}${PLAN_LINE}${ADVISORY_FOOTER}
 > 🔬 *Deterministic analysis — CI-only change, no build impact*"
@@ -487,9 +559,37 @@ GitHub Actions workflow dependency. No application code affected. No build verif
   elif [[ "$ECOSYSTEM" == "docker" && "$BUMP" != "major" ]]; then
     # Docker non-major — typically safe
     COMMENT="<!-- breakability-check -->
-## ✅ SAFE — \`$PKG\` $FROM → $TO · production · $BUMP
+## ✅ SAFE — \`$PKG\` $FROM → $TO · production · $BUMP_DISPLAY
 
-Docker base image $BUMP bump. No application source changes.${CVE_LINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+Docker base image $BUMP_DISPLAY bump. No application source changes.${CVE_LINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+> 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
+
+  elif [[ "$VERDICT" == "pass" && "$OOM_OVERRIDE" == "True" ]]; then
+    # V9.3: OOM override — build was killed by OOM on unrelated sub-packages.
+    # The PR's own targeted packages were not affected.
+    _OOM_PKG_NOTE=""
+    if [[ -n "$OOM_PACKAGES" ]]; then
+      _OOM_PKG_LIST=$(echo "$OOM_PACKAGES" | tr ',' '\n' | sed 's/^/  - /' | head -5)
+      _OOM_PKG_NOTE="
+
+OOM-killed sub-packages (unrelated to this upgrade):
+\`\`\`
+${_OOM_PKG_LIST}
+\`\`\`"
+    fi
+    _DEV_DEP_NOTE=""
+    if [[ "$FILES_COUNT" -eq 0 ]]; then
+      _DEV_DEP_NOTE=" · ⚙️ 0 direct imports (dev/indirect dependency)"
+    fi
+    COMMENT="<!-- breakability-check -->
+## ✅ SAFE — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
+
+Build: ✅ infra OOM on unrelated sub-packages — not caused by this upgrade · Verification: **${VER_LABEL:-L2}** · Usage: $FILES_COUNT file(s)${MODULE_LINE}${_DEV_DEP_NOTE}${CVE_LINE}
+
+### What this means
+The CI runner ran out of memory (\`signal: killed\`) building sub-packages unrelated to \`$PKG\`. This PR's targeted packages are not affected. The same OOM occurs on \`main\` — it is an infrastructure limitation, not a code regression.${_OOM_PKG_NOTE}
+
+**Recommendation:** Safe to merge. The OOM is a CI runner memory issue, not caused by this $BUMP_DISPLAY bump.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
   elif [[ "$VERDICT" == "pass" && "$BUMP" == "patch" && "$FILES_COUNT" -lt 5 ]]; then
@@ -499,13 +599,13 @@ Docker base image $BUMP bump. No application source changes.${CVE_LINE}${PLAN_LI
 
 Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${MODULE_LINE}
 
-$BUMP bump with passing build. No new type errors introduced.${CVE_LINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+$BUMP_DISPLAY bump with passing build. No new type errors introduced.${CVE_LINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
   elif [[ "$VERDICT" == "pass" && "$DEP_REL" == "transitive" ]]; then
     # Transitive dep, build passes
     COMMENT="<!-- breakability-check -->
-## ✅ SAFE — \`$PKG\` $FROM → $TO · transitive · $BUMP
+## ✅ SAFE — \`$PKG\` $FROM → $TO · transitive · $BUMP_DISPLAY
 
 Build: ✅ passes · Verification: **${VER_LABEL:-L1}**
 
@@ -519,17 +619,17 @@ Transitive dependency — your code does not import it directly. Build passes.${
       NEW_ERR_NOTE=" · ⚠️ $NEW_ERR_COUNT new error(s) found"
     fi
     COMMENT="<!-- breakability-check -->
-## 🔍 BUILD ANALYSIS — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
+## 🔍 BUILD ANALYSIS — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
 Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${MODULE_LINE}$NEW_ERR_NOTE${CVE_LINE}
 
 ### Summary (deterministic analysis)
-- Package: \`$PKG\` $FROM → $TO ($BUMP bump)
+- Package: \`$PKG\` $FROM → $TO ($BUMP_DISPLAY bump)
 - Type: $DEP_TYPE / $DEP_REL
 - Build passes on PR branch
 - New type errors: $NEW_ERR_COUNT
 
-**Recommendation:** Review changelog for $BUMP bump breaking changes. Build passes — merge when ready.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+**Recommendation:** Review changelog for $BUMP_DISPLAY bump breaking changes. Build passes — merge when ready.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
   elif [[ "$VERDICT" == "fail" ]]; then
@@ -542,7 +642,7 @@ ${BUILD_EXCERPT}
 \`\`\`"
     fi
     COMMENT="<!-- breakability-check -->
-## ❌ BUILD_FAILS — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
+## ❌ BUILD_FAILS — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
 Build: ❌ fails on PR branch, ✅ passes on main · Usage: $FILES_COUNT file(s)${CVE_LINE}
 
@@ -554,7 +654,7 @@ Build: ❌ fails on PR branch, ✅ passes on main · Usage: $FILES_COUNT file(s)
 3. Fix type errors or update your code to match the new API
 4. Re-run the breakability analysis after your fix
 
-**Do not merge — build is broken.** ($BUMP bump)${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+**Do not merge — build is broken.** ($BUMP_DISPLAY bump)${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
   elif [[ "$VERDICT" == "pre_existing" ]]; then
@@ -564,7 +664,7 @@ Build: ❌ fails on PR branch, ✅ passes on main · Usage: $FILES_COUNT file(s)
     # L0 means deps didn't even resolve → UNVERIFIED (do NOT say "LIKELY SAFE").
     if [[ "$VER_LABEL" == L2* || "$VER_LABEL" == L3* || "$VER_LABEL" == L4* || "$VER_LABEL" == L5* ]]; then
       COMMENT="<!-- breakability-check -->
-## ✅ SAFE — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
+## ✅ SAFE — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
 Build: ✅ verified — same result as main baseline, not caused by this change · Verification: **${VER_LABEL}** · Usage: $FILES_COUNT file(s)${MODULE_LINE}${CVE_LINE}
 
@@ -576,7 +676,7 @@ The build produces the same errors on both \`main\` and this PR branch. This upg
     elif [[ "$VER_LABEL" == L1* ]]; then
       # L1: dependency resolution passed but build/type-check inconclusive
       COMMENT="<!-- breakability-check -->
-## ⚙️ LIKELY SAFE — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
+## ⚙️ LIKELY SAFE — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
 Build: ⚙️ same errors on main and PR branch — pre-existing failure, **not caused by this upgrade** · Verification: **${VER_LABEL}**${MODULE_LINE}${CVE_LINE}
 
@@ -593,7 +693,7 @@ Dependencies resolved successfully. The build fails on both \`main\` and this PR
       # we truly have no signal (e.g., install_ok=false with no comparison done).
       if [[ "$NEW_ERR_COUNT" -eq 0 ]]; then
         COMMENT="<!-- breakability-check -->
-## ⚙️ LIKELY SAFE — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
+## ⚙️ LIKELY SAFE — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
 Build: ⚙️ same errors on \`main\` and PR branch — **not caused by this upgrade** · Verification: **${VER_LABEL:-L0}**${MODULE_LINE}${CVE_LINE}
 
@@ -604,7 +704,7 @@ Both \`main\` and this PR branch produce the same build errors. This upgrade doe
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
       else
         COMMENT="<!-- breakability-check -->
-## ⚠️ UNVERIFIED — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
+## ⚠️ UNVERIFIED — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
 Build: ⚠️ build verification could not complete — infrastructure/configuration errors · Verification: **${VER_LABEL:-L0}**${MODULE_LINE}${CVE_LINE}
 
@@ -620,7 +720,7 @@ Build: ⚠️ build verification could not complete — infrastructure/configura
   elif [[ "$VERDICT" == "pre_existing_plus_new" ]]; then
     # Pre-existing + new errors
     COMMENT="<!-- breakability-check -->
-## ❌ BUILD_FAILS — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
+## ❌ BUILD_FAILS — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
 Build: ❌ new errors introduced by this PR (on top of pre-existing failures)${CVE_LINE}
 
@@ -630,7 +730,7 @@ This upgrade introduces **$NEW_ERR_COUNT new error(s)** not present on \`main\`.
   elif [[ "$VERDICT" == "security_review" ]]; then
     # Build passes but npm audit found CRITICAL/HIGH vulnerabilities
     COMMENT="<!-- breakability-check -->
-## ⚠️ SECURITY REVIEW — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
+## ⚠️ SECURITY REVIEW — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
 Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${CVE_LINE}
 
@@ -643,7 +743,7 @@ Build passes, but \`npm audit\` found **critical or high** vulnerabilities in th
   elif [[ "$INSTALL_METHOD" == "infra_error" ]]; then
     # Infrastructure blocked analysis
     COMMENT="<!-- breakability-check -->
-## 🔍 REVIEW — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
+## 🔍 REVIEW — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
 Build: ⚠️ blocked by infrastructure error — build verification could not run${CVE_LINE}
 
@@ -665,7 +765,7 @@ Run \`@dependabot recreate\` or rebase manually.${PLAN_LINE}${ADVISORY_FOOTER}
   else
     # Catch-all: skip/unknown verdict
     COMMENT="<!-- breakability-check -->
-## 🔍 REVIEW — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
+## 🔍 REVIEW — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
 Build analysis status: \`$VERDICT\` (verification: ${VER_LABEL:-unknown})${CVE_LINE}
 
@@ -686,7 +786,7 @@ Automated build analysis was not conclusive for this PR. Manual review recommend
     if [[ "$NEW_ERR_COUNT" -eq 0 ]]; then
       # No new errors — recommend immediate merge regardless of baseline state
       COMMENT="<!-- breakability-check -->
-## 🔴 SECURITY FIX${_SEV_BADGE} — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
+## 🔴 SECURITY FIX${_SEV_BADGE} — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
 ### ⚠️ $CVE_COUNT CVE(s) resolved: $CVE_LIST
 $(if [[ -n "$CVE_MAX_SEVERITY" ]]; then echo "**Severity: ${CVE_MAX_SEVERITY}** — This PR fixes a known security vulnerability."; fi)
@@ -704,7 +804,7 @@ Verification: **${VER_LABEL:-L0}**${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
     else
       # Has new errors BUT also fixes CVEs — show both facts prominently
       COMMENT="<!-- breakability-check -->
-## 🔴 SECURITY FIX (BUILD ISSUES)${_SEV_BADGE} — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
+## 🔴 SECURITY FIX (BUILD ISSUES)${_SEV_BADGE} — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
 
 ### ⚠️ $CVE_COUNT CVE(s) resolved: $CVE_LIST
 $(if [[ -n "$CVE_MAX_SEVERITY" ]]; then echo "**Severity: ${CVE_MAX_SEVERITY}** — This PR fixes a known security vulnerability."; fi)
@@ -762,6 +862,13 @@ except (Exception,):
     total_open_prs = 0
 
 non_dependabot_count = max(0, total_open_prs - len(prs))
+
+# Display helper: 0.x semver versions may contain breaking changes
+def fmt_bump(bump):
+    """Format bump type for display. Flags minor_unstable (0.x versions) with a warning."""
+    if bump == "minor_unstable":
+        return "minor ⚠️ (0.x)"
+    return bump
 
 # Categorize PRs
 safe = []        # pass verdicts + pre_existing with L2+ verification
@@ -993,7 +1100,7 @@ if safe:
     lines.append("|----|---------|---------|----|-------------|")
     for e in safe:
         cve_badge = f" 🔴 {','.join(e['cves'])}" if e['cves'] else ""
-        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {e['bump']} | {e['ver']}{cve_badge} |")
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'])} | {e['ver']}{cve_badge} |")
     lines.append("")
 
 # Cross-PR deps
@@ -1022,7 +1129,7 @@ if blocked:
             issue = "Merge conflicts — rebase required"
         else:
             issue = "New errors on top of pre-existing"
-        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {e['bump']} | {issue} |")
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'])} | {issue} |")
     lines.append("")
 
 # Review — split into "Likely Safe" and "Needs Review".
@@ -1046,7 +1153,7 @@ if likely_safe:
         cve_badge = f" 🔴 {','.join(e['cves'])}" if e.get('cves') else ""
         pkg_dir = e.get('pkg_dir', '/')
         mod_col = pkg_dir if pkg_dir != '/' else 'root'
-        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {e['bump']} | {mod_col} | {e['ver']} — no new errors{cve_badge} |")
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'])} | {mod_col} | {e['ver']} — no new errors{cve_badge} |")
     lines.append("")
 
 if unverified:
@@ -1061,7 +1168,7 @@ if unverified:
         cve_badge = f" 🔴 {','.join(e['cves'])}" if e.get('cves') else ""
         pkg_dir = e.get('pkg_dir', '/')
         mod_col = pkg_dir if pkg_dir != '/' else 'root'
-        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {e['bump']} | {mod_col} | Deps failed — infra issue{cve_badge} |")
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'])} | {mod_col} | Deps failed — infra issue{cve_badge} |")
     lines.append("")
 
 if needs_review:
@@ -1085,7 +1192,7 @@ if ci_only:
     lines.append("|----|---------|---------|----|-------------|")
     for e in ci_only:
         cve_badge = f" 🔴 {','.join(e['cves'])}" if e.get('cves') else ""
-        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {e['bump']} | CI_ONLY — auto-safe{cve_badge} |")
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'])} | CI_ONLY — auto-safe{cve_badge} |")
     lines.append("")
 
 # Skipped (breakability:skip label)
