@@ -707,6 +707,24 @@
     "retriable": false,
     "http_code": 400
   },
+  "5062": {
+    "description": "Clone split failed due to insufficient space in backend pool",
+    "message": "Clone split failed: the backend pool does not have enough space. Ensure the pool has at least %s of free space (volume's cloneSharedBytes) and retry.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5063": {
+    "description": "Clone split job was interrupted by ONTAP",
+    "message": "Clone split job was interrupted.",
+    "retriable": false,
+    "http_code": 400
+  },
+  "5064": {
+    "description": "Clone split job failed in ONTAP",
+    "message": "Clone split failed in the backend. Please retry the split operation.",
+    "retriable": false,
+    "http_code": 400
+  },
   "5101": {
     "description": "Unclassified LDAP error",
     "message": "An error occurred during LDAP configuration. Please verify your settings and try again.",

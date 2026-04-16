@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
@@ -637,6 +638,33 @@ func TestPollONTAPSplitJobContinueAsNew_TimeBased(t *testing.T) {
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.True(t, workflow.IsContinueAsNewError(env.GetWorkflowError()),
 		"expected ContinueAsNewError from time-based trigger, got: %v", env.GetWorkflowError())
+}
+
+// TestClassifyONTAPSplitError_NoSpace covers lines 204-206: the ontapErrCodeNoSpace case
+// returns ErrSplitCloneNoSpace and embeds the human-readable byte count.
+func TestClassifyONTAPSplitError_NoSpace(t *testing.T) {
+	const noSpaceCode = "458753"
+	sharedBytes := uint64(1073741824) // 1 GiB
+	userErr, ontapMsg := ClassifyONTAPSplitError("volume clone split: no space", noSpaceCode, sharedBytes)
+
+	assert.NotNil(t, userErr)
+	assert.Equal(t, vsaerrors.ErrSplitCloneNoSpace, userErr.TrackingID)
+	assert.Contains(t, ontapMsg, noSpaceCode)
+	assert.Contains(t, ontapMsg, "no space")
+	// The error message should contain the human-readable byte count.
+	assert.Contains(t, userErr.Error(), "1073741824 bytes")
+}
+
+// TestClassifyONTAPSplitError_JobKilled covers line 208: the ontapErrCodeJobKilled case
+// returns ErrSplitCloneJobKilled.
+func TestClassifyONTAPSplitError_JobKilled(t *testing.T) {
+	const killedCode = "460765"
+	userErr, ontapMsg := ClassifyONTAPSplitError("split job was killed", killedCode, 0)
+
+	assert.NotNil(t, userErr)
+	assert.Equal(t, vsaerrors.ErrSplitCloneJobKilled, userErr.TrackingID)
+	assert.Contains(t, ontapMsg, killedCode)
+	assert.Contains(t, ontapMsg, "split job was killed")
 }
 
 func TestVolumePollSplitUnitTestSuite(t *testing.T) {

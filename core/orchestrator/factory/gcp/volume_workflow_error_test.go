@@ -2,11 +2,13 @@ package gcp
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
@@ -988,6 +990,61 @@ func TestUpdateVolume_FailedJobUpdateOnError_Line1163(t *testing.T) {
 	})
 }
 
+// TestExtractONTAPErrorDetails_NilCustomError covers line 3505: nil customErr returns empty strings.
+func TestExtractONTAPErrorDetails_NilCustomError(t *testing.T) {
+	msg, code := extractONTAPErrorDetails(nil)
+	assert.Equal(t, "", msg)
+	assert.Equal(t, "", code)
+}
+
+// TestExtractONTAPErrorDetails_NilOriginalErr covers line 3505: customErr with nil OriginalErr returns empty strings.
+func TestExtractONTAPErrorDetails_NilOriginalErr(t *testing.T) {
+	customErr := &vsaerrors.CustomError{TrackingID: vsaerrors.ErrSplitCloneJobFailed}
+	msg, code := extractONTAPErrorDetails(customErr)
+	assert.Equal(t, "", msg)
+	assert.Equal(t, "", code)
+}
+
+// TestExtractONTAPErrorDetails_ValidJSON covers lines 3513,3519,3523: OriginalErr whose Error()
+// contains a valid JSON payload with an ONTAP error object. The raw string has no '{' before
+// the JSON payload so the JSON-start detection works correctly.
+func TestExtractONTAPErrorDetails_ValidJSON(t *testing.T) {
+	rawMsg := `[PATCH /storage/volumes/abc123][500] volume_modify default {"error":{"code":"460765","message":"job killed by administrator"}}`
+	customErr := &vsaerrors.CustomError{
+		TrackingID:  vsaerrors.ErrSplitCloneJobFailed,
+		OriginalErr: fmt.Errorf("%s", rawMsg),
+	}
+	msg, code := extractONTAPErrorDetails(customErr)
+	assert.Equal(t, "job killed by administrator", msg)
+	assert.Equal(t, "460765", code)
+}
+
+// TestExtractONTAPErrorDetails_InvalidJSON covers lines 3519,3521: OriginalErr whose Error()
+// starts with '{' but is not parseable JSON — falls back to the raw string.
+func TestExtractONTAPErrorDetails_InvalidJSON(t *testing.T) {
+	rawMsg := `{not valid json}`
+	customErr := &vsaerrors.CustomError{
+		TrackingID:  vsaerrors.ErrSplitCloneJobFailed,
+		OriginalErr: fmt.Errorf("%s", rawMsg),
+	}
+	msg, code := extractONTAPErrorDetails(customErr)
+	assert.Equal(t, rawMsg, msg)
+	assert.Equal(t, "", code)
+}
+
+// TestExtractONTAPErrorDetails_EmptyErrorMessage covers lines 3519,3521: JSON parses but
+// payload.Error.Message is empty — falls back to the raw string.
+func TestExtractONTAPErrorDetails_EmptyErrorMessage(t *testing.T) {
+	rawMsg := `{"error":{"code":"460765","message":""}}`
+	customErr := &vsaerrors.CustomError{
+		TrackingID:  vsaerrors.ErrSplitCloneJobFailed,
+		OriginalErr: fmt.Errorf("%s", rawMsg),
+	}
+	msg, code := extractONTAPErrorDetails(customErr)
+	assert.Equal(t, rawMsg, msg)
+	assert.Equal(t, "", code)
+}
+
 // Test for line 1185: Failed to update volume state to ERROR during updateVolume
 func TestUpdateVolume_FailedVolumeUpdateOnError_Line1185(t *testing.T) {
 	t.Run("ShouldLogErrorWhenVolumeUpdateFailsDuringErrorHandling", func(tt *testing.T) {
@@ -1070,4 +1127,147 @@ func TestUpdateVolume_FailedVolumeUpdateOnError_Line1185(t *testing.T) {
 		mockStorage.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
 	})
+}
+
+// setupSplitStartVolumeBase wires up the common mocks needed to drive _splitStartVolume
+// up to (and including) the second defer registration, then triggers an ONTAP-range error
+// from GetNodesByPoolID so that the clone-state-update defer path fires.
+// It returns the mock storage, a volume that has CloneParentInfo (so the defer runs),
+// a created-job UUID, and the ONTAP error that will be returned.
+func setupSplitStartVolumeBase(t *testing.T, ctx context.Context) (mockStorage *database.MockStorage, vol *datamodel.Volume, jobUUID string, ontapErr error) {
+	t.Helper()
+
+	mockStorage = database.NewMockStorage(t)
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+		Name:      "test-account",
+	}
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{ID: 10, UUID: "pool-uuid"},
+		Name:        "test-pool",
+		AccountID:   1,
+		SizeInBytes: 10000000,
+	}
+	poolView := &datamodel.PoolView{
+		Pool:         *pool,
+		QuotaInBytes: 0,
+	}
+	vol = &datamodel.Volume{
+		BaseModel:         datamodel.BaseModel{ID: 5, UUID: "vol-uuid"},
+		Name:              "test-volume",
+		AccountID:         1,
+		Pool:              pool,
+		PoolID:            pool.ID,
+		State:             models.LifeCycleStateREADY,
+		ClonesSharedBytes: 500,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-uuid",
+				State:            models.CloneStateCloned,
+			},
+		},
+	}
+	job := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+		WorkflowID: "job-uuid",
+	}
+	jobUUID = job.UUID
+
+	// Mock function vars so the test controls account lookup, param validation, and clone-state update.
+	origGetAccountWithName := getAccountWithName
+	getAccountWithName = func(_ context.Context, _ database.Storage, _ string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	origValidate := validateSplitStartVolumeParams
+	validateSplitStartVolumeParams = func(_ context.Context, _ *datamodel.Volume, _ *datamodel.PoolView) error {
+		return nil
+	}
+	origUpdateCloneState := updateCloneState
+	updateCloneState = func(_ context.Context, _ database.Storage, _ string, _ string) error {
+		return nil
+	}
+	t.Cleanup(func() {
+		getAccountWithName = origGetAccountWithName
+		validateSplitStartVolumeParams = origValidate
+		updateCloneState = origUpdateCloneState
+	})
+
+	mockStorage.On("GetVolumeWithAccountID", mock.Anything, vol.UUID, account.ID).Return(vol, nil)
+	mockStorage.On("GetPool", mock.Anything, pool.UUID, account.ID).Return(poolView, nil)
+	mockStorage.On("CreateJob", mock.Anything, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
+	// Reserve clones_shared_bytes to 0 after clone-state update.
+	mockStorage.On("UpdateVolumeFields", mock.Anything, vol.UUID, map[string]interface{}{
+		"clones_shared_bytes": uint64(0),
+	}).Return(nil)
+
+	// ONTAP-range error from GetNodesByPoolID causes isOntapErr = true in the defer.
+	ontapErr = vsaerrors.NewVCPError(vsaerrors.ErrSplitCloneJobFailed, fmt.Errorf("ontap backend error"))
+	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return(nil, ontapErr)
+
+	// First defer deletes the job when an error occurs.
+	mockStorage.On("DeleteJob", mock.Anything, job.UUID, mock.AnythingOfType("string")).Return(nil)
+
+	return mockStorage, vol, jobUUID, ontapErr
+}
+
+// TestSplitStartVolume_DeferGetVolumeFails covers line 3715: when GetVolume for the clone-state
+// update in the defer returns an error, the function logs the failure and proceeds without panic.
+func TestSplitStartVolume_DeferGetVolumeFails(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockStorage, vol, _, ontapErr := setupSplitStartVolumeBase(t, ctx)
+
+	// GetVolume in the defer fails → line 3715 is hit.
+	fetchErr := errors.New("db unavailable")
+	mockStorage.On("GetVolume", mock.Anything, vol.UUID).Return(nil, fetchErr)
+
+	params := &common.SplitStartVolumeParams{
+		AccountName: "test-account",
+		VolumeID:    vol.UUID,
+	}
+
+	_, _, err := _splitStartVolume(ctx, mockStorage, nil, params)
+	assert.Error(t, err)
+	// The returned error is the ONTAP error that triggered the defer.
+	assert.Equal(t, ontapErr.Error(), err.Error())
+	mockStorage.AssertExpectations(t)
+}
+
+// TestSplitStartVolume_DeferCloneStateUpdateFails covers line 3725: when GetVolume in the
+// defer succeeds but UpdateVolumeFields for the clone-state update returns an error, the
+// function logs the failure without affecting the returned error.
+func TestSplitStartVolume_DeferCloneStateUpdateFails(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockStorage, vol, _, ontapErr := setupSplitStartVolumeBase(t, ctx)
+
+	// GetVolume in the defer succeeds and returns a volume with CloneParentInfo.
+	currentVol := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: vol.UUID},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-uuid",
+				State:            models.CloneStateCloned,
+			},
+		},
+	}
+	mockStorage.On("GetVolume", mock.Anything, vol.UUID).Return(currentVol, nil)
+
+	// UpdateVolumeFields for the clone-state update fails → line 3725 is hit.
+	mockStorage.On("UpdateVolumeFields", mock.Anything, vol.UUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
+		_, ok := fields["volume_attributes"]
+		return ok
+	})).Return(errors.New("clone state update failed"))
+
+	params := &common.SplitStartVolumeParams{
+		AccountName: "test-account",
+		VolumeID:    vol.UUID,
+	}
+
+	_, _, err := _splitStartVolume(ctx, mockStorage, nil, params)
+	assert.Error(t, err)
+	// The returned error is still the ONTAP error; the clone-state update failure is only logged.
+	assert.Equal(t, ontapErr.Error(), err.Error())
+	mockStorage.AssertExpectations(t)
 }

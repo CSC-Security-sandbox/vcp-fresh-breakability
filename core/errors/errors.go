@@ -168,6 +168,9 @@ const (
 	ErrONTAPGivebackInProgress         = 5059
 	ErrONTAPNodeOffline                = 5060
 	ErrADDCUnreachable                 = 5061
+	ErrSplitCloneNoSpace               = 5062
+	ErrSplitCloneJobKilled             = 5063
+	ErrSplitCloneJobFailed             = 5064
 
 	// Unclassified ONTAP errors per domain (fallback when no rule matches)
 	ErrLDAPUnclassified     = 5101

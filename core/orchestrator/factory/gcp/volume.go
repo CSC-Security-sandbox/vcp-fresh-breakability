@@ -3492,6 +3492,37 @@ func isOntapError(err error) bool {
 	return false
 }
 
+// extractONTAPErrorDetails attempts to pull the ONTAP error code and message out of a
+// CustomError whose OriginalErr is a go-swagger VolumeModifyDefault response.
+// The response Error() string has the form:
+//
+//	[PATCH /storage/volumes/{uuid}][500] volume_modify default {"error":{"code":"460765","message":"..."}}
+//
+// If extraction fails for any reason we fall back to OriginalErr.Error() as the message
+// and an empty code (which routes to the generic ErrSplitCloneJobFailed bucket).
+func extractONTAPErrorDetails(customErr *vsaerrors.CustomError) (ontapMessage, ontapCode string) {
+	if customErr == nil || customErr.OriginalErr == nil {
+		return "", ""
+	}
+	raw := customErr.OriginalErr.Error()
+	// Find the JSON payload — it starts at the first '{'.
+	jsonStart := strings.Index(raw, "{")
+	if jsonStart < 0 {
+		return raw, ""
+	}
+	var payload struct {
+		Error struct {
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(raw[jsonStart:]), &payload); err != nil || payload.Error.Message == "" {
+		// Not parseable — return the whole raw string as the message.
+		return raw, ""
+	}
+	return payload.Error.Message, payload.Error.Code
+}
+
 // _updateCloneState updates the clone state in volume attributes
 func _updateCloneState(ctx context.Context, se database.Storage, volumeUUID string, cloneState string) error {
 	logger := util.GetLogger(ctx)
@@ -3664,16 +3695,35 @@ func _splitStartVolume(ctx context.Context, se database.Storage, temporal client
 			// Handle clone state: revert to CLONED if error before ONTAP, set to ERROR IN SPLITTING if error from ONTAP
 			if volume.VolumeAttributes != nil && volume.VolumeAttributes.CloneParentInfo != nil && previousCloneState != "" {
 				var cloneStateToSet string
+				var cloneStateDetails string
 				if isOntapErr {
 					cloneStateToSet = models.CloneStateErrorInSplitting
+					// Extract the structured ONTAP error code and message from the wrapped error,
+					// classify it into a user-facing message, and log the raw ONTAP text.
+					ontapMessage, ontapCode := extractONTAPErrorDetails(vsaerrors.ExtractCustomError(err))
+					classifiedErr, ontapMsg := workflows.ClassifyONTAPSplitError(ontapMessage, ontapCode, previousClonesSharedBytes)
+					cloneStateDetails = classifiedErr.GetMessage()
+					logger.Errorf("ONTAP error during InitiateSplitVolume for volume %s: %s", volume.UUID, ontapMsg)
 					logger.Infof("ONTAP error detected, setting clone state to ERROR IN SPLITTING for volume UUID: %s", volume.UUID)
 				} else {
 					cloneStateToSet = models.CloneStateCloned
 					logger.Infof("Non-ONTAP error detected, reverting clone state to CLONED for volume UUID: %s", volume.UUID)
 				}
-				cloneStateErr := updateCloneState(ctx, se, volume.UUID, cloneStateToSet)
-				if cloneStateErr != nil {
-					logger.Errorf("Failed to update clone state to %s: %v", cloneStateToSet, cloneStateErr)
+
+				currentVolume, fetchErr := se.GetVolume(ctx, volume.UUID)
+				if fetchErr != nil || currentVolume.VolumeAttributes == nil || currentVolume.VolumeAttributes.CloneParentInfo == nil {
+					logger.Errorf("Failed to fetch current volume for clone state update: %v", fetchErr)
+				} else {
+					updatedAttrs := *currentVolume.VolumeAttributes
+					cloneInfo := *currentVolume.VolumeAttributes.CloneParentInfo
+					cloneInfo.State = cloneStateToSet
+					cloneInfo.StateDetails = cloneStateDetails
+					updatedAttrs.CloneParentInfo = &cloneInfo
+					if cloneStateErr := se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
+						"volume_attributes": &updatedAttrs,
+					}); cloneStateErr != nil {
+						logger.Errorf("Failed to update clone state to %s: %v", cloneStateToSet, cloneStateErr)
+					}
 				}
 			}
 		}
@@ -3736,7 +3786,7 @@ func _splitStartVolume(ctx context.Context, se database.Storage, temporal client
 		ontapJobUUID,
 	)
 	if err != nil {
-		logger.Error("Failed to start split clone workflow after retries: ", "error", err)
+		logger.Error("Failed to start volume poll split clone workflow after retries: ", "error", err)
 		return nil, "", err
 	}
 

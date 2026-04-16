@@ -141,8 +141,10 @@ func (wf *volumePollSplitWorkflow) Run(ctx workflow.Context, args ...interface{}
 		if runErr != nil {
 			// All errors here are ONTAP poll failures (the ONTAP call already succeeded
 			// synchronously before the workflow was dispatched).
+			// classifyONTAPSplitError sets the user-facing message in CustomError.Message
+			// and stores the raw ONTAP text in OriginalErr (already logged at poll time).
 			cloneState = models.CloneStateErrorInSplitting
-			stateDetails = runErr.Error()
+			stateDetails = runErr.GetMessage()
 		}
 		if updateErr := workflow.ExecuteActivity(
 			ctx,
@@ -176,6 +178,42 @@ func (wf *volumePollSplitWorkflow) Run(ctx workflow.Context, args ...interface{}
 	}
 
 	return nil, nil
+}
+
+// ontapSplitErrorCode constants for ONTAP error codes relevant to clone split.
+const (
+	ontapErrCodeNoSpace   = "458753"
+	ontapErrCodeJobKilled = "460765"
+)
+
+// ClassifyONTAPSplitError converts a raw ONTAP split job failure (message + error code) into
+// a user-facing CustomError with a 4xx HTTP code. The exact ONTAP message is returned via
+// ontapMsg so callers can log it separately without exposing it to end users.
+//
+//   - 458753 (no space)  → ErrSplitCloneNoSpace  (400) — instructs user to free pool space
+//   - 460765 (killed)    → ErrSplitCloneJobKilled (400) — job interrupted, retry
+//   - anything else      → ErrSplitCloneJobFailed (400) — generic backend failure
+func ClassifyONTAPSplitError(ontapMessage, ontapCode string, clonesSharedBytes uint64) (userErr *vsaerrors.CustomError, ontapMsg string) {
+	if ontapCode != "" {
+		ontapMsg = fmt.Sprintf("%s (ONTAP error code: %s)", ontapMessage, ontapCode)
+	} else {
+		ontapMsg = ontapMessage
+	}
+
+	switch ontapCode {
+	case ontapErrCodeNoSpace:
+		humanBytes := fmt.Sprintf("%d bytes", clonesSharedBytes)
+		return vsaerrors.NewVCPErrorWithArgs(vsaerrors.ErrSplitCloneNoSpace, vsaerrors.New(ontapMsg), humanBytes), ontapMsg
+	case ontapErrCodeJobKilled:
+		return vsaerrors.NewVCPError(vsaerrors.ErrSplitCloneJobKilled, vsaerrors.New(ontapMsg)), ontapMsg
+	default:
+		return vsaerrors.NewVCPError(vsaerrors.ErrSplitCloneJobFailed, vsaerrors.New(ontapMsg)), ontapMsg
+	}
+}
+
+// classifyONTAPSplitError is the unexported alias used within this package.
+func classifyONTAPSplitError(ontapMessage, ontapCode string, clonesSharedBytes uint64) (userErr *vsaerrors.CustomError, ontapMsg string) {
+	return ClassifyONTAPSplitError(ontapMessage, ontapCode, clonesSharedBytes)
 }
 
 // pollONTAPSplitJob polls the ONTAP job until it succeeds, fails, or a ContinueAsNew
@@ -232,13 +270,16 @@ func pollONTAPSplitJobInternal(ctx workflow.Context, volume *datamodel.Volume, n
 		case "success":
 			return nil
 		case "failure":
+			var ontapMessage, ontapCode string
 			if job.Error != nil {
-				if job.Error.Code != "" {
-					return fmt.Errorf("%s (ONTAP error code: %s)", job.Error.Message, job.Error.Code)
-				}
-				return fmt.Errorf("%s", job.Error.Message)
+				ontapMessage = job.Error.Message
+				ontapCode = job.Error.Code
+			} else {
+				ontapMessage = fmt.Sprintf("ONTAP split job %s failed with no error message", ontapJobUUID)
 			}
-			return fmt.Errorf("ONTAP split job %s failed with no error message", ontapJobUUID)
+			classifiedErr, ontapMsg := classifyONTAPSplitError(ontapMessage, ontapCode, volume.ClonesSharedBytes)
+			log.Errorf("ONTAP split job %s failed for volume %s: %s", ontapJobUUID, volume.Name, ontapMsg)
+			return classifiedErr
 		}
 
 		// Job is still running — sleep before the next poll.
