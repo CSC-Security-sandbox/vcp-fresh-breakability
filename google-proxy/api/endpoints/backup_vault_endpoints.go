@@ -1534,19 +1534,22 @@ func convertCoreToCvpBackupVault(coreBV *coremodels.BackupVaultV1beta) *models.B
 
 	// Create the CVP backup vault model
 	cvpBV := &models.BackupVaultV1beta{
-		BackupVaultID:          coreBV.BackupVaultID,
-		ResourceID:             &coreBV.Name,
-		Description:            coreBV.Description,
-		BackupRegion:           coreBV.BackupRegion,
-		SourceRegion:           coreBV.SourceRegion,
-		DestinationBackupVault: coreBV.DestinationBackupVault,
-		SourceBackupVault:      coreBV.SourceBackupVault,
-		BackupVaultType:        coreBV.BackupVaultType,
-		State:                  coreBV.LifeCycleState,
-		StateDetails:           coreBV.LifeCycleStateDetails,
-		CreatedAt:              strfmt.DateTime(coreBV.CreatedAt),
-		DeletedAt:              (*strfmt.DateTime)(coreBV.DeletedAt),
-		BackupRetentionPolicy:  backupRetentionPolicy,
+		BackupVaultID:            coreBV.BackupVaultID,
+		ResourceID:               &coreBV.Name,
+		Description:              coreBV.Description,
+		BackupRegion:             coreBV.BackupRegion,
+		SourceRegion:             coreBV.SourceRegion,
+		DestinationBackupVault:   coreBV.DestinationBackupVault,
+		SourceBackupVault:        coreBV.SourceBackupVault,
+		BackupVaultType:          coreBV.BackupVaultType,
+		State:                    coreBV.LifeCycleState,
+		StateDetails:             coreBV.LifeCycleStateDetails,
+		CreatedAt:                strfmt.DateTime(coreBV.CreatedAt),
+		DeletedAt:                (*strfmt.DateTime)(coreBV.DeletedAt),
+		BackupRetentionPolicy:    backupRetentionPolicy,
+		KmsConfigResourcePath:    coreBV.KmsConfigResourcePath,
+		BackupsPrimaryKeyVersion: coreBV.BackupsPrimaryKeyVersion,
+		EncryptionState:          coreBV.EncryptionState,
 	}
 	if coreBV.ServiceType == coremodels.ServiceTypeCrossProject {
 		cvpBV.CrossProjectVault = nillable.ToPointer(true)

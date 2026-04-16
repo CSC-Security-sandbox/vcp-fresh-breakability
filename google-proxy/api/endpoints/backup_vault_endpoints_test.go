@@ -311,6 +311,44 @@ func TestConvertCoreToCvpBackupVault_DoesNotSetCrossProjectVaultForGCNV(t *testi
 	assert.Nil(t, result.CrossProjectVault)
 }
 
+func TestConvertCoreToCvpBackupVault_MapsCMEKFields(t *testing.T) {
+	kmsPath := "projects/my-project/locations/us-central1/kmsConfigs/my-config"
+	keyVersion := "projects/my-project/locations/us-central1/keyRings/ring/cryptoKeys/key/cryptoKeyVersions/1"
+	encState := "ENCRYPTION_STATE_COMPLETED"
+
+	coreBV := &coremodels.BackupVaultV1beta{
+		BackupVaultID:            "vault-id",
+		Name:                     "cmek-vault",
+		LifeCycleState:           "READY",
+		CreatedAt:                time.Now(),
+		KmsConfigResourcePath:    &kmsPath,
+		BackupsPrimaryKeyVersion: &keyVersion,
+		EncryptionState:          &encState,
+	}
+
+	result := convertCoreToCvpBackupVault(coreBV)
+	require.NotNil(t, result.KmsConfigResourcePath)
+	assert.Equal(t, kmsPath, *result.KmsConfigResourcePath)
+	require.NotNil(t, result.BackupsPrimaryKeyVersion)
+	assert.Equal(t, keyVersion, *result.BackupsPrimaryKeyVersion)
+	require.NotNil(t, result.EncryptionState)
+	assert.Equal(t, encState, *result.EncryptionState)
+}
+
+func TestConvertCoreToCvpBackupVault_OmitsCMEKFieldsWhenNil(t *testing.T) {
+	coreBV := &coremodels.BackupVaultV1beta{
+		BackupVaultID:  "vault-id",
+		Name:           "no-cmek-vault",
+		LifeCycleState: "READY",
+		CreatedAt:      time.Now(),
+	}
+
+	result := convertCoreToCvpBackupVault(coreBV)
+	assert.Nil(t, result.KmsConfigResourcePath)
+	assert.Nil(t, result.BackupsPrimaryKeyVersion)
+	assert.Nil(t, result.EncryptionState)
+}
+
 func TestBuildCreateBackupVaultParams(t *testing.T) {
 	t.Run("BuildsAllOptionalFieldsWhenSet", func(t *testing.T) {
 		req := &gcpgenserver.BackupVaultCreateV1beta{
