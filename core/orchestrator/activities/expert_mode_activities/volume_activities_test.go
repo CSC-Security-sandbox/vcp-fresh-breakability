@@ -85,7 +85,7 @@ func TestFetchOntapVolumeByName(t *testing.T) {
 
 		volume := &datamodel.ExpertModeVolumes{
 			Name:         "test-volume",
-			SizeInBytes:  1099511627776, // 1TB
+			SizeInBytes:  2199023255552, // 2TB — same as mocked ONTAP size (exact match; not exercising size tolerance)
 			Style:        "flexvol",
 			State:        models.LifeCycleStateCreating,
 			ExternalUUID: "original-uuid",
@@ -128,6 +128,69 @@ func TestFetchOntapVolumeByName(t *testing.T) {
 		assert.Equal(tt, int64(2199023255552), result.SizeInBytes)
 		assert.Equal(tt, "flexgroup", result.Style)
 		assert.Equal(tt, models.LifeCycleStateAvailable, result.State)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenFlexGroupOntapSizeBelowDB_ThenReturnsStateConflictForRetry", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockProvider := new(vsa.MockProvider)
+		mockStorage := database.NewMockStorage(tt)
+		originalGetProviderByNode := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = originalGetProviderByNode }()
+
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.FetchOntapVolumeByName)
+
+		const dbWant = int64(1717986918400) // 1.6 TiB
+		const ontapPartial = int64(107374182400)
+
+		volume := &datamodel.ExpertModeVolumes{
+			Name:         "vol_fg_8",
+			SizeInBytes:  dbWant,
+			Style:        "flexvol", // DB can lag ONTAP during create
+			State:        models.LifeCycleStateCreating,
+			ExternalUUID: "",
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+		node := &models.Node{Name: "test-node"}
+
+		partialResponse := &vsa.VolumeResponse{
+			ProviderResponse: vsa.ProviderResponse{
+				Name:         "vol_fg_8",
+				ExternalUUID: "25088695-3415-11f1-a79a-0701e9525a4b",
+			},
+			Size:  ontapPartial,
+			Style: "flexgroup",
+			State: "mixed",
+		}
+		mockProvider.On("GetVolumeForExpertMode", vsa.GetVolumeParams{
+			VolumeName: "vol_fg_8",
+			SvmName:    "test-svm",
+			IsRestore:  false,
+		}).Return(partialResponse, nil)
+
+		encodedValue, err := env.ExecuteActivity(activity.FetchOntapVolumeByName, volume, node)
+
+		var result *datamodel.ExpertModeVolumes
+		if err == nil {
+			err = encodedValue.Get(&result)
+		}
+		assert.Error(tt, err)
+		assert.Nil(tt, result)
+		errMsg := err.Error()
+		assert.True(tt,
+			containsIgnoreCase(errMsg, "still provisioning") || containsIgnoreCase(errMsg, "below expected") ||
+				containsIgnoreCase(errMsg, "not within 1 gb") ||
+				containsIgnoreCase(errMsg, "resource state conflict") || containsIgnoreCase(errMsg, "invalid state"),
+			"expected retryable provisioning/size conflict, got: %v", err)
 		mockProvider.AssertExpectations(tt)
 	})
 
@@ -1359,6 +1422,58 @@ func TestValidateONTAPVolumeUpdate(t *testing.T) {
 		assert.Equal(tt, models.LifeCycleStateAvailable, result.State)
 	})
 
+	t.Run("WhenOntapSizeWithinTolerance_ReturnsOntapSizeNotDbSize", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+
+		mockStorage := database.NewMockStorage(tt)
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.ValidateONTAPVolumeUpdate)
+
+		const dbSize = int64(2199023255552)
+		const ontapSize = int64(2199023255052) // 400 bytes below DB, within 1 GB tolerance
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel: datamodel.BaseModel{
+				UUID: "volume-uuid-123",
+			},
+			Name:         "test-volume",
+			SizeInBytes:  dbSize,
+			Style:        "flexgroup",
+			State:        models.LifeCycleStateAvailable,
+			ExternalUUID: "external-uuid-123",
+			Svm: &datamodel.Svm{
+				Name: "test-svm",
+			},
+		}
+
+		node := &models.Node{
+			Name: "test-node",
+		}
+
+		originalFetchOntapVolumeByUUID := fetchOntapVolumeByUUID
+		defer func() { fetchOntapVolumeByUUID = originalFetchOntapVolumeByUUID }()
+
+		ontapVolume := &vsa.VolumeResponse{
+			ProviderResponse: vsa.ProviderResponse{Name: "test-volume"},
+			Size:             ontapSize,
+		}
+
+		fetchOntapVolumeByUUID = func(ctx context.Context, vol *datamodel.ExpertModeVolumes, n *models.Node) (*vsa.VolumeResponse, error) {
+			return ontapVolume, nil
+		}
+
+		encodedValue, err := env.ExecuteActivity(activity.ValidateONTAPVolumeUpdate, volume, node)
+
+		assert.NoError(tt, err)
+		var result *datamodel.ExpertModeVolumes
+		err = encodedValue.Get(&result)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, result)
+		assert.Equal(tt, ontapSize, result.SizeInBytes, "returned size should be ONTAP size for DB persistence, not DB size")
+		assert.NotEqual(tt, dbSize, result.SizeInBytes)
+	})
+
 	t.Run("WhenVolumeUpdateIsNotComplete_DifferentSize", func(tt *testing.T) {
 		// Arrange
 		testSuite := &testsuite.WorkflowTestSuite{}
@@ -1675,7 +1790,7 @@ func TestFetchOntapVolumeByUUID(t *testing.T) {
 				UUID: "volume-uuid-123",
 			},
 			Name:         "test-volume",
-			SizeInBytes:  1099511627776, // 1TB
+			SizeInBytes:  2199023255552, // 2TB — same as mocked ONTAP size (exact match; not exercising size tolerance)
 			Style:        "flexvol",
 			State:        models.LifeCycleStateCreating,
 			ExternalUUID: "external-uuid-456",
@@ -2278,4 +2393,94 @@ func TestUpdateExpertModeVolumeBackupConfigInDB(t *testing.T) {
 		assert.NoError(tt, err)
 		mockStorage.AssertExpectations(tt)
 	})
+}
+
+func TestExpertModeVolumeSizesMatchForValidation(t *testing.T) {
+	t.Parallel()
+	const over1GB = int64(1200 * 1000 * 1000)
+	cases := []struct {
+		name  string
+		db    *datamodel.ExpertModeVolumes
+		ontap *vsa.VolumeResponse
+		want  bool
+	}{
+		{
+			name:  "large mismatch",
+			db:    &datamodel.ExpertModeVolumes{SizeInBytes: 5_000_000_000},
+			ontap: &vsa.VolumeResponse{Size: 1_000_000_000},
+			want:  false,
+		},
+		{
+			name:  "equal sizes",
+			db:    &datamodel.ExpertModeVolumes{SizeInBytes: 100},
+			ontap: &vsa.VolumeResponse{Size: 100},
+			want:  true,
+		},
+		{
+			name:  "small delta",
+			db:    &datamodel.ExpertModeVolumes{SizeInBytes: 100},
+			ontap: &vsa.VolumeResponse{Size: 150},
+			want:  true,
+		},
+		{
+			name:  "within 1 GB rounding (~2.4 TiB) flexgroup",
+			db:    &datamodel.ExpertModeVolumes{Style: "flexgroup", SizeInBytes: 2576980377620},
+			ontap: &vsa.VolumeResponse{Style: "flexgroup", Size: 2576980377600},
+			want:  true,
+		},
+		{
+			name:  "more than 1 GB below DB",
+			db:    &datamodel.ExpertModeVolumes{SizeInBytes: 5_000_000_000},
+			ontap: &vsa.VolumeResponse{Size: 5_000_000_000 - over1GB},
+			want:  false,
+		},
+		{
+			name:  "more than 1 GB above DB",
+			db:    &datamodel.ExpertModeVolumes{SizeInBytes: 5_000_000_000},
+			ontap: &vsa.VolumeResponse{Size: 5_000_000_000 + over1GB},
+			want:  false,
+		},
+		{
+			name:  "flexvol small byte delta",
+			db:    &datamodel.ExpertModeVolumes{Style: "flexvol", SizeInBytes: 100},
+			ontap: &vsa.VolumeResponse{Style: "flexvol", Size: 99},
+			want:  true,
+		},
+		{
+			name:  "flexvol large mismatch",
+			db:    &datamodel.ExpertModeVolumes{Style: "flexvol", SizeInBytes: 5_000_000_000},
+			ontap: &vsa.VolumeResponse{Style: "flexvol", Size: 1_000_000_000},
+			want:  false,
+		},
+		{
+			name:  "flexcache same 1 GB rule",
+			db:    &datamodel.ExpertModeVolumes{Style: "flexcache", SizeInBytes: 2576980377620},
+			ontap: &vsa.VolumeResponse{Style: "flexcache", Size: 2576980377600},
+			want:  true,
+		},
+		{
+			name:  "non-positive DB skips size check",
+			db:    &datamodel.ExpertModeVolumes{SizeInBytes: 0},
+			ontap: &vsa.VolumeResponse{Size: 50},
+			want:  true,
+		},
+		{
+			name:  "nil db",
+			db:    nil,
+			ontap: &vsa.VolumeResponse{Size: 50},
+			want:  false,
+		},
+		{
+			name:  "nil ontap",
+			db:    &datamodel.ExpertModeVolumes{SizeInBytes: 100},
+			ontap: nil,
+			want:  false,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(tt *testing.T) {
+			tt.Parallel()
+			assert.Equal(tt, tc.want, expertModeVolumeSizesMatchForValidation(tc.db, tc.ontap))
+		})
+	}
 }

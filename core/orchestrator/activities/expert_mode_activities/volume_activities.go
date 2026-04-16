@@ -24,6 +24,25 @@ var (
 	fetchOntapVolumeByUUID = _fetchOntapVolumeByUUID
 )
 
+// expertModeOntapSizeToleranceBytes: max symmetric |ONTAP size − DB SizeInBytes| (1 decimal GB, 10^9).
+const expertModeOntapSizeToleranceBytes int64 = 1000 * 1000 * 1000
+
+// expertModeVolumeSizesMatchForValidation: true if |ontap.Size-dbVol.SizeInBytes| <= tolerance, or DB size <= 0 (skip); false if nil.
+func expertModeVolumeSizesMatchForValidation(dbVol *datamodel.ExpertModeVolumes, ontap *vsa.VolumeResponse) bool {
+	if dbVol == nil || ontap == nil {
+		return false
+	}
+	db := dbVol.SizeInBytes
+	if db <= 0 {
+		return true
+	}
+	d := ontap.Size - db
+	if d < 0 {
+		d = -d
+	}
+	return d <= expertModeOntapSizeToleranceBytes
+}
+
 // FetchOntapVolumeByName fetches a volume from ONTAP by name and updates the volume with ONTAP data.
 func (a *ExpertModeVolumeActivity) FetchOntapVolumeByName(ctx context.Context, volume *datamodel.ExpertModeVolumes, node *models.Node) (*datamodel.ExpertModeVolumes, error) {
 	logger := util.GetLogger(ctx)
@@ -54,6 +73,13 @@ func (a *ExpertModeVolumeActivity) FetchOntapVolumeByName(ctx context.Context, v
 		}
 		logger.Errorf("Failed to get volume %s from ONTAP: %v", volume.Name, err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if !expertModeVolumeSizesMatchForValidation(volume, volumeResponse) {
+		logger.Infof("Volume %s ONTAP size %d not within 1 GB of DB size %d (state=%q, style=%q), will retry",
+			volume.Name, volumeResponse.Size, volume.SizeInBytes, volumeResponse.State, volumeResponse.Style)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError,
+			fmt.Errorf("volume %s ONTAP size %d not within 1 GB of DB size %d, still provisioning", volume.Name, volumeResponse.Size, volume.SizeInBytes)))
 	}
 
 	logger.Infof("Volume %s found in ONTAP", volume.Name)
@@ -210,7 +236,8 @@ func (a *ExpertModeVolumeActivity) DeleteExpertModeVolumeInDB(ctx context.Contex
 	return nil
 }
 
-// ValidateONTAPVolumeUpdate fetches a volume from ONTAP by UUID and checks if the update was successful
+// ValidateONTAPVolumeUpdate fetches the volume from ONTAP by external UUID and succeeds when the name matches
+// and ONTAP size is within expertModeOntapSizeToleranceBytes of the DB size (symmetric; all styles).
 func (a *ExpertModeVolumeActivity) ValidateONTAPVolumeUpdate(ctx context.Context, volume *datamodel.ExpertModeVolumes, node *models.Node) (*datamodel.ExpertModeVolumes, error) {
 	logger := util.GetLogger(ctx)
 	activity.RecordHeartbeat(ctx, fmt.Sprintf("Validating ONTAP volume update for %s", volume.Name))
@@ -220,10 +247,11 @@ func (a *ExpertModeVolumeActivity) ValidateONTAPVolumeUpdate(ctx context.Context
 		return nil, err
 	}
 
-	// validate state and name received from ontapVolume is same as volume.
-	if ontapVolume.Size == volume.SizeInBytes && ontapVolume.Name == volume.Name {
+	// Name must match ONTAP; size must be within expertModeOntapSizeToleranceBytes of DB (absolute delta, either direction; all styles—see expertModeVolumeSizesMatchForValidation).
+	if expertModeVolumeSizesMatchForValidation(volume, ontapVolume) && ontapVolume.Name == volume.Name {
 		logger.Infof("ONTAP volume update validated successfully for volume %s (UUID: %s): SizeInBytes=%d, name=%s ontapVolume.State:%s",
 			ontapVolume.Name, ontapVolume.ExternalUUID, ontapVolume.Size, ontapVolume.Name, ontapVolume.State)
+		volume.SizeInBytes = ontapVolume.Size
 		return volume, nil
 	}
 
@@ -231,7 +259,7 @@ func (a *ExpertModeVolumeActivity) ValidateONTAPVolumeUpdate(ctx context.Context
 	return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, fmt.Errorf("Volume %s still not updated in ONTAP (UUID: %s), update may be in progress. Will retry.", volume.Name, volume.ExternalUUID)))
 }
 
-// ValidateONTAPVolumeUpdate fetches a volume from ONTAP by UUID and checks if the update was successful
+// FetchOntapVolumeByUUID fetches a volume from ONTAP by external UUID and merges ONTAP fields into a datamodel volume.
 func (a *ExpertModeVolumeActivity) FetchOntapVolumeByUUID(ctx context.Context, volume *datamodel.ExpertModeVolumes, node *models.Node) (*datamodel.ExpertModeVolumes, error) {
 	logger := util.GetLogger(ctx)
 	activity.RecordHeartbeat(ctx, fmt.Sprintf("Fetching ONTAP volume by UUID for external UUID: %s and Name : %s", volume.ExternalUUID, volume.Name))
@@ -308,6 +336,13 @@ func _fetchOntapVolumeByUUID(ctx context.Context, volume *datamodel.ExpertModeVo
 		}
 		logger.Errorf("Failed to get volume external UUID : %s from ONTAP: %v", volume.UUID, err)
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	if !expertModeVolumeSizesMatchForValidation(volume, volumeResponse) {
+		logger.Infof("Volume %s (external UUID %s) ONTAP size %d not within 1 GB of DB size %d (state=%q, style=%q), will retry",
+			volume.Name, volumeResponse.ExternalUUID, volumeResponse.Size, volume.SizeInBytes, volumeResponse.State, volumeResponse.Style)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError,
+			fmt.Errorf("volume %s ONTAP size %d not within 1 GB of DB size %d, still provisioning", volume.Name, volumeResponse.Size, volume.SizeInBytes)))
 	}
 
 	logger.Infof("Volume external UUID : %s found in ONTAP", volumeResponse.ExternalUUID)
