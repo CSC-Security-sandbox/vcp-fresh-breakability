@@ -546,6 +546,22 @@ func TestStorageVolumesRule(t *testing.T) {
 		assert.NotEmpty(t, reason)
 	})
 
+	t.Run("WhenPOSTWithAutosize_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/volumes"]
+		body := bytes.NewBufferString(`{"size": 1073741824, "name": "test-volume", "autosize": {"mode": "grow"}}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/storage/volumes", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "POST with autosize should be denied")
+		assert.Contains(t, reason, "autosize")
+		assert.Contains(t, reason, "not allowed")
+	})
+
 	t.Run("WhenPOSTCloneWithIsFlexcloneWithoutSize_ShouldAllow", func(t *testing.T) {
 		rules := GetProxyRules()
 		rule := rules["/api/storage/volumes"]
@@ -698,6 +714,22 @@ func TestStorageVolumesUUIDRule(t *testing.T) {
 		assert.NotNil(t, action)
 		allowed, _ := action.ShouldAllow(req)
 		assert.True(t, allowed, "PATCH with only comment should be allowed")
+	})
+
+	t.Run("WhenPATCHWithAutosize_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/storage/volumes/{uuid}"]
+		body := bytes.NewBufferString(`{"autosize": {"maximum": 2147483648, "mode": "grow"}}`)
+		req := httptest.NewRequest(http.MethodPatch, "/api/storage/volumes/550e8400-e29b-41d4-a716-446655440000", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "PATCH with autosize should be denied")
+		assert.Contains(t, reason, "autosize")
+		assert.Contains(t, reason, "not allowed")
 	})
 
 	t.Run("WhenPATCHWithBothSizeAndSpaceSize_ShouldDeny", func(t *testing.T) {
@@ -997,16 +1029,61 @@ func TestSecurityCertificatesRule(t *testing.T) {
 		assert.True(t, allowed, "GET should be allowed for certificates collection")
 	})
 
-	t.Run("WhenPOST_ShouldAllow", func(t *testing.T) {
+	t.Run("WhenPOSTWithTypeServer_ShouldAllow", func(t *testing.T) {
 		rules := GetProxyRules()
 		rule := rules["/api/security/certificates"]
-		req := httptest.NewRequest(http.MethodPost, "/api/security/certificates", nil)
+		body := bytes.NewBufferString(`{"type": "server", "common_name": "test.example.com"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/security/certificates", body)
+		req.Header.Set("Content-Type", "application/json")
 
 		action := rule.GetAction(req)
 
 		assert.NotNil(t, action)
 		allowed, _ := action.ShouldAllow(req)
-		assert.True(t, allowed, "POST should be allowed for certificates collection")
+		assert.True(t, allowed, "POST with type=server should be allowed")
+	})
+
+	t.Run("WhenPOSTWithTypeClient_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/security/certificates"]
+		body := bytes.NewBufferString(`{"type": "client", "common_name": "test.example.com"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/security/certificates", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "POST with type=client should be allowed")
+	})
+
+	t.Run("WhenPOSTWithTypeRootCA_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/security/certificates"]
+		body := bytes.NewBufferString(`{"type": "root_ca", "common_name": "test.example.com"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/security/certificates", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed, "POST with type=root_ca should be denied")
+		assert.Contains(t, reason, "type")
+	})
+
+	t.Run("WhenPOSTWithoutType_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/security/certificates"]
+		body := bytes.NewBufferString(`{"common_name": "test.example.com"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/security/certificates", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+
+		assert.NotNil(t, action)
+		allowed, _ := action.ShouldAllow(req)
+		assert.True(t, allowed, "POST without type field should be allowed (IfPresentThenValue passes)")
 	})
 
 	t.Run("WhenPATCH_ShouldDeny", func(t *testing.T) {

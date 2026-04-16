@@ -225,6 +225,77 @@ func TestSubmitExpertModeVolumeOperation(t *testing.T) {
 			mockInvoker.AssertExpectations(ttt)
 		})
 
+		tt.Run("BadRequest_InsufficientCapacity_SanitizesRawBytes", func(ttt *testing.T) {
+			mockInvoker := coreapi.NewMockInvoker(ttt)
+			mockLogger := &log.MockLogger{}
+
+			mockLogger.On("DebugContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+			mockLogger.On("InfoContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+			mockLogger.On("ErrorContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+
+			createCoreAPIClient = func(host, jwtToken string, logger log.Logger) *coreapi.CoreAPIClient {
+				return &coreapi.CoreAPIClient{
+					Invoker: mockInvoker,
+				}
+			}
+
+			request := &coreapi.ExpertModeVolumeV1{
+				ProjectNumber: "12345",
+				PoolUUID:      "pool-uuid-123",
+				VolumeName:    "test-volume",
+				Action:        coreapi.ExpertModeVolumeV1ActionCreate,
+				SizeInBytes:   coreapi.OptFloat64{Value: 1073741824, Set: true},
+			}
+
+			mockInvoker.On("V1ExpertModeVolume", mock.Anything, request, mock.Anything).Return(&coreapi.V1ExpertModeVolumeBadRequest{
+				Code:    400,
+				Message: "insufficient pool capacity for the requested volume size",
+			}, nil)
+
+			ctx := context.Background()
+			err := SubmitExpertModeVolumeOperation(ctx, request, "test-jwt-token", mockLogger)
+
+			assert.Error(ttt, err)
+			assert.Equal(ttt, "bad request: insufficient pool capacity for the requested volume size", err.Error())
+			assert.NotContains(ttt, err.Error(), "bytes")
+			mockInvoker.AssertExpectations(ttt)
+		})
+
+		tt.Run("BadRequest_InsufficientCapacity_NegativeAvailable", func(ttt *testing.T) {
+			mockInvoker := coreapi.NewMockInvoker(ttt)
+			mockLogger := &log.MockLogger{}
+
+			mockLogger.On("DebugContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+			mockLogger.On("InfoContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+			mockLogger.On("ErrorContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+
+			createCoreAPIClient = func(host, jwtToken string, logger log.Logger) *coreapi.CoreAPIClient {
+				return &coreapi.CoreAPIClient{
+					Invoker: mockInvoker,
+				}
+			}
+
+			request := &coreapi.ExpertModeVolumeV1{
+				ProjectNumber: "12345",
+				PoolUUID:      "pool-uuid-123",
+				VolumeName:    "test-volume",
+				Action:        coreapi.ExpertModeVolumeV1ActionUpdate,
+				SizeInBytes:   coreapi.OptFloat64{Value: 2147483648, Set: true},
+			}
+
+			mockInvoker.On("V1ExpertModeVolume", mock.Anything, request, mock.Anything).Return(&coreapi.V1ExpertModeVolumeBadRequest{
+				Code:    400,
+				Message: "insufficient pool capacity for the requested volume size",
+			}, nil)
+
+			ctx := context.Background()
+			err := SubmitExpertModeVolumeOperation(ctx, request, "test-jwt-token", mockLogger)
+
+			assert.Error(ttt, err)
+			assert.Equal(ttt, "bad request: insufficient pool capacity for the requested volume size", err.Error())
+			mockInvoker.AssertExpectations(ttt)
+		})
+
 		tt.Run("Conflict", func(ttt *testing.T) {
 			mockInvoker := coreapi.NewMockInvoker(ttt)
 
@@ -316,6 +387,41 @@ func TestSubmitExpertModeVolumeRename(t *testing.T) {
 
 		ctx := context.Background()
 		err := SubmitExpertModeVolumeRename(ctx, request, params, "test-jwt-token", logger)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "bad request: Invalid new volume name")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("RenameBadRequest_NoCapacityLeak", func(tt *testing.T) {
+		mockInvoker := coreapi.NewMockInvoker(tt)
+		mockLogger := &log.MockLogger{}
+
+		mockLogger.On("DebugContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+		mockLogger.On("InfoContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+		mockLogger.On("ErrorContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+
+		createCoreAPIClient = func(host, jwtToken string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{
+				Invoker: mockInvoker,
+			}
+		}
+
+		request := &coreapi.ExpertModeVolumeRenameV1{
+			Name:          "new-name",
+			ProjectNumber: "12345",
+			PoolUUID:      "pool-uuid-123",
+			SvmName:       "vs1",
+		}
+		params := coreapi.V1ExpertModeVolumeRenameParams{Name: "old-name"}
+
+		mockInvoker.On("V1ExpertModeVolumeRename", mock.Anything, request, mock.Anything).Return(&coreapi.V1ExpertModeVolumeRenameBadRequest{
+			Code:    400,
+			Message: "Invalid new volume name",
+		}, nil)
+
+		ctx := context.Background()
+		err := SubmitExpertModeVolumeRename(ctx, request, params, "test-jwt-token", mockLogger)
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "bad request: Invalid new volume name")

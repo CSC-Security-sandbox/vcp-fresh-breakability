@@ -130,6 +130,69 @@ func TestMatchCLIRule(t *testing.T) {
 		}
 	})
 
+	t.Run("volume autosize commands - all blocked", func(t *testing.T) {
+		tests := []struct {
+			name      string
+			input     string
+			wantAllow bool
+			wantFound bool
+		}{
+			{
+				name:      "volume autosize show blocked",
+				input:     "volume autosize show -vserver vs1",
+				wantAllow: false,
+				wantFound: true,
+			},
+			{
+				name:      "vol autosize show blocked",
+				input:     "vol autosize show -vserver vs1",
+				wantAllow: false,
+				wantFound: true,
+			},
+			{
+				name:      "volume autosize modify blocked",
+				input:     "volume autosize modify -vserver vs1 -volume vol1 -mode grow -maximum-size 500g",
+				wantAllow: false,
+				wantFound: true,
+			},
+			{
+				name:      "vol autosize modify blocked",
+				input:     "vol autosize modify -vserver vs1 -volume vol1 -mode grow",
+				wantAllow: false,
+				wantFound: true,
+			},
+			{
+				name:      "volume autosize bare form blocked",
+				input:     "volume autosize -vserver vs1 -volume vol1 -maximum-size 500g",
+				wantAllow: false,
+				wantFound: true,
+			},
+			{
+				name:      "vol autosize bare form blocked",
+				input:     "vol autosize -vserver vs1 -volume vol1 -mode off",
+				wantAllow: false,
+				wantFound: true,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				cmd, err := ParseCLICommand(tt.input)
+				if err != nil {
+					t.Fatalf("Failed to parse command: %v", err)
+				}
+
+				rule, found := MatchCLIRule(cmd)
+				if found != tt.wantFound {
+					t.Errorf("found = %v, want %v", found, tt.wantFound)
+				}
+				if found && rule.Allow != tt.wantAllow {
+					t.Errorf("Allow = %v, want %v", rule.Allow, tt.wantAllow)
+				}
+			})
+		}
+	})
+
 	t.Run("flexcache commands - corresponds to /api/storage/flexcache/flexcaches", func(t *testing.T) {
 		tests := []struct {
 			name      string
@@ -208,6 +271,8 @@ func TestMatchCLIRule(t *testing.T) {
 			wantAllow bool
 		}{
 			{"security certificate show", true},
+			{"security certificate create -vserver vs1 -common-name mycert -type server", true},
+			{"sec certificate create -vserver vs1 -type client", true},
 			{"security certificate install -vserver vs1 -type server", true},
 			{"security certificate delete -vserver vs1 -common-name cert1", false},
 		}
@@ -523,6 +588,47 @@ func TestCLIRuleConditions(t *testing.T) {
 
 		if !allowed {
 			t.Errorf("Expected allowed with -snaplock-type compliance (rule condition does not validate snaplock-type), got denied: %s", reason)
+		}
+	})
+}
+
+func TestVolumeAutosizeRule_Blocked(t *testing.T) {
+	rule := findRule("volume autosize")
+	if rule == nil {
+		t.Fatal("volume autosize rule not found")
+	}
+	if rule.Allow {
+		t.Fatal("volume autosize rule should be blocked (Allow=false)")
+	}
+
+	t.Run("WhenShowCommand_ShouldStillMatchAutosizeRule", func(t *testing.T) {
+		cmd, err := ParseCLICommand("volume autosize show -vserver vs1")
+		if err != nil {
+			t.Fatalf("ParseCLICommand: %v", err)
+		}
+		rule, found := MatchCLIRule(cmd)
+		if !found {
+			t.Fatal("Expected to find a matching rule")
+		}
+		if rule.Pattern != "volume autosize" {
+			t.Errorf("Expected 'volume autosize' rule, got %q", rule.Pattern)
+		}
+		if rule.Allow {
+			t.Error("Autosize rule should deny (Allow=false)")
+		}
+	})
+
+	t.Run("WhenModifyCommand_ShouldMatchAndDeny", func(t *testing.T) {
+		cmd, err := ParseCLICommand("volume autosize modify -vserver vs1 -volume vol1 -mode grow")
+		if err != nil {
+			t.Fatalf("ParseCLICommand: %v", err)
+		}
+		rule, found := MatchCLIRule(cmd)
+		if !found {
+			t.Fatal("Expected to find a matching rule")
+		}
+		if rule.Allow {
+			t.Error("Autosize rule should deny (Allow=false)")
 		}
 	})
 }
@@ -870,6 +976,46 @@ func TestCLIConditionBuilders(t *testing.T) {
 		}
 	})
 
+	t.Run("CLIRejectArgs single", func(t *testing.T) {
+		cond := CLIRejectArgs("-space-guarantee")
+
+		// Argument not present - should pass
+		cmd := &CLICommand{Arguments: map[string]string{"-vserver": "vs1"}}
+		if ok, _ := cond(cmd); !ok {
+			t.Error("Expected condition to pass when rejected argument is absent")
+		}
+
+		// Argument present - should fail
+		cmd = &CLICommand{Arguments: map[string]string{"-space-guarantee": "none"}}
+		if ok, reason := cond(cmd); ok {
+			t.Error("Expected condition to fail when rejected argument is present")
+		} else if reason != "Argument -space-guarantee is not allowed" {
+			t.Errorf("Reason = %q", reason)
+		}
+	})
+
+	t.Run("CLIRejectArgs multiple", func(t *testing.T) {
+		cond := CLIRejectArgs("-space-guarantee", "-space-slo")
+
+		// Neither present - should pass
+		cmd := &CLICommand{Arguments: map[string]string{"-vserver": "vs1"}}
+		if ok, _ := cond(cmd); !ok {
+			t.Error("Expected condition to pass when no rejected arguments present")
+		}
+
+		// First present - should fail
+		cmd = &CLICommand{Arguments: map[string]string{"-space-guarantee": "none"}}
+		if ok, _ := cond(cmd); ok {
+			t.Error("Expected condition to fail when first rejected argument present")
+		}
+
+		// Second present - should fail
+		cmd = &CLICommand{Arguments: map[string]string{"-space-slo": "none"}}
+		if ok, _ := cond(cmd); ok {
+			t.Error("Expected condition to fail when second rejected argument present")
+		}
+	})
+
 	t.Run("CLIHasFlag", func(t *testing.T) {
 		cond := CLIHasFlag("-force")
 
@@ -908,6 +1054,159 @@ func TestGetCLIRules(t *testing.T) {
 	if !found {
 		t.Error("Expected to find volume show rule")
 	}
+}
+
+func TestSecurityCertificateCreateRule_BlocksRootCA(t *testing.T) {
+	rule := findRule("security certificate create")
+	if rule == nil {
+		t.Fatal("security certificate create rule not found")
+	}
+
+	t.Run("WhenTypeServer_ShouldAllow", func(t *testing.T) {
+		cmd := &CLICommand{
+			FullCommand: "security certificate create",
+			Arguments: map[string]string{
+				"-vserver":     "vs1",
+				"-common-name": "mycert",
+				"-type":        "server",
+			},
+		}
+		allowed, reason := EvaluateRule(rule, cmd)
+		if !allowed {
+			t.Errorf("Expected allowed for -type server, got denied: %s", reason)
+		}
+	})
+
+	t.Run("WhenTypeClient_ShouldAllow", func(t *testing.T) {
+		cmd := &CLICommand{
+			FullCommand: "security certificate create",
+			Arguments: map[string]string{
+				"-vserver":     "vs1",
+				"-common-name": "mycert",
+				"-type":        "client",
+			},
+		}
+		allowed, reason := EvaluateRule(rule, cmd)
+		if !allowed {
+			t.Errorf("Expected allowed for -type client, got denied: %s", reason)
+		}
+	})
+
+	t.Run("WhenTypeRootCA_ShouldDeny", func(t *testing.T) {
+		cmd := &CLICommand{
+			FullCommand: "security certificate create",
+			Arguments: map[string]string{
+				"-vserver":     "vs1",
+				"-common-name": "rogue-ca",
+				"-type":        "root-ca",
+			},
+		}
+		allowed, _ := EvaluateRule(rule, cmd)
+		if allowed {
+			t.Error("Expected denied for -type root-ca")
+		}
+	})
+
+	t.Run("WhenTypeServerCA_ShouldDeny", func(t *testing.T) {
+		cmd := &CLICommand{
+			FullCommand: "security certificate create",
+			Arguments: map[string]string{
+				"-vserver":     "vs1",
+				"-common-name": "rogue-ca",
+				"-type":        "server-ca",
+			},
+		}
+		allowed, _ := EvaluateRule(rule, cmd)
+		if allowed {
+			t.Error("Expected denied for -type server-ca")
+		}
+	})
+
+	t.Run("WhenTypeClientCA_ShouldDeny", func(t *testing.T) {
+		cmd := &CLICommand{
+			FullCommand: "security certificate create",
+			Arguments: map[string]string{
+				"-vserver":     "vs1",
+				"-common-name": "rogue-ca",
+				"-type":        "client-ca",
+			},
+		}
+		allowed, _ := EvaluateRule(rule, cmd)
+		if allowed {
+			t.Error("Expected denied for -type client-ca")
+		}
+	})
+
+	t.Run("WhenTypeAbsent_ShouldAllow", func(t *testing.T) {
+		cmd := &CLICommand{
+			FullCommand: "security certificate create",
+			Arguments: map[string]string{
+				"-vserver":     "vs1",
+				"-common-name": "mycert",
+			},
+		}
+		allowed, reason := EvaluateRule(rule, cmd)
+		if !allowed {
+			t.Errorf("Expected allowed when -type absent (ONTAP defaults to server), got denied: %s", reason)
+		}
+	})
+
+	t.Run("WhenShorthandSecForm_ShouldHaveSameCondition", func(t *testing.T) {
+		secRule := findRule("sec certificate create")
+		if secRule == nil {
+			t.Fatal("sec certificate create rule not found")
+		}
+		cmd := &CLICommand{
+			FullCommand: "sec certificate create",
+			Arguments: map[string]string{
+				"-type": "root-ca",
+			},
+		}
+		allowed, _ := EvaluateRule(secRule, cmd)
+		if allowed {
+			t.Error("Expected sec certificate create to also deny -type root-ca")
+		}
+	})
+}
+
+func TestVolumeModifyRule_RejectsSpaceGuarantee(t *testing.T) {
+	rule := findRule("volume modify")
+	if rule == nil {
+		t.Fatal("volume modify rule not found")
+	}
+
+	t.Run("WhenSpaceGuaranteePresent_ShouldDeny", func(t *testing.T) {
+		cmd := &CLICommand{
+			FullCommand: "volume modify",
+			Arguments: map[string]string{
+				"-vserver":         "vs1",
+				"-volume":          "vol1",
+				"-space-guarantee": "none",
+			},
+		}
+		allowed, reason := EvaluateRule(rule, cmd)
+		if allowed {
+			t.Error("Expected denied when -space-guarantee is present (even with value 'none')")
+		}
+		if reason != "Argument -space-guarantee is not allowed" {
+			t.Errorf("Reason = %q", reason)
+		}
+	})
+
+	t.Run("WhenSpaceGuaranteeAbsent_ShouldAllow", func(t *testing.T) {
+		cmd := &CLICommand{
+			FullCommand: "volume modify",
+			Arguments: map[string]string{
+				"-vserver": "vs1",
+				"-volume":  "vol1",
+				"-size":    "200g",
+			},
+		}
+		allowed, reason := EvaluateRule(rule, cmd)
+		if !allowed {
+			t.Errorf("Expected allowed without -space-guarantee, got denied: %s", reason)
+		}
+	})
 }
 
 func TestVolumeShowRemoveFields(t *testing.T) {

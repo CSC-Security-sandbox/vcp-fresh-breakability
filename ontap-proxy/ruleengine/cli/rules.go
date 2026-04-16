@@ -142,8 +142,7 @@ var cliRules = []CLIRule{
 		Allow:   true,
 		Condition: CLIAnd(
 			CLIHasArgs("-vserver", "-volume"),
-			CLIIfPresentThenValue("-space-guarantee", "none"),
-			// Enforce logical space settings - user cannot override
+			CLIRejectArgs("-space-guarantee"),
 			CLIIfPresentThenEquals("-is-space-enforcement-logical", "true"),
 			CLIIfPresentThenEquals("-is-space-reporting-logical", "true"),
 		),
@@ -154,8 +153,7 @@ var cliRules = []CLIRule{
 		Allow:   true,
 		Condition: CLIAnd(
 			CLIHasArgs("-vserver", "-volume"),
-			CLIIfPresentThenValue("-space-guarantee", "none"),
-			// Enforce logical space settings - user cannot override
+			CLIRejectArgs("-space-guarantee"),
 			CLIIfPresentThenEquals("-is-space-enforcement-logical", "true"),
 			CLIIfPresentThenEquals("-is-space-reporting-logical", "true"),
 		),
@@ -209,6 +207,16 @@ var cliRules = []CLIRule{
 		Allow:             true,
 		Condition:         CLIHasArgs("-vserver", "-volume", "-new-size"),
 		ExternalValidator: validateVolumeUpdate,
+	},
+
+	// Volume Autosize - blocked; autosize changes bypass capacity tracking.
+	{
+		Pattern: "volume autosize",
+		Allow:   false,
+	},
+	{
+		Pattern: "vol autosize",
+		Allow:   false,
 	},
 
 	// FlexCache Volumes - corresponds to /api/storage/flexcache/flexcaches in rule_map.go
@@ -283,6 +291,16 @@ var cliRules = []CLIRule{
 	{
 		Pattern: "sec certificate show",
 		Allow:   true,
+	},
+	{
+		Pattern: "security certificate create",
+		Allow:   true,
+		Condition: CLIIfPresentThenValue("-type", "server", "client"),
+	},
+	{
+		Pattern: "sec certificate create",
+		Allow:   true,
+		Condition: CLIIfPresentThenValue("-type", "server", "client"),
 	},
 	{
 		Pattern: "security certificate install",
@@ -511,6 +529,20 @@ func CLIOr(conditions ...CLICondition) CLICondition {
 			}
 		}
 		return false, lastReason
+	}
+}
+
+// CLIRejectArgs denies the command if any of the specified arguments are present.
+// Used to block modifications to fields that should not be changed (e.g. -space-guarantee).
+// Example: CLIRejectArgs("-space-guarantee")
+func CLIRejectArgs(argNames ...string) CLICondition {
+	return func(cmd *CLICommand) (bool, string) {
+		for _, argName := range argNames {
+			if cmd.HasArgument(argName) {
+				return false, fmt.Sprintf("Argument %s is not allowed", argName)
+			}
+		}
+		return true, ""
 	}
 }
 

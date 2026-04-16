@@ -269,6 +269,25 @@ func Never(reason string) Condition {
 	}
 }
 
+// RejectFields creates a condition that fails if any of the specified fields are present in the request body.
+// If none of the fields are present, the condition passes.
+func RejectFields(fields ...string) Condition {
+	return func(r *http.Request) (bool, string) {
+		data, parseErr := GetParsedBody(r)
+		if parseErr != "" {
+			return false, parseErr
+		}
+
+		for _, field := range fields {
+			fieldPath := normalizeJSONPath(field)
+			if fieldExists(data, fieldPath) {
+				return false, fmt.Sprintf("field '%s' is not allowed", field)
+			}
+		}
+		return true, ""
+	}
+}
+
 // fieldExists checks if a field exists in a nested map using dot notation
 func fieldExists(data map[string]interface{}, fieldPath string) bool {
 	parts := strings.Split(fieldPath, ".")

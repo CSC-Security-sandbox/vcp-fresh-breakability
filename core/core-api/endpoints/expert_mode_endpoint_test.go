@@ -283,7 +283,7 @@ func TestV1ExpertModeVolume(t *testing.T) {
 		}
 
 		// Set up expectations - orchestrator returns bad request error
-		insufficientCapacityErr := customerrors.NewBadRequestErr("insufficient pool capacity: requested 1099511627776 bytes, available 500000000000 bytes")
+		insufficientCapacityErr := customerrors.NewBadRequestErr("insufficient pool capacity for the requested volume size")
 		mockOrch.EXPECT().CreateExpertModeVolume(mock.Anything, expectedParams).Return(insufficientCapacityErr)
 
 		// Execute

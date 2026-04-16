@@ -661,6 +661,89 @@ func TestIfPresentThenEquals(t *testing.T) {
 	})
 }
 
+func TestRejectFields(t *testing.T) {
+	t.Run("WhenFieldNotPresent_ShouldPass", func(t *testing.T) {
+		condition := RejectFields("autosize")
+		req := createRequestWithBody(`{"name": "vol1", "size": 1024}`)
+
+		result, reason := condition(req)
+
+		assert.True(t, result)
+		assert.Empty(t, reason)
+	})
+
+	t.Run("WhenFieldPresent_ShouldReject", func(t *testing.T) {
+		condition := RejectFields("autosize")
+		req := createRequestWithBody(`{"name": "vol1", "autosize": {"mode": "grow"}}`)
+
+		result, reason := condition(req)
+
+		assert.False(t, result)
+		assert.Contains(t, reason, "autosize")
+		assert.Contains(t, reason, "not allowed")
+	})
+
+	t.Run("WhenNestedFieldPresent_ShouldReject", func(t *testing.T) {
+		condition := RejectFields("space.snapshot")
+		req := createRequestWithBody(`{"space": {"snapshot": {"reserve_percent": 5}}}`)
+
+		result, reason := condition(req)
+
+		assert.False(t, result)
+		assert.Contains(t, reason, "space.snapshot")
+	})
+
+	t.Run("WhenNestedFieldNotPresent_ShouldPass", func(t *testing.T) {
+		condition := RejectFields("space.snapshot")
+		req := createRequestWithBody(`{"space": {"size": 1024}}`)
+
+		result, reason := condition(req)
+
+		assert.True(t, result)
+		assert.Empty(t, reason)
+	})
+
+	t.Run("WhenMultipleFields_NonePresent_ShouldPass", func(t *testing.T) {
+		condition := RejectFields("autosize", "efficiency")
+		req := createRequestWithBody(`{"name": "vol1", "size": 1024}`)
+
+		result, reason := condition(req)
+
+		assert.True(t, result)
+		assert.Empty(t, reason)
+	})
+
+	t.Run("WhenMultipleFields_OnePresent_ShouldReject", func(t *testing.T) {
+		condition := RejectFields("autosize", "efficiency")
+		req := createRequestWithBody(`{"name": "vol1", "efficiency": {"compaction": "inline"}}`)
+
+		result, reason := condition(req)
+
+		assert.False(t, result)
+		assert.Contains(t, reason, "efficiency")
+	})
+
+	t.Run("WhenInvalidJSON_ShouldReturnParseError", func(t *testing.T) {
+		condition := RejectFields("autosize")
+		req := createRequestWithBody(`{bad json`)
+
+		result, reason := condition(req)
+
+		assert.False(t, result)
+		assert.Contains(t, reason, "invalid JSON")
+	})
+
+	t.Run("WhenEmptyBody_ShouldReturnParseError", func(t *testing.T) {
+		condition := RejectFields("autosize")
+		req := createRequestWithBody(``)
+
+		result, reason := condition(req)
+
+		assert.False(t, result)
+		assert.NotEmpty(t, reason)
+	})
+}
+
 // Helper function
 func createRequestWithBody(body string) *http.Request {
 	req := httptest.NewRequest(http.MethodPost, "/test", bytes.NewBufferString(body))

@@ -839,8 +839,7 @@ func canFitInPool(ctx context.Context, se database.Storage, poolID, poolSizeInBy
 	// Check if the new volume can fit in the pool
 	if consumedSizeOfPool+newVolumeSizeToAdd > int64(poolSizeInBytes) {
 		logger.Error("Insufficient pool capacity", "poolID", poolID, "requestedSize", newVolumeSizeToAdd, "availableSize", int64(poolSizeInBytes)-consumedSizeOfPool)
-		return customerrors.NewBadRequestErr(fmt.Sprintf("insufficient pool capacity: requested %d bytes, available %d bytes",
-			newVolumeSizeToAdd, int64(poolSizeInBytes)-consumedSizeOfPool))
+		return customerrors.NewBadRequestErr("insufficient pool capacity for the requested volume size")
 	}
 	return nil
 }

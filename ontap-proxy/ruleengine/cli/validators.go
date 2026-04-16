@@ -162,7 +162,6 @@ func _validateVolumeUpdate(ctx context.Context, cmd *CLICommand) (bool, string) 
 	if err := submitExpertModeVolumeOperation(ctx, expertVolumeRequest, jwtToken, logger); err != nil {
 		return false, err.Error()
 	}
-
 	return true, ""
 }
 

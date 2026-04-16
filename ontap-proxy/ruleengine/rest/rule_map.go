@@ -44,6 +44,7 @@ func GetProxyRules() map[string]Rule {
 				// All conditions return (bool, reason) - And() returns the first failure reason
 				Condition: And(
 					HasFields("name"),
+					RejectFields("autosize"),
 					volumePostCreateSizeFieldsCondition, // TODO: Implement volumePostCreateSizeFieldsCondition logic in the rule engine DSL pattern.
 					IfPresentThenValue("guarantee.type", "none"),
 					IfPresentThenEquals("space.logical_space.enforcement", true),
@@ -125,6 +126,7 @@ func GetProxyRules() map[string]Rule {
 				Name: "Volume modification validation",
 				Condition: And(
 					HasAtMostOneOf("size", "space.size", "cannot specify both 'size' and 'space.size'; use one or the other"),
+					RejectFields("autosize"),
 					IfPresentThenValue("guarantee.type", "none"),
 					IfPresentThenEquals("space.logical_space.enforcement", true),
 					validateVolumeModification,
@@ -338,8 +340,12 @@ func GetProxyRules() map[string]Rule {
 
 		// Security Certificates
 		"/api/security/certificates": {
-			GET:    AllowAll{},
-			POST:   AllowAll{},
+			GET: AllowAll{},
+			POST: When{
+				Name:      "Certificate creation validation",
+				Condition: IfPresentThenValue("type", "server", "client"),
+				IsTrue:    AllowAll{},
+			},
 			PATCH:  Deny{Name: "Certificate collection modification not allowed"},
 			DELETE: Deny{Name: "Certificate deletion not allowed"},
 		},
