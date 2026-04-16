@@ -476,10 +476,10 @@ detect_bump_type() {
   if [[ "$from_major" != "$to_major" ]]; then
     echo "major"
   elif [[ "$from_minor" != "$to_minor" ]]; then
-    # 0.x versions: per semver spec, ANY 0.x bump can contain breaking changes
-    # because 0.x means "initial development, anything may change at any time."
+    # 0.x versions: per semver spec, major=0 means MINOR acts as the major version
+    # 0.21->0.34 is effectively 1.0->14.0. Classify as major.
     if [[ "$from_major" == "0" ]]; then
-      echo "minor_unstable"
+      echo "major"
     else
       echo "minor"
     fi

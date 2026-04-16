@@ -236,8 +236,8 @@ for k, v in fields.items():
   FROM=$(echo "$_FIELDS_EXTRACTED" | grep '^FROM=' | cut -d= -f2-)
   TO=$(echo "$_FIELDS_EXTRACTED" | grep '^TO=' | cut -d= -f2-)
   BUMP=$(echo "$_FIELDS_EXTRACTED" | grep '^BUMP=' | cut -d= -f2-)
-  # 0.x semver: minor_unstable → display with warning (0.x versions may contain breaking changes)
-  if [[ "$BUMP" == "minor_unstable" ]]; then
+  # 0.x semver: major → display with warning (0.x versions may contain breaking changes)
+  if [[ "$BUMP" == "major" ]]; then
     BUMP_DISPLAY="minor (0.x unstable)"
   else
     BUMP_DISPLAY="$BUMP"
@@ -865,8 +865,8 @@ non_dependabot_count = max(0, total_open_prs - len(prs))
 
 # Display helper: 0.x semver versions may contain breaking changes
 def fmt_bump(bump):
-    """Format bump type for display. Flags minor_unstable (0.x versions) with a warning."""
-    if bump == "minor_unstable":
+    """Format bump type for display. Flags major (0.x versions) with a warning."""
+    if bump == "major":
         return "minor ⚠️ (0.x)"
     return bump
 

@@ -793,7 +793,8 @@ For full runs (≥10 PRs), follow the full merge plan creation below.
 
 ### Categorization rules for the merge plan
 
-- **Safe to Auto-Merge (L2+ verified)**: `verification_level >= 2` AND (`build.verdict` is `pass` or `pre_existing` with no new errors) AND verdict is SAFE. These PRs have real type-check verification. Actions PRs (`ecosystem == "actions"`) go here too.
+- **Safe to Auto-Merge — Full Pass (L4/L5)**: `verification_level >= 4` AND (`build.verdict` is `pass` or `pre_existing` with no new errors). These PRs pass build AND tests. Highest confidence. Actions PRs (`ecosystem == "actions"`) also go here (CI-only, inherently safe).
+- **Safe to Auto-Merge — Build Pass (L2/L3)**: `verification_level` is 2 or 3 AND (`build.verdict` is `pass` or `pre_existing` with no new errors). These PRs pass build/type-check but tests either fail (pre-existing on `main` too) or weren't run. Still safe, but developer should confirm test failures are unrelated.
 - **Unverified — Pre-existing Failures**: `verification_level <= 1` AND `build.verdict == "pre_existing"` AND `install_ok == true`. These PRs installed successfully but tsc verification is inconclusive because main already fails. Do NOT call these "safe." Label: "⚙️ UNVERIFIED — install OK, type-check inconclusive due to pre-existing main failures." Patch/minor dev deps in this category are low-risk; major production deps should be called out.
 - **Quick Review (verified but needs confirmation)**: `verification_level >= 4` (L4/L5) AND verdict is REVIEW only because of rule 5a (major + 0 imports + production). These are fully verified but the 0-imports finding needs a 30-second human check. In the table, say: "L5 verified — all tests pass. Confirm `package` is still needed or consumed indirectly."
 - **Genuine Review Needed**: `install_ok == true` AND verdict is REVIEW due to behavioral concerns, API changes, NestJS peer groups, or cascade impacts. These need real HUMAN judgment.
@@ -838,13 +839,14 @@ _Generated: YYYY-MM-DD | Analyzed: N PRs | Ecosystems: npm, gomod, maven, docker
 > To refresh: `gh workflow run breakability-agent.yml` or open a new Dependabot PR to trigger instant analysis.
 
 ### 🎯 Developer Action Summary
-_The 5 things you need to do, in order:_
+_The 6 things you need to do, in order:_
 
-1. **Fix infrastructure blockers** (Step 0 below) — unblocks ~NN PRs
-2. **Merge safe PRs** — NN PRs ready to auto-merge right now
-3. **Fix code breaks** — N PRs need code changes (details below)
-4. **Batch NestJS upgrades** — N NestJS groups must be merged together
-5. **Re-run analysis** after Step 0 — ~NN PRs will likely move from REVIEW to SAFE
+1. **Check coordinated upgrades** — N PR groups must be merged together (see warnings below)
+2. **Fix infrastructure blockers** (Step 0 below) — unblocks ~NN PRs
+3. **Merge fully-verified PRs (L4)** — NN PRs with build + tests passing, merge with confidence
+4. **Review and merge build-verified PRs (L2)** — NN PRs with build passing, tests pre-existing fail
+5. **Fix code breaks** — N PRs need code changes (details below)
+6. **Re-run analysis** after Step 0 — ~NN PRs will likely move from REVIEW to SAFE
 
 ### 🔧 Step 0: Infrastructure Prerequisites
 _Do these FIRST. They unblock the majority of PRs._
@@ -869,10 +871,20 @@ _These PRs have merge conflicts and cannot be merged until rebased. No analysis 
 | PR | Package | Bump | Service/Lib | Action |
 |----|---------|------|-------------|--------|
 
-### ✅ Safe to Auto-Merge (L2+ Verified)
-_These PRs have been type-checked and verified. Merge with confidence._
-| PR | Package | Bump | Type | Service/Lib | Verification | Confidence |
-|----|---------|------|------|-------------|-------------|------------|
+### ⚠️ Coordinated Upgrades
+_These PRs MUST be merged together or in a specific order. Read BEFORE merging from the Safe tables below._
+| PRs | Relationship | Merge Order |
+|-----|-------------|-------------|
+
+### ✅ Safe to Auto-Merge — Full Pass (L4/L5 Verified)
+_These PRs pass build AND tests. Merge with highest confidence._
+| PR | Package | Bump | Type | Service/Lib | Module | Verification | Confidence |
+|----|---------|------|------|-------------|--------|-------------|------------|
+
+### ✅ Safe to Auto-Merge — Build Pass (L2 Verified)
+_These PRs pass build/type-check. Tests fail on `main` too (pre-existing). Merge after confirming test failures are unrelated._
+| PR | Package | Bump | Type | Service/Lib | Module | Verification | Confidence |
+|----|---------|------|------|-------------|--------|-------------|------------|
 
 ### ⚙️ Unverified — Pre-existing Failures (L1 only)
 _These PRs installed successfully but type-checking is inconclusive because `main` has pre-existing tsc failures. The upgrades do not introduce new errors, but safety is not confirmed. Patch/minor dev deps are low-risk; major production deps need changelog review._
@@ -943,8 +955,7 @@ _These PRs upgrade dependencies in shared libraries that are consumed by multipl
 |-----------|-----|-------------------|-------------|
 
 ### Cross-PR Dependencies
-| PRs | Relationship | Merge Order |
-|-----|-------------|-------------|
+_Cross-PR dependencies are shown in the **Coordinated Upgrades** section above the Safe tables (top of the plan) to ensure developers see them BEFORE batch-merging. Do not duplicate here — only use the section above._
 
 ### Recommended Merge Order
 | Step | PR(s) | Package | Service/Lib | Prerequisite | Est. Risk |
@@ -975,7 +986,7 @@ _If any service has critical > 0, flag it: "🔴 **{service}** has {N} critical 
 _Merging the PRs above reduces your open vulnerability count from N to N-M._
 
 ### Summary
-- **Total: N PRs** | Safe: X | Quick Review: Q | Genuine Review: Y | Infra-Blocked: Z | Fix Required: W
+- **Total: N PRs** | Safe (L4): X₁ | Safe (L2): X₂ | Quick Review: Q | Genuine Review: Y | Infra-Blocked: Z | Fix Required: W
 - **Ecosystems:** npm: A, gomod: B, maven: C, docker: D, actions: E
 - **Ownership:** direct: A, transitive: B, base_image: C, platform_sdk: D, build_tool: E, ci_tool: F
 - **Infrastructure Issues:** N PRs blocked by lock file desync, M PRs blocked by registry auth. Fix via Step 0.
