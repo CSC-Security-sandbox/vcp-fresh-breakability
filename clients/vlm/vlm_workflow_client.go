@@ -108,7 +108,7 @@ func (vlmManager *VSAClientWorkflowManager) CreateVSAExpertModeUser(ctx workflow
 	accountId := createVSAExpertModeUserRequest.VLMConfig.Deployment.Labels["account_id"]
 
 	workflowExecutionTimeout := temporalUtils.GetWorkflowGlobalTimeout()
-	if timeout, ok := WorkflowExecutionTimeoutMap["DefaultWorkflowExecutionTimeout"]; ok {
+	if timeout, ok := WorkflowExecutionTimeoutMap[CreateVSASVMWorkflowName]; ok {
 		workflowExecutionTimeout = timeout
 	}
 

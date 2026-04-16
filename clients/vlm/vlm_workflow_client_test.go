@@ -1854,6 +1854,12 @@ func TestCreateVSAExpertModeUser_ChildWorkflowError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestCreateVSAExpertModeUser_TimeoutConfiguration(t *testing.T) {
+	timeout, ok := WorkflowExecutionTimeoutMap[CreateVSASVMWorkflowName]
+	assert.True(t, ok, "CreateVSAExpertModeUserWorkflow should have a 15 mins timeout")
+	assert.Equal(t, 15*time.Minute, timeout, "timeout should be 15 minutes to accommodate ONTAP RBAC provisioning")
+}
+
 // TestUpdateLicenseWorkflow tests the UpdateLicenseWorkflow method
 func TestUpdateLicenseWorkflow(t *testing.T) {
 	t.Run("TestUpdateLicenseWorkflow_Success", func(t *testing.T) {
