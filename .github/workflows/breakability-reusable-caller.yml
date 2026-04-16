@@ -1,0 +1,38 @@
+# Breakability Analysis — Consuming CSC-Security-sandbox/breakability reusable workflow
+# This is the NEW way: single source of truth from the breakability action repo.
+
+name: Breakability Analysis (Reusable)
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_filter:
+        description: 'Comma-separated PR numbers (empty = all open Dependabot PRs)'
+        required: false
+        default: ''
+      batch_count:
+        description: 'Number of parallel batches'
+        required: false
+        default: '4'
+      skip_agent:
+        description: 'Skip Copilot agent (deterministic only)'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  breakability:
+    uses: CSC-Security-sandbox/breakability/.github/workflows/breakability-reusable.yml@main
+    with:
+      pr_filter: ${{ github.event.inputs.pr_filter || '' }}
+      batch_count: ${{ fromJson(github.event.inputs.batch_count || '4') }}
+      skip_agent: ${{ github.event.inputs.skip_agent == 'true' }}
+      go_version: '1.22'
+    secrets:
+      token: ${{ secrets.GITHUB_TOKEN }}
+      breakability_pat: ${{ secrets.BREAKABILITY_PAT }}

@@ -1,0 +1,165 @@
+name: PR Analysis
+
+on:
+  pull_request:
+    types: [opened, synchronize]  # Trigger when PR is opened or updated
+
+permissions:
+    contents: read
+    packages: read
+    actions: read
+    pull-requests: write
+
+jobs:
+  pr-analysis-job:
+    #    runs-on: ubuntu-latest
+    runs-on: [self-hosted, pr-analysis]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      options: --user root
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: false
+
+      - name: Fetch main branch
+        run: git fetch origin main
+
+      - name: Fetch base branch
+        run: |
+          git fetch --all  # Ensure all remote branches are fetched
+          git fetch origin $GITHUB_BASE_REF --depth=1
+
+      - name: Fetch and switch to PR branch
+        run: |
+          git diff -U50 origin/$GITHUB_BASE_REF > temp_diff_before_checkout.txt
+          # Get the PR branch name
+          PR_BRANCH=$(echo $GITHUB_HEAD_REF)
+          echo "Pull request branch: $PR_BRANCH"
+          
+          # Fetch the PR branch
+          git fetch origin $PR_BRANCH
+          
+          # Switch to the PR branch
+          git checkout $PR_BRANCH
+          
+          last_commit=$(git rev-parse HEAD)
+          commit_message=$(git log -1 --pretty=%B $last_commit)
+
+          # Append the commit message to the diff file
+          echo "Commit message information : " >> temp_diff_before_checkout.txt
+          
+          # Check if the commit message contains #analyze and context files
+          if echo "$commit_message" | grep -q '#analyze'; then
+            echo "Analyzing additional context files..."
+
+            # Extract the context files mentioned after #analyze
+            context_files=$(echo "$commit_message" | grep -oP '(?<=#analyze).*' | xargs)
+          
+            if [[ -n $context_files ]]; then
+              echo "added Additional context files string"
+              echo "Below are the additional context files only for reference(not to review)" >> temp_diff_before_checkout.txt
+            fi
+
+            # Loop through the context files and append their content to the diff file
+            for file in $context_files; do
+              if [[ -f $file ]]; then
+                echo "Appending content of $file to temp_diff_before_checkout.txt"
+                echo -e "\n\n--- Start of $file ---\n" >> temp_diff_before_checkout.txt
+                cat "$file" >> temp_diff_before_checkout.txt
+                echo -e "\n--- End of $file ---\n" >> temp_diff_before_checkout.txt
+              else
+                echo "File $file not found, skipping."
+              fi
+            done
+          else
+            echo "No additional context files found."
+          fi
+        shell: bash
+
+
+      - name: Check for #analyze keyword
+        id: check_keyword
+        run: |
+          echo "Checking for #analyze keyword in the commit message:"
+
+          # Get the most recent commit on the PR branch
+          last_commit=$(git rev-parse HEAD)
+
+          echo "Last commit hash: $last_commit"
+
+          # Fetch the commit message of the last commit
+          commit_message=$(git log -1 --pretty=%B $last_commit)
+          echo "Commit message of last commit:"
+          echo "$commit_message"
+
+          # Check for '#analyze' in the commit message of the last commit
+          echo "contains_analyze=true" >> $GITHUB_ENV
+        #          if echo "$commit_message" | grep -q '#analyze'; then
+        #            echo "contains_analyze=true"
+        #            echo "contains_analyze=true" >> $GITHUB_ENV
+        #          else
+        #            echo "contains_analyze=false"
+        #            echo "contains_analyze=false" >> $GITHUB_ENV
+        #          fi
+        shell: bash
+
+      - name: Run PR Analysis
+        if: env.contains_analyze == 'true'
+        env:
+          USER_NAME: ${{ github.actor }}
+          GITHUB_REPO: ${{ github.repository }} # GitHub repository
+          OPENAI_USER: 'mvinayku'
+          OPENAI_KEY: ${{ secrets.OPEN_AI_KEY }}
+        run: |
+          echo "user: $USER_NAME"
+          #git diff origin/main > temp_diff.txt
+          chmod +x ./tools/pr-analysis/analyse_pr
+          ./tools/pr-analysis/analyse_pr temp_diff_before_checkout.txt pr_analysis_output.txt
+
+      - name: Update PR description with analysis
+        if: env.contains_analyze == 'true'
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          ANALYSIS_OUTPUT=$(cat pr_analysis_output.txt)
+          PR_NUMBER=${{ github.event.pull_request.number }}
+
+          # Get the current PR description
+          PR_DESCRIPTION=$(gh pr view $PR_NUMBER --json body --jq '.body')
+
+          # Define the start and end markers for the analysis section
+          START_MARKER='<!-- analysis-start -->'
+          END_MARKER='<!-- analysis-end -->'
+
+          # Get content before the marker (exclusive)
+          BEFORE_ANALYSIS=$(echo "$PR_DESCRIPTION" | awk -v marker="$START_MARKER" '
+            NR==1, $0 ~ marker {
+              if ($0 !~ marker) print
+            }
+          ')
+
+          # Get content after the marker (exclusive)
+          AFTER_ANALYSIS=$(echo "$PR_DESCRIPTION" | awk -v marker="$END_MARKER" '
+            $0 ~ marker, NR==$NR {
+              if ($0 !~ marker) print
+            }
+          ')
+
+          # Construct the new PR description
+          NEW_PR_DESCRIPTION="${BEFORE_ANALYSIS}
+          ${START_MARKER}
+          ${ANALYSIS_OUTPUT}
+          ${END_MARKER}
+          ${AFTER_ANALYSIS}"
+
+          # Update the PR description
+          gh pr edit $PR_NUMBER --body "$NEW_PR_DESCRIPTION"

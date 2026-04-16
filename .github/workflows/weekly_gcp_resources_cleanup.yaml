@@ -1,0 +1,166 @@
+name: Weekly GCP Images and Charts Cleanup
+
+on:
+  schedule:
+    - cron: "0 0 * * 1" # Runs weekly at midnight UTC on Mondays
+
+  workflow_dispatch:
+
+permissions:
+  packages: write
+  contents: read
+  id-token: write
+
+jobs:
+  cleanup_old_artifacts:
+    name: Weekly GCP Images and Charts Cleanup
+    runs-on: [self-hosted,linux]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      options: --user root
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+
+    steps:
+      - id: auth
+        uses: google-github-actions/auth@v1
+        with:
+          workload_identity_provider: "projects/${{vars.AR_GCP_PROJ_NUM}}/locations/global/workloadIdentityPools/${{vars.AR_WLI_POOL}}/providers/${{vars.AR_WLI_PROV}}"
+          service_account: "${{vars.AR_GCP_SA}}@${{ vars.AR_GCP_PROJ }}.iam.gserviceaccount.com"
+
+      - name: Configure Docker
+        run: |
+          gcloud config set project ${{ vars.AR_GCP_PROJ  }} --quiet
+          gcloud auth configure-docker ${{vars.AR_GCP_REGION}}-docker.pkg.dev --quiet
+
+      - name: Delete Old Docker Images
+        shell: bash
+        run: |
+          REPO="${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ  }}/${{ vars.AR_IMAGE_PATH}}"
+          IMAGES=("core" "google-proxy" "vcp-db-migrate" "vcp-worker" "telemetry" "vcp-cloudrun-deployer")
+          current_date=$(date +%s)
+          
+          for IMAGE in "${IMAGES[@]}"; do
+            echo "Processing image: $IMAGE"
+          
+            # Fetch the latest digest
+            LATEST_DIGEST=$(gcloud artifacts docker images list "$REPO/$IMAGE" \
+              --include-tags --sort-by=~UPDATE_TIME --limit=1 --format="value(DIGEST)")
+          
+            if [[ -z "$LATEST_DIGEST" ]]; then
+              echo "No latest digest found for $IMAGE. Skipping..."
+              continue
+            fi
+          
+            echo "Latest digest for $IMAGE: $LATEST_DIGEST"
+          
+            # List all images and process them
+            gcloud artifacts docker images list "$REPO/$IMAGE" --include-tags \
+              --format="value(IMAGE,DIGEST,UPDATE_TIME,TAGS)" | while read -r line; do
+          
+              image=$(echo "$line" | awk '{print $1}')
+              digest=$(echo "$line" | awk '{print $2}')
+              tags_arr=$(echo "$line" | awk '{print $4}')
+              update_time=$(echo "$line" | awk '{print $3}')
+              TAGS_EXIST=1
+              if [[ -z "$update_time" ]]; then
+                TAGS_EXIST=0
+                update_time=$tags_arr
+              fi   
+              # Convert update_time to epoch
+              update_time_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%S" "$update_time" +%s 2>/dev/null || date -d "$update_time" +%s)
+              age_days=$(( (current_date - update_time_epoch) / 86400 ))      
+              if [[ $TAGS_EXIST -eq 0 &&  $age_days -gt ${{ vars.AR_RETENTION_WINDOW_IN_DAYS }} && "$digest" != "$LATEST_DIGEST" ]]; then
+                gcloud artifacts docker images delete "$image@$digest"  --quiet
+                continue
+              fi
+              IFS=',' read -r -a tags <<< "$tags_arr"
+              # Delete old digests except the latest
+              if [[ $age_days -gt ${{ vars.AR_RETENTION_WINDOW_IN_DAYS }} && "$digest" != "$LATEST_DIGEST" ]]; then
+                echo "Deleting tags for image: $image@$digest"
+                ALL_TAGS_DELETED=1
+                for tag in "${tags[@]}"; do
+                  if [[ "$tag" == *DEV* || "$tag" == *RC* ]]; then
+                    gcloud artifacts tags delete "$tag" --location=${{vars.AR_GCP_REGION}} --package="$IMAGE" --repository=${{vars.AR_IMAGE_PATH}} --quiet
+                    echo "Deleted tag: $tag for image: $image@$digest"
+                  else
+                    echo "Skipping tag: $tag for image: $image@$digest as it does not match DEV or RC"
+                    ALL_TAGS_DELETED=0
+                  fi
+                done
+                if [[ $ALL_TAGS_DELETED -eq 1 ]]; then
+                  echo "Deleting image: $image@$digest as all tags were deleted"
+                  gcloud artifacts docker images delete "$image@$digest"  --quiet
+                else
+                  echo "Not deleting image: $image@$digest as not all tags were deleted"
+                fi
+              fi
+            done
+          done
+
+      - name: Delete Old Helm Charts
+        shell: bash
+        run: |
+          REPO="${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ  }}/${{ vars.AR_HELM_PATH}}"
+          CHARTS=("vsa-control-plane" "vcp-worker-chart" "vlm-worker")
+          current_date=$(date +%s)
+          
+          for CHART in "${CHARTS[@]}"; do
+            echo "Processing chart: $CHART"
+          
+            # Fetch the latest digest
+            LATEST_DIGEST=$(gcloud artifacts docker images list "$REPO/$CHART" \
+              --include-tags --sort-by=~UPDATE_TIME --limit=1 --format="value(DIGEST)")
+          
+            if [[ -z "$LATEST_DIGEST" ]]; then
+              echo "No latest digest found for $CHART. Skipping..."
+              continue
+            fi
+          
+            echo "Latest digest for $CHART: $LATEST_DIGEST"
+          
+            gcloud artifacts docker images list "$REPO/$CHART" --include-tags \
+              --format="value(IMAGE,DIGEST,UPDATE_TIME,TAGS)" | while read -r line; do
+          
+              chart=$(echo "$line" | awk '{print $1}')
+              digest=$(echo "$line" | awk '{print $2}')
+              tags_arr=$(echo "$line" | awk '{print $4}')
+              update_time=$(echo "$line" | awk '{print $3}')
+              TAGS_EXIST=1
+              if [[ -z "$update_time" ]]; then
+                TAGS_EXIST=0
+                update_time=$tags_arr
+              fi   
+              # Convert update_time to epoch
+              update_time_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%S" "$update_time" +%s 2>/dev/null || date -d "$update_time" +%s)
+              age_days=$(( (current_date - update_time_epoch) / 86400 ))            
+              if [[ $TAGS_EXIST -eq 0 &&  $age_days -gt ${{ vars.AR_RETENTION_WINDOW_IN_DAYS }} && "$digest" != "$LATEST_DIGEST" ]]; then
+                gcloud artifacts docker images delete "$chart@$digest"  --quiet
+                continue
+              fi
+              IFS=',' read -r -a tags <<< "$tags_arr"
+              # Delete old digests except the latest
+              if [[ $age_days -gt ${{ vars.AR_RETENTION_WINDOW_IN_DAYS  }} && "$digest" != "$LATEST_DIGEST" ]]; then
+                echo "Deleting chart: $chart@$digest"
+                ALL_TAGS_DELETED=1
+                for tag in "${tags[@]}"; do
+                  if [[ "$tag" == *DEV* || "$tag" == *RC* ]]; then
+                    gcloud artifacts tags delete "$tag" --location=${{vars.AR_GCP_REGION}} --package="$CHART" --repository=${{vars.AR_HELM_PATH}} --quiet
+                    echo "Deleted tag: $tag for chart: $chart@$digest"
+                  else
+                    echo "Skipping tag: $tag for chart: $chart@$digest as it does not match DEV or RC"
+                    ALL_TAGS_DELETED=0
+                  fi
+                done
+                if [[ $ALL_TAGS_DELETED -eq 1 ]]; then
+                  echo "Deleting chart: $chart@$digest as all tags were deleted"
+                  gcloud artifacts docker images delete "$chart@$digest"  --quiet
+                else
+                  echo "Not deleting chart: $chart@$digest as not all tags were deleted"
+                fi
+              fi
+            done
+          done

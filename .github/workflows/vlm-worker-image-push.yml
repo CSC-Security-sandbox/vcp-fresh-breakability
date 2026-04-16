@@ -1,0 +1,170 @@
+# Push VLM worker Docker image to GCP Artifact Registry.
+# Reads vlm_worker_path and vlm_worker_tag from the same config file as VSA/Mediator (config/VSA-Image/<config_file_name>.json).
+# Full path = gs://cot-releases-public/<upgrade_release_bundle_path>/<vlm_worker_path>. Manual trigger only.
+
+name: VLM Worker Image Push
+
+on:
+  workflow_dispatch:
+    inputs:
+      config_file_name:
+        description: 'Config file name in config/VSA-Image/ (e.g. 9.18.1P1X5.json). Must contain vlm_worker_path and vlm_worker_tag.'
+        required: true
+        type: string
+
+env:
+  VLM_REGISTRY: us-docker.pkg.dev
+  VLM_PROJECT: gcnv-artifact-registry-nonprod
+  VLM_REPO: vcp-container-images-us
+  VLM_IMAGE: vlm-worker
+  COT_BUCKET: gs://cot-releases-public
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  resolve-vlm-from-config:
+    name: Resolve VLM path and tag from config
+    runs-on: ubuntu-latest
+    outputs:
+      vlm_worker_tar_gz_path: ${{ steps.resolve.outputs.vlm_worker_tar_gz_path }}
+      vlm_worker_tag: ${{ steps.resolve.outputs.vlm_worker_tag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Read config and build VLM path
+        id: resolve
+        run: |
+          set -euo pipefail
+          CONFIG_FILE="config/VSA-Image/${{ inputs.config_file_name }}"
+          [ -z "${{ inputs.config_file_name }}" ] && { echo "❌ Config file name is required"; exit 1; }
+          [ ! -f "$CONFIG_FILE" ] && { echo "❌ Config file not found: $CONFIG_FILE"; exit 1; }
+          VLM_PATH=$(jq -r '.vlm_worker_path // empty' "$CONFIG_FILE")
+          VLM_TAG=$(jq -r '.vlm_worker_tag // empty' "$CONFIG_FILE")
+          UPGRADE_BUNDLE=$(jq -r '.upgrade_release_bundle_path // empty' "$CONFIG_FILE")
+          [ -z "$VLM_PATH" ] && { echo "❌ Missing vlm_worker_path in $CONFIG_FILE"; exit 1; }
+          [ -z "$VLM_TAG" ] && { echo "❌ Missing vlm_worker_tag in $CONFIG_FILE"; exit 1; }
+          [ -z "$UPGRADE_BUNDLE" ] && { echo "❌ Missing upgrade_release_bundle_path in $CONFIG_FILE (needed to build VLM full path)"; exit 1; }
+          FULL_PATH="${{ env.COT_BUCKET }}/$UPGRADE_BUNDLE/$VLM_PATH"
+          echo "vlm_worker_tar_gz_path=$FULL_PATH" >> $GITHUB_OUTPUT
+          echo "vlm_worker_tag=$VLM_TAG" >> $GITHUB_OUTPUT
+          echo "📄 Config: $CONFIG_FILE -> path=$FULL_PATH tag=$VLM_TAG"
+
+  push-vlm-worker-image:
+    name: Copy, Load, Tag and Push VLM Worker Image
+    runs-on: ubuntu-latest
+    needs: resolve-vlm-from-config
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER_VSA }}
+          service_account: ${{ secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.VLM_REGISTRY }} --quiet
+
+      - name: Copy vlm-worker tar.gz file
+        id: copy
+        run: |
+          set -euo pipefail
+          SRC="${{ needs.resolve-vlm-from-config.outputs.vlm_worker_tar_gz_path }}"
+          DEST="/tmp/vlm-worker.tar.gz"
+          echo "📋 Copying from: $SRC"
+          if [[ "$SRC" == gs://* ]]; then
+            gsutil cp "$SRC" "$DEST"
+          elif [[ "$SRC" == https://* ]] || [[ "$SRC" == http://* ]]; then
+            curl -fsSL -o "$DEST" "$SRC"
+          else
+            echo "❌ Unsupported path. Use gs://... or https://..."
+            exit 1
+          fi
+          echo "✅ Copied to $DEST"
+          echo "dest=$DEST" >> $GITHUB_OUTPUT
+
+      - name: Unzip (extract) tar.gz to tar
+        id: unzip
+        run: |
+          set -euo pipefail
+          GZ="${{ steps.copy.outputs.dest }}"
+          TAR="/tmp/vlm-worker.tar"
+          echo "📂 Extracting $GZ -> $TAR"
+          gzip -dc "$GZ" > "$TAR"
+          echo "✅ Extracted"
+          echo "tar_file=$TAR" >> $GITHUB_OUTPUT
+
+      - name: Load Docker image from tar file
+        id: load
+        run: |
+          set -euo pipefail
+          TAR_FILE="${{ steps.unzip.outputs.tar_file }}"
+          echo "📦 Loading Docker image from $TAR_FILE"
+          LOAD_OUTPUT=$(docker load -i "$TAR_FILE" 2>&1)
+          echo "$LOAD_OUTPUT"
+          # Capture loaded image (e.g. "Loaded image: repo:tag" or "Loaded image ID: sha256:...")
+          if echo "$LOAD_OUTPUT" | grep -q "Loaded image:"; then
+            LOADED_IMAGE=$(echo "$LOAD_OUTPUT" | grep "Loaded image:" | sed 's/^Loaded image: *//' | head -1)
+          elif echo "$LOAD_OUTPUT" | grep -q "Loaded image ID:"; then
+            LOADED_IMAGE=$(echo "$LOAD_OUTPUT" | grep "Loaded image ID:" | sed 's/^Loaded image ID: *//' | head -1)
+          else
+            # Fallback: use most recently created image
+            LOADED_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | head -1)
+          fi
+          if [ -z "$LOADED_IMAGE" ]; then
+            echo "❌ Could not determine loaded image"
+            exit 1
+          fi
+          echo "loaded_image=$LOADED_IMAGE" >> $GITHUB_OUTPUT
+          echo "✅ Loaded image: $LOADED_IMAGE"
+
+      - name: Check if VLM worker image already exists in registry
+        id: check
+        run: |
+          set -euo pipefail
+          TAG="${{ needs.resolve-vlm-from-config.outputs.vlm_worker_tag }}"
+          IMAGE_URI="${{ env.VLM_REGISTRY }}/${{ env.VLM_PROJECT }}/${{ env.VLM_REPO }}/${{ env.VLM_IMAGE }}:$TAG"
+          echo "🔍 Checking if image exists: $IMAGE_URI"
+          if gcloud artifacts docker images describe "$IMAGE_URI" --project="${{ env.VLM_PROJECT }}" 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "✅ VLM worker image already exists in registry: $IMAGE_URI"
+            echo "   Skipping tag and push; continuing with pipeline."
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ Image not found in registry; will tag and push."
+          fi
+
+      - name: Tag and push VLM worker image
+        if: steps.check.outputs.exists != 'true'
+        run: |
+          set -euo pipefail
+          TAG="${{ needs.resolve-vlm-from-config.outputs.vlm_worker_tag }}"
+          TARGET="${{ env.VLM_REGISTRY }}/${{ env.VLM_PROJECT }}/${{ env.VLM_REPO }}/${{ env.VLM_IMAGE }}:$TAG"
+          LOADED="${{ steps.load.outputs.loaded_image }}"
+          echo "🏷️ Tagging: $LOADED -> $TARGET"
+          docker tag "$LOADED" "$TARGET"
+          echo "📤 Pushing to Artifact Registry..."
+          docker push "$TARGET"
+          echo "✅ Pushed $TARGET"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## VLM Worker Image Push Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Config file**: ${{ inputs.config_file_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Source path**: ${{ needs.resolve-vlm-from-config.outputs.vlm_worker_tar_gz_path }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag**: ${{ needs.resolve-vlm-from-config.outputs.vlm_worker_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Registry image**: ${{ env.VLM_REGISTRY }}/${{ env.VLM_PROJECT }}/${{ env.VLM_REPO }}/${{ env.VLM_IMAGE }}:${{ needs.resolve-vlm-from-config.outputs.vlm_worker_tag }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.check.outputs.exists }}" = "true" ]; then
+            echo "- **Result**: Image already existed; skip push." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Result**: Image loaded, tagged and pushed." >> $GITHUB_STEP_SUMMARY
+          fi

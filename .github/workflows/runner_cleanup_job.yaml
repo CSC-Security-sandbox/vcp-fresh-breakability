@@ -1,0 +1,71 @@
+name: Runners Cleanup job
+
+on:
+  schedule:
+    - cron: "0 */3 * * *" # Runs every 3 hours
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  prune-docker:
+    strategy:
+      matrix:
+        runner_label: [cvs-u24-sunilt-01, cvs-u24-sunilt-02, cvs-u24-sunilt-03, cvs-u24-sunilt-04, cvs-u24-sunilt-05]
+    runs-on: ${{ matrix.runner_label }}
+    steps:
+      - name: Check Disk Usage
+        id: check_disk
+        run: |
+          DISK_USAGE=$(df / | tail -1 | awk '{print $5}' | sed 's/%//')
+          echo "Disk usage: $DISK_USAGE%"
+          if [ "$DISK_USAGE" -gt 75 ]; then
+            echo "Disk usage exceeds 75%"
+            echo "prune_needed=true" >> $GITHUB_ENV
+          else
+            echo "Disk usage is below 75%"
+            echo "prune_needed=false" >> $GITHUB_ENV
+          fi
+
+      - name: Docker System Prune
+        if: env.prune_needed == 'true'
+        run: |
+          echo "Running docker system prune..."
+          docker system prune -a -f --volumes
+          echo "Docker system prune completed."
+          DISK_USAGE=$(df / | tail -1 | awk '{print $5}' | sed 's/%//')
+          echo "Disk usage after cleanup is: $DISK_USAGE%"
+
+      - name: Check Go Installation
+        id: go-check
+        run: |
+          if command -v go >/dev/null 2>&1; then
+            echo "go_version=$(go version)" >> "$GITHUB_OUTPUT"
+          else
+            echo "go_version=none" >> "$GITHUB_OUTPUT" 
+          fi
+      - name: Clean Go Caches
+        if: ${{ steps.go-check.outputs.go_version != 'none' }}
+        run: |
+          go clean -cache
+          go clean -modcache
+          go clean -testcache
+          echo "Go caches cleaned."
+    
+
+  cleanup-workspace:
+    strategy:
+      matrix:
+        runner_label: [cvs-u24-sunilt-01, cvs-u24-sunilt-02, cvs-u24-sunilt-03, cvs-u24-sunilt-04, cvs-u24-sunilt-05]
+    runs-on: ${{ matrix.runner_label }}
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v7
+      options: --user root
+      volumes:
+        - /home/cvs/actions-runner/_work/:/_work/
+    steps:
+      - name: Cleanup all working Directory files
+        run: |
+          find /_work/_temp/ -mindepth 1 -maxdepth 1 ! -name '_github_home' -exec rm -rfv {} +

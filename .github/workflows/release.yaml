@@ -1,0 +1,200 @@
+name: Create Pre-Release and Publish Docker images
+
+on:
+  push:
+    branches:
+      - main
+      - release/2*
+
+
+permissions:
+  packages: write
+  contents: read
+  id-token: write
+  actions: read
+  security-events: write
+
+
+jobs:
+  setup-vsacictl:
+    name: Setup vsacictl
+    uses: ./.github/workflows/setup-vsacictl.yaml
+    secrets: inherit
+
+  obtain_pr_details:
+    name: Obtain PR details
+    runs-on: [self-hosted,linux]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      options: --user root
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+          clean: true
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - name: Fetch PR user and details
+        id: fetch_pr_user_and_details
+        run: |
+          PR_DETAILS=$(curl -sf -H "Authorization: Bearer ${{ secrets.GHVSA_PAT }}" \
+          -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/VCP-VSA-control-Plane/vsa-control-plane/commits/${{ github.sha }}/pulls")
+          echo "PR_DETAILS FETCHED"
+          
+            # Check if the curl command succeeded
+            if [[ $? -ne 0 || -z "$PR_DETAILS" ]]; then
+          echo "Error: Failed to fetch PR details or response is empty."
+            exit 1
+            fi
+          
+            # Parse the first PR object
+            PR_DETAILS=$(echo "$PR_DETAILS" | tr -d '\000-\037' | jq '.[0]')
+          
+            # Validate the parsed JSON
+            if [[ "$PR_DETAILS" == "null" || -z "$PR_DETAILS" ]]; then
+          echo "Error: No pull request found for the given commit."
+            exit 1
+            fi
+          
+            # Extract PR user and title
+            PR_USER=$(echo "$PR_DETAILS" | jq -r '.user.login // empty')
+            PR_TITLE=$(echo "$PR_DETAILS" | jq -r '.title // empty')
+            PR_BRANCH=$(echo "$PR_DETAILS" | jq -r '.base.ref // empty')
+          
+            # Validate extracted values
+            if [[ -z "$PR_USER" || -z "$PR_TITLE" || -z "$PR_BRANCH" ]]; then
+              echo "Error: PR user, title, or branch is empty."
+              exit 1
+            fi
+          
+            # Write to GITHUB_ENV
+            echo "PR_USER=$PR_USER" >> $GITHUB_ENV
+            echo "PR_TITLE=$PR_TITLE" >> $GITHUB_ENV
+            echo "PR_BRANCH=$PR_BRANCH" >> $GITHUB_ENV
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GHVSA_PAT }}
+
+    outputs:
+      pr_user: ${{ env.PR_USER }}
+      pr_title: ${{ env.PR_TITLE }}
+      pr_base_branch: ${{ env.PR_BRANCH }}
+
+  generate_tag:
+    runs-on: [ self-hosted, linux ]
+    needs: [ obtain_pr_details, setup-vsacictl ]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      options: -v /var/run/docker.sock:/var/run/docker.sock --user root
+    permissions:
+      contents: read
+      packages: read
+      actions: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GHVSA_PAT }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - name: Configure Git identity
+        run: |
+          USERNAME=${{ github.actor }}
+          echo "Fetching email for $USERNAME"
+          EMAIL=$(curl -s -H "Authorization: token ${{ secrets.GHVSA_PAT }}" https://api.github.com/users/$USERNAME | jq -r '.email')
+          if [ "$EMAIL" == "null" ]; then
+            EMAIL="$USERNAME@users.noreply.github.com"
+          fi
+          echo "Using email: $EMAIL"
+          echo "Using username: $USERNAME"
+          git config --global user.email "$EMAIL"
+          git config --global user.name "$USERNAME"
+
+      - name: Install vsacictl
+        uses: ./.github/actions/install-vsacictl
+        with:
+          cache-key: ${{ needs.setup-vsacictl.outputs.cache-key }}
+
+      - name: Fetch new tag
+        id: fetch_new_tag
+        env:
+          GITHUB_BASE: ${{ needs.obtain_pr_details.outputs.pr_base_branch }}
+          PR_TITLE: ${{ needs.obtain_pr_details.outputs.pr_title }}
+          JIRA_API_TOKEN: ${{ secrets.VCP_CI_JIRA_BOT_PAT }}
+        shell: bash
+        run: |
+          # Ensure the command runs successfully and capture the output
+          newTag=$(vsacictl tag fetch_latest_build)
+          if [[ $? -ne 0 || -z "$newTag" ]]; then
+            echo "Error: Failed to fetch new tag or output is empty."
+            exit 1
+          fi
+          
+          # Write the newTag value to GITHUB_ENV
+          echo "newTag=$newTag" >> "$GITHUB_ENV"
+
+      - name: Output new tag
+        run: |
+          echo "New tag is ${{ env.newTag }}"
+          echo "PR_BASE_BRANCH=${{ needs.obtain_pr_details.outputs.pr_base_branch }}"
+
+        shell: bash
+
+    outputs:
+      newTag: ${{ env.newTag }}
+
+  create_pre_release_vsa_control_plane:
+    needs: [obtain_pr_details,generate_tag]
+    uses: ./.github/workflows/build_common.yaml
+    secrets: inherit
+    with:
+      pre_release: true
+      tag: ${{ needs.generate_tag.outputs.newTag }}
+      pr_user: ${{ needs.obtain_pr_details.outputs.pr_user }}
+      pr_title: ${{ needs.obtain_pr_details.outputs.pr_title }}
+      pr_base_branch: ${{ needs.obtain_pr_details.outputs.pr_base_branch }}
+      component_update: true
+
+  trigger_sanity_tests:
+    needs: [obtain_pr_details, generate_tag, create_pre_release_vsa_control_plane]
+    runs-on: [self-hosted, linux]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      options: --user root
+
+    steps:
+      - name: Determine build type
+        id: build_type
+        run: |
+          TAG="${{ needs.generate_tag.outputs.newTag }}"
+          BASE_BRANCH="${{ needs.obtain_pr_details.outputs.pr_base_branch }}"
+          
+          # RC builds come from release branches, DEV builds from main
+          if [[ "$BASE_BRANCH" =~ ^release/ ]] || [[ "$TAG" =~ -RC\.[0-9]+$ ]]; then
+            echo "jenkins_job=nkdev_rc_deployment_pipeline" >> $GITHUB_OUTPUT
+          else
+            echo "jenkins_job=nkdev_deployment_pipeline" >> $GITHUB_OUTPUT
+          fi
+        shell: bash
+
+      - name: Trigger Jenkins Job
+        continue-on-error: true
+        run: |
+          curl -k -f -X POST "https://vcp-cicd-jenkins.daas.netapp.com/job/${{ steps.build_type.outputs.jenkins_job }}/buildWithParameters" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            --data-urlencode "vcp_release_number=${{ needs.generate_tag.outputs.newTag }}" \
+            --user "${{ secrets.JENKINS_PAT }}" \
+          || echo "Warning: Failed to trigger Jenkins job"
+        shell: bash

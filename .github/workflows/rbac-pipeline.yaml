@@ -1,0 +1,319 @@
+name: RBAC File Copy Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      rbac_file_name:
+        description: 'RBAC file name (ex. gcnvadmin_create_cli)'
+        required: true
+        type: string
+        default: 'gcnvadmin_create_cli'
+      release_version:
+        description: 'Image name (ex. x-9-18-1rc1)'
+        required: true
+        type: string
+      rbac_file_path:
+        description: 'COT path (ex. cot-releases-public/GCNV_released_bundle/GCNV/9.18.1RC1)'
+        required: true
+        type: string
+      source_bucket:
+        description: 'Source GCP bucket name (e.g., source-bucket-name)'
+        required: true
+        type: string
+        default: 'cot-releases-public'
+      destination_bucket:
+        description: 'Destination GCP bucket name (e.g., dest-bucket-name)'
+        required: true
+        type: choice
+        options:
+          - gcnv-autopush-images-bucket
+          - gcnv-staging-images-bucket
+          - gcnv-prod-images-bucket
+        default: 'gcnv-autopush-images-bucket'
+      sha256_file_name:
+        description: 'SHA256 checksum file name (ex. gcnvadmin_create_cli.sha256)'
+        required: true
+        type: string
+      verify_checksum:
+        description: 'Verify checksum during file copy (true/false)'
+        required: false
+        type: boolean
+        default: true
+
+env:
+  PULL_VM_PROJECT: 'gcnv-vsa-prod'
+  GCP_REGION: 'us-central1'
+  GCP_ZONE: 'us-central1-a'
+  PULL_VM_NAME: 'vsa-pull-image-instance'
+
+jobs:
+  check-file-exists:
+    name: Check if file exists in gcnv-vsa-prod bucket
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      id-token: write
+    
+    outputs:
+      file_exists_destination: ${{ steps.check-destination.outputs.status }}
+      file_exists_source: ${{ steps.check-source.outputs.status }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER_VSA }}
+          service_account: ${{ secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          export_default_credentials: true
+
+      - name: Set GCP project
+        run: |
+          gcloud config set project ${PULL_VM_PROJECT}
+
+      - name: check file RBAC exists in gcp storage bucket vsa-compute-images
+        id: check-source
+        continue-on-error: true
+        run: | 
+          set +e  # Don't exit on error, we'll handle it manually
+          echo "Project: ${PULL_VM_PROJECT}"
+          echo "Checking if file RBAC exists in gcp storage bucket vsa-compute-images: gs://vsa-compute-images/GCNV/${{ inputs.release_version }}/RBAC/${{ inputs.rbac_file_name }}"
+          gsutil -q stat "gs://vsa-compute-images/GCNV/${{ inputs.release_version }}/RBAC/${{ inputs.rbac_file_name }}" 2>&1
+          RBAC_FILE_EXIST=$?
+          if [ ${RBAC_FILE_EXIST} -ne 0 ]; then
+            echo "File RBAC does not exist in gcp storage bucket vsa-compute-images"
+            echo "status=not_found" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "Checking if file RBAC SHA256 exists in gcp storage bucket vsa-compute-images: gs://vsa-compute-images/GCNV/${{ inputs.release_version }}/RBAC/${{ inputs.sha256_file_name }}"
+          gsutil -q stat "gs://vsa-compute-images/GCNV/${{ inputs.release_version }}/RBAC/${{ inputs.sha256_file_name }}" 2>&1
+          SHA256_FILE_EXIST=$?
+          if [ ${SHA256_FILE_EXIST} -ne 0 ]; then
+            echo "File RBAC SHA256 does not exist in gcp storage bucket vsa-compute-images"
+            echo "status=not_found" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "✅ Both RBAC file and SHA256 file exist in gcp storage bucket vsa-compute-images"
+          echo "status=found" >> $GITHUB_OUTPUT
+          exit 0
+
+      - name: check file RBAC exists in gcp storage destination bucket
+        id: check-destination
+        continue-on-error: true
+        run: |
+          set +e  # Don't exit on error, we'll handle it manually
+          echo "Project: ${PULL_VM_PROJECT}"
+          echo "Checking if file RBAC exists in gcp storage destination bucket: gs://${{ inputs.destination_bucket }}/GCNV/${{ inputs.release_version }}/RBAC/${{ inputs.rbac_file_name }}"
+          gsutil -q stat "gs://${{ inputs.destination_bucket }}/GCNV/${{ inputs.release_version }}/RBAC/${{ inputs.rbac_file_name }}" 2>&1
+          RBAC_FILE_EXIST=$?
+          if [ ${RBAC_FILE_EXIST} -ne 0 ]; then
+            echo "File RBAC does not exist in gcp storage destination bucket"
+            echo "status=not_found" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "Checking if file RBAC SHA256 exists in gcp storage destination bucket: gs://${{ inputs.destination_bucket }}/GCNV/${{ inputs.release_version }}/RBAC/${{ inputs.sha256_file_name }}"
+          gsutil -q stat "gs://${{ inputs.destination_bucket }}/GCNV/${{ inputs.release_version }}/RBAC/${{ inputs.sha256_file_name }}" 2>&1
+          SHA256_FILE_EXIST=$?
+          if [ ${SHA256_FILE_EXIST} -ne 0 ]; then
+            echo "File RBAC SHA256 does not exist in gcp storage destination bucket"
+            echo "status=not_found" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "✅ Both RBAC file and SHA256 file exist in gcp storage destination bucket"
+          echo "status=found" >> $GITHUB_OUTPUT
+          exit 0
+
+
+  copy-rbac-file-to-vsa-compute-images:
+    name: Pull RBAC Image file (seclab → netapp org)
+    runs-on: ubuntu-latest
+    needs: check-file-exists
+    if: |
+      needs.check-file-exists.outputs.file_exists_source != 'found' &&
+      needs.check-file-exists.outputs.file_exists_destination != 'found'
+    
+    permissions:
+      contents: read
+      id-token: write
+    
+    outputs:
+      pull_status: ${{ steps.pull.outputs.status }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER_VSA }}
+          service_account: ${{ secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          export_default_credentials: true
+
+      - name: Set GCP project
+        run: |
+          gcloud config set project ${PULL_VM_PROJECT}
+      
+      - name: Configure SSH for non-interactive mode
+        run: |
+          # Configure gcloud to skip SSH key prompts
+          gcloud config set compute/region ${GCP_REGION}
+          gcloud config set core/disable_prompts true
+          # gcloud will automatically manage SSH keys when using compute ssh/scp commands
+
+      - name: Copy script files to Pull VM
+        run: |
+          # First, create the directory on the VM if it doesn't exist
+          gcloud compute ssh ${PULL_VM_NAME} \
+            --zone=${GCP_ZONE} \
+            --project=${PULL_VM_PROJECT} \
+            --quiet \
+            --command="sudo mkdir -p /opt/vsa-pull-image && sudo chmod 755 /opt/vsa-pull-image" || true
+          
+          # Copy script to a temporary location first
+          gcloud compute scp \
+            --zone=${GCP_ZONE} \
+            --project=${PULL_VM_PROJECT} \
+            .github/scripts/rbac-file-copy.sh ${PULL_VM_NAME}:~/rbac-file-copy.sh
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ Failed to copy script files to Pull VM"
+            exit 1
+          fi
+          
+          # Verify file was copied to home directory, then move to final location
+          gcloud compute ssh ${PULL_VM_NAME} \
+            --zone=${GCP_ZONE} \
+            --project=${PULL_VM_PROJECT} \
+            --quiet \
+            --command="ls -la ~/rbac-file-copy.sh && echo 'File exists in home directory'"
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ Script file not found in home directory after copy"
+            exit 1
+          fi
+          
+          # Move the script to the final location with sudo and verify it exists
+          gcloud compute ssh ${PULL_VM_NAME} \
+            --zone=${GCP_ZONE} \
+            --project=${PULL_VM_PROJECT} \
+            --quiet \
+            --command="sudo mv ~/rbac-file-copy.sh /opt/vsa-pull-image/rbac-file-copy.sh && sudo chmod +x /opt/vsa-pull-image/rbac-file-copy.sh && sudo ls -la /opt/vsa-pull-image/rbac-file-copy.sh"
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ Failed to move script to final location or verify file"
+            exit 1
+          fi
+          echo "✅ Script files copied to Pull VM and verified"
+      
+      - name: Execute image pull on Pull VM
+        id: pull
+        run: |
+          echo "🔽 Pulling rbac image file from seclab to netapp org: ${{ inputs.release_version }}"
+          echo "Project: ${PULL_VM_PROJECT}"
+          echo "VM: ${PULL_VM_NAME}"
+          echo ""
+          
+          # Execute the pull command on the Pull VM (has external IP)
+          # First verify the script exists before executing
+          gcloud compute ssh ${PULL_VM_NAME} \
+            --zone=${GCP_ZONE} \
+            --project=${PULL_VM_PROJECT} \
+            --quiet \
+            --command="sudo test -f /opt/vsa-pull-image/rbac-file-copy.sh && echo 'Script file exists' || (echo 'Script file not found!' && exit 1)"
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ Script file not found on VM before execution"
+            exit 1
+          fi
+          
+          gcloud compute ssh ${PULL_VM_NAME} \
+            --zone=${GCP_ZONE} \
+            --project=${PULL_VM_PROJECT} \
+            --quiet \
+            --command="sudo bash /opt/vsa-pull-image/rbac-file-copy.sh '${{ inputs.source_bucket }}' '${{ inputs.rbac_file_path }}' '${{ inputs.rbac_file_name }}' '${{ inputs.release_version }}' '${{ inputs.sha256_file_name }}' '${{ inputs.verify_checksum }}'" \
+            2>&1 | tee pull-execution.log 
+          
+          EXIT_CODE=${PIPESTATUS[0]}
+          
+          # Check if execution was successful
+          if [ ${EXIT_CODE} -eq 0 ]; then
+            echo "✅ RBAC file copy completed successfully"
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "❌ RBAC file copy failed with exit code ${EXIT_CODE}"
+            echo "status=failure" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+  copy-bucket-files-to-destination-bucket:
+    name: Copy Files Between GCP Buckets with Checksum Validation
+    runs-on: ubuntu-latest
+    needs: [check-file-exists, copy-rbac-file-to-vsa-compute-images]
+    if: |
+      always() &&
+      needs.check-file-exists.outputs.file_exists_destination != 'found' &&
+      (
+        needs.check-file-exists.outputs.file_exists_source == 'found' ||
+        needs.copy-rbac-file-to-vsa-compute-images.result == 'success' ||
+        needs.copy-rbac-file-to-vsa-compute-images.result == 'skipped'
+      )
+    
+    permissions:
+      contents: read
+      id-token: write
+    
+    outputs:
+      copy_status: ${{ steps.copy-files.outputs.status }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ inputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_PROVIDER_VSA_PROD || secrets.WORKLOAD_IDENTITY_PROVIDER_VSA }}
+          service_account: ${{ inputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_PROD || secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          export_default_credentials: true
+
+      - name: Verify authentication and permissions
+        run: |
+          echo "Verifying authentication..."
+          gcloud auth list
+          echo ""
+          echo "Checking bucket access..."
+          gsutil ls gs://${{ inputs.destination_bucket }}/ || echo "Note: Bucket listing may fail if bucket doesn't exist, but this is expected"
+      
+      - name: Copy rbac files from vsa-compute-images to destination bucket
+        id: copy-files
+        run: |
+          gsutil cp gs://vsa-compute-images/GCNV/${{ inputs.release_version }}/RBAC/${{ inputs.rbac_file_name }} gs://${{ inputs.destination_bucket }}/GCNV/${{ inputs.release_version }}/RBAC/${{ inputs.rbac_file_name }}
+          if [ $? -ne 0 ]; then
+            echo "❌ Failed to copy rbac files from vsa-compute-images to destination bucket"
+            echo "status=failure" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          gsutil cp gs://vsa-compute-images/GCNV/${{ inputs.release_version }}/RBAC/${{ inputs.sha256_file_name }} gs://${{ inputs.destination_bucket }}/GCNV/${{ inputs.release_version }}/RBAC/${{ inputs.sha256_file_name }}
+          if [ $? -ne 0 ]; then
+            echo "❌ Failed to copy rbac sha256 files from vsa-compute-images to destination bucket"
+            echo "status=failure" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          echo "✅ RBAC files and sha256 files  copied from vsa-compute-images to destination bucket"
+          echo "status=success" >> $GITHUB_OUTPUT

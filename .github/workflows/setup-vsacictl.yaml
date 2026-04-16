@@ -1,0 +1,80 @@
+name: Setup vsacictl (Reusable Workflow)
+# This reusable workflow detects vsacictl changes and conditionally builds it
+# It can be called from any workflow that needs vsacictl
+
+on:
+  workflow_call:
+    outputs:
+      cache-key:
+        description: "The cache key used for the vsacictl binary"
+        value: ${{ jobs.build-vsacictl.outputs.cache-key }}
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  compute-cache-key:
+    name: Compute Cache Key
+    runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Compute cache key
+        id: cache-key
+        run: |
+          # Create a hash based on the cicd directory contents
+          HASH=$(find cicd -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1)
+          CACHE_KEY="vsacictl-${HASH}"
+          echo "key=$CACHE_KEY" >> $GITHUB_OUTPUT
+          echo "Cache key: $CACHE_KEY"
+
+  build-vsacictl:
+    name: Build vsacictl Binary
+    needs: compute-cache-key
+    runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ needs.compute-cache-key.outputs.cache-key }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Cache vsacictl binary
+        id: cache-vsacictl
+        uses: actions/cache@v4
+        with:
+          path: bin/vsacictl
+          key: ${{ needs.compute-cache-key.outputs.cache-key }}
+
+      - name: Set up Go
+        if: steps.cache-vsacictl.outputs.cache-hit != 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: cicd/go.mod
+          cache-dependency-path: cicd/go.sum
+
+      - name: Configure Git for private modules
+        if: steps.cache-vsacictl.outputs.cache-hit != 'true'
+        run: |
+          git config --global url."https://${{ secrets.GHVSA_PAT }}@github.com/".insteadOf "https://github.com/"
+
+      - name: Build vsacictl binary
+        if: steps.cache-vsacictl.outputs.cache-hit != 'true'
+        working-directory: cicd
+        run: |
+          go mod download
+          mkdir -p ../bin
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o ../bin/vsacictl .
+          chmod +x ../bin/vsacictl
+          echo "✅ Built new vsacictl binary"
+
+      - name: Report cache status
+        run: |
+          if [ "${{ steps.cache-vsacictl.outputs.cache-hit }}" == "true" ]; then
+            echo "✅ Using cached vsacictl binary with key: ${{ needs.compute-cache-key.outputs.cache-key }}"
+          else
+            echo "🔨 Built and cached new vsacictl binary with key: ${{ needs.compute-cache-key.outputs.cache-key }}"
+          fi

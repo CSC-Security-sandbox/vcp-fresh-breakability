@@ -1,0 +1,1413 @@
+name: VSA and Mediator Compute Image Copy (One Environment)
+
+# Reusable workflow: copies VSA or Mediator compute image to one environment (autopush, staging, or prod).
+# Called by vsa-mediator-image-copy.yml for single-environment or all-environments (autopush → staging → prod) runs.
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Target environment (autopush, staging, or prod)'
+        required: true
+        type: string
+      image_type:
+        description: 'Image type (vsa or mediator)'
+        required: true
+        type: string
+      version:
+        description: 'Version (e.g. 9.18.1X26, 9.18.1)'
+        required: true
+        type: string
+      image_name:
+        description: 'Image name (e.g. x-9-18-1x26, cvo-mediator-x-9-18-1)'
+        required: true
+        type: string
+      bundle_name:
+        description: 'Bundle name under GCNV_released_bundle'
+        required: true
+        type: string
+      upgrade_release_bundle_path:
+        description: 'Optional. Release bundle path for upgrade file (e.g. GCNV_released_bundle/R9.18.1D1)'
+        required: false
+        type: string
+        default: ''
+      upgrade_file_path:
+        description: 'Optional. Path under bundle to upgrade file (e.g. GCNV/9.18.1D1/cot.image.ONTAP-9.18.1D1.tgz)'
+        required: false
+        type: string
+        default: ''
+
+env:
+  GCP_REGION: 'us-central1'
+  GCP_ZONE: 'us-central1-a'
+  PULL_VM_PROJECT: 'gcnv-vsa-prod'
+  PULL_VM_NAME: 'vsa-pull-image-instance'
+
+jobs:
+  parse-version-file:
+    name: Resolve Parameters
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+    
+    outputs:
+      image_name: ${{ steps.parse.outputs.image_name }}
+      sig_file_path: ${{ steps.parse.outputs.sig_file_path }}
+      source_image_project: ${{ steps.parse.outputs.source_image_project }}
+      source_project: ${{ steps.parse.outputs.source_project }}
+      source_bucket: ${{ steps.parse.outputs.source_bucket }}
+      destination_project: ${{ steps.parse.outputs.destination_project }}
+      destination_bucket: ${{ steps.parse.outputs.destination_bucket }}
+      storage_location: ${{ steps.parse.outputs.storage_location }}
+      guest_os_features: ${{ steps.parse.outputs.guest_os_features }}
+      is_autopush: ${{ steps.parse.outputs.is_autopush }}
+      version: ${{ steps.parse.outputs.version }}
+      image_type_path: ${{ steps.parse.outputs.image_type_path }}
+      image_type: ${{ steps.parse.outputs.image_type }}
+    
+    steps:
+      - name: Resolve parameters and derive source/destination
+        id: parse
+        run: |
+          set -euo pipefail
+          
+          IMAGE_TYPE="${{ inputs.image_type }}"
+          ENVIRONMENT="${{ inputs.environment }}"
+          IMAGE_NAME="${{ inputs.image_name }}"
+          VERSION="${{ inputs.version }}"
+          BUNDLE_NAME="${{ inputs.bundle_name }}"
+          
+          # Validate required inputs
+          if [ -z "$IMAGE_NAME" ] || [ -z "$VERSION" ] || [ -z "$BUNDLE_NAME" ]; then
+            echo "❌ Missing required parameters: IMAGE_NAME, VERSION, and BUNDLE_NAME must be provided"
+            exit 1
+          fi
+          
+          echo "📄 Using workflow inputs (no config file)"
+          
+          # Map image type to GCS path segment (vsa -> VSA, mediator -> Mediator per bucket convention)
+          case "$IMAGE_TYPE" in
+            vsa) IMAGE_TYPE_PATH_SEGMENT="VSA" ;;
+            mediator) IMAGE_TYPE_PATH_SEGMENT="Mediator" ;;
+            *) echo "❌ Invalid image_type: $IMAGE_TYPE"; exit 1 ;;
+          esac
+          IMAGE_TYPE_PATH="GCNV/${VERSION}/${IMAGE_TYPE_PATH_SEGMENT}"
+          
+          # Build SIG_FILE_PATH: gs://cot-releases-public/GCNV_released_bundle/<bundle_name>/<GCNV|Mediator>/<VERSION>/IMAGE_SIG_TGZ
+          if [ "$IMAGE_TYPE" = "mediator" ]; then
+            SIG_PATH_TYPE="Mediator"
+          else
+            SIG_PATH_TYPE="GCNV"
+          fi
+          SIG_FILE_PATH="gs://cot-releases-public/GCNV_released_bundle/${BUNDLE_NAME}/${SIG_PATH_TYPE}/${VERSION}/IMAGE_SIG_TGZ"
+          
+          # Validate environment once, then derive SOURCE_* and DESTINATION_*
+          case "$ENVIRONMENT" in
+            autopush)
+              SOURCE_IMAGE_PROJECT="sssbu-seclab"
+              SOURCE_PROJECT="gcnv-vsa-prod"
+              SOURCE_BUCKET="vsa-compute-images"
+              DESTINATION_PROJECT="gcnv-autopush-images"
+              DESTINATION_BUCKET="gcnv-autopush-images-bucket"
+              ;;
+            staging)
+              SOURCE_IMAGE_PROJECT="gcnv-autopush-images"
+              SOURCE_PROJECT="gcnv-autopush-images"
+              SOURCE_BUCKET="gcnv-autopush-images-bucket"
+              DESTINATION_PROJECT="gcnv-staging-images"
+              DESTINATION_BUCKET="gcnv-staging-images-bucket"
+              ;;
+            prod)
+              SOURCE_IMAGE_PROJECT="gcnv-autopush-images"
+              SOURCE_PROJECT="gcnv-autopush-images"
+              SOURCE_BUCKET="gcnv-autopush-images-bucket"
+              DESTINATION_PROJECT="gcnv-prod-images"
+              DESTINATION_BUCKET="gcnv-prod-images-bucket"
+              ;;
+            *)
+              echo "❌ Invalid environment: $ENVIRONMENT"
+              exit 1
+              ;;
+          esac
+          
+          STORAGE_LOCATION="us"
+          if [ "$IMAGE_TYPE" = "mediator" ]; then
+            GUEST_OS_FEATURES="UEFI_COMPATIBLE,VIRTIO_SCSI_MULTIQUEUE,GVNIC,SEV_CAPABLE,SEV_LIVE_MIGRATABLE_V2"
+          else
+            GUEST_OS_FEATURES="UEFI_COMPATIBLE,GVNIC"
+          fi
+          
+          if [ "$ENVIRONMENT" = "autopush" ]; then
+            IS_AUTOPUSH="true"
+          else
+            IS_AUTOPUSH="false"
+          fi
+          
+          echo "✅ Parameters resolved successfully"
+          echo "IMAGE_NAME: $IMAGE_NAME"
+          echo "VERSION: $VERSION"
+          echo "SIG_FILE_PATH: $SIG_FILE_PATH"
+          echo "IMAGE_TYPE_PATH: $IMAGE_TYPE_PATH"
+          echo "SOURCE_IMAGE_PROJECT: $SOURCE_IMAGE_PROJECT"
+          echo "SOURCE_PROJECT: $SOURCE_PROJECT"
+          echo "SOURCE_BUCKET: $SOURCE_BUCKET"
+          echo "DESTINATION_PROJECT: $DESTINATION_PROJECT"
+          echo "DESTINATION_BUCKET: $DESTINATION_BUCKET"
+          echo "STORAGE_LOCATION: $STORAGE_LOCATION"
+          echo "GUEST_OS_FEATURES: $GUEST_OS_FEATURES"
+          echo "IS_AUTOPUSH: $IS_AUTOPUSH"
+          
+          echo "image_name=$IMAGE_NAME" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "image_type_path=$IMAGE_TYPE_PATH" >> $GITHUB_OUTPUT
+          echo "image_type=$IMAGE_TYPE" >> $GITHUB_OUTPUT
+          echo "sig_file_path=$SIG_FILE_PATH" >> $GITHUB_OUTPUT
+          echo "source_image_project=$SOURCE_IMAGE_PROJECT" >> $GITHUB_OUTPUT
+          echo "source_project=$SOURCE_PROJECT" >> $GITHUB_OUTPUT
+          echo "source_bucket=$SOURCE_BUCKET" >> $GITHUB_OUTPUT
+          echo "destination_project=$DESTINATION_PROJECT" >> $GITHUB_OUTPUT
+          echo "destination_bucket=$DESTINATION_BUCKET" >> $GITHUB_OUTPUT
+          echo "storage_location=$STORAGE_LOCATION" >> $GITHUB_OUTPUT
+          echo "guest_os_features=$GUEST_OS_FEATURES" >> $GITHUB_OUTPUT
+          echo "is_autopush=$IS_AUTOPUSH" >> $GITHUB_OUTPUT
+
+  pre-check-image:
+    name: Pre-check Image Existence
+    runs-on: ubuntu-latest
+    needs: parse-version-file
+    
+    permissions:
+      contents: read
+      id-token: write
+    
+    outputs:
+      image_exists: ${{ steps.check.outputs.image_exists }}
+    
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_PROVIDER_VSA_PROD || secrets.WORKLOAD_IDENTITY_PROVIDER_VSA }}
+          service_account: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_PROD || secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      
+      - name: Configure gcloud
+        run: |
+          gcloud config set compute/region ${GCP_REGION}
+          gcloud config set core/disable_prompts true
+      
+      - name: Check if image exists in destination project
+        id: check
+        run: |
+          set -euo pipefail
+          
+          IMAGE_NAME="${{ needs.parse-version-file.outputs.image_name }}"
+          DEST_PROJECT="${{ needs.parse-version-file.outputs.destination_project }}"
+          
+          echo "🔍 Pre-checking if image exists in destination project"
+          echo "Image: $IMAGE_NAME"
+          echo "Project: $DEST_PROJECT"
+          echo ""
+          
+          # Check if image already exists
+          IMAGE_EXISTS=false
+          set +e
+          gcloud compute images describe "$IMAGE_NAME" \
+            --project="$DEST_PROJECT" \
+            --quiet 2>/dev/null
+          EXIT_CODE=$?
+          set -e
+          
+          if [ $EXIT_CODE -eq 0 ]; then
+            IMAGE_EXISTS=true
+          fi
+          
+          if [ "$IMAGE_EXISTS" = "true" ]; then
+            echo "✅ Image $IMAGE_NAME already exists in $DEST_PROJECT"
+            echo "image_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "ℹ️ Image $IMAGE_NAME does not exist in $DEST_PROJECT - proceeding with workflow"
+            echo "image_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+  create-and-export-image:
+    name: Create and Export Image (Autopush Only)
+    runs-on: ubuntu-latest
+    needs: [parse-version-file, pre-check-image]
+    if: |
+      needs.parse-version-file.outputs.is_autopush == 'true' &&
+      needs.pre-check-image.outputs.image_exists == 'false'
+    
+    permissions:
+      contents: read
+      id-token: write
+    
+    outputs:
+      export_status: ${{ steps.export.outputs.status }}
+      image_uri: ${{ steps.export.outputs.image_uri }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+            
+      - name: Authenticate to Google Cloud (Source Project)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER_VSA_SECLAB }}
+          service_account: ${{ secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_SECLAB }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ needs.parse-version-file.outputs.source_project }}
+
+      - name: Verify Service Account Permissions
+        run: |
+          set +e
+          SERVICE_ACCOUNT="${{ secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_SECLAB }}"
+          PROJECT="gcnv-vsa-prod"
+          
+          echo "=== Verifying Service Account Permissions ==="
+          echo "Service Account: $SERVICE_ACCOUNT"
+          echo ""
+          
+          # Check for serviceAccountTokenCreator role
+          TOKEN_CREATOR=$(gcloud iam service-accounts get-iam-policy "$SERVICE_ACCOUNT" \
+            --project="$PROJECT" \
+            --flatten="bindings[].members" \
+            --filter="bindings.role:roles/iam.serviceAccountTokenCreator AND bindings.members:serviceAccount:$SERVICE_ACCOUNT" \
+            --format="value(bindings.role)" 2>/dev/null || echo "")
+          
+          if [ -z "$TOKEN_CREATOR" ]; then
+            echo "❌ CRITICAL: serviceAccountTokenCreator role NOT FOUND!"
+            echo ""
+            echo "This permission is REQUIRED for workload identity to work."
+            echo ""
+            echo "=== REQUIRED FIX ==="
+            echo "Run this command:"
+            echo ""
+            echo "gcloud iam service-accounts add-iam-policy-binding \"$SERVICE_ACCOUNT\" \\"
+            echo "  --project=\"$PROJECT\" \\"
+            echo "  --role=\"roles/iam.serviceAccountTokenCreator\" \\"
+            echo "  --member=\"serviceAccount:$SERVICE_ACCOUNT\""
+            echo ""
+            echo "After running, wait 10-30 seconds for IAM propagation."
+            exit 1
+          else
+            echo "✅ serviceAccountTokenCreator role found"
+          fi
+          set -e
+      
+      - name: Configure gcloud
+        run: |
+          gcloud config set compute/region ${GCP_REGION}
+          gcloud config set core/disable_prompts true
+          echo ""
+          echo "=== Authentication Status ==="
+          gcloud auth list
+          echo ""
+          echo "=== Current Project ==="
+          gcloud config get-value project
+          echo ""
+          echo "=== Testing Token Generation ==="
+          if gcloud auth print-access-token > /dev/null 2>&1; then
+            echo "✅ Access token generated successfully"
+          else
+            echo "❌ Failed to generate access token"
+            echo ""
+            echo "This indicates an authentication issue. Check:"
+            echo "1. Workload identity pool attribute condition matches repository"
+            echo "2. Service account has workloadIdentityUser binding"
+            echo "3. Service account has serviceAccountTokenCreator on itself"
+            exit 1
+          fi
+        
+      - name: Create compute image from source
+        id: create
+        run: |
+          set -euo pipefail
+          
+          IMAGE_NAME="${{ needs.parse-version-file.outputs.image_name }}"
+          SOURCE_IMAGE_PROJECT="${{ needs.parse-version-file.outputs.source_image_project }}"
+          SOURCE_PROJECT="${{ needs.parse-version-file.outputs.source_project }}"
+          
+          echo "📦 Creating compute image: $IMAGE_NAME"
+          echo "Source image: $IMAGE_NAME"
+          echo "Source image project: $SOURCE_IMAGE_PROJECT"
+          echo "Target project: $SOURCE_PROJECT"
+          echo ""
+          
+          # Check if image already exists
+          IMAGE_EXISTS=false
+          if gcloud compute images describe "$IMAGE_NAME" \
+            --project="$SOURCE_PROJECT" \
+            --quiet 2>/dev/null; then
+            IMAGE_EXISTS=true
+          fi
+          
+          if [ "$IMAGE_EXISTS" = "true" ]; then
+            echo "⚠️ Image $IMAGE_NAME already exists in $SOURCE_PROJECT"
+            echo "status=exists" >> $GITHUB_OUTPUT
+          else
+            # Create image from source
+            gcloud compute images create "$IMAGE_NAME" \
+              --source-image="$IMAGE_NAME" \
+              --source-image-project="$SOURCE_IMAGE_PROJECT" \
+              --project="$SOURCE_PROJECT" \
+              --quiet
+            
+            EXIT_CODE=$?
+            if [ $EXIT_CODE -eq 0 ]; then
+              echo "✅ Image created successfully"
+              echo "status=created" >> $GITHUB_OUTPUT
+            else
+              echo "❌ Failed to create image"
+              echo "status=failed" >> $GITHUB_OUTPUT
+              exit 1
+            fi
+          fi
+      
+      - name: Export image to GCS
+        id: export
+        run: |
+          set -euo pipefail
+          
+          IMAGE_NAME="${{ needs.parse-version-file.outputs.image_name }}"
+          SOURCE_BUCKET="${{ needs.parse-version-file.outputs.source_bucket }}"
+          SOURCE_PROJECT="${{ needs.parse-version-file.outputs.source_project }}"
+          IMAGE_TYPE_PATH="${{ needs.parse-version-file.outputs.image_type_path }}"
+          
+          echo "📤 Exporting image to GCS bucket"
+          echo "Image: $IMAGE_NAME"
+          echo "Bucket: $SOURCE_BUCKET"
+          echo "Project: $SOURCE_PROJECT"
+          echo "Path: $IMAGE_TYPE_PATH"
+          echo ""
+          
+          IMAGE_URI="gs://$SOURCE_BUCKET/$IMAGE_TYPE_PATH/$IMAGE_NAME.tar.gz"
+          
+          # Check if export already exists
+          EXPORT_EXISTS=false
+          if gsutil -q stat "$IMAGE_URI" 2>/dev/null; then
+            EXPORT_EXISTS=true
+          fi
+          
+          if [ "$EXPORT_EXISTS" = "true" ]; then
+            echo "⚠️ Export already exists: $IMAGE_URI"
+            echo "status=exists" >> $GITHUB_OUTPUT
+            echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
+          else
+            # Export image
+            gcloud compute images export \
+              --destination-uri="$IMAGE_URI" \
+              --image="$IMAGE_NAME" \
+              --project="$SOURCE_PROJECT" \
+              --quiet
+            
+            EXIT_CODE=$?
+            if [ $EXIT_CODE -eq 0 ]; then
+              echo "✅ Image exported successfully to $IMAGE_URI"
+              echo "status=success" >> $GITHUB_OUTPUT
+              echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
+            else
+              echo "❌ Failed to export image"
+              echo "status=failed" >> $GITHUB_OUTPUT
+              exit 1
+            fi
+          fi
+      
+      - name: Show create/export summary
+        if: always()
+        run: |
+          echo "## Create and Export Summary (Autopush)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Name**: ${{ needs.parse-version-file.outputs.image_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Type**: ${{ inputs.image_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Source Image Project**: ${{ needs.parse-version-file.outputs.source_image_project }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Target Project**: ${{ needs.parse-version-file.outputs.source_project }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Export Bucket**: ${{ needs.parse-version-file.outputs.source_bucket }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Export URI**: ${{ steps.export.outputs.image_uri }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ steps.export.outputs.status }}" >> $GITHUB_STEP_SUMMARY
+
+  copy-signature-file-to-vsa-compute-images:
+    name: Copy Signature File to Destination
+    runs-on: ubuntu-latest
+    needs: [parse-version-file, pre-check-image, create-and-export-image]
+    if: |
+      needs.parse-version-file.outputs.is_autopush == 'true' &&
+      needs.pre-check-image.outputs.image_exists == 'false' &&
+      (needs.create-and-export-image.result == 'success' || needs.create-and-export-image.result == 'skipped') &&
+      needs.parse-version-file.outputs.sig_file_path != '' &&
+      needs.parse-version-file.outputs.sig_file_path != 'null'
+    
+    permissions:
+      contents: read
+      id-token: write
+    
+    outputs:
+      pull_status: ${{ steps.pull.outputs.status }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_PROVIDER_VSA_PROD || secrets.WORKLOAD_IDENTITY_PROVIDER_VSA }}
+          service_account: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_PROD || secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          export_default_credentials: true
+
+      - name: Set GCP project
+        run: |
+          gcloud config set project ${PULL_VM_PROJECT}
+      
+      - name: Configure SSH for non-interactive mode
+        run: |
+          # Configure gcloud to skip SSH key prompts
+          gcloud config set compute/region ${GCP_REGION}
+          gcloud config set core/disable_prompts true
+          # gcloud will automatically manage SSH keys when using compute ssh/scp commands
+
+      - name: Copy script files to Pull VM
+        run: |
+          # First, create the directory on the VM if it doesn't exist
+          gcloud compute ssh ${PULL_VM_NAME} \
+            --zone=${GCP_ZONE} \
+            --project=${PULL_VM_PROJECT} \
+            --quiet \
+            --command="sudo mkdir -p /opt/vsa-pull-image && sudo chmod 755 /opt/vsa-pull-image" || true
+          
+          # Copy script to a temporary location first
+          gcloud compute scp \
+            --zone=${GCP_ZONE} \
+            --project=${PULL_VM_PROJECT} \
+            .github/scripts/signature-file-copy.sh ${PULL_VM_NAME}:~/signature-file-copy.sh
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ Failed to copy script files to Pull VM"
+            exit 1
+          fi
+          
+          # Verify file was copied to home directory, then move to final location
+          gcloud compute ssh ${PULL_VM_NAME} \
+            --zone=${GCP_ZONE} \
+            --project=${PULL_VM_PROJECT} \
+            --quiet \
+            --command="ls -la ~/signature-file-copy.sh && echo 'File exists in home directory'"
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ Script file not found in home directory after copy"
+            exit 1
+          fi
+          
+          # Move the script to the final location with sudo and verify it exists
+          gcloud compute ssh ${PULL_VM_NAME} \
+            --zone=${GCP_ZONE} \
+            --project=${PULL_VM_PROJECT} \
+            --quiet \
+            --command="sudo mv ~/signature-file-copy.sh /opt/vsa-pull-image/signature-file-copy.sh && sudo chmod +x /opt/vsa-pull-image/signature-file-copy.sh && sudo ls -la /opt/vsa-pull-image/signature-file-copy.sh"
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ Failed to move script to final location or verify file"
+            exit 1
+          fi
+          echo "✅ Script files copied to Pull VM and verified"
+      
+      - name: Execute signature file copy on Pull VM
+        id: pull
+        run: |
+          set -euo pipefail
+          
+          VERSION="${{ needs.parse-version-file.outputs.version }}"
+          IMAGE_TYPE="${{ needs.parse-version-file.outputs.image_type }}"
+          IMAGE_TYPE_PATH_SEGMENT="${{ needs.parse-version-file.outputs.image_type_path }}"
+          IMAGE_TYPE_PATH_SEGMENT=$(echo "$IMAGE_TYPE_PATH_SEGMENT" | rev | cut -d'/' -f1 | rev)
+          SIG_FILE_PATH="${{ needs.parse-version-file.outputs.sig_file_path }}"
+          SOURCE_BUCKET="${{ needs.parse-version-file.outputs.source_bucket }}"
+          
+          echo "🔽 Copying signature file to source bucket"
+          echo "Signature File Path: $SIG_FILE_PATH"
+          echo "Version: $VERSION"
+          echo "Image Type: $IMAGE_TYPE_PATH_SEGMENT"
+          echo "Source Bucket: $SOURCE_BUCKET"
+          echo "Project: ${PULL_VM_PROJECT}"
+          echo "VM: ${PULL_VM_NAME}"
+          echo ""
+          
+          # Execute the copy command on the Pull VM
+          # First verify the script exists before executing
+          SCRIPT_EXISTS=false
+          gcloud compute ssh ${PULL_VM_NAME} \
+            --zone=${GCP_ZONE} \
+            --project=${PULL_VM_PROJECT} \
+            --quiet \
+            --command="sudo test -f /opt/vsa-pull-image/signature-file-copy.sh && echo 'Script file exists'" 2>/dev/null || true
+          
+          EXIT_CODE=${PIPESTATUS[0]}
+          if [ $EXIT_CODE -eq 0 ]; then
+            SCRIPT_EXISTS=true
+          fi
+          
+          if [ "$SCRIPT_EXISTS" != "true" ]; then
+            echo "❌ Script file not found on VM before execution"
+            exit 1
+          fi
+          
+          # Execute signature file copy script
+          # Parameters: version, image_type, sig_file_path, source_bucket
+          gcloud compute ssh ${PULL_VM_NAME} \
+            --zone=${GCP_ZONE} \
+            --project=${PULL_VM_PROJECT} \
+            --quiet \
+            --command="sudo bash /opt/vsa-pull-image/signature-file-copy.sh '$VERSION' '$IMAGE_TYPE_PATH_SEGMENT' '$SIG_FILE_PATH' '$SOURCE_BUCKET'" \
+            2>&1 | tee pull-execution.log
+          
+          EXIT_CODE=${PIPESTATUS[0]}
+          
+          # Check if execution was successful
+          if [ ${EXIT_CODE} -eq 0 ]; then
+            echo "✅ Signature file copy completed successfully"
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Signature file copy failed with exit code ${EXIT_CODE}"
+            echo "status=failure" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+
+  copy-to-destination:
+    name: Copy to Destination Bucket
+    runs-on: ubuntu-latest
+    needs: [parse-version-file, pre-check-image, create-and-export-image, copy-signature-file-to-vsa-compute-images]
+    if: |
+      always() &&
+      needs.pre-check-image.outputs.image_exists == 'false' &&
+      (
+        (needs.parse-version-file.outputs.is_autopush == 'true' && needs.create-and-export-image.result != 'failure') ||
+        (needs.parse-version-file.outputs.is_autopush == 'false')
+      ) &&
+      (
+        (needs.parse-version-file.outputs.sig_file_path == '' || needs.parse-version-file.outputs.sig_file_path == 'null') ||
+        (needs.copy-signature-file-to-vsa-compute-images.result == 'success' || needs.copy-signature-file-to-vsa-compute-images.result == 'skipped')
+      )
+    
+    permissions:
+      contents: read
+      id-token: write
+    
+    outputs:
+      copy_status: ${{ steps.copy.outputs.status }}
+      source_uri: ${{ steps.copy.outputs.source_uri }}
+      sig_copy_status: ${{ steps.copy-sig.outputs.status }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_PROVIDER_VSA_PROD || secrets.WORKLOAD_IDENTITY_PROVIDER_VSA }}
+          service_account: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_PROD || secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      
+      - name: Configure gcloud
+        run: |
+          gcloud config set compute/region ${GCP_REGION}
+          gcloud config set core/disable_prompts true
+      
+      - name: Determine source URI
+        id: determine-source
+        run: |
+          set -euo pipefail
+          
+          IMAGE_NAME="${{ needs.parse-version-file.outputs.image_name }}"
+          IS_AUTOPUSH="${{ needs.parse-version-file.outputs.is_autopush }}"
+          IMAGE_TYPE_PATH="${{ needs.parse-version-file.outputs.image_type_path }}"
+          
+          if [ "$IS_AUTOPUSH" == "true" ]; then
+            # For autopush, use the exported image URI
+            SOURCE_URI="${{ needs.create-and-export-image.outputs.image_uri }}"
+          else
+            # For staging/prod, use the source bucket directly with version/image_type path
+            SOURCE_BUCKET="${{ needs.parse-version-file.outputs.source_bucket }}"
+            SOURCE_URI="gs://$SOURCE_BUCKET/$IMAGE_TYPE_PATH/$IMAGE_NAME.tar.gz"
+          fi
+          
+          echo "source_uri=$SOURCE_URI" >> $GITHUB_OUTPUT
+          echo "Source URI: $SOURCE_URI"
+      
+      - name: Copy image to destination bucket
+        id: copy
+        run: |
+          set -euo pipefail
+          
+          IMAGE_NAME="${{ needs.parse-version-file.outputs.image_name }}"
+          SOURCE_URI="${{ steps.determine-source.outputs.source_uri }}"
+          DEST_BUCKET="${{ needs.parse-version-file.outputs.destination_bucket }}"
+          IMAGE_TYPE_PATH="${{ needs.parse-version-file.outputs.image_type_path }}"
+          DEST_URI="gs://$DEST_BUCKET/$IMAGE_TYPE_PATH/$IMAGE_NAME.tar.gz"
+          
+          echo "📋 Copying image to destination bucket"
+          echo "Source: $SOURCE_URI"
+          echo "Destination: $DEST_URI"
+          echo ""
+          
+          # Check if already exists in destination
+          DEST_EXISTS=false
+          if gsutil -q stat "$DEST_URI" 2>/dev/null; then
+            DEST_EXISTS=true
+          fi
+          
+          if [ "$DEST_EXISTS" = "true" ]; then
+            echo "⚠️ Image already exists in destination bucket: $DEST_URI"
+            echo "status=exists" >> $GITHUB_OUTPUT
+            echo "source_uri=$SOURCE_URI" >> $GITHUB_OUTPUT
+          else
+            # Copy image
+            gsutil cp "$SOURCE_URI" "$DEST_URI"
+            
+            EXIT_CODE=$?
+            if [ $EXIT_CODE -eq 0 ]; then
+              echo "✅ Image copied successfully to $DEST_URI"
+              echo "status=success" >> $GITHUB_OUTPUT
+              echo "source_uri=$SOURCE_URI" >> $GITHUB_OUTPUT
+            else
+              echo "❌ Failed to copy image"
+              echo "status=failed" >> $GITHUB_OUTPUT
+              exit 1
+            fi
+          fi
+      
+      - name: Copy signature file to destination bucket
+        id: copy-sig
+        if: needs.parse-version-file.outputs.sig_file_path != '' && needs.parse-version-file.outputs.sig_file_path != 'null'
+        run: |
+          set -euo pipefail
+          
+          SOURCE_BUCKET="${{ needs.parse-version-file.outputs.source_bucket }}"
+          DEST_BUCKET="${{ needs.parse-version-file.outputs.destination_bucket }}"
+          IMAGE_TYPE_PATH="${{ needs.parse-version-file.outputs.image_type_path }}"
+          VERSION="${{ needs.parse-version-file.outputs.version }}"
+          
+          # Extract signature file name from SIG_FILE_PATH
+          SIG_FILE_NAME="IMAGE_SIG_TGZ"
+          
+          # Construct source and destination paths
+          SOURCE_SIG_URI="gs://$SOURCE_BUCKET/$IMAGE_TYPE_PATH/$SIG_FILE_NAME"
+          DEST_SIG_URI="gs://$DEST_BUCKET/$IMAGE_TYPE_PATH/$SIG_FILE_NAME"
+          
+          echo "📋 Copying signature file to destination bucket"
+          echo "Source: $SOURCE_SIG_URI"
+          echo "Destination: $DEST_SIG_URI"
+          echo ""
+          
+          # Wait a bit for eventual consistency (GCS can have slight delays after copy)
+          echo "⏳ Checking if signature file exists in source bucket..."
+          echo "  Expected location: $SOURCE_SIG_URI"
+          echo ""
+          
+          MAX_RETRIES=10
+          RETRY_COUNT=0
+          SOURCE_EXISTS=false
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            if gsutil -q stat "$SOURCE_SIG_URI" 2>/dev/null; then
+              SOURCE_EXISTS=true
+              echo "✅ Signature file found on attempt $((RETRY_COUNT + 1))"
+              break
+            fi
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              echo "  Retry $RETRY_COUNT/$MAX_RETRIES: File not found yet, waiting 5 seconds..."
+              sleep 5
+            fi
+          done
+          
+          if [ "$SOURCE_EXISTS" != "true" ]; then
+            echo "❌ Error: Signature file not found in source bucket after $MAX_RETRIES attempts: $SOURCE_SIG_URI"
+            echo ""
+            echo "Debug information:"
+            echo "  - copy-signature-file-to-vsa-compute-images result: ${{ needs.copy-signature-file-to-vsa-compute-images.result }}"
+            echo "  - Source bucket: $SOURCE_BUCKET"
+            echo "  - Expected path: $IMAGE_TYPE_PATH/$SIG_FILE_NAME"
+            echo "  - Full URI: $SOURCE_SIG_URI"
+            echo ""
+            echo "Listing files in source bucket path:"
+            gsutil ls "gs://$SOURCE_BUCKET/$IMAGE_TYPE_PATH/" 2>&1 || echo "Could not list bucket contents"
+            echo ""
+            echo "Listing all files in GCNV directory:"
+            gsutil ls "gs://$SOURCE_BUCKET/GCNV/" 2>&1 | head -20 || echo "Could not list GCNV directory"
+            echo ""
+            echo "status=not_found" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+          # Check if destination signature file already exists
+          DEST_EXISTS=false
+          if gsutil -q stat "$DEST_SIG_URI" 2>/dev/null; then
+            DEST_EXISTS=true
+          fi
+          
+          if [ "$DEST_EXISTS" = "true" ]; then
+            echo "⚠️ Signature file already exists in destination bucket: $DEST_SIG_URI"
+            echo "status=exists" >> $GITHUB_OUTPUT
+            echo "dest_sig_uri=$DEST_SIG_URI" >> $GITHUB_OUTPUT
+          else
+            # Copy signature file
+            gsutil cp "$SOURCE_SIG_URI" "$DEST_SIG_URI"
+            
+            EXIT_CODE=$?
+            if [ $EXIT_CODE -eq 0 ]; then
+              echo "✅ Signature file copied successfully to $DEST_SIG_URI"
+              echo "status=success" >> $GITHUB_OUTPUT
+              echo "dest_sig_uri=$DEST_SIG_URI" >> $GITHUB_OUTPUT
+            else
+              echo "❌ Failed to copy signature file"
+              echo "status=failed" >> $GITHUB_OUTPUT
+              exit 1
+            fi
+          fi
+      
+      - name: Copy upgrade file to destination bucket
+        id: copy-upgrade
+        if: inputs.upgrade_release_bundle_path != '' && inputs.upgrade_file_path != ''
+        run: |
+          set -uo pipefail
+          
+          VERSION="${{ needs.parse-version-file.outputs.version }}"
+          DEST_BUCKET="${{ needs.parse-version-file.outputs.destination_bucket }}"
+          SOURCE_BUCKET="${{ needs.parse-version-file.outputs.source_bucket }}"
+          IS_AUTOPUSH="${{ needs.parse-version-file.outputs.is_autopush }}"
+          UPGRADE_RELEASE_BUNDLE="${{ inputs.upgrade_release_bundle_path }}"
+          UPGRADE_FILE_PATH="${{ inputs.upgrade_file_path }}"
+          ENVIRONMENT="${{ inputs.environment }}"
+          
+          # Basename and directory of upgrade file (e.g. cot.image.ONTAP-9.18.1D1.tgz, GCNV/9.18.1D1)
+          FILENAME="${UPGRADE_FILE_PATH##*/}"
+          UPGRADE_DIR="${UPGRADE_FILE_PATH%/*}"
+          DEST_UPGRADE_PREFIX="gs://$DEST_BUCKET/GCNV/$VERSION/upgrade"
+          DEST_URI="$DEST_UPGRADE_PREFIX/$FILENAME"
+          COT_URI="gs://cot-releases-public/$UPGRADE_RELEASE_BUNDLE/$UPGRADE_FILE_PATH"
+          COT_CHECKSUM_URI="gs://cot-releases-public/$UPGRADE_RELEASE_BUNDLE/$UPGRADE_DIR/cot.checksum.ONTAP-$VERSION.txt"
+          
+          if [ "$IS_AUTOPUSH" = "true" ]; then
+            SOURCE_URI="$COT_URI"
+          else
+            SOURCE_URI="gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade/$FILENAME"
+          fi
+          
+          echo "📋 Copying upgrade file to destination"
+          echo "Source: $SOURCE_URI"
+          echo "Destination: $DEST_URI"
+          echo ""
+          
+          # 1) Idempotency: skip if file already exists in destination
+          if gsutil -q stat "$DEST_URI" 2>/dev/null; then
+            echo "✅ Upgrade file already exists in destination (skipping copy): $DEST_URI"
+            echo "status=exists" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # 2) Ensure upgrade folder exists in destination (create placeholder if missing)
+          if ! gsutil ls "$DEST_UPGRADE_PREFIX/" 2>/dev/null | head -1 | grep -q .; then
+            echo "📁 Creating upgrade folder in destination (missing): $DEST_UPGRADE_PREFIX/"
+            echo -n | gsutil cp - "$DEST_UPGRADE_PREFIX/.keep" 2>/dev/null || true
+          fi
+          
+          # 3) Resolve source: try current source, then for staging/prod populate from COT and retry
+          copy_success=false
+          if gsutil -q stat "$SOURCE_URI" 2>/dev/null; then
+            copy_success=true
+          fi
+          if [ "$copy_success" != "true" ]; then
+            if [ "$IS_AUTOPUSH" = "true" ]; then
+              echo "⚠️ Upgrade file not found at COT source (autopush has no upstream). Skipping without retry."
+            else
+              echo "⚠️ Upgrade file not found at source bucket. Attempting to populate source from COT and retry..."
+              SOURCE_UPGRADE_PREFIX="gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade"
+              if ! gsutil ls "$SOURCE_UPGRADE_PREFIX/" 2>/dev/null | head -1 | grep -q .; then
+                echo -n | gsutil cp - "$SOURCE_UPGRADE_PREFIX/.keep" 2>/dev/null || true
+              fi
+              if gsutil -q stat "$COT_URI" 2>/dev/null; then
+                gsutil cp "$COT_URI" "gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade/$FILENAME" && echo "✅ Populated source bucket from COT"
+              fi
+              if gsutil -q stat "$SOURCE_URI" 2>/dev/null; then
+                copy_success=true
+              fi
+            fi
+          fi
+          
+          if [ "$copy_success" != "true" ]; then
+            echo "status=skipped" >> $GITHUB_OUTPUT
+            echo ""
+            echo "=============================================="
+            echo "⚠️ UPGRADE FILE COPY SKIPPED (workflow continues)"
+            echo "=============================================="
+            echo ""
+            echo "**What was tried:**"
+            echo "  1. Copy upgrade file from current source to destination."
+            echo "  2. Source checked: $SOURCE_URI"
+            if [ "$IS_AUTOPUSH" != "true" ]; then
+              echo "  3. File missing at source → attempted to populate source from COT ($COT_URI) and retried."
+            fi
+            echo ""
+            echo "**Why it was skipped:**"
+            echo "  The upgrade file \"$FILENAME\" was not available at the expected location(s)."
+            if [ "$IS_AUTOPUSH" = "true" ]; then
+              echo "  For **autopush**, the source is the COT bucket. The file was not found at:"
+              echo "    $COT_URI"
+              echo "  Please ensure the file exists in the COT release bundle (check upgrade_release_bundle_path and upgrade_file_path inputs)."
+            else
+              echo "  For **$ENVIRONMENT**, the source is the upstream bucket ($SOURCE_BUCKET)."
+              echo "  Either the file was missing there, or COT did not have it to populate the source:"
+              echo "    COT: $COT_URI"
+              echo "    Upstream bucket path: gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade/$FILENAME"
+              echo "  Ensure the upgrade file exists in COT for the given release bundle, or that a previous environment (e.g. autopush) has already copied it."
+            fi
+            echo ""
+            echo "**Destination (unchanged):** $DEST_URI"
+            echo ""
+            exit 0
+          fi
+          
+          # 4) Download file from source to temp for checksum verification
+          gsutil cp "$SOURCE_URI" /tmp/upgrade_verify.tgz
+          
+          # 5) Checksum verification (COT cot.checksum.ONTAP-*.txt): detect algorithm by length (MD5=32, SHA256=64)
+          verify_ok=false
+          gsutil cat "$COT_CHECKSUM_URI" 2>/dev/null > /tmp/expected_checksum.txt || true
+          if [ -s /tmp/expected_checksum.txt ]; then
+            EXPECTED=$(grep -oE '[a-fA-F0-9]{64}|[a-fA-F0-9]{32}' /tmp/expected_checksum.txt | head -1)
+            if [ -n "$EXPECTED" ]; then
+              LEN=${#EXPECTED}
+              if [ "$LEN" -eq 64 ]; then
+                ACTUAL=$(sha256sum /tmp/upgrade_verify.tgz | awk '{print $1}')
+              else
+                ACTUAL=$(md5sum /tmp/upgrade_verify.tgz | awk '{print $1}')
+              fi
+              if [ "$EXPECTED" = "$ACTUAL" ]; then
+                echo "✅ Checksum verification passed ($( [ "$LEN" -eq 64 ] && echo 'SHA256' || echo 'MD5' ))"
+                verify_ok=true
+              else
+                echo "❌ Checksum mismatch. Expected: $EXPECTED Actual: $ACTUAL"
+                echo "status=checksum_mismatch" >> $GITHUB_OUTPUT
+                echo ""
+                echo "Upgrade file copy skipped: checksum verification failed. Workflow continues."
+                exit 0
+              fi
+            fi
+          fi
+          if [ "$verify_ok" != "true" ]; then
+            echo "⚠️ Checksum file not found or unparseable in COT ($COT_CHECKSUM_URI); copying without verification"
+          fi
+          
+          # 6) Copy verified file to destination
+          gsutil cp /tmp/upgrade_verify.tgz "$DEST_URI"
+          echo "✅ Upgrade file copied to $DEST_URI"
+          echo "status=success" >> $GITHUB_OUTPUT
+          exit 0
+      
+      - name: Show copy summary
+        if: always()
+        run: |
+          echo "## Copy to Destination Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Name**: ${{ needs.parse-version-file.outputs.image_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Source URI**: ${{ steps.copy.outputs.source_uri }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Destination Bucket**: ${{ needs.parse-version-file.outputs.destination_bucket }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Copy Status**: ${{ steps.copy.outputs.status }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.parse-version-file.outputs.sig_file_path }}" != "" ] && [ "${{ needs.parse-version-file.outputs.sig_file_path }}" != "null" ]; then
+            echo "- **Signature File Copy Status**: ${{ steps.copy-sig.outputs.status || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Signature File URI**: ${{ steps.copy-sig.outputs.dest_sig_uri || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "${{ inputs.upgrade_release_bundle_path }}" != "" ] && [ "${{ inputs.upgrade_file_path }}" != "" ]; then
+            echo "- **Upgrade File Copy Status**: ${{ steps.copy-upgrade.outputs.status || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  ensure-upgrade-when-vsa-image-present:
+    name: Ensure Upgrade Folder (VSA Image Already Present)
+    runs-on: ubuntu-latest
+    needs: [parse-version-file, pre-check-image]
+    if: |
+      inputs.image_type == 'vsa' &&
+      needs.pre-check-image.outputs.image_exists == 'true' &&
+      inputs.upgrade_release_bundle_path != '' &&
+      inputs.upgrade_file_path != ''
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_PROVIDER_VSA_PROD || secrets.WORKLOAD_IDENTITY_PROVIDER_VSA }}
+          service_account: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_PROD || secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      - name: Configure gcloud
+        run: |
+          gcloud config set compute/region ${GCP_REGION}
+          gcloud config set core/disable_prompts true
+      - name: Check upgrade folder and copy if missing
+        id: ensure-upgrade
+        run: |
+          set -uo pipefail
+          VERSION="${{ needs.parse-version-file.outputs.version }}"
+          DEST_BUCKET="${{ needs.parse-version-file.outputs.destination_bucket }}"
+          SOURCE_BUCKET="${{ needs.parse-version-file.outputs.source_bucket }}"
+          IS_AUTOPUSH="${{ needs.parse-version-file.outputs.is_autopush }}"
+          UPGRADE_RELEASE_BUNDLE="${{ inputs.upgrade_release_bundle_path }}"
+          UPGRADE_FILE_PATH="${{ inputs.upgrade_file_path }}"
+          ENVIRONMENT="${{ inputs.environment }}"
+          FILENAME="${UPGRADE_FILE_PATH##*/}"
+          UPGRADE_DIR="${UPGRADE_FILE_PATH%/*}"
+          DEST_UPGRADE_PREFIX="gs://$DEST_BUCKET/GCNV/$VERSION/upgrade"
+          DEST_URI="$DEST_UPGRADE_PREFIX/$FILENAME"
+          COT_URI="gs://cot-releases-public/$UPGRADE_RELEASE_BUNDLE/$UPGRADE_FILE_PATH"
+          COT_CHECKSUM_URI="gs://cot-releases-public/$UPGRADE_RELEASE_BUNDLE/$UPGRADE_DIR/cot.checksum.ONTAP-$VERSION.txt"
+          if [ "$IS_AUTOPUSH" = "true" ]; then
+            SOURCE_URI="$COT_URI"
+          else
+            SOURCE_URI="gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade/$FILENAME"
+          fi
+          echo "🔍 VSA image already present in destination; checking upgrade folder"
+          echo "Destination upgrade path: $DEST_URI"
+          if gsutil -q stat "$DEST_URI" 2>/dev/null; then
+            echo "✅ Upgrade file already exists in destination (nothing to do): $DEST_URI"
+            echo "status=exists" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "📁 Upgrade folder/file missing; creating folder and copying upgrade file"
+          if ! gsutil ls "$DEST_UPGRADE_PREFIX/" 2>/dev/null | head -1 | grep -q .; then
+            echo -n | gsutil cp - "$DEST_UPGRADE_PREFIX/.keep" 2>/dev/null || true
+          fi
+          copy_success=false
+          if gsutil -q stat "$SOURCE_URI" 2>/dev/null; then
+            copy_success=true
+          fi
+          if [ "$copy_success" != "true" ] && [ "$IS_AUTOPUSH" != "true" ]; then
+            SOURCE_UPGRADE_PREFIX="gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade"
+            if ! gsutil ls "$SOURCE_UPGRADE_PREFIX/" 2>/dev/null | head -1 | grep -q .; then
+              echo -n | gsutil cp - "$SOURCE_UPGRADE_PREFIX/.keep" 2>/dev/null || true
+            fi
+            if gsutil -q stat "$COT_URI" 2>/dev/null; then
+              gsutil cp "$COT_URI" "gs://$SOURCE_BUCKET/GCNV/$VERSION/upgrade/$FILENAME" && echo "✅ Populated source bucket from COT"
+            fi
+            if gsutil -q stat "$SOURCE_URI" 2>/dev/null; then
+              copy_success=true
+            fi
+          fi
+          if [ "$copy_success" != "true" ]; then
+            echo "⚠️ Upgrade file not available at source/COT; skipping copy"
+            echo "status=skipped" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          gsutil cp "$SOURCE_URI" /tmp/upgrade_verify.tgz
+          verify_ok=false
+          gsutil cat "$COT_CHECKSUM_URI" 2>/dev/null > /tmp/expected_checksum.txt || true
+          if [ -s /tmp/expected_checksum.txt ]; then
+            EXPECTED=$(grep -oE '[a-fA-F0-9]{64}|[a-fA-F0-9]{32}' /tmp/expected_checksum.txt | head -1)
+            if [ -n "$EXPECTED" ]; then
+              LEN=${#EXPECTED}
+              if [ "$LEN" -eq 64 ]; then
+                ACTUAL=$(sha256sum /tmp/upgrade_verify.tgz | awk '{print $1}')
+              else
+                ACTUAL=$(md5sum /tmp/upgrade_verify.tgz | awk '{print $1}')
+              fi
+              if [ "$EXPECTED" = "$ACTUAL" ]; then
+                verify_ok=true
+              else
+                echo "❌ Checksum mismatch; skipping copy"
+                echo "status=checksum_mismatch" >> $GITHUB_OUTPUT
+                exit 0
+              fi
+            fi
+          fi
+          gsutil cp /tmp/upgrade_verify.tgz "$DEST_URI"
+          echo "✅ Upgrade file copied to $DEST_URI"
+          echo "status=success" >> $GITHUB_OUTPUT
+
+  create-in-destination:
+    name: Create Image in Destination Project
+    runs-on: ubuntu-latest
+    needs: [parse-version-file, pre-check-image, create-and-export-image, copy-signature-file-to-vsa-compute-images, copy-to-destination]
+    if: |
+      always() &&
+      needs.pre-check-image.outputs.image_exists == 'false' &&
+      needs.copy-to-destination.result != 'failure' &&
+      (
+        (needs.parse-version-file.outputs.is_autopush == 'true' && 
+         needs.create-and-export-image.result != 'failure' &&
+         needs.copy-to-destination.result != 'failure' &&
+         (needs.copy-to-destination.outputs.copy_status == 'success' || needs.copy-to-destination.outputs.copy_status == 'exists') &&
+         (
+           (needs.parse-version-file.outputs.sig_file_path == '' || needs.parse-version-file.outputs.sig_file_path == 'null') ||
+           (
+             (needs.copy-signature-file-to-vsa-compute-images.result == 'success' || needs.copy-signature-file-to-vsa-compute-images.result == 'skipped') &&
+             (needs.copy-to-destination.outputs.sig_copy_status == '' || needs.copy-to-destination.outputs.sig_copy_status == 'success' || needs.copy-to-destination.outputs.sig_copy_status == 'exists' || needs.copy-to-destination.outputs.sig_copy_status == 'not_found')
+           )
+         )) ||
+        (needs.parse-version-file.outputs.is_autopush == 'false')
+      )
+    
+    permissions:
+      contents: read
+      id-token: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_PROVIDER_VSA_PROD || secrets.WORKLOAD_IDENTITY_PROVIDER_VSA }}
+          service_account: ${{ needs.parse-version-file.outputs.destination_bucket == 'gcnv-prod-images-bucket' && secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA_PROD || secrets.WORKLOAD_IDENTITY_SERVICE_ACCOUNT_VSA }}
+      
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      
+      - name: Configure gcloud
+        run: |
+          gcloud config set compute/region ${GCP_REGION}
+          gcloud config set core/disable_prompts true
+      
+      - name: Verify image digest signature
+        id: verify-digest
+        if: needs.parse-version-file.outputs.sig_file_path != '' && needs.parse-version-file.outputs.sig_file_path != 'null'
+        run: |
+          set -euo pipefail
+          
+          DEST_BUCKET="${{ needs.parse-version-file.outputs.destination_bucket }}"
+          IMAGE_TYPE_PATH="${{ needs.parse-version-file.outputs.image_type_path }}"
+          IMAGE_NAME="${{ needs.parse-version-file.outputs.image_name }}"
+          IMAGE_TYPE="${{ needs.parse-version-file.outputs.image_type }}"
+          IMAGE_URI="gs://$DEST_BUCKET/$IMAGE_TYPE_PATH/$IMAGE_NAME.tar.gz"
+          SIG_FILE_NAME="IMAGE_SIG_TGZ"
+          SIG_FILE_URI="gs://$DEST_BUCKET/$IMAGE_TYPE_PATH/$SIG_FILE_NAME"
+          
+          echo "🔐 Verifying image digest signature"
+          echo "Image URI: $IMAGE_URI"
+          echo "Signature File URI: $SIG_FILE_URI"
+          echo ""
+          
+          # Create working directory
+          WORK_DIR="/tmp/digest-verify"
+          mkdir -p "$WORK_DIR"
+          cd "$WORK_DIR"
+          
+          # Step 1: Download image tar.gz file from GCS bucket
+          echo "📥 Step 1: Downloading image tar.gz file..."
+          gsutil cp "$IMAGE_URI" "./$IMAGE_NAME.tar.gz"
+          
+          if [ ! -f "$IMAGE_NAME.tar.gz" ]; then
+            echo "❌ Error: Failed to download image file"
+            exit 1
+          fi
+          echo "✅ Image file downloaded"
+          
+          # Step 2: Extract the tar.gz file to get disk.raw
+          echo "📦 Step 2: Extracting tar.gz file..."
+          tar -zxvf "$IMAGE_NAME.tar.gz"
+          
+          if [ ! -f "disk.raw" ]; then
+            echo "❌ Error: disk.raw not found after extraction"
+            exit 1
+          fi
+          echo "✅ disk.raw extracted"
+          
+          # Step 3: Generate SHA256 digest for disk.raw
+          echo "🔍 Step 3: Generating SHA256 digest for disk.raw..."
+          shasum -a 256 disk.raw | awk '{ print $1 }' > disk_raw.dig
+          DIGEST=$(cat disk_raw.dig)
+          echo "✅ Digest generated: $DIGEST"
+          
+          # Step 4: Download IMAGE_SIG_TGZ from destination bucket and extract signature file
+          echo "📥 Step 4: Downloading signature file from destination bucket..."
+          
+          gsutil cp "$SIG_FILE_URI" ./IMAGE_SIG_TGZ
+          
+          if [ ! -f "IMAGE_SIG_TGZ" ]; then
+            echo "❌ Error: Failed to download signature file from destination bucket: $SIG_FILE_URI"
+            exit 1
+          fi
+          echo "✅ Signature file downloaded from destination bucket"
+          
+          # Extract IMAGE_SIG_TGZ to get signature file only
+          echo "📦 Extracting signature file from IMAGE_SIG_TGZ..."
+          tar -xzvf IMAGE_SIG_TGZ
+          
+          # Find signature file (digest signature)
+          SIG_FILE=$(ls -1 *_digest.sig 2>/dev/null | head -n 1)
+          
+          if [ -z "$SIG_FILE" ]; then
+            echo "❌ Error: Signature file not found after extraction"
+            ls -la
+            exit 1
+          fi
+          echo "✅ Signature file extracted: $SIG_FILE"
+          
+          # Step 5: Use certificate from repository
+          echo "🔑 Step 5: Using certificate from repository..."
+          
+          # Certificate files are in config/certificates directory
+          # Get the repository root path (where workflow is running from)
+          REPO_ROOT="${{ github.workspace }}"
+          REPO_CERT_DIR="$REPO_ROOT/config/certificates"
+          CERT_FILE="$REPO_CERT_DIR/certificate.pem"
+          
+          echo "Repository root: $REPO_ROOT"
+          echo "Certificate directory: $REPO_CERT_DIR"
+          echo "Certificate file: $CERT_FILE"
+          
+          if [ ! -f "$CERT_FILE" ]; then
+            echo "❌ Error: Certificate file not found in repository"
+            echo "Expected path: $CERT_FILE"
+            echo ""
+            echo "Available files in $REPO_CERT_DIR:"
+            ls -la "$REPO_CERT_DIR" 2>/dev/null || echo "Directory does not exist"
+            exit 1
+          fi
+          
+          echo "✅ Certificate found: $CERT_FILE"
+          
+          # Copy certificate to working directory using full path
+          cp "$CERT_FILE" "$WORK_DIR/certificate.pem"
+          
+          # Generate public key file from certificate
+          openssl x509 -pubkey -noout -in ./certificate.pem > vsa_public_key.pem
+          
+          if [ ! -f "vsa_public_key.pem" ]; then
+            echo "❌ Error: Failed to generate public key"
+            exit 1
+          fi
+          echo "✅ Public key generated from repository certificate"
+          
+          # Step 6: Verify digest signature
+          echo "🔐 Step 6: Verifying digest signature..."
+          # For mediator, verify against disk_raw.dig; for others, verify against disk.raw
+          if [ "$IMAGE_TYPE" = "mediator" ]; then
+            VERIFY_RESULT=$(openssl dgst -verify vsa_public_key.pem -keyform PEM -sha256 -signature "$SIG_FILE" disk_raw.dig 2>&1)
+          else
+            VERIFY_RESULT=$(openssl dgst -verify vsa_public_key.pem -keyform PEM -sha256 -signature "$SIG_FILE" -binary disk.raw 2>&1)
+          fi
+          VERIFY_EXIT_CODE=$?
+          
+          if [ $VERIFY_EXIT_CODE -ne 0 ]; then
+            echo "❌ Error: Digest signature verification FAILED"
+            echo "$VERIFY_RESULT"
+            exit 1
+          fi
+          
+          echo "✅ Digest signature verification PASSED"
+          echo "Verified OK"
+          
+          # Calculate SHA256 checksum for labels (from tar.gz file)
+          SHA256SUM=$(sha256sum "$IMAGE_NAME.tar.gz" | awk '{print $1}')
+          CHECKSUM1="${SHA256SUM:0:32}"
+          CHECKSUM2="${SHA256SUM:32:32}"
+          
+          echo "SHA256 (for labels): $SHA256SUM"
+          echo "CHECKSUM1: $CHECKSUM1"
+          echo "CHECKSUM2: $CHECKSUM2"
+          
+          # Cleanup
+          cd /
+          rm -rf "$WORK_DIR"
+          
+          echo "checksum1=$CHECKSUM1" >> $GITHUB_OUTPUT
+          echo "checksum2=$CHECKSUM2" >> $GITHUB_OUTPUT
+          echo "verification_status=success" >> $GITHUB_OUTPUT
+      
+      - name: Create compute image in destination project
+        id: create-dest
+        run: |
+          set -euo pipefail
+          
+          IMAGE_NAME="${{ needs.parse-version-file.outputs.image_name }}"
+          DEST_PROJECT="${{ needs.parse-version-file.outputs.destination_project }}"
+          DEST_BUCKET="${{ needs.parse-version-file.outputs.destination_bucket }}"
+          STORAGE_LOCATION="${{ needs.parse-version-file.outputs.storage_location }}"
+          GUEST_OS_FEATURES="${{ needs.parse-version-file.outputs.guest_os_features }}"
+          IMAGE_TYPE_PATH="${{ needs.parse-version-file.outputs.image_type_path }}"
+          SOURCE_URI="gs://$DEST_BUCKET/$IMAGE_TYPE_PATH/$IMAGE_NAME.tar.gz"
+          
+          # Use checksum from verification - REQUIRED
+          CHECKSUM1="${{ steps.verify-digest.outputs.checksum1 }}"
+          CHECKSUM2="${{ steps.verify-digest.outputs.checksum2 }}"
+          
+          # Checksum is required - fail if not available
+          if [ -z "$CHECKSUM1" ] || [ "$CHECKSUM1" == "" ]; then
+            echo "❌ Error: Checksum not available from verification step"
+            echo "Signature verification must succeed to get checksum for labels"
+            echo "Image creation requires checksum labels and cannot proceed without them"
+            exit 1
+          fi
+          
+          # Build labels: checksum labels + verification status
+          CHECKSUM_LABELS="checksum1=$CHECKSUM1,checksum2=$CHECKSUM2,image_digest_verified=true"
+          
+          echo "🖼️ Creating compute image in destination project"
+          echo "Image: $IMAGE_NAME"
+          echo "Project: $DEST_PROJECT"
+          echo "Bucket: $DEST_BUCKET"
+          echo "Storage Location: $STORAGE_LOCATION"
+          echo "Guest OS Features: $GUEST_OS_FEATURES"
+          echo "Checksum Labels: $CHECKSUM_LABELS"
+          echo ""
+          
+          # Check if image already exists
+          IMAGE_EXISTS=false
+          if gcloud compute images describe "$IMAGE_NAME" \
+            --project="$DEST_PROJECT" \
+            --quiet 2>/dev/null; then
+            IMAGE_EXISTS=true
+          fi
+          
+          if [ "$IMAGE_EXISTS" = "true" ]; then
+            echo "⚠️ Image $IMAGE_NAME already exists in $DEST_PROJECT"
+            echo "status=exists" >> $GITHUB_OUTPUT
+          else
+            # Create image from GCS with checksum labels (required)
+            gcloud compute images create "$IMAGE_NAME" \
+              --source-uri="$SOURCE_URI" \
+              --guest-os-features="$GUEST_OS_FEATURES" \
+              --storage-location="$STORAGE_LOCATION" \
+              --labels="$CHECKSUM_LABELS" \
+              --project="$DEST_PROJECT" \
+              --quiet
+            
+            EXIT_CODE=$?
+            if [ $EXIT_CODE -eq 0 ]; then
+              echo "✅ Image created successfully in $DEST_PROJECT with checksum labels"
+              echo "status=success" >> $GITHUB_OUTPUT
+            else
+              echo "❌ Failed to create image in $DEST_PROJECT"
+              echo "status=failed" >> $GITHUB_OUTPUT
+              exit 1
+            fi
+          fi
+      
+      - name: Show create destination summary
+        if: always()
+        run: |
+          echo "## Create Image in Destination Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Name**: ${{ needs.parse-version-file.outputs.image_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Type**: ${{ inputs.image_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Destination Project**: ${{ needs.parse-version-file.outputs.destination_project }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Source URI**: gs://${{ needs.parse-version-file.outputs.destination_bucket }}/${{ needs.parse-version-file.outputs.image_type_path }}/${{ needs.parse-version-file.outputs.image_name }}.tar.gz" >> $GITHUB_STEP_SUMMARY
+          echo "- **Storage Location**: ${{ needs.parse-version-file.outputs.storage_location }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Guest OS Features**: ${{ needs.parse-version-file.outputs.guest_os_features }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Digest Verification**: ${{ steps.verify-digest.outputs.verification_status || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Checksum1 Label**: ${{ steps.verify-digest.outputs.checksum1 }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Checksum2 Label**: ${{ steps.verify-digest.outputs.checksum2 }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ steps.create-dest.outputs.status }}" >> $GITHUB_STEP_SUMMARY
+
+  workflow-summary:
+    name: Workflow Summary
+    runs-on: ubuntu-latest
+    needs: [parse-version-file, pre-check-image, create-and-export-image, copy-to-destination, create-in-destination]
+    if: always()
+    
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Generate final summary
+        run: |
+          echo "## 🎯 Compute Image Copy Workflow Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Type**: ${{ inputs.image_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Name**: ${{ needs.parse-version-file.outputs.image_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Destination Project**: ${{ needs.parse-version-file.outputs.destination_project }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          IMAGE_EXISTS="${{ needs.pre-check-image.outputs.image_exists }}"
+          
+          if [ "$IMAGE_EXISTS" == "true" ]; then
+            echo "### ⚠️ Image Already Exists" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **Pre-check Result**: Image **${{ needs.parse-version-file.outputs.image_name }}** already exists in **${{ needs.parse-version-file.outputs.destination_project }}**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All subsequent workflow steps were skipped as the image is already present in the destination project." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **Pre-check Result**: Image does not exist - proceeding with workflow" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- **Source Image Project**: ${{ needs.parse-version-file.outputs.source_image_project }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Source Project**: ${{ needs.parse-version-file.outputs.source_project }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Source Bucket**: ${{ needs.parse-version-file.outputs.source_bucket }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Destination Bucket**: ${{ needs.parse-version-file.outputs.destination_bucket }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Storage Location**: ${{ needs.parse-version-file.outputs.storage_location }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Guest OS Features**: ${{ needs.parse-version-file.outputs.guest_os_features }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            IS_AUTOPUSH="${{ needs.parse-version-file.outputs.is_autopush }}"
+            
+            if [ "$IS_AUTOPUSH" == "true" ]; then
+              EXPORT_RESULT="${{ needs.create-and-export-image.result }}"
+              if [ "$EXPORT_RESULT" == "success" ] || [ "$EXPORT_RESULT" == "skipped" ]; then
+                echo "✅ **Create & Export**: Success" >> $GITHUB_STEP_SUMMARY
+                if [ "$EXPORT_RESULT" == "success" ]; then
+                  echo "   - Image URI: ${{ needs.create-and-export-image.outputs.image_uri }}" >> $GITHUB_STEP_SUMMARY
+                fi
+              else
+                echo "❌ **Create & Export**: Failed" >> $GITHUB_STEP_SUMMARY
+              fi
+            else
+              echo "⏭️ **Create & Export**: Skipped (not required for ${{ inputs.environment }})" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            COPY_RESULT="${{ needs.copy-to-destination.result }}"
+            if [ "$COPY_RESULT" == "success" ] || [ "$COPY_RESULT" == "skipped" ]; then
+              echo "✅ **Copy to Bucket**: Success" >> $GITHUB_STEP_SUMMARY
+            elif [ "$COPY_RESULT" == "" ]; then
+              echo "⏭️ **Copy to Bucket**: Skipped" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "❌ **Copy to Bucket**: Failed" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            CREATE_RESULT="${{ needs.create-in-destination.result }}"
+            if [ "$CREATE_RESULT" == "success" ] || [ "$CREATE_RESULT" == "skipped" ]; then
+              echo "✅ **Create in Destination**: Success" >> $GITHUB_STEP_SUMMARY
+            elif [ "$CREATE_RESULT" == "" ]; then
+              echo "⏭️ **Create in Destination**: Skipped" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "❌ **Create in Destination**: Failed" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Workflow Steps" >> $GITHUB_STEP_SUMMARY
+            if [ "$IS_AUTOPUSH" == "true" ]; then
+              echo "1. ✅ Resolve parameters (version, image_name, bundle_name → sig_file_path)" >> $GITHUB_STEP_SUMMARY
+              echo "2. ✅ Pre-check image existence" >> $GITHUB_STEP_SUMMARY
+              echo "3. ✅ Create image in ${{ needs.parse-version-file.outputs.source_project }} from ${{ needs.parse-version-file.outputs.source_image_project }}" >> $GITHUB_STEP_SUMMARY
+              echo "4. ✅ Export image to ${{ needs.parse-version-file.outputs.source_bucket }}" >> $GITHUB_STEP_SUMMARY
+              echo "5. ✅ Copy image to destination bucket" >> $GITHUB_STEP_SUMMARY
+              echo "6. ✅ Create image in destination project" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "1. ✅ Resolve parameters (version, image_name, bundle_name → sig_file_path)" >> $GITHUB_STEP_SUMMARY
+              echo "2. ✅ Pre-check image existence" >> $GITHUB_STEP_SUMMARY
+              echo "3. ✅ Copy image from source bucket to destination bucket" >> $GITHUB_STEP_SUMMARY
+              echo "4. ✅ Create image in destination project" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi

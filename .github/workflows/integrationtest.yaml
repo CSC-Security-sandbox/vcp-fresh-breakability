@@ -1,0 +1,200 @@
+name: Pull Request - Integration test workflow
+on:
+  workflow_call:
+    inputs:
+      integration_test_branch:
+        description: 'Branch to use for vsa-integration-test-poc'
+        required: false
+        type: string
+        default: 'main'
+      vsa_control_plane_branch:
+        description: 'Branch to use for vsa-control-plane'
+        required: false
+        type: string
+        default: 'main'
+      cache-key:
+        description: 'Name of the vsacictl cache key'
+        required: true
+        type: string
+
+permissions:
+  packages: write
+  contents: read
+  id-token: write
+  security-events: write
+  actions: write
+
+env:
+  REGISTRY: ghcr.io
+  ORGANIZATION: ${{ github.repository_owner }}
+
+jobs:
+  build:
+    name:  Build and Test Integration
+    runs-on: [self-hosted, linux]
+    timeout-minutes: ${{ fromJSON(vars.TIMEOUT) }}
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      options: --user root
+    env:
+      GH_PAT: ${{ secrets.GITHUB_TOKEN }}
+      DOCKER_BUILDKIT: 1
+      BUILDKIT_PROGRESS: plain
+    steps:
+      
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install vsacictl
+        uses: ./.github/actions/install-vsacictl
+        with:
+          cache-key: ${{ inputs.cache-key }}
+
+      - name: Checkout vsa-integration-test-poc
+        uses: actions/checkout@v4
+        with:
+          repository: VCP-VSA-control-Plane/vsa-integration-test-poc
+          path: tests/vsa-integration-test-poc
+          ref: ${{ inputs.integration_test_branch }}
+          token: ${{ secrets.GHVSA_PAT }}
+      
+      - name: Checkout vsa-control-plane
+        uses: actions/checkout@v4
+        with:
+          repository: VCP-VSA-control-Plane/vsa-control-plane
+          path: tests/vsa-control-plane
+          ref: ${{ inputs.vsa_control_plane_branch }}
+          token: ${{ secrets.GHVSA_PAT }}
+          sparse-checkout: |
+            google-proxy/
+            worker/
+            tools/migrate/
+          sparse-checkout-cone-mode: false
+
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ vars.GO_VERSION }}
+          cache: true
+          cache-dependency-path: |
+            tests/vsa-control-plane/go.sum
+
+      - name: Fetch token
+        uses: actions/create-github-app-token@v1
+        id: token
+        with:
+          owner: ${{ github.repository_owner }}
+          app-id: ${{ secrets.VCP_CI_GH_APP_ID }}
+          private-key: ${{ secrets.VCP_CI_GH_PRIVATE_KEY }}
+          repositories: |
+            vsa-control-plane
+            temp-vsa-pkg
+
+      - name: Install Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Configure Git for private modules
+        run: |
+          git config --global url."https://${{ secrets.GHVSA_PAT }}@github.com/".insteadOf "https://github.com/"
+
+      - name: Download Temporal CLI
+        run: |
+          if command -v temporal &> /dev/null; then
+            echo "Temporal CLI already installed"
+          else
+            curl -L 'https://temporal.download/cli/archive/latest?platform=linux&arch=amd64' -o temporal.tar.gz
+            tar -xzf temporal.tar.gz
+            chmod +x temporal
+            sudo mv temporal /usr/local/bin/
+          fi
+
+      - name: Set PROJECT_ROOT
+        run: |
+          echo "PROJECT_ROOT=$(pwd)/tests/vsa-integration-test-poc" >> $GITHUB_ENV
+
+      - name: Build Applications
+        run: |
+          {
+            set -e
+            CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -trimpath google-proxy/app.go && \
+            chmod +x app && cp app $PROJECT_ROOT/docker_services/infra/google-proxy/app &
+            pid1=$!
+            CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o temporal-worker -trimpath worker/main.go && \
+            chmod +x temporal-worker && cp temporal-worker $PROJECT_ROOT/docker_services/infra/temporal-worker/temporal-worker &
+            pid2=$!
+            CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o vsa-db-setup -trimpath tools/migrate/main.go && \
+            chmod +x vsa-db-setup && cp vsa-db-setup $PROJECT_ROOT/docker_services/infra/vsa-db-setup/vsa-db-setup &
+            pid3=$!
+            CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o vsa-migrator -trimpath tools/migrate/main.go && \
+            chmod +x vsa-migrator && cp vsa-migrator $PROJECT_ROOT/docker_services/infra/vsa-migrator/vsa-migrator &
+            pid4=$!
+            wait $pid1
+            status1=$?
+            wait $pid2
+            status2=$?
+            wait $pid3
+            status3=$?
+            wait $pid4
+            status4=$?
+            if [ $status1 -ne 0 ] || [ $status2 -ne 0 ] || [ $status3 -ne 0 ] || [ $status4 -ne 0 ]; then
+              echo "One or more builds failed"
+              exit 1
+            fi
+          }
+
+      - name: Build Docker Containers
+        run: |
+          set -e
+          chmod +x $PROJECT_ROOT/docker_services/*/*/build.sh
+          echo "Building containers in parallel batches..."
+          
+          # Build containers in parallel batches
+          {
+            echo "Starting batch 1: google-proxy, temporal, temporal-worker ..."
+            (cd $PROJECT_ROOT/docker_services/infra/google-proxy && ./build.sh google-proxy) &
+            (cd $PROJECT_ROOT/docker_services/infra/temporal && ./build.sh temporal) &
+            (cd $PROJECT_ROOT/docker_services/infra/temporal-worker && ./build.sh temporal-worker) &
+            wait
+          }
+          
+          {
+            echo "Starting batch 2: vsa-db-setup, vsa-migrator, vsa-mock-server ..."
+            (cd $PROJECT_ROOT/docker_services/infra/vsa-db-setup && ./build.sh vsa-db-setup) &
+            (cd $PROJECT_ROOT/docker_services/infra/vsa-migrator && ./build.sh vsa-migrator) &
+            (cd $PROJECT_ROOT/docker_services/infra/vsa-mock-server && ./build.sh vsa-mock-server) &
+            wait
+          }
+          
+          {
+            echo "Starting batch 3: vsa-testcases..."
+            (cd $PROJECT_ROOT/docker_services/tests/vsa-testcases && ./build.sh vsa-testcases) &
+            wait
+          }
+          echo "All container builds completed successfully"
+
+      - name: Starting Test
+        id: starting_tests
+        env:
+          UNIT_TEST_THRESHOLD: ${{vars.UNIT_TEST_THRESHOLD}}
+        run: |
+          go env
+          cd $PROJECT_ROOT/src/main && go run .
+
+      # - name: Notify on Infra Failure
+      #   if: failure() && steps.starting_tests.outcome != 'failure'
+      #   env:
+      #     JSON: ${{ toJson(github.event.pull_request.base) }}
+      #     URL: "https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
+      #     WEBHOOK: ${{ secrets.VSA_INFRA_FAILURE_WEBHOOK }}
+      #     MESSAGE: "Integration tests infrastructure failure"
+      #   run: |
+      #     vsacictl slack notify
+      #     exit 1

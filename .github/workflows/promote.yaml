@@ -1,0 +1,69 @@
+name: Final Tagging Workflow
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-vsacictl:
+    name: Setup vsacictl
+    uses: ./.github/workflows/setup-vsacictl.yaml
+    secrets: inherit
+
+  final_tagging:
+    permissions:
+      contents: write
+      actions: read
+      packages: write
+
+    runs-on: [ self-hosted ,linux ]
+    needs: setup-vsacictl
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      options: --user root
+
+    steps:
+      - name: Checkout codes
+        uses: actions/checkout@v4
+
+      - name: Install vsacictl
+        uses: ./.github/actions/install-vsacictl
+        with:
+          cache-key: ${{ needs.setup-vsacictl.outputs.cache-key }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - name: gh auth login
+        run: |
+          echo "Logging in to GitHub CLI"
+          echo "${{ secrets.GHVSA_PAT }}" | gh auth login --with-token
+
+      - name: Run Promotional logic
+        id: promotional_logic_binary
+        run: vsacictl tag promotional
+        env:
+          GH_PAT: ${{ secrets.GHVSA_PAT }}
+          GITHUB_OUTPUT: $GITHUB_ENV
+
+      - name: Output printout
+        run: |
+          echo "FINAL_TAG=${{ steps.promotional_logic_binary.outputs.FINAL_TAG }}"
+          echo "FINAL_BRANCH=${{ steps.promotional_logic_binary.outputs.FINAL_BRANCH }}"
+          echo "BASE_TAG_SHA=${{ steps.promotional_logic_binary.outputs.BASE_TAG_SHA }}"
+
+    outputs:
+      finalTag: ${{ steps.promotional_logic_binary.outputs.FINAL_TAG }}
+      finalBranch: ${{ steps.promotional_logic_binary.outputs.FINAL_BRANCH }}
+      baseTagSHA: ${{ steps.promotional_logic_binary.outputs.BASE_TAG_SHA }}
+
+  create_release_vsa_promotional:
+    needs: final_tagging
+    uses: ./.github/workflows/build_common.yaml
+    secrets: inherit
+    with:
+      pre_release: false
+      tag: ${{ needs.final_tagging.outputs.finalTag }}
+      component_update: false
+      pr_base_branch: ${{ needs.final_tagging.outputs.baseTagSHA }}
+      

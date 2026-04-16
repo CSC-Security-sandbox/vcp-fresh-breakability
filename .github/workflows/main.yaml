@@ -1,0 +1,340 @@
+name: Main Workflow
+on:
+  pull_request:
+    branches:
+      - main
+      - release/2*
+    types: [opened, edited, synchronize]
+
+permissions:
+  packages: write
+  contents: read
+  id-token: write
+  security-events: write
+  actions: write
+
+concurrency:
+  group: ${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  setup-vsacictl:
+    name: Setup vsacictl
+    uses: ./.github/workflows/setup-vsacictl.yaml
+    secrets: inherit
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.24.11'
+
+      - name: Configure Git for private modules
+        run: |
+          git config --global url."https://${{ secrets.GHVSA_PAT }}@github.com/".insteadOf "https://github.com/"
+
+      - name: Install dependencies
+        run: go mod tidy
+
+      - name: Cache Go modules
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+
+  common:
+    needs: setup-vsacictl
+    runs-on: [ ubuntu-22.04 ]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      options: --user root
+    steps:
+      - name: Checkout codes
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - name: Install vsacictl
+        uses: ./.github/actions/install-vsacictl
+        with:
+          cache-key: ${{ needs.setup-vsacictl.outputs.cache-key }}
+
+      - name: Fetch token
+        uses: actions/create-github-app-token@v1
+        id: token
+        with:
+          owner: ${{ github.repository_owner }}
+          app-id: ${{ secrets.VCP_CI_GH_APP_ID }}
+          private-key: ${{ secrets.VCP_CI_GH_PRIVATE_KEY }}
+          repositories: |
+            vsa-control-plane
+
+      - name: Run Jira check
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          JIRA_API_TOKEN: ${{ secrets.VCP_CI_JIRA_BOT_PAT }}
+          GITHUB_TOKEN: ${{ steps.token.outputs.token }}
+          PR_USER: ${{ github.event.pull_request.user.login }}
+          BASE_BRANCH: ${{github.base_ref}}
+        run: vsacictl jira allow_merge
+
+  unit_tests:
+    needs: setup-vsacictl
+    runs-on: [ self-hosted, linux ]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      options: --user root
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - name: Install vsacictl
+        uses: ./.github/actions/install-vsacictl
+        with:
+          cache-key: ${{ needs.setup-vsacictl.outputs.cache-key }}
+
+      - name: Configure Git for private modules
+        run: |
+          git config --global url."https://${{ secrets.GHVSA_PAT }}@github.com/".insteadOf "https://github.com/"
+
+      - name: Run golang unit tests with coverage
+        run: vsacictl unit-test --filtered
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage.out
+          retention-days: 1
+          path: coverage.out
+
+  coverage:
+    needs: [unit_tests, setup-vsacictl]
+    runs-on: [ self-hosted, linux ]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      options: --user root
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - name: Install vsacictl
+        uses: ./.github/actions/install-vsacictl
+        with:
+          cache-key: ${{ needs.setup-vsacictl.outputs.cache-key }}
+
+      - name: Download coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage.out
+          path: .
+
+      - name: Run golang coverage
+        env:
+          COVERAGE_THRESHOLD: ${{ vars.UNIT_TEST_THRESHOLD || 90 }}
+        run: vsacictl unit-test coverage
+
+  pr-coverage:
+    needs: [unit_tests, setup-vsacictl]
+    runs-on: [ self-hosted, linux ]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      options: --user root
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - name: Install vsacictl
+        uses: ./.github/actions/install-vsacictl
+        with:
+          cache-key: ${{ needs.setup-vsacictl.outputs.cache-key }}
+
+      - name: Install tools
+        run: |
+          python3 -m pip install diff-cover==9.2.4
+          go install github.com/axw/gocov/gocov@latest
+          go install github.com/AlekSi/gocov-xml@latest
+
+      - name: Download coverage report
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage.out
+          path: .
+
+      - name: Convert coverage to XML
+        run: |
+          gocov convert coverage.out | gocov-xml > coverage.xml
+
+      - name: Fail if coverage is insufficient
+        shell: bash
+        run: |
+          diff-cover coverage.xml --compare-branch=origin/main --fail-under=80
+
+  verify_generated:
+    name: Verify Generated
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify generated ONTAP Rest client code
+        run: |
+          # Get the PR branch name
+          PR_BRANCH=$(echo $GITHUB_HEAD_REF)
+          echo "Pull request branch: $PR_BRANCH"
+
+          # Fetch the PR branch
+          git fetch origin $PR_BRANCH
+
+          # Switch to the PR branch
+          git checkout $PR_BRANCH
+
+          # Verify ontap rest client code
+          cd ./scripts
+          ./verify-ontap.sh
+
+      - name: Verify generated retry engine wrapper for DB
+        run: |
+          # Get the PR branch name
+          PR_BRANCH=$(echo $GITHUB_HEAD_REF)
+          echo "Pull request branch: $PR_BRANCH"
+
+          # Fetch the PR branch
+          git fetch origin $PR_BRANCH
+
+          # Switch to the PR branch
+          git checkout $PR_BRANCH
+
+          # Verify retry engine code
+          cd ./scripts
+          ./verify-retry-engine.sh vcp core
+          ./verify-retry-engine.sh metrics telemetry
+
+  verify_build:
+    name: Verify build
+    needs: setup-vsacictl
+    runs-on: [ self-hosted, linux ]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      options: --user root
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - name: Configure Git for private modules
+        run: |
+          git config --global url."https://${{ secrets.GHVSA_PAT }}@github.com/".insteadOf "https://github.com/"
+      - name: Build images
+        env:
+          IMAGES_TAG: "test-build" # Use a temporary tag for verification
+          GHVSA_PAT: ${{ secrets.GHVSA_PAT }}
+        run: |
+          make clean-artifacts build-all-binaries-prod || exit 1
+          skaffold config set default-repo ""
+          skaffold build || exit 1
+          make vcp-db-migrate-image imageVersion=test-build || exit 1
+          make vcp-cloudrun-deployer-linux-image imageVersion=test-build || exit 1
+  
+  verify_autogen_code:
+    name: Verify autogen code
+    needs: setup-vsacictl
+    runs-on: [ self-hosted, linux ]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      options: --user root
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+      - name: Configure Git for private modules
+        run: |
+          git config --global url."https://${{ secrets.GHVSA_PAT }}@github.com/".insteadOf "https://github.com/"
+      - name: Clean Workspace
+        run: |
+          git reset --hard
+          if [ -f .gitmodules ] && [ -s .gitmodules ]; then git submodule foreach git reset --hard; fi
+          git clean -fd
+      - name: Verify autogen code
+        run: make verify-generated
+      
+  lint:
+    needs: setup-vsacictl
+    runs-on: [self-hosted, linux]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      options: --user root
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - name: Install vsacictl
+        uses: ./.github/actions/install-vsacictl
+        with:
+          cache-key: ${{ needs.setup-vsacictl.outputs.cache-key }}
+
+      - name: Configure Git for private modules
+        run: |
+          git config --global url."https://${{ secrets.GHVSA_PAT }}@github.com/".insteadOf "https://github.com/"
+
+      - name: Run golangci-lint script
+        run: vsacictl lint
+
+  call-integration-test:
+    needs: [build, common, unit_tests, setup-vsacictl]
+    uses: ./.github/workflows/integrationtest.yaml
+    secrets: inherit
+    if: github.event_name == 'pull_request'
+    with:
+      cache-key: ${{ needs.setup-vsacictl.outputs.cache-key }}
+      vsa_control_plane_branch: ${{ github.head_ref }}

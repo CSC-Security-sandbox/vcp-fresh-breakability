@@ -1,0 +1,92 @@
+name: Release Workflow
+
+on:
+  schedule:
+    - cron: '30 2 * * 5'
+  workflow_dispatch:
+
+jobs:
+  setup-vsacictl:
+    name: Setup vsacictl
+    uses: ./.github/workflows/setup-vsacictl.yaml
+    secrets: inherit
+
+  release_branch:
+    permissions:
+      contents: write
+      actions: read
+      packages: write
+
+    runs-on: [ self-hosted ,linux ]
+    needs: setup-vsacictl
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      options: --user root
+
+    steps:
+      - name: Checkout codes
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GHVSA_PAT }}
+
+      - name: Install vsacictl
+        uses: ./.github/actions/install-vsacictl
+        with:
+          cache-key: ${{ needs.setup-vsacictl.outputs.cache-key }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - name: Configure Git
+        run: |
+          USERNAME=${{ github.actor }}
+          echo "Fetching email for $USERNAME"
+          EMAIL=$(curl -s -H "Authorization: token ${{ secrets.GHVSA_PAT }}" https://api.github.com/users/$USERNAME | jq -r '.email')
+          if [ "$EMAIL" == "null" ]; then
+            EMAIL="$USERNAME@users.noreply.github.com"
+          fi
+          echo "Using email: $EMAIL"
+          echo "Using username: $USERNAME"
+          git config --global user.email "$EMAIL"
+          git config --global user.name "$USERNAME"
+
+      - name: Run release logic
+        id: release_logic_binary
+        run: vsacictl tag release
+        env:
+          GH_PAT: ${{ secrets.GHVSA_PAT }}
+          GITHUB_OUTPUT: $GITHUB_ENV
+
+      - name: Output printout
+        run: |
+          echo "RC_TAG=${{ steps.release_logic_binary.outputs.RC_TAG }}" 
+          echo "DEV_TAG=${{ steps.release_logic_binary.outputs.DEV_TAG }}" 
+          echo "RC_BRANCH=${{ steps.release_logic_binary.outputs.RC_BRANCH }}"
+          echo "DEV_BRANCH=${{ steps.release_logic_binary.outputs.DEV_BRANCH }}"
+
+    outputs:
+      rcTAG: ${{ steps.release_logic_binary.outputs.RC_TAG }}
+      devTAG: ${{ steps.release_logic_binary.outputs.DEV_TAG }}
+      rcBranch: ${{ steps.release_logic_binary.outputs.RC_BRANCH }}
+      devBranch: ${{ steps.release_logic_binary.outputs.DEV_BRANCH }}
+
+  create_release_vsa_rc:
+    needs: [release_branch]
+    uses: ./.github/workflows/build_common.yaml
+    secrets: inherit
+    with:
+      pre_release: true
+      tag: ${{ needs.release_branch.outputs.rcTAG }}
+      pr_base_branch: ${{ needs.release_branch.outputs.rcBranch }}
+
+  create_release_vsa_dev:
+    needs: [release_branch]
+    uses: ./.github/workflows/build_common.yaml
+    secrets: inherit
+    with:
+      pre_release: true
+      tag: ${{ needs.release_branch.outputs.devTAG }}
+      pr_base_branch: ${{ needs.release_branch.outputs.devBranch }}
+      component_update: true

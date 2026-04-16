@@ -1,0 +1,384 @@
+name: Documentation Sync Check
+
+on:
+  workflow_dispatch:
+
+#  disabled until fixed.
+#  pull_request:
+#    branches: [ main ]
+#    paths:
+#      - '**.go'
+#      - '**.md'
+#      - 'doc/**'
+#      - 'google-proxy/api/**'
+#      - 'core/**'
+#      - 'cicd/**'
+#  push:
+#    branches: [ main ]
+#    paths:
+#      - '**.go'
+#      - '**.md'
+#      - 'doc/**'
+#      - 'google-proxy/api/**'
+#      - 'core/**'
+#      - 'cicd/**'
+
+# Explicit minimal permissions for GITHUB_TOKEN to follow security best practices
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  docs-sync-check:
+    # Run in a secure environment with minimal permissions
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+    - name: Security validation
+      run: |
+        # Validate we're in a trusted context
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+            echo "::warning::Fork PR detected - running in restricted mode for security"
+            echo "FORK_PR=true" >> $GITHUB_ENV
+          else
+            echo "Internal PR detected - running in full mode"
+            echo "FORK_PR=false" >> $GITHUB_ENV
+          fi
+        else
+          echo "Push event detected - running in full mode"
+          echo "FORK_PR=false" >> $GITHUB_ENV
+        fi
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        # Use default GITHUB_TOKEN for security
+        persist-credentials: false
+
+    - name: Configure Git for private modules
+      if: env.FORK_PR == 'false'
+      run: |
+        # Only configure private modules for trusted contexts (push events or same-repo PRs)
+        # This prevents execution of untrusted code from fork PRs
+        git config --global url."https://${{ secrets.GHVSA_PAT }}@github.com/".insteadOf "https://github.com/"
+        echo "GOPRIVATE=github.com/vcp-vsa-control-Plane/*" >> $GITHUB_ENV
+        echo "GONOSUMDB=github.com/vcp-vsa-control-Plane/*" >> $GITHUB_ENV
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+        cache: true
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Install dependencies
+      if: env.FORK_PR == 'false'
+      run: |
+        set -euo pipefail
+        go mod download
+        go mod tidy
+
+    - name: Install dependencies (fork PR mode)
+      if: env.FORK_PR == 'true'
+      run: |
+        set -euo pipefail
+        # In fork PR mode, skip private modules for security
+        echo "Skipping private module operations for security in fork PR mode"
+        go mod download || echo "Some modules may not be available in fork PR mode"
+
+    - name: Enhanced documentation sync analysis
+      id: docs-sync
+      run: |
+        set -euo pipefail
+        
+        # Get changed files (robust for pull_request and push events)
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          # Ensure we have the base branch refs available
+          git fetch --no-tags origin +refs/heads/*:refs/remotes/origin/* || true
+          changed_files=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }}...${{ github.sha }} 2>/dev/null || echo "")
+        else
+          # For push events, compare last two commits; fallback to other diffs for single-commit cases
+          changed_files=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only HEAD^..HEAD 2>/dev/null || git diff --name-only)
+        fi
+        
+        # Count different types of changes
+        api_changes=$(echo "$changed_files" | grep -E "(api/|\.proto$|swagger|\.yaml$|\.yml$)" | wc -l)
+        workflow_changes=$(echo "$changed_files" | grep -E "(workflows/|activities/|orchestrator/)" | wc -l)
+        config_changes=$(echo "$changed_files" | grep -E "(config/|\.env|\.yaml$|\.yml$)" | wc -l)
+        core_changes=$(echo "$changed_files" | grep -E "(core/|models/|handlers/)" | wc -l)
+        doc_changes=$(echo "$changed_files" | grep "^doc/" | wc -l)
+        
+        # Calculate documentation coverage metrics
+        total_critical_changes=$((api_changes + workflow_changes + config_changes + core_changes))
+        
+        echo "api_changes=$api_changes" >> $GITHUB_OUTPUT
+        echo "workflow_changes=$workflow_changes" >> $GITHUB_OUTPUT
+        echo "config_changes=$config_changes" >> $GITHUB_OUTPUT
+        echo "core_changes=$core_changes" >> $GITHUB_OUTPUT
+        echo "doc_changes=$doc_changes" >> $GITHUB_OUTPUT
+        echo "total_critical_changes=$total_critical_changes" >> $GITHUB_OUTPUT
+        
+        # Determine sync status
+        if [ $total_critical_changes -gt 0 ] && [ $doc_changes -eq 0 ]; then
+          echo "docs_sync_warning=true" >> $GITHUB_OUTPUT
+          echo "docs_sync_message=⚠️ Critical changes detected without documentation updates" >> $GITHUB_OUTPUT
+        elif [ $total_critical_changes -gt 0 ] && [ $doc_changes -gt 0 ]; then
+          echo "docs_sync_warning=false" >> $GITHUB_OUTPUT
+          echo "docs_sync_message=✅ Documentation updated alongside critical changes" >> $GITHUB_OUTPUT
+        else
+          echo "docs_sync_warning=false" >> $GITHUB_OUTPUT
+          echo "docs_sync_message=ℹ️ No critical changes requiring documentation updates" >> $GITHUB_OUTPUT
+        fi
+        
+        # Calculate coverage percentage
+        if [ $total_critical_changes -gt 0 ]; then
+          coverage_percent=$(( (doc_changes * 100) / total_critical_changes ))
+          echo "coverage_percent=$coverage_percent" >> $GITHUB_OUTPUT
+        else
+          echo "coverage_percent=100" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Documentation coverage analysis
+      id: doc-coverage
+      run: |
+        set -euo pipefail
+        
+        # Analyze new API endpoints and their documentation
+        new_endpoints=$(git diff HEAD~1 HEAD | grep -o 'func.*Handler\|func.*API\|func.*Endpoint' | wc -l || echo "0")
+        new_workflows=$(git diff HEAD~1 HEAD | grep -o 'func.*Workflow\|func.*Activity' | wc -l || echo "0")
+        new_models=$(git diff HEAD~1 HEAD | grep -o 'type.*struct\|type.*interface' | wc -l || echo "0")
+        
+        # Count corresponding documentation
+        api_docs=$(find doc/ -name "*.md" -exec grep -l "API\|endpoint\|handler" {} \; 2>/dev/null | wc -l || echo "0")
+        workflow_docs=$(find doc/ -name "*.md" -exec grep -l "workflow\|activity\|temporal" {} \; 2>/dev/null | wc -l || echo "0")
+        model_docs=$(find doc/ -name "*.md" -exec grep -l "model\|struct\|interface" {} \; 2>/dev/null | wc -l || echo "0")
+        
+        echo "new_endpoints=$new_endpoints" >> $GITHUB_OUTPUT
+        echo "new_workflows=$new_workflows" >> $GITHUB_OUTPUT
+        echo "new_models=$new_models" >> $GITHUB_OUTPUT
+        echo "api_docs=$api_docs" >> $GITHUB_OUTPUT
+        echo "workflow_docs=$workflow_docs" >> $GITHUB_OUTPUT
+        echo "model_docs=$model_docs" >> $GITHUB_OUTPUT
+
+    - name: Run link check
+      run: |
+        set -euo pipefail
+        # Run the repository link checker with enhanced error handling
+        go run ./scripts/link-checker/link-checker.go \
+          --dir doc/ \
+          --verbose \
+          --timeout ${{ env.LINK_CHECK_TIMEOUT }} \
+          --retries ${{ env.LINK_CHECK_RETRIES }} \
+          --allow-insecure=${{ env.LINK_CHECK_ALLOW_INSECURE }} 2>&1 | tee link-check-output.txt || {
+          echo "Link check completed with warnings/errors"
+          echo "Link check completed with issues" > link-check-output.txt
+        }
+      env:
+        LINK_CHECK_TIMEOUT: 15
+        LINK_CHECK_RETRIES: 3
+        LINK_CHECK_ALLOW_INSECURE: false
+
+    - name: Check for broken links
+      id: link-results
+      run: |
+        set -euo pipefail
+        if grep -q "✗" link-check-output.txt; then
+          echo "broken_links=true" >> $GITHUB_OUTPUT
+          broken_count=$(grep -c "✗" link-check-output.txt || echo "0")
+          echo "broken_count=$broken_count" >> $GITHUB_OUTPUT
+          echo "Found $broken_count broken links in documentation!"
+        else
+          echo "broken_links=false" >> $GITHUB_OUTPUT
+          echo "broken_count=0" >> $GITHUB_OUTPUT
+          echo "All documentation links are valid!"
+        fi
+
+    - name: Generate workflow summary
+      if: always()
+      run: |
+        echo "## 📚 Documentation Check Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Change Analysis" >> $GITHUB_STEP_SUMMARY
+        echo "- **API Changes**: ${{ steps.docs-sync.outputs.api_changes }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Workflow Changes**: ${{ steps.docs-sync.outputs.workflow_changes }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Config Changes**: ${{ steps.docs-sync.outputs.config_changes }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Core Changes**: ${{ steps.docs-sync.outputs.core_changes }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Documentation Changes**: ${{ steps.docs-sync.outputs.doc_changes }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Coverage Metrics" >> $GITHUB_STEP_SUMMARY
+        echo "- **Documentation Coverage**: ${{ steps.docs-sync.outputs.coverage_percent }}%" >> $GITHUB_STEP_SUMMARY
+        echo "- **Sync Status**: ${{ steps.docs-sync.outputs.docs_sync_message }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Code Analysis" >> $GITHUB_STEP_SUMMARY
+        echo "- **New Endpoints**: ${{ steps.doc-coverage.outputs.new_endpoints }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **New Workflows**: ${{ steps.doc-coverage.outputs.new_workflows }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **New Models**: ${{ steps.doc-coverage.outputs.new_models }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Link Check Results" >> $GITHUB_STEP_SUMMARY
+        echo "- **Broken Links**: ${{ steps.link-results.outputs.broken_count }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Status**: ${{ steps.link-results.outputs.broken_links == 'true' && '❌ Issues Found' || '✅ All Links Valid' }}" >> $GITHUB_STEP_SUMMARY
+
+    - name: Comment PR with enhanced documentation status
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+
+          // Read link check results
+          let linkResults = '';
+          try {
+            const path = './link-check-output.txt';
+            if (fs.existsSync(path)) {
+              linkResults = fs.readFileSync(path, { encoding: 'utf8' });
+            } else {
+              linkResults = 'Link check results not available';
+            }
+          } catch (error) {
+            linkResults = 'Error reading link check results: ' + error.message;
+          }
+
+          // Get step outputs (as strings)
+          const apiChanges = '${{ steps.docs-sync.outputs.api_changes }}';
+          const workflowChanges = '${{ steps.docs-sync.outputs.workflow_changes }}';
+          const configChanges = '${{ steps.docs-sync.outputs.config_changes }}';
+          const coreChanges = '${{ steps.docs-sync.outputs.core_changes }}';
+          const docChanges = '${{ steps.docs-sync.outputs.doc_changes }}';
+          const coveragePercent = '${{ steps.docs-sync.outputs.coverage_percent }}';
+          const syncMessage = '${{ steps.docs-sync.outputs.docs_sync_message }}';
+          const brokenLinks = '${{ steps.link-results.outputs.broken_links }}';
+          const brokenCount = '${{ steps.link-results.outputs.broken_count }}';
+          const newEndpoints = '${{ steps.doc-coverage.outputs.new_endpoints }}';
+          const newWorkflows = '${{ steps.doc-coverage.outputs.new_workflows }}';
+          const newModels = '${{ steps.doc-coverage.outputs.new_models }}';
+
+          // Convert numeric-like outputs to ints for comparisons
+          const toInt = (s) => { const v = parseInt(s, 10); return isNaN(v) ? 0 : v; };
+          const apiInt = toInt(apiChanges);
+          const workflowInt = toInt(workflowChanges);
+          const configInt = toInt(configChanges);
+          const coreInt = toInt(coreChanges);
+          const docInt = toInt(docChanges);
+          const brokenInt = toInt(brokenCount);
+
+          // Check if this is a fork PR
+          const isForkPR = '${{ env.FORK_PR }}' === 'true';
+          
+          // Build comment safely as lines joined together to avoid YAML parsing issues
+          const lines = [];
+          lines.push('## 📚 Enhanced Documentation Sync Check');
+          if (isForkPR) {
+            lines.push('');
+            lines.push('⚠️ **Security Notice**: This is a fork PR. Some checks may be limited for security reasons.');
+          }
+          lines.push('');
+          lines.push('### 🔍 Change Analysis');
+          lines.push('| Type | Count | Status |');
+          lines.push('|------|-------|--------|');
+          lines.push('| API Changes | ' + apiChanges + ' | ' + (apiInt > 0 ? '🔧' : '✅') + ' |');
+          lines.push('| Workflow Changes | ' + workflowChanges + ' | ' + (workflowInt > 0 ? '⚡' : '✅') + ' |');
+          lines.push('| Config Changes | ' + configChanges + ' | ' + (configInt > 0 ? '⚙️' : '✅') + ' |');
+          lines.push('| Core Changes | ' + coreChanges + ' | ' + (coreInt > 0 ? '🏗️' : '✅') + ' |');
+          lines.push('| **Documentation Changes** | **' + docChanges + '** | **' + (docInt > 0 ? '📝' : '⚠️') + '** |');
+          lines.push('');
+          lines.push('### 📊 Coverage Metrics');
+          lines.push('- **Documentation Coverage**: ' + coveragePercent + '%');
+          lines.push('- **Sync Status**: ' + syncMessage);
+          lines.push('');
+          lines.push('### 🔧 Code Analysis');
+          lines.push('- **New Endpoints**: ' + newEndpoints);
+          lines.push('- **New Workflows**: ' + newWorkflows);
+          lines.push('- **New Models**: ' + newModels);
+          lines.push('');
+          lines.push('### 🔗 Link Check Results');
+          lines.push('- **Broken Links**: ' + brokenCount);
+          lines.push('- **Status**: ' + (brokenLinks === 'true' ? '❌ Issues Found' : '✅ All Links Valid'));
+          lines.push('');
+          lines.push('### 📋 Detailed Link Check Output');
+          lines.push('```');
+          lines.push(linkResults);
+          lines.push('```');
+          lines.push('');
+          lines.push('### 📖 Documentation Update Guidelines');
+          lines.push('');
+          lines.push('**When to update documentation:**');
+          lines.push('- API changes (endpoints, schemas, responses)');
+          lines.push('- Workflow changes (new workflows, modified parameters)');
+          lines.push('- Configuration changes (new env vars, config files)');
+          lines.push('- Architecture changes (new components, data models)');
+          lines.push('- User-facing changes (CLI commands, error messages)');
+          lines.push('');
+          lines.push('**Quick commands:**');
+          lines.push('```bash');
+          lines.push('# Check documentation links');
+          lines.push('go run ./scripts/link-checker/link-checker.go --dir doc/ --verbose');
+          lines.push('');
+          lines.push('# Check specific file types');
+          lines.push('git diff --name-only HEAD~1 HEAD | grep -E "(api/|workflows/|config/)"');
+          lines.push('```');
+          lines.push('');
+          lines.push('**Resources:**');
+          lines.push('- [Documentation Update Guide](doc/guides/documentation-updates.md)');
+          lines.push('- [Contributing Guidelines](CONTRIBUTING.md)');
+          lines.push('- [Link Checker Guide](doc/guides/link-checking.md)');
+
+          const comment = lines.join('\n');
+
+          // Post the comment on the PR
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+    - name: Documentation status check
+      if: steps.docs-sync.outputs.docs_sync_warning == 'true'
+      run: |
+        echo "::warning::Critical changes detected without documentation updates"
+        echo "::warning::Please review if documentation needs to be updated"
+        echo "Coverage: ${{ steps.docs-sync.outputs.coverage_percent }}%"
+
+    - name: Link check status
+      if: steps.link-results.outputs.broken_links == 'true'
+      run: |
+        echo "::warning::Broken links found in documentation (non-blocking)"
+        echo "Broken links count: ${{ steps.link-results.outputs.broken_count }}"
+        echo "See link-check-output.txt artifact for details"
+
+    - name: Upload enhanced results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: documentation-check-results
+        path: |
+          link-check-output.txt
+          doc/
+        retention-days: 7
+
+    - name: Final status report
+      if: always()
+      run: |
+        echo "## 🎯 Final Documentation Check Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### ✅ Completed Checks" >> $GITHUB_STEP_SUMMARY
+        echo "- Enhanced documentation sync analysis" >> $GITHUB_STEP_SUMMARY
+        echo "- Documentation coverage metrics" >> $GITHUB_STEP_SUMMARY
+        echo "- Link validation" >> $GITHUB_STEP_SUMMARY
+        echo "- Code change analysis" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📈 Performance" >> $GITHUB_STEP_SUMMARY
+        echo "- Go modules cached for faster builds" >> $GITHUB_STEP_SUMMARY
+        echo "- Pinned action versions for security" >> $GITHUB_STEP_SUMMARY
+        echo "- Enhanced error handling" >> $GITHUB_STEP_SUMMARY

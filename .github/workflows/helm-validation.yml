@@ -1,0 +1,221 @@
+name: Helm Chart Validation
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+    paths:
+      - 'kubernetes/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      charts: ${{ steps.detect.outputs.charts }}
+      has-changes: ${{ steps.detect.outputs.has-changes }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install utilities (jq)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+        shell: bash
+
+      - name: Detect changed Helm charts
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Detecting changed Helm charts for PR..."
+
+          # Prefer explicit SHAs if present (more reliable)
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+          # Ensure base commit is fetched
+          git fetch origin "${BASE_SHA}" --depth=1 || true
+
+          # Find changed files between base and head, restricted to kubernetes/**
+          CHANGED=$(git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" -- 'kubernetes/**' || true)
+
+          #Excluding temporal changes as we are not maintaining it
+          CHANGED=$(printf '%s\n' "$CHANGED" | grep -v '^kubernetes/temporal/' || true)
+
+          if [[ -z "$CHANGED" ]]; then
+            echo "No changes detected under kubernetes/"
+            echo "has-changes=false" >> "$GITHUB_OUTPUT"
+            echo "charts=[]" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Changed files:"
+          echo "$CHANGED"
+
+          # Collect unique chart directories that have Chart.yaml (walk up to find Chart.yaml)
+          CHARTS=$(printf '%s\n' "$CHANGED" \
+            | xargs -r -n1 dirname \
+            | grep '^kubernetes/' \
+            | sort -u \
+            | while read -r d; do
+                while [[ "$d" != "." && "$d" != "/" ]]; do
+                  if [[ -f "$d/Chart.yaml" ]]; then
+                    echo "$d"
+                    break
+                  fi
+                  d=$(dirname "$d")
+                done
+              done \
+            | sort -u)
+
+          if [[ -z "$CHARTS" ]]; then
+            echo "No Helm charts affected by changes."
+            echo "has-changes=false" >> "$GITHUB_OUTPUT"
+            echo "charts=[]" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Affected charts:"
+          echo "$CHARTS"
+
+          # Replace sub-charts with their parent charts
+          PARENT_CHARTS=$(printf '%s\n' "$CHARTS" | while read -r chart; do
+            # If chart path contains /charts/, it's a sub-chart - find parent
+            if [[ "$chart" == *"/charts/"* ]]; then
+              # Extract parent path (everything before /charts/)
+              parent_path=$(echo "$chart" | sed 's|/charts/.*||')
+              # Verify parent has Chart.yaml
+              if [[ -f "$parent_path/Chart.yaml" ]]; then
+                echo "$parent_path"
+              else
+                echo "$chart"
+              fi
+            else
+              echo "$chart"
+            fi
+          done | sort -u)
+
+          echo "Charts to validate (sub-charts replaced with parents):"
+          echo "$PARENT_CHARTS"
+
+          CHARTS_JSON=$(printf '%s\n' "$PARENT_CHARTS" | jq -R -s -c 'split("\n")[:-1]')
+          echo "has-changes=true" >> "$GITHUB_OUTPUT"
+          echo "charts=$CHARTS_JSON" >> "$GITHUB_OUTPUT"
+
+  helm-validation:
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has-changes == 'true'
+    strategy:
+      matrix:
+        chart: ${{ fromJson(needs.detect-changes.outputs.charts) }}
+      fail-fast: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: '3.14.0'
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Add Helm repositories
+        run: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami || true
+          helm repo add stable https://charts.helm.sh/stable || true
+          helm repo update
+        shell: bash
+      
+      - name: Install kubeconform
+        run: |
+          set -e
+          KUBECONFORM_VERSION=v0.6.7
+          curl -L "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
+            | tar xz
+          sudo mv kubeconform /usr/local/bin/kubeconform
+          kubeconform -v
+
+      - name: Validate Helm chart - ${{ matrix.chart }}
+        shell: bash
+        env:
+          CHART_PATH: ${{ matrix.chart }}
+        run: |
+          set -euo pipefail
+          CHART_PATH="${CHART_PATH}"
+          CHART_NAME=$(basename "$CHART_PATH")
+          RENDERED_FILE="/tmp/${CHART_NAME}-rendered.yaml"
+
+          echo "Validating chart: $CHART_NAME"
+          echo "Chart path: $CHART_PATH"
+
+          # Update chart dependencies (if any)
+          echo "Updating chart dependencies..."
+          if ! (cd "$CHART_PATH" && helm dependency update); then
+            echo "helm dependency update failed or no dependencies - continuing"
+          fi
+
+          # Lint chart
+          echo "Running helm lint..."
+          helm lint "$CHART_PATH"
+
+          # Template render - write output to a single YAML file for kubeconform
+          echo "Attempting template render to $RENDERED_FILE ..."
+          # Remove any previous file
+          rm -f "$RENDERED_FILE"
+
+          if helm template "$CHART_NAME" "$CHART_PATH" --include-crds --debug > "$RENDERED_FILE" 2> /tmp/helm-template-${CHART_NAME}.err; then
+            echo "Template render succeeded; rendered file: $RENDERED_FILE"
+            # Optional: show a short summary of rendered file size/lines
+            echo "Rendered lines: $(wc -l < "$RENDERED_FILE" || echo 0)"
+          else
+            echo "helm template failed; checking error for known dependency/template-missing issues..."
+            # If helm template failed, inspect stderr for dependency-like messages
+            if grep -qiE "no template.*associated with template|could not find|chart .* not found|required chart" /tmp/helm-template-${CHART_NAME}.err || grep -qi "no chart" /tmp/helm-template-${CHART_NAME}.err; then
+              echo "Template render failed due to missing subchart dependencies or missing templates. Skipping template validation for this chart (dependency issue)."
+              rm -f "$RENDERED_FILE"
+            else
+              echo "Template render failed with unexpected error; stderr:"
+              sed -n '1,200p' /tmp/helm-template-${CHART_NAME}.err || true
+              exit 1
+            fi
+          fi
+
+          echo "Chart $CHART_NAME lint/template step completed."
+      
+      - name: kubeconform validation
+        shell: bash
+        env:
+          CHART_PATH: ${{ matrix.chart }}
+        run: |
+          set -euo pipefail
+          CHART_NAME=$(basename "${CHART_PATH}")
+          RENDERED_FILE="/tmp/${CHART_NAME}-rendered.yaml"
+
+
+          if [[ -f "$RENDERED_FILE" && -s "$RENDERED_FILE" ]]; then
+            echo "=== kubeconform validating $RENDERED_FILE ==="
+            # Validate; exit non-zero on failure
+            kubeconform \
+              -strict \
+              -ignore-missing-schemas \
+              -summary \
+              "$RENDERED_FILE"
+            echo "kubeconform validation passed for $CHART_NAME"
+          else
+            echo "No rendered manifest to validate for $CHART_NAME (template was skipped or failed). Skipping kubeconform for this chart."
+          fi

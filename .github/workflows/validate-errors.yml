@@ -1,0 +1,32 @@
+name: Validate Error Framework
+
+on:
+  pull_request:
+    types: [opened, synchronize]  # Trigger when PR is opened or updated
+
+permissions:
+  contents: read
+  packages: read
+  actions: read
+
+jobs:
+  validate-errors:
+    runs-on: [self-hosted]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      options: --user root
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Validate Error Framework
+        run: |
+          cd core/errors
+          chmod +x validate.sh
+          ./validate.sh

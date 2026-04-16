@@ -1,0 +1,126 @@
+# Orchestrator: runs Greencloud VCP deployment (helm charts + attestations) and VSA-Control-Plane
+# image copy (VSA/Mediator/VLM) in parallel from a single manual run.
+#
+# Prerequisites:
+# - Greencloud repo (greenqloud/vcp-deployment-pipeline): add a secret in THIS repo named
+#   GREENQLOUD_VCP_DEPLOYMENT_TOKEN (PAT or GitHub App token with actions:write on that repo).
+# - Optional: if Greencloud workflows accept inputs (e.g. helm_chart_name), add them below.
+#
+# Usage: Run this workflow manually; fill config_file_name + image copy options; choose
+#       Greencloud workflow (staging or prod). Both run in parallel.
+
+name: Release Orchestrator (Greencloud + Image Copy)
+
+on:
+  workflow_dispatch:
+    inputs:
+      config_file_name:
+        description: 'Config file name in config/VSA-Image/ (e.g. 9.18.1X26.json)'
+        required: true
+        type: string
+      run_mode:
+        description: 'Run mode (image copy)'
+        required: true
+        type: choice
+        options:
+          - single_environment
+          - all_environments
+      image_type:
+        description: 'Image type: vsa, mediator, or both'
+        required: true
+        type: choice
+        options:
+          - vsa
+          - mediator
+          - both
+      environment:
+        description: 'Target environment (image copy; used when Run mode is Single environment)'
+        required: true
+        type: choice
+        options:
+          - autopush
+          - staging
+          - prod
+      run_greencloud:
+        description: 'Also run Greencloud pipeline (helm + attestations) in parallel?'
+        required: true
+        type: choice
+        options:
+          - yes
+          - no
+      greencloud_workflow:
+        description: 'Which Greencloud pipeline to run (used only when Run Greencloud = yes)'
+        required: true
+        type: choice
+        options:
+          - staging
+          - prod
+      # If Greencloud workflow accepts a helm chart or other input, add it here and pass below.
+      # greencloud_helm_chart:
+      #   description: 'Helm chart name (for Greencloud pipeline)'
+      #   required: false
+      #   type: string
+
+permissions:
+  contents: read
+  actions: write  # needed to trigger workflows in this repo
+
+jobs:
+  trigger-greencloud:
+    name: Trigger Greencloud (helm + attestations)
+    if: inputs.run_greencloud == 'yes'
+    runs-on: ubuntu-latest
+    env:
+      GREENCLOUD_OWNER: greenqloud
+      GREENCLOUD_REPO: vcp-deployment-pipeline
+    steps:
+      - name: Trigger Greencloud VCP deployment workflow
+        id: trigger
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const env = process.env.GREENCLOUD_WORKFLOW;
+            const workflowFile = env === 'prod'
+              ? 'prod-vcp-deployment-pipeline.yaml'
+              : 'staging-vcp-deployment-pipeline.yaml';
+            const inputs = {};
+            // If Greencloud workflow has workflow_dispatch inputs, add them here, e.g.:
+            // if (process.env.HELM_CHART_NAME) inputs.helm_chart_name = process.env.HELM_CHART_NAME;
+            const ref = process.env.GREENCLOUD_REF || 'main';
+            await github.rest.actions.createWorkflowDispatch({
+              owner: process.env.GREENCLOUD_OWNER,
+              repo: process.env.GREENCLOUD_REPO,
+              workflow_id: workflowFile,
+              ref: ref,
+              inputs: inputs
+            });
+            core.notice(`Triggered ${workflowFile} on ${ref}`);
+        env:
+          GREENCLOUD_WORKFLOW: ${{ inputs.greencloud_workflow }}
+          GREENCLOUD_REF: main
+          GH_TOKEN: ${{ secrets.GREENQLOUD_VCP_DEPLOYMENT_TOKEN }}
+          # HELM_CHART_NAME: ${{ inputs.greencloud_helm_chart }}
+
+  trigger-image-copy:
+    name: Trigger VSA/Mediator image copy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger image copy workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'vsa-mediator-image-copy.yml',
+              ref: context.ref,
+              inputs: {
+                config_file_name: '${{ inputs.config_file_name }}',
+                run_mode: '${{ inputs.run_mode }}',
+                image_type: '${{ inputs.image_type }}',
+                environment: '${{ inputs.environment }}'
+              }
+            });
+            core.notice('Triggered vsa-mediator-image-copy.yml');
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

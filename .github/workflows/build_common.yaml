@@ -1,0 +1,583 @@
+name: Build and Publish Images, Charts and Release
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: "Tag to use for building and publishing images and charts and release"
+        required: true
+        type: string
+      pre_release:
+        description: "A flag to indicate if this is a pre-release"
+        default: false
+        type: boolean
+      pr_user:
+        description: "User who created the pull request"
+        required: false
+        type: string
+      pr_title:
+        description: "Title of the pull request"
+        required: false
+        type: string
+      pr_base_branch:
+        description: "Base branch for the pull request"
+        required: true
+        type: string
+      component_update:
+        description: "A flag to check if component version update is required"
+        default: false
+        type: boolean
+      send_slack_notification:
+        description: "A flag to check if a Slack notification should be sent"
+        default: true
+        type: boolean
+      images_to_build:
+        description: "A list of images to build. If not provided, all images will be built"
+        required: false
+        type: string
+        default: "core,google-proxy,vcp-db-migrate,vcp-worker,telemetry,vcp-cloudrun-deployer,ontap-proxy"
+      additional_images_toscan:
+        description: "A list of additional images to scan. If not provided, no additional images will be scanned"
+        required: false
+        type: string
+        default: "cloud-backup-adc"
+      create_release:
+        description: "A flag to indicate if a GitHub release should be created"
+        default: true
+        type: boolean
+      push_charts:
+        description: "A flag to indicate if Helm charts should be pushed"
+        default: true
+        type: boolean
+    outputs:
+      GHCR_core_URL:
+        description: "URL of the core image in GHCR"
+        value: ${{ jobs.build_and_publish.outputs.GHCR_core_URL }}
+      GCP_core_URL:
+        description: "URL of the core image in GCP"
+        value: ${{ jobs.build_and_publish.outputs.GCP_core_URL }}
+      GHCR_google_proxy_URL:
+        description: "URL of the google-proxy image in GHCR"
+        value: ${{ jobs.build_and_publish.outputs.GHCR_google_proxy_URL }}
+      GCP_google_proxy_URL:
+        description: "URL of the google-proxy image in GCP"
+        value: ${{ jobs.build_and_publish.outputs.GCP_google_proxy_URL }}
+      GHCR_vcp_db_migrate_URL:
+        description: "URL of the vcp-db-migrate image in GHCR"
+        value: ${{ jobs.build_and_publish.outputs.GHCR_vcp_db_migrate_URL }}
+      GCP_vcp_db_migrate_URL:
+        description: "URL of the vcp-db-migrate image in GCP"
+        value: ${{ jobs.build_and_publish.outputs.GCP_vcp_db_migrate_URL }}
+      GHCR_vcp_cloudrun_deployer_URL:
+        description: "URL of the vcp-cloudrun-deployer image in GHCR"
+        value: ${{ jobs.build_and_publish.outputs.GHCR_vcp_cloudrun_deployer_URL }}
+      GCP_vcp_cloudrun_deployer_URL:
+        description: "URL of the vcp-cloudrun-deployer image in GCP"
+        value: ${{ jobs.build_and_publish.outputs.GCP_vcp_cloudrun_deployer_URL }}
+      GHCR_vcp_worker_URL:
+        description: "URL of the vcp-worker image in GHCR"
+        value: ${{ jobs.build_and_publish.outputs.GHCR_vcp_worker_URL }}
+      GCP_vcp_worker_URL:
+        description: "URL of the vcp-worker image in GCP"
+        value: ${{ jobs.build_and_publish.outputs.GCP_vcp_worker_URL }}
+      GHCR_ontap_proxy_URL:
+        description: "URL of the ontap-proxy image in GHCR"
+        value: ${{ jobs.build_and_publish.outputs.GHCR_ontap_proxy_URL }}
+      GCP_ontap_proxy_URL:
+        description: "URL of the ontap-proxy image in GCP"
+        value: ${{ jobs.build_and_publish.outputs.GCP_ontap_proxy_URL }}
+      GHCR_vsa_control_plane_HELM_URL:
+        description: "URL of the vsa-control-plane chart in GHCR"
+        value: ${{ jobs.build_and_publish.outputs.GHCR_vsa_control_plane_HELM_URL }}
+      GCP_vsa_control_plane_HELM_URL:
+        description: "URL of the vsa-control-plane chart in GCP"
+        value: ${{ jobs.build_and_publish.outputs.GCP_vsa_control_plane_HELM_URL }}
+      GHCR_vcp_worker_HELM_URL:
+        description: "URL of the vcp-worker chart in GHCR"
+        value: ${{ jobs.build_and_publish.outputs.GHCR_vcp_worker_HELM_URL }}
+      GCP_vcp_worker_HELM_URL:
+        description: "URL of the vcp-worker chart in GCP"
+        value: ${{ jobs.build_and_publish.outputs.GCP_vcp_worker_HELM_URL }}
+      GHCR_vsa_harvest_otel_HELM_URL:
+        description: "URL of the vcp-harvest chart in GHCR"
+        value: ${{ jobs.build_and_publish.outputs.GHCR_vsa_harvest_otel_HELM_URL }}
+      GCP_vsa_harvest_otel_HELM_URL:
+        description: "URL of the vcp-harvest chart in GCP"
+        value: ${{ jobs.build_and_publish.outputs.GCP_vsa_harvest_otel_HELM_URL }}
+      GHCR_ontap_proxy_HELM_URL:
+        description: "URL of the ontap-proxy chart in GHCR"
+        value: ${{ jobs.build_and_publish.outputs.GHCR_ontap_proxy_HELM_URL }}
+      GCP_ontap_proxy_HELM_URL:
+        description: "URL of the ontap-proxy chart in GCP"
+        value: ${{ jobs.build_and_publish.outputs.GCP_ontap_proxy_HELM_URL }}
+    secrets:
+      GHVSA_PAT:
+        required: true
+      GHCR_REPO:
+        required: true
+
+permissions:
+  packages: write
+  contents: read
+  id-token: write
+  security-events: write
+  actions: read
+
+jobs:
+  setup-vsacictl:
+    name: Setup vsacictl
+    uses: ./.github/workflows/setup-vsacictl.yaml
+    secrets: inherit
+
+  build_and_publish:
+    name: Build and Publish Docker Images
+    needs: setup-vsacictl
+    runs-on: [self-hosted, linux]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      options: --user root
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    outputs:
+      GHCR_core_URL: ${{ steps.generate_output_urls.outputs.GHCR_core_URL }}
+      GCP_core_URL: ${{ steps.generate_output_urls.outputs.GCP_core_URL }}
+      GHCR_google_proxy_URL: ${{ steps.generate_output_urls.outputs.GHCR_google-proxy_URL }}
+      GCP_google_proxy_URL: ${{ steps.generate_output_urls.outputs.GCP_google-proxy_URL }}
+      GHCR_vcp_db_migrate_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-db-migrate_URL }}
+      GCP_vcp_db_migrate_URL: ${{ steps.generate_output_urls.outputs.GCP_vcp-db-migrate_URL }}
+      GHCR_vcp_cloudrun_deployer_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-cloudrun-deployer_URL }}
+      GCP_vcp_cloudrun_deployer_URL: ${{ steps.generate_output_urls.outputs.GCP_vcp-cloudrun-deployer_URL }}
+      GHCR_vcp_worker_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-worker_URL }}
+      GCP_vcp_worker_URL: ${{ steps.generate_output_urls.outputs.GCP_vcp-worker_URL }}
+      GHCR_ontap_proxy_URL: ${{ steps.generate_output_urls.outputs.GHCR_ontap-proxy_URL }}
+      GCP_ontap_proxy_URL: ${{ steps.generate_output_urls.outputs.GCP_ontap-proxy_URL }}
+      GHCR_vsa_control_plane_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_vsa-control-plane_HELM_URL }}
+      GCP_vsa_control_plane_HELM_URL: ${{ steps.generate_output_urls.outputs.GCP_vsa_control_plane_HELM_URL }}
+      GHCR_vcp_worker_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_vcp-worker-chart_HELM_URL }}
+      GCP_vcp_worker_HELM_URL: ${{ steps.generate_output_urls.outputs.GCP_vcp-worker-chart_HELM_URL }}
+      GHCR_vsa_harvest_otel_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_vsa-harvest-otel-chart_HELM_URL }}
+      GCP_vsa_harvest_otel_HELM_URL: ${{ steps.generate_output_urls.outputs.GCP_vsa-harvest-otel-chart_HELM_URL }}
+      IMAGES_TO_SCAN: ${{ steps.set_image_list.outputs.IMAGES_TO_SCAN }}
+      GHCR_ontap_proxy_HELM_URL: ${{ steps.generate_output_urls.outputs.GHCR_ontap-proxy-chart_HELM_URL }}
+      GCP_ontap_proxy_HELM_URL: ${{ steps.generate_output_urls.outputs.GCP_ontap-proxy-chart_HELM_URL }}
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+      - name: Image list to build
+        id: set_image_list
+        run: |
+          IFS=',' read -ra additional_images_toscan <<< "$additional_images_toscan"
+          IFS=',' read -ra IMAGES <<< "${{ inputs.images_to_build }}"
+          IMAGES+=("${additional_images_toscan[@]}")
+          IMAGES_TO_SCAN='['
+          for item in "${IMAGES[@]}"; do
+              IMAGES_TO_SCAN+="\"$item\","
+          done
+          IMAGES_TO_SCAN="${IMAGES_TO_SCAN%,}]"
+          echo "IMAGES_TO_SCAN=$IMAGES_TO_SCAN" >> $GITHUB_OUTPUT
+          echo "IMAGES_TO_SCAN: ${IMAGES_TO_SCAN}"
+          echo "IMAGES_TO_BUILD is set to: ${{ inputs.images_to_build }}"
+          
+        shell: bash -e {0}
+        env:
+          images_to_build: ${{ inputs.images_to_build }}
+          additional_images_toscan: ${{ inputs.additional_images_toscan }}
+
+      - name: Install vsacictl
+        uses: ./.github/actions/install-vsacictl
+        with:
+          cache-key: ${{ needs.setup-vsacictl.outputs.cache-key }}
+
+      - name: Build images
+        env:
+          IMAGES_TAG: ${{ inputs.tag }}
+          GHVSA_PAT: ${{ secrets.GHVSA_PAT }}
+        run: |
+          skaffold config set default-repo ""
+          make build-all-binaries-prod 
+          IFS=',' read -ra IMAGES <<< "${{ inputs.images_to_build }}" 
+          skaffold build
+          # for image in ${IMAGES[*]}; do
+          #     echo "Building image: ${image}"
+          #     skaffold build -b ${image} &
+          # done
+          # wait
+          make vcp-db-migrate-image imageVersion=${{ inputs.tag }}
+          make vcp-cloudrun-deployer-linux-image imageVersion=${{ inputs.tag }}
+        shell: bash -e {0}
+
+      - name: Check if digest exists in the gcloud or not
+        shell: bash -e {0}
+        run: |
+          ALL_DIGESTS_EXIST=1
+          IFS=',' read -ra IMAGES <<< "${{ inputs.images_to_build }}"
+          for IMAGE in "${IMAGES[@]}"; do
+              gcpDigest=$(docker inspect "$IMAGE:${{ inputs.tag }}" | jq -r '.[] | .RepoDigests[] | select(contains("-docker.pkg.dev"))')
+              echo "gcp digest is $gcpDigest"
+              if [[ -n "$gcpDigest" ]]; then
+               echo "Digest for image ${IMAGE} exists in Google Artifact Registry."
+               echo "${IMAGE}_DIGEST_EXISTS=1" >> $GITHUB_ENV 
+              else
+                echo "Digest for image ${IMAGE} does not exist in Google Artifact Registry."
+                echo "${IMAGE}_DIGEST_EXISTS=0" >> $GITHUB_ENV 
+                ALL_DIGESTS_EXIST=0
+              fi
+          done
+          echo "ALL_DIGESTS_EXIST=$ALL_DIGESTS_EXIST" >> $GITHUB_ENV             
+
+
+      - name: Log in to the Container registry
+        run: |
+          echo "${{ secrets.GHVSA_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin          
+
+      - id: auth
+        uses: google-github-actions/auth@v1
+        with:
+          workload_identity_provider: 'projects/${{vars.AR_GCP_PROJ_NUM}}/locations/global/workloadIdentityPools/${{vars.AR_WLI_POOL}}/providers/${{vars.AR_WLI_PROV}}'
+          service_account: '${{vars.AR_GCP_SA}}@${{ vars.AR_GCP_PROJ }}.iam.gserviceaccount.com'
+
+      - name: Configure Docker
+        run: |
+          gcloud config set project ${{ vars.AR_GCP_PROJ }} --quiet
+          gcloud auth configure-docker ${{vars.AR_GCP_REGION}}-docker.pkg.dev --quiet
+
+      - name: Push images
+        env:
+          GCP_PROJECT: ${{ vars.AR_GCP_PROJ }}
+          GHCR_ORG: vcp-vsa-control-plane
+          IMAGE_PATH: ${{ vars.AR_IMAGE_PATH }}
+          IMAGES_TAG: ${{ inputs.tag }}
+          GCP_REGION: ${{ vars.AR_GCP_REGION }}
+        run: vsacictl images push "${{ inputs.images_to_build }}" 
+
+      - name: Get image digest via GitHub API
+        id: get-digest
+        run: |
+          repo="${1:-VCP-VSA-control-Plane/vsa-control-plane}"  
+          token=$(curl -s "https://ghcr.io/token?service=ghcr.io&scope=repository:${repo}:pull" \
+          -u "${{github.actor}}:${{secrets.GHVSA_PAT}}") 
+          
+          token_value=$(echo "$token" | jq -r '.token')
+          
+          IFS=',' read -ra IMAGES <<< "${{ inputs.images_to_build }}"
+          for IMAGE in "${IMAGES[@]}"; do
+            # Retrieve the manifest digest from Docker-Content-Digest header instead of config digest.
+            # Cosign v3 requires the manifest digest for signing operations.
+            digest=$(curl -sI -H "Authorization: Bearer $token_value" \
+            -H "Accept: application/vnd.oci.image.manifest.v1+json" \
+            https://ghcr.io/v2/VCP-VSA-control-Plane/${{ vars.AR_IMAGE_PATH }}/${IMAGE}/manifests/${{ inputs.tag }} | grep -i docker-content-digest | awk '{print $2}' | tr -d '\r')
+            
+            # Validate that the digest was successfully retrieved
+            [[ -n "$digest" ]] || { echo "Error: Failed to retrieve manifest digest for ${IMAGE}"; exit 1; }
+            
+            echo "${IMAGE}-digest=$digest" >> $GITHUB_ENV
+          done
+        shell: bash -e {0}
+
+      - name: Generate GCP Artifact URLs
+        id: generate_artifact_urls
+        shell: bash -e {0}
+        run: |
+          IFS=',' read -ra IMAGES <<< "${{ inputs.images_to_build }}"
+          for IMAGE in "${IMAGES[@]}"; do
+            DIGEST=$(gcloud artifacts docker images describe ${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{ vars.AR_IMAGE_PATH }}/${IMAGE}:${{ inputs.tag }} \
+              --format="value(image_summary.digest)")
+    
+            if [[ -n "$DIGEST" ]]; then
+              ARTIFACT_URL="${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{ vars.AR_IMAGE_PATH }}/${IMAGE}@${DIGEST}"
+              echo "${IMAGE//-/_}_ARTIFACT_URL=${ARTIFACT_URL}" >> $GITHUB_ENV
+            else
+              echo "Failed to fetch digest for image: ${IMAGE}:${{ inputs.tag }}"
+              exit 1
+            fi
+          done
+
+      - name: Sign Images using cosign (GHCR and GCP)
+        run: |
+          gcloud secrets versions access latest --secret="${{vars.GH_COSIGN_PUB_KEY}}" > /tmp/cosign.pub
+          gcloud secrets versions access latest --secret="${{vars.GH_COSIGN_PVT_KEY}}" > /tmp/cosign.key
+          IFS=',' read -ra IMAGES <<< "${{ inputs.images_to_build }}"
+          
+          for IMAGE in "${IMAGES[@]}"; do
+            # Sign GHCR image
+            ghcr_digest=$(printenv "${IMAGE}-digest")
+            echo "Signing GHCR image: ${IMAGE}@${ghcr_digest}"
+            COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/${IMAGE}@$ghcr_digest --tlog-upload=false
+            cosign verify --key /tmp/cosign.pub ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/${IMAGE}@$ghcr_digest --insecure-ignore-tlog=true
+            
+            # Sign GCP Artifact Registry image
+            gcp_artifact_url=$(printenv "${IMAGE//-/_}_ARTIFACT_URL")
+            if [[ -n "$gcp_artifact_url" ]]; then
+              echo "Signing GCP image: ${gcp_artifact_url}"
+              COSIGN_PASSWORD="" cosign sign --key /tmp/cosign.key $gcp_artifact_url --tlog-upload=false
+              cosign verify --key /tmp/cosign.pub $gcp_artifact_url --insecure-ignore-tlog=true
+            else
+              echo "Warning: No GCP artifact URL found for ${IMAGE}"
+            fi
+          done
+        shell: bash -e {0}
+      - name: Helm Login to Artifact Registry
+        if: ${{ inputs.push_charts }}
+        run: |
+          gcloud auth print-access-token | helm registry login -u oauth2accesstoken --password-stdin https://${{vars.AR_GCP_REGION}}-docker.pkg.dev
+          gcloud auth print-access-token | helm registry login -u oauth2accesstoken --password-stdin https://${{vars.AR_TEMPORAL_HELM_REGION}}-docker.pkg.dev
+          helm registry login ghcr.io -u ${{github.actor}} --password ${{ secrets.GHVSA_PAT }}
+
+      - name: Update Versions of helm charts
+        if: ${{ inputs.push_charts }}
+        shell: bash
+        env:
+          vcp_worker_ARTIFACT_URL: ${{ env.vcp_worker_ARTIFACT_URL }}
+          core_ARTIFACT_URL: ${{ env.core_ARTIFACT_URL }}
+          google_proxy_ARTIFACT_URL: ${{ env.google_proxy_ARTIFACT_URL }}
+          vcp_db_migrate_ARTIFACT_URL: ${{ env.vcp_db_migrate_ARTIFACT_URL }}
+          telemetry_deployer_ARTIFACT_URL: ${{ env.vcp_cloudrun_deployer_ARTIFACT_URL }}
+          telemetry_digest_gcp_ARTIFACT_URL: ${{ env.telemetry_ARTIFACT_URL }}
+          ontap_proxy_ARTIFACT_URL: ${{ env.ontap_proxy_ARTIFACT_URL }}
+        run: |
+          # Extract digests directly from environment variables
+          echo "vcp_worker_digest_gcp=$(echo "${vcp_worker_ARTIFACT_URL}" | awk -F'@' '{print $2}')" >> temp_file.txt
+          echo "core_digest_gcp=$(echo "${core_ARTIFACT_URL}" | awk -F'@' '{print $2}')" >> temp_file.txt
+          echo "google_proxy_digest_gcp=$(echo "${google_proxy_ARTIFACT_URL}" | awk -F'@' '{print $2}')" >> temp_file.txt
+          echo "vcp_db_migrate_digest_gcp=$(echo "${vcp_db_migrate_ARTIFACT_URL}" | awk -F'@' '{print $2}')" >> temp_file.txt
+          echo "telemetry_deployer_digest_gcp=$(echo "${telemetry_deployer_ARTIFACT_URL}" | awk -F'@' '{print $2}')" >> temp_file.txt
+          echo "telemetry_digest_gcp=$(echo "${telemetry_digest_gcp_ARTIFACT_URL}" | awk -F'@' '{print $2}')" >> temp_file.txt 
+          echo "ontap_proxy_digest_gcp=$(echo "${ontap_proxy_ARTIFACT_URL}" | awk -F'@' '{print $2}')" >> temp_file.txt
+
+          # Pass the temp file path to the Go script
+          go run ./.github/scripts/updateHelmVersion.go ${{ inputs.tag }} ./.github/scripts/fileToFieldsMapping.json temp_file.txt
+          rm -f temp_file.txt
+
+      - name: Package Helm Charts
+        if: ${{ inputs.push_charts }}
+        run: |
+          charts=( vsa-control-plane vcp-worker-chart vsa-harvest-otel vlm-worker temporal ontap-proxy)
+          for chart in ${charts[*]}; do
+            echo "Package helm Chart for ${chart}"
+            helm package kubernetes/${chart} --destination ./helm-packages
+          done
+        shell: bash -e {0}
+
+      - name: Push Helm Charts to GHCR
+        if: ${{ inputs.push_charts }}
+        run: |
+          for CHART in ./helm-packages/*.tgz; do
+            if grep -q "temporal" <<< "${CHART}" ; then
+              helm push $CHART oci://ghcr.io/vcp-vsa-control-plane/${{ vars.AR_TEMPORAL_HELM_REPO }}
+              continue
+            fi 
+            helm push $CHART oci://ghcr.io/vcp-vsa-control-plane/${{ vars.AR_HELM_PATH }}
+          done
+        shell: bash -e {0}
+
+      - name: Push Helm Charts to Artifact Registry
+        if: ${{ inputs.push_charts }}
+        run: |
+          for CHART in ./helm-packages/*.tgz; do
+            if grep -q "temporal" <<< "${CHART}" ; then
+              helm push $CHART oci://${{ vars.AR_TEMPORAL_HELM_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{vars.AR_TEMPORAL_HELM_REPO}}
+              continue
+            fi
+            helm push $CHART oci://${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{vars.AR_HELM_PATH}}
+          done
+        shell: bash -e {0}
+
+      - name: Create a release
+        if: ${{ inputs.create_release }}
+        run: |
+          # Check if release already exists
+          if gh release view "${{ inputs.tag }}" -R https://github.com/${{ github.repository }} &>/dev/null; then
+            echo "Release ${{ inputs.tag }} already exists (created by concurrent build)"
+            echo "Skipping release creation"
+            exit 0
+          fi
+
+          # Try to create the release
+          if gh release create -R https://github.com/${{ github.repository }} \
+              --generate-notes \
+              ${{ inputs.pre_release && '--prerelease' || '' }} \
+              "${{ inputs.tag }}" \
+              --target "${{ inputs.pr_base_branch }}"; then
+            echo "Successfully created release ${{ inputs.tag }}"
+          else
+            # Double-check if it exists now (race condition)
+            if gh release view "${{ inputs.tag }}" -R https://github.com/${{ github.repository }} &>/dev/null; then
+              echo "Release ${{ inputs.tag }} was created by concurrent build"
+              exit 0
+            else
+              echo "Failed to create release"
+              exit 1
+            fi
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GHVSA_PAT }}
+          GITHUB_REPOSITORY: ${{ github.event.repository.name }}
+          newTag: ${{ inputs.tag }}
+
+      - name: Generate output URLs
+        id: generate_output_urls
+        shell: bash -e {0}
+        run: |
+          IFS=',' read -ra IMAGES <<< "${{ inputs.images_to_build }}"
+          for IMAGE in "${IMAGES[@]}"; do
+            echo "GHCR_${IMAGE}_URL=ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/${IMAGE}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
+            echo "GCP_${IMAGE}_URL=${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{ vars.AR_IMAGE_PATH }}/${IMAGE}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          done
+          CHARTS=("vsa-control-plane" "vcp-worker-chart" "vsa-harvest-otel" "vlm-worker" "ontap-proxy")
+          for CHART in "${CHARTS[@]}"; do
+            echo "GHCR_${CHART}_HELM_URL=oci://ghcr.io/vcp-vsa-control-plane/${{ vars.AR_HELM_PATH }}/${CHART}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
+            echo "GCP_${CHART}_HELM_URL=oci://${{ vars.AR_GCP_REGION }}-docker.pkg.dev/${{ vars.AR_GCP_PROJ }}/${{ vars.AR_HELM_PATH }}/${CHART}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          done
+          
+
+  black_duck_scan_repo:
+    name: Run black duck scan on the repo
+    needs: build_and_publish
+    runs-on: [ self-hosted,linux,bds ]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      options: -v /var/run/docker.sock:/var/run/docker.sock --mount type=bind,source=/bds-inspect,target=/bds-inspect,ro --user root
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+        with:
+          path: repo-dir
+
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - name: Run BlackDuck Repo Scan
+        run: |
+          keytool -import -alias example -keystore  "/usr/lib/jvm/java-11-openjdk-amd64/lib/security/cacerts" -file /bds-inspect/blackduck.eng.netapp.com.der --storepass changeit --noprompt
+          java -jar /bds-inspect/synopsys-detect-9.10.1.jar --detect.project.name="GCNV VSA Control Plane" \
+          --detect.project.version.name=current --blackduck.url=https://blackduck.eng.netapp.com \
+          --blackduck.api.token=${{ secrets.BLACKDUCKSCANSATOKEN }} --detect.cleanup=false \
+          --detect.source.path=repo-dir/ \
+          --detect.blackduck.signature.scanner.paths=repo-dir/ \
+          --detect.code.location.name=GCNV_VSA_Control_Plane_currrent_code \
+          --detect.tools=DETECTOR,SIGNATURE_SCAN --detect.detector.search.depth=50 \
+          --detect.detector.search.continue=true \
+          --blackduck.trust.cert=true --detect.blackduck.signature.scanner.snippet.matching=SNIPPET_MATCHING \
+          --detect.blackduck.signature.scanner.upload.source.mode=true --logging.level.detect=INFO \
+          --detect.go.path=/__w/_tool/go/1.24.11/x64/bin/go \
+          --detect.accuracy.required=NONE
+        shell: bash -e {0}
+  black_duck_scan_image:
+    name: Run black duck scan on the container images
+    needs: [ build_and_publish]
+    runs-on: [ self-hosted,linux,bds ]
+    strategy:
+      matrix:
+        image: ${{ fromJson(needs.build_and_publish.outputs.IMAGES_TO_SCAN) }}
+    steps:
+      - name: Run BlackDuck Scan for container images
+        shell: bash -e {0}
+        run: |
+            echo "Image used for scan is ${IMAGE} - $([[ "$IMAGE" == "cloud-backup-adc" ]] && echo "2.9" || echo "${{ inputs.tag }}")"
+            docker run --rm  --network host -v /home/cvs/opt-dir:/home/cvs/opt-dir -v /var/run/docker.sock:/var/run/docker.sock \
+            --mount type=bind,source=/bds-inspect,target=/bds-inspect,ro --user root \
+            ghcr.io/vcp-vsa-control-plane/vsa-builder:v8 \
+            bash -c "keytool -import -alias example -keystore \"/usr/lib/jvm/java-11-openjdk-amd64/lib/security/cacerts\" \
+            -file /bds-inspect/blackduck.eng.netapp.com.der --storepass changeit --noprompt && \
+            echo \"${{ secrets.GHVSA_PAT }}\" | docker login ghcr.io -u \"${{ github.actor }}\" --password-stdin && \
+            java -jar /bds-inspect/synopsys-detect-9.10.1.jar --detect.project.name=\"GCNV VSA Control Plane\" \
+            --detect.project.version.name=current --blackduck.url=https://blackduck.eng.netapp.com --blackduck.trust.cert=true \
+            --blackduck.api.token="${{ secrets.BLACKDUCKSCANSATOKEN }}" --detect.cleanup=false --detect.tools=DOCKER \
+            --detect.docker.image=ghcr.io/vcp-vsa-control-plane/${{ vars.AR_IMAGE_PATH }}/${IMAGE}:$([[ "$IMAGE" == "cloud-backup-adc" ]] && echo "2.9" || echo "${{ inputs.tag }}")  \
+            --detect.code.location.name=GCNV_VSA_Control_Plane_docker_${IMAGE}_code \
+            --detect.docker.path=/__w/_tool/go/1.24.11/x64/bin/docker --detect.tools.excluded=DETECTOR \
+            --detect.docker.inspector.air.gap.path=/bds-inspect/packaged-inspectors/docker/ \
+            --detect.docker.passthrough.shared.dir.path.local=/home/cvs/opt-dir"
+            echo "BlackDuck scan completed for image: ${IMAGE}"
+        env:
+          IMAGE: ${{ matrix.image }}
+
+  grype_scan_image:
+    name: Run Anchore/Grype vulnerability scans (reusable)
+    needs: [ build_and_publish ]
+    uses: ./.github/workflows/anchore-grype.yml
+    with:
+      images_to_scan: ${{ needs.build_and_publish.outputs.IMAGES_TO_SCAN }}
+      tag: ${{ inputs.tag }}
+    secrets:
+      GHVSA_PAT: ${{ secrets.GHVSA_PAT }}
+      GHCR_REPO: ${{ secrets.GHCR_REPO }}
+
+  send-slack-notification:
+    if: ${{ inputs.send_slack_notification }}
+    needs: [ setup-vsacictl, build_and_publish]
+    runs-on: [ ubuntu-22.04 ]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      options: -v /var/run/docker.sock:/var/run/docker.sock --user root
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - name: Install vsacictl
+        uses: ./.github/actions/install-vsacictl
+        with:
+          cache-key: ${{ needs.setup-vsacictl.outputs.cache-key }}
+
+      - name: Send slack message
+        env:
+          PR_TITLE: ${{ inputs.pr_title }}
+          PR_USER: ${{ inputs.pr_user }}
+          VSABUILDREPORTWEBHOOK: ${{ secrets.VSABUILDREPORTWEBHOOK }}
+          NEW_TAG: ${{ inputs.tag }}
+          GHCR_vsa_control_plane_HELM_URL: ${{ needs.build_and_publish.outputs.GHCR_vsa_control_plane_HELM_URL }}
+          GCP_vsa_control_plane_HELM_URL: ${{ needs.build_and_publish.outputs.GHCR_vsa_control_plane_HELM_URL }}
+          GHCR_vcp_worker_HELM_URL: ${{ needs.build_and_publish.outputs.GHCR_vcp_worker_HELM_URL }}
+          GCP_vcp_worker_HELM_URL: ${{ needs.build_and_publish.outputs.GHCR_vcp_worker_HELM_URL }}
+        run: |
+          vsacictl slack notify_build_report
+
+  update_jira_component_version:
+    if: ${{ inputs.component_update}}
+    name: Update JIRA component version
+    needs: [ setup-vsacictl, build_and_publish ]
+    runs-on: [ ubuntu-22.04 ]
+    container:
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      options: -v /var/run/docker.sock:/var/run/docker.sock --user root
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - name: Install vsacictl
+        uses: ./.github/actions/install-vsacictl
+        with:
+          cache-key: ${{ needs.setup-vsacictl.outputs.cache-key }}
+
+      - name: Run jira tag_component_version
+        env:
+          PR_TITLE: ${{ inputs.pr_title }}
+          JIRA_API_TOKEN: ${{ secrets.VCP_CI_JIRA_BOT_PAT }}
+          PR_USER: ${{ inputs.pr_user }}
+          REPOSITORY: VCP-VSA-control-Plane/vsa-control-plane
+          NEW_TAG: ${{ inputs.tag }}
+        run: vsacictl jira tag_component_version
+
