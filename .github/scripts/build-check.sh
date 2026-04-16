@@ -1688,29 +1688,55 @@ SKIPEOF
   # We enrich from the cached alerts API response.
   CVES=$(extract_cves "$PR_BODY")
   # Enrich from Dependabot alerts: find alerts matching this package name
+  # V8 FIX: Also extract severity, CVSS score, and advisory URL for each CVE
+  CVE_DETAILS="[]"
   if [[ -f "$_BC_ALERTS_CACHE" ]]; then
-    ALERT_CVES=$(python3 -c "
+    _CVE_ENRICH=$(python3 -c "
 import json, sys
 pkg = \"$PKG\"
 try:
     with open(\"$_BC_ALERTS_CACHE\") as f:
         alerts = json.load(f)
     matches = [a for a in alerts
-               if a.get(\"dependency\",{}).get(\"package\",{}).get(\"name\",\"\") == pkg
-               and a.get(\"state\") == \"open\"]
+               if a.get('dependency',{}).get('package',{}).get('name','') == pkg
+               and a.get('state') == 'open']
     cves = []
+    cve_details = []
     for a in matches:
-        adv = a.get(\"security_advisory\", {})
-        cve_id = adv.get(\"cve_id\")
-        ghsa_id = adv.get(\"ghsa_id\")
-        if cve_id and cve_id not in cves:
-            cves.append(cve_id)
-        elif ghsa_id and ghsa_id not in cves:
-            cves.append(ghsa_id)
-    print(\",\".join(cves))
-except:
-    pass
+        adv = a.get('security_advisory', {})
+        cve_id = adv.get('cve_id') or ''
+        ghsa_id = adv.get('ghsa_id') or ''
+        _id = cve_id or ghsa_id
+        if _id and _id not in cves:
+            cves.append(_id)
+            # Extract CVSS score from cvss object (if present)
+            cvss = adv.get('cvss', {})
+            cvss_score = cvss.get('score', None)
+            severity = adv.get('severity', 'unknown')
+            summary = adv.get('summary', '')
+            # Build advisory URL
+            adv_url = ''
+            if ghsa_id:
+                adv_url = f'https://github.com/advisories/{ghsa_id}'
+            cve_details.append({
+                'id': _id,
+                'severity': severity,
+                'cvss_score': cvss_score,
+                'summary': summary[:200] if summary else '',
+                'advisory_url': adv_url,
+                'ghsa_id': ghsa_id,
+                'cve_id': cve_id,
+            })
+    # Output: line 1 = comma-separated IDs, line 2 = JSON details
+    print(','.join(cves))
+    print(json.dumps(cve_details))
+except Exception:
+    print('')
+    print('[]')
 " 2>/dev/null)
+    ALERT_CVES=$(echo "$_CVE_ENRICH" | head -1)
+    CVE_DETAILS=$(echo "$_CVE_ENRICH" | tail -1)
+    [[ -z "$CVE_DETAILS" || "$CVE_DETAILS" == "" ]] && CVE_DETAILS="[]"
     # Merge: body CVEs + alert CVEs (deduplicated)
     if [[ -n "$ALERT_CVES" ]]; then
       if [[ -n "$CVES" ]]; then
@@ -2326,6 +2352,14 @@ $IMPORT_OUT"
 
         if [[ "$BUILD_EXIT" -eq 0 ]]; then
           BUILD_VERDICT="pass"
+        elif [[ "$MAIN_EXIT" -eq 0 || "$MAIN_EXIT" -eq -1 ]]; then
+          # P0 FIX (V8 review C3/1.1): baseline PASSES (exit=0) or wasn't run (-1),
+          # but PR build FAILS. This is a genuine regression, NOT pre-existing.
+          # Previous code fell through to error text comparison which could
+          # false-positive match go vet warnings in baseline output against
+          # go build errors in PR output, misclassifying as pre_existing.
+          BUILD_VERDICT="fail"
+          echo "  build: baseline exit=$MAIN_EXIT, PR exit=$BUILD_EXIT — genuine failure (not pre-existing)"
         elif [[ "$MAIN_EXIT" -eq 124 ]]; then
           # Baseline timed out (A4-4) — we never got a valid baseline, so we can't
           # compare errors. The PR's errors may or may not be pre-existing.
@@ -2334,8 +2368,8 @@ $IMPORT_OUT"
           # the JSON so the merge plan can flag "baseline timed out."
           BUILD_VERDICT="pre_existing"
           echo "  ⚠ baseline build timed out (exit=124) — cannot fully compare errors"
-        elif [[ "$MAIN_EXIT" -ne 0 && "$MAIN_EXIT" -ne -1 ]]; then
-          # Both fail — check for new errors vs baseline
+        elif [[ "$MAIN_EXIT" -ne 0 ]]; then
+          # Both fail (main_exit > 0, not 124) — check for new errors vs baseline
           if [[ "$ECOSYSTEM" == "gomod" ]]; then
             MAIN_ERR_FILE="/tmp/_bc_main_go_errors.txt"
             PR_ERR_FILE="/tmp/_bc_pr_go_errors_${PR_NUM}.txt"
@@ -2638,6 +2672,7 @@ $IMPORT_OUT"
   printf '%s' "$DEP_TYPE" > "/tmp/_bc_dep_type_${PR_NUM}.txt"
   printf '%s' "$DEP_RELATION" > "/tmp/_bc_dep_relation_${PR_NUM}.txt"
   printf '%s' "$CVES" > "/tmp/_bc_cves_${PR_NUM}.txt"
+  printf '%s' "$CVE_DETAILS" > "/tmp/_bc_cve_details_${PR_NUM}.json"
   printf '%s' "$BUMP" > "/tmp/_bc_bump_${PR_NUM}.txt"
   printf '%s' "$ECOSYSTEM" > "/tmp/_bc_ecosystem_${PR_NUM}.txt"
   printf '%s' "$PKG_DIR" > "/tmp/_bc_pkg_dir_${PR_NUM}.txt"
@@ -2761,6 +2796,13 @@ eco = _read_tmp("ecosystem") or "unknown"
 cves_raw = _read_tmp("cves")
 cves = [c.strip() for c in cves_raw.split(",") if c.strip()] if cves_raw else []
 
+# V8 FIX: Parse enriched CVE details (severity, CVSS, advisory URL)
+try:
+    with open(f"/tmp/_bc_cve_details_{pr_num}.json") as f:
+        cve_details = json.loads(f.read().strip() or "[]")
+except (IOError, OSError, json.JSONDecodeError, ValueError):
+    cve_details = []
+
 # Filter out infrastructure artifact errors from new_errors.
 # When install_fallback/local_fallback is used, tsc may report different errors
 # because file: links don't provide type declarations. These are NOT caused by the upgrade.
@@ -2839,6 +2881,7 @@ pr_data = {
     "dep_type": dep_type,
     "dep_relation": dep_relation,
     "cves": cves,
+    "cve_details": cve_details,
     "deterministic": deterministic,
     "build": {
         "main_exit": $MAIN_EXIT_FOR_ECO,
@@ -2975,6 +3018,12 @@ else:
             # Stay at L1 (like npm does for tsc pre_existing), mark as inconclusive.
             level = 1  # DO NOT promote to L2
             steps.append({"step": "type_check", "status": "pre_existing", "detail": "same build errors on main — inconclusive"})
+        elif build_verdict in ("fail", "pre_existing_plus_new"):
+            # V8 FIX (L2/1.4/1.5): Build WAS run and FAILED with new errors.
+            # This IS L2 (type-check was attempted), not L1 (dep-resolved only).
+            # The BUILD_FAILS comment should show L2, not L1.
+            level = 2
+            steps.append({"step": "type_check", "status": "fail", "detail": "build failed with new errors"})
         else:
             steps.append({"step": "type_check", "status": "fail"})
     elif tsc_ran:
@@ -2987,6 +3036,10 @@ else:
             # Stay at L1, mark type_check as "pre_existing" (inconclusive)
             level = 1  # DO NOT promote to L2
             steps.append({"step": "type_check", "status": "pre_existing", "detail": "same tsc errors on main — inconclusive"})
+        elif build_verdict in ("fail", "pre_existing_plus_new"):
+            # V8 FIX: tsc WAS run and FAILED. This is L2 (attempted), not L1.
+            level = 2
+            steps.append({"step": "type_check", "status": "fail", "detail": "tsc failed with new errors"})
         else:
             steps.append({"step": "type_check", "status": "fail"})
     else:
@@ -3094,8 +3147,14 @@ LEVEL_LABELS = {
     5: "L5_fully_verified"
 }
 
-pr_data["verification_level"] = level
-pr_data["verification_label"] = LEVEL_LABELS.get(level, f"L{level}")
+# V8 FIX (H3): Actions PRs should NOT show L2_type_checked — no type-checking
+# was performed. They get a distinct label so the merge plan doesn't lie.
+if eco == "actions":
+    pr_data["verification_level"] = -1
+    pr_data["verification_label"] = "CI_ONLY"
+else:
+    pr_data["verification_level"] = level
+    pr_data["verification_label"] = LEVEL_LABELS.get(level, f"L{level}")
 pr_data["verification_steps"] = steps
 
 data["prs"][pr_num] = pr_data

@@ -49,6 +49,90 @@ fi
 
 echo "Posting deterministic analysis comments (mode: $BC_MODE)..."
 
+# V8 FIX (C2): Detect discovered-but-not-analyzed PRs (cancelled batch timeout).
+# Compare the discover list (all open Dependabot PRs) against the build-results.json.
+# Post a "Skipped — batch was cancelled" comment for missing PRs.
+echo "Checking for cancelled/missing PRs..."
+DISCOVERED_PRS=$(gh pr list --label "dependencies" --state open \
+  --json number --jq '.[].number' --limit 500 2>/dev/null | sort -n || echo "")
+ANALYZED_PRS=$(python3 -c "
+import json
+with open('$RESULTS_FILE') as f:
+    data = json.load(f)
+for num in sorted(data.get('prs', {}).keys(), key=int):
+    print(num)
+" 2>/dev/null || echo "")
+
+# Find PRs in discovered list but NOT in analyzed results
+CANCELLED_PRS=""
+for _disc_pr in $DISCOVERED_PRS; do
+  _found=false
+  for _anal_pr in $ANALYZED_PRS; do
+    if [[ "$_disc_pr" == "$_anal_pr" ]]; then
+      _found=true
+      break
+    fi
+  done
+  if [[ "$_found" == "false" ]]; then
+    CANCELLED_PRS="$CANCELLED_PRS $_disc_pr"
+  fi
+done
+
+# Post "Skipped" comments for cancelled PRs and add them to results JSON
+for _CANCEL_PR in $CANCELLED_PRS; do
+  [[ -z "$_CANCEL_PR" ]] && continue
+  # Check if we already have a recent comment — don't spam
+  _HAS_RECENT=$(gh api "repos/$OWNER/$REPO/issues/$_CANCEL_PR/comments" \
+    --jq '[.[] | select(.body | contains("<!-- breakability-check -->")) | select(.body | contains("batch was cancelled"))] | length' \
+    2>/dev/null || echo "0")
+  if [[ "$_HAS_RECENT" -gt 0 ]]; then
+    continue
+  fi
+  # Delete old deterministic comments before posting new one
+  _OLD_IDS=$(gh api "repos/$OWNER/$REPO/issues/$_CANCEL_PR/comments" \
+    --jq '.[] | select(.body | contains("<!-- breakability-check -->")) | select(.body | contains("<!-- breakability-agent -->") | not) | .id' \
+    2>/dev/null || true)
+  for _CID in $_OLD_IDS; do
+    gh api -X DELETE "repos/$OWNER/$REPO/issues/comments/$_CID" 2>/dev/null || true
+  done
+  _CANCEL_TITLE=$(gh pr view "$_CANCEL_PR" --json title --jq '.title' 2>/dev/null || echo "Unknown")
+  _CANCEL_COMMENT="<!-- breakability-check -->
+## ⚠️ SKIPPED — Analysis incomplete (batch was cancelled)
+
+This PR was discovered but the analysis batch was cancelled or timed out before it could be processed.
+
+**What to do:** Re-run the analysis: \`gh workflow run breakability-agent.yml\`
+
+> 🔬 *Deterministic analysis — batch incomplete*"
+  gh pr comment "$_CANCEL_PR" --body "$_CANCEL_COMMENT" 2>/dev/null && \
+    echo "  Posted 'cancelled' comment for PR #$_CANCEL_PR" || true
+
+  # Add to results JSON so merge plan picks it up
+  python3 -c "
+import json
+with open('$RESULTS_FILE') as f:
+    data = json.load(f)
+data['prs']['$_CANCEL_PR'] = {
+    'package': '$(echo "$_CANCEL_TITLE" | sed "s/'/\\\\'/g")',
+    'from': '?', 'to': '?', 'ecosystem': 'unknown', 'bump': 'unknown',
+    'dep_type': 'unknown', 'dep_relation': 'unknown', 'cves': [],
+    'build': {'verdict': 'cancelled', 'main_exit': -1, 'pr_exit': -1,
+              'output_tail': '', 'new_errors': [], 'install_method': 'none', 'error_class': ''},
+    'test': {'ran': False, 'exit': None, 'output_tail': ''},
+    'files_importing': [], 'pkg_dir': '/', 'install_ok': False,
+    'verification_level': -1, 'verification_label': 'NA_cancelled',
+    'verification_steps': [], 'skip_reason': 'batch cancelled/timed out'
+}
+with open('$RESULTS_FILE', 'w') as f:
+    json.dump(data, f, indent=2)
+" 2>/dev/null || true
+done
+if [[ -n "$CANCELLED_PRS" ]]; then
+  echo "  Cancelled PRs:$CANCELLED_PRS"
+else
+  echo "  No cancelled PRs detected"
+fi
+
 # Get all PR numbers from build-results.json
 PR_NUMBERS=$(python3 -c "
 import json
@@ -185,16 +269,53 @@ else:
     print(worst.upper())
 " 2>/dev/null || echo "")
 
-  # Build security line for comment templates
+  # V8 FIX: Build enriched security line with severity, CVSS, and advisory links
   CVE_LINE=""
+  CVE_DETAIL_BLOCK=""
   if [[ "$CVE_COUNT" -gt 0 && "$CVE_COUNT" != "0" ]]; then
-    # Format: 🔴 Security (HIGH): 2 CVEs — CVE-2024-1234, CVE-2024-5678
+    # Build per-CVE detail lines with severity and advisory link
+    CVE_DETAIL_BLOCK=$(echo "$PR_FIELDS" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+# Look up cve_details from build-results.json (richer than PR_FIELDS inline)
+pr_num = '$PR_NUM'
+try:
+    with open('/tmp/build-results.json') as f:
+        results = json.load(f)
+    details = results.get('prs', {}).get(pr_num, {}).get('cve_details', [])
+except:
+    details = []
+if not details:
+    sys.exit(0)
+for det in details:
+    _id = det.get('id', '?')
+    sev = det.get('severity', 'unknown').upper()
+    cvss = det.get('cvss_score')
+    summary = det.get('summary', '')
+    url = det.get('advisory_url', '')
+    line = f'- **{_id}** ({sev}'
+    if cvss:
+        line += f', CVSS {cvss}'
+    line += ')'
+    if summary:
+        line += f': {summary}'
+    if url:
+        line += f' — [advisory]({url})'
+    print(line)
+" 2>/dev/null || echo "")
+
     if [[ -n "$CVE_MAX_SEVERITY" ]]; then
       CVE_LINE="
-🔴 **Security ($CVE_MAX_SEVERITY): $CVE_COUNT CVE(s) fixed by this upgrade:** $CVE_LIST"
+🔴 **Security ($CVE_MAX_SEVERITY): $CVE_COUNT CVE(s) fixed by this upgrade:**"
     else
       CVE_LINE="
 🔴 **Security: $CVE_COUNT CVE(s) fixed by this upgrade:** $CVE_LIST"
+    fi
+    if [[ -n "$CVE_DETAIL_BLOCK" ]]; then
+      CVE_LINE="$CVE_LINE
+$CVE_DETAIL_BLOCK"
+    else
+      CVE_LINE="$CVE_LINE $CVE_LIST"
     fi
   fi
 
@@ -252,11 +373,45 @@ else:
       fi
       ;;
     L1*)
+      # V8 FIX (C3): L1 comments must include WHAT failed and WHERE, not just
+      # "Build verification limited". Extract module and error excerpt from build output.
+      _L1_MAIN_EXIT=$(echo "$PR_FIELDS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('main_exit',-1))" 2>/dev/null || echo "-1")
+      _L1_EXCERPT=$(echo "$PR_FIELDS" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+tail = d.get('output_tail', '')
+# Extract error/fail lines for context
+lines = [l.strip() for l in tail.splitlines()
+         if any(k in l.lower() for k in ('error', 'fail', 'cannot', 'undefined', 'fatal'))][:6]
+if lines:
+    print('\n'.join(lines))
+else:
+    # Fallback: show last few non-empty lines
+    non_empty = [l.strip() for l in tail.splitlines() if l.strip()][-4:]
+    print('\n'.join(non_empty))
+" 2>/dev/null || echo "")
+      _L1_EXCERPT_BLOCK=""
+      if [[ -n "$_L1_EXCERPT" ]]; then
+        _L1_EXCERPT_BLOCK="
+\`\`\`
+${_L1_EXCERPT}
+\`\`\`"
+      fi
+      _L1_MODULE_NOTE=""
+      if [[ -n "$PKG_DIR" && "$PKG_DIR" != "/" ]]; then
+        _L1_MODULE_NOTE="
+- PR targets module: \`$PKG_DIR\`"
+      fi
       HOW_CHECKED="
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
 - ✅ Dependency resolved successfully
-- ⬜ Build verification limited
+- ⚠️ Build fails on both \`main\` (exit=${_L1_MAIN_EXIT}) and PR branch — same errors${_L1_MODULE_NOTE}
+- ✅ No NEW errors introduced by this upgrade
+
+**Pre-existing build errors:**${_L1_EXCERPT_BLOCK}
+
+Fix these on \`main\` to unlock full L2+ verification.
 </details>"
       ;;
     *)
@@ -309,6 +464,13 @@ else:
   # Don't post any comment — the developer already opted out of analysis.
   if [[ "$VERDICT" == "skipped" ]]; then
     echo "  PR #$PR_NUM has breakability:skip label — skipping fallback comment"
+    SKIPPED=$((SKIPPED + 1))
+    continue
+  fi
+
+  # V8 FIX (C2): Cancelled PRs already have a comment posted above
+  if [[ "$VERDICT" == "cancelled" ]]; then
+    echo "  PR #$PR_NUM was cancelled — comment already posted"
     SKIPPED=$((SKIPPED + 1))
     continue
   fi
@@ -605,8 +767,10 @@ non_dependabot_count = max(0, total_open_prs - len(prs))
 safe = []        # pass verdicts + pre_existing with L2+ verification
 blocked = []     # fail / pre_existing_plus_new
 review = []      # pre_existing (unverified) / error / infra_error
-skipped = []     # skip (actions, docker, etc.)
+skipped = []     # skip (breakability:skip label)
+ci_only = []     # V8 FIX (H3): Actions/Docker PRs — no build verification needed
 not_analyzed = [] # anything else
+cancelled = []   # V8 FIX (C2): discovered but not in results
 
 for num, pr in sorted(prs.items(), key=lambda x: int(x[0])):
     v = pr.get("build", {}).get("verdict", "?")
@@ -625,8 +789,15 @@ for num, pr in sorted(prs.items(), key=lambda x: int(x[0])):
     main_exit = pr.get("build", {}).get("main_exit", -1)
     entry = {"num": num, "pkg": pkg, "from": fr, "to": to, "bump": bump, "dep_type": dep_type, "ver": ver, "cves": cves, "eco": eco, "verdict": v, "install_ok": install_ok, "pkg_dir": pkg_dir, "error_class": error_class, "new_error_count": len(new_errors), "main_exit": main_exit}
 
-    if v == "skip":
+    if v == "skipped":
         skipped.append(entry)
+    elif v == "skip":
+        skipped.append(entry)
+    elif v == "cancelled":
+        cancelled.append(entry)
+    elif eco in ("actions",) or ver == "CI_ONLY":
+        # V8 FIX (H3): Separate CI-only PRs — don't inflate "verified" count
+        ci_only.append(entry)
     elif v in ("pass",):
         safe.append(entry)
     elif v in ("fail", "pre_existing_plus_new"):
@@ -651,11 +822,17 @@ lines = []
 lines.append("<!-- breakability-merge-plan -->")
 lines.append(f"# 📋 Breakability Merge Plan")
 lines.append(f"")
-lines.append(f"**Generated:** {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')} (deterministic)")
+_gen_ts = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
+lines.append(f"**Generated:** {_gen_ts} (deterministic)")
 lines.append(f"**PRs analyzed:** {len(prs)} Dependabot PRs")
 if non_dependabot_count > 0:
     lines.append(f"**Not analyzed:** {non_dependabot_count} non-Dependabot PR(s) (out of scope — this tool only analyzes Dependabot dependency upgrades)")
 lines.append(f"")
+
+# V8 FIX (M3): Staleness banner — critical for developer trust (Blind Spot 4A)
+lines.append(f"> ⏱️ **Snapshot** generated at `{_gen_ts}`. PR states may have changed since analysis.")
+lines.append(f"> To refresh: `gh workflow run breakability-agent.yml`")
+lines.append("")
 
 # Summary table
 lines.append("## Summary")
@@ -666,6 +843,8 @@ likely_safe_count = sum(1 for e in review if e.get("verdict") == "pre_existing" 
 unverified_count = sum(1 for e in review if e.get("verdict") == "pre_existing" and e.get("new_error_count", 0) > 0)
 needs_review_count = len(review) - likely_safe_count - unverified_count
 lines.append(f"| ✅ Safe to merge | {len(safe)} |")
+if ci_only:
+    lines.append(f"| 🔧 CI-only (Actions/Docker — no app impact) | {len(ci_only)} |")
 if likely_safe_count > 0:
     lines.append(f"| ⚙️ Likely safe (deps resolved, no new errors) | {likely_safe_count} |")
 if unverified_count > 0:
@@ -673,9 +852,52 @@ if unverified_count > 0:
 lines.append(f"| ❌ Fix required | {len(blocked)} |")
 if needs_review_count > 0:
     lines.append(f"| 🔍 Manual review | {needs_review_count} |")
-lines.append(f"| ⏭️ Skipped (CI/Docker) | {len(skipped)} |")
+if skipped:
+    lines.append(f"| ⏭️ Skipped (opted out) | {len(skipped)} |")
+if cancelled:
+    lines.append(f"| 🚫 Cancelled / Incomplete | {len(cancelled)} |")
 if not_analyzed:
     lines.append(f"| ❓ Not analyzed | {len(not_analyzed)} |")
+lines.append("")
+
+# V8 FIX (M4): Developer Action Summary — prioritized numbered steps (regression from ref plan #39)
+lines.append("## Developer Action Summary")
+lines.append("")
+_step = 1
+# Security fixes first
+_sec_safe = [e for e in safe + ci_only if e.get("cves")]
+_sec_blocked = [e for e in blocked if e.get("cves")]
+if _sec_safe:
+    _sec_nums = ", ".join(f"#{e['num']}" for e in _sec_safe)
+    lines.append(f"{_step}. **MERGE NOW — security fixes:** {_sec_nums} ({len(_sec_safe)} PR(s) fix known CVEs, build verified)")
+    _step += 1
+if _sec_blocked:
+    _sec_nums = ", ".join(f"#{e['num']}" for e in _sec_blocked)
+    lines.append(f"{_step}. **FIX + MERGE — security with build issues:** {_sec_nums}")
+    _step += 1
+# L4 safe PRs
+_l4_safe = [e for e in safe if e.get("ver", "").startswith("L4") and not e.get("cves")]
+if _l4_safe:
+    lines.append(f"{_step}. **Batch merge — {len(_l4_safe)} PRs with full test pass** (L4 verified, lowest risk)")
+    _step += 1
+# L2 safe PRs (build passes, tests fail or not run)
+_l2_safe = [e for e in safe if e.get("ver", "").startswith("L2") and not e.get("cves")]
+if _l2_safe:
+    lines.append(f"{_step}. **Review then merge — {len(_l2_safe)} PRs** (build passes, tests fail on main too)")
+    _step += 1
+# CI-only PRs
+if ci_only:
+    lines.append(f"{_step}. **Merge CI/Actions PRs — {len(ci_only)} PRs** (no app code impact)")
+    _step += 1
+# Likely safe
+if likely_safe_count > 0:
+    lines.append(f"{_step}. **Investigate — {likely_safe_count} 'Likely Safe' PRs** (no new errors but baseline unclear)")
+    _step += 1
+# Fix required
+_non_sec_blocked = [e for e in blocked if not e.get("cves")]
+if _non_sec_blocked:
+    lines.append(f"{_step}. **Assign to team — {len(_non_sec_blocked)} PRs need code fixes** before merge")
+    _step += 1
 lines.append("")
 
 # Infrastructure banner — when many PRs are in review with the same root cause
@@ -853,12 +1075,35 @@ if needs_review:
         lines.append(f"- **PR #{e['num']}** `{e['pkg']}` {e['from']}→{e['to']} — {reason}")
     lines.append("")
 
-# Skipped
+# V8 FIX (H3/L3): CI-only PRs in their own section, not mixed with verified Go/npm PRs
+if ci_only:
+    lines.append("## 🔧 CI-Only (Actions / Docker — no application impact)")
+    lines.append("")
+    lines.append("These PRs only affect CI/CD workflows. No build verification needed — zero app code impact.")
+    lines.append("")
+    lines.append("| PR | Package | Version | Bump | Verification |")
+    lines.append("|----|---------|---------|----|-------------|")
+    for e in ci_only:
+        cve_badge = f" 🔴 {','.join(e['cves'])}" if e.get('cves') else ""
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {e['bump']} | CI_ONLY — auto-safe{cve_badge} |")
+    lines.append("")
+
+# Skipped (breakability:skip label)
 if skipped:
-    lines.append("## ⏭️ Skipped (CI / Docker)")
+    lines.append("## ⏭️ Skipped (opted out)")
     lines.append("")
     for e in skipped:
-        lines.append(f"- PR #{e['num']} `{e['pkg']}` ({e['eco']})")
+        lines.append(f"- PR #{e['num']} `{e['pkg']}` — skipped ({e.get('eco', '?')})")
+    lines.append("")
+
+# Cancelled / Incomplete
+if cancelled:
+    lines.append("## 🚫 Cancelled / Incomplete")
+    lines.append("")
+    lines.append("These PRs were discovered but not analyzed (batch timeout or cancellation).")
+    lines.append("")
+    for e in cancelled:
+        lines.append(f"- PR #{e['num']} `{e['pkg']}` — analysis incomplete")
     lines.append("")
 
 # Security posture
@@ -884,36 +1129,41 @@ PYEOF
 )
 
 if [[ -n "$MERGE_PLAN_BODY" && "$MERGE_PLAN_BODY" != *"Traceback"* ]]; then
-  # CR5-7/A5-7: Use dedicated label 'breakability-merge-plan' instead of 'dependencies'
-  # to avoid colliding with Dependabot's own label on PRs/issues.
-  # First try label-based search, then fall back to title pattern.
+  # P0 FIX (V8 review C1): Create a NEW issue for each complete run.
+  # Old approach updated issue in-place but didn't update the title, so the title
+  # showed stale dates (e.g., "2026-03-31" when body said "2026-04-16").
+  # New approach: close all old merge plan issues, then create a fresh one.
   _MP_LABEL="breakability-merge-plan"
-  EXISTING_ISSUE=$(gh issue list --label "$_MP_LABEL" --state open --json number,title \
-    -q '.[] | select(.title | test("[Mm]erge [Pp]lan")) | .number' \
-    2>/dev/null | head -1 || echo "")
-  # Fallback: search by title pattern for repos that used the old "dependencies" label
-  if [[ -z "$EXISTING_ISSUE" ]]; then
-    EXISTING_ISSUE=$(gh issue list --label "dependencies" --state open --json number,title \
-      -q '.[] | select(.title | test("📋.*[Bb]reakability.*[Mm]erge [Pp]lan")) | .number' \
-      2>/dev/null | head -1 || echo "")
-  fi
 
-  if [[ -n "$EXISTING_ISSUE" ]]; then
-    # Update existing issue with latest data; also add the new label if missing
-    gh issue edit "$EXISTING_ISSUE" --body "$MERGE_PLAN_BODY" --add-label "$_MP_LABEL" 2>/dev/null && \
-      echo "  Updated merge plan issue #$EXISTING_ISSUE" || \
-      echo "  ⚠️  Failed to update merge plan issue #$EXISTING_ISSUE"
+  # Count analyzed PRs for the title
+  _MP_PR_COUNT=$(python3 -c "
+import json
+with open('$RESULTS_FILE') as f:
+    data = json.load(f)
+print(len(data.get('prs', {})))
+" 2>/dev/null || echo "?")
+  _MP_TITLE="📋 Breakability Merge Plan $(date -u '+%Y-%m-%d %H:%M UTC') (${_MP_PR_COUNT} PRs)"
+
+  # Step 1: Close ALL existing merge plan issues (both labels)
+  _OLD_ISSUES=$(gh issue list --label "$_MP_LABEL" --state open --json number -q '.[].number' 2>/dev/null || echo "")
+  # Also check old "dependencies" label for legacy issues
+  _OLD_ISSUES_LEGACY=$(gh issue list --label "dependencies" --state open --json number,title \
+    -q '.[] | select(.title | test("📋.*[Mm]erge [Pp]lan")) | .number' 2>/dev/null || echo "")
+  for _OLD_NUM in $_OLD_ISSUES $_OLD_ISSUES_LEGACY; do
+    [[ -z "$_OLD_NUM" ]] && continue
+    gh issue close "$_OLD_NUM" --comment "Superseded by new merge plan run at $(date -u '+%Y-%m-%d %H:%M UTC')." 2>/dev/null && \
+      echo "  Closed old merge plan issue #$_OLD_NUM" || true
+  done
+
+  # Step 2: Create fresh merge plan issue with accurate title
+  NEW_ISSUE=$(gh issue create \
+    --title "$_MP_TITLE" \
+    --body "$MERGE_PLAN_BODY" \
+    --label "$_MP_LABEL" 2>/dev/null || echo "")
+  if [[ -n "$NEW_ISSUE" ]]; then
+    echo "  Created merge plan issue: $NEW_ISSUE"
   else
-    # Create new merge plan issue with dedicated label
-    NEW_ISSUE=$(gh issue create \
-      --title "📋 Breakability Merge Plan — $(date -u +%Y-%m-%d)" \
-      --body "$MERGE_PLAN_BODY" \
-      --label "$_MP_LABEL" 2>/dev/null || echo "")
-    if [[ -n "$NEW_ISSUE" ]]; then
-      echo "  Created merge plan issue: $NEW_ISSUE"
-    else
-      echo "  ⚠️  Failed to create merge plan issue"
-    fi
+    echo "  ⚠️  Failed to create merge plan issue"
   fi
 else
   echo "  ⚠️  Merge plan generation failed — skipping issue update"
