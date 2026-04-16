@@ -189,6 +189,8 @@ spec:
               value: {{ .Values.telemetryDeployer.enableBidirectionalReplicationBillingMetrics | default "false" | quote }}
             - name: ENABLE_IN_REGION_REPLICATION_BILLING_METRICS
               value: {{ .Values.telemetryDeployer.enableInRegionReplicationBillingMetrics | default "false" | quote }}
+            - name: ENABLE_ONTAP_MODE_REPLICATION_BILLING
+              value: {{ .Values.telemetryDeployer.enableOntapModeReplicationBilling | default "false" | quote }}
             - name: ENABLE_AUTO_TIERING_BILLING_METRICS
               value: {{ .Values.telemetryDeployer.enableAutoTieringBillingMetrics | default "false" | quote }}
             - name: ENABLE_ONTAP_MODE_AUTOTIERING_BILLING
@@ -255,6 +257,8 @@ spec:
               value: {{ .Values.telemetryDeployer.injectionWindowMinutes | default "10" | quote }}
             - name: ENABLE_COUNTER_FORMATTER
               value: {{ .Values.telemetryDeployer.enableCounterFormatter | default "false" | quote }}
+            - name: REGION_NUMBER_MAP
+              value: {{ .Values.telemetryDeployer.regionNumberMap | default "" | quote }}
           resources:
             limits:
               cpu: {{ .Values.telemetryDeployer.resources.limits.cpu | default .Values.resources.limits.cpu }}

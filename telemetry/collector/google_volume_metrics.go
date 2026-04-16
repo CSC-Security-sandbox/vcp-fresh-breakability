@@ -109,6 +109,8 @@ func (g *GoogleVolumeMetricsProvider) CollectProjectMetrics(ctx context.Context,
 				"metric.label.deployment_name",
 				"metric.label.is_regional_ha",
 				"metric.label.relationship_id",
+				"metric.label.source_details",
+				"metric.label.destination_details",
 			},
 		}
 		if metric.MetricType == "performance" {
@@ -167,15 +169,15 @@ func (g *GoogleVolumeMetricsProvider) CollectProjectMetrics(ctx context.Context,
 				continue
 			}
 
-		// Filter for "put" operations on pool_cloud_bin_operation_size_raw for billing
-		if metric.Metric == "pool_cloud_bin_operation_size_raw" && resp.Metric.Labels["metric"] != "put" {
-			continue
-		}
+			// Filter for "put" operations on pool_cloud_bin_operation_size_raw for billing
+			if metric.Metric == "pool_cloud_bin_operation_size_raw" && resp.Metric.Labels["metric"] != "put" {
+				continue
+			}
 
-		// Filter for "put" operations on wafl_volume_cloud_bin_operation_size_raw for billing
-		if metric.Metric == "wafl_volume_cloud_bin_operation_size_raw" && resp.Metric.Labels["metric"] != "put" {
-			continue
-		}
+			// Filter for "put" operations on wafl_volume_cloud_bin_operation_size_raw for billing
+			if metric.Metric == "wafl_volume_cloud_bin_operation_size_raw" && resp.Metric.Labels["metric"] != "put" {
+				continue
+			}
 
 			if metrics := setupHydratedMetrics(measuredType, resourceType, projectID, resp, timestamp); metrics != nil {
 				projectResults = append(projectResults, *metrics)
@@ -246,6 +248,18 @@ func setupHydratedMetrics(measuredType metadata.MeasuredType, resourceType metad
 	if resourceType == metadata.VolumeReplicationRelationship {
 		// TODO: need to update this to replication name
 		hydrateMetrics.ResourceName = resp.Metric.Labels["relationship_id"]
+		metaDataMap := map[string]string{}
+		if sd := resp.Metric.Labels["source_details"]; sd != "" {
+			metaDataMap["source_details"] = sd
+		}
+		if dd := resp.Metric.Labels["destination_details"]; dd != "" {
+			metaDataMap["destination_details"] = dd
+		}
+		if len(metaDataMap) > 0 {
+			if metadataJSON, err := json.Marshal(metaDataMap); err == nil {
+				hydrateMetrics.Metadata = metadataJSON
+			}
+		}
 	}
 
 	if isVolumeATRawMetric(resourceType, measuredType) {

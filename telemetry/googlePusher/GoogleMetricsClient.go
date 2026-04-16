@@ -35,6 +35,7 @@ const (
 	VolumeReplicationSchedule10Minutely = "10Minutely"
 	VolumeReplicationScheduleHourly     = "Hourly"
 	VolumeReplicationScheduleDaily      = "Daily"
+	ReplicationModeOntap                = "ONTAP"
 )
 
 var (
@@ -55,6 +56,8 @@ var (
 		"/replication/source_continent",
 		"/replication/source_region",
 		"/replication/destination_region",
+		"/replication/frequency",
+		"/replication/mode",
 	}
 )
 
@@ -827,6 +830,7 @@ func GetLabelKey(metric common.GoogleMetric) []string {
 			"/replication/source_service_level",
 			"/replication/destination_service_level",
 			"/replication/replication_type",
+			"/replication/mode",
 		}
 	case metadata.Volume:
 		switch metricMeasuredType {
@@ -939,6 +943,12 @@ func GetLabelValue(key string, metric common.GoogleMetric, logger log.Logger) (s
 			return "FLEX_UNIFIED", nil
 		case "/replication/replication_type":
 			return getReplicationType(metric)
+		case "/replication/mode":
+			serviceLevel, err := getServiceLevel(metric)
+			if err == nil && serviceLevel == "4" {
+				return ReplicationModeOntap, nil
+			}
+			return "", err
 		}
 	case metadata.VolumePool:
 		switch key {

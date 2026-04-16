@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -840,10 +841,18 @@ func TestGoogleVolumeMetricsProvider_CollectProjectMetrics_PerformanceFlow(t *te
 
 	// Mock the client to return our iterator and verify aggregation is set for performance metrics (covers lines 99-114)
 	mockClient.On("ListTimeSeries", ctx, mock.MatchedBy(func(req *monitoringpb.ListTimeSeriesRequest) bool {
+		groupBy := make(map[string]bool, len(req.Aggregation.GroupByFields))
+		for _, field := range req.Aggregation.GroupByFields {
+			groupBy[field] = true
+		}
+
 		return req.Aggregation != nil &&
 			req.Aggregation.PerSeriesAligner == monitoringpb.Aggregation_ALIGN_MEAN &&
 			req.Aggregation.CrossSeriesReducer == monitoringpb.Aggregation_REDUCE_MEAN &&
-			len(req.Aggregation.GroupByFields) == 8
+			len(req.Aggregation.GroupByFields) == 10 &&
+			groupBy["metric.label.relationship_id"] &&
+			groupBy["metric.label.source_details"] &&
+			groupBy["metric.label.destination_details"]
 	})).Return(mockIterator)
 
 	result, err := provider.CollectProjectMetrics(ctx, logger, projectID, timestamp)
@@ -2031,4 +2040,44 @@ func TestSetupHydratedMetrics_VolumeATRawMetric_StoresPoolNameInMetadata(t *test
 		assert.NotNil(t, result)
 		assert.Nil(t, result.Metadata, "Metadata should be nil when pool_name label is missing")
 	})
+}
+
+func TestSetupHydratedMetrics_VolumeReplicationRelationship_StoresReplicationDetailsInMetadata(t *testing.T) {
+	projectID := "test-project"
+	timestamp := time.Now()
+
+	resp := &monitoringpb.TimeSeries{
+		Metric: &metric.Metric{
+			Type: "custom.googleapis.com/volume_replication_transfer",
+			Labels: map[string]string{
+				"relationship_id":     "relationship-123",
+				"project":             projectID,
+				"datacenter":          "us-central1",
+				"deployment_name":     "dep-1",
+				"source_details":      "source=us-east4:vol-a",
+				"destination_details": "destination=us-central1:vol-b",
+			},
+		},
+		Points: []*monitoringpb.Point{
+			{
+				Value: &monitoringpb.TypedValue{
+					Value: &monitoringpb.TypedValue_Int64Value{Int64Value: 4096},
+				},
+			},
+		},
+	}
+
+	result := setupHydratedMetrics(metadata.XregionReplicationTotalTransferBytes, metadata.VolumeReplicationRelationship, projectID, resp, timestamp)
+
+	require.NotNil(t, result)
+	assert.Equal(t, metadata.VolumeReplicationRelationship, result.ResourceType)
+	assert.Equal(t, "relationship-123", result.ResourceName)
+	require.NotNil(t, result.Metadata)
+
+	var meta map[string]string
+	require.NoError(t, json.Unmarshal(result.Metadata, &meta))
+	assert.Equal(t, map[string]string{
+		"source_details":      "source=us-east4:vol-a",
+		"destination_details": "destination=us-central1:vol-b",
+	}, meta)
 }

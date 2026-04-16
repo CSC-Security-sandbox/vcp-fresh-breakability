@@ -15079,6 +15079,67 @@ func (_c *MockStorage_ListOngoingPoolJobsWithKmsConfigId_Call) RunAndReturn(run 
 	return _c
 }
 
+// ListOntapModePoolsForResourceData provides a mock function with given fields: ctx, startTime, endTime, pagination
+func (_m *MockStorage) ListOntapModePoolsForResourceData(ctx context.Context, startTime time.Time, endTime time.Time, pagination *utils.Pagination) ([]*PoolResourceData, error) {
+	ret := _m.Called(ctx, startTime, endTime, pagination)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListOntapModePoolsForResourceData")
+	}
+
+	var r0 []*PoolResourceData
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time, *utils.Pagination) ([]*PoolResourceData, error)); ok {
+		return rf(ctx, startTime, endTime, pagination)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, time.Time, time.Time, *utils.Pagination) []*PoolResourceData); ok {
+		r0 = rf(ctx, startTime, endTime, pagination)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*PoolResourceData)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, time.Time, time.Time, *utils.Pagination) error); ok {
+		r1 = rf(ctx, startTime, endTime, pagination)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_ListOntapModePoolsForResourceData_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListOntapModePoolsForResourceData'
+type MockStorage_ListOntapModePoolsForResourceData_Call struct {
+	*mock.Call
+}
+
+// ListOntapModePoolsForResourceData is a helper method to define mock.On call
+//   - ctx context.Context
+//   - startTime time.Time
+//   - endTime time.Time
+//   - pagination *utils.Pagination
+func (_e *MockStorage_Expecter) ListOntapModePoolsForResourceData(ctx interface{}, startTime interface{}, endTime interface{}, pagination interface{}) *MockStorage_ListOntapModePoolsForResourceData_Call {
+	return &MockStorage_ListOntapModePoolsForResourceData_Call{Call: _e.mock.On("ListOntapModePoolsForResourceData", ctx, startTime, endTime, pagination)}
+}
+
+func (_c *MockStorage_ListOntapModePoolsForResourceData_Call) Run(run func(ctx context.Context, startTime time.Time, endTime time.Time, pagination *utils.Pagination)) *MockStorage_ListOntapModePoolsForResourceData_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(time.Time), args[2].(time.Time), args[3].(*utils.Pagination))
+	})
+	return _c
+}
+
+func (_c *MockStorage_ListOntapModePoolsForResourceData_Call) Return(_a0 []*PoolResourceData, _a1 error) *MockStorage_ListOntapModePoolsForResourceData_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_ListOntapModePoolsForResourceData_Call) RunAndReturn(run func(context.Context, time.Time, time.Time, *utils.Pagination) ([]*PoolResourceData, error)) *MockStorage_ListOntapModePoolsForResourceData_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListPendingResourceDeletions provides a mock function with given fields: ctx, offset, limit
 func (_m *MockStorage) ListPendingResourceDeletions(ctx context.Context, offset int, limit int) ([]*datamodel.PendingResourceDeletions, error) {
 	ret := _m.Called(ctx, offset, limit)

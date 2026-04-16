@@ -9,8 +9,9 @@ import (
 )
 
 const (
-	Gcp string = "gcp"
-	Dev string = "dev"
+	Gcp                    string = "gcp"
+	Dev                    string = "dev"
+	DefaultRegionNumberMap        = `{"africa-south1": "01","asia-east1": "02","asia-east2": "03","asia-northeast1": "04","asia-northeast2": "05","asia-northeast3": "06","asia-south1": "07","asia-south2": "08","asia-southeast1": "09","asia-southeast2": "10","australia-southeast1": "11","australia-southeast2": "12","europe-central2": "13","europe-north1": "14","europe-north2": "15","europe-southwest1": "16","europe-west1": "17","europe-west10": "18","europe-west12": "19","europe-west2": "20","europe-west3": "21","europe-west4": "22","europe-west6": "23","europe-west8": "24","europe-west9": "25","me-central1": "26","me-central2": "27","me-west1": "28","northamerica-northeast1": "29","northamerica-northeast2": "30","northamerica-south1": "31","southamerica-east1": "32","southamerica-west1": "33","us-central1": "34","us-east1": "35","us-east4": "36","us-east5": "37","us-south1": "38","us-west1": "39","us-west2": "40","us-west3": "41","us-west4": "42"}`
 )
 
 type TelemetryConfig struct {
@@ -32,6 +33,7 @@ type TelemetryConfig struct {
 	EnableReplicationBillingMetrics              bool
 	EnableBidirectionalReplicationBillingMetrics bool
 	EnableInRegionReplicationBillingMetrics      bool
+	EnableOntapModeReplicationBilling            bool
 	EnableAutoTieringBillingMetrics              bool
 	EnableONTAPModeAutoTieringBilling            bool
 	EnableFilesAutoTieringBilling                bool
@@ -60,6 +62,7 @@ type TelemetryConfig struct {
 	EnableATVolumeBasedPoolBilling               bool
 	InjectionWindowMinutes                       int
 	EnableCounterFormatter                       bool
+	RegionNumberMap                              string
 }
 
 type MetricItem struct {
@@ -90,6 +93,7 @@ func LoadConfig() *TelemetryConfig {
 	enableReplicationBillingMetrics := env.GetBool("ENABLE_REPLICATION_BILLING_METRICS", false)
 	enableBidirectionalReplicationBillingMetrics := env.GetBool("ENABLE_BIDIRECTIONAL_REPLICATION_BILLING_METRICS", false)
 	enableInRegionReplicationBillingMetrics := env.GetBool("ENABLE_IN_REGION_REPLICATION_BILLING_METRICS", false)
+	enableOntapModeReplicationBilling := env.GetBool("ENABLE_ONTAP_MODE_REPLICATION_BILLING", false)
 	enableAutoTieringBillingMetrics := env.GetBool("ENABLE_AUTO_TIERING_BILLING_METRICS", false)
 	enableONTAPModeAutoTieringBilling := env.GetBool("ENABLE_ONTAP_MODE_AUTOTIERING_BILLING", false)
 	enableFilesAutoTieringBilling := env.GetBool("ENABLE_FILES_AUTO_TIERING_BILLING", false)
@@ -120,6 +124,7 @@ func LoadConfig() *TelemetryConfig {
 	enableATVolumeBasedPoolBilling := env.GetBool("ENABLE_AT_VOLUME_BASED_POOL_BILLING", true)
 	injectionWindowMinutes := env.GetInt("INJECTION_WINDOW_MINUTES", 10)
 	enableCounterFormatter := env.GetBool("ENABLE_COUNTER_FORMATTER", false)
+	regionNumberMap := env.GetString("REGION_NUMBER_MAP", DefaultRegionNumberMap)
 
 	return &TelemetryConfig{
 		PerformanceRootUrl:                           performanceRootURL,
@@ -143,6 +148,7 @@ func LoadConfig() *TelemetryConfig {
 		EnableReplicationBillingMetrics:              enableReplicationBillingMetrics,
 		EnableBidirectionalReplicationBillingMetrics: enableBidirectionalReplicationBillingMetrics,
 		EnableInRegionReplicationBillingMetrics:      enableInRegionReplicationBillingMetrics,
+		EnableOntapModeReplicationBilling:            enableOntapModeReplicationBilling,
 		EnableAutoTieringBillingMetrics:              enableAutoTieringBillingMetrics,
 		EnableONTAPModeAutoTieringBilling:            enableONTAPModeAutoTieringBilling,
 		EnableFilesAutoTieringBilling:                enableFilesAutoTieringBilling,
@@ -167,6 +173,7 @@ func LoadConfig() *TelemetryConfig {
 		EnableATVolumeBasedPoolBilling:               enableATVolumeBasedPoolBilling,
 		InjectionWindowMinutes:                       injectionWindowMinutes,
 		EnableCounterFormatter:                       enableCounterFormatter,
+		RegionNumberMap:                              regionNumberMap,
 	}
 }
 

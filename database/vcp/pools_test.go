@@ -75,6 +75,150 @@ func TestDataStoreRepository_ListPoolUUIDsPaginated_WithOffset(t *testing.T) {
 	assert.Equal(t, pools[2].UUID, results[0].UUID)
 }
 
+func TestDataStoreRepository_ListOntapModePoolsForResourceData(t *testing.T) {
+	t.Run("returns only ONTAP pools in window when pagination is nil", func(t *testing.T) {
+		store := setup(t)
+		ctx := context.Background()
+		now := time.Now()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 101, UUID: "ontap-account-uuid"},
+			Name:      "ontap-account",
+		}
+		require.NoError(t, store.db.Create(account).Error())
+
+		activeOntapPool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "ontap-active-pool-uuid"},
+			Name:      "ontap-active-pool",
+			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				AccountName: "ontap-account",
+			},
+			DeploymentName: "ontap-deployment-active",
+			APIAccessMode:  "ONTAP",
+		}
+		deletedAt := &gorm.DeletedAt{Time: now.Add(-10 * time.Minute), Valid: true}
+		deletedOntapPool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "ontap-deleted-pool-uuid",
+				DeletedAt: deletedAt,
+			},
+			Name:      "ontap-deleted-pool",
+			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				AccountName: "ontap-account",
+			},
+			DeploymentName: "ontap-deployment-deleted",
+			APIAccessMode:  "ONTAP",
+		}
+		nonOntapPool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "default-pool-uuid"},
+			Name:      "default-pool",
+			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				AccountName: "ontap-account",
+			},
+			DeploymentName: "default-deployment",
+			APIAccessMode:  "DEFAULT",
+		}
+
+		require.NoError(t, store.db.Create(activeOntapPool).Error())
+		require.NoError(t, store.db.Create(deletedOntapPool).Error())
+		require.NoError(t, store.db.Create(nonOntapPool).Error())
+
+		results, err := store.ListOntapModePoolsForResourceData(ctx, now.Add(-1*time.Hour), now.Add(1*time.Hour), nil)
+		require.NoError(t, err)
+		require.Len(t, results, 2)
+
+		actualByUUID := make(map[string]*PoolResourceData, len(results))
+		for _, result := range results {
+			actualByUUID[result.UUID] = result
+			assert.Equal(t, "ONTAP", result.APIAccessMode)
+		}
+
+		require.Contains(t, actualByUUID, activeOntapPool.UUID)
+		assert.Equal(t, activeOntapPool.Name, actualByUUID[activeOntapPool.UUID].Name)
+		assert.Equal(t, activeOntapPool.DeploymentName, actualByUUID[activeOntapPool.UUID].DeploymentName)
+		require.NotNil(t, actualByUUID[activeOntapPool.UUID].PoolAttributes)
+		assert.Equal(t, "ontap-account", actualByUUID[activeOntapPool.UUID].PoolAttributes.AccountName)
+
+		require.Contains(t, actualByUUID, deletedOntapPool.UUID)
+		assert.NotContains(t, actualByUUID, nonOntapPool.UUID)
+	})
+
+	t.Run("applies pagination when limit and offset are set", func(t *testing.T) {
+		store := setup(t)
+		ctx := context.Background()
+		now := time.Now()
+
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 102, UUID: "ontap-pagination-account-uuid"},
+			Name:      "ontap-pagination-account",
+		}
+		require.NoError(t, store.db.Create(account).Error())
+
+		firstPool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "ontap-pagination-pool-1"},
+			Name:      "ontap-pagination-pool-1",
+			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				AccountName: "ontap-pagination-account",
+			},
+			DeploymentName: "ontap-pagination-deployment-1",
+			APIAccessMode:  "ONTAP",
+		}
+		secondPool := &datamodel.Pool{
+			BaseModel: datamodel.BaseModel{UUID: "ontap-pagination-pool-2"},
+			Name:      "ontap-pagination-pool-2",
+			AccountID: account.ID,
+			PoolAttributes: &datamodel.PoolAttributes{
+				AccountName: "ontap-pagination-account",
+			},
+			DeploymentName: "ontap-pagination-deployment-2",
+			APIAccessMode:  "ONTAP",
+		}
+
+		require.NoError(t, store.db.Create(firstPool).Error())
+		require.NoError(t, store.db.Create(secondPool).Error())
+
+		results, err := store.ListOntapModePoolsForResourceData(ctx, now.Add(-1*time.Hour), now.Add(1*time.Hour), &utils.Pagination{
+			Limit:  1,
+			Offset: 1,
+		})
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+		assert.Contains(t, []string{firstPool.UUID, secondPool.UUID}, results[0].UUID)
+		assert.Equal(t, "ONTAP", results[0].APIAccessMode)
+	})
+
+	t.Run("wraps database read errors", func(t *testing.T) {
+		dbSQL, mock, err := sqlmock.New()
+		require.NoError(t, err)
+		defer func() {
+			require.NoError(t, mock.ExpectationsWereMet())
+		}()
+
+		dialector := postgres.New(postgres.Config{Conn: dbSQL, PreferSimpleProtocol: true})
+		gormDB, err := gorm.Open(dialector, &gorm.Config{})
+		require.NoError(t, err)
+
+		store := NewDataStoreRepository(gormwrapper.New(gormDB))
+		readErr := fmt.Errorf("read failed")
+		mock.ExpectQuery(`(?s)SELECT .* FROM "pools" WHERE api_access_mode = \$1 AND \(\(deleted_at IS NULL OR \(deleted_at >= \$2 AND deleted_at <= \$3\)\)\)`).
+			WithArgs("ONTAP", sqlmock.AnyArg(), sqlmock.AnyArg()).
+			WillReturnError(readErr)
+
+		results, err := store.ListOntapModePoolsForResourceData(context.Background(), time.Now().Add(-time.Hour), time.Now().Add(time.Hour), nil)
+		require.Nil(t, results)
+		require.Error(t, err)
+
+		var customErr *errors.CustomError
+		require.ErrorAs(t, err, &customErr)
+		assert.Equal(t, vsaerrors.ErrDatabaseDataReadError, customErr.TrackingID)
+		assert.ErrorIs(t, err, readErr)
+	})
+}
+
 func TestDataStoreRepository_GetPoolsCount_WithFilter(t *testing.T) {
 	store := setup(t)
 	ctx := context.Background()

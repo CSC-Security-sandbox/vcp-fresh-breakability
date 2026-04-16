@@ -14,6 +14,7 @@ import (
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/metrics"
 	dbutils "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/utils"
 	database2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/common"
 	datamodel2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/telemetry/metadata"
@@ -6231,4 +6232,609 @@ func TestIsPoolResourceType(t *testing.T) {
 	assert.True(t, isPoolResourceType(metadata.VolumePoolRegionalHA))
 	assert.False(t, isPoolResourceType(metadata.Volume))
 	assert.False(t, isPoolResourceType(metadata.Backup))
+}
+
+func TestGetRegionCodeToLocationMap(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expected    map[string]string
+		expectError bool
+	}{
+		{
+			name:     "empty input returns empty map",
+			input:    "",
+			expected: map[string]string{},
+		},
+		{
+			name:     "valid json is inverted",
+			input:    `{"us-central1":"34","europe-west1":"99"}`,
+			expected: map[string]string{"34": "us-central1", "99": "europe-west1"},
+		},
+		{
+			name:        "invalid json returns error",
+			input:       `{"us-central1":`,
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual, err := getRegionCodeToLocationMap(tt.input)
+			if tt.expectError {
+				require.Error(t, err)
+				assert.Nil(t, actual)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, actual)
+		})
+	}
+}
+
+func TestGetSourceLocationFromSourceDetails(t *testing.T) {
+	tests := []struct {
+		name          string
+		sourceDetails string
+		regionMap     map[string]string
+		expected      string
+	}{
+		{
+			name:          "empty input",
+			sourceDetails: "",
+			regionMap:     map[string]string{"34": "us-central1"},
+			expected:      "",
+		},
+		{
+			name:          "malformed input",
+			sourceDetails: "invalid",
+			regionMap:     map[string]string{"34": "us-central1"},
+			expected:      "",
+		},
+		{
+			name:          "valid input resolves region",
+			sourceDetails: "gcnv-608f72ece2b7c43-r34_gcnv-608f72ece2b7c43-svm-01:srcvol20march",
+			regionMap:     map[string]string{"34": "us-central1"},
+			expected:      "us-central1",
+		},
+		{
+			name:          "unknown region code returns empty string",
+			sourceDetails: "gcnv-608f72ece2b7c43-r77_gcnv-608f72ece2b7c43-svm-01:srcvol20march",
+			regionMap:     map[string]string{"34": "us-central1"},
+			expected:      "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, getSourceLocationFromSourceDetails(tt.sourceDetails, tt.regionMap))
+		})
+	}
+}
+
+func TestGetDeploymentNameFromSourceDetails(t *testing.T) {
+	tests := []struct {
+		name          string
+		sourceDetails string
+		expected      string
+	}{
+		{
+			name:          "empty input",
+			sourceDetails: "",
+			expected:      "",
+		},
+		{
+			name:          "malformed input",
+			sourceDetails: "invalid",
+			expected:      "",
+		},
+		{
+			name:          "valid input extracts deployment name",
+			sourceDetails: "gcnv-4d01d92cfc96fcd-r34_gcnv-4d01d92cfc96fcd-svm-01:vol",
+			expected:      "gcnv-4d01d92cfc96fcd",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, getDeploymentNameFromSourceDetails(tt.sourceDetails))
+		})
+	}
+}
+
+func TestDetermineOntapReplicationType(t *testing.T) {
+	stringPtr := func(value string) *string {
+		return &value
+	}
+
+	tests := []struct {
+		name             string
+		sourceLocation   *string
+		destLocation     *string
+		sourceDeployment string
+		destDeployment   string
+		poolInfo         map[string]OntapPoolInfo
+		expected         string
+	}{
+		{
+			name:             "nil location defaults to cross region",
+			destLocation:     stringPtr("us-central1"),
+			sourceDeployment: "src",
+			destDeployment:   "dst",
+			expected:         string(googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeCROSSREGIONREPLICATION),
+		},
+		{
+			name:             "different locations are cross region",
+			sourceLocation:   stringPtr("us-central1"),
+			destLocation:     stringPtr("us-east1"),
+			sourceDeployment: "src",
+			destDeployment:   "dst",
+			expected:         string(googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeCROSSREGIONREPLICATION),
+		},
+		{
+			name:             "same zone is intra zone",
+			sourceLocation:   stringPtr("us-central1"),
+			destLocation:     stringPtr("us-central1"),
+			sourceDeployment: "src",
+			destDeployment:   "dst",
+			poolInfo: map[string]OntapPoolInfo{
+				"src": {PrimaryZone: "us-central1-a"},
+				"dst": {PrimaryZone: "us-central1-a"},
+			},
+			expected: string(googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeINTRAZONEREPLICATION),
+		},
+		{
+			name:             "different zones are inter zone",
+			sourceLocation:   stringPtr("us-central1"),
+			destLocation:     stringPtr("us-central1"),
+			sourceDeployment: "src",
+			destDeployment:   "dst",
+			poolInfo: map[string]OntapPoolInfo{
+				"src": {PrimaryZone: "us-central1-a"},
+				"dst": {PrimaryZone: "us-central1-b"},
+			},
+			expected: string(googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeINTERZONEREPLICATION),
+		},
+	}
+
+	logger := util.GetLogger(context.Background())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual := determineOntapReplicationType(
+				tt.sourceLocation,
+				tt.destLocation,
+				tt.sourceDeployment,
+				tt.destDeployment,
+				tt.poolInfo,
+				logger,
+			)
+			assert.Equal(t, tt.expected, actual)
+		})
+	}
+}
+
+func TestFetchHydratedMetricsForOntapCrr_Error(t *testing.T) {
+	mockDB := &database.MockStorage{}
+	provider := &BillingProvider{
+		metricsDB: mockDB,
+		config: &common.TelemetryConfig{
+			PoolVolumeLabelPageSize: 2,
+		},
+	}
+
+	aggregationStart := time.Date(2026, 4, 15, 10, 0, 0, 0, time.UTC)
+	expectedConditions := [][]interface{}{
+		{"deployment_name IN ?", []string{"dep-1", "dep-2"}},
+		{"resource_type = ?", metadata.VolumeReplicationRelationship.String()},
+		{"metric_timestamp >= ?", aggregationStart},
+	}
+
+	mockDB.On(
+		"GetHydratedMetricsWithPagination",
+		mock.Anything,
+		expectedConditions,
+		&dbutils.Pagination{Offset: 0, Limit: 2},
+	).Return(nil, errors.New("db failure")).Once()
+
+	result, err := provider.fetchHydratedMetricsForOntapCrr(context.Background(), []string{"dep-1", "dep-2"}, aggregationStart)
+
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "failed to fetch hydrated metrics (offset 0)")
+	mockDB.AssertExpectations(t)
+}
+
+func TestFetchHydratedMetricsForOntapCrr_EmptyFirstPage(t *testing.T) {
+	mockDB := &database.MockStorage{}
+	provider := &BillingProvider{
+		metricsDB: mockDB,
+		config: &common.TelemetryConfig{
+			PoolVolumeLabelPageSize: 2,
+		},
+	}
+
+	aggregationStart := time.Date(2026, 4, 15, 10, 0, 0, 0, time.UTC)
+	expectedConditions := [][]interface{}{
+		{"deployment_name IN ?", []string{"dep-1"}},
+		{"resource_type = ?", metadata.VolumeReplicationRelationship.String()},
+		{"metric_timestamp >= ?", aggregationStart},
+	}
+
+	mockDB.On(
+		"GetHydratedMetricsWithPagination",
+		mock.Anything,
+		expectedConditions,
+		&dbutils.Pagination{Offset: 0, Limit: 2},
+	).Return([]datamodel2.HydratedMetrics{}, nil).Once()
+
+	result, err := provider.fetchHydratedMetricsForOntapCrr(context.Background(), []string{"dep-1"}, aggregationStart)
+
+	require.NoError(t, err)
+	assert.Empty(t, result)
+	mockDB.AssertExpectations(t)
+}
+
+func TestFetchHydratedMetricsForOntapCrr_PaginatesAndDeduplicatesByDeploymentAndResource(t *testing.T) {
+	mockDB := &database.MockStorage{}
+	provider := &BillingProvider{
+		metricsDB: mockDB,
+		config: &common.TelemetryConfig{
+			PoolVolumeLabelPageSize: 2,
+		},
+	}
+
+	aggregationStart := time.Date(2026, 4, 15, 10, 0, 0, 0, time.UTC)
+	expectedConditions := [][]interface{}{
+		{"deployment_name IN ?", []string{"dep-1", "dep-2"}},
+		{"resource_type = ?", metadata.VolumeReplicationRelationship.String()},
+		{"metric_timestamp >= ?", aggregationStart},
+	}
+
+	firstSeen := datamodel2.HydratedMetrics{
+		DeploymentName: "dep-1",
+		ResourceName:   "rep-1",
+		Location:       "us-central1",
+	}
+	duplicateKey := datamodel2.HydratedMetrics{
+		DeploymentName: "dep-1",
+		ResourceName:   "rep-1",
+		Location:       "us-east1",
+	}
+	secondKey := datamodel2.HydratedMetrics{
+		DeploymentName: "dep-2",
+		ResourceName:   "rep-2",
+		Location:       "europe-west1",
+	}
+
+	mockDB.On(
+		"GetHydratedMetricsWithPagination",
+		mock.Anything,
+		expectedConditions,
+		&dbutils.Pagination{Offset: 0, Limit: 2},
+	).Return([]datamodel2.HydratedMetrics{firstSeen, duplicateKey}, nil).Once()
+
+	mockDB.On(
+		"GetHydratedMetricsWithPagination",
+		mock.Anything,
+		expectedConditions,
+		&dbutils.Pagination{Offset: 2, Limit: 2},
+	).Return([]datamodel2.HydratedMetrics{secondKey}, nil).Once()
+
+	result, err := provider.fetchHydratedMetricsForOntapCrr(context.Background(), []string{"dep-1", "dep-2"}, aggregationStart)
+
+	require.NoError(t, err)
+	require.Len(t, result, 2)
+	assert.Equal(t, firstSeen, result["dep-1-rep-1"])
+	assert.Equal(t, secondKey, result["dep-2-rep-2"])
+	mockDB.AssertExpectations(t)
+}
+
+func TestFetchOntapModePoolData_ListPoolsErrorWithInvalidRegionMap(t *testing.T) {
+	mockMetricsDB := &database.MockStorage{}
+	mockVcpDB := &database2.MockStorage{}
+	provider := &BillingProvider{
+		metricsDB:    mockMetricsDB,
+		vcpDataStore: mockVcpDB,
+		config: &common.TelemetryConfig{
+			PoolVolumeLabelPageSize: 2,
+			RegionNumberMap:         "{",
+		},
+	}
+
+	aggregationStart := time.Date(2026, 4, 15, 10, 0, 0, 0, time.UTC)
+	resourceCollection := &ResourceCollection{
+		VolumeReplicationData: make(map[ResourceKey]ResourceData),
+	}
+
+	mockVcpDB.On(
+		"ListOntapModePoolsForResourceData",
+		mock.Anything,
+		aggregationStart,
+		mock.Anything,
+		mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+			return pagination.Offset == 0 && pagination.Limit == 2
+		}),
+	).Return(nil, assert.AnError).Once()
+
+	err := provider.fetchOntapModePoolData(context.Background(), aggregationStart, resourceCollection)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to list ONTAP mode pools (offset 0)")
+	assert.Empty(t, resourceCollection.VolumeReplicationData)
+	mockVcpDB.AssertExpectations(t)
+}
+
+func TestFetchOntapModePoolData_NoPools(t *testing.T) {
+	mockMetricsDB := &database.MockStorage{}
+	mockVcpDB := &database2.MockStorage{}
+	provider := &BillingProvider{
+		metricsDB:    mockMetricsDB,
+		vcpDataStore: mockVcpDB,
+		config: &common.TelemetryConfig{
+			PoolVolumeLabelPageSize: 2,
+			RegionNumberMap:         common.DefaultRegionNumberMap,
+		},
+	}
+
+	aggregationStart := time.Date(2026, 4, 15, 10, 0, 0, 0, time.UTC)
+	resourceCollection := &ResourceCollection{
+		VolumeReplicationData: make(map[ResourceKey]ResourceData),
+	}
+
+	mockVcpDB.On(
+		"ListOntapModePoolsForResourceData",
+		mock.Anything,
+		aggregationStart,
+		mock.Anything,
+		mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+			return pagination.Offset == 0 && pagination.Limit == 2
+		}),
+	).Return([]*database2.PoolResourceData{}, nil).Once()
+
+	err := provider.fetchOntapModePoolData(context.Background(), aggregationStart, resourceCollection)
+
+	require.NoError(t, err)
+	assert.Empty(t, resourceCollection.VolumeReplicationData)
+	mockVcpDB.AssertExpectations(t)
+}
+
+func TestFetchOntapModePoolData_FetchHydratedMetricsError(t *testing.T) {
+	mockMetricsDB := &database.MockStorage{}
+	mockVcpDB := &database2.MockStorage{}
+	provider := &BillingProvider{
+		metricsDB:    mockMetricsDB,
+		vcpDataStore: mockVcpDB,
+		config: &common.TelemetryConfig{
+			PoolVolumeLabelPageSize: 2,
+			RegionNumberMap:         common.DefaultRegionNumberMap,
+		},
+	}
+
+	aggregationStart := time.Date(2026, 4, 15, 10, 0, 0, 0, time.UTC)
+	resourceCollection := &ResourceCollection{
+		VolumeReplicationData: make(map[ResourceKey]ResourceData),
+	}
+
+	mockVcpDB.On(
+		"ListOntapModePoolsForResourceData",
+		mock.Anything,
+		aggregationStart,
+		mock.Anything,
+		mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+			return pagination.Offset == 0 && pagination.Limit == 2
+		}),
+	).Return([]*database2.PoolResourceData{
+		{
+			UUID:           "pool-1",
+			AccountID:      42,
+			DeploymentName: "gcnv-dep-b",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-central1-b",
+				AccountName: "acct-b",
+			},
+		},
+		{
+			UUID:           "pool-ignored",
+			AccountID:      99,
+			DeploymentName: "",
+		},
+	}, nil).Once()
+
+	mockVcpDB.On(
+		"ListOntapModePoolsForResourceData",
+		mock.Anything,
+		aggregationStart,
+		mock.Anything,
+		mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+			return pagination.Offset == 2 && pagination.Limit == 2
+		}),
+	).Return([]*database2.PoolResourceData{}, nil).Once()
+
+	mockMetricsDB.On(
+		"GetHydratedMetricsWithPagination",
+		mock.Anything,
+		mock.MatchedBy(func(conditions [][]interface{}) bool {
+			return len(conditions) == 3 &&
+				assert.ObjectsAreEqual([]string{"gcnv-dep-b"}, conditions[0][1]) &&
+				conditions[1][1] == metadata.VolumeReplicationRelationship.String() &&
+				conditions[2][1] == aggregationStart
+		}),
+		mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+			return pagination.Offset == 0 && pagination.Limit == 2
+		}),
+	).Return(nil, assert.AnError).Once()
+
+	err := provider.fetchOntapModePoolData(context.Background(), aggregationStart, resourceCollection)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to fetch hydrated metrics for ONTAP CRR")
+	assert.Empty(t, resourceCollection.VolumeReplicationData)
+	mockVcpDB.AssertExpectations(t)
+	mockMetricsDB.AssertExpectations(t)
+}
+
+func TestFetchOntapModePoolData_Success(t *testing.T) {
+	mockMetricsDB := &database.MockStorage{}
+	mockVcpDB := &database2.MockStorage{}
+	provider := &BillingProvider{
+		metricsDB:    mockMetricsDB,
+		vcpDataStore: mockVcpDB,
+		config: &common.TelemetryConfig{
+			PoolVolumeLabelPageSize: 10,
+			RegionNumberMap:         common.DefaultRegionNumberMap,
+		},
+	}
+
+	aggregationStart := time.Date(2026, 4, 15, 10, 0, 0, 0, time.UTC)
+	resourceCollection := &ResourceCollection{
+		VolumeReplicationData: make(map[ResourceKey]ResourceData),
+	}
+
+	mockVcpDB.On(
+		"ListOntapModePoolsForResourceData",
+		mock.Anything,
+		aggregationStart,
+		mock.Anything,
+		mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+			return pagination.Offset == 0 && pagination.Limit == 10
+		}),
+	).Return([]*database2.PoolResourceData{
+		{
+			UUID:           "pool-a",
+			AccountID:      1,
+			DeploymentName: "gcnv-dep-a",
+		},
+		{
+			UUID:           "pool-b",
+			AccountID:      2,
+			DeploymentName: "gcnv-dep-b",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-central1-b",
+				AccountName: "acct-b",
+			},
+		},
+		{
+			UUID:           "pool-ignored",
+			AccountID:      3,
+			DeploymentName: "",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-central1-c",
+				AccountName: "acct-ignored",
+			},
+		},
+	}, nil).Once()
+
+	mockVcpDB.On(
+		"ListOntapModePoolsForResourceData",
+		mock.Anything,
+		aggregationStart,
+		mock.Anything,
+		mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+			return pagination.Offset == 10 && pagination.Limit == 10
+		}),
+	).Return([]*database2.PoolResourceData{}, nil).Once()
+
+	mockMetricsDB.On(
+		"GetHydratedMetricsWithPagination",
+		mock.Anything,
+		mock.MatchedBy(func(conditions [][]interface{}) bool {
+			return len(conditions) == 3 &&
+				assert.ObjectsAreEqual([]string{"gcnv-dep-a", "gcnv-dep-b"}, conditions[0][1]) &&
+				conditions[1][1] == metadata.VolumeReplicationRelationship.String() &&
+				conditions[2][1] == aggregationStart
+		}),
+		mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+			return pagination.Offset == 0 && pagination.Limit == 10
+		}),
+	).Return([]datamodel2.HydratedMetrics{
+		{
+			DeploymentName: "gcnv-dep-a",
+			ResourceName:   "rep-invalid-json",
+			Location:       "us-central1",
+			Metadata:       []byte("{"),
+		},
+		{
+			DeploymentName: "gcnv-dep-b",
+			ResourceName:   "rep-onprem",
+			Location:       "us-central1",
+			Metadata:       []byte(`{"source_details":"onprem-source"}`),
+		},
+		{
+			DeploymentName: "gcnv-dep-b",
+			ResourceName:   "rep-ontap",
+			Location:       "us-central1",
+			Metadata:       []byte(`{"source_details":"gcnv-dep-a-r34_suffix"}`),
+		},
+		{
+			DeploymentName: "missing-dep",
+			ResourceName:   "rep-ignored",
+			Location:       "us-central1",
+		},
+	}, nil).Once()
+
+	err := provider.fetchOntapModePoolData(context.Background(), aggregationStart, resourceCollection)
+
+	require.NoError(t, err)
+	require.Len(t, resourceCollection.VolumeReplicationData, 3)
+
+	invalidJSONKey := ResourceKey{
+		ResourceType:   metadata.VolumeReplicationRelationship,
+		ResourceName:   "rep-invalid-json",
+		DeploymentName: "gcnv-dep-a",
+		ConsumerID:     "",
+	}
+	onPremKey := ResourceKey{
+		ResourceType:   metadata.VolumeReplicationRelationship,
+		ResourceName:   "rep-onprem",
+		DeploymentName: "gcnv-dep-b",
+		ConsumerID:     "acct-b",
+	}
+	ontapKey := ResourceKey{
+		ResourceType:   metadata.VolumeReplicationRelationship,
+		ResourceName:   "rep-ontap",
+		DeploymentName: "gcnv-dep-b",
+		ConsumerID:     "acct-b",
+	}
+
+	invalidJSONEntry, ok := resourceCollection.VolumeReplicationData[invalidJSONKey]
+	require.True(t, ok)
+	assert.Equal(t, int64(1), invalidJSONEntry.AccountID)
+	assert.Equal(t, "rep-invalid-json", invalidJSONEntry.UUID)
+	assert.True(t, invalidJSONEntry.IsONTAPMode)
+	require.NotNil(t, invalidJSONEntry.VolumeReplicationInfo)
+	assert.Equal(t, string(googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeCROSSREGIONREPLICATION), invalidJSONEntry.VolumeReplicationInfo.ReplicationType)
+	assert.Nil(t, invalidJSONEntry.VolumeReplicationInfo.SourceLocation)
+
+	onPremEntry, ok := resourceCollection.VolumeReplicationData[onPremKey]
+	require.True(t, ok)
+	assert.Equal(t, int64(2), onPremEntry.AccountID)
+	assert.Equal(t, "rep-onprem", onPremEntry.UUID)
+	assert.True(t, onPremEntry.IsONTAPMode)
+	require.NotNil(t, onPremEntry.VolumeReplicationInfo)
+	assert.Equal(t, string(googleproxyclient.HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION), onPremEntry.VolumeReplicationInfo.ReplicationType)
+	assert.Nil(t, onPremEntry.VolumeReplicationInfo.SourceLocation)
+
+	ontapEntry, ok := resourceCollection.VolumeReplicationData[ontapKey]
+	require.True(t, ok)
+	assert.Equal(t, "rep-ontap", ontapEntry.UUID)
+	assert.True(t, ontapEntry.IsONTAPMode)
+	require.NotNil(t, ontapEntry.VolumeReplicationInfo)
+	assert.Equal(t, string(googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeINTERZONEREPLICATION), ontapEntry.VolumeReplicationInfo.ReplicationType)
+	require.NotNil(t, ontapEntry.VolumeReplicationInfo.SourceLocation)
+	assert.Equal(t, "us-central1", *ontapEntry.VolumeReplicationInfo.SourceLocation)
+	require.NotNil(t, ontapEntry.VolumeReplicationInfo.DestinationLocation)
+	assert.Equal(t, "us-central1", *ontapEntry.VolumeReplicationInfo.DestinationLocation)
+
+	missingKey := ResourceKey{
+		ResourceType:   metadata.VolumeReplicationRelationship,
+		ResourceName:   "rep-ignored",
+		DeploymentName: "missing-dep",
+		ConsumerID:     "",
+	}
+	_, exists := resourceCollection.VolumeReplicationData[missingKey]
+	assert.False(t, exists)
+
+	mockVcpDB.AssertExpectations(t)
+	mockMetricsDB.AssertExpectations(t)
 }

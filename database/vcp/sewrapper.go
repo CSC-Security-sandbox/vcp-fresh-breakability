@@ -376,6 +376,22 @@ func (re *retryEngine) ListPoolsForResourceData(ctx context.Context, startTime, 
 	return var0, err
 }
 
+func (re *retryEngine) ListOntapModePoolsForResourceData(ctx context.Context, startTime, endTime time.Time, pagination *dbutils.Pagination) ([]*PoolResourceData, error) {
+	var var0 []*PoolResourceData
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListOntapModePoolsForResourceData(ctx, startTime, endTime, pagination)
+		if err != nil {
+			re.logError("ListOntapModePoolsForResourceData", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetBlockOnlyPoolIDs(ctx context.Context) (map[int64]bool, error) {
 	var var0 map[int64]bool
 	err := retry.Do(func(attempt int) (bool, error) {

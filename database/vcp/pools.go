@@ -937,6 +937,45 @@ func (d *DataStoreRepository) ListPoolsForResourceData(ctx context.Context, star
 	return results, nil
 }
 
+// ListOntapModePoolsForResourceData retrieves ONTAP mode pools with only the fields required for aggregator resource data collection.
+// This is an optimized query with pagination support for fetchPoolData in telemetry aggregator.
+// Includes support for deleted_at filter to include recently deleted pools.
+func (d *DataStoreRepository) ListOntapModePoolsForResourceData(ctx context.Context, startTime, endTime time.Time, pagination *utils2.Pagination) ([]*PoolResourceData, error) {
+	db := d.db.GORM().WithContext(ctx)
+
+	var results []*PoolResourceData
+
+	query := db.Table("pools").
+		Select(`
+			id,
+			uuid,
+			name,
+			account_id,
+			deployment_name,	
+			pool_attributes,
+			api_access_mode
+		`).
+		Where("api_access_mode = ?", "ONTAP").
+		Where("(deleted_at IS NULL OR (deleted_at >= ? AND deleted_at <= ?))", startTime, endTime).
+		Order("id")
+
+	if pagination != nil {
+		if pagination.Limit > 0 {
+			query = query.Limit(pagination.Limit)
+		}
+		if pagination.Offset > 0 {
+			query = query.Offset(pagination.Offset)
+		}
+	}
+
+	err := query.Find(&results).Error
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+
+	return results, nil
+}
+
 // GetBlockOnlyPoolIDs returns a map of pool IDs that contain ONLY block volumes (ISCSI)
 // and have AllowAutoTiering enabled.
 // Returns map[poolID]true for pools that have at least one ISCSI volume and NO NAS volumes.

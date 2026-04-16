@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	clientmodel "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
@@ -26,6 +27,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"gorm.io/gorm"
+)
+
+const (
+	ReplicationScheduleOntapMode = "ONTAP_MODE"
 )
 
 var (
@@ -76,6 +81,13 @@ type ResourceCollection struct {
 	VolumeReplicationData    map[ResourceKey]ResourceData
 	VolumeToDeploymentName   map[string]string
 	DeploymentNameToPoolName map[string]string
+}
+
+type OntapPoolInfo struct {
+	UUID        string
+	AccountID   int64
+	AccountName string
+	PrimaryZone string
 }
 
 type BillingProvider struct {
@@ -368,6 +380,12 @@ func (p *BillingProvider) fetchResourceData(ctx context.Context, aggregationStar
 		if err := p.fetchVolumeReplicationData(ctx, aggregationStartTime, resourceCollection); err != nil {
 			logger.Errorf("Failed to fetch volume replication labels: %v", err)
 			volumeReplicationDataError = err
+		}
+	}
+
+	if p.config.EnableOntapModeReplicationBilling {
+		if err := p.fetchOntapModePoolData(ctx, aggregationStartTime, resourceCollection); err != nil {
+			logger.Errorf("Failed to fetch ONTAP mode pool data: %v", err)
 		}
 	}
 
@@ -754,6 +772,187 @@ func deletedAtPtr(deletedAt *gorm.DeletedAt) *time.Time {
 	}
 	t := deletedAt.Time
 	return &t
+}
+
+func (p *BillingProvider) fetchOntapModePoolData(ctx context.Context, aggregationStartTime time.Time, resourceCollection *ResourceCollection) error {
+	logger := util.GetLogger(ctx)
+	logger.Info("Fetching ONTAP mode pool data for CRR billing")
+
+	// pre computing map to get source location for ONTAP mode CRR relationships.
+	regionCodeToLocation, err := getRegionCodeToLocationMap(p.config.RegionNumberMap)
+	if err != nil {
+		logger.Warnf("Failed to parse REGION_NUMBER_MAP for ONTAP CRR source location lookup: %v", err)
+		regionCodeToLocation = nil
+	}
+
+	offset := 0
+	limit := p.config.PoolVolumeLabelPageSize
+	totalPoolsProcessed := 0
+	batchCount := 0
+	aggregationEndTime := time.Now()
+
+	// Map deployment_name -> pool info for ONTAP mode pools
+	deploymentToPoolInfo := make(map[string]OntapPoolInfo)
+	deploymentNames := make([]string, 0)
+
+	for {
+		pagination := &dbutils.Pagination{
+			Offset: offset,
+			Limit:  limit,
+		}
+
+		// Fetch paginated ONTAP mode pools
+		pools, err := p.vcpDataStore.ListOntapModePoolsForResourceData(ctx, aggregationStartTime, aggregationEndTime, pagination)
+		if err != nil {
+			return fmt.Errorf("failed to list ONTAP mode pools (offset %d): %w", offset, err)
+		}
+
+		if len(pools) == 0 {
+			break
+		}
+
+		// Collect pool info by deployment name
+		for _, pool := range pools {
+			if pool.DeploymentName != "" {
+				primaryZone := ""
+				if pool.PoolAttributes != nil {
+					primaryZone = pool.PoolAttributes.PrimaryZone
+				}
+				deploymentToPoolInfo[pool.DeploymentName] = OntapPoolInfo{
+					UUID:        pool.UUID,
+					AccountID:   pool.AccountID,
+					AccountName: pool.GetAccountName(),
+					PrimaryZone: primaryZone,
+				}
+				deploymentNames = append(deploymentNames, pool.DeploymentName)
+			}
+		}
+
+		totalPoolsProcessed += len(pools)
+		batchCount++
+		logger.Debugf("Processed %d ONTAP mode pools in batch %d (offset: %d, total: %d)", len(pools), batchCount, offset, totalPoolsProcessed)
+
+		offset += limit
+	}
+
+	logger.Infof("Collected %d deployment names from %d ONTAP mode pools", len(deploymentToPoolInfo), totalPoolsProcessed)
+
+	if len(deploymentToPoolInfo) == 0 {
+		logger.Info("No ONTAP mode pools found, skipping hydrated_metrics fetch")
+		return nil
+	}
+
+	// Batch-fetch hydrated_metrics for all deployment names with resource_type='VOLUME_REPLICATION_RELATIONSHIP'.
+	// The result map is keyed by deployment name + resource name so multiple replications under the same
+	// deployment are preserved.
+	metricsByDeployment, err := p.fetchHydratedMetricsForOntapCrr(ctx, deploymentNames, aggregationStartTime)
+	if err != nil {
+		return fmt.Errorf("failed to fetch hydrated metrics for ONTAP CRR: %w", err)
+	}
+
+	for _, metric := range metricsByDeployment {
+		deploymentName := metric.DeploymentName
+		poolInfo, ok := deploymentToPoolInfo[deploymentName]
+		if !ok {
+			continue
+		}
+
+		var sourceLocation *string
+		var sourceDeploymentName string
+		var sourceDetails string
+		if len(metric.Metadata) > 0 {
+			var metadataMap map[string]string
+			if err := json.Unmarshal(metric.Metadata, &metadataMap); err == nil {
+				if sd, ok := metadataMap["source_details"]; ok && sd != "" {
+					sourceDetails = sd
+					if region := getSourceLocationFromSourceDetails(sd, regionCodeToLocation); region != "" {
+						sourceLocation = &region
+					}
+					sourceDeploymentName = getDeploymentNameFromSourceDetails(sd)
+				}
+			}
+		}
+
+		repName := metric.ResourceName
+		destinationLocation := metric.Location
+
+		var replicationType string
+		if sourceDetails != "" && !strings.HasPrefix(sourceDetails, "gcnv-") {
+			replicationType = clientmodel.HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION
+		} else {
+			replicationType = determineOntapReplicationType(sourceLocation, &destinationLocation, sourceDeploymentName, deploymentName, deploymentToPoolInfo, logger)
+		}
+
+		volRepInfo := VolumeReplicationInfo{
+			ReplicationName:     &repName,
+			ReplicationType:     replicationType,
+			SourceLocation:      sourceLocation,
+			DestinationLocation: &destinationLocation,
+			ReplicationSchedule: ReplicationScheduleOntapMode,
+		}
+
+		id := ResourceKey{
+			ResourceType:   metadata.VolumeReplicationRelationship,
+			ResourceName:   metric.ResourceName,
+			DeploymentName: deploymentName,
+			ConsumerID:     poolInfo.AccountName,
+		}
+
+		resourceCollection.VolumeReplicationData[id] = ResourceData{
+			UUID:                  repName,
+			AccountID:             poolInfo.AccountID,
+			VolumeReplicationInfo: &volRepInfo,
+			IsONTAPMode:           true,
+		}
+		logger.Debugf("Fetched hydrated metric for ONTAP mode deployment %s (pool UUID: %s, replicationType: %s)", deploymentName, poolInfo.UUID, replicationType)
+	}
+
+	logger.Infof("Successfully fetched ONTAP mode CRR data for %d replication relationships", len(resourceCollection.VolumeReplicationData))
+	return nil
+}
+
+// fetchHydratedMetricsForOntapCrr fetches the first hydrated_metrics entry per deployment/resource pair
+// with resource_type='VOLUME_REPLICATION_RELATIONSHIP'.
+func (p *BillingProvider) fetchHydratedMetricsForOntapCrr(ctx context.Context, deploymentNames []string, aggregationStartTime time.Time) (map[string]datamodel2.HydratedMetrics, error) {
+	result := make(map[string]datamodel2.HydratedMetrics, len(deploymentNames))
+	offset := 0
+	limit := p.config.PoolVolumeLabelPageSize
+
+	conditions := [][]interface{}{
+		{"deployment_name IN ?", deploymentNames},
+		{"resource_type = ?", metadata.VolumeReplicationRelationship.String()},
+		{"metric_timestamp >= ?", aggregationStartTime},
+	}
+
+	for {
+		pagination := &dbutils.Pagination{
+			Offset: offset,
+			Limit:  limit,
+		}
+
+		metrics, err := p.metricsDB.GetHydratedMetricsWithPagination(ctx, conditions, pagination)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch hydrated metrics (offset %d): %w", offset, err)
+		}
+
+		if len(metrics) == 0 {
+			break
+		}
+
+		for i := range metrics {
+			key := metrics[i].DeploymentName + "-" + metrics[i].ResourceName
+			if _, exists := result[key]; !exists {
+				result[key] = metrics[i]
+			}
+		}
+		offset += len(metrics)
+
+		if len(metrics) < limit {
+			break
+		}
+	}
+
+	return result, nil
 }
 
 // fetchVolumeReplicationData fetches labels from volume replication table using pagination
@@ -1471,6 +1670,8 @@ func setServiceLevelForCRR(schedule string) string {
 		return "2"
 	case vsa.VolumeReplicationScheduleDaily:
 		return "3"
+	case ReplicationScheduleOntapMode:
+		return "4"
 	default:
 		return ""
 	}
@@ -1669,4 +1870,83 @@ func (p *BillingProvider) fetchHistoricalVolumeSizeMetrics(ctx context.Context, 
 	}
 
 	return metrics, nil
+}
+
+func getRegionCodeToLocationMap(regionNumberMapJSON string) (map[string]string, error) {
+	if regionNumberMapJSON == "" {
+		return map[string]string{}, nil
+	}
+
+	regionNumberMap := make(map[string]string)
+	if err := json.Unmarshal([]byte(regionNumberMapJSON), &regionNumberMap); err != nil {
+		return nil, err
+	}
+
+	regionCodeToLocation := make(map[string]string, len(regionNumberMap))
+	for region, code := range regionNumberMap {
+		regionCodeToLocation[code] = region
+	}
+
+	return regionCodeToLocation, nil
+}
+
+// getSourceLocationFromSourceDetails extracts the region from source_details string.
+// source_details format: "gcnv-<id>-r<region_code>_..." (the "r" prefix is stripped before lookup).
+// Example: "gcnv-608f72ece2b7c43-r34_gcnv-608f72ece2b7c43-svm-01:srcvol20march..."
+// The region code (e.g., "34") is extracted and mapped to the actual region (e.g., "us-central1").
+func getSourceLocationFromSourceDetails(sourceDetails string, regionCodeToLocation map[string]string) string {
+	if sourceDetails == "" {
+		return ""
+	}
+
+	parts := strings.Split(sourceDetails, "_")
+	dashParts := strings.Split(parts[0], "-")
+	if len(dashParts) < 3 {
+		return ""
+	}
+
+	regionCode := strings.TrimPrefix(dashParts[len(dashParts)-1], "r")
+	return regionCodeToLocation[regionCode]
+}
+
+// getDeploymentNameFromSourceDetails extracts the deployment name from source_details string.
+// source_details format: "gcnv-<id>-<region_code>_gcnv-<id>-svm-01:vol_..."
+func getDeploymentNameFromSourceDetails(sourceDetails string) string {
+	if sourceDetails == "" {
+		return ""
+	}
+
+	// Split by '_' to get the first part: "gcnv-<id>-<region_code>"
+	parts := strings.Split(sourceDetails, "_")
+	// First part is like "gcnv-4d01d92cfc96fcd-r34"
+	// Split by '-' and rejoin all parts except the last (region code)
+	firstPart := parts[0]
+	dashParts := strings.Split(firstPart, "-")
+	if len(dashParts) < 3 {
+		return ""
+	}
+
+	// Rejoin everything except the last element (region code) to get the deployment name
+	return strings.Join(dashParts[:len(dashParts)-1], "-")
+}
+
+// determineOntapReplicationType determines the replication type for ONTAP mode CRR based on
+// source/destination region and zone comparison.
+func determineOntapReplicationType(sourceRegion, destinationRegion *string, sourceDeploymentName, destDeploymentName string, deploymentToPoolInfo map[string]OntapPoolInfo, logger log.Logger) string {
+	// by default assuming cross-region replication if region information is missing
+	if sourceRegion == nil || destinationRegion == nil {
+		return string(googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeCROSSREGIONREPLICATION)
+	}
+
+	if *sourceRegion != *destinationRegion {
+		return string(googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeCROSSREGIONREPLICATION)
+	}
+
+	srcPool, _ := deploymentToPoolInfo[sourceDeploymentName]
+	dstPool, _ := deploymentToPoolInfo[destDeploymentName]
+
+	if srcPool.PrimaryZone == dstPool.PrimaryZone {
+		return string(googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeINTRAZONEREPLICATION)
+	}
+	return string(googleproxyclient.VolumeReplicationCreateInternalV1betaReplicationTypeINTERZONEREPLICATION)
 }

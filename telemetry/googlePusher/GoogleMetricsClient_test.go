@@ -945,6 +945,7 @@ func Test_GetLabelValue(t *testing.T) {
 			{"/replication/source_service_level", "FLEX_UNIFIED"},
 			{"/replication/destination_service_level", "FLEX_UNIFIED"},
 			{"/replication/replication_type", "CROSS_REGION_REPLICATION"},
+			{"/replication/mode", ""},
 			{"/unknown_key", ""},
 		}
 
@@ -953,6 +954,34 @@ func Test_GetLabelValue(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expected, result)
 		}
+	})
+
+	t.Run("VolumeReplicationRelationship replication mode is ONTAP for service level 4", func(t *testing.T) {
+		origGetReplicationType := getReplicationType
+		origGetServiceLevel := getServiceLevel
+		defer func() {
+			getReplicationType = origGetReplicationType
+			getServiceLevel = origGetServiceLevel
+		}()
+
+		rm := metadata.ResourceMetadata{
+			ResourceType: metadata.VolumeReplicationRelationship,
+		}
+		hydratedM := &entity.HydratedMetric{
+			Metadata: rm,
+		}
+		googleMetric := *common.NewGoogleMetric(hydratedM)
+
+		getReplicationType = func(m common.GoogleMetric) (string, error) {
+			return "CROSS_REGION_REPLICATION", nil
+		}
+		getServiceLevel = func(m common.GoogleMetric) (string, error) {
+			return "4", nil
+		}
+
+		result, err := GetLabelValue("/replication/mode", googleMetric, logger)
+		assert.NoError(t, err)
+		assert.Equal(t, ReplicationModeOntap, result)
 	})
 
 	t.Run("VolumeReplicationRelationship source_region and destination_region strip zone to region only", func(t *testing.T) {
@@ -1258,6 +1287,7 @@ func Test_GetLabelKey(t *testing.T) {
 			"/replication/source_service_level",
 			"/replication/destination_service_level",
 			"/replication/replication_type",
+			"/replication/mode",
 		}
 		assert.Equal(t, expected, result)
 	})

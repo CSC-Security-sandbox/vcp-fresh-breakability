@@ -466,6 +466,10 @@ func (s *PersistenceStore) ListPoolsForResourceData(ctx context.Context, startTi
 	return s.dataStore.ListPoolsForResourceData(ctx, startTime, endTime, pagination)
 }
 
+func (s *PersistenceStore) ListOntapModePoolsForResourceData(ctx context.Context, startTime, endTime time.Time, pagination *dbutils.Pagination) ([]*PoolResourceData, error) {
+	return s.dataStore.ListOntapModePoolsForResourceData(ctx, startTime, endTime, pagination)
+}
+
 func (s *PersistenceStore) GetBlockOnlyPoolIDs(ctx context.Context) (map[int64]bool, error) {
 	return s.dataStore.GetBlockOnlyPoolIDs(ctx)
 }
