@@ -2866,11 +2866,17 @@ if build_verdict == "pre_existing_plus_new" and not new_errors:
     build_verdict = "pre_existing"
 
 # For Go builds: if error_class is infrastructure-related (not a code problem),
-# the failure is NOT caused by the upgrade — downgrade verdict
+# the failure is NOT caused by the upgrade — downgrade verdict.
+# P0 FIX (v9): Only downgrade if the baseline ALSO failed (main_exit != 0).
+# When main_exit == 0 the baseline passes cleanly, so even infra-looking errors
+# on the PR branch are a genuine regression introduced by the upgrade.
 error_class = "${ERROR_CLASS:-}"
+main_exit_eco = $MAIN_EXIT_FOR_ECO
 if error_class in ("cache_corruption", "infra_error", "private_module", "resource_exhaustion", "timeout"):
-    if build_verdict in ("fail", "pre_existing_plus_new"):
-        build_verdict = "pre_existing"  # treat as infra issue, not code break
+    if build_verdict in ("fail", "pre_existing_plus_new") and main_exit_eco != 0:
+        build_verdict = "pre_existing"  # baseline also fails — treat as infra issue
+    elif build_verdict in ("fail", "pre_existing_plus_new") and main_exit_eco == 0:
+        pass  # baseline passes — this is a genuine regression, keep verdict as-is
 
 pr_data = {
     "package": pkg,
@@ -3017,13 +3023,17 @@ else:
             # Build fails on both branches with same errors — NOT a real pass (CR3-8).
             # Stay at L1 (like npm does for tsc pre_existing), mark as inconclusive.
             level = 1  # DO NOT promote to L2
-            steps.append({"step": "type_check", "status": "pre_existing", "detail": "same build errors on main — inconclusive"})
+            # v9: Include first error line so the comment says WHAT failed
+            _pre_sample = new_errors[0] if new_errors else (build_output.strip().splitlines()[-1] if build_output.strip() else "unknown")
+            steps.append({"step": "type_check", "status": "pre_existing", "detail": f"same errors on main — {_pre_sample[:120]}"})
         elif build_verdict in ("fail", "pre_existing_plus_new"):
             # V8 FIX (L2/1.4/1.5): Build WAS run and FAILED with new errors.
             # This IS L2 (type-check was attempted), not L1 (dep-resolved only).
             # The BUILD_FAILS comment should show L2, not L1.
             level = 2
-            steps.append({"step": "type_check", "status": "fail", "detail": "build failed with new errors"})
+            # v9: Include first new error so the comment says WHAT broke
+            _fail_sample = new_errors[0] if new_errors else "build exit non-zero"
+            steps.append({"step": "type_check", "status": "fail", "detail": f"{len(new_errors)} new error(s): {_fail_sample[:120]}"})
         else:
             steps.append({"step": "type_check", "status": "fail"})
     elif tsc_ran:
@@ -3035,11 +3045,15 @@ else:
             # tsc failed on both branches with same errors — NOT a real pass
             # Stay at L1, mark type_check as "pre_existing" (inconclusive)
             level = 1  # DO NOT promote to L2
-            steps.append({"step": "type_check", "status": "pre_existing", "detail": "same tsc errors on main — inconclusive"})
+            # v9: Include first error so the comment says WHAT failed
+            _tsc_pre_sample = new_errors[0] if new_errors else (build_output.strip().splitlines()[-1] if build_output.strip() else "unknown")
+            steps.append({"step": "type_check", "status": "pre_existing", "detail": f"same tsc errors on main — {_tsc_pre_sample[:120]}"})
         elif build_verdict in ("fail", "pre_existing_plus_new"):
             # V8 FIX: tsc WAS run and FAILED. This is L2 (attempted), not L1.
             level = 2
-            steps.append({"step": "type_check", "status": "fail", "detail": "tsc failed with new errors"})
+            # v9: Include first new error so the comment says WHAT broke
+            _tsc_fail_sample = new_errors[0] if new_errors else "tsc exit non-zero"
+            steps.append({"step": "type_check", "status": "fail", "detail": f"{len(new_errors)} new error(s): {_tsc_fail_sample[:120]}"})
         else:
             steps.append({"step": "type_check", "status": "fail"})
     else:

@@ -1,0 +1,45 @@
+name: Breakability Analysis
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: breakability-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: read
+
+jobs:
+  analyze:
+    if: >-
+      github.actor == 'dependabot[bot]' ||
+      github.actor == 'renovate[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Cursor Agent CLI
+        run: |
+          curl https://cursor.com/install -fsS | bash || true
+          echo "$HOME/.cursor/bin" >> $GITHUB_PATH
+
+      - name: Run Breakability Analysis
+        uses: ./.github/actions/breakability-check
+        id: breakability
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          ecosystem: auto-detect
+          comment-threshold: low
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          CURSOR_AGENT_MODEL: auto
+
+      - name: Output Results
+        run: |
+          echo "Score: ${{ steps.breakability.outputs.score }}"
+          echo "Classification: ${{ steps.breakability.outputs.classification }}"
+          echo "Packages: ${{ steps.breakability.outputs.package-count }}"

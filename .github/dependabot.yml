@@ -1,41 +1,31 @@
 version: 2
 updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
-      interval: "daily"
-    open-pull-requests-limit: 20
-    labels:
-      - "dependencies"
+      interval: "weekly"
+    open-pull-requests-limit: 5
 
-  - package-ecosystem: "gomod"
-    directory: "/cicd"
+  - package-ecosystem: "pip"
+    directory: "/"
     schedule:
-      interval: "daily"
-    open-pull-requests-limit: 10
-    labels:
-      - "dependencies"
-
-  - package-ecosystem: "gomod"
-    directory: "/automations/tstctl"
-    schedule:
-      interval: "daily"
-    open-pull-requests-limit: 10
-    labels:
-      - "dependencies"
+      interval: "weekly"
+    open-pull-requests-limit: 5
 
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
+    open-pull-requests-limit: 3
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
-    labels:
-      - "dependencies"

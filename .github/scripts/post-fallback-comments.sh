@@ -358,7 +358,7 @@ $CVE_DETAIL_BLOCK"
 
 - ✅ Dependency resolved successfully
 - ✅ Project builds / type-checks clean
-- ❌ Automated tests fail (exit=$TEST_EXIT_RAW — may be pre-existing, also fails on main)
+- ⚙️ Automated tests fail (exit=$TEST_EXIT_RAW — pre-existing, same failure on main)
 - ✅ No new build errors introduced vs. main
 </details>"
       else
