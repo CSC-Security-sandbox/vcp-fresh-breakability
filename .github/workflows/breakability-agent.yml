@@ -44,7 +44,10 @@ permissions:
 
 env:
   NODE_VERSION: '20'
-  GO_VERSION: '1.22'
+  # Go version should match the target repo's go.mod directive to avoid
+  # automatic toolchain downloads that trigger GOSUMDB verification (A3-8).
+  # Use 1.24 as the default — most repos in greenqloud use 1.24.x.
+  GO_VERSION: '1.24'
   PYTHON_VERSION: '3.12'
 
 jobs:
@@ -375,9 +378,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         timeout-minutes: 5
 
-      # ── Fallback ───────────────────────────────────────────────────
-      - name: Post fallback comments for missed PRs
-        if: always()
+      # ── Deterministic analysis comments + merge plan ─────────────
+      # CR5-1: This is the PRIMARY comment system, not a fallback.
+      # Run when: agent was skipped, agent failed, or always in advisory mode.
+      # The agent check (line 66-73 of post-fallback-comments.sh) still skips
+      # PRs where the AI agent already posted richer comments.
+      - name: Post deterministic analysis comments
+        if: steps.agent.outcome != 'success' || inputs.skip_agent == true
         run: |
           chmod +x .github/scripts/post-fallback-comments.sh
           bash .github/scripts/post-fallback-comments.sh

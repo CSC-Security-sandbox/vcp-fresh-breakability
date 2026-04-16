@@ -138,7 +138,7 @@ try:
         for peer in pl:
             key = tuple(sorted([pn.lower(), peer.lower()]))
             KNOWN_DEPS.setdefault(key, (f"{pn} peerDep on {peer}", "check compatibility"))
-except: pass
+except (FileNotFoundError, json.JSONDecodeError, KeyError, TypeError): pass
 with open("/tmp/build-results.json") as f: data = json.load(f)
 cross_deps = []
 prs = data.get("prs", {})
@@ -159,6 +159,25 @@ for pkg_dir, entries in nestjs_prs.items():
             for nb, pb in entries[i+1:]:
                 if not any((d["pr_a"]==int(na) and d["pr_b"]==int(nb)) or (d["pr_a"]==int(nb) and d["pr_b"]==int(na)) for d in cross_deps):
                     cross_deps.append({"pr_a": int(na), "pr_b": int(nb), "reason": f"NestJS in {pkg_dir}: {pa} + {pb} must upgrade together", "merge_order": "merge together"})
+# Same package across different Go modules (A4-5): flag PRs that upgrade the same
+# package in different modules — developers may not realize all 3 need merging
+same_pkg_groups = {}
+for num, pr in prs.items():
+    pkg = pr.get("package", "")
+    if pkg and pr.get("ecosystem") == "gomod":
+        same_pkg_groups.setdefault(pkg, []).append((num, pr.get("pkg_dir", "/")))
+for pkg, entries in same_pkg_groups.items():
+    if len(entries) > 1:
+        for i, (na, dir_a) in enumerate(entries):
+            for nb, dir_b in entries[i+1:]:
+                if dir_a != dir_b:
+                    if not any((d["pr_a"]==int(na) and d["pr_b"]==int(nb)) or (d["pr_a"]==int(nb) and d["pr_b"]==int(na)) for d in cross_deps):
+                        cross_deps.append({"pr_a": int(na), "pr_b": int(nb), "reason": f"Same package ({pkg}) in different modules: {dir_a} + {dir_b}", "merge_order": "merge all to fully upgrade"})
+        if len(entries) > 1:
+            dirs = [d for _, d in entries]
+            nums = [n for n, _ in entries]
+            if len(set(dirs)) > 1:
+                print(f"  Same package group: {pkg} in {len(entries)} modules (PRs: {', '.join('#'+n for n in nums)})")
 # K8s module coordination: k8s.io modules must be upgraded together
 K8S_MODULES = {"k8s.io/api", "k8s.io/apimachinery", "k8s.io/client-go", "k8s.io/apiserver", "k8s.io/apiextensions-apiserver"}
 k8s_prs = [(num, pr["package"]) for num, pr in prs.items() if any(pr.get("package", "").startswith(m) for m in K8S_MODULES)]
@@ -186,7 +205,7 @@ try:
                                 cross_deps.append({"pr_a": int(num), "pr_b": int(nb), "reason": f"Shared lib cascade: {pkg_name} ({pd}) consumed by {c['service']}", "merge_order": f"lib first, then {c['path']}"})
     data["workspace_graph"] = graph
     data["nestjs_skew"] = graph.get("nestjs_skew", [])
-except:
+except (FileNotFoundError, json.JSONDecodeError, KeyError, TypeError):
     data["workspace_graph"] = {}
     data["nestjs_skew"] = []
 data["cross_pr_deps"] = cross_deps
@@ -199,10 +218,10 @@ CROSSDEPS
 # ── Step 5: Security posture scan ────────────────────────────────────────────
 echo ""
 echo "════════════ SECURITY POSTURE ════════════"
-python3 << SECURITYEOF
+OWNER_REPO="$OWNER_REPO" python3 << 'SECURITYEOF'
 import json, subprocess, os
 
-owner_repo = "$OWNER_REPO"
+owner_repo = os.environ["OWNER_REPO"]
 
 # Fetch Dependabot vulnerability alerts from GitHub API
 try:
@@ -226,7 +245,7 @@ except Exception as e:
 
 try:
     alerts = json.loads(alerts_raw) if isinstance(alerts_raw, str) else alerts
-except:
+except (json.JSONDecodeError, TypeError, ValueError):
     alerts = []
 
 open_alerts = [a for a in alerts if a.get("state") == "open"]
@@ -283,41 +302,13 @@ if total_cve_count:
 SECURITYEOF
 
 # ── Step 6: Comment cleanup ──────────────────────────────────────────────────
+# CR4-9: Comment cleanup is now handled per-PR atomically in post-fallback-comments.sh
+# (lines 73-79). Doing it here too causes duplicate API calls (2 GETs per PR)
+# that accomplish nothing because the comments are either already deleted or will
+# be deleted by post-fallback-comments.sh anyway.
 echo ""
 echo "════════════ COMMENT CLEANUP ════════════"
-
-OWNER="${OWNER_REPO%%/*}"
-REPO="${OWNER_REPO##*/}"
-
-# Get all analyzed PR numbers from the merged results
-PR_NUMS=$(python3 -c "
-import json
-with open('/tmp/build-results.json') as f:
-    data = json.load(f)
-print(' '.join(data.get('prs', {}).keys()))
-")
-
-DELETED_COUNT=0
-PRESERVED_COUNT=0
-for PR_NUM in $PR_NUMS; do
-  # Only delete old deterministic (breakability-check) comments.
-  # PRESERVE richer AI agent (breakability-agent) comments — they contain
-  # changelog analysis, CVE context, and migration guidance that the
-  # deterministic fallback cannot reproduce.
-  COMMENT_IDS=$(gh api "repos/$OWNER/$REPO/issues/$PR_NUM/comments" \
-    --jq '.[] | select(.body | contains("<!-- breakability-check -->")) | select(.body | contains("<!-- breakability-agent -->") | not) | .id' \
-    2>/dev/null || true)
-  for CID in $COMMENT_IDS; do
-    gh api -X DELETE "repos/$OWNER/$REPO/issues/comments/$CID" 2>/dev/null || true
-    DELETED_COUNT=$((DELETED_COUNT + 1))
-  done
-  # Count preserved AI comments for logging
-  AI_COMMENT_COUNT=$(gh api "repos/$OWNER/$REPO/issues/$PR_NUM/comments" \
-    --jq '[.[] | select(.body | contains("<!-- breakability-agent -->"))] | length' \
-    2>/dev/null || echo "0")
-  [[ "$AI_COMMENT_COUNT" -gt 0 ]] && PRESERVED_COUNT=$((PRESERVED_COUNT + AI_COMMENT_COUNT))
-done
-echo "  Deleted $DELETED_COUNT old deterministic comments, preserved $PRESERVED_COUNT AI agent comments"
+echo "  Skipped — per-PR atomic cleanup is handled by post-fallback-comments.sh"
 
 # ── Summary ──────────────────────────────────────────────────────────────────
 TOTAL_PRS=$(python3 -c "import json; print(len(json.load(open('/tmp/build-results.json')).get('prs', {})))")

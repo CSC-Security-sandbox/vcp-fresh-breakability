@@ -372,7 +372,10 @@ retry_cmd() {
 
   while [[ $attempt -le $max_attempts ]]; do
     if [[ $has_timeout -eq 1 && -n "$timeout_val" ]]; then
-      local scaled_timeout=$((timeout_val * attempt))
+      # A5-5: Cap scaled timeout at 2x original to avoid 720s worst-case.
+      # Attempt 1: 1x, Attempt 2: 2x, Attempt 3+: 2x (capped).
+      local _scale=$((attempt < 3 ? attempt : 2))
+      local scaled_timeout=$((timeout_val * _scale))
       local cmd=()
       local skip_next=0
       for arg in "$@"; do
@@ -384,17 +387,15 @@ retry_cmd() {
           cmd+=("$arg")
         fi
       done
-      if "${cmd[@]}"; then
-        return 0
-      fi
+      # CR5-4: Capture exit code correctly. `if cmd; then` loses the actual
+      # exit code — $? after `if` is always 0 or 1. Use direct execution.
+      "${cmd[@]}" && return 0
       rc=$?
       if [[ $rc -eq 124 ]]; then
         echo "  ⚠️  Command timed out (attempt $attempt/$max_attempts, timeout=${scaled_timeout}s), retrying..." >&2
       fi
     else
-      if "$@"; then
-        return 0
-      fi
+      "$@" && return 0
       rc=$?
     fi
     if [[ $rc -eq 124 ]]; then
@@ -499,9 +500,10 @@ detect_dep_type_npm() {
 
 detect_dep_type_go() {
   local pkg="$1"
-  # Check if only used in _test.go files
+  local search_dir="${2:-.}"
+  # Check if only used in _test.go files (CR4-7: scope to PKG_DIR, not entire monorepo)
   local non_test_count
-  non_test_count=$(grep -rn "\"$pkg" --include="*.go" . 2>/dev/null | grep -v "_test.go" | grep -v vendor/ | wc -l || echo "0")
+  non_test_count=$(grep -rn "\"$pkg" --include="*.go" "$search_dir" 2>/dev/null | grep -v "_test.go" | grep -v vendor/ | wc -l || echo "0")
   if [[ "$non_test_count" -eq 0 ]]; then
     echo "dev"
   else
@@ -522,7 +524,9 @@ detect_dep_relation() {
       fi
       ;;
     gomod)
-      if grep -q "// indirect" go.mod 2>/dev/null && grep "$pkg" go.mod | grep -q "// indirect"; then
+      # CR4-10: use the module's go.mod (PKG_DIR), not root go.mod in multi-module repos
+      local go_mod="${3:-go.mod}"
+      if grep -q "// indirect" "$go_mod" 2>/dev/null && grep "$pkg" "$go_mod" | grep -q "// indirect"; then
         echo "transitive"
       else
         echo "direct"
@@ -558,7 +562,9 @@ scan_usage_npm() {
 
 scan_usage_go() {
   local pkg="$1"
-  grep -rn "\"${pkg}" --include="*.go" . 2>/dev/null | grep -v vendor/ | head -50 || true
+  local search_dir="${2:-.}"
+  # CR4-13: scope usage scan to the affected module directory when provided
+  grep -rn "\"${pkg}" --include="*.go" "$search_dir" 2>/dev/null | grep -v vendor/ | head -50 || true
 }
 
 # ── Go build scalability ─────────────────────────────────────────────────
@@ -923,11 +929,18 @@ normalize_go_errors() {
 # Classify Go build failures. Detects cache corruption vs real compile errors.
 classify_go_error() {
   local output="$1"
+  local exit_code="${2:-0}"
   # Cache corruption: "open …/go-build/…: no such file or directory"
   if echo "$output" | grep -qE 'go-build/[a-f0-9]+.*no such file or directory'; then
     echo "cache_corruption"
-  # Network / module download failures
-  elif echo "$output" | grep -qE 'GONOSUMDB|GONOSUMCHECK|GOPROXY|connection refused|dial tcp|TLS handshake timeout|module lookup disabled|proxyconnect|i/o timeout'; then
+  # OOM / resource exhaustion: compiler killed by OS, out of memory (A2-1)
+  elif echo "$output" | grep -qiE 'signal: killed|cannot allocate memory|out of memory|oom-kill'; then
+    echo "resource_exhaustion"
+  # Timeout: exit code 124 from timeout(1) — build didn't finish (A2-2)
+  elif [[ "$exit_code" -eq 124 ]]; then
+    echo "timeout"
+  # Network / module download failures / checksum database issues
+  elif echo "$output" | grep -qE 'GONOSUMDB|GONOSUMCHECK|GOSUMDB|GOPROXY|checksum database disabled|checksum mismatch|connection refused|dial tcp|TLS handshake timeout|module lookup disabled|proxyconnect|i/o timeout'; then
     echo "infra_error"
   # Private module access denied
   elif echo "$output" | grep -qE '410 Gone|404 Not Found.*module|fatal:.*Authentication|could not read Username'; then
@@ -955,17 +968,19 @@ rewrite_private_deps_to_local() {
   
   [[ -f "$build_dir/package.json" ]] || return 1
   
-  python3 << REWRITEEOF
+  # CR5-5: Use quoted heredoc ('REWRITEEOF') and pass paths via env vars
+  # to prevent shell injection from paths with special characters.
+  _BC_BUILD_DIR="$build_dir" _BC_WORKTREE="$worktree" python3 << 'REWRITEEOF'
 import json, os, glob
 
-build_dir = "$build_dir"
-worktree = "$worktree"
+build_dir = os.environ["_BC_BUILD_DIR"]
+worktree = os.environ["_BC_WORKTREE"]
 pkg_path = os.path.join(build_dir, "package.json")
 
 with open(pkg_path) as f:
     pkg = json.load(f)
 
-changed = False
+changed = 0
 for dep_key in ("dependencies", "devDependencies"):
     deps = pkg.get(dep_key, {})
     for name, ver in list(deps.items()):
@@ -981,16 +996,16 @@ for dep_key in ("dependencies", "devDependencies"):
                 if cpkg.get("name", "").lower() == name.lower():
                     rel = os.path.relpath(os.path.dirname(candidate), build_dir)
                     deps[name] = f"file:{rel}"
-                    changed = True
+                    changed += 1
                     print(f"  rewrite: {name} -> file:{rel}")
                     break
-            except:
+            except Exception:
                 pass
 
 if changed:
     with open(pkg_path, "w") as f:
         json.dump(pkg, f, indent=2)
-    print(f"  {sum(1 for d in ('dependencies','devDependencies') for _ in [] )} deps rewritten")
+    print(f"  {changed} dep(s) rewritten")
 REWRITEEOF
 }
 
@@ -1029,12 +1044,15 @@ PR_COUNT=$(echo "$PR_JSON" | jq length)
 echo "Found $PR_COUNT open Dependabot PRs"
 
 # Apply PR_FILTER if set (comma-separated list of PR numbers to analyze)
+# CR5-11: Pass PR_FILTER via env var read by Python, not shell expansion into code,
+# to eliminate injection risk from workflow_dispatch input.
 if [[ -n "${PR_FILTER:-}" ]]; then
   echo "PR_FILTER set: $PR_FILTER"
-  FILTERED_JSON=$(echo "$PR_JSON" | python3 -c "
-import json, sys
+  FILTERED_JSON=$(echo "$PR_JSON" | _BC_PR_FILTER="$PR_FILTER" python3 -c "
+import json, sys, os
 prs = json.load(sys.stdin)
-allowed = set('${PR_FILTER}'.replace(' ', '').split(','))
+pr_filter = os.environ.get('_BC_PR_FILTER', '')
+allowed = set(pr_filter.replace(' ', '').split(','))
 filtered = [p for p in prs if str(p['number']) in allowed]
 print(json.dumps(filtered))
 ")
@@ -1080,6 +1098,7 @@ main_npm_tsc_exit="-1"
 main_npm_output=""
 main_go_exit="-1"
 main_go_output=""
+_GO_MULTI_MODULE="false"
 main_go_test_exit="-1"
 main_go_test_output=""
 main_pip_exit="-1"
@@ -1164,6 +1183,25 @@ else
 fi
 
 # Go baseline — detect go.work (multi-module workspace), multi-module (multiple go.mod), or single module
+# ── GOSUMDB/GONOSUMCHECK environment sanitization (A3-3/CR3-1/CR4-2/A4-2) ──
+# The target repo or runner image may have GOSUMDB=off set via:
+#   1. Shell environment variable ($GOSUMDB) — cleared by unset
+#   2. Go persistent env file ($GOENV / ~/.config/go/env) — cleared by go env -u
+#   3. Runner image defaults — overridden by go env -w
+# All three sources must be addressed. The V7 E2E failure was caused by
+# GOSUMDB=off persisting in the Go env file after shell unset.
+unset GOSUMDB 2>/dev/null || true
+unset GONOSUMCHECK 2>/dev/null || true
+# Clear Go's persistent env file — this is the CRITICAL fix for V7 failure.
+# go env -u removes the key entirely, falling back to default (sum.golang.org).
+go env -u GOSUMDB 2>/dev/null || true
+go env -u GONOSUMCHECK 2>/dev/null || true
+go env -u GONOSUMDB 2>/dev/null || true
+# Ensure GONOSUMDB matches GOPRIVATE — only private modules skip the sum DB
+if [[ -n "${GOPRIVATE:-}" ]]; then
+  export GONOSUMDB="${GOPRIVATE}"
+  go env -w GONOSUMDB="${GOPRIVATE}" 2>/dev/null || true
+fi
 if [[ -f "$MAIN_DIR/go.work" ]]; then
   echo "  go: workspace (go.work) detected, syncing..."
   main_go_output=$(cd "$MAIN_DIR" && {
@@ -1204,12 +1242,15 @@ elif [[ -f "$MAIN_DIR/go.mod" ]]; then
     echo "  go: multi-module repo detected ($_MOD_COUNT modules) — building each separately..."
     main_go_output=""
     main_go_exit=0
+    _GO_MULTI_MODULE="true"
+    # Clean build cache ONCE before the loop, not per-module (CR2-3).
+    # Per-module cleanup wipes the previous module's cache, forcing cold rebuilds.
+    go_free_disk
     while IFS= read -r _mod_file; do
       _mod_dir=$(dirname "$_mod_file")
       _mod_rel=$(realpath --relative-to="$MAIN_DIR" "$_mod_dir" 2>/dev/null || echo "$_mod_dir")
       echo "  go baseline: building module $_mod_rel ..."
       _mod_output=$(cd "$_mod_dir" && {
-        go_free_disk
         _BUILD_RC=0
         retry_cmd 3 5 go mod tidy && {
           timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
@@ -1219,11 +1260,10 @@ elif [[ -f "$MAIN_DIR/go.mod" ]]; then
       } 2>&1)
       _mod_exit=$?
       # Cache corruption retry for this specific module
-      if [[ "$_mod_exit" -ne 0 ]] && [[ "$(classify_go_error "$_mod_output")" == "cache_corruption" ]]; then
+      if [[ "$_mod_exit" -ne 0 ]] && [[ "$(classify_go_error "$_mod_output" "$_mod_exit")" == "cache_corruption" ]]; then
         echo "    ⚠ Go build cache corruption on baseline module $_mod_rel — cleaning and retrying..."
         (cd "$_mod_dir" && go clean -cache 2>/dev/null || true)
         _mod_output=$(cd "$_mod_dir" && {
-          go_free_disk
           _BUILD_RC=0
           retry_cmd 3 5 go mod tidy && {
             timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
@@ -1235,34 +1275,36 @@ elif [[ -f "$MAIN_DIR/go.mod" ]]; then
         echo "    module $_mod_rel cache-clean retry: exit=$_mod_exit"
       fi
       echo "    module $_mod_rel: exit=$_mod_exit"
+      # Save per-module baseline exit code and output for PR-level comparison (A2-3/CR2-2).
+      # The PR loop will look up the baseline for the specific module the PR touches,
+      # instead of comparing against the worst exit code across ALL modules.
+      _mod_key=$(echo "$_mod_rel" | tr '/' '_')
+      echo "$_mod_exit" > "/tmp/_bc_main_go_mod_exit_${_mod_key}.txt"
+      echo "$_mod_output" > "/tmp/_bc_main_go_mod_output_${_mod_key}.txt"
       main_go_output="$main_go_output
 --- module: $_mod_rel (exit=$_mod_exit) ---
 $_mod_output"
-      # Track worst exit code — but 0 from any module still means builds can work
-      [[ "$_mod_exit" -ne 0 ]] && main_go_exit=$_mod_exit
+      # CR5-6: Track worst exit code — keep the first non-zero exit.
+      # Do NOT let timeout (124) overwrite a real compile error (1), because the
+      # compile error has useful baseline data while timeout has none.
+      # Per-module baselines are saved to temp files above for PR-level lookup.
+      if [[ "$_mod_exit" -ne 0 && "$main_go_exit" -eq 0 ]]; then
+        main_go_exit=$_mod_exit
+      fi
     done <<< "$_GO_MODULES"
     echo "  go baseline (multi-module): worst_exit=$main_go_exit"
   else
-    echo "  go: verifying + building..."
-    # Supply chain check BEFORE downloads to prevent xz-style attacks.
-    # Set GOSUMDB=off + GOPROXY=direct to bypass proxy cache (could contain malicious modules).
-    # Prove execution order with timestamps for security audit trail.
+    echo "  go: building single module..."
+    # Supply chain integrity is ensured by go.sum + the default GOSUMDB (sum.golang.org).
+    # Do NOT set GOSUMDB=off — that disables the checksum database, breaking go mod verify/tidy/build
+    # and actually REDUCING security (modules can't be verified against the sum DB).
+    # Do NOT set GOPROXY=direct — the Go module proxy (proxy.golang.org) provides immutable caching
+    # which protects against source repo takeover. Direct fetches are LESS secure.
     main_go_output=$(cd "$MAIN_DIR" && {
-      export GOFLAGS='-x'
-      export GOSUMDB='off'
-      export GOPROXY='direct'
-      echo "[$(date -u +%H:%M:%S)] START: go mod verify (supply chain check)"
-      _VERIFY_OUT=$(go mod verify 2>&1)
-      _VERIFY_RC=$?
-      echo "[$(date -u +%H:%M:%S)] DONE: go mod verify (verified before download)"
-      if [[ $_VERIFY_RC -ne 0 ]]; then
-        echo "WARNING: go mod verify FAILED - possible supply chain compromise"
-        echo "$_VERIFY_OUT"
-      fi
       # _BUILD_RC captures go build exit so go vet warnings don't clobber it (Bug 3).
       _BUILD_RC=0
       go_free_disk
-      retry_cmd 3 5 go mod tidy && {
+      retry_cmd 3 5 timeout 120 go mod tidy && {
         timeout $GO_TIMEOUT go build -p 2 -o /dev/null ./... || _BUILD_RC=$?
         if [[ $_BUILD_RC -eq 0 ]]; then go vet ./... 2>&1 || true; fi
         exit $_BUILD_RC
@@ -1617,7 +1659,14 @@ SKIPEOF
         DEP_TYPE=$(detect_dep_type_npm "$PKG")
       fi
       ;;
-    gomod)   DEP_TYPE=$(detect_dep_type_go "$PKG") ;;
+    gomod)
+      # CR4-7: pass PKG_DIR to scope grep to the affected module
+      if [[ "$PKG_DIR" != "/" && -d "$PKG_DIR" ]]; then
+        DEP_TYPE=$(detect_dep_type_go "$PKG" "$PKG_DIR")
+      else
+        DEP_TYPE=$(detect_dep_type_go "$PKG")
+      fi
+      ;;
     pip)     DEP_TYPE="production" ;;
     actions) DEP_TYPE="dev" ;;
     docker)  DEP_TYPE="production" ;;
@@ -1626,8 +1675,12 @@ SKIPEOF
   esac
   echo "  dep_type: $DEP_TYPE"
 
-  # Dep relation
-  DEP_RELATION=$(detect_dep_relation "$ECOSYSTEM" "$PKG")
+  # Dep relation (CR4-10: pass correct go.mod path for multi-module repos)
+  _GO_MOD_PATH="go.mod"
+  if [[ "$ECOSYSTEM" == "gomod" && "$PKG_DIR" != "/" && -f "${PKG_DIR}/go.mod" ]]; then
+    _GO_MOD_PATH="${PKG_DIR}/go.mod"
+  fi
+  DEP_RELATION=$(detect_dep_relation "$ECOSYSTEM" "$PKG" "$_GO_MOD_PATH")
   echo "  dep_relation: $DEP_RELATION"
 
   # Security / CVEs — from PR body AND Dependabot alerts cache
@@ -1692,7 +1745,14 @@ except:
         USAGE_RAW=$(scan_usage_npm "$PKG")
       fi
       ;;
-    gomod) USAGE_RAW=$(scan_usage_go "$PKG") ;;
+    gomod)
+      # CR4-13: scope usage scan to PKG_DIR module to avoid inflating import count
+      if [[ "$PKG_DIR" != "/" && -d "$PKG_DIR" ]]; then
+        USAGE_RAW=$(scan_usage_go "$PKG" "$PKG_DIR")
+      else
+        USAGE_RAW=$(scan_usage_go "$PKG")
+      fi
+      ;;
     pip)   USAGE_RAW=$(scan_usage_pip "$PKG") ;;
   esac
   FILES_IMPORTING=$(format_usage_files "$USAGE_RAW")
@@ -1714,7 +1774,13 @@ except:
             EXTRA_RAW=$(scan_usage_npm "$EXTRA_PKG")
           fi
           ;;
-        gomod) EXTRA_RAW=$(scan_usage_go "$EXTRA_PKG") ;;
+        gomod)
+          if [[ "$PKG_DIR" != "/" && -d "$PKG_DIR" ]]; then
+            EXTRA_RAW=$(scan_usage_go "$EXTRA_PKG" "$PKG_DIR")
+          else
+            EXTRA_RAW=$(scan_usage_go "$EXTRA_PKG")
+          fi
+          ;;
         pip)   EXTRA_RAW=$(scan_usage_pip "$EXTRA_PKG") ;;
       esac
       EXTRA_FILES=$(format_usage_files "$EXTRA_RAW")
@@ -1915,93 +1981,174 @@ $TSC_OUT"
           fi
           ;;
         gomod)
+          # Sanitize Go env before each PR build (A3-3/CR3-1/CR4-2/A4-2)
+          # Clear both shell env AND Go's persistent env file (root cause of V7 failure)
+          unset GOSUMDB 2>/dev/null || true
+          unset GONOSUMCHECK 2>/dev/null || true
+          go env -u GOSUMDB 2>/dev/null || true
+          go env -u GONOSUMCHECK 2>/dev/null || true
+          go env -u GONOSUMDB 2>/dev/null || true
+          if [[ -n "${GOPRIVATE:-}" ]]; then
+            export GONOSUMDB="${GOPRIVATE}"
+            go env -w GONOSUMDB="${GOPRIVATE}" 2>/dev/null || true
+          fi
           if [[ "$GO_AVAILABLE" == "false" ]]; then
             echo "  build: SKIP — Go is not installed on this runner"
             BUILD_OUTPUT="SKIPPED: Go not available (go version returned error or Go not found)"
             BUILD_EXIT=0
             INSTALL_OK="true"
           elif [[ -f "$PR_WORKTREE/go.work" ]]; then
-            echo "  build: go.work workspace — mod verify BEFORE sync (supply chain security)..."
-            export GOFLAGS='-x'
-            export GOSUMDB='off'
-            export GOPROXY='direct'
-            # Verify workspace modules FIRST (before sync/download) to catch supply chain issues
-            echo "--- go mod verify (workspace modules) ---"
-            _VERIFY_FAIL=0
-            while IFS= read -r _ws_mod; do
-              if [[ -n "$_ws_mod" ]]; then
-                _mod_path=$(realpath -m "$_ws_mod" 2>/dev/null || echo "$_ws_mod")
-                echo "  verifying module: $_ws_mod → $_mod_path"
-                (cd "$_mod_path" && timeout 30 go mod verify 2>&1) || {
-                  echo "  ⚠️  go mod verify FAILED for $_ws_mod"
-                  _VERIFY_FAIL=1
-                }
+            echo "  build: go.work workspace — sync + targeted build..."
+            # Supply chain integrity ensured by go.sum + default GOSUMDB (sum.golang.org).
+            # Do NOT set GOSUMDB=off or GOPROXY=direct — see baseline comments for rationale.
+            # Separate sync (dependency resolution) from build so INSTALL_OK tracks deps correctly.
+            _GO_SYNC_OUT=""
+            _GO_SYNC_EXIT=0
+            _GO_SYNC_OUT=$(cd "$PR_WORKTREE" && retry_cmd 3 5 go work sync 2>&1) || _GO_SYNC_EXIT=$?
+            if [[ "$_GO_SYNC_EXIT" -eq 0 ]]; then
+              INSTALL_OK="true"
+              BUILD_OUTPUT=$(cd "$PR_WORKTREE" && {
+                _BUILD_RC=0
+                go_targeted_build "$FILES_IMPORTING" || _BUILD_RC=$?
+                if [[ $_BUILD_RC -eq 0 ]]; then go_targeted_vet "$FILES_IMPORTING"; fi
+                exit $_BUILD_RC
+              } 2>&1)
+              BUILD_EXIT=$?
+              # Cache corruption retry: if build failed due to stale cache, clean and retry
+              if [[ "$BUILD_EXIT" -ne 0 ]] && [[ "$(classify_go_error "$BUILD_OUTPUT")" == "cache_corruption" ]]; then
+                echo "  ⚠ Go build cache corruption detected — cleaning cache and retrying..."
+                (cd "$PR_WORKTREE" && go clean -cache 2>/dev/null || true)
+                BUILD_OUTPUT=$(cd "$PR_WORKTREE" && {
+                  _BUILD_RC=0
+                  go_targeted_build "$FILES_IMPORTING" || _BUILD_RC=$?
+                  if [[ $_BUILD_RC -eq 0 ]]; then go_targeted_vet "$FILES_IMPORTING"; fi
+                  exit $_BUILD_RC
+                } 2>&1)
+                BUILD_EXIT=$?
+                echo "  cache-clean retry: exit=$BUILD_EXIT"
               fi
-            done < <(grep -E '^use ' go.work | awk '{print $2}')
-            if [[ $_VERIFY_FAIL -eq 1 ]]; then
-              echo "WARNING: Supply chain verification failed - aborting build"
-              BUILD_OUTPUT="FAIL: go mod verify failed before download (possible supply chain compromise)"
-              BUILD_EXIT=1
             else
-              BUILD_OUTPUT=$(cd "$PR_WORKTREE" && {
-                _BUILD_RC=0
-                retry_cmd 3 5 go work sync || {
-                  echo "  go work sync failed after 3 retries"
-                  exit 1
-                }
-                go_targeted_build "$FILES_IMPORTING" || _BUILD_RC=$?
-                if [[ $_BUILD_RC -eq 0 ]]; then go_targeted_vet "$FILES_IMPORTING"; fi
-                exit $_BUILD_RC
-              } 2>&1)
-              BUILD_EXIT=$?
-            fi
-            [[ "$BUILD_EXIT" -eq 0 ]] && INSTALL_OK="true"
-            # Cache corruption retry: if build failed due to stale cache, clean and retry
-            if [[ "$BUILD_EXIT" -ne 0 ]] && [[ "$(classify_go_error "$BUILD_OUTPUT")" == "cache_corruption" ]]; then
-              echo "  ⚠ Go build cache corruption detected — cleaning cache and retrying..."
-              (cd "$PR_WORKTREE" && go clean -cache 2>/dev/null || true)
-              BUILD_OUTPUT=$(cd "$PR_WORKTREE" && {
-                _BUILD_RC=0
-                retry_cmd 3 5 go work sync || {
-                  echo "  go work sync failed after 3 retries"
-                  exit 1
-                }
-                go_targeted_build "$FILES_IMPORTING" || _BUILD_RC=$?
-                if [[ $_BUILD_RC -eq 0 ]]; then go_targeted_vet "$FILES_IMPORTING"; fi
-                exit $_BUILD_RC
-              } 2>&1)
-              BUILD_EXIT=$?
-              [[ "$BUILD_EXIT" -eq 0 ]] && INSTALL_OK="true"
-              echo "  cache-clean retry: exit=$BUILD_EXIT"
+              # Sync failed — dependency resolution failed
+              echo "  go work sync failed after 3 retries"
+              BUILD_OUTPUT="$_GO_SYNC_OUT"
+              BUILD_EXIT=$_GO_SYNC_EXIT
             fi
           else
-            echo "  build: go mod verify + tidy + build + vet..."
-            export GOFLAGS='-x'
-            export GOSUMDB='off'
-            export GOPROXY='direct'
-            echo "[$(date -u +%H:%M:%S)] START: go mod verify (PR: $PR_NUM)"
-            GO_VERIFY_OUT=""
-            GO_VERIFY_EXIT=0
-            GO_VERIFY_OUT=$(cd "$PR_WORKTREE" && timeout 30 go mod verify 2>&1) || GO_VERIFY_EXIT=$?
-            echo "[$(date -u +%H:%M:%S)] DONE: go mod verify (verified before download)"
-            if [[ "$GO_VERIFY_EXIT" -ne 0 ]]; then
-              echo "  ⚠ go mod verify FAILED (possible supply chain issue)"
+            echo "  build: go mod tidy + build + vet..."
+            # Supply chain integrity ensured by go.sum + default GOSUMDB (sum.golang.org).
+            # Do NOT set GOSUMDB=off or GOPROXY=direct — see baseline comments for rationale.
+            # Separate tidy from build so we can track dependency resolution independently.
+            # go mod tidy succeeding = dependency resolution passed (INSTALL_OK=true).
+            # This decouples L0 (install failed) from L2 (build failed but deps resolved).
+            #
+            # Multi-module fix (A2-4): run go mod tidy in the correct module directory
+            # based on PKG_DIR, not always in the worktree root. In a multi-module repo,
+            # the Dependabot PR modifies a sub-module's go.mod (e.g., cicd/go.mod), so
+            # tidy must run there to resolve the correct dependencies.
+            # Multi-module fix (A3-7): run go mod tidy in ALL modules that have
+            # files importing the changed package, not just the PKG_DIR module.
+            # go_targeted_build builds across all affected modules, so each needs
+            # its go.sum updated by tidy. Otherwise modules that didn't get tidy'd
+            # will fail on checksum verification during go build.
+            _GO_TIDY_EXIT=0
+            _GO_TIDY_OUT=""
+            if [[ "$_GO_MULTI_MODULE" == "true" ]]; then
+              # Find all go.mod files and tidy each module that has importing files
+              _TIDY_MODULES=$(_BC_IMPORT_JSON="$FILES_IMPORTING" _BC_PKG_DIR="$PKG_DIR" python3 -c "
+import json, os, sys
+try:
+    files = json.loads(os.environ.get('_BC_IMPORT_JSON', '[]'))
+except:
+    files = []
+# Find all go.mod files
+mod_roots = set()
+for root, dirs, fnames in os.walk('.'):
+    dirs[:] = [d for d in dirs if d not in ('vendor', '.git', 'node_modules')]
+    if 'go.mod' in fnames:
+        mod_roots.add(os.path.normpath(root))
+# Always include PKG_DIR module
+pkg_dir = os.environ.get('_BC_PKG_DIR', '/')
+if pkg_dir != '/' and os.path.isfile(os.path.join(pkg_dir, 'go.mod')):
+    mod_roots.add(os.path.normpath(pkg_dir))
+# Find which modules own importing files
+affected = set()
+for f in files:
+    path = f.split(':')[0]
+    d = os.path.dirname(os.path.normpath(path)) or '.'
+    for mr in sorted(mod_roots, key=lambda x: -x.count('/')):
+        if d == mr or d.startswith(mr + '/'):
+            affected.add(mr)
+            break
+    else:
+        if '.' in mod_roots:
+            affected.add('.')
+# If no importing files, at least tidy the PKG_DIR module
+if not affected:
+    if pkg_dir != '/' and os.path.isfile(os.path.join(pkg_dir, 'go.mod')):
+        affected.add(os.path.normpath(pkg_dir))
+    elif '.' in mod_roots:
+        affected.add('.')
+for m in sorted(affected):
+    print(m)
+" 2>/dev/null)
+              # _BC_PKG_DIR is now passed inline to the python3 invocation above (CR4-1/A4-6)
+              # Run tidy in each affected module
+              if [[ -n "$_TIDY_MODULES" ]]; then
+                # Accumulate ALL tidy output across modules (CR4-3/CR4-4).
+                # Previous code only kept the last failure's output, losing earlier errors.
+                _GO_TIDY_ALL_OUT=""
+                while IFS= read -r _tidy_mod; do
+                  [[ -z "$_tidy_mod" ]] && continue
+                  _tidy_dir="$PR_WORKTREE/$_tidy_mod"
+                  [[ "$_tidy_mod" == "." ]] && _tidy_dir="$PR_WORKTREE"
+                  if [[ -f "$_tidy_dir/go.mod" ]]; then
+                    echo "  multi-module: go mod tidy in $_tidy_mod"
+                    _mod_tidy_out=""
+                    _mod_tidy_rc=0
+                    _mod_tidy_out=$(cd "$_tidy_dir" && retry_cmd 3 5 timeout 120 go mod tidy 2>&1) || _mod_tidy_rc=$?
+                    if [[ "$_mod_tidy_rc" -ne 0 ]]; then
+                      _GO_TIDY_EXIT=$_mod_tidy_rc
+                      echo "  ⚠ go mod tidy failed in $_tidy_mod (exit=$_mod_tidy_rc)"
+                    fi
+                    _GO_TIDY_ALL_OUT="${_GO_TIDY_ALL_OUT}
+--- go mod tidy: ${_tidy_mod} (exit=${_mod_tidy_rc}) ---
+${_mod_tidy_out}"
+                  fi
+                done <<< "$_TIDY_MODULES"
+                _GO_TIDY_OUT="$_GO_TIDY_ALL_OUT"
+              else
+                # Fallback: tidy in PKG_DIR or root
+                _GO_TIDY_DIR="$PR_WORKTREE"
+                if [[ "$PKG_DIR" != "/" && -f "$PR_WORKTREE/$PKG_DIR/go.mod" ]]; then
+                  _GO_TIDY_DIR="$PR_WORKTREE/$PKG_DIR"
+                  echo "  multi-module: running go mod tidy in $PKG_DIR (not root)"
+                fi
+                _GO_TIDY_OUT=$(cd "$_GO_TIDY_DIR" && retry_cmd 3 5 timeout 120 go mod tidy 2>&1) || _GO_TIDY_EXIT=$?
+              fi
+            else
+              # Single-module: tidy in worktree root
+              _GO_TIDY_OUT=$(cd "$PR_WORKTREE" && retry_cmd 3 5 timeout 120 go mod tidy 2>&1) || _GO_TIDY_EXIT=$?
             fi
-            BUILD_OUTPUT=$(cd "$PR_WORKTREE" && { retry_cmd 3 5 go mod tidy && go_targeted_build "$FILES_IMPORTING"; } 2>&1)
-            BUILD_EXIT=$?
-            # Cache corruption retry: if build failed due to stale cache, clean and retry
-            if [[ "$BUILD_EXIT" -ne 0 ]] && [[ "$(classify_go_error "$BUILD_OUTPUT")" == "cache_corruption" ]]; then
-              echo "  ⚠ Go build cache corruption detected — cleaning cache and retrying..."
-              (cd "$PR_WORKTREE" && go clean -cache 2>/dev/null || true)
-              BUILD_OUTPUT=""
-              BUILD_OUTPUT=$(cd "$PR_WORKTREE" && { retry_cmd 3 5 go mod tidy && go_targeted_build "$FILES_IMPORTING"; } 2>&1)
+            if [[ "$_GO_TIDY_EXIT" -eq 0 ]]; then
+              INSTALL_OK="true"
+              BUILD_OUTPUT=$(cd "$PR_WORKTREE" && go_targeted_build "$FILES_IMPORTING" 2>&1)
               BUILD_EXIT=$?
-              echo "  cache-clean retry: exit=$BUILD_EXIT"
+              # Cache corruption retry: if build failed due to stale cache, clean and retry
+              if [[ "$BUILD_EXIT" -ne 0 ]] && [[ "$(classify_go_error "$BUILD_OUTPUT")" == "cache_corruption" ]]; then
+                echo "  ⚠ Go build cache corruption detected — cleaning cache and retrying..."
+                (cd "$PR_WORKTREE" && go clean -cache 2>/dev/null || true)
+                BUILD_OUTPUT=$(cd "$PR_WORKTREE" && go_targeted_build "$FILES_IMPORTING" 2>&1)
+                BUILD_EXIT=$?
+                echo "  cache-clean retry: exit=$BUILD_EXIT"
+              fi
+            else
+              # Tidy failed — dependency resolution failed
+              BUILD_OUTPUT="$_GO_TIDY_OUT"
+              BUILD_EXIT=$_GO_TIDY_EXIT
             fi
             # Run go vet if build passed
             GO_VET_OUT=""
             if [[ "$BUILD_EXIT" -eq 0 ]]; then
-              INSTALL_OK="true"
               GO_VET_OUT=$(cd "$PR_WORKTREE" && go_targeted_vet "$FILES_IMPORTING" 2>&1) || true
               if [[ -n "$GO_VET_OUT" ]]; then
                 echo "  go vet warnings found"
@@ -2009,12 +2156,6 @@ $TSC_OUT"
 --- go vet ---
 $GO_VET_OUT"
               fi
-            fi
-            # Append verify output
-            if [[ "$GO_VERIFY_EXIT" -ne 0 ]]; then
-              BUILD_OUTPUT="--- go mod verify (FAILED) ---
-$GO_VERIFY_OUT
-$BUILD_OUTPUT"
             fi
             # Security vulnerability check
             GO_VULN_OUT=$(go_check_vulnerabilities "$PR_WORKTREE" 2>&1) || true
@@ -2024,9 +2165,15 @@ $BUILD_OUTPUT"
 $GO_VULN_OUT"
             fi
           fi
-          # Classify Go build error for JSON output
+          # Classify Go build error for JSON output (pass exit code for timeout detection — A2-2)
+          # CR5-2: Include tidy output in classification input so infra errors (GOSUMDB,
+          # network, proxy) that appeared during tidy are not lost when tidy succeeds
+          # but build fails. Without this, classify_go_error only sees build output and
+          # may miss the infra_error pattern, defaulting to build_fail.
           if [[ "$BUILD_EXIT" -ne 0 && "$ECOSYSTEM" == "gomod" ]]; then
-            ERROR_CLASS=$(classify_go_error "$BUILD_OUTPUT")
+            _CLASSIFY_INPUT="${_GO_TIDY_OUT:-}
+${BUILD_OUTPUT}"
+            ERROR_CLASS=$(classify_go_error "$_CLASSIFY_INPUT" "$BUILD_EXIT")
           fi
           ;;
         pip)
@@ -2143,19 +2290,57 @@ $IMPORT_OUT"
         fi
       else
         MAIN_EXIT="-1"
+        _MAIN_OUTPUT_FOR_COMPARISON=""
         case "$ECOSYSTEM" in
-          gomod) MAIN_EXIT=$main_go_exit ;;
-          pip)   MAIN_EXIT=$main_pip_exit ;;
+          gomod)
+            # For multi-module repos, use per-module baseline instead of worst_exit (A2-3/CR2-2).
+            # Look up the baseline for the specific module this PR touches via PKG_DIR.
+            if [[ "$_GO_MULTI_MODULE" == "true" && "$PKG_DIR" != "/" ]]; then
+              _pkg_mod_key=$(echo "$PKG_DIR" | tr '/' '_')
+              _pkg_mod_exit_file="/tmp/_bc_main_go_mod_exit_${_pkg_mod_key}.txt"
+              _pkg_mod_output_file="/tmp/_bc_main_go_mod_output_${_pkg_mod_key}.txt"
+              if [[ -f "$_pkg_mod_exit_file" ]]; then
+                MAIN_EXIT=$(cat "$_pkg_mod_exit_file" 2>/dev/null || echo "$main_go_exit")
+                _MAIN_OUTPUT_FOR_COMPARISON=$(cat "$_pkg_mod_output_file" 2>/dev/null || echo "$main_go_output")
+                echo "  multi-module: using per-module baseline for $PKG_DIR (exit=$MAIN_EXIT)"
+              else
+                # PKG_DIR might be a subdirectory of a module — try the root module
+                _root_exit_file="/tmp/_bc_main_go_mod_exit_..txt"
+                if [[ -f "$_root_exit_file" ]]; then
+                  MAIN_EXIT=$(cat "$_root_exit_file" 2>/dev/null || echo "$main_go_exit")
+                  _MAIN_OUTPUT_FOR_COMPARISON=$(cat "/tmp/_bc_main_go_mod_output_..txt" 2>/dev/null || echo "$main_go_output")
+                  echo "  multi-module: PKG_DIR=$PKG_DIR not found as module, using root module baseline (exit=$MAIN_EXIT)"
+                else
+                  MAIN_EXIT=$main_go_exit
+                  _MAIN_OUTPUT_FOR_COMPARISON="$main_go_output"
+                  echo "  multi-module: no per-module baseline for $PKG_DIR, using worst_exit=$MAIN_EXIT"
+                fi
+              fi
+            else
+              MAIN_EXIT=$main_go_exit
+              _MAIN_OUTPUT_FOR_COMPARISON="$main_go_output"
+            fi
+            ;;
+          pip)   MAIN_EXIT=$main_pip_exit; _MAIN_OUTPUT_FOR_COMPARISON="$main_pip_output" ;;
         esac
 
         if [[ "$BUILD_EXIT" -eq 0 ]]; then
           BUILD_VERDICT="pass"
+        elif [[ "$MAIN_EXIT" -eq 124 ]]; then
+          # Baseline timed out (A4-4) — we never got a valid baseline, so we can't
+          # compare errors. The PR's errors may or may not be pre-existing.
+          # Still check for new errors, but classify as pre_existing since the
+          # baseline is broken regardless. The main_exit=124 is recorded in
+          # the JSON so the merge plan can flag "baseline timed out."
+          BUILD_VERDICT="pre_existing"
+          echo "  ⚠ baseline build timed out (exit=124) — cannot fully compare errors"
         elif [[ "$MAIN_EXIT" -ne 0 && "$MAIN_EXIT" -ne -1 ]]; then
           # Both fail — check for new errors vs baseline
           if [[ "$ECOSYSTEM" == "gomod" ]]; then
             MAIN_ERR_FILE="/tmp/_bc_main_go_errors.txt"
             PR_ERR_FILE="/tmp/_bc_pr_go_errors_${PR_NUM}.txt"
-            echo "$main_go_output" | grep -E '^.*\.go:[0-9]+' | normalize_go_errors | sort -u > "$MAIN_ERR_FILE" 2>/dev/null || true
+            # Use per-module baseline output for comparison instead of global main_go_output (A2-3)
+            echo "${_MAIN_OUTPUT_FOR_COMPARISON:-$main_go_output}" | grep -E '^.*\.go:[0-9]+' | normalize_go_errors | sort -u > "$MAIN_ERR_FILE" 2>/dev/null || true
             echo "$BUILD_OUTPUT"   | grep -E '^.*\.go:[0-9]+' | normalize_go_errors | sort -u > "$PR_ERR_FILE"   2>/dev/null || true
             NEW_ERRORS=$(comm -23 "$PR_ERR_FILE" "$MAIN_ERR_FILE" 2>/dev/null | head -10)
             rm -f "$MAIN_ERR_FILE" "$PR_ERR_FILE"
@@ -2231,27 +2416,15 @@ $IMPORT_OUT"
       BUILD_VERDICT="skip"
     fi
   elif [[ "$ECOSYSTEM" == "actions" ]]; then
-    echo "  build: GitHub Actions — validating action version"
-    if [[ "$PKG" =~ ^actions/([^@]+)@(.+)$ ]]; then
-      ACTION_NAME="${BASH_REMATCH[1]}"
-      TO_VER="${BASH_REMATCH[2]}"
-      GH_RESPONSE=""
-      CURL_EXIT=0
-      GH_RESPONSE=$(curl -sf "https://api.github.com/repos/actions/${ACTION_NAME}/releases/tags/v${TO_VER}" 2>&1) || CURL_EXIT=$?
-      if [[ $CURL_EXIT -eq 0 && -n "$GH_RESPONSE" ]]; then
-        BUILD_OUTPUT="actions: ${PKG} version ${TO_VER} found"
-        BUILD_EXIT=0
-        BUILD_VERDICT="pass"
-      else
-        BUILD_OUTPUT="actions: ${PKG} version ${TO_VER} not found"
-        BUILD_EXIT=1
-        BUILD_VERDICT="fail"
-      fi
-    else
-      BUILD_OUTPUT="actions: could not parse ${PKG}"
-      BUILD_EXIT=-1
-      BUILD_VERDICT="skip"
-    fi
+    # GitHub Actions PRs only affect .github/workflows/ files — no application code.
+    # They are inherently safe and need no build verification. Setting unconditionally SAFE
+    # instead of trying to validate via GitHub API (which fails for non-actions/* orgs
+    # and used a regex that never matched Dependabot PR title format).
+    echo "  build: GitHub Actions — CI-only change, inherently safe"
+    BUILD_OUTPUT="actions: ${PKG} ${FROM_VER:-?} → ${TO_VER:-?} — CI-only dependency, no build needed"
+    BUILD_EXIT=0
+    BUILD_VERDICT="pass"
+    INSTALL_OK="true"
   else
     echo "  build: skipped ($ECOSYSTEM — no build possible)"
 
@@ -2271,7 +2444,11 @@ $IMPORT_OUT"
   RUN_TESTS="false"
   # security_review PRs have passing builds + audit concerns — they deserve
   # MORE scrutiny, not less. Run tests so they can reach L4 (Finding-2.4).
-  if [[ "$BUILD_VERDICT" == "pass" || "$BUILD_VERDICT" == "security_review" ]]; then
+  # CR2-9: Also run tests for Go pre_existing builds when INSTALL_OK=true.
+  # pre_existing means the failures are the same on both branches — the upgrade didn't break
+  # anything. Running tests lets these PRs reach L4 instead of capping at L2.
+  if [[ "$BUILD_VERDICT" == "pass" || "$BUILD_VERDICT" == "security_review" ]] || \
+     [[ "$BUILD_VERDICT" == "pre_existing" && "$ECOSYSTEM" == "gomod" && "$INSTALL_OK" == "true" ]]; then
     if [[ "$DEP_TYPE" == "production" ]]; then
       RUN_TESTS="true"
     elif [[ "$BUMP" == "major" && "$DEP_TYPE" == "dev" ]]; then
@@ -2382,6 +2559,12 @@ $IMPORT_OUT"
             MAIN_GO_TEST_EXIT_PR=$_main_test_rc
             echo "  go test baseline: exit=$MAIN_GO_TEST_EXIT_PR"
           fi
+          # CR5-3: Run go mod tidy in the test worktree before tests.
+          # The test worktree is a fresh checkout from origin/$PR_BRANCH and
+          # doesn't have the benefit of the tidy/build cleanup from the first
+          # worktree. Without tidy, go test may fail with checksum errors.
+          echo "  go test: preparing test worktree (go mod tidy)..."
+          (cd "$PR_WORKTREE" && go mod tidy 2>/dev/null) || true
           echo "  go test: targeted (only affected packages)"
           TEST_OUTPUT=""
           TEST_OUTPUT=$(go_targeted_test "$PR_WORKTREE" "$FILES_IMPORTING" 2>&1)
@@ -2459,11 +2642,23 @@ $IMPORT_OUT"
   printf '%s' "$ECOSYSTEM" > "/tmp/_bc_ecosystem_${PR_NUM}.txt"
   printf '%s' "$PKG_DIR" > "/tmp/_bc_pkg_dir_${PR_NUM}.txt"
 
-  # Determine main exit for this ecosystem
+  # Determine main exit for this ecosystem (use per-module for multi-module Go — A2-3)
   MAIN_EXIT_FOR_ECO=-1
   case "$ECOSYSTEM" in
     npm)   MAIN_EXIT_FOR_ECO=$main_npm_exit ;;
-    gomod) MAIN_EXIT_FOR_ECO=$main_go_exit ;;
+    gomod)
+      if [[ "$_GO_MULTI_MODULE" == "true" && "$PKG_DIR" != "/" ]]; then
+        _pkg_mod_key=$(echo "$PKG_DIR" | tr '/' '_')
+        _pkg_mod_exit_file="/tmp/_bc_main_go_mod_exit_${_pkg_mod_key}.txt"
+        if [[ -f "$_pkg_mod_exit_file" ]]; then
+          MAIN_EXIT_FOR_ECO=$(cat "$_pkg_mod_exit_file" 2>/dev/null || echo "$main_go_exit")
+        else
+          MAIN_EXIT_FOR_ECO=$main_go_exit
+        fi
+      else
+        MAIN_EXIT_FOR_ECO=$main_go_exit
+      fi
+      ;;
     pip)   MAIN_EXIT_FOR_ECO=$main_pip_exit ;;
     maven)  MAIN_EXIT_FOR_ECO=-1 ;;
     docker) MAIN_EXIT_FOR_ECO=-1 ;;
@@ -2487,13 +2682,13 @@ pr_num = "$PR_NUM"
 with open(results_file) as f:
     data = json.load(f)
 
-# Read deterministic output
+# Read deterministic output (CR2-4: use specific exception types, not bare except)
 det_path = f"/tmp/_bc_det_{pr_num}.json"
 try:
     with open(det_path) as f:
         det_raw = f.read().strip()
     deterministic = json.loads(det_raw) if det_raw and det_raw != '{}' else {}
-except:
+except (IOError, OSError, json.JSONDecodeError, ValueError):
     deterministic = {}
 
 # Read cascade_impact (from temp file to avoid shell injection — Finding-3.2)
@@ -2501,7 +2696,7 @@ try:
     with open(f"/tmp/_bc_cascade_{pr_num}.txt") as f:
         cascade_str = f.read().strip()
     cascade_impact = json.loads(cascade_str) if cascade_str else []
-except:
+except (IOError, OSError, json.JSONDecodeError, ValueError):
     cascade_impact = []
 
 
@@ -2510,14 +2705,14 @@ files_path = f"/tmp/_bc_files_{pr_num}.json"
 try:
     with open(files_path) as f:
         files_importing = json.loads(f.read().strip())
-except:
+except (IOError, OSError, json.JSONDecodeError, ValueError):
     files_importing = []
 
 # Read additional_imports for multi-package PRs (from temp file — Finding-3.2)
 try:
     with open(f"/tmp/_bc_addl_imports_{pr_num}.json") as f:
         additional_imports = json.loads(f.read().strip())
-except:
+except (IOError, OSError, json.JSONDecodeError, ValueError):
     additional_imports = []
 
 # Read build output
@@ -2525,7 +2720,7 @@ build_out_path = f"/tmp/_bc_build_out_{pr_num}.txt"
 try:
     with open(build_out_path) as f:
         build_output = f.read()
-except:
+except (IOError, OSError):
     build_output = ""
 
 # Read test output
@@ -2533,7 +2728,7 @@ test_out_path = f"/tmp/_bc_test_out_{pr_num}.txt"
 try:
     with open(test_out_path) as f:
         test_output = f.read()
-except:
+except (IOError, OSError):
     test_output = ""
 
 # Read new errors (errors on PR branch not present on main)
@@ -2542,7 +2737,7 @@ try:
     with open(new_errors_path) as f:
         new_errors_raw = f.read().strip()
     new_errors = [e for e in new_errors_raw.split('\n') if e.strip()] if new_errors_raw else []
-except:
+except (IOError, OSError, ValueError):
     new_errors = []
 
 # Read PR metadata from temp files to avoid shell injection (Finding-4.4)
@@ -2551,7 +2746,7 @@ def _read_tmp(suffix):
     try:
         with open(f"/tmp/_bc_{suffix}_{pr_num}.txt") as f:
             return f.read().strip()
-    except:
+    except (IOError, OSError):
         return ""
 
 pkg = _read_tmp("pkg") or "unknown"
@@ -2628,10 +2823,10 @@ build_verdict = "$BUILD_VERDICT"
 if build_verdict == "pre_existing_plus_new" and not new_errors:
     build_verdict = "pre_existing"
 
-# For Go builds: if error_class is cache_corruption or infra_error,
+# For Go builds: if error_class is infrastructure-related (not a code problem),
 # the failure is NOT caused by the upgrade — downgrade verdict
 error_class = "${ERROR_CLASS:-}"
-if error_class in ("cache_corruption", "infra_error", "private_module"):
+if error_class in ("cache_corruption", "infra_error", "private_module", "resource_exhaustion", "timeout"):
     if build_verdict in ("fail", "pre_existing_plus_new"):
         build_verdict = "pre_existing"  # treat as infra issue, not code break
 
@@ -2746,7 +2941,10 @@ pr_data["ownership_class"] = ownership
 
 # Docker and actions now have real build verdicts — let them flow through normal confidence logic
 install_ok = pr_data.get("install_ok", False)
-build_verdict = "$BUILD_VERDICT"
+# IMPORTANT: reuse the Python build_verdict from line ~2584, NOT the shell $BUILD_VERDICT.
+# The earlier Python code may have downgraded build_verdict (e.g., fail -> pre_existing for
+# infra errors). Re-reading from shell would discard that fix. (CR2-1)
+# build_verdict is already set correctly above — do NOT overwrite it here.
 test_ran_val = test_ran
 test_exit_val = test_exit
 smoke_ran_val = pr_data["smoke"]["ran"]
@@ -2769,9 +2967,14 @@ else:
     tsc_passed = "$PR_TSC_EXIT" == "0" if tsc_ran else False
     if eco in ("gomod", "pip"):
         # go build / pip import check IS the type-check equivalent
-        if build_verdict in ("pass", "pre_existing", "security_review"):
+        if build_verdict in ("pass", "security_review"):
             level = 2
             steps.append({"step": "type_check", "status": "pass"})
+        elif build_verdict == "pre_existing":
+            # Build fails on both branches with same errors — NOT a real pass (CR3-8).
+            # Stay at L1 (like npm does for tsc pre_existing), mark as inconclusive.
+            level = 1  # DO NOT promote to L2
+            steps.append({"step": "type_check", "status": "pre_existing", "detail": "same build errors on main — inconclusive"})
         else:
             steps.append({"step": "type_check", "status": "fail"})
     elif tsc_ran:
@@ -2822,7 +3025,7 @@ else:
                 try:
                     with open(main_test_file) as f:
                         main_test_lines = f.read()
-                except:
+                except (IOError, OSError):
                     main_test_lines = ""
                 # Extract "--- FAIL:" lines from Go test output
                 import re
@@ -2842,7 +3045,7 @@ else:
                 try:
                     with open(main_npm_test_file) as f:
                         main_npm_test_lines = f.read()
-                except:
+                except (IOError, OSError):
                     main_npm_test_lines = ""
                 import re
                 # Jest format: "FAIL src/tests/foo.test.ts" or "FAIL ./src/tests/foo.test.ts"
@@ -3005,7 +3208,7 @@ try:
                                 cross_deps.append({"pr_a": int(num), "pr_b": int(nb), "reason": f"Shared lib cascade: {pkg_name} ({pd}) consumed by {c['service']}", "merge_order": f"lib first, then {c['path']}"})
     data["workspace_graph"] = graph
     data["nestjs_skew"] = graph.get("nestjs_skew", [])
-except:
+except (FileNotFoundError, json.JSONDecodeError, KeyError, TypeError):
     data["workspace_graph"] = {}
     data["nestjs_skew"] = []
 data["cross_pr_deps"] = cross_deps
@@ -3111,27 +3314,13 @@ SECURITYEOF
 
 
 # ── Comment cleanup ──────────────────────────────────────────────────────────
+# CR3-2: Removed duplicate cleanup code. Comment cleanup is now handled exclusively
+# by merge-results.sh (batch mode) or post-fallback-comments.sh (which does per-PR
+# atomic delete+post). Having cleanup in both build-check.sh and merge-results.sh
+# risked divergence and created a window where PRs had no comments.
 echo ""
 echo "════════════ COMMENT CLEANUP ════════════"
-
-DELETED_COUNT=0
-for i in $(seq 0 $(( PR_COUNT - 1 )) ); do
-  PR_NUM=$(echo "$PR_JSON" | jq -r ".[$i].number")
-
-  # Only delete old deterministic (breakability-check) comments.
-  # PRESERVE richer AI agent (breakability-agent) comments — they contain
-  # changelog analysis, CVE context, and migration guidance that the
-  # deterministic fallback cannot reproduce. Aligned with merge-results.sh policy (Finding-2.3).
-  COMMENT_IDS=$(gh api "repos/$OWNER/$REPO/issues/$PR_NUM/comments" \
-    --jq '.[] | select(.body | contains("<!-- breakability-check -->")) | select(.body | contains("<!-- breakability-agent -->") | not) | .id' \
-    2>/dev/null || true)
-
-  for CID in $COMMENT_IDS; do
-    gh api -X DELETE "repos/$OWNER/$REPO/issues/comments/$CID" 2>/dev/null || true
-    DELETED_COUNT=$((DELETED_COUNT + 1))
-  done
-done
-echo "  Deleted $DELETED_COUNT old comments"
+echo "  Skipped — cleanup handled by merge-results.sh / post-fallback-comments.sh"
 
 # ── Summary ──────────────────────────────────────────────────────────────────
 echo ""

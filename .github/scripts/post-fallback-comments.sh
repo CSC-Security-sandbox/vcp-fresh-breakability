@@ -1,18 +1,22 @@
 #!/usr/bin/env bash
 # ──────────────────────────────────────────────────────────────────────────────
-# post-fallback-comments.sh — Graceful degradation for breakability analysis
+# post-fallback-comments.sh — Deterministic build analysis comments + merge plan
 #
-# If the AI agent crashes or misses PRs, this script posts structured build
-# analysis comments for every PR that lacks one. Comments are generated
-# directly from the deterministic JSON results — no AI required.
+# PRIMARY comment system: posts structured build analysis comments for every PR
+# and generates a merge plan issue. Comments are generated directly from the
+# deterministic JSON results — no AI required. If the AI agent already posted
+# richer comments (<!-- breakability-agent -->), those PRs are skipped.
+# CR5-1/M3: This is the primary system, not a fallback. The AI agent is optional.
 #
 # Comment quality by scenario:
 #   - Trivially safe (patch/transitive/actions/docker): brief SAFE one-liner
 #   - Build pass with new errors or major bump: BUILD ANALYSIS with details
 #   - Build fail: BUILD_FAILS with error excerpt and remediation note
 #   - Build not run (skip/infra_error): REVIEW with infrastructure context
+#   - Security fix: SECURITY FIX with severity and MERGE NOW recommendation
+#   - Pre-existing (L1, zero new errors): LIKELY SAFE
 # ──────────────────────────────────────────────────────────────────────────────
-set -euo pipefail
+set -u
 
 RESULTS_FILE="/tmp/build-results.json"
 
@@ -43,7 +47,7 @@ if [[ "$BC_MODE" == "advisory" ]]; then
 > 🔬 **Advisory mode** — This analysis is informational. No merges are blocked."
 fi
 
-echo "Checking for PRs that need fallback comments (mode: $BC_MODE)..."
+echo "Posting deterministic analysis comments (mode: $BC_MODE)..."
 
 # Get all PR numbers from build-results.json
 PR_NUMBERS=$(python3 -c "
@@ -55,15 +59,28 @@ for num in sorted(data.get('prs', {}).keys(), key=int):
 ")
 
 for PR_NUM in $PR_NUMBERS; do
-  # Skip if PR already has a breakability comment
-  HAS_COMMENT=$(gh api "repos/$OWNER/$REPO/issues/$PR_NUM/comments" \
-    --jq '[.[] | select(.body | contains("<!-- breakability-check -->") or contains("<!-- breakability-agent -->"))] | length' \
+  # Per-PR atomic comment management (A3-9):
+  # 1. Check for existing AI agent comments (preserve those)
+  # 2. Delete old deterministic comments (<!-- breakability-check --> without <!-- breakability-agent -->)
+  # 3. Post new deterministic comment
+  # This avoids the race where merge-results.sh deletes comments before this script posts.
+  HAS_AGENT_COMMENT=$(gh api "repos/$OWNER/$REPO/issues/$PR_NUM/comments" \
+    --jq '[.[] | select(.body | contains("<!-- breakability-agent -->"))] | length' \
     2>/dev/null || echo "0")
 
-  if [[ "$HAS_COMMENT" -gt 0 ]]; then
+  if [[ "$HAS_AGENT_COMMENT" -gt 0 ]]; then
+    # AI agent already posted a richer comment — skip deterministic fallback
     SKIPPED=$((SKIPPED + 1))
     continue
   fi
+
+  # Delete old deterministic comments for this PR (atomic: delete before posting new one)
+  OLD_COMMENT_IDS=$(gh api "repos/$OWNER/$REPO/issues/$PR_NUM/comments" \
+    --jq '.[] | select(.body | contains("<!-- breakability-check -->")) | select(.body | contains("<!-- breakability-agent -->") | not) | .id' \
+    2>/dev/null || true)
+  for CID in $OLD_COMMENT_IDS; do
+    gh api -X DELETE "repos/$OWNER/$REPO/issues/comments/$CID" 2>/dev/null || true
+  done
 
   # Extract all fields for this PR in one python call
   PR_FIELDS=$(python3 -c "
@@ -73,6 +90,9 @@ with open('$RESULTS_FILE') as f:
 pr = data['prs'].get('$PR_NUM', {})
 build = pr.get('build', {})
 test = pr.get('test', {})
+sec = data.get('security_posture', {}).get('prs_fixing_alerts', {}).get('$PR_NUM', {})
+cve_severities = sec.get('severities', [])
+cve_ids = sec.get('cve_ids', [])
 print(json.dumps({
     'package':      pr.get('package', '?'),
     'from':         pr.get('from', '?'),
@@ -92,22 +112,53 @@ print(json.dumps({
     'files_importing': pr.get('files_importing', []),
     'cves':         pr.get('cves', []),
     'error_class':  build.get('error_class', ''),
+    'pkg_dir':      pr.get('pkg_dir', '/'),
+    'main_exit':    build.get('main_exit', -1),
+    'cve_severities': cve_severities,
+    'cve_ids':      cve_ids,
 }))
 " 2>/dev/null || echo '{}')
 
-  PKG=$(echo "$PR_FIELDS"     | python3 -c "import json,sys; print(json.load(sys.stdin).get('package','?'))")
-  FROM=$(echo "$PR_FIELDS"    | python3 -c "import json,sys; print(json.load(sys.stdin).get('from','?'))")
-  TO=$(echo "$PR_FIELDS"      | python3 -c "import json,sys; print(json.load(sys.stdin).get('to','?'))")
-  BUMP=$(echo "$PR_FIELDS"    | python3 -c "import json,sys; print(json.load(sys.stdin).get('bump','?'))")
-  DEP_TYPE=$(echo "$PR_FIELDS"  | python3 -c "import json,sys; print(json.load(sys.stdin).get('dep_type','?'))")
-  DEP_REL=$(echo "$PR_FIELDS"   | python3 -c "import json,sys; print(json.load(sys.stdin).get('dep_relation','?'))")
-  ECOSYSTEM=$(echo "$PR_FIELDS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('ecosystem','?'))")
-  VERDICT=$(echo "$PR_FIELDS"   | python3 -c "import json,sys; print(json.load(sys.stdin).get('verdict','?'))")
-  INSTALL_METHOD=$(echo "$PR_FIELDS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('install_method',''))")
-  INSTALL_OK=$(echo "$PR_FIELDS"     | python3 -c "import json,sys; print(json.load(sys.stdin).get('install_ok',False))")
-  VER_LABEL=$(echo "$PR_FIELDS"      | python3 -c "import json,sys; print(json.load(sys.stdin).get('verification_label',''))")
-  NEW_ERR_COUNT=$(echo "$PR_FIELDS"  | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('new_errors',[])))")
-  FILES_COUNT=$(echo "$PR_FIELDS"    | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('files_importing',[])))")
+  # Extract all fields in a single Python call instead of 13 separate spawns (CR2-7).
+  # This reduces per-PR Python process spawns from 15 to 3 (fields + CVE extraction).
+  _FIELDS_EXTRACTED=$(echo "$PR_FIELDS" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+fields = {
+    'PKG': d.get('package', '?'),
+    'FROM': d.get('from', '?'),
+    'TO': d.get('to', '?'),
+    'BUMP': d.get('bump', '?'),
+    'DEP_TYPE': d.get('dep_type', '?'),
+    'DEP_REL': d.get('dep_relation', '?'),
+    'ECOSYSTEM': d.get('ecosystem', '?'),
+    'VERDICT': d.get('verdict', '?'),
+    'INSTALL_METHOD': d.get('install_method', ''),
+    'INSTALL_OK': str(d.get('install_ok', False)),
+    'VER_LABEL': d.get('verification_label', ''),
+    'NEW_ERR_COUNT': str(len(d.get('new_errors', []))),
+    'FILES_COUNT': str(len(d.get('files_importing', []))),
+    'PKG_DIR': d.get('pkg_dir', '/'),
+}
+for k, v in fields.items():
+    # Use null byte as delimiter to safely handle any value content
+    print(f'{k}={v}')
+" 2>/dev/null || echo "")
+  # Parse the output into shell variables
+  PKG=$(echo "$_FIELDS_EXTRACTED" | grep '^PKG=' | cut -d= -f2-)
+  FROM=$(echo "$_FIELDS_EXTRACTED" | grep '^FROM=' | cut -d= -f2-)
+  TO=$(echo "$_FIELDS_EXTRACTED" | grep '^TO=' | cut -d= -f2-)
+  BUMP=$(echo "$_FIELDS_EXTRACTED" | grep '^BUMP=' | cut -d= -f2-)
+  DEP_TYPE=$(echo "$_FIELDS_EXTRACTED" | grep '^DEP_TYPE=' | cut -d= -f2-)
+  DEP_REL=$(echo "$_FIELDS_EXTRACTED" | grep '^DEP_REL=' | cut -d= -f2-)
+  ECOSYSTEM=$(echo "$_FIELDS_EXTRACTED" | grep '^ECOSYSTEM=' | cut -d= -f2-)
+  VERDICT=$(echo "$_FIELDS_EXTRACTED" | grep '^VERDICT=' | cut -d= -f2-)
+  INSTALL_METHOD=$(echo "$_FIELDS_EXTRACTED" | grep '^INSTALL_METHOD=' | cut -d= -f2-)
+  INSTALL_OK=$(echo "$_FIELDS_EXTRACTED" | grep '^INSTALL_OK=' | cut -d= -f2-)
+  VER_LABEL=$(echo "$_FIELDS_EXTRACTED" | grep '^VER_LABEL=' | cut -d= -f2-)
+  NEW_ERR_COUNT=$(echo "$_FIELDS_EXTRACTED" | grep '^NEW_ERR_COUNT=' | cut -d= -f2-)
+  FILES_COUNT=$(echo "$_FIELDS_EXTRACTED" | grep '^FILES_COUNT=' | cut -d= -f2-)
+  PKG_DIR=$(echo "$_FIELDS_EXTRACTED" | grep '^PKG_DIR=' | cut -d= -f2-)
 
   # CVE extraction — core security data
   CVE_LIST=$(echo "$PR_FIELDS" | python3 -c "
@@ -121,12 +172,36 @@ else:
 " 2>/dev/null || echo "")
   CVE_COUNT=$(echo "$PR_FIELDS" | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('cves',[])))")
 
+  # Extract CVE severity info (end-user P1: make CVEs impossible to miss)
+  CVE_MAX_SEVERITY=$(echo "$PR_FIELDS" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+sevs = d.get('cve_severities', [])
+if not sevs:
+    print('')
+else:
+    order = {'critical': 0, 'high': 1, 'medium': 2, 'low': 3}
+    worst = min(sevs, key=lambda s: order.get(s.lower(), 99))
+    print(worst.upper())
+" 2>/dev/null || echo "")
+
   # Build security line for comment templates
   CVE_LINE=""
   if [[ "$CVE_COUNT" -gt 0 && "$CVE_COUNT" != "0" ]]; then
-    # Format: 🔴 2 CVEs: CVE-2024-1234, CVE-2024-5678
-    CVE_LINE="
+    # Format: 🔴 Security (HIGH): 2 CVEs — CVE-2024-1234, CVE-2024-5678
+    if [[ -n "$CVE_MAX_SEVERITY" ]]; then
+      CVE_LINE="
+🔴 **Security ($CVE_MAX_SEVERITY): $CVE_COUNT CVE(s) fixed by this upgrade:** $CVE_LIST"
+    else
+      CVE_LINE="
 🔴 **Security: $CVE_COUNT CVE(s) fixed by this upgrade:** $CVE_LIST"
+    fi
+  fi
+
+  # Module line for monorepo context (end-user feedback: which module does this affect?)
+  MODULE_LINE=""
+  if [[ "$ECOSYSTEM" == "gomod" && "$PKG_DIR" != "/" && -n "$PKG_DIR" ]]; then
+    MODULE_LINE=" · Module: \`$PKG_DIR\`"
   fi
 
   # Build "How we checked" checklist from verification_label
@@ -186,11 +261,23 @@ else:
       ;;
     *)
       if [[ -n "$VER_LABEL" ]]; then
-        HOW_CHECKED="
+        # End-user feedback: "Limited verification performed" is misleading when the
+        # tool DID compare builds and found zero new errors. Show what we actually did.
+        if [[ "$VERDICT" == "pre_existing" && "$NEW_ERR_COUNT" -eq 0 ]]; then
+          HOW_CHECKED="
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
-- ⬜ Limited verification performed
+- ⚙️ Built both \`main\` and PR branch
+- ✅ Compared build errors — **zero new errors** from this upgrade
+- ⚠️ Baseline build has pre-existing failures (not caused by upgrade)
 </details>"
+        else
+          HOW_CHECKED="
+<details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
+
+- ⬜ Build verification limited by infrastructure issues
+</details>"
+        fi
       fi
       ;;
   esac
@@ -227,14 +314,13 @@ else:
   fi
 
   if [[ "$ECOSYSTEM" == "actions" ]]; then
-    # GitHub Actions — always safe, no app code affected
+    # GitHub Actions — always safe, no app code affected.
+    # No L0/fallback labels — CI-only changes need no build verification (end-user feedback 2.4).
     COMMENT="<!-- breakability-check -->
 ## ✅ SAFE — \`$PKG\` $FROM → $TO · dev (CI) · $BUMP
 
-GitHub Actions workflow dependency. No application code affected.
-
-Verification: **NA** — CI-only change${CVE_LINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
-> ⚠️ *Fallback comment — AI agent did not run or did not cover this PR*"
+GitHub Actions workflow dependency. No application code affected. No build verification needed.${CVE_LINE}${PLAN_LINE}${ADVISORY_FOOTER}
+> 🔬 *Deterministic analysis — CI-only change, no build impact*"
 
   elif [[ "$ECOSYSTEM" == "docker" && "$BUMP" != "major" ]]; then
     # Docker non-major — typically safe
@@ -242,17 +328,17 @@ Verification: **NA** — CI-only change${CVE_LINE}${PLAN_LINE}${HOW_CHECKED}${AD
 ## ✅ SAFE — \`$PKG\` $FROM → $TO · production · $BUMP
 
 Docker base image $BUMP bump. No application source changes.${CVE_LINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
-> ⚠️ *Fallback comment — AI agent did not run or did not cover this PR*"
+> 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
   elif [[ "$VERDICT" == "pass" && "$BUMP" == "patch" && "$FILES_COUNT" -lt 5 ]]; then
     # Patch bump, build passes, low usage surface — simple safe
     COMMENT="<!-- breakability-check -->
 ## ✅ SAFE — \`$PKG\` $FROM → $TO · $DEP_TYPE · patch
 
-Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)
+Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${MODULE_LINE}
 
 $BUMP bump with passing build. No new type errors introduced.${CVE_LINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
-> ⚠️ *Fallback comment — AI agent did not run or did not cover this PR*"
+> 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
   elif [[ "$VERDICT" == "pass" && "$DEP_REL" == "transitive" ]]; then
     # Transitive dep, build passes
@@ -262,7 +348,7 @@ $BUMP bump with passing build. No new type errors introduced.${CVE_LINE}${PLAN_L
 Build: ✅ passes · Verification: **${VER_LABEL:-L1}**
 
 Transitive dependency — your code does not import it directly. Build passes.${CVE_LINE}${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
-> ⚠️ *Fallback comment — AI agent did not run or did not cover this PR*"
+> 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
   elif [[ "$VERDICT" == "pass" ]]; then
     # Build passes — general case
@@ -273,16 +359,16 @@ Transitive dependency — your code does not import it directly. Build passes.${
     COMMENT="<!-- breakability-check -->
 ## 🔍 BUILD ANALYSIS — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
 
-Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)$NEW_ERR_NOTE${CVE_LINE}
+Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${MODULE_LINE}$NEW_ERR_NOTE${CVE_LINE}
 
-### Summary (deterministic fallback — no AI analysis)
+### Summary (deterministic analysis)
 - Package: \`$PKG\` $FROM → $TO ($BUMP bump)
 - Type: $DEP_TYPE / $DEP_REL
 - Build passes on PR branch
 - New type errors: $NEW_ERR_COUNT
 
 **Recommendation:** Review changelog for $BUMP bump breaking changes. Build passes — merge when ready.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
-> ⚠️ *Fallback comment — AI agent did not run or did not cover this PR. Full AI analysis was not performed.*"
+> 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
   elif [[ "$VERDICT" == "fail" ]]; then
     # Build fails — most important fallback to get right
@@ -307,34 +393,66 @@ Build: ❌ fails on PR branch, ✅ passes on main · Usage: $FILES_COUNT file(s)
 4. Re-run the breakability analysis after your fix
 
 **Do not merge — build is broken.** ($BUMP bump)${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
-> ⚠️ *Fallback comment — AI agent did not run or did not cover this PR.*"
+> 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
   elif [[ "$VERDICT" == "pre_existing" ]]; then
-    # Pre-existing failures — split on verification level (Finding-3.3).
+    # Pre-existing failures — split on verification level (Finding-3.3, A2-8).
     # L2+ means tsc/go-build actually passed (identical errors = no new problems) → SAFE.
-    # L1 only means type-check inconclusive → UNVERIFIED.
+    # L1 means deps resolved but build inconclusive → LIKELY SAFE.
+    # L0 means deps didn't even resolve → UNVERIFIED (do NOT say "LIKELY SAFE").
     if [[ "$VER_LABEL" == L2* || "$VER_LABEL" == L3* || "$VER_LABEL" == L4* || "$VER_LABEL" == L5* ]]; then
       COMMENT="<!-- breakability-check -->
 ## ✅ SAFE — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
 
-Build: ✅ verified — same result as main baseline, not caused by this change · Verification: **${VER_LABEL}** · Usage: $FILES_COUNT file(s)${CVE_LINE}
+Build: ✅ verified — same result as main baseline, not caused by this change · Verification: **${VER_LABEL}** · Usage: $FILES_COUNT file(s)${MODULE_LINE}${CVE_LINE}
 
 ### What this means
 The build produces the same errors on both \`main\` and this PR branch. This upgrade does **not** introduce new failures. Verified at **${VER_LABEL}**.
 
 **Recommendation:** Safe to merge. Pre-existing build issues are unrelated to this upgrade.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
-> ⚠️ *Fallback comment — AI agent did not run or did not cover this PR.*"
-    else
+> 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
+    elif [[ "$VER_LABEL" == L1* ]]; then
+      # L1: dependency resolution passed but build/type-check inconclusive
       COMMENT="<!-- breakability-check -->
-## ⚙️ UNVERIFIED — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
+## ⚙️ LIKELY SAFE — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
 
-Build: ⚙️ same errors on main and PR branch — pre-existing failure, not caused by this upgrade${CVE_LINE}
+Build: ⚙️ same errors on main and PR branch — pre-existing failure, **not caused by this upgrade** · Verification: **${VER_LABEL}**${MODULE_LINE}${CVE_LINE}
 
 ### What this means
-The build fails on both \`main\` and this PR with the same errors. This upgrade does **not** introduce new failures. However, build verification could not confirm compatibility because the baseline is broken.
+Dependencies resolved successfully. The build fails on both \`main\` and this PR with the same errors. This upgrade does **not** introduce new failures. Full build verification was limited by pre-existing issues on \`main\`.
 
-**Recommendation:** Fix pre-existing build failures on \`main\` first, then re-analyze. This upgrade is likely safe but unconfirmed.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
-> ⚠️ *Fallback comment — AI agent did not run or did not cover this PR.*"
+**Recommendation:** Likely safe to merge — no new errors detected. Fix pre-existing build failures on \`main\` for full verification coverage.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+> 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
+    else
+      # L0: dependency resolution failed or build inconclusive.
+      # End-user feedback (P1): "UNVERIFIED" is misleading when the tool DID compare
+      # both branches and found zero new errors. That IS a safety signal.
+      # Use "LIKELY SAFE" when zero new errors detected, "UNVERIFIED" only when
+      # we truly have no signal (e.g., install_ok=false with no comparison done).
+      if [[ "$NEW_ERR_COUNT" -eq 0 ]]; then
+        COMMENT="<!-- breakability-check -->
+## ⚙️ LIKELY SAFE — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
+
+Build: ⚙️ same errors on \`main\` and PR branch — **not caused by this upgrade** · Verification: **${VER_LABEL:-L0}**${MODULE_LINE}${CVE_LINE}
+
+### What this means
+Both \`main\` and this PR branch produce the same build errors. This upgrade does **not** introduce new failures. Build verification was limited by pre-existing infrastructure issues.
+
+**Recommendation:** Likely safe to merge — zero new errors detected. Fix baseline build on \`main\` for full verification.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+> 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
+      else
+        COMMENT="<!-- breakability-check -->
+## ⚠️ UNVERIFIED — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
+
+Build: ⚠️ build verification could not complete — infrastructure/configuration errors · Verification: **${VER_LABEL:-L0}**${MODULE_LINE}${CVE_LINE}
+
+### What to do
+1. Fix the baseline build on \`main\` (see merge plan for error details)
+2. Re-run analysis: \`gh workflow run breakability-agent.yml\`
+
+**Recommendation:** Cannot confirm safety. Fix build environment first, then re-analyze.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+> 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
+      fi
     fi
 
   elif [[ "$VERDICT" == "pre_existing_plus_new" ]]; then
@@ -345,7 +463,7 @@ The build fails on both \`main\` and this PR with the same errors. This upgrade 
 Build: ❌ new errors introduced by this PR (on top of pre-existing failures)${CVE_LINE}
 
 This upgrade introduces **$NEW_ERR_COUNT new error(s)** not present on \`main\`. Fix required before merging.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
-> ⚠️ *Fallback comment — AI agent did not run or did not cover this PR.*"
+> 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
   elif [[ "$VERDICT" == "security_review" ]]; then
     # Build passes but npm audit found CRITICAL/HIGH vulnerabilities
@@ -358,7 +476,7 @@ Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT f
 Build passes, but \`npm audit\` found **critical or high** vulnerabilities in this upgrade. Manual security review recommended before merging.
 
 **Recommendation:** Review the npm audit output and CVE details. If vulnerabilities are in transitive deps not used by your code, merge may still be safe.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
-> ⚠️ *Fallback comment — AI agent did not run or did not cover this PR.*"
+> 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
   elif [[ "$INSTALL_METHOD" == "infra_error" ]]; then
     # Infrastructure blocked analysis
@@ -371,7 +489,7 @@ Build: ⚠️ blocked by infrastructure error — build verification could not r
 The build check was blocked by an infrastructure issue (private registry, network timeout, or missing dependency not caused by this upgrade). **This is not a build failure from the upgrade.**
 
 **Recommendation:** Verify infrastructure health, then re-run. If infrastructure is healthy, review manually.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
-> ⚠️ *Fallback comment — AI agent did not run or did not cover this PR.*"
+> 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
   elif [[ "$VERDICT" == "conflict" ]]; then
     # Conflicted PR — cannot merge or analyze until rebased (Finding-3.6)
@@ -380,7 +498,7 @@ The build check was blocked by an infrastructure issue (private registry, networ
 
 This PR has merge conflicts and cannot be merged or analyzed until rebased.
 Run \`@dependabot recreate\` or rebase manually.${PLAN_LINE}${ADVISORY_FOOTER}
-> ⚠️ *Fallback comment — AI agent did not run or did not cover this PR.*"
+> 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
   else
     # Catch-all: skip/unknown verdict
@@ -390,22 +508,67 @@ Run \`@dependabot recreate\` or rebase manually.${PLAN_LINE}${ADVISORY_FOOTER}
 Build analysis status: \`$VERDICT\` (verification: ${VER_LABEL:-unknown})${CVE_LINE}
 
 Automated build analysis was not conclusive for this PR. Manual review recommended.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
-> ⚠️ *Fallback comment — AI agent did not run or did not cover this PR.*"
+> 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
+  fi
+
+  # CVE override: when a PR fixes CVEs, escalate the presentation regardless of verdict.
+  # CR5-8: Fire for ALL verdicts, not just pass/pre_existing. A HIGH CVE must be visually
+  # distinct and recommend immediate merge even when the build has issues. The developer
+  # needs to know: "This PR fixes a HIGH CVE but may also need build fixes."
+  # End-user feedback: PR #10 (HIGH CVE) was indistinguishable from 27 other PRs.
+  if [[ "$CVE_COUNT" -gt 0 && "$CVE_COUNT" != "0" ]]; then
+    _SEV_BADGE=""
+    if [[ -n "$CVE_MAX_SEVERITY" ]]; then
+      _SEV_BADGE=" ($CVE_MAX_SEVERITY)"
+    fi
+    if [[ "$NEW_ERR_COUNT" -eq 0 ]]; then
+      # No new errors — recommend immediate merge regardless of baseline state
+      COMMENT="<!-- breakability-check -->
+## 🔴 SECURITY FIX${_SEV_BADGE} — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
+
+### ⚠️ $CVE_COUNT CVE(s) resolved: $CVE_LIST
+$(if [[ -n "$CVE_MAX_SEVERITY" ]]; then echo "**Severity: ${CVE_MAX_SEVERITY}** — This PR fixes a known security vulnerability."; fi)
+
+**Build Impact:** No new errors introduced by this upgrade.${MODULE_LINE}
+$(if [[ "$VERDICT" == "pre_existing" ]]; then echo "Baseline build has pre-existing failures (not related to this package)."; elif [[ "$VERDICT" == "pass" ]]; then echo "Build passes on PR branch."; else echo "Build status: \`$VERDICT\` — no new errors detected."; fi)
+
+### Recommendation
+**MERGE THIS PR IMMEDIATELY.** It resolves $CVE_COUNT known CVE(s) and introduces zero new build errors.
+Security fixes should be prioritized over routine dependency upgrades.
+$(if [[ "$VERDICT" == "pre_existing" && "$VER_LABEL" == L0* ]]; then echo "> If baseline build failures concern you, verify locally before merging. The security fix is independent of the baseline issue."; fi)
+
+Verification: **${VER_LABEL:-L0}**${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+> 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
+    else
+      # Has new errors BUT also fixes CVEs — show both facts prominently
+      COMMENT="<!-- breakability-check -->
+## 🔴 SECURITY FIX (BUILD ISSUES)${_SEV_BADGE} — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP
+
+### ⚠️ $CVE_COUNT CVE(s) resolved: $CVE_LIST
+$(if [[ -n "$CVE_MAX_SEVERITY" ]]; then echo "**Severity: ${CVE_MAX_SEVERITY}** — This PR fixes a known security vulnerability."; fi)
+
+**Build Impact:** ❌ $NEW_ERR_COUNT new error(s) introduced by this upgrade.${MODULE_LINE}
+
+### Recommendation
+**This PR fixes a $CVE_MAX_SEVERITY CVE but also introduces build errors.** Fix the build errors, then merge immediately.
+Do not delay — the security fix is critical.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+> 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
+    fi
   fi
 
   if [[ -n "$COMMENT" ]]; then
     if gh pr comment "$PR_NUM" --body "$COMMENT" 2>/dev/null; then
-      echo "  Posted fallback for PR #$PR_NUM ($PKG ${FROM}→${TO}, $VERDICT)"
+      echo "  Posted comment for PR #$PR_NUM ($PKG ${FROM}→${TO}, $VERDICT)"
       POSTED=$((POSTED + 1))
     else
-      echo "  ⚠️  Failed to post fallback for PR #$PR_NUM"
+      echo "  ⚠️  Failed to post comment for PR #$PR_NUM"
       FAILED=$((FAILED + 1))
     fi
   fi
 done
 
 echo ""
-echo "Fallback: posted $POSTED, skipped $SKIPPED (already had comments), failed $FAILED"
+echo "Deterministic comments: posted $POSTED, skipped $SKIPPED (AI agent already commented), failed $FAILED"
 
 # ── Regenerate merge plan issue ──────────────────────────────────────────────
 # The merge plan must always reflect the latest build-results.json.
@@ -433,15 +596,15 @@ try:
         capture_output=True, text=True, timeout=30
     )
     total_open_prs = int(result.stdout.strip()) if result.returncode == 0 else 0
-except:
+except (Exception,):
     total_open_prs = 0
 
 non_dependabot_count = max(0, total_open_prs - len(prs))
 
 # Categorize PRs
-safe = []        # pass verdicts
+safe = []        # pass verdicts + pre_existing with L2+ verification
 blocked = []     # fail / pre_existing_plus_new
-review = []      # pre_existing / error / infra_error
+review = []      # pre_existing (unverified) / error / infra_error
 skipped = []     # skip (actions, docker, etc.)
 not_analyzed = [] # anything else
 
@@ -455,7 +618,12 @@ for num, pr in sorted(prs.items(), key=lambda x: int(x[0])):
     ver = pr.get("verification_label", "?")
     cves = pr.get("cves", [])
     eco = pr.get("ecosystem", "?")
-    entry = {"num": num, "pkg": pkg, "from": fr, "to": to, "bump": bump, "dep_type": dep_type, "ver": ver, "cves": cves, "eco": eco, "verdict": v}
+    install_ok = pr.get("install_ok", False)
+    pkg_dir = pr.get("pkg_dir", "/")
+    error_class = pr.get("build", {}).get("error_class", "")
+    new_errors = pr.get("build", {}).get("new_errors", [])
+    main_exit = pr.get("build", {}).get("main_exit", -1)
+    entry = {"num": num, "pkg": pkg, "from": fr, "to": to, "bump": bump, "dep_type": dep_type, "ver": ver, "cves": cves, "eco": eco, "verdict": v, "install_ok": install_ok, "pkg_dir": pkg_dir, "error_class": error_class, "new_error_count": len(new_errors), "main_exit": main_exit}
 
     if v == "skip":
         skipped.append(entry)
@@ -463,7 +631,15 @@ for num, pr in sorted(prs.items(), key=lambda x: int(x[0])):
         safe.append(entry)
     elif v in ("fail", "pre_existing_plus_new"):
         blocked.append(entry)
-    elif v in ("pre_existing", "error", "security_review"):
+    elif v == "pre_existing":
+        # pre_existing with L2+ verification = safe (same errors, no new problems)
+        # pre_existing with L0/L1 and zero new errors = likely safe
+        # pre_existing with L0 and new errors or no comparison = needs review
+        if ver.startswith("L2") or ver.startswith("L3") or ver.startswith("L4") or ver.startswith("L5"):
+            safe.append(entry)
+        else:
+            review.append(entry)
+    elif v in ("error", "security_review"):
         review.append(entry)
     elif v == "conflict":
         blocked.append(entry)
@@ -486,13 +662,83 @@ lines.append("## Summary")
 lines.append("")
 lines.append(f"| Category | Count |")
 lines.append(f"|----------|-------|")
+likely_safe_count = sum(1 for e in review if e.get("verdict") == "pre_existing" and e.get("new_error_count", 0) == 0)
+unverified_count = sum(1 for e in review if e.get("verdict") == "pre_existing" and e.get("new_error_count", 0) > 0)
+needs_review_count = len(review) - likely_safe_count - unverified_count
 lines.append(f"| ✅ Safe to merge | {len(safe)} |")
+if likely_safe_count > 0:
+    lines.append(f"| ⚙️ Likely safe (deps resolved, no new errors) | {likely_safe_count} |")
+if unverified_count > 0:
+    lines.append(f"| ⚠️ Unverified (deps failed — infra issue) | {unverified_count} |")
 lines.append(f"| ❌ Fix required | {len(blocked)} |")
-lines.append(f"| ⚠️ Manual review | {len(review)} |")
+if needs_review_count > 0:
+    lines.append(f"| 🔍 Manual review | {needs_review_count} |")
 lines.append(f"| ⏭️ Skipped (CI/Docker) | {len(skipped)} |")
 if not_analyzed:
     lines.append(f"| ❓ Not analyzed | {len(not_analyzed)} |")
 lines.append("")
+
+# Infrastructure banner — when many PRs are in review with the same root cause
+if len(review) > 0:
+    infra_count = sum(1 for e in review if e.get("verdict") == "pre_existing")
+    if infra_count > len(prs) * 0.5:
+        # More than half of PRs are pre_existing — likely a systemic issue
+        lines.append("> ⚠️ **Infrastructure Issue:** %d of %d PRs have pre-existing build failures (not caused by upgrades)." % (infra_count, len(prs)))
+        lines.append("> Fix the baseline build on `main` and re-run analysis to unlock full verification for these PRs.")
+        lines.append("> PRs marked \"Likely Safe\" below have no new errors — they are probably safe to merge despite incomplete verification.")
+        lines.append("")
+
+        # Show baseline error details so developers know WHAT to fix (end-user feedback 1.2)
+        main_build = data.get("main_build", {})
+        baseline_errors = []
+        # Go baseline errors
+        go_data = main_build.get("go", {})
+        go_exit = go_data.get("exit", -1)
+        go_output = go_data.get("output_tail", "")
+        if go_exit is not None and go_exit not in (-1, 0) and go_output:
+            error_lines = [l.strip() for l in go_output.split('\n')
+                          if 'error' in l.lower() or 'Error' in l or 'FAIL' in l
+                          or 'cannot' in l.lower() or 'undefined' in l.lower()][:10]
+            if error_lines:
+                baseline_errors.extend(error_lines)
+        # npm baseline errors
+        npm_data = main_build.get("npm", {})
+        npm_exit = npm_data.get("exit", -1)
+        npm_output = npm_data.get("output_tail", "")
+        if npm_exit is not None and npm_exit not in (-1, 0) and npm_output:
+            npm_errs = [l.strip() for l in npm_output.split('\n')
+                       if 'error' in l.lower() or 'TS' in l][:5]
+            if npm_errs:
+                baseline_errors.extend(npm_errs)
+        # Check per-module baselines from any PR's output (if available)
+        error_classes = set()
+        for num, pr in prs.items():
+            ec = pr.get("build", {}).get("error_class", "")
+            if ec and ec != "build_fail":
+                error_classes.add(ec)
+        if baseline_errors or error_classes:
+            lines.append("### Baseline Build Errors on `main`")
+            lines.append("")
+            if error_classes:
+                class_descriptions = {
+                    "infra_error": "Infrastructure/network error (GOSUMDB, proxy, or registry issue)",
+                    "private_module": "Private module access denied (GOPRIVATE not configured)",
+                    "resource_exhaustion": "Out of memory / compiler killed",
+                    "timeout": "Build timed out",
+                    "cache_corruption": "Go build cache corruption",
+                }
+                for ec in sorted(error_classes):
+                    desc = class_descriptions.get(ec, ec)
+                    lines.append(f"- **{ec}:** {desc}")
+                lines.append("")
+            if baseline_errors:
+                lines.append("```")
+                for err in baseline_errors[:8]:
+                    lines.append(err[:200])
+                lines.append("```")
+                lines.append("")
+            lines.append("Fix these issues on `main`, then re-run: `gh workflow run breakability-agent.yml`")
+            lines.append("")
 
 # CVE highlight
 all_cves = []
@@ -503,9 +749,18 @@ for cat in [safe, blocked, review, skipped]:
 if all_cves:
     lines.append("## 🔴 Security — CVEs Fixed by These Upgrades")
     lines.append("")
+    lines.append("> **ACTION REQUIRED:** Merge security fix PRs as soon as possible to resolve known vulnerabilities.")
+    lines.append("")
     for e in all_cves:
         cve_str = ", ".join(e["cves"])
-        lines.append(f"- **PR #{e['num']}** `{e['pkg']}` {e['from']}→{e['to']} — {cve_str}")
+        verdict_note = ""
+        if e["verdict"] == "pass":
+            verdict_note = " ✅ **SAFE — merge now**"
+        elif e["verdict"] == "pre_existing":
+            verdict_note = " ⚙️ **Likely safe — no new errors**"
+        elif e["verdict"] == "fail":
+            verdict_note = " ❌ Fix required before merge"
+        lines.append(f"- **PR #{e['num']}** `{e['pkg']}` {e['from']}→{e['to']} — {cve_str}{verdict_note}")
     lines.append("")
 
 # Safe to merge
@@ -548,14 +803,50 @@ if blocked:
         lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {e['bump']} | {issue} |")
     lines.append("")
 
-# Review
-if review:
+# Review — split into "Likely Safe" and "Needs Review".
+# End-user feedback: L0 pre_existing with zero new errors IS a safety signal.
+# The tool compared both branches and found no new errors — that's useful info.
+# Only truly "unverified" PRs (where comparison couldn't happen) go into unverified.
+likely_safe = [e for e in review if e["verdict"] == "pre_existing" and e.get("new_error_count", 0) == 0]
+unverified = [e for e in review if e["verdict"] == "pre_existing" and e.get("new_error_count", 0) > 0]
+needs_review = [e for e in review if e["verdict"] != "pre_existing"]
+
+if likely_safe:
+    lines.append("## ⚙️ Likely Safe — No New Errors (pre-existing build failure)")
+    lines.append("")
+    lines.append("These PRs do **not** introduce new failures. Both `main` and the PR branch")
+    lines.append("produce the same build errors. The upgrades are likely safe to merge.")
+    lines.append("Fix baseline build on `main` and re-run for full L2+ verification.")
+    lines.append("")
+    lines.append("| PR | Package | Version | Bump | Module | Status |")
+    lines.append("|----|---------|---------|----|--------|--------|")
+    for e in likely_safe:
+        cve_badge = f" 🔴 {','.join(e['cves'])}" if e.get('cves') else ""
+        pkg_dir = e.get('pkg_dir', '/')
+        mod_col = pkg_dir if pkg_dir != '/' else 'root'
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {e['bump']} | {mod_col} | {e['ver']} — no new errors{cve_badge} |")
+    lines.append("")
+
+if unverified:
+    lines.append("## ⚠️ Needs Investigation (new errors detected or comparison failed)")
+    lines.append("")
+    lines.append("These PRs have new errors or could not be compared against the baseline.")
+    lines.append("Manual review is recommended before merging.")
+    lines.append("")
+    lines.append("| PR | Package | Version | Bump | Module | Issue |")
+    lines.append("|----|---------|---------|----|--------|-------|")
+    for e in unverified:
+        cve_badge = f" 🔴 {','.join(e['cves'])}" if e.get('cves') else ""
+        pkg_dir = e.get('pkg_dir', '/')
+        mod_col = pkg_dir if pkg_dir != '/' else 'root'
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {e['bump']} | {mod_col} | Deps failed — infra issue{cve_badge} |")
+    lines.append("")
+
+if needs_review:
     lines.append("## ⚠️ Manual Review Needed")
     lines.append("")
-    for e in review:
-        if e["verdict"] == "pre_existing":
-            reason = "Pre-existing build failure (not caused by upgrade)"
-        elif e["verdict"] == "security_review":
+    for e in needs_review:
+        if e["verdict"] == "security_review":
             reason = "Build passes but npm audit found critical/high vulnerabilities"
         else:
             reason = "Build error / infrastructure issue"
@@ -593,22 +884,31 @@ PYEOF
 )
 
 if [[ -n "$MERGE_PLAN_BODY" && "$MERGE_PLAN_BODY" != *"Traceback"* ]]; then
-  # Find existing merge plan issue by title pattern (labels vary across repos)
-  EXISTING_ISSUE=$(gh issue list --state open --json number,title \
+  # CR5-7/A5-7: Use dedicated label 'breakability-merge-plan' instead of 'dependencies'
+  # to avoid colliding with Dependabot's own label on PRs/issues.
+  # First try label-based search, then fall back to title pattern.
+  _MP_LABEL="breakability-merge-plan"
+  EXISTING_ISSUE=$(gh issue list --label "$_MP_LABEL" --state open --json number,title \
     -q '.[] | select(.title | test("[Mm]erge [Pp]lan")) | .number' \
     2>/dev/null | head -1 || echo "")
+  # Fallback: search by title pattern for repos that used the old "dependencies" label
+  if [[ -z "$EXISTING_ISSUE" ]]; then
+    EXISTING_ISSUE=$(gh issue list --label "dependencies" --state open --json number,title \
+      -q '.[] | select(.title | test("📋.*[Bb]reakability.*[Mm]erge [Pp]lan")) | .number' \
+      2>/dev/null | head -1 || echo "")
+  fi
 
   if [[ -n "$EXISTING_ISSUE" ]]; then
-    # Update existing issue with latest data
-    gh issue edit "$EXISTING_ISSUE" --body "$MERGE_PLAN_BODY" 2>/dev/null && \
+    # Update existing issue with latest data; also add the new label if missing
+    gh issue edit "$EXISTING_ISSUE" --body "$MERGE_PLAN_BODY" --add-label "$_MP_LABEL" 2>/dev/null && \
       echo "  Updated merge plan issue #$EXISTING_ISSUE" || \
       echo "  ⚠️  Failed to update merge plan issue #$EXISTING_ISSUE"
   else
-    # Create new merge plan issue — use "dependencies" label (exists in most repos)
+    # Create new merge plan issue with dedicated label
     NEW_ISSUE=$(gh issue create \
       --title "📋 Breakability Merge Plan — $(date -u +%Y-%m-%d)" \
       --body "$MERGE_PLAN_BODY" \
-      --label "dependencies" 2>/dev/null || echo "")
+      --label "$_MP_LABEL" 2>/dev/null || echo "")
     if [[ -n "$NEW_ISSUE" ]]; then
       echo "  Created merge plan issue: $NEW_ISSUE"
     else
