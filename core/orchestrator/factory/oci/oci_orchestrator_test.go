@@ -356,6 +356,19 @@ func TestOCIOrchestrator_GetMultipleVolumes(t *testing.T) {
 	})
 }
 
+func TestOCIOrchestrator_GetVolumesByUUIDs(t *testing.T) {
+	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
+		orch := &OCIOrchestrator{}
+		ctx := context.Background()
+
+		result, err := orch.GetVolumesByUUIDs(ctx, []string{"id1", "id2"}, common.VolumeFetchOptions{})
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsNotImplementedYetErr(err))
+		assert.Nil(tt, result)
+	})
+}
+
 func TestOCIOrchestrator_ListVolumes(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}

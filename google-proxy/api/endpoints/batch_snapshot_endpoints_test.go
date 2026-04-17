@@ -808,7 +808,7 @@ func TestV1betaBatchListSnapshots_CVPMissingRequestedFields(t *testing.T) {
 
 	fs := map[string]bool{
 		"resourceId":      true,
-		"description":   true,
+		"description":     true,
 		"isAppConsistent": true,
 	}
 	req := &gcpgenserver.BatchSnapshotUUIDListV1beta{

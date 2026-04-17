@@ -1166,6 +1166,28 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								return
 							}
 
+						case 'v': // Prefix: "volumes"
+
+							if l := len("volumes"); len(elem) >= l && elem[0:l] == "volumes" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "POST":
+									s.handleV1betaBatchListVolumesRequest([1]string{
+										args[0],
+									}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "POST")
+								}
+
+								return
+							}
+
 						}
 
 					}
@@ -4344,6 +4366,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									r.summary = "Batch list all snapshots with the given UUIDs"
 									r.operationID = "v1beta_batchListSnapshots"
 									r.pathPattern = "/v1beta/locations/{locationId}/batch/snapshots"
+									r.args = args
+									r.count = 1
+									return r, true
+								default:
+									return
+								}
+							}
+
+						case 'v': // Prefix: "volumes"
+
+							if l := len("volumes"); len(elem) >= l && elem[0:l] == "volumes" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "POST":
+									r.name = V1betaBatchListVolumesOperation
+									r.summary = "Batch lists all volumes with the given UUIDs"
+									r.operationID = "v1beta_batchListVolumes"
+									r.pathPattern = "/v1beta/locations/{locationId}/batch/volumes"
 									r.args = args
 									r.count = 1
 									return r, true

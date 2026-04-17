@@ -87,14 +87,14 @@ func TestCreateVolume_JobUpdateOnWorkflowFailure(t *testing.T) {
 		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(pool, nil)
 		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, account.ID, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.IsRegionalHA).Return(nil, errors.New("volume not found"))
 		mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(svm, nil)
-	mockStorage.On("CreateVolume", ctx, mock.AnythingOfType("*datamodel.Volume")).Return(&datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
-		Account:   account,
-		AccountID: account.ID,
-		Pool:      &pool.Pool,
-		PoolID:    pool.ID,
-	}, nil)
-	mockStorage.On("DeleteVolume", ctx, "volume-uuid").Return(&datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "volume-uuid"}}, nil)
+		mockStorage.On("CreateVolume", ctx, mock.AnythingOfType("*datamodel.Volume")).Return(&datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Account:   account,
+			AccountID: account.ID,
+			Pool:      &pool.Pool,
+			PoolID:    pool.ID,
+		}, nil)
+		mockStorage.On("DeleteVolume", ctx, "volume-uuid").Return(&datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "volume-uuid"}}, nil)
 		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
 
 		// Mock workflow failure
@@ -437,14 +437,14 @@ func TestCreateVolume_FailedVolumeDeleteOnError(t *testing.T) {
 		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(pool, nil)
 		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, account.ID, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.IsRegionalHA).Return(nil, gorm.ErrRecordNotFound)
 		mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(svm, nil)
-	mockStorage.On("CreateVolume", ctx, mock.AnythingOfType("*datamodel.Volume")).Return(&datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
-		Account:   account,
-		AccountID: account.ID,
-		Pool:      &pool.Pool,
-		PoolID:    pool.ID,
-	}, nil)
-	mockStorage.On("DeleteVolume", ctx, "volume-uuid").Return(&datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "volume-uuid"}}, nil)
+		mockStorage.On("CreateVolume", ctx, mock.AnythingOfType("*datamodel.Volume")).Return(&datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Account:   account,
+			AccountID: account.ID,
+			Pool:      &pool.Pool,
+			PoolID:    pool.ID,
+		}, nil)
+		mockStorage.On("DeleteVolume", ctx, "volume-uuid").Return(&datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "volume-uuid"}}, nil)
 		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
 
 		// Mock workflow failure
@@ -535,14 +535,14 @@ func TestCreateVolume_FailedJobUpdateOnError(t *testing.T) {
 		mockStorage.On("GetPool", ctx, params.PoolID, account.ID).Return(pool, nil)
 		mockStorage.On("GetVolumeByNameAccountIDAndZone", ctx, params.Name, account.ID, pool.PoolAttributes.PrimaryZone, pool.PoolAttributes.IsRegionalHA).Return(nil, gorm.ErrRecordNotFound)
 		mockStorage.On("GetSvmForPoolID", ctx, pool.ID).Return(svm, nil)
-	mockStorage.On("CreateVolume", ctx, mock.AnythingOfType("*datamodel.Volume")).Return(&datamodel.Volume{
-		BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
-		Account:   account,
-		AccountID: account.ID,
-		Pool:      &pool.Pool,
-		PoolID:    pool.ID,
-	}, nil)
-	mockStorage.On("DeleteVolume", ctx, "volume-uuid").Return(&datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "volume-uuid"}}, nil)
+		mockStorage.On("CreateVolume", ctx, mock.AnythingOfType("*datamodel.Volume")).Return(&datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "volume-uuid"},
+			Account:   account,
+			AccountID: account.ID,
+			Pool:      &pool.Pool,
+			PoolID:    pool.ID,
+		}, nil)
+		mockStorage.On("DeleteVolume", ctx, "volume-uuid").Return(&datamodel.Volume{BaseModel: datamodel.BaseModel{UUID: "volume-uuid"}}, nil)
 		mockStorage.On("CreateJob", ctx, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
 
 		// Mock workflow failure

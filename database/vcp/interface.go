@@ -111,6 +111,7 @@ type (
 		GetVolumeCountByPoolID(ctx context.Context, poolID int64) (int64, error)
 		GetFlexCacheVolumeCountByClusterPeerID(ctx context.Context, clusterPeerID int64) (int64, error)
 		GetMultipleVolumes(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Volume, error)
+		GetMultipleVolumesSelective(ctx context.Context, conditions [][]interface{}, opts VolumePreloadOptions) ([]*datamodel.Volume, error)
 		VerifyVolumeOwnership(ctx context.Context, volumeID string, accountName string) (*datamodel.Volume, error)
 		GetAllVolumesForHG(ctx context.Context, hostGroupUUID string, accountID int64) ([]*datamodel.Volume, error)
 		GetEligibleVolumes(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.Volume, error)
@@ -128,6 +129,7 @@ type (
 		GetVolumeReplicationCountByClusterPeerID(ctx context.Context, clusterPeerID int64) (int64, error)
 		GetVolumeReplicationCountByPeerDetails(ctx context.Context, accountName string, peerSvmName string, peerVolumeName string) (int64, error)
 		GetVolumeReplicationCountByVolumeID(ctx context.Context, volumeID int64) (int64, error)
+		GetReplicatedVolumeUUIDs(ctx context.Context, volumeUUIDs []string) ([]string, error)
 		ListVolumeReplications(ctx context.Context, filter dbutils.Filter, queryDepth int) ([]*datamodel.VolumeReplication, error)
 		ListVolumeReplicationsWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.VolumeReplication, error)
 

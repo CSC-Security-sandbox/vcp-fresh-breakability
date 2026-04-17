@@ -89,6 +89,15 @@ func (UnimplementedHandler) V1betaBatchListSnapshots(ctx context.Context, req *B
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaBatchListVolumes implements v1beta_batchListVolumes operation.
+//
+// Batch lists all volumes with the given UUIDs across all accounts.
+//
+// POST /v1beta/locations/{locationId}/batch/volumes
+func (UnimplementedHandler) V1betaBatchListVolumes(ctx context.Context, req *BatchVolumeUUIDListV1beta, params V1betaBatchListVolumesParams) (r V1betaBatchListVolumesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaCheckKmsConfig implements v1beta_checkKmsConfig operation.
 //
 // Verifies whether service account can access the configured key.

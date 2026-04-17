@@ -8,9 +8,12 @@ package batch
 import (
 	"fmt"
 	"io"
+	"strconv"
 
+	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
@@ -76,21 +79,23 @@ V1betaBatchListVolumesOK handles this case with default header values.
 OK
 */
 type V1betaBatchListVolumesOK struct {
-	Payload []*models.BatchVolumeV1beta
+	Payload *V1betaBatchListVolumesOKBody
 }
 
 func (o *V1betaBatchListVolumesOK) Error() string {
 	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/volumes][%d] v1betaBatchListVolumesOK  %+v", 200, o.Payload)
 }
 
-func (o *V1betaBatchListVolumesOK) GetPayload() []*models.BatchVolumeV1beta {
+func (o *V1betaBatchListVolumesOK) GetPayload() *V1betaBatchListVolumesOKBody {
 	return o.Payload
 }
 
 func (o *V1betaBatchListVolumesOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
+	o.Payload = new(V1betaBatchListVolumesOKBody)
+
 	// response payload
-	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
 		return err
 	}
 
@@ -273,5 +278,72 @@ func (o *V1betaBatchListVolumesDefault) readResponse(response runtime.ClientResp
 		return err
 	}
 
+	return nil
+}
+
+/*
+V1betaBatchListVolumesOKBody v1beta batch list volumes o k body
+swagger:model V1betaBatchListVolumesOKBody
+*/
+type V1betaBatchListVolumesOKBody struct {
+
+	// volumes
+	Volumes []*models.BatchVolumeV1beta `json:"volumes"`
+}
+
+// Validate validates this v1beta batch list volumes o k body
+func (o *V1betaBatchListVolumesOKBody) Validate(formats strfmt.Registry) error {
+	var res []error
+
+	if err := o.validateVolumes(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (o *V1betaBatchListVolumesOKBody) validateVolumes(formats strfmt.Registry) error {
+
+	if swag.IsZero(o.Volumes) { // not required
+		return nil
+	}
+
+	for i := 0; i < len(o.Volumes); i++ {
+		if swag.IsZero(o.Volumes[i]) { // not required
+			continue
+		}
+
+		if o.Volumes[i] != nil {
+			if err := o.Volumes[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("v1betaBatchListVolumesOK" + "." + "volumes" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+// MarshalBinary interface implementation
+func (o *V1betaBatchListVolumesOKBody) MarshalBinary() ([]byte, error) {
+	if o == nil {
+		return nil, nil
+	}
+	return swag.WriteJSON(o)
+}
+
+// UnmarshalBinary interface implementation
+func (o *V1betaBatchListVolumesOKBody) UnmarshalBinary(b []byte) error {
+	var res V1betaBatchListVolumesOKBody
+	if err := swag.ReadJSON(b, &res); err != nil {
+		return err
+	}
+	*o = res
 	return nil
 }

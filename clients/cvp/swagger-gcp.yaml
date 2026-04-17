@@ -6954,32 +6954,55 @@ paths:
           items:
             type: string
             enum:
+              - resourceId
+              - volumeId
               - created
               - creationToken
-              - description
-              - resourceId
               - poolId
+              - kmsConfigId
+              - kmsConfigResourceId
+              - network
+              - activeDirectoryConfigId
+              - activeDirectoryResourceId
               - serviceLevel
+              - securityStyle
+              - usedBytes
               - quotaInBytes
+              - throughputMibps
+              - coldTierSizeGib
+              - snapReserve
+              - snapshotDirectory
               - protocols
               - volumeState
               - volumeStateDetails
-              - labels
-              - securityStyle
-              - usedBytes
-              - storageClass
-              - snapshotPolicy
-              - ldapEnabled
-              - backupConfig
-              - region
-              - encryptionType
-              - inReplication
               - isDataProtection
+              - inReplication
+              - snapshotPolicy
+              - storageClass
+              - exportPolicy
+              - backupConfig
+              - tieringPolicy
+              - blockProperties
+              - blockDevices
+              - restrictedActions
+              - smbSettings
+              - mountPoints
+              - labels
               - kerberosEnabled
-              - kmsConfigId
-              - snapReserve
-              - snapshotDirectory
+              - ldapEnabled
               - unixPermissions
+              - encryptionType
+              - description
+              - zone
+              - multipleEndpoints
+              - largeCapacity
+              - secondaryZone
+              - dedicatedCapacity
+              - largeVolumeConstituentCount
+              - cacheParameters
+              - hotTierSizeGib
+              - cloneDetails
+              - region
         - name: body
           in: body
           required: true
@@ -6990,9 +7013,12 @@ paths:
         '200':
           description: OK
           schema:
-            type: array
-            items:
-              $ref: '#/definitions/BatchVolume_v1beta'
+            type: object
+            properties:
+              volumes:
+                type: array
+                items:
+                  $ref: '#/definitions/BatchVolume_v1beta'
         '400':
           $ref: '#/responses/StandardError-400'
         '401':
@@ -13697,10 +13723,182 @@ definitions:
         x-nullable: true
         description: Description of the snapshot
         example: My snapshot description
+  OSType_v1beta:
+    title: OSType
+    type: string
+    enum:
+      - OS_TYPE_UNSPECIFIED
+      - LINUX
+      - WINDOWS
+      - ESXI
+    example: LINUX
+  HostGroupDetail:
+    type: object
+    properties:
+      hostGroupId:
+        title: hostGroupId
+        type: string
+        description: Uuid v4 used to identify the HostGroup
+        readOnly: true
+        example: 123e4567-e89b-12d3-a456-426614174000
+      hosts:
+        title: hosts
+        type: array
+        description: List of iSCSI Qualified Names associated with this HostGroup
+        items:
+          type: string
+        example:
+          - iqn.1998-01.com.vmware:example1
+          - iqn.1998-01.com.vmware:example2
+  BlockProperties_v1beta:
+    title: BlockProperties
+    type: object
+    properties:
+      osType:
+        title: osType
+        type: string
+        x-nullable: true
+        description: Specifies the OS type for the new Block Volume. The Block volume
+          will be used with the selected OS type.
+        enum:
+          - OS_TYPE_UNSPECIFIED
+          - LINUX
+          - WINDOWS
+          - ESXI
+        example: LINUX
+      hostGroupIds:
+        title: hostGroupIds
+        type: array
+        x-nullable: true
+        description: List of Uuid v4 used to identify the HostGroups. A volume can
+          be mapped to multiple HostGroups as long as each HostGroup has a distinct
+          set of hosts.
+        items:
+          type: string
+          pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          description: Uuid v4 used to identify the HostGroup
+          example: 9760acf5-4638-11e7-9bdb-020073ca3333
+      hostGroupDetails:
+        title: hostGroupDetails
+        type: array
+        x-nullable: true
+        description: List of HostGroup details. A volume can be mapped to multiple
+          HostGroups as long as each HostGroup has a distinct set of hosts.
+        readOnly: true
+        items:
+          $ref: '#/definitions/HostGroupDetail'
+      lunSerialNumber:
+        readOnly: true
+        type: string
+        x-nullable: true
+        description: LUN Serial Number of the Block Volume.
+        example: 6c5738423724595454686164
+  BlockDevice_v1beta:
+    title: BlockDevice
+    type: object
+    properties:
+      name:
+        title: name
+        type: string
+        x-nullable: true
+        description: User-defined name for the block device, unique within the Volume.
+          In case no user input is provide name will be autogenerated in the backend
+        example: my-block-device
+      hostGroups:
+        title: hostGroups
+        type: array
+        x-nullable: true
+        description: List of Uuid v4 used to identify the HostGroups. A volume can
+          be mapped to multiple HostGroups as long as each HostGroup has a distinct
+          set of hosts.
+        items:
+          type: string
+          pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          description: Uuid v4 used to identify the HostGroup
+          example: 9760acf5-4638-11e7-9bdb-020073ca3333
+      hostGroupDetails:
+        title: hostGroupDetails
+        type: array
+        x-nullable: true
+        description: List of HostGroup details. A volume can be mapped to multiple
+          HostGroups as long as each HostGroup has a distinct set of hosts.
+        readOnly: true
+        items:
+          $ref: '#/definitions/HostGroupDetail'
+      identifier:
+        title: identifier
+        type: string
+        x-nullable: true
+        description: Device identifier of the Block volume. LUN serial number for
+          iSCSI volumes and namespaceid for NVMe volumes.
+        readOnly: true
+        example: 6c5738423724595454686164
+      sizeInBytes:
+        title: sizeInBytes
+        type: number
+        format: double
+        x-nullable: true
+        description: Size of the block device in GiB.
+        readOnly: true
+        example: 100
+      osType:
+        title: osType
+        type: string
+        x-nullable: true
+        description: Specifies the OS type for the new Block Volume. The Block volume
+          will be used with the selected OS type.
+        enum:
+          - OS_TYPE_UNSPECIFIED
+          - LINUX
+          - WINDOWS
+          - ESXI
+        example: LINUX
+  CloneDetails_v1beta:
+    title: Clone Parent Info
+    type: object
+    properties:
+      parentVolumeId:
+        title: parentVolumeId
+        maxLength: 36
+        minLength: 36
+        pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+        type: string
+        x-nullable: true
+        description: Uuid v4 of the parent volume of the clone
+        readOnly: true
+        example: 9760acf5-4638-11e7-9bdb-020073ca0001
+      parentSnapshotId:
+        title: parentSnapshotId
+        type: string
+        x-nullable: true
+        readOnly: true
+        description: Uuid v4 of the parent snapshot of the clone
+        pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+        maxLength: 36
+        minLength: 36
+        example: 9760acf5-4638-11e7-9bdb-020073ca3333
+      sharedBytes:
+        title: sharedBytes
+        minimum: 0
+        type: number
+        x-nullable: true
+        description: The amount of data (in bytes) shared from parent volume to this
+          thin clone volume.
+        format: double
+        readOnly: true
+        example: 101010.0
+        default: 0.0
   BatchVolume_v1beta:
     type: object
     title: Volume
     properties:
+      resourceId:
+        title: resourceId
+        type: string
+        x-omitempty: true
+        x-nullable: true
+        description: The resource ID of the volume.
+        example: some-weird-name
       volumeId:
         title: volumeId
         type: string
@@ -13710,129 +13908,6 @@ definitions:
         maxLength: 36
         minLength: 36
         example: 87654321-4638-11e7-9bdb-123456789012
-      resourceId:
-        title: resourceId
-        type: string
-        x-omitempty: true
-        x-nullable: true
-        description: The resource ID of the volume.
-        example: some-weird-name
-      poolId:
-        title: poolId
-        type: string
-        x-omitempty: true
-        x-nullable: true
-        description: The UUID of the pool to which the volume belongs.
-        example: f943038a-c2a1-4d96-8115-170d9f1ac11c
-      serviceLevel:
-        title: serviceLevel
-        type: string
-        x-omitempty: true
-        description: The service level of the volume
-        example: EXTREME
-      quotaInBytes:
-        title: quotaInBytes
-        type: integer
-        x-omitempty: true
-        format: uint64
-        x-nullable: true
-        description: Maximum storage quota allowed for the volume in bytes.
-        default: 1000000000000
-        example: 4000000000000
-      protocols:
-        title: protocol
-        description: Protocol type through which volume can be accessed.
-        x-omitempty: true
-        x-nullable: true
-        type: array
-        items:
-          $ref: '#/definitions/protocols_v1beta'
-      volumeState:
-        title: volumeState
-        type: string
-        x-omitempty: true
-        description: The current lifecycle state of the volume
-        enum:
-          - STATE_UNSPECIFIED
-          - CREATING
-          - READY
-          - UPDATING
-          - RESTORING
-          - DELETED
-          - DISABLED
-          - DELETING
-          - ERROR
-        example: READY
-      volumeStateDetails:
-        title: volumeStateDetails
-        type: string
-        x-omitempty: true
-        x-nullable: true
-        description: Details about the current lifecycle state
-        example: Available for use
-      labels:
-        title: labels
-        type: object
-        x-omitempty: true
-        x-nullable: true
-        additionalProperties:
-          type: string
-        description: JSON dictionary of resource labels to allow linking of billing
-          labels to a volume
-        example:
-          someKey: SomeValue
-          someKey2: SomeValue2
-      securityStyle:
-        title: securityStyle
-        type: string
-        x-omitempty: true
-        description: The security style of the volume
-        example: unix
-      usedBytes:
-        title: usedBytes
-        type: integer
-        x-omitempty: true
-        format: uint64
-        x-nullable: true
-        description: Size of the volume in bytes.
-        example: 4000000000000
-      storageClass:
-        title: storageClass
-        type: string
-        x-omitempty: true
-        description: Storage class of the volume, either software or hardware.
-        example: HARDWARE
-      snapshotPolicy:
-        x-omitempty: true
-        $ref: '#/definitions/SnapshotPolicy_v1beta'
-      ldapEnabled:
-        title: ldapEnabled
-        type: boolean
-        x-omitempty: true
-        description: Flag indicating if the volume is NFS LDAP enabled or not.
-        default: false
-        x-nullable: true
-      backupConfig:
-        $ref: '#/definitions/BackupConfig_v1beta'
-      region:
-        title: region
-        readOnly: true
-        type: string
-        x-omitempty: true
-        x-nullable: true
-        description: The region name of the volume
-        example: some-location1
-      encryptionType:
-        title: encryptionType
-        description: Type of encryption used for volumes; Can either be service-managed
-          key (service_managed) or cloud_kms
-        type: string
-        x-omitempty: true
-        enum:
-          - ENCRYPTION_TYPE_UNSPECIFIED
-          - SERVICE_MANAGED
-          - CLOUD_KMS
-        example: SERVICE_MANAGED
       created:
         title: created
         type: string
@@ -13855,36 +13930,13 @@ definitions:
         maxLength: 80
         minLength: 1
         example: hopefully-sufficient-newton
-      description:
-        title: description
+      poolId:
+        title: poolId
         type: string
         x-omitempty: true
-        description: Description of the volume.
-        maxLength: 2048
-        example: My Volume description
-      inReplication:
-        title: inReplication
-        type: boolean
-        x-omitempty: true
         x-nullable: true
-        description: Flag indicating if the volume is in a cross region replication
-        default: false
-        readOnly: true
-      isDataProtection:
-        title: isDataProtection
-        type: boolean
-        x-omitempty: true
-        x-nullable: true
-        description: Flag indicating if the volume is a data protection volume or
-          not
-      kerberosEnabled:
-        title: kerberosEnabled
-        type: boolean
-        x-omitempty: true
-        x-nullable: true
-        description: Flag indicating if the volume is a kerberos volume or not, export
-          policy rules control kerberos security modes (krb5, krb5i, krb5p).
-        default: false
+        description: The UUID of the pool to which the volume belongs.
+        example: f943038a-c2a1-4d96-8115-170d9f1ac11c
       kmsConfigId:
         type: string
         x-omitempty: true
@@ -13894,6 +13946,112 @@ definitions:
         maxLength: 36
         minLength: 36
         example: 87654321-4638-11e7-9bdb-123456789011
+      kmsConfigResourceId:
+        title: kmsConfigResourceId
+        type: string
+        x-omitempty: true
+        x-nullable: true
+        description: The resource ID for the connected KMS configuration
+        example: projects/my-project-1/locations/eu-west-1/kmsConfigs/myconfig
+        readOnly: true
+      network:
+        title: network
+        type: string
+        x-omitempty: true
+        x-nullable: true
+        readOnly: true
+        pattern: ^projects\/\d+\/global\/networks\/(![0-9]+$)?(!.*-$)?(!-)?[a-zA-Z0-9-]{1,63}$
+        description: Servicenetworking.connections.network value that is returned
+          after creating a successful VPC peering connection via the GCP service networking
+          API
+        example: projects/1079058383248/global/networks/network-to-netapp2
+      activeDirectoryConfigId:
+        type: string
+        x-omitempty: true
+        x-nullable: true
+        description: UUID of Active Directory configuration
+        readOnly: true
+        pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+        maxLength: 36
+        minLength: 36
+        example: 9760acf5-4638-11e7-9bdb-020073ca7773
+      activeDirectoryResourceId:
+        title: activeDirectoryResourceId
+        type: string
+        x-omitempty: true
+        x-nullable: true
+        description: The resource ID for the connected Active Directory
+        example: projects/my-project-1/locations/eu-west-1/activeDirectories/mydirectory
+        readOnly: true
+      serviceLevel:
+        title: serviceLevel
+        type: string
+        x-omitempty: true
+        x-nullable: true
+        readOnly: true
+        description: The service level of the volume. Will be specified as premium
+          or extreme, which will be equivalent to having specified performance medium
+          or high, respectively. However, if any service level's name is one of premium
+          or extreme, the performance will be that of the service level, not the performance
+          equivalent.
+        enum:
+          - SERVICE_LEVEL_UNSPECIFIED
+          - FLEX
+          - STANDARD
+          - PREMIUM
+          - EXTREME
+        example: PREMIUM
+        default: PREMIUM
+      securityStyle:
+        title: securityStyle
+        type: string
+        x-omitempty: true
+        x-nullable: true
+        description: The security style of the volume
+        enum:
+          - SECURITY_STYLE_UNSPECIFIED
+          - NTFS
+          - UNIX
+        example: NTFS
+      usedBytes:
+        title: usedBytes
+        type: number
+        x-omitempty: true
+        format: double
+        x-nullable: true
+        readOnly: true
+        description: Current storage usage for the volume in bytes
+        minimum: 0.0
+        default: 0.0
+        example: 101010.0
+      quotaInBytes:
+        title: quotaInBytes
+        type: number
+        x-omitempty: true
+        format: double
+        x-nullable: true
+        description: Maximum storage quota allowed for a volume in bytes. This is
+          a soft quota used for alerting only.
+        default: 1000000000000.0
+        example: 4000000000000.0
+      throughputMibps:
+        title: throughputMibps
+        type: number
+        format: double
+        x-omitempty: true
+        x-nullable: true
+        description: Throughput of the volume in Mibps.
+        example: 100.0
+      coldTierSizeGib:
+        title: coldTierSizeGib
+        type: number
+        format: double
+        x-omitempty: true
+        x-nullable: true
+        default: 0.0
+        readOnly: true
+        description: Volume footprint in cold storage
+        example: 4000000000000
       snapReserve:
         title: snapReserve
         type: number
@@ -13915,13 +14073,143 @@ definitions:
           directory which provides access to each of the volume's snapshots. Defaults
           to true.
         default: true
+      volumeState:
+        title: volumeState
+        type: string
+        x-omitempty: true
+        x-nullable: true
+        readOnly: true
+        description: The current lifecycle state of the resource
+        enum:
+          - STATE_UNSPECIFIED
+          - CREATING
+          - READY
+          - UPDATING
+          - RESTORING
+          - DELETED
+          - DISABLED
+          - DELETING
+          - ERROR
+          - READ_ONLY
+          - PREPARING
+        example: READY
+      volumeStateDetails:
+        title: volumeStateDetails
+        type: string
+        x-omitempty: true
+        x-nullable: true
+        readOnly: true
+        description: Details about the current lifecycle state
+        example: Error connecting to remote service
+      isDataProtection:
+        title: isDataProtection
+        type: boolean
+        x-omitempty: true
+        x-nullable: true
+        description: Flag indicating if the volume is a data protection volume or
+          not
+        readOnly: true
+      inReplication:
+        title: inReplication
+        type: boolean
+        x-omitempty: true
+        x-nullable: true
+        description: Flag indicating if the volume is in a cross region replication
+        default: false
+        readOnly: true
+      snapshotPolicy:
+        x-omitempty: true
+        x-nullable: true
+        $ref: '#/definitions/SnapshotPolicy_v1beta'
+      storageClass:
+        x-omitempty: true
+        x-nullable: true
+        $ref: '#/definitions/StorageClass_v1beta'
+      exportPolicy:
+        x-omitempty: true
+        x-nullable: true
+        $ref: '#/definitions/ExportPolicy_v1beta'
+      backupConfig:
+        x-omitempty: true
+        x-nullable: true
+        $ref: '#/definitions/BackupConfig_v1beta'
+      tieringPolicy:
+        x-omitempty: true
+        x-nullable: true
+        $ref: '#/definitions/TieringPolicy_v1beta'
+      blockProperties:
+        x-omitempty: true
+        x-nullable: true
+        $ref: '#/definitions/BlockProperties_v1beta'
+      blockDevices:
+        title: blockDevices
+        type: array
+        x-omitempty: true
+        x-nullable: true
+        description: Array of block devices associated with this volume
+        items:
+          $ref: '#/definitions/BlockDevice_v1beta'
+      protocols:
+        title: protocol
+        type: array
+        x-omitempty: true
+        x-nullable: true
+        description: Protocol type through which volume can be accessed.
+        items:
+          $ref: '#/definitions/protocols_v1beta'
+      restrictedActions:
+        x-omitempty: true
+        x-nullable: true
+        $ref: '#/definitions/RestrictedActions_v1beta'
+      smbSettings:
+        x-omitempty: true
+        x-nullable: true
+        $ref: '#/definitions/SMBSettings_v1beta'
+      mountPoints:
+        title: mountPoints
+        type: array
+        x-omitempty: true
+        x-nullable: true
+        readOnly: true
+        description: Mount points for the volume
+        items:
+          $ref: '#/definitions/MountPoint_v1beta'
+      labels:
+        title: labels
+        type: object
+        x-omitempty: true
+        x-nullable: true
+        additionalProperties:
+          type: string
+        description: JSON dictionary of resource labels to allow linking of billing
+          labels to a volume
+        example:
+          someKey: SomeValue
+          someKey2: SomeValue2
+      kerberosEnabled:
+        title: kerberosEnabled
+        type: boolean
+        x-omitempty: true
+        x-nullable: true
+        description: Flag indicating if the volume is a kerberos volume or not, export
+          policy rules control kerberos security modes (krb5, krb5i, krb5p).
+        default: false
+      ldapEnabled:
+        title: ldapEnabled
+        type: boolean
+        x-omitempty: true
+        x-nullable: true
+        description: Flag indicating if the volume is NFS LDAP enabled or not.
+        default: false
+        readOnly: true
       unixPermissions:
         title: unixPermissions
         type: string
         x-omitempty: true
         x-nullable: true
+        minLength: 4
+        maxLength: 4
         pattern: ^[0-7]{4}$
-        format: octal
         description: 'UNIX permissions for NFS volume accepted in octal 4 digit format.
           First digit selects the set user ID(4), set group ID (2) and sticky (1)
           attributes. Second digit selects permission for the owner of the file: read
@@ -13929,7 +14217,101 @@ definitions:
           in the same group. the fourth for other users not in the group. "0755" -
           gives read/write/execute permissions to owner and read/execute to group
           and other users.'
-        example: 493
+        example: '0755'
+      encryptionType:
+        title: encryptionType
+        description: Type of encryption used for volumes - can be either service managed
+          key (service_managed) or cloud_kms
+        type: string
+        x-omitempty: true
+        x-nullable: true
+        enum:
+          - ENCRYPTION_TYPE_UNSPECIFIED
+          - SERVICE_MANAGED
+          - CLOUD_KMS
+        example: SERVICE_MANAGED
+      description:
+        title: description
+        type: string
+        x-omitempty: true
+        x-nullable: true
+        description: Description of the volume
+        maxLength: 2048
+        example: My Volume description
+      zone:
+        title: zone
+        type: string
+        x-omitempty: true
+        x-nullable: true
+        example: us-east1-b
+        description: The target zone to which the storage pool has to be migrated.
+      multipleEndpoints:
+        title: multipleEndpoints
+        type: boolean
+        default: false
+        x-omitempty: false
+        x-nullable: true
+        description: Flag indicating if the volume will have an IP address per node
+          for volumes supporting multiple endpoints
+      largeCapacity:
+        title: largeCapacity
+        type: boolean
+        default: false
+        x-omitempty: false
+        x-nullable: true
+        description: Flag indicating if the volume will be a large capacity volume
+          (flexgroup) or a regular volume (flexvol)
+      secondaryZone:
+        title: SecondaryZone
+        type: string
+        x-omitempty: true
+        x-nullable: true
+        readOnly: true
+        example: us-east1-b
+        description: The desired zone for the fail over.
+      dedicatedCapacity:
+        title: dedicatedCapacity
+        type: boolean
+        default: false
+        x-omitempty: true
+        x-nullable: true
+        description: Flag indicating if the volume needs to be created on a dedicated
+          stamp.
+      largeVolumeConstituentCount:
+        title: largeVolumeConstituentCount
+        type: integer
+        format: int32
+        x-omitempty: true
+        x-nullable: true
+        example: 24
+        minimum: 2
+        description: The count of number of constituent volumes for the large volume.
+      cacheParameters:
+        x-omitempty: true
+        x-nullable: true
+        $ref: '#/definitions/FlexCache_v1beta'
+      hotTierSizeGib:
+        title: hotTierSizeGib
+        type: number
+        format: double
+        default: 0.0
+        readOnly: true
+        x-omitempty: true
+        x-nullable: true
+        description: Volume footprint in hot storage
+        example: 4000000000000
+      cloneDetails:
+        x-omitempty: true
+        x-nullable: true
+        $ref: '#/definitions/CloneDetails_v1beta'
+      region:
+        title: region
+        readOnly: true
+        type: string
+        x-omitempty: true
+        x-nullable: true
+        description: The region name of the volume
+        example: some-location1
   BatchActiveDirectory_v1beta:
     type: object
     title: ActiveDirectory

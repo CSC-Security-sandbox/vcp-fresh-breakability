@@ -44,6 +44,7 @@ type OrchestratorFactory interface {
 	GetVolumeCount(ctx context.Context, projectNumber string) (int64, error)
 	DeleteVolume(ctx context.Context, volumeId string) (*models.Volume, string, error)
 	GetMultipleVolumes(ctx context.Context, volumeIds []string, accountName string) ([]*models.Volume, error)
+	GetVolumesByUUIDs(ctx context.Context, volumeIds []string, opts commonparams.VolumeFetchOptions) ([]*models.Volume, error)
 	ListVolumes(ctx context.Context, accountName string) ([]*models.Volume, error)
 	EstablishFlexCacheVolumePeering(ctx context.Context, params *commonparams.EstablishVolumePeeringParams) (*models.Volume, string, error)
 	EstablishReplicationPeering(ctx context.Context, params *commonparams.EstablishReplicationPeeringParams) (*models.VolumeReplication, string, error)

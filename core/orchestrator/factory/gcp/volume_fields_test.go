@@ -309,7 +309,7 @@ func TestPopulateVolumeInReplication(t *testing.T) {
 		result := convertDatastoreVolumeToModel(volume, nil)
 		require.NotNil(t, result)
 		populateVolumeInReplication(ctx, nil, volume, result)
-		assert.False(t, result.InReplication)
+		assert.Nil(t, result.InReplication)
 	})
 
 	t.Run("ReplicationCountZero_SetsInReplicationFalse", func(t *testing.T) {
@@ -318,7 +318,8 @@ func TestPopulateVolumeInReplication(t *testing.T) {
 		result := convertDatastoreVolumeToModel(volume, nil)
 		require.NotNil(t, result)
 		populateVolumeInReplication(ctx, mockStorage, volume, result)
-		assert.False(t, result.InReplication)
+		require.NotNil(t, result.InReplication)
+		assert.False(t, *result.InReplication)
 	})
 
 	t.Run("ReplicationCountPositive_SetsInReplicationTrue", func(t *testing.T) {
@@ -327,7 +328,8 @@ func TestPopulateVolumeInReplication(t *testing.T) {
 		result := convertDatastoreVolumeToModel(volume, nil)
 		require.NotNil(t, result)
 		populateVolumeInReplication(ctx, mockStorage, volume, result)
-		assert.True(t, result.InReplication)
+		require.NotNil(t, result.InReplication)
+		assert.True(t, *result.InReplication)
 	})
 
 	t.Run("GetVolumeReplicationCountError_LeavesInReplicationFalse", func(t *testing.T) {
@@ -336,6 +338,6 @@ func TestPopulateVolumeInReplication(t *testing.T) {
 		result := convertDatastoreVolumeToModel(volume, nil)
 		require.NotNil(t, result)
 		populateVolumeInReplication(ctx, mockStorage, volume, result)
-		assert.False(t, result.InReplication)
+		assert.Nil(t, result.InReplication)
 	})
 }

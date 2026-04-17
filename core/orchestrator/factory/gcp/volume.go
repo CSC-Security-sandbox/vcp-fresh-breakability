@@ -8,6 +8,7 @@ import (
 	"math"
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -1691,6 +1692,7 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 		PoolID:                volume.Pool.UUID,
 		PoolName:              volume.Pool.Name,
 		AccountName:           volume.Account.Name,
+		ServiceLevel:          volume.Pool.ServiceLevel,
 		DisplayName:           volume.Name,
 		Description:           volume.Description,
 		QuotaInBytes:          uint64(volume.SizeInBytes),
@@ -1699,6 +1701,7 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 		IsDataProtection:      volume.VolumeAttributes.IsDataProtection,
 		Mounted:               volume.VolumeAttributes.Mounted,
 		Zone:                  volume.Pool.PoolAttributes.PrimaryZone,
+		SecondaryZone:         volume.Pool.PoolAttributes.SecondaryZone,
 		UsedBytes:             volume.UsedBytes,
 		SnapReserve:           volume.VolumeAttributes.SnapReserve,
 		SnapshotDirectory:     volume.VolumeAttributes.SnapshotDirectory,
@@ -1712,6 +1715,9 @@ func _convertDatastoreVolumeToModel(volume *datamodel.Volume, ipAddress *[]strin
 	if volume.Pool != nil {
 		if volume.Pool.PoolAttributes != nil {
 			res.LdapEnabled = volume.Pool.PoolAttributes.LdapEnabled
+			if region, _, err := utils.ParseRegionAndZone(volume.Pool.PoolAttributes.PrimaryZone); err == nil {
+				res.Region = region
+			}
 		}
 		if volume.Pool.ActiveDirectory != nil {
 			res.ActiveDirectoryConfigId = volume.Pool.ActiveDirectory.UUID
@@ -1992,7 +1998,7 @@ func populateVolumeInReplication(ctx context.Context, se database.Storage, dbVol
 		util.GetLogger(ctx).Warn("Error populating inReplication for volume", "volumeID", dbVolume.ID, "error", err)
 		return
 	}
-	modelVol.InReplication = count > 0
+	modelVol.InReplication = nillable.ToPointer(count > 0)
 }
 
 func convertHostGroupDetails(hgs []datamodel.HostGroupDetail) []models.HostGroupDetails {
@@ -2238,6 +2244,75 @@ func (o *GCPOrchestrator) GetMultipleVolumes(ctx context.Context, volumeIds []st
 	if wfErr != nil {
 		log.Error("Error occurred in TriggerRefreshWorkflow", "error", wfErr.Error())
 	}
+	return result, nil
+}
+
+// GetVolumesByUUIDs returns volumes matching the given UUIDs across all accounts.
+func (o *GCPOrchestrator) GetVolumesByUUIDs(ctx context.Context, volumeIds []string, opts common.VolumeFetchOptions) ([]*models.Volume, error) {
+	se := o.storage
+
+	var (
+		volumes         []*datamodel.Volume
+		replicatedUUIDs []string
+		fetchVolumesErr error
+		replicationErr  error
+		wg              sync.WaitGroup
+	)
+
+	conditions := [][]interface{}{{"uuid in ?", volumeIds}}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		volumes, fetchVolumesErr = se.GetMultipleVolumesSelective(ctx, conditions, database.VolumePreloadOptions{
+			ActiveDirectory:        opts.NeedActiveDirectory,
+			KmsConfig:              opts.NeedKmsConfig,
+			VolumePerformanceGroup: opts.NeedVolumePerformanceGroup,
+		})
+	}()
+
+	if opts.NeedInReplication {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			replicatedUUIDs, replicationErr = se.GetReplicatedVolumeUUIDs(ctx, volumeIds)
+		}()
+	}
+
+	wg.Wait()
+
+	if fetchVolumesErr != nil {
+		return nil, fetchVolumesErr
+	}
+	if replicationErr != nil {
+		return nil, replicationErr
+	}
+
+	replicatedUUIDSet := make(map[string]struct{}, len(replicatedUUIDs))
+	for _, uuid := range replicatedUUIDs {
+		replicatedUUIDSet[uuid] = struct{}{}
+	}
+
+	result := make([]*models.Volume, 0, len(volumes))
+	for _, volume := range volumes {
+		var ipAddresses *[]string
+
+		if opts.NeedIPAddresses {
+			fetchedIPAddresses, ipErr := getIPAddressForVolume(ctx, se, volume)
+			if ipErr != nil {
+				util.GetLogger(ctx).Warnf("Failed to get IP addresses for volume %s: %v", volume.UUID, ipErr)
+			} else {
+				ipAddresses = &fetchedIPAddresses
+			}
+		}
+
+		modelVolume := convertDatastoreVolumeToModel(volume, ipAddresses)
+		if opts.NeedInReplication {
+			_, ok := replicatedUUIDSet[volume.UUID]
+			modelVolume.InReplication = nillable.ToPointer(ok)
+		}
+		result = append(result, modelVolume)
+	}
+
 	return result, nil
 }
 

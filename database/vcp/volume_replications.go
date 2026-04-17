@@ -296,6 +296,23 @@ func (d *DataStoreRepository) GetVolumeReplicationCountByVolumeID(ctx context.Co
 	return count, nil
 }
 
+func (d *DataStoreRepository) GetReplicatedVolumeUUIDs(ctx context.Context, volumeUUIDs []string) ([]string, error) {
+	var replicatedUUIDs []string
+	err := d.db.GORM().
+		WithContext(ctx).
+		Table("volume_replications").
+		Distinct("volumes.uuid").
+		Joins("JOIN volumes ON volumes.id = volume_replications.volume_id").
+		Where("volume_replications.deleted_at IS NULL").
+		Where("volumes.deleted_at IS NULL").
+		Where("volumes.uuid IN ?", volumeUUIDs).
+		Pluck("volumes.uuid", &replicatedUUIDs).Error
+	if err != nil {
+		return nil, err
+	}
+	return replicatedUUIDs, nil
+}
+
 func (d *DataStoreRepository) ListVolumeReplications(ctx context.Context, filter utils2.Filter, queryDepth int) ([]*datamodel.VolumeReplication, error) {
 	if len(filter.Conditions) == 0 {
 		return nil, customerrors.NewUserInputValidationErr("no filter conditions provided for listing volume replications")

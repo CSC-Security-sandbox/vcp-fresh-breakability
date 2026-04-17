@@ -134,6 +134,10 @@ func (o *OCIOrchestrator) GetMultipleVolumes(ctx context.Context, volumeIds []st
 	return nil, utilserrors.NewNotImplementedYetErr()
 }
 
+func (o *OCIOrchestrator) GetVolumesByUUIDs(ctx context.Context, volumeIds []string, opts commonparams.VolumeFetchOptions) ([]*models.Volume, error) {
+	return nil, utilserrors.NewNotImplementedYetErr()
+}
+
 func (o *OCIOrchestrator) ListVolumes(ctx context.Context, accountName string) ([]*models.Volume, error) {
 	return nil, utilserrors.NewNotImplementedYetErr()
 }

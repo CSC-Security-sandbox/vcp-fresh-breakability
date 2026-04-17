@@ -683,6 +683,20 @@ func ConvertJsonToModel(jsonb []byte, model any) error {
 	return nil
 }
 
+func RemapJSON(src any, model any) error {
+	jsonb, err := json.Marshal(src)
+	if err != nil {
+		return errors.New(fmt.Sprintf("Failed to marshal json: %v", err))
+	}
+
+	err = json.Unmarshal(jsonb, model)
+	if err != nil {
+		return errors.New(fmt.Sprintf("Failed to unmarshal json: %v", err))
+	}
+
+	return nil
+}
+
 // SplitIntSliceIntoChunks splits the given slice into multiple slices of length lim
 func SplitIntSliceIntoChunks(buf []int64, lim int) [][]int64 {
 	var chunk []int64

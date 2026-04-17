@@ -73,6 +73,12 @@ type Invoker interface {
 	//
 	// POST /v1beta/locations/{locationId}/batch/snapshots
 	V1betaBatchListSnapshots(ctx context.Context, request *BatchSnapshotUUIDListV1beta, params V1betaBatchListSnapshotsParams) (V1betaBatchListSnapshotsRes, error)
+	// V1betaBatchListVolumes invokes v1beta_batchListVolumes operation.
+	//
+	// Batch lists all volumes with the given UUIDs across all accounts.
+	//
+	// POST /v1beta/locations/{locationId}/batch/volumes
+	V1betaBatchListVolumes(ctx context.Context, request *BatchVolumeUUIDListV1beta, params V1betaBatchListVolumesParams) (V1betaBatchListVolumesRes, error)
 	// V1betaCheckKmsConfig invokes v1beta_checkKmsConfig operation.
 	//
 	// Verifies whether service account can access the configured key.
@@ -1684,6 +1690,118 @@ func (c *Client) sendV1betaBatchListSnapshots(ctx context.Context, request *Batc
 	defer resp.Body.Close()
 
 	result, err := decodeV1betaBatchListSnapshotsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1betaBatchListVolumes invokes v1beta_batchListVolumes operation.
+//
+// Batch lists all volumes with the given UUIDs across all accounts.
+//
+// POST /v1beta/locations/{locationId}/batch/volumes
+func (c *Client) V1betaBatchListVolumes(ctx context.Context, request *BatchVolumeUUIDListV1beta, params V1betaBatchListVolumesParams) (V1betaBatchListVolumesRes, error) {
+	res, err := c.sendV1betaBatchListVolumes(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaBatchListVolumes(ctx context.Context, request *BatchVolumeUUIDListV1beta, params V1betaBatchListVolumesParams) (res V1betaBatchListVolumesRes, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/v1beta/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/batch/volumes"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "fields" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "fields",
+			Style:   uri.QueryStyleForm,
+			Explode: false,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if params.Fields != nil {
+				return e.EncodeArray(func(e uri.Encoder) error {
+					for i, item := range params.Fields {
+						if err := func() error {
+							return e.EncodeValue(conv.StringToString(string(item)))
+						}(); err != nil {
+							return errors.Wrapf(err, "[%d]", i)
+						}
+					}
+					return nil
+				})
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1betaBatchListVolumesRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaBatchListVolumesResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

@@ -9343,6 +9343,66 @@ func (_c *MockStorage_GetMultipleVolumesWithExpertMode_Call) RunAndReturn(run fu
 	return _c
 }
 
+// GetMultipleVolumesSelective provides a mock function with given fields: ctx, conditions, opts
+func (_m *MockStorage) GetMultipleVolumesSelective(ctx context.Context, conditions [][]interface{}, opts VolumePreloadOptions) ([]*datamodel.Volume, error) {
+	ret := _m.Called(ctx, conditions, opts)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMultipleVolumesSelective")
+	}
+
+	var r0 []*datamodel.Volume
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, VolumePreloadOptions) ([]*datamodel.Volume, error)); ok {
+		return rf(ctx, conditions, opts)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}, VolumePreloadOptions) []*datamodel.Volume); ok {
+		r0 = rf(ctx, conditions, opts)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.Volume)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, [][]interface{}, VolumePreloadOptions) error); ok {
+		r1 = rf(ctx, conditions, opts)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetMultipleVolumesSelective_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMultipleVolumesSelective'
+type MockStorage_GetMultipleVolumesSelective_Call struct {
+	*mock.Call
+}
+
+// GetMultipleVolumesSelective is a helper method to define mock.On call
+//   - ctx context.Context
+//   - conditions [][]interface{}
+//   - opts VolumePreloadOptions
+func (_e *MockStorage_Expecter) GetMultipleVolumesSelective(ctx interface{}, conditions interface{}, opts interface{}) *MockStorage_GetMultipleVolumesSelective_Call {
+	return &MockStorage_GetMultipleVolumesSelective_Call{Call: _e.mock.On("GetMultipleVolumesSelective", ctx, conditions, opts)}
+}
+
+func (_c *MockStorage_GetMultipleVolumesSelective_Call) Run(run func(ctx context.Context, conditions [][]interface{}, opts VolumePreloadOptions)) *MockStorage_GetMultipleVolumesSelective_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([][]interface{}), args[2].(VolumePreloadOptions))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetMultipleVolumesSelective_Call) Return(_a0 []*datamodel.Volume, _a1 error) *MockStorage_GetMultipleVolumesSelective_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetMultipleVolumesSelective_Call) RunAndReturn(run func(context.Context, [][]interface{}, VolumePreloadOptions) ([]*datamodel.Volume, error)) *MockStorage_GetMultipleVolumesSelective_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetNextSVMIndexByPoolID provides a mock function with given fields: ctx, poolID
 func (_m *MockStorage) GetNextSVMIndexByPoolID(ctx context.Context, poolID int64) (int64, error) {
 	ret := _m.Called(ctx, poolID)
@@ -13105,6 +13165,65 @@ func (_c *MockStorage_GetVolumeReplicationCountByVolumeID_Call) Return(_a0 int64
 }
 
 func (_c *MockStorage_GetVolumeReplicationCountByVolumeID_Call) RunAndReturn(run func(context.Context, int64) (int64, error)) *MockStorage_GetVolumeReplicationCountByVolumeID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetReplicatedVolumeUUIDs provides a mock function with given fields: ctx, volumeUUIDs
+func (_m *MockStorage) GetReplicatedVolumeUUIDs(ctx context.Context, volumeUUIDs []string) ([]string, error) {
+	ret := _m.Called(ctx, volumeUUIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetReplicatedVolumeUUIDs")
+	}
+
+	var r0 []string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []string) ([]string, error)); ok {
+		return rf(ctx, volumeUUIDs)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []string) []string); ok {
+		r0 = rf(ctx, volumeUUIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []string) error); ok {
+		r1 = rf(ctx, volumeUUIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_GetReplicatedVolumeUUIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetReplicatedVolumeUUIDs'
+type MockStorage_GetReplicatedVolumeUUIDs_Call struct {
+	*mock.Call
+}
+
+// GetReplicatedVolumeUUIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUIDs []string
+func (_e *MockStorage_Expecter) GetReplicatedVolumeUUIDs(ctx interface{}, volumeUUIDs interface{}) *MockStorage_GetReplicatedVolumeUUIDs_Call {
+	return &MockStorage_GetReplicatedVolumeUUIDs_Call{Call: _e.mock.On("GetReplicatedVolumeUUIDs", ctx, volumeUUIDs)}
+}
+
+func (_c *MockStorage_GetReplicatedVolumeUUIDs_Call) Run(run func(ctx context.Context, volumeUUIDs []string)) *MockStorage_GetReplicatedVolumeUUIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_GetReplicatedVolumeUUIDs_Call) Return(_a0 []string, _a1 error) *MockStorage_GetReplicatedVolumeUUIDs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_GetReplicatedVolumeUUIDs_Call) RunAndReturn(run func(context.Context, []string) ([]string, error)) *MockStorage_GetReplicatedVolumeUUIDs_Call {
 	_c.Call.Return(run)
 	return _c
 }

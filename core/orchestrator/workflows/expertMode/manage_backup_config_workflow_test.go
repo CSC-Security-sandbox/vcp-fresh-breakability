@@ -1521,9 +1521,9 @@ func TestBuildVolumeFromExpertMode(t *testing.T) {
 			Name:         "vol",
 			ExternalUUID: "ext-uuid",
 			AccountID:    1,
-		Account:      &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}},
-		Pool:         nil,
-	}
+			Account:      &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}},
+			Pool:         nil,
+		}
 		params := &commonparams.ManageBackupConfigForExpertModeVolumeParams{
 			BackupVaultID:  nillable.ToPointer("bv"),
 			BackupPolicyID: nillable.ToPointer("bp"),

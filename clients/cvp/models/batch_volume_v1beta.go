@@ -20,8 +20,41 @@ import (
 // swagger:model BatchVolume_v1beta
 type BatchVolumeV1beta struct {
 
+	// UUID of Active Directory configuration
+	// Read Only: true
+	// Max Length: 36
+	// Min Length: 36
+	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+	ActiveDirectoryConfigID *string `json:"activeDirectoryConfigId,omitempty"`
+
+	// activeDirectoryResourceId
+	//
+	// The resource ID for the connected Active Directory
+	// Read Only: true
+	ActiveDirectoryResourceID *string `json:"activeDirectoryResourceId,omitempty"`
+
 	// backup config
 	BackupConfig *BackupConfigV1beta `json:"backupConfig,omitempty"`
+
+	// blockDevices
+	//
+	// Array of block devices associated with this volume
+	BlockDevices []*BlockDeviceV1beta `json:"blockDevices,omitempty"`
+
+	// block properties
+	BlockProperties *BlockPropertiesV1beta `json:"blockProperties,omitempty"`
+
+	// cache parameters
+	CacheParameters *FlexCacheV1beta `json:"cacheParameters,omitempty"`
+
+	// clone details
+	CloneDetails *CloneDetailsV1beta `json:"cloneDetails,omitempty"`
+
+	// coldTierSizeGib
+	//
+	// Volume footprint in cold storage
+	// Read Only: true
+	ColdTierSizeGib *float64 `json:"coldTierSizeGib,omitempty"`
 
 	// created
 	//
@@ -37,17 +70,31 @@ type BatchVolumeV1beta struct {
 	// Pattern: ^[a-zA-Z][a-zA-Z0-9\-_]{0,79}$
 	CreationToken *string `json:"creationToken,omitempty"`
 
+	// dedicatedCapacity
+	//
+	// Flag indicating if the volume needs to be created on a dedicated stamp.
+	DedicatedCapacity *bool `json:"dedicatedCapacity,omitempty"`
+
 	// description
 	//
-	// Description of the volume.
+	// Description of the volume
 	// Max Length: 2048
-	Description string `json:"description,omitempty"`
+	Description *string `json:"description,omitempty"`
 
 	// encryptionType
 	//
-	// Type of encryption used for volumes; Can either be service-managed key (service_managed) or cloud_kms
+	// Type of encryption used for volumes - can be either service managed key (service_managed) or cloud_kms
 	// Enum: [ENCRYPTION_TYPE_UNSPECIFIED SERVICE_MANAGED CLOUD_KMS]
-	EncryptionType string `json:"encryptionType,omitempty"`
+	EncryptionType *string `json:"encryptionType,omitempty"`
+
+	// export policy
+	ExportPolicy *ExportPolicyV1beta `json:"exportPolicy,omitempty"`
+
+	// hotTierSizeGib
+	//
+	// Volume footprint in hot storage
+	// Read Only: true
+	HotTierSizeGib *float64 `json:"hotTierSizeGib,omitempty"`
 
 	// inReplication
 	//
@@ -58,6 +105,7 @@ type BatchVolumeV1beta struct {
 	// isDataProtection
 	//
 	// Flag indicating if the volume is a data protection volume or not
+	// Read Only: true
 	IsDataProtection *bool `json:"isDataProtection,omitempty"`
 
 	// kerberosEnabled
@@ -71,15 +119,51 @@ type BatchVolumeV1beta struct {
 	// Pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
 	KmsConfigID *string `json:"kmsConfigId,omitempty"`
 
+	// kmsConfigResourceId
+	//
+	// The resource ID for the connected KMS configuration
+	// Read Only: true
+	KmsConfigResourceID *string `json:"kmsConfigResourceId,omitempty"`
+
 	// labels
 	//
 	// JSON dictionary of resource labels to allow linking of billing labels to a volume
 	Labels map[string]string `json:"labels,omitempty"`
 
+	// largeCapacity
+	//
+	// Flag indicating if the volume will be a large capacity volume (flexgroup) or a regular volume (flexvol)
+	LargeCapacity *bool `json:"largeCapacity"`
+
+	// largeVolumeConstituentCount
+	//
+	// The count of number of constituent volumes for the large volume.
+	// Minimum: 2
+	LargeVolumeConstituentCount *int32 `json:"largeVolumeConstituentCount,omitempty"`
+
 	// ldapEnabled
 	//
 	// Flag indicating if the volume is NFS LDAP enabled or not.
+	// Read Only: true
 	LdapEnabled *bool `json:"ldapEnabled,omitempty"`
+
+	// mountPoints
+	//
+	// Mount points for the volume
+	// Read Only: true
+	MountPoints []*MountPointV1beta `json:"mountPoints,omitempty"`
+
+	// multipleEndpoints
+	//
+	// Flag indicating if the volume will have an IP address per node for volumes supporting multiple endpoints
+	MultipleEndpoints *bool `json:"multipleEndpoints"`
+
+	// network
+	//
+	// Servicenetworking.connections.network value that is returned after creating a successful VPC peering connection via the GCP service networking API
+	// Read Only: true
+	// Pattern: ^projects\/\d+\/global\/networks\/(![0-9]+$)?(!.*-$)?(!-)?[a-zA-Z0-9-]{1,63}$
+	Network *string `json:"network,omitempty"`
 
 	// poolId
 	//
@@ -93,8 +177,8 @@ type BatchVolumeV1beta struct {
 
 	// quotaInBytes
 	//
-	// Maximum storage quota allowed for the volume in bytes.
-	QuotaInBytes *uint64 `json:"quotaInBytes,omitempty"`
+	// Maximum storage quota allowed for a volume in bytes. This is a soft quota used for alerting only.
+	QuotaInBytes *float64 `json:"quotaInBytes,omitempty"`
 
 	// region
 	//
@@ -107,15 +191,30 @@ type BatchVolumeV1beta struct {
 	// The resource ID of the volume.
 	ResourceID *string `json:"resourceId,omitempty"`
 
+	// restricted actions
+	RestrictedActions RestrictedActionsV1beta `json:"restrictedActions,omitempty"`
+
+	// SecondaryZone
+	//
+	// The desired zone for the fail over.
+	// Read Only: true
+	SecondaryZone *string `json:"secondaryZone,omitempty"`
+
 	// securityStyle
 	//
 	// The security style of the volume
-	SecurityStyle string `json:"securityStyle,omitempty"`
+	// Enum: [SECURITY_STYLE_UNSPECIFIED NTFS UNIX]
+	SecurityStyle *string `json:"securityStyle,omitempty"`
 
 	// serviceLevel
 	//
-	// The service level of the volume
-	ServiceLevel string `json:"serviceLevel,omitempty"`
+	// The service level of the volume. Will be specified as premium or extreme, which will be equivalent to having specified performance medium or high, respectively. However, if any service level's name is one of premium or extreme, the performance will be that of the service level, not the performance equivalent.
+	// Read Only: true
+	// Enum: [SERVICE_LEVEL_UNSPECIFIED FLEX STANDARD PREMIUM EXTREME]
+	ServiceLevel *string `json:"serviceLevel,omitempty"`
+
+	// smb settings
+	SmbSettings SMBSettingsV1beta `json:"smbSettings"`
 
 	// snapReserve
 	//
@@ -132,21 +231,31 @@ type BatchVolumeV1beta struct {
 	// snapshot policy
 	SnapshotPolicy *SnapshotPolicyV1beta `json:"snapshotPolicy,omitempty"`
 
-	// storageClass
+	// storage class
+	StorageClass StorageClassV1beta `json:"storageClass,omitempty"`
+
+	// throughputMibps
 	//
-	// Storage class of the volume, either software or hardware.
-	StorageClass string `json:"storageClass,omitempty"`
+	// Throughput of the volume in Mibps.
+	ThroughputMibps *float64 `json:"throughputMibps,omitempty"`
+
+	// tiering policy
+	TieringPolicy *TieringPolicyV1beta `json:"tieringPolicy,omitempty"`
 
 	// unixPermissions
 	//
 	// UNIX permissions for NFS volume accepted in octal 4 digit format. First digit selects the set user ID(4), set group ID (2) and sticky (1) attributes. Second digit selects permission for the owner of the file: read (4), write (2) and execute (1). Third selects permissions for other users in the same group. the fourth for other users not in the group. "0755" - gives read/write/execute permissions to owner and read/execute to group and other users.
+	// Max Length: 4
+	// Min Length: 4
 	// Pattern: ^[0-7]{4}$
 	UnixPermissions *string `json:"unixPermissions,omitempty"`
 
 	// usedBytes
 	//
-	// Size of the volume in bytes.
-	UsedBytes *uint64 `json:"usedBytes,omitempty"`
+	// Current storage usage for the volume in bytes
+	// Read Only: true
+	// Minimum: 0
+	UsedBytes *float64 `json:"usedBytes,omitempty"`
 
 	// volumeId
 	//
@@ -159,21 +268,48 @@ type BatchVolumeV1beta struct {
 
 	// volumeState
 	//
-	// The current lifecycle state of the volume
-	// Enum: [STATE_UNSPECIFIED CREATING READY UPDATING RESTORING DELETED DISABLED DELETING ERROR]
-	VolumeState string `json:"volumeState,omitempty"`
+	// The current lifecycle state of the resource
+	// Read Only: true
+	// Enum: [STATE_UNSPECIFIED CREATING READY UPDATING RESTORING DELETED DISABLED DELETING ERROR READ_ONLY PREPARING]
+	VolumeState *string `json:"volumeState,omitempty"`
 
 	// volumeStateDetails
 	//
 	// Details about the current lifecycle state
+	// Read Only: true
 	VolumeStateDetails *string `json:"volumeStateDetails,omitempty"`
+
+	// zone
+	//
+	// The target zone to which the storage pool has to be migrated.
+	Zone *string `json:"zone,omitempty"`
 }
 
 // Validate validates this batch volume v1beta
 func (m *BatchVolumeV1beta) Validate(formats strfmt.Registry) error {
 	var res []error
 
+	if err := m.validateActiveDirectoryConfigID(formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.validateBackupConfig(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateBlockDevices(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateBlockProperties(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateCacheParameters(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateCloneDetails(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -193,11 +329,43 @@ func (m *BatchVolumeV1beta) Validate(formats strfmt.Registry) error {
 		res = append(res, err)
 	}
 
+	if err := m.validateExportPolicy(formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.validateKmsConfigID(formats); err != nil {
 		res = append(res, err)
 	}
 
+	if err := m.validateLargeVolumeConstituentCount(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateMountPoints(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateNetwork(formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.validateProtocols(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateRestrictedActions(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateSecurityStyle(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateServiceLevel(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateSmbSettings(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -209,7 +377,19 @@ func (m *BatchVolumeV1beta) Validate(formats strfmt.Registry) error {
 		res = append(res, err)
 	}
 
+	if err := m.validateStorageClass(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateTieringPolicy(formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.validateUnixPermissions(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateUsedBytes(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -227,6 +407,27 @@ func (m *BatchVolumeV1beta) Validate(formats strfmt.Registry) error {
 	return nil
 }
 
+func (m *BatchVolumeV1beta) validateActiveDirectoryConfigID(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.ActiveDirectoryConfigID) { // not required
+		return nil
+	}
+
+	if err := validate.MinLength("activeDirectoryConfigId", "body", string(*m.ActiveDirectoryConfigID), 36); err != nil {
+		return err
+	}
+
+	if err := validate.MaxLength("activeDirectoryConfigId", "body", string(*m.ActiveDirectoryConfigID), 36); err != nil {
+		return err
+	}
+
+	if err := validate.Pattern("activeDirectoryConfigId", "body", string(*m.ActiveDirectoryConfigID), `^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (m *BatchVolumeV1beta) validateBackupConfig(formats strfmt.Registry) error {
 
 	if swag.IsZero(m.BackupConfig) { // not required
@@ -237,6 +438,85 @@ func (m *BatchVolumeV1beta) validateBackupConfig(formats strfmt.Registry) error 
 		if err := m.BackupConfig.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("backupConfig")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *BatchVolumeV1beta) validateBlockDevices(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.BlockDevices) { // not required
+		return nil
+	}
+
+	for i := 0; i < len(m.BlockDevices); i++ {
+		if swag.IsZero(m.BlockDevices[i]) { // not required
+			continue
+		}
+
+		if m.BlockDevices[i] != nil {
+			if err := m.BlockDevices[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("blockDevices" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+func (m *BatchVolumeV1beta) validateBlockProperties(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.BlockProperties) { // not required
+		return nil
+	}
+
+	if m.BlockProperties != nil {
+		if err := m.BlockProperties.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("blockProperties")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *BatchVolumeV1beta) validateCacheParameters(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.CacheParameters) { // not required
+		return nil
+	}
+
+	if m.CacheParameters != nil {
+		if err := m.CacheParameters.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("cacheParameters")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *BatchVolumeV1beta) validateCloneDetails(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.CloneDetails) { // not required
+		return nil
+	}
+
+	if m.CloneDetails != nil {
+		if err := m.CloneDetails.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("cloneDetails")
 			}
 			return err
 		}
@@ -285,7 +565,7 @@ func (m *BatchVolumeV1beta) validateDescription(formats strfmt.Registry) error {
 		return nil
 	}
 
-	if err := validate.MaxLength("description", "body", string(m.Description), 2048); err != nil {
+	if err := validate.MaxLength("description", "body", string(*m.Description), 2048); err != nil {
 		return err
 	}
 
@@ -331,8 +611,26 @@ func (m *BatchVolumeV1beta) validateEncryptionType(formats strfmt.Registry) erro
 	}
 
 	// value enum
-	if err := m.validateEncryptionTypeEnum("encryptionType", "body", m.EncryptionType); err != nil {
+	if err := m.validateEncryptionTypeEnum("encryptionType", "body", *m.EncryptionType); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (m *BatchVolumeV1beta) validateExportPolicy(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.ExportPolicy) { // not required
+		return nil
+	}
+
+	if m.ExportPolicy != nil {
+		if err := m.ExportPolicy.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("exportPolicy")
+			}
+			return err
+		}
 	}
 
 	return nil
@@ -359,6 +657,57 @@ func (m *BatchVolumeV1beta) validateKmsConfigID(formats strfmt.Registry) error {
 	return nil
 }
 
+func (m *BatchVolumeV1beta) validateLargeVolumeConstituentCount(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.LargeVolumeConstituentCount) { // not required
+		return nil
+	}
+
+	if err := validate.MinimumInt("largeVolumeConstituentCount", "body", int64(*m.LargeVolumeConstituentCount), 2, false); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *BatchVolumeV1beta) validateMountPoints(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.MountPoints) { // not required
+		return nil
+	}
+
+	for i := 0; i < len(m.MountPoints); i++ {
+		if swag.IsZero(m.MountPoints[i]) { // not required
+			continue
+		}
+
+		if m.MountPoints[i] != nil {
+			if err := m.MountPoints[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("mountPoints" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+func (m *BatchVolumeV1beta) validateNetwork(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.Network) { // not required
+		return nil
+	}
+
+	if err := validate.Pattern("network", "body", string(*m.Network), `^projects\/\d+\/global\/networks\/(![0-9]+$)?(!.*-$)?(!-)?[a-zA-Z0-9-]{1,63}$`); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (m *BatchVolumeV1beta) validateProtocols(formats strfmt.Registry) error {
 
 	if swag.IsZero(m.Protocols) { // not required
@@ -374,6 +723,136 @@ func (m *BatchVolumeV1beta) validateProtocols(formats strfmt.Registry) error {
 			return err
 		}
 
+	}
+
+	return nil
+}
+
+func (m *BatchVolumeV1beta) validateRestrictedActions(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.RestrictedActions) { // not required
+		return nil
+	}
+
+	if err := m.RestrictedActions.Validate(formats); err != nil {
+		if ve, ok := err.(*errors.Validation); ok {
+			return ve.ValidateName("restrictedActions")
+		}
+		return err
+	}
+
+	return nil
+}
+
+var batchVolumeV1betaTypeSecurityStylePropEnum []interface{}
+
+func init() {
+	var res []string
+	if err := json.Unmarshal([]byte(`["SECURITY_STYLE_UNSPECIFIED","NTFS","UNIX"]`), &res); err != nil {
+		panic(err)
+	}
+	for _, v := range res {
+		batchVolumeV1betaTypeSecurityStylePropEnum = append(batchVolumeV1betaTypeSecurityStylePropEnum, v)
+	}
+}
+
+const (
+
+	// BatchVolumeV1betaSecurityStyleSECURITYSTYLEUNSPECIFIED captures enum value "SECURITY_STYLE_UNSPECIFIED"
+	BatchVolumeV1betaSecurityStyleSECURITYSTYLEUNSPECIFIED string = "SECURITY_STYLE_UNSPECIFIED"
+
+	// BatchVolumeV1betaSecurityStyleNTFS captures enum value "NTFS"
+	BatchVolumeV1betaSecurityStyleNTFS string = "NTFS"
+
+	// BatchVolumeV1betaSecurityStyleUNIX captures enum value "UNIX"
+	BatchVolumeV1betaSecurityStyleUNIX string = "UNIX"
+)
+
+// prop value enum
+func (m *BatchVolumeV1beta) validateSecurityStyleEnum(path, location string, value string) error {
+	if err := validate.EnumCase(path, location, value, batchVolumeV1betaTypeSecurityStylePropEnum, true); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *BatchVolumeV1beta) validateSecurityStyle(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.SecurityStyle) { // not required
+		return nil
+	}
+
+	// value enum
+	if err := m.validateSecurityStyleEnum("securityStyle", "body", *m.SecurityStyle); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+var batchVolumeV1betaTypeServiceLevelPropEnum []interface{}
+
+func init() {
+	var res []string
+	if err := json.Unmarshal([]byte(`["SERVICE_LEVEL_UNSPECIFIED","FLEX","STANDARD","PREMIUM","EXTREME"]`), &res); err != nil {
+		panic(err)
+	}
+	for _, v := range res {
+		batchVolumeV1betaTypeServiceLevelPropEnum = append(batchVolumeV1betaTypeServiceLevelPropEnum, v)
+	}
+}
+
+const (
+
+	// BatchVolumeV1betaServiceLevelSERVICELEVELUNSPECIFIED captures enum value "SERVICE_LEVEL_UNSPECIFIED"
+	BatchVolumeV1betaServiceLevelSERVICELEVELUNSPECIFIED string = "SERVICE_LEVEL_UNSPECIFIED"
+
+	// BatchVolumeV1betaServiceLevelFLEX captures enum value "FLEX"
+	BatchVolumeV1betaServiceLevelFLEX string = "FLEX"
+
+	// BatchVolumeV1betaServiceLevelSTANDARD captures enum value "STANDARD"
+	BatchVolumeV1betaServiceLevelSTANDARD string = "STANDARD"
+
+	// BatchVolumeV1betaServiceLevelPREMIUM captures enum value "PREMIUM"
+	BatchVolumeV1betaServiceLevelPREMIUM string = "PREMIUM"
+
+	// BatchVolumeV1betaServiceLevelEXTREME captures enum value "EXTREME"
+	BatchVolumeV1betaServiceLevelEXTREME string = "EXTREME"
+)
+
+// prop value enum
+func (m *BatchVolumeV1beta) validateServiceLevelEnum(path, location string, value string) error {
+	if err := validate.EnumCase(path, location, value, batchVolumeV1betaTypeServiceLevelPropEnum, true); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *BatchVolumeV1beta) validateServiceLevel(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.ServiceLevel) { // not required
+		return nil
+	}
+
+	// value enum
+	if err := m.validateServiceLevelEnum("serviceLevel", "body", *m.ServiceLevel); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *BatchVolumeV1beta) validateSmbSettings(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.SmbSettings) { // not required
+		return nil
+	}
+
+	if err := m.SmbSettings.Validate(formats); err != nil {
+		if ve, ok := err.(*errors.Validation); ok {
+			return ve.ValidateName("smbSettings")
+		}
+		return err
 	}
 
 	return nil
@@ -414,13 +893,68 @@ func (m *BatchVolumeV1beta) validateSnapshotPolicy(formats strfmt.Registry) erro
 	return nil
 }
 
+func (m *BatchVolumeV1beta) validateStorageClass(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.StorageClass) { // not required
+		return nil
+	}
+
+	if err := m.StorageClass.Validate(formats); err != nil {
+		if ve, ok := err.(*errors.Validation); ok {
+			return ve.ValidateName("storageClass")
+		}
+		return err
+	}
+
+	return nil
+}
+
+func (m *BatchVolumeV1beta) validateTieringPolicy(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.TieringPolicy) { // not required
+		return nil
+	}
+
+	if m.TieringPolicy != nil {
+		if err := m.TieringPolicy.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("tieringPolicy")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (m *BatchVolumeV1beta) validateUnixPermissions(formats strfmt.Registry) error {
 
 	if swag.IsZero(m.UnixPermissions) { // not required
 		return nil
 	}
 
+	if err := validate.MinLength("unixPermissions", "body", string(*m.UnixPermissions), 4); err != nil {
+		return err
+	}
+
+	if err := validate.MaxLength("unixPermissions", "body", string(*m.UnixPermissions), 4); err != nil {
+		return err
+	}
+
 	if err := validate.Pattern("unixPermissions", "body", string(*m.UnixPermissions), `^[0-7]{4}$`); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *BatchVolumeV1beta) validateUsedBytes(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.UsedBytes) { // not required
+		return nil
+	}
+
+	if err := validate.Minimum("usedBytes", "body", float64(*m.UsedBytes), 0, false); err != nil {
 		return err
 	}
 
@@ -452,7 +986,7 @@ var batchVolumeV1betaTypeVolumeStatePropEnum []interface{}
 
 func init() {
 	var res []string
-	if err := json.Unmarshal([]byte(`["STATE_UNSPECIFIED","CREATING","READY","UPDATING","RESTORING","DELETED","DISABLED","DELETING","ERROR"]`), &res); err != nil {
+	if err := json.Unmarshal([]byte(`["STATE_UNSPECIFIED","CREATING","READY","UPDATING","RESTORING","DELETED","DISABLED","DELETING","ERROR","READ_ONLY","PREPARING"]`), &res); err != nil {
 		panic(err)
 	}
 	for _, v := range res {
@@ -488,6 +1022,12 @@ const (
 
 	// BatchVolumeV1betaVolumeStateERROR captures enum value "ERROR"
 	BatchVolumeV1betaVolumeStateERROR string = "ERROR"
+
+	// BatchVolumeV1betaVolumeStateREADONLY captures enum value "READ_ONLY"
+	BatchVolumeV1betaVolumeStateREADONLY string = "READ_ONLY"
+
+	// BatchVolumeV1betaVolumeStatePREPARING captures enum value "PREPARING"
+	BatchVolumeV1betaVolumeStatePREPARING string = "PREPARING"
 )
 
 // prop value enum
@@ -505,7 +1045,7 @@ func (m *BatchVolumeV1beta) validateVolumeState(formats strfmt.Registry) error {
 	}
 
 	// value enum
-	if err := m.validateVolumeStateEnum("volumeState", "body", m.VolumeState); err != nil {
+	if err := m.validateVolumeStateEnum("volumeState", "body", *m.VolumeState); err != nil {
 		return err
 	}
 

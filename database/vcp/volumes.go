@@ -686,6 +686,16 @@ func (d *DataStoreRepository) GetMultipleVolumes(ctx context.Context, conditions
 	return getMultipleVolumes(d.db.ApplyFilter(conditions).GORM().WithContext(ctx))
 }
 
+type VolumePreloadOptions struct {
+	ActiveDirectory        bool
+	KmsConfig              bool
+	VolumePerformanceGroup bool
+}
+
+func (d *DataStoreRepository) GetMultipleVolumesSelective(ctx context.Context, conditions [][]interface{}, opts VolumePreloadOptions) ([]*datamodel.Volume, error) {
+	return getMultipleVolumesSelective(d.db.ApplyFilter(conditions).GORM().WithContext(ctx), opts)
+}
+
 func _getMultipleVolumes(db *gorm.DB) ([]*datamodel.Volume, error) {
 	var volumes []*datamodel.Volume
 	err := db.Preload("Account").
@@ -695,6 +705,29 @@ func _getMultipleVolumes(db *gorm.DB) ([]*datamodel.Volume, error) {
 		Preload("Pool.KmsConfig").
 		Preload("VolumePerformanceGroup").
 		Find(&volumes).Error
+	if err != nil {
+		return nil, err
+	}
+	return volumes, nil
+}
+
+func getMultipleVolumesSelective(db *gorm.DB, opts VolumePreloadOptions) ([]*datamodel.Volume, error) {
+	var volumes []*datamodel.Volume
+
+	query := db.Preload("Account").
+		Preload("Pool")
+
+	if opts.ActiveDirectory {
+		query = query.Preload("Pool.ActiveDirectory")
+	}
+	if opts.KmsConfig {
+		query = query.Preload("Pool.KmsConfig")
+	}
+	if opts.VolumePerformanceGroup {
+		query = query.Preload("VolumePerformanceGroup")
+	}
+
+	err := query.Find(&volumes).Error
 	if err != nil {
 		return nil, err
 	}

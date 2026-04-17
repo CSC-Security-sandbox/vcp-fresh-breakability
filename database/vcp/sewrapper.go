@@ -1042,6 +1042,22 @@ func (re *retryEngine) GetMultipleVolumes(ctx context.Context, conditions [][]in
 	return var0, err
 }
 
+func (re *retryEngine) GetMultipleVolumesSelective(ctx context.Context, conditions [][]interface{}, opts VolumePreloadOptions) ([]*datamodel.Volume, error) {
+	var var0 []*datamodel.Volume
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetMultipleVolumesSelective(ctx, conditions, opts)
+		if err != nil {
+			re.logError("GetMultipleVolumesSelective", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) VerifyVolumeOwnership(ctx context.Context, volumeID string, accountName string) (*datamodel.Volume, error) {
 	var var0 *datamodel.Volume
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -1285,6 +1301,22 @@ func (re *retryEngine) GetVolumeReplicationCountByVolumeID(ctx context.Context, 
 		var0, err = re.dataStore.GetVolumeReplicationCountByVolumeID(ctx, volumeID)
 		if err != nil {
 			re.logError("GetVolumeReplicationCountByVolumeID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetReplicatedVolumeUUIDs(ctx context.Context, volumeUUIDs []string) ([]string, error) {
+	var var0 []string
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetReplicatedVolumeUUIDs(ctx, volumeUUIDs)
+		if err != nil {
+			re.logError("GetReplicatedVolumeUUIDs", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

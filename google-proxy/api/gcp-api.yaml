@@ -1747,6 +1747,114 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
+  /v1beta/locations/{locationId}/batch/volumes:
+    post:
+      operationId: v1beta_batchListVolumes
+      summary: Batch lists all volumes with the given UUIDs
+      description: Batch lists all volumes with the given UUIDs across all accounts
+      tags:
+        - batch
+      parameters:
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - name: fields
+          in: query
+          description: Specify the fields to return.
+          style: form
+          explode: false
+          schema:
+            type: array
+            minItems: 1
+            items:
+              type: string
+              enum:
+                - resourceId
+                - volumeId
+                - created
+                - creationToken
+                - poolId
+                - kmsConfigId
+                - kmsConfigResourceId
+                - network
+                - activeDirectoryConfigId
+                - activeDirectoryResourceId
+                - serviceLevel
+                - securityStyle
+                - usedBytes
+                - quotaInBytes
+                - throughputMibps
+                - coldTierSizeGib
+                - snapReserve
+                - snapshotDirectory
+                - volumeState
+                - volumeStateDetails
+                - isDataProtection
+                - inReplication
+                - snapshotPolicy
+                - storageClass
+                - exportPolicy
+                - backupConfig
+                - tieringPolicy
+                - blockProperties
+                - blockDevices
+                - protocols
+                - restrictedActions
+                - smbSettings
+                - mountPoints
+                - labels
+                - kerberosEnabled
+                - ldapEnabled
+                - unixPermissions
+                - encryptionType
+                - description
+                - zone
+                - multipleEndpoints
+                - largeCapacity
+                - secondaryZone
+                - dedicatedCapacity
+                - largeVolumeConstituentCount
+                - cacheParameters
+                - hotTierSizeGib
+                - cloneDetails
+                - region
+      requestBody:
+        description: A list of volume UUIDs to return.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchVolumeUUIDList_v1beta'
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  volumes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BatchVolume_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
   /v1beta/projects/{projectNumber}/locations/{locationId}/volumes/{volumeResourceId}/establishPeering:
     post:
       operationId: v1beta_establishVolumePeering
@@ -11484,6 +11592,224 @@ components:
             type: string
             description: Uuid v4 used to identify the volume
             example: 9760acf5-4638-11e7-9bdb-020073ca3333
+    BatchVolumeUUIDList_v1beta:
+      title: BatchVolumeUUIDList
+      required:
+        - volumeUUIDs
+      type: object
+      properties:
+        volumeUUIDs:
+          title: volumeUUIDs
+          minItems: 1
+          type: array
+          items:
+            pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+            type: string
+            description: Uuid v4 used to identify the volume
+            example: 9760acf5-4638-11e7-9bdb-020073ca3333  
+    BatchVolume_v1beta:
+      type: object
+      required:
+        - volumeId
+      properties:
+        resourceId:
+          type: string
+          nullable: true
+        volumeId:
+          type: string
+        created:
+          type: string
+          format: date-time
+          nullable: true
+        creationToken:
+          type: string
+          nullable: true
+        poolId:
+          type: string
+          nullable: true
+        kmsConfigId:
+          type: string
+          nullable: true
+        kmsConfigResourceId:
+          type: string
+          nullable: true
+        network:
+          type: string
+          nullable: true
+        activeDirectoryConfigId:
+          type: string
+          nullable: true
+        activeDirectoryResourceId:
+          type: string
+          nullable: true
+        serviceLevel:
+          type: string
+          nullable: true
+          enum:
+            - SERVICE_LEVEL_UNSPECIFIED
+            - FLEX
+            - STANDARD
+            - PREMIUM
+            - EXTREME
+        securityStyle:
+          type: string
+          nullable: true
+          enum:
+            - SECURITY_STYLE_UNSPECIFIED
+            - NTFS
+            - UNIX
+        usedBytes:
+          type: number
+          format: double
+          nullable: true
+        quotaInBytes:
+          type: number
+          format: double
+          nullable: true
+        throughputMibps:
+          type: number
+          format: double
+          nullable: true
+        coldTierSizeGib:
+          type: number
+          format: double
+          nullable: true
+        snapReserve:
+          type: number
+          format: double
+          nullable: true
+        snapshotDirectory:
+          type: boolean
+          nullable: true
+        volumeState:
+          type: string
+          nullable: true
+          enum:
+            - STATE_UNSPECIFIED
+            - CREATING
+            - READY
+            - UPDATING
+            - RESTORING
+            - DELETED
+            - DISABLED
+            - DELETING
+            - ERROR
+            - READ_ONLY
+            - PREPARING
+        volumeStateDetails:
+          type: string
+          nullable: true
+        isDataProtection:
+          type: boolean
+          nullable: true
+        inReplication:
+          type: boolean
+          nullable: true
+        snapshotPolicy:
+          allOf:
+            - $ref: '#/components/schemas/SnapshotPolicy_v1beta'
+          nullable: true
+        storageClass:
+          allOf:
+            - $ref: '#/components/schemas/StorageClass_v1beta'
+          nullable: true
+        exportPolicy:
+          allOf:
+            - $ref: '#/components/schemas/ExportPolicy_v1beta'
+          nullable: true
+        backupConfig:
+          allOf:
+            - $ref: '#/components/schemas/BackupConfig_v1beta'
+          nullable: true
+        tieringPolicy:
+          allOf:
+            - $ref: '#/components/schemas/TieringPolicy_v1beta'
+          nullable: true
+        blockProperties:
+          allOf:
+            - $ref: '#/components/schemas/BlockProperties_v1beta'
+          nullable: true
+        blockDevices:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/BlockDevice_v1beta'
+        protocols:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/protocols_v1beta'
+        restrictedActions:
+          allOf:
+            - $ref: '#/components/schemas/RestrictedActions_v1beta'
+          nullable: true
+        smbSettings:
+          allOf:
+            - $ref: '#/components/schemas/SMBSettings_v1beta'
+          nullable: true
+        mountPoints:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/MountPoint_v1beta'
+        labels:
+          type: object
+          nullable: true
+          additionalProperties:
+            type: string
+        kerberosEnabled:
+          type: boolean
+          nullable: true
+        ldapEnabled:
+          type: boolean
+          nullable: true
+        unixPermissions:
+          type: string
+          nullable: true
+        encryptionType:
+          type: string
+          nullable: true
+          enum:
+            - ENCRYPTION_TYPE_UNSPECIFIED
+            - SERVICE_MANAGED
+            - CLOUD_KMS
+        description:
+          type: string
+          nullable: true
+        zone:
+          type: string
+          nullable: true
+        multipleEndpoints:
+          type: boolean
+          nullable: true
+        largeCapacity:
+          type: boolean
+          nullable: true
+        secondaryZone:
+          type: string
+          nullable: true
+        dedicatedCapacity:
+          type: boolean
+          nullable: true
+        largeVolumeConstituentCount:
+          type: integer
+          format: int32
+          nullable: true
+        cacheParameters:
+          allOf:
+            - $ref: '#/components/schemas/FlexCache_v1beta'
+          nullable: true
+        hotTierSizeGib:
+          type: number
+          format: double
+          nullable: true
+        cloneDetails:
+          allOf:
+            - $ref: '#/components/schemas/CloneDetails_v1beta'
+          nullable: true
+        region:
+          type: string
+          nullable: true
     VolumePerformanceGroup_v1beta:
       title: Volume Performance Group v1beta model definition
       required:

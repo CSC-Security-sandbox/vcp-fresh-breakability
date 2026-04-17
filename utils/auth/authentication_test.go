@@ -893,6 +893,40 @@ func TestAuthMiddleware_BypassForExpertMode(t *testing.T) {
 	}
 }
 
+func TestAuthMiddleware_BatchVolumePathPreservesHeaderContext(t *testing.T) {
+	var (
+		called        bool
+		gotHeader     string
+		headerPresent bool
+	)
+
+	originalEnv := runningEnv
+	runningEnv = "local"
+	defer func() { runningEnv = originalEnv }()
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		headers, ok := r.Context().Value(utilsmiddleware.HeaderContextKey).(http.Header)
+		headerPresent = ok
+		if ok {
+			gotHeader = headers.Get("authorization")
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+
+	req := httptest.NewRequest("POST", "/v1beta/locations/us-east4/batch/volumes", nil)
+	req.Header.Set("authorization", "Bearer batch-token")
+	rr := httptest.NewRecorder()
+
+	handler := AuthMiddleware(true)(next)
+	handler.ServeHTTP(rr, req)
+
+	assert.True(t, called)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.True(t, headerPresent)
+	assert.Equal(t, "Bearer batch-token", gotHeader)
+}
+
 func TestAuthMiddleware_DoesNotBypassForNonExpertModePaths(t *testing.T) {
 	tests := []struct {
 		name string
@@ -1039,6 +1073,7 @@ func TestShouldSkipAuthPath(t *testing.T) {
 		assert.True(tt, shouldSkipAuthPath("/v1/expertMode/projects/123"))
 		assert.False(tt, shouldSkipAuthPath("/v1beta/locations/us-east4/batch/pools"), "batch paths use isBatchAuthPath, not shouldSkipAuthPath")
 		assert.False(tt, shouldSkipAuthPath("/v1beta/locations/us-east4/batch/activeDirectories"), "batch paths use isBatchAuthPath, not shouldSkipAuthPath")
+		assert.False(tt, shouldSkipAuthPath("/v1beta/locations/us-east4/batch/volumes"))
 		assert.False(tt, shouldSkipAuthPath("/v1/api"))
 		assert.False(tt, shouldSkipAuthPath("/api/expertMode"))
 	})
@@ -1218,13 +1253,14 @@ func TestIsBatchAuthPath(t *testing.T) {
 		assert.True(tt, isBatchAuthPath("/v1beta/locations/us-central1/batch/pools"))
 	})
 
+	t.Run("batch volumes path", func(tt *testing.T) {
+		assert.True(tt, isBatchAuthPath("/v1beta/locations/us-east4/batch/volumes"))
+		assert.True(tt, isBatchAuthPath("/v1beta/locations/us-central1/batch/volumes"))
+	})
+
 	t.Run("batch snapshots path", func(tt *testing.T) {
 		assert.True(tt, isBatchAuthPath("/v1beta/locations/us-central1-a/batch/snapshots"))
 		assert.True(tt, isBatchAuthPath("/v1beta/locations/us-east4/batch/snapshots"))
-	})
-
-	t.Run("other batch resources are not matched", func(tt *testing.T) {
-		assert.False(tt, isBatchAuthPath("/v1beta/locations/us-east4/batch/volumes"))
 	})
 
 	t.Run("non-batch paths", func(tt *testing.T) {

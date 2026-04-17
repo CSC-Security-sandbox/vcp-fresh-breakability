@@ -550,6 +550,10 @@ func (s *PersistenceStore) GetVolumeReplicationCountByVolumeID(ctx context.Conte
 	return s.dataStore.GetVolumeReplicationCountByVolumeID(ctx, volumeID)
 }
 
+func (s *PersistenceStore) GetReplicatedVolumeUUIDs(ctx context.Context, volumeUUIDs []string) ([]string, error) {
+	return s.dataStore.GetReplicatedVolumeUUIDs(ctx, volumeUUIDs)
+}
+
 func (s *PersistenceStore) GetVolumeReplicationCountByPeerDetails(ctx context.Context, accountName string, peerSvmName string, peerVolumeName string) (int64, error) {
 	return s.dataStore.GetVolumeReplicationCountByPeerDetails(ctx, accountName, peerSvmName, peerVolumeName)
 }
@@ -676,6 +680,10 @@ func (s *PersistenceStore) GetVolumeCountByPoolID(ctx context.Context, poolID in
 
 func (s *PersistenceStore) GetMultipleVolumes(ctx context.Context, conditions [][]interface{}) ([]*datamodel.Volume, error) {
 	return s.dataStore.GetMultipleVolumes(ctx, conditions)
+}
+
+func (s *PersistenceStore) GetMultipleVolumesSelective(ctx context.Context, conditions [][]interface{}, opts VolumePreloadOptions) ([]*datamodel.Volume, error) {
+	return s.dataStore.GetMultipleVolumesSelective(ctx, conditions, opts)
 }
 
 func (s *PersistenceStore) VerifyVolumeOwnership(ctx context.Context, volumeID string, accountName string) (*datamodel.Volume, error) {

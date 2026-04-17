@@ -28,6 +28,13 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 )
 
+func setTestCVPHost(tt *testing.T, host string) {
+	tt.Helper()
+	orig := cvp.CVP_HOST
+	cvp.SetCVPHost(host)
+	tt.Cleanup(func() { cvp.SetCVPHost(orig) })
+}
+
 func TestResolvePerformanceParams(t *testing.T) {
 	t.Run("UsesDefaultThroughputWhenNotProvided", func(tt *testing.T) {
 		reqThroughput := gcpgenserver.OptNilFloat64{}
@@ -73,7 +80,7 @@ func TestResolvePerformanceParams(t *testing.T) {
 func TestV1betaGetMultiplePools(t *testing.T) {
 	t.Run("WhenGetMultiplePoolsFailsWithBadRequest", func(tt *testing.T) {
 		// Don't set CVP_HOST so CVP calls will be skipped
-		tt.Setenv("CVP_HOST", "")
+		setTestCVPHost(tt, "")
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
@@ -108,7 +115,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 	})
 	t.Run("WhenGetMultiplePoolsFailsWithUnauthorized", func(tt *testing.T) {
 		// Don't set CVP_HOST so CVP calls will be skipped
-		tt.Setenv("CVP_HOST", "")
+		setTestCVPHost(tt, "")
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
@@ -143,7 +150,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 	})
 	t.Run("WhenGetMultiplePoolsSucceeds", func(tt *testing.T) {
 		// Don't set CVP_HOST so CVP calls will be skipped
-		tt.Setenv("CVP_HOST", "")
+		setTestCVPHost(tt, "")
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
@@ -179,7 +186,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 
 	t.Run("Success - all pools found in VCP, CVP_HOST is set", func(tt *testing.T) {
 		// Don't set CVP_HOST so CVP calls will be skipped
-		tt.Setenv("CVP_HOST", "")
+		setTestCVPHost(tt, "")
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
@@ -224,7 +231,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 
 	t.Run("Success - some pools found in VCP, some in CVP, CVP_HOST is set", func(tt *testing.T) {
 		// Don't set CVP_HOST so CVP calls will be skipped
-		tt.Setenv("CVP_HOST", "")
+		setTestCVPHost(tt, "")
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
@@ -266,7 +273,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 
 	t.Run("Success - CVP_HOST is not set", func(tt *testing.T) {
 		// Don't set CVP_HOST so CVP calls will be skipped
-		tt.Setenv("CVP_HOST", "")
+		setTestCVPHost(tt, "")
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
@@ -438,7 +445,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 
 	t.Run("WhenNoMissingPools", func(tt *testing.T) {
 		// Don't set CVP_HOST so CVP calls will be skipped
-		tt.Setenv("CVP_HOST", "")
+		setTestCVPHost(tt, "")
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
@@ -486,7 +493,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 
 	t.Run("WhenNoMissingPoolsWithCVPEnabled", func(tt *testing.T) {
 		// Set CVP_HOST so CVP calls will be made
-		tt.Setenv("CVP_HOST", "http://cvp-host")
+		setTestCVPHost(tt, "http://cvp-host")
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
@@ -534,7 +541,23 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 
 	t.Run("WhenMissingPoolsWithCVPEnabled", func(tt *testing.T) {
 		// Set CVP_HOST so CVP calls will be made
-		tt.Setenv("CVP_HOST", "http://cvp-host")
+		setTestCVPHost(tt, "http://cvp-host")
+
+		// Mock the CVP client so the handler can safely attempt the fallback lookup.
+		originalCreateClient := createClient
+		defer func() { createClient = originalCreateClient }()
+		mockPools := pools.NewMockClientService(tt)
+		mockClient := &cvpapi.Cvp{
+			Pools: mockPools,
+		}
+		createClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+			return *mockClient
+		}
+		mockPools.EXPECT().V1betaGetMultiplePools(mock.Anything).Return(&pools.V1betaGetMultiplePoolsOK{
+			Payload: &pools.V1betaGetMultiplePoolsOKBody{
+				Pools: []*cvpmodels.PoolV1beta{},
+			},
+		}, nil)
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
@@ -569,8 +592,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 
 		assert.NoError(tt, err)
 		assert.NotNil(tt, result)
-		// Since CVP_HOST is set and there are missing pools, we expect OK response with VCP pools only
-		// (CVP call will be skipped in test environment due to constant not being updated)
+		// CVP is queried for the missing pools; when it returns none, the response contains only VCP pools.
 		okResp, ok := result.(*gcpgenserver.V1betaGetMultiplePoolsOK)
 		assert.True(tt, ok)
 		assert.Len(tt, okResp.Pools, 1)
@@ -658,7 +680,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 
 	t.Run("WhenOrchestratorGetMultiplePoolsFails_ReturnsInternalServerError", func(tt *testing.T) {
 		// Don't set CVP_HOST so CVP calls will be skipped
-		tt.Setenv("CVP_HOST", "")
+		setTestCVPHost(tt, "")
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
@@ -695,7 +717,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 
 	t.Run("WhenOrchestratorGetMultiplePoolsFails_ErrorNotReturned", func(tt *testing.T) {
 		// Don't set CVP_HOST so CVP calls will be skipped
-		tt.Setenv("CVP_HOST", "")
+		setTestCVPHost(tt, "")
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
@@ -732,7 +754,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 
 	t.Run("WhenSomePoolsNotFoundInVCP_LogsDebugMessage", func(tt *testing.T) {
 		// Set CVP_HOST to enable CVP calls
-		tt.Setenv("CVP_HOST", "http://cvp-host")
+		setTestCVPHost(tt, "http://cvp-host")
 
 		// Save and mock createClient
 		originalCreateClient := createClient
@@ -821,7 +843,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 
 	t.Run("WhenAllPoolsFoundInVCP_NoCVPFallback", func(tt *testing.T) {
 		// Set CVP_HOST to enable CVP calls
-		tt.Setenv("CVP_HOST", "http://cvp-host")
+		setTestCVPHost(tt, "http://cvp-host")
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
@@ -869,7 +891,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 
 	t.Run("WhenOrchestratorGetMultiplePoolsReturnsEmpty_TriggersCVPFallback", func(tt *testing.T) {
 		// Set CVP_HOST to enable CVP calls
-		tt.Setenv("CVP_HOST", "http://cvp-host")
+		setTestCVPHost(tt, "http://cvp-host")
 
 		// Save and mock createClient
 		originalCreateClient := createClient
@@ -923,7 +945,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 
 	t.Run("WhenOrchestratorGetMultiplePoolsReturnsNil_TriggersCVPFallback", func(tt *testing.T) {
 		// Set CVP_HOST to enable CVP calls
-		tt.Setenv("CVP_HOST", "http://cvp-host")
+		setTestCVPHost(tt, "http://cvp-host")
 
 		// Save and mock createClient
 		originalCreateClient := createClient
@@ -976,7 +998,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 	})
 
 	t.Run("WhenPoolsHaveAutoTieringEnabled_IncludesConsumptionFields", func(tt *testing.T) {
-		tt.Setenv("CVP_HOST", "")
+		setTestCVPHost(tt, "")
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "us-east4",
@@ -1033,7 +1055,7 @@ func TestV1betaGetMultiplePools(t *testing.T) {
 	})
 
 	t.Run("WhenPoolsHaveAutoTieringDisabled_NoConsumptionFields", func(tt *testing.T) {
-		tt.Setenv("CVP_HOST", "")
+		setTestCVPHost(tt, "")
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		params := gcpgenserver.V1betaGetMultiplePoolsParams{
 			LocationId:    "us-east4",
@@ -7138,9 +7160,7 @@ func TestV1betaUpdatePool_WithActiveDirectoryConfigId(t *testing.T) {
 	})
 
 	t.Run("WhenActiveDirectoryConfigIdIsNotFound_ReturnsBadRequest", func(tt *testing.T) {
-		origCVPHost := cvp.CVP_HOST
-		cvp.CVP_HOST = ""
-		defer func() { cvp.CVP_HOST = origCVPHost }()
+		setTestCVPHost(tt, "")
 
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 

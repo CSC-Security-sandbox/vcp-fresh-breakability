@@ -1594,6 +1594,446 @@ func TestBatchSnapshotV1betaSnapshotState_Examples(t *testing.T) {
 		})
 	}
 }
+func TestBatchVolumeUUIDListV1beta_EncodeDecode(t *testing.T) {
+	var typ BatchVolumeUUIDListV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchVolumeUUIDListV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchVolumeV1beta_EncodeDecode(t *testing.T) {
+	var typ BatchVolumeV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchVolumeV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchVolumeV1betaBackupConfig_EncodeDecode(t *testing.T) {
+	var typ BatchVolumeV1betaBackupConfig
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchVolumeV1betaBackupConfig
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchVolumeV1betaBlockProperties_EncodeDecode(t *testing.T) {
+	var typ BatchVolumeV1betaBlockProperties
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchVolumeV1betaBlockProperties
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchVolumeV1betaBlockPropertiesOsType_EncodeDecode(t *testing.T) {
+	var typ BatchVolumeV1betaBlockPropertiesOsType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchVolumeV1betaBlockPropertiesOsType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestBatchVolumeV1betaBlockPropertiesOsType_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"LINUX\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ BatchVolumeV1betaBlockPropertiesOsType
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 BatchVolumeV1betaBlockPropertiesOsType
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestBatchVolumeV1betaCacheParameters_EncodeDecode(t *testing.T) {
+	var typ BatchVolumeV1betaCacheParameters
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchVolumeV1betaCacheParameters
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchVolumeV1betaCacheParametersCacheState_EncodeDecode(t *testing.T) {
+	var typ BatchVolumeV1betaCacheParametersCacheState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchVolumeV1betaCacheParametersCacheState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestBatchVolumeV1betaCacheParametersCacheState_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"PEERED\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ BatchVolumeV1betaCacheParametersCacheState
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 BatchVolumeV1betaCacheParametersCacheState
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestBatchVolumeV1betaCacheParametersPreviousCacheState_EncodeDecode(t *testing.T) {
+	var typ BatchVolumeV1betaCacheParametersPreviousCacheState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchVolumeV1betaCacheParametersPreviousCacheState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestBatchVolumeV1betaCacheParametersPreviousCacheState_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"PEERED\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ BatchVolumeV1betaCacheParametersPreviousCacheState
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 BatchVolumeV1betaCacheParametersPreviousCacheState
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestBatchVolumeV1betaCloneDetails_EncodeDecode(t *testing.T) {
+	var typ BatchVolumeV1betaCloneDetails
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchVolumeV1betaCloneDetails
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchVolumeV1betaCloneDetailsState_EncodeDecode(t *testing.T) {
+	var typ BatchVolumeV1betaCloneDetailsState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchVolumeV1betaCloneDetailsState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestBatchVolumeV1betaCloneDetailsState_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"SPLITTING\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ BatchVolumeV1betaCloneDetailsState
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 BatchVolumeV1betaCloneDetailsState
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestBatchVolumeV1betaEncryptionType_EncodeDecode(t *testing.T) {
+	var typ BatchVolumeV1betaEncryptionType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchVolumeV1betaEncryptionType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchVolumeV1betaExportPolicy_EncodeDecode(t *testing.T) {
+	var typ BatchVolumeV1betaExportPolicy
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchVolumeV1betaExportPolicy
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchVolumeV1betaLabels_EncodeDecode(t *testing.T) {
+	var typ BatchVolumeV1betaLabels
+	typ = make(BatchVolumeV1betaLabels)
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchVolumeV1betaLabels
+	typ2 = make(BatchVolumeV1betaLabels)
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchVolumeV1betaRestrictedActionsItem_EncodeDecode(t *testing.T) {
+	var typ BatchVolumeV1betaRestrictedActionsItem
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchVolumeV1betaRestrictedActionsItem
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestBatchVolumeV1betaRestrictedActionsItem_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"DELETE\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ BatchVolumeV1betaRestrictedActionsItem
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 BatchVolumeV1betaRestrictedActionsItem
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestBatchVolumeV1betaSecurityStyle_EncodeDecode(t *testing.T) {
+	var typ BatchVolumeV1betaSecurityStyle
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchVolumeV1betaSecurityStyle
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchVolumeV1betaServiceLevel_EncodeDecode(t *testing.T) {
+	var typ BatchVolumeV1betaServiceLevel
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchVolumeV1betaServiceLevel
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchVolumeV1betaSmbSettingsItem_EncodeDecode(t *testing.T) {
+	var typ BatchVolumeV1betaSmbSettingsItem
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchVolumeV1betaSmbSettingsItem
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestBatchVolumeV1betaSmbSettingsItem_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"ENCRYPT_DATA\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ BatchVolumeV1betaSmbSettingsItem
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 BatchVolumeV1betaSmbSettingsItem
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestBatchVolumeV1betaSnapshotPolicy_EncodeDecode(t *testing.T) {
+	var typ BatchVolumeV1betaSnapshotPolicy
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchVolumeV1betaSnapshotPolicy
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchVolumeV1betaStorageClass_EncodeDecode(t *testing.T) {
+	var typ BatchVolumeV1betaStorageClass
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchVolumeV1betaStorageClass
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchVolumeV1betaTieringPolicy_EncodeDecode(t *testing.T) {
+	var typ BatchVolumeV1betaTieringPolicy
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchVolumeV1betaTieringPolicy
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchVolumeV1betaTieringPolicyTierAction_EncodeDecode(t *testing.T) {
+	var typ BatchVolumeV1betaTieringPolicyTierAction
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchVolumeV1betaTieringPolicyTierAction
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchVolumeV1betaVolumeState_EncodeDecode(t *testing.T) {
+	var typ BatchVolumeV1betaVolumeState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchVolumeV1betaVolumeState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestBlockDeviceV1beta_EncodeDecode(t *testing.T) {
 	var typ BlockDeviceV1beta
 	typ.SetFake()
@@ -5727,6 +6167,90 @@ func TestV1betaBatchListSnapshotsUnauthorized_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaBatchListSnapshotsUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBatchListVolumesBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaBatchListVolumesBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBatchListVolumesBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBatchListVolumesForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaBatchListVolumesForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBatchListVolumesForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBatchListVolumesInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaBatchListVolumesInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBatchListVolumesInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBatchListVolumesOK_EncodeDecode(t *testing.T) {
+	var typ V1betaBatchListVolumesOK
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBatchListVolumesOK
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBatchListVolumesTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaBatchListVolumesTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBatchListVolumesTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBatchListVolumesUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaBatchListVolumesUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBatchListVolumesUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBatchListVolumesUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1betaBatchListVolumesUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBatchListVolumesUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaCheckKmsConfigBadRequest_EncodeDecode(t *testing.T) {

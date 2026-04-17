@@ -10,6 +10,7 @@ type Volume struct {
 	VendorSubnetID              string
 	ProtocolTypes               []string
 	Region                      string
+	ServiceLevel                string
 	CreationToken               string
 	DisplayName                 string
 	Description                 string
@@ -20,7 +21,7 @@ type Volume struct {
 	LifeCycleTrackingID         int32
 	QuotaInBytes                uint64
 	IsDataProtection            bool
-	InReplication               bool // when populated (e.g. getMultipleVolumes), true if volume is in replication; otherwise false; omitted in API when false on responses that map this field
+	InReplication               *bool
 	Mounted                     bool
 	BlockProperties             *BlockProperties
 	BlockDevices                *[]BlockDevice
@@ -28,6 +29,7 @@ type Volume struct {
 	IPAddresses                 []string
 	DataProtection              *DataProtection
 	Zone                        string
+	SecondaryZone               string
 	UsedBytes                   uint64
 	EncryptionType              string
 	SnapReserve                 int64

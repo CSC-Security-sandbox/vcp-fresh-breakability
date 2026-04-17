@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
@@ -21692,6 +21693,136 @@ func TestValidateDeleteVolumeParams(t *testing.T) {
 		err := _validateDeleteVolumeParams(ctx, se, volume)
 		assert.NoError(tt, err)
 		se.AssertExpectations(tt)
+	})
+}
+
+func TestGetVolumesByUUIDs_UsesBulkReplicationUUIDLookup(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+	mockStorage := &database.MockStorage{}
+	mockTemporal := workflowEngineMock.NewMockTemporalTestClient(t)
+
+	volumeOne := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vcp-vol-1", ID: 1},
+		Name:      "vcp-vol-1",
+		Account:   &datamodel.Account{Name: "acct-1"},
+		Pool: &datamodel.Pool{
+			BaseModel:    datamodel.BaseModel{UUID: "pool-1"},
+			Name:         "pool-1",
+			ServiceLevel: "PREMIUM",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{},
+	}
+	volumeTwo := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: "vcp-vol-2", ID: 2},
+		Name:      "vcp-vol-2",
+		Account:   &datamodel.Account{Name: "acct-1"},
+		Pool: &datamodel.Pool{
+			BaseModel:    datamodel.BaseModel{UUID: "pool-1"},
+			Name:         "pool-1",
+			ServiceLevel: "PREMIUM",
+			PoolAttributes: &datamodel.PoolAttributes{
+				PrimaryZone: "us-east4-a",
+			},
+		},
+		VolumeAttributes: &datamodel.VolumeAttributes{},
+	}
+
+	mockStorage.On("GetMultipleVolumesSelective", ctx, mock.Anything, mock.Anything).Return([]*datamodel.Volume{volumeOne, volumeTwo}, nil).Once()
+	mockStorage.On("GetReplicatedVolumeUUIDs", ctx, []string{"vcp-vol-1", "vcp-vol-2", "cvp-vol-only"}).Return([]string{"vcp-vol-2"}, nil).Once()
+
+	orch := GCPOrchestrator{
+		storage:  mockStorage,
+		temporal: mockTemporal,
+	}
+
+	result, err := orch.GetVolumesByUUIDs(ctx, []string{"vcp-vol-1", "vcp-vol-2", "cvp-vol-only"}, common.VolumeFetchOptions{
+		NeedInReplication: true,
+	})
+
+	assert.NoError(t, err)
+	assert.Len(t, result, 2)
+	assert.NotNil(t, result[0].InReplication)
+	assert.False(t, *result[0].InReplication)
+	assert.NotNil(t, result[1].InReplication)
+	assert.True(t, *result[1].InReplication)
+	mockStorage.AssertNotCalled(t, "GetVolumeReplicationCountByVolumeID", mock.Anything, mock.Anything)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestGetVolumesByUUIDs_ErrorAndIPFallbackPaths(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	t.Run("VolumeFetchError", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		orch := GCPOrchestrator{storage: mockStorage}
+		mockStorage.On("GetMultipleVolumesSelective", ctx, mock.Anything, mock.Anything).Return(nil, errors2.New("fetch volumes failed")).Once()
+
+		res, err := orch.GetVolumesByUUIDs(ctx, []string{"uuid-1"}, common.VolumeFetchOptions{})
+		assert.Error(tt, err)
+		assert.Nil(tt, res)
+		assert.Equal(tt, "fetch volumes failed", err.Error())
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("ReplicationLookupError", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		orch := GCPOrchestrator{storage: mockStorage}
+		volume := &datamodel.Volume{
+			BaseModel:        datamodel.BaseModel{UUID: "vcp-vol-1", ID: 1},
+			Name:             "vcp-vol-1",
+			Account:          &datamodel.Account{Name: "acct-1"},
+			Pool:             &datamodel.Pool{Name: "pool-1", ServiceLevel: "PREMIUM", PoolAttributes: &datamodel.PoolAttributes{PrimaryZone: "us-east4-a"}},
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+		}
+		mockStorage.On("GetMultipleVolumesSelective", ctx, mock.Anything, mock.Anything).Return([]*datamodel.Volume{volume}, nil).Once()
+		mockStorage.On("GetReplicatedVolumeUUIDs", ctx, []string{"vcp-vol-1"}).Return(nil, errors2.New("replication lookup failed")).Once()
+
+		res, err := orch.GetVolumesByUUIDs(ctx, []string{"vcp-vol-1"}, common.VolumeFetchOptions{NeedInReplication: true})
+		assert.Error(tt, err)
+		assert.Nil(tt, res)
+		assert.Equal(tt, "replication lookup failed", err.Error())
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("IPAddressLookupFailsButReturnsVolume", func(tt *testing.T) {
+		mockStorage := &database.MockStorage{}
+		orch := GCPOrchestrator{storage: mockStorage}
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vcp-vol-1", ID: 1},
+			Name:      "vcp-vol-1",
+			Account:   &datamodel.Account{Name: "acct-1"},
+			Pool: &datamodel.Pool{
+				BaseModel:    datamodel.BaseModel{UUID: "pool-1"},
+				Name:         "pool-1",
+				ServiceLevel: "PREMIUM",
+				PoolAttributes: &datamodel.PoolAttributes{
+					PrimaryZone: "us-east4-a",
+				},
+			},
+			VolumeAttributes: &datamodel.VolumeAttributes{},
+		}
+
+		origGetIPAddressForVolume := getIPAddressForVolume
+		defer func() { getIPAddressForVolume = origGetIPAddressForVolume }()
+		getIPAddressForVolume = func(ctx context.Context, se database.Storage, volume *datamodel.Volume) ([]string, error) {
+			return nil, errors2.New("ip lookup failed")
+		}
+
+		mockStorage.On("GetMultipleVolumesSelective", ctx, mock.Anything, mock.Anything).Return([]*datamodel.Volume{volume}, nil).Once()
+		mockStorage.On("GetReplicatedVolumeUUIDs", ctx, []string{"vcp-vol-1"}).Return([]string{"vcp-vol-1"}, nil).Once()
+
+		res, err := orch.GetVolumesByUUIDs(ctx, []string{"vcp-vol-1"}, common.VolumeFetchOptions{
+			NeedIPAddresses:   true,
+			NeedInReplication: true,
+		})
+		assert.NoError(tt, err)
+		require.Len(tt, res, 1)
+		require.NotNil(tt, res[0].InReplication)
+		assert.True(tt, *res[0].InReplication)
+		mockStorage.AssertExpectations(tt)
 	})
 }
 

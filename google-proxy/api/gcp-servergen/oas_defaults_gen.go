@@ -175,6 +175,30 @@ func (s *BatchPoolV1beta) setDefaults() {
 }
 
 // setDefaults set default value of fields.
+func (s *BatchVolumeV1betaCloneDetails) setDefaults() {
+	{
+		val := float64(0)
+		s.SharedBytes.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *BatchVolumeV1betaSnapshotPolicy) setDefaults() {
+	{
+		val := bool(false)
+		s.Enabled.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *BatchVolumeV1betaTieringPolicy) setDefaults() {
+	{
+		val := int32(31)
+		s.CoolingThresholdDays.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *CloneDetailsV1beta) setDefaults() {
 	{
 		val := float64(0)

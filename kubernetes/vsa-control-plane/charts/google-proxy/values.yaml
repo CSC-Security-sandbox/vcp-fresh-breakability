@@ -33,6 +33,7 @@ proxyClientTransportSchema: "https"
 vcpPairedRegions: ""
 loggerLevel: "info"
 cvpHost: ""
+maxBatchVolumeUUIDs: "1000"
 # Temporary test-only override: forces VCP path even when CVP_HOST is set.
 forceVcpKmsPathForTesting: false
 coreApi:

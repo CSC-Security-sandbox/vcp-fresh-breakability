@@ -356,8 +356,6 @@ func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_UpdateCloneP
 	assert.Error(s.T(), s.env.GetWorkflowError())
 }
 
-
-
 // Test_VolumePollSplitWorkflow_ContinueAsNewPropagation covers lines 60 and 133-134: when
 // GetContinueAsNewSuggested() returns true, VolumePollSplitWorkflow propagates the
 // ContinueAsNewError directly without marking the job as ERROR or calling
@@ -461,7 +459,6 @@ func (s *VolumePollSplitUnitTestSuite) Test_VolumePollSplitWorkflow_DeferSkipsWh
 	assert.True(s.T(), s.env.IsWorkflowCompleted())
 	assert.NoError(s.T(), s.env.GetWorkflowError())
 }
-
 
 // TestPollONTAPSplitJobInternal_FailureWithErrorCode covers line 219: ONTAP job failure
 // where the error has both a message and a non-empty code.

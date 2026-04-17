@@ -6085,6 +6085,1764 @@ func (s *BatchSnapshotV1betaSnapshotState) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/BatchVolumeUUIDList_v1beta
+type BatchVolumeUUIDListV1beta struct {
+	VolumeUUIDs []string `json:"volumeUUIDs"`
+}
+
+// GetVolumeUUIDs returns the value of VolumeUUIDs.
+func (s *BatchVolumeUUIDListV1beta) GetVolumeUUIDs() []string {
+	return s.VolumeUUIDs
+}
+
+// SetVolumeUUIDs sets the value of VolumeUUIDs.
+func (s *BatchVolumeUUIDListV1beta) SetVolumeUUIDs(val []string) {
+	s.VolumeUUIDs = val
+}
+
+// Ref: #/components/schemas/BatchVolume_v1beta
+type BatchVolumeV1beta struct {
+	ResourceId                  OptNilString                                      `json:"resourceId"`
+	VolumeId                    string                                            `json:"volumeId"`
+	Created                     OptNilDateTime                                    `json:"created"`
+	CreationToken               OptNilString                                      `json:"creationToken"`
+	PoolId                      OptNilString                                      `json:"poolId"`
+	KmsConfigId                 OptNilString                                      `json:"kmsConfigId"`
+	KmsConfigResourceId         OptNilString                                      `json:"kmsConfigResourceId"`
+	Network                     OptNilString                                      `json:"network"`
+	ActiveDirectoryConfigId     OptNilString                                      `json:"activeDirectoryConfigId"`
+	ActiveDirectoryResourceId   OptNilString                                      `json:"activeDirectoryResourceId"`
+	ServiceLevel                OptNilBatchVolumeV1betaServiceLevel               `json:"serviceLevel"`
+	SecurityStyle               OptNilBatchVolumeV1betaSecurityStyle              `json:"securityStyle"`
+	UsedBytes                   OptNilFloat64                                     `json:"usedBytes"`
+	QuotaInBytes                OptNilFloat64                                     `json:"quotaInBytes"`
+	ThroughputMibps             OptNilFloat64                                     `json:"throughputMibps"`
+	ColdTierSizeGib             OptNilFloat64                                     `json:"coldTierSizeGib"`
+	SnapReserve                 OptNilFloat64                                     `json:"snapReserve"`
+	SnapshotDirectory           OptNilBool                                        `json:"snapshotDirectory"`
+	VolumeState                 OptNilBatchVolumeV1betaVolumeState                `json:"volumeState"`
+	VolumeStateDetails          OptNilString                                      `json:"volumeStateDetails"`
+	IsDataProtection            OptNilBool                                        `json:"isDataProtection"`
+	InReplication               OptNilBool                                        `json:"inReplication"`
+	SnapshotPolicy              OptNilBatchVolumeV1betaSnapshotPolicy             `json:"snapshotPolicy"`
+	StorageClass                OptNilBatchVolumeV1betaStorageClass               `json:"storageClass"`
+	ExportPolicy                OptNilBatchVolumeV1betaExportPolicy               `json:"exportPolicy"`
+	BackupConfig                OptNilBatchVolumeV1betaBackupConfig               `json:"backupConfig"`
+	TieringPolicy               OptNilBatchVolumeV1betaTieringPolicy              `json:"tieringPolicy"`
+	BlockProperties             OptNilBatchVolumeV1betaBlockProperties            `json:"blockProperties"`
+	BlockDevices                OptNilBlockDeviceV1betaArray                      `json:"blockDevices"`
+	Protocols                   OptNilProtocolsV1betaArray                        `json:"protocols"`
+	RestrictedActions           OptNilBatchVolumeV1betaRestrictedActionsItemArray `json:"restrictedActions"`
+	SmbSettings                 OptNilBatchVolumeV1betaSmbSettingsItemArray       `json:"smbSettings"`
+	MountPoints                 OptNilMountPointV1betaArray                       `json:"mountPoints"`
+	Labels                      OptNilBatchVolumeV1betaLabels                     `json:"labels"`
+	KerberosEnabled             OptNilBool                                        `json:"kerberosEnabled"`
+	LdapEnabled                 OptNilBool                                        `json:"ldapEnabled"`
+	UnixPermissions             OptNilString                                      `json:"unixPermissions"`
+	EncryptionType              OptNilBatchVolumeV1betaEncryptionType             `json:"encryptionType"`
+	Description                 OptNilString                                      `json:"description"`
+	Zone                        OptNilString                                      `json:"zone"`
+	MultipleEndpoints           OptNilBool                                        `json:"multipleEndpoints"`
+	LargeCapacity               OptNilBool                                        `json:"largeCapacity"`
+	SecondaryZone               OptNilString                                      `json:"secondaryZone"`
+	DedicatedCapacity           OptNilBool                                        `json:"dedicatedCapacity"`
+	LargeVolumeConstituentCount OptNilInt32                                       `json:"largeVolumeConstituentCount"`
+	CacheParameters             OptNilBatchVolumeV1betaCacheParameters            `json:"cacheParameters"`
+	HotTierSizeGib              OptNilFloat64                                     `json:"hotTierSizeGib"`
+	CloneDetails                OptNilBatchVolumeV1betaCloneDetails               `json:"cloneDetails"`
+	Region                      OptNilString                                      `json:"region"`
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *BatchVolumeV1beta) GetResourceId() OptNilString {
+	return s.ResourceId
+}
+
+// GetVolumeId returns the value of VolumeId.
+func (s *BatchVolumeV1beta) GetVolumeId() string {
+	return s.VolumeId
+}
+
+// GetCreated returns the value of Created.
+func (s *BatchVolumeV1beta) GetCreated() OptNilDateTime {
+	return s.Created
+}
+
+// GetCreationToken returns the value of CreationToken.
+func (s *BatchVolumeV1beta) GetCreationToken() OptNilString {
+	return s.CreationToken
+}
+
+// GetPoolId returns the value of PoolId.
+func (s *BatchVolumeV1beta) GetPoolId() OptNilString {
+	return s.PoolId
+}
+
+// GetKmsConfigId returns the value of KmsConfigId.
+func (s *BatchVolumeV1beta) GetKmsConfigId() OptNilString {
+	return s.KmsConfigId
+}
+
+// GetKmsConfigResourceId returns the value of KmsConfigResourceId.
+func (s *BatchVolumeV1beta) GetKmsConfigResourceId() OptNilString {
+	return s.KmsConfigResourceId
+}
+
+// GetNetwork returns the value of Network.
+func (s *BatchVolumeV1beta) GetNetwork() OptNilString {
+	return s.Network
+}
+
+// GetActiveDirectoryConfigId returns the value of ActiveDirectoryConfigId.
+func (s *BatchVolumeV1beta) GetActiveDirectoryConfigId() OptNilString {
+	return s.ActiveDirectoryConfigId
+}
+
+// GetActiveDirectoryResourceId returns the value of ActiveDirectoryResourceId.
+func (s *BatchVolumeV1beta) GetActiveDirectoryResourceId() OptNilString {
+	return s.ActiveDirectoryResourceId
+}
+
+// GetServiceLevel returns the value of ServiceLevel.
+func (s *BatchVolumeV1beta) GetServiceLevel() OptNilBatchVolumeV1betaServiceLevel {
+	return s.ServiceLevel
+}
+
+// GetSecurityStyle returns the value of SecurityStyle.
+func (s *BatchVolumeV1beta) GetSecurityStyle() OptNilBatchVolumeV1betaSecurityStyle {
+	return s.SecurityStyle
+}
+
+// GetUsedBytes returns the value of UsedBytes.
+func (s *BatchVolumeV1beta) GetUsedBytes() OptNilFloat64 {
+	return s.UsedBytes
+}
+
+// GetQuotaInBytes returns the value of QuotaInBytes.
+func (s *BatchVolumeV1beta) GetQuotaInBytes() OptNilFloat64 {
+	return s.QuotaInBytes
+}
+
+// GetThroughputMibps returns the value of ThroughputMibps.
+func (s *BatchVolumeV1beta) GetThroughputMibps() OptNilFloat64 {
+	return s.ThroughputMibps
+}
+
+// GetColdTierSizeGib returns the value of ColdTierSizeGib.
+func (s *BatchVolumeV1beta) GetColdTierSizeGib() OptNilFloat64 {
+	return s.ColdTierSizeGib
+}
+
+// GetSnapReserve returns the value of SnapReserve.
+func (s *BatchVolumeV1beta) GetSnapReserve() OptNilFloat64 {
+	return s.SnapReserve
+}
+
+// GetSnapshotDirectory returns the value of SnapshotDirectory.
+func (s *BatchVolumeV1beta) GetSnapshotDirectory() OptNilBool {
+	return s.SnapshotDirectory
+}
+
+// GetVolumeState returns the value of VolumeState.
+func (s *BatchVolumeV1beta) GetVolumeState() OptNilBatchVolumeV1betaVolumeState {
+	return s.VolumeState
+}
+
+// GetVolumeStateDetails returns the value of VolumeStateDetails.
+func (s *BatchVolumeV1beta) GetVolumeStateDetails() OptNilString {
+	return s.VolumeStateDetails
+}
+
+// GetIsDataProtection returns the value of IsDataProtection.
+func (s *BatchVolumeV1beta) GetIsDataProtection() OptNilBool {
+	return s.IsDataProtection
+}
+
+// GetInReplication returns the value of InReplication.
+func (s *BatchVolumeV1beta) GetInReplication() OptNilBool {
+	return s.InReplication
+}
+
+// GetSnapshotPolicy returns the value of SnapshotPolicy.
+func (s *BatchVolumeV1beta) GetSnapshotPolicy() OptNilBatchVolumeV1betaSnapshotPolicy {
+	return s.SnapshotPolicy
+}
+
+// GetStorageClass returns the value of StorageClass.
+func (s *BatchVolumeV1beta) GetStorageClass() OptNilBatchVolumeV1betaStorageClass {
+	return s.StorageClass
+}
+
+// GetExportPolicy returns the value of ExportPolicy.
+func (s *BatchVolumeV1beta) GetExportPolicy() OptNilBatchVolumeV1betaExportPolicy {
+	return s.ExportPolicy
+}
+
+// GetBackupConfig returns the value of BackupConfig.
+func (s *BatchVolumeV1beta) GetBackupConfig() OptNilBatchVolumeV1betaBackupConfig {
+	return s.BackupConfig
+}
+
+// GetTieringPolicy returns the value of TieringPolicy.
+func (s *BatchVolumeV1beta) GetTieringPolicy() OptNilBatchVolumeV1betaTieringPolicy {
+	return s.TieringPolicy
+}
+
+// GetBlockProperties returns the value of BlockProperties.
+func (s *BatchVolumeV1beta) GetBlockProperties() OptNilBatchVolumeV1betaBlockProperties {
+	return s.BlockProperties
+}
+
+// GetBlockDevices returns the value of BlockDevices.
+func (s *BatchVolumeV1beta) GetBlockDevices() OptNilBlockDeviceV1betaArray {
+	return s.BlockDevices
+}
+
+// GetProtocols returns the value of Protocols.
+func (s *BatchVolumeV1beta) GetProtocols() OptNilProtocolsV1betaArray {
+	return s.Protocols
+}
+
+// GetRestrictedActions returns the value of RestrictedActions.
+func (s *BatchVolumeV1beta) GetRestrictedActions() OptNilBatchVolumeV1betaRestrictedActionsItemArray {
+	return s.RestrictedActions
+}
+
+// GetSmbSettings returns the value of SmbSettings.
+func (s *BatchVolumeV1beta) GetSmbSettings() OptNilBatchVolumeV1betaSmbSettingsItemArray {
+	return s.SmbSettings
+}
+
+// GetMountPoints returns the value of MountPoints.
+func (s *BatchVolumeV1beta) GetMountPoints() OptNilMountPointV1betaArray {
+	return s.MountPoints
+}
+
+// GetLabels returns the value of Labels.
+func (s *BatchVolumeV1beta) GetLabels() OptNilBatchVolumeV1betaLabels {
+	return s.Labels
+}
+
+// GetKerberosEnabled returns the value of KerberosEnabled.
+func (s *BatchVolumeV1beta) GetKerberosEnabled() OptNilBool {
+	return s.KerberosEnabled
+}
+
+// GetLdapEnabled returns the value of LdapEnabled.
+func (s *BatchVolumeV1beta) GetLdapEnabled() OptNilBool {
+	return s.LdapEnabled
+}
+
+// GetUnixPermissions returns the value of UnixPermissions.
+func (s *BatchVolumeV1beta) GetUnixPermissions() OptNilString {
+	return s.UnixPermissions
+}
+
+// GetEncryptionType returns the value of EncryptionType.
+func (s *BatchVolumeV1beta) GetEncryptionType() OptNilBatchVolumeV1betaEncryptionType {
+	return s.EncryptionType
+}
+
+// GetDescription returns the value of Description.
+func (s *BatchVolumeV1beta) GetDescription() OptNilString {
+	return s.Description
+}
+
+// GetZone returns the value of Zone.
+func (s *BatchVolumeV1beta) GetZone() OptNilString {
+	return s.Zone
+}
+
+// GetMultipleEndpoints returns the value of MultipleEndpoints.
+func (s *BatchVolumeV1beta) GetMultipleEndpoints() OptNilBool {
+	return s.MultipleEndpoints
+}
+
+// GetLargeCapacity returns the value of LargeCapacity.
+func (s *BatchVolumeV1beta) GetLargeCapacity() OptNilBool {
+	return s.LargeCapacity
+}
+
+// GetSecondaryZone returns the value of SecondaryZone.
+func (s *BatchVolumeV1beta) GetSecondaryZone() OptNilString {
+	return s.SecondaryZone
+}
+
+// GetDedicatedCapacity returns the value of DedicatedCapacity.
+func (s *BatchVolumeV1beta) GetDedicatedCapacity() OptNilBool {
+	return s.DedicatedCapacity
+}
+
+// GetLargeVolumeConstituentCount returns the value of LargeVolumeConstituentCount.
+func (s *BatchVolumeV1beta) GetLargeVolumeConstituentCount() OptNilInt32 {
+	return s.LargeVolumeConstituentCount
+}
+
+// GetCacheParameters returns the value of CacheParameters.
+func (s *BatchVolumeV1beta) GetCacheParameters() OptNilBatchVolumeV1betaCacheParameters {
+	return s.CacheParameters
+}
+
+// GetHotTierSizeGib returns the value of HotTierSizeGib.
+func (s *BatchVolumeV1beta) GetHotTierSizeGib() OptNilFloat64 {
+	return s.HotTierSizeGib
+}
+
+// GetCloneDetails returns the value of CloneDetails.
+func (s *BatchVolumeV1beta) GetCloneDetails() OptNilBatchVolumeV1betaCloneDetails {
+	return s.CloneDetails
+}
+
+// GetRegion returns the value of Region.
+func (s *BatchVolumeV1beta) GetRegion() OptNilString {
+	return s.Region
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *BatchVolumeV1beta) SetResourceId(val OptNilString) {
+	s.ResourceId = val
+}
+
+// SetVolumeId sets the value of VolumeId.
+func (s *BatchVolumeV1beta) SetVolumeId(val string) {
+	s.VolumeId = val
+}
+
+// SetCreated sets the value of Created.
+func (s *BatchVolumeV1beta) SetCreated(val OptNilDateTime) {
+	s.Created = val
+}
+
+// SetCreationToken sets the value of CreationToken.
+func (s *BatchVolumeV1beta) SetCreationToken(val OptNilString) {
+	s.CreationToken = val
+}
+
+// SetPoolId sets the value of PoolId.
+func (s *BatchVolumeV1beta) SetPoolId(val OptNilString) {
+	s.PoolId = val
+}
+
+// SetKmsConfigId sets the value of KmsConfigId.
+func (s *BatchVolumeV1beta) SetKmsConfigId(val OptNilString) {
+	s.KmsConfigId = val
+}
+
+// SetKmsConfigResourceId sets the value of KmsConfigResourceId.
+func (s *BatchVolumeV1beta) SetKmsConfigResourceId(val OptNilString) {
+	s.KmsConfigResourceId = val
+}
+
+// SetNetwork sets the value of Network.
+func (s *BatchVolumeV1beta) SetNetwork(val OptNilString) {
+	s.Network = val
+}
+
+// SetActiveDirectoryConfigId sets the value of ActiveDirectoryConfigId.
+func (s *BatchVolumeV1beta) SetActiveDirectoryConfigId(val OptNilString) {
+	s.ActiveDirectoryConfigId = val
+}
+
+// SetActiveDirectoryResourceId sets the value of ActiveDirectoryResourceId.
+func (s *BatchVolumeV1beta) SetActiveDirectoryResourceId(val OptNilString) {
+	s.ActiveDirectoryResourceId = val
+}
+
+// SetServiceLevel sets the value of ServiceLevel.
+func (s *BatchVolumeV1beta) SetServiceLevel(val OptNilBatchVolumeV1betaServiceLevel) {
+	s.ServiceLevel = val
+}
+
+// SetSecurityStyle sets the value of SecurityStyle.
+func (s *BatchVolumeV1beta) SetSecurityStyle(val OptNilBatchVolumeV1betaSecurityStyle) {
+	s.SecurityStyle = val
+}
+
+// SetUsedBytes sets the value of UsedBytes.
+func (s *BatchVolumeV1beta) SetUsedBytes(val OptNilFloat64) {
+	s.UsedBytes = val
+}
+
+// SetQuotaInBytes sets the value of QuotaInBytes.
+func (s *BatchVolumeV1beta) SetQuotaInBytes(val OptNilFloat64) {
+	s.QuotaInBytes = val
+}
+
+// SetThroughputMibps sets the value of ThroughputMibps.
+func (s *BatchVolumeV1beta) SetThroughputMibps(val OptNilFloat64) {
+	s.ThroughputMibps = val
+}
+
+// SetColdTierSizeGib sets the value of ColdTierSizeGib.
+func (s *BatchVolumeV1beta) SetColdTierSizeGib(val OptNilFloat64) {
+	s.ColdTierSizeGib = val
+}
+
+// SetSnapReserve sets the value of SnapReserve.
+func (s *BatchVolumeV1beta) SetSnapReserve(val OptNilFloat64) {
+	s.SnapReserve = val
+}
+
+// SetSnapshotDirectory sets the value of SnapshotDirectory.
+func (s *BatchVolumeV1beta) SetSnapshotDirectory(val OptNilBool) {
+	s.SnapshotDirectory = val
+}
+
+// SetVolumeState sets the value of VolumeState.
+func (s *BatchVolumeV1beta) SetVolumeState(val OptNilBatchVolumeV1betaVolumeState) {
+	s.VolumeState = val
+}
+
+// SetVolumeStateDetails sets the value of VolumeStateDetails.
+func (s *BatchVolumeV1beta) SetVolumeStateDetails(val OptNilString) {
+	s.VolumeStateDetails = val
+}
+
+// SetIsDataProtection sets the value of IsDataProtection.
+func (s *BatchVolumeV1beta) SetIsDataProtection(val OptNilBool) {
+	s.IsDataProtection = val
+}
+
+// SetInReplication sets the value of InReplication.
+func (s *BatchVolumeV1beta) SetInReplication(val OptNilBool) {
+	s.InReplication = val
+}
+
+// SetSnapshotPolicy sets the value of SnapshotPolicy.
+func (s *BatchVolumeV1beta) SetSnapshotPolicy(val OptNilBatchVolumeV1betaSnapshotPolicy) {
+	s.SnapshotPolicy = val
+}
+
+// SetStorageClass sets the value of StorageClass.
+func (s *BatchVolumeV1beta) SetStorageClass(val OptNilBatchVolumeV1betaStorageClass) {
+	s.StorageClass = val
+}
+
+// SetExportPolicy sets the value of ExportPolicy.
+func (s *BatchVolumeV1beta) SetExportPolicy(val OptNilBatchVolumeV1betaExportPolicy) {
+	s.ExportPolicy = val
+}
+
+// SetBackupConfig sets the value of BackupConfig.
+func (s *BatchVolumeV1beta) SetBackupConfig(val OptNilBatchVolumeV1betaBackupConfig) {
+	s.BackupConfig = val
+}
+
+// SetTieringPolicy sets the value of TieringPolicy.
+func (s *BatchVolumeV1beta) SetTieringPolicy(val OptNilBatchVolumeV1betaTieringPolicy) {
+	s.TieringPolicy = val
+}
+
+// SetBlockProperties sets the value of BlockProperties.
+func (s *BatchVolumeV1beta) SetBlockProperties(val OptNilBatchVolumeV1betaBlockProperties) {
+	s.BlockProperties = val
+}
+
+// SetBlockDevices sets the value of BlockDevices.
+func (s *BatchVolumeV1beta) SetBlockDevices(val OptNilBlockDeviceV1betaArray) {
+	s.BlockDevices = val
+}
+
+// SetProtocols sets the value of Protocols.
+func (s *BatchVolumeV1beta) SetProtocols(val OptNilProtocolsV1betaArray) {
+	s.Protocols = val
+}
+
+// SetRestrictedActions sets the value of RestrictedActions.
+func (s *BatchVolumeV1beta) SetRestrictedActions(val OptNilBatchVolumeV1betaRestrictedActionsItemArray) {
+	s.RestrictedActions = val
+}
+
+// SetSmbSettings sets the value of SmbSettings.
+func (s *BatchVolumeV1beta) SetSmbSettings(val OptNilBatchVolumeV1betaSmbSettingsItemArray) {
+	s.SmbSettings = val
+}
+
+// SetMountPoints sets the value of MountPoints.
+func (s *BatchVolumeV1beta) SetMountPoints(val OptNilMountPointV1betaArray) {
+	s.MountPoints = val
+}
+
+// SetLabels sets the value of Labels.
+func (s *BatchVolumeV1beta) SetLabels(val OptNilBatchVolumeV1betaLabels) {
+	s.Labels = val
+}
+
+// SetKerberosEnabled sets the value of KerberosEnabled.
+func (s *BatchVolumeV1beta) SetKerberosEnabled(val OptNilBool) {
+	s.KerberosEnabled = val
+}
+
+// SetLdapEnabled sets the value of LdapEnabled.
+func (s *BatchVolumeV1beta) SetLdapEnabled(val OptNilBool) {
+	s.LdapEnabled = val
+}
+
+// SetUnixPermissions sets the value of UnixPermissions.
+func (s *BatchVolumeV1beta) SetUnixPermissions(val OptNilString) {
+	s.UnixPermissions = val
+}
+
+// SetEncryptionType sets the value of EncryptionType.
+func (s *BatchVolumeV1beta) SetEncryptionType(val OptNilBatchVolumeV1betaEncryptionType) {
+	s.EncryptionType = val
+}
+
+// SetDescription sets the value of Description.
+func (s *BatchVolumeV1beta) SetDescription(val OptNilString) {
+	s.Description = val
+}
+
+// SetZone sets the value of Zone.
+func (s *BatchVolumeV1beta) SetZone(val OptNilString) {
+	s.Zone = val
+}
+
+// SetMultipleEndpoints sets the value of MultipleEndpoints.
+func (s *BatchVolumeV1beta) SetMultipleEndpoints(val OptNilBool) {
+	s.MultipleEndpoints = val
+}
+
+// SetLargeCapacity sets the value of LargeCapacity.
+func (s *BatchVolumeV1beta) SetLargeCapacity(val OptNilBool) {
+	s.LargeCapacity = val
+}
+
+// SetSecondaryZone sets the value of SecondaryZone.
+func (s *BatchVolumeV1beta) SetSecondaryZone(val OptNilString) {
+	s.SecondaryZone = val
+}
+
+// SetDedicatedCapacity sets the value of DedicatedCapacity.
+func (s *BatchVolumeV1beta) SetDedicatedCapacity(val OptNilBool) {
+	s.DedicatedCapacity = val
+}
+
+// SetLargeVolumeConstituentCount sets the value of LargeVolumeConstituentCount.
+func (s *BatchVolumeV1beta) SetLargeVolumeConstituentCount(val OptNilInt32) {
+	s.LargeVolumeConstituentCount = val
+}
+
+// SetCacheParameters sets the value of CacheParameters.
+func (s *BatchVolumeV1beta) SetCacheParameters(val OptNilBatchVolumeV1betaCacheParameters) {
+	s.CacheParameters = val
+}
+
+// SetHotTierSizeGib sets the value of HotTierSizeGib.
+func (s *BatchVolumeV1beta) SetHotTierSizeGib(val OptNilFloat64) {
+	s.HotTierSizeGib = val
+}
+
+// SetCloneDetails sets the value of CloneDetails.
+func (s *BatchVolumeV1beta) SetCloneDetails(val OptNilBatchVolumeV1betaCloneDetails) {
+	s.CloneDetails = val
+}
+
+// SetRegion sets the value of Region.
+func (s *BatchVolumeV1beta) SetRegion(val OptNilString) {
+	s.Region = val
+}
+
+// Volume backup properties.
+type BatchVolumeV1betaBackupConfig struct {
+	// Backup policy resource Id.
+	BackupPolicyId OptNilString `json:"backupPolicyId"`
+	// Backup vault resource Id.
+	BackupVaultId OptNilString `json:"backupVaultId"`
+	// Indicates whether policy is enable or disabled on the volume.
+	ScheduledBackupEnabled OptNilBool `json:"scheduledBackupEnabled"`
+	// Size in bytes of the backup of the volume.
+	BackupChainBytes OptNilInt64 `json:"backupChainBytes"`
+	// KMS grant.
+	KmsGrant OptNilString `json:"kmsGrant"`
+}
+
+// GetBackupPolicyId returns the value of BackupPolicyId.
+func (s *BatchVolumeV1betaBackupConfig) GetBackupPolicyId() OptNilString {
+	return s.BackupPolicyId
+}
+
+// GetBackupVaultId returns the value of BackupVaultId.
+func (s *BatchVolumeV1betaBackupConfig) GetBackupVaultId() OptNilString {
+	return s.BackupVaultId
+}
+
+// GetScheduledBackupEnabled returns the value of ScheduledBackupEnabled.
+func (s *BatchVolumeV1betaBackupConfig) GetScheduledBackupEnabled() OptNilBool {
+	return s.ScheduledBackupEnabled
+}
+
+// GetBackupChainBytes returns the value of BackupChainBytes.
+func (s *BatchVolumeV1betaBackupConfig) GetBackupChainBytes() OptNilInt64 {
+	return s.BackupChainBytes
+}
+
+// GetKmsGrant returns the value of KmsGrant.
+func (s *BatchVolumeV1betaBackupConfig) GetKmsGrant() OptNilString {
+	return s.KmsGrant
+}
+
+// SetBackupPolicyId sets the value of BackupPolicyId.
+func (s *BatchVolumeV1betaBackupConfig) SetBackupPolicyId(val OptNilString) {
+	s.BackupPolicyId = val
+}
+
+// SetBackupVaultId sets the value of BackupVaultId.
+func (s *BatchVolumeV1betaBackupConfig) SetBackupVaultId(val OptNilString) {
+	s.BackupVaultId = val
+}
+
+// SetScheduledBackupEnabled sets the value of ScheduledBackupEnabled.
+func (s *BatchVolumeV1betaBackupConfig) SetScheduledBackupEnabled(val OptNilBool) {
+	s.ScheduledBackupEnabled = val
+}
+
+// SetBackupChainBytes sets the value of BackupChainBytes.
+func (s *BatchVolumeV1betaBackupConfig) SetBackupChainBytes(val OptNilInt64) {
+	s.BackupChainBytes = val
+}
+
+// SetKmsGrant sets the value of KmsGrant.
+func (s *BatchVolumeV1betaBackupConfig) SetKmsGrant(val OptNilString) {
+	s.KmsGrant = val
+}
+
+type BatchVolumeV1betaBlockProperties struct {
+	OsType OptBatchVolumeV1betaBlockPropertiesOsType `json:"osType"`
+	// List of Uuid v4 used to identify the HostGroups. A volume can be mapped to multiple HostGroups as
+	// long as each HostGroup has a distinct set of hosts.
+	HostGroupIds []string `json:"hostGroupIds"`
+	// List of HostGroup details. A volume can be mapped to multiple HostGroups as long as each HostGroup
+	// has a distinct set of hosts.
+	HostGroupDetails []HostGroupDetail `json:"hostGroupDetails"`
+	// LUN Serial Number of the Block Volume.
+	LunSerialNumber OptString `json:"lunSerialNumber"`
+}
+
+// GetOsType returns the value of OsType.
+func (s *BatchVolumeV1betaBlockProperties) GetOsType() OptBatchVolumeV1betaBlockPropertiesOsType {
+	return s.OsType
+}
+
+// GetHostGroupIds returns the value of HostGroupIds.
+func (s *BatchVolumeV1betaBlockProperties) GetHostGroupIds() []string {
+	return s.HostGroupIds
+}
+
+// GetHostGroupDetails returns the value of HostGroupDetails.
+func (s *BatchVolumeV1betaBlockProperties) GetHostGroupDetails() []HostGroupDetail {
+	return s.HostGroupDetails
+}
+
+// GetLunSerialNumber returns the value of LunSerialNumber.
+func (s *BatchVolumeV1betaBlockProperties) GetLunSerialNumber() OptString {
+	return s.LunSerialNumber
+}
+
+// SetOsType sets the value of OsType.
+func (s *BatchVolumeV1betaBlockProperties) SetOsType(val OptBatchVolumeV1betaBlockPropertiesOsType) {
+	s.OsType = val
+}
+
+// SetHostGroupIds sets the value of HostGroupIds.
+func (s *BatchVolumeV1betaBlockProperties) SetHostGroupIds(val []string) {
+	s.HostGroupIds = val
+}
+
+// SetHostGroupDetails sets the value of HostGroupDetails.
+func (s *BatchVolumeV1betaBlockProperties) SetHostGroupDetails(val []HostGroupDetail) {
+	s.HostGroupDetails = val
+}
+
+// SetLunSerialNumber sets the value of LunSerialNumber.
+func (s *BatchVolumeV1betaBlockProperties) SetLunSerialNumber(val OptString) {
+	s.LunSerialNumber = val
+}
+
+type BatchVolumeV1betaBlockPropertiesOsType string
+
+const (
+	BatchVolumeV1betaBlockPropertiesOsTypeOSTYPEUNSPECIFIED BatchVolumeV1betaBlockPropertiesOsType = "OS_TYPE_UNSPECIFIED"
+	BatchVolumeV1betaBlockPropertiesOsTypeLINUX             BatchVolumeV1betaBlockPropertiesOsType = "LINUX"
+	BatchVolumeV1betaBlockPropertiesOsTypeWINDOWS           BatchVolumeV1betaBlockPropertiesOsType = "WINDOWS"
+	BatchVolumeV1betaBlockPropertiesOsTypeESXI              BatchVolumeV1betaBlockPropertiesOsType = "ESXI"
+)
+
+// AllValues returns all BatchVolumeV1betaBlockPropertiesOsType values.
+func (BatchVolumeV1betaBlockPropertiesOsType) AllValues() []BatchVolumeV1betaBlockPropertiesOsType {
+	return []BatchVolumeV1betaBlockPropertiesOsType{
+		BatchVolumeV1betaBlockPropertiesOsTypeOSTYPEUNSPECIFIED,
+		BatchVolumeV1betaBlockPropertiesOsTypeLINUX,
+		BatchVolumeV1betaBlockPropertiesOsTypeWINDOWS,
+		BatchVolumeV1betaBlockPropertiesOsTypeESXI,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchVolumeV1betaBlockPropertiesOsType) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchVolumeV1betaBlockPropertiesOsTypeOSTYPEUNSPECIFIED:
+		return []byte(s), nil
+	case BatchVolumeV1betaBlockPropertiesOsTypeLINUX:
+		return []byte(s), nil
+	case BatchVolumeV1betaBlockPropertiesOsTypeWINDOWS:
+		return []byte(s), nil
+	case BatchVolumeV1betaBlockPropertiesOsTypeESXI:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchVolumeV1betaBlockPropertiesOsType) UnmarshalText(data []byte) error {
+	switch BatchVolumeV1betaBlockPropertiesOsType(data) {
+	case BatchVolumeV1betaBlockPropertiesOsTypeOSTYPEUNSPECIFIED:
+		*s = BatchVolumeV1betaBlockPropertiesOsTypeOSTYPEUNSPECIFIED
+		return nil
+	case BatchVolumeV1betaBlockPropertiesOsTypeLINUX:
+		*s = BatchVolumeV1betaBlockPropertiesOsTypeLINUX
+		return nil
+	case BatchVolumeV1betaBlockPropertiesOsTypeWINDOWS:
+		*s = BatchVolumeV1betaBlockPropertiesOsTypeWINDOWS
+		return nil
+	case BatchVolumeV1betaBlockPropertiesOsTypeESXI:
+		*s = BatchVolumeV1betaBlockPropertiesOsTypeESXI
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// FlexCache type volumes include an object containing details of the FlexCache.
+type BatchVolumeV1betaCacheParameters struct {
+	// Name of origin volume for FlexCache.
+	PeerVolumeName OptString `json:"peerVolumeName"`
+	// Name of origin volume's ONTAP cluster for FlexCache.
+	PeerClusterName OptString `json:"peerClusterName"`
+	// Name of origin volume's SVM for FlexCache.
+	PeerSvmName     OptString `json:"peerSvmName"`
+	PeerIpAddresses []string  `json:"peerIpAddresses"`
+	// Specify whether this FlexCache volume has global file lock enabled.
+	EnableGlobalFileLock OptNilBool               `json:"enableGlobalFileLock"`
+	CacheConfig          OptFlexCacheConfigV1beta `json:"cacheConfig"`
+	// Current state of the FlexCache.
+	CacheState OptBatchVolumeV1betaCacheParametersCacheState `json:"cacheState"`
+	// Details about the current lifecycle state.
+	StateDetails OptString `json:"stateDetails"`
+	// Numeric representation of current state details.
+	StateDetailsCode OptInt32 `json:"stateDetailsCode"`
+	// Previous state of the FlexCache.
+	PreviousCacheState OptBatchVolumeV1betaCacheParametersPreviousCacheState `json:"previousCacheState"`
+	// Command used to establish peering for the FlexCache.
+	Command OptString `json:"command"`
+	// DateTime value for when cluster peering command should expire.
+	PeeringCommandExpiryTime OptNilDateTime `json:"peeringCommandExpiryTime"`
+	// Temporary passphrase generated to accept cluster peering command.
+	Passphrase OptNilString `json:"passphrase"`
+}
+
+// GetPeerVolumeName returns the value of PeerVolumeName.
+func (s *BatchVolumeV1betaCacheParameters) GetPeerVolumeName() OptString {
+	return s.PeerVolumeName
+}
+
+// GetPeerClusterName returns the value of PeerClusterName.
+func (s *BatchVolumeV1betaCacheParameters) GetPeerClusterName() OptString {
+	return s.PeerClusterName
+}
+
+// GetPeerSvmName returns the value of PeerSvmName.
+func (s *BatchVolumeV1betaCacheParameters) GetPeerSvmName() OptString {
+	return s.PeerSvmName
+}
+
+// GetPeerIpAddresses returns the value of PeerIpAddresses.
+func (s *BatchVolumeV1betaCacheParameters) GetPeerIpAddresses() []string {
+	return s.PeerIpAddresses
+}
+
+// GetEnableGlobalFileLock returns the value of EnableGlobalFileLock.
+func (s *BatchVolumeV1betaCacheParameters) GetEnableGlobalFileLock() OptNilBool {
+	return s.EnableGlobalFileLock
+}
+
+// GetCacheConfig returns the value of CacheConfig.
+func (s *BatchVolumeV1betaCacheParameters) GetCacheConfig() OptFlexCacheConfigV1beta {
+	return s.CacheConfig
+}
+
+// GetCacheState returns the value of CacheState.
+func (s *BatchVolumeV1betaCacheParameters) GetCacheState() OptBatchVolumeV1betaCacheParametersCacheState {
+	return s.CacheState
+}
+
+// GetStateDetails returns the value of StateDetails.
+func (s *BatchVolumeV1betaCacheParameters) GetStateDetails() OptString {
+	return s.StateDetails
+}
+
+// GetStateDetailsCode returns the value of StateDetailsCode.
+func (s *BatchVolumeV1betaCacheParameters) GetStateDetailsCode() OptInt32 {
+	return s.StateDetailsCode
+}
+
+// GetPreviousCacheState returns the value of PreviousCacheState.
+func (s *BatchVolumeV1betaCacheParameters) GetPreviousCacheState() OptBatchVolumeV1betaCacheParametersPreviousCacheState {
+	return s.PreviousCacheState
+}
+
+// GetCommand returns the value of Command.
+func (s *BatchVolumeV1betaCacheParameters) GetCommand() OptString {
+	return s.Command
+}
+
+// GetPeeringCommandExpiryTime returns the value of PeeringCommandExpiryTime.
+func (s *BatchVolumeV1betaCacheParameters) GetPeeringCommandExpiryTime() OptNilDateTime {
+	return s.PeeringCommandExpiryTime
+}
+
+// GetPassphrase returns the value of Passphrase.
+func (s *BatchVolumeV1betaCacheParameters) GetPassphrase() OptNilString {
+	return s.Passphrase
+}
+
+// SetPeerVolumeName sets the value of PeerVolumeName.
+func (s *BatchVolumeV1betaCacheParameters) SetPeerVolumeName(val OptString) {
+	s.PeerVolumeName = val
+}
+
+// SetPeerClusterName sets the value of PeerClusterName.
+func (s *BatchVolumeV1betaCacheParameters) SetPeerClusterName(val OptString) {
+	s.PeerClusterName = val
+}
+
+// SetPeerSvmName sets the value of PeerSvmName.
+func (s *BatchVolumeV1betaCacheParameters) SetPeerSvmName(val OptString) {
+	s.PeerSvmName = val
+}
+
+// SetPeerIpAddresses sets the value of PeerIpAddresses.
+func (s *BatchVolumeV1betaCacheParameters) SetPeerIpAddresses(val []string) {
+	s.PeerIpAddresses = val
+}
+
+// SetEnableGlobalFileLock sets the value of EnableGlobalFileLock.
+func (s *BatchVolumeV1betaCacheParameters) SetEnableGlobalFileLock(val OptNilBool) {
+	s.EnableGlobalFileLock = val
+}
+
+// SetCacheConfig sets the value of CacheConfig.
+func (s *BatchVolumeV1betaCacheParameters) SetCacheConfig(val OptFlexCacheConfigV1beta) {
+	s.CacheConfig = val
+}
+
+// SetCacheState sets the value of CacheState.
+func (s *BatchVolumeV1betaCacheParameters) SetCacheState(val OptBatchVolumeV1betaCacheParametersCacheState) {
+	s.CacheState = val
+}
+
+// SetStateDetails sets the value of StateDetails.
+func (s *BatchVolumeV1betaCacheParameters) SetStateDetails(val OptString) {
+	s.StateDetails = val
+}
+
+// SetStateDetailsCode sets the value of StateDetailsCode.
+func (s *BatchVolumeV1betaCacheParameters) SetStateDetailsCode(val OptInt32) {
+	s.StateDetailsCode = val
+}
+
+// SetPreviousCacheState sets the value of PreviousCacheState.
+func (s *BatchVolumeV1betaCacheParameters) SetPreviousCacheState(val OptBatchVolumeV1betaCacheParametersPreviousCacheState) {
+	s.PreviousCacheState = val
+}
+
+// SetCommand sets the value of Command.
+func (s *BatchVolumeV1betaCacheParameters) SetCommand(val OptString) {
+	s.Command = val
+}
+
+// SetPeeringCommandExpiryTime sets the value of PeeringCommandExpiryTime.
+func (s *BatchVolumeV1betaCacheParameters) SetPeeringCommandExpiryTime(val OptNilDateTime) {
+	s.PeeringCommandExpiryTime = val
+}
+
+// SetPassphrase sets the value of Passphrase.
+func (s *BatchVolumeV1betaCacheParameters) SetPassphrase(val OptNilString) {
+	s.Passphrase = val
+}
+
+// Current state of the FlexCache.
+type BatchVolumeV1betaCacheParametersCacheState string
+
+const (
+	BatchVolumeV1betaCacheParametersCacheStateCACHESTATEUNSPECIFIED BatchVolumeV1betaCacheParametersCacheState = "CACHE_STATE_UNSPECIFIED"
+	BatchVolumeV1betaCacheParametersCacheStatePENDINGCLUSTERPEERING BatchVolumeV1betaCacheParametersCacheState = "PENDING_CLUSTER_PEERING"
+	BatchVolumeV1betaCacheParametersCacheStatePENDINGSVMPEERING     BatchVolumeV1betaCacheParametersCacheState = "PENDING_SVM_PEERING"
+	BatchVolumeV1betaCacheParametersCacheStatePEERED                BatchVolumeV1betaCacheParametersCacheState = "PEERED"
+	BatchVolumeV1betaCacheParametersCacheStateERROR                 BatchVolumeV1betaCacheParametersCacheState = "ERROR"
+)
+
+// AllValues returns all BatchVolumeV1betaCacheParametersCacheState values.
+func (BatchVolumeV1betaCacheParametersCacheState) AllValues() []BatchVolumeV1betaCacheParametersCacheState {
+	return []BatchVolumeV1betaCacheParametersCacheState{
+		BatchVolumeV1betaCacheParametersCacheStateCACHESTATEUNSPECIFIED,
+		BatchVolumeV1betaCacheParametersCacheStatePENDINGCLUSTERPEERING,
+		BatchVolumeV1betaCacheParametersCacheStatePENDINGSVMPEERING,
+		BatchVolumeV1betaCacheParametersCacheStatePEERED,
+		BatchVolumeV1betaCacheParametersCacheStateERROR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchVolumeV1betaCacheParametersCacheState) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchVolumeV1betaCacheParametersCacheStateCACHESTATEUNSPECIFIED:
+		return []byte(s), nil
+	case BatchVolumeV1betaCacheParametersCacheStatePENDINGCLUSTERPEERING:
+		return []byte(s), nil
+	case BatchVolumeV1betaCacheParametersCacheStatePENDINGSVMPEERING:
+		return []byte(s), nil
+	case BatchVolumeV1betaCacheParametersCacheStatePEERED:
+		return []byte(s), nil
+	case BatchVolumeV1betaCacheParametersCacheStateERROR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchVolumeV1betaCacheParametersCacheState) UnmarshalText(data []byte) error {
+	switch BatchVolumeV1betaCacheParametersCacheState(data) {
+	case BatchVolumeV1betaCacheParametersCacheStateCACHESTATEUNSPECIFIED:
+		*s = BatchVolumeV1betaCacheParametersCacheStateCACHESTATEUNSPECIFIED
+		return nil
+	case BatchVolumeV1betaCacheParametersCacheStatePENDINGCLUSTERPEERING:
+		*s = BatchVolumeV1betaCacheParametersCacheStatePENDINGCLUSTERPEERING
+		return nil
+	case BatchVolumeV1betaCacheParametersCacheStatePENDINGSVMPEERING:
+		*s = BatchVolumeV1betaCacheParametersCacheStatePENDINGSVMPEERING
+		return nil
+	case BatchVolumeV1betaCacheParametersCacheStatePEERED:
+		*s = BatchVolumeV1betaCacheParametersCacheStatePEERED
+		return nil
+	case BatchVolumeV1betaCacheParametersCacheStateERROR:
+		*s = BatchVolumeV1betaCacheParametersCacheStateERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Previous state of the FlexCache.
+type BatchVolumeV1betaCacheParametersPreviousCacheState string
+
+const (
+	BatchVolumeV1betaCacheParametersPreviousCacheStateCACHESTATEUNSPECIFIED BatchVolumeV1betaCacheParametersPreviousCacheState = "CACHE_STATE_UNSPECIFIED"
+	BatchVolumeV1betaCacheParametersPreviousCacheStatePENDINGCLUSTERPEERING BatchVolumeV1betaCacheParametersPreviousCacheState = "PENDING_CLUSTER_PEERING"
+	BatchVolumeV1betaCacheParametersPreviousCacheStatePENDINGSVMPEERING     BatchVolumeV1betaCacheParametersPreviousCacheState = "PENDING_SVM_PEERING"
+	BatchVolumeV1betaCacheParametersPreviousCacheStatePEERED                BatchVolumeV1betaCacheParametersPreviousCacheState = "PEERED"
+	BatchVolumeV1betaCacheParametersPreviousCacheStateERROR                 BatchVolumeV1betaCacheParametersPreviousCacheState = "ERROR"
+)
+
+// AllValues returns all BatchVolumeV1betaCacheParametersPreviousCacheState values.
+func (BatchVolumeV1betaCacheParametersPreviousCacheState) AllValues() []BatchVolumeV1betaCacheParametersPreviousCacheState {
+	return []BatchVolumeV1betaCacheParametersPreviousCacheState{
+		BatchVolumeV1betaCacheParametersPreviousCacheStateCACHESTATEUNSPECIFIED,
+		BatchVolumeV1betaCacheParametersPreviousCacheStatePENDINGCLUSTERPEERING,
+		BatchVolumeV1betaCacheParametersPreviousCacheStatePENDINGSVMPEERING,
+		BatchVolumeV1betaCacheParametersPreviousCacheStatePEERED,
+		BatchVolumeV1betaCacheParametersPreviousCacheStateERROR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchVolumeV1betaCacheParametersPreviousCacheState) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchVolumeV1betaCacheParametersPreviousCacheStateCACHESTATEUNSPECIFIED:
+		return []byte(s), nil
+	case BatchVolumeV1betaCacheParametersPreviousCacheStatePENDINGCLUSTERPEERING:
+		return []byte(s), nil
+	case BatchVolumeV1betaCacheParametersPreviousCacheStatePENDINGSVMPEERING:
+		return []byte(s), nil
+	case BatchVolumeV1betaCacheParametersPreviousCacheStatePEERED:
+		return []byte(s), nil
+	case BatchVolumeV1betaCacheParametersPreviousCacheStateERROR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchVolumeV1betaCacheParametersPreviousCacheState) UnmarshalText(data []byte) error {
+	switch BatchVolumeV1betaCacheParametersPreviousCacheState(data) {
+	case BatchVolumeV1betaCacheParametersPreviousCacheStateCACHESTATEUNSPECIFIED:
+		*s = BatchVolumeV1betaCacheParametersPreviousCacheStateCACHESTATEUNSPECIFIED
+		return nil
+	case BatchVolumeV1betaCacheParametersPreviousCacheStatePENDINGCLUSTERPEERING:
+		*s = BatchVolumeV1betaCacheParametersPreviousCacheStatePENDINGCLUSTERPEERING
+		return nil
+	case BatchVolumeV1betaCacheParametersPreviousCacheStatePENDINGSVMPEERING:
+		*s = BatchVolumeV1betaCacheParametersPreviousCacheStatePENDINGSVMPEERING
+		return nil
+	case BatchVolumeV1betaCacheParametersPreviousCacheStatePEERED:
+		*s = BatchVolumeV1betaCacheParametersPreviousCacheStatePEERED
+		return nil
+	case BatchVolumeV1betaCacheParametersPreviousCacheStateERROR:
+		*s = BatchVolumeV1betaCacheParametersPreviousCacheStateERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type BatchVolumeV1betaCloneDetails struct {
+	// Uuid v4 of the parent volume of the clone.
+	ParentVolumeId OptString `json:"parentVolumeId"`
+	// Uuid v4 of the parent snapshot of the clone.
+	ParentSnapshotId OptString `json:"parentSnapshotId"`
+	// The amount of data (in bytes) shared from parent volume to this thin clone volume.
+	SharedBytes OptNilFloat64 `json:"sharedBytes"`
+	// The current lifecycle state of the clone split operation.
+	State OptNilBatchVolumeV1betaCloneDetailsState `json:"state"`
+	// Error details on why the split operation failed, displayed only when state is SPLIT_FAILED.
+	StateDetails OptNilString `json:"stateDetails"`
+	// The progress in percentage of the clone split operation. This field is only relevant for thin
+	// clones.
+	SplitCompletePercent OptNilInt64 `json:"splitCompletePercent"`
+}
+
+// GetParentVolumeId returns the value of ParentVolumeId.
+func (s *BatchVolumeV1betaCloneDetails) GetParentVolumeId() OptString {
+	return s.ParentVolumeId
+}
+
+// GetParentSnapshotId returns the value of ParentSnapshotId.
+func (s *BatchVolumeV1betaCloneDetails) GetParentSnapshotId() OptString {
+	return s.ParentSnapshotId
+}
+
+// GetSharedBytes returns the value of SharedBytes.
+func (s *BatchVolumeV1betaCloneDetails) GetSharedBytes() OptNilFloat64 {
+	return s.SharedBytes
+}
+
+// GetState returns the value of State.
+func (s *BatchVolumeV1betaCloneDetails) GetState() OptNilBatchVolumeV1betaCloneDetailsState {
+	return s.State
+}
+
+// GetStateDetails returns the value of StateDetails.
+func (s *BatchVolumeV1betaCloneDetails) GetStateDetails() OptNilString {
+	return s.StateDetails
+}
+
+// GetSplitCompletePercent returns the value of SplitCompletePercent.
+func (s *BatchVolumeV1betaCloneDetails) GetSplitCompletePercent() OptNilInt64 {
+	return s.SplitCompletePercent
+}
+
+// SetParentVolumeId sets the value of ParentVolumeId.
+func (s *BatchVolumeV1betaCloneDetails) SetParentVolumeId(val OptString) {
+	s.ParentVolumeId = val
+}
+
+// SetParentSnapshotId sets the value of ParentSnapshotId.
+func (s *BatchVolumeV1betaCloneDetails) SetParentSnapshotId(val OptString) {
+	s.ParentSnapshotId = val
+}
+
+// SetSharedBytes sets the value of SharedBytes.
+func (s *BatchVolumeV1betaCloneDetails) SetSharedBytes(val OptNilFloat64) {
+	s.SharedBytes = val
+}
+
+// SetState sets the value of State.
+func (s *BatchVolumeV1betaCloneDetails) SetState(val OptNilBatchVolumeV1betaCloneDetailsState) {
+	s.State = val
+}
+
+// SetStateDetails sets the value of StateDetails.
+func (s *BatchVolumeV1betaCloneDetails) SetStateDetails(val OptNilString) {
+	s.StateDetails = val
+}
+
+// SetSplitCompletePercent sets the value of SplitCompletePercent.
+func (s *BatchVolumeV1betaCloneDetails) SetSplitCompletePercent(val OptNilInt64) {
+	s.SplitCompletePercent = val
+}
+
+// The current lifecycle state of the clone split operation.
+type BatchVolumeV1betaCloneDetailsState string
+
+const (
+	BatchVolumeV1betaCloneDetailsStateCLONED      BatchVolumeV1betaCloneDetailsState = "CLONED"
+	BatchVolumeV1betaCloneDetailsStateSPLITTING   BatchVolumeV1betaCloneDetailsState = "SPLITTING"
+	BatchVolumeV1betaCloneDetailsStateSPLITFAILED BatchVolumeV1betaCloneDetailsState = "SPLIT_FAILED"
+)
+
+// AllValues returns all BatchVolumeV1betaCloneDetailsState values.
+func (BatchVolumeV1betaCloneDetailsState) AllValues() []BatchVolumeV1betaCloneDetailsState {
+	return []BatchVolumeV1betaCloneDetailsState{
+		BatchVolumeV1betaCloneDetailsStateCLONED,
+		BatchVolumeV1betaCloneDetailsStateSPLITTING,
+		BatchVolumeV1betaCloneDetailsStateSPLITFAILED,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchVolumeV1betaCloneDetailsState) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchVolumeV1betaCloneDetailsStateCLONED:
+		return []byte(s), nil
+	case BatchVolumeV1betaCloneDetailsStateSPLITTING:
+		return []byte(s), nil
+	case BatchVolumeV1betaCloneDetailsStateSPLITFAILED:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchVolumeV1betaCloneDetailsState) UnmarshalText(data []byte) error {
+	switch BatchVolumeV1betaCloneDetailsState(data) {
+	case BatchVolumeV1betaCloneDetailsStateCLONED:
+		*s = BatchVolumeV1betaCloneDetailsStateCLONED
+		return nil
+	case BatchVolumeV1betaCloneDetailsStateSPLITTING:
+		*s = BatchVolumeV1betaCloneDetailsStateSPLITTING
+		return nil
+	case BatchVolumeV1betaCloneDetailsStateSPLITFAILED:
+		*s = BatchVolumeV1betaCloneDetailsStateSPLITFAILED
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type BatchVolumeV1betaEncryptionType string
+
+const (
+	BatchVolumeV1betaEncryptionTypeENCRYPTIONTYPEUNSPECIFIED BatchVolumeV1betaEncryptionType = "ENCRYPTION_TYPE_UNSPECIFIED"
+	BatchVolumeV1betaEncryptionTypeSERVICEMANAGED            BatchVolumeV1betaEncryptionType = "SERVICE_MANAGED"
+	BatchVolumeV1betaEncryptionTypeCLOUDKMS                  BatchVolumeV1betaEncryptionType = "CLOUD_KMS"
+)
+
+// AllValues returns all BatchVolumeV1betaEncryptionType values.
+func (BatchVolumeV1betaEncryptionType) AllValues() []BatchVolumeV1betaEncryptionType {
+	return []BatchVolumeV1betaEncryptionType{
+		BatchVolumeV1betaEncryptionTypeENCRYPTIONTYPEUNSPECIFIED,
+		BatchVolumeV1betaEncryptionTypeSERVICEMANAGED,
+		BatchVolumeV1betaEncryptionTypeCLOUDKMS,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchVolumeV1betaEncryptionType) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchVolumeV1betaEncryptionTypeENCRYPTIONTYPEUNSPECIFIED:
+		return []byte(s), nil
+	case BatchVolumeV1betaEncryptionTypeSERVICEMANAGED:
+		return []byte(s), nil
+	case BatchVolumeV1betaEncryptionTypeCLOUDKMS:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchVolumeV1betaEncryptionType) UnmarshalText(data []byte) error {
+	switch BatchVolumeV1betaEncryptionType(data) {
+	case BatchVolumeV1betaEncryptionTypeENCRYPTIONTYPEUNSPECIFIED:
+		*s = BatchVolumeV1betaEncryptionTypeENCRYPTIONTYPEUNSPECIFIED
+		return nil
+	case BatchVolumeV1betaEncryptionTypeSERVICEMANAGED:
+		*s = BatchVolumeV1betaEncryptionTypeSERVICEMANAGED
+		return nil
+	case BatchVolumeV1betaEncryptionTypeCLOUDKMS:
+		*s = BatchVolumeV1betaEncryptionTypeCLOUDKMS
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Export policy for a NAS volume.
+type BatchVolumeV1betaExportPolicy struct {
+	Rules []SimpleExportPolicyRuleV1beta `json:"rules"`
+}
+
+// GetRules returns the value of Rules.
+func (s *BatchVolumeV1betaExportPolicy) GetRules() []SimpleExportPolicyRuleV1beta {
+	return s.Rules
+}
+
+// SetRules sets the value of Rules.
+func (s *BatchVolumeV1betaExportPolicy) SetRules(val []SimpleExportPolicyRuleV1beta) {
+	s.Rules = val
+}
+
+type BatchVolumeV1betaLabels map[string]string
+
+func (s *BatchVolumeV1betaLabels) init() BatchVolumeV1betaLabels {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+type BatchVolumeV1betaRestrictedActionsItem string
+
+const (
+	BatchVolumeV1betaRestrictedActionsItemDELETE                      BatchVolumeV1betaRestrictedActionsItem = "DELETE"
+	BatchVolumeV1betaRestrictedActionsItemRESTRICTEDACTIONUNSPECIFIED BatchVolumeV1betaRestrictedActionsItem = "RESTRICTED_ACTION_UNSPECIFIED"
+)
+
+// AllValues returns all BatchVolumeV1betaRestrictedActionsItem values.
+func (BatchVolumeV1betaRestrictedActionsItem) AllValues() []BatchVolumeV1betaRestrictedActionsItem {
+	return []BatchVolumeV1betaRestrictedActionsItem{
+		BatchVolumeV1betaRestrictedActionsItemDELETE,
+		BatchVolumeV1betaRestrictedActionsItemRESTRICTEDACTIONUNSPECIFIED,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchVolumeV1betaRestrictedActionsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchVolumeV1betaRestrictedActionsItemDELETE:
+		return []byte(s), nil
+	case BatchVolumeV1betaRestrictedActionsItemRESTRICTEDACTIONUNSPECIFIED:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchVolumeV1betaRestrictedActionsItem) UnmarshalText(data []byte) error {
+	switch BatchVolumeV1betaRestrictedActionsItem(data) {
+	case BatchVolumeV1betaRestrictedActionsItemDELETE:
+		*s = BatchVolumeV1betaRestrictedActionsItemDELETE
+		return nil
+	case BatchVolumeV1betaRestrictedActionsItemRESTRICTEDACTIONUNSPECIFIED:
+		*s = BatchVolumeV1betaRestrictedActionsItemRESTRICTEDACTIONUNSPECIFIED
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type BatchVolumeV1betaSecurityStyle string
+
+const (
+	BatchVolumeV1betaSecurityStyleSECURITYSTYLEUNSPECIFIED BatchVolumeV1betaSecurityStyle = "SECURITY_STYLE_UNSPECIFIED"
+	BatchVolumeV1betaSecurityStyleNTFS                     BatchVolumeV1betaSecurityStyle = "NTFS"
+	BatchVolumeV1betaSecurityStyleUNIX                     BatchVolumeV1betaSecurityStyle = "UNIX"
+)
+
+// AllValues returns all BatchVolumeV1betaSecurityStyle values.
+func (BatchVolumeV1betaSecurityStyle) AllValues() []BatchVolumeV1betaSecurityStyle {
+	return []BatchVolumeV1betaSecurityStyle{
+		BatchVolumeV1betaSecurityStyleSECURITYSTYLEUNSPECIFIED,
+		BatchVolumeV1betaSecurityStyleNTFS,
+		BatchVolumeV1betaSecurityStyleUNIX,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchVolumeV1betaSecurityStyle) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchVolumeV1betaSecurityStyleSECURITYSTYLEUNSPECIFIED:
+		return []byte(s), nil
+	case BatchVolumeV1betaSecurityStyleNTFS:
+		return []byte(s), nil
+	case BatchVolumeV1betaSecurityStyleUNIX:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchVolumeV1betaSecurityStyle) UnmarshalText(data []byte) error {
+	switch BatchVolumeV1betaSecurityStyle(data) {
+	case BatchVolumeV1betaSecurityStyleSECURITYSTYLEUNSPECIFIED:
+		*s = BatchVolumeV1betaSecurityStyleSECURITYSTYLEUNSPECIFIED
+		return nil
+	case BatchVolumeV1betaSecurityStyleNTFS:
+		*s = BatchVolumeV1betaSecurityStyleNTFS
+		return nil
+	case BatchVolumeV1betaSecurityStyleUNIX:
+		*s = BatchVolumeV1betaSecurityStyleUNIX
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type BatchVolumeV1betaServiceLevel string
+
+const (
+	BatchVolumeV1betaServiceLevelSERVICELEVELUNSPECIFIED BatchVolumeV1betaServiceLevel = "SERVICE_LEVEL_UNSPECIFIED"
+	BatchVolumeV1betaServiceLevelFLEX                    BatchVolumeV1betaServiceLevel = "FLEX"
+	BatchVolumeV1betaServiceLevelSTANDARD                BatchVolumeV1betaServiceLevel = "STANDARD"
+	BatchVolumeV1betaServiceLevelPREMIUM                 BatchVolumeV1betaServiceLevel = "PREMIUM"
+	BatchVolumeV1betaServiceLevelEXTREME                 BatchVolumeV1betaServiceLevel = "EXTREME"
+)
+
+// AllValues returns all BatchVolumeV1betaServiceLevel values.
+func (BatchVolumeV1betaServiceLevel) AllValues() []BatchVolumeV1betaServiceLevel {
+	return []BatchVolumeV1betaServiceLevel{
+		BatchVolumeV1betaServiceLevelSERVICELEVELUNSPECIFIED,
+		BatchVolumeV1betaServiceLevelFLEX,
+		BatchVolumeV1betaServiceLevelSTANDARD,
+		BatchVolumeV1betaServiceLevelPREMIUM,
+		BatchVolumeV1betaServiceLevelEXTREME,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchVolumeV1betaServiceLevel) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchVolumeV1betaServiceLevelSERVICELEVELUNSPECIFIED:
+		return []byte(s), nil
+	case BatchVolumeV1betaServiceLevelFLEX:
+		return []byte(s), nil
+	case BatchVolumeV1betaServiceLevelSTANDARD:
+		return []byte(s), nil
+	case BatchVolumeV1betaServiceLevelPREMIUM:
+		return []byte(s), nil
+	case BatchVolumeV1betaServiceLevelEXTREME:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchVolumeV1betaServiceLevel) UnmarshalText(data []byte) error {
+	switch BatchVolumeV1betaServiceLevel(data) {
+	case BatchVolumeV1betaServiceLevelSERVICELEVELUNSPECIFIED:
+		*s = BatchVolumeV1betaServiceLevelSERVICELEVELUNSPECIFIED
+		return nil
+	case BatchVolumeV1betaServiceLevelFLEX:
+		*s = BatchVolumeV1betaServiceLevelFLEX
+		return nil
+	case BatchVolumeV1betaServiceLevelSTANDARD:
+		*s = BatchVolumeV1betaServiceLevelSTANDARD
+		return nil
+	case BatchVolumeV1betaServiceLevelPREMIUM:
+		*s = BatchVolumeV1betaServiceLevelPREMIUM
+		return nil
+	case BatchVolumeV1betaServiceLevelEXTREME:
+		*s = BatchVolumeV1betaServiceLevelEXTREME
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// SMB settings for the volume. These settings are used to control the behavior of the SMB protocol
+// on the NAS volume.
+type BatchVolumeV1betaSmbSettingsItem string
+
+const (
+	BatchVolumeV1betaSmbSettingsItemSMBSETTINGSUNSPECIFIED BatchVolumeV1betaSmbSettingsItem = "SMB_SETTINGS_UNSPECIFIED"
+	BatchVolumeV1betaSmbSettingsItemENCRYPTDATA            BatchVolumeV1betaSmbSettingsItem = "ENCRYPT_DATA"
+	BatchVolumeV1betaSmbSettingsItemBROWSABLE              BatchVolumeV1betaSmbSettingsItem = "BROWSABLE"
+	BatchVolumeV1betaSmbSettingsItemCHANGENOTIFY           BatchVolumeV1betaSmbSettingsItem = "CHANGE_NOTIFY"
+	BatchVolumeV1betaSmbSettingsItemNONBROWSABLE           BatchVolumeV1betaSmbSettingsItem = "NON_BROWSABLE"
+	BatchVolumeV1betaSmbSettingsItemOPLOCKS                BatchVolumeV1betaSmbSettingsItem = "OPLOCKS"
+	BatchVolumeV1betaSmbSettingsItemSHOWSNAPSHOT           BatchVolumeV1betaSmbSettingsItem = "SHOW_SNAPSHOT"
+	BatchVolumeV1betaSmbSettingsItemSHOWPREVIOUSVERSIONS   BatchVolumeV1betaSmbSettingsItem = "SHOW_PREVIOUS_VERSIONS"
+	BatchVolumeV1betaSmbSettingsItemACCESSBASEDENUMERATION BatchVolumeV1betaSmbSettingsItem = "ACCESS_BASED_ENUMERATION"
+	BatchVolumeV1betaSmbSettingsItemCONTINUOUSLYAVAILABLE  BatchVolumeV1betaSmbSettingsItem = "CONTINUOUSLY_AVAILABLE"
+)
+
+// AllValues returns all BatchVolumeV1betaSmbSettingsItem values.
+func (BatchVolumeV1betaSmbSettingsItem) AllValues() []BatchVolumeV1betaSmbSettingsItem {
+	return []BatchVolumeV1betaSmbSettingsItem{
+		BatchVolumeV1betaSmbSettingsItemSMBSETTINGSUNSPECIFIED,
+		BatchVolumeV1betaSmbSettingsItemENCRYPTDATA,
+		BatchVolumeV1betaSmbSettingsItemBROWSABLE,
+		BatchVolumeV1betaSmbSettingsItemCHANGENOTIFY,
+		BatchVolumeV1betaSmbSettingsItemNONBROWSABLE,
+		BatchVolumeV1betaSmbSettingsItemOPLOCKS,
+		BatchVolumeV1betaSmbSettingsItemSHOWSNAPSHOT,
+		BatchVolumeV1betaSmbSettingsItemSHOWPREVIOUSVERSIONS,
+		BatchVolumeV1betaSmbSettingsItemACCESSBASEDENUMERATION,
+		BatchVolumeV1betaSmbSettingsItemCONTINUOUSLYAVAILABLE,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchVolumeV1betaSmbSettingsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchVolumeV1betaSmbSettingsItemSMBSETTINGSUNSPECIFIED:
+		return []byte(s), nil
+	case BatchVolumeV1betaSmbSettingsItemENCRYPTDATA:
+		return []byte(s), nil
+	case BatchVolumeV1betaSmbSettingsItemBROWSABLE:
+		return []byte(s), nil
+	case BatchVolumeV1betaSmbSettingsItemCHANGENOTIFY:
+		return []byte(s), nil
+	case BatchVolumeV1betaSmbSettingsItemNONBROWSABLE:
+		return []byte(s), nil
+	case BatchVolumeV1betaSmbSettingsItemOPLOCKS:
+		return []byte(s), nil
+	case BatchVolumeV1betaSmbSettingsItemSHOWSNAPSHOT:
+		return []byte(s), nil
+	case BatchVolumeV1betaSmbSettingsItemSHOWPREVIOUSVERSIONS:
+		return []byte(s), nil
+	case BatchVolumeV1betaSmbSettingsItemACCESSBASEDENUMERATION:
+		return []byte(s), nil
+	case BatchVolumeV1betaSmbSettingsItemCONTINUOUSLYAVAILABLE:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchVolumeV1betaSmbSettingsItem) UnmarshalText(data []byte) error {
+	switch BatchVolumeV1betaSmbSettingsItem(data) {
+	case BatchVolumeV1betaSmbSettingsItemSMBSETTINGSUNSPECIFIED:
+		*s = BatchVolumeV1betaSmbSettingsItemSMBSETTINGSUNSPECIFIED
+		return nil
+	case BatchVolumeV1betaSmbSettingsItemENCRYPTDATA:
+		*s = BatchVolumeV1betaSmbSettingsItemENCRYPTDATA
+		return nil
+	case BatchVolumeV1betaSmbSettingsItemBROWSABLE:
+		*s = BatchVolumeV1betaSmbSettingsItemBROWSABLE
+		return nil
+	case BatchVolumeV1betaSmbSettingsItemCHANGENOTIFY:
+		*s = BatchVolumeV1betaSmbSettingsItemCHANGENOTIFY
+		return nil
+	case BatchVolumeV1betaSmbSettingsItemNONBROWSABLE:
+		*s = BatchVolumeV1betaSmbSettingsItemNONBROWSABLE
+		return nil
+	case BatchVolumeV1betaSmbSettingsItemOPLOCKS:
+		*s = BatchVolumeV1betaSmbSettingsItemOPLOCKS
+		return nil
+	case BatchVolumeV1betaSmbSettingsItemSHOWSNAPSHOT:
+		*s = BatchVolumeV1betaSmbSettingsItemSHOWSNAPSHOT
+		return nil
+	case BatchVolumeV1betaSmbSettingsItemSHOWPREVIOUSVERSIONS:
+		*s = BatchVolumeV1betaSmbSettingsItemSHOWPREVIOUSVERSIONS
+		return nil
+	case BatchVolumeV1betaSmbSettingsItemACCESSBASEDENUMERATION:
+		*s = BatchVolumeV1betaSmbSettingsItemACCESSBASEDENUMERATION
+		return nil
+	case BatchVolumeV1betaSmbSettingsItemCONTINUOUSLYAVAILABLE:
+		*s = BatchVolumeV1betaSmbSettingsItemCONTINUOUSLYAVAILABLE
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Snapshot policy for a volume.
+type BatchVolumeV1betaSnapshotPolicy struct {
+	// If enabled, make snapshots automatically according to the schedules. Default is false.
+	Enabled         OptNilBool               `json:"enabled"`
+	HourlySchedule  OptHourlyScheduleV1beta  `json:"hourlySchedule"`
+	DailySchedule   OptDailyScheduleV1beta   `json:"dailySchedule"`
+	WeeklySchedule  OptWeeklyScheduleV1beta  `json:"weeklySchedule"`
+	MonthlySchedule OptMonthlyScheduleV1beta `json:"monthlySchedule"`
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *BatchVolumeV1betaSnapshotPolicy) GetEnabled() OptNilBool {
+	return s.Enabled
+}
+
+// GetHourlySchedule returns the value of HourlySchedule.
+func (s *BatchVolumeV1betaSnapshotPolicy) GetHourlySchedule() OptHourlyScheduleV1beta {
+	return s.HourlySchedule
+}
+
+// GetDailySchedule returns the value of DailySchedule.
+func (s *BatchVolumeV1betaSnapshotPolicy) GetDailySchedule() OptDailyScheduleV1beta {
+	return s.DailySchedule
+}
+
+// GetWeeklySchedule returns the value of WeeklySchedule.
+func (s *BatchVolumeV1betaSnapshotPolicy) GetWeeklySchedule() OptWeeklyScheduleV1beta {
+	return s.WeeklySchedule
+}
+
+// GetMonthlySchedule returns the value of MonthlySchedule.
+func (s *BatchVolumeV1betaSnapshotPolicy) GetMonthlySchedule() OptMonthlyScheduleV1beta {
+	return s.MonthlySchedule
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *BatchVolumeV1betaSnapshotPolicy) SetEnabled(val OptNilBool) {
+	s.Enabled = val
+}
+
+// SetHourlySchedule sets the value of HourlySchedule.
+func (s *BatchVolumeV1betaSnapshotPolicy) SetHourlySchedule(val OptHourlyScheduleV1beta) {
+	s.HourlySchedule = val
+}
+
+// SetDailySchedule sets the value of DailySchedule.
+func (s *BatchVolumeV1betaSnapshotPolicy) SetDailySchedule(val OptDailyScheduleV1beta) {
+	s.DailySchedule = val
+}
+
+// SetWeeklySchedule sets the value of WeeklySchedule.
+func (s *BatchVolumeV1betaSnapshotPolicy) SetWeeklySchedule(val OptWeeklyScheduleV1beta) {
+	s.WeeklySchedule = val
+}
+
+// SetMonthlySchedule sets the value of MonthlySchedule.
+func (s *BatchVolumeV1betaSnapshotPolicy) SetMonthlySchedule(val OptMonthlyScheduleV1beta) {
+	s.MonthlySchedule = val
+}
+
+// Storage class to be provisioned. Currently software is the only option.
+type BatchVolumeV1betaStorageClass string
+
+const (
+	BatchVolumeV1betaStorageClassSTORAGECLASSUNSPECIFIED BatchVolumeV1betaStorageClass = "STORAGE_CLASS_UNSPECIFIED"
+	BatchVolumeV1betaStorageClassSOFTWARE                BatchVolumeV1betaStorageClass = "SOFTWARE"
+	BatchVolumeV1betaStorageClassHARDWARE                BatchVolumeV1betaStorageClass = "HARDWARE"
+)
+
+// AllValues returns all BatchVolumeV1betaStorageClass values.
+func (BatchVolumeV1betaStorageClass) AllValues() []BatchVolumeV1betaStorageClass {
+	return []BatchVolumeV1betaStorageClass{
+		BatchVolumeV1betaStorageClassSTORAGECLASSUNSPECIFIED,
+		BatchVolumeV1betaStorageClassSOFTWARE,
+		BatchVolumeV1betaStorageClassHARDWARE,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchVolumeV1betaStorageClass) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchVolumeV1betaStorageClassSTORAGECLASSUNSPECIFIED:
+		return []byte(s), nil
+	case BatchVolumeV1betaStorageClassSOFTWARE:
+		return []byte(s), nil
+	case BatchVolumeV1betaStorageClassHARDWARE:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchVolumeV1betaStorageClass) UnmarshalText(data []byte) error {
+	switch BatchVolumeV1betaStorageClass(data) {
+	case BatchVolumeV1betaStorageClassSTORAGECLASSUNSPECIFIED:
+		*s = BatchVolumeV1betaStorageClassSTORAGECLASSUNSPECIFIED
+		return nil
+	case BatchVolumeV1betaStorageClassSOFTWARE:
+		*s = BatchVolumeV1betaStorageClassSOFTWARE
+		return nil
+	case BatchVolumeV1betaStorageClassHARDWARE:
+		*s = BatchVolumeV1betaStorageClassHARDWARE
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Auto tiering properties.
+type BatchVolumeV1betaTieringPolicy struct {
+	// Flag indicating if the volume has tiering policy 'enabled' or 'paused'.
+	TierAction OptNilBatchVolumeV1betaTieringPolicyTierAction `json:"tierAction"`
+	// Time in days to mark the volume's data block as cold and make it eligible for tiering. Minimum is
+	// 7 and maximum is 183 days.
+	CoolingThresholdDays OptNilInt32 `json:"coolingThresholdDays"`
+	// Flag indicating if the volume has hot tier bypass mode enabled or not.
+	HotTierBypassModeEnabled OptNilBool `json:"hotTierBypassModeEnabled"`
+}
+
+// GetTierAction returns the value of TierAction.
+func (s *BatchVolumeV1betaTieringPolicy) GetTierAction() OptNilBatchVolumeV1betaTieringPolicyTierAction {
+	return s.TierAction
+}
+
+// GetCoolingThresholdDays returns the value of CoolingThresholdDays.
+func (s *BatchVolumeV1betaTieringPolicy) GetCoolingThresholdDays() OptNilInt32 {
+	return s.CoolingThresholdDays
+}
+
+// GetHotTierBypassModeEnabled returns the value of HotTierBypassModeEnabled.
+func (s *BatchVolumeV1betaTieringPolicy) GetHotTierBypassModeEnabled() OptNilBool {
+	return s.HotTierBypassModeEnabled
+}
+
+// SetTierAction sets the value of TierAction.
+func (s *BatchVolumeV1betaTieringPolicy) SetTierAction(val OptNilBatchVolumeV1betaTieringPolicyTierAction) {
+	s.TierAction = val
+}
+
+// SetCoolingThresholdDays sets the value of CoolingThresholdDays.
+func (s *BatchVolumeV1betaTieringPolicy) SetCoolingThresholdDays(val OptNilInt32) {
+	s.CoolingThresholdDays = val
+}
+
+// SetHotTierBypassModeEnabled sets the value of HotTierBypassModeEnabled.
+func (s *BatchVolumeV1betaTieringPolicy) SetHotTierBypassModeEnabled(val OptNilBool) {
+	s.HotTierBypassModeEnabled = val
+}
+
+// Flag indicating if the volume has tiering policy 'enabled' or 'paused'.
+type BatchVolumeV1betaTieringPolicyTierAction string
+
+const (
+	BatchVolumeV1betaTieringPolicyTierActionENABLED BatchVolumeV1betaTieringPolicyTierAction = "ENABLED"
+	BatchVolumeV1betaTieringPolicyTierActionPAUSED  BatchVolumeV1betaTieringPolicyTierAction = "PAUSED"
+)
+
+// AllValues returns all BatchVolumeV1betaTieringPolicyTierAction values.
+func (BatchVolumeV1betaTieringPolicyTierAction) AllValues() []BatchVolumeV1betaTieringPolicyTierAction {
+	return []BatchVolumeV1betaTieringPolicyTierAction{
+		BatchVolumeV1betaTieringPolicyTierActionENABLED,
+		BatchVolumeV1betaTieringPolicyTierActionPAUSED,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchVolumeV1betaTieringPolicyTierAction) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchVolumeV1betaTieringPolicyTierActionENABLED:
+		return []byte(s), nil
+	case BatchVolumeV1betaTieringPolicyTierActionPAUSED:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchVolumeV1betaTieringPolicyTierAction) UnmarshalText(data []byte) error {
+	switch BatchVolumeV1betaTieringPolicyTierAction(data) {
+	case BatchVolumeV1betaTieringPolicyTierActionENABLED:
+		*s = BatchVolumeV1betaTieringPolicyTierActionENABLED
+		return nil
+	case BatchVolumeV1betaTieringPolicyTierActionPAUSED:
+		*s = BatchVolumeV1betaTieringPolicyTierActionPAUSED
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type BatchVolumeV1betaVolumeState string
+
+const (
+	BatchVolumeV1betaVolumeStateSTATEUNSPECIFIED BatchVolumeV1betaVolumeState = "STATE_UNSPECIFIED"
+	BatchVolumeV1betaVolumeStateCREATING         BatchVolumeV1betaVolumeState = "CREATING"
+	BatchVolumeV1betaVolumeStateREADY            BatchVolumeV1betaVolumeState = "READY"
+	BatchVolumeV1betaVolumeStateUPDATING         BatchVolumeV1betaVolumeState = "UPDATING"
+	BatchVolumeV1betaVolumeStateRESTORING        BatchVolumeV1betaVolumeState = "RESTORING"
+	BatchVolumeV1betaVolumeStateDELETED          BatchVolumeV1betaVolumeState = "DELETED"
+	BatchVolumeV1betaVolumeStateDISABLED         BatchVolumeV1betaVolumeState = "DISABLED"
+	BatchVolumeV1betaVolumeStateDELETING         BatchVolumeV1betaVolumeState = "DELETING"
+	BatchVolumeV1betaVolumeStateERROR            BatchVolumeV1betaVolumeState = "ERROR"
+	BatchVolumeV1betaVolumeStateREADONLY         BatchVolumeV1betaVolumeState = "READ_ONLY"
+	BatchVolumeV1betaVolumeStatePREPARING        BatchVolumeV1betaVolumeState = "PREPARING"
+)
+
+// AllValues returns all BatchVolumeV1betaVolumeState values.
+func (BatchVolumeV1betaVolumeState) AllValues() []BatchVolumeV1betaVolumeState {
+	return []BatchVolumeV1betaVolumeState{
+		BatchVolumeV1betaVolumeStateSTATEUNSPECIFIED,
+		BatchVolumeV1betaVolumeStateCREATING,
+		BatchVolumeV1betaVolumeStateREADY,
+		BatchVolumeV1betaVolumeStateUPDATING,
+		BatchVolumeV1betaVolumeStateRESTORING,
+		BatchVolumeV1betaVolumeStateDELETED,
+		BatchVolumeV1betaVolumeStateDISABLED,
+		BatchVolumeV1betaVolumeStateDELETING,
+		BatchVolumeV1betaVolumeStateERROR,
+		BatchVolumeV1betaVolumeStateREADONLY,
+		BatchVolumeV1betaVolumeStatePREPARING,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchVolumeV1betaVolumeState) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchVolumeV1betaVolumeStateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case BatchVolumeV1betaVolumeStateCREATING:
+		return []byte(s), nil
+	case BatchVolumeV1betaVolumeStateREADY:
+		return []byte(s), nil
+	case BatchVolumeV1betaVolumeStateUPDATING:
+		return []byte(s), nil
+	case BatchVolumeV1betaVolumeStateRESTORING:
+		return []byte(s), nil
+	case BatchVolumeV1betaVolumeStateDELETED:
+		return []byte(s), nil
+	case BatchVolumeV1betaVolumeStateDISABLED:
+		return []byte(s), nil
+	case BatchVolumeV1betaVolumeStateDELETING:
+		return []byte(s), nil
+	case BatchVolumeV1betaVolumeStateERROR:
+		return []byte(s), nil
+	case BatchVolumeV1betaVolumeStateREADONLY:
+		return []byte(s), nil
+	case BatchVolumeV1betaVolumeStatePREPARING:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchVolumeV1betaVolumeState) UnmarshalText(data []byte) error {
+	switch BatchVolumeV1betaVolumeState(data) {
+	case BatchVolumeV1betaVolumeStateSTATEUNSPECIFIED:
+		*s = BatchVolumeV1betaVolumeStateSTATEUNSPECIFIED
+		return nil
+	case BatchVolumeV1betaVolumeStateCREATING:
+		*s = BatchVolumeV1betaVolumeStateCREATING
+		return nil
+	case BatchVolumeV1betaVolumeStateREADY:
+		*s = BatchVolumeV1betaVolumeStateREADY
+		return nil
+	case BatchVolumeV1betaVolumeStateUPDATING:
+		*s = BatchVolumeV1betaVolumeStateUPDATING
+		return nil
+	case BatchVolumeV1betaVolumeStateRESTORING:
+		*s = BatchVolumeV1betaVolumeStateRESTORING
+		return nil
+	case BatchVolumeV1betaVolumeStateDELETED:
+		*s = BatchVolumeV1betaVolumeStateDELETED
+		return nil
+	case BatchVolumeV1betaVolumeStateDISABLED:
+		*s = BatchVolumeV1betaVolumeStateDISABLED
+		return nil
+	case BatchVolumeV1betaVolumeStateDELETING:
+		*s = BatchVolumeV1betaVolumeStateDELETING
+		return nil
+	case BatchVolumeV1betaVolumeStateERROR:
+		*s = BatchVolumeV1betaVolumeStateERROR
+		return nil
+	case BatchVolumeV1betaVolumeStateREADONLY:
+		*s = BatchVolumeV1betaVolumeStateREADONLY
+		return nil
+	case BatchVolumeV1betaVolumeStatePREPARING:
+		*s = BatchVolumeV1betaVolumeStatePREPARING
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/BlockDevice_v1beta
 type BlockDeviceV1beta struct {
 	// User-defined name for the block device, unique within the Volume. In case no user input is provide
@@ -6938,6 +8696,7 @@ func (s *ErrorStatusCode) SetResponse(val Error) {
 
 func (*ErrorStatusCode) getHealthRes()                                       {}
 func (*ErrorStatusCode) v1betaBackupConfigRes()                              {}
+func (*ErrorStatusCode) v1betaBatchListVolumesRes()                          {}
 func (*ErrorStatusCode) v1betaCheckKmsConfigRes()                            {}
 func (*ErrorStatusCode) v1betaCreateActiveDirectoryRes()                     {}
 func (*ErrorStatusCode) v1betaCreateBackupPolicyRes()                        {}
@@ -11814,6 +13573,144 @@ func (o OptBatchSnapshotV1betaSnapshotState) Or(d BatchSnapshotV1betaSnapshotSta
 	return d
 }
 
+// NewOptBatchVolumeV1betaBlockPropertiesOsType returns new OptBatchVolumeV1betaBlockPropertiesOsType with value set to v.
+func NewOptBatchVolumeV1betaBlockPropertiesOsType(v BatchVolumeV1betaBlockPropertiesOsType) OptBatchVolumeV1betaBlockPropertiesOsType {
+	return OptBatchVolumeV1betaBlockPropertiesOsType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBatchVolumeV1betaBlockPropertiesOsType is optional BatchVolumeV1betaBlockPropertiesOsType.
+type OptBatchVolumeV1betaBlockPropertiesOsType struct {
+	Value BatchVolumeV1betaBlockPropertiesOsType
+	Set   bool
+}
+
+// IsSet returns true if OptBatchVolumeV1betaBlockPropertiesOsType was set.
+func (o OptBatchVolumeV1betaBlockPropertiesOsType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBatchVolumeV1betaBlockPropertiesOsType) Reset() {
+	var v BatchVolumeV1betaBlockPropertiesOsType
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBatchVolumeV1betaBlockPropertiesOsType) SetTo(v BatchVolumeV1betaBlockPropertiesOsType) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBatchVolumeV1betaBlockPropertiesOsType) Get() (v BatchVolumeV1betaBlockPropertiesOsType, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBatchVolumeV1betaBlockPropertiesOsType) Or(d BatchVolumeV1betaBlockPropertiesOsType) BatchVolumeV1betaBlockPropertiesOsType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBatchVolumeV1betaCacheParametersCacheState returns new OptBatchVolumeV1betaCacheParametersCacheState with value set to v.
+func NewOptBatchVolumeV1betaCacheParametersCacheState(v BatchVolumeV1betaCacheParametersCacheState) OptBatchVolumeV1betaCacheParametersCacheState {
+	return OptBatchVolumeV1betaCacheParametersCacheState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBatchVolumeV1betaCacheParametersCacheState is optional BatchVolumeV1betaCacheParametersCacheState.
+type OptBatchVolumeV1betaCacheParametersCacheState struct {
+	Value BatchVolumeV1betaCacheParametersCacheState
+	Set   bool
+}
+
+// IsSet returns true if OptBatchVolumeV1betaCacheParametersCacheState was set.
+func (o OptBatchVolumeV1betaCacheParametersCacheState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBatchVolumeV1betaCacheParametersCacheState) Reset() {
+	var v BatchVolumeV1betaCacheParametersCacheState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBatchVolumeV1betaCacheParametersCacheState) SetTo(v BatchVolumeV1betaCacheParametersCacheState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBatchVolumeV1betaCacheParametersCacheState) Get() (v BatchVolumeV1betaCacheParametersCacheState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBatchVolumeV1betaCacheParametersCacheState) Or(d BatchVolumeV1betaCacheParametersCacheState) BatchVolumeV1betaCacheParametersCacheState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBatchVolumeV1betaCacheParametersPreviousCacheState returns new OptBatchVolumeV1betaCacheParametersPreviousCacheState with value set to v.
+func NewOptBatchVolumeV1betaCacheParametersPreviousCacheState(v BatchVolumeV1betaCacheParametersPreviousCacheState) OptBatchVolumeV1betaCacheParametersPreviousCacheState {
+	return OptBatchVolumeV1betaCacheParametersPreviousCacheState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBatchVolumeV1betaCacheParametersPreviousCacheState is optional BatchVolumeV1betaCacheParametersPreviousCacheState.
+type OptBatchVolumeV1betaCacheParametersPreviousCacheState struct {
+	Value BatchVolumeV1betaCacheParametersPreviousCacheState
+	Set   bool
+}
+
+// IsSet returns true if OptBatchVolumeV1betaCacheParametersPreviousCacheState was set.
+func (o OptBatchVolumeV1betaCacheParametersPreviousCacheState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBatchVolumeV1betaCacheParametersPreviousCacheState) Reset() {
+	var v BatchVolumeV1betaCacheParametersPreviousCacheState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBatchVolumeV1betaCacheParametersPreviousCacheState) SetTo(v BatchVolumeV1betaCacheParametersPreviousCacheState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBatchVolumeV1betaCacheParametersPreviousCacheState) Get() (v BatchVolumeV1betaCacheParametersPreviousCacheState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBatchVolumeV1betaCacheParametersPreviousCacheState) Or(d BatchVolumeV1betaCacheParametersPreviousCacheState) BatchVolumeV1betaCacheParametersPreviousCacheState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptBlockDeviceV1betaOsType returns new OptBlockDeviceV1betaOsType with value set to v.
 func NewOptBlockDeviceV1betaOsType(v BlockDeviceV1betaOsType) OptBlockDeviceV1betaOsType {
 	return OptBlockDeviceV1betaOsType{
@@ -14834,6 +16731,1140 @@ func (o OptNilBatchPoolV1betaType) Or(d BatchPoolV1betaType) BatchPoolV1betaType
 	return d
 }
 
+// NewOptNilBatchVolumeV1betaBackupConfig returns new OptNilBatchVolumeV1betaBackupConfig with value set to v.
+func NewOptNilBatchVolumeV1betaBackupConfig(v BatchVolumeV1betaBackupConfig) OptNilBatchVolumeV1betaBackupConfig {
+	return OptNilBatchVolumeV1betaBackupConfig{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchVolumeV1betaBackupConfig is optional nullable BatchVolumeV1betaBackupConfig.
+type OptNilBatchVolumeV1betaBackupConfig struct {
+	Value BatchVolumeV1betaBackupConfig
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchVolumeV1betaBackupConfig was set.
+func (o OptNilBatchVolumeV1betaBackupConfig) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchVolumeV1betaBackupConfig) Reset() {
+	var v BatchVolumeV1betaBackupConfig
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchVolumeV1betaBackupConfig) SetTo(v BatchVolumeV1betaBackupConfig) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchVolumeV1betaBackupConfig) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchVolumeV1betaBackupConfig) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchVolumeV1betaBackupConfig
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchVolumeV1betaBackupConfig) Get() (v BatchVolumeV1betaBackupConfig, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchVolumeV1betaBackupConfig) Or(d BatchVolumeV1betaBackupConfig) BatchVolumeV1betaBackupConfig {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchVolumeV1betaBlockProperties returns new OptNilBatchVolumeV1betaBlockProperties with value set to v.
+func NewOptNilBatchVolumeV1betaBlockProperties(v BatchVolumeV1betaBlockProperties) OptNilBatchVolumeV1betaBlockProperties {
+	return OptNilBatchVolumeV1betaBlockProperties{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchVolumeV1betaBlockProperties is optional nullable BatchVolumeV1betaBlockProperties.
+type OptNilBatchVolumeV1betaBlockProperties struct {
+	Value BatchVolumeV1betaBlockProperties
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchVolumeV1betaBlockProperties was set.
+func (o OptNilBatchVolumeV1betaBlockProperties) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchVolumeV1betaBlockProperties) Reset() {
+	var v BatchVolumeV1betaBlockProperties
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchVolumeV1betaBlockProperties) SetTo(v BatchVolumeV1betaBlockProperties) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchVolumeV1betaBlockProperties) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchVolumeV1betaBlockProperties) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchVolumeV1betaBlockProperties
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchVolumeV1betaBlockProperties) Get() (v BatchVolumeV1betaBlockProperties, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchVolumeV1betaBlockProperties) Or(d BatchVolumeV1betaBlockProperties) BatchVolumeV1betaBlockProperties {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchVolumeV1betaCacheParameters returns new OptNilBatchVolumeV1betaCacheParameters with value set to v.
+func NewOptNilBatchVolumeV1betaCacheParameters(v BatchVolumeV1betaCacheParameters) OptNilBatchVolumeV1betaCacheParameters {
+	return OptNilBatchVolumeV1betaCacheParameters{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchVolumeV1betaCacheParameters is optional nullable BatchVolumeV1betaCacheParameters.
+type OptNilBatchVolumeV1betaCacheParameters struct {
+	Value BatchVolumeV1betaCacheParameters
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchVolumeV1betaCacheParameters was set.
+func (o OptNilBatchVolumeV1betaCacheParameters) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchVolumeV1betaCacheParameters) Reset() {
+	var v BatchVolumeV1betaCacheParameters
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchVolumeV1betaCacheParameters) SetTo(v BatchVolumeV1betaCacheParameters) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchVolumeV1betaCacheParameters) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchVolumeV1betaCacheParameters) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchVolumeV1betaCacheParameters
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchVolumeV1betaCacheParameters) Get() (v BatchVolumeV1betaCacheParameters, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchVolumeV1betaCacheParameters) Or(d BatchVolumeV1betaCacheParameters) BatchVolumeV1betaCacheParameters {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchVolumeV1betaCloneDetails returns new OptNilBatchVolumeV1betaCloneDetails with value set to v.
+func NewOptNilBatchVolumeV1betaCloneDetails(v BatchVolumeV1betaCloneDetails) OptNilBatchVolumeV1betaCloneDetails {
+	return OptNilBatchVolumeV1betaCloneDetails{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchVolumeV1betaCloneDetails is optional nullable BatchVolumeV1betaCloneDetails.
+type OptNilBatchVolumeV1betaCloneDetails struct {
+	Value BatchVolumeV1betaCloneDetails
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchVolumeV1betaCloneDetails was set.
+func (o OptNilBatchVolumeV1betaCloneDetails) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchVolumeV1betaCloneDetails) Reset() {
+	var v BatchVolumeV1betaCloneDetails
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchVolumeV1betaCloneDetails) SetTo(v BatchVolumeV1betaCloneDetails) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchVolumeV1betaCloneDetails) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchVolumeV1betaCloneDetails) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchVolumeV1betaCloneDetails
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchVolumeV1betaCloneDetails) Get() (v BatchVolumeV1betaCloneDetails, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchVolumeV1betaCloneDetails) Or(d BatchVolumeV1betaCloneDetails) BatchVolumeV1betaCloneDetails {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchVolumeV1betaCloneDetailsState returns new OptNilBatchVolumeV1betaCloneDetailsState with value set to v.
+func NewOptNilBatchVolumeV1betaCloneDetailsState(v BatchVolumeV1betaCloneDetailsState) OptNilBatchVolumeV1betaCloneDetailsState {
+	return OptNilBatchVolumeV1betaCloneDetailsState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchVolumeV1betaCloneDetailsState is optional nullable BatchVolumeV1betaCloneDetailsState.
+type OptNilBatchVolumeV1betaCloneDetailsState struct {
+	Value BatchVolumeV1betaCloneDetailsState
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchVolumeV1betaCloneDetailsState was set.
+func (o OptNilBatchVolumeV1betaCloneDetailsState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchVolumeV1betaCloneDetailsState) Reset() {
+	var v BatchVolumeV1betaCloneDetailsState
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchVolumeV1betaCloneDetailsState) SetTo(v BatchVolumeV1betaCloneDetailsState) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchVolumeV1betaCloneDetailsState) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchVolumeV1betaCloneDetailsState) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchVolumeV1betaCloneDetailsState
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchVolumeV1betaCloneDetailsState) Get() (v BatchVolumeV1betaCloneDetailsState, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchVolumeV1betaCloneDetailsState) Or(d BatchVolumeV1betaCloneDetailsState) BatchVolumeV1betaCloneDetailsState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchVolumeV1betaEncryptionType returns new OptNilBatchVolumeV1betaEncryptionType with value set to v.
+func NewOptNilBatchVolumeV1betaEncryptionType(v BatchVolumeV1betaEncryptionType) OptNilBatchVolumeV1betaEncryptionType {
+	return OptNilBatchVolumeV1betaEncryptionType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchVolumeV1betaEncryptionType is optional nullable BatchVolumeV1betaEncryptionType.
+type OptNilBatchVolumeV1betaEncryptionType struct {
+	Value BatchVolumeV1betaEncryptionType
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchVolumeV1betaEncryptionType was set.
+func (o OptNilBatchVolumeV1betaEncryptionType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchVolumeV1betaEncryptionType) Reset() {
+	var v BatchVolumeV1betaEncryptionType
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchVolumeV1betaEncryptionType) SetTo(v BatchVolumeV1betaEncryptionType) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchVolumeV1betaEncryptionType) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchVolumeV1betaEncryptionType) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchVolumeV1betaEncryptionType
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchVolumeV1betaEncryptionType) Get() (v BatchVolumeV1betaEncryptionType, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchVolumeV1betaEncryptionType) Or(d BatchVolumeV1betaEncryptionType) BatchVolumeV1betaEncryptionType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchVolumeV1betaExportPolicy returns new OptNilBatchVolumeV1betaExportPolicy with value set to v.
+func NewOptNilBatchVolumeV1betaExportPolicy(v BatchVolumeV1betaExportPolicy) OptNilBatchVolumeV1betaExportPolicy {
+	return OptNilBatchVolumeV1betaExportPolicy{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchVolumeV1betaExportPolicy is optional nullable BatchVolumeV1betaExportPolicy.
+type OptNilBatchVolumeV1betaExportPolicy struct {
+	Value BatchVolumeV1betaExportPolicy
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchVolumeV1betaExportPolicy was set.
+func (o OptNilBatchVolumeV1betaExportPolicy) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchVolumeV1betaExportPolicy) Reset() {
+	var v BatchVolumeV1betaExportPolicy
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchVolumeV1betaExportPolicy) SetTo(v BatchVolumeV1betaExportPolicy) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchVolumeV1betaExportPolicy) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchVolumeV1betaExportPolicy) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchVolumeV1betaExportPolicy
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchVolumeV1betaExportPolicy) Get() (v BatchVolumeV1betaExportPolicy, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchVolumeV1betaExportPolicy) Or(d BatchVolumeV1betaExportPolicy) BatchVolumeV1betaExportPolicy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchVolumeV1betaLabels returns new OptNilBatchVolumeV1betaLabels with value set to v.
+func NewOptNilBatchVolumeV1betaLabels(v BatchVolumeV1betaLabels) OptNilBatchVolumeV1betaLabels {
+	return OptNilBatchVolumeV1betaLabels{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchVolumeV1betaLabels is optional nullable BatchVolumeV1betaLabels.
+type OptNilBatchVolumeV1betaLabels struct {
+	Value BatchVolumeV1betaLabels
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchVolumeV1betaLabels was set.
+func (o OptNilBatchVolumeV1betaLabels) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchVolumeV1betaLabels) Reset() {
+	var v BatchVolumeV1betaLabels
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchVolumeV1betaLabels) SetTo(v BatchVolumeV1betaLabels) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchVolumeV1betaLabels) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchVolumeV1betaLabels) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchVolumeV1betaLabels
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchVolumeV1betaLabels) Get() (v BatchVolumeV1betaLabels, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchVolumeV1betaLabels) Or(d BatchVolumeV1betaLabels) BatchVolumeV1betaLabels {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchVolumeV1betaRestrictedActionsItemArray returns new OptNilBatchVolumeV1betaRestrictedActionsItemArray with value set to v.
+func NewOptNilBatchVolumeV1betaRestrictedActionsItemArray(v []BatchVolumeV1betaRestrictedActionsItem) OptNilBatchVolumeV1betaRestrictedActionsItemArray {
+	return OptNilBatchVolumeV1betaRestrictedActionsItemArray{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchVolumeV1betaRestrictedActionsItemArray is optional nullable []BatchVolumeV1betaRestrictedActionsItem.
+type OptNilBatchVolumeV1betaRestrictedActionsItemArray struct {
+	Value []BatchVolumeV1betaRestrictedActionsItem
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchVolumeV1betaRestrictedActionsItemArray was set.
+func (o OptNilBatchVolumeV1betaRestrictedActionsItemArray) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchVolumeV1betaRestrictedActionsItemArray) Reset() {
+	var v []BatchVolumeV1betaRestrictedActionsItem
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchVolumeV1betaRestrictedActionsItemArray) SetTo(v []BatchVolumeV1betaRestrictedActionsItem) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchVolumeV1betaRestrictedActionsItemArray) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchVolumeV1betaRestrictedActionsItemArray) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v []BatchVolumeV1betaRestrictedActionsItem
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchVolumeV1betaRestrictedActionsItemArray) Get() (v []BatchVolumeV1betaRestrictedActionsItem, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchVolumeV1betaRestrictedActionsItemArray) Or(d []BatchVolumeV1betaRestrictedActionsItem) []BatchVolumeV1betaRestrictedActionsItem {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchVolumeV1betaSecurityStyle returns new OptNilBatchVolumeV1betaSecurityStyle with value set to v.
+func NewOptNilBatchVolumeV1betaSecurityStyle(v BatchVolumeV1betaSecurityStyle) OptNilBatchVolumeV1betaSecurityStyle {
+	return OptNilBatchVolumeV1betaSecurityStyle{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchVolumeV1betaSecurityStyle is optional nullable BatchVolumeV1betaSecurityStyle.
+type OptNilBatchVolumeV1betaSecurityStyle struct {
+	Value BatchVolumeV1betaSecurityStyle
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchVolumeV1betaSecurityStyle was set.
+func (o OptNilBatchVolumeV1betaSecurityStyle) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchVolumeV1betaSecurityStyle) Reset() {
+	var v BatchVolumeV1betaSecurityStyle
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchVolumeV1betaSecurityStyle) SetTo(v BatchVolumeV1betaSecurityStyle) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchVolumeV1betaSecurityStyle) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchVolumeV1betaSecurityStyle) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchVolumeV1betaSecurityStyle
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchVolumeV1betaSecurityStyle) Get() (v BatchVolumeV1betaSecurityStyle, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchVolumeV1betaSecurityStyle) Or(d BatchVolumeV1betaSecurityStyle) BatchVolumeV1betaSecurityStyle {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchVolumeV1betaServiceLevel returns new OptNilBatchVolumeV1betaServiceLevel with value set to v.
+func NewOptNilBatchVolumeV1betaServiceLevel(v BatchVolumeV1betaServiceLevel) OptNilBatchVolumeV1betaServiceLevel {
+	return OptNilBatchVolumeV1betaServiceLevel{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchVolumeV1betaServiceLevel is optional nullable BatchVolumeV1betaServiceLevel.
+type OptNilBatchVolumeV1betaServiceLevel struct {
+	Value BatchVolumeV1betaServiceLevel
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchVolumeV1betaServiceLevel was set.
+func (o OptNilBatchVolumeV1betaServiceLevel) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchVolumeV1betaServiceLevel) Reset() {
+	var v BatchVolumeV1betaServiceLevel
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchVolumeV1betaServiceLevel) SetTo(v BatchVolumeV1betaServiceLevel) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchVolumeV1betaServiceLevel) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchVolumeV1betaServiceLevel) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchVolumeV1betaServiceLevel
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchVolumeV1betaServiceLevel) Get() (v BatchVolumeV1betaServiceLevel, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchVolumeV1betaServiceLevel) Or(d BatchVolumeV1betaServiceLevel) BatchVolumeV1betaServiceLevel {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchVolumeV1betaSmbSettingsItemArray returns new OptNilBatchVolumeV1betaSmbSettingsItemArray with value set to v.
+func NewOptNilBatchVolumeV1betaSmbSettingsItemArray(v []BatchVolumeV1betaSmbSettingsItem) OptNilBatchVolumeV1betaSmbSettingsItemArray {
+	return OptNilBatchVolumeV1betaSmbSettingsItemArray{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchVolumeV1betaSmbSettingsItemArray is optional nullable []BatchVolumeV1betaSmbSettingsItem.
+type OptNilBatchVolumeV1betaSmbSettingsItemArray struct {
+	Value []BatchVolumeV1betaSmbSettingsItem
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchVolumeV1betaSmbSettingsItemArray was set.
+func (o OptNilBatchVolumeV1betaSmbSettingsItemArray) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchVolumeV1betaSmbSettingsItemArray) Reset() {
+	var v []BatchVolumeV1betaSmbSettingsItem
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchVolumeV1betaSmbSettingsItemArray) SetTo(v []BatchVolumeV1betaSmbSettingsItem) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchVolumeV1betaSmbSettingsItemArray) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchVolumeV1betaSmbSettingsItemArray) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v []BatchVolumeV1betaSmbSettingsItem
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchVolumeV1betaSmbSettingsItemArray) Get() (v []BatchVolumeV1betaSmbSettingsItem, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchVolumeV1betaSmbSettingsItemArray) Or(d []BatchVolumeV1betaSmbSettingsItem) []BatchVolumeV1betaSmbSettingsItem {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchVolumeV1betaSnapshotPolicy returns new OptNilBatchVolumeV1betaSnapshotPolicy with value set to v.
+func NewOptNilBatchVolumeV1betaSnapshotPolicy(v BatchVolumeV1betaSnapshotPolicy) OptNilBatchVolumeV1betaSnapshotPolicy {
+	return OptNilBatchVolumeV1betaSnapshotPolicy{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchVolumeV1betaSnapshotPolicy is optional nullable BatchVolumeV1betaSnapshotPolicy.
+type OptNilBatchVolumeV1betaSnapshotPolicy struct {
+	Value BatchVolumeV1betaSnapshotPolicy
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchVolumeV1betaSnapshotPolicy was set.
+func (o OptNilBatchVolumeV1betaSnapshotPolicy) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchVolumeV1betaSnapshotPolicy) Reset() {
+	var v BatchVolumeV1betaSnapshotPolicy
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchVolumeV1betaSnapshotPolicy) SetTo(v BatchVolumeV1betaSnapshotPolicy) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchVolumeV1betaSnapshotPolicy) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchVolumeV1betaSnapshotPolicy) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchVolumeV1betaSnapshotPolicy
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchVolumeV1betaSnapshotPolicy) Get() (v BatchVolumeV1betaSnapshotPolicy, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchVolumeV1betaSnapshotPolicy) Or(d BatchVolumeV1betaSnapshotPolicy) BatchVolumeV1betaSnapshotPolicy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchVolumeV1betaStorageClass returns new OptNilBatchVolumeV1betaStorageClass with value set to v.
+func NewOptNilBatchVolumeV1betaStorageClass(v BatchVolumeV1betaStorageClass) OptNilBatchVolumeV1betaStorageClass {
+	return OptNilBatchVolumeV1betaStorageClass{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchVolumeV1betaStorageClass is optional nullable BatchVolumeV1betaStorageClass.
+type OptNilBatchVolumeV1betaStorageClass struct {
+	Value BatchVolumeV1betaStorageClass
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchVolumeV1betaStorageClass was set.
+func (o OptNilBatchVolumeV1betaStorageClass) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchVolumeV1betaStorageClass) Reset() {
+	var v BatchVolumeV1betaStorageClass
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchVolumeV1betaStorageClass) SetTo(v BatchVolumeV1betaStorageClass) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchVolumeV1betaStorageClass) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchVolumeV1betaStorageClass) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchVolumeV1betaStorageClass
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchVolumeV1betaStorageClass) Get() (v BatchVolumeV1betaStorageClass, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchVolumeV1betaStorageClass) Or(d BatchVolumeV1betaStorageClass) BatchVolumeV1betaStorageClass {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchVolumeV1betaTieringPolicy returns new OptNilBatchVolumeV1betaTieringPolicy with value set to v.
+func NewOptNilBatchVolumeV1betaTieringPolicy(v BatchVolumeV1betaTieringPolicy) OptNilBatchVolumeV1betaTieringPolicy {
+	return OptNilBatchVolumeV1betaTieringPolicy{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchVolumeV1betaTieringPolicy is optional nullable BatchVolumeV1betaTieringPolicy.
+type OptNilBatchVolumeV1betaTieringPolicy struct {
+	Value BatchVolumeV1betaTieringPolicy
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchVolumeV1betaTieringPolicy was set.
+func (o OptNilBatchVolumeV1betaTieringPolicy) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchVolumeV1betaTieringPolicy) Reset() {
+	var v BatchVolumeV1betaTieringPolicy
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchVolumeV1betaTieringPolicy) SetTo(v BatchVolumeV1betaTieringPolicy) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchVolumeV1betaTieringPolicy) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchVolumeV1betaTieringPolicy) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchVolumeV1betaTieringPolicy
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchVolumeV1betaTieringPolicy) Get() (v BatchVolumeV1betaTieringPolicy, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchVolumeV1betaTieringPolicy) Or(d BatchVolumeV1betaTieringPolicy) BatchVolumeV1betaTieringPolicy {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchVolumeV1betaTieringPolicyTierAction returns new OptNilBatchVolumeV1betaTieringPolicyTierAction with value set to v.
+func NewOptNilBatchVolumeV1betaTieringPolicyTierAction(v BatchVolumeV1betaTieringPolicyTierAction) OptNilBatchVolumeV1betaTieringPolicyTierAction {
+	return OptNilBatchVolumeV1betaTieringPolicyTierAction{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchVolumeV1betaTieringPolicyTierAction is optional nullable BatchVolumeV1betaTieringPolicyTierAction.
+type OptNilBatchVolumeV1betaTieringPolicyTierAction struct {
+	Value BatchVolumeV1betaTieringPolicyTierAction
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchVolumeV1betaTieringPolicyTierAction was set.
+func (o OptNilBatchVolumeV1betaTieringPolicyTierAction) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchVolumeV1betaTieringPolicyTierAction) Reset() {
+	var v BatchVolumeV1betaTieringPolicyTierAction
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchVolumeV1betaTieringPolicyTierAction) SetTo(v BatchVolumeV1betaTieringPolicyTierAction) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchVolumeV1betaTieringPolicyTierAction) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchVolumeV1betaTieringPolicyTierAction) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchVolumeV1betaTieringPolicyTierAction
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchVolumeV1betaTieringPolicyTierAction) Get() (v BatchVolumeV1betaTieringPolicyTierAction, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchVolumeV1betaTieringPolicyTierAction) Or(d BatchVolumeV1betaTieringPolicyTierAction) BatchVolumeV1betaTieringPolicyTierAction {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchVolumeV1betaVolumeState returns new OptNilBatchVolumeV1betaVolumeState with value set to v.
+func NewOptNilBatchVolumeV1betaVolumeState(v BatchVolumeV1betaVolumeState) OptNilBatchVolumeV1betaVolumeState {
+	return OptNilBatchVolumeV1betaVolumeState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchVolumeV1betaVolumeState is optional nullable BatchVolumeV1betaVolumeState.
+type OptNilBatchVolumeV1betaVolumeState struct {
+	Value BatchVolumeV1betaVolumeState
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchVolumeV1betaVolumeState was set.
+func (o OptNilBatchVolumeV1betaVolumeState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchVolumeV1betaVolumeState) Reset() {
+	var v BatchVolumeV1betaVolumeState
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchVolumeV1betaVolumeState) SetTo(v BatchVolumeV1betaVolumeState) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchVolumeV1betaVolumeState) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchVolumeV1betaVolumeState) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchVolumeV1betaVolumeState
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchVolumeV1betaVolumeState) Get() (v BatchVolumeV1betaVolumeState, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchVolumeV1betaVolumeState) Or(d BatchVolumeV1betaVolumeState) BatchVolumeV1betaVolumeState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBlockDeviceV1betaArray returns new OptNilBlockDeviceV1betaArray with value set to v.
+func NewOptNilBlockDeviceV1betaArray(v []BlockDeviceV1beta) OptNilBlockDeviceV1betaArray {
+	return OptNilBlockDeviceV1betaArray{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBlockDeviceV1betaArray is optional nullable []BlockDeviceV1beta.
+type OptNilBlockDeviceV1betaArray struct {
+	Value []BlockDeviceV1beta
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBlockDeviceV1betaArray was set.
+func (o OptNilBlockDeviceV1betaArray) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBlockDeviceV1betaArray) Reset() {
+	var v []BlockDeviceV1beta
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBlockDeviceV1betaArray) SetTo(v []BlockDeviceV1beta) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBlockDeviceV1betaArray) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBlockDeviceV1betaArray) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v []BlockDeviceV1beta
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBlockDeviceV1betaArray) Get() (v []BlockDeviceV1beta, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBlockDeviceV1betaArray) Or(d []BlockDeviceV1beta) []BlockDeviceV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptNilBool returns new OptNilBool with value set to v.
 func NewOptNilBool(v bool) OptNilBool {
 	return OptNilBool{
@@ -15338,6 +18369,69 @@ func (o OptNilInt64) Or(d int64) int64 {
 	return d
 }
 
+// NewOptNilMountPointV1betaArray returns new OptNilMountPointV1betaArray with value set to v.
+func NewOptNilMountPointV1betaArray(v []MountPointV1beta) OptNilMountPointV1betaArray {
+	return OptNilMountPointV1betaArray{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilMountPointV1betaArray is optional nullable []MountPointV1beta.
+type OptNilMountPointV1betaArray struct {
+	Value []MountPointV1beta
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilMountPointV1betaArray was set.
+func (o OptNilMountPointV1betaArray) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilMountPointV1betaArray) Reset() {
+	var v []MountPointV1beta
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilMountPointV1betaArray) SetTo(v []MountPointV1beta) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilMountPointV1betaArray) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilMountPointV1betaArray) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v []MountPointV1beta
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilMountPointV1betaArray) Get() (v []MountPointV1beta, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilMountPointV1betaArray) Or(d []MountPointV1beta) []MountPointV1beta {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptNilPoolInternalV1betaAssetLocationMetadata returns new OptNilPoolInternalV1betaAssetLocationMetadata with value set to v.
 func NewOptNilPoolInternalV1betaAssetLocationMetadata(v PoolInternalV1betaAssetLocationMetadata) OptNilPoolInternalV1betaAssetLocationMetadata {
 	return OptNilPoolInternalV1betaAssetLocationMetadata{
@@ -15458,6 +18552,69 @@ func (o OptNilPoolV1betaAssetLocationMetadata) Get() (v PoolV1betaAssetLocationM
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNilPoolV1betaAssetLocationMetadata) Or(d PoolV1betaAssetLocationMetadata) PoolV1betaAssetLocationMetadata {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilProtocolsV1betaArray returns new OptNilProtocolsV1betaArray with value set to v.
+func NewOptNilProtocolsV1betaArray(v []ProtocolsV1beta) OptNilProtocolsV1betaArray {
+	return OptNilProtocolsV1betaArray{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilProtocolsV1betaArray is optional nullable []ProtocolsV1beta.
+type OptNilProtocolsV1betaArray struct {
+	Value []ProtocolsV1beta
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilProtocolsV1betaArray was set.
+func (o OptNilProtocolsV1betaArray) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilProtocolsV1betaArray) Reset() {
+	var v []ProtocolsV1beta
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilProtocolsV1betaArray) SetTo(v []ProtocolsV1beta) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilProtocolsV1betaArray) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilProtocolsV1betaArray) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v []ProtocolsV1beta
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilProtocolsV1betaArray) Get() (v []ProtocolsV1beta, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilProtocolsV1betaArray) Or(d []ProtocolsV1beta) []ProtocolsV1beta {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -24920,6 +28077,416 @@ func (*V1betaBatchListSnapshotsOK) v1betaBatchListSnapshotsRes() {}
 type V1betaBatchListSnapshotsUnauthorized Error
 
 func (*V1betaBatchListSnapshotsUnauthorized) v1betaBatchListSnapshotsRes() {}
+
+type V1betaBatchListVolumesBadRequest Error
+
+func (*V1betaBatchListVolumesBadRequest) v1betaBatchListVolumesRes() {}
+
+type V1betaBatchListVolumesFieldsItem string
+
+const (
+	V1betaBatchListVolumesFieldsItemResourceId                  V1betaBatchListVolumesFieldsItem = "resourceId"
+	V1betaBatchListVolumesFieldsItemVolumeId                    V1betaBatchListVolumesFieldsItem = "volumeId"
+	V1betaBatchListVolumesFieldsItemCreated                     V1betaBatchListVolumesFieldsItem = "created"
+	V1betaBatchListVolumesFieldsItemCreationToken               V1betaBatchListVolumesFieldsItem = "creationToken"
+	V1betaBatchListVolumesFieldsItemPoolId                      V1betaBatchListVolumesFieldsItem = "poolId"
+	V1betaBatchListVolumesFieldsItemKmsConfigId                 V1betaBatchListVolumesFieldsItem = "kmsConfigId"
+	V1betaBatchListVolumesFieldsItemKmsConfigResourceId         V1betaBatchListVolumesFieldsItem = "kmsConfigResourceId"
+	V1betaBatchListVolumesFieldsItemNetwork                     V1betaBatchListVolumesFieldsItem = "network"
+	V1betaBatchListVolumesFieldsItemActiveDirectoryConfigId     V1betaBatchListVolumesFieldsItem = "activeDirectoryConfigId"
+	V1betaBatchListVolumesFieldsItemActiveDirectoryResourceId   V1betaBatchListVolumesFieldsItem = "activeDirectoryResourceId"
+	V1betaBatchListVolumesFieldsItemServiceLevel                V1betaBatchListVolumesFieldsItem = "serviceLevel"
+	V1betaBatchListVolumesFieldsItemSecurityStyle               V1betaBatchListVolumesFieldsItem = "securityStyle"
+	V1betaBatchListVolumesFieldsItemUsedBytes                   V1betaBatchListVolumesFieldsItem = "usedBytes"
+	V1betaBatchListVolumesFieldsItemQuotaInBytes                V1betaBatchListVolumesFieldsItem = "quotaInBytes"
+	V1betaBatchListVolumesFieldsItemThroughputMibps             V1betaBatchListVolumesFieldsItem = "throughputMibps"
+	V1betaBatchListVolumesFieldsItemColdTierSizeGib             V1betaBatchListVolumesFieldsItem = "coldTierSizeGib"
+	V1betaBatchListVolumesFieldsItemSnapReserve                 V1betaBatchListVolumesFieldsItem = "snapReserve"
+	V1betaBatchListVolumesFieldsItemSnapshotDirectory           V1betaBatchListVolumesFieldsItem = "snapshotDirectory"
+	V1betaBatchListVolumesFieldsItemVolumeState                 V1betaBatchListVolumesFieldsItem = "volumeState"
+	V1betaBatchListVolumesFieldsItemVolumeStateDetails          V1betaBatchListVolumesFieldsItem = "volumeStateDetails"
+	V1betaBatchListVolumesFieldsItemIsDataProtection            V1betaBatchListVolumesFieldsItem = "isDataProtection"
+	V1betaBatchListVolumesFieldsItemInReplication               V1betaBatchListVolumesFieldsItem = "inReplication"
+	V1betaBatchListVolumesFieldsItemSnapshotPolicy              V1betaBatchListVolumesFieldsItem = "snapshotPolicy"
+	V1betaBatchListVolumesFieldsItemStorageClass                V1betaBatchListVolumesFieldsItem = "storageClass"
+	V1betaBatchListVolumesFieldsItemExportPolicy                V1betaBatchListVolumesFieldsItem = "exportPolicy"
+	V1betaBatchListVolumesFieldsItemBackupConfig                V1betaBatchListVolumesFieldsItem = "backupConfig"
+	V1betaBatchListVolumesFieldsItemTieringPolicy               V1betaBatchListVolumesFieldsItem = "tieringPolicy"
+	V1betaBatchListVolumesFieldsItemBlockProperties             V1betaBatchListVolumesFieldsItem = "blockProperties"
+	V1betaBatchListVolumesFieldsItemBlockDevices                V1betaBatchListVolumesFieldsItem = "blockDevices"
+	V1betaBatchListVolumesFieldsItemProtocols                   V1betaBatchListVolumesFieldsItem = "protocols"
+	V1betaBatchListVolumesFieldsItemRestrictedActions           V1betaBatchListVolumesFieldsItem = "restrictedActions"
+	V1betaBatchListVolumesFieldsItemSmbSettings                 V1betaBatchListVolumesFieldsItem = "smbSettings"
+	V1betaBatchListVolumesFieldsItemMountPoints                 V1betaBatchListVolumesFieldsItem = "mountPoints"
+	V1betaBatchListVolumesFieldsItemLabels                      V1betaBatchListVolumesFieldsItem = "labels"
+	V1betaBatchListVolumesFieldsItemKerberosEnabled             V1betaBatchListVolumesFieldsItem = "kerberosEnabled"
+	V1betaBatchListVolumesFieldsItemLdapEnabled                 V1betaBatchListVolumesFieldsItem = "ldapEnabled"
+	V1betaBatchListVolumesFieldsItemUnixPermissions             V1betaBatchListVolumesFieldsItem = "unixPermissions"
+	V1betaBatchListVolumesFieldsItemEncryptionType              V1betaBatchListVolumesFieldsItem = "encryptionType"
+	V1betaBatchListVolumesFieldsItemDescription                 V1betaBatchListVolumesFieldsItem = "description"
+	V1betaBatchListVolumesFieldsItemZone                        V1betaBatchListVolumesFieldsItem = "zone"
+	V1betaBatchListVolumesFieldsItemMultipleEndpoints           V1betaBatchListVolumesFieldsItem = "multipleEndpoints"
+	V1betaBatchListVolumesFieldsItemLargeCapacity               V1betaBatchListVolumesFieldsItem = "largeCapacity"
+	V1betaBatchListVolumesFieldsItemSecondaryZone               V1betaBatchListVolumesFieldsItem = "secondaryZone"
+	V1betaBatchListVolumesFieldsItemDedicatedCapacity           V1betaBatchListVolumesFieldsItem = "dedicatedCapacity"
+	V1betaBatchListVolumesFieldsItemLargeVolumeConstituentCount V1betaBatchListVolumesFieldsItem = "largeVolumeConstituentCount"
+	V1betaBatchListVolumesFieldsItemCacheParameters             V1betaBatchListVolumesFieldsItem = "cacheParameters"
+	V1betaBatchListVolumesFieldsItemHotTierSizeGib              V1betaBatchListVolumesFieldsItem = "hotTierSizeGib"
+	V1betaBatchListVolumesFieldsItemCloneDetails                V1betaBatchListVolumesFieldsItem = "cloneDetails"
+	V1betaBatchListVolumesFieldsItemRegion                      V1betaBatchListVolumesFieldsItem = "region"
+)
+
+// AllValues returns all V1betaBatchListVolumesFieldsItem values.
+func (V1betaBatchListVolumesFieldsItem) AllValues() []V1betaBatchListVolumesFieldsItem {
+	return []V1betaBatchListVolumesFieldsItem{
+		V1betaBatchListVolumesFieldsItemResourceId,
+		V1betaBatchListVolumesFieldsItemVolumeId,
+		V1betaBatchListVolumesFieldsItemCreated,
+		V1betaBatchListVolumesFieldsItemCreationToken,
+		V1betaBatchListVolumesFieldsItemPoolId,
+		V1betaBatchListVolumesFieldsItemKmsConfigId,
+		V1betaBatchListVolumesFieldsItemKmsConfigResourceId,
+		V1betaBatchListVolumesFieldsItemNetwork,
+		V1betaBatchListVolumesFieldsItemActiveDirectoryConfigId,
+		V1betaBatchListVolumesFieldsItemActiveDirectoryResourceId,
+		V1betaBatchListVolumesFieldsItemServiceLevel,
+		V1betaBatchListVolumesFieldsItemSecurityStyle,
+		V1betaBatchListVolumesFieldsItemUsedBytes,
+		V1betaBatchListVolumesFieldsItemQuotaInBytes,
+		V1betaBatchListVolumesFieldsItemThroughputMibps,
+		V1betaBatchListVolumesFieldsItemColdTierSizeGib,
+		V1betaBatchListVolumesFieldsItemSnapReserve,
+		V1betaBatchListVolumesFieldsItemSnapshotDirectory,
+		V1betaBatchListVolumesFieldsItemVolumeState,
+		V1betaBatchListVolumesFieldsItemVolumeStateDetails,
+		V1betaBatchListVolumesFieldsItemIsDataProtection,
+		V1betaBatchListVolumesFieldsItemInReplication,
+		V1betaBatchListVolumesFieldsItemSnapshotPolicy,
+		V1betaBatchListVolumesFieldsItemStorageClass,
+		V1betaBatchListVolumesFieldsItemExportPolicy,
+		V1betaBatchListVolumesFieldsItemBackupConfig,
+		V1betaBatchListVolumesFieldsItemTieringPolicy,
+		V1betaBatchListVolumesFieldsItemBlockProperties,
+		V1betaBatchListVolumesFieldsItemBlockDevices,
+		V1betaBatchListVolumesFieldsItemProtocols,
+		V1betaBatchListVolumesFieldsItemRestrictedActions,
+		V1betaBatchListVolumesFieldsItemSmbSettings,
+		V1betaBatchListVolumesFieldsItemMountPoints,
+		V1betaBatchListVolumesFieldsItemLabels,
+		V1betaBatchListVolumesFieldsItemKerberosEnabled,
+		V1betaBatchListVolumesFieldsItemLdapEnabled,
+		V1betaBatchListVolumesFieldsItemUnixPermissions,
+		V1betaBatchListVolumesFieldsItemEncryptionType,
+		V1betaBatchListVolumesFieldsItemDescription,
+		V1betaBatchListVolumesFieldsItemZone,
+		V1betaBatchListVolumesFieldsItemMultipleEndpoints,
+		V1betaBatchListVolumesFieldsItemLargeCapacity,
+		V1betaBatchListVolumesFieldsItemSecondaryZone,
+		V1betaBatchListVolumesFieldsItemDedicatedCapacity,
+		V1betaBatchListVolumesFieldsItemLargeVolumeConstituentCount,
+		V1betaBatchListVolumesFieldsItemCacheParameters,
+		V1betaBatchListVolumesFieldsItemHotTierSizeGib,
+		V1betaBatchListVolumesFieldsItemCloneDetails,
+		V1betaBatchListVolumesFieldsItemRegion,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s V1betaBatchListVolumesFieldsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case V1betaBatchListVolumesFieldsItemResourceId:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemVolumeId:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemCreated:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemCreationToken:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemPoolId:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemKmsConfigId:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemKmsConfigResourceId:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemNetwork:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemActiveDirectoryConfigId:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemActiveDirectoryResourceId:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemServiceLevel:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemSecurityStyle:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemUsedBytes:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemQuotaInBytes:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemThroughputMibps:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemColdTierSizeGib:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemSnapReserve:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemSnapshotDirectory:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemVolumeState:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemVolumeStateDetails:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemIsDataProtection:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemInReplication:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemSnapshotPolicy:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemStorageClass:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemExportPolicy:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemBackupConfig:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemTieringPolicy:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemBlockProperties:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemBlockDevices:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemProtocols:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemRestrictedActions:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemSmbSettings:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemMountPoints:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemLabels:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemKerberosEnabled:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemLdapEnabled:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemUnixPermissions:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemEncryptionType:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemDescription:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemZone:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemMultipleEndpoints:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemLargeCapacity:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemSecondaryZone:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemDedicatedCapacity:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemLargeVolumeConstituentCount:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemCacheParameters:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemHotTierSizeGib:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemCloneDetails:
+		return []byte(s), nil
+	case V1betaBatchListVolumesFieldsItemRegion:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *V1betaBatchListVolumesFieldsItem) UnmarshalText(data []byte) error {
+	switch V1betaBatchListVolumesFieldsItem(data) {
+	case V1betaBatchListVolumesFieldsItemResourceId:
+		*s = V1betaBatchListVolumesFieldsItemResourceId
+		return nil
+	case V1betaBatchListVolumesFieldsItemVolumeId:
+		*s = V1betaBatchListVolumesFieldsItemVolumeId
+		return nil
+	case V1betaBatchListVolumesFieldsItemCreated:
+		*s = V1betaBatchListVolumesFieldsItemCreated
+		return nil
+	case V1betaBatchListVolumesFieldsItemCreationToken:
+		*s = V1betaBatchListVolumesFieldsItemCreationToken
+		return nil
+	case V1betaBatchListVolumesFieldsItemPoolId:
+		*s = V1betaBatchListVolumesFieldsItemPoolId
+		return nil
+	case V1betaBatchListVolumesFieldsItemKmsConfigId:
+		*s = V1betaBatchListVolumesFieldsItemKmsConfigId
+		return nil
+	case V1betaBatchListVolumesFieldsItemKmsConfigResourceId:
+		*s = V1betaBatchListVolumesFieldsItemKmsConfigResourceId
+		return nil
+	case V1betaBatchListVolumesFieldsItemNetwork:
+		*s = V1betaBatchListVolumesFieldsItemNetwork
+		return nil
+	case V1betaBatchListVolumesFieldsItemActiveDirectoryConfigId:
+		*s = V1betaBatchListVolumesFieldsItemActiveDirectoryConfigId
+		return nil
+	case V1betaBatchListVolumesFieldsItemActiveDirectoryResourceId:
+		*s = V1betaBatchListVolumesFieldsItemActiveDirectoryResourceId
+		return nil
+	case V1betaBatchListVolumesFieldsItemServiceLevel:
+		*s = V1betaBatchListVolumesFieldsItemServiceLevel
+		return nil
+	case V1betaBatchListVolumesFieldsItemSecurityStyle:
+		*s = V1betaBatchListVolumesFieldsItemSecurityStyle
+		return nil
+	case V1betaBatchListVolumesFieldsItemUsedBytes:
+		*s = V1betaBatchListVolumesFieldsItemUsedBytes
+		return nil
+	case V1betaBatchListVolumesFieldsItemQuotaInBytes:
+		*s = V1betaBatchListVolumesFieldsItemQuotaInBytes
+		return nil
+	case V1betaBatchListVolumesFieldsItemThroughputMibps:
+		*s = V1betaBatchListVolumesFieldsItemThroughputMibps
+		return nil
+	case V1betaBatchListVolumesFieldsItemColdTierSizeGib:
+		*s = V1betaBatchListVolumesFieldsItemColdTierSizeGib
+		return nil
+	case V1betaBatchListVolumesFieldsItemSnapReserve:
+		*s = V1betaBatchListVolumesFieldsItemSnapReserve
+		return nil
+	case V1betaBatchListVolumesFieldsItemSnapshotDirectory:
+		*s = V1betaBatchListVolumesFieldsItemSnapshotDirectory
+		return nil
+	case V1betaBatchListVolumesFieldsItemVolumeState:
+		*s = V1betaBatchListVolumesFieldsItemVolumeState
+		return nil
+	case V1betaBatchListVolumesFieldsItemVolumeStateDetails:
+		*s = V1betaBatchListVolumesFieldsItemVolumeStateDetails
+		return nil
+	case V1betaBatchListVolumesFieldsItemIsDataProtection:
+		*s = V1betaBatchListVolumesFieldsItemIsDataProtection
+		return nil
+	case V1betaBatchListVolumesFieldsItemInReplication:
+		*s = V1betaBatchListVolumesFieldsItemInReplication
+		return nil
+	case V1betaBatchListVolumesFieldsItemSnapshotPolicy:
+		*s = V1betaBatchListVolumesFieldsItemSnapshotPolicy
+		return nil
+	case V1betaBatchListVolumesFieldsItemStorageClass:
+		*s = V1betaBatchListVolumesFieldsItemStorageClass
+		return nil
+	case V1betaBatchListVolumesFieldsItemExportPolicy:
+		*s = V1betaBatchListVolumesFieldsItemExportPolicy
+		return nil
+	case V1betaBatchListVolumesFieldsItemBackupConfig:
+		*s = V1betaBatchListVolumesFieldsItemBackupConfig
+		return nil
+	case V1betaBatchListVolumesFieldsItemTieringPolicy:
+		*s = V1betaBatchListVolumesFieldsItemTieringPolicy
+		return nil
+	case V1betaBatchListVolumesFieldsItemBlockProperties:
+		*s = V1betaBatchListVolumesFieldsItemBlockProperties
+		return nil
+	case V1betaBatchListVolumesFieldsItemBlockDevices:
+		*s = V1betaBatchListVolumesFieldsItemBlockDevices
+		return nil
+	case V1betaBatchListVolumesFieldsItemProtocols:
+		*s = V1betaBatchListVolumesFieldsItemProtocols
+		return nil
+	case V1betaBatchListVolumesFieldsItemRestrictedActions:
+		*s = V1betaBatchListVolumesFieldsItemRestrictedActions
+		return nil
+	case V1betaBatchListVolumesFieldsItemSmbSettings:
+		*s = V1betaBatchListVolumesFieldsItemSmbSettings
+		return nil
+	case V1betaBatchListVolumesFieldsItemMountPoints:
+		*s = V1betaBatchListVolumesFieldsItemMountPoints
+		return nil
+	case V1betaBatchListVolumesFieldsItemLabels:
+		*s = V1betaBatchListVolumesFieldsItemLabels
+		return nil
+	case V1betaBatchListVolumesFieldsItemKerberosEnabled:
+		*s = V1betaBatchListVolumesFieldsItemKerberosEnabled
+		return nil
+	case V1betaBatchListVolumesFieldsItemLdapEnabled:
+		*s = V1betaBatchListVolumesFieldsItemLdapEnabled
+		return nil
+	case V1betaBatchListVolumesFieldsItemUnixPermissions:
+		*s = V1betaBatchListVolumesFieldsItemUnixPermissions
+		return nil
+	case V1betaBatchListVolumesFieldsItemEncryptionType:
+		*s = V1betaBatchListVolumesFieldsItemEncryptionType
+		return nil
+	case V1betaBatchListVolumesFieldsItemDescription:
+		*s = V1betaBatchListVolumesFieldsItemDescription
+		return nil
+	case V1betaBatchListVolumesFieldsItemZone:
+		*s = V1betaBatchListVolumesFieldsItemZone
+		return nil
+	case V1betaBatchListVolumesFieldsItemMultipleEndpoints:
+		*s = V1betaBatchListVolumesFieldsItemMultipleEndpoints
+		return nil
+	case V1betaBatchListVolumesFieldsItemLargeCapacity:
+		*s = V1betaBatchListVolumesFieldsItemLargeCapacity
+		return nil
+	case V1betaBatchListVolumesFieldsItemSecondaryZone:
+		*s = V1betaBatchListVolumesFieldsItemSecondaryZone
+		return nil
+	case V1betaBatchListVolumesFieldsItemDedicatedCapacity:
+		*s = V1betaBatchListVolumesFieldsItemDedicatedCapacity
+		return nil
+	case V1betaBatchListVolumesFieldsItemLargeVolumeConstituentCount:
+		*s = V1betaBatchListVolumesFieldsItemLargeVolumeConstituentCount
+		return nil
+	case V1betaBatchListVolumesFieldsItemCacheParameters:
+		*s = V1betaBatchListVolumesFieldsItemCacheParameters
+		return nil
+	case V1betaBatchListVolumesFieldsItemHotTierSizeGib:
+		*s = V1betaBatchListVolumesFieldsItemHotTierSizeGib
+		return nil
+	case V1betaBatchListVolumesFieldsItemCloneDetails:
+		*s = V1betaBatchListVolumesFieldsItemCloneDetails
+		return nil
+	case V1betaBatchListVolumesFieldsItemRegion:
+		*s = V1betaBatchListVolumesFieldsItemRegion
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type V1betaBatchListVolumesForbidden Error
+
+func (*V1betaBatchListVolumesForbidden) v1betaBatchListVolumesRes() {}
+
+type V1betaBatchListVolumesInternalServerError Error
+
+func (*V1betaBatchListVolumesInternalServerError) v1betaBatchListVolumesRes() {}
+
+type V1betaBatchListVolumesOK struct {
+	Volumes []BatchVolumeV1beta `json:"volumes"`
+}
+
+// GetVolumes returns the value of Volumes.
+func (s *V1betaBatchListVolumesOK) GetVolumes() []BatchVolumeV1beta {
+	return s.Volumes
+}
+
+// SetVolumes sets the value of Volumes.
+func (s *V1betaBatchListVolumesOK) SetVolumes(val []BatchVolumeV1beta) {
+	s.Volumes = val
+}
+
+func (*V1betaBatchListVolumesOK) v1betaBatchListVolumesRes() {}
+
+type V1betaBatchListVolumesTooManyRequests Error
+
+func (*V1betaBatchListVolumesTooManyRequests) v1betaBatchListVolumesRes() {}
+
+type V1betaBatchListVolumesUnauthorized Error
+
+func (*V1betaBatchListVolumesUnauthorized) v1betaBatchListVolumesRes() {}
+
+type V1betaBatchListVolumesUnprocessableEntity Error
+
+func (*V1betaBatchListVolumesUnprocessableEntity) v1betaBatchListVolumesRes() {}
 
 type V1betaCheckKmsConfigBadRequest Error
 

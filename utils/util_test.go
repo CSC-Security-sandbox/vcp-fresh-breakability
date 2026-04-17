@@ -1133,6 +1133,36 @@ func TestConvertsValidJsonToModel(t *testing.T) {
 	})
 }
 
+func TestRemapJSON(t *testing.T) {
+	t.Run("ValidModel", func(tt *testing.T) {
+		src := struct {
+			Name string `json:"name"`
+			Age  int    `json:"age"`
+		}{
+			Name: "test",
+			Age:  30,
+		}
+		var model struct {
+			Name string `json:"name"`
+			Age  int    `json:"age"`
+		}
+
+		err := RemapJSON(src, &model)
+		require.NoError(tt, err)
+		assert.Equal(tt, "test", model.Name)
+		assert.Equal(tt, 30, model.Age)
+	})
+
+	t.Run("InvalidModel", func(tt *testing.T) {
+		src := map[string]any{"bad": func() {}}
+		var model struct{}
+
+		err := RemapJSON(src, &model)
+		require.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Failed to marshal json")
+	})
+}
+
 func TestGetRequestIDFromContext(t *testing.T) {
 	t.Run("RequestIDPresent", func(tt *testing.T) {
 		fields := log.Fields{

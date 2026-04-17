@@ -132,6 +132,55 @@ func TestPrepareCreateVolumeParams_WithThroughputMibps(t *testing.T) {
 	})
 }
 
+func TestConvertVolumeModelToBatchVolume_RequestedEnumsUseUnspecifiedDefaults(t *testing.T) {
+	in := gcpgenserver.VolumeV1beta{
+		VolumeId:     gcpgenserver.NewOptString("vol-1"),
+		ServiceLevel: gcpgenserver.NewOptVolumeV1betaServiceLevel(gcpgenserver.VolumeV1betaServiceLevelSERVICELEVELUNSPECIFIED),
+	}
+	fieldSet := buildBatchVolumeFieldSet([]gcpgenserver.V1betaBatchListVolumesFieldsItem{
+		gcpgenserver.V1betaBatchListVolumesFieldsItemServiceLevel,
+		gcpgenserver.V1betaBatchListVolumesFieldsItemVolumeState,
+		gcpgenserver.V1betaBatchListVolumesFieldsItemEncryptionType,
+		gcpgenserver.V1betaBatchListVolumesFieldsItemStorageClass,
+		gcpgenserver.V1betaBatchListVolumesFieldsItemDescription,
+	})
+
+	out, err := convertVolumeModelToBatchVolume(log.NewLogger(), in, fieldSet)
+	require.NoError(t, err)
+
+	assert.Equal(t, "vol-1", out.VolumeId)
+	assert.True(t, out.ServiceLevel.Set)
+	assert.False(t, out.ServiceLevel.Null)
+	assert.Equal(t, gcpgenserver.BatchVolumeV1betaServiceLevelSERVICELEVELUNSPECIFIED, out.ServiceLevel.Value)
+	assert.True(t, out.VolumeState.Set)
+	assert.False(t, out.VolumeState.Null)
+	assert.Equal(t, gcpgenserver.BatchVolumeV1betaVolumeStateSTATEUNSPECIFIED, out.VolumeState.Value)
+	assert.True(t, out.EncryptionType.Set)
+	assert.False(t, out.EncryptionType.Null)
+	assert.Equal(t, gcpgenserver.BatchVolumeV1betaEncryptionTypeENCRYPTIONTYPEUNSPECIFIED, out.EncryptionType.Value)
+	assert.True(t, out.StorageClass.Set)
+	assert.False(t, out.StorageClass.Null)
+	assert.Equal(t, gcpgenserver.BatchVolumeV1betaStorageClassSTORAGECLASSUNSPECIFIED, out.StorageClass.Value)
+	assert.True(t, out.Description.Set)
+	assert.True(t, out.Description.Null)
+	assert.False(t, out.Network.Set)
+}
+
+func TestConvertVolumeModelToBatchVolume_NoFieldsOnlyVolumeID(t *testing.T) {
+	in := gcpgenserver.VolumeV1beta{
+		VolumeId:    gcpgenserver.NewOptString("vol-2"),
+		ResourceId:  "res-2",
+		Description: gcpgenserver.NewOptNilString("desc"),
+	}
+
+	out, err := convertVolumeModelToBatchVolume(log.NewLogger(), in, nil)
+	require.NoError(t, err)
+
+	assert.Equal(t, "vol-2", out.VolumeId)
+	assert.False(t, out.ResourceId.Set)
+	assert.False(t, out.Description.Set)
+}
+
 func TestPrepareCreateVolumeParams_WithIops(t *testing.T) {
 	originalEnableMqos := enableMqos
 	originalEnableInferredIops := enableInferredIops
@@ -7801,26 +7850,29 @@ func TestConvertModelToVCPVolume(t *testing.T) {
 		}
 	})
 
-	t.Run("InReplication_OmittedWhenFalse_SetWhenTrue", func(t *testing.T) {
-		t.Run("false_omits_inReplication", func(t *testing.T) {
+	t.Run("InReplication_UsesPointerValueWhenPresent", func(t *testing.T) {
+		t.Run("false_sets_inReplication_false", func(t *testing.T) {
+			inReplication := false
 			vol := &models.Volume{
 				CreationToken:  "tok",
 				PoolID:         "pool",
 				QuotaInBytes:   100,
 				LifeCycleState: "READY",
-				InReplication:  false,
+				InReplication:  &inReplication,
 			}
 			out := convertModelToVCPVolume(vol)
 			require.NotNil(t, out)
-			assert.False(t, out.InReplication.Set, "inReplication must be omitted when volume is not in replication")
+			require.True(t, out.InReplication.Set, "inReplication should be set when the model carries a value")
+			assert.False(t, out.InReplication.Value)
 		})
 		t.Run("true_sets_inReplication", func(t *testing.T) {
+			inReplication := true
 			vol := &models.Volume{
 				CreationToken:  "tok",
 				PoolID:         "pool",
 				QuotaInBytes:   100,
 				LifeCycleState: "READY",
-				InReplication:  true,
+				InReplication:  &inReplication,
 			}
 			out := convertModelToVCPVolume(vol)
 			require.NotNil(t, out)
@@ -14940,6 +14992,69 @@ func TestConvertModelToVCPVolume_WithKmsGrant(t *testing.T) {
 	assert.NotNil(t, result.BackupConfig)
 	assert.True(t, result.BackupConfig.Value.KmsGrant.IsSet())
 	assert.Equal(t, kmsGrant, result.BackupConfig.Value.KmsGrant.Value)
+}
+
+func TestConvertModelToVCPVolume_ServiceLevelSetsStorageClass(t *testing.T) {
+	tests := []struct {
+		name                 string
+		serviceLevel         string
+		expectedServiceLevel gcpgenserver.VolumeV1betaServiceLevel
+		expectServiceLevel   bool
+		expectedStorageClass gcpgenserver.StorageClassV1beta
+	}{
+		{
+			name:                 "Flex service level maps to software storage",
+			serviceLevel:         "FLEX",
+			expectedServiceLevel: gcpgenserver.VolumeV1betaServiceLevelFLEX,
+			expectServiceLevel:   true,
+			expectedStorageClass: gcpgenserver.StorageClassV1betaSOFTWARE,
+		},
+		{
+			name:                 "Case-insensitive flex maps to software storage",
+			serviceLevel:         "flex",
+			expectedServiceLevel: gcpgenserver.VolumeV1betaServiceLevel("flex"),
+			expectServiceLevel:   true,
+			expectedStorageClass: gcpgenserver.StorageClassV1betaSOFTWARE,
+		},
+		{
+			name:                 "Non-flex service level maps to hardware storage",
+			serviceLevel:         "PREMIUM",
+			expectedServiceLevel: gcpgenserver.VolumeV1betaServiceLevelPREMIUM,
+			expectServiceLevel:   true,
+			expectedStorageClass: gcpgenserver.StorageClassV1betaHARDWARE,
+		},
+		{
+			name:                 "Empty service level defaults to software storage",
+			serviceLevel:         "",
+			expectServiceLevel:   false,
+			expectedStorageClass: gcpgenserver.StorageClassV1betaSOFTWARE,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			volume := &models.Volume{
+				BaseModel:      models.BaseModel{UUID: "test-uuid"},
+				DisplayName:    "test-volume",
+				ProtocolTypes:  []string{"NFSV3"},
+				LifeCycleState: "READY",
+				ServiceLevel:   tt.serviceLevel,
+			}
+
+			result := convertModelToVCPVolume(volume)
+			require.NotNil(t, result, "convertModelToVCPVolume returned nil")
+
+			if tt.expectServiceLevel {
+				assert.True(t, result.ServiceLevel.IsSet())
+				assert.Equal(t, tt.expectedServiceLevel, result.ServiceLevel.Value)
+			} else {
+				assert.False(t, result.ServiceLevel.IsSet())
+			}
+
+			assert.True(t, result.StorageClass.IsSet())
+			assert.Equal(t, tt.expectedStorageClass, result.StorageClass.Value)
+		})
+	}
 }
 
 func TestValidateFlexCacheUpdateParams(t *testing.T) {

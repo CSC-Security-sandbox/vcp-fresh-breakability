@@ -959,6 +959,28 @@ type SplitStartVolumeParams struct {
 	VolumeID    string
 }
 
+type VolumeFetchOptions struct {
+	NeedActiveDirectory        bool
+	NeedKmsConfig              bool
+	NeedVolumePerformanceGroup bool
+	NeedIPAddresses            bool
+	NeedInReplication          bool
+}
+
+func VolumeFetchOptionsFromFields(fieldSet map[string]bool) VolumeFetchOptions {
+	if fieldSet == nil {
+		return VolumeFetchOptions{}
+	}
+
+	return VolumeFetchOptions{
+		NeedActiveDirectory:        fieldSet["activeDirectoryConfigId"] || fieldSet["activeDirectoryResourceId"],
+		NeedKmsConfig:              fieldSet["kmsConfigId"] || fieldSet["kmsConfigResourceId"] || fieldSet["encryptionType"],
+		NeedVolumePerformanceGroup: fieldSet["throughputMibps"],
+		NeedIPAddresses:            fieldSet["mountPoints"],
+		NeedInReplication:          fieldSet["inReplication"],
+	}
+}
+
 // CreateQuotaRulesParam describes parameters supplied to create a quota rule
 type CreateQuotaRulesParam struct {
 	Name           string

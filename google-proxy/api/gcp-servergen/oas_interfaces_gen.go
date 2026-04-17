@@ -33,6 +33,10 @@ type V1betaBatchListSnapshotsRes interface {
 	v1betaBatchListSnapshotsRes()
 }
 
+type V1betaBatchListVolumesRes interface {
+	v1betaBatchListVolumesRes()
+}
+
 type V1betaCheckKmsConfigRes interface {
 	v1betaCheckKmsConfigRes()
 }

@@ -426,9 +426,9 @@ var (
 	// In OCI deployments this is set via the vcp-worker ConfigMap (global.hyperscaler in values.yaml).
 	Hyperscaler = GetString("HYPERSCALER", "gcp")
 
-	MaxBatchPoolUUIDs              = GetInt("MAX_BATCH_POOL_UUIDS", 1000)
-	MaxBatchSnapshotUUIDs          = GetInt("MAX_BATCH_SNAPSHOT_UUIDS", 1000)
-	MaxBatchActiveDirectoryUUIDs   = GetInt("MAX_BATCH_AD_UUIDS", 1000)
+	MaxBatchPoolUUIDs            = GetInt("MAX_BATCH_POOL_UUIDS", 1000)
+	MaxBatchSnapshotUUIDs        = GetInt("MAX_BATCH_SNAPSHOT_UUIDS", 1000)
+	MaxBatchActiveDirectoryUUIDs = GetInt("MAX_BATCH_AD_UUIDS", 1000)
 )
 
 // networkEnvVariables holds the environment variables related to firewall of network configuration for source ranges
