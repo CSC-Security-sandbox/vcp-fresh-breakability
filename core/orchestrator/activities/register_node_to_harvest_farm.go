@@ -33,7 +33,7 @@ var (
 	leaseExists                   = utils.LeaseExists
 	vcpLeaseNameSpace             = env.GetString("LEASE_NAMESPACE", "vcp")
 	smHarvestAuthEnabled          = env.GetBool("HARVEST_SECRET_MANAGER_AUTH_ENABLED", false)
-	enableMultiHaPairRegistration = env.GetBool("ENABLE_MULTI_HA_PAIR_REGISTRATION", false)
+	enableMultiHaPairRegistration = env.GetBool("ENABLE_MULTI_HA_PAIR_REGISTRATION", true)
 )
 
 // RegisterNodeToHarvestFarmInput holds input parameters for the activity
