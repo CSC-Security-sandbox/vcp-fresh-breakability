@@ -1851,17 +1851,16 @@ func (h Handler) V1betaBackupConfig(ctx context.Context, req *gcpgenserver.Backu
 
 	reqBackupConfig := req.BackupConfig
 
-	if !reqBackupConfig.BackupVaultId.IsSet() || reqBackupConfig.BackupVaultId.IsNull() || reqBackupConfig.BackupVaultId.Value == "" {
-		return &gcpgenserver.V1betaBackupConfigBadRequest{
-			Code:    400,
-			Message: "backupVaultId is required",
-		}, nil
+	// Patch semantics for all BackupConfig fields:
+	//   null / absent → nil       (no-op: preserve existing value in DB)
+	//   ""            → &""       (explicit detach/clear)
+	//   "value"       → &"value"  (attach/set)
+	var backupVaultID *string
+	if reqBackupConfig.BackupVaultId.IsSet() && !reqBackupConfig.BackupVaultId.IsNull() {
+		v := reqBackupConfig.BackupVaultId.Value
+		backupVaultID = &v
 	}
 
-	// Patch semantics for optional string fields:
-	//   null / absent → nil       (no-op: preserve existing value in DB)
-	//   ""            → &""       (explicit clear: detach/remove)
-	//   "value"       → &"value"  (attach/set)
 	var backupPolicyID *string
 	if reqBackupConfig.BackupPolicyId.IsSet() && !reqBackupConfig.BackupPolicyId.IsNull() {
 		v := reqBackupConfig.BackupPolicyId.Value
@@ -1903,7 +1902,7 @@ func (h Handler) V1betaBackupConfig(ctx context.Context, req *gcpgenserver.Backu
 		AccountName:            params.ProjectNumber,
 		PoolUUID:               params.PoolId,
 		VolumeUUID:             req.VolumeUuid,
-		BackupVaultID:          reqBackupConfig.BackupVaultId.Value,
+		BackupVaultID:          backupVaultID,
 		BackupPolicyID:         backupPolicyID,
 		ScheduledBackupEnabled: scheduledBackupEnabled,
 		KmsGrant:               kmsGrant,

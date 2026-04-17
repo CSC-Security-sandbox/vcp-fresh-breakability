@@ -17,6 +17,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/pools"
 	cvpmodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
@@ -9394,41 +9395,66 @@ func TestV1betaBackupConfig(t *testing.T) {
 		assert.Contains(tt, badReq.Message, "invalid location")
 	})
 
-	t.Run("BackupConfigMissing_Rejected", func(tt *testing.T) {
+	t.Run("When_BackupVaultIdAbsent_NilPassedToOrchestrator", func(tt *testing.T) {
 		orig := ExpertModeBackupEnabled
 		ExpertModeBackupEnabled = true
 		defer func() { ExpertModeBackupEnabled = orig }()
 
 		setupLocation(tt)
 
+		// BackupVaultId not present in payload → BackupVaultID=nil (no-op); request reaches orchestrator.
 		req := &gcpgenserver.BackupConfigRequestV1beta{VolumeUuid: "volume-uuid"}
 
-		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		returnedConfig := &datamodel.DataProtection{BackupPolicyID: "bp-uuid"}
+		mockOrchestrator.EXPECT().ManageBackupConfigForExpertModeVolume(
+			mock.Anything,
+			mock.MatchedBy(func(p *commonparams.ManageBackupConfigForExpertModeVolumeParams) bool {
+				return p.BackupVaultID == nil
+			}),
+		).Return(returnedConfig, "job-uuid", nil).Once()
+
+		handler := Handler{Orchestrator: mockOrchestrator}
 		result, err := handler.V1betaBackupConfig(context.Background(), req, baseParams())
 		assert.NoError(tt, err)
-		badReq, ok := result.(*gcpgenserver.V1betaBackupConfigBadRequest)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
 		assert.True(tt, ok)
-		assert.Contains(tt, badReq.Message, "backupVaultId is required")
+		assert.NotEmpty(tt, op.Response)
+		assert.Contains(tt, string(op.Response), "bp-uuid")
 	})
 
-	t.Run("BackupVaultIdMissing_Rejected", func(tt *testing.T) {
+	t.Run("When_BackupVaultIdEmpty_DetachPassedToOrchestrator", func(tt *testing.T) {
 		orig := ExpertModeBackupEnabled
 		ExpertModeBackupEnabled = true
 		defer func() { ExpertModeBackupEnabled = orig }()
 
 		setupLocation(tt)
 
+		// BackupVaultId explicitly set to "" → BackupVaultID=&"" (detach); request reaches orchestrator.
+		bc := gcpgenserver.BackupConfigRequestV1betaBackupConfig{}
+		bc.BackupVaultId.SetTo("")
 		req := &gcpgenserver.BackupConfigRequestV1beta{
 			VolumeUuid:   "volume-uuid",
-			BackupConfig: gcpgenserver.BackupConfigRequestV1betaBackupConfig{},
+			BackupConfig: bc,
 		}
 
-		handler := Handler{Orchestrator: factory.NewMockOrchestratorFactory(tt)}
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		returnedConfig := &datamodel.DataProtection{BackupVaultID: ""}
+		mockOrchestrator.EXPECT().ManageBackupConfigForExpertModeVolume(
+			mock.Anything,
+			mock.MatchedBy(func(p *commonparams.ManageBackupConfigForExpertModeVolumeParams) bool {
+				return p.BackupVaultID != nil && *p.BackupVaultID == ""
+			}),
+		).Return(returnedConfig, "job-uuid", nil).Once()
+
+		handler := Handler{Orchestrator: mockOrchestrator}
 		result, err := handler.V1betaBackupConfig(context.Background(), req, baseParams())
 		assert.NoError(tt, err)
-		badReq, ok := result.(*gcpgenserver.V1betaBackupConfigBadRequest)
+		op, ok := result.(*gcpgenserver.OperationV1beta)
 		assert.True(tt, ok)
-		assert.Contains(tt, badReq.Message, "backupVaultId is required")
+		// After detach, BackupVaultID is "" so convertDataProtectionToBackupConfigV1beta
+		// does not set the BackupVaultId field — response is still populated (not nil).
+		assert.NotNil(tt, op.Response)
 	})
 
 	t.Run("KmsGrant_CmekNotEnabled_Rejected", func(tt *testing.T) {

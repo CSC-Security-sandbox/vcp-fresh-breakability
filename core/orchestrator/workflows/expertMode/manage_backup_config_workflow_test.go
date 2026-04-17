@@ -67,7 +67,7 @@ func baseVolume() *datamodel.ExpertModeVolumes {
 func baseParams() *commonparams.ManageBackupConfigForExpertModeVolumeParams {
 	return &commonparams.ManageBackupConfigForExpertModeVolumeParams{
 		AccountName:   "test-account",
-		BackupVaultID: "bv-uuid",
+		BackupVaultID: nillable.ToPointer("bv-uuid"),
 		Region:        "us-east1",
 	}
 }
@@ -583,6 +583,79 @@ func TestManageBackupConfigWorkflow(t *testing.T) {
 		status, err := env.QueryWorkflowByID("default-test-workflow-id", "status")
 		assert.NoError(tt, err)
 		assert.NotNil(tt, status)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+		env.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("When_BackupVaultIDNil_StepsSkipped_ConfigPreserved", func(tt *testing.T) {
+		// BackupVaultID = nil → provisionVaultResources (steps 2-6) is not called.
+		// BackupPolicyID is set, so hasBackupConfigPatch = true and step 7 persists
+		// the policy without modifying the stored vault ID (BackupVaultID stays "").
+		env, mockStorage := newManageBackupConfigTestEnv(tt)
+		commonActivity, _, expertModeActivity := registerCoreActivities(env, mockStorage)
+
+		mockJobFlow(mockStorage, 2)
+
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).
+			Return("test-token", nil).Maybe()
+		// No OnActivity expectations for vault activities (steps 2-6) — any unexpected
+		// call would panic the test environment, verifying they are not reached.
+		env.OnActivity(expertModeActivity.UpdateExpertModeVolumeBackupConfigInDB, mock.Anything,
+			mock.MatchedBy(func(v *datamodel.ExpertModeVolumes) bool {
+				// vault ID must not have been modified (stays "")
+				return v.BackupConfig != nil && v.BackupConfig.BackupVaultID == ""
+			})).Return(nil)
+		env.OnActivity(expertModeActivity.UpdateExpertModeVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything).
+			Return(nil)
+
+		volume := baseVolume()
+		params := &commonparams.ManageBackupConfigForExpertModeVolumeParams{
+			AccountName:    "test-account",
+			BackupVaultID:  nil, // absent → steps 2-6 skipped
+			BackupPolicyID: nillable.ToPointer("bp-uuid"),
+			Region:         "us-east1",
+		}
+
+		env.ExecuteWorkflow(ManageBackupConfigWorkflow, volume, params)
+
+		assert.True(tt, env.IsWorkflowCompleted())
+		assert.NoError(tt, env.GetWorkflowError())
+		env.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("When_BackupVaultIDEmptyString_DetachPath_VaultCleared", func(tt *testing.T) {
+		// BackupVaultID = &"" (explicit detach) → provisionVaultResources skipped.
+		// BackupVaultID != nil so hasBackupConfigPatch = true; step 7 must set
+		// volume.BackupConfig.BackupVaultID to "" (clearing the previous vault).
+		env, mockStorage := newManageBackupConfigTestEnv(tt)
+		commonActivity, _, expertModeActivity := registerCoreActivities(env, mockStorage)
+
+		mockJobFlow(mockStorage, 2)
+
+		env.OnActivity(commonActivity.GetAuthJWTToken, mock.Anything, mock.Anything).
+			Return("test-token", nil).Maybe()
+		// Steps 2-6 must NOT be called.
+		env.OnActivity(expertModeActivity.UpdateExpertModeVolumeBackupConfigInDB, mock.Anything,
+			mock.MatchedBy(func(v *datamodel.ExpertModeVolumes) bool {
+				// vault ID must have been cleared
+				return v.BackupConfig != nil && v.BackupConfig.BackupVaultID == ""
+			})).Return(nil)
+		env.OnActivity(expertModeActivity.UpdateExpertModeVolumeStateInDB, mock.Anything, mock.Anything, mock.Anything).
+			Return(nil)
+
+		volume := baseVolume()
+		volume.BackupConfig = &datamodel.DataProtection{BackupVaultID: "old-vault-uuid"}
+		params := &commonparams.ManageBackupConfigForExpertModeVolumeParams{
+			AccountName:   "test-account",
+			BackupVaultID: nillable.ToPointer(""), // explicit detach
+			Region:        "us-east1",
+		}
+
+		env.ExecuteWorkflow(ManageBackupConfigWorkflow, volume, params)
 
 		assert.True(tt, env.IsWorkflowCompleted())
 		assert.NoError(tt, env.GetWorkflowError())
@@ -1428,19 +1501,33 @@ func TestManageBackupConfigWorkflow_StateManagement(t *testing.T) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func TestBuildVolumeFromExpertMode(t *testing.T) {
+	t.Run("When_BackupVaultIDNil_DefaultsToEmpty", func(tt *testing.T) {
+		// When BackupVaultID is nil (not provided), nillable.GetString defaults to ""
+		// so DataProtection.BackupVaultID must be the empty string, never a pointer address.
+		em := &datamodel.ExpertModeVolumes{BaseModel: datamodel.BaseModel{UUID: "vol-uuid"}}
+		params := &commonparams.ManageBackupConfigForExpertModeVolumeParams{
+			BackupVaultID: nil,
+		}
+
+		vol := buildVolumeFromExpertMode(em, params)
+
+		assert.NotNil(tt, vol.DataProtection)
+		assert.Equal(tt, "", vol.DataProtection.BackupVaultID)
+	})
+
 	t.Run("NilPool_EmptyVendorSubnetID", func(tt *testing.T) {
 		em := &datamodel.ExpertModeVolumes{
 			BaseModel:    datamodel.BaseModel{UUID: "vol-uuid", ID: 42},
 			Name:         "vol",
 			ExternalUUID: "ext-uuid",
 			AccountID:    1,
-			Account:      &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}},
-			Pool:         nil,
-		}
-	params := &commonparams.ManageBackupConfigForExpertModeVolumeParams{
-		BackupVaultID:  "bv",
-		BackupPolicyID: nillable.ToPointer("bp"),
+		Account:      &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}},
+		Pool:         nil,
 	}
+		params := &commonparams.ManageBackupConfigForExpertModeVolumeParams{
+			BackupVaultID:  nillable.ToPointer("bv"),
+			BackupPolicyID: nillable.ToPointer("bp"),
+		}
 
 		vol := buildVolumeFromExpertMode(em, params)
 
@@ -1521,7 +1608,7 @@ func TestBuildVolumeFromExpertMode(t *testing.T) {
 		em := &datamodel.ExpertModeVolumes{BaseModel: datamodel.BaseModel{UUID: "vol-uuid"}}
 		enabled := true
 		params := &commonparams.ManageBackupConfigForExpertModeVolumeParams{
-			BackupVaultID:          "bv",
+			BackupVaultID:          nillable.ToPointer("bv"),
 			ScheduledBackupEnabled: &enabled,
 		}
 
@@ -1534,7 +1621,7 @@ func TestBuildVolumeFromExpertMode(t *testing.T) {
 	t.Run("ScheduledBackupEnabled_Nil_NotSetInDataProtection", func(tt *testing.T) {
 		em := &datamodel.ExpertModeVolumes{BaseModel: datamodel.BaseModel{UUID: "vol-uuid"}}
 		params := &commonparams.ManageBackupConfigForExpertModeVolumeParams{
-			BackupVaultID:          "bv",
+			BackupVaultID:          nillable.ToPointer("bv"),
 			ScheduledBackupEnabled: nil,
 		}
 
@@ -1547,7 +1634,7 @@ func TestBuildVolumeFromExpertMode(t *testing.T) {
 		em := &datamodel.ExpertModeVolumes{BaseModel: datamodel.BaseModel{UUID: "vol-uuid"}}
 		kms := "projects/p/cryptoKeyVersions/1"
 		params := &commonparams.ManageBackupConfigForExpertModeVolumeParams{
-			BackupVaultID: "bv",
+			BackupVaultID: nillable.ToPointer("bv"),
 			KmsGrant:      nillable.ToPointer(kms),
 		}
 

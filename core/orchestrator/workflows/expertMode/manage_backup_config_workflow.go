@@ -131,180 +131,194 @@ func (wf *manageBackupConfigWorkflow) Run(ctx workflow.Context, args ...interfac
 		ctx = workflow.WithValue(ctx, middleware.AuthorizationToken, token)
 	}
 
-	// ── Step 2: Verify the backup vault exists in VCP ─────────────────────────
-	var backupVault *datamodel.BackupVault
-	err = workflow.ExecuteActivity(ctx, updateActivity.CheckBackupVaultExistInVCP, volumeForActivities, &params.Region).Get(ctx, &backupVault)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
-
-	backupRegion := params.Region
-	if backupVault.BackupVaultType == activities.CrossRegionBackupType && backupVault.BackupRegionName != nil && *backupVault.BackupRegionName != "" {
-		backupRegion = *backupVault.BackupRegionName
-	}
-
-	// ── Step 3: Resolve tenancy details ──────────────────────────────────────
-	tenancyDetails := &commonparams.TenancyInfo{}
-	if backupVault.ServiceType != activities.GCBDRServiceType {
-		err = workflow.ExecuteActivity(ctx, updateActivity.FindTenancyDetails,
-			volumeForActivities.VolumeAttributes.VendorSubnetID, params.AccountName, backupRegion).Get(ctx, &tenancyDetails)
-		if err != nil {
-			return nil, workflows.ConvertToVSAError(err)
-		}
-	} else {
-		if len(backupVault.BucketDetails) > 0 {
-			tenancyDetails.RegionalTenantProject = backupVault.BucketDetails[0].TenantProjectNumber
-		} else {
-			log.Errorf("GCBDR vault %s has no bucket details with tenant project", backupVault.UUID)
-			return nil, workflows.ConvertToVSAError(fmt.Errorf("GCBDR vault has no tenant project information"))
-		}
-	}
-
-	// ── Step 4: Check for existing bucket – create if absent ─────────────────
-	bucketDetails := &commonparams.BucketDetails{}
-	err = workflow.ExecuteActivity(ctx, updateActivity.CheckBucketResourceName, volumeForActivities).Get(ctx, &bucketDetails)
-	if err != nil {
-		return nil, workflows.ConvertToVSAError(err)
-	}
-
-	if bucketDetails.BucketName == "" && bucketDetails.ServiceAccountName == "" && bucketDetails.TenantProjectNumber == "" {
-		resourceName := &commonparams.ResourceNames{}
-		err = workflow.ExecuteActivity(ctx, updateActivity.GenerateResourceNamesForBackupVault,
-			volumeForActivities, tenancyDetails, params.Region).Get(ctx, &resourceName)
+	// Steps 2-6 only run when a real vault UUID is being set. When BackupVaultID is nil
+	// (no-op) or &"" (detach) there is nothing vault-specific to provision.
+	if params.BackupVaultID != nil && *params.BackupVaultID != "" {
+		// ── Step 2: Verify the backup vault exists in VCP ─────────────────────
+		var backupVault *datamodel.BackupVault
+		err = workflow.ExecuteActivity(ctx, updateActivity.CheckBackupVaultExistInVCP, volumeForActivities, &params.Region).Get(ctx, &backupVault)
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
 
-		var kmsGrant *string
-		if !nillable.IsNilOrEmpty(params.KmsGrant) {
-			kmsGrant = params.KmsGrant
+		backupRegion := params.Region
+		if backupVault.BackupVaultType == activities.CrossRegionBackupType && backupVault.BackupRegionName != nil && *backupVault.BackupRegionName != "" {
+			backupRegion = *backupVault.BackupRegionName
 		}
 
-		err = workflow.ExecuteActivity(ctx, updateActivity.CreateBucketForBackupVault,
-			resourceName, tenancyDetails, backupRegion, kmsGrant).Get(ctx, &bucketDetails)
-		if err != nil {
-			return nil, workflows.ConvertToVSAError(err)
-		}
-
+		// ── Step 3: Resolve tenancy details ──────────────────────────────────
+		tenancyDetails := &commonparams.TenancyInfo{}
 		if backupVault.ServiceType != activities.GCBDRServiceType {
-			bucketDetails.VendorSubnetID = volumeForActivities.VolumeAttributes.VendorSubnetID
+			err = workflow.ExecuteActivity(ctx, updateActivity.FindTenancyDetails,
+				volumeForActivities.VolumeAttributes.VendorSubnetID, params.AccountName, backupRegion).Get(ctx, &tenancyDetails)
+			if err != nil {
+				return nil, workflows.ConvertToVSAError(err)
+			}
+		} else {
+			if len(backupVault.BucketDetails) > 0 {
+				tenancyDetails.RegionalTenantProject = backupVault.BucketDetails[0].TenantProjectNumber
+			} else {
+				log.Errorf("GCBDR vault %s has no bucket details with tenant project", backupVault.UUID)
+				return nil, workflows.ConvertToVSAError(fmt.Errorf("GCBDR vault has no tenant project information"))
+			}
 		}
 
-		// Sync bucket PZI/PZS fields from GCP.
-		if err = workflows.SyncBucketDetailsWithGCP(ctx, bucketDetails); err != nil {
-			return nil, workflows.ConvertToVSAError(err)
-		}
-
-		err = workflow.ExecuteActivity(ctx, updateActivity.UpdateBucketDetailsOfBackupVault,
-			volumeForActivities, bucketDetails).Get(ctx, nil)
+		// ── Step 4: Check for existing bucket – create if absent ─────────────
+		bucketDetails := &commonparams.BucketDetails{}
+		err = workflow.ExecuteActivity(ctx, updateActivity.CheckBucketResourceName, volumeForActivities).Get(ctx, &bucketDetails)
 		if err != nil {
 			return nil, workflows.ConvertToVSAError(err)
 		}
 
-		// ── GCBDR: grant pool SA access to bucket ─────────────────────────────
-		if backupVault.ServiceType == activities.GCBDRServiceType {
-			if volume.Pool == nil {
-				log.Errorf("Pool details not available for volume %s", volume.UUID)
-				return nil, workflows.ConvertToVSAError(fmt.Errorf("pool details required for GCBDR bucket permissions"))
+		if bucketDetails.BucketName == "" && bucketDetails.ServiceAccountName == "" && bucketDetails.TenantProjectNumber == "" {
+			resourceName := &commonparams.ResourceNames{}
+			err = workflow.ExecuteActivity(ctx, updateActivity.GenerateResourceNamesForBackupVault,
+				volumeForActivities, tenancyDetails, params.Region).Get(ctx, &resourceName)
+			if err != nil {
+				return nil, workflows.ConvertToVSAError(err)
 			}
+
+			var kmsGrant *string
+			if !nillable.IsNilOrEmpty(params.KmsGrant) {
+				kmsGrant = params.KmsGrant
+			}
+
+			err = workflow.ExecuteActivity(ctx, updateActivity.CreateBucketForBackupVault,
+				resourceName, tenancyDetails, backupRegion, kmsGrant).Get(ctx, &bucketDetails)
+			if err != nil {
+				return nil, workflows.ConvertToVSAError(err)
+			}
+
+			if backupVault.ServiceType != activities.GCBDRServiceType {
+				bucketDetails.VendorSubnetID = volumeForActivities.VolumeAttributes.VendorSubnetID
+			}
+
+			// Sync bucket PZI/PZS fields from GCP.
+			if err = workflows.SyncBucketDetailsWithGCP(ctx, bucketDetails); err != nil {
+				return nil, workflows.ConvertToVSAError(err)
+			}
+
+			err = workflow.ExecuteActivity(ctx, updateActivity.UpdateBucketDetailsOfBackupVault,
+				volumeForActivities, bucketDetails).Get(ctx, nil)
+			if err != nil {
+				return nil, workflows.ConvertToVSAError(err)
+			}
+
+			// ── GCBDR: grant pool SA access to bucket ─────────────────────────
+			if backupVault.ServiceType == activities.GCBDRServiceType {
+				if volume.Pool == nil {
+					log.Errorf("Pool details not available for volume %s", volume.UUID)
+					return nil, workflows.ConvertToVSAError(fmt.Errorf("pool details required for GCBDR bucket permissions"))
+				}
+				volumeCreateActivity := &activities.VolumeCreateActivity{}
+				err = workflow.ExecuteActivity(ctx, volumeCreateActivity.SetupCrossProjectBackupPermissions,
+					volumeForActivities.Pool, bucketDetails).Get(ctx, nil)
+				if err != nil {
+					log.Errorf("Failed to setup cross-project backup permissions: %v", err)
+					return nil, workflows.ConvertToVSAError(err)
+				}
+				log.Infof("Granted pool SA access to GCBDR bucket %s for volume %s", bucketDetails.BucketName, volume.UUID)
+			}
+
+			volumeActivity := &activities.VolumeCreateActivity{}
+			var remoteBV *datamodel.BackupVault
+			err = workflow.ExecuteActivity(ctx, volumeActivity.CheckOrCreateRemoteBackupVaultInVCP,
+				volumeForActivities, backupVault, bucketDetails).Get(ctx, &remoteBV)
+			if err != nil {
+				return nil, workflows.ConvertToVSAError(err)
+			}
+
+			err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateRemoteBackupVaultWithBucketDetails,
+				volumeForActivities, backupVault, remoteBV, bucketDetails).Get(ctx, nil)
+			if err != nil {
+				return nil, workflows.ConvertToVSAError(err)
+			}
+		}
+
+		// ── Step 5: Cross-region backup permissions ───────────────────────────
+		if backupVault.BackupVaultType == activities.CrossRegionBackupType && backupVault.BackupRegionName != nil && *backupVault.BackupRegionName != "" {
 			volumeCreateActivity := &activities.VolumeCreateActivity{}
-			err = workflow.ExecuteActivity(ctx, volumeCreateActivity.SetupCrossProjectBackupPermissions,
-				volumeForActivities.Pool, bucketDetails).Get(ctx, nil)
+			err = workflow.ExecuteActivity(ctx, volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity,
+				backupVault, volumeForActivities.Pool, bucketDetails).Get(ctx, nil)
 			if err != nil {
-				log.Errorf("Failed to setup cross-project backup permissions: %v", err)
 				return nil, workflows.ConvertToVSAError(err)
 			}
-			log.Infof("Granted pool SA access to GCBDR bucket %s for volume %s", bucketDetails.BucketName, volume.UUID)
+			// Allow time for the service account to become ready.
+			if err = workflow.Sleep(ctx, 90*time.Second); err != nil {
+				log.Errorf("Sleep interrupted after cross-region backup permissions: %v", err)
+			}
 		}
 
-		volumeActivity := &activities.VolumeCreateActivity{}
-		var remoteBV *datamodel.BackupVault
-		err = workflow.ExecuteActivity(ctx, volumeActivity.CheckOrCreateRemoteBackupVaultInVCP,
-			volumeForActivities, backupVault, bucketDetails).Get(ctx, &remoteBV)
-		if err != nil {
-			return nil, workflows.ConvertToVSAError(err)
-		}
-
-		err = workflow.ExecuteActivity(ctx, volumeActivity.UpdateRemoteBackupVaultWithBucketDetails,
-			volumeForActivities, backupVault, remoteBV, bucketDetails).Get(ctx, nil)
-		if err != nil {
-			return nil, workflows.ConvertToVSAError(err)
-		}
-	}
-
-	// ── Step 5: Cross-region backup permissions ───────────────────────────────
-	if backupVault.BackupVaultType == activities.CrossRegionBackupType && backupVault.BackupRegionName != nil && *backupVault.BackupRegionName != "" {
-		volumeCreateActivity := &activities.VolumeCreateActivity{}
-		err = workflow.ExecuteActivity(ctx, volumeCreateActivity.SetupCrossRegionBackupPermissionsActivity,
-			backupVault, volumeForActivities.Pool, bucketDetails).Get(ctx, nil)
-		if err != nil {
-			return nil, workflows.ConvertToVSAError(err)
-		}
-		// Allow time for the service account to become ready.
-		if err = workflow.Sleep(ctx, 90*time.Second); err != nil {
-			log.Errorf("Sleep interrupted after cross-region backup permissions: %v", err)
-		}
-	}
-
-	// ── Step 6: Backup policy – create schedule if a new policy is being attached ──
-	if params.BackupPolicyID != nil && *params.BackupPolicyID != "" {
-		var backupPolicyExists bool
-		err = workflow.ExecuteActivity(ctx, updateActivity.VerifyIfBackupPolicyExistsInVCP,
-			*params.BackupPolicyID, volume.AccountID).Get(ctx, &backupPolicyExists)
-		if err != nil {
-			return nil, workflows.ConvertToVSAError(err)
-		}
-
-		if !backupPolicyExists {
-			backupPolicyActivity := &activities.BackupPolicyActivity{}
-			var vcpBackupPolicy *datamodel.BackupPolicy
-			err = workflow.ExecuteActivity(ctx, updateActivity.FetchAndCreateBackupPolicyFromSDE,
-				volumeForActivities, params.Region).Get(ctx, &vcpBackupPolicy)
+		// ── Step 6: Backup policy – create schedule if a new policy is being attached ──
+		if params.BackupPolicyID != nil && *params.BackupPolicyID != "" {
+			var backupPolicyExists bool
+			err = workflow.ExecuteActivity(ctx, updateActivity.VerifyIfBackupPolicyExistsInVCP,
+				*params.BackupPolicyID, volume.AccountID).Get(ctx, &backupPolicyExists)
 			if err != nil {
 				return nil, workflows.ConvertToVSAError(err)
 			}
 
-			err = workflow.ExecuteActivity(ctx, updateActivity.CreateScheduleForBackupPolicy,
-				vcpBackupPolicy, params.BackupSchedule).Get(ctx, nil)
-			if err != nil {
-				return nil, workflows.ConvertToVSAError(err)
-			}
-
-			if !vcpBackupPolicy.PolicyEnabled {
-				err = workflow.ExecuteActivity(ctx, backupPolicyActivity.PauseBackupPolicySchedule,
-					vcpBackupPolicy).Get(ctx, nil)
+			if !backupPolicyExists {
+				backupPolicyActivity := &activities.BackupPolicyActivity{}
+				var vcpBackupPolicy *datamodel.BackupPolicy
+				err = workflow.ExecuteActivity(ctx, updateActivity.FetchAndCreateBackupPolicyFromSDE,
+					volumeForActivities, params.Region).Get(ctx, &vcpBackupPolicy)
 				if err != nil {
 					return nil, workflows.ConvertToVSAError(err)
 				}
+
+				err = workflow.ExecuteActivity(ctx, updateActivity.CreateScheduleForBackupPolicy,
+					vcpBackupPolicy, params.BackupSchedule).Get(ctx, nil)
+				if err != nil {
+					return nil, workflows.ConvertToVSAError(err)
+				}
+
+				if !vcpBackupPolicy.PolicyEnabled {
+					err = workflow.ExecuteActivity(ctx, backupPolicyActivity.PauseBackupPolicySchedule,
+						vcpBackupPolicy).Get(ctx, nil)
+					if err != nil {
+						return nil, workflows.ConvertToVSAError(err)
+					}
+				}
 			}
 		}
-	}
+	} // end: if params.BackupVaultID != nil && *params.BackupVaultID != ""
 
 	// ── Step 7: Persist backup config on the expert mode volume ──────────────
 	// Patch semantics: only overwrite a field when the caller explicitly provided it.
 	// nil = not provided → preserve the existing persisted value unchanged.
-	if volume.BackupConfig == nil {
-		volume.BackupConfig = &datamodel.DataProtection{}
-	}
-	volume.BackupConfig.BackupVaultID = params.BackupVaultID
-	if params.BackupPolicyID != nil {
-		volume.BackupConfig.BackupPolicyID = *params.BackupPolicyID // "" clears, "uuid" sets
-	}
-	if params.ScheduledBackupEnabled != nil {
-		volume.BackupConfig.ScheduledBackupEnabled = params.ScheduledBackupEnabled
-	}
-	if params.KmsGrant != nil {
-		if *params.KmsGrant == "" {
-			volume.BackupConfig.KmsGrant = nil // "" clears
-		} else {
-			volume.BackupConfig.KmsGrant = params.KmsGrant // "key" sets
+	// Only allocate BackupConfig (and write to DB) when at least one patch field is present,
+	// so a fully-empty request stays idempotent and never converts a NULL config to an empty object.
+	hasBackupConfigPatch := params.BackupVaultID != nil ||
+		params.BackupPolicyID != nil ||
+		params.ScheduledBackupEnabled != nil ||
+		params.KmsGrant != nil
+	if hasBackupConfigPatch {
+		if volume.BackupConfig == nil {
+			volume.BackupConfig = &datamodel.DataProtection{}
 		}
-	}
+		if params.BackupVaultID != nil {
+			volume.BackupConfig.BackupVaultID = *params.BackupVaultID // "" detaches, "uuid" sets
+		}
+		if params.BackupPolicyID != nil {
+			volume.BackupConfig.BackupPolicyID = *params.BackupPolicyID // "" clears, "uuid" sets
+		}
+		if params.ScheduledBackupEnabled != nil {
+			volume.BackupConfig.ScheduledBackupEnabled = params.ScheduledBackupEnabled
+		}
+		if params.KmsGrant != nil {
+			if *params.KmsGrant == "" {
+				volume.BackupConfig.KmsGrant = nil // "" clears
+			} else {
+				volume.BackupConfig.KmsGrant = params.KmsGrant // "key" sets
+			}
+		}
 
-	err = workflow.ExecuteActivity(ctx, expertModeActivity.UpdateExpertModeVolumeBackupConfigInDB, volume).Get(ctx, nil)
-	if err != nil {
-		log.Errorf("Failed to persist backup config for volume %s: %v", volume.UUID, err)
-		return nil, workflows.ConvertToVSAError(err)
+		err = workflow.ExecuteActivity(ctx, expertModeActivity.UpdateExpertModeVolumeBackupConfigInDB, volume).Get(ctx, nil)
+		if err != nil {
+			log.Errorf("Failed to persist backup config for volume %s: %v", volume.UUID, err)
+			return nil, workflows.ConvertToVSAError(err)
+		}
 	}
 
 	// Restore volume state to READY on success (the defer only runs on failure).
@@ -315,12 +329,16 @@ func (wf *manageBackupConfigWorkflow) Run(ctx workflow.Context, args ...interfac
 		return nil, workflows.ConvertToVSAError(err)
 	}
 
+	effectiveVault := ""
+	if params.BackupVaultID != nil {
+		effectiveVault = *params.BackupVaultID
+	}
 	effectivePolicy := ""
 	if params.BackupPolicyID != nil {
 		effectivePolicy = *params.BackupPolicyID
 	}
 	workflow.GetLogger(ctx).Info("Successfully managed backup config for expert mode volume",
-		"volumeUUID", volume.UUID, "vaultID", params.BackupVaultID, "policyID", effectivePolicy)
+		"volumeUUID", volume.UUID, "vaultID", effectiveVault, "policyID", effectivePolicy)
 
 	return nil, nil
 }
@@ -361,8 +379,12 @@ func buildVolumeFromExpertMode(em *datamodel.ExpertModeVolumes, params *commonpa
 	if kmsGrantForActivities != nil && *kmsGrantForActivities == "" {
 		kmsGrantForActivities = nil
 	}
+	vaultIDForActivities := ""
+	if params.BackupVaultID != nil {
+		vaultIDForActivities = *params.BackupVaultID
+	}
 	vol.DataProtection = &datamodel.DataProtection{
-		BackupVaultID: params.BackupVaultID,
+		BackupVaultID: vaultIDForActivities,
 		KmsGrant:      kmsGrantForActivities,
 	}
 	if params.BackupPolicyID != nil {

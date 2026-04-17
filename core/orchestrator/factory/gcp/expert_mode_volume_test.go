@@ -3694,7 +3694,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 			AccountName:   "test-account",
 			PoolUUID:      "pool-uuid",
 			VolumeUUID:    "volume-uuid",
-			BackupVaultID: "vault-uuid",
+			BackupVaultID: nillable.ToPointer("vault-uuid"),
 			Region:        "us-east4",
 		}
 	}
@@ -3887,7 +3887,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
 
 		params := baseParams()
-		params.BackupVaultID = ""
+		params.BackupVaultID = nil // vault not provided; policy requires one but none exists on volume
 		params.BackupPolicyID = nillable.ToPointer("policy-uuid")
 		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
 		assert.Error(tt, err)
@@ -3910,7 +3910,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 
 		kmsGrant := "projects/p/locations/l/keyRings/r/cryptoKeys/k"
 		params := baseParams()
-		params.BackupVaultID = ""
+		params.BackupVaultID = nil // vault not provided; KMS requires one but none exists on volume
 		params.KmsGrant = &kmsGrant
 		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
 		assert.Error(tt, err)
@@ -3947,14 +3947,14 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 
 		enabled := true
 		params := baseParams()
-		params.BackupVaultID = ""
+		params.BackupVaultID = nil // vault not provided; existing vault on volume should be carried forward
 		params.BackupPolicyID = nillable.ToPointer("policy-uuid")
 		params.ScheduledBackupEnabled = &enabled
 		backupConfig, jobUUID, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, backupConfig)
 		assert.Equal(tt, "job-uuid", jobUUID)
-		assert.Equal(tt, "existing-vault-uuid", params.BackupVaultID)
+		assert.Equal(tt, nillable.ToPointer("existing-vault-uuid"), params.BackupVaultID)
 		mockStorage.AssertExpectations(tt)
 		mockTemporal.AssertExpectations(tt)
 	})
@@ -3979,7 +3979,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(volumeWithPolicy, nil)
 
 		params := baseParams()
-		params.BackupVaultID = ""
+		params.BackupVaultID = nillable.ToPointer("")
 		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
 		assert.Error(tt, err)
 		assert.Empty(tt, result)
@@ -4009,7 +4009,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(volumeWithKms, nil)
 
 		params := baseParams()
-		params.BackupVaultID = ""
+		params.BackupVaultID = nillable.ToPointer("")
 		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
 		assert.Error(tt, err)
 		assert.Empty(tt, result)
@@ -4040,7 +4040,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 			Return(map[string]int64{"volume-uuid": 3}, nil)
 
 		params := baseParams()
-		params.BackupVaultID = ""
+		params.BackupVaultID = nillable.ToPointer("")
 		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
 		assert.Error(tt, err)
 		assert.Empty(tt, result)
@@ -4071,7 +4071,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 			Return(nil, errors.New("db error"))
 
 		params := baseParams()
-		params.BackupVaultID = ""
+		params.BackupVaultID = nillable.ToPointer("")
 		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
 		assert.Error(tt, err)
 		assert.Empty(tt, result)
@@ -4185,7 +4185,6 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 		defer func() { getAccountWithName = originalGetAccountWithName }()
 		mockStorage.EXPECT().GetPool(mock.Anything, "pool-uuid", int64(1)).Return(poolView, nil)
 		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(mock.Anything, "volume-uuid").Return(expertModeVolume, nil)
-		mockStorage.EXPECT().GetBackupVaultByUUIDndOwnerID(mock.Anything, "vault-uuid", int64(1)).Return(nil, nil)
 
 		enabled := true
 		params := baseParams()
@@ -4223,7 +4222,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 		mockStorage.EXPECT().GetBackupCountByVolumeAndVault(mock.Anything, "volume-uuid", int64(42)).Return(int64(3), nil)
 
 		params := baseParams()
-		params.BackupVaultID = "new-different-vault-uuid"
+		params.BackupVaultID = nillable.ToPointer("new-different-vault-uuid")
 		result, _, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
 		assert.Error(tt, err)
 		assert.Empty(tt, result)
@@ -4261,7 +4260,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 		mockTemporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 		params := baseParams()
-		params.BackupVaultID = "new-different-vault-uuid"
+		params.BackupVaultID = nillable.ToPointer("new-different-vault-uuid")
 		backupConfig, jobUUID, err := manageBackupConfigForExpertModeVolume(ctx, mockStorage, mockTemporal, params)
 		assert.NoError(tt, err)
 		assert.NotNil(tt, backupConfig)
@@ -4787,7 +4786,7 @@ func TestManageBackupConfigForExpertModeVolume(t *testing.T) {
 			AccountName:   "test_account",
 			PoolUUID:      dbPool.UUID,
 			VolumeUUID:    dbVolume.ExternalUUID,
-			BackupVaultID: "vault-uuid",
+			BackupVaultID: nillable.ToPointer("vault-uuid"),
 			Region:        "us-east4",
 		}
 

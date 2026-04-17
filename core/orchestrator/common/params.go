@@ -909,7 +909,7 @@ type ManageBackupConfigForExpertModeVolumeParams struct {
 	AccountName            string
 	PoolUUID               string
 	VolumeUUID             string
-	BackupVaultID          string
+	BackupVaultID          *string // nil=no-op (preserve existing), &""=detach, &"uuid"=attach/set
 	BackupPolicyID         *string // nil=no-op, &""=clear, &"uuid"=set
 	ScheduledBackupEnabled *bool
 	KmsGrant               *string // nil=no-op, &""=clear, &"key"=set

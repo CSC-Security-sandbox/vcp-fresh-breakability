@@ -72,10 +72,13 @@ func manageBackupConfigForExpertModeVolume(ctx context.Context, se database.Stor
 	kmsGrantProvided := params.KmsGrant != nil && *params.KmsGrant != ""
 	managingPolicyOrKms := (params.BackupPolicyID != nil && *params.BackupPolicyID != "") || kmsGrantProvided
 
-	if params.BackupVaultID == "" {
+	// BackupVaultID patch semantics:
+	//   nil    → not provided: carry forward existing vault when policy/KMS requires one; otherwise no vault operation.
+	//   &""    → explicit detach: remove vault from volume (validated below).
+	//   &"uuid"→ attach/set: validate and (if different) switch vaults.
+	if params.BackupVaultID == nil {
+		// Vault not in payload: if managing policy/KMS, use the vault already on the volume.
 		if managingPolicyOrKms {
-			// Policy/KMS requires a vault. If the vault is already on the volume, carry it
-			// forward so the workflow does not accidentally clear it from the DB.
 			existingVaultID := ""
 			if expertModeVolume.BackupConfig != nil {
 				existingVaultID = expertModeVolume.BackupConfig.BackupVaultID
@@ -83,37 +86,50 @@ func manageBackupConfigForExpertModeVolume(ctx context.Context, se database.Stor
 			if existingVaultID == "" {
 				return nil, "", customerrors.NewUserInputValidationErr("backup vault id is required to assign a backup policy to a volume")
 			}
-			params.BackupVaultID = existingVaultID
-		} else {
-			// Detach vault: block if a policy is attached, a KMS grant is set, or backups exist.
-			if expertModeVolume.BackupConfig != nil && expertModeVolume.BackupConfig.BackupVaultID != "" {
-				if expertModeVolume.BackupConfig.BackupPolicyID != "" {
-					return nil, "", customerrors.NewUserInputValidationErr("cannot remove backup vault while a backup policy is attached; detach the backup policy first")
-				}
-				if expertModeVolume.BackupConfig.KmsGrant != nil && *expertModeVolume.BackupConfig.KmsGrant != "" {
-					return nil, "", customerrors.NewUserInputValidationErr("cannot remove backup vault while a KMS grant is attached; remove the KMS grant first")
-				}
-				backupCounts, err := se.GetBackupCountByVolumeUUIDs(ctx, []string{expertModeVolume.ExternalUUID}, nil)
-				if err != nil {
-					logger.Error("Failed to check backup count for volume", "volumeUUID", expertModeVolume.ExternalUUID, "error", err)
-					return nil, "", err
-				}
-				if backupCounts[expertModeVolume.ExternalUUID] > 0 {
-					return nil, "", customerrors.NewUserInputValidationErr("cannot remove backup vault as there are backups associated with it")
-				}
+			params.BackupVaultID = &existingVaultID
+		}
+		// else: nil + no policy/KMS = no vault operation needed; fall through.
+	} else if *params.BackupVaultID == "" {
+		// Explicit detach: block if a policy is attached, a KMS grant is set, or backups exist.
+		if expertModeVolume.BackupConfig != nil && expertModeVolume.BackupConfig.BackupVaultID != "" {
+			if expertModeVolume.BackupConfig.BackupPolicyID != "" {
+				return nil, "", customerrors.NewUserInputValidationErr("cannot remove backup vault while a backup policy is attached; detach the backup policy first")
+			}
+			if expertModeVolume.BackupConfig.KmsGrant != nil && *expertModeVolume.BackupConfig.KmsGrant != "" {
+				return nil, "", customerrors.NewUserInputValidationErr("cannot remove backup vault while a KMS grant is attached; remove the KMS grant first")
+			}
+			backupCounts, err := se.GetBackupCountByVolumeUUIDs(ctx, []string{expertModeVolume.ExternalUUID}, nil)
+			if err != nil {
+				logger.Error("Failed to check backup count for volume", "volumeUUID", expertModeVolume.ExternalUUID, "error", err)
+				return nil, "", err
+			}
+			if backupCounts[expertModeVolume.ExternalUUID] > 0 {
+				return nil, "", customerrors.NewUserInputValidationErr("cannot remove backup vault as there are backups associated with it")
 			}
 		}
 	}
 
-	if params.BackupVaultID != "" {
+	if params.ScheduledBackupEnabled != nil && *params.ScheduledBackupEnabled {
+		effectiveBackupPolicyID := ""
+		if params.BackupPolicyID != nil {
+			effectiveBackupPolicyID = *params.BackupPolicyID
+		} else if expertModeVolume.BackupConfig != nil {
+			effectiveBackupPolicyID = expertModeVolume.BackupConfig.BackupPolicyID
+		}
+		if strings.TrimSpace(effectiveBackupPolicyID) == "" {
+			return nil, "", customerrors.NewUserInputValidationErr("cannot enable scheduled backups without a backup policy")
+		}
+	}
+
+	if params.BackupVaultID != nil && *params.BackupVaultID != "" {
 		// Resolve the vault. When EnableBackupVaultSwitching is on the vault may belong to a
 		// different project (cross-project GCBDR), so look it up by UUID only; otherwise scope
 		// the lookup to the current account to preserve existing ownership checks.
 		var bv *datamodel.BackupVault
 		if utils.EnableBackupVaultSwitching {
-			bv, err = se.GetBackupVault(ctx, params.BackupVaultID)
+			bv, err = se.GetBackupVault(ctx, *params.BackupVaultID)
 		} else {
-			bv, err = se.GetBackupVaultByUUIDndOwnerID(ctx, params.BackupVaultID, account.ID)
+			bv, err = se.GetBackupVaultByUUIDndOwnerID(ctx, *params.BackupVaultID, account.ID)
 		}
 		if err != nil && !customerrors.IsNotFoundErr(err) {
 			return nil, "", err
@@ -121,7 +137,7 @@ func manageBackupConfigForExpertModeVolume(ctx context.Context, se database.Stor
 		// When USE_VCP_REGION is enabled, VCP is the sole source of truth: a vault absent from
 		// the local DB is a hard not-found (no SDE/CVP fallback in the workflow).
 		if bv == nil && env.UseVCPRegion {
-			return nil, "", customerrors.NewNotFoundErr("backup vault", &params.BackupVaultID)
+			return nil, "", customerrors.NewNotFoundErr("backup vault", params.BackupVaultID)
 		}
 		if bv != nil {
 			if bv.LifeCycleState == models.LifeCycleStateError {
@@ -174,8 +190,8 @@ func manageBackupConfigForExpertModeVolume(ctx context.Context, se database.Stor
 			if utils.IsImmutableBackupEnabled() {
 				logger.Debug("Validating immutable backup policy compliance for expert mode volume",
 					"backupPolicyID", *params.BackupPolicyID,
-					"backupVaultID", params.BackupVaultID)
-				if immErr := checkIsValidImmutableBackupPolicyWithRetry(ctx, se, *params.BackupPolicyID, params.BackupVaultID, account.ID, params.Region, params.AccountName); immErr != nil {
+					"backupVaultID", *params.BackupVaultID)
+				if immErr := checkIsValidImmutableBackupPolicyWithRetry(ctx, se, *params.BackupPolicyID, *params.BackupVaultID, account.ID, params.Region, params.AccountName); immErr != nil {
 					logger.Errorf("Immutable backup policy validation failed: %v", immErr)
 					if customerrors.IsUnavailableErr(immErr) || customerrors.IsNetworkError(immErr) {
 						return nil, "", customerrors.NewUnavailableErr(fmt.Sprintf("service is temporarily unavailable, please try again later: %v", immErr))
@@ -192,24 +208,10 @@ func manageBackupConfigForExpertModeVolume(ctx context.Context, se database.Stor
 			}
 		}
 
-		// Cannot enable scheduled backups without a backup policy.
-		// Resolve the effective policy: newly provided value takes precedence, else fall back to
-		// what is already on the volume so that scheduledBackupEnabled:true alone is valid when
-		// a policy is already attached.
-		effectivePolicyID := ""
-		if params.BackupPolicyID != nil {
-			effectivePolicyID = *params.BackupPolicyID
-		} else if expertModeVolume.BackupConfig != nil {
-			effectivePolicyID = expertModeVolume.BackupConfig.BackupPolicyID
-		}
-		if effectivePolicyID == "" && params.ScheduledBackupEnabled != nil && *params.ScheduledBackupEnabled {
-			return nil, "", customerrors.NewUserInputValidationErr("cannot enable scheduled backups without a backup policy")
-		}
-
 		// Guard against switching to a different backup vault while backups exist.
 		if expertModeVolume.BackupConfig != nil &&
 			expertModeVolume.BackupConfig.BackupVaultID != "" &&
-			expertModeVolume.BackupConfig.BackupVaultID != params.BackupVaultID {
+			expertModeVolume.BackupConfig.BackupVaultID != *params.BackupVaultID {
 			currentVault, errVault := se.GetBackupVault(ctx, expertModeVolume.BackupConfig.BackupVaultID)
 			if errVault != nil {
 				logger.Error("Failed to look up current backup vault for vault-switch check", "backupVaultID", expertModeVolume.BackupConfig.BackupVaultID, "error", errVault)
@@ -296,8 +298,10 @@ func manageBackupConfigForExpertModeVolume(ctx context.Context, se database.Stor
 	}
 
 	backupConfig := &datamodel.DataProtection{
-		BackupVaultID:          params.BackupVaultID,
 		ScheduledBackupEnabled: params.ScheduledBackupEnabled,
+	}
+	if params.BackupVaultID != nil {
+		backupConfig.BackupVaultID = *params.BackupVaultID
 	}
 	if params.BackupPolicyID != nil {
 		backupConfig.BackupPolicyID = *params.BackupPolicyID
