@@ -236,9 +236,11 @@ for k, v in fields.items():
   FROM=$(echo "$_FIELDS_EXTRACTED" | grep '^FROM=' | cut -d= -f2-)
   TO=$(echo "$_FIELDS_EXTRACTED" | grep '^TO=' | cut -d= -f2-)
   BUMP=$(echo "$_FIELDS_EXTRACTED" | grep '^BUMP=' | cut -d= -f2-)
-  # 0.x semver: major → display with warning (0.x versions may contain breaking changes)
-  if [[ "$BUMP" == "major" ]]; then
-    BUMP_DISPLAY="minor (0.x unstable)"
+  # 0.x semver: only flag 0.x major bumps, not real v1→v2 upgrades
+  FROM_MAJOR="${FROM%%.*}"
+  FROM_MAJOR="${FROM_MAJOR#v}"
+  if [[ "$BUMP" == "major" && "$FROM_MAJOR" == "0" ]]; then
+    BUMP_DISPLAY="major ⚠️ (0.x unstable — treat as breaking)"
   else
     BUMP_DISPLAY="$BUMP"
   fi
@@ -864,10 +866,13 @@ except (Exception,):
 non_dependabot_count = max(0, total_open_prs - len(prs))
 
 # Display helper: 0.x semver versions may contain breaking changes
-def fmt_bump(bump):
-    """Format bump type for display. Flags major (0.x versions) with a warning."""
+def fmt_bump(bump, from_ver=""):
+    """Format bump type for display. Only flags 0.x major bumps, not real v1→v2."""
     if bump == "major":
-        return "minor ⚠️ (0.x)"
+        fv = from_ver.lstrip("v").split(".")[0] if from_ver else ""
+        if fv == "0":
+            return "major ⚠️ (0.x unstable)"
+        return "major"
     return bump
 
 # Categorize PRs
@@ -876,7 +881,7 @@ blocked = []     # fail / pre_existing_plus_new
 review = []      # pre_existing (unverified) / error / infra_error
 skipped = []     # skip (breakability:skip label)
 ci_only = []     # V8 FIX (H3): Actions/Docker PRs — no build verification needed
-not_analyzed = [] # anything else
+not_analyzed = []  # PRs from cancelled/incomplete batches
 cancelled = []   # V8 FIX (C2): discovered but not in results
 
 for num, pr in sorted(prs.items(), key=lambda x: int(x[0])):
@@ -939,6 +944,14 @@ lines.append(f"")
 # V8 FIX (M3): Staleness banner — critical for developer trust (Blind Spot 4A)
 lines.append(f"> ⏱️ **Snapshot** generated at `{_gen_ts}`. PR states may have changed since analysis.")
 lines.append(f"> To refresh: `gh workflow run breakability-agent.yml`")
+
+# V9.5 FIX: Warn if batch was cancelled/incomplete
+if meta.get('incomplete'):
+    _missing = meta.get('missing_pr_count', '?')
+    _ibs = meta.get('incomplete_batches', [])
+    lines.append(f"> ")
+    lines.append(f"> ⚠️ **INCOMPLETE RUN:** {_missing} PRs were NOT analyzed (batch{'es' if len(_ibs) != 1 else ''} {', '.join(_ibs) if _ibs else '?'} cancelled/failed).")
+    lines.append(f"> PRs missing from this plan should be re-analyzed before merging.")
 lines.append("")
 
 # Summary table
@@ -1100,7 +1113,7 @@ if safe:
     lines.append("|----|---------|---------|----|-------------|")
     for e in safe:
         cve_badge = f" 🔴 {','.join(e['cves'])}" if e['cves'] else ""
-        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'])} | {e['ver']}{cve_badge} |")
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {e['ver']}{cve_badge} |")
     lines.append("")
 
 # Cross-PR deps
@@ -1129,7 +1142,7 @@ if blocked:
             issue = "Merge conflicts — rebase required"
         else:
             issue = "New errors on top of pre-existing"
-        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'])} | {issue} |")
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {issue} |")
     lines.append("")
 
 # Review — split into "Likely Safe" and "Needs Review".
@@ -1153,7 +1166,7 @@ if likely_safe:
         cve_badge = f" 🔴 {','.join(e['cves'])}" if e.get('cves') else ""
         pkg_dir = e.get('pkg_dir', '/')
         mod_col = pkg_dir if pkg_dir != '/' else 'root'
-        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'])} | {mod_col} | {e['ver']} — no new errors{cve_badge} |")
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {mod_col} | {e['ver']} — no new errors{cve_badge} |")
     lines.append("")
 
 if unverified:
@@ -1168,7 +1181,7 @@ if unverified:
         cve_badge = f" 🔴 {','.join(e['cves'])}" if e.get('cves') else ""
         pkg_dir = e.get('pkg_dir', '/')
         mod_col = pkg_dir if pkg_dir != '/' else 'root'
-        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'])} | {mod_col} | Deps failed — infra issue{cve_badge} |")
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {mod_col} | Deps failed — infra issue{cve_badge} |")
     lines.append("")
 
 if needs_review:
@@ -1192,7 +1205,7 @@ if ci_only:
     lines.append("|----|---------|---------|----|-------------|")
     for e in ci_only:
         cve_badge = f" 🔴 {','.join(e['cves'])}" if e.get('cves') else ""
-        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'])} | CI_ONLY — auto-safe{cve_badge} |")
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | CI_ONLY — auto-safe{cve_badge} |")
     lines.append("")
 
 # Skipped (breakability:skip label)

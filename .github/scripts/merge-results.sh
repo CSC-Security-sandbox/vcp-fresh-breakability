@@ -53,6 +53,9 @@ for bd in all_batch_dirs:
 if missing_batches:
     print(f"  ⚠️  WARNING: batch(es) {', '.join(missing_batches)} produced no result file — PRs in those batches will be absent from the merged output")
 
+# Track incomplete batches so merge plan can warn users
+incomplete_batches = missing_batches[:]
+
 for bf in batch_files:
     print(f"  Merging: {bf}")
     with open(bf) as f:
@@ -79,8 +82,16 @@ for bf in batch_files:
     if not merged["nestjs_skew"] and data.get("nestjs_skew"):
         merged["nestjs_skew"] = data["nestjs_skew"]
 
-# Update total PR count
+# Update total PR count and track incomplete batches
 merged["metadata"]["pr_count"] = total_prs
+expected_count = int(os.environ.get("EXPECTED_PR_COUNT", "0"))
+if expected_count > 0 and total_prs < expected_count:
+    merged["metadata"]["incomplete"] = True
+    merged["metadata"]["expected_pr_count"] = expected_count
+    merged["metadata"]["missing_pr_count"] = expected_count - total_prs
+    print(f"  ⚠️  INCOMPLETE: expected {expected_count} PRs, got {total_prs} ({expected_count - total_prs} missing)")
+if incomplete_batches:
+    merged["metadata"]["incomplete_batches"] = incomplete_batches
 
 with open("/tmp/build-results.json", "w") as f:
     json.dump(merged, f, indent=2)

@@ -232,7 +232,7 @@ jobs:
       - name: Merge results
         run: |
           chmod +x .github/scripts/merge-results.sh
-          bash .github/scripts/merge-results.sh
+          EXPECTED_PR_COUNT=${{ needs.discover.outputs.pr_count }} bash .github/scripts/merge-results.sh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
