@@ -2652,6 +2652,24 @@ $IMPORT_OUT"
           ;;
       esac
       echo "  test: exit=$TEST_EXIT"
+
+      # ── go.sum diff: count net-new transitive entries added by this PR ──
+      # Compare go.sum in PR worktree vs main. New lines = new transitive deps.
+      GOSUM_NEW_COUNT=0
+      if [[ "$ECOSYSTEM" == "gomod" && -d "$PR_WORKTREE" ]]; then
+        _GOSUM_PR="$PR_WORKTREE/go.sum"
+        _GOSUM_MAIN="$REPO_ROOT/go.sum"
+        # For multi-module repos, use PKG_DIR go.sum if available
+        if [[ "$PKG_DIR" != "/" && -f "$PR_WORKTREE/$PKG_DIR/go.sum" ]]; then
+          _GOSUM_PR="$PR_WORKTREE/$PKG_DIR/go.sum"
+          _GOSUM_MAIN="$REPO_ROOT/$PKG_DIR/go.sum"
+        fi
+        if [[ -f "$_GOSUM_PR" && -f "$_GOSUM_MAIN" ]]; then
+          GOSUM_NEW_COUNT=$(comm -13 <(sort "$_GOSUM_MAIN") <(sort "$_GOSUM_PR") 2>/dev/null | wc -l | tr -d ' ' || echo "0")
+        fi
+        echo "  go.sum: $GOSUM_NEW_COUNT new transitive entries"
+      fi
+
       git worktree remove "$PR_WORKTREE" --force 2>/dev/null || rm -rf "$PR_WORKTREE"
     fi
   fi
@@ -2665,6 +2683,7 @@ $IMPORT_OUT"
   echo "$BUILD_OUTPUT" | tail -n 50 > "/tmp/_bc_build_out_${PR_NUM}.txt"
   echo "$TEST_OUTPUT" | tail -n 30 > "/tmp/_bc_test_out_${PR_NUM}.txt"
   echo "$NEW_ERRORS" > "/tmp/_bc_new_errors_${PR_NUM}.txt"
+  printf '%s' "${GOSUM_NEW_COUNT:-0}" > "/tmp/_bc_gosum_new_${PR_NUM}.txt"
   echo "$DETERMINISTIC" > "/tmp/_bc_det_${PR_NUM}.json"
   echo "$FILES_IMPORTING" > "/tmp/_bc_files_${PR_NUM}.json"
   printf '%s' "$CASCADE_IMPACT" > "/tmp/_bc_cascade_${PR_NUM}.txt"
@@ -2780,6 +2799,13 @@ try:
     new_errors = [e for e in new_errors_raw.split('\n') if e.strip()] if new_errors_raw else []
 except (IOError, OSError, ValueError):
     new_errors = []
+
+# Read go.sum new transitive count
+try:
+    with open(f"/tmp/_bc_gosum_new_{pr_num}.txt") as f:
+        gosum_new_count = int(f.read().strip() or "0")
+except (IOError, OSError, ValueError):
+    gosum_new_count = 0
 
 # Read PR metadata from temp files to avoid shell injection (Finding-4.4)
 # MUST be defined before INFRA_ERROR_PATTERNS because eco is used there (Finding-5.1)
@@ -2976,6 +3002,7 @@ pr_data = {
     "diff_path": "/tmp/pr-${PR_NUM}.diff",
     "pkg_dir": "$PKG_DIR",
     "cascade_impact": cascade_impact,
+    "gosum_new_count": gosum_new_count,
     "nestjs_peer_warning": open(f"/tmp/_bc_peer_warn_{pr_num}.txt").read().strip() if os.path.exists(f"/tmp/_bc_peer_warn_{pr_num}.txt") else "",
     "install_ok": True if "$INSTALL_OK" == "true" else False,
     "additional_packages": open(f"/tmp/_bc_addl_pkgs_{pr_num}.txt").read().strip() if os.path.exists(f"/tmp/_bc_addl_pkgs_{pr_num}.txt") else "",

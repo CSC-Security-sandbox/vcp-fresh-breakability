@@ -200,6 +200,7 @@ print(json.dumps({
     'main_exit':    build.get('main_exit', -1),
     'cve_severities': cve_severities,
     'cve_ids':      cve_ids,
+    'gosum_new_count': pr.get('gosum_new_count', 0),
 }))
 " 2>/dev/null || echo '{}')
 
@@ -226,6 +227,8 @@ fields = {
     'ERROR_CLASS': d.get('error_class', ''),
     'OOM_OVERRIDE': str(d.get('oom_override', False)),
     'OOM_PACKAGES': ','.join(d.get('oom_packages', [])),
+    'GOSUM_NEW_COUNT': str(d.get('gosum_new_count', 0)),
+    'FILES_LIST': '|'.join((f.split(':')[0] if ':' in f else f) for f in d.get('files_importing', [])[:8]),
 }
 for k, v in fields.items():
     # Use null byte as delimiter to safely handle any value content
@@ -257,6 +260,8 @@ for k, v in fields.items():
   ERROR_CLASS=$(echo "$_FIELDS_EXTRACTED" | grep '^ERROR_CLASS=' | cut -d= -f2-)
   OOM_OVERRIDE=$(echo "$_FIELDS_EXTRACTED" | grep '^OOM_OVERRIDE=' | cut -d= -f2-)
   OOM_PACKAGES=$(echo "$_FIELDS_EXTRACTED" | grep '^OOM_PACKAGES=' | cut -d= -f2-)
+  GOSUM_NEW_COUNT=$(echo "$_FIELDS_EXTRACTED" | grep '^GOSUM_NEW_COUNT=' | cut -d= -f2-)
+  FILES_LIST=$(echo "$_FIELDS_EXTRACTED" | grep '^FILES_LIST=' | cut -d= -f2-)
 
   # CVE extraction — core security data
   CVE_LIST=$(echo "$PR_FIELDS" | python3 -c "
@@ -340,6 +345,41 @@ $CVE_DETAIL_BLOCK"
   fi
 
   # Build "How we checked" checklist from verification_label
+  # Build file-list detail block for evidence
+  _FILES_DETAIL_BLOCK=""
+  if [[ -n "$FILES_LIST" && "$FILES_LIST" != "" ]]; then
+    _FILES_DETAIL_BLOCK="
+<details><summary>📂 Files importing this package ($FILES_COUNT file(s))</summary>
+
+$(echo "$FILES_LIST" | tr '|' '\n' | sed 's/^/- `/' | sed 's/$/`/')
+</details>"
+  fi
+  # Build transitive dep note
+  _TRANSITIVE_NOTE=""
+  if [[ -n "$GOSUM_NEW_COUNT" && "$GOSUM_NEW_COUNT" -gt 0 ]]; then
+    _TRANSITIVE_NOTE="
+- ℹ️ go.sum: $GOSUM_NEW_COUNT new transitive dep entries (run \`govulncheck ./...\` if concerned)"
+  fi
+  # Build build-stdout evidence block
+  _BUILD_STDOUT_BLOCK=""
+  _BUILD_STDOUT_SNIPPET=$(echo "$PR_FIELDS" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+tail = d.get('output_tail', '')
+# Show last 8 non-empty lines of build output as evidence
+lines = [l for l in tail.splitlines() if l.strip()][-8:]
+if lines:
+    print('\n'.join(lines))
+" 2>/dev/null || true)
+  if [[ -n "$_BUILD_STDOUT_SNIPPET" ]]; then
+    _BUILD_STDOUT_BLOCK="
+<details><summary>🖥️ Build output (last lines)</summary>
+
+\`\`\`
+${_BUILD_STDOUT_SNIPPET}
+\`\`\`
+</details>"
+  fi
   HOW_CHECKED=""
   case "$VER_LABEL" in
     L4*)
@@ -349,8 +389,8 @@ $CVE_DETAIL_BLOCK"
 - ✅ Dependency resolved successfully
 - ✅ Project builds / type-checks clean
 - ✅ Automated tests pass
-- ✅ No new errors introduced vs. main
-</details>"
+- ✅ No new errors introduced vs. main${_TRANSITIVE_NOTE}
+</details>${_FILES_DETAIL_BLOCK}${_BUILD_STDOUT_BLOCK}"
       ;;
     L3*)
       HOW_CHECKED="
@@ -359,8 +399,8 @@ $CVE_DETAIL_BLOCK"
 - ✅ Dependency resolved successfully
 - ✅ Project builds / type-checks clean
 - ⬜ Tests not configured or not run
-- ✅ No new errors introduced vs. main
-</details>"
+- ✅ No new errors introduced vs. main${_TRANSITIVE_NOTE}
+</details>${_FILES_DETAIL_BLOCK}${_BUILD_STDOUT_BLOCK}"
       ;;
     L2*)
       # V9.3 FIX (P1-2): BUILD_FAILS PRs must NOT use the "builds clean" checklist.
@@ -397,8 +437,8 @@ $CVE_DETAIL_BLOCK"
 - ✅ Dependency resolved successfully
 - ✅ Project builds / type-checks clean
 - ⚙️ Automated tests fail (exit=$TEST_EXIT_RAW — pre-existing, same failure on main)
-- ✅ No new build errors introduced vs. main
-</details>"
+- ✅ No new build errors introduced vs. main${_TRANSITIVE_NOTE}
+</details>${_FILES_DETAIL_BLOCK}${_BUILD_STDOUT_BLOCK}"
         else
           HOW_CHECKED="
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
@@ -406,8 +446,8 @@ $CVE_DETAIL_BLOCK"
 - ✅ Dependency resolved successfully
 - ✅ Project builds / type-checks clean
 - ⬜ Tests not configured or not run
-- ✅ No new build errors introduced vs. main
-</details>"
+- ✅ No new build errors introduced vs. main${_TRANSITIVE_NOTE}
+</details>${_FILES_DETAIL_BLOCK}${_BUILD_STDOUT_BLOCK}"
         fi
       fi
       ;;
@@ -930,6 +970,31 @@ for num, pr in sorted(prs.items(), key=lambda x: int(x[0])):
     else:
         not_analyzed.append(entry)
 
+# ── V9.6 FIX: Coordinated upgrade companion blocking ─────────────────────────
+# If a PR is "safe" but its coordinated-upgrade companion is "blocked",
+# move it from safe to a separate companion_blocked list with explanation.
+# This prevents showing "#30 Safe" when "#21 Fix Required — must merge together".
+blocked_nums = {e["num"] for e in blocked}
+companion_blocked = []
+safe_after_coord = []
+for entry in safe:
+    num = entry["num"]
+    companion_blocked_by = []
+    for group in cross:
+        pr_a = str(group.get("pr_a", ""))
+        pr_b = str(group.get("pr_b", ""))
+        if num == pr_a and pr_b in blocked_nums:
+            companion_blocked_by.append(pr_b)
+        elif num == pr_b and pr_a in blocked_nums:
+            companion_blocked_by.append(pr_a)
+    if companion_blocked_by:
+        entry = dict(entry)
+        entry["companion_blocked_by"] = companion_blocked_by
+        companion_blocked.append(entry)
+    else:
+        safe_after_coord.append(entry)
+safe = safe_after_coord
+
 # Build markdown
 lines = []
 lines.append("<!-- breakability-merge-plan -->")
@@ -963,7 +1028,10 @@ lines.append(f"|----------|-------|")
 likely_safe_count = sum(1 for e in review if e.get("verdict") == "pre_existing" and e.get("new_error_count", 0) == 0)
 unverified_count = sum(1 for e in review if e.get("verdict") == "pre_existing" and e.get("new_error_count", 0) > 0)
 needs_review_count = len(review) - likely_safe_count - unverified_count
-lines.append(f"| ✅ Safe to merge | {len(safe)} |")
+lines.append(f"| ✅ Safe to merge — tests pass (L4) | {sum(1 for e in safe if e['ver'].startswith('L4') or e['ver'].startswith('L5'))} |")
+lines.append(f"| ✅ Safe to merge — build passes (L2/L3) | {sum(1 for e in safe if not (e['ver'].startswith('L4') or e['ver'].startswith('L5')))} |")
+if companion_blocked:
+    lines.append(f"| 🔗 Blocked (safe but companion PR needs fix) | {len(companion_blocked)} |")
 if ci_only:
     lines.append(f"| 🔧 CI-only (Actions/Docker — no app impact) | {len(ci_only)} |")
 if likely_safe_count > 0:
@@ -1002,9 +1070,14 @@ if _l4_safe:
     lines.append(f"{_step}. **Batch merge — {len(_l4_safe)} PRs with full test pass** (L4 verified, lowest risk)")
     _step += 1
 # L2 safe PRs (build passes, tests fail or not run)
-_l2_safe = [e for e in safe if e.get("ver", "").startswith("L2") and not e.get("cves")]
+_l2_safe = [e for e in safe if not e.get("ver", "").startswith("L4") and not e.get("cves")]
 if _l2_safe:
-    lines.append(f"{_step}. **Review then merge — {len(_l2_safe)} PRs** (build passes, tests fail on main too)")
+    lines.append(f"{_step}. **Review then merge — {len(_l2_safe)} PRs** (build + type-check pass, tests not run — check changelog for major bumps)")
+    _step += 1
+# Companion blocked
+if companion_blocked:
+    _cb_nums = ", ".join(f"#{e['num']}" for e in companion_blocked)
+    lines.append(f"{_step}. **Fix companion PR first — {len(companion_blocked)} PR(s) blocked:** {_cb_nums} (build passes but must merge with companion)")
     _step += 1
 # CI-only PRs
 if ci_only:
@@ -1106,15 +1179,44 @@ if all_cves:
         lines.append(f"- **PR #{e['num']}** `{e['pkg']}` {e['from']}→{e['to']} — {cve_str}{verdict_note}")
     lines.append("")
 
-# Safe to merge
-if safe:
-    lines.append("## ✅ Safe to Merge")
+# Safe to merge — split L4 (tests pass) vs L2/L3 (build only)
+safe_l4 = [e for e in safe if e["ver"].startswith("L4") or e["ver"].startswith("L5")]
+safe_l2 = [e for e in safe if not (e["ver"].startswith("L4") or e["ver"].startswith("L5"))]
+
+if safe_l4:
+    lines.append("## ✅ Safe to Merge — Tests Pass (L4 verified, lowest risk)")
     lines.append("")
     lines.append("| PR | Package | Version | Bump | Verification |")
     lines.append("|----|---------|---------|----|-------------|")
-    for e in safe:
+    for e in safe_l4:
         cve_badge = f" 🔴 {','.join(e['cves'])}" if e['cves'] else ""
         lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {e['ver']}{cve_badge} |")
+    lines.append("")
+
+if safe_l2:
+    lines.append("## ✅ Safe to Merge — Build Passes, No New Errors (L2/L3 verified)")
+    lines.append("")
+    lines.append("> Build and type-check pass. Tests were not run or had pre-existing failures. Review changelog for major bumps.")
+    lines.append("")
+    lines.append("| PR | Package | Version | Bump | Verification |")
+    lines.append("|----|---------|---------|----|-------------|")
+    for e in safe_l2:
+        cve_badge = f" 🔴 {','.join(e['cves'])}" if e['cves'] else ""
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {e['ver']}{cve_badge} |")
+    lines.append("")
+
+# Companion-blocked: safe PRs that can't be merged yet because their coordinated partner is broken
+if companion_blocked:
+    lines.append("## 🔗 Blocked — Safe but Companion PR Needs Fix First")
+    lines.append("")
+    lines.append("These PRs pass build verification but **must be merged together** with a companion PR that currently has build failures.")
+    lines.append("Fix the companion PR first, then merge both together.")
+    lines.append("")
+    lines.append("| PR | Package | Version | Bump | Verification | Blocked By |")
+    lines.append("|----|---------|---------|------|-------------|------------|")
+    for e in companion_blocked:
+        companions = ", ".join(f"#{n}" for n in e.get("companion_blocked_by", []))
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {e['ver']} ✅ | Fix #{companions} first |")
     lines.append("")
 
 # Cross-PR deps
