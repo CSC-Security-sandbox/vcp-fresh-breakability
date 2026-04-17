@@ -850,6 +850,7 @@ with open("/tmp/build-results.json") as f:
     data = json.load(f)
 
 prs = data.get("prs", {})
+meta = data.get("metadata", {})
 cross = data.get("cross_pr_deps", [])
 security = data.get("security_posture", {})
 
