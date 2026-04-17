@@ -79,6 +79,36 @@ func (o *GCPOrchestrator) ListBackupPoliciesAndVolumeCount(ctx context.Context, 
 	return backupPolicyVolumeCount, backupPolicyMap, nil
 }
 
+// GetBackupPoliciesByUUIDs returns backup policies and per-policy volume counts for the given UUIDs across all accounts (batch API).
+func (o *GCPOrchestrator) GetBackupPoliciesByUUIDs(ctx context.Context, backupPolicyUUIDs []string) (map[string]int64, map[string]*models.BackupPolicy, error) {
+	se := o.storage
+	if len(backupPolicyUUIDs) == 0 {
+		return map[string]int64{}, map[string]*models.BackupPolicy{}, nil
+	}
+
+	volConditions := [][]interface{}{
+		{"data_protection->>'backup_policy_id' IN ?", backupPolicyUUIDs},
+	}
+	backupPolicyVolumeCount, err := se.ListBackupPolicyVolumeCount(ctx, volConditions)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	bpConditions := [][]interface{}{
+		{"uuid IN ?", backupPolicyUUIDs},
+	}
+	backupPolicies, err := se.ListBackupPolicies(ctx, bpConditions)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	backupPolicyMap := make(map[string]*models.BackupPolicy)
+	for _, backupPolicy := range backupPolicies {
+		backupPolicyMap[backupPolicy.UUID] = convertDatastoreBackupPolicyToModel(backupPolicy)
+	}
+	return backupPolicyVolumeCount, backupPolicyMap, nil
+}
+
 func (o *GCPOrchestrator) UpdateBackupPolicy(ctx context.Context, params *commonparams.UpdateBackupPolicyParams) (*models.BackupPolicy, string, error) {
 	se := o.storage
 	logger := util.GetLogger(ctx)
@@ -377,7 +407,7 @@ func _listBackupPolicies(ctx context.Context, se database.Storage, accountID int
 }
 
 func _convertDatastoreBackupPolicyToModel(backupPolicy *datamodel.BackupPolicy) *models.BackupPolicy {
-	return &models.BackupPolicy{
+	m := &models.BackupPolicy{
 		ResourceID:         backupPolicy.Name,
 		BackupPolicyUUID:   backupPolicy.UUID,
 		DailyBackupLimit:   backupPolicy.DailyBackupsToKeep,
@@ -388,6 +418,11 @@ func _convertDatastoreBackupPolicyToModel(backupPolicy *datamodel.BackupPolicy) 
 		State:              backupPolicy.LifeCycleState,
 		CreatedAt:          backupPolicy.CreatedAt,
 	}
+	if backupPolicy.DeletedAt != nil && backupPolicy.DeletedAt.Valid {
+		t := backupPolicy.DeletedAt.Time
+		m.DeletedAt = &t
+	}
+	return m
 }
 
 // CreateBackupPolicy creates a backup policy synchronously for VCP region.

@@ -44,6 +44,16 @@ func (UnimplementedHandler) V1betaBatchListActiveDirectories(ctx context.Context
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaBatchListBackupPolicies implements v1beta_batchListBackupPolicies operation.
+//
+// Batch lists backup policies with the given UUIDs. Merges VCP and CVP (SDE) results; field
+// selection controls which attributes are returned.
+//
+// POST /v1beta/locations/{locationId}/batch/backupPolicies
+func (UnimplementedHandler) V1betaBatchListBackupPolicies(ctx context.Context, req *BackupPolicyIdListV1beta, params V1betaBatchListBackupPoliciesParams) (r V1betaBatchListBackupPoliciesRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaBatchListBackupVaults implements v1beta_batchListBackupVaults operation.
 //
 // Batch list all backup vaults with the given UUIDs.

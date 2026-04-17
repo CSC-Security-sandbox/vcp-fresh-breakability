@@ -1197,17 +1197,17 @@ func (s *BackupPolicyDetailsV1betaState) UnmarshalText(data []byte) error {
 
 // Ref: #/components/schemas/BackupPolicyIdList_v1beta
 type BackupPolicyIdListV1beta struct {
-	BackupPolicyUuids []string `json:"backupPolicyUuids"`
+	BackupPolicyUUIDs []string `json:"backupPolicyUUIDs"`
 }
 
-// GetBackupPolicyUuids returns the value of BackupPolicyUuids.
-func (s *BackupPolicyIdListV1beta) GetBackupPolicyUuids() []string {
-	return s.BackupPolicyUuids
+// GetBackupPolicyUUIDs returns the value of BackupPolicyUUIDs.
+func (s *BackupPolicyIdListV1beta) GetBackupPolicyUUIDs() []string {
+	return s.BackupPolicyUUIDs
 }
 
-// SetBackupPolicyUuids sets the value of BackupPolicyUuids.
-func (s *BackupPolicyIdListV1beta) SetBackupPolicyUuids(val []string) {
-	s.BackupPolicyUuids = val
+// SetBackupPolicyUUIDs sets the value of BackupPolicyUUIDs.
+func (s *BackupPolicyIdListV1beta) SetBackupPolicyUUIDs(val []string) {
+	s.BackupPolicyUUIDs = val
 }
 
 // Merged schema.
@@ -3819,6 +3819,197 @@ func (s *BatchActiveDirectoryV1betaActiveDirectoryState) UnmarshalText(data []by
 		return nil
 	case BatchActiveDirectoryV1betaActiveDirectoryStateERROR:
 		*s = BatchActiveDirectoryV1betaActiveDirectoryStateERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Merged schema.
+// Ref: #/components/schemas/BatchBackupPolicy_v1beta
+type BatchBackupPolicyV1beta struct {
+	DailyBackupLimit   OptNilInt                          `json:"dailyBackupLimit"`
+	WeeklyBackupLimit  OptNilInt                          `json:"weeklyBackupLimit"`
+	MonthlyBackupLimit OptNilInt                          `json:"monthlyBackupLimit"`
+	BackupPolicyId     OptNilString                       `json:"backupPolicyId"`
+	ResourceId         OptNilString                       `json:"resourceId"`
+	Description        OptNilString                       `json:"description"`
+	CreatedAt          OptNilDateTime                     `json:"createdAt"`
+	Enabled            OptNilBool                         `json:"enabled"`
+	VolumeCount        OptNilInt                          `json:"volumeCount"`
+	State              OptNilBatchBackupPolicyV1betaState `json:"state"`
+}
+
+// GetDailyBackupLimit returns the value of DailyBackupLimit.
+func (s *BatchBackupPolicyV1beta) GetDailyBackupLimit() OptNilInt {
+	return s.DailyBackupLimit
+}
+
+// GetWeeklyBackupLimit returns the value of WeeklyBackupLimit.
+func (s *BatchBackupPolicyV1beta) GetWeeklyBackupLimit() OptNilInt {
+	return s.WeeklyBackupLimit
+}
+
+// GetMonthlyBackupLimit returns the value of MonthlyBackupLimit.
+func (s *BatchBackupPolicyV1beta) GetMonthlyBackupLimit() OptNilInt {
+	return s.MonthlyBackupLimit
+}
+
+// GetBackupPolicyId returns the value of BackupPolicyId.
+func (s *BatchBackupPolicyV1beta) GetBackupPolicyId() OptNilString {
+	return s.BackupPolicyId
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *BatchBackupPolicyV1beta) GetResourceId() OptNilString {
+	return s.ResourceId
+}
+
+// GetDescription returns the value of Description.
+func (s *BatchBackupPolicyV1beta) GetDescription() OptNilString {
+	return s.Description
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *BatchBackupPolicyV1beta) GetCreatedAt() OptNilDateTime {
+	return s.CreatedAt
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *BatchBackupPolicyV1beta) GetEnabled() OptNilBool {
+	return s.Enabled
+}
+
+// GetVolumeCount returns the value of VolumeCount.
+func (s *BatchBackupPolicyV1beta) GetVolumeCount() OptNilInt {
+	return s.VolumeCount
+}
+
+// GetState returns the value of State.
+func (s *BatchBackupPolicyV1beta) GetState() OptNilBatchBackupPolicyV1betaState {
+	return s.State
+}
+
+// SetDailyBackupLimit sets the value of DailyBackupLimit.
+func (s *BatchBackupPolicyV1beta) SetDailyBackupLimit(val OptNilInt) {
+	s.DailyBackupLimit = val
+}
+
+// SetWeeklyBackupLimit sets the value of WeeklyBackupLimit.
+func (s *BatchBackupPolicyV1beta) SetWeeklyBackupLimit(val OptNilInt) {
+	s.WeeklyBackupLimit = val
+}
+
+// SetMonthlyBackupLimit sets the value of MonthlyBackupLimit.
+func (s *BatchBackupPolicyV1beta) SetMonthlyBackupLimit(val OptNilInt) {
+	s.MonthlyBackupLimit = val
+}
+
+// SetBackupPolicyId sets the value of BackupPolicyId.
+func (s *BatchBackupPolicyV1beta) SetBackupPolicyId(val OptNilString) {
+	s.BackupPolicyId = val
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *BatchBackupPolicyV1beta) SetResourceId(val OptNilString) {
+	s.ResourceId = val
+}
+
+// SetDescription sets the value of Description.
+func (s *BatchBackupPolicyV1beta) SetDescription(val OptNilString) {
+	s.Description = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *BatchBackupPolicyV1beta) SetCreatedAt(val OptNilDateTime) {
+	s.CreatedAt = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *BatchBackupPolicyV1beta) SetEnabled(val OptNilBool) {
+	s.Enabled = val
+}
+
+// SetVolumeCount sets the value of VolumeCount.
+func (s *BatchBackupPolicyV1beta) SetVolumeCount(val OptNilInt) {
+	s.VolumeCount = val
+}
+
+// SetState sets the value of State.
+func (s *BatchBackupPolicyV1beta) SetState(val OptNilBatchBackupPolicyV1betaState) {
+	s.State = val
+}
+
+type BatchBackupPolicyV1betaState string
+
+const (
+	BatchBackupPolicyV1betaStateSTATEUNSPECIFIED BatchBackupPolicyV1betaState = "STATE_UNSPECIFIED"
+	BatchBackupPolicyV1betaStateCREATING         BatchBackupPolicyV1betaState = "CREATING"
+	BatchBackupPolicyV1betaStateUPDATING         BatchBackupPolicyV1betaState = "UPDATING"
+	BatchBackupPolicyV1betaStateDELETING         BatchBackupPolicyV1betaState = "DELETING"
+	BatchBackupPolicyV1betaStateREADY            BatchBackupPolicyV1betaState = "READY"
+	BatchBackupPolicyV1betaStateDELETED          BatchBackupPolicyV1betaState = "DELETED"
+	BatchBackupPolicyV1betaStateERROR            BatchBackupPolicyV1betaState = "ERROR"
+)
+
+// AllValues returns all BatchBackupPolicyV1betaState values.
+func (BatchBackupPolicyV1betaState) AllValues() []BatchBackupPolicyV1betaState {
+	return []BatchBackupPolicyV1betaState{
+		BatchBackupPolicyV1betaStateSTATEUNSPECIFIED,
+		BatchBackupPolicyV1betaStateCREATING,
+		BatchBackupPolicyV1betaStateUPDATING,
+		BatchBackupPolicyV1betaStateDELETING,
+		BatchBackupPolicyV1betaStateREADY,
+		BatchBackupPolicyV1betaStateDELETED,
+		BatchBackupPolicyV1betaStateERROR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchBackupPolicyV1betaState) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchBackupPolicyV1betaStateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case BatchBackupPolicyV1betaStateCREATING:
+		return []byte(s), nil
+	case BatchBackupPolicyV1betaStateUPDATING:
+		return []byte(s), nil
+	case BatchBackupPolicyV1betaStateDELETING:
+		return []byte(s), nil
+	case BatchBackupPolicyV1betaStateREADY:
+		return []byte(s), nil
+	case BatchBackupPolicyV1betaStateDELETED:
+		return []byte(s), nil
+	case BatchBackupPolicyV1betaStateERROR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchBackupPolicyV1betaState) UnmarshalText(data []byte) error {
+	switch BatchBackupPolicyV1betaState(data) {
+	case BatchBackupPolicyV1betaStateSTATEUNSPECIFIED:
+		*s = BatchBackupPolicyV1betaStateSTATEUNSPECIFIED
+		return nil
+	case BatchBackupPolicyV1betaStateCREATING:
+		*s = BatchBackupPolicyV1betaStateCREATING
+		return nil
+	case BatchBackupPolicyV1betaStateUPDATING:
+		*s = BatchBackupPolicyV1betaStateUPDATING
+		return nil
+	case BatchBackupPolicyV1betaStateDELETING:
+		*s = BatchBackupPolicyV1betaStateDELETING
+		return nil
+	case BatchBackupPolicyV1betaStateREADY:
+		*s = BatchBackupPolicyV1betaStateREADY
+		return nil
+	case BatchBackupPolicyV1betaStateDELETED:
+		*s = BatchBackupPolicyV1betaStateDELETED
+		return nil
+	case BatchBackupPolicyV1betaStateERROR:
+		*s = BatchBackupPolicyV1betaStateERROR
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -15660,6 +15851,69 @@ func (o OptNilBatchActiveDirectoryV1betaActiveDirectoryState) Or(d BatchActiveDi
 	return d
 }
 
+// NewOptNilBatchBackupPolicyV1betaState returns new OptNilBatchBackupPolicyV1betaState with value set to v.
+func NewOptNilBatchBackupPolicyV1betaState(v BatchBackupPolicyV1betaState) OptNilBatchBackupPolicyV1betaState {
+	return OptNilBatchBackupPolicyV1betaState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchBackupPolicyV1betaState is optional nullable BatchBackupPolicyV1betaState.
+type OptNilBatchBackupPolicyV1betaState struct {
+	Value BatchBackupPolicyV1betaState
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchBackupPolicyV1betaState was set.
+func (o OptNilBatchBackupPolicyV1betaState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchBackupPolicyV1betaState) Reset() {
+	var v BatchBackupPolicyV1betaState
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchBackupPolicyV1betaState) SetTo(v BatchBackupPolicyV1betaState) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchBackupPolicyV1betaState) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchBackupPolicyV1betaState) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchBackupPolicyV1betaState
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchBackupPolicyV1betaState) Get() (v BatchBackupPolicyV1betaState, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchBackupPolicyV1betaState) Or(d BatchBackupPolicyV1betaState) BatchBackupPolicyV1betaState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptNilBatchBackupV1betaBackupType returns new OptNilBatchBackupV1betaBackupType with value set to v.
 func NewOptNilBatchBackupV1betaBackupType(v BatchBackupV1betaBackupType) OptNilBatchBackupV1betaBackupType {
 	return OptNilBatchBackupV1betaBackupType{
@@ -18174,6 +18428,69 @@ func (o OptNilFloat64) Get() (v float64, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNilFloat64) Or(d float64) float64 {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilInt returns new OptNilInt with value set to v.
+func NewOptNilInt(v int) OptNilInt {
+	return OptNilInt{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilInt is optional nullable int.
+type OptNilInt struct {
+	Value int
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilInt was set.
+func (o OptNilInt) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilInt) Reset() {
+	var v int
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilInt) SetTo(v int) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilInt) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilInt) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v int
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilInt) Get() (v int, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilInt) Or(d int) int {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -27193,6 +27510,139 @@ func (*V1betaBatchListActiveDirectoriesOK) v1betaBatchListActiveDirectoriesRes()
 type V1betaBatchListActiveDirectoriesUnauthorized Error
 
 func (*V1betaBatchListActiveDirectoriesUnauthorized) v1betaBatchListActiveDirectoriesRes() {}
+
+type V1betaBatchListBackupPoliciesBadRequest Error
+
+func (*V1betaBatchListBackupPoliciesBadRequest) v1betaBatchListBackupPoliciesRes() {}
+
+type V1betaBatchListBackupPoliciesFieldsItem string
+
+const (
+	V1betaBatchListBackupPoliciesFieldsItemResourceId         V1betaBatchListBackupPoliciesFieldsItem = "resourceId"
+	V1betaBatchListBackupPoliciesFieldsItemDescription        V1betaBatchListBackupPoliciesFieldsItem = "description"
+	V1betaBatchListBackupPoliciesFieldsItemCreatedAt          V1betaBatchListBackupPoliciesFieldsItem = "createdAt"
+	V1betaBatchListBackupPoliciesFieldsItemEnabled            V1betaBatchListBackupPoliciesFieldsItem = "enabled"
+	V1betaBatchListBackupPoliciesFieldsItemVolumeCount        V1betaBatchListBackupPoliciesFieldsItem = "volumeCount"
+	V1betaBatchListBackupPoliciesFieldsItemDailyBackupLimit   V1betaBatchListBackupPoliciesFieldsItem = "dailyBackupLimit"
+	V1betaBatchListBackupPoliciesFieldsItemWeeklyBackupLimit  V1betaBatchListBackupPoliciesFieldsItem = "weeklyBackupLimit"
+	V1betaBatchListBackupPoliciesFieldsItemMonthlyBackupLimit V1betaBatchListBackupPoliciesFieldsItem = "monthlyBackupLimit"
+	V1betaBatchListBackupPoliciesFieldsItemBackupPolicyId     V1betaBatchListBackupPoliciesFieldsItem = "backupPolicyId"
+	V1betaBatchListBackupPoliciesFieldsItemState              V1betaBatchListBackupPoliciesFieldsItem = "state"
+)
+
+// AllValues returns all V1betaBatchListBackupPoliciesFieldsItem values.
+func (V1betaBatchListBackupPoliciesFieldsItem) AllValues() []V1betaBatchListBackupPoliciesFieldsItem {
+	return []V1betaBatchListBackupPoliciesFieldsItem{
+		V1betaBatchListBackupPoliciesFieldsItemResourceId,
+		V1betaBatchListBackupPoliciesFieldsItemDescription,
+		V1betaBatchListBackupPoliciesFieldsItemCreatedAt,
+		V1betaBatchListBackupPoliciesFieldsItemEnabled,
+		V1betaBatchListBackupPoliciesFieldsItemVolumeCount,
+		V1betaBatchListBackupPoliciesFieldsItemDailyBackupLimit,
+		V1betaBatchListBackupPoliciesFieldsItemWeeklyBackupLimit,
+		V1betaBatchListBackupPoliciesFieldsItemMonthlyBackupLimit,
+		V1betaBatchListBackupPoliciesFieldsItemBackupPolicyId,
+		V1betaBatchListBackupPoliciesFieldsItemState,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s V1betaBatchListBackupPoliciesFieldsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case V1betaBatchListBackupPoliciesFieldsItemResourceId:
+		return []byte(s), nil
+	case V1betaBatchListBackupPoliciesFieldsItemDescription:
+		return []byte(s), nil
+	case V1betaBatchListBackupPoliciesFieldsItemCreatedAt:
+		return []byte(s), nil
+	case V1betaBatchListBackupPoliciesFieldsItemEnabled:
+		return []byte(s), nil
+	case V1betaBatchListBackupPoliciesFieldsItemVolumeCount:
+		return []byte(s), nil
+	case V1betaBatchListBackupPoliciesFieldsItemDailyBackupLimit:
+		return []byte(s), nil
+	case V1betaBatchListBackupPoliciesFieldsItemWeeklyBackupLimit:
+		return []byte(s), nil
+	case V1betaBatchListBackupPoliciesFieldsItemMonthlyBackupLimit:
+		return []byte(s), nil
+	case V1betaBatchListBackupPoliciesFieldsItemBackupPolicyId:
+		return []byte(s), nil
+	case V1betaBatchListBackupPoliciesFieldsItemState:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *V1betaBatchListBackupPoliciesFieldsItem) UnmarshalText(data []byte) error {
+	switch V1betaBatchListBackupPoliciesFieldsItem(data) {
+	case V1betaBatchListBackupPoliciesFieldsItemResourceId:
+		*s = V1betaBatchListBackupPoliciesFieldsItemResourceId
+		return nil
+	case V1betaBatchListBackupPoliciesFieldsItemDescription:
+		*s = V1betaBatchListBackupPoliciesFieldsItemDescription
+		return nil
+	case V1betaBatchListBackupPoliciesFieldsItemCreatedAt:
+		*s = V1betaBatchListBackupPoliciesFieldsItemCreatedAt
+		return nil
+	case V1betaBatchListBackupPoliciesFieldsItemEnabled:
+		*s = V1betaBatchListBackupPoliciesFieldsItemEnabled
+		return nil
+	case V1betaBatchListBackupPoliciesFieldsItemVolumeCount:
+		*s = V1betaBatchListBackupPoliciesFieldsItemVolumeCount
+		return nil
+	case V1betaBatchListBackupPoliciesFieldsItemDailyBackupLimit:
+		*s = V1betaBatchListBackupPoliciesFieldsItemDailyBackupLimit
+		return nil
+	case V1betaBatchListBackupPoliciesFieldsItemWeeklyBackupLimit:
+		*s = V1betaBatchListBackupPoliciesFieldsItemWeeklyBackupLimit
+		return nil
+	case V1betaBatchListBackupPoliciesFieldsItemMonthlyBackupLimit:
+		*s = V1betaBatchListBackupPoliciesFieldsItemMonthlyBackupLimit
+		return nil
+	case V1betaBatchListBackupPoliciesFieldsItemBackupPolicyId:
+		*s = V1betaBatchListBackupPoliciesFieldsItemBackupPolicyId
+		return nil
+	case V1betaBatchListBackupPoliciesFieldsItemState:
+		*s = V1betaBatchListBackupPoliciesFieldsItemState
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type V1betaBatchListBackupPoliciesForbidden Error
+
+func (*V1betaBatchListBackupPoliciesForbidden) v1betaBatchListBackupPoliciesRes() {}
+
+type V1betaBatchListBackupPoliciesInternalServerError Error
+
+func (*V1betaBatchListBackupPoliciesInternalServerError) v1betaBatchListBackupPoliciesRes() {}
+
+type V1betaBatchListBackupPoliciesOK struct {
+	BackupPolicies []BatchBackupPolicyV1beta `json:"backupPolicies"`
+}
+
+// GetBackupPolicies returns the value of BackupPolicies.
+func (s *V1betaBatchListBackupPoliciesOK) GetBackupPolicies() []BatchBackupPolicyV1beta {
+	return s.BackupPolicies
+}
+
+// SetBackupPolicies sets the value of BackupPolicies.
+func (s *V1betaBatchListBackupPoliciesOK) SetBackupPolicies(val []BatchBackupPolicyV1beta) {
+	s.BackupPolicies = val
+}
+
+func (*V1betaBatchListBackupPoliciesOK) v1betaBatchListBackupPoliciesRes() {}
+
+type V1betaBatchListBackupPoliciesUnauthorized Error
+
+func (*V1betaBatchListBackupPoliciesUnauthorized) v1betaBatchListBackupPoliciesRes() {}
+
+type V1betaBatchListBackupPoliciesUnprocessableEntity Error
+
+func (*V1betaBatchListBackupPoliciesUnprocessableEntity) v1betaBatchListBackupPoliciesRes() {}
 
 type V1betaBatchListBackupVaultsBadRequest Error
 

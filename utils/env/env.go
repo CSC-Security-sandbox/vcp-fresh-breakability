@@ -429,6 +429,7 @@ var (
 	MaxBatchPoolUUIDs            = GetInt("MAX_BATCH_POOL_UUIDS", 1000)
 	MaxBatchSnapshotUUIDs        = GetInt("MAX_BATCH_SNAPSHOT_UUIDS", 1000)
 	MaxBatchActiveDirectoryUUIDs = GetInt("MAX_BATCH_AD_UUIDS", 1000)
+	MaxBatchBackupPolicyUUIDs    = GetInt("MAX_BATCH_BACKUP_POLICY_UUIDS", 1000)
 )
 
 // networkEnvVariables holds the environment variables related to firewall of network configuration for source ranges

@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
@@ -19,6 +21,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 	"go.temporal.io/sdk/mocks"
+	"gorm.io/gorm"
 )
 
 func TestGetBackupPolicyByNameAndOwnerID(tt *testing.T) {
@@ -284,6 +287,177 @@ func TestListBackupPoliciesAndVolumeCount(tt *testing.T) {
 		assert.True(tt, accountCreated, "Expected account creation to be called")
 		assert.Nil(tt, volumeCount)
 		assert.Equal(tt, 0, len(policyMap), "Expected no backup policies")
+	})
+}
+
+func TestGetBackupPoliciesByUUIDs(tt *testing.T) {
+	tt.Run("WhenEmptyUUIDs_ReturnsEmptyMapsWithoutStorageCalls", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		o := &GCPOrchestrator{storage: mockStorage}
+		vc, m, err := o.GetBackupPoliciesByUUIDs(context.Background(), nil)
+		assert.NoError(tt, err)
+		assert.Empty(tt, vc)
+		assert.Empty(tt, m)
+		mockStorage.AssertNotCalled(tt, "ListBackupPolicyVolumeCount")
+		mockStorage.AssertNotCalled(tt, "ListBackupPolicies")
+	})
+	tt.Run("WhenEmptySlice_ReturnsEmptyMapsWithoutStorageCalls", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		o := &GCPOrchestrator{storage: mockStorage}
+		vc, m, err := o.GetBackupPoliciesByUUIDs(context.Background(), []string{})
+		assert.NoError(tt, err)
+		assert.Empty(tt, vc)
+		assert.Empty(tt, m)
+		mockStorage.AssertNotCalled(tt, "ListBackupPolicyVolumeCount")
+		mockStorage.AssertNotCalled(tt, "ListBackupPolicies")
+	})
+	tt.Run("WhenPassesVolumeCountAndPolicyConditionsToStorage", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		ctx := context.Background()
+		uuids := []string{"11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"}
+		expVolCond := [][]interface{}{
+			{"data_protection->>'backup_policy_id' IN ?", uuids},
+		}
+		expBpCond := [][]interface{}{
+			{"uuid IN ?", uuids},
+		}
+		mockStorage.On("ListBackupPolicyVolumeCount", ctx, mock.MatchedBy(func(got [][]interface{}) bool {
+			return reflect.DeepEqual(expVolCond, got)
+		})).Return(map[string]int64{uuids[0]: 1, uuids[1]: 2}, nil)
+		mockStorage.On("ListBackupPolicies", ctx, mock.MatchedBy(func(got [][]interface{}) bool {
+			return reflect.DeepEqual(expBpCond, got)
+		})).Return([]*datamodel.BackupPolicy{}, nil)
+
+		o := &GCPOrchestrator{storage: mockStorage}
+		_, _, err := o.GetBackupPoliciesByUUIDs(ctx, uuids)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+	tt.Run("WhenListBackupPoliciesReturnsEmpty_PolicyMapEmptyVolumeCountsPreserved", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		ctx := context.Background()
+		uuid := "33333333-3333-4333-8333-333333333333"
+		mockStorage.On("ListBackupPolicyVolumeCount", ctx, mock.Anything).
+			Return(map[string]int64{uuid: 9}, nil)
+		mockStorage.On("ListBackupPolicies", ctx, mock.Anything).
+			Return([]*datamodel.BackupPolicy{}, nil)
+
+		o := &GCPOrchestrator{storage: mockStorage}
+		vc, m, err := o.GetBackupPoliciesByUUIDs(ctx, []string{uuid})
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(9), vc[uuid])
+		assert.Empty(tt, m)
+	})
+	tt.Run("WhenMultiplePoliciesReturned_MapsByUUID", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		ctx := context.Background()
+		u1 := "44444444-4444-4444-8444-444444444444"
+		u2 := "55555555-5555-4555-8555-555555555555"
+		p1 := &datamodel.BackupPolicy{
+			BaseModel:      datamodel.BaseModel{UUID: u1},
+			Name:           "p1",
+			LifeCycleState: models.LifeCycleStateREADY,
+		}
+		p2 := &datamodel.BackupPolicy{
+			BaseModel:      datamodel.BaseModel{UUID: u2},
+			Name:           "p2",
+			LifeCycleState: models.LifeCycleStateREADY,
+		}
+		mockStorage.On("ListBackupPolicyVolumeCount", ctx, mock.Anything).
+			Return(map[string]int64{u1: 1, u2: 3}, nil)
+		mockStorage.On("ListBackupPolicies", ctx, mock.Anything).
+			Return([]*datamodel.BackupPolicy{p1, p2}, nil)
+
+		o := &GCPOrchestrator{storage: mockStorage}
+		vc, m, err := o.GetBackupPoliciesByUUIDs(ctx, []string{u1, u2})
+		assert.NoError(tt, err)
+		assert.Len(tt, m, 2)
+		assert.Equal(tt, "p1", m[u1].ResourceID)
+		assert.Equal(tt, "p2", m[u2].ResourceID)
+		assert.Equal(tt, int64(1), vc[u1])
+		assert.Equal(tt, int64(3), vc[u2])
+	})
+	tt.Run("WhenListBackupPoliciesReturnsSubset_OnlyReturnedUUIDsInPolicyMap", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		ctx := context.Background()
+		u1 := "66666666-6666-4666-8666-666666666666"
+		u2 := "77777777-7777-4777-8777-777777777777"
+		p1 := &datamodel.BackupPolicy{
+			BaseModel:      datamodel.BaseModel{UUID: u1},
+			Name:           "only-in-db",
+			LifeCycleState: models.LifeCycleStateREADY,
+		}
+		mockStorage.On("ListBackupPolicyVolumeCount", ctx, mock.Anything).
+			Return(map[string]int64{u1: 2, u2: 0}, nil)
+		mockStorage.On("ListBackupPolicies", ctx, mock.Anything).
+			Return([]*datamodel.BackupPolicy{p1}, nil)
+
+		o := &GCPOrchestrator{storage: mockStorage}
+		vc, m, err := o.GetBackupPoliciesByUUIDs(ctx, []string{u1, u2})
+		assert.NoError(tt, err)
+		assert.Contains(tt, vc, u1)
+		assert.Contains(tt, vc, u2)
+		assert.Len(tt, m, 1)
+		assert.Contains(tt, m, u1)
+		assert.NotContains(tt, m, u2)
+		assert.Equal(tt, "only-in-db", m[u1].ResourceID)
+	})
+	tt.Run("WhenListBackupPolicyVolumeCountFails", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		ctx := context.Background()
+		uuids := []string{"11111111-1111-4111-8111-111111111111"}
+		mockStorage.On("ListBackupPolicyVolumeCount", ctx, mock.Anything).Return(nil, errors.New("volume count failed"))
+
+		o := &GCPOrchestrator{storage: mockStorage}
+		vc, m, err := o.GetBackupPoliciesByUUIDs(ctx, uuids)
+		assert.Error(tt, err)
+		assert.Nil(tt, vc)
+		assert.Nil(tt, m)
+		assert.Equal(tt, "volume count failed", err.Error())
+	})
+	tt.Run("WhenListBackupPoliciesFails", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		ctx := context.Background()
+		uuids := []string{"11111111-1111-4111-8111-111111111111"}
+		mockStorage.On("ListBackupPolicyVolumeCount", ctx, mock.Anything).Return(map[string]int64{uuids[0]: 1}, nil)
+		mockStorage.On("ListBackupPolicies", ctx, mock.Anything).Return(nil, errors.New("list policies failed"))
+
+		o := &GCPOrchestrator{storage: mockStorage}
+		vc, m, err := o.GetBackupPoliciesByUUIDs(ctx, uuids)
+		assert.Error(tt, err)
+		assert.Nil(tt, vc)
+		assert.Nil(tt, m)
+		assert.Equal(tt, "list policies failed", err.Error())
+	})
+	tt.Run("WhenSuccessful_IncludesDeletedAtFromDatastore", func(tt *testing.T) {
+		mockStorage := new(database.MockStorage)
+		ctx := context.Background()
+		uuid := "22222222-2222-4222-8222-222222222222"
+		deleted := time.Date(2024, 3, 15, 10, 0, 0, 0, time.UTC)
+		da := gorm.DeletedAt{Time: deleted, Valid: true}
+		dbBp := &datamodel.BackupPolicy{
+			BaseModel: datamodel.BaseModel{
+				UUID:      uuid,
+				DeletedAt: &da,
+			},
+			Name:                 "bp-resource",
+			LifeCycleState:       models.LifeCycleStateREADY,
+			DailyBackupsToKeep:   1,
+			WeeklyBackupsToKeep:  2,
+			MonthlyBackupsToKeep: 3,
+			PolicyEnabled:        true,
+		}
+		mockStorage.On("ListBackupPolicyVolumeCount", ctx, mock.Anything).Return(map[string]int64{uuid: 7}, nil)
+		mockStorage.On("ListBackupPolicies", ctx, mock.Anything).Return([]*datamodel.BackupPolicy{dbBp}, nil)
+
+		o := &GCPOrchestrator{storage: mockStorage}
+		vc, m, err := o.GetBackupPoliciesByUUIDs(ctx, []string{uuid})
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(7), vc[uuid])
+		require.NotNil(tt, m[uuid])
+		assert.NotNil(tt, m[uuid].DeletedAt)
+		assert.Equal(tt, deleted.UTC(), m[uuid].DeletedAt.UTC())
+		assert.Equal(tt, "bp-resource", m[uuid].ResourceID)
 	})
 }
 
@@ -1961,4 +2135,3 @@ func TestCreateBackupPolicy(tt *testing.T) {
 		mockScheduleHandle.AssertExpectations(tt)
 	})
 }
-

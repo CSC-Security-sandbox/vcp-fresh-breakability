@@ -13,6 +13,10 @@ type V1betaBatchListActiveDirectoriesRes interface {
 	v1betaBatchListActiveDirectoriesRes()
 }
 
+type V1betaBatchListBackupPoliciesRes interface {
+	v1betaBatchListBackupPoliciesRes()
+}
+
 type V1betaBatchListBackupVaultsRes interface {
 	v1betaBatchListBackupVaultsRes()
 }

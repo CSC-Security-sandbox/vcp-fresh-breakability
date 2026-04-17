@@ -8,9 +8,12 @@ package batch
 import (
 	"fmt"
 	"io"
+	"strconv"
 
+	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
@@ -76,21 +79,23 @@ V1betaBatchListBackupPoliciesOK handles this case with default header values.
 OK
 */
 type V1betaBatchListBackupPoliciesOK struct {
-	Payload []*models.BatchBackupPolicyV1beta
+	Payload *V1betaBatchListBackupPoliciesOKBody
 }
 
 func (o *V1betaBatchListBackupPoliciesOK) Error() string {
 	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/backupPolicies][%d] v1betaBatchListBackupPoliciesOK  %+v", 200, o.Payload)
 }
 
-func (o *V1betaBatchListBackupPoliciesOK) GetPayload() []*models.BatchBackupPolicyV1beta {
+func (o *V1betaBatchListBackupPoliciesOK) GetPayload() *V1betaBatchListBackupPoliciesOKBody {
 	return o.Payload
 }
 
 func (o *V1betaBatchListBackupPoliciesOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
+	o.Payload = new(V1betaBatchListBackupPoliciesOKBody)
+
 	// response payload
-	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
 		return err
 	}
 
@@ -273,5 +278,72 @@ func (o *V1betaBatchListBackupPoliciesDefault) readResponse(response runtime.Cli
 		return err
 	}
 
+	return nil
+}
+
+/*
+V1betaBatchListBackupPoliciesOKBody v1beta batch list backup policies o k body
+swagger:model V1betaBatchListBackupPoliciesOKBody
+*/
+type V1betaBatchListBackupPoliciesOKBody struct {
+
+	// backup policies
+	BackupPolicies []*models.BatchBackupPolicyV1beta `json:"backupPolicies"`
+}
+
+// Validate validates this v1beta batch list backup policies o k body
+func (o *V1betaBatchListBackupPoliciesOKBody) Validate(formats strfmt.Registry) error {
+	var res []error
+
+	if err := o.validateBackupPolicies(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (o *V1betaBatchListBackupPoliciesOKBody) validateBackupPolicies(formats strfmt.Registry) error {
+
+	if swag.IsZero(o.BackupPolicies) { // not required
+		return nil
+	}
+
+	for i := 0; i < len(o.BackupPolicies); i++ {
+		if swag.IsZero(o.BackupPolicies[i]) { // not required
+			continue
+		}
+
+		if o.BackupPolicies[i] != nil {
+			if err := o.BackupPolicies[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("v1betaBatchListBackupPoliciesOK" + "." + "backupPolicies" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+// MarshalBinary interface implementation
+func (o *V1betaBatchListBackupPoliciesOKBody) MarshalBinary() ([]byte, error) {
+	if o == nil {
+		return nil, nil
+	}
+	return swag.WriteJSON(o)
+}
+
+// UnmarshalBinary interface implementation
+func (o *V1betaBatchListBackupPoliciesOKBody) UnmarshalBinary(b []byte) error {
+	var res V1betaBatchListBackupPoliciesOKBody
+	if err := swag.ReadJSON(b, &res); err != nil {
+		return err
+	}
+	*o = res
 	return nil
 }

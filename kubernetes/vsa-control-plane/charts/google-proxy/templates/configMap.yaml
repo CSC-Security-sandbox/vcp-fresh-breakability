@@ -105,6 +105,7 @@ data:
   MAX_BATCH_POOL_UUIDS: "{{ index .Values "maxBatchPoolUUIDs" }}"
   MAX_BATCH_SNAPSHOT_UUIDS: "{{ index .Values "maxBatchSnapshotUUIDs" }}"
   MAX_BATCH_AD_UUIDS: "{{ index .Values "maxBatchActiveDirectoryUUIDs" }}"
+  MAX_BATCH_BACKUP_POLICY_UUIDS: "{{ index .Values "maxBatchBackupPolicyUUIDs" }}"
   PROBER_PROJECT_LIST: {{ .Values.proberProjectList | quote }}
   ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION: "{{ index .Values "enableUniqueSerialNumberGeneration" }}"
   CLUSTER_SERIAL_NUMBER_PREFIX: "{{ index .Values "clusterSerialNumberPrefix" }}"

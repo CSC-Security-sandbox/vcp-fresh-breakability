@@ -7452,6 +7452,7 @@ paths:
             type: string
             enum:
               - resourceId
+              - backupPolicyId
               - description
               - createdAt
               - enabled
@@ -7459,6 +7460,7 @@ paths:
               - dailyBackupLimit
               - weeklyBackupLimit
               - monthlyBackupLimit
+              - state
         - name: body
           in: body
           required: true
@@ -7469,9 +7471,12 @@ paths:
         '200':
           description: OK
           schema:
-            type: array
-            items:
-              $ref: '#/definitions/BatchBackupPolicy_v1beta'
+            type: object
+            properties:
+              backupPolicies:
+                type: array
+                items:
+                  $ref: '#/definitions/BatchBackupPolicy_v1beta'
         '400':
           $ref: '#/responses/StandardError-400'
         '401':
@@ -15610,6 +15615,21 @@ definitions:
         maxLength: 36
         minLength: 36
         example: 9760acf5-4638-11e7-9bdb-020073ca3333
+      state:
+        title: state
+        type: string
+        x-omitempty: true
+        x-nullable: true
+        description: The current state of the backup policy
+        enum:
+          - STATE_UNSPECIFIED
+          - CREATING
+          - UPDATING
+          - DELETING
+          - READY
+          - DELETED
+          - ERROR
+        example: READY
       volumeCount:
         type: integer
         x-omitempty: true

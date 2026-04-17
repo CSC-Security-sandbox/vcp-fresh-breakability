@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS idx_volumes_data_protection_backup_policy_id;

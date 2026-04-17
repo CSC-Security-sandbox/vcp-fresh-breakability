@@ -1313,6 +1313,20 @@ func TestOCIOrchestrator_ListBackupPoliciesAndVolumeCount(t *testing.T) {
 	})
 }
 
+func TestOCIOrchestrator_GetBackupPoliciesByUUIDs(t *testing.T) {
+	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
+		orch := &OCIOrchestrator{}
+		ctx := context.Background()
+
+		volumeCounts, policies, err := orch.GetBackupPoliciesByUUIDs(ctx, []string{"uuid1", "uuid2"})
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsNotImplementedYetErr(err))
+		assert.Nil(tt, volumeCounts)
+		assert.Nil(tt, policies)
+	})
+}
+
 func TestOCIOrchestrator_DeleteBackupPolicy(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}

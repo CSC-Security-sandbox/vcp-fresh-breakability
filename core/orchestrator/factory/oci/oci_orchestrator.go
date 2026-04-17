@@ -439,6 +439,10 @@ func (o *OCIOrchestrator) ListBackupPoliciesAndVolumeCount(ctx context.Context, 
 	return nil, nil, utilserrors.NewNotImplementedYetErr()
 }
 
+func (o *OCIOrchestrator) GetBackupPoliciesByUUIDs(ctx context.Context, backupPolicyUUIDs []string) (map[string]int64, map[string]*models.BackupPolicy, error) {
+	return nil, nil, utilserrors.NewNotImplementedYetErr()
+}
+
 func (o *OCIOrchestrator) DeleteBackupPolicy(ctx context.Context, params *commonparams.DeleteBackupPolicyParams) (*models.BackupPolicy, string, error) {
 	// TODO implement me
 	return nil, "", utilserrors.NewNotImplementedYetErr()

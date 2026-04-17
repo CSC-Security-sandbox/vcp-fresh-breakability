@@ -6,6 +6,8 @@ package models
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
+
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
 	"github.com/go-openapi/swag"
@@ -45,6 +47,12 @@ type BatchBackupPolicyV1beta struct {
 	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum
 	ResourceID *string `json:"resourceId,omitempty"`
 
+	// state
+	//
+	// The current state of the backup policy
+	// Enum: [STATE_UNSPECIFIED CREATING UPDATING DELETING READY DELETED ERROR]
+	State *string `json:"state,omitempty"`
+
 	// Total volumes assigned to the backup policy
 	VolumeCount *int64 `json:"volumeCount,omitempty"`
 }
@@ -70,6 +78,8 @@ func (m *BatchBackupPolicyV1beta) UnmarshalJSON(raw []byte) error {
 
 		ResourceID *string `json:"resourceId,omitempty"`
 
+		State *string `json:"state,omitempty"`
+
 		VolumeCount *int64 `json:"volumeCount,omitempty"`
 	}
 	if err := swag.ReadJSON(raw, &propsBatchBackupPolicyV1beta); err != nil {
@@ -84,6 +94,8 @@ func (m *BatchBackupPolicyV1beta) UnmarshalJSON(raw []byte) error {
 	m.Enabled = propsBatchBackupPolicyV1beta.Enabled
 
 	m.ResourceID = propsBatchBackupPolicyV1beta.ResourceID
+
+	m.State = propsBatchBackupPolicyV1beta.State
 
 	m.VolumeCount = propsBatchBackupPolicyV1beta.VolumeCount
 
@@ -112,6 +124,8 @@ func (m BatchBackupPolicyV1beta) MarshalJSON() ([]byte, error) {
 
 		ResourceID *string `json:"resourceId,omitempty"`
 
+		State *string `json:"state,omitempty"`
+
 		VolumeCount *int64 `json:"volumeCount,omitempty"`
 	}
 	propsBatchBackupPolicyV1beta.BackupPolicyID = m.BackupPolicyID
@@ -123,6 +137,8 @@ func (m BatchBackupPolicyV1beta) MarshalJSON() ([]byte, error) {
 	propsBatchBackupPolicyV1beta.Enabled = m.Enabled
 
 	propsBatchBackupPolicyV1beta.ResourceID = m.ResourceID
+
+	propsBatchBackupPolicyV1beta.State = m.State
 
 	propsBatchBackupPolicyV1beta.VolumeCount = m.VolumeCount
 
@@ -148,6 +164,10 @@ func (m *BatchBackupPolicyV1beta) Validate(formats strfmt.Registry) error {
 	}
 
 	if err := m.validateCreatedAt(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateState(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -185,6 +205,64 @@ func (m *BatchBackupPolicyV1beta) validateCreatedAt(formats strfmt.Registry) err
 	}
 
 	if err := validate.FormatOf("createdAt", "body", "date-time", m.CreatedAt.String(), formats); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+var batchBackupPolicyV1betaTypeStatePropEnum []interface{}
+
+func init() {
+	var res []string
+	if err := json.Unmarshal([]byte(`["STATE_UNSPECIFIED","CREATING","UPDATING","DELETING","READY","DELETED","ERROR"]`), &res); err != nil {
+		panic(err)
+	}
+	for _, v := range res {
+		batchBackupPolicyV1betaTypeStatePropEnum = append(batchBackupPolicyV1betaTypeStatePropEnum, v)
+	}
+}
+
+const (
+
+	// BatchBackupPolicyV1betaStateSTATEUNSPECIFIED captures enum value "STATE_UNSPECIFIED"
+	BatchBackupPolicyV1betaStateSTATEUNSPECIFIED string = "STATE_UNSPECIFIED"
+
+	// BatchBackupPolicyV1betaStateCREATING captures enum value "CREATING"
+	BatchBackupPolicyV1betaStateCREATING string = "CREATING"
+
+	// BatchBackupPolicyV1betaStateUPDATING captures enum value "UPDATING"
+	BatchBackupPolicyV1betaStateUPDATING string = "UPDATING"
+
+	// BatchBackupPolicyV1betaStateDELETING captures enum value "DELETING"
+	BatchBackupPolicyV1betaStateDELETING string = "DELETING"
+
+	// BatchBackupPolicyV1betaStateREADY captures enum value "READY"
+	BatchBackupPolicyV1betaStateREADY string = "READY"
+
+	// BatchBackupPolicyV1betaStateDELETED captures enum value "DELETED"
+	BatchBackupPolicyV1betaStateDELETED string = "DELETED"
+
+	// BatchBackupPolicyV1betaStateERROR captures enum value "ERROR"
+	BatchBackupPolicyV1betaStateERROR string = "ERROR"
+)
+
+// prop value enum
+func (m *BatchBackupPolicyV1beta) validateStateEnum(path, location string, value string) error {
+	if err := validate.EnumCase(path, location, value, batchBackupPolicyV1betaTypeStatePropEnum, true); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *BatchBackupPolicyV1beta) validateState(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.State) { // not required
+		return nil
+	}
+
+	// value enum
+	if err := m.validateStateEnum("state", "body", *m.State); err != nil {
 		return err
 	}
 

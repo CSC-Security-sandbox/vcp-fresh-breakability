@@ -426,7 +426,7 @@ func (h Handler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *gcpge
 	helper.AddLabelerAttributes(ctx, params.ProjectNumber, params.LocationId, nil)
 
 	if env.UseVCPRegion {
-		vcpBackupPolicyVolumeCount, vcpBackupPolicies, err := h.Orchestrator.ListBackupPoliciesAndVolumeCount(ctx, params.ProjectNumber, req.BackupPolicyUuids)
+		vcpBackupPolicyVolumeCount, vcpBackupPolicies, err := h.Orchestrator.ListBackupPoliciesAndVolumeCount(ctx, params.ProjectNumber, req.BackupPolicyUUIDs)
 		if err != nil {
 			logger.Errorf("Failed to get backup policies and volume counts: %v", err)
 			return &gcpgenserver.V1betaGetMultipleBackupPoliciesInternalServerError{
@@ -440,7 +440,7 @@ func (h Handler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *gcpge
 		}
 
 		// Convert VCP backup policies to response format
-		for _, backupPolicyUUID := range req.BackupPolicyUuids {
+		for _, backupPolicyUUID := range req.BackupPolicyUUIDs {
 			vcpBackupPolicy, exists := vcpBackupPolicies[backupPolicyUUID]
 			if !exists {
 				// Skip if backup policy doesn't exist in VCP
@@ -459,7 +459,7 @@ func (h Handler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *gcpge
 	cvpClient := createClient(logger, jwtToken)
 
 	body := &models.BackupPolicyIDListV1beta{
-		BackupPolicyUUIDs: req.BackupPolicyUuids,
+		BackupPolicyUUIDs: req.BackupPolicyUUIDs,
 	}
 	getMultipleBackupPoliciesParams := &backup_policy.V1betaGetMultipleBackupPoliciesParams{
 		Body:           body,
@@ -527,7 +527,7 @@ func (h Handler) V1betaGetMultipleBackupPolicies(ctx context.Context, req *gcpge
 		}, nil
 	}
 
-	vcpBackupPolicyVolumeCount, vcpBackupPolicies, err := h.Orchestrator.ListBackupPoliciesAndVolumeCount(ctx, params.ProjectNumber, req.BackupPolicyUuids)
+	vcpBackupPolicyVolumeCount, vcpBackupPolicies, err := h.Orchestrator.ListBackupPoliciesAndVolumeCount(ctx, params.ProjectNumber, req.BackupPolicyUUIDs)
 	if err != nil {
 		logger.Errorf("Failed to get backup policies and volume counts: %v", err)
 		return &gcpgenserver.V1betaGetMultipleBackupPoliciesInternalServerError{

@@ -30,6 +30,13 @@ type Handler interface {
 	//
 	// POST /v1beta/locations/{locationId}/batch/activeDirectories
 	V1betaBatchListActiveDirectories(ctx context.Context, req *BatchActiveDirectoryUUIDListV1beta, params V1betaBatchListActiveDirectoriesParams) (V1betaBatchListActiveDirectoriesRes, error)
+	// V1betaBatchListBackupPolicies implements v1beta_batchListBackupPolicies operation.
+	//
+	// Batch lists backup policies with the given UUIDs. Merges VCP and CVP (SDE) results; field
+	// selection controls which attributes are returned.
+	//
+	// POST /v1beta/locations/{locationId}/batch/backupPolicies
+	V1betaBatchListBackupPolicies(ctx context.Context, req *BackupPolicyIdListV1beta, params V1betaBatchListBackupPoliciesParams) (V1betaBatchListBackupPoliciesRes, error)
 	// V1betaBatchListBackupVaults implements v1beta_batchListBackupVaults operation.
 	//
 	// Batch list all backup vaults with the given UUIDs.

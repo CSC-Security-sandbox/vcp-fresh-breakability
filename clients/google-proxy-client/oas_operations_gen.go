@@ -9,6 +9,7 @@ const (
 	GetHealthOperation                                       OperationName = "GetHealth"
 	V1betaBackupConfigOperation                              OperationName = "V1betaBackupConfig"
 	V1betaBatchListActiveDirectoriesOperation                OperationName = "V1betaBatchListActiveDirectories"
+	V1betaBatchListBackupPoliciesOperation                   OperationName = "V1betaBatchListBackupPolicies"
 	V1betaBatchListBackupVaultsOperation                     OperationName = "V1betaBatchListBackupVaults"
 	V1betaBatchListBackupsOperation                          OperationName = "V1betaBatchListBackups"
 	V1betaBatchListHostGroupsOperation                       OperationName = "V1betaBatchListHostGroups"
