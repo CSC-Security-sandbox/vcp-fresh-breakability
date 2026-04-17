@@ -12,7 +12,9 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/workflows"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
@@ -1208,6 +1210,11 @@ func setupSplitStartVolumeBase(t *testing.T, ctx context.Context) (mockStorage *
 	// First defer deletes the job when an error occurs.
 	mockStorage.On("DeleteJob", mock.Anything, job.UUID, mock.AnythingOfType("string")).Return(nil)
 
+	// Second defer reverts clones_shared_bytes back to the original value since split was never initiated.
+	mockStorage.On("UpdateVolumeFields", mock.Anything, vol.UUID, map[string]interface{}{
+		"clones_shared_bytes": vol.ClonesSharedBytes,
+	}).Return(nil)
+
 	return mockStorage, vol, jobUUID, ontapErr
 }
 
@@ -1232,6 +1239,112 @@ func TestSplitStartVolume_DeferGetVolumeFails(t *testing.T) {
 	// The returned error is the ONTAP error that triggered the defer.
 	assert.Equal(t, ontapErr.Error(), err.Error())
 	mockStorage.AssertExpectations(t)
+}
+
+// TestSplitStartVolume_WorkflowExecutionFails_MockBased covers lines 3803-3807 and 3815:
+// GetNodesByPoolID succeeds, GetProviderByNode succeeds, InitiateSplitVolume succeeds,
+// but ExecuteWorkflow returns an error, causing _splitStartVolume to return that error.
+func TestSplitStartVolume_WorkflowExecutionFails_MockBased(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockStorage := database.NewMockStorage(t)
+	mockTemporalClient := workflowEngineMock.NewMockTemporalTestClient(t)
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+		Name:      "test-account",
+	}
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{ID: 10, UUID: "pool-uuid"},
+		Name:        "test-pool",
+		AccountID:   1,
+		SizeInBytes: 10000000,
+	}
+	poolView := &datamodel.PoolView{
+		Pool:         *pool,
+		QuotaInBytes: 0,
+	}
+	dbNode := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "node-uuid"},
+		PoolID:          pool.ID,
+		Name:            "node-host",
+		EndpointAddress: "10.0.0.1",
+	}
+	vol := &datamodel.Volume{
+		BaseModel:         datamodel.BaseModel{ID: 5, UUID: "vol-uuid"},
+		Name:              "test-volume",
+		AccountID:         1,
+		Pool:              pool,
+		PoolID:            pool.ID,
+		State:             models.LifeCycleStateREADY,
+		ClonesSharedBytes: 500,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "ext-uuid",
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-uuid",
+				State:            models.CloneStateCloned,
+			},
+		},
+	}
+	job := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+		WorkflowID: "job-uuid",
+	}
+
+	origGetAccountWithName := getAccountWithName
+	getAccountWithName = func(_ context.Context, _ database.Storage, _ string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	origValidate := validateSplitStartVolumeParams
+	validateSplitStartVolumeParams = func(_ context.Context, _ *datamodel.Volume, _ *datamodel.PoolView) error {
+		return nil
+	}
+	origUpdateCloneState := updateCloneState
+	updateCloneState = func(_ context.Context, _ database.Storage, _ string, _ string) error {
+		return nil
+	}
+	t.Cleanup(func() {
+		getAccountWithName = origGetAccountWithName
+		validateSplitStartVolumeParams = origValidate
+		updateCloneState = origUpdateCloneState
+	})
+
+	mockProvider := new(vsa.MockProvider)
+	mockProvider.On("InitiateSplitVolume", "ext-uuid").Return("ontap-job-uuid", nil)
+
+	origGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	t.Cleanup(func() { hyperscaler.GetProviderByNode = origGetProviderByNode })
+
+	mockStorage.On("GetVolumeWithAccountID", mock.Anything, vol.UUID, account.ID).Return(vol, nil)
+	mockStorage.On("GetPool", mock.Anything, pool.UUID, account.ID).Return(poolView, nil)
+	mockStorage.On("CreateJob", mock.Anything, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, vol.UUID, map[string]interface{}{
+		"clones_shared_bytes": uint64(0),
+	}).Return(nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{dbNode}, nil)
+
+	workflowErr := errors.New("temporal unavailable")
+	mockTemporalClient.EXPECT().
+		ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, workflowErr).Maybe()
+
+	// Defer: job deleted, clones_shared_bytes reverted (split was initiated so stays 0),
+	// and clone state fetch for revert (non-ONTAP error after split initiated → state stays SPLITTING).
+	mockStorage.On("DeleteJob", mock.Anything, job.UUID, mock.AnythingOfType("string")).Return(nil)
+
+	params := &common.SplitStartVolumeParams{
+		AccountName: "test-account",
+		VolumeID:    vol.UUID,
+	}
+
+	_, _, err := _splitStartVolume(ctx, mockStorage, mockTemporalClient, params)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "temporal unavailable")
+	mockProvider.AssertExpectations(t)
+	mockTemporalClient.AssertExpectations(t)
 }
 
 // TestSplitStartVolume_DeferCloneStateUpdateFails covers line 3725: when GetVolume in the
@@ -1270,4 +1383,416 @@ func TestSplitStartVolume_DeferCloneStateUpdateFails(t *testing.T) {
 	// The returned error is still the ONTAP error; the clone-state update failure is only logged.
 	assert.Equal(t, ontapErr.Error(), err.Error())
 	mockStorage.AssertExpectations(t)
+}
+
+// TestSplitStartVolume_Success covers line 3816: the happy-path return after
+// ExecuteWorkflow succeeds, ensuring the function returns a non-nil Volume and
+// a non-empty job UUID with no error.
+func TestSplitStartVolume_Success(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockStorage := database.NewMockStorage(t)
+	mockTemporalClient := workflowEngineMock.NewMockTemporalTestClient(t)
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+		Name:      "test-account",
+	}
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{ID: 10, UUID: "pool-uuid"},
+		Name:        "test-pool",
+		AccountID:   1,
+		SizeInBytes: 10000000,
+		PoolAttributes: &datamodel.PoolAttributes{
+			PrimaryZone: "us-west1-a",
+		},
+	}
+	poolView := &datamodel.PoolView{
+		Pool:         *pool,
+		QuotaInBytes: 0,
+	}
+	dbNode := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "node-uuid"},
+		PoolID:          pool.ID,
+		Name:            "node-host",
+		EndpointAddress: "10.0.0.1",
+	}
+	vol := &datamodel.Volume{
+		BaseModel:         datamodel.BaseModel{ID: 5, UUID: "vol-uuid"},
+		Name:              "test-volume",
+		AccountID:         1,
+		Account:           account,
+		Pool:              pool,
+		PoolID:            pool.ID,
+		State:             models.LifeCycleStateREADY,
+		ClonesSharedBytes: 500,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "ext-uuid",
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-uuid",
+				State:            models.CloneStateCloned,
+			},
+		},
+	}
+	job := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+		WorkflowID: "job-uuid",
+	}
+
+	origGetAccountWithName := getAccountWithName
+	getAccountWithName = func(_ context.Context, _ database.Storage, _ string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	origValidate := validateSplitStartVolumeParams
+	validateSplitStartVolumeParams = func(_ context.Context, _ *datamodel.Volume, _ *datamodel.PoolView) error {
+		return nil
+	}
+	origUpdateCloneState := updateCloneState
+	updateCloneState = func(_ context.Context, _ database.Storage, _ string, _ string) error {
+		return nil
+	}
+	t.Cleanup(func() {
+		getAccountWithName = origGetAccountWithName
+		validateSplitStartVolumeParams = origValidate
+		updateCloneState = origUpdateCloneState
+	})
+
+	mockProvider := new(vsa.MockProvider)
+	mockProvider.On("InitiateSplitVolume", "ext-uuid").Return("ontap-job-uuid", nil)
+
+	origGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	t.Cleanup(func() { hyperscaler.GetProviderByNode = origGetProviderByNode })
+
+	mockStorage.On("GetVolumeWithAccountID", mock.Anything, vol.UUID, account.ID).Return(vol, nil)
+	mockStorage.On("GetPool", mock.Anything, pool.UUID, account.ID).Return(poolView, nil)
+	mockStorage.On("CreateJob", mock.Anything, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, vol.UUID, map[string]interface{}{
+		"clones_shared_bytes": uint64(0),
+	}).Return(nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{dbNode}, nil)
+
+	// ExecuteWorkflow succeeds — this drives the function to the line-3816 return.
+	mockTemporalClient.EXPECT().
+		ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, nil)
+
+	params := &common.SplitStartVolumeParams{
+		AccountName: "test-account",
+		VolumeID:    vol.UUID,
+	}
+
+	resultVol, jobUUID, err := _splitStartVolume(ctx, mockStorage, mockTemporalClient, params)
+	assert.NoError(t, err)
+	assert.NotNil(t, resultVol)
+	assert.Equal(t, job.UUID, jobUUID)
+	mockProvider.AssertExpectations(t)
+	mockTemporalClient.AssertExpectations(t)
+}
+
+// ---------------------------------------------------------------------------
+// TestSplitStartVolume_DeferRevertClonesSharedBytesFails covers line 3764:
+// when splitInitiated=false and the UpdateVolumeFields call that reverts
+// clones_shared_bytes returns an error, the function logs the failure without
+// panicking and still propagates the original error.
+// ---------------------------------------------------------------------------
+
+func TestSplitStartVolume_DeferRevertClonesSharedBytesFails(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockStorage := database.NewMockStorage(t)
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+		Name:      "test-account",
+	}
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{ID: 10, UUID: "pool-uuid"},
+		Name:        "test-pool",
+		AccountID:   1,
+		SizeInBytes: 10000000,
+	}
+	poolView := &datamodel.PoolView{
+		Pool:         *pool,
+		QuotaInBytes: 0,
+	}
+	// CloneParentInfo.State is deliberately empty so that previousCloneState="" and the
+	// clone-state revert branch in the defer (line 3770) is skipped. This lets the test
+	// focus exclusively on the revert-clones_shared_bytes failure path (line 3764).
+	vol := &datamodel.Volume{
+		BaseModel:         datamodel.BaseModel{ID: 5, UUID: "vol-uuid"},
+		Name:              "test-volume",
+		AccountID:         1,
+		Pool:              pool,
+		PoolID:            pool.ID,
+		State:             models.LifeCycleStateREADY,
+		ClonesSharedBytes: 500,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-uuid",
+				State:            "",
+			},
+		},
+	}
+	job := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+		WorkflowID: "job-uuid",
+	}
+
+	origGetAccountWithName := getAccountWithName
+	getAccountWithName = func(_ context.Context, _ database.Storage, _ string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	origValidate := validateSplitStartVolumeParams
+	validateSplitStartVolumeParams = func(_ context.Context, _ *datamodel.Volume, _ *datamodel.PoolView) error {
+		return nil
+	}
+	origUpdateCloneState := updateCloneState
+	updateCloneState = func(_ context.Context, _ database.Storage, _ string, _ string) error {
+		return nil
+	}
+	t.Cleanup(func() {
+		getAccountWithName = origGetAccountWithName
+		validateSplitStartVolumeParams = origValidate
+		updateCloneState = origUpdateCloneState
+	})
+
+	triggerErr := errors.New("nodes not found")
+
+	mockStorage.On("GetVolumeWithAccountID", mock.Anything, vol.UUID, account.ID).Return(vol, nil)
+	mockStorage.On("GetPool", mock.Anything, pool.UUID, account.ID).Return(poolView, nil)
+	mockStorage.On("CreateJob", mock.Anything, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
+	// Reserve clones_shared_bytes to 0 — succeeds.
+	mockStorage.On("UpdateVolumeFields", mock.Anything, vol.UUID, map[string]interface{}{
+		"clones_shared_bytes": uint64(0),
+	}).Return(nil)
+	// GetNodesByPoolID fails, triggering the defer with splitInitiated=false.
+	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return(nil, triggerErr)
+	// Job cleanup defer.
+	mockStorage.On("DeleteJob", mock.Anything, job.UUID, mock.AnythingOfType("string")).Return(nil)
+	// Defer revert of clones_shared_bytes fails — this is the line-3764 path.
+	mockStorage.On("UpdateVolumeFields", mock.Anything, vol.UUID, map[string]interface{}{
+		"clones_shared_bytes": vol.ClonesSharedBytes,
+	}).Return(errors.New("db write error"))
+
+	params := &common.SplitStartVolumeParams{
+		AccountName: "test-account",
+		VolumeID:    vol.UUID,
+	}
+
+	_, _, err := _splitStartVolume(ctx, mockStorage, nil, params)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "nodes not found")
+	mockStorage.AssertExpectations(t)
+}
+
+// ---------------------------------------------------------------------------
+// setupSplitAfterInitiatedBase sets up mocks for the scenario where
+// InitiateSplitVolume succeeds (splitInitiated=true) and ExecuteWorkflow
+// returns an ONTAP-range error, driving the defer's error-in-splitting path.
+// ---------------------------------------------------------------------------
+
+func setupSplitAfterInitiatedBase(t *testing.T, ctx context.Context) (mockStorage *database.MockStorage, mockTemporalClient *workflowEngineMock.MockTemporalTestClient, vol *datamodel.Volume, ontapErr error) {
+	t.Helper()
+
+	mockStorage = database.NewMockStorage(t)
+	mockTemporalClient = workflowEngineMock.NewMockTemporalTestClient(t)
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "account-uuid"},
+		Name:      "test-account",
+	}
+	pool := &datamodel.Pool{
+		BaseModel:   datamodel.BaseModel{ID: 10, UUID: "pool-uuid"},
+		Name:        "test-pool",
+		AccountID:   1,
+		SizeInBytes: 10000000,
+	}
+	poolView := &datamodel.PoolView{
+		Pool:         *pool,
+		QuotaInBytes: 0,
+	}
+	dbNode := &datamodel.Node{
+		BaseModel:       datamodel.BaseModel{UUID: "node-uuid"},
+		PoolID:          pool.ID,
+		Name:            "node-host",
+		EndpointAddress: "10.0.0.1",
+	}
+	vol = &datamodel.Volume{
+		BaseModel:         datamodel.BaseModel{ID: 5, UUID: "vol-uuid"},
+		Name:              "test-volume",
+		AccountID:         1,
+		Pool:              pool,
+		PoolID:            pool.ID,
+		State:             models.LifeCycleStateREADY,
+		ClonesSharedBytes: 500,
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			ExternalUUID: "ext-uuid",
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-uuid",
+				State:            models.CloneStateCloned,
+			},
+		},
+	}
+	job := &datamodel.Job{
+		BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+		WorkflowID: "job-uuid",
+	}
+
+	origGetAccountWithName := getAccountWithName
+	getAccountWithName = func(_ context.Context, _ database.Storage, _ string) (*datamodel.Account, error) {
+		return account, nil
+	}
+	origValidate := validateSplitStartVolumeParams
+	validateSplitStartVolumeParams = func(_ context.Context, _ *datamodel.Volume, _ *datamodel.PoolView) error {
+		return nil
+	}
+	origUpdateCloneState := updateCloneState
+	updateCloneState = func(_ context.Context, _ database.Storage, _ string, _ string) error {
+		return nil
+	}
+	t.Cleanup(func() {
+		getAccountWithName = origGetAccountWithName
+		validateSplitStartVolumeParams = origValidate
+		updateCloneState = origUpdateCloneState
+	})
+
+	mockProvider := new(vsa.MockProvider)
+	mockProvider.On("InitiateSplitVolume", "ext-uuid").Return("ontap-job-uuid", nil)
+
+	origGetProviderByNode := hyperscaler.GetProviderByNode
+	hyperscaler.GetProviderByNode = func(_ context.Context, _ *models.Node) (vsa.Provider, error) {
+		return mockProvider, nil
+	}
+	t.Cleanup(func() {
+		hyperscaler.GetProviderByNode = origGetProviderByNode
+		mockProvider.AssertExpectations(t)
+	})
+
+	// An ONTAP-range error returned by ExecuteWorkflow drives isOntapErr=true in the defer.
+	ontapErr = vsaerrors.NewVCPError(vsaerrors.ErrSplitCloneJobFailed, fmt.Errorf("ontap polling error"))
+
+	mockStorage.On("GetVolumeWithAccountID", mock.Anything, vol.UUID, account.ID).Return(vol, nil)
+	mockStorage.On("GetPool", mock.Anything, pool.UUID, account.ID).Return(poolView, nil)
+	mockStorage.On("CreateJob", mock.Anything, mock.AnythingOfType("*datamodel.Job")).Return(job, nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, vol.UUID, map[string]interface{}{
+		"clones_shared_bytes": uint64(0),
+	}).Return(nil)
+	mockStorage.On("GetNodesByPoolID", mock.Anything, pool.ID).Return([]*datamodel.Node{dbNode}, nil)
+	mockStorage.On("DeleteJob", mock.Anything, job.UUID, mock.AnythingOfType("string")).Return(nil)
+
+	mockTemporalClient.EXPECT().
+		ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, ontapErr).Maybe()
+
+	return mockStorage, mockTemporalClient, vol, ontapErr
+}
+
+// ---------------------------------------------------------------------------
+// TestSplitStartVolume_OntapErrorAfterSplit_GetVolumeFails covers lines
+// 3803-3807: when splitInitiated=true and an ONTAP error occurs, the defer
+// attempts to mark the clone as ERROR_IN_SPLITTING but GetVolume fails,
+// causing the error path on line 3811 to be taken.
+// ---------------------------------------------------------------------------
+
+func TestSplitStartVolume_OntapErrorAfterSplit_GetVolumeFails(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockStorage, mockTemporalClient, vol, _ := setupSplitAfterInitiatedBase(t, ctx)
+
+	// GetVolume in the defer fails — exercises the 3811 logger.Errorf path.
+	mockStorage.On("GetVolume", mock.Anything, vol.UUID).Return(nil, errors.New("db unavailable"))
+
+	params := &common.SplitStartVolumeParams{
+		AccountName: "test-account",
+		VolumeID:    vol.UUID,
+	}
+
+	_, _, err := _splitStartVolume(ctx, mockStorage, mockTemporalClient, params)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Clone split failed in the backend")
+	mockStorage.AssertExpectations(t)
+	mockTemporalClient.AssertExpectations(t)
+}
+
+// ---------------------------------------------------------------------------
+// TestSplitStartVolume_OntapErrorAfterSplit_StateUpdated covers lines
+// 3803-3807 and 3815: when splitInitiated=true and an ONTAP error occurs,
+// the defer successfully fetches the current volume and sets clone state to
+// ERROR_IN_SPLITTING (line 3815) without any further failures.
+// ---------------------------------------------------------------------------
+
+func TestSplitStartVolume_OntapErrorAfterSplit_StateUpdated(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockStorage, mockTemporalClient, vol, _ := setupSplitAfterInitiatedBase(t, ctx)
+
+	currentVol := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: vol.UUID},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-uuid",
+				State:            models.CloneStateSplitting,
+			},
+		},
+	}
+	mockStorage.On("GetVolume", mock.Anything, vol.UUID).Return(currentVol, nil)
+	mockStorage.On("UpdateVolumeFields", mock.Anything, vol.UUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
+		_, ok := fields["volume_attributes"]
+		return ok
+	})).Return(nil)
+
+	params := &common.SplitStartVolumeParams{
+		AccountName: "test-account",
+		VolumeID:    vol.UUID,
+	}
+
+	_, _, err := _splitStartVolume(ctx, mockStorage, mockTemporalClient, params)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Clone split failed in the backend")
+	mockStorage.AssertExpectations(t)
+	mockTemporalClient.AssertExpectations(t)
+}
+
+// ---------------------------------------------------------------------------
+// TestSplitStartVolume_OntapErrorAfterSplit_StateUpdateFails covers lines
+// 3803-3807, 3815, and 3821: when splitInitiated=true and an ONTAP error
+// occurs, the defer fetches the volume successfully but the UpdateVolumeFields
+// call for the clone-state update returns an error (line 3821).
+// ---------------------------------------------------------------------------
+
+func TestSplitStartVolume_OntapErrorAfterSplit_StateUpdateFails(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	mockStorage, mockTemporalClient, vol, _ := setupSplitAfterInitiatedBase(t, ctx)
+
+	currentVol := &datamodel.Volume{
+		BaseModel: datamodel.BaseModel{UUID: vol.UUID},
+		VolumeAttributes: &datamodel.VolumeAttributes{
+			CloneParentInfo: &datamodel.CloneParentInfo{
+				ParentVolumeUUID: "parent-uuid",
+				State:            models.CloneStateSplitting,
+			},
+		},
+	}
+	mockStorage.On("GetVolume", mock.Anything, vol.UUID).Return(currentVol, nil)
+	// The UpdateVolumeFields for volume_attributes fails — line 3821.
+	mockStorage.On("UpdateVolumeFields", mock.Anything, vol.UUID, mock.MatchedBy(func(fields map[string]interface{}) bool {
+		_, ok := fields["volume_attributes"]
+		return ok
+	})).Return(errors.New("clone state write error"))
+
+	params := &common.SplitStartVolumeParams{
+		AccountName: "test-account",
+		VolumeID:    vol.UUID,
+	}
+
+	_, _, err := _splitStartVolume(ctx, mockStorage, mockTemporalClient, params)
+	assert.Error(t, err)
+	// The function still returns the original ONTAP error; the update failure is only logged.
+	assert.Contains(t, err.Error(), "Clone split failed in the backend")
+	mockStorage.AssertExpectations(t)
+	mockTemporalClient.AssertExpectations(t)
 }

@@ -3617,6 +3617,9 @@ func _updateCloneState(ctx context.Context, se database.Storage, volumeUUID stri
 		if volume.VolumeAttributes.CloneParentInfo != nil {
 			cloneInfo := *volume.VolumeAttributes.CloneParentInfo
 			cloneInfo.State = cloneState
+			// Clear any previous StateDetails (e.g. from a prior failed split) so the
+			// new attempt starts with a clean state.
+			cloneInfo.StateDetails = ""
 			updatedAttributes.CloneParentInfo = &cloneInfo
 		}
 	} else {
@@ -3717,6 +3720,7 @@ func _splitStartVolume(ctx context.Context, se database.Storage, temporal client
 			return nil, "", err
 		}
 		volume.VolumeAttributes.CloneParentInfo.State = models.CloneStateSplitting
+		volume.VolumeAttributes.CloneParentInfo.StateDetails = ""
 	}
 
 	// Reserve the clonesharedbytes space by setting it to 0 before starting the workflow
@@ -3737,53 +3741,70 @@ func _splitStartVolume(ctx context.Context, se database.Storage, temporal client
 		return nil, "", err
 	}
 
+	// splitInitiated is set to true only after InitiateSplitVolume succeeds, meaning ONTAP has
+	// accepted the split request and data movement is underway. The defer below uses this flag
+	// to distinguish three failure scenarios:
+	//   1. split NOT initiated (error before/during ONTAP call)       → revert state to CLONED, restore cloneSharedBytes
+	//   2. split initiated + ONTAP terminal error during polling       → set state to ERROR IN SPLITTING, keep cloneSharedBytes as 0
+	//   3. split initiated + non-ONTAP error (e.g. Temporal not started) → keep state as SPLITTING, keep cloneSharedBytes as 0
+	splitInitiated := false
+
 	// Defer to revert the resource state and clones_shared_bytes if any error happens
-	// Note: If error is from ONTAP layer, we leave clones_shared_bytes as 0 to preserve the quota reservation
 	defer func() {
 		if err != nil {
-			// Check if error is from ONTAP layer
 			isOntapErr := isOntapError(err)
-			updateFields := map[string]interface{}{}
 
-			// Only revert clones_shared_bytes if error is NOT from ONTAP layer
-			// If it's an ONTAP error, leave clones_shared_bytes as 0 to preserve quota reservation
-			if !isOntapErr {
-				updateFields["clones_shared_bytes"] = previousClonesSharedBytes
-				logger.Infof("Non-ONTAP error detected, will revert clones_shared_bytes to %d for volume UUID: %s", previousClonesSharedBytes, volume.UUID)
-			} else {
-				logger.Infof("ONTAP error detected, keeping clones_shared_bytes as 0 to preserve quota reservation for volume UUID: %s", volume.UUID)
-			}
-
-			if len(updateFields) > 0 {
-				volumeUpdateErr := se.UpdateVolumeFields(ctx, volume.UUID, updateFields)
+			if !splitInitiated {
+				// Split never reached ONTAP — safe to fully roll back.
+				logger.Infof("Split not initiated, reverting clones_shared_bytes to %d for volume UUID: %s", previousClonesSharedBytes, volume.UUID)
+				volumeUpdateErr := se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
+					"clones_shared_bytes": previousClonesSharedBytes,
+				})
 				if volumeUpdateErr != nil {
-					logger.Errorf("Failed to revert volume state and clones_shared_bytes to previous values: %v", volumeUpdateErr)
+					logger.Errorf("Failed to revert clones_shared_bytes: %v", volumeUpdateErr)
 				} else {
-					if !isOntapErr {
-						logger.Infof("Successfully reverted clones_shared_bytes to %d for volume UUID: %s", previousClonesSharedBytes, volume.UUID)
+					logger.Infof("Successfully reverted clones_shared_bytes to %d for volume UUID: %s", previousClonesSharedBytes, volume.UUID)
+				}
+
+				// Revert clone state to CLONED regardless of error type.
+				if volume.VolumeAttributes != nil && volume.VolumeAttributes.CloneParentInfo != nil && previousCloneState != "" {
+					logger.Infof("Split not initiated, reverting clone state to CLONED for volume UUID: %s", volume.UUID)
+					currentVolume, fetchErr := se.GetVolume(ctx, volume.UUID)
+					if fetchErr != nil || currentVolume.VolumeAttributes == nil || currentVolume.VolumeAttributes.CloneParentInfo == nil {
+						logger.Errorf("Failed to fetch current volume for clone state revert: %v", fetchErr)
 					} else {
-						logger.Infof("Successfully reverted volume state, clones_shared_bytes remains 0 for volume UUID: %s", volume.UUID)
+						updatedAttrs := *currentVolume.VolumeAttributes
+						cloneInfo := *currentVolume.VolumeAttributes.CloneParentInfo
+						cloneInfo.State = models.CloneStateCloned
+						cloneInfo.StateDetails = ""
+						updatedAttrs.CloneParentInfo = &cloneInfo
+						if cloneStateErr := se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
+							"volume_attributes": &updatedAttrs,
+						}); cloneStateErr != nil {
+							logger.Errorf("Failed to revert clone state to CLONED: %v", cloneStateErr)
+						}
 					}
 				}
+				return
 			}
 
-			// Handle clone state: revert to CLONED if error before ONTAP, set to ERROR IN SPLITTING if error from ONTAP
+			// Split was initiated — ONTAP data movement is in progress. Keep cloneSharedBytes as 0.
+			logger.Infof("Split already initiated in ONTAP, keeping clones_shared_bytes as 0 for volume UUID: %s", volume.UUID)
+
+			if !isOntapErr {
+				// Non-ONTAP error (e.g. Temporal workflow failed to start): ONTAP is still splitting,
+				// so leave the clone state as SPLITTING and do not surface an error state.
+				logger.Infof("Non-ONTAP error after split initiation, leaving clone state as SPLITTING for volume UUID: %s", volume.UUID)
+				return
+			}
+
+			// ONTAP terminal error during polling: mark as ERROR IN SPLITTING.
 			if volume.VolumeAttributes != nil && volume.VolumeAttributes.CloneParentInfo != nil && previousCloneState != "" {
-				var cloneStateToSet string
-				var cloneStateDetails string
-				if isOntapErr {
-					cloneStateToSet = models.CloneStateErrorInSplitting
-					// Extract the structured ONTAP error code and message from the wrapped error,
-					// classify it into a user-facing message, and log the raw ONTAP text.
-					ontapMessage, ontapCode := extractONTAPErrorDetails(vsaerrors.ExtractCustomError(err))
-					classifiedErr, ontapMsg := workflows.ClassifyONTAPSplitError(ontapMessage, ontapCode, previousClonesSharedBytes)
-					cloneStateDetails = classifiedErr.GetMessage()
-					logger.Errorf("ONTAP error during InitiateSplitVolume for volume %s: %s", volume.UUID, ontapMsg)
-					logger.Infof("ONTAP error detected, setting clone state to ERROR IN SPLITTING for volume UUID: %s", volume.UUID)
-				} else {
-					cloneStateToSet = models.CloneStateCloned
-					logger.Infof("Non-ONTAP error detected, reverting clone state to CLONED for volume UUID: %s", volume.UUID)
-				}
+				ontapMessage, ontapCode := extractONTAPErrorDetails(vsaerrors.ExtractCustomError(err))
+				classifiedErr, ontapMsg := workflows.ClassifyONTAPSplitError(ontapMessage, ontapCode, previousClonesSharedBytes)
+				cloneStateDetails := classifiedErr.GetMessage()
+				logger.Errorf("ONTAP terminal error after split initiation for volume %s: %s", volume.UUID, ontapMsg)
+				logger.Infof("Setting clone state to ERROR IN SPLITTING for volume UUID: %s", volume.UUID)
 
 				currentVolume, fetchErr := se.GetVolume(ctx, volume.UUID)
 				if fetchErr != nil || currentVolume.VolumeAttributes == nil || currentVolume.VolumeAttributes.CloneParentInfo == nil {
@@ -3791,13 +3812,13 @@ func _splitStartVolume(ctx context.Context, se database.Storage, temporal client
 				} else {
 					updatedAttrs := *currentVolume.VolumeAttributes
 					cloneInfo := *currentVolume.VolumeAttributes.CloneParentInfo
-					cloneInfo.State = cloneStateToSet
+					cloneInfo.State = models.CloneStateErrorInSplitting
 					cloneInfo.StateDetails = cloneStateDetails
 					updatedAttrs.CloneParentInfo = &cloneInfo
 					if cloneStateErr := se.UpdateVolumeFields(ctx, volume.UUID, map[string]interface{}{
 						"volume_attributes": &updatedAttrs,
 					}); cloneStateErr != nil {
-						logger.Errorf("Failed to update clone state to %s: %v", cloneStateToSet, cloneStateErr)
+						logger.Errorf("Failed to update clone state to ERROR IN SPLITTING: %v", cloneStateErr)
 					}
 				}
 			}
@@ -3842,6 +3863,8 @@ func _splitStartVolume(ctx context.Context, se database.Storage, temporal client
 		logger.Errorf("Failed to initiate split for volume %s in ONTAP: %v", volume.Name, err)
 		return nil, "", err
 	}
+	// Mark split as initiated so the defer knows ONTAP data movement has begun.
+	splitInitiated = true
 	logger.Infof("Split initiated in ONTAP for volume %s, ONTAP job UUID: %q", volume.Name, ontapJobUUID)
 
 	// Fire the Temporal workflow that will poll the ONTAP job and clean up the clone snapshot.
@@ -3877,11 +3900,6 @@ func _validateSplitStartVolumeParams(ctx context.Context, volume *datamodel.Volu
 	}
 	if volume.VolumeAttributes.CloneParentInfo.State == models.CloneStateSplitting {
 		return customerrors.NewConflictErr("volume split is already in progress")
-	}
-
-	if volume.ClonesSharedBytes == 0 {
-		logger.Errorf("Volume %s is not a thin clone volume, cannot perform split operation", volume.Name)
-		return customerrors.NewUserInputValidationErr("volume is not a thin clone volume, cannot perform split operation")
 	}
 
 	if pool.QuotaInBytes+volume.ClonesSharedBytes > uint64(pool.SizeInBytes) {

@@ -709,7 +709,7 @@
   },
   "5062": {
     "description": "Clone split failed due to insufficient space in backend pool",
-    "message": "Clone split failed: the backend pool does not have enough space. Ensure the pool has at least %s of free space (volume's cloneSharedBytes) and retry.",
+    "message": "Clone split failed: the backend pool does not have enough space. Ensure the pool has at least %s of free space (volume's shared data size) and retry.",
     "retriable": false,
     "http_code": 400
   },
