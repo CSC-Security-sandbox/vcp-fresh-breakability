@@ -16,14 +16,14 @@ type mockCvpApiError struct {
 	payload *cvpModels.Error
 }
 
-func (m *mockCvpApiError) Error() string   { return "mock cvp error" }
+func (m *mockCvpApiError) Error() string                { return "mock cvp error" }
 func (m *mockCvpApiError) GetPayload() *cvpModels.Error { return m.payload }
 
 func TestOperationError_Error(t *testing.T) {
 	tests := []struct {
-		name    string
-		err     *operationError
-		want    string
+		name string
+		err  *operationError
+		want string
 	}{
 		{
 			name: "non-empty message",
@@ -234,7 +234,7 @@ func TestWrapCvpErrorByHTTPCodeAndMessage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := wrapCvpErrorByHTTPCodeAndMessage(tt.code, tt.message)
+			err := wrapCvpErrorByHTTPCodeAndMessage(tt.code, tt.message, false)
 			assert.Error(t, err)
 
 			customErr := vsaerrors.ExtractCustomError(err)
@@ -246,6 +246,108 @@ func TestWrapCvpErrorByHTTPCodeAndMessage(t *testing.T) {
 			assert.Equal(t, tt.wantNonRetryable, appErr.NonRetryable())
 		})
 	}
+}
+
+func TestWrapCvpErrorByHTTPCodeAndMessage_ForceNonRetryable(t *testing.T) {
+	tests := []struct {
+		name           string
+		code           int
+		message        string
+		wantTrackingID int
+	}{
+		{
+			name:           "500 forced non-retryable for terminal poll result",
+			code:           common.HTTPStatusInternalServerError,
+			message:        "SDE operation failed permanently",
+			wantTrackingID: vsaerrors.ErrCVPInternalServerError,
+		},
+		{
+			name:           "429 forced non-retryable for terminal poll result",
+			code:           common.HTTPStatusTooManyRequests,
+			message:        "rate limited",
+			wantTrackingID: vsaerrors.ErrCVPTooManyRequests,
+		},
+		{
+			name:           "unknown code forced non-retryable for terminal poll result",
+			code:           999,
+			message:        "unknown failure",
+			wantTrackingID: vsaerrors.ErrCVPInternalServerError,
+		},
+		{
+			name:           "400 remains non-retryable (unchanged)",
+			code:           common.HTTPStatusBadRequest,
+			message:        "bad request",
+			wantTrackingID: vsaerrors.ErrCVPBadRequest,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := wrapCvpErrorByHTTPCodeAndMessage(tt.code, tt.message, true)
+			assert.Error(t, err)
+
+			customErr := vsaerrors.ExtractCustomError(err)
+			assert.NotNil(t, customErr)
+			assert.True(t, customErr.IsError(tt.wantTrackingID))
+
+			var appErr *temporal.ApplicationError
+			assert.True(t, stderrors.As(err, &appErr))
+			assert.True(t, appErr.NonRetryable(), "forceNonRetryable=true should always produce non-retryable error")
+		})
+	}
+}
+
+func TestWrapCvpErrorNonRetryable(t *testing.T) {
+	t.Run("500 is non-retryable with correct tracking ID", func(t *testing.T) {
+		err := WrapCvpErrorNonRetryable(common.HTTPStatusInternalServerError, "SDE operation failed")
+		assert.Error(t, err)
+
+		customErr := vsaerrors.ExtractCustomError(err)
+		assert.NotNil(t, customErr)
+		assert.True(t, customErr.IsError(vsaerrors.ErrCVPInternalServerError))
+
+		var appErr *temporal.ApplicationError
+		assert.True(t, stderrors.As(err, &appErr))
+		assert.True(t, appErr.NonRetryable(), "terminal poll 500 must be non-retryable")
+	})
+
+	t.Run("429 is non-retryable with correct tracking ID", func(t *testing.T) {
+		err := WrapCvpErrorNonRetryable(common.HTTPStatusTooManyRequests, "rate limited")
+		assert.Error(t, err)
+
+		customErr := vsaerrors.ExtractCustomError(err)
+		assert.NotNil(t, customErr)
+		assert.True(t, customErr.IsError(vsaerrors.ErrCVPTooManyRequests))
+
+		var appErr *temporal.ApplicationError
+		assert.True(t, stderrors.As(err, &appErr))
+		assert.True(t, appErr.NonRetryable(), "terminal poll 429 must be non-retryable")
+	})
+
+	t.Run("400 is non-retryable with correct tracking ID", func(t *testing.T) {
+		err := WrapCvpErrorNonRetryable(common.HTTPStatusBadRequest, "invalid input")
+		assert.Error(t, err)
+
+		customErr := vsaerrors.ExtractCustomError(err)
+		assert.NotNil(t, customErr)
+		assert.True(t, customErr.IsError(vsaerrors.ErrCVPBadRequest))
+
+		var appErr *temporal.ApplicationError
+		assert.True(t, stderrors.As(err, &appErr))
+		assert.True(t, appErr.NonRetryable())
+	})
+
+	t.Run("empty message replaced with default", func(t *testing.T) {
+		err := WrapCvpErrorNonRetryable(common.HTTPStatusInternalServerError, "")
+		assert.Error(t, err)
+
+		customErr := vsaerrors.ExtractCustomError(err)
+		assert.NotNil(t, customErr)
+		assert.True(t, customErr.IsError(vsaerrors.ErrCVPInternalServerError))
+
+		var appErr *temporal.ApplicationError
+		assert.True(t, stderrors.As(err, &appErr))
+		assert.True(t, appErr.NonRetryable())
+	})
 }
 
 func TestWrapCvpError(t *testing.T) {
@@ -290,4 +392,118 @@ func TestWrapCvpError(t *testing.T) {
 		assert.True(t, stderrors.As(err, &appErr))
 		assert.False(t, appErr.NonRetryable())
 	})
+
+	t.Run("500 operationError is retryable via WrapCvpError", func(t *testing.T) {
+		err := WrapCvpError(NewOperationError(500, "internal server error"))
+		assert.Error(t, err)
+
+		customErr := vsaerrors.ExtractCustomError(err)
+		assert.NotNil(t, customErr)
+		assert.True(t, customErr.IsError(vsaerrors.ErrCVPInternalServerError))
+
+		var appErr *temporal.ApplicationError
+		assert.True(t, stderrors.As(err, &appErr))
+		assert.False(t, appErr.NonRetryable(), "WrapCvpError must keep 500 retryable for direct API calls")
+	})
+
+	t.Run("429 operationError is retryable via WrapCvpError", func(t *testing.T) {
+		err := WrapCvpError(NewOperationError(429, "rate limited"))
+		assert.Error(t, err)
+
+		customErr := vsaerrors.ExtractCustomError(err)
+		assert.NotNil(t, customErr)
+		assert.True(t, customErr.IsError(vsaerrors.ErrCVPTooManyRequests))
+
+		var appErr *temporal.ApplicationError
+		assert.True(t, stderrors.As(err, &appErr))
+		assert.False(t, appErr.NonRetryable(), "WrapCvpError must keep 429 retryable for direct API calls")
+	})
+
+	t.Run("CvpApiError with nil payload wraps as retryable internal error", func(t *testing.T) {
+		cvpErr := &mockCvpApiError{payload: nil}
+		err := WrapCvpError(cvpErr)
+		assert.Error(t, err)
+
+		customErr := vsaerrors.ExtractCustomError(err)
+		assert.NotNil(t, customErr)
+		assert.True(t, customErr.IsError(vsaerrors.ErrCVPInternalServerError))
+
+		var appErr *temporal.ApplicationError
+		assert.True(t, stderrors.As(err, &appErr))
+		assert.False(t, appErr.NonRetryable(), "nil payload should fall through to non-structured path (retryable)")
+	})
+
+	t.Run("CvpApiError with 500 payload is retryable", func(t *testing.T) {
+		cvpErr := &mockCvpApiError{
+			payload: &cvpModels.Error{Code: 500, Message: "internal server error"},
+		}
+		err := WrapCvpError(cvpErr)
+		assert.Error(t, err)
+
+		var appErr *temporal.ApplicationError
+		assert.True(t, stderrors.As(err, &appErr))
+		assert.False(t, appErr.NonRetryable(), "WrapCvpError must keep 500 retryable for direct API calls")
+	})
+}
+
+func TestWrapCvpError_vs_WrapCvpErrorNonRetryable_Contrast(t *testing.T) {
+	retryableCodes := []struct {
+		code       int
+		trackingID int
+		label      string
+	}{
+		{common.HTTPStatusInternalServerError, vsaerrors.ErrCVPInternalServerError, "500"},
+		{common.HTTPStatusTooManyRequests, vsaerrors.ErrCVPTooManyRequests, "429"},
+		{999, vsaerrors.ErrCVPInternalServerError, "unknown code"},
+	}
+	for _, tc := range retryableCodes {
+		t.Run(fmt.Sprintf("WrapCvpError keeps %s retryable but WrapCvpErrorNonRetryable does not", tc.label), func(t *testing.T) {
+			retryableErr := WrapCvpError(NewOperationError(tc.code, "test message"))
+			nonRetryableErr := WrapCvpErrorNonRetryable(tc.code, "test message")
+
+			var retryableAppErr *temporal.ApplicationError
+			assert.True(t, stderrors.As(retryableErr, &retryableAppErr))
+			assert.False(t, retryableAppErr.NonRetryable(),
+				"WrapCvpError should produce retryable error for code %d", tc.code)
+
+			var nonRetryableAppErr *temporal.ApplicationError
+			assert.True(t, stderrors.As(nonRetryableErr, &nonRetryableAppErr))
+			assert.True(t, nonRetryableAppErr.NonRetryable(),
+				"WrapCvpErrorNonRetryable should produce non-retryable error for code %d", tc.code)
+
+			retryableCustom := vsaerrors.ExtractCustomError(retryableErr)
+			nonRetryableCustom := vsaerrors.ExtractCustomError(nonRetryableErr)
+			assert.True(t, retryableCustom.IsError(tc.trackingID))
+			assert.True(t, nonRetryableCustom.IsError(tc.trackingID))
+		})
+	}
+
+	alreadyNonRetryableCodes := []struct {
+		code       int
+		trackingID int
+		label      string
+	}{
+		{common.HTTPStatusBadRequest, vsaerrors.ErrCVPBadRequest, "400"},
+		{common.HTTPStatusUnauthorized, vsaerrors.ErrCVPUnauthorized, "401"},
+		{common.HTTPStatusForbidden, vsaerrors.ErrCVPForbidden, "403"},
+		{common.HTTPStatusNotFound, vsaerrors.ErrCVPNotFound, "404"},
+		{common.HTTPStatusConflict, vsaerrors.ErrCVPConflict, "409"},
+		{common.HTTPStatusUnprocessableEntity, vsaerrors.ErrCVPUnprocessableEntity, "422"},
+	}
+	for _, tc := range alreadyNonRetryableCodes {
+		t.Run(fmt.Sprintf("both wrappers produce non-retryable for %s", tc.label), func(t *testing.T) {
+			retryableErr := WrapCvpError(NewOperationError(tc.code, "test message"))
+			nonRetryableErr := WrapCvpErrorNonRetryable(tc.code, "test message")
+
+			var retryableAppErr *temporal.ApplicationError
+			assert.True(t, stderrors.As(retryableErr, &retryableAppErr))
+			assert.True(t, retryableAppErr.NonRetryable(),
+				"WrapCvpError should produce non-retryable for code %d (client error)", tc.code)
+
+			var nonRetryableAppErr *temporal.ApplicationError
+			assert.True(t, stderrors.As(nonRetryableErr, &nonRetryableAppErr))
+			assert.True(t, nonRetryableAppErr.NonRetryable(),
+				"WrapCvpErrorNonRetryable should also produce non-retryable for code %d", tc.code)
+		})
+	}
 }

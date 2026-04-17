@@ -70,7 +70,9 @@ func GetCvpErrorCodeAndMessage(err error) (code int, message string, ok bool) {
 }
 
 // wrapCvpErrorByHTTPCodeAndMessage maps an HTTP status code and message (from CVP or poll) to a VCP CustomError and wraps for Temporal.
-func wrapCvpErrorByHTTPCodeAndMessage(code int, message string) error {
+// When forceNonRetryable is true, the error is always wrapped as non-retryable regardless of status code.
+// Use forceNonRetryable=true for terminal operation results (Done=true) where retrying cannot change the outcome.
+func wrapCvpErrorByHTTPCodeAndMessage(code int, message string, forceNonRetryable bool) error {
 	if message == "" {
 		message = "operation failed"
 	}
@@ -102,6 +104,10 @@ func wrapCvpErrorByHTTPCodeAndMessage(code int, message string) error {
 		retryable = true
 	}
 
+	if forceNonRetryable {
+		retryable = false
+	}
+
 	ce := vsaerrors.NewVCPError(trackingID, origErr)
 	if retryable {
 		return vsaerrors.WrapAsTemporalApplicationError(ce)
@@ -110,7 +116,7 @@ func wrapCvpErrorByHTTPCodeAndMessage(code int, message string) error {
 }
 
 // WrapCvpError converts a CVP API error (or operationError) into a VCP CustomError and wraps for Temporal.
-// Use after any CVP call (e.g. AD Create/Update/Delete/Push, or poll result).
+// Use after any direct CVP API call (e.g. AD Create/Update/Delete) where transient 500s should be retried.
 func WrapCvpError(err error) error {
 	code, message, ok := GetCvpErrorCodeAndMessage(err)
 	if !ok {
@@ -119,5 +125,11 @@ func WrapCvpError(err error) error {
 		return vsaerrors.WrapAsTemporalApplicationError(
 			vsaerrors.NewVCPError(vsaerrors.ErrCVPInternalServerError, err))
 	}
-	return wrapCvpErrorByHTTPCodeAndMessage(code, message)
+	return wrapCvpErrorByHTTPCodeAndMessage(code, message, false)
+}
+
+// WrapCvpErrorNonRetryable wraps a terminal operation error (from a completed SDE poll) as non-retryable.
+// Use when the SDE operation has completed (Done=true) with an error — retrying cannot change the outcome.
+func WrapCvpErrorNonRetryable(code int, message string) error {
+	return wrapCvpErrorByHTTPCodeAndMessage(code, message, true)
 }

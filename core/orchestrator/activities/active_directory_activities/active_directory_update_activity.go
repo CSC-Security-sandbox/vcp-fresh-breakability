@@ -194,8 +194,8 @@ func (a ActiveDirectoryUpdateActivity) PollSdeUpdateActivity(ctx context.Context
 		if res.Error != nil {
 			logger.Errorf("Operation %s completed with error: Code=%d, Message=%s",
 				operationUUID, int(res.Error.Code), res.Error.Message)
-			// Use operation error type so handling is by err type (same as direct CVP calls).
-			return WrapCvpError(NewOperationError(int(res.Error.Code), res.Error.Message))
+			// Operation is terminal (Done=true) — retrying cannot change the outcome.
+			return WrapCvpErrorNonRetryable(int(res.Error.Code), res.Error.Message)
 		}
 		logger.Infof("Operation %s completed successfully", operationUUID)
 		return nil

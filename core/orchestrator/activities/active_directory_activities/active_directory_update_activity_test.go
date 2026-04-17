@@ -11,10 +11,10 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/active_directories"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/async"
 	cvpModels "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
-	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	ontapRest "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/ontap-rest"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
@@ -1456,6 +1456,10 @@ func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationNotFinishe
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "Error SDE job not done")
+
+	var appErr *temporal.ApplicationError
+	assert.True(t, stderrors.As(err, &appErr))
+	assert.False(t, appErr.NonRetryable(), "not-finished must be retryable so Temporal polls again")
 }
 
 func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedSuccessfully(t *testing.T) {
@@ -1548,6 +1552,10 @@ func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedW
 	assert.Error(t, err)
 	customErr := vsaerrors.ExtractCustomError(err)
 	assert.True(t, customErr.IsError(vsaerrors.ErrCVPBadRequest))
+
+	var appErr *temporal.ApplicationError
+	assert.True(t, stderrors.As(err, &appErr))
+	assert.True(t, appErr.NonRetryable(), "terminal poll 400 must be non-retryable")
 }
 
 func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedWithUnauthorizedError(t *testing.T) {
@@ -1596,6 +1604,10 @@ func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedW
 	assert.Error(t, err)
 	customErr := vsaerrors.ExtractCustomError(err)
 	assert.True(t, customErr.IsError(vsaerrors.ErrCVPUnauthorized))
+
+	var appErr *temporal.ApplicationError
+	assert.True(t, stderrors.As(err, &appErr))
+	assert.True(t, appErr.NonRetryable(), "terminal poll 401 must be non-retryable")
 }
 
 func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedWithForbiddenError(t *testing.T) {
@@ -1644,6 +1656,10 @@ func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedW
 	assert.Error(t, err)
 	customErr := vsaerrors.ExtractCustomError(err)
 	assert.True(t, customErr.IsError(vsaerrors.ErrCVPForbidden))
+
+	var appErr *temporal.ApplicationError
+	assert.True(t, stderrors.As(err, &appErr))
+	assert.True(t, appErr.NonRetryable(), "terminal poll 403 must be non-retryable")
 }
 
 func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedWithNotFoundError(t *testing.T) {
@@ -1690,7 +1706,13 @@ func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedW
 	err := activity.PollSdeUpdateActivity(ctx, params, result)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "not found")
+	customErr := vsaerrors.ExtractCustomError(err)
+	assert.NotNil(t, customErr)
+	assert.True(t, customErr.IsError(vsaerrors.ErrCVPNotFound))
+
+	var appErr *temporal.ApplicationError
+	assert.True(t, stderrors.As(err, &appErr))
+	assert.True(t, appErr.NonRetryable(), "terminal poll 404 must be non-retryable")
 }
 
 func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedWithInternalServerError(t *testing.T) {
@@ -1739,6 +1761,10 @@ func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedW
 	assert.Error(t, err)
 	customErr := vsaerrors.ExtractCustomError(err)
 	assert.True(t, customErr.IsError(vsaerrors.ErrCVPInternalServerError))
+
+	var appErr *temporal.ApplicationError
+	assert.True(t, stderrors.As(err, &appErr))
+	assert.True(t, appErr.NonRetryable(), "terminal poll 500 must be non-retryable (Done=true means retrying cannot help)")
 }
 
 func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedWithTooManyRequestsError(t *testing.T) {
@@ -1787,6 +1813,10 @@ func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedW
 	assert.Error(t, err)
 	customErr := vsaerrors.ExtractCustomError(err)
 	assert.True(t, customErr.IsError(vsaerrors.ErrCVPTooManyRequests))
+
+	var appErr *temporal.ApplicationError
+	assert.True(t, stderrors.As(err, &appErr))
+	assert.True(t, appErr.NonRetryable(), "terminal poll 429 must be non-retryable (Done=true means retrying cannot help)")
 }
 
 func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedWithUnknownError(t *testing.T) {
@@ -1833,6 +1863,376 @@ func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedW
 	err := activity.PollSdeUpdateActivity(ctx, params, result)
 
 	assert.Error(t, err)
+	customErr := vsaerrors.ExtractCustomError(err)
+	assert.NotNil(t, customErr)
+	assert.True(t, customErr.IsError(vsaerrors.ErrCVPInternalServerError))
+
+	var appErr *temporal.ApplicationError
+	assert.True(t, stderrors.As(err, &appErr))
+	assert.True(t, appErr.NonRetryable(), "terminal poll with unknown error code must be non-retryable (Done=true)")
+}
+
+func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_NilResult(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	activity := &ActiveDirectoryUpdateActivity{
+		SE: mockStorage,
+	}
+
+	params := &common.UpdateActiveDirectoryParams{
+		AccountId:  "123456789",
+		LocationId: "us-central1",
+	}
+
+	err := activity.PollSdeUpdateActivity(ctx, params, nil)
+	assert.NoError(t, err, "nil result should be a no-op")
+}
+
+func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_AlreadyDoneSynchronously(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	activity := &ActiveDirectoryUpdateActivity{
+		SE: mockStorage,
+	}
+
+	params := &common.UpdateActiveDirectoryParams{
+		AccountId:  "123456789",
+		LocationId: "us-central1",
+	}
+
+	done := true
+	result := &cvpModels.OperationV1beta{
+		Done: &done,
+		Name: "operations/test-operation-123",
+	}
+
+	err := activity.PollSdeUpdateActivity(ctx, params, result)
+	assert.NoError(t, err, "synchronously completed operation should return nil without polling")
+}
+
+func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_EmptyOperationName(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	activity := &ActiveDirectoryUpdateActivity{
+		SE: mockStorage,
+	}
+
+	params := &common.UpdateActiveDirectoryParams{
+		AccountId:  "123456789",
+		LocationId: "us-central1",
+	}
+
+	done := false
+	result := &cvpModels.OperationV1beta{
+		Done: &done,
+		Name: "",
+	}
+
+	err := activity.PollSdeUpdateActivity(ctx, params, result)
+
+	assert.Error(t, err)
+	var appErr *temporal.ApplicationError
+	assert.True(t, stderrors.As(err, &appErr))
+	assert.True(t, appErr.NonRetryable(), "empty operation name must be non-retryable")
+}
+
+func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_DescribeOperationNotFoundError(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	activity := &ActiveDirectoryUpdateActivity{
+		SE: mockStorage,
+	}
+
+	params := &common.UpdateActiveDirectoryParams{
+		AccountId:  "123456789",
+		LocationId: "us-central1",
+	}
+
+	done := false
+	result := &cvpModels.OperationV1beta{
+		Done: &done,
+		Name: "operations/test-operation-123",
+	}
+
+	ctx = context.WithValue(ctx, "jwt_token", "test-jwt-token")
+
+	mockAsyncClient := async.NewMockClientService(t)
+	notFoundErr := &async.V1betaDescribeOperationNotFound{}
+	mockAsyncClient.On("V1betaDescribeOperation", mock.Anything).
+		Return(nil, notFoundErr)
+
+	cvpClient := &cvpapi.Cvp{Async: mockAsyncClient}
+	originalCvpClient := CvpClient
+	defer func() { CvpClient = originalCvpClient }()
+	CvpClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	err := activity.PollSdeUpdateActivity(ctx, params, result)
+
+	assert.Error(t, err)
+	var appErr *temporal.ApplicationError
+	assert.True(t, stderrors.As(err, &appErr))
+	assert.True(t, appErr.NonRetryable(), "describe-operation 404 should be non-retryable")
+}
+
+func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_DescribeOperationBadRequestError(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	activity := &ActiveDirectoryUpdateActivity{
+		SE: mockStorage,
+	}
+
+	params := &common.UpdateActiveDirectoryParams{
+		AccountId:  "123456789",
+		LocationId: "us-central1",
+	}
+
+	done := false
+	result := &cvpModels.OperationV1beta{
+		Done: &done,
+		Name: "operations/test-operation-123",
+	}
+
+	ctx = context.WithValue(ctx, "jwt_token", "test-jwt-token")
+
+	mockAsyncClient := async.NewMockClientService(t)
+	badReqErr := &async.V1betaDescribeOperationBadRequest{}
+	mockAsyncClient.On("V1betaDescribeOperation", mock.Anything).
+		Return(nil, badReqErr)
+
+	cvpClient := &cvpapi.Cvp{Async: mockAsyncClient}
+	originalCvpClient := CvpClient
+	defer func() { CvpClient = originalCvpClient }()
+	CvpClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	err := activity.PollSdeUpdateActivity(ctx, params, result)
+
+	assert.Error(t, err)
+	var appErr *temporal.ApplicationError
+	assert.True(t, stderrors.As(err, &appErr))
+	assert.True(t, appErr.NonRetryable(), "describe-operation 400 should be non-retryable")
+}
+
+func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_DescribeOperationGenericError(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	activity := &ActiveDirectoryUpdateActivity{
+		SE: mockStorage,
+	}
+
+	params := &common.UpdateActiveDirectoryParams{
+		AccountId:  "123456789",
+		LocationId: "us-central1",
+	}
+
+	done := false
+	result := &cvpModels.OperationV1beta{
+		Done: &done,
+		Name: "operations/test-operation-123",
+	}
+
+	ctx = context.WithValue(ctx, "jwt_token", "test-jwt-token")
+
+	mockAsyncClient := async.NewMockClientService(t)
+	mockAsyncClient.On("V1betaDescribeOperation", mock.Anything).
+		Return(nil, stderrors.New("connection timeout"))
+
+	cvpClient := &cvpapi.Cvp{Async: mockAsyncClient}
+	originalCvpClient := CvpClient
+	defer func() { CvpClient = originalCvpClient }()
+	CvpClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	err := activity.PollSdeUpdateActivity(ctx, params, result)
+
+	assert.Error(t, err)
+	var appErr *temporal.ApplicationError
+	assert.True(t, stderrors.As(err, &appErr))
+	assert.True(t, appErr.NonRetryable(), "poll failure wraps as non-retryable via WrapAsNonRetryableTemporalApplicationError")
+}
+
+func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedWithConflictError(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	activity := &ActiveDirectoryUpdateActivity{
+		SE: mockStorage,
+	}
+
+	params := &common.UpdateActiveDirectoryParams{
+		AccountId:  "123456789",
+		LocationId: "us-central1",
+	}
+
+	done := false
+	result := &cvpModels.OperationV1beta{
+		Done: &done,
+		Name: "operations/test-operation-123",
+	}
+
+	ctx = context.WithValue(ctx, "jwt_token", "test-jwt-token")
+
+	completedDone := true
+	code := float64(409)
+	mockAsyncClient := async.NewMockClientService(t)
+	mockAsyncClient.On("V1betaDescribeOperation", mock.Anything).
+		Return(&async.V1betaDescribeOperationOK{
+			Payload: &cvpModels.OperationV1beta{
+				Done:  &completedDone,
+				Error: &cvpModels.StatusV1Beta{Code: code, Message: "Conflict"},
+				Name:  "operations/test-operation-123",
+			},
+		}, nil)
+
+	cvpClient := &cvpapi.Cvp{Async: mockAsyncClient}
+	originalCvpClient := CvpClient
+	defer func() { CvpClient = originalCvpClient }()
+	CvpClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	err := activity.PollSdeUpdateActivity(ctx, params, result)
+
+	assert.Error(t, err)
+	customErr := vsaerrors.ExtractCustomError(err)
+	assert.NotNil(t, customErr)
+	assert.True(t, customErr.IsError(vsaerrors.ErrCVPConflict))
+
+	var appErr *temporal.ApplicationError
+	assert.True(t, stderrors.As(err, &appErr))
+	assert.True(t, appErr.NonRetryable(), "terminal poll 409 must be non-retryable")
+}
+
+func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_OperationCompletedWithUnprocessableEntityError(t *testing.T) {
+	ctx := context.Background()
+	mockStorage := database.NewMockStorage(t)
+
+	activity := &ActiveDirectoryUpdateActivity{
+		SE: mockStorage,
+	}
+
+	params := &common.UpdateActiveDirectoryParams{
+		AccountId:  "123456789",
+		LocationId: "us-central1",
+	}
+
+	done := false
+	result := &cvpModels.OperationV1beta{
+		Done: &done,
+		Name: "operations/test-operation-123",
+	}
+
+	ctx = context.WithValue(ctx, "jwt_token", "test-jwt-token")
+
+	completedDone := true
+	code := float64(422)
+	mockAsyncClient := async.NewMockClientService(t)
+	mockAsyncClient.On("V1betaDescribeOperation", mock.Anything).
+		Return(&async.V1betaDescribeOperationOK{
+			Payload: &cvpModels.OperationV1beta{
+				Done:  &completedDone,
+				Error: &cvpModels.StatusV1Beta{Code: code, Message: "Unprocessable entity"},
+				Name:  "operations/test-operation-123",
+			},
+		}, nil)
+
+	cvpClient := &cvpapi.Cvp{Async: mockAsyncClient}
+	originalCvpClient := CvpClient
+	defer func() { CvpClient = originalCvpClient }()
+	CvpClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+		return *cvpClient
+	}
+
+	err := activity.PollSdeUpdateActivity(ctx, params, result)
+
+	assert.Error(t, err)
+	customErr := vsaerrors.ExtractCustomError(err)
+	assert.NotNil(t, customErr)
+	assert.True(t, customErr.IsError(vsaerrors.ErrCVPUnprocessableEntity))
+
+	var appErr *temporal.ApplicationError
+	assert.True(t, stderrors.As(err, &appErr))
+	assert.True(t, appErr.NonRetryable(), "terminal poll 422 must be non-retryable")
+}
+
+func TestActiveDirectoryUpdateActivity_PollSdeUpdateActivity_AllTerminalErrorsAreNonRetryable(t *testing.T) {
+	codes := []struct {
+		code       float64
+		trackingID int
+		label      string
+	}{
+		{400, vsaerrors.ErrCVPBadRequest, "400 Bad Request"},
+		{401, vsaerrors.ErrCVPUnauthorized, "401 Unauthorized"},
+		{403, vsaerrors.ErrCVPForbidden, "403 Forbidden"},
+		{404, vsaerrors.ErrCVPNotFound, "404 Not Found"},
+		{409, vsaerrors.ErrCVPConflict, "409 Conflict"},
+		{422, vsaerrors.ErrCVPUnprocessableEntity, "422 Unprocessable Entity"},
+		{429, vsaerrors.ErrCVPTooManyRequests, "429 Too Many Requests"},
+		{500, vsaerrors.ErrCVPInternalServerError, "500 Internal Server Error"},
+		{999, vsaerrors.ErrCVPInternalServerError, "999 Unknown Code"},
+	}
+
+	for _, tc := range codes {
+		t.Run(tc.label, func(t *testing.T) {
+			ctx := context.Background()
+			mockStorage := database.NewMockStorage(t)
+			activity := &ActiveDirectoryUpdateActivity{SE: mockStorage}
+
+			params := &common.UpdateActiveDirectoryParams{
+				AccountId:  "123456789",
+				LocationId: "us-central1",
+			}
+
+			done := false
+			result := &cvpModels.OperationV1beta{
+				Done: &done,
+				Name: "operations/test-operation-123",
+			}
+
+			ctx = context.WithValue(ctx, "jwt_token", "test-jwt-token")
+
+			completedDone := true
+			mockAsyncClient := async.NewMockClientService(t)
+			mockAsyncClient.On("V1betaDescribeOperation", mock.Anything).
+				Return(&async.V1betaDescribeOperationOK{
+					Payload: &cvpModels.OperationV1beta{
+						Done:  &completedDone,
+						Error: &cvpModels.StatusV1Beta{Code: tc.code, Message: "error message"},
+						Name:  "operations/test-operation-123",
+					},
+				}, nil)
+
+			cvpClient := &cvpapi.Cvp{Async: mockAsyncClient}
+			originalCvpClient := CvpClient
+			defer func() { CvpClient = originalCvpClient }()
+			CvpClient = func(logger log.Logger, jwtToken string) cvpapi.Cvp {
+				return *cvpClient
+			}
+
+			err := activity.PollSdeUpdateActivity(ctx, params, result)
+
+			assert.Error(t, err)
+
+			customErr := vsaerrors.ExtractCustomError(err)
+			assert.NotNil(t, customErr, "should have VCP custom error for %s", tc.label)
+			assert.True(t, customErr.IsError(tc.trackingID), "wrong tracking ID for %s", tc.label)
+
+			var appErr *temporal.ApplicationError
+			assert.True(t, stderrors.As(err, &appErr))
+			assert.True(t, appErr.NonRetryable(),
+				"terminal poll %s must be non-retryable (Done=true, retrying cannot change outcome)", tc.label)
+		})
+	}
 }
 
 func TestActiveDirectoryUpdateActivity_MarkVcpAdToUpdatingActivity_Success(t *testing.T) {
