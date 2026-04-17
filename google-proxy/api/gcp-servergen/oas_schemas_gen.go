@@ -10411,6 +10411,8 @@ type InternalBackupCreateV1beta struct {
 	EndpointUuid OptString `json:"endpointUuid"`
 	// Whether the backup is regional HA.
 	IsRegionalHa OptBool `json:"isRegionalHa"`
+	// Whether the backup is an ONTAP (expert mode) backup.
+	IsOntapBackup OptBool `json:"isOntapBackup"`
 	// Time when the backup was completed.
 	CompletionTime OptDateTime `json:"completionTime"`
 	// Name of the backup policy associated with this backup.
@@ -10421,6 +10423,9 @@ type InternalBackupCreateV1beta struct {
 	SourceVolumeZone OptString `json:"sourceVolumeZone"`
 	// Service account name used for backup operations.
 	ServiceAccountName OptString `json:"serviceAccountName"`
+	// Full resource path of the storage pool associated with the source volume (e.g.
+	// projects/{project}/locations/{region}/storagePools/{pool}).
+	SourceStoragePool OptString `json:"sourceStoragePool"`
 	// Time when the snapshot was created.
 	SnapshotCreationTime OptDateTime `json:"snapshotCreationTime"`
 	// Number of constituent volumes in the backup.
@@ -10494,6 +10499,11 @@ func (s *InternalBackupCreateV1beta) GetIsRegionalHa() OptBool {
 	return s.IsRegionalHa
 }
 
+// GetIsOntapBackup returns the value of IsOntapBackup.
+func (s *InternalBackupCreateV1beta) GetIsOntapBackup() OptBool {
+	return s.IsOntapBackup
+}
+
 // GetCompletionTime returns the value of CompletionTime.
 func (s *InternalBackupCreateV1beta) GetCompletionTime() OptDateTime {
 	return s.CompletionTime
@@ -10517,6 +10527,11 @@ func (s *InternalBackupCreateV1beta) GetSourceVolumeZone() OptString {
 // GetServiceAccountName returns the value of ServiceAccountName.
 func (s *InternalBackupCreateV1beta) GetServiceAccountName() OptString {
 	return s.ServiceAccountName
+}
+
+// GetSourceStoragePool returns the value of SourceStoragePool.
+func (s *InternalBackupCreateV1beta) GetSourceStoragePool() OptString {
+	return s.SourceStoragePool
 }
 
 // GetSnapshotCreationTime returns the value of SnapshotCreationTime.
@@ -10609,6 +10624,11 @@ func (s *InternalBackupCreateV1beta) SetIsRegionalHa(val OptBool) {
 	s.IsRegionalHa = val
 }
 
+// SetIsOntapBackup sets the value of IsOntapBackup.
+func (s *InternalBackupCreateV1beta) SetIsOntapBackup(val OptBool) {
+	s.IsOntapBackup = val
+}
+
 // SetCompletionTime sets the value of CompletionTime.
 func (s *InternalBackupCreateV1beta) SetCompletionTime(val OptDateTime) {
 	s.CompletionTime = val
@@ -10632,6 +10652,11 @@ func (s *InternalBackupCreateV1beta) SetSourceVolumeZone(val OptString) {
 // SetServiceAccountName sets the value of ServiceAccountName.
 func (s *InternalBackupCreateV1beta) SetServiceAccountName(val OptString) {
 	s.ServiceAccountName = val
+}
+
+// SetSourceStoragePool sets the value of SourceStoragePool.
+func (s *InternalBackupCreateV1beta) SetSourceStoragePool(val OptString) {
+	s.SourceStoragePool = val
 }
 
 // SetSnapshotCreationTime sets the value of SnapshotCreationTime.

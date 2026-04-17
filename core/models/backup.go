@@ -57,12 +57,24 @@ type Backup struct {
 	Protocols                        []string
 }
 
+const (
+	BackupHydrationModeDefault = "DEFAULT"
+	BackupHydrationModeONTAP   = "ONTAP"
+)
+
+type SourceVolumeDetails struct {
+	VolumeProtocols []string `json:"volumeProtocols,omitempty"`
+}
+
 type HydrateBackup struct {
 	ResourceId            string                 `json:"name"`
 	BackupId              string                 `json:"netapp_uuid"`
 	VolumeUsageBytes      *uint64                `json:"volume_usage_bytes"`
 	AssetLocationMetadata *AssetLocationMetadata `json:"asset_location_metadata"`
 	SourceVolume          string                 `json:"source_volume"`
+	SourceVolumeDetails   *SourceVolumeDetails   `json:"sourceVolumeDetails,omitempty"`
+	SourceStoragePool     string                 `json:"sourceStoragePool,omitempty"`
+	Mode                  string                 `json:"mode,omitempty"`
 }
 
 type AssetLocationMetadata struct {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/go-faster/jx"
 	"github.com/google/uuid"
@@ -996,6 +997,13 @@ func convertBackupDataModelToBackupsV1beta(backup *datamodel.Backup) gcpgenserve
 		state = gcpgenserver.BackupV1betaState(backup.State)
 	}
 	sourceVolumePath := utils.GetSourceVolumePathFromBackup(backup)
+	if backup.Attributes != nil && backup.Attributes.IsExpertModeBackup && backup.Attributes.VolumeName != "" {
+		// Keep the full path format but replace the volume name segment with the ONTAP volume UUID.
+		if parts := strings.Split(sourceVolumePath, "/"); len(parts) > 0 && parts[len(parts)-1] == backup.Attributes.VolumeName {
+			parts[len(parts)-1] = backup.VolumeUUID
+			sourceVolumePath = strings.Join(parts, "/")
+		}
+	}
 	sourceSnapshotPath := utils.GetSourceSnapshotPathFromBackup(backup)
 
 	var satisfiesPzi, satisfiesPzs bool

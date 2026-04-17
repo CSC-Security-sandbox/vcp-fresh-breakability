@@ -14388,6 +14388,10 @@ components:
           type: boolean
           description: Whether the backup is regional HA
           example: false
+        isOntapBackup:
+          type: boolean
+          description: Whether the backup is an ONTAP (expert mode) backup
+          example: false
         completionTime:
           type: string
           description: Time when the backup was completed
@@ -14413,6 +14417,11 @@ components:
           type: string
           description: Service account name used for backup operations
           example: ""
+          x-nullable: true
+        sourceStoragePool:
+          type: string
+          description: Full resource path of the storage pool associated with the source volume (e.g. projects/{project}/locations/{region}/storagePools/{pool})
+          example: "projects/myproject/locations/us-central1/storagePools/mypool"
           x-nullable: true
         snapshotCreationTime:
           type: string

@@ -1168,6 +1168,7 @@ func createInternalBackupParams(req *gcpgenserver.InternalBackupCreateV1beta, pa
 			}
 			return ""
 		}(),
+		IsExpertModeVolume: req.IsOntapBackup.IsSet() && req.IsOntapBackup.Value,
 		SourceVolumeZone: func() string {
 			if req.SourceVolumeZone.IsSet() {
 				return req.SourceVolumeZone.Value
@@ -1177,6 +1178,12 @@ func createInternalBackupParams(req *gcpgenserver.InternalBackupCreateV1beta, pa
 		ServiceAccountName: func() string {
 			if req.ServiceAccountName.IsSet() {
 				return req.ServiceAccountName.Value
+			}
+			return ""
+		}(),
+		SourceStoragePool: func() string {
+			if req.SourceStoragePool.IsSet() {
+				return req.SourceStoragePool.Value
 			}
 			return ""
 		}(),

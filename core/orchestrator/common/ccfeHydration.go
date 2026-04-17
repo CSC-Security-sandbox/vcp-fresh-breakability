@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -552,18 +553,43 @@ func _hydrateUpdatedVolume(ctx context.Context, volumeHydrateObj models.VolumeUp
 }
 
 // ConvertToGCPHydrateBackupCreateRequests converts a slice of Backup objects to GCP hydrate create requests.
+// mode should be models.BackupHydrationModeONTAP for ONTAP (expert mode) pools, or models.BackupHydrationModeDefault otherwise.
+// sourceStoragePool is the full GCP resource path of the source storage pool
+// (e.g. "projects/{project}/locations/{region}/storagePools/{name}").
+// It is only included in the result when mode is BackupHydrationModeONTAP and the value is non-empty.
 // Returns a slice of Request objects.
-func ConvertToGCPHydrateBackupCreateRequests(backups []*datamodel.Backup) []models.Request {
+func ConvertToGCPHydrateBackupCreateRequests(backups []*datamodel.Backup, mode string, sourceStoragePool string) []models.Request {
 	var requests []models.Request
 	for _, backup := range backups {
 		sourceVolume := utils.GetSourceVolumePathFromBackup(backup)
+		if backup.Attributes != nil && backup.Attributes.IsExpertModeBackup && backup.Attributes.VolumeName != "" {
+			// Keep the full path format but replace the volume name segment with the ONTAP volume UUID.
+			if parts := strings.Split(sourceVolume, "/"); len(parts) > 0 && parts[len(parts)-1] == backup.Attributes.VolumeName {
+				parts[len(parts)-1] = backup.VolumeUUID
+				sourceVolume = strings.Join(parts, "/")
+			}
+		}
 		volumeUsageInBytes := uint64(backup.SizeInBytes)
+
+		var protocols []string
+		if backup.Attributes != nil {
+			protocols = backup.Attributes.Protocols
+		}
+
 		request := models.Request{Backup: &models.HydrateBackup{
 			ResourceId:       backup.Name,
 			BackupId:         backup.UUID,
 			VolumeUsageBytes: &volumeUsageInBytes,
 			SourceVolume:     sourceVolume,
+			SourceVolumeDetails: &models.SourceVolumeDetails{
+				VolumeProtocols: protocols,
+			},
+			Mode: mode,
 		}}
+
+		if mode == models.BackupHydrationModeONTAP && sourceStoragePool != "" {
+			request.Backup.SourceStoragePool = sourceStoragePool
+		}
 
 		if backup.Attributes != nil && backup.Attributes.BucketName != "" {
 			assetLocationMetadata := getOrCreateAssetLocationMetadata(request.Backup)

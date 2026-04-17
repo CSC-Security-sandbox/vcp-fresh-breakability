@@ -16,6 +16,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
 	errs "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware/log"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/nillable"
 )
@@ -1535,7 +1536,7 @@ func TestConvertToGCPHydrateBackupCreateRequests(t *testing.T) {
 			},
 		},
 	}
-	result := ConvertToGCPHydrateBackupCreateRequests(backups)
+	result := ConvertToGCPHydrateBackupCreateRequests(backups, models.BackupHydrationModeDefault, "")
 	require := assert.New(t)
 	require.Len(result, 2)
 	require.Equal("backup1", result[0].Backup.ResourceId)
@@ -1562,11 +1563,206 @@ func TestConvertToGCPHydrateBackupCreateRequests(t *testing.T) {
 	require.Len(result[1].Backup.AssetLocationMetadata.ChildAssets[0].AssetNames, 1)
 	require.Equal("//storage.googleapis.com/bucket2", result[1].Backup.AssetLocationMetadata.ChildAssets[0].AssetNames[0])
 
-	result = ConvertToGCPHydrateBackupCreateRequests([]*datamodel.Backup{})
+	result = ConvertToGCPHydrateBackupCreateRequests([]*datamodel.Backup{}, models.BackupHydrationModeDefault, "")
 	require.Empty(result)
 
-	result = ConvertToGCPHydrateBackupCreateRequests(nil)
+	result = ConvertToGCPHydrateBackupCreateRequests(nil, models.BackupHydrationModeDefault, "")
 	require.Empty(result)
+}
+
+func TestConvertToGCPHydrateBackupCreateRequests_SourceVolumeDetailsAndMode(t *testing.T) {
+	// Helper to mock GetSourceVolumePathFromBackup for tests that don't care about path logic.
+	mockPath := func() func() {
+		orig := utils.GetSourceVolumePathFromBackup
+		utils.GetSourceVolumePathFromBackup = func(*datamodel.Backup) string { return "projects/acct/locations/zone/volumes/vol" }
+		return func() { utils.GetSourceVolumePathFromBackup = orig }
+	}
+
+	t.Run("DefaultModeIsSetInResult", func(t *testing.T) {
+		defer mockPath()()
+		backup := &datamodel.Backup{
+			BaseModel:   datamodel.BaseModel{UUID: "uuid1"},
+			Name:        "backup1",
+			SizeInBytes: 100,
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName: "vol-name",
+				Protocols:  []string{"NFSV3"},
+			},
+		}
+		result := ConvertToGCPHydrateBackupCreateRequests([]*datamodel.Backup{backup}, models.BackupHydrationModeDefault, "")
+		assert.Len(t, result, 1)
+		assert.Equal(t, models.BackupHydrationModeDefault, result[0].Backup.Mode)
+		assert.Empty(t, result[0].Backup.SourceStoragePool)
+	})
+
+	t.Run("OntapModeIsSetInResult", func(t *testing.T) {
+		defer mockPath()()
+		backup := &datamodel.Backup{
+			BaseModel:   datamodel.BaseModel{UUID: "uuid1"},
+			Name:        "backup1",
+			SizeInBytes: 100,
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName: "vol-name",
+				Protocols:  []string{"NFSV3"},
+			},
+		}
+		result := ConvertToGCPHydrateBackupCreateRequests([]*datamodel.Backup{backup}, models.BackupHydrationModeONTAP, "")
+		assert.Len(t, result, 1)
+		assert.Equal(t, models.BackupHydrationModeONTAP, result[0].Backup.Mode)
+		assert.Empty(t, result[0].Backup.SourceStoragePool)
+	})
+
+	t.Run("SourceVolumeDetailsAlwaysPopulated", func(t *testing.T) {
+		defer mockPath()()
+		backup := &datamodel.Backup{
+			BaseModel:   datamodel.BaseModel{UUID: "uuid1"},
+			Name:        "backup1",
+			SizeInBytes: 100,
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName: "vol-name",
+				Protocols:  []string{"NFSV3", "SMB"},
+			},
+		}
+		result := ConvertToGCPHydrateBackupCreateRequests([]*datamodel.Backup{backup}, models.BackupHydrationModeDefault, "")
+		assert.Len(t, result, 1)
+		assert.NotNil(t, result[0].Backup.SourceVolumeDetails)
+		assert.Equal(t, []string{"NFSV3", "SMB"}, result[0].Backup.SourceVolumeDetails.VolumeProtocols)
+	})
+
+	t.Run("SourceVolumeDetailsEmptyProtocolsWhenAttributesNil", func(t *testing.T) {
+		defer mockPath()()
+		backup := &datamodel.Backup{
+			BaseModel:   datamodel.BaseModel{UUID: "uuid1"},
+			Name:        "backup1",
+			SizeInBytes: 100,
+			Attributes:  nil,
+		}
+		result := ConvertToGCPHydrateBackupCreateRequests([]*datamodel.Backup{backup}, models.BackupHydrationModeDefault, "")
+		assert.Len(t, result, 1)
+		assert.NotNil(t, result[0].Backup.SourceVolumeDetails)
+		assert.Empty(t, result[0].Backup.SourceVolumeDetails.VolumeProtocols)
+	})
+
+	t.Run("OntapBackupSourceVolumePathReplacesVolumeNameWithUUID", func(t *testing.T) {
+		originalGetSourceVolumePath := utils.GetSourceVolumePathFromBackup
+		defer func() { utils.GetSourceVolumePathFromBackup = originalGetSourceVolumePath }()
+
+		const volumeName = "ontap-vol-name"
+		const volumeUUID = "vol-uuid-abc123"
+		utils.GetSourceVolumePathFromBackup = func(b *datamodel.Backup) string {
+			return "projects/account/locations/us-east1/volumes/" + volumeName
+		}
+
+		backup := &datamodel.Backup{
+			BaseModel:   datamodel.BaseModel{UUID: volumeUUID},
+			Name:        "backup1",
+			VolumeUUID:  volumeUUID,
+			SizeInBytes: 100,
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName:         volumeName,
+				IsExpertModeBackup: true,
+			},
+		}
+		result := ConvertToGCPHydrateBackupCreateRequests([]*datamodel.Backup{backup}, models.BackupHydrationModeONTAP, "")
+		assert.Len(t, result, 1)
+		assert.Equal(t, "projects/account/locations/us-east1/volumes/"+volumeUUID, result[0].Backup.SourceVolume)
+	})
+
+	t.Run("NonOntapBackupSourceVolumePathUnchanged", func(t *testing.T) {
+		originalGetSourceVolumePath := utils.GetSourceVolumePathFromBackup
+		defer func() { utils.GetSourceVolumePathFromBackup = originalGetSourceVolumePath }()
+
+		const volumeName = "regular-vol-name"
+		const expectedPath = "projects/account/locations/us-east1/volumes/" + volumeName
+		utils.GetSourceVolumePathFromBackup = func(b *datamodel.Backup) string {
+			return expectedPath
+		}
+
+		backup := &datamodel.Backup{
+			BaseModel:   datamodel.BaseModel{UUID: "vol-uuid"},
+			Name:        "backup1",
+			VolumeUUID:  "vol-uuid",
+			SizeInBytes: 100,
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName:         volumeName,
+				IsExpertModeBackup: false,
+			},
+		}
+		result := ConvertToGCPHydrateBackupCreateRequests([]*datamodel.Backup{backup}, models.BackupHydrationModeDefault, "")
+		assert.Len(t, result, 1)
+		assert.Equal(t, expectedPath, result[0].Backup.SourceVolume)
+	})
+
+	t.Run("OntapBackupWithEmptyVolumeNameSkipsPathRewrite", func(t *testing.T) {
+		originalGetSourceVolumePath := utils.GetSourceVolumePathFromBackup
+		defer func() { utils.GetSourceVolumePathFromBackup = originalGetSourceVolumePath }()
+
+		const expectedPath = "projects/account/locations/us-east1/volumes/"
+		utils.GetSourceVolumePathFromBackup = func(b *datamodel.Backup) string {
+			return expectedPath
+		}
+
+		backup := &datamodel.Backup{
+			BaseModel:   datamodel.BaseModel{UUID: "vol-uuid"},
+			Name:        "backup1",
+			VolumeUUID:  "vol-uuid",
+			SizeInBytes: 100,
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName:         "", // empty — rewrite should be skipped
+				IsExpertModeBackup: true,
+			},
+		}
+		result := ConvertToGCPHydrateBackupCreateRequests([]*datamodel.Backup{backup}, models.BackupHydrationModeONTAP, "")
+		assert.Len(t, result, 1)
+		assert.Equal(t, expectedPath, result[0].Backup.SourceVolume)
+	})
+
+	t.Run("SourceStoragePoolSetForOntapMode", func(t *testing.T) {
+		defer mockPath()()
+		backup := &datamodel.Backup{
+			BaseModel:   datamodel.BaseModel{UUID: "uuid1"},
+			Name:        "backup1",
+			SizeInBytes: 100,
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName: "vol-name",
+			},
+		}
+		const poolPath = "projects/537984359821/locations/us-central1/storagePools/sp"
+		result := ConvertToGCPHydrateBackupCreateRequests([]*datamodel.Backup{backup}, models.BackupHydrationModeONTAP, poolPath)
+		assert.Len(t, result, 1)
+		assert.Equal(t, poolPath, result[0].Backup.SourceStoragePool)
+	})
+
+	t.Run("SourceStoragePoolNotSetForDefaultMode", func(t *testing.T) {
+		defer mockPath()()
+		backup := &datamodel.Backup{
+			BaseModel:   datamodel.BaseModel{UUID: "uuid1"},
+			Name:        "backup1",
+			SizeInBytes: 100,
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName: "vol-name",
+			},
+		}
+		const poolPath = "projects/537984359821/locations/us-central1/storagePools/sp"
+		result := ConvertToGCPHydrateBackupCreateRequests([]*datamodel.Backup{backup}, models.BackupHydrationModeDefault, poolPath)
+		assert.Len(t, result, 1)
+		assert.Empty(t, result[0].Backup.SourceStoragePool)
+	})
+
+	t.Run("SourceStoragePoolNotSetWhenEmptyEvenForOntapMode", func(t *testing.T) {
+		defer mockPath()()
+		backup := &datamodel.Backup{
+			BaseModel:   datamodel.BaseModel{UUID: "uuid1"},
+			Name:        "backup1",
+			SizeInBytes: 100,
+			Attributes: &datamodel.BackupAttributes{
+				VolumeName: "vol-name",
+			},
+		}
+		result := ConvertToGCPHydrateBackupCreateRequests([]*datamodel.Backup{backup}, models.BackupHydrationModeONTAP, "")
+		assert.Len(t, result, 1)
+		assert.Empty(t, result[0].Backup.SourceStoragePool)
+	})
 }
 
 func TestConvertToGCPHydrateBackupDeleteRequests(t *testing.T) {

@@ -1092,6 +1092,7 @@ type BackupAttributes struct {
 	SourceVolumeZone               string    `json:"source_volume_zone"`
 	ConstituentCountOfBackup       int32     `json:"constituent_count_of_backup"`
 	IsRegionalHA                   bool      `json:"is_regional_ha"`
+	IsExpertModeBackup             bool      `json:"is_expert_mode_backup"`
 	RestoreVolumeCount             int       `json:"restore_volume_count"`
 	TotalTransferBytes             int64     `json:"total_transfer_bytes"`
 	VolumeAccountName              string    `json:"volume_account_name"`

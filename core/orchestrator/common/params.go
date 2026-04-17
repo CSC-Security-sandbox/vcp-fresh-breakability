@@ -523,6 +523,7 @@ type CreateBackupParams struct {
 	OntapVolumeStyle         string
 	SourceVolumeZone         string
 	ServiceAccountName       string
+	SourceStoragePool        string // Full resource path of the storage pool for the source volume (ONTAP CRB only)
 	SnapshotCreationTime     string
 	ConstituentCountOfBackup int32
 	VolumeUsageBytes         int64

@@ -3761,6 +3761,11 @@ func (s *InternalBackupCreateV1beta) SetFake() {
 	}
 	{
 		{
+			s.IsOntapBackup.SetFake()
+		}
+	}
+	{
+		{
 			s.CompletionTime.SetFake()
 		}
 	}
@@ -3782,6 +3787,11 @@ func (s *InternalBackupCreateV1beta) SetFake() {
 	{
 		{
 			s.ServiceAccountName.SetFake()
+		}
+	}
+	{
+		{
+			s.SourceStoragePool.SetFake()
 		}
 	}
 	{

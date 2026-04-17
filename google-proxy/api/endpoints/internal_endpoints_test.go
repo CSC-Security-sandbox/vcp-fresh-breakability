@@ -5508,6 +5508,63 @@ func TestCreateInternalBackupParams(t *testing.T) {
 
 		assert.Equal(tt, []string{"NFSV3", "NFSV4", "SMB", "ISCSI"}, result.Protocols)
 	})
+
+	t.Run("WhenIsOntapBackupTrue_SetsIsExpertModeVolume", func(tt *testing.T) {
+		req := &gcpgenserver.InternalBackupCreateV1beta{
+			ResourceId:    "test-backup",
+			BackupUUID:    "backup-uuid-123",
+			VolumeId:      "volume-uuid-456",
+			VolumeName:    "test-volume",
+			IsOntapBackup: gcpgenserver.NewOptBool(true),
+		}
+		params := gcpgenserver.V1betaInternalCreateBackupParams{
+			BackupVaultId: "vault-123",
+			ProjectNumber: "project-123",
+			LocationId:    "us-east4",
+		}
+
+		result := createInternalBackupParams(req, params)
+
+		assert.True(tt, result.IsExpertModeVolume)
+	})
+
+	t.Run("WhenIsOntapBackupFalse_IsExpertModeVolumeFalse", func(tt *testing.T) {
+		req := &gcpgenserver.InternalBackupCreateV1beta{
+			ResourceId:    "test-backup",
+			BackupUUID:    "backup-uuid-123",
+			VolumeId:      "volume-uuid-456",
+			VolumeName:    "test-volume",
+			IsOntapBackup: gcpgenserver.NewOptBool(false),
+		}
+		params := gcpgenserver.V1betaInternalCreateBackupParams{
+			BackupVaultId: "vault-123",
+			ProjectNumber: "project-123",
+			LocationId:    "us-east4",
+		}
+
+		result := createInternalBackupParams(req, params)
+
+		assert.False(tt, result.IsExpertModeVolume)
+	})
+
+	t.Run("WhenIsOntapBackupNotSet_IsExpertModeVolumeFalse", func(tt *testing.T) {
+		req := &gcpgenserver.InternalBackupCreateV1beta{
+			ResourceId: "test-backup",
+			BackupUUID: "backup-uuid-123",
+			VolumeId:   "volume-uuid-456",
+			VolumeName: "test-volume",
+			// IsOntapBackup not set
+		}
+		params := gcpgenserver.V1betaInternalCreateBackupParams{
+			BackupVaultId: "vault-123",
+			ProjectNumber: "project-123",
+			LocationId:    "us-east4",
+		}
+
+		result := createInternalBackupParams(req, params)
+
+		assert.False(tt, result.IsExpertModeVolume)
+	})
 }
 
 func TestV1betaInternalCreateBackupVault(t *testing.T) {

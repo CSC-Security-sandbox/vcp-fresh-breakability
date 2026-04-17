@@ -4368,6 +4368,98 @@ func TestConvertBackupDataModelToBackupsV1beta(t *testing.T) {
 	assert.False(t, result.AssetLocationMetadata.IsSet())
 }
 
+func TestConvertBackupDataModelToBackupsV1beta_OntapSourceVolumePath(t *testing.T) {
+	t.Run("OntapBackup_ReplacesVolumeNameWithUUID", func(t *testing.T) {
+		const volumeName = "ontap-vol-name"
+		const volumeUUID = "vol-uuid-abc123"
+
+		backup := &datamodel.Backup{
+			Name:        "test-backup",
+			VolumeUUID:  volumeUUID,
+			State:       "READY",
+			SizeInBytes: 1024,
+			Type:        "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier:  "test-account",
+				VolumeName:         volumeName,
+				SourceVolumeZone:   "us-central1-a",
+				IsExpertModeBackup: true,
+			},
+			BackupVault: &datamodel.BackupVault{
+				SourceRegionName: func() *string { s := "us-central1"; return &s }(),
+				BackupRegionName: func() *string { s := "us-central1"; return &s }(),
+				BucketDetails:    datamodel.BucketDetailsArray{},
+			},
+		}
+		backup.UUID = "backup-uuid"
+		backup.BackupVault.UUID = "vault-uuid"
+
+		result := convertBackupDataModelToBackupsV1beta(backup)
+
+		assert.True(t, result.SourceVolume.IsSet())
+		assert.Contains(t, result.SourceVolume.Value, volumeUUID)
+		assert.NotContains(t, result.SourceVolume.Value, volumeName)
+	})
+
+	t.Run("NonOntapBackup_UsesVolumeName", func(t *testing.T) {
+		const volumeName = "regular-vol-name"
+
+		backup := &datamodel.Backup{
+			Name:        "test-backup",
+			VolumeUUID:  "vol-uuid",
+			State:       "READY",
+			SizeInBytes: 1024,
+			Type:        "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier:  "test-account",
+				VolumeName:         volumeName,
+				SourceVolumeZone:   "us-central1-a",
+				IsExpertModeBackup: false,
+			},
+			BackupVault: &datamodel.BackupVault{
+				SourceRegionName: func() *string { s := "us-central1"; return &s }(),
+				BackupRegionName: func() *string { s := "us-central1"; return &s }(),
+				BucketDetails:    datamodel.BucketDetailsArray{},
+			},
+		}
+		backup.UUID = "backup-uuid"
+		backup.BackupVault.UUID = "vault-uuid"
+
+		result := convertBackupDataModelToBackupsV1beta(backup)
+
+		assert.True(t, result.SourceVolume.IsSet())
+		assert.Contains(t, result.SourceVolume.Value, volumeName)
+	})
+
+	t.Run("OntapBackup_EmptyVolumeName_PathUnchanged", func(t *testing.T) {
+		backup := &datamodel.Backup{
+			Name:        "test-backup",
+			VolumeUUID:  "vol-uuid",
+			State:       "READY",
+			SizeInBytes: 1024,
+			Type:        "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier:  "test-account",
+				VolumeName:         "", // empty — rewrite must be skipped
+				SourceVolumeZone:   "us-central1-a",
+				IsExpertModeBackup: true,
+			},
+			BackupVault: &datamodel.BackupVault{
+				SourceRegionName: func() *string { s := "us-central1"; return &s }(),
+				BackupRegionName: func() *string { s := "us-central1"; return &s }(),
+				BucketDetails:    datamodel.BucketDetailsArray{},
+			},
+		}
+		backup.UUID = "backup-uuid"
+		backup.BackupVault.UUID = "vault-uuid"
+
+		result := convertBackupDataModelToBackupsV1beta(backup)
+
+		assert.True(t, result.SourceVolume.IsSet())
+		assert.Contains(t, result.SourceVolume.Value, "projects/test-account/locations/us-central1-a/volumes/")
+	})
+}
+
 func TestConvertBackupDataModelToBackupsV1beta_NoSnapshot(t *testing.T) {
 	backup := &datamodel.Backup{
 		Name:        "test-backup",

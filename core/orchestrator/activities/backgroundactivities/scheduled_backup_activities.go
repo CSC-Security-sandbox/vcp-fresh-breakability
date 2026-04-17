@@ -72,6 +72,25 @@ func (j *ScheduledBackupActivity) CreateScheduledBackup(ctx context.Context, vol
 	}
 
 	name := fmt.Sprintf(scheduledBackupNameFormat, scheduleTag, RandomString(8), timestamp)
+	isExpertModeBackup := volume.Pool != nil && volume.Pool.APIAccessMode == "ONTAP"
+
+	var protocols []string
+	if volume.VolumeAttributes != nil {
+		protocols = volume.VolumeAttributes.Protocols
+	}
+
+	var accountIdentifier string
+	if volume.Account != nil {
+		accountIdentifier = volume.Account.Name
+	}
+
+	backupAttributes := &datamodel.BackupAttributes{
+		VolumeName:         volume.Name,
+		Protocols:          protocols,
+		AccountIdentifier:  accountIdentifier,
+		IsExpertModeBackup: isExpertModeBackup,
+	}
+
 	backup, err := se.CreateBackup(ctx, &datamodel.Backup{
 		BaseModel: datamodel.BaseModel{
 			UUID: utils.RandomUUID(),
@@ -84,6 +103,7 @@ func (j *ScheduledBackupActivity) CreateScheduledBackup(ctx context.Context, vol
 		VolumeUUID:    volumeUUIDForScheduledBackup,
 		BackupVaultID: backupVault.ID,
 		BackupVault:   backupVault,
+		Attributes:    backupAttributes,
 	})
 	if err != nil {
 		return nil, err
@@ -122,7 +142,13 @@ func (j *ScheduledBackupActivity) HydrateCreatedBackupsToCCFE(ctx context.Contex
 		return err
 	}
 	projectId := volume.Account.Name
-	requests := common.ConvertToGCPHydrateBackupCreateRequests(backups)
+	mode := models.BackupHydrationModeDefault
+	var sourceStoragePool string
+	if volume.Pool != nil && volume.Pool.APIAccessMode == "ONTAP" {
+		mode = models.BackupHydrationModeONTAP
+		sourceStoragePool = fmt.Sprintf("projects/%s/locations/%s/storagePools/%s", projectId, region, volume.Pool.Name)
+	}
+	requests := common.ConvertToGCPHydrateBackupCreateRequests(backups, mode, sourceStoragePool)
 	err = common.HydrateCreatedBackups(ctx, logger, requests, backupVaultName, region, projectId, token)
 	if err != nil {
 		return err

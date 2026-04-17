@@ -287,6 +287,7 @@ func _createBackup(ctx context.Context, se database.Storage, temporal client.Cli
 	if params.BackupVaultServiceType == GCBDRServiceType && volume != nil && volume.Account != nil {
 		backupAttributes.VolumeAccountName = volume.Account.Name
 	}
+	backupAttributes.IsExpertModeBackup = isExpertModeVolume
 	dbBackup := &datamodel.Backup{
 		Name:          params.BackupName,
 		VolumeUUID:    params.VolumeUUID,
@@ -634,7 +635,11 @@ func _hydrateCreatedBackupsToCCFE(ctx context.Context, params *common.CreateBack
 	if err != nil {
 		return err
 	}
-	requests := common.ConvertToGCPHydrateBackupCreateRequests([]*datamodel.Backup{backup})
+	mode := models.BackupHydrationModeDefault
+	if params.IsExpertModeVolume {
+		mode = models.BackupHydrationModeONTAP
+	}
+	requests := common.ConvertToGCPHydrateBackupCreateRequests([]*datamodel.Backup{backup}, mode, params.SourceStoragePool)
 	err = common.HydrateCreatedBackups(ctx, logger, requests, backup.BackupVault.Name, params.Region, params.AccountName, token)
 	if err != nil {
 		return err
@@ -1040,6 +1045,7 @@ func _createBackupInternal(ctx context.Context, se database.Storage, temporal cl
 		backupAttributes.ConstituentCountOfBackup = params.ConstituentCountOfBackup
 	}
 
+	backupAttributes.IsExpertModeBackup = params.IsExpertModeVolume
 	dbBackup := &datamodel.Backup{
 		Name:          params.BackupName,
 		ExternalUUID:  params.BackupUUID, // For cross-region backups, backupUUID from request becomes ExternalUUID

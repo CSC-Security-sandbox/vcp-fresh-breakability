@@ -17287,6 +17287,12 @@ func (s *InternalBackupCreateV1beta) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.IsOntapBackup.Set {
+			e.FieldStart("isOntapBackup")
+			s.IsOntapBackup.Encode(e)
+		}
+	}
+	{
 		if s.CompletionTime.Set {
 			e.FieldStart("completionTime")
 			s.CompletionTime.Encode(e, json.EncodeDateTime)
@@ -17314,6 +17320,12 @@ func (s *InternalBackupCreateV1beta) encodeFields(e *jx.Encoder) {
 		if s.ServiceAccountName.Set {
 			e.FieldStart("serviceAccountName")
 			s.ServiceAccountName.Encode(e)
+		}
+	}
+	{
+		if s.SourceStoragePool.Set {
+			e.FieldStart("sourceStoragePool")
+			s.SourceStoragePool.Encode(e)
 		}
 	}
 	{
@@ -17354,7 +17366,7 @@ func (s *InternalBackupCreateV1beta) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfInternalBackupCreateV1beta = [23]string{
+var jsonFieldsNameOfInternalBackupCreateV1beta = [25]string{
 	0:  "resourceId",
 	1:  "backupUUID",
 	2:  "volumeId",
@@ -17367,17 +17379,19 @@ var jsonFieldsNameOfInternalBackupCreateV1beta = [23]string{
 	9:  "bucketName",
 	10: "endpointUuid",
 	11: "isRegionalHa",
-	12: "completionTime",
-	13: "backupPolicyName",
-	14: "ontapVolumeStyle",
-	15: "sourceVolumeZone",
-	16: "serviceAccountName",
-	17: "snapshotCreationTime",
-	18: "constituentCountOfBackup",
-	19: "volumeUsageBytes",
-	20: "backupType",
-	21: "backupChainBytes",
-	22: "assetLocationMetadata",
+	12: "isOntapBackup",
+	13: "completionTime",
+	14: "backupPolicyName",
+	15: "ontapVolumeStyle",
+	16: "sourceVolumeZone",
+	17: "serviceAccountName",
+	18: "sourceStoragePool",
+	19: "snapshotCreationTime",
+	20: "constituentCountOfBackup",
+	21: "volumeUsageBytes",
+	22: "backupType",
+	23: "backupChainBytes",
+	24: "assetLocationMetadata",
 }
 
 // Decode decodes InternalBackupCreateV1beta from json.
@@ -17385,7 +17399,7 @@ func (s *InternalBackupCreateV1beta) Decode(d *jx.Decoder) error {
 	if s == nil {
 		return errors.New("invalid: unable to decode InternalBackupCreateV1beta to nil")
 	}
-	var requiredBitSet [3]uint8
+	var requiredBitSet [4]uint8
 	s.setDefaults()
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
@@ -17526,6 +17540,16 @@ func (s *InternalBackupCreateV1beta) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"isRegionalHa\"")
 			}
+		case "isOntapBackup":
+			if err := func() error {
+				s.IsOntapBackup.Reset()
+				if err := s.IsOntapBackup.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"isOntapBackup\"")
+			}
 		case "completionTime":
 			if err := func() error {
 				s.CompletionTime.Reset()
@@ -17575,6 +17599,16 @@ func (s *InternalBackupCreateV1beta) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"serviceAccountName\"")
+			}
+		case "sourceStoragePool":
+			if err := func() error {
+				s.SourceStoragePool.Reset()
+				if err := s.SourceStoragePool.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sourceStoragePool\"")
 			}
 		case "snapshotCreationTime":
 			if err := func() error {
@@ -17645,8 +17679,9 @@ func (s *InternalBackupCreateV1beta) Decode(d *jx.Decoder) error {
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
-	for i, mask := range [3]uint8{
+	for i, mask := range [4]uint8{
 		0b00110111,
+		0b00000000,
 		0b00000000,
 		0b00000000,
 	} {

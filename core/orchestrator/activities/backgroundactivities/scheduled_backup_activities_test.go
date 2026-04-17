@@ -281,8 +281,143 @@ func TestCreateScheduledBackup(t *testing.T) {
 		assert.Equal(t, volUUID, backup.VolumeUUID)
 		mockStorage.AssertExpectations(t)
 	})
-}
 
+	t.Run("WhenOntapPool_SetsIsExpertModeBackupAndAttributes", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Name:      "my-volume",
+			Pool:      &datamodel.Pool{APIAccessMode: "ONTAP"},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"NFSV3"},
+			},
+		}
+		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 123}}
+
+		mockStorage.On("CreateBackup", mock.Anything, mock.MatchedBy(func(b *datamodel.Backup) bool {
+			return b.Attributes != nil &&
+				b.Attributes.IsExpertModeBackup == true &&
+				b.Attributes.VolumeName == volume.Name &&
+				len(b.Attributes.Protocols) == 1 && b.Attributes.Protocols[0] == "NFSV3"
+		})).Return(&datamodel.Backup{}, nil)
+
+		_, err := activity.CreateScheduledBackup(context.Background(), volume, backupVault, "20240610", "tag", false)
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("WhenNonOntapPool_SetsIsExpertModeBackupFalse", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Name:      "my-volume",
+			Pool:      &datamodel.Pool{APIAccessMode: "GCP"},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				Protocols: []string{"SMB"},
+			},
+		}
+		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 456}}
+
+		mockStorage.On("CreateBackup", mock.Anything, mock.MatchedBy(func(b *datamodel.Backup) bool {
+			return b.Attributes != nil &&
+				b.Attributes.IsExpertModeBackup == false &&
+				b.Attributes.VolumeName == volume.Name
+		})).Return(&datamodel.Backup{}, nil)
+
+		_, err := activity.CreateScheduledBackup(context.Background(), volume, backupVault, "20240610", "tag", false)
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("WhenNilPool_SetsIsExpertModeBackupFalse", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Name:      "my-volume",
+			Pool:      nil,
+		}
+		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 789}}
+
+		mockStorage.On("CreateBackup", mock.Anything, mock.MatchedBy(func(b *datamodel.Backup) bool {
+			return b.Attributes != nil && b.Attributes.IsExpertModeBackup == false
+		})).Return(&datamodel.Backup{}, nil)
+
+		_, err := activity.CreateScheduledBackup(context.Background(), volume, backupVault, "20240610", "tag", false)
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("WhenNilVolumeAttributes_SetsEmptyProtocols", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+
+		volume := &datamodel.Volume{
+			BaseModel:        datamodel.BaseModel{UUID: "vol-uuid"},
+			Name:             "my-volume",
+			Pool:             &datamodel.Pool{APIAccessMode: "ONTAP"},
+			VolumeAttributes: nil,
+		}
+		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 100}}
+
+		mockStorage.On("CreateBackup", mock.Anything, mock.MatchedBy(func(b *datamodel.Backup) bool {
+			return b.Attributes != nil &&
+				b.Attributes.IsExpertModeBackup == true &&
+				len(b.Attributes.Protocols) == 0
+		})).Return(&datamodel.Backup{}, nil)
+
+		_, err := activity.CreateScheduledBackup(context.Background(), volume, backupVault, "20240610", "tag", false)
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("WhenAccountIsPresent_SetsAccountIdentifier", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Name:      "my-volume",
+			Account:   &datamodel.Account{Name: "project-123"},
+		}
+		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 100}}
+
+		mockStorage.On("CreateBackup", mock.Anything, mock.MatchedBy(func(b *datamodel.Backup) bool {
+			return b.Attributes != nil &&
+				b.Attributes.AccountIdentifier == "project-123"
+		})).Return(&datamodel.Backup{}, nil)
+
+		_, err := activity.CreateScheduledBackup(context.Background(), volume, backupVault, "20240610", "tag", false)
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("WhenNilAccount_LeavesAccountIdentifierEmpty", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		activity := ScheduledBackupActivity{SE: mockStorage}
+
+		volume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Name:      "my-volume",
+			Account:   nil,
+		}
+		backupVault := &datamodel.BackupVault{BaseModel: datamodel.BaseModel{ID: 100}}
+
+		mockStorage.On("CreateBackup", mock.Anything, mock.MatchedBy(func(b *datamodel.Backup) bool {
+			return b.Attributes != nil &&
+				b.Attributes.AccountIdentifier == ""
+		})).Return(&datamodel.Backup{}, nil)
+
+		_, err := activity.CreateScheduledBackup(context.Background(), volume, backupVault, "20240610", "tag", false)
+		assert.NoError(t, err)
+		mockStorage.AssertExpectations(t)
+	})
+}
 
 func TestGenerateScheduledSnapshotName(t *testing.T) {
 	activity := &ScheduledBackupActivity{}
@@ -703,6 +838,101 @@ func TestHydrateCreatedBackupsToCCFE(t *testing.T) {
 		err := activity.HydrateCreatedBackupsToCCFE(ctx, volume, backups, "backup-vault-1")
 		assert.NoError(t, err)
 		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("OntapPool_UsesOntapModeAndSetsSourceStoragePool", func(t *testing.T) {
+		ontapVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Account:   &datamodel.Account{Name: "project-123"},
+			Pool:      &datamodel.Pool{Name: "my-pool", APIAccessMode: "ONTAP"},
+		}
+
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "mock-token", nil
+		}
+		utils.GetBackupRegion = func(*datamodel.Volume) (string, error) {
+			return "us-central1", nil
+		}
+		utils.GetSourceVolumePathFromBackup = func(*datamodel.Backup) string {
+			return "mock-source-volume-path"
+		}
+		var capturedMode, capturedPoolPath string
+		common.HydrateCreatedBackups = func(ctx context.Context, logger log.Logger, resources []models.Request, backupVaultName string, location string, projectId string, token string) error {
+			if len(resources) > 0 && resources[0].Backup != nil {
+				capturedMode = resources[0].Backup.Mode
+				capturedPoolPath = resources[0].Backup.SourceStoragePool
+			}
+			return nil
+		}
+
+		err := activity.HydrateCreatedBackupsToCCFE(ctx, ontapVolume, backups, "backup-vault-1")
+		assert.NoError(t, err)
+		assert.Equal(t, models.BackupHydrationModeONTAP, capturedMode)
+		assert.Equal(t, "projects/project-123/locations/us-central1/storagePools/my-pool", capturedPoolPath)
+	})
+
+	t.Run("NonOntapPool_UsesDefaultModeNoPoolPath", func(t *testing.T) {
+		gcpVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Account:   &datamodel.Account{Name: "account-1"},
+			Pool:      &datamodel.Pool{Name: "my-pool", APIAccessMode: "GCP"},
+		}
+
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "mock-token", nil
+		}
+		utils.GetBackupRegion = func(*datamodel.Volume) (string, error) {
+			return "mock-region", nil
+		}
+		utils.GetSourceVolumePathFromBackup = func(*datamodel.Backup) string {
+			return "mock-source-volume-path"
+		}
+
+		var capturedMode, capturedPoolPath string
+		common.HydrateCreatedBackups = func(ctx context.Context, logger log.Logger, resources []models.Request, backupVaultName string, location string, projectId string, token string) error {
+			if len(resources) > 0 && resources[0].Backup != nil {
+				capturedMode = resources[0].Backup.Mode
+				capturedPoolPath = resources[0].Backup.SourceStoragePool
+			}
+			return nil
+		}
+
+		err := activity.HydrateCreatedBackupsToCCFE(ctx, gcpVolume, backups, "backup-vault-1")
+		assert.NoError(t, err)
+		assert.Equal(t, models.BackupHydrationModeDefault, capturedMode)
+		assert.Empty(t, capturedPoolPath)
+	})
+
+	t.Run("NilPool_UsesDefaultModeNoPoolPath", func(t *testing.T) {
+		noPoolVolume := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			Account:   &datamodel.Account{Name: "account-1"},
+			Pool:      nil,
+		}
+
+		auth.GenerateCallbackToken = func(ctx context.Context) (string, error) {
+			return "mock-token", nil
+		}
+		utils.GetBackupRegion = func(*datamodel.Volume) (string, error) {
+			return "mock-region", nil
+		}
+		utils.GetSourceVolumePathFromBackup = func(*datamodel.Backup) string {
+			return "mock-source-volume-path"
+		}
+
+		var capturedMode, capturedPoolPath string
+		common.HydrateCreatedBackups = func(ctx context.Context, logger log.Logger, resources []models.Request, backupVaultName string, location string, projectId string, token string) error {
+			if len(resources) > 0 && resources[0].Backup != nil {
+				capturedMode = resources[0].Backup.Mode
+				capturedPoolPath = resources[0].Backup.SourceStoragePool
+			}
+			return nil
+		}
+
+		err := activity.HydrateCreatedBackupsToCCFE(ctx, noPoolVolume, backups, "backup-vault-1")
+		assert.NoError(t, err)
+		assert.Equal(t, models.BackupHydrationModeDefault, capturedMode)
+		assert.Empty(t, capturedPoolPath)
 	})
 }
 

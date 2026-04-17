@@ -1237,4 +1237,101 @@ func TestConvertBackupDataModelToInternalBackupsV1beta(t *testing.T) {
 
 		assert.False(t, result.EnforcedRetentionEndTime.Set)
 	})
+
+	t.Run("OntapBackup_ReplacesVolumeNameWithUUID", func(t *testing.T) {
+		sourceRegionName := "us-east1"
+		const volumeName = "ontap-vol-name"
+		const volumeUUID = "vol-uuid-abc123"
+
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid",
+				CreatedAt: time.Now(),
+			},
+			Name:       "test-backup",
+			VolumeUUID: volumeUUID,
+			State:      models.LifeCycleStateAvailable,
+			Type:       "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier:  "test-account",
+				VolumeName:         volumeName,
+				SourceVolumeZone:   "us-east1-a",
+				IsExpertModeBackup: true,
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel:        datamodel.BaseModel{UUID: "vault-uuid"},
+				SourceRegionName: &sourceRegionName,
+				BucketDetails:    datamodel.BucketDetailsArray{},
+			},
+		}
+
+		result := convertBackupDataModelToInternalBackupsV1beta(backup, false)
+
+		assert.True(t, result.SourceVolume.Set)
+		assert.Contains(t, result.SourceVolume.Value, volumeUUID)
+		assert.NotContains(t, result.SourceVolume.Value, volumeName)
+	})
+
+	t.Run("NonOntapBackup_UsesVolumeName", func(t *testing.T) {
+		sourceRegionName := "us-east1"
+		const volumeName = "regular-vol-name"
+
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid",
+				CreatedAt: time.Now(),
+			},
+			Name:       "test-backup",
+			VolumeUUID: "vol-uuid",
+			State:      models.LifeCycleStateAvailable,
+			Type:       "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier:  "test-account",
+				VolumeName:         volumeName,
+				SourceVolumeZone:   "us-east1-a",
+				IsExpertModeBackup: false,
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel:        datamodel.BaseModel{UUID: "vault-uuid"},
+				SourceRegionName: &sourceRegionName,
+				BucketDetails:    datamodel.BucketDetailsArray{},
+			},
+		}
+
+		result := convertBackupDataModelToInternalBackupsV1beta(backup, false)
+
+		assert.True(t, result.SourceVolume.Set)
+		assert.Contains(t, result.SourceVolume.Value, volumeName)
+	})
+
+	t.Run("OntapBackup_EmptyVolumeName_PathUnchanged", func(t *testing.T) {
+		sourceRegionName := "us-east1"
+
+		backup := &datamodel.Backup{
+			BaseModel: datamodel.BaseModel{
+				UUID:      "backup-uuid",
+				CreatedAt: time.Now(),
+			},
+			Name:       "test-backup",
+			VolumeUUID: "vol-uuid",
+			State:      models.LifeCycleStateAvailable,
+			Type:       "MANUAL",
+			Attributes: &datamodel.BackupAttributes{
+				AccountIdentifier:  "test-account",
+				VolumeName:         "", // empty — rewrite must be skipped
+				SourceVolumeZone:   "us-east1-a",
+				IsExpertModeBackup: true,
+			},
+			BackupVault: &datamodel.BackupVault{
+				BaseModel:        datamodel.BaseModel{UUID: "vault-uuid"},
+				SourceRegionName: &sourceRegionName,
+				BucketDetails:    datamodel.BucketDetailsArray{},
+			},
+		}
+
+		result := convertBackupDataModelToInternalBackupsV1beta(backup, false)
+
+		assert.True(t, result.SourceVolume.Set)
+		assert.Contains(t, result.SourceVolume.Value, "projects/test-account/locations/us-east1-a/volumes/")
+	})
 }

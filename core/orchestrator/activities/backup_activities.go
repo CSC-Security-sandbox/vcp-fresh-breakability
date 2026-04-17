@@ -1799,6 +1799,7 @@ func (a *BackupActivity) CreateRemoteBackupFromVCPActivity(ctx context.Context, 
 			backupCreate.EndpointUuid = googleproxyclient.NewOptString(backup.Attributes.EndpointUUID)
 		}
 		backupCreate.IsRegionalHa = googleproxyclient.NewOptBool(backup.Attributes.IsRegionalHA)
+		backupCreate.IsOntapBackup = googleproxyclient.NewOptBool(backup.Attributes != nil && backup.Attributes.IsExpertModeBackup)
 		if backup.Attributes.CompletionTime != "" {
 			// Parse the completion time string to time.Time for OptDateTime
 			if completionTime, err := time.Parse(time.RFC3339, backup.Attributes.CompletionTime); err == nil {
@@ -1826,6 +1827,15 @@ func (a *BackupActivity) CreateRemoteBackupFromVCPActivity(ctx context.Context, 
 		if backup.Attributes.ConstituentCountOfBackup > 0 {
 			backupCreate.ConstituentCountOfBackup = googleproxyclient.NewOptInt32(backup.Attributes.ConstituentCountOfBackup)
 		}
+	}
+
+	volume := backupActivitiesContext.BackupWorkflowInit.Volume
+	if backup.Attributes != nil && backup.Attributes.IsExpertModeBackup &&
+		volume != nil && volume.Pool != nil && volume.Pool.Name != "" &&
+		backupVault.SourceRegionName != nil && *backupVault.SourceRegionName != "" {
+		sourcePoolPath := fmt.Sprintf("projects/%s/locations/%s/storagePools/%s",
+			projectNumber, *backupVault.SourceRegionName, volume.Pool.Name)
+		backupCreate.SourceStoragePool = googleproxyclient.NewOptString(sourcePoolPath)
 	}
 
 	if backup.AssetMetadata != nil {

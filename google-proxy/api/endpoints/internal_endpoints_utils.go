@@ -1,6 +1,7 @@
 package api
 
 import (
+	"strings"
 	"time"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -237,6 +238,13 @@ func convertBackupDataModelToInternalBackupsV1beta(backup *datamodel.Backup, isR
 		state = gcpgenserver.InternalBackupV1betaState(backup.State)
 	}
 	sourceVolumePath := utils.GetSourceVolumePathFromBackup(backup)
+	if backup.Attributes != nil && backup.Attributes.IsExpertModeBackup && backup.Attributes.VolumeName != "" {
+		// Keep the full path format but replace the volume name segment with the ONTAP volume UUID.
+		if parts := strings.Split(sourceVolumePath, "/"); len(parts) > 0 && parts[len(parts)-1] == backup.Attributes.VolumeName {
+			parts[len(parts)-1] = backup.VolumeUUID
+			sourceVolumePath = strings.Join(parts, "/")
+		}
+	}
 	sourceSnapshotPath := utils.GetSourceSnapshotPathFromBackup(backup)
 
 	var satisfiesPzi, satisfiesPzs bool
