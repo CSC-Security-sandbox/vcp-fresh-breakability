@@ -348,17 +348,30 @@ $CVE_DETAIL_BLOCK"
   # Build file-list detail block for evidence
   _FILES_DETAIL_BLOCK=""
   if [[ -n "$FILES_LIST" && "$FILES_LIST" != "" ]]; then
+    _SHOWN_FILES=$(echo "$FILES_LIST" | tr '|' '\n' | head -8 | sed 's/^/- `/' | sed 's/$/`/')
+    _TOTAL_FILES="${FILES_COUNT:-0}"
+    _SHOWN_COUNT=$(echo "$FILES_LIST" | tr '|' '\n' | head -8 | wc -l | tr -d ' ')
+    _MORE_NOTE=""
+    if [[ "$_TOTAL_FILES" -gt "$_SHOWN_COUNT" ]]; then
+      _MORE_NOTE="
+- *...and $((_TOTAL_FILES - _SHOWN_COUNT)) more file(s) — see full import graph in Actions run*"
+    fi
     _FILES_DETAIL_BLOCK="
 <details><summary>📂 Files importing this package ($FILES_COUNT file(s))</summary>
 
-$(echo "$FILES_LIST" | tr '|' '\n' | sed 's/^/- `/' | sed 's/$/`/')
+${_SHOWN_FILES}${_MORE_NOTE}
 </details>"
   fi
-  # Build transitive dep note
+  # Build transitive dep note — with threshold warning for high counts
   _TRANSITIVE_NOTE=""
   if [[ -n "$GOSUM_NEW_COUNT" && "$GOSUM_NEW_COUNT" -gt 0 ]]; then
-    _TRANSITIVE_NOTE="
-- ℹ️ go.sum: $GOSUM_NEW_COUNT new transitive dep entries (run \`govulncheck ./...\` if concerned)"
+    if [[ "$GOSUM_NEW_COUNT" -gt 20 ]]; then
+      _TRANSITIVE_NOTE="
+- ⚠️ go.sum: **$GOSUM_NEW_COUNT new transitive dep entries** (high — review for supply-chain risk; run \`govulncheck ./...\` before merging)"
+    else
+      _TRANSITIVE_NOTE="
+- ℹ️ go.sum: $GOSUM_NEW_COUNT new transitive dep entries"
+    fi
   fi
   # Build build-stdout evidence block
   _BUILD_STDOUT_BLOCK=""
@@ -1020,6 +1033,17 @@ if meta.get('incomplete'):
     lines.append(f"> PRs missing from this plan should be re-analyzed before merging.")
 lines.append("")
 
+# V9.6 FIX: govulncheck availability warning — single top-level banner
+_govuln_missing = any(
+    "govulncheck not installed" in pr.get("build", {}).get("output_tail", "") or
+    "govulncheck: not found" in pr.get("build", {}).get("output_tail", "")
+    for pr in prs.values()
+)
+if _govuln_missing:
+    lines.append("> ")
+    lines.append("> ⚠️ **govulncheck unavailable:** Transitive deps have NOT been scanned for CVEs. Run `govulncheck ./...` locally before merging 0.x major bumps or PRs with >20 new go.sum entries.")
+    lines.append("")
+
 # Summary table
 lines.append("## Summary")
 lines.append("")
@@ -1067,7 +1091,7 @@ if _sec_blocked:
 # L4 safe PRs
 _l4_safe = [e for e in safe if e.get("ver", "").startswith("L4") and not e.get("cves")]
 if _l4_safe:
-    lines.append(f"{_step}. **Batch merge — {len(_l4_safe)} PRs with full test pass** (L4 verified, lowest risk)")
+    lines.append(f"{_step}. **Batch merge — {len(_l4_safe)} PRs with full test pass** (L4 verified, lowest risk — excluding CVE PR above)")
     _step += 1
 # L2 safe PRs (build passes, tests fail or not run)
 _l2_safe = [e for e in safe if not e.get("ver", "").startswith("L4") and not e.get("cves")]

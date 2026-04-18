@@ -830,14 +830,18 @@ scan_usage_pip() {
 }
 
 format_usage_files() {
-  # Takes grep output (file:line:content), outputs JSON array of "file:line"
+  # Takes grep output (file:line:content), outputs JSON array of unique "file:line"
+  # V9.6 FIX: deduplicate by FILE PATH only — a file importing multiple sub-packages
+  # of the same module (e.g., k8s.io/client-go/kubernetes + k8s.io/client-go/rest)
+  # previously appeared once per import line. Now deduped to one entry per file.
   local input="$1"
   if [[ -z "$input" ]]; then
     echo "[]"
     return
   fi
-  echo "$input" | awk -F: '{print "\"" $1 ":" $2 "\""}' | sort -u | \
-    python3 -c "import sys,json; lines=sys.stdin.read().strip().split('\n'); print(json.dumps([l.strip('\"') for l in lines if l]))" 2>/dev/null || echo "[]"
+  # Extract file paths only (strip line numbers), dedup, then format as JSON array
+  echo "$input" | awk -F: '{print $1}' | sort -u | \
+    python3 -c "import sys,json; lines=[l.strip() for l in sys.stdin.read().strip().split('\n') if l.strip()]; print(json.dumps(lines))" 2>/dev/null || echo "[]"
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -2367,13 +2371,27 @@ $IMPORT_OUT"
           BUILD_VERDICT="fail"
           echo "  build: baseline exit=$MAIN_EXIT, PR exit=$BUILD_EXIT — genuine failure (not pre-existing)"
         elif [[ "$MAIN_EXIT" -eq 124 ]]; then
-          # Baseline timed out (A4-4) — we never got a valid baseline, so we can't
-          # compare errors. The PR's errors may or may not be pre-existing.
-          # Still check for new errors, but classify as pre_existing since the
-          # baseline is broken regardless. The main_exit=124 is recorded in
-          # the JSON so the merge plan can flag "baseline timed out."
+          # Baseline timed out (A4-4). The timeout means we got PARTIAL output.
+          # V9.6 FIX (P0-1): Still compare errors — if PR has NEW .go:NNN errors
+          # not present in main's partial output, those are genuine regressions.
+          # Example: k8s version-skew errors (undefined: metav1.*) only appear
+          # on PR branch but not on main because main timed out before reaching
+          # the type-check of client-go. These must be caught.
           BUILD_VERDICT="pre_existing"
-          echo "  ⚠ baseline build timed out (exit=124) — cannot fully compare errors"
+          echo "  ⚠ baseline build timed out (exit=124) — comparing partial errors"
+          if [[ "$ECOSYSTEM" == "gomod" && -n "$BUILD_OUTPUT" ]]; then
+            MAIN_ERR_FILE="/tmp/_bc_main_go_errors.txt"
+            PR_ERR_FILE="/tmp/_bc_pr_go_errors_${PR_NUM}.txt"
+            echo "${_MAIN_OUTPUT_FOR_COMPARISON:-$main_go_output}" | grep -E '^.*\.go:[0-9]+' | normalize_go_errors | sort -u > "$MAIN_ERR_FILE" 2>/dev/null || true
+            echo "$BUILD_OUTPUT" | grep -E '^.*\.go:[0-9]+' | normalize_go_errors | sort -u > "$PR_ERR_FILE" 2>/dev/null || true
+            NEW_ERRORS=$(comm -23 "$PR_ERR_FILE" "$MAIN_ERR_FILE" 2>/dev/null | head -10)
+            rm -f "$MAIN_ERR_FILE" "$PR_ERR_FILE"
+            if [[ -n "$NEW_ERRORS" ]]; then
+              BUILD_VERDICT="pre_existing_plus_new"
+              echo "  ⚠ NEW errors on PR branch (not in timed-out main output):"
+              echo "$NEW_ERRORS" | head -5 | sed 's/^/    /'
+            fi
+          fi
         elif [[ "$MAIN_EXIT" -ne 0 ]]; then
           # Both fail (main_exit > 0, not 124) — check for new errors vs baseline
           if [[ "$ECOSYSTEM" == "gomod" ]]; then
@@ -3323,6 +3341,17 @@ KNOWN_DEPS = {
     ("react", "react-dom"): ("react and react-dom must match", "merge together"),
     ("react", "@types/react"): ("types follow react", "react first"),
     ("react-dom", "@types/react-dom"): ("types follow react-dom", "react-dom first"),
+    # K8s ecosystem: these packages must always be upgraded to the same version together
+    ("k8s.io/client-go", "k8s.io/apimachinery"): ("K8s module coordination: k8s.io/apimachinery + k8s.io/client-go must match versions", "merge together"),
+    ("k8s.io/client-go", "k8s.io/api"): ("K8s module coordination: k8s.io/api + k8s.io/client-go must match versions", "merge together"),
+    ("k8s.io/apimachinery", "k8s.io/api"): ("K8s module coordination: k8s.io/apimachinery + k8s.io/api must match versions", "merge together"),
+    # OpenTelemetry: core packages should be upgraded together
+    ("go.opentelemetry.io/otel", "go.opentelemetry.io/otel/sdk"): ("OTel coordination: core + SDK should match", "merge together"),
+    ("go.opentelemetry.io/otel", "go.opentelemetry.io/otel/trace"): ("OTel coordination: core + trace should match", "merge together"),
+    ("go.opentelemetry.io/otel", "go.opentelemetry.io/otel/metric"): ("OTel coordination: core + metric should match", "merge together"),
+    ("go.opentelemetry.io/otel/sdk", "go.opentelemetry.io/otel/trace"): ("OTel coordination: SDK + trace should match", "merge together"),
+    ("go.opentelemetry.io/otel/sdk", "go.opentelemetry.io/otel/metric"): ("OTel coordination: SDK + metric should match", "merge together"),
+    ("go.opentelemetry.io/otel/trace", "go.opentelemetry.io/otel/metric"): ("OTel coordination: trace + metric should match", "merge together"),
 }
 try:
     with open("/tmp/_bc_peer_groups.json") as f: pd = json.load(f)

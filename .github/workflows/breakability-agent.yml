@@ -150,6 +150,11 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
+      - name: Install Go security tools
+        run: |
+          # govulncheck: scans transitive deps for known CVEs
+          go install golang.org/x/vuln/cmd/govulncheck@latest 2>/dev/null || echo "govulncheck install failed — vuln scanning will be skipped"
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -328,7 +333,7 @@ jobs:
         id: agent
         continue-on-error: true
         run: |
-          agent -p --force --model claude-3-7-sonnet "$(cat .github/breakability-prompt.md)"
+          agent -p --force --model claude-4-sonnet "$(cat .github/breakability-prompt.md)"
         env:
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
