@@ -2676,6 +2676,9 @@ $IMPORT_OUT"
       # ── go.sum diff: count net-new transitive entries added by this PR ──
       # Compare go.sum in PR worktree vs main. New lines = new transitive deps.
       GOSUM_NEW_COUNT=0
+      GOSUM_NEW_NAMES=""
+      GOSUM_TOTAL_PR=0
+      GOSUM_TOTAL_MAIN=0
       if [[ "$ECOSYSTEM" == "gomod" && -d "$PR_WORKTREE" ]]; then
         _GOSUM_PR="$PR_WORKTREE/go.sum"
         _GOSUM_MAIN="$REPO_ROOT/go.sum"

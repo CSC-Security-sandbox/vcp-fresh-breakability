@@ -201,6 +201,10 @@ print(json.dumps({
     'cve_severities': cve_severities,
     'cve_ids':      cve_ids,
     'gosum_new_count': pr.get('gosum_new_count', 0),
+    'gosum_new_names': pr.get('gosum_new_names', ''),
+    'gosum_total_pr':  pr.get('gosum_total_pr', 0),
+    'gosum_total_main': pr.get('gosum_total_main', 0),
+    'verification_steps': pr.get('verification_steps', []),
 }))
 " 2>/dev/null || echo '{}')
 
