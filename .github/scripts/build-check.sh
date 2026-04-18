@@ -570,7 +570,9 @@ scan_usage_go() {
   local pkg="$1"
   local search_dir="${2:-.}"
   # CR4-13: scope usage scan to the affected module directory when provided
-  grep -rn "\"${pkg}" --include="*.go" "$search_dir" 2>/dev/null | grep -v vendor/ | head -50 || true
+  # Also scan for blank imports: _ "pkg" (database drivers, side-effect imports)
+  { grep -rn "\"${pkg}" --include="*.go" "$search_dir" 2>/dev/null | grep -v vendor/;
+    grep -rn "_ \"${pkg}" --include="*.go" "$search_dir" 2>/dev/null | grep -v vendor/; } | head -50 || true
 }
 
 # ── Go build scalability ─────────────────────────────────────────────────
@@ -2683,9 +2685,14 @@ $IMPORT_OUT"
           _GOSUM_MAIN="$REPO_ROOT/$PKG_DIR/go.sum"
         fi
         if [[ -f "$_GOSUM_PR" && -f "$_GOSUM_MAIN" ]]; then
-          GOSUM_NEW_COUNT=$(comm -13 <(sort "$_GOSUM_MAIN") <(sort "$_GOSUM_PR") 2>/dev/null | wc -l | tr -d ' ' || echo "0")
+          _GOSUM_NEW_LINES=$(comm -13 <(sort "$_GOSUM_MAIN") <(sort "$_GOSUM_PR") 2>/dev/null || true)
+          GOSUM_NEW_COUNT=$(echo "$_GOSUM_NEW_LINES" | grep -c . || echo "0")
+          # Extract top-5 unique package names (first column of go.sum: module version hash)
+          GOSUM_NEW_NAMES=$(echo "$_GOSUM_NEW_LINES" | awk '{print $1}' | sort -u | head -5 | tr '\n' ',' | sed 's/,$//' || echo "")
+          GOSUM_TOTAL_PR=$(wc -l < "$_GOSUM_PR" | tr -d ' ' || echo "0")
+          GOSUM_TOTAL_MAIN=$(wc -l < "$_GOSUM_MAIN" | tr -d ' ' || echo "0")
         fi
-        echo "  go.sum: $GOSUM_NEW_COUNT new transitive entries"
+        echo "  go.sum: $GOSUM_NEW_COUNT new transitive entries ($GOSUM_NEW_NAMES)"
       fi
 
       git worktree remove "$PR_WORKTREE" --force 2>/dev/null || rm -rf "$PR_WORKTREE"
@@ -2702,6 +2709,9 @@ $IMPORT_OUT"
   echo "$TEST_OUTPUT" | tail -n 30 > "/tmp/_bc_test_out_${PR_NUM}.txt"
   echo "$NEW_ERRORS" > "/tmp/_bc_new_errors_${PR_NUM}.txt"
   printf '%s' "${GOSUM_NEW_COUNT:-0}" > "/tmp/_bc_gosum_new_${PR_NUM}.txt"
+  printf '%s' "${GOSUM_NEW_NAMES:-}" > "/tmp/_bc_gosum_names_${PR_NUM}.txt"
+  printf '%s' "${GOSUM_TOTAL_PR:-0}" > "/tmp/_bc_gosum_total_pr_${PR_NUM}.txt"
+  printf '%s' "${GOSUM_TOTAL_MAIN:-0}" > "/tmp/_bc_gosum_total_main_${PR_NUM}.txt"
   echo "$DETERMINISTIC" > "/tmp/_bc_det_${PR_NUM}.json"
   echo "$FILES_IMPORTING" > "/tmp/_bc_files_${PR_NUM}.json"
   printf '%s' "$CASCADE_IMPACT" > "/tmp/_bc_cascade_${PR_NUM}.txt"
@@ -2818,12 +2828,27 @@ try:
 except (IOError, OSError, ValueError):
     new_errors = []
 
-# Read go.sum new transitive count
+# Read go.sum new transitive count and names
 try:
     with open(f"/tmp/_bc_gosum_new_{pr_num}.txt") as f:
         gosum_new_count = int(f.read().strip() or "0")
 except (IOError, OSError, ValueError):
     gosum_new_count = 0
+try:
+    with open(f"/tmp/_bc_gosum_names_{pr_num}.txt") as f:
+        gosum_new_names = f.read().strip()
+except (IOError, OSError):
+    gosum_new_names = ""
+try:
+    with open(f"/tmp/_bc_gosum_total_pr_{pr_num}.txt") as f:
+        gosum_total_pr = int(f.read().strip() or "0")
+except (IOError, OSError, ValueError):
+    gosum_total_pr = 0
+try:
+    with open(f"/tmp/_bc_gosum_total_main_{pr_num}.txt") as f:
+        gosum_total_main = int(f.read().strip() or "0")
+except (IOError, OSError, ValueError):
+    gosum_total_main = 0
 
 # Read PR metadata from temp files to avoid shell injection (Finding-4.4)
 # MUST be defined before INFRA_ERROR_PATTERNS because eco is used there (Finding-5.1)
@@ -3021,6 +3046,9 @@ pr_data = {
     "pkg_dir": "$PKG_DIR",
     "cascade_impact": cascade_impact,
     "gosum_new_count": gosum_new_count,
+    "gosum_new_names": gosum_new_names,
+    "gosum_total_pr": gosum_total_pr,
+    "gosum_total_main": gosum_total_main,
     "nestjs_peer_warning": open(f"/tmp/_bc_peer_warn_{pr_num}.txt").read().strip() if os.path.exists(f"/tmp/_bc_peer_warn_{pr_num}.txt") else "",
     "install_ok": True if "$INSTALL_OK" == "true" else False,
     "additional_packages": open(f"/tmp/_bc_addl_pkgs_{pr_num}.txt").read().strip() if os.path.exists(f"/tmp/_bc_addl_pkgs_{pr_num}.txt") else "",

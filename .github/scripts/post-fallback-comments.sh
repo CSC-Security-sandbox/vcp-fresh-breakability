@@ -228,7 +228,11 @@ fields = {
     'OOM_OVERRIDE': str(d.get('oom_override', False)),
     'OOM_PACKAGES': ','.join(d.get('oom_packages', [])),
     'GOSUM_NEW_COUNT': str(d.get('gosum_new_count', 0)),
+    'GOSUM_NEW_NAMES': d.get('gosum_new_names', ''),
+    'GOSUM_TOTAL_PR': str(d.get('gosum_total_pr', 0)),
+    'GOSUM_TOTAL_MAIN': str(d.get('gosum_total_main', 0)),
     'FILES_LIST': '|'.join((f.split(':')[0] if ':' in f else f) for f in d.get('files_importing', [])[:8]),
+    'TEST_FAIL_DETAIL': next((s.get('detail','') for s in d.get('verification_steps',[]) if s.get('step')=='test_suite' and s.get('status')=='pre_existing'), ''),
 }
 for k, v in fields.items():
     # Use null byte as delimiter to safely handle any value content
@@ -261,6 +265,10 @@ for k, v in fields.items():
   OOM_OVERRIDE=$(echo "$_FIELDS_EXTRACTED" | grep '^OOM_OVERRIDE=' | cut -d= -f2-)
   OOM_PACKAGES=$(echo "$_FIELDS_EXTRACTED" | grep '^OOM_PACKAGES=' | cut -d= -f2-)
   GOSUM_NEW_COUNT=$(echo "$_FIELDS_EXTRACTED" | grep '^GOSUM_NEW_COUNT=' | cut -d= -f2-)
+  GOSUM_NEW_NAMES=$(echo "$_FIELDS_EXTRACTED" | grep '^GOSUM_NEW_NAMES=' | cut -d= -f2-)
+  GOSUM_TOTAL_PR=$(echo "$_FIELDS_EXTRACTED" | grep '^GOSUM_TOTAL_PR=' | cut -d= -f2-)
+  GOSUM_TOTAL_MAIN=$(echo "$_FIELDS_EXTRACTED" | grep '^GOSUM_TOTAL_MAIN=' | cut -d= -f2-)
+  TEST_FAIL_DETAIL=$(echo "$_FIELDS_EXTRACTED" | grep '^TEST_FAIL_DETAIL=' | cut -d= -f2-)
   FILES_LIST=$(echo "$_FIELDS_EXTRACTED" | grep '^FILES_LIST=' | cut -d= -f2-)
 
   # CVE extraction — core security data
@@ -365,12 +373,20 @@ ${_SHOWN_FILES}${_MORE_NOTE}
   # Build transitive dep note — with threshold warning for high counts
   _TRANSITIVE_NOTE=""
   if [[ -n "$GOSUM_NEW_COUNT" && "$GOSUM_NEW_COUNT" -gt 0 ]]; then
+    _GOSUM_CONTEXT=""
+    if [[ -n "$GOSUM_TOTAL_MAIN" && "$GOSUM_TOTAL_MAIN" -gt 0 ]]; then
+      _GOSUM_CONTEXT=" (go.sum: ${GOSUM_TOTAL_MAIN} → ${GOSUM_TOTAL_PR} lines)"
+    fi
+    _GOSUM_NAMES_NOTE=""
+    if [[ -n "$GOSUM_NEW_NAMES" ]]; then
+      _GOSUM_NAMES_NOTE=": ${GOSUM_NEW_NAMES}"
+    fi
     if [[ "$GOSUM_NEW_COUNT" -gt 20 ]]; then
       _TRANSITIVE_NOTE="
-- ⚠️ go.sum: **$GOSUM_NEW_COUNT new transitive dep entries** (high — review for supply-chain risk; run \`govulncheck ./...\` before merging)"
+- ⚠️ go.sum: **$GOSUM_NEW_COUNT new transitive deps**${_GOSUM_NAMES_NOTE}${_GOSUM_CONTEXT} — high count, review for supply-chain risk"
     else
       _TRANSITIVE_NOTE="
-- ℹ️ go.sum: $GOSUM_NEW_COUNT new transitive dep entries"
+- ℹ️ go.sum: $GOSUM_NEW_COUNT new transitive deps${_GOSUM_NAMES_NOTE}${_GOSUM_CONTEXT}"
     fi
   fi
   # Build build-stdout evidence block
@@ -444,12 +460,16 @@ ${_BUILD_STDOUT_SNIPPET}
         TEST_EXIT_RAW=$(echo "$PR_FIELDS" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('test_exit',-1))" 2>/dev/null || echo "-1")
         TEST_RAN_RAW=$(echo "$PR_FIELDS" | python3 -c "import json,sys; print(json.load(sys.stdin).get('test_ran',False))" 2>/dev/null || echo "False")
         if [[ "$TEST_RAN_RAW" == "True" && "$TEST_EXIT_RAW" != "0" && "$TEST_EXIT_RAW" != "-1" ]]; then
+          _TEST_DETAIL_NOTE=""
+          if [[ -n "$TEST_FAIL_DETAIL" ]]; then
+            _TEST_DETAIL_NOTE=" ($TEST_FAIL_DETAIL)"
+          fi
           HOW_CHECKED="
 <details><summary>🔍 How we checked (verification: $VER_LABEL)</summary>
 
 - ✅ Dependency resolved successfully
 - ✅ Project builds / type-checks clean
-- ⚙️ Automated tests fail (exit=$TEST_EXIT_RAW — pre-existing, same failure on main)
+- ⚙️ Automated tests fail${_TEST_DETAIL_NOTE} — pre-existing, same failure on main
 - ✅ No new build errors introduced vs. main${_TRANSITIVE_NOTE}
 </details>${_FILES_DETAIL_BLOCK}${_BUILD_STDOUT_BLOCK}"
         else
@@ -1247,13 +1267,37 @@ if companion_blocked:
 if cross:
     lines.append("## 🔗 Coordinated Upgrades (merge together)")
     lines.append("")
+    # Group pairwise entries into multi-PR groups by shared package name
+    from collections import defaultdict
+    _pkg_groups = defaultdict(set)
+    _pkg_reason = {}
+    _single_groups = []
     for group in cross:
+        pr_a = str(group.get("pr_a", "?"))
+        pr_b = str(group.get("pr_b", "?"))
         reason = group.get("reason", "related")
-        pr_a = group.get("pr_a", "?")
-        pr_b = group.get("pr_b", "?")
-        order = group.get("merge_order", "")
-        order_text = f" ({order})" if order else ""
-        lines.append(f"- **{reason}:** #{pr_a} + #{pr_b}{order_text}")
+        # Extract package name from reason for grouping
+        import re as _re
+        _m = _re.search(r'`([^`]+)`|Same package \(([^)]+)\)', reason)
+        _key = (_m.group(1) or _m.group(2)) if _m else reason[:40]
+        _pkg_groups[_key].add(pr_a)
+        _pkg_groups[_key].add(pr_b)
+        _pkg_reason[_key] = reason
+    for pkg_key, pr_set in sorted(_pkg_groups.items()):
+        pr_list = sorted(pr_set, key=lambda x: int(x) if x.isdigit() else 99)
+        pr_str = " + ".join(f"#{p}" for p in pr_list)
+        reason = _pkg_reason.get(pkg_key, pkg_key)
+        # Simplify reason for groups with 3+ PRs
+        if len(pr_list) >= 3:
+            lines.append(f"- **{reason}:** {pr_str} — merge all {len(pr_list)} together")
+        else:
+            order = ""
+            for group in cross:
+                if str(group.get("pr_a")) in pr_set and str(group.get("pr_b")) in pr_set:
+                    order = group.get("merge_order", "")
+                    break
+            order_text = f" ({order})" if order else ""
+            lines.append(f"- **{reason}:** {pr_str}{order_text}")
     lines.append("")
 
 # Blocked
