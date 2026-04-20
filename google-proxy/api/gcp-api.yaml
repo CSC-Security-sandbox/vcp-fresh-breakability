@@ -639,6 +639,60 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
+  /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService:
+    post:
+      tags:
+        - pools
+      summary: Diagnose directory service configuration for a pool
+      description: Validates the Active Directory configuration for a pool by running a connectivity check.
+      operationId: v1beta_directoryServiceDiagnosis
+      parameters:
+        - $ref: '#/components/parameters/poolIdPathParameter'
+        - $ref: '#/components/parameters/projectNumberPathParameter'
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        description: The parameters for directory service diagnosis.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PoolConnectivityCheck_v1beta'
+        required: true
+      responses:
+        '202':
+          description: Diagnosing directory service
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Operation_v1beta'
+              example:
+                done: false
+                name: /v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe
+                response:
+                  poolId: bfa46013-1a1e-587b-ef9a-619bae6ba25d
+                  activeDirectoryId: 9760acf5-4638-11e7-9bdb-020073ca7773
+                  lifeCycleState: diagnosing
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '429':
+          $ref: '#/components/responses/StandardError-429'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-codegen-request-body-name: body
   /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumePerformanceGroups:
     get:
       tags:
@@ -14547,6 +14601,28 @@ components:
             kmsGrant is only accepted when CMEK backup is enabled on the service.
           allOf:
             - $ref: '#/components/schemas/BackupConfig_v1beta'
+    PoolConnectivityCheck_v1beta:
+      title: PoolConnectivityCheck
+      type: object
+      required:
+        - action
+        - resourceType
+      properties:
+        action:
+          title: action
+          type: string
+          description: Type of action to be performed
+          enum:
+            - connectivityCheck
+          example: connectivityCheck
+        resourceType:
+          title: resourceType
+          type: string
+          description: Check the pool directory-services configuration
+          enum:
+            - AD
+            - LDAP
+          example: AD
     RestoreBackupRequest_v1beta:
       title: RestoreBackupRequestOntapMode
       type: object

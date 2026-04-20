@@ -8928,6 +8928,7 @@ func (*ErrorStatusCode) v1betaDescribeQuotaRuleVCPRes()                      {}
 func (*ErrorStatusCode) v1betaDescribeSnapshotRes()                          {}
 func (*ErrorStatusCode) v1betaDescribeVolumePerformanceGroupRes()            {}
 func (*ErrorStatusCode) v1betaDescribeVolumeRes()                            {}
+func (*ErrorStatusCode) v1betaDirectoryServiceDiagnosisRes()                 {}
 func (*ErrorStatusCode) v1betaEncryptVolumesRes()                            {}
 func (*ErrorStatusCode) v1betaEstablishPeeringRes()                          {}
 func (*ErrorStatusCode) v1betaEstablishVolumePeeringRes()                    {}
@@ -12972,6 +12973,7 @@ func (*OperationV1beta) v1betaDeleteSnapshotRes()                            {}
 func (*OperationV1beta) v1betaDeleteVolumePerformanceGroupRes()              {}
 func (*OperationV1beta) v1betaDeleteVolumeRes()                              {}
 func (*OperationV1beta) v1betaDescribeOperationRes()                         {}
+func (*OperationV1beta) v1betaDirectoryServiceDiagnosisRes()                 {}
 func (*OperationV1beta) v1betaEncryptVolumesRes()                            {}
 func (*OperationV1beta) v1betaEstablishPeeringRes()                          {}
 func (*OperationV1beta) v1betaEstablishVolumePeeringRes()                    {}
@@ -21963,6 +21965,111 @@ func (o OptWeeklyScheduleV1beta) Or(d WeeklyScheduleV1beta) WeeklyScheduleV1beta
 	return d
 }
 
+// Ref: #/components/schemas/PoolConnectivityCheck_v1beta
+type PoolConnectivityCheckV1beta struct {
+	// Type of action to be performed.
+	Action PoolConnectivityCheckV1betaAction `json:"action"`
+	// Check the pool directory-services configuration.
+	ResourceType PoolConnectivityCheckV1betaResourceType `json:"resourceType"`
+}
+
+// GetAction returns the value of Action.
+func (s *PoolConnectivityCheckV1beta) GetAction() PoolConnectivityCheckV1betaAction {
+	return s.Action
+}
+
+// GetResourceType returns the value of ResourceType.
+func (s *PoolConnectivityCheckV1beta) GetResourceType() PoolConnectivityCheckV1betaResourceType {
+	return s.ResourceType
+}
+
+// SetAction sets the value of Action.
+func (s *PoolConnectivityCheckV1beta) SetAction(val PoolConnectivityCheckV1betaAction) {
+	s.Action = val
+}
+
+// SetResourceType sets the value of ResourceType.
+func (s *PoolConnectivityCheckV1beta) SetResourceType(val PoolConnectivityCheckV1betaResourceType) {
+	s.ResourceType = val
+}
+
+// Type of action to be performed.
+type PoolConnectivityCheckV1betaAction string
+
+const (
+	PoolConnectivityCheckV1betaActionConnectivityCheck PoolConnectivityCheckV1betaAction = "connectivityCheck"
+)
+
+// AllValues returns all PoolConnectivityCheckV1betaAction values.
+func (PoolConnectivityCheckV1betaAction) AllValues() []PoolConnectivityCheckV1betaAction {
+	return []PoolConnectivityCheckV1betaAction{
+		PoolConnectivityCheckV1betaActionConnectivityCheck,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PoolConnectivityCheckV1betaAction) MarshalText() ([]byte, error) {
+	switch s {
+	case PoolConnectivityCheckV1betaActionConnectivityCheck:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PoolConnectivityCheckV1betaAction) UnmarshalText(data []byte) error {
+	switch PoolConnectivityCheckV1betaAction(data) {
+	case PoolConnectivityCheckV1betaActionConnectivityCheck:
+		*s = PoolConnectivityCheckV1betaActionConnectivityCheck
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Check the pool directory-services configuration.
+type PoolConnectivityCheckV1betaResourceType string
+
+const (
+	PoolConnectivityCheckV1betaResourceTypeAD   PoolConnectivityCheckV1betaResourceType = "AD"
+	PoolConnectivityCheckV1betaResourceTypeLDAP PoolConnectivityCheckV1betaResourceType = "LDAP"
+)
+
+// AllValues returns all PoolConnectivityCheckV1betaResourceType values.
+func (PoolConnectivityCheckV1betaResourceType) AllValues() []PoolConnectivityCheckV1betaResourceType {
+	return []PoolConnectivityCheckV1betaResourceType{
+		PoolConnectivityCheckV1betaResourceTypeAD,
+		PoolConnectivityCheckV1betaResourceTypeLDAP,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s PoolConnectivityCheckV1betaResourceType) MarshalText() ([]byte, error) {
+	switch s {
+	case PoolConnectivityCheckV1betaResourceTypeAD:
+		return []byte(s), nil
+	case PoolConnectivityCheckV1betaResourceTypeLDAP:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *PoolConnectivityCheckV1betaResourceType) UnmarshalText(data []byte) error {
+	switch PoolConnectivityCheckV1betaResourceType(data) {
+	case PoolConnectivityCheckV1betaResourceTypeAD:
+		*s = PoolConnectivityCheckV1betaResourceTypeAD
+		return nil
+	case PoolConnectivityCheckV1betaResourceTypeLDAP:
+		*s = PoolConnectivityCheckV1betaResourceTypeLDAP
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/PoolIdList_v1beta
 type PoolIdListV1beta struct {
 	PoolUuids []string `json:"poolUuids"`
@@ -30438,6 +30545,34 @@ func (*V1betaDescribeVolumeTooManyRequests) v1betaDescribeVolumeRes() {}
 type V1betaDescribeVolumeUnauthorized Error
 
 func (*V1betaDescribeVolumeUnauthorized) v1betaDescribeVolumeRes() {}
+
+type V1betaDirectoryServiceDiagnosisBadRequest Error
+
+func (*V1betaDirectoryServiceDiagnosisBadRequest) v1betaDirectoryServiceDiagnosisRes() {}
+
+type V1betaDirectoryServiceDiagnosisConflict Error
+
+func (*V1betaDirectoryServiceDiagnosisConflict) v1betaDirectoryServiceDiagnosisRes() {}
+
+type V1betaDirectoryServiceDiagnosisForbidden Error
+
+func (*V1betaDirectoryServiceDiagnosisForbidden) v1betaDirectoryServiceDiagnosisRes() {}
+
+type V1betaDirectoryServiceDiagnosisInternalServerError Error
+
+func (*V1betaDirectoryServiceDiagnosisInternalServerError) v1betaDirectoryServiceDiagnosisRes() {}
+
+type V1betaDirectoryServiceDiagnosisNotFound Error
+
+func (*V1betaDirectoryServiceDiagnosisNotFound) v1betaDirectoryServiceDiagnosisRes() {}
+
+type V1betaDirectoryServiceDiagnosisTooManyRequests Error
+
+func (*V1betaDirectoryServiceDiagnosisTooManyRequests) v1betaDirectoryServiceDiagnosisRes() {}
+
+type V1betaDirectoryServiceDiagnosisUnauthorized Error
+
+func (*V1betaDirectoryServiceDiagnosisUnauthorized) v1betaDirectoryServiceDiagnosisRes() {}
 
 type V1betaEncryptVolumesBadRequest Error
 

@@ -590,6 +590,18 @@ type V1betaDescribeVolumePerformanceGroupParams struct {
 	VolumePerformanceGroupId string
 }
 
+// V1betaDirectoryServiceDiagnosisParams is parameters of v1beta_directoryServiceDiagnosis operation.
+type V1betaDirectoryServiceDiagnosisParams struct {
+	// Uuid v4 used to identify the pool.
+	PoolId string
+	// The project number of the GCP project owning the resource being acted upon.
+	ProjectNumber string
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1betaEncryptVolumesParams is parameters of v1beta_encryptVolumes operation.
 type V1betaEncryptVolumesParams struct {
 	// The project number of the GCP project owning the resource being acted upon.

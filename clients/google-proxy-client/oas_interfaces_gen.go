@@ -201,6 +201,10 @@ type V1betaDescribeVolumeRes interface {
 	v1betaDescribeVolumeRes()
 }
 
+type V1betaDirectoryServiceDiagnosisRes interface {
+	v1betaDirectoryServiceDiagnosisRes()
+}
+
 type V1betaEncryptVolumesRes interface {
 	v1betaEncryptVolumesRes()
 }

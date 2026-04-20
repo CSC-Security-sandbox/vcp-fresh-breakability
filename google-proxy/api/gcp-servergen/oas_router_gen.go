@@ -2014,6 +2014,30 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 											}
 
+										case 'd': // Prefix: "directoryService"
+
+											if l := len("directoryService"); len(elem) >= l && elem[0:l] == "directoryService" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch r.Method {
+												case "POST":
+													s.handleV1betaDirectoryServiceDiagnosisRequest([3]string{
+														args[0],
+														args[1],
+														args[2],
+													}, elemIsEscaped, w, r)
+												default:
+													s.notAllowed(w, r, "POST")
+												}
+
+												return
+											}
+
 										case 'r': // Prefix: "restoreBackup"
 
 											if l := len("restoreBackup"); len(elem) >= l && elem[0:l] == "restoreBackup" {
@@ -5288,6 +5312,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 													}
 												}
 
+											}
+
+										case 'd': // Prefix: "directoryService"
+
+											if l := len("directoryService"); len(elem) >= l && elem[0:l] == "directoryService" {
+												elem = elem[l:]
+											} else {
+												break
+											}
+
+											if len(elem) == 0 {
+												// Leaf node.
+												switch method {
+												case "POST":
+													r.name = V1betaDirectoryServiceDiagnosisOperation
+													r.summary = "Diagnose directory service configuration for a pool"
+													r.operationID = "v1beta_directoryServiceDiagnosis"
+													r.pathPattern = "/v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService"
+													r.args = args
+													r.count = 3
+													return r, true
+												default:
+													return
+												}
 											}
 
 										case 'r': // Prefix: "restoreBackup"

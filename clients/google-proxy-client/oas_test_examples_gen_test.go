@@ -3688,6 +3688,7 @@ func TestOperationV1beta_Examples(t *testing.T) {
 		{Input: "{\"created\":\"2024-01-24T13:54:14.374Z\",\"description\":\"HostGroup for storage access\",\"done\":true,\"hostGroupId\":\"123e4567-e89b-12d3-a456-426614174000\",\"hosts\":[\"iqn.1998-01.com.vmware:example1\"],\"name\":\"/v1beta/projects/123456789/locations/us-east1/operations/123e4567-e89b-12d3-a456-426614174000\",\"osType\":\"LINUX\",\"resourceId\":\"my-host-group\",\"response\":null,\"state\":\"READY\",\"stateDetails\":\"available for use\",\"type\":\"ISCSI_INITIATOR\"}"},
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location/operations/775a1ae3-fbf9-8104-a912-4f592d64692f\",\"response\":{\"backupConfig\":{\"backupChainBytes\":0,\"backupPolicyId\":\"\",\"backupVaultId\":\"\",\"scheduledBackupEnabled\":false},\"blockDevices\":[{\"identifier\":\"6c573830345d596e6159574b\",\"name\":\"lun_testvolume\",\"osType\":\"LINUX\",\"sizeInBytes\":107373867008}],\"createdAt\":\"2025-08-25T11:42:53+05:30\",\"creationToken\":\"some-volume\",\"description\":\"My Volume description\",\"encryptionType\":\"SERVICE_MANAGED\",\"isDataProtection\":false,\"labels\":{},\"network\":\"projects/123456789/global/networks/systemic-qa-vpc\",\"poolId\":\"0984deb4-0026-7232-0355-25f123fb7c71\",\"poolResourceId\":\"pool-name\",\"protocols\":[\"ISCSI\"],\"quotaInBytes\":107374182400,\"resourceId\":\"my-volume\",\"serviceLevel\":\"FLEX\",\"snapReserve\":0,\"snapshotDirectory\":false,\"snapshotPolicy\":{\"dailySchedule\":{},\"enabled\":false,\"hourlySchedule\":{},\"monthlySchedule\":{},\"weeklySchedule\":{}},\"storageClass\":\"SOFTWARE\",\"usedBytes\":0,\"volumeId\":\"87ace4c4-7344-37f6-ad08-80aa6a1c1ef8\",\"volumeState\":\"UPDATING\",\"volumeStateDetails\":\"Update in progress\",\"zone\":\"some-zone-a\"}}"},
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"ResourceType\":\"Volume\",\"jobs\":[\"ba2c8826-2627-057c-42ba-343ee7ab1ebe\"],\"resourceId\":\"281ea02b-d22d-8115-4d96-f943038ac2a1\"}}"},
+		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"activeDirectoryId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"lifeCycleState\":\"diagnosing\",\"poolId\":\"bfa46013-1a1e-587b-ef9a-619bae6ba25d\"}}"},
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"backupConfig\":{\"backupPolicyId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"backupVaultId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"scheduledBackupEnabled\":true},\"cloneDetails\":{\"parentSnapshotId\":\"9760acf5-4638-11e7-9bdb-020073ca3333\",\"parentVolumeId\":\"49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E\",\"sharedBytes\":100000000000,\"splitCompletePercent\":0,\"state\":\"CLONED\"},\"created\":\"2024-01-24T11:03:07.254Z\",\"creationToken\":\"some-volume\",\"encryptionType\":\"SERVICE_MANAGED\",\"exportPolicy\":{\"rules\":[]},\"inReplication\":false,\"isDataProtection\":false,\"kerberosEnabled\":false,\"largeCapacity\":false,\"ldapEnabled\":false,\"mountPoints\":[],\"multipleEndpoints\":false,\"network\":\"projects/123456789/global/networks/systemic-qa-vpc\",\"poolId\":\"a20730de-511f-273c-4071-ac1a30478609\",\"poolResourceId\":\"projects/123456789/locations/some-location1/pools/some-pool\",\"protocols\":[\"NFSV3\"],\"quotaInBytes\":4000000000000,\"resourceId\":\"some-volume\",\"securityStyle\":\"UNIX\",\"serviceLevel\":\"PREMIUM\",\"smbSettings\":[],\"snapReserve\":0,\"snapshotDirectory\":true,\"storageClass\":\"SOFTWARE\",\"tieringPolicy\":{\"coolingThresholdDays\":24,\"tierAction\":\"ENABLED\"},\"unixPermissions\":\"0770\",\"usedBytes\":1409024,\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\",\"volumeState\":\"CREATING\",\"volumeStateDetails\":\"Creation in progress\"}}"},
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"backupConfig\":{\"backupPolicyId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"backupVaultId\":\"9760acf5-4638-11e7-9bdb-020073ca7773\",\"scheduledBackupEnabled\":true},\"cloneDetails\":{\"parentSnapshotId\":\"9760acf5-4638-11e7-9bdb-020073ca3333\",\"parentVolumeId\":\"49b96a2F-4a38-6fa4-2CC6-F598Ef2f8a0E\",\"sharedBytes\":100000000000,\"splitCompletePercent\":0,\"state\":\"CLONED\"},\"created\":\"2024-01-24T11:03:07.254Z\",\"creationToken\":\"some-volume\",\"encryptionType\":\"SERVICE_MANAGED\",\"exportPolicy\":{\"rules\":[]},\"inReplication\":false,\"isDataProtection\":false,\"kerberosEnabled\":false,\"largeCapacity\":false,\"ldapEnabled\":false,\"mountPoints\":[{\"export\":\"/some-volume\",\"exportFull\":\"1.2.3.4:/some-volume\",\"instructions\":\"Setting up your instance\\nOpen an SSH client and connect to your instance.\\nInstall the nfs client on your instance.\\nOn Red Hat Enterprise Linux or SuSE Linux instance:\\nsudo yum install -y nfs-utils\\nOn an Ubuntu or Debian instance:\\nsudo apt-get install nfs-common\\n\\nMounting your volume\\nCreate a new directory on your instance, such as \\\"/some-volume\\\":\\nsudo mkdir /some-volume\\nMount your volume using the example command below:\\nsudo mount -t nfs -o rw,hard,rsize=65536,wsize=65536,vers=3,tcp 1.2.3.4:/some-volume /some-volume\\nNote. Please use mount options appropriate for your specific workloads when known.\",\"protocol\":\"NFSV3\"}],\"multipleEndpoints\":false,\"network\":\"projects/123456789/global/networks/systemic-qa-vpc\",\"poolId\":\"a20730de-511f-273c-4071-ac1a30478609\",\"poolResourceId\":\"projects/123456789/locations/some-location1/pools/some-pool\",\"protocols\":[\"NFSV3\"],\"quotaInBytes\":4000000000000,\"resourceId\":\"some-volume\",\"securityStyle\":\"UNIX\",\"serviceLevel\":\"PREMIUM\",\"smbSettings\":[],\"snapReserve\":0,\"snapshotDirectory\":true,\"storageClass\":\"SOFTWARE\",\"tieringPolicy\":{\"coolingThresholdDays\":24,\"tierAction\":\"ENABLED\"},\"unixPermissions\":\"0770\",\"usedBytes\":1409024,\"volumeId\":\"b78e8675-7e6f-64ec-3ec2-163753add2d5\",\"volumeState\":\"READY\",\"volumeStateDetails\":\"Available for use\"}}"},
 		{Input: "{\"done\":false,\"name\":\"/v1beta/projects/123456789/locations/some-location1/operations/ba2c8826-2627-057c-42ba-343ee7ab1ebe\",\"response\":{\"clusterLocation\":\"Orlando\",\"created\":\"2024-01-29T10:33:49.536Z\",\"description\":\"My replication\",\"destination\":{\"volumeId\":\"a02acf13-00ae-8d17-3f9a-e6daa1473d5b\",\"volumeName\":\"projects/123456789/locations/some-location2/volumes/my-destination-volume\"},\"healthy\":true,\"mirrorState\":\"MIRRORED\",\"replicationId\":\"3796c3d1-6524-9757-aedf-017e41a430ab\",\"replicationSchedule\":\"HOURLY\",\"resourceId\":\"my-replication\",\"role\":\"SOURCE\",\"source\":{\"volumeId\":\"1a65c06a-94a1-f850-0a1a-d0d07b6f7560\",\"volumeName\":\"projects/123456789/locations/some-location1/volumes/my-source-volume\"},\"state\":\"UPDATING\",\"stateDetails\":\"Update in progress\",\"transferStats\":{\"lagTime\":18,\"lastTransferEndTime\":\"2024-01-29T10:34:11.000Z\",\"totalTransferBytes\":18872,\"totalTransferTimeSecs\":2}}}"},
@@ -3725,6 +3726,100 @@ func TestOperationV1beta_Examples(t *testing.T) {
 			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
 
 			var typ2 OperationV1beta
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestPoolConnectivityCheckV1beta_EncodeDecode(t *testing.T) {
+	var typ PoolConnectivityCheckV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 PoolConnectivityCheckV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestPoolConnectivityCheckV1betaAction_EncodeDecode(t *testing.T) {
+	var typ PoolConnectivityCheckV1betaAction
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 PoolConnectivityCheckV1betaAction
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestPoolConnectivityCheckV1betaAction_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"connectivityCheck\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ PoolConnectivityCheckV1betaAction
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 PoolConnectivityCheckV1betaAction
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestPoolConnectivityCheckV1betaResourceType_EncodeDecode(t *testing.T) {
+	var typ PoolConnectivityCheckV1betaResourceType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 PoolConnectivityCheckV1betaResourceType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestPoolConnectivityCheckV1betaResourceType_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"AD\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ PoolConnectivityCheckV1betaResourceType
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 PoolConnectivityCheckV1betaResourceType
 			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
 		})
 	}
@@ -10307,6 +10402,90 @@ func TestV1betaDescribeVolumeUnauthorized_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaDescribeVolumeUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDirectoryServiceDiagnosisBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaDirectoryServiceDiagnosisBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDirectoryServiceDiagnosisBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDirectoryServiceDiagnosisConflict_EncodeDecode(t *testing.T) {
+	var typ V1betaDirectoryServiceDiagnosisConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDirectoryServiceDiagnosisConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDirectoryServiceDiagnosisForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaDirectoryServiceDiagnosisForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDirectoryServiceDiagnosisForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDirectoryServiceDiagnosisInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaDirectoryServiceDiagnosisInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDirectoryServiceDiagnosisInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDirectoryServiceDiagnosisNotFound_EncodeDecode(t *testing.T) {
+	var typ V1betaDirectoryServiceDiagnosisNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDirectoryServiceDiagnosisNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDirectoryServiceDiagnosisTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1betaDirectoryServiceDiagnosisTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDirectoryServiceDiagnosisTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaDirectoryServiceDiagnosisUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaDirectoryServiceDiagnosisUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaDirectoryServiceDiagnosisUnauthorized
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaEncryptVolumesBadRequest_EncodeDecode(t *testing.T) {

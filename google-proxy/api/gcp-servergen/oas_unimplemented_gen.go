@@ -483,6 +483,15 @@ func (UnimplementedHandler) V1betaDescribeVolumePerformanceGroup(ctx context.Con
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaDirectoryServiceDiagnosis implements v1beta_directoryServiceDiagnosis operation.
+//
+// Validates the Active Directory configuration for a pool by running a connectivity check.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService
+func (UnimplementedHandler) V1betaDirectoryServiceDiagnosis(ctx context.Context, req *PoolConnectivityCheckV1beta, params V1betaDirectoryServiceDiagnosisParams) (r V1betaDirectoryServiceDiagnosisRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaEncryptVolumes implements v1beta_encryptVolumes operation.
 //
 // Migrates all volumes to VSA CMEK encryption.

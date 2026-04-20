@@ -328,6 +328,12 @@ type Handler interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumePerformanceGroups/{volumePerformanceGroupId}
 	V1betaDescribeVolumePerformanceGroup(ctx context.Context, params V1betaDescribeVolumePerformanceGroupParams) (V1betaDescribeVolumePerformanceGroupRes, error)
+	// V1betaDirectoryServiceDiagnosis implements v1beta_directoryServiceDiagnosis operation.
+	//
+	// Validates the Active Directory configuration for a pool by running a connectivity check.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService
+	V1betaDirectoryServiceDiagnosis(ctx context.Context, req *PoolConnectivityCheckV1beta, params V1betaDirectoryServiceDiagnosisParams) (V1betaDirectoryServiceDiagnosisRes, error)
 	// V1betaEncryptVolumes implements v1beta_encryptVolumes operation.
 	//
 	// Migrates all volumes to VSA CMEK encryption.

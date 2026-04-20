@@ -559,6 +559,66 @@ func (_c *MockHandler_V1betaBatchListSnapshots_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// V1betaBatchListVolumes provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaBatchListVolumes(ctx context.Context, req *BatchVolumeUUIDListV1beta, params V1betaBatchListVolumesParams) (V1betaBatchListVolumesRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaBatchListVolumes")
+	}
+
+	var r0 V1betaBatchListVolumesRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *BatchVolumeUUIDListV1beta, V1betaBatchListVolumesParams) (V1betaBatchListVolumesRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *BatchVolumeUUIDListV1beta, V1betaBatchListVolumesParams) V1betaBatchListVolumesRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaBatchListVolumesRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *BatchVolumeUUIDListV1beta, V1betaBatchListVolumesParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaBatchListVolumes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaBatchListVolumes'
+type MockHandler_V1betaBatchListVolumes_Call struct {
+	*mock.Call
+}
+
+// V1betaBatchListVolumes is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *BatchVolumeUUIDListV1beta
+//   - params V1betaBatchListVolumesParams
+func (_e *MockHandler_Expecter) V1betaBatchListVolumes(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaBatchListVolumes_Call {
+	return &MockHandler_V1betaBatchListVolumes_Call{Call: _e.mock.On("V1betaBatchListVolumes", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaBatchListVolumes_Call) Run(run func(ctx context.Context, req *BatchVolumeUUIDListV1beta, params V1betaBatchListVolumesParams)) *MockHandler_V1betaBatchListVolumes_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*BatchVolumeUUIDListV1beta), args[2].(V1betaBatchListVolumesParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaBatchListVolumes_Call) Return(_a0 V1betaBatchListVolumesRes, _a1 error) *MockHandler_V1betaBatchListVolumes_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaBatchListVolumes_Call) RunAndReturn(run func(context.Context, *BatchVolumeUUIDListV1beta, V1betaBatchListVolumesParams) (V1betaBatchListVolumesRes, error)) *MockHandler_V1betaBatchListVolumes_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1betaCheckKmsConfig provides a mock function with given fields: ctx, params
 func (_m *MockHandler) V1betaCheckKmsConfig(ctx context.Context, params V1betaCheckKmsConfigParams) (V1betaCheckKmsConfigRes, error) {
 	ret := _m.Called(ctx, params)
@@ -2930,6 +2990,66 @@ func (_c *MockHandler_V1betaDescribeVolumePerformanceGroup_Call) Return(_a0 V1be
 }
 
 func (_c *MockHandler_V1betaDescribeVolumePerformanceGroup_Call) RunAndReturn(run func(context.Context, V1betaDescribeVolumePerformanceGroupParams) (V1betaDescribeVolumePerformanceGroupRes, error)) *MockHandler_V1betaDescribeVolumePerformanceGroup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1betaDirectoryServiceDiagnosis provides a mock function with given fields: ctx, req, params
+func (_m *MockHandler) V1betaDirectoryServiceDiagnosis(ctx context.Context, req *PoolConnectivityCheckV1beta, params V1betaDirectoryServiceDiagnosisParams) (V1betaDirectoryServiceDiagnosisRes, error) {
+	ret := _m.Called(ctx, req, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1betaDirectoryServiceDiagnosis")
+	}
+
+	var r0 V1betaDirectoryServiceDiagnosisRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *PoolConnectivityCheckV1beta, V1betaDirectoryServiceDiagnosisParams) (V1betaDirectoryServiceDiagnosisRes, error)); ok {
+		return rf(ctx, req, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *PoolConnectivityCheckV1beta, V1betaDirectoryServiceDiagnosisParams) V1betaDirectoryServiceDiagnosisRes); ok {
+		r0 = rf(ctx, req, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1betaDirectoryServiceDiagnosisRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *PoolConnectivityCheckV1beta, V1betaDirectoryServiceDiagnosisParams) error); ok {
+		r1 = rf(ctx, req, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockHandler_V1betaDirectoryServiceDiagnosis_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1betaDirectoryServiceDiagnosis'
+type MockHandler_V1betaDirectoryServiceDiagnosis_Call struct {
+	*mock.Call
+}
+
+// V1betaDirectoryServiceDiagnosis is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *PoolConnectivityCheckV1beta
+//   - params V1betaDirectoryServiceDiagnosisParams
+func (_e *MockHandler_Expecter) V1betaDirectoryServiceDiagnosis(ctx interface{}, req interface{}, params interface{}) *MockHandler_V1betaDirectoryServiceDiagnosis_Call {
+	return &MockHandler_V1betaDirectoryServiceDiagnosis_Call{Call: _e.mock.On("V1betaDirectoryServiceDiagnosis", ctx, req, params)}
+}
+
+func (_c *MockHandler_V1betaDirectoryServiceDiagnosis_Call) Run(run func(ctx context.Context, req *PoolConnectivityCheckV1beta, params V1betaDirectoryServiceDiagnosisParams)) *MockHandler_V1betaDirectoryServiceDiagnosis_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*PoolConnectivityCheckV1beta), args[2].(V1betaDirectoryServiceDiagnosisParams))
+	})
+	return _c
+}
+
+func (_c *MockHandler_V1betaDirectoryServiceDiagnosis_Call) Return(_a0 V1betaDirectoryServiceDiagnosisRes, _a1 error) *MockHandler_V1betaDirectoryServiceDiagnosis_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockHandler_V1betaDirectoryServiceDiagnosis_Call) RunAndReturn(run func(context.Context, *PoolConnectivityCheckV1beta, V1betaDirectoryServiceDiagnosisParams) (V1betaDirectoryServiceDiagnosisRes, error)) *MockHandler_V1betaDirectoryServiceDiagnosis_Call {
 	_c.Call.Return(run)
 	return _c
 }

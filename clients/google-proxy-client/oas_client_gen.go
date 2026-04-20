@@ -341,6 +341,12 @@ type Invoker interface {
 	//
 	// GET /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/volumePerformanceGroups/{volumePerformanceGroupId}
 	V1betaDescribeVolumePerformanceGroup(ctx context.Context, params V1betaDescribeVolumePerformanceGroupParams) (V1betaDescribeVolumePerformanceGroupRes, error)
+	// V1betaDirectoryServiceDiagnosis invokes v1beta_directoryServiceDiagnosis operation.
+	//
+	// Validates the Active Directory configuration for a pool by running a connectivity check.
+	//
+	// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService
+	V1betaDirectoryServiceDiagnosis(ctx context.Context, request *PoolConnectivityCheckV1beta, params V1betaDirectoryServiceDiagnosisParams) (V1betaDirectoryServiceDiagnosisRes, error)
 	// V1betaEncryptVolumes invokes v1beta_encryptVolumes operation.
 	//
 	// Migrates all volumes to VSA CMEK encryption.
@@ -6601,6 +6607,127 @@ func (c *Client) sendV1betaDescribeVolumePerformanceGroup(ctx context.Context, p
 	defer resp.Body.Close()
 
 	result, err := decodeV1betaDescribeVolumePerformanceGroupResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1betaDirectoryServiceDiagnosis invokes v1beta_directoryServiceDiagnosis operation.
+//
+// Validates the Active Directory configuration for a pool by running a connectivity check.
+//
+// POST /v1beta/projects/{projectNumber}/locations/{locationId}/pools/{poolId}/directoryService
+func (c *Client) V1betaDirectoryServiceDiagnosis(ctx context.Context, request *PoolConnectivityCheckV1beta, params V1betaDirectoryServiceDiagnosisParams) (V1betaDirectoryServiceDiagnosisRes, error) {
+	res, err := c.sendV1betaDirectoryServiceDiagnosis(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaDirectoryServiceDiagnosis(ctx context.Context, request *PoolConnectivityCheckV1beta, params V1betaDirectoryServiceDiagnosisParams) (res V1betaDirectoryServiceDiagnosisRes, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [7]string
+	pathParts[0] = "/v1beta/projects/"
+	{
+		// Encode "projectNumber" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "projectNumber",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ProjectNumber))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[3] = encoded
+	}
+	pathParts[4] = "/pools/"
+	{
+		// Encode "poolId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "poolId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.PoolId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[5] = encoded
+	}
+	pathParts[6] = "/directoryService"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1betaDirectoryServiceDiagnosisRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaDirectoryServiceDiagnosisResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

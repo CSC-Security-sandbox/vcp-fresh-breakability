@@ -5930,6 +5930,30 @@ func (s *OptWeeklyScheduleV1beta) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *PoolConnectivityCheckV1beta) SetFake() {
+	{
+		{
+			s.Action.SetFake()
+		}
+	}
+	{
+		{
+			s.ResourceType.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *PoolConnectivityCheckV1betaAction) SetFake() {
+	*s = PoolConnectivityCheckV1betaActionConnectivityCheck
+}
+
+// SetFake set fake values.
+func (s *PoolConnectivityCheckV1betaResourceType) SetFake() {
+	*s = PoolConnectivityCheckV1betaResourceTypeAD
+}
+
+// SetFake set fake values.
 func (s *PoolIdListV1beta) SetFake() {
 	{
 		{
@@ -11058,6 +11082,69 @@ func (s *V1betaDescribeVolumeUnauthorized) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaDescribeVolumeUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDirectoryServiceDiagnosisBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDirectoryServiceDiagnosisBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDirectoryServiceDiagnosisConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDirectoryServiceDiagnosisConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDirectoryServiceDiagnosisForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDirectoryServiceDiagnosisForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDirectoryServiceDiagnosisInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDirectoryServiceDiagnosisInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDirectoryServiceDiagnosisNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDirectoryServiceDiagnosisNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDirectoryServiceDiagnosisTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDirectoryServiceDiagnosisTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaDirectoryServiceDiagnosisUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaDirectoryServiceDiagnosisUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.
