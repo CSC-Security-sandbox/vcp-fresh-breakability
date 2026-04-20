@@ -1084,6 +1084,10 @@ func (s *Server) handleV1betaBatchListHostGroupsRequest(args [1]string, argsEsca
 					Name: "X-Correlation-ID",
 					In:   "header",
 				}: params.XCorrelationID,
+				{
+					Name: "fields",
+					In:   "query",
+				}: params.Fields,
 			},
 			Raw: r,
 		}

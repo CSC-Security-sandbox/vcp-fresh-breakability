@@ -62,6 +62,8 @@ type V1betaBatchListHostGroupsParams struct {
 	LocationId string
 	// Correlation identifier.
 	XCorrelationID OptString
+	// Specify the fields to return.
+	Fields []V1betaBatchListHostGroupsFieldsItem
 }
 
 // V1betaBatchListPoolsParams is parameters of v1beta_batchListPools operation.

@@ -13286,6 +13286,29 @@ func (s *V1betaBatchListHostGroupsBadRequest) Validate() error {
 	return nil
 }
 
+func (s V1betaBatchListHostGroupsFieldsItem) Validate() error {
+	switch s {
+	case "name":
+		return nil
+	case "resourceId":
+		return nil
+	case "description":
+		return nil
+	case "created":
+		return nil
+	case "state":
+		return nil
+	case "type":
+		return nil
+	case "hosts":
+		return nil
+	case "osType":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
 func (s *V1betaBatchListHostGroupsForbidden) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {

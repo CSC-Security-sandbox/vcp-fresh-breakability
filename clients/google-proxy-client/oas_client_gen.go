@@ -1555,6 +1555,35 @@ func (c *Client) sendV1betaBatchListHostGroups(ctx context.Context, request *Bat
 	pathParts[2] = "/batch/hostGroups"
 	uri.AddPathParts(u, pathParts[:]...)
 
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "fields" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "fields",
+			Style:   uri.QueryStyleForm,
+			Explode: false,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if params.Fields != nil {
+				return e.EncodeArray(func(e uri.Encoder) error {
+					for i, item := range params.Fields {
+						if err := func() error {
+							return e.EncodeValue(conv.StringToString(string(item)))
+						}(); err != nil {
+							return errors.Wrapf(err, "[%d]", i)
+						}
+					}
+					return nil
+				})
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
 	r, err := ht.NewRequest(ctx, "POST", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")

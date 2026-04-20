@@ -28036,6 +28036,89 @@ type V1betaBatchListHostGroupsBadRequest Error
 
 func (*V1betaBatchListHostGroupsBadRequest) v1betaBatchListHostGroupsRes() {}
 
+type V1betaBatchListHostGroupsFieldsItem string
+
+const (
+	V1betaBatchListHostGroupsFieldsItemName        V1betaBatchListHostGroupsFieldsItem = "name"
+	V1betaBatchListHostGroupsFieldsItemResourceId  V1betaBatchListHostGroupsFieldsItem = "resourceId"
+	V1betaBatchListHostGroupsFieldsItemDescription V1betaBatchListHostGroupsFieldsItem = "description"
+	V1betaBatchListHostGroupsFieldsItemCreated     V1betaBatchListHostGroupsFieldsItem = "created"
+	V1betaBatchListHostGroupsFieldsItemState       V1betaBatchListHostGroupsFieldsItem = "state"
+	V1betaBatchListHostGroupsFieldsItemType        V1betaBatchListHostGroupsFieldsItem = "type"
+	V1betaBatchListHostGroupsFieldsItemHosts       V1betaBatchListHostGroupsFieldsItem = "hosts"
+	V1betaBatchListHostGroupsFieldsItemOsType      V1betaBatchListHostGroupsFieldsItem = "osType"
+)
+
+// AllValues returns all V1betaBatchListHostGroupsFieldsItem values.
+func (V1betaBatchListHostGroupsFieldsItem) AllValues() []V1betaBatchListHostGroupsFieldsItem {
+	return []V1betaBatchListHostGroupsFieldsItem{
+		V1betaBatchListHostGroupsFieldsItemName,
+		V1betaBatchListHostGroupsFieldsItemResourceId,
+		V1betaBatchListHostGroupsFieldsItemDescription,
+		V1betaBatchListHostGroupsFieldsItemCreated,
+		V1betaBatchListHostGroupsFieldsItemState,
+		V1betaBatchListHostGroupsFieldsItemType,
+		V1betaBatchListHostGroupsFieldsItemHosts,
+		V1betaBatchListHostGroupsFieldsItemOsType,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s V1betaBatchListHostGroupsFieldsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case V1betaBatchListHostGroupsFieldsItemName:
+		return []byte(s), nil
+	case V1betaBatchListHostGroupsFieldsItemResourceId:
+		return []byte(s), nil
+	case V1betaBatchListHostGroupsFieldsItemDescription:
+		return []byte(s), nil
+	case V1betaBatchListHostGroupsFieldsItemCreated:
+		return []byte(s), nil
+	case V1betaBatchListHostGroupsFieldsItemState:
+		return []byte(s), nil
+	case V1betaBatchListHostGroupsFieldsItemType:
+		return []byte(s), nil
+	case V1betaBatchListHostGroupsFieldsItemHosts:
+		return []byte(s), nil
+	case V1betaBatchListHostGroupsFieldsItemOsType:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *V1betaBatchListHostGroupsFieldsItem) UnmarshalText(data []byte) error {
+	switch V1betaBatchListHostGroupsFieldsItem(data) {
+	case V1betaBatchListHostGroupsFieldsItemName:
+		*s = V1betaBatchListHostGroupsFieldsItemName
+		return nil
+	case V1betaBatchListHostGroupsFieldsItemResourceId:
+		*s = V1betaBatchListHostGroupsFieldsItemResourceId
+		return nil
+	case V1betaBatchListHostGroupsFieldsItemDescription:
+		*s = V1betaBatchListHostGroupsFieldsItemDescription
+		return nil
+	case V1betaBatchListHostGroupsFieldsItemCreated:
+		*s = V1betaBatchListHostGroupsFieldsItemCreated
+		return nil
+	case V1betaBatchListHostGroupsFieldsItemState:
+		*s = V1betaBatchListHostGroupsFieldsItemState
+		return nil
+	case V1betaBatchListHostGroupsFieldsItemType:
+		*s = V1betaBatchListHostGroupsFieldsItemType
+		return nil
+	case V1betaBatchListHostGroupsFieldsItemHosts:
+		*s = V1betaBatchListHostGroupsFieldsItemHosts
+		return nil
+	case V1betaBatchListHostGroupsFieldsItemOsType:
+		*s = V1betaBatchListHostGroupsFieldsItemOsType
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type V1betaBatchListHostGroupsForbidden Error
 
 func (*V1betaBatchListHostGroupsForbidden) v1betaBatchListHostGroupsRes() {}

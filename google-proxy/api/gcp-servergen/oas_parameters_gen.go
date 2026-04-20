@@ -1217,6 +1217,8 @@ type V1betaBatchListHostGroupsParams struct {
 	LocationId string
 	// Correlation identifier.
 	XCorrelationID OptString
+	// Specify the fields to return.
+	Fields []V1betaBatchListHostGroupsFieldsItem
 }
 
 func unpackV1betaBatchListHostGroupsParams(packed middleware.Parameters) (params V1betaBatchListHostGroupsParams) {
@@ -1236,10 +1238,20 @@ func unpackV1betaBatchListHostGroupsParams(packed middleware.Parameters) (params
 			params.XCorrelationID = v.(OptString)
 		}
 	}
+	{
+		key := middleware.ParameterKey{
+			Name: "fields",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Fields = v.([]V1betaBatchListHostGroupsFieldsItem)
+		}
+	}
 	return params
 }
 
 func decodeV1betaBatchListHostGroupsParams(args [1]string, argsEscaped bool, r *http.Request) (params V1betaBatchListHostGroupsParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
 	h := uri.NewHeaderDecoder(r.Header)
 	// Decode path: locationId.
 	if err := func() error {
@@ -1338,6 +1350,79 @@ func decodeV1betaBatchListHostGroupsParams(args [1]string, argsEscaped bool, r *
 		return params, &ogenerrors.DecodeParamError{
 			Name: "X-Correlation-ID",
 			In:   "header",
+			Err:  err,
+		}
+	}
+	// Decode query: fields.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "fields",
+			Style:   uri.QueryStyleForm,
+			Explode: false,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				return d.DecodeArray(func(d uri.Decoder) error {
+					var paramsDotFieldsVal V1betaBatchListHostGroupsFieldsItem
+					if err := func() error {
+						val, err := d.DecodeValue()
+						if err != nil {
+							return err
+						}
+
+						c, err := conv.ToString(val)
+						if err != nil {
+							return err
+						}
+
+						paramsDotFieldsVal = V1betaBatchListHostGroupsFieldsItem(c)
+						return nil
+					}(); err != nil {
+						return err
+					}
+					params.Fields = append(params.Fields, paramsDotFieldsVal)
+					return nil
+				})
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.Array{
+					MinLength:    1,
+					MinLengthSet: true,
+					MaxLength:    0,
+					MaxLengthSet: false,
+				}).ValidateLength(len(params.Fields)); err != nil {
+					return errors.Wrap(err, "array")
+				}
+				var failures []validate.FieldError
+				for i, elem := range params.Fields {
+					if err := func() error {
+						if err := elem.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						failures = append(failures, validate.FieldError{
+							Name:  fmt.Sprintf("[%d]", i),
+							Error: err,
+						})
+					}
+				}
+				if len(failures) > 0 {
+					return &validate.Error{Fields: failures}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "fields",
+			In:   "query",
 			Err:  err,
 		}
 	}
