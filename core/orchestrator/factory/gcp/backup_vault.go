@@ -466,10 +466,9 @@ func (o *GCPOrchestrator) GetMultipleBackupVaults(ctx context.Context, backupVau
 	if err != nil {
 		return nil, err
 	}
-	var backupVaultModelList []*models.BackupVaultV1beta
+	backupVaultModelList := make([]*models.BackupVaultV1beta, 0, len(backupVaultList))
 	for _, backupVault := range backupVaultList {
-		backupVaultModel := convertDatastoreBackupVaultToModel(backupVault)
-		backupVaultModelList = append(backupVaultModelList, backupVaultModel)
+		backupVaultModelList = append(backupVaultModelList, convertDatastoreBackupVaultToModel(backupVault))
 	}
 
 	return backupVaultModelList, nil
