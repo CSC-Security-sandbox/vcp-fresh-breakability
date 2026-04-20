@@ -45,6 +45,20 @@ func assertErrContainsOriginal(t *testing.T, err error, substring string) {
 	assert.ErrorContains(t, err, substring)
 }
 
+// assertOriginalErrContains checks that the original error message stored in
+// vsaerrors.ExtractCustomError(err).OriginalErr contains the expected substring.
+// Use this instead of asserting on err.Error() when production code wraps errors
+// with WrapAsTemporalApplicationError and preserves the original message in the
+// extracted CustomError rather than the top-level error string.
+func assertOriginalErrContains(t *testing.T, err error, substring string) {
+	t.Helper()
+	require.Error(t, err)
+	customErr := vsaerrors.ExtractCustomError(err)
+	require.NotNil(t, customErr)
+	require.NotNil(t, customErr.OriginalErr)
+	assert.Contains(t, customErr.OriginalErr.Error(), substring)
+}
+
 func TestCreateBackup_Success(t *testing.T) {
 	// Arrange
 	mockStorage := database.NewMockStorage(t)
@@ -1601,7 +1615,7 @@ func TestDeleteSnapshotFromObjectStore(t *testing.T) {
 		objectStoreUUID := "object-store-uuid"
 		_, err := env.ExecuteActivity(activity.DeleteSnapshotFromObjectStore, node, objectStoreUUID, endpointUUID, snapshotUUID)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to get provider")
+		assertOriginalErrContains(t, err, "failed to get provider")
 	})
 }
 
@@ -1689,7 +1703,7 @@ func TestDeleteSnapmirror(t *testing.T) {
 		snapmirrorUUID := "snapmirror-uuid"
 		_, err := env.ExecuteActivity(activity.DeleteSnapmirror, node, snapmirrorUUID)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to get provider")
+		assertOriginalErrContains(t, err, "failed to get provider")
 	})
 }
 
@@ -1781,7 +1795,7 @@ func TestDeleteCloudEndpoint(t *testing.T) {
 		objectStoreUUID := "object-store-uuid"
 		_, err := env.ExecuteActivity(activity.DeleteCloudEndpoint, node, objectStoreUUID, endpointUUID)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to get provider")
+		assertOriginalErrContains(t, err, "failed to get provider")
 	})
 }
 
@@ -1841,7 +1855,7 @@ func TestDeleteSnapshotForBackup(t *testing.T) {
 		volumeUUID := "volume-uuid"
 		_, err := env.ExecuteActivity(activity.DeleteSnapshotForBackup, node, snapshotUUID, volumeUUID, false)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to get provider")
+		assertOriginalErrContains(t, err, "failed to get provider")
 	})
 }
 
@@ -11565,7 +11579,7 @@ func TestGetVolumesAndConstituentCountActivity(t *testing.T) {
 
 		_, err := env.ExecuteActivity(activity.GetVolumesAndConstituentCountActivity, backupActivitiesContext)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to get provider")
+		assertOriginalErrContains(t, err, "failed to get provider")
 	})
 
 	t.Run("WhenGetVolumeFails_ReturnsError", func(t *testing.T) {
@@ -11611,7 +11625,7 @@ func TestGetVolumesAndConstituentCountActivity(t *testing.T) {
 
 		_, err := env.ExecuteActivity(activity.GetVolumesAndConstituentCountActivity, backupActivitiesContext)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to get volume from ONTAP")
+		assertOriginalErrContains(t, err, "failed to get volume from ONTAP")
 		mockProvider.AssertExpectations(t)
 	})
 
@@ -12029,7 +12043,7 @@ func TestCheckAndAttachBackupVaultToVolume(t *testing.T) {
 		result, err := activity.CheckAndAttachBackupVaultToVolume(ctx, backupActivitiesContext, region)
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "failed to check backup vault in VCP")
+		assertOriginalErrContains(t, err, "failed to check backup vault in VCP")
 		mockStorage.AssertExpectations(t)
 	})
 
@@ -12058,7 +12072,7 @@ func TestCheckAndAttachBackupVaultToVolume(t *testing.T) {
 		result, err := activity.CheckAndAttachBackupVaultToVolume(ctx, backupActivitiesContext, region)
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "volume does not have VendorSubnetID")
+		assertOriginalErrContains(t, err, "volume does not have VendorSubnetID")
 		mockStorage.AssertExpectations(t)
 	})
 
@@ -12110,7 +12124,7 @@ func TestCheckAndAttachBackupVaultToVolume(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "failed to find tenancy")
+		assertOriginalErrContains(t, err, "failed to find tenancy")
 		mockStorage.AssertExpectations(t)
 	})
 
@@ -12179,7 +12193,7 @@ func TestCheckAndAttachBackupVaultToVolume(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "failed to check for bucket resource name")
+		assertOriginalErrContains(t, err, "failed to check for bucket resource name")
 		mockStorage.AssertExpectations(t)
 	})
 
@@ -12506,7 +12520,7 @@ func TestCheckAndAttachBackupVaultToVolume(t *testing.T) {
 		if err != nil {
 			// The error is expected from CheckOrCreateRemoteBackupVaultInVCP due to missing env vars
 			// But we've verified the key cross-region logic (using backupRegion) was executed
-			assert.Contains(t, err.Error(), "failed to check or create remote backup vault")
+			assertOriginalErrContains(t, err, "failed to check or create remote backup vault")
 			assert.NotContains(t, err.Error(), "failed to find tenancy")
 			assert.NotContains(t, err.Error(), "failed to check for bucket resource name")
 		} else {
@@ -12617,7 +12631,7 @@ func TestCheckAndAttachBackupVaultToVolume(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "volume pool cannot be nil for cross-region backup setup")
+		assertOriginalErrContains(t, err, "volume pool cannot be nil for cross-region backup setup")
 		mockStorage.AssertExpectations(t)
 	})
 
@@ -13266,7 +13280,7 @@ func TestCheckAndAttachBackupVaultToVolume_GCBDR_NoBucketDetails_ReturnsError(t 
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "has no tenant project information")
+	assertOriginalErrContains(t, err, "has no tenant project information")
 	mockStorage.AssertExpectations(t)
 }
 
@@ -13356,7 +13370,7 @@ func TestCheckAndAttachBackupVaultToVolume_GCBDR_NilPoolForCrossProjectPermissio
 	// Should fail because pool is nil for GCBDR setup
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "volume pool cannot be nil for GCBDR backup setup")
+	assertOriginalErrContains(t, err, "volume pool cannot be nil for GCBDR backup setup")
 }
 
 func TestCheckAndAttachBackupVaultToVolume_GCBDR_SuccessfulCrossProjectPermissions(t *testing.T) {
@@ -13648,7 +13662,7 @@ func TestCheckAndAttachBackupVaultToVolume_GCBDR_SetupPermissionsError(t *testin
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "failed to setup cross-project backup permissions")
+	assertOriginalErrContains(t, err, "failed to setup cross-project backup permissions")
 	mockStorage.AssertExpectations(t)
 }
 
@@ -13672,7 +13686,7 @@ func TestCleanupOldExpertModeSnapshotActivity(t *testing.T) {
 		err := act.CleanupOldExpertModeSnapshotActivity(ctx, volume, node)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "db connection error")
+		assertOriginalErrContains(t, err, "db connection error")
 		mockStorage.AssertExpectations(t)
 	})
 
@@ -13985,7 +13999,7 @@ func TestGetVolumeProtocolsFromOntapActivity(t *testing.T) {
 		_, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to get provider")
+		assertOriginalErrContains(t, err, "failed to get provider")
 	})
 
 	t.Run("WhenGetVolumeNASDetailsFails_ThenReturnError", func(t *testing.T) {
@@ -14010,7 +14024,7 @@ func TestGetVolumeProtocolsFromOntapActivity(t *testing.T) {
 		_, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to get volume NAS details")
+		assertOriginalErrContains(t, err, "failed to get volume NAS details")
 		mockProvider.AssertExpectations(t)
 	})
 
@@ -14234,7 +14248,7 @@ func TestGetVolumeProtocolsFromOntapActivity(t *testing.T) {
 		_, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "could not determine protocols for volume test-vol")
+		assertOriginalErrContains(t, err, "could not determine protocols for volume test-vol")
 		mockProvider.AssertExpectations(t)
 	})
 
@@ -14262,7 +14276,7 @@ func TestGetVolumeProtocolsFromOntapActivity(t *testing.T) {
 		_, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to get volume SAN details")
+		assertOriginalErrContains(t, err, "failed to get volume SAN details")
 		mockProvider.AssertExpectations(t)
 	})
 
@@ -14483,7 +14497,7 @@ func TestGetVolumeProtocolsFromOntapActivity(t *testing.T) {
 		_, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to get volume SAN details")
+		assertOriginalErrContains(t, err, "failed to get volume SAN details")
 		mockProvider.AssertExpectations(t)
 	})
 
@@ -14511,7 +14525,7 @@ func TestGetVolumeProtocolsFromOntapActivity(t *testing.T) {
 		_, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "could not determine protocols for volume test-vol")
+		assertOriginalErrContains(t, err, "could not determine protocols for volume test-vol")
 		mockProvider.AssertExpectations(t)
 	})
 
@@ -14539,7 +14553,7 @@ func TestGetVolumeProtocolsFromOntapActivity(t *testing.T) {
 		_, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to get volume SAN details")
+		assertOriginalErrContains(t, err, "failed to get volume SAN details")
 		mockProvider.AssertExpectations(t)
 	})
 
@@ -14567,7 +14581,7 @@ func TestGetVolumeProtocolsFromOntapActivity(t *testing.T) {
 		_, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to get volume SAN details")
+		assertOriginalErrContains(t, err, "failed to get volume SAN details")
 		mockProvider.AssertExpectations(t)
 	})
 
@@ -14595,7 +14609,7 @@ func TestGetVolumeProtocolsFromOntapActivity(t *testing.T) {
 		_, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, state)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to get volume SAN details")
+		assertOriginalErrContains(t, err, "failed to get volume SAN details")
 		mockProvider.AssertExpectations(t)
 	})
 }
@@ -14637,5 +14651,579 @@ func TestContainsProtocol(t *testing.T) {
 
 	t.Run("WhenEmptySlice_ThenReturnFalse", func(t *testing.T) {
 		assert.False(t, containsProtocol([]string{}, "SMB"))
+	})
+}
+
+// assertErrorCode extracts a CustomError from a (possibly wrapped) temporal.ApplicationError
+// and asserts its TrackingID matches expectedCode.
+func assertErrorCode(t *testing.T, err error, expectedCode int) {
+	t.Helper()
+	customErr := vsaerrors.ExtractCustomError(err)
+	require.NotNil(t, customErr, "expected a CustomError to be extractable from the error chain")
+	assert.Equal(t, expectedCode, customErr.TrackingID,
+		"wrong error code: got %d (%s), want %d", customErr.TrackingID, customErr.Message, expectedCode)
+}
+
+// isTemporalNonRetryable returns true when err (or a cause in its chain) is a
+// temporal.ApplicationError with NonRetryable set. The IsNonRetryableError
+// helper was added in a later SDK version; we call NonRetryable() directly.
+func isTemporalNonRetryable(err error) bool {
+	var appErr *temporal.ApplicationError
+	return errors.As(err, &appErr) && appErr.NonRetryable()
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// GetVolumeProtocolsFromOntapActivity — error-code tests
+// These tests verify that each failure path returns the correct typed error code
+// and, where applicable, marks the error as non-retryable (400 Bad Request).
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestGetVolumeProtocolsFromOntapActivity_ErrorCodes(t *testing.T) {
+	makeVolume := func(svmName string) *datamodel.Volume {
+		return &datamodel.Volume{
+			Name: "vol-em",
+			Svm:  &datamodel.Svm{Name: svmName},
+			VolumeAttributes: &datamodel.VolumeAttributes{
+				ExternalUUID: "ext-uuid-1",
+			},
+		}
+	}
+	makeState := func(vol *datamodel.Volume) *BackupActivitiesContext {
+		return &BackupActivitiesContext{
+			BackupWorkflowInit: &BackupWorkflowInput{
+				Backup:  &datamodel.Backup{Attributes: &datamodel.BackupAttributes{}},
+				Volume:  vol,
+			},
+			Node: &models.Node{},
+		}
+	}
+
+	t.Run("WhenGetProviderByNodeFails_ThenReturnsErrInternalServerError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		orig := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = orig }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("provider init failed")
+		}
+
+		_, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, makeState(makeVolume("test-svm")))
+
+		require.Error(t, err)
+		assertOriginalErrContains(t, err, "provider init failed")
+		assertErrorCode(t, err, vsaerrors.ErrInternalServerError)
+		assert.False(t, isTemporalNonRetryable(err), "provider errors should be retryable")
+	})
+
+	t.Run("WhenSVMNameIsEmpty_ThenReturnsErrBadRequest_AndIsNonRetryable", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		orig := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = orig }()
+		mockProvider := new(vsa.MockProvider)
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		_, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, makeState(makeVolume("")))
+
+		require.Error(t, err)
+		assertOriginalErrContains(t, err, "volume SVM name is empty")
+		assertErrorCode(t, err, vsaerrors.ErrBadRequest)
+		assert.True(t, isTemporalNonRetryable(err), "empty SVM name is a user config error — must be non-retryable")
+	})
+
+	t.Run("WhenGetVolumeNASDetailsFails_ThenReturnsErrOntapRestAPIError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		orig := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = orig }()
+		mockProvider := new(vsa.MockProvider)
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		mockProvider.On("GetVolumeNASDetails", "ext-uuid-1").Return(nil, errors.New("ONTAP NAS unavailable"))
+
+		_, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, makeState(makeVolume("svm-1")))
+
+		require.Error(t, err)
+		assertOriginalErrContains(t, err, "failed to get volume NAS details")
+		assertErrorCode(t, err, vsaerrors.ErrOntapRestAPIError)
+		assert.False(t, isTemporalNonRetryable(err), "ONTAP API errors should be retryable")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenGetVolumeSANDetailsFails_ThenReturnsErrOntapRestAPIError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		orig := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = orig }()
+		mockProvider := new(vsa.MockProvider)
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		mockProvider.On("GetVolumeNASDetails", "ext-uuid-1").Return(&vsa.VolumeNASDetails{}, nil)
+		mockProvider.On("GetVolumeSANDetails", "svm-1", "vol-em").Return(nil, errors.New("ONTAP SAN timeout"))
+
+		_, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, makeState(makeVolume("svm-1")))
+
+		require.Error(t, err)
+		assertOriginalErrContains(t, err, "failed to get volume SAN details")
+		assertErrorCode(t, err, vsaerrors.ErrOntapRestAPIError)
+		assert.False(t, isTemporalNonRetryable(err), "ONTAP API errors should be retryable")
+		mockProvider.AssertExpectations(t)
+	})
+
+	t.Run("WhenNoProtocolsDetermined_ThenReturnsErrExpertModeProtocolsUndetermined_AndIsNonRetryable", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		act := &BackupActivity{}
+		env.RegisterActivity(act)
+
+		orig := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = orig }()
+		mockProvider := new(vsa.MockProvider)
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		// NAS: no export policy, no security style → no NFS/SMB
+		mockProvider.On("GetVolumeNASDetails", "ext-uuid-1").Return(&vsa.VolumeNASDetails{}, nil)
+		// SAN: no LUNs, no namespaces → no iSCSI/NVMe
+		mockProvider.On("GetVolumeSANDetails", "svm-1", "vol-em").Return(&vsa.VolumeSANDetails{HasLUNs: false, HasNamespaces: false}, nil)
+
+		_, err := env.ExecuteActivity(act.GetVolumeProtocolsFromOntapActivity, makeState(makeVolume("svm-1")))
+
+		require.Error(t, err)
+		assertOriginalErrContains(t, err, "could not determine protocols for volume vol-em")
+		assertErrorCode(t, err, vsaerrors.ErrExpertModeVolumeProtocolsUndetermined)
+		assert.True(t, isTemporalNonRetryable(err), "missing protocols is a user config error — must be non-retryable")
+		mockProvider.AssertExpectations(t)
+	})
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// GetVolumesAndConstituentCountActivity — error-code tests
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestGetVolumesAndConstituentCountActivity_ErrorCodes(t *testing.T) {
+	makeContext := func() *BackupActivitiesContext {
+		return &BackupActivitiesContext{
+			BackupWorkflowInit: &BackupWorkflowInput{
+				Volume: &datamodel.Volume{
+					Name: "vol-em",
+					VolumeAttributes: &datamodel.VolumeAttributes{ExternalUUID: "ext-uuid-2"},
+					Svm:              &datamodel.Svm{Name: "svm-1"},
+				},
+				Backup: &datamodel.Backup{Attributes: &datamodel.BackupAttributes{}},
+			},
+			Node: &models.Node{},
+		}
+	}
+
+	t.Run("WhenGetProviderByNodeFails_ThenReturnsErrInternalServerError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		activity := BackupActivity{SE: database.NewMockStorage(t)}
+		env.RegisterActivity(&activity)
+
+		orig := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = orig }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("provider unavailable")
+		}
+
+		_, err := env.ExecuteActivity(activity.GetVolumesAndConstituentCountActivity, makeContext())
+
+		require.Error(t, err)
+		assertOriginalErrContains(t, err, "provider unavailable")
+		assertErrorCode(t, err, vsaerrors.ErrInternalServerError)
+		assert.False(t, isTemporalNonRetryable(err), "provider errors should be retryable")
+	})
+
+	t.Run("WhenGetVolumeFails_ThenReturnsErrOntapRestAPIError", func(t *testing.T) {
+		var ts testsuite.WorkflowTestSuite
+		env := ts.NewTestActivityEnvironment()
+		activity := BackupActivity{SE: database.NewMockStorage(t)}
+		env.RegisterActivity(&activity)
+
+		orig := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = orig }()
+		mockProvider := new(vsa.MockProvider)
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		mockProvider.On("GetVolume", vsa.GetVolumeParams{UUID: "ext-uuid-2", SvmName: "svm-1"}).
+			Return(nil, errors.New("ONTAP connection refused"))
+
+		_, err := env.ExecuteActivity(activity.GetVolumesAndConstituentCountActivity, makeContext())
+
+		require.Error(t, err)
+		assertOriginalErrContains(t, err, "failed to get volume from ONTAP")
+		assertErrorCode(t, err, vsaerrors.ErrOntapRestAPIError)
+		assert.False(t, isTemporalNonRetryable(err), "ONTAP API errors should be retryable")
+		mockProvider.AssertExpectations(t)
+	})
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// CheckAndAttachBackupVaultToVolume — error-code tests
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestCheckAndAttachBackupVaultToVolume_ErrorCodes(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{})
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct-uuid"},
+		Name:      "test-account",
+	}
+	const (
+		volumeUUID      = "vol-uuid"
+		backupVaultUUID = "bv-uuid"
+		region          = "us-central1"
+		vendorSubnetID  = "projects/p/regions/us-central1/subnetworks/sn"
+	)
+
+	// plainVault returns a minimal non-GCBDR, non-cross-region vault.
+	plainVault := func() *datamodel.BackupVault {
+		return &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: backupVaultUUID}}
+	}
+
+	// makeCtx builds a BackupActivitiesContext with the given volume.
+	makeCtx := func(vol *datamodel.Volume) *BackupActivitiesContext {
+		return &BackupActivitiesContext{
+			BackupWorkflowInit: &BackupWorkflowInput{
+				Volume:      vol,
+				BackupVault: &datamodel.BackupVault{BaseModel: datamodel.BaseModel{UUID: backupVaultUUID}},
+			},
+		}
+	}
+
+	// ── 1. DB read failure fetching the vault ────────────────────────────────
+	t.Run("WhenGetBackupVaultFails_ThenReturnsErrDatabaseDataReadError", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		act := BackupActivity{SE: mockStorage}
+		vol := &datamodel.Volume{
+			BaseModel: datamodel.BaseModel{UUID: volumeUUID},
+			Account:   account, AccountID: account.ID,
+		}
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).
+			Return(nil, errors.New("db connection lost"))
+
+		_, err := act.CheckAndAttachBackupVaultToVolume(ctx, makeCtx(vol), region)
+
+		require.Error(t, err)
+		assertOriginalErrContains(t, err, "failed to check backup vault in VCP")
+		assertErrorCode(t, err, vsaerrors.ErrDatabaseDataReadError)
+		assert.False(t, isTemporalNonRetryable(err), "DB errors should be retryable")
+		mockStorage.AssertExpectations(t)
+	})
+
+	// ── 2. Missing VendorSubnetID → 400 non-retryable ───────────────────────
+	t.Run("WhenVolumeHasNoVendorSubnetID_ThenReturnsErrBadRequest_AndIsNonRetryable", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		act := BackupActivity{SE: mockStorage}
+		vol := &datamodel.Volume{
+			BaseModel:        datamodel.BaseModel{UUID: volumeUUID},
+			Account:          account, AccountID: account.ID,
+			VolumeAttributes: nil, // deliberately absent
+		}
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).
+			Return(plainVault(), nil)
+
+		_, err := act.CheckAndAttachBackupVaultToVolume(ctx, makeCtx(vol), region)
+
+		require.Error(t, err)
+		assertOriginalErrContains(t, err, "volume does not have VendorSubnetID")
+		assertErrorCode(t, err, vsaerrors.ErrBadRequest)
+		assert.True(t, isTemporalNonRetryable(err), "missing VendorSubnetID is user config error — must be non-retryable")
+		mockStorage.AssertExpectations(t)
+	})
+
+	// ── 3. FindTenancy failure → 500 retryable ───────────────────────────────
+	t.Run("WhenFindTenancyFails_ThenReturnsErrGCPResourceFetchError", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		act := BackupActivity{SE: mockStorage}
+		vol := &datamodel.Volume{
+			BaseModel:        datamodel.BaseModel{UUID: volumeUUID},
+			Account:          account, AccountID: account.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{VendorSubnetID: vendorSubnetID},
+		}
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).
+			Return(plainVault(), nil)
+
+		origGCP := hyperscaler.GetGCPService
+		defer func() { hyperscaler.GetGCPService = origGCP }()
+		hyperscaler.GetGCPService = func(ctx context.Context) (*hyperscalergoogle.GcpServices, error) {
+			return &hyperscalergoogle.GcpServices{Logger: util.GetLogger(ctx)}, nil
+		}
+		origFT := FindTenancy
+		defer func() { FindTenancy = origFT }()
+		FindTenancy = func(_ hyperscaler.GoogleServices, _ string, _ string, _ *string) (*commonparams.TenancyInfo, error) {
+			return nil, errors.New("PSA peering not found")
+		}
+
+		_, err := act.CheckAndAttachBackupVaultToVolume(ctx, makeCtx(vol), region)
+
+		require.Error(t, err)
+		assertOriginalErrContains(t, err, "failed to find tenancy")
+		assertErrorCode(t, err, vsaerrors.ErrGCPResourceFetchError)
+		assert.False(t, isTemporalNonRetryable(err), "GCP fetch errors should be retryable")
+		mockStorage.AssertExpectations(t)
+	})
+
+	// ── 4. GCBDR vault with no tenant project → 400 non-retryable ───────────
+	t.Run("WhenGCBDRVaultHasNoTenantProject_ThenReturnsErrBadRequest_AndIsNonRetryable", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		act := BackupActivity{SE: mockStorage}
+		vol := &datamodel.Volume{
+			BaseModel:        datamodel.BaseModel{UUID: volumeUUID},
+			Account:          account, AccountID: account.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{VendorSubnetID: vendorSubnetID},
+		}
+		gcbdrVault := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: backupVaultUUID},
+			ServiceType: GCBDRServiceType,
+			// BucketDetails deliberately empty → no tenant project
+		}
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).
+			Return(gcbdrVault, nil)
+
+		_, err := act.CheckAndAttachBackupVaultToVolume(ctx, makeCtx(vol), region)
+
+		require.Error(t, err)
+		assertOriginalErrContains(t, err, "GCBDR vault")
+		assertOriginalErrContains(t, err, "no tenant project information")
+		assertErrorCode(t, err, vsaerrors.ErrBadRequest)
+		assert.True(t, isTemporalNonRetryable(err), "vault config error must be non-retryable")
+		mockStorage.AssertExpectations(t)
+	})
+
+	// ── 5. Bucket creation failure → 500 retryable ──────────────────────────
+	t.Run("WhenCreateBucketFails_ThenReturnsErrGCPResourceProvisionError", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		act := BackupActivity{SE: mockStorage}
+		vol := &datamodel.Volume{
+			BaseModel:        datamodel.BaseModel{UUID: volumeUUID},
+			Account:          account, AccountID: account.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{VendorSubnetID: vendorSubnetID},
+		}
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).
+			Return(plainVault(), nil)
+
+		origGCP := hyperscaler.GetGCPService
+		defer func() { hyperscaler.GetGCPService = origGCP }()
+		hyperscaler.GetGCPService = func(ctx context.Context) (*hyperscalergoogle.GcpServices, error) {
+			return &hyperscalergoogle.GcpServices{Logger: util.GetLogger(ctx)}, nil
+		}
+		origFT := FindTenancy
+		defer func() { FindTenancy = origFT }()
+		FindTenancy = func(_ hyperscaler.GoogleServices, _ string, _ string, _ *string) (*commonparams.TenancyInfo, error) {
+			return &commonparams.TenancyInfo{RegionalTenantProject: "proj-123"}, nil
+		}
+		origCFBRN := CheckForBucketResourceName
+		defer func() { CheckForBucketResourceName = origCFBRN }()
+		CheckForBucketResourceName = func(_ context.Context, _ database.Storage, _ *datamodel.Volume) (*commonparams.BucketDetails, error) {
+			return &commonparams.BucketDetails{}, nil // empty → trigger creation path
+		}
+		origGRN := GenerateResourceNames
+		defer func() { GenerateResourceNames = origGRN }()
+		GenerateResourceNames = func(_ context.Context, _ *datamodel.Volume, _ *commonparams.TenancyInfo, _ string) (*commonparams.ResourceNames, error) {
+			return &commonparams.ResourceNames{BucketName: "test-bucket"}, nil
+		}
+		origCB := CreateBucket
+		defer func() { CreateBucket = origCB }()
+		CreateBucket = func(_ context.Context, _ *commonparams.ResourceNames, _ *commonparams.TenancyInfo, _ string, _ *string) (*commonparams.BucketDetails, error) {
+			return nil, errors.New("GCP bucket API 503")
+		}
+
+		_, err := act.CheckAndAttachBackupVaultToVolume(ctx, makeCtx(vol), region)
+
+		require.Error(t, err)
+		assertOriginalErrContains(t, err, "failed to create bucket")
+		assertErrorCode(t, err, vsaerrors.ErrGCPResourceProvisionError)
+		assert.False(t, isTemporalNonRetryable(err), "GCP provision errors should be retryable")
+		mockStorage.AssertExpectations(t)
+	})
+
+	// ── 6. Cross-region backup: pool is nil → 400 non-retryable ─────────────
+	t.Run("WhenPoolIsNilForCrossRegionBackup_ThenReturnsErrBadRequest_AndIsNonRetryable", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		act := BackupActivity{SE: mockStorage}
+		backupRegion := "us-east1"
+		// Set SourceRegionName == BackupRegionName so CheckOrCreateRemoteBackupVaultInVCP
+		// short-circuits and returns nil, nil without making any external API calls.
+		sameRegion := backupRegion
+		xrVault := &datamodel.BackupVault{
+			BaseModel:        datamodel.BaseModel{UUID: backupVaultUUID},
+			BackupVaultType:  CrossRegionBackupType,
+			BackupRegionName: &backupRegion,
+			SourceRegionName: &sameRegion,
+		}
+		vol := &datamodel.Volume{
+			BaseModel:        datamodel.BaseModel{UUID: volumeUUID},
+			Account:          account, AccountID: account.ID,
+			Pool:             nil, // deliberately nil
+			VolumeAttributes: &datamodel.VolumeAttributes{VendorSubnetID: vendorSubnetID},
+		}
+		// First call: initial vault fetch; Second call: inside UpdateBackupVaultWithBucketDetails.
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).Return(xrVault, nil).Twice()
+		mockStorage.On("UpdateBackupVault", ctx, mock.AnythingOfType("*datamodel.BackupVault")).Return(nil)
+
+		origGCP := hyperscaler.GetGCPService
+		defer func() { hyperscaler.GetGCPService = origGCP }()
+		hyperscaler.GetGCPService = func(ctx context.Context) (*hyperscalergoogle.GcpServices, error) {
+			return &hyperscalergoogle.GcpServices{Logger: util.GetLogger(ctx)}, nil
+		}
+		origFT := FindTenancy
+		defer func() { FindTenancy = origFT }()
+		FindTenancy = func(_ hyperscaler.GoogleServices, _ string, _ string, _ *string) (*commonparams.TenancyInfo, error) {
+			return &commonparams.TenancyInfo{RegionalTenantProject: "proj-123"}, nil
+		}
+		origCFBRN := CheckForBucketResourceName
+		defer func() { CheckForBucketResourceName = origCFBRN }()
+		CheckForBucketResourceName = func(_ context.Context, _ database.Storage, _ *datamodel.Volume) (*commonparams.BucketDetails, error) {
+			return &commonparams.BucketDetails{}, nil // empty → triggers bucket creation
+		}
+		origGRN := GenerateResourceNames
+		defer func() { GenerateResourceNames = origGRN }()
+		GenerateResourceNames = func(_ context.Context, _ *datamodel.Volume, _ *commonparams.TenancyInfo, _ string) (*commonparams.ResourceNames, error) {
+			return &commonparams.ResourceNames{BucketName: "bucket"}, nil
+		}
+		origCB := CreateBucket
+		defer func() { CreateBucket = origCB }()
+		CreateBucket = func(_ context.Context, _ *commonparams.ResourceNames, _ *commonparams.TenancyInfo, _ string, _ *string) (*commonparams.BucketDetails, error) {
+			return &commonparams.BucketDetails{BucketName: "bucket", ServiceAccountName: "sa", TenantProjectNumber: "proj-123"}, nil
+		}
+
+		_, err := act.CheckAndAttachBackupVaultToVolume(ctx, makeCtx(vol), region)
+
+		require.Error(t, err)
+		assertOriginalErrContains(t, err, "volume pool cannot be nil for cross-region backup setup")
+		assertErrorCode(t, err, vsaerrors.ErrBadRequest)
+		assert.True(t, isTemporalNonRetryable(err), "nil pool is a user config error — must be non-retryable")
+		mockStorage.AssertExpectations(t)
+	})
+
+	// ── 7. GCBDR: pool is nil → 400 non-retryable ───────────────────────────
+	t.Run("WhenPoolIsNilForGCBDR_ThenReturnsErrBadRequest_AndIsNonRetryable", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		act := BackupActivity{SE: mockStorage}
+		gcbdrVault := &datamodel.BackupVault{
+			BaseModel:   datamodel.BaseModel{UUID: backupVaultUUID},
+			ServiceType: GCBDRServiceType,
+			BucketDetails: datamodel.BucketDetailsArray{
+				{BucketName: "gcbdr-bucket", TenantProjectNumber: "proj-999"},
+			},
+		}
+		vol := &datamodel.Volume{
+			BaseModel:        datamodel.BaseModel{UUID: volumeUUID},
+			Account:          account, AccountID: account.ID,
+			Pool:             nil, // deliberately nil
+			VolumeAttributes: &datamodel.VolumeAttributes{VendorSubnetID: vendorSubnetID},
+		}
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).Return(gcbdrVault, nil)
+		origCFBRN := CheckForBucketResourceName
+		defer func() { CheckForBucketResourceName = origCFBRN }()
+		CheckForBucketResourceName = func(_ context.Context, _ database.Storage, _ *datamodel.Volume) (*commonparams.BucketDetails, error) {
+			return &commonparams.BucketDetails{BucketName: "gcbdr-bucket", ServiceAccountName: "sa", TenantProjectNumber: "proj-999"}, nil
+		}
+
+		_, err := act.CheckAndAttachBackupVaultToVolume(ctx, makeCtx(vol), region)
+
+		require.Error(t, err)
+		assertOriginalErrContains(t, err, "volume pool cannot be nil for GCBDR backup setup")
+		assertErrorCode(t, err, vsaerrors.ErrBadRequest)
+		assert.True(t, isTemporalNonRetryable(err), "nil pool is a user config error — must be non-retryable")
+		mockStorage.AssertExpectations(t)
+	})
+
+	// ── 8. DB read failure fetching expert mode volume ───────────────────────
+	t.Run("WhenGetExpertModeVolumeFails_ThenReturnsErrDatabaseDataReadError", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		act := BackupActivity{SE: mockStorage}
+		vol := &datamodel.Volume{
+			BaseModel:        datamodel.BaseModel{UUID: volumeUUID},
+			Account:          account, AccountID: account.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{VendorSubnetID: vendorSubnetID},
+		}
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).Return(plainVault(), nil)
+
+		origGCP := hyperscaler.GetGCPService
+		defer func() { hyperscaler.GetGCPService = origGCP }()
+		hyperscaler.GetGCPService = func(ctx context.Context) (*hyperscalergoogle.GcpServices, error) {
+			return &hyperscalergoogle.GcpServices{Logger: util.GetLogger(ctx)}, nil
+		}
+		origFT := FindTenancy
+		defer func() { FindTenancy = origFT }()
+		FindTenancy = func(_ hyperscaler.GoogleServices, _ string, _ string, _ *string) (*commonparams.TenancyInfo, error) {
+			return &commonparams.TenancyInfo{RegionalTenantProject: "proj-123"}, nil
+		}
+		origCFBRN := CheckForBucketResourceName
+		defer func() { CheckForBucketResourceName = origCFBRN }()
+		CheckForBucketResourceName = func(_ context.Context, _ database.Storage, _ *datamodel.Volume) (*commonparams.BucketDetails, error) {
+			// Return a fully populated bucket so the creation block is skipped.
+			return &commonparams.BucketDetails{BucketName: "b", ServiceAccountName: "sa", TenantProjectNumber: "proj-123", VendorSubnetID: vendorSubnetID}, nil
+		}
+		mockStorage.On("GetExpertModeVolumeByUUID", ctx, volumeUUID).Return(nil, errors.New("db timeout"))
+
+		_, err := act.CheckAndAttachBackupVaultToVolume(ctx, makeCtx(vol), region)
+
+		require.Error(t, err)
+		assertOriginalErrContains(t, err, "failed to get expert mode volume")
+		assertErrorCode(t, err, vsaerrors.ErrDatabaseDataReadError)
+		assert.False(t, isTemporalNonRetryable(err), "DB errors should be retryable")
+		mockStorage.AssertExpectations(t)
+	})
+
+	// ── 9. DB write failure persisting vault attachment ──────────────────────
+	t.Run("WhenUpdateExpertModeVolumeFails_ThenReturnsErrDatabaseDataUpdateError", func(t *testing.T) {
+		mockStorage := database.NewMockStorage(t)
+		act := BackupActivity{SE: mockStorage}
+		vol := &datamodel.Volume{
+			BaseModel:        datamodel.BaseModel{UUID: volumeUUID},
+			Account:          account, AccountID: account.ID,
+			VolumeAttributes: &datamodel.VolumeAttributes{VendorSubnetID: vendorSubnetID},
+		}
+		mockStorage.On("GetBackupVaultByUUIDndOwnerID", ctx, backupVaultUUID, account.ID).Return(plainVault(), nil)
+
+		origGCP := hyperscaler.GetGCPService
+		defer func() { hyperscaler.GetGCPService = origGCP }()
+		hyperscaler.GetGCPService = func(ctx context.Context) (*hyperscalergoogle.GcpServices, error) {
+			return &hyperscalergoogle.GcpServices{Logger: util.GetLogger(ctx)}, nil
+		}
+		origFT := FindTenancy
+		defer func() { FindTenancy = origFT }()
+		FindTenancy = func(_ hyperscaler.GoogleServices, _ string, _ string, _ *string) (*commonparams.TenancyInfo, error) {
+			return &commonparams.TenancyInfo{RegionalTenantProject: "proj-123"}, nil
+		}
+		origCFBRN := CheckForBucketResourceName
+		defer func() { CheckForBucketResourceName = origCFBRN }()
+		CheckForBucketResourceName = func(_ context.Context, _ database.Storage, _ *datamodel.Volume) (*commonparams.BucketDetails, error) {
+			return &commonparams.BucketDetails{BucketName: "b", ServiceAccountName: "sa", TenantProjectNumber: "proj-123", VendorSubnetID: vendorSubnetID}, nil
+		}
+		expertVol := &datamodel.ExpertModeVolumes{BaseModel: datamodel.BaseModel{UUID: volumeUUID}}
+		mockStorage.On("GetExpertModeVolumeByUUID", ctx, volumeUUID).Return(expertVol, nil)
+		mockStorage.On("UpdateExpertModeVolumeDataProtection", ctx, mock.AnythingOfType("*datamodel.ExpertModeVolumes")).
+			Return(errors.New("constraint violation"))
+
+		_, err := act.CheckAndAttachBackupVaultToVolume(ctx, makeCtx(vol), region)
+
+		require.Error(t, err)
+		assertOriginalErrContains(t, err, "failed to update expert mode volume with backup vault")
+		assertErrorCode(t, err, vsaerrors.ErrDatabaseDataUpdateError)
+		assert.False(t, isTemporalNonRetryable(err), "DB errors should be retryable")
+		mockStorage.AssertExpectations(t)
 	})
 }

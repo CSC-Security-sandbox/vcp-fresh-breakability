@@ -2076,7 +2076,7 @@ func (a *BackupActivity) CheckAndAttachBackupVaultToVolume(ctx context.Context, 
 	// Try to get backup vault from VCP first
 	existingBackupVault, err = a.SE.GetBackupVaultByUUIDndOwnerID(ctx, backupVault.UUID, volume.AccountID)
 	if err != nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to check backup vault in VCP: %w", err))
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, fmt.Errorf("failed to check backup vault in VCP: %w", err)))
 	}
 
 	backupRegion := region
@@ -2089,7 +2089,7 @@ func (a *BackupActivity) CheckAndAttachBackupVaultToVolume(ctx context.Context, 
 
 	// Find tenancy details
 	if volume.VolumeAttributes == nil || volume.VolumeAttributes.VendorSubnetID == "" {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("volume does not have VendorSubnetID"))
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrBadRequest, fmt.Errorf("volume does not have VendorSubnetID")))
 	}
 
 	// Ensure DataProtection is set for CheckForBucketResourceName (it expects DataProtection.BackupVaultID)
@@ -2107,7 +2107,7 @@ func (a *BackupActivity) CheckAndAttachBackupVaultToVolume(ctx context.Context, 
 	if existingBackupVault.ServiceType != GCBDRServiceType {
 		tenancyDetails, err = volumeActivity.FindTenancy(ctx, volume.VolumeAttributes.VendorSubnetID, volume.Account.Name, &backupRegion)
 		if err != nil {
-			return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to find tenancy: %w", err))
+			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, fmt.Errorf("failed to find tenancy: %w", err)))
 		}
 	} else {
 		// For GCBDR, prepare tenancy details from vault's bucket details
@@ -2117,13 +2117,13 @@ func (a *BackupActivity) CheckAndAttachBackupVaultToVolume(ctx context.Context, 
 			}
 			logger.Infof("Using GCBDR vault's tenant project: %s", tenancyDetails.RegionalTenantProject)
 		} else {
-			return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("GCBDR vault %s has no tenant project information", existingBackupVault.UUID))
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrBadRequest, fmt.Errorf("GCBDR vault %s has no tenant project information", existingBackupVault.UUID)))
 		}
 	}
 	// Check for bucket resource name
 	bucketDetails, err := volumeActivity.CheckForBucketResourceName(ctx, volume)
 	if err != nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to check for bucket resource name: %w", err))
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, fmt.Errorf("failed to check for bucket resource name: %w", err)))
 	}
 	if bucketDetails == nil {
 		bucketDetails = &commonparams.BucketDetails{}
@@ -2134,13 +2134,13 @@ func (a *BackupActivity) CheckAndAttachBackupVaultToVolume(ctx context.Context, 
 		// Generate resource names
 		resourceName, err := volumeActivity.GenerateResourceNames(ctx, volume, tenancyDetails, region)
 		if err != nil {
-			return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to generate resource names: %w", err))
+			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, fmt.Errorf("failed to generate resource names: %w", err)))
 		}
 
 		// Create bucket
 		bucketDetails, err = volumeActivity.CreateBucket(ctx, resourceName, tenancyDetails, backupRegion, nil)
 		if err != nil {
-			return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to create bucket: %w", err))
+			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, fmt.Errorf("failed to create bucket: %w", err)))
 		}
 		if existingBackupVault.ServiceType != GCBDRServiceType {
 			bucketDetails.VendorSubnetID = volume.VolumeAttributes.VendorSubnetID
@@ -2149,30 +2149,30 @@ func (a *BackupActivity) CheckAndAttachBackupVaultToVolume(ctx context.Context, 
 		// Update backup vault with bucket details
 		err = volumeActivity.UpdateBackupVaultWithBucketDetails(ctx, volume, bucketDetails)
 		if err != nil {
-			return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to update backup vault with bucket details: %w", err))
+			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, fmt.Errorf("failed to update backup vault with bucket details: %w", err)))
 		}
 
 		// Handle cross-region backup vaults
 		remoteBV, err := volumeActivity.CheckOrCreateRemoteBackupVaultInVCP(ctx, volume, existingBackupVault, bucketDetails)
 		if err != nil {
-			return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to check or create remote backup vault: %w", err))
+			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, fmt.Errorf("failed to check or create remote backup vault: %w", err)))
 		}
 
 		if remoteBV != nil {
 			err = volumeActivity.UpdateRemoteBackupVaultWithBucketDetails(ctx, volume, existingBackupVault, remoteBV, bucketDetails)
 			if err != nil {
-				return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to update remote backup vault with bucket details: %w", err))
+				return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, fmt.Errorf("failed to update remote backup vault with bucket details: %w", err)))
 			}
 		}
 
 		// Setup cross-region permissions (only needed when bucket is new)
 		if existingBackupVault.BackupVaultType == CrossRegionBackupType && existingBackupVault.BackupRegionName != nil && *existingBackupVault.BackupRegionName != "" {
 			if volume.Pool == nil {
-				return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("volume pool cannot be nil for cross-region backup setup"))
+				return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrBadRequest, fmt.Errorf("volume pool cannot be nil for cross-region backup setup")))
 			}
 			err = volumeActivity.SetupCrossRegionBackupPermissionsActivity(ctx, existingBackupVault, volume.Pool, bucketDetails)
 			if err != nil {
-				return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to setup cross-region backup permissions: %w", err))
+				return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, fmt.Errorf("failed to setup cross-region backup permissions: %w", err)))
 			}
 		}
 	}
@@ -2181,11 +2181,11 @@ func (a *BackupActivity) CheckAndAttachBackupVaultToVolume(ctx context.Context, 
 	// so that a pool attaching to an already-provisioned vault still receives the IAM grant.
 	if existingBackupVault.ServiceType == GCBDRServiceType {
 		if volume.Pool == nil {
-			return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("volume pool cannot be nil for GCBDR backup setup"))
+			return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrBadRequest, fmt.Errorf("volume pool cannot be nil for GCBDR backup setup")))
 		}
 		err := volumeActivity.SetupCrossProjectBackupPermissions(ctx, volume.Pool, bucketDetails)
 		if err != nil {
-			return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to setup cross-project backup permissions: %w", err))
+			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceProvisionError, fmt.Errorf("failed to setup cross-project backup permissions: %w", err)))
 		}
 		logger.Infof("Successfully granted pool SA access to GCBDR bucket %s", bucketDetails.BucketName)
 	}
@@ -2205,7 +2205,7 @@ func (a *BackupActivity) CheckAndAttachBackupVaultToVolume(ctx context.Context, 
 	// This function is only called for expert mode volumes, so we must fetch and update the expert mode volume
 	expertModeVol, err := a.SE.GetExpertModeVolumeByUUID(ctx, volume.UUID)
 	if err != nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to get expert mode volume: %w", err))
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, fmt.Errorf("failed to get expert mode volume: %w", err)))
 	}
 	// This is an expert mode volume, update BackupConfig instead of DataProtection
 	if expertModeVol.BackupConfig == nil {
@@ -2216,7 +2216,7 @@ func (a *BackupActivity) CheckAndAttachBackupVaultToVolume(ctx context.Context, 
 	// Update expert mode volume in database
 	err = a.SE.UpdateExpertModeVolumeDataProtection(ctx, expertModeVol)
 	if err != nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to update expert mode volume with backup vault: %w", err))
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataUpdateError, fmt.Errorf("failed to update expert mode volume with backup vault: %w", err)))
 	}
 	logger.Info("Successfully attached backup vault to expert mode volume", "volumeUUID", volume.UUID, "backupVaultUUID", existingBackupVault.UUID)
 	return backupActivitiesContext, nil
@@ -2230,7 +2230,7 @@ func (b *BackupActivity) GetVolumesAndConstituentCountActivity(ctx context.Conte
 
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to get provider: %w", err))
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, fmt.Errorf("failed to get provider: %w", err)))
 	}
 
 	// Get the specific volume from ONTAP using external UUID
@@ -2241,7 +2241,7 @@ func (b *BackupActivity) GetVolumesAndConstituentCountActivity(ctx context.Conte
 
 	if err != nil {
 		logger.Errorf("Failed to get volume from ONTAP: %v", err)
-		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to get volume from ONTAP: %w", err))
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, fmt.Errorf("failed to get volume from ONTAP: %w", err)))
 	}
 
 	if volumeResponse == nil {
@@ -2372,12 +2372,12 @@ func (b *BackupActivity) GetVolumeProtocolsFromOntapActivity(ctx context.Context
 
 	provider, err := hyperscaler.GetProviderByNode(ctx, node)
 	if err != nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to get provider: %w", err))
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrInternalServerError, fmt.Errorf("failed to get provider: %w", err)))
 	}
 
 	var svmName string
 	if volume.Svm.Name == "" {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("volume SVM name is empty"))
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrBadRequest, fmt.Errorf("volume SVM name is empty for volume %s", volume.Name)))
 	} else {
 		svmName = volume.Svm.Name
 	}
@@ -2385,12 +2385,12 @@ func (b *BackupActivity) GetVolumeProtocolsFromOntapActivity(ctx context.Context
 
 	nasDetails, err := provider.GetVolumeNASDetails(volume.VolumeAttributes.ExternalUUID)
 	if err != nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to get volume NAS details: %w", err))
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, fmt.Errorf("failed to get volume NAS details: %w", err)))
 	}
 
 	sanDetails, err := provider.GetVolumeSANDetails(svmName, volume.Name)
 	if err != nil {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("failed to get volume SAN details: %w", err))
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrOntapRestAPIError, fmt.Errorf("failed to get volume SAN details: %w", err)))
 	}
 
 	isSanVolume := sanDetails.HasLUNs || sanDetails.HasNamespaces
@@ -2418,7 +2418,10 @@ func (b *BackupActivity) GetVolumeProtocolsFromOntapActivity(ctx context.Context
 	}
 
 	if len(protocols) == 0 {
-		return nil, vsaerrors.WrapAsTemporalApplicationError(fmt.Errorf("could not determine protocols for volume %s", volume.Name))
+		logger.Errorf("Could not determine protocols for expert mode volume %s: no NFS export policy, SMB security style, iSCSI LUNs, or NVMe namespaces found", volume.Name)
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrExpertModeVolumeProtocolsUndetermined, fmt.Errorf("could not determine protocols for volume %s", volume.Name)),
+		)
 	}
 
 	logger.Infof("Determined protocols for expert mode volume %s: %v", volume.Name, protocols)
