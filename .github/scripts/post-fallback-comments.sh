@@ -206,6 +206,8 @@ print(json.dumps({
     'gosum_total_main': pr.get('gosum_total_main', 0),
     'vuln_status':     pr.get('vuln_status', 'unknown'),
     'vuln_finding':    pr.get('vuln_finding', ''),
+    'vuln_new_findings': pr.get('vuln_new_findings', []),
+    'vuln_preexisting_count': pr.get('vuln_preexisting_count', 0),
     'verification_steps': pr.get('verification_steps', []),
 }))
 " 2>/dev/null || echo '{}')
@@ -239,6 +241,9 @@ fields = {
     'GOSUM_TOTAL_MAIN': str(d.get('gosum_total_main', 0)),
     'VULN_STATUS': d.get('vuln_status', 'unknown'),
     'VULN_FINDING': d.get('vuln_finding', ''),
+    'VULN_NEW_COUNT': str(len(d.get('vuln_new_findings', []))),
+    'VULN_NEW_LIST': ','.join(d.get('vuln_new_findings', [])[:5]),
+    'VULN_PREEXISTING_COUNT': str(d.get('vuln_preexisting_count', 0)),
     'FILES_LIST': '|'.join((f.split(':')[0] if ':' in f else f) for f in d.get('files_importing', [])[:8]),
     'TEST_FAIL_DETAIL': next((s.get('detail','') for s in d.get('verification_steps',[]) if s.get('step')=='test_suite' and s.get('status')=='pre_existing'), ''),
 }
@@ -278,6 +283,9 @@ for k, v in fields.items():
   GOSUM_TOTAL_MAIN=$(echo "$_FIELDS_EXTRACTED" | grep '^GOSUM_TOTAL_MAIN=' | cut -d= -f2-)
   VULN_STATUS=$(echo "$_FIELDS_EXTRACTED" | grep '^VULN_STATUS=' | cut -d= -f2-)
   VULN_FINDING=$(echo "$_FIELDS_EXTRACTED" | grep '^VULN_FINDING=' | cut -d= -f2-)
+  VULN_NEW_COUNT=$(echo "$_FIELDS_EXTRACTED" | grep '^VULN_NEW_COUNT=' | cut -d= -f2-)
+  VULN_NEW_LIST=$(echo "$_FIELDS_EXTRACTED" | grep '^VULN_NEW_LIST=' | cut -d= -f2-)
+  VULN_PREEXISTING_COUNT=$(echo "$_FIELDS_EXTRACTED" | grep '^VULN_PREEXISTING_COUNT=' | cut -d= -f2-)
   TEST_FAIL_DETAIL=$(echo "$_FIELDS_EXTRACTED" | grep '^TEST_FAIL_DETAIL=' | cut -d= -f2-)
   FILES_LIST=$(echo "$_FIELDS_EXTRACTED" | grep '^FILES_LIST=' | cut -d= -f2-)
 
@@ -400,17 +408,25 @@ ${_SHOWN_FILES}${_MORE_NOTE}
     fi
   fi
   # Build govulncheck note (inline checklist item) + top-of-comment header badge
+  # V9.7b: distinguish NEW findings (this PR introduces) from pre-existing on main
   _VULN_NOTE=""
   _VULN_HEADER_BADGE=""
+  _PRE_NOTE=""
+  [[ "${VULN_PREEXISTING_COUNT:-0}" -gt 0 ]] && _PRE_NOTE=" (+ ${VULN_PREEXISTING_COUNT} pre-existing on main)"
   case "$VULN_STATUS" in
     ok)
       _VULN_NOTE="
 - ✅ govulncheck: no known vulnerabilities (all modules scanned)"
       ;;
+    ok_preexisting)
+      # PR scan found vulns, but ALL were already on main — PR introduces none.
+      _VULN_NOTE="
+- ✅ govulncheck: PR introduces **no new vulnerabilities** (${VULN_PREEXISTING_COUNT} pre-existing on main — unaffected by this PR)"
+      ;;
     vulns_found)
       _VULN_NOTE="
-- 🚨 govulncheck: **known vulnerability found** — ${VULN_FINDING:-see details}"
-      _VULN_HEADER_BADGE="> 🚨 **Security finding:** \`govulncheck\` reported known vulnerability ${VULN_FINDING:-(see details below)}. **Review before merge.**
+- 🚨 govulncheck: **${VULN_NEW_COUNT} NEW vulnerability(ies) introduced by this PR** — ${VULN_NEW_LIST}${_PRE_NOTE}"
+      _VULN_HEADER_BADGE="> 🚨 **Security:** This PR introduces **${VULN_NEW_COUNT} new vulnerability(ies)** not present on main: ${VULN_NEW_LIST}${_PRE_NOTE}. **Review before merge.**
 "
       ;;
     failed_oom)
@@ -1112,27 +1128,41 @@ if meta.get('incomplete'):
 lines.append("")
 
 # V9.7: govulncheck status aggregation — top-level banner shows scan health + vuln findings.
+# V9.7b: distinguish NEW findings (introduced by PR) from pre-existing-on-main.
 _vuln_not_installed = 0
 _vuln_failed_oom   = 0
 _vuln_failed_timeout = 0
 _vuln_failed_error = 0
-_vuln_found = []   # list of (pr_num, finding_id)
+_vuln_found = []   # list of (pr_num, [new_findings])
+_vuln_ok_preexisting = 0
 _vuln_ok = 0
+_main_baseline = data.get("govulncheck", {}).get("main_baseline", {})
+_main_baseline_status = _main_baseline.get("status", "unknown")
+_main_baseline_findings = _main_baseline.get("findings", [])
 for _pn, _pr in prs.items():
     _vs = _pr.get("vuln_status", "")
+    _new = _pr.get("vuln_new_findings", [])
     if _vs == "not_installed": _vuln_not_installed += 1
     elif _vs == "failed_oom":  _vuln_failed_oom += 1
     elif _vs == "failed_timeout": _vuln_failed_timeout += 1
     elif _vs == "failed_error":   _vuln_failed_error += 1
-    elif _vs == "vulns_found":
-        _vuln_found.append((_pn, _pr.get("vuln_finding", "")))
+    elif _vs == "vulns_found" and _new:
+        _vuln_found.append((_pn, _new))
+    elif _vs == "ok_preexisting":
+        _vuln_ok_preexisting += 1
     elif _vs == "ok": _vuln_ok += 1
 
-# Top banner — prioritize vulns_found > failures > ok summary
+# Main baseline context — this is key for developer trust
+if _main_baseline_findings:
+    lines.append("> ")
+    lines.append(f"> 🛡️ **Pre-existing vulnerabilities on main:** {len(_main_baseline_findings)} known CVE(s) detected by govulncheck on the main branch (independent of any PR). Example: {', '.join(_main_baseline_findings[:3])}{'…' if len(_main_baseline_findings) > 3 else ''}. These PRs do not introduce or fix them unless explicitly noted.")
+    lines.append("")
+
+# Top banner — prioritize NEW vulns introduced by PRs > failures > ok summary
 if _vuln_found:
     lines.append("> ")
-    _fb_list = ", ".join(f"#{n} ({fid or '?'})" for n, fid in _vuln_found[:10])
-    lines.append(f"> 🚨 **Known vulnerabilities detected by govulncheck** in {len(_vuln_found)} PR(s): {_fb_list} — review each PR comment before merging.")
+    _fb_list = ", ".join(f"#{n} ({','.join(findings[:2])})" for n, findings in _vuln_found[:10])
+    lines.append(f"> 🚨 **New vulnerabilities INTRODUCED by {len(_vuln_found)} PR(s)** (not present on main): {_fb_list} — review each PR comment before merging.")
     lines.append("")
 if _vuln_failed_oom or _vuln_failed_timeout or _vuln_failed_error:
     _fails = []
@@ -1146,8 +1176,12 @@ if _vuln_not_installed:
     lines.append("> ")
     lines.append(f"> ⚠️ **govulncheck not installed on {_vuln_not_installed} PR runner(s)** — vulnerability scan was skipped. Install via `go install golang.org/x/vuln/cmd/govulncheck@latest`.")
     lines.append("")
-if _vuln_ok and not (_vuln_found or _vuln_failed_oom or _vuln_failed_timeout or _vuln_failed_error):
-    lines.append(f"> ✅ govulncheck: no known vulnerabilities across {_vuln_ok} scanned PR(s).")
+# Clean summary if scans succeeded with no new findings
+if (_vuln_ok + _vuln_ok_preexisting) and not (_vuln_found or _vuln_failed_oom or _vuln_failed_timeout or _vuln_failed_error):
+    _clean_parts = []
+    if _vuln_ok: _clean_parts.append(f"{_vuln_ok} with no vulns")
+    if _vuln_ok_preexisting: _clean_parts.append(f"{_vuln_ok_preexisting} only touching pre-existing vulns on main (no NEW vulns introduced)")
+    lines.append(f"> ✅ govulncheck: {' / '.join(_clean_parts)} across {_vuln_ok + _vuln_ok_preexisting} scanned PR(s). No PR introduces new vulnerabilities.")
     lines.append("")
 
 # Summary table

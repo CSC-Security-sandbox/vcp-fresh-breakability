@@ -55,6 +55,11 @@ Once you have `/tmp/build-results.json`, it contains FACTS:
   - `additional_packages`: String — for multi-package Dependabot PRs (e.g., "Bump jest and @types/jest"), contains the additional package names beyond the primary. **If non-empty, this is a grouped PR. List ALL packages in the comment headline and findings. See verdict rule 5b.**
   - `additional_imports`: Array of `{"package": "...", "files": [...], "count": N}` — usage scan results for each additional package. Use alongside `files_importing` (primary package) to show full import surface for multi-package PRs.
   - `npm_audit`: Object with `critical` and `high` counts from `npm audit --json --production`. **If `critical > 0`, add a security warning to the PR comment. Use in the merge plan Security Posture section. See verdict rule 20.**
+  - `vuln_status`: govulncheck result per PR. One of: `ok` (no vulns), `ok_preexisting` (vulns found but all also present on main — PR introduces NONE), `vulns_found` (PR introduces NEW vulns not on main), `failed_oom` (govulncheck crashed), `failed_timeout`, `failed_error`, `not_installed`, `unknown`. **This is deterministic output from govulncheck on the PR worktree; diffed against main.**
+  - `vuln_new_findings`: Array of `GO-YYYY-NNNN` IDs that are NEW in this PR (not on main). Only non-empty when `vuln_status == "vulns_found"`. **These are the CVE-like findings you should flag in the PR comment as security risks introduced by the PR.**
+  - `vuln_preexisting_count`: Integer — how many findings were already on main. Show this to the developer as context ("+ N pre-existing on main"). **Do NOT treat pre-existing vulns as the PR's fault — they exist regardless.**
+  - `vuln_finding`: DEPRECATED legacy field — the first NEW finding. Prefer `vuln_new_findings`.
+- **`govulncheck`** (top-level): `main_baseline.status` + `main_baseline.findings` (CVE IDs on main branch), `prs_scanned`, `prs_with_new_vulns`, `total_new_findings`. **Use for the Security Posture section in the merge plan.**
 - **`cross_pr_deps`**: Detected dependency relationships between PRs (includes dynamic NestJS peer groups, React groups, shared lib cascades)
 - **`workspace_graph`**: Monorepo dependency graph — `packages`, `consumers` (which services use which libs), `nestjs_skew` (version mismatches)
 - **`nestjs_skew`**: Array of NestJS packages with different major versions across services
@@ -235,6 +240,15 @@ Use these tiers consistently in comments. A "safe" upgrade isn't zero-risk — i
 18. **Transparency rule**: Every comment MUST disclose what was NOT verified. If `install_ok == false`, say "⚠️ Package was not installed — API compatibility was NOT checked." If tsc was not run, say "TypeScript compilation was not run." Never let a developer assume something was tested when it wasn't.
 19. **Infrastructure deduplication**: If `build.error_class` is `lockfile_desync` or `infra_error`, do NOT repeat the fix instructions in every PR comment. Instead say: `⚙️ Blocked by infrastructure issue — see merge plan Step 0.` Put the actual fix instructions ONCE in the merge plan's Infrastructure Prerequisites section.
 20. **Security audit**: If `npm_audit.critical > 0`, add a row to the findings table: `| Security | 🔴 N critical vulnerabilities found by npm audit |`. If `npm_audit.high > 0` but critical is 0, add: `| Security | 🟠 N high vulnerabilities found by npm audit |`. This data comes from `npm audit --json --production` run in the PR worktree.
+
+21. **govulncheck surfacing (Go PRs — V9.7)**: For every Go PR, add a row to the findings table based on `vuln_status`:
+    - `vulns_found` (NEW vulns introduced): `| Security | 🚨 N NEW vulnerabilities introduced: GO-YYYY-NNNN, … (+ M pre-existing on main) |` — plus a top-of-comment security callout: `> 🚨 **Security:** This PR introduces N new vulnerability(ies) not present on main: …`
+    - `ok_preexisting` (PR has vulns but all pre-existing): `| Security | ✅ No new vulns introduced (M pre-existing on main, unaffected by this PR) |` — do NOT alarm the developer.
+    - `ok` (clean): `| Security | ✅ govulncheck: no known vulnerabilities |`
+    - `failed_oom` / `failed_timeout` / `failed_error`: `| Security | ⚠️ govulncheck incomplete (reason) — manual scan required |` — plus a top-of-comment warning that absence of findings is NOT proof of safety.
+    - `not_installed` / `unknown`: `| Security | ℹ️ govulncheck: scan skipped |`
+    - **CRITICAL:** Do NOT conflate pre-existing vulns with PR-introduced vulns. The `vuln_new_findings` array is the authoritative list of what this PR actually introduces. If `vuln_new_findings` is empty, the PR introduces nothing new regardless of `vuln_preexisting_count`.
+    - **Merge plan:** Use top-level `govulncheck` block (`main_baseline.findings`) for the Security Posture section. Show repo-wide pre-existing vulns separately from PR-introduced ones. Add a 🚨 banner ONLY if `prs_with_new_vulns > 0`.
 
 ---
 

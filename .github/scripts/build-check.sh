@@ -1406,6 +1406,29 @@ $_mod_output"
   fi
 fi
 
+# ── Go baseline vulnerability scan (main) ────────────────────────────────────
+# Scans main branch ONCE per batch to establish baseline CVE set.
+# Each PR's findings are then diff'd against this so we only flag NEW vulns.
+# Without this, every PR appears to "introduce" repo-wide pre-existing CVEs.
+MAIN_VULN_FINDINGS_FILE="/tmp/_bc_main_vuln_findings.txt"
+MAIN_VULN_STATUS_FILE="/tmp/_bc_main_vuln_status.txt"
+: > "$MAIN_VULN_FINDINGS_FILE"
+echo "unknown" > "$MAIN_VULN_STATUS_FILE"
+if command -v govulncheck &>/dev/null && [[ -d "$MAIN_DIR" ]]; then
+  echo ""
+  echo "  [security] scanning main baseline for existing vulnerabilities..."
+  MAIN_VULN_OUT=$(go_check_vulnerabilities "$MAIN_DIR" 2>&1) || true
+  MAIN_VULN_STATUS_VAL=$(echo "$MAIN_VULN_OUT" | grep -oE '^###VULN_STATUS=[a-z_]+' | tail -1 | cut -d= -f2)
+  [[ -z "$MAIN_VULN_STATUS_VAL" ]] && MAIN_VULN_STATUS_VAL="unknown"
+  echo "$MAIN_VULN_STATUS_VAL" > "$MAIN_VULN_STATUS_FILE"
+  # Extract all unique GO-YYYY-NNNN IDs from main baseline (one per line)
+  echo "$MAIN_VULN_OUT" | grep -oE 'GO-[0-9]{4}-[0-9]+' | sort -u > "$MAIN_VULN_FINDINGS_FILE"
+  MAIN_VULN_COUNT=$(wc -l < "$MAIN_VULN_FINDINGS_FILE" | tr -d ' ')
+  echo "  [security] main baseline: status=$MAIN_VULN_STATUS_VAL, pre-existing vulns=$MAIN_VULN_COUNT"
+else
+  echo "  [security] skipping main baseline vuln scan (govulncheck not available or MAIN_DIR missing)"
+fi
+
 # Go baseline test — deferred to per-PR targeted comparison.
 # We don't run full ./... here (takes 30+ min on large monorepos).
 # Instead, per-PR in the PR loop (gomod test block), we run the SAME targeted
@@ -1582,6 +1605,8 @@ for i in $(seq 0 $(( PR_COUNT - 1 )) ); do
   # Initialize vuln-scan outputs (in case code path skips the scan below)
   printf 'unknown' > "/tmp/_bc_vuln_status_${PR_NUM}.txt"
   printf '' > "/tmp/_bc_vuln_finding_${PR_NUM}.txt"
+  printf '' > "/tmp/_bc_vuln_new_findings_${PR_NUM}.txt"
+  printf '0' > "/tmp/_bc_vuln_preexisting_count_${PR_NUM}.txt"
 
   # Respect breakability:skip label — opt-out for PRs that should bypass analysis
   PR_SKIP=$(echo "$PR_JSON" | jq -r ".[$i].labels[] | select(.name==\"breakability:skip\") | .name" 2>/dev/null | head -1)
@@ -2268,13 +2293,34 @@ $GO_VET_OUT"
             VULN_STATUS=$(echo "$GO_VULN_OUT" | grep -oE '^###VULN_STATUS=[a-z_]+' | tail -1 | cut -d= -f2)
             [[ -z "$VULN_STATUS" ]] && VULN_STATUS="unknown"
             GO_VULN_OUT_DISPLAY=$(echo "$GO_VULN_OUT" | grep -v '^###VULN_STATUS=')
+            # Extract all findings in PR worktree
+            _PR_VULNS=$(echo "$GO_VULN_OUT_DISPLAY" | grep -oE 'GO-[0-9]{4}-[0-9]+' | sort -u)
+            # Diff against main baseline — only NEW findings count as "introduced by this PR"
+            _MAIN_VULNS=""
+            [[ -f "/tmp/_bc_main_vuln_findings.txt" ]] && _MAIN_VULNS=$(cat /tmp/_bc_main_vuln_findings.txt)
+            _NEW_VULNS=$(comm -23 <(echo "$_PR_VULNS" | sort -u) <(echo "$_MAIN_VULNS" | sort -u) | grep -v '^$' || true)
+            _NEW_VULN_COUNT=$(echo -n "$_NEW_VULNS" | grep -c . || true)
+            _PRE_VULN_COUNT=$(echo -n "$_PR_VULNS" | grep -c . || true)
+            _PRE_VULN_COUNT=$((_PRE_VULN_COUNT - _NEW_VULN_COUNT))
+            [[ "$_PRE_VULN_COUNT" -lt 0 ]] && _PRE_VULN_COUNT=0
+            # Refine status: if PR had vulns_found but ALL were pre-existing on main,
+            # treat as "ok_preexisting" — the PR itself introduces no new vulns.
+            if [[ "$VULN_STATUS" == "vulns_found" && "$_NEW_VULN_COUNT" -eq 0 ]]; then
+              VULN_STATUS="ok_preexisting"
+              echo "  [security] PR has $_PRE_VULN_COUNT pre-existing vuln(s) also present on main — no new vulns introduced"
+            elif [[ "$VULN_STATUS" == "vulns_found" && "$_NEW_VULN_COUNT" -gt 0 ]]; then
+              echo "  [security] PR introduces $_NEW_VULN_COUNT NEW vuln(s) (plus $_PRE_VULN_COUNT pre-existing on main)"
+            fi
             echo "$VULN_STATUS" > "/tmp/_bc_vuln_status_${PR_NUM}.txt"
-            # Extract first vuln finding (GO-YYYY-NNNN line) for header badge if any
-            _VULN_FINDING=$(echo "$GO_VULN_OUT_DISPLAY" | grep -oE 'GO-[0-9]{4}-[0-9]+' | head -1)
+            # Persist new findings (one per line) and pre-existing count
+            echo "$_NEW_VULNS" > "/tmp/_bc_vuln_new_findings_${PR_NUM}.txt"
+            echo "$_PRE_VULN_COUNT" > "/tmp/_bc_vuln_preexisting_count_${PR_NUM}.txt"
+            # Extract first NEW vuln finding for header badge (if any)
+            _VULN_FINDING=$(echo "$_NEW_VULNS" | head -1)
             [[ -n "$_VULN_FINDING" ]] && echo "$_VULN_FINDING" > "/tmp/_bc_vuln_finding_${PR_NUM}.txt" || printf '' > "/tmp/_bc_vuln_finding_${PR_NUM}.txt"
             if [[ -n "$GO_VULN_OUT_DISPLAY" ]]; then
               BUILD_OUTPUT="$BUILD_OUTPUT
---- go vulncheck (status=$VULN_STATUS) ---
+--- go vulncheck (status=$VULN_STATUS new=$_NEW_VULN_COUNT pre_existing=$_PRE_VULN_COUNT) ---
 $GO_VULN_OUT_DISPLAY"
             fi
           fi
@@ -2939,6 +2985,16 @@ try:
         vuln_finding = f.read().strip()
 except (IOError, OSError):
     vuln_finding = ""
+try:
+    with open(f"/tmp/_bc_vuln_new_findings_{pr_num}.txt") as f:
+        vuln_new_findings = [l.strip() for l in f.readlines() if l.strip()]
+except (IOError, OSError):
+    vuln_new_findings = []
+try:
+    with open(f"/tmp/_bc_vuln_preexisting_count_{pr_num}.txt") as f:
+        vuln_preexisting_count = int(f.read().strip() or "0")
+except (IOError, OSError, ValueError):
+    vuln_preexisting_count = 0
 
 # Read PR metadata from temp files to avoid shell injection (Finding-4.4)
 # MUST be defined before INFRA_ERROR_PATTERNS because eco is used there (Finding-5.1)
@@ -3141,6 +3197,8 @@ pr_data = {
     "gosum_total_main": gosum_total_main,
     "vuln_status": vuln_status,
     "vuln_finding": vuln_finding,
+    "vuln_new_findings": vuln_new_findings,
+    "vuln_preexisting_count": vuln_preexisting_count,
     "nestjs_peer_warning": open(f"/tmp/_bc_peer_warn_{pr_num}.txt").read().strip() if os.path.exists(f"/tmp/_bc_peer_warn_{pr_num}.txt") else "",
     "install_ok": True if "$INSTALL_OK" == "true" else False,
     "additional_packages": open(f"/tmp/_bc_addl_pkgs_{pr_num}.txt").read().strip() if os.path.exists(f"/tmp/_bc_addl_pkgs_{pr_num}.txt") else "",
@@ -3618,7 +3676,32 @@ security_posture = {
     "alerts_fixable_by_merging": sum(f["alert_count"] for f in fixes_by_pr.values())
 }
 
+# ── govulncheck aggregates (V9.7): main baseline + per-PR findings ──
+import os as _os
+_govuln_block = {"main_baseline": {"status": "unknown", "findings": []}, "prs_scanned": 0, "prs_with_new_vulns": 0, "total_new_findings": set()}
+try:
+    if _os.path.exists("/tmp/_bc_main_vuln_status.txt"):
+        with open("/tmp/_bc_main_vuln_status.txt") as f:
+            _govuln_block["main_baseline"]["status"] = f.read().strip() or "unknown"
+    if _os.path.exists("/tmp/_bc_main_vuln_findings.txt"):
+        with open("/tmp/_bc_main_vuln_findings.txt") as f:
+            _govuln_block["main_baseline"]["findings"] = sorted(set(l.strip() for l in f.readlines() if l.strip()))
+    # Aggregate per-PR new findings from the data dict we just built
+    for _pn, _pr in data.get("prs", {}).items():
+        _vs = _pr.get("vuln_status", "")
+        if _vs in ("ok", "vulns_found", "ok_preexisting"):
+            _govuln_block["prs_scanned"] += 1
+        _new = _pr.get("vuln_new_findings", [])
+        if _new:
+            _govuln_block["prs_with_new_vulns"] += 1
+            for _f in _new:
+                _govuln_block["total_new_findings"].add(_f)
+    _govuln_block["total_new_findings"] = sorted(_govuln_block["total_new_findings"])
+except Exception as _e:
+    _govuln_block["error"] = str(_e)
+
 data["security_posture"] = security_posture
+data["govulncheck"] = _govuln_block
 _tmp = "$RESULTS_FILE" + ".tmp"
 with open(_tmp, "w") as f:
     json.dump(data, f, indent=2)
