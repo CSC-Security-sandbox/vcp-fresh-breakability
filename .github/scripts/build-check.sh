@@ -3491,6 +3491,26 @@ git worktree remove "$MAIN_DIR" --force 2>/dev/null || rm -rf "$MAIN_DIR"
 
 # ── In batch mode, skip cross-PR / security / cleanup (merge script handles those) ──
 if [[ -n "$BATCH_ID" ]]; then
+  # Embed main baseline vuln scan into batch JSON so merge-results.sh can aggregate it
+  RESULTS_FILE="$RESULTS_FILE" python3 <<'BATCHVULN'
+import json, os
+rf = os.environ["RESULTS_FILE"]
+try:
+    with open(rf) as f: d = json.load(f)
+except Exception: d = {}
+mb = {"status": "unknown", "findings": []}
+try:
+    if os.path.exists("/tmp/_bc_main_vuln_status.txt"):
+        mb["status"] = open("/tmp/_bc_main_vuln_status.txt").read().strip() or "unknown"
+    if os.path.exists("/tmp/_bc_main_vuln_findings.txt"):
+        mb["findings"] = sorted(set(l.strip() for l in open("/tmp/_bc_main_vuln_findings.txt") if l.strip()))
+except Exception as e:
+    mb["error"] = str(e)
+d["main_baseline_vuln"] = mb
+with open(rf + ".tmp", "w") as f: json.dump(d, f, indent=2)
+os.rename(rf + ".tmp", rf)
+print(f"  [batch] main_baseline_vuln: status={mb['status']} findings={len(mb['findings'])}")
+BATCHVULN
   echo ""
   echo "═══════════════════════════════════════════════════════════════════"
   echo "  BATCH $BATCH_ID COMPLETE"

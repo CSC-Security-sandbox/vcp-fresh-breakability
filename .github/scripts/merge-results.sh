@@ -300,6 +300,36 @@ security_posture = {
 }
 
 data["security_posture"] = security_posture
+
+# ── govulncheck aggregates (V9.7b): main baseline + per-PR new findings ─────
+_govuln = {"main_baseline": {"status": "unknown", "findings": []},
+           "prs_scanned": 0, "prs_with_new_vulns": 0, "total_new_findings": []}
+# Reload any batch's main_baseline_vuln (they all scan the same main, just take first non-empty)
+import glob as _glob
+for _bf in sorted(_glob.glob("/tmp/batch-results/batch-*/build-results-*.json")):
+    try:
+        _bd = json.load(open(_bf))
+        _mb = _bd.get("main_baseline_vuln")
+        if _mb and _mb.get("status") != "unknown":
+            _govuln["main_baseline"] = {"status": _mb.get("status", "unknown"),
+                                         "findings": _mb.get("findings", [])}
+            break
+    except Exception:
+        pass
+# Aggregate per-PR vuln_new_findings from the merged prs dict
+_new_set = set()
+for _pn, _pr in data.get("prs", {}).items():
+    _vs = _pr.get("vuln_status", "")
+    if _vs in ("ok", "vulns_found", "ok_preexisting"):
+        _govuln["prs_scanned"] += 1
+    _new = _pr.get("vuln_new_findings", [])
+    if _new:
+        _govuln["prs_with_new_vulns"] += 1
+        for _f in _new: _new_set.add(_f)
+_govuln["total_new_findings"] = sorted(_new_set)
+data["govulncheck"] = _govuln
+print(f"  govulncheck: main_baseline={len(_govuln['main_baseline']['findings'])} CVE(s), prs_with_new_vulns={_govuln['prs_with_new_vulns']}, total_new={len(_govuln['total_new_findings'])}")
+
 with open("/tmp/build-results.json", "w") as f:
     json.dump(data, f, indent=2)
 
