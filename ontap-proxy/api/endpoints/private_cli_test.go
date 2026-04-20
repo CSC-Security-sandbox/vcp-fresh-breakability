@@ -11,23 +11,43 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/ruleengine/cli"
 )
 
-func TestGetPrivilegeLevel(t *testing.T) {
-	t.Run("returns default when not set", func(t *testing.T) {
-		req := &oasgenserver.CLIExecuteRequest{
-			Input: "volume show",
-			// Privilege not set
-		}
-		privilege := getPrivilegeLevel(req)
-		assert.Equal(t, "admin", privilege)
+func TestPrivilegeFromChain(t *testing.T) {
+	t.Run("returns admin by default for simple command", func(t *testing.T) {
+		req := &oasgenserver.CLIExecuteRequest{Input: "volume show"}
+		chain, err := cli.ParseCLIChain(req.Input)
+		require.NoError(t, err)
+		assert.Equal(t, "admin", privilegeFromChain(chain, req))
 	})
 
-	t.Run("returns admin when admin is set", func(t *testing.T) {
+	t.Run("returns admin when admin is set explicitly", func(t *testing.T) {
 		req := &oasgenserver.CLIExecuteRequest{
 			Input:     "volume show",
 			Privilege: oasgenserver.NewOptCLIExecuteRequestPrivilege(oasgenserver.CLIExecuteRequestPrivilegeAdmin),
 		}
-		privilege := getPrivilegeLevel(req)
-		assert.Equal(t, "admin", privilege)
+		chain, err := cli.ParseCLIChain(req.Input)
+		require.NoError(t, err)
+		assert.Equal(t, "admin", privilegeFromChain(chain, req))
+	})
+
+	t.Run("returns diagnostic for set diag chain", func(t *testing.T) {
+		req := &oasgenserver.CLIExecuteRequest{Input: "set diag; volume show"}
+		chain, err := cli.ParseCLIChain(req.Input)
+		require.NoError(t, err)
+		assert.Equal(t, "diagnostic", privilegeFromChain(chain, req))
+	})
+
+	t.Run("returns diagnostic for set -privilege diagnostic chain", func(t *testing.T) {
+		req := &oasgenserver.CLIExecuteRequest{Input: "set -privilege diagnostic; volume show"}
+		chain, err := cli.ParseCLIChain(req.Input)
+		require.NoError(t, err)
+		assert.Equal(t, "diagnostic", privilegeFromChain(chain, req))
+	})
+
+	t.Run("returns advanced for set advanced chain", func(t *testing.T) {
+		req := &oasgenserver.CLIExecuteRequest{Input: "set advanced; volume show"}
+		chain, err := cli.ParseCLIChain(req.Input)
+		require.NoError(t, err)
+		assert.Equal(t, "advanced", privilegeFromChain(chain, req))
 	})
 }
 
@@ -109,7 +129,64 @@ func TestV1PrivateCli_Validation(t *testing.T) {
 		assert.Equal(t, 400, badReq.Code)
 	})
 
-	t.Run("composite commands rejected outright", func(t *testing.T) {
+	t.Run("diag + allowlisted command passes validation", func(t *testing.T) {
+		req := &oasgenserver.CLIExecuteRequest{
+			Input: "set diag; volume check metadata",
+		}
+		params := oasgenserver.V1PrivateCliParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			PoolId:        poolId,
+		}
+
+		res, err := h.V1PrivateCli(ctx, req, params)
+		require.NoError(t, err)
+		badReq, isBadReq := res.(*oasgenserver.V1PrivateCliBadRequest)
+		if isBadReq {
+			require.False(t, isBadReq,
+				"volume check metadata should pass allowlist validation, got BadRequest: %s", badReq.Message)
+		}
+	})
+
+	t.Run("diag + volume show not in allowlist rejected", func(t *testing.T) {
+		req := &oasgenserver.CLIExecuteRequest{
+			Input: "set diag; volume show -vserver vs1",
+		}
+		params := oasgenserver.V1PrivateCliParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			PoolId:        poolId,
+		}
+
+		res, err := h.V1PrivateCli(ctx, req, params)
+		require.NoError(t, err)
+
+		badReq, ok := res.(*oasgenserver.V1PrivateCliBadRequest)
+		require.True(t, ok, "Expected bad request for volume show in diag mode, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Contains(t, badReq.Message, "not allowed in diagnostic mode")
+	})
+
+	t.Run("diag + command not in allowlist rejected", func(t *testing.T) {
+		req := &oasgenserver.CLIExecuteRequest{
+			Input: "set diag; security certificate delete -vserver vs1",
+		}
+		params := oasgenserver.V1PrivateCliParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			PoolId:        poolId,
+		}
+
+		res, err := h.V1PrivateCli(ctx, req, params)
+		require.NoError(t, err)
+
+		badReq, ok := res.(*oasgenserver.V1PrivateCliBadRequest)
+		require.True(t, ok, "Expected bad request for command not in diag allowlist, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Contains(t, badReq.Message, "not allowed in diagnostic mode")
+	})
+
+	t.Run("diag + volume create not in allowlist rejected", func(t *testing.T) {
 		req := &oasgenserver.CLIExecuteRequest{
 			Input: "set diag; volume create -vserver vs1 -volume vol1 -size 100g",
 		}
@@ -123,12 +200,185 @@ func TestV1PrivateCli_Validation(t *testing.T) {
 		require.NoError(t, err)
 
 		badReq, ok := res.(*oasgenserver.V1PrivateCliBadRequest)
-		require.True(t, ok, "Expected V1PrivateCliBadRequest for composite command, got %T", res)
+		require.True(t, ok, "Expected bad request for volume create in diag mode, got %T", res)
 		assert.Equal(t, 400, badReq.Code)
-		assert.Equal(t, "Composite commands are not allowed", badReq.Message)
+		assert.Contains(t, badReq.Message, "not allowed in diagnostic mode")
 	})
 
-	t.Run("composite with allowed commands only still rejected", func(t *testing.T) {
+	t.Run("diag + unknown command rejected", func(t *testing.T) {
+		req := &oasgenserver.CLIExecuteRequest{
+			Input: "set diag; system node show",
+		}
+		params := oasgenserver.V1PrivateCliParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			PoolId:        poolId,
+		}
+
+		res, err := h.V1PrivateCli(ctx, req, params)
+		require.NoError(t, err)
+
+		badReq, ok := res.(*oasgenserver.V1PrivateCliBadRequest)
+		require.True(t, ok, "Expected bad request for unknown command in diag mode, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Contains(t, badReq.Message, "not allowed in diagnostic mode")
+	})
+
+	t.Run("set -privilege diagnostic variant also enforces diag allowlist", func(t *testing.T) {
+		req := &oasgenserver.CLIExecuteRequest{
+			Input: "set -privilege diagnostic; snapshot show -vserver vs1",
+		}
+		params := oasgenserver.V1PrivateCliParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			PoolId:        poolId,
+		}
+
+		res, err := h.V1PrivateCli(ctx, req, params)
+		require.NoError(t, err)
+
+		badReq, ok := res.(*oasgenserver.V1PrivateCliBadRequest)
+		require.True(t, ok, "Expected bad request for snapshot show in diag mode, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Contains(t, badReq.Message, "not allowed in diagnostic mode")
+	})
+
+	t.Run("advanced + statistics show passes validation", func(t *testing.T) {
+		req := &oasgenserver.CLIExecuteRequest{
+			Input: "set advanced; statistics show",
+		}
+		params := oasgenserver.V1PrivateCliParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			PoolId:        poolId,
+		}
+
+		res, err := h.V1PrivateCli(ctx, req, params)
+		require.NoError(t, err)
+		badReq, isBadReq := res.(*oasgenserver.V1PrivateCliBadRequest)
+		if isBadReq {
+			require.False(t, isBadReq,
+				"statistics show should pass allowlist validation, got BadRequest: %s", badReq.Message)
+		}
+	})
+
+	t.Run("advanced + volume show in allowlist passes validation", func(t *testing.T) {
+		req := &oasgenserver.CLIExecuteRequest{
+			Input: "set advanced; volume show -vserver vs1",
+		}
+		params := oasgenserver.V1PrivateCliParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			PoolId:        poolId,
+		}
+
+		res, err := h.V1PrivateCli(ctx, req, params)
+		require.NoError(t, err)
+		badReq, isBadReq := res.(*oasgenserver.V1PrivateCliBadRequest)
+		if isBadReq {
+			require.False(t, isBadReq,
+				"volume show should pass allowlist validation, got BadRequest: %s", badReq.Message)
+		}
+	})
+
+	t.Run("advanced + volume check metadata not in allowlist rejected", func(t *testing.T) {
+		req := &oasgenserver.CLIExecuteRequest{
+			Input: "set advanced; volume check metadata",
+		}
+		params := oasgenserver.V1PrivateCliParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			PoolId:        poolId,
+		}
+
+		res, err := h.V1PrivateCli(ctx, req, params)
+		require.NoError(t, err)
+
+		badReq, ok := res.(*oasgenserver.V1PrivateCliBadRequest)
+		require.True(t, ok, "Expected bad request for volume check metadata in advanced mode, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Contains(t, badReq.Message, "not allowed in advanced mode")
+	})
+
+	t.Run("advanced + command not in allowlist rejected", func(t *testing.T) {
+		req := &oasgenserver.CLIExecuteRequest{
+			Input: "set advanced; security certificate delete -vserver vs1",
+		}
+		params := oasgenserver.V1PrivateCliParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			PoolId:        poolId,
+		}
+
+		res, err := h.V1PrivateCli(ctx, req, params)
+		require.NoError(t, err)
+
+		badReq, ok := res.(*oasgenserver.V1PrivateCliBadRequest)
+		require.True(t, ok, "Expected bad request for denied command in advanced mode, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Contains(t, badReq.Message, "not allowed in advanced mode")
+	})
+
+	t.Run("advanced + volume create not in allowlist rejected", func(t *testing.T) {
+		req := &oasgenserver.CLIExecuteRequest{
+			Input: "set advanced; volume create -vserver vs1 -volume vol1 -size 100g",
+		}
+		params := oasgenserver.V1PrivateCliParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			PoolId:        poolId,
+		}
+
+		res, err := h.V1PrivateCli(ctx, req, params)
+		require.NoError(t, err)
+
+		badReq, ok := res.(*oasgenserver.V1PrivateCliBadRequest)
+		require.True(t, ok, "Expected bad request for volume create in advanced mode, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Contains(t, badReq.Message, "not allowed in advanced mode")
+	})
+
+	t.Run("set -privilege advanced variant also enforces advanced allowlist", func(t *testing.T) {
+		req := &oasgenserver.CLIExecuteRequest{
+			Input: "set -privilege advanced; snapshot show -vserver vs1",
+		}
+		params := oasgenserver.V1PrivateCliParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			PoolId:        poolId,
+		}
+
+		res, err := h.V1PrivateCli(ctx, req, params)
+		require.NoError(t, err)
+
+		badReq, ok := res.(*oasgenserver.V1PrivateCliBadRequest)
+		require.True(t, ok, "Expected bad request for snapshot show in advanced mode, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Contains(t, badReq.Message, "not allowed in advanced mode")
+	})
+
+	t.Run("advanced is not diag mode", func(t *testing.T) {
+		req := &oasgenserver.CLIExecuteRequest{
+			Input: "set advanced; statistics show",
+		}
+		params := oasgenserver.V1PrivateCliParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			PoolId:        poolId,
+		}
+
+		res, err := h.V1PrivateCli(ctx, req, params)
+		require.NoError(t, err)
+
+		_, isBadReq := res.(*oasgenserver.V1PrivateCliBadRequest)
+		if isBadReq {
+			badReq := res.(*oasgenserver.V1PrivateCliBadRequest)
+			assert.NotContains(t, badReq.Message, "diagnostic mode",
+				"advanced mode should not produce diagnostic mode errors")
+		}
+	})
+
+	t.Run("chained non-set first command rejected", func(t *testing.T) {
 		req := &oasgenserver.CLIExecuteRequest{
 			Input: "volume show -vserver vs1; volume show -vserver vs1",
 		}
@@ -142,9 +392,28 @@ func TestV1PrivateCli_Validation(t *testing.T) {
 		require.NoError(t, err)
 
 		badReq, ok := res.(*oasgenserver.V1PrivateCliBadRequest)
-		require.True(t, ok, "Expected V1PrivateCliBadRequest for any composite command, got %T", res)
+		require.True(t, ok, "Expected V1PrivateCliBadRequest when first command is not 'set', got %T", res)
 		assert.Equal(t, 400, badReq.Code)
-		assert.Equal(t, "Composite commands are not allowed", badReq.Message)
+		assert.Contains(t, badReq.Message, "first command in a chain must be 'set'")
+	})
+
+	t.Run("more than 2 chained commands rejected", func(t *testing.T) {
+		req := &oasgenserver.CLIExecuteRequest{
+			Input: "set diag; volume show; snapshot show",
+		}
+		params := oasgenserver.V1PrivateCliParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			PoolId:        poolId,
+		}
+
+		res, err := h.V1PrivateCli(ctx, req, params)
+		require.NoError(t, err)
+
+		badReq, ok := res.(*oasgenserver.V1PrivateCliBadRequest)
+		require.True(t, ok, "Expected V1PrivateCliBadRequest for >2 chained commands, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.Contains(t, badReq.Message, "at most 2 commands")
 	})
 
 	t.Run("question mark help token is allowed by input validator", func(t *testing.T) {
@@ -208,6 +477,18 @@ Available: 100GB`
 		assert.NotContains(t, filtered, "Used Size")
 		assert.Contains(t, filtered, "Volume Name")
 		assert.Contains(t, filtered, "Available")
+	})
+}
+
+func TestV1PrivateCli_DiagResponseFiltering(t *testing.T) {
+	t.Run("normal volume show has Physical Used Percent in RemoveFields", func(t *testing.T) {
+		cmd, err := cli.ParseCLICommand("volume show")
+		require.NoError(t, err)
+
+		rule, matched := cli.MatchCLIRule(cmd)
+		require.True(t, matched)
+		assert.Contains(t, rule.RemoveFields, "Physical Used Percent",
+			"Physical Used Percent should be filtered in normal mode to prevent leaking physical usage ratio")
 	})
 }
 

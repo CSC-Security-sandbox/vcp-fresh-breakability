@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"strings"
 	"unicode/utf8"
 
 	oasgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/ontap-proxy/api/ontap-proxy-servergen"
@@ -62,14 +61,7 @@ func (h Handler) V1PrivateCli(
 		}, nil
 	}
 
-	if strings.Contains(req.Input, ";") {
-		return &oasgenserver.V1PrivateCliBadRequest{
-			Code:    400,
-			Message: "Composite commands are not allowed",
-		}, nil
-	}
-
-	cliCmd, err := cli.ParseCLICommand(req.Input)
+	chain, err := cli.ParseCLIChain(req.Input)
 	if err != nil {
 		logger.WarnContext(ctx, "Failed to parse CLI command", "input", log.Sanitize(req.Input), "error", err)
 		return &oasgenserver.V1PrivateCliBadRequest{
@@ -77,10 +69,41 @@ func (h Handler) V1PrivateCli(
 			Message: fmt.Sprintf("invalid CLI command: %s", err.Error()),
 		}, nil
 	}
+	cliCmd := chain.PrimaryCommand
 
-	// Match against CLI rules (allow by default if no rule matches)
-	rule, matched := cli.MatchCLIRule(cliCmd)
-	if matched {
+	// In diagnostic/advanced mode, the primary command must be in the respective allowlist.
+	// In normal mode, use standard CLI rules (allow by default if no rule matches).
+	var rule *cli.CLIRule
+	switch {
+	case chain.IsDiagMode():
+		diagRule, matched := cli.MatchPrivilegedRule(cliCmd, cli.GetDiagAllowedRules())
+		if !matched {
+			logger.WarnContext(ctx, "CLI command not in diagnostic mode allowlist",
+				"command", cliCmd.FullCommand,
+			)
+			return &oasgenserver.V1PrivateCliBadRequest{
+				Code:    400,
+				Message: fmt.Sprintf("Command %q is not allowed in diagnostic mode", cliCmd.FullCommand),
+			}, nil
+		}
+		rule = diagRule
+	case chain.IsAdvancedMode():
+		advRule, matched := cli.MatchPrivilegedRule(cliCmd, cli.GetAdvancedAllowedRules())
+		if !matched {
+			logger.WarnContext(ctx, "CLI command not in advanced mode allowlist",
+				"command", cliCmd.FullCommand,
+			)
+			return &oasgenserver.V1PrivateCliBadRequest{
+				Code:    400,
+				Message: fmt.Sprintf("Command %q is not allowed in advanced mode", cliCmd.FullCommand),
+			}, nil
+		}
+		rule = advRule
+	default:
+		rule, _ = cli.MatchCLIRule(cliCmd)
+	}
+
+	if rule != nil {
 		allowed, reason := cli.EvaluateRule(rule, cliCmd)
 		if !allowed {
 			logger.WarnContext(ctx, "CLI command denied by rule",
@@ -135,9 +158,9 @@ func (h Handler) V1PrivateCli(
 		}
 	}
 
-	privilege := getPrivilegeLevel(req)
+	privilege := privilegeFromChain(chain, req)
 
-	commandToExecute := req.Input
+	commandToExecute := cliCmd.RawInput
 	if cli.HasInjectArguments(rule) {
 		commandToExecute = cli.ApplyInjectArguments(cliCmd, rule)
 		if injectedArgs := cli.GetInjectedArguments(cliCmd, rule); len(injectedArgs) > 0 {
@@ -157,12 +180,11 @@ func (h Handler) V1PrivateCli(
 		}, nil
 	}
 
-	logger.InfoContext(ctx, "Executing CLI command on ONTAP",
-		"command", cliCmd.FullCommand,
-		"privilege", privilege,
-	)
+	// Send the full chained command (e.g. "set diag; vol show ...") so ONTAP handles privilege escalation inline rather than relying solely on the privilege field,
+	// which requires the authenticated user's role to permit that privilege level directly.
+	fullCommand := chain.BuildCommand(commandToExecute)
 
-	cliResponse, err := ontapClient.ExecuteCLI(ctx, commandToExecute, privilege)
+	cliResponse, err := ontapClient.ExecuteCLI(ctx, fullCommand, privilege)
 	if err != nil {
 		logger.ErrorContext(ctx, "CLI execution failed", "command", cliCmd.FullCommand, "error", log.Sanitize(err.Error()))
 		var cliErr *handlers.OntapCLIError
@@ -194,6 +216,18 @@ func (h Handler) V1PrivateCli(
 	}, nil
 }
 
-func getPrivilegeLevel(req *oasgenserver.CLIExecuteRequest) string {
-	return string(req.Privilege.Or(oasgenserver.CLIExecuteRequestPrivilegeAdmin))
+// privilegeFromChain returns the ONTAP privilege level for the CLI request.
+// When the command chain includes a "set diag" or "set advanced" prefix, the
+// privilege is derived from the chain so ONTAP executes at the correct level.
+// The set-prefix is not forwarded in the command body because the ONTAP
+// private CLI API honours the privilege field directly.
+func privilegeFromChain(chain *cli.CLIChain, req *oasgenserver.CLIExecuteRequest) string {
+	switch {
+	case chain.IsDiagMode():
+		return "diagnostic"
+	case chain.IsAdvancedMode():
+		return "advanced"
+	default:
+		return string(req.Privilege.Or(oasgenserver.CLIExecuteRequestPrivilegeAdmin))
+	}
 }

@@ -293,13 +293,19 @@ func TestMatchCLIRule(t *testing.T) {
 		}
 	})
 
-	t.Run("set diag command - denied", func(t *testing.T) {
+	t.Run("standalone set commands - all denied", func(t *testing.T) {
+		expectedReason := "Privilege escalation not allowed; use the chained command form (e.g. 'set diag; <command>')"
 		tests := []struct {
 			name  string
 			input string
 		}{
-			{"bare set diag", "set diag"},
+			{"set diag", "set diag"},
 			{"set diag with args", "set diag -confirm"},
+			{"set diagnostic", "set diagnostic"},
+			{"set advanced", "set advanced"},
+			{"set -privilege diagnostic", "set -privilege diagnostic"},
+			{"set -privilege diag", "set -privilege diag"},
+			{"set -privilege advanced", "set -privilege advanced"},
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
@@ -310,13 +316,13 @@ func TestMatchCLIRule(t *testing.T) {
 
 				rule, found := MatchCLIRule(cmd)
 				if !found {
-					t.Fatal("Expected to find a matching rule for set diag")
+					t.Fatalf("Expected to find a matching rule for %q", tt.input)
 				}
 				if rule.Allow {
-					t.Error("set diag should be denied")
+					t.Errorf("%q should be denied", tt.input)
 				}
-				if rule.Reason != "Diagnostic settings not allowed" {
-					t.Errorf("Reason = %q, want %q", rule.Reason, "Diagnostic settings not allowed")
+				if rule.Reason != expectedReason {
+					t.Errorf("Reason = %q, want %q", rule.Reason, expectedReason)
 				}
 			})
 		}
@@ -387,17 +393,17 @@ func TestEvaluateRule(t *testing.T) {
 		}
 	})
 
-	t.Run("set diag denied rule returns reason", func(t *testing.T) {
+	t.Run("set wildcard denied rule returns reason", func(t *testing.T) {
 		rules := GetCLIRules()
 		var rule *CLIRule
 		for i := range rules {
-			if rules[i].Pattern == "set diag" {
+			if rules[i].Pattern == "set *" {
 				rule = &rules[i]
 				break
 			}
 		}
 		if rule == nil {
-			t.Fatal("set diag rule not found")
+			t.Fatal("set * rule not found")
 		}
 		cmd, err := ParseCLICommand("set diag")
 		if err != nil {
@@ -406,11 +412,12 @@ func TestEvaluateRule(t *testing.T) {
 
 		allowed, reason := EvaluateRule(rule, cmd)
 
+		expectedReason := "Privilege escalation not allowed; use the chained command form (e.g. 'set diag; <command>')"
 		if allowed {
 			t.Error("set diag should be denied")
 		}
-		if reason != "Diagnostic settings not allowed" {
-			t.Errorf("Reason = %q, want %q", reason, "Diagnostic settings not allowed")
+		if reason != expectedReason {
+			t.Errorf("Reason = %q, want %q", reason, expectedReason)
 		}
 	})
 
@@ -1216,6 +1223,7 @@ func TestVolumeShowRemoveFields(t *testing.T) {
 		"Used Size",
 		"Used Percentage",
 		"Physical Used",
+		"Physical Used Percent",
 		"Footprint",
 		"Total Metadata",
 		"Space Guarantee",
@@ -1228,6 +1236,9 @@ func TestVolumeShowRemoveFields(t *testing.T) {
 		"Dedupe Space Shared",
 		"Compression Space Saved",
 		"Efficiency",
+		"Performance Tier Inactive User Data",
+		"Volume Size Used by Snapshot Copies",
+		"Over Provisioned Size",
 	}
 
 	rules := GetCLIRules()
@@ -1328,25 +1339,126 @@ func TestVolumeShowFootprintDenied(t *testing.T) {
 		}
 	})
 
-	t.Run("WhenSetDiagRule_ShouldBeDenied", func(t *testing.T) {
+	t.Run("WhenSetWildcardRule_ShouldBeDenied", func(t *testing.T) {
 		var rule *CLIRule
 		for i := range rules {
-			if rules[i].Pattern == "set diag" {
+			if rules[i].Pattern == "set *" {
 				rule = &rules[i]
 				break
 			}
 		}
 		if rule == nil {
-			t.Fatal("set diag rule not found")
+			t.Fatal("set * rule not found")
 		}
 		if rule.Allow {
-			t.Error("set diag should be denied")
+			t.Error("set * should be denied")
 		}
-		if rule.Reason != "Diagnostic settings not allowed" {
-			t.Errorf("Reason = %q, want %q", rule.Reason, "Diagnostic settings not allowed")
+		expectedReason := "Privilege escalation not allowed; use the chained command form (e.g. 'set diag; <command>')"
+		if rule.Reason != expectedReason {
+			t.Errorf("Reason = %q, want %q", rule.Reason, expectedReason)
 		}
 		if len(rule.RemoveFields) != 0 {
 			t.Errorf("Denied rule should have no RemoveFields, got %d", len(rule.RemoveFields))
+		}
+	})
+}
+
+func TestMatchDiagRule_VolumeCheckMetadata(t *testing.T) {
+	cmd, err := ParseCLICommand("volume check metadata")
+	if err != nil {
+		t.Fatalf("ParseCLICommand: %v", err)
+	}
+	rule, found := MatchPrivilegedRule(cmd, GetDiagAllowedRules())
+	if !found {
+		t.Fatal("volume check metadata should be in diag allowlist")
+	}
+	if !rule.Allow {
+		t.Error("volume check metadata should be allowed")
+	}
+}
+
+func TestMatchAdvancedRule_StatisticsShow(t *testing.T) {
+	cmd, err := ParseCLICommand("statistics show")
+	if err != nil {
+		t.Fatalf("ParseCLICommand: %v", err)
+	}
+	rule, found := MatchPrivilegedRule(cmd, GetAdvancedAllowedRules())
+	if !found {
+		t.Fatal("statistics show should be in advanced allowlist")
+	}
+	if !rule.Allow {
+		t.Error("statistics show should be allowed")
+	}
+}
+
+func TestMatchAdvancedRule_VolumeCheckMetadataNotAllowed(t *testing.T) {
+	cmd, err := ParseCLICommand("volume check metadata")
+	if err != nil {
+		t.Fatalf("ParseCLICommand: %v", err)
+	}
+	_, found := MatchPrivilegedRule(cmd, GetAdvancedAllowedRules())
+	if found {
+		t.Error("volume check metadata should NOT be in advanced allowlist")
+	}
+}
+
+func TestMatchAdvancedRule_VolumeShow(t *testing.T) {
+	t.Run("WhenVolumeShow_ShouldBeInAdvancedAllowlist", func(t *testing.T) {
+		cmd, err := ParseCLICommand("volume show -vserver vs1")
+		if err != nil {
+			t.Fatalf("ParseCLICommand: %v", err)
+		}
+		rule, found := MatchPrivilegedRule(cmd, GetAdvancedAllowedRules())
+		if !found {
+			t.Fatal("volume show should be in advanced allowlist")
+		}
+		if !rule.Allow {
+			t.Error("volume show should be allowed")
+		}
+		if len(rule.RemoveFields) == 0 {
+			t.Error("volume show should have RemoveFields to strip physical properties")
+		}
+	})
+
+	t.Run("WhenVolShow_ShouldBeInAdvancedAllowlist", func(t *testing.T) {
+		cmd, err := ParseCLICommand("vol show -vserver vs1")
+		if err != nil {
+			t.Fatalf("ParseCLICommand: %v", err)
+		}
+		rule, found := MatchPrivilegedRule(cmd, GetAdvancedAllowedRules())
+		if !found {
+			t.Fatal("vol show should be in advanced allowlist")
+		}
+		if !rule.Allow {
+			t.Error("vol show should be allowed")
+		}
+		if len(rule.RemoveFields) == 0 {
+			t.Error("vol show should have RemoveFields to strip physical properties")
+		}
+	})
+
+	t.Run("WhenVolumeShow_RemoveFieldsShouldIncludePhysicalProperties", func(t *testing.T) {
+		cmd, err := ParseCLICommand("volume show")
+		if err != nil {
+			t.Fatalf("ParseCLICommand: %v", err)
+		}
+		rule, found := MatchPrivilegedRule(cmd, GetAdvancedAllowedRules())
+		if !found {
+			t.Fatal("volume show should be in advanced allowlist")
+		}
+		physicalFields := map[string]bool{
+			"Physical Used":         false,
+			"Physical Used Percent": false,
+		}
+		for _, f := range rule.RemoveFields {
+			if _, ok := physicalFields[f]; ok {
+				physicalFields[f] = true
+			}
+		}
+		for field, found := range physicalFields {
+			if !found {
+				t.Errorf("RemoveFields should include %q", field)
+			}
 		}
 	})
 }

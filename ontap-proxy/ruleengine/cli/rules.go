@@ -48,6 +48,61 @@ type CLIRule struct {
 	RemoveFields []string
 }
 
+// volumeShowRemoveFields lists fields removed from volume show output.
+// Field matching is case-insensitive and partial (e.g. "Physical Used" matches
+// "Total Physical Used Size" and "Physical Used Percentage").
+var volumeShowRemoveFields = []string{
+	"Used Size",
+	"Used Percentage",
+	"Physical Used",
+	"Physical Used Percent",
+	"Footprint",
+	"Total Metadata",
+	"Space Guarantee",
+	"Space SLO",
+	"Storage Efficiency",
+	"Deduplication",
+	"Compression",
+	"Sis Space Saved",
+	"Dedupe Space Saved",
+	"Dedupe Space Shared",
+	"Compression Space Saved",
+	"Efficiency",
+	"Performance Tier Inactive User Data",
+	"Volume Size Used by Snapshot Copies",
+	"Over Provisioned Size",
+}
+
+// advancedAllowedRules is the allowlist of commands permitted in advanced mode.
+var advancedAllowedRules = []CLIRule{
+	{
+		Pattern: "statistics show",
+		Allow:   true,
+	},
+	{
+		Pattern:      "volume show",
+		Allow:        true,
+		RemoveFields: volumeShowRemoveFields,
+	},
+	{
+		Pattern:      "vol show",
+		Allow:        true,
+		RemoveFields: volumeShowRemoveFields,
+	},
+}
+
+// diagAllowedRules is the allowlist of commands permitted in diagnostic mode.
+var diagAllowedRules = []CLIRule{
+	{
+		Pattern: "volume check metadata",
+		Allow:   true,
+	},
+	{
+		Pattern: "vol check metadata",
+		Allow:   true,
+	},
+}
+
 // cliRules is the ordered list of CLI rules. First match wins.
 // Uses DSL-like conditions similar to rules_v2/rule_map.go for consistency.
 // Only includes CLI equivalents of REST APIs defined in rule_map.go.
@@ -55,46 +110,14 @@ var cliRules = []CLIRule{
 	// Storage Volumes - corresponds to /api/storage/volumes in rule_map.go
 	// Supports both "volume" and shorthand "vol"
 	{
-		Pattern: "volume show",
-		Allow:   true,
-		RemoveFields: []string{
-			"Used Size",
-			"Used Percentage",
-			"Physical Used",
-			"Footprint",
-			"Total Metadata",
-			"Space Guarantee",
-			"Space SLO",
-			"Storage Efficiency",
-			"Deduplication",
-			"Compression",
-			"Sis Space Saved",
-			"Dedupe Space Saved",
-			"Dedupe Space Shared",
-			"Compression Space Saved",
-			"Efficiency",
-		},
+		Pattern:      "volume show",
+		Allow:        true,
+		RemoveFields: volumeShowRemoveFields,
 	},
 	{
-		Pattern: "vol show",
-		Allow:   true,
-		RemoveFields: []string{
-			"Used Size",
-			"Used Percentage",
-			"Physical Used",
-			"Footprint",
-			"Total Metadata",
-			"Space Guarantee",
-			"Space SLO",
-			"Storage Efficiency",
-			"Deduplication",
-			"Compression",
-			"Sis Space Saved",
-			"Dedupe Space Saved",
-			"Dedupe Space Shared",
-			"Compression Space Saved",
-			"Efficiency",
-		},
+		Pattern:      "vol show",
+		Allow:        true,
+		RemoveFields: volumeShowRemoveFields,
 	},
 	{
 		Pattern: "volume show-footprint",
@@ -293,13 +316,13 @@ var cliRules = []CLIRule{
 		Allow:   true,
 	},
 	{
-		Pattern: "security certificate create",
-		Allow:   true,
+		Pattern:   "security certificate create",
+		Allow:     true,
 		Condition: CLIIfPresentThenValue("-type", "server", "client"),
 	},
 	{
-		Pattern: "sec certificate create",
-		Allow:   true,
+		Pattern:   "sec certificate create",
+		Allow:     true,
 		Condition: CLIIfPresentThenValue("-type", "server", "client"),
 	},
 	{
@@ -325,11 +348,10 @@ var cliRules = []CLIRule{
 		Allow:   false,
 		Reason:  "Disk operations not allowed",
 	},
-	// Diagnostic settings - block "set diag"
 	{
-		Pattern: "set diag",
+		Pattern: "set *",
 		Allow:   false,
-		Reason:  "Diagnostic settings not allowed",
+		Reason:  "Privilege escalation not allowed; use the chained command form (e.g. 'set diag; <command>')",
 	},
 }
 
@@ -337,6 +359,16 @@ var cliRules = []CLIRule{
 // Rules are evaluated in order; first match wins.
 func GetCLIRules() []CLIRule {
 	return cliRules
+}
+
+// GetDiagAllowedRules returns the diagnostic mode allowlist.
+func GetDiagAllowedRules() []CLIRule {
+	return diagAllowedRules
+}
+
+// GetAdvancedAllowedRules returns the advanced mode allowlist.
+func GetAdvancedAllowedRules() []CLIRule {
+	return advancedAllowedRules
 }
 
 // MatchCLIRule finds the matching rule for a CLI command.
@@ -354,6 +386,25 @@ func MatchCLIRule(cmd *CLICommand) (*CLIRule, bool) {
 	}
 
 	// No matching rule - allow by default (return nil to indicate no rule)
+	return nil, false
+}
+
+// MatchPrivilegedRule finds the matching rule for a CLI command against a
+// privileged-mode allowlist (diagnostic or advanced). Only commands in the
+// provided allowlist are permitted.
+// Returns the matching rule and true if found, or nil and false if the command
+// is not in the allowlist.
+func MatchPrivilegedRule(cmd *CLICommand, allowlist []CLIRule) (*CLIRule, bool) {
+	if cmd == nil {
+		return nil, false
+	}
+
+	for i := range allowlist {
+		if cmd.MatchesPattern(allowlist[i].Pattern) {
+			return &allowlist[i], true
+		}
+	}
+
 	return nil, false
 }
 
