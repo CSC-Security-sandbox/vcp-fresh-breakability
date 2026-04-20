@@ -1097,7 +1097,7 @@ func Test_GetLabelValue(t *testing.T) {
 				name:         "PoolHotTierProvisionedSize service_level",
 				measuredType: metadata.PoolHotTierProvisionedSize,
 				key:          "/storage/service_level",
-				expected:     "UNIFIED",
+				expected:     "FLEX",
 			},
 		}
 

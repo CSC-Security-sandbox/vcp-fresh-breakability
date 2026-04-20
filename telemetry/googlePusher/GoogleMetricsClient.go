@@ -960,7 +960,7 @@ func GetLabelValue(key string, metric common.GoogleMetric, logger log.Logger) (s
 			}
 			return metric.GetRegion()
 		case "/storage/service_level":
-			return "UNIFIED", nil
+			return "FLEX", nil
 		case "/netapp/auto_tier_transfer_type":
 			measuredType, _ := metric.GetMeasuredType()
 			if measuredType == metadata.CoolTierDataReadSizeRaw {
@@ -975,7 +975,7 @@ func GetLabelValue(key string, metric common.GoogleMetric, logger log.Logger) (s
 		case "/storage/location":
 			return metric.GetRegion()
 		case "/storage/service_level":
-			return "UNIFIED", nil
+			return "FLEX", nil
 		case "/netapp/auto_tier_transfer_type":
 			measuredType, _ := metric.GetMeasuredType()
 			if measuredType == metadata.CoolTierDataReadSizeRaw {
