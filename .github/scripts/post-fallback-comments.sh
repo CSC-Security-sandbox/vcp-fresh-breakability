@@ -204,6 +204,8 @@ print(json.dumps({
     'gosum_new_names': pr.get('gosum_new_names', ''),
     'gosum_total_pr':  pr.get('gosum_total_pr', 0),
     'gosum_total_main': pr.get('gosum_total_main', 0),
+    'vuln_status':     pr.get('vuln_status', 'unknown'),
+    'vuln_finding':    pr.get('vuln_finding', ''),
     'verification_steps': pr.get('verification_steps', []),
 }))
 " 2>/dev/null || echo '{}')
@@ -235,6 +237,8 @@ fields = {
     'GOSUM_NEW_NAMES': d.get('gosum_new_names', ''),
     'GOSUM_TOTAL_PR': str(d.get('gosum_total_pr', 0)),
     'GOSUM_TOTAL_MAIN': str(d.get('gosum_total_main', 0)),
+    'VULN_STATUS': d.get('vuln_status', 'unknown'),
+    'VULN_FINDING': d.get('vuln_finding', ''),
     'FILES_LIST': '|'.join((f.split(':')[0] if ':' in f else f) for f in d.get('files_importing', [])[:8]),
     'TEST_FAIL_DETAIL': next((s.get('detail','') for s in d.get('verification_steps',[]) if s.get('step')=='test_suite' and s.get('status')=='pre_existing'), ''),
 }
@@ -272,6 +276,8 @@ for k, v in fields.items():
   GOSUM_NEW_NAMES=$(echo "$_FIELDS_EXTRACTED" | grep '^GOSUM_NEW_NAMES=' | cut -d= -f2-)
   GOSUM_TOTAL_PR=$(echo "$_FIELDS_EXTRACTED" | grep '^GOSUM_TOTAL_PR=' | cut -d= -f2-)
   GOSUM_TOTAL_MAIN=$(echo "$_FIELDS_EXTRACTED" | grep '^GOSUM_TOTAL_MAIN=' | cut -d= -f2-)
+  VULN_STATUS=$(echo "$_FIELDS_EXTRACTED" | grep '^VULN_STATUS=' | cut -d= -f2-)
+  VULN_FINDING=$(echo "$_FIELDS_EXTRACTED" | grep '^VULN_FINDING=' | cut -d= -f2-)
   TEST_FAIL_DETAIL=$(echo "$_FIELDS_EXTRACTED" | grep '^TEST_FAIL_DETAIL=' | cut -d= -f2-)
   FILES_LIST=$(echo "$_FIELDS_EXTRACTED" | grep '^FILES_LIST=' | cut -d= -f2-)
 
@@ -393,6 +399,47 @@ ${_SHOWN_FILES}${_MORE_NOTE}
 - ℹ️ go.sum: $GOSUM_NEW_COUNT new transitive deps${_GOSUM_NAMES_NOTE}${_GOSUM_CONTEXT}"
     fi
   fi
+  # Build govulncheck note (inline checklist item) + top-of-comment header badge
+  _VULN_NOTE=""
+  _VULN_HEADER_BADGE=""
+  case "$VULN_STATUS" in
+    ok)
+      _VULN_NOTE="
+- ✅ govulncheck: no known vulnerabilities (all modules scanned)"
+      ;;
+    vulns_found)
+      _VULN_NOTE="
+- 🚨 govulncheck: **known vulnerability found** — ${VULN_FINDING:-see details}"
+      _VULN_HEADER_BADGE="> 🚨 **Security finding:** \`govulncheck\` reported known vulnerability ${VULN_FINDING:-(see details below)}. **Review before merge.**
+"
+      ;;
+    failed_oom)
+      _VULN_NOTE="
+- ⚠️ govulncheck crashed (out-of-memory) — **vuln scan incomplete for this PR**"
+      _VULN_HEADER_BADGE="> ⚠️ **govulncheck crashed (OOM)** — vulnerability scan did NOT complete for this PR. Do not treat absence of findings as safe.
+"
+      ;;
+    failed_timeout)
+      _VULN_NOTE="
+- ⚠️ govulncheck timed out (>180s per module) — **vuln scan incomplete**"
+      _VULN_HEADER_BADGE="> ⚠️ **govulncheck timed out** — vulnerability scan did NOT complete. Do not treat absence of findings as safe.
+"
+      ;;
+    failed_error)
+      _VULN_NOTE="
+- ⚠️ govulncheck failed (unexpected error) — **vuln scan incomplete**"
+      _VULN_HEADER_BADGE="> ⚠️ **govulncheck failed** (unexpected error) — vulnerability scan did NOT complete.
+"
+      ;;
+    not_installed)
+      _VULN_NOTE="
+- ℹ️ govulncheck not installed — vuln scan skipped"
+      ;;
+    *)
+      _VULN_NOTE="
+- ℹ️ govulncheck: status unknown"
+      ;;
+  esac
   # Build build-stdout evidence block
   _BUILD_STDOUT_BLOCK=""
   _BUILD_STDOUT_SNIPPET=$(echo "$PR_FIELDS" | python3 -c "
@@ -422,7 +469,7 @@ ${_BUILD_STDOUT_SNIPPET}
 - ✅ Dependency resolved successfully
 - ✅ Project builds / type-checks clean
 - ✅ Automated tests pass
-- ✅ No new errors introduced vs. main${_TRANSITIVE_NOTE}
+- ✅ No new errors introduced vs. main${_TRANSITIVE_NOTE}${_VULN_NOTE}
 </details>${_FILES_DETAIL_BLOCK}${_BUILD_STDOUT_BLOCK}"
       ;;
     L3*)
@@ -432,7 +479,7 @@ ${_BUILD_STDOUT_SNIPPET}
 - ✅ Dependency resolved successfully
 - ✅ Project builds / type-checks clean
 - ⬜ Tests not configured or not run
-- ✅ No new errors introduced vs. main${_TRANSITIVE_NOTE}
+- ✅ No new errors introduced vs. main${_TRANSITIVE_NOTE}${_VULN_NOTE}
 </details>${_FILES_DETAIL_BLOCK}${_BUILD_STDOUT_BLOCK}"
       ;;
     L2*)
@@ -474,7 +521,7 @@ ${_BUILD_STDOUT_SNIPPET}
 - ✅ Dependency resolved successfully
 - ✅ Project builds / type-checks clean
 - ⚙️ Automated tests fail${_TEST_DETAIL_NOTE} — pre-existing, same failure on main
-- ✅ No new build errors introduced vs. main${_TRANSITIVE_NOTE}
+- ✅ No new build errors introduced vs. main${_TRANSITIVE_NOTE}${_VULN_NOTE}
 </details>${_FILES_DETAIL_BLOCK}${_BUILD_STDOUT_BLOCK}"
         else
           HOW_CHECKED="
@@ -483,7 +530,7 @@ ${_BUILD_STDOUT_SNIPPET}
 - ✅ Dependency resolved successfully
 - ✅ Project builds / type-checks clean
 - ⬜ Tests not configured or not run
-- ✅ No new build errors introduced vs. main${_TRANSITIVE_NOTE}
+- ✅ No new build errors introduced vs. main${_TRANSITIVE_NOTE}${_VULN_NOTE}
 </details>${_FILES_DETAIL_BLOCK}${_BUILD_STDOUT_BLOCK}"
         fi
       fi
@@ -587,6 +634,13 @@ Fix these on \`main\` to unlock full L2+ verification.
       fi
       ;;
   esac
+
+  # Prepend govulncheck header badge (if status is failure/vulns_found) so it sits
+  # right above the HOW_CHECKED collapsible — visible without expanding details.
+  if [[ -n "$_VULN_HEADER_BADGE" && -n "$HOW_CHECKED" ]]; then
+    HOW_CHECKED="
+${_VULN_HEADER_BADGE}${HOW_CHECKED}"
+  fi
 
   # Excerpt of build output (first 10 lines of errors for context)
   BUILD_EXCERPT=$(echo "$PR_FIELDS" | python3 -c "
@@ -1057,15 +1111,43 @@ if meta.get('incomplete'):
     lines.append(f"> PRs missing from this plan should be re-analyzed before merging.")
 lines.append("")
 
-# V9.6 FIX: govulncheck availability warning — single top-level banner
-_govuln_missing = any(
-    "govulncheck not installed" in pr.get("build", {}).get("output_tail", "") or
-    "govulncheck: not found" in pr.get("build", {}).get("output_tail", "")
-    for pr in prs.values()
-)
-if _govuln_missing:
+# V9.7: govulncheck status aggregation — top-level banner shows scan health + vuln findings.
+_vuln_not_installed = 0
+_vuln_failed_oom   = 0
+_vuln_failed_timeout = 0
+_vuln_failed_error = 0
+_vuln_found = []   # list of (pr_num, finding_id)
+_vuln_ok = 0
+for _pn, _pr in prs.items():
+    _vs = _pr.get("vuln_status", "")
+    if _vs == "not_installed": _vuln_not_installed += 1
+    elif _vs == "failed_oom":  _vuln_failed_oom += 1
+    elif _vs == "failed_timeout": _vuln_failed_timeout += 1
+    elif _vs == "failed_error":   _vuln_failed_error += 1
+    elif _vs == "vulns_found":
+        _vuln_found.append((_pn, _pr.get("vuln_finding", "")))
+    elif _vs == "ok": _vuln_ok += 1
+
+# Top banner — prioritize vulns_found > failures > ok summary
+if _vuln_found:
     lines.append("> ")
-    lines.append("> ⚠️ **govulncheck unavailable:** Transitive deps have NOT been scanned for CVEs. Run `govulncheck ./...` locally before merging 0.x major bumps or PRs with >20 new go.sum entries.")
+    _fb_list = ", ".join(f"#{n} ({fid or '?'})" for n, fid in _vuln_found[:10])
+    lines.append(f"> 🚨 **Known vulnerabilities detected by govulncheck** in {len(_vuln_found)} PR(s): {_fb_list} — review each PR comment before merging.")
+    lines.append("")
+if _vuln_failed_oom or _vuln_failed_timeout or _vuln_failed_error:
+    _fails = []
+    if _vuln_failed_oom:     _fails.append(f"{_vuln_failed_oom} OOM")
+    if _vuln_failed_timeout: _fails.append(f"{_vuln_failed_timeout} timed out")
+    if _vuln_failed_error:   _fails.append(f"{_vuln_failed_error} error")
+    lines.append("> ")
+    lines.append(f"> ⚠️ **govulncheck incomplete on {sum([_vuln_failed_oom, _vuln_failed_timeout, _vuln_failed_error])} PR(s)** ({', '.join(_fails)}) — absence of findings in those PRs is NOT proof of safety. Run `govulncheck ./...` locally with GOMEMLIMIT=2GiB before merging.")
+    lines.append("")
+if _vuln_not_installed:
+    lines.append("> ")
+    lines.append(f"> ⚠️ **govulncheck not installed on {_vuln_not_installed} PR runner(s)** — vulnerability scan was skipped. Install via `go install golang.org/x/vuln/cmd/govulncheck@latest`.")
+    lines.append("")
+if _vuln_ok and not (_vuln_found or _vuln_failed_oom or _vuln_failed_timeout or _vuln_failed_error):
+    lines.append(f"> ✅ govulncheck: no known vulnerabilities across {_vuln_ok} scanned PR(s).")
     lines.append("")
 
 # Summary table

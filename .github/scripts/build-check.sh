@@ -734,15 +734,78 @@ for mod, dirs in sorted(module_dirs.items()):
 go_check_vulnerabilities() {
   # Usage: go_check_vulnerabilities <workdir>
   # Checks for known vulnerabilities using govulncheck if available.
-  # Gracefully degrades if govulncheck is not installed.
+  # Runs per-module with GOMEMLIMIT to prevent OOM-kills on large monorepos.
+  # Writes VULN_STATUS (ok|vulns_found|failed_oom|failed_timeout|failed_error|not_installed)
+  # to the last line (prefixed ###VULN_STATUS=) so callers can extract it.
   local workdir="${1:-.}"
-  
+
   if ! command -v govulncheck &>/dev/null; then
     echo "  [security] govulncheck not installed — skipping vulnerability scan"
+    echo "###VULN_STATUS=not_installed"
     return 0
   fi
-  
-  (cd "$workdir" && timeout 120 govulncheck ./... 2>&1) || true
+
+  # Discover all go.mod roots (deepest first so submodules run independently)
+  local mod_roots
+  mod_roots=$(cd "$workdir" && find . -name go.mod -not -path './vendor/*' -not -path './.git/*' 2>/dev/null | sed 's|/go.mod$||' | sort)
+  [[ -z "$mod_roots" ]] && mod_roots="."
+
+  local any_oom=0 any_timeout=0 any_error=0 any_vuln=0 any_ok=0
+  local combined_out=""
+
+  while IFS= read -r mod; do
+    [[ -z "$mod" ]] && continue
+    local mod_label="${mod#./}"
+    [[ -z "$mod_label" ]] && mod_label="(root)"
+    echo "  [security] govulncheck: scanning module $mod_label"
+
+    # GOMEMLIMIT caps heap — prevents OOM-killer (exit 137).
+    # timeout 180s per module (was 120s for whole repo).
+    local mod_out mod_exit
+    mod_out=$(cd "$workdir/$mod" && GOMEMLIMIT=1500MiB GOGC=50 timeout 180 govulncheck ./... 2>&1)
+    mod_exit=$?
+
+    combined_out="$combined_out
+=== module: $mod_label (exit=$mod_exit) ==="
+    combined_out="$combined_out
+$mod_out"
+
+    case "$mod_exit" in
+      0)   any_ok=1 ;;
+      3)   any_vuln=1 ;;              # govulncheck exit 3 = vulns found
+      124) any_timeout=1 ;;            # timeout
+      137) any_oom=1 ;;                # SIGKILL (OOM)
+      *)
+        # Check output for OOM pattern even if exit isn't 137 (e.g., signal in nested shell)
+        if echo "$mod_out" | grep -qiE "killed|out of memory|signal: killed|cannot allocate"; then
+          any_oom=1
+        elif echo "$mod_out" | grep -qiE "Vulnerability #[0-9]+|=== Symbol Results|=== Package Results"; then
+          # Some govulncheck versions return non-zero on findings regardless
+          any_vuln=1
+        else
+          any_error=1
+        fi
+        ;;
+    esac
+  done <<< "$mod_roots"
+
+  # Print combined output for HOW_CHECKED section
+  echo "$combined_out"
+
+  # Determine overall status (priority: vulns_found > failed_* > ok)
+  local status="ok"
+  if [[ "$any_vuln" -eq 1 ]]; then
+    status="vulns_found"
+  elif [[ "$any_oom" -eq 1 ]]; then
+    status="failed_oom"
+  elif [[ "$any_timeout" -eq 1 ]]; then
+    status="failed_timeout"
+  elif [[ "$any_error" -eq 1 ]]; then
+    status="failed_error"
+  fi
+
+  # Sentinel line (callers grep for ###VULN_STATUS=)
+  echo "###VULN_STATUS=$status"
 }
 
 go_targeted_test() {
@@ -1516,6 +1579,10 @@ for i in $(seq 0 $(( PR_COUNT - 1 )) ); do
   echo ""
   echo "──── PR #$PR_NUM: $PR_TITLE ────"
 
+  # Initialize vuln-scan outputs (in case code path skips the scan below)
+  printf 'unknown' > "/tmp/_bc_vuln_status_${PR_NUM}.txt"
+  printf '' > "/tmp/_bc_vuln_finding_${PR_NUM}.txt"
+
   # Respect breakability:skip label — opt-out for PRs that should bypass analysis
   PR_SKIP=$(echo "$PR_JSON" | jq -r ".[$i].labels[] | select(.name==\"breakability:skip\") | .name" 2>/dev/null | head -1)
   if [[ -n "$PR_SKIP" ]]; then
@@ -2197,10 +2264,18 @@ $GO_VET_OUT"
             fi
             # Security vulnerability check
             GO_VULN_OUT=$(go_check_vulnerabilities "$PR_WORKTREE" 2>&1) || true
-            if [[ -n "$GO_VULN_OUT" ]]; then
+            # Extract ###VULN_STATUS=... sentinel, strip from displayed output
+            VULN_STATUS=$(echo "$GO_VULN_OUT" | grep -oE '^###VULN_STATUS=[a-z_]+' | tail -1 | cut -d= -f2)
+            [[ -z "$VULN_STATUS" ]] && VULN_STATUS="unknown"
+            GO_VULN_OUT_DISPLAY=$(echo "$GO_VULN_OUT" | grep -v '^###VULN_STATUS=')
+            echo "$VULN_STATUS" > "/tmp/_bc_vuln_status_${PR_NUM}.txt"
+            # Extract first vuln finding (GO-YYYY-NNNN line) for header badge if any
+            _VULN_FINDING=$(echo "$GO_VULN_OUT_DISPLAY" | grep -oE 'GO-[0-9]{4}-[0-9]+' | head -1)
+            [[ -n "$_VULN_FINDING" ]] && echo "$_VULN_FINDING" > "/tmp/_bc_vuln_finding_${PR_NUM}.txt" || printf '' > "/tmp/_bc_vuln_finding_${PR_NUM}.txt"
+            if [[ -n "$GO_VULN_OUT_DISPLAY" ]]; then
               BUILD_OUTPUT="$BUILD_OUTPUT
---- go vulncheck ---
-$GO_VULN_OUT"
+--- go vulncheck (status=$VULN_STATUS) ---
+$GO_VULN_OUT_DISPLAY"
             fi
           fi
           # Classify Go build error for JSON output (pass exit code for timeout detection — A2-2)
@@ -2853,6 +2928,18 @@ try:
 except (IOError, OSError, ValueError):
     gosum_total_main = 0
 
+# Read govulncheck status + first finding (if any)
+try:
+    with open(f"/tmp/_bc_vuln_status_{pr_num}.txt") as f:
+        vuln_status = f.read().strip() or "unknown"
+except (IOError, OSError):
+    vuln_status = "unknown"
+try:
+    with open(f"/tmp/_bc_vuln_finding_{pr_num}.txt") as f:
+        vuln_finding = f.read().strip()
+except (IOError, OSError):
+    vuln_finding = ""
+
 # Read PR metadata from temp files to avoid shell injection (Finding-4.4)
 # MUST be defined before INFRA_ERROR_PATTERNS because eco is used there (Finding-5.1)
 def _read_tmp(suffix):
@@ -3052,6 +3139,8 @@ pr_data = {
     "gosum_new_names": gosum_new_names,
     "gosum_total_pr": gosum_total_pr,
     "gosum_total_main": gosum_total_main,
+    "vuln_status": vuln_status,
+    "vuln_finding": vuln_finding,
     "nestjs_peer_warning": open(f"/tmp/_bc_peer_warn_{pr_num}.txt").read().strip() if os.path.exists(f"/tmp/_bc_peer_warn_{pr_num}.txt") else "",
     "install_ok": True if "$INSTALL_OK" == "true" else False,
     "additional_packages": open(f"/tmp/_bc_addl_pkgs_{pr_num}.txt").read().strip() if os.path.exists(f"/tmp/_bc_addl_pkgs_{pr_num}.txt") else "",
