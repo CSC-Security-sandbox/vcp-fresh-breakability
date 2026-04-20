@@ -49,5 +49,5 @@ type monkeyMethods interface {
 	utilsGetPairedRegionURI(region string) (string, error)
 	authGetSignedJwtToken(accountName string) (string, error)
 	utilsParseProjectNumberFromURI(uri string) (string, error)
-	getReplicationObjects(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params common.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error)
+	getReplicationObjects(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params common.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, map[string]string, error)
 }

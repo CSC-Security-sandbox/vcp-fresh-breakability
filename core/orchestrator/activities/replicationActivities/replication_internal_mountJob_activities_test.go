@@ -2028,9 +2028,15 @@ func TestBreakVolumeReplicationForMount(t *testing.T) {
 		}
 		node := &models.Node{}
 
+		// BreakVolumeReplicationForMount uses forceStop=true. Transferring + non-empty TransferUUID
+		// triggers AbortVolumeReplication; if abort fails, the activity returns an error (it does
+		// not return ErrBreakReplicationStateTransferring, which applies only when forceStop=false).
 		testReplication := &vsa.VolumeReplication{
 			ExternalUUID:       "external-uuid",
+			RelationshipID:     "relationship-id",
+			TransferUUID:       "transfer-uuid",
 			RelationshipStatus: models.SnapmirrorRelationshipTransferring,
+			MirrorState:        models.OntapSnapmirrored,
 		}
 
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
@@ -2038,6 +2044,7 @@ func TestBreakVolumeReplicationForMount(t *testing.T) {
 		}
 
 		mockProvider.On("GetVolumeReplication", mock.Anything).Return(testReplication, nil)
+		mockProvider.On("AbortVolumeReplication", mock.Anything).Return(nil, errors.New("abort failed"))
 
 		err := activity.BreakVolumeReplicationForMount(ctx, replication, node)
 		assert.Error(tt, err)

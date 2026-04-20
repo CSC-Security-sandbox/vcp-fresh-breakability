@@ -55,8 +55,9 @@ func (j *InternalStopVolumeReplicationActivity) BreakVolumeReplication(ctx conte
 					return nil, vsaerror.WrapAsTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrProviderAbortVolumeReplication, errors.New("An abort of the active transfer was attempted and failed; please retry.")))
 				}
 			}
+		} else {
+			return nil, vsaerror.WrapAsNonRetryableTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrBreakReplicationStateTransferring, errors.New("Replication is in transferring state, cannot stop replication.")))
 		}
-		return nil, vsaerror.WrapAsNonRetryableTemporalApplicationError(vsaerror.NewVCPError(vsaerror.ErrBreakReplicationStateTransferring, errors.New("Replication is in transferring state, cannot stop replication.")))
 	}
 	if snapmirror.MirrorState == models.OntapUninitialized {
 		return snapmirror, nil

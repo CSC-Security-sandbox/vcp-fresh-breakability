@@ -961,7 +961,7 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 	}
 
 	// Fetch the replications from the respective regions via internal API calls
-	list, jobsList, err := getReplicationObjects(ctx, regionReplicationMap, logger, params, regionProjectMap)
+	list, jobsList, replicationRoleMap, err := getReplicationObjects(ctx, regionReplicationMap, logger, params, regionProjectMap)
 	if err != nil {
 		logger.Error("Failed to get replication objects", "error", err)
 		return nil, err
@@ -969,7 +969,7 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 
 	// Convert the internal replications to the response format
 	for _, repl := range list {
-		resp = append(resp, convertInternalReplicationToCCFEModel(*repl, currentLocation, &jobsList, regionReplicationMap))
+		resp = append(resp, convertInternalReplicationToCCFEModel(*repl, currentLocation, &jobsList, regionReplicationMap, replicationRoleMap))
 	}
 
 	return resp, nil
@@ -1014,19 +1014,20 @@ func convertDataStoreReplicationToGcpGenServerModel(replication *datamodel.Volum
 	}
 }
 
-func _getReplicationObjects(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger logger.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+func _getReplicationObjects(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger logger.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, map[string]string, error) {
 	type ReplicationsForProject struct {
 		replicationUUIDs []string
 		token            string
 	}
 	replicationList := make([]*googleproxyclient.VolumeReplicationInternalV1beta, 0)
 	jobsList := make([]googleproxyclient.InternalJobV1beta, 0)
+	replicationRoleMap := make(map[string]string)
 
 	for region, replicationsInRegion := range regionReplicationMap {
 		basePath, err := utilsGetPairedRegionUri(region)
 		if err != nil {
 			logger.Error("Failed to get paired region URI", "region", region, "error", err)
-			return nil, nil, vsaerrors.NewVCPError(vsaerrors.ErrRegionZoneParsingErrorPairedRegionURI, err)
+			return nil, nil, nil, vsaerrors.NewVCPError(vsaerrors.ErrRegionZoneParsingErrorPairedRegionURI, err)
 		}
 
 		emptyUUID := uuid.UUID{}
@@ -1037,13 +1038,13 @@ func _getReplicationObjects(ctx context.Context, regionReplicationMap map[string
 			token, err := authGetSignedJwtToken(projectNumber)
 			if err != nil {
 				logger.Error("Failed to get signed JWT token", "error", err)
-				return nil, nil, vsaerrors.NewVCPError(vsaerrors.ErrFailedToGenerateAccessToken, err)
+				return nil, nil, nil, vsaerrors.NewVCPError(vsaerrors.ErrFailedToGenerateAccessToken, err)
 			}
 
 			jobs, err := getActiveReplicationJobs(ctx, basePath, token, region, projectNumber, &params.XCorrelationID)
 			if err != nil {
 				logger.Error("Failed to get active replication jobs", "error", err, "region", region)
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 			jobsList = append(jobsList, jobs...)
 			continue
@@ -1055,20 +1056,25 @@ func _getReplicationObjects(ctx context.Context, regionReplicationMap map[string
 		for _, replication := range replicationsInRegion {
 			projectNumber, err := GetProjectNumberForRegion(replication, region)
 			if err != nil {
-				return nil, nil, vsaerrors.NewVCPError(vsaerrors.ErrProjectParsingError, err)
+				return nil, nil, nil, vsaerrors.NewVCPError(vsaerrors.ErrProjectParsingError, err)
 			}
 			var replicationUUID string
-			if replication.ReplicationAttributes.DestinationReplicationUUID != emptyUUID.String() {
-				replicationUUID = replication.ReplicationAttributes.DestinationReplicationUUID
-			} else if replication.ReplicationAttributes.SourceReplicationUUID != emptyUUID.String() {
-				replicationUUID = replication.ReplicationAttributes.SourceReplicationUUID
+			if replication.ReplicationAttributes != nil {
+				if replication.ReplicationAttributes.DestinationReplicationUUID != emptyUUID.String() {
+					replicationUUID = replication.ReplicationAttributes.DestinationReplicationUUID
+				} else if replication.ReplicationAttributes.SourceReplicationUUID != emptyUUID.String() {
+					replicationUUID = replication.ReplicationAttributes.SourceReplicationUUID
+				}
+				if replicationUUID != "" {
+					replicationRoleMap[replicationUUID] = replication.ReplicationAttributes.EndpointType
+				}
 			}
 
 			found, ok := replicationsForProjects[projectNumber]
 			if !ok {
 				token, err := authGetSignedJwtToken(projectNumber)
 				if err != nil {
-					return nil, nil, vsaerrors.NewVCPError(vsaerrors.ErrFailedToGenerateAccessToken, err)
+					return nil, nil, nil, vsaerrors.NewVCPError(vsaerrors.ErrFailedToGenerateAccessToken, err)
 				}
 				replicationsForProjects[projectNumber] = ReplicationsForProject{token: token, replicationUUIDs: []string{replicationUUID}}
 			} else {
@@ -1087,7 +1093,7 @@ func _getReplicationObjects(ctx context.Context, regionReplicationMap map[string
 			if err != nil {
 				if err.(*vsaerrors.CustomError).TrackingID != vsaerrors.ErrGoogleProxyInternalGetMultipleReplicationsNotFound {
 					logger.Error("Failed to get multiple replications from Google Proxy", "error", err, "projectNumber", projectNumber, "region", region)
-					return nil, nil, err
+					return nil, nil, nil, err
 				}
 			}
 			if len(list) == 0 {
@@ -1107,12 +1113,12 @@ func _getReplicationObjects(ctx context.Context, regionReplicationMap map[string
 			jobs, err := getActiveReplicationJobs(ctx, basePath, replicationsForProject.token, region, projectNumber, &params.XCorrelationID)
 			if err != nil {
 				logger.Error("Failed to get active replication jobs", "error", err, "projectNumber", projectNumber, "region", region)
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 			jobsList = append(jobsList, jobs...)
 		}
 	}
-	return replicationList, jobsList, nil
+	return replicationList, jobsList, replicationRoleMap, nil
 }
 
 func _getActiveReplicationJobs(ctx context.Context, basePath string, token string, locationID string, projectNumber string, xCorrelationID *string) ([]googleproxyclient.InternalJobV1beta, error) {
@@ -1280,7 +1286,7 @@ func _releaseVolumeReplication(ctx context.Context, se database.Storage, tempora
 	return convertDataStoreReplicationToModel(dbVolumeReplication), createdJob, nil
 }
 
-func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicationInternalV1beta, currentLocation string, jobsList *[]googleproxyclient.InternalJobV1beta, regionReplicationMap map[string][]*datamodel.VolumeReplication) gcpgenserver.ReplicationV1beta {
+func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicationInternalV1beta, currentLocation string, jobsList *[]googleproxyclient.InternalJobV1beta, regionReplicationMap map[string][]*datamodel.VolumeReplication, replicationRoleMap map[string]string) gcpgenserver.ReplicationV1beta {
 	var srcVolUri, dstVolUri string
 	var role gcpgenserver.OptReplicationV1betaRole
 	emptyUUID := uuid.UUID{}
@@ -1357,7 +1363,11 @@ func convertInternalReplicationToCCFEModel(in googleproxyclient.VolumeReplicatio
 		}
 	}
 
-	if in.RemoteRegion == currentLocation {
+	endpointType := ""
+	if replicationRoleMap != nil {
+		endpointType = replicationRoleMap[in.VolumeReplicationUuid.Value]
+	}
+	if endpointType == "dst" {
 		role = gcpgenserver.NewOptReplicationV1betaRole(gcpgenserver.ReplicationV1betaRoleDESTINATION)
 		srcVolUri = utilGetVolumeUriFromCcfeUri(in.CcfeRemoteUri.Value)
 		dstVolUri = utilGetVolumeUriFromCcfeUri(in.CcfeUri.Value)

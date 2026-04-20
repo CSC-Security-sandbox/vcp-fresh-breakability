@@ -1016,8 +1016,8 @@ func TestGetMultipleReplications(t *testing.T) {
 			return "45110233509", nil
 		}
 
-		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
-			return nil, []googleproxyclient.InternalJobV1beta{}, errors.New("failed to get replication objects")
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, map[string]string, error) {
+			return nil, []googleproxyclient.InternalJobV1beta{}, nil, errors.New("failed to get replication objects")
 		}
 
 		params := commonparams.GetMultipleReplicationsParams{
@@ -1070,8 +1070,8 @@ func TestGetMultipleReplications(t *testing.T) {
 		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
 			return "45110233509", nil
 		}
-		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
-			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, map[string]string, error) {
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil, nil
 		}
 
 		params := commonparams.GetMultipleReplicationsParams{AccountName: "test-account", LocationId: "us-e4"}
@@ -1162,8 +1162,8 @@ func TestGetMultipleReplications(t *testing.T) {
 		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
 			return "45110233509", nil
 		}
-		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
-			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, map[string]string, error) {
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil, nil
 		}
 
 		params := commonparams.GetMultipleReplicationsParams{AccountName: "test-account", LocationId: "us-e4"}
@@ -1271,7 +1271,7 @@ func TestGetMultipleReplications(t *testing.T) {
 			return "45110233509", nil
 		}
 
-		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, map[string]string, error) {
 			return []*googleproxyclient.VolumeReplicationInternalV1beta{
 				{
 					VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
@@ -1309,7 +1309,7 @@ func TestGetMultipleReplications(t *testing.T) {
 					Jobs:                  nil,
 					Description:           googleproxyclient.NewOptString("Test replication"),
 				},
-			}, []googleproxyclient.InternalJobV1beta{}, nil
+			}, []googleproxyclient.InternalJobV1beta{}, nil, nil
 		}
 
 		params := commonparams.GetMultipleReplicationsParams{
@@ -1375,9 +1375,9 @@ func TestGetMultipleReplications(t *testing.T) {
 
 		// Mock getReplicationObjects to capture the regionReplicationMap
 		var capturedRegionMap map[string][]*datamodel.VolumeReplication
-		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, map[string]string, error) {
 			capturedRegionMap = regionReplicationMap
-			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil, nil
 		}
 
 		params := commonparams.GetMultipleReplicationsParams{
@@ -1475,9 +1475,9 @@ func TestGetMultipleReplications(t *testing.T) {
 
 		// Mock getReplicationObjects to capture the regionReplicationMap
 		var capturedRegionMap map[string][]*datamodel.VolumeReplication
-		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, map[string]string, error) {
 			capturedRegionMap = regionReplicationMap
-			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil, nil
 		}
 
 		params := commonparams.GetMultipleReplicationsParams{
@@ -1553,9 +1553,9 @@ func TestGetMultipleReplications(t *testing.T) {
 
 		// Mock getReplicationObjects to capture the regionReplicationMap
 		var capturedRegionMap map[string][]*datamodel.VolumeReplication
-		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, map[string]string, error) {
 			capturedRegionMap = regionReplicationMap
-			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil, nil
 		}
 
 		params := commonparams.GetMultipleReplicationsParams{
@@ -1659,9 +1659,9 @@ func TestGetMultipleReplications(t *testing.T) {
 
 		// Mock getReplicationObjects to capture the regionReplicationMap
 		var capturedRegionMap map[string][]*datamodel.VolumeReplication
-		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, map[string]string, error) {
 			capturedRegionMap = regionReplicationMap
-			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil, nil
 		}
 
 		params := commonparams.GetMultipleReplicationsParams{
@@ -1736,9 +1736,9 @@ func TestGetMultipleReplications(t *testing.T) {
 
 		// Mock getReplicationObjects to capture the regionReplicationMap
 		var capturedRegionMap map[string][]*datamodel.VolumeReplication
-		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, map[string]string, error) {
 			capturedRegionMap = regionReplicationMap
-			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil, nil
 		}
 
 		params := commonparams.GetMultipleReplicationsParams{
@@ -1813,9 +1813,9 @@ func TestGetMultipleReplications(t *testing.T) {
 
 		// Mock getReplicationObjects to capture the regionReplicationMap
 		var capturedRegionMap map[string][]*datamodel.VolumeReplication
-		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, map[string]string, error) {
 			capturedRegionMap = regionReplicationMap
-			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil, nil
 		}
 
 		params := commonparams.GetMultipleReplicationsParams{
@@ -1886,9 +1886,9 @@ func TestGetMultipleReplications(t *testing.T) {
 
 		// Mock getReplicationObjects to capture the regionReplicationMap
 		var capturedRegionMap map[string][]*datamodel.VolumeReplication
-		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, map[string]string, error) {
 			capturedRegionMap = regionReplicationMap
-			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{}, []googleproxyclient.InternalJobV1beta{}, nil, nil
 		}
 
 		params := commonparams.GetMultipleReplicationsParams{
@@ -1956,12 +1956,12 @@ func TestGetMultipleReplications(t *testing.T) {
 		}, nil)
 
 		// Mock the getReplicationObjects function to return a replication with remote region as zone
-		mm.On("getReplicationObjects", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+		mm.On("getReplicationObjects", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, map[string]string, error) {
 			// Return a replication where RemoteRegion is a zone (us-central1-b)
 			replication := &googleproxyclient.VolumeReplicationInternalV1beta{
 				RemoteRegion: "us-central1-b", // This is a zone, not a region
 			}
-			return []*googleproxyclient.VolumeReplicationInternalV1beta{replication}, []googleproxyclient.InternalJobV1beta{}, nil
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{replication}, []googleproxyclient.InternalJobV1beta{}, nil, nil
 		}).Once()
 
 		params := commonparams.GetMultipleReplicationsParams{
@@ -2013,12 +2013,14 @@ func TestGetMultipleReplications(t *testing.T) {
 		}, nil)
 
 		// Mock the getReplicationObjects function to return a replication where remote region matches current location
-		mm.On("getReplicationObjects", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
-			// Return a replication where RemoteRegion matches current location (us-west1-a)
+		mm.On("getReplicationObjects", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, map[string]string, error) {
+			// Role comes from replicationRoleMap (uuid -> endpoint type); must match VolumeReplicationUuid.
 			replication := &googleproxyclient.VolumeReplicationInternalV1beta{
-				RemoteRegion: "us-west1-a", // This matches the current location
+				VolumeReplicationUuid: googleproxyclient.NewOptString("dest-uuid-1"),
+				RemoteRegion:          "us-west1-a", // This matches the current location
 			}
-			return []*googleproxyclient.VolumeReplicationInternalV1beta{replication}, []googleproxyclient.InternalJobV1beta{}, nil
+			roleMap := map[string]string{"dest-uuid-1": database.VolumeReplicationEndpointTypeDestination}
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{replication}, []googleproxyclient.InternalJobV1beta{}, roleMap, nil
 		}).Once()
 
 		params := commonparams.GetMultipleReplicationsParams{
@@ -2031,8 +2033,7 @@ func TestGetMultipleReplications(t *testing.T) {
 		assert.Nil(tt, err)
 		assert.NotNil(tt, result)
 
-		// Verify that the role is set correctly when remote region matches current location
-		// Since us-west1-a == us-west1-a, the role should be DESTINATION
+		// Role is DESTINATION when replicationRoleMap marks the replication uuid as dst.
 		if len(result) > 0 {
 			assert.True(tt, result[0].Role.Set)
 			assert.Equal(tt, gcpserver.ReplicationV1betaRoleDESTINATION, result[0].Role.Value)
@@ -2070,12 +2071,12 @@ func TestGetMultipleReplications(t *testing.T) {
 		}, nil)
 
 		// Mock the getReplicationObjects function to return a replication where remote region is a region
-		mm.On("getReplicationObjects", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+		mm.On("getReplicationObjects", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, map[string]string, error) {
 			// Return a replication where RemoteRegion is a region (us-central1)
 			replication := &googleproxyclient.VolumeReplicationInternalV1beta{
 				RemoteRegion: "us-central1", // This is a region, not a zone
 			}
-			return []*googleproxyclient.VolumeReplicationInternalV1beta{replication}, []googleproxyclient.InternalJobV1beta{}, nil
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{replication}, []googleproxyclient.InternalJobV1beta{}, nil, nil
 		}).Once()
 
 		params := commonparams.GetMultipleReplicationsParams{
@@ -2127,12 +2128,13 @@ func TestGetMultipleReplications(t *testing.T) {
 		}, nil)
 
 		// Mock the getReplicationObjects function to return a replication where remote region matches current location
-		mm.On("getReplicationObjects", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
-			// Return a replication where RemoteRegion matches current location (us-west1)
+		mm.On("getReplicationObjects", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, map[string]string, error) {
 			replication := &googleproxyclient.VolumeReplicationInternalV1beta{
-				RemoteRegion: "us-west1", // This matches the current location
+				VolumeReplicationUuid: googleproxyclient.NewOptString("dest-uuid-1"),
+				RemoteRegion:          "us-west1", // This matches the current location
 			}
-			return []*googleproxyclient.VolumeReplicationInternalV1beta{replication}, []googleproxyclient.InternalJobV1beta{}, nil
+			roleMap := map[string]string{"dest-uuid-1": database.VolumeReplicationEndpointTypeDestination}
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{replication}, []googleproxyclient.InternalJobV1beta{}, roleMap, nil
 		}).Once()
 
 		params := commonparams.GetMultipleReplicationsParams{
@@ -2145,8 +2147,7 @@ func TestGetMultipleReplications(t *testing.T) {
 		assert.Nil(tt, err)
 		assert.NotNil(tt, result)
 
-		// Verify that the role is set correctly when remote region matches current location
-		// Since us-west1 == us-west1, the role should be DESTINATION
+		// Role is DESTINATION when replicationRoleMap marks this replication as dst endpoint
 		if len(result) > 0 {
 			assert.True(tt, result[0].Role.Set)
 			assert.Equal(tt, gcpserver.ReplicationV1betaRoleDESTINATION, result[0].Role.Value)
@@ -2337,7 +2338,7 @@ func TestGetReplicationObjects(t *testing.T) {
 
 		expectedError := errors2.NewVCPError(errors2.ErrRegionZoneParsingErrorPairedRegionURI, errors.New("failed to get paired region URI"))
 
-		_, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
+		_, _, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
 		assert.NotNil(tt, err)
 		assert.Equal(tt, err.Error(), expectedError.Error())
 	})
@@ -2381,7 +2382,7 @@ func TestGetReplicationObjects(t *testing.T) {
 
 		expectedError := errors2.NewVCPError(errors2.ErrProjectParsingError, errors.New("failed to get project number for region"))
 
-		_, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
+		_, _, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
 		assert.NotNil(tt, err)
 		assert.EqualError(tt, err, expectedError.Error())
 	})
@@ -2430,7 +2431,7 @@ func TestGetReplicationObjects(t *testing.T) {
 
 		expectedError := errors2.NewVCPError(errors2.ErrFailedToGenerateAccessToken, errors.New("failed to get signed JWT token"))
 
-		_, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
+		_, _, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
 		assert.NotNil(tt, err)
 		assert.EqualError(tt, err, expectedError.Error())
 	})
@@ -2471,7 +2472,7 @@ func TestGetReplicationObjects(t *testing.T) {
 		replicationsMap["us-e4"] = []*datamodel.VolumeReplication{}
 
 		expectedError := errors.New("failed to get active replication jobs")
-		_, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
+		_, _, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
 		assert.NotNil(tt, err)
 		assert.EqualError(tt, err, expectedError.Error())
 	})
@@ -2524,7 +2525,7 @@ func TestGetReplicationObjects(t *testing.T) {
 		replicationsMap["us-e4"] = replications
 
 		expectedError := errors.New("Internal server error getting multiple replications")
-		_, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
+		_, _, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
 		assert.NotNil(tt, err)
 		assert.EqualError(tt, err, expectedError.Error())
 	})
@@ -2617,7 +2618,7 @@ func TestGetReplicationObjects(t *testing.T) {
 		replicationsMap["us-e4"] = replications
 		replicationsMap["au-se1"] = []*datamodel.VolumeReplication{}
 
-		res, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
+		res, _, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
 		assert.Nil(tt, err)
 		assert.Len(tt, res, 1)
 		assert.Equal(tt, "replication-1", res[0].Name.Value)
@@ -2716,7 +2717,7 @@ func TestGetReplicationObjects(t *testing.T) {
 		replicationsMap := make(map[string][]*datamodel.VolumeReplication)
 		replicationsMap["us-e4"] = replications
 
-		res, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
+		res, _, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
 		assert.Nil(tt, err)
 		assert.Len(tt, res, 1)
 		assert.Equal(tt, "replication-1", res[0].Name.Value)
@@ -2772,7 +2773,7 @@ func TestGetReplicationObjects(t *testing.T) {
 		replicationsMap := make(map[string][]*datamodel.VolumeReplication)
 		replicationsMap["us-e4"] = replications
 
-		res, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
+		res, _, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
 		assert.Nil(tt, err)
 		assert.Len(tt, res, 0)
 		assert.Equal(tt, 1, counter)
@@ -2891,7 +2892,7 @@ func TestGetReplicationObjects(t *testing.T) {
 		replicationsMap := make(map[string][]*datamodel.VolumeReplication)
 		replicationsMap["us-e4"] = replications
 
-		res, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
+		res, _, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
 		assert.Nil(tt, err)
 		assert.Len(tt, res, 3)
 		// Verify that token was only requested once (for the same project)
@@ -3010,7 +3011,7 @@ func TestGetReplicationObjects(t *testing.T) {
 		replicationsMap := make(map[string][]*datamodel.VolumeReplication)
 		replicationsMap["us-e4"] = replications
 
-		res, jobs, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
+		res, jobs, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
 		assert.Nil(tt, err)
 		assert.Len(tt, res, 0)
 		assert.NotNil(tt, jobs)
@@ -3072,7 +3073,7 @@ func TestGetReplicationObjects(t *testing.T) {
 		replicationsMap["au-se1"] = []*datamodel.VolumeReplication{}
 		replicationsMap["us-w1"] = []*datamodel.VolumeReplication{}
 
-		res, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
+		res, _, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
 		assert.Nil(tt, err)
 		assert.Len(tt, res, 1)
 		assert.Equal(tt, "replication-1", res[0].Name.Value)
@@ -3128,7 +3129,7 @@ func TestGetReplicationObjects(t *testing.T) {
 		replicationsMap["au-se1"] = []*datamodel.VolumeReplication{}
 		replicationsMap["us-e4"] = replicationsWithSource
 
-		res, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
+		res, _, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, nil)
 		assert.Nil(tt, err)
 		assert.Len(tt, res, 0)
 	})
@@ -3195,7 +3196,7 @@ func TestGetReplicationObjects(t *testing.T) {
 		// Empty-region path uses regionProjectMap; pass source region -> source project so jobs are fetched with correct project.
 		regionProjectMap := map[string]string{sourceRegion: sourceProjectNumber}
 
-		res, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, regionProjectMap)
+		res, _, _, err := _getReplicationObjects(ctx, replicationsMap, mockLogger, commonparams.GetMultipleReplicationsParams{}, regionProjectMap)
 		assert.Nil(tt, err)
 		assert.Len(tt, res, 0)
 		// Empty-region path must call getActiveReplicationJobs with source region and project from regionProjectMap.
@@ -3536,7 +3537,8 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			},
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+		roleMap := map[string]string{"replication-uuid-1": database.VolumeReplicationEndpointTypeDestination}
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap, roleMap)
 
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "replication-uuid-1", result.ReplicationId.Value)
@@ -3606,7 +3608,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 				},
 			},
 		}
-		result := convertInternalReplicationToCCFEModel(*replication, "us-w1", nil, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-w1", nil, regionReplicationMap, nil)
 
 		assert.Equal(tt, gcpserver.ReplicationV1betaRoleSOURCE, result.Role.Value)
 	})
@@ -3658,7 +3660,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 				},
 			},
 		}
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap, nil)
 
 		assert.Equal(tt, gcpserver.ReplicationV1betaStateDELETING, result.State.Value)
 		assert.Equal(tt, volumeReplicationCVP1betaLifeCycleStateDeleting, result.StateDetails.Value)
@@ -3712,7 +3714,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 				},
 			},
 		}
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap, nil)
 
 		assert.Equal(tt, gcpserver.ReplicationV1betaStateCREATING, result.State.Value)
 		assert.Equal(tt, volumeReplicationCVP1betaLifeCycleStateCreation, result.StateDetails.Value)
@@ -3767,7 +3769,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 				},
 			},
 		}
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap, nil)
 
 		assert.Equal(tt, gcpserver.ReplicationV1betaStateUPDATING, result.State.Value)
 		assert.Equal(tt, volumeReplicationCVP1betaLifeCycleStateStopping, result.StateDetails.Value)
@@ -3821,7 +3823,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 				},
 			},
 		}
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap, nil)
 
 		assert.Equal(tt, gcpserver.ReplicationV1betaStateUPDATING, result.State.Value)
 		assert.Equal(tt, volumeReplicationCVP1betaLifeCycleStateResuming, result.StateDetails.Value)
@@ -3876,7 +3878,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 				},
 			},
 		}
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap, nil)
 
 		assert.Equal(tt, gcpserver.ReplicationV1betaStateUPDATING, result.State.Value)
 		assert.Equal(tt, volumeReplicationCVP1betaLifeCycleStateUpdating, result.StateDetails.Value)
@@ -3930,7 +3932,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 				},
 			},
 		}
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap, nil)
 
 		assert.Equal(tt, gcpserver.ReplicationV1betaStateREADY, result.State.Value)
 		assert.Equal(tt, gcpserver.ReplicationV1betaMirrorStatePREPARING, result.MirrorState.Value)
@@ -3984,7 +3986,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 				},
 			},
 		}
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap, nil)
 
 		assert.Equal(tt, gcpserver.ReplicationV1betaStateUPDATING, result.State.Value)
 		assert.Equal(tt, gcpserver.ReplicationV1betaMirrorStatePREPARING, result.MirrorState.Value)
@@ -4039,7 +4041,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 				},
 			},
 		}
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap, nil)
 
 		// Should not be overridden since job doesn't match
 		assert.Equal(tt, gcpserver.ReplicationV1betaStateREADY, result.State.Value)
@@ -4086,7 +4088,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 				},
 			},
 		}
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap, nil)
 
 		// Should not be overridden since jobsList is nil
 		assert.Equal(tt, gcpserver.ReplicationV1betaStateREADY, result.State.Value)
@@ -4158,7 +4160,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 						},
 					},
 				}
-				result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+				result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap, nil)
 				assert.Equal(t, tc.expectedState, result.ReplicationSchedule.Value)
 			})
 		}
@@ -4242,7 +4244,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 						},
 					},
 				}
-				result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+				result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap, nil)
 				assert.Equal(t, tc.expectedState, result.State.Value)
 			})
 		}
@@ -4307,7 +4309,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			},
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap, nil)
 
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, result.HybridPeeringDetails)
@@ -4366,7 +4368,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			},
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap, nil)
 
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, result.HybridPeeringDetails)
@@ -4424,7 +4426,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			},
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap, nil)
 
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, result.HybridPeeringDetails)
@@ -4479,7 +4481,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			},
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap, nil)
 
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, result.HybridPeeringDetails)
@@ -4533,7 +4535,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			},
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap, nil)
 
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, result.HybridPeeringDetails)
@@ -4597,7 +4599,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			},
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap, nil)
 
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, result.HybridPeeringDetails)
@@ -4660,7 +4662,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			},
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap, nil)
 
 		assert.NotNil(tt, result)
 		assert.NotNil(tt, result.HybridPeeringDetails)
@@ -4717,7 +4719,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			},
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap, nil)
 
 		// Should not panic and should return a valid result
 		assert.NotNil(tt, result)
@@ -4776,7 +4778,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			},
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap, nil)
 
 		assert.NotNil(tt, result)
 		// Note: clusterLocation is stored but may not be directly exposed in the result
@@ -4836,7 +4838,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			},
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap, nil)
 
 		assert.NotNil(tt, result)
 		assert.Equal(tt, gcpserver.ReplicationV1betaStatePENDINGCLUSTERPEERING, result.State.Value)
@@ -4897,7 +4899,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			},
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap, nil)
 
 		assert.NotNil(tt, result)
 		assert.Equal(tt, gcpserver.ReplicationV1betaStatePENDINGCLUSTERPEERING, result.State.Value)
@@ -4955,7 +4957,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			},
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap, nil)
 
 		assert.NotNil(tt, result)
 		assert.Equal(tt, gcpserver.ReplicationV1betaStatePENDINGSVMPEERING, result.State.Value)
@@ -5012,7 +5014,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			},
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap, nil)
 
 		assert.NotNil(tt, result)
 		assert.Equal(tt, gcpserver.ReplicationV1betaStatePENDINGSVMPEERING, result.State.Value)
@@ -5070,7 +5072,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			},
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap, nil)
 
 		assert.NotNil(tt, result)
 		assert.Equal(tt, gcpserver.ReplicationV1betaStatePENDINGCLUSTERPEERING, result.State.Value)
@@ -5134,7 +5136,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			},
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap, nil)
 
 		assert.NotNil(tt, result)
 		assert.True(tt, result.HybridReplicationUserCommands.IsSet())
@@ -5186,7 +5188,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			},
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap, nil)
 
 		assert.NotNil(tt, result)
 		assert.Equal(tt, gcpserver.ReplicationV1betaStateREADY, result.State.Value)
@@ -5247,7 +5249,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			},
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap, nil)
 
 		assert.NotNil(tt, result)
 		assert.False(tt, result.HybridReplicationUserCommands.IsSet())
@@ -5300,7 +5302,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			},
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap, nil)
 
 		assert.NotNil(tt, result)
 		assert.Equal(tt, gcpserver.ReplicationV1betaMirrorStateEXTERNALLYMANAGED, result.MirrorState.Value)
@@ -5356,7 +5358,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			},
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap, nil)
 
 		assert.NotNil(tt, result)
 		assert.Equal(tt, "replication-uuid-1", result.ReplicationId.Value)
@@ -5415,7 +5417,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			},
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap, nil)
 
 		assert.NotNil(tt, result)
 		// Source replication not found, so IsSrcForHybridReplication should not be called
@@ -5476,7 +5478,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			},
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", nil, regionReplicationMap, nil)
 
 		assert.NotNil(tt, result)
 		// Verify that Source.VolumeName uses the volume URI from dbReplication.Uri
@@ -5543,7 +5545,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			},
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap, nil)
 
 		assert.NotNil(tt, result)
 		// User commands should not be set if they are nil or empty
@@ -5598,7 +5600,7 @@ func TestConvertInternalReplicationToCCFEModel(t *testing.T) {
 			},
 		}
 
-		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap)
+		result := convertInternalReplicationToCCFEModel(*replication, "us-e4", &jobsList, regionReplicationMap, nil)
 
 		assert.NotNil(tt, result)
 		// Verify that MirrorState is set to STOPPED (line 1260)
@@ -7830,11 +7832,11 @@ func Test_deleteVolumeReplication(t *testing.T) {
 				ID:   1,
 				UUID: "replication-uuid",
 			},
-			Name:      "test-replication",
-			AccountID: 1,
-			Account:   account,
-			State:     models.LifeCycleStateCreating,
-			Volume:    volume,
+			Name:                  "test-replication",
+			AccountID:             1,
+			Account:               account,
+			State:                 models.LifeCycleStateCreating,
+			Volume:                volume,
 			ReplicationAttributes: &datamodel.ReplicationDetails{},
 		}
 		jobResponse := &datamodel.Job{
@@ -12143,10 +12145,10 @@ func TestEstablishReplicationPeering(t *testing.T) {
 			JobAttributes: &datamodel.JobAttributes{ResourceUUID: "replication-123"},
 		}
 		existingReplication := &datamodel.VolumeReplication{
-			BaseModel:     datamodel.BaseModel{UUID: "replication-123"},
-			Name:          "test-replication",
-			State:         models.LifeCycleStateUpdating,
-			StateDetails:  models.LifeCycleStateUpdatingDetails,
+			BaseModel:             datamodel.BaseModel{UUID: "replication-123"},
+			Name:                  "test-replication",
+			State:                 models.LifeCycleStateUpdating,
+			StateDetails:          models.LifeCycleStateUpdatingDetails,
 			ReplicationAttributes: &datamodel.ReplicationDetails{},
 		}
 

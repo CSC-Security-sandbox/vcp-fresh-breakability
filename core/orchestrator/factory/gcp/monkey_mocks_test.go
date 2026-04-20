@@ -505,7 +505,7 @@ func (_c *monkeyMock_getOrCreateAccount_Call) RunAndReturn(run func(context.Cont
 }
 
 // getReplicationObjects provides a mock function with given fields: ctx, regionReplicationMap, logger, params, regionProjectMap
-func (_m *monkeyMock) getReplicationObjects(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params common.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error) {
+func (_m *monkeyMock) getReplicationObjects(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params common.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, map[string]string, error) {
 	ret := _m.Called(ctx, regionReplicationMap, logger, params, regionProjectMap)
 
 	if len(ret) == 0 {
@@ -514,8 +514,9 @@ func (_m *monkeyMock) getReplicationObjects(ctx context.Context, regionReplicati
 
 	var r0 []*googleproxyclient.VolumeReplicationInternalV1beta
 	var r1 []googleproxyclient.InternalJobV1beta
-	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, map[string][]*datamodel.VolumeReplication, log.Logger, common.GetMultipleReplicationsParams, map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error)); ok {
+	var r2 map[string]string
+	var r3 error
+	if rf, ok := ret.Get(0).(func(context.Context, map[string][]*datamodel.VolumeReplication, log.Logger, common.GetMultipleReplicationsParams, map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, map[string]string, error)); ok {
 		return rf(ctx, regionReplicationMap, logger, params, regionProjectMap)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, map[string][]*datamodel.VolumeReplication, log.Logger, common.GetMultipleReplicationsParams, map[string]string) []*googleproxyclient.VolumeReplicationInternalV1beta); ok {
@@ -534,13 +535,21 @@ func (_m *monkeyMock) getReplicationObjects(ctx context.Context, regionReplicati
 		}
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, map[string][]*datamodel.VolumeReplication, log.Logger, common.GetMultipleReplicationsParams, map[string]string) error); ok {
+	if rf, ok := ret.Get(2).(func(context.Context, map[string][]*datamodel.VolumeReplication, log.Logger, common.GetMultipleReplicationsParams, map[string]string) map[string]string); ok {
 		r2 = rf(ctx, regionReplicationMap, logger, params, regionProjectMap)
 	} else {
-		r2 = ret.Error(2)
+		if ret.Get(2) != nil {
+			r2 = ret.Get(2).(map[string]string)
+		}
 	}
 
-	return r0, r1, r2
+	if rf, ok := ret.Get(3).(func(context.Context, map[string][]*datamodel.VolumeReplication, log.Logger, common.GetMultipleReplicationsParams, map[string]string) error); ok {
+		r3 = rf(ctx, regionReplicationMap, logger, params, regionProjectMap)
+	} else {
+		r3 = ret.Error(3)
+	}
+
+	return r0, r1, r2, r3
 }
 
 // monkeyMock_getReplicationObjects_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'getReplicationObjects'
@@ -565,12 +574,12 @@ func (_c *monkeyMock_getReplicationObjects_Call) Run(run func(ctx context.Contex
 	return _c
 }
 
-func (_c *monkeyMock_getReplicationObjects_Call) Return(_a0 []*googleproxyclient.VolumeReplicationInternalV1beta, _a1 []googleproxyclient.InternalJobV1beta, _a2 error) *monkeyMock_getReplicationObjects_Call {
-	_c.Call.Return(_a0, _a1, _a2)
+func (_c *monkeyMock_getReplicationObjects_Call) Return(_a0 []*googleproxyclient.VolumeReplicationInternalV1beta, _a1 []googleproxyclient.InternalJobV1beta, _a2 map[string]string, _a3 error) *monkeyMock_getReplicationObjects_Call {
+	_c.Call.Return(_a0, _a1, _a2, _a3)
 	return _c
 }
 
-func (_c *monkeyMock_getReplicationObjects_Call) RunAndReturn(run func(context.Context, map[string][]*datamodel.VolumeReplication, log.Logger, common.GetMultipleReplicationsParams, map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, error)) *monkeyMock_getReplicationObjects_Call {
+func (_c *monkeyMock_getReplicationObjects_Call) RunAndReturn(run func(context.Context, map[string][]*datamodel.VolumeReplication, log.Logger, common.GetMultipleReplicationsParams, map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, map[string]string, error)) *monkeyMock_getReplicationObjects_Call {
 	_c.Call.Return(run)
 	return _c
 }

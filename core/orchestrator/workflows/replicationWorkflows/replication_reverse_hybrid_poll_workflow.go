@@ -123,6 +123,10 @@ func (wf *reverseHybridReplicationPollWorkflow) Run(ctx workflow.Context, args .
 	listDestinationsAO.RetryPolicy.MaximumInterval = activityRetryMaxInterval
 	listDestinationsCtx := workflow.WithActivityOptions(ctx, listDestinationsAO)
 
+	describeRemoteJobAO := activityOptions
+	describeRemoteJobAO.RetryPolicy.MaximumAttempts = int32(ReplicationJobsRetryMaxAttempts)
+	ctx1 := workflow.WithActivityOptions(ctx, describeRemoteJobAO)
+
 	// 1. List snapmirror destinations - this will retry automatically until found or max attempts
 	// Activity returns error when destination not found, triggering retry
 	// Activity returns success when destination is found
@@ -185,7 +189,7 @@ func (wf *reverseHybridReplicationPollWorkflow) Run(ctx workflow.Context, args .
 	}
 
 	// 6. Describe remote job for cleanup operation
-	err = workflow.ExecuteActivity(ctx, replicationActivity.DescribeRemoteJobOnDstForHybridReverse, result).Get(ctx, nil)
+	err = workflow.ExecuteActivity(ctx1, replicationActivity.DescribeRemoteJobOnDstForHybridReverse, result).Get(ctx, nil)
 	if err != nil {
 		logger.Errorf("Failed to describe remote job: %v", err)
 		return nil, workflows.ConvertToVSAError(err)

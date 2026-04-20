@@ -341,6 +341,7 @@ func TestBreakVolumeReplication(t *testing.T) {
 			RelationshipID:     "rel-id",
 			TransferUUID:       "transfer-uuid",
 			RelationshipStatus: models.SnapmirrorRelationshipTransferring,
+			MirrorState:        models.OntapSnapmirrored,
 		}
 		activitiesGetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
 			return mockProvider, nil
@@ -350,6 +351,7 @@ func TestBreakVolumeReplication(t *testing.T) {
 		mockProvider.On("AbortVolumeReplication", mock.MatchedBy(func(v *vsa.VolumeReplication) bool {
 			return v.RelationshipID == "rel-id" && v.TransferUUID == "transfer-uuid" && v.RelationshipStatus == models.SnapmirrorRelationshipAborted
 		})).Return(transferringReplication, nil).Once()
+		mockProvider.On("BreakVolumeReplication", mock.Anything).Return(nil, errors.New("break failed")).Once()
 
 		snapmirror, err := activity.BreakVolumeReplication(ctx, replication, node, true)
 		assert.Error(tt, err)
@@ -359,7 +361,8 @@ func TestBreakVolumeReplication(t *testing.T) {
 		var trackingID int
 		var errorDetails string
 		_ = appErr.Details(&trackingID, &errorDetails)
-		assert.Equal(tt, vsaerrors.ErrBreakReplicationStateTransferring, trackingID)
+		assert.Equal(tt, vsaerrors.ErrProviderBreakVolumeReplication, trackingID)
+		assert.False(tt, appErr.NonRetryable())
 		mockProvider.AssertExpectations(tt)
 	})
 
