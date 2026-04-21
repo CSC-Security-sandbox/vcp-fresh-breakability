@@ -4094,6 +4094,65 @@ func (_c *MockOrchestratorFactory_GetBackupsUnderBackupVault_Call) RunAndReturn(
 	return _c
 }
 
+// GetBatchReplications provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) GetBatchReplications(ctx context.Context, params common.GetMultipleReplicationsParams) ([]common.ReplicationV1beta, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBatchReplications")
+	}
+
+	var r0 []common.ReplicationV1beta
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, common.GetMultipleReplicationsParams) ([]common.ReplicationV1beta, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, common.GetMultipleReplicationsParams) []common.ReplicationV1beta); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]common.ReplicationV1beta)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, common.GetMultipleReplicationsParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetBatchReplications_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBatchReplications'
+type MockOrchestratorFactory_GetBatchReplications_Call struct {
+	*mock.Call
+}
+
+// GetBatchReplications is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params common.GetMultipleReplicationsParams
+func (_e *MockOrchestratorFactory_Expecter) GetBatchReplications(ctx interface{}, params interface{}) *MockOrchestratorFactory_GetBatchReplications_Call {
+	return &MockOrchestratorFactory_GetBatchReplications_Call{Call: _e.mock.On("GetBatchReplications", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_GetBatchReplications_Call) Run(run func(ctx context.Context, params common.GetMultipleReplicationsParams)) *MockOrchestratorFactory_GetBatchReplications_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(common.GetMultipleReplicationsParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetBatchReplications_Call) Return(_a0 []common.ReplicationV1beta, _a1 error) *MockOrchestratorFactory_GetBatchReplications_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetBatchReplications_Call) RunAndReturn(run func(context.Context, common.GetMultipleReplicationsParams) ([]common.ReplicationV1beta, error)) *MockOrchestratorFactory_GetBatchReplications_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetClusterUpgradeStatus provides a mock function with given fields: ctx, jobUUID
 func (_m *MockOrchestratorFactory) GetClusterUpgradeStatus(ctx context.Context, jobUUID string) (*models.UpgradeProgress, error) {
 	ret := _m.Called(ctx, jobUUID)

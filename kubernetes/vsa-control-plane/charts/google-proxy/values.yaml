@@ -84,6 +84,7 @@ maxBatchSnapshotUUIDs: "1000"
 maxBatchActiveDirectoryUUIDs: "1000"
 maxBatchBackupVaultUUIDs: "1000"
 maxBatchBackupPolicyUUIDs: "1000"
+maxBatchReplicationURIs: "700"
 cmekWorkflowGlobalTimeoutMinutes: "14" # Global timeout for CMEK workflows in minutes
 cmekGlobalProjectId: ""
 createPoolWorkflowTimeoutMinutes: "150" # Create pool workflow run timeout (standard pools) in minutes

@@ -76,6 +76,16 @@ type V1betaBatchListPoolsParams struct {
 	Fields []V1betaBatchListPoolsFieldsItem
 }
 
+// V1betaBatchListReplicationsParams is parameters of v1beta_batchListReplications operation.
+type V1betaBatchListReplicationsParams struct {
+	// The location/region to perform the operation in.
+	LocationId string
+	// Correlation identifier.
+	XCorrelationID OptString
+	// Specify the fields to return.
+	Fields []V1betaBatchListReplicationsFieldsItem
+}
+
 // V1betaBatchListSnapshotsParams is parameters of v1beta_batchListSnapshots operation.
 type V1betaBatchListSnapshotsParams struct {
 	// The location/region to perform the operation in.

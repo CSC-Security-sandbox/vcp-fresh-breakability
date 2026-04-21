@@ -5815,6 +5815,74 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1beta/locations/{locationId}/batch/replications:
+    post:
+      operationId: v1beta_batchListReplications
+      summary: Batch lists all replications with the given URIs
+      description: Batch lists all replications with the given URIs
+      tags:
+        - batch
+      parameters:
+        - $ref: '#/components/parameters/locationIdPathParameter'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - name: fields
+          in: query
+          description: Specify the fields to return.
+          style: form
+          explode: false
+          schema:
+            type: array
+            minItems: 1
+            items:
+              type: string
+              enum:
+                - created
+                - resourceId
+                - state
+                - stateDetails
+                - stateDetailsCode
+                - role
+                - replicationSchedule
+                - mirrorState
+                - description
+                - labels
+                - healthy
+                - source
+                - destination
+                - transferStats
+                - clusterLocation
+                - destinationVolumeParameters
+                - hybridPeeringDetails
+                - hybridReplicationType
+                - hybridReplicationUserCommands
+      requestBody:
+        description: A list of replication URIs to return.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplicationURIList_v1beta'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  replications:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BatchReplication_v1beta'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+      x-codegen-request-body-name: body
   /v1beta/internal/projects/{projectNumber}/locations/{locationId}/volumeReplication:
     post:
       operationId: v1beta_internalCreateVolumeReplication
@@ -7159,7 +7227,7 @@ paths:
           $ref: '#/components/responses/StandardError-500'
         default:
           description: Unexpected error
-          CONTENT:
+          content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
@@ -12991,7 +13059,7 @@ components:
           enum:
             - MIGRATION
             - CONTINUOUS_REPLICATION
-            - HYBRId_REPLICATION_TYPE_UNSPECIFIED
+            - HYBRID_REPLICATION_TYPE_UNSPECIFIED
             - ONPREM_REPLICATION
             - REVERSE_ONPREM_REPLICATION
         peerVolumeName:
@@ -13098,6 +13166,192 @@ components:
             pattern: >-
               ^projects\/([^\/]+)\/locations\/([^\/]+)\/volumes\/([^\/]+)\/replications\/([^\/]+)$
             example: projects/netapp-prod-prs-14/locations/northamerica-northeast1/volumes/vol-1/replications/replication-1
+    BatchReplicationVolumeDetails_v1beta:
+      type: object
+      title: Volume details
+      properties:
+        volumeName:
+          title: VolumeName
+          type: string
+          description: Full URI of volume
+          x-omitempty: true
+          x-nullable: true
+          example: projects/965286636820/locations/australia-southeast1/volumes/ra-2-vol166783690116
+        volumeId:
+          type: string
+          title: VolumeId
+          readOnly: true
+          description: UUID v4 used to identify the volume replication
+          x-omitempty: true
+          x-nullable: true
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+    BatchReplication_v1beta:
+      type: object
+      title: Replication
+      properties:
+        replicationId:
+          title: replicationId
+          type: string
+          readOnly: true
+          description: UUID v4 used to identify the volume replication
+          pattern: ^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$
+          maxLength: 36
+          minLength: 36
+          example: 9760acf5-4638-11e7-9bdb-020073ca7773
+          nullable: true
+        created:
+          title: created
+          type: string
+          format: date-time
+          x-omitempty: true
+          x-nullable: true
+          nullable: true
+          description: Creation date of the resource
+          example: '2016-11-28T19:30:23.123Z'
+        resourceId:
+          type: string
+          description: A human readable label for the resource which is restricted to letters, numbers, and hyphen, with the first character a letter, the last a letter or a number, and a 63 character maximum
+          example: my-volume-replication
+          x-omitempty: true
+          x-nullable: true
+          nullable: true
+        state:
+          title: state
+          type: string
+          x-omitempty: true
+          description: The current lifecycle state of the replication
+          enum:
+            - STATE_UNSPECIFIED
+            - UPDATING
+            - CREATING
+            - READY
+            - DELETING
+            - DISABLED
+            - ERROR
+          example: READY
+        stateDetails:
+          title: stateDetails
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          nullable: true
+          description: Details about the current lifecycle state
+          example: Available for use
+        role:
+          title: role
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          description: Indicates whether the local volume is the source or destination for the volume replication
+          enum:
+            - SOURCE
+            - DESTINATION
+          example: DESTINATION
+        replicationSchedule:
+          title: replicationSchedule
+          type: string
+          x-omitempty: true
+          enum:
+            - EVERY_10_MINUTES
+            - HOURLY
+            - DAILY
+        source:
+          x-omitempty: true
+          x-nullable: true
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/BatchReplicationVolumeDetails_v1beta'
+        destination:
+          x-omitempty: true
+          x-nullable: true
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/BatchReplicationVolumeDetails_v1beta'
+        mirrorState:
+          title: mirrorState
+          type: string
+          x-omitempty: true
+          description: The mirror state of the volume replication
+          enum:
+            - PREPARING
+            - UNINITIALIZED
+            - MIRRORED
+            - STOPPED
+            - TRANSFERRING
+          example: MIRRORED
+        healthy:
+          title: healthy
+          type: boolean
+          description: Condition of the relationship.
+          example: true
+          readOnly: true
+          nullable: true
+        transferStats:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/TransferStats_v1beta'
+        destinationVolumeParameters:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/DestinationVolumeParameters_v1beta'
+        description:
+          title: description
+          type: string
+          x-omitempty: true
+          x-nullable: true
+          nullable: true
+          description: Description of the volume replication
+          example: fortress of solitude
+        labels:
+          title: labels
+          type: object
+          x-omitempty: true
+          x-nullable: true
+          nullable: true
+          additionalProperties:
+            type: string
+          description: JSON dictionary of resource labels to allow linking of billing labels to a replication, Can contain only lowercase letters, numeric characters, underscores, and dashes. All characters must use UTF-8 encoding, and international characters are allowed. Must start with a lowercase letter or international character
+          example:
+            some-key: some-value
+            some-key2: some-value2
+        clusterLocation:
+          title: clusterLocation
+          type: string
+          description: Location of the cluster
+          x-nullable: true
+          x-omitempty: true
+          nullable: true
+          example: us-east1
+        hybridReplicationType:
+          title: hybridReplicationType
+          type: string
+          description: Type of hybrid replication
+          x-nullable: true
+          x-omitempty: true
+          enum:
+            - HYBRID_REPLICATION_TYPE_UNSPECIFIED
+            - MIGRATION
+            - CONTINUOUS_REPLICATION
+            - ONPREM_REPLICATION
+            - REVERSE_ONPREM_REPLICATION
+          example: MIGRATION
+        hybridPeeringDetails:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/HybridPeering_v1beta'
+        hybridReplicationUserCommands:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/HybridReplicationUserCommands_v1beta'
+        stateDetailsCode:
+          title: stateDetailsCode
+          type: integer
+          format: int32
+          readOnly: true
+          x-omitempty: true
+          nullable: true
+          description: Numeric representation of current state details.
+          example: 100001
     Replication_v1beta:
       title: Replication_v1beta
       description: Container for replication information
@@ -13250,7 +13504,7 @@ components:
           x-nullable: true
           x-omitempty: true
           enum:
-            - HYBRId_REPLICATION_TYPE_UNSPECIFIED
+            - HYBRID_REPLICATION_TYPE_UNSPECIFIED
             - MIGRATION
             - CONTINUOUS_REPLICATION
             - ONPREM_REPLICATION

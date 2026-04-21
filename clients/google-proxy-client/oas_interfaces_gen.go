@@ -33,6 +33,10 @@ type V1betaBatchListPoolsRes interface {
 	v1betaBatchListPoolsRes()
 }
 
+type V1betaBatchListReplicationsRes interface {
+	v1betaBatchListReplicationsRes()
+}
+
 type V1betaBatchListSnapshotsRes interface {
 	v1betaBatchListSnapshotsRes()
 }

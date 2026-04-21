@@ -6057,6 +6057,925 @@ func (s *BatchPoolV1betaType) UnmarshalText(data []byte) error {
 	}
 }
 
+// Ref: #/components/schemas/BatchReplication_v1beta
+type BatchReplicationV1beta struct {
+	// UUID v4 used to identify the volume replication.
+	ReplicationId OptNilString `json:"replicationId"`
+	// Creation date of the resource.
+	Created OptNilDateTime `json:"created"`
+	// A human readable label for the resource which is restricted to letters, numbers, and hyphen, with
+	// the first character a letter, the last a letter or a number, and a 63 character maximum.
+	ResourceId OptNilString `json:"resourceId"`
+	// The current lifecycle state of the replication.
+	State OptBatchReplicationV1betaState `json:"state"`
+	// Details about the current lifecycle state.
+	StateDetails OptNilString `json:"stateDetails"`
+	// Indicates whether the local volume is the source or destination for the volume replication.
+	Role                OptBatchReplicationV1betaRole                `json:"role"`
+	ReplicationSchedule OptBatchReplicationV1betaReplicationSchedule `json:"replicationSchedule"`
+	Source              OptNilBatchReplicationV1betaSource           `json:"source"`
+	Destination         OptNilBatchReplicationV1betaDestination      `json:"destination"`
+	// The mirror state of the volume replication.
+	MirrorState OptBatchReplicationV1betaMirrorState `json:"mirrorState"`
+	// Condition of the relationship.
+	Healthy                     OptNilBool                                              `json:"healthy"`
+	TransferStats               OptNilBatchReplicationV1betaTransferStats               `json:"transferStats"`
+	DestinationVolumeParameters OptNilBatchReplicationV1betaDestinationVolumeParameters `json:"destinationVolumeParameters"`
+	// Description of the volume replication.
+	Description OptNilString `json:"description"`
+	// JSON dictionary of resource labels to allow linking of billing labels to a replication, Can
+	// contain only lowercase letters, numeric characters, underscores, and dashes. All characters must
+	// use UTF-8 encoding, and international characters are allowed. Must start with a lowercase letter
+	// or international character.
+	Labels OptNilBatchReplicationV1betaLabels `json:"labels"`
+	// Location of the cluster.
+	ClusterLocation OptNilString `json:"clusterLocation"`
+	// Type of hybrid replication.
+	HybridReplicationType         OptBatchReplicationV1betaHybridReplicationType            `json:"hybridReplicationType"`
+	HybridPeeringDetails          OptNilBatchReplicationV1betaHybridPeeringDetails          `json:"hybridPeeringDetails"`
+	HybridReplicationUserCommands OptNilBatchReplicationV1betaHybridReplicationUserCommands `json:"hybridReplicationUserCommands"`
+	// Numeric representation of current state details.
+	StateDetailsCode OptNilInt32 `json:"stateDetailsCode"`
+}
+
+// GetReplicationId returns the value of ReplicationId.
+func (s *BatchReplicationV1beta) GetReplicationId() OptNilString {
+	return s.ReplicationId
+}
+
+// GetCreated returns the value of Created.
+func (s *BatchReplicationV1beta) GetCreated() OptNilDateTime {
+	return s.Created
+}
+
+// GetResourceId returns the value of ResourceId.
+func (s *BatchReplicationV1beta) GetResourceId() OptNilString {
+	return s.ResourceId
+}
+
+// GetState returns the value of State.
+func (s *BatchReplicationV1beta) GetState() OptBatchReplicationV1betaState {
+	return s.State
+}
+
+// GetStateDetails returns the value of StateDetails.
+func (s *BatchReplicationV1beta) GetStateDetails() OptNilString {
+	return s.StateDetails
+}
+
+// GetRole returns the value of Role.
+func (s *BatchReplicationV1beta) GetRole() OptBatchReplicationV1betaRole {
+	return s.Role
+}
+
+// GetReplicationSchedule returns the value of ReplicationSchedule.
+func (s *BatchReplicationV1beta) GetReplicationSchedule() OptBatchReplicationV1betaReplicationSchedule {
+	return s.ReplicationSchedule
+}
+
+// GetSource returns the value of Source.
+func (s *BatchReplicationV1beta) GetSource() OptNilBatchReplicationV1betaSource {
+	return s.Source
+}
+
+// GetDestination returns the value of Destination.
+func (s *BatchReplicationV1beta) GetDestination() OptNilBatchReplicationV1betaDestination {
+	return s.Destination
+}
+
+// GetMirrorState returns the value of MirrorState.
+func (s *BatchReplicationV1beta) GetMirrorState() OptBatchReplicationV1betaMirrorState {
+	return s.MirrorState
+}
+
+// GetHealthy returns the value of Healthy.
+func (s *BatchReplicationV1beta) GetHealthy() OptNilBool {
+	return s.Healthy
+}
+
+// GetTransferStats returns the value of TransferStats.
+func (s *BatchReplicationV1beta) GetTransferStats() OptNilBatchReplicationV1betaTransferStats {
+	return s.TransferStats
+}
+
+// GetDestinationVolumeParameters returns the value of DestinationVolumeParameters.
+func (s *BatchReplicationV1beta) GetDestinationVolumeParameters() OptNilBatchReplicationV1betaDestinationVolumeParameters {
+	return s.DestinationVolumeParameters
+}
+
+// GetDescription returns the value of Description.
+func (s *BatchReplicationV1beta) GetDescription() OptNilString {
+	return s.Description
+}
+
+// GetLabels returns the value of Labels.
+func (s *BatchReplicationV1beta) GetLabels() OptNilBatchReplicationV1betaLabels {
+	return s.Labels
+}
+
+// GetClusterLocation returns the value of ClusterLocation.
+func (s *BatchReplicationV1beta) GetClusterLocation() OptNilString {
+	return s.ClusterLocation
+}
+
+// GetHybridReplicationType returns the value of HybridReplicationType.
+func (s *BatchReplicationV1beta) GetHybridReplicationType() OptBatchReplicationV1betaHybridReplicationType {
+	return s.HybridReplicationType
+}
+
+// GetHybridPeeringDetails returns the value of HybridPeeringDetails.
+func (s *BatchReplicationV1beta) GetHybridPeeringDetails() OptNilBatchReplicationV1betaHybridPeeringDetails {
+	return s.HybridPeeringDetails
+}
+
+// GetHybridReplicationUserCommands returns the value of HybridReplicationUserCommands.
+func (s *BatchReplicationV1beta) GetHybridReplicationUserCommands() OptNilBatchReplicationV1betaHybridReplicationUserCommands {
+	return s.HybridReplicationUserCommands
+}
+
+// GetStateDetailsCode returns the value of StateDetailsCode.
+func (s *BatchReplicationV1beta) GetStateDetailsCode() OptNilInt32 {
+	return s.StateDetailsCode
+}
+
+// SetReplicationId sets the value of ReplicationId.
+func (s *BatchReplicationV1beta) SetReplicationId(val OptNilString) {
+	s.ReplicationId = val
+}
+
+// SetCreated sets the value of Created.
+func (s *BatchReplicationV1beta) SetCreated(val OptNilDateTime) {
+	s.Created = val
+}
+
+// SetResourceId sets the value of ResourceId.
+func (s *BatchReplicationV1beta) SetResourceId(val OptNilString) {
+	s.ResourceId = val
+}
+
+// SetState sets the value of State.
+func (s *BatchReplicationV1beta) SetState(val OptBatchReplicationV1betaState) {
+	s.State = val
+}
+
+// SetStateDetails sets the value of StateDetails.
+func (s *BatchReplicationV1beta) SetStateDetails(val OptNilString) {
+	s.StateDetails = val
+}
+
+// SetRole sets the value of Role.
+func (s *BatchReplicationV1beta) SetRole(val OptBatchReplicationV1betaRole) {
+	s.Role = val
+}
+
+// SetReplicationSchedule sets the value of ReplicationSchedule.
+func (s *BatchReplicationV1beta) SetReplicationSchedule(val OptBatchReplicationV1betaReplicationSchedule) {
+	s.ReplicationSchedule = val
+}
+
+// SetSource sets the value of Source.
+func (s *BatchReplicationV1beta) SetSource(val OptNilBatchReplicationV1betaSource) {
+	s.Source = val
+}
+
+// SetDestination sets the value of Destination.
+func (s *BatchReplicationV1beta) SetDestination(val OptNilBatchReplicationV1betaDestination) {
+	s.Destination = val
+}
+
+// SetMirrorState sets the value of MirrorState.
+func (s *BatchReplicationV1beta) SetMirrorState(val OptBatchReplicationV1betaMirrorState) {
+	s.MirrorState = val
+}
+
+// SetHealthy sets the value of Healthy.
+func (s *BatchReplicationV1beta) SetHealthy(val OptNilBool) {
+	s.Healthy = val
+}
+
+// SetTransferStats sets the value of TransferStats.
+func (s *BatchReplicationV1beta) SetTransferStats(val OptNilBatchReplicationV1betaTransferStats) {
+	s.TransferStats = val
+}
+
+// SetDestinationVolumeParameters sets the value of DestinationVolumeParameters.
+func (s *BatchReplicationV1beta) SetDestinationVolumeParameters(val OptNilBatchReplicationV1betaDestinationVolumeParameters) {
+	s.DestinationVolumeParameters = val
+}
+
+// SetDescription sets the value of Description.
+func (s *BatchReplicationV1beta) SetDescription(val OptNilString) {
+	s.Description = val
+}
+
+// SetLabels sets the value of Labels.
+func (s *BatchReplicationV1beta) SetLabels(val OptNilBatchReplicationV1betaLabels) {
+	s.Labels = val
+}
+
+// SetClusterLocation sets the value of ClusterLocation.
+func (s *BatchReplicationV1beta) SetClusterLocation(val OptNilString) {
+	s.ClusterLocation = val
+}
+
+// SetHybridReplicationType sets the value of HybridReplicationType.
+func (s *BatchReplicationV1beta) SetHybridReplicationType(val OptBatchReplicationV1betaHybridReplicationType) {
+	s.HybridReplicationType = val
+}
+
+// SetHybridPeeringDetails sets the value of HybridPeeringDetails.
+func (s *BatchReplicationV1beta) SetHybridPeeringDetails(val OptNilBatchReplicationV1betaHybridPeeringDetails) {
+	s.HybridPeeringDetails = val
+}
+
+// SetHybridReplicationUserCommands sets the value of HybridReplicationUserCommands.
+func (s *BatchReplicationV1beta) SetHybridReplicationUserCommands(val OptNilBatchReplicationV1betaHybridReplicationUserCommands) {
+	s.HybridReplicationUserCommands = val
+}
+
+// SetStateDetailsCode sets the value of StateDetailsCode.
+func (s *BatchReplicationV1beta) SetStateDetailsCode(val OptNilInt32) {
+	s.StateDetailsCode = val
+}
+
+type BatchReplicationV1betaDestination struct {
+	// Full URI of volume.
+	VolumeName OptString `json:"volumeName"`
+	// UUID v4 used to identify the volume replication.
+	VolumeId OptString `json:"volumeId"`
+}
+
+// GetVolumeName returns the value of VolumeName.
+func (s *BatchReplicationV1betaDestination) GetVolumeName() OptString {
+	return s.VolumeName
+}
+
+// GetVolumeId returns the value of VolumeId.
+func (s *BatchReplicationV1betaDestination) GetVolumeId() OptString {
+	return s.VolumeId
+}
+
+// SetVolumeName sets the value of VolumeName.
+func (s *BatchReplicationV1betaDestination) SetVolumeName(val OptString) {
+	s.VolumeName = val
+}
+
+// SetVolumeId sets the value of VolumeId.
+func (s *BatchReplicationV1betaDestination) SetVolumeId(val OptString) {
+	s.VolumeId = val
+}
+
+// DestinationVolumeParameters specify input parameters used for creating destination volume.
+type BatchReplicationV1betaDestinationVolumeParameters struct {
+	// Destination storage pool URI for replication.
+	StoragePool string `json:"storagePool"`
+	// A human readable name for the secondary volume which is restricted to letters, numbers, hyphen and
+	// underscore, with the first character a letter, the last a letter or a number, and a 63 character
+	// maximum.
+	VolumeId OptString `json:"volumeId"`
+	// Volume share name for the secondary volume.
+	ShareName OptString `json:"shareName"`
+	// Description of the destination volume.
+	Description   OptString              `json:"description"`
+	TieringPolicy OptTieringPolicyV1beta `json:"tieringPolicy"`
+	// Throughput of the destination volume in Mibps.
+	ThroughputMibps OptNilFloat64 `json:"throughputMibps"`
+	// IOPS limit for the volume, retrieved from the associated Volume Performance Group.
+	Iops OptNilInt64 `json:"iops"`
+	// UUID of the volume performance group this volume belongs to. Use this to query the VPG via GET ...
+	// /pools/{poolId}/volumePerformanceGroups/{volumePerformanceGroupId}.
+	VolumePerformanceGroupId OptNilString `json:"volumePerformanceGroupId"`
+}
+
+// GetStoragePool returns the value of StoragePool.
+func (s *BatchReplicationV1betaDestinationVolumeParameters) GetStoragePool() string {
+	return s.StoragePool
+}
+
+// GetVolumeId returns the value of VolumeId.
+func (s *BatchReplicationV1betaDestinationVolumeParameters) GetVolumeId() OptString {
+	return s.VolumeId
+}
+
+// GetShareName returns the value of ShareName.
+func (s *BatchReplicationV1betaDestinationVolumeParameters) GetShareName() OptString {
+	return s.ShareName
+}
+
+// GetDescription returns the value of Description.
+func (s *BatchReplicationV1betaDestinationVolumeParameters) GetDescription() OptString {
+	return s.Description
+}
+
+// GetTieringPolicy returns the value of TieringPolicy.
+func (s *BatchReplicationV1betaDestinationVolumeParameters) GetTieringPolicy() OptTieringPolicyV1beta {
+	return s.TieringPolicy
+}
+
+// GetThroughputMibps returns the value of ThroughputMibps.
+func (s *BatchReplicationV1betaDestinationVolumeParameters) GetThroughputMibps() OptNilFloat64 {
+	return s.ThroughputMibps
+}
+
+// GetIops returns the value of Iops.
+func (s *BatchReplicationV1betaDestinationVolumeParameters) GetIops() OptNilInt64 {
+	return s.Iops
+}
+
+// GetVolumePerformanceGroupId returns the value of VolumePerformanceGroupId.
+func (s *BatchReplicationV1betaDestinationVolumeParameters) GetVolumePerformanceGroupId() OptNilString {
+	return s.VolumePerformanceGroupId
+}
+
+// SetStoragePool sets the value of StoragePool.
+func (s *BatchReplicationV1betaDestinationVolumeParameters) SetStoragePool(val string) {
+	s.StoragePool = val
+}
+
+// SetVolumeId sets the value of VolumeId.
+func (s *BatchReplicationV1betaDestinationVolumeParameters) SetVolumeId(val OptString) {
+	s.VolumeId = val
+}
+
+// SetShareName sets the value of ShareName.
+func (s *BatchReplicationV1betaDestinationVolumeParameters) SetShareName(val OptString) {
+	s.ShareName = val
+}
+
+// SetDescription sets the value of Description.
+func (s *BatchReplicationV1betaDestinationVolumeParameters) SetDescription(val OptString) {
+	s.Description = val
+}
+
+// SetTieringPolicy sets the value of TieringPolicy.
+func (s *BatchReplicationV1betaDestinationVolumeParameters) SetTieringPolicy(val OptTieringPolicyV1beta) {
+	s.TieringPolicy = val
+}
+
+// SetThroughputMibps sets the value of ThroughputMibps.
+func (s *BatchReplicationV1betaDestinationVolumeParameters) SetThroughputMibps(val OptNilFloat64) {
+	s.ThroughputMibps = val
+}
+
+// SetIops sets the value of Iops.
+func (s *BatchReplicationV1betaDestinationVolumeParameters) SetIops(val OptNilInt64) {
+	s.Iops = val
+}
+
+// SetVolumePerformanceGroupId sets the value of VolumePerformanceGroupId.
+func (s *BatchReplicationV1betaDestinationVolumeParameters) SetVolumePerformanceGroupId(val OptNilString) {
+	s.VolumePerformanceGroupId = val
+}
+
+type BatchReplicationV1betaHybridPeeringDetails struct {
+	// IP address of subnet in use for this hybrid peering.
+	SubnetIp OptString `json:"subnetIp"`
+	// Copy-paste-able command to be used on source Ontap to accept peering request.
+	Command OptString `json:"command"`
+	// Temporary passphrase generated to accept cluster peering command.
+	Passphrase OptString `json:"passphrase"`
+	// DateTime value for when cluster peering command should expire.
+	CommandExpiryTime OptDateTime `json:"commandExpiryTime"`
+	// This is name of the peered external volume for this hybrid replication.
+	PeerVolumeName OptString `json:"peerVolumeName"`
+	// This is name of the external peered cluster for this hybrid replication.
+	PeerClusterName OptString `json:"peerClusterName"`
+	// This is the name of the external peered SVM for this hybrid replication.
+	PeerSvmName OptString `json:"peerSvmName"`
+}
+
+// GetSubnetIp returns the value of SubnetIp.
+func (s *BatchReplicationV1betaHybridPeeringDetails) GetSubnetIp() OptString {
+	return s.SubnetIp
+}
+
+// GetCommand returns the value of Command.
+func (s *BatchReplicationV1betaHybridPeeringDetails) GetCommand() OptString {
+	return s.Command
+}
+
+// GetPassphrase returns the value of Passphrase.
+func (s *BatchReplicationV1betaHybridPeeringDetails) GetPassphrase() OptString {
+	return s.Passphrase
+}
+
+// GetCommandExpiryTime returns the value of CommandExpiryTime.
+func (s *BatchReplicationV1betaHybridPeeringDetails) GetCommandExpiryTime() OptDateTime {
+	return s.CommandExpiryTime
+}
+
+// GetPeerVolumeName returns the value of PeerVolumeName.
+func (s *BatchReplicationV1betaHybridPeeringDetails) GetPeerVolumeName() OptString {
+	return s.PeerVolumeName
+}
+
+// GetPeerClusterName returns the value of PeerClusterName.
+func (s *BatchReplicationV1betaHybridPeeringDetails) GetPeerClusterName() OptString {
+	return s.PeerClusterName
+}
+
+// GetPeerSvmName returns the value of PeerSvmName.
+func (s *BatchReplicationV1betaHybridPeeringDetails) GetPeerSvmName() OptString {
+	return s.PeerSvmName
+}
+
+// SetSubnetIp sets the value of SubnetIp.
+func (s *BatchReplicationV1betaHybridPeeringDetails) SetSubnetIp(val OptString) {
+	s.SubnetIp = val
+}
+
+// SetCommand sets the value of Command.
+func (s *BatchReplicationV1betaHybridPeeringDetails) SetCommand(val OptString) {
+	s.Command = val
+}
+
+// SetPassphrase sets the value of Passphrase.
+func (s *BatchReplicationV1betaHybridPeeringDetails) SetPassphrase(val OptString) {
+	s.Passphrase = val
+}
+
+// SetCommandExpiryTime sets the value of CommandExpiryTime.
+func (s *BatchReplicationV1betaHybridPeeringDetails) SetCommandExpiryTime(val OptDateTime) {
+	s.CommandExpiryTime = val
+}
+
+// SetPeerVolumeName sets the value of PeerVolumeName.
+func (s *BatchReplicationV1betaHybridPeeringDetails) SetPeerVolumeName(val OptString) {
+	s.PeerVolumeName = val
+}
+
+// SetPeerClusterName sets the value of PeerClusterName.
+func (s *BatchReplicationV1betaHybridPeeringDetails) SetPeerClusterName(val OptString) {
+	s.PeerClusterName = val
+}
+
+// SetPeerSvmName sets the value of PeerSvmName.
+func (s *BatchReplicationV1betaHybridPeeringDetails) SetPeerSvmName(val OptString) {
+	s.PeerSvmName = val
+}
+
+// Type of hybrid replication.
+type BatchReplicationV1betaHybridReplicationType string
+
+const (
+	BatchReplicationV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED BatchReplicationV1betaHybridReplicationType = "HYBRID_REPLICATION_TYPE_UNSPECIFIED"
+	BatchReplicationV1betaHybridReplicationTypeMIGRATION                        BatchReplicationV1betaHybridReplicationType = "MIGRATION"
+	BatchReplicationV1betaHybridReplicationTypeCONTINUOUSREPLICATION            BatchReplicationV1betaHybridReplicationType = "CONTINUOUS_REPLICATION"
+	BatchReplicationV1betaHybridReplicationTypeONPREMREPLICATION                BatchReplicationV1betaHybridReplicationType = "ONPREM_REPLICATION"
+	BatchReplicationV1betaHybridReplicationTypeREVERSEONPREMREPLICATION         BatchReplicationV1betaHybridReplicationType = "REVERSE_ONPREM_REPLICATION"
+)
+
+// AllValues returns all BatchReplicationV1betaHybridReplicationType values.
+func (BatchReplicationV1betaHybridReplicationType) AllValues() []BatchReplicationV1betaHybridReplicationType {
+	return []BatchReplicationV1betaHybridReplicationType{
+		BatchReplicationV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED,
+		BatchReplicationV1betaHybridReplicationTypeMIGRATION,
+		BatchReplicationV1betaHybridReplicationTypeCONTINUOUSREPLICATION,
+		BatchReplicationV1betaHybridReplicationTypeONPREMREPLICATION,
+		BatchReplicationV1betaHybridReplicationTypeREVERSEONPREMREPLICATION,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchReplicationV1betaHybridReplicationType) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchReplicationV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
+		return []byte(s), nil
+	case BatchReplicationV1betaHybridReplicationTypeMIGRATION:
+		return []byte(s), nil
+	case BatchReplicationV1betaHybridReplicationTypeCONTINUOUSREPLICATION:
+		return []byte(s), nil
+	case BatchReplicationV1betaHybridReplicationTypeONPREMREPLICATION:
+		return []byte(s), nil
+	case BatchReplicationV1betaHybridReplicationTypeREVERSEONPREMREPLICATION:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchReplicationV1betaHybridReplicationType) UnmarshalText(data []byte) error {
+	switch BatchReplicationV1betaHybridReplicationType(data) {
+	case BatchReplicationV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
+		*s = BatchReplicationV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
+		return nil
+	case BatchReplicationV1betaHybridReplicationTypeMIGRATION:
+		*s = BatchReplicationV1betaHybridReplicationTypeMIGRATION
+		return nil
+	case BatchReplicationV1betaHybridReplicationTypeCONTINUOUSREPLICATION:
+		*s = BatchReplicationV1betaHybridReplicationTypeCONTINUOUSREPLICATION
+		return nil
+	case BatchReplicationV1betaHybridReplicationTypeONPREMREPLICATION:
+		*s = BatchReplicationV1betaHybridReplicationTypeONPREMREPLICATION
+		return nil
+	case BatchReplicationV1betaHybridReplicationTypeREVERSEONPREMREPLICATION:
+		*s = BatchReplicationV1betaHybridReplicationTypeREVERSEONPREMREPLICATION
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type BatchReplicationV1betaHybridReplicationUserCommands struct {
+	// Copy-paste-able snapmirror commands to be executed on on-prem cluster by customer.
+	Commands []string `json:"commands"`
+}
+
+// GetCommands returns the value of Commands.
+func (s *BatchReplicationV1betaHybridReplicationUserCommands) GetCommands() []string {
+	return s.Commands
+}
+
+// SetCommands sets the value of Commands.
+func (s *BatchReplicationV1betaHybridReplicationUserCommands) SetCommands(val []string) {
+	s.Commands = val
+}
+
+// JSON dictionary of resource labels to allow linking of billing labels to a replication, Can
+// contain only lowercase letters, numeric characters, underscores, and dashes. All characters must
+// use UTF-8 encoding, and international characters are allowed. Must start with a lowercase letter
+// or international character.
+type BatchReplicationV1betaLabels map[string]string
+
+func (s *BatchReplicationV1betaLabels) init() BatchReplicationV1betaLabels {
+	m := *s
+	if m == nil {
+		m = map[string]string{}
+		*s = m
+	}
+	return m
+}
+
+// The mirror state of the volume replication.
+type BatchReplicationV1betaMirrorState string
+
+const (
+	BatchReplicationV1betaMirrorStatePREPARING     BatchReplicationV1betaMirrorState = "PREPARING"
+	BatchReplicationV1betaMirrorStateUNINITIALIZED BatchReplicationV1betaMirrorState = "UNINITIALIZED"
+	BatchReplicationV1betaMirrorStateMIRRORED      BatchReplicationV1betaMirrorState = "MIRRORED"
+	BatchReplicationV1betaMirrorStateSTOPPED       BatchReplicationV1betaMirrorState = "STOPPED"
+	BatchReplicationV1betaMirrorStateTRANSFERRING  BatchReplicationV1betaMirrorState = "TRANSFERRING"
+)
+
+// AllValues returns all BatchReplicationV1betaMirrorState values.
+func (BatchReplicationV1betaMirrorState) AllValues() []BatchReplicationV1betaMirrorState {
+	return []BatchReplicationV1betaMirrorState{
+		BatchReplicationV1betaMirrorStatePREPARING,
+		BatchReplicationV1betaMirrorStateUNINITIALIZED,
+		BatchReplicationV1betaMirrorStateMIRRORED,
+		BatchReplicationV1betaMirrorStateSTOPPED,
+		BatchReplicationV1betaMirrorStateTRANSFERRING,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchReplicationV1betaMirrorState) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchReplicationV1betaMirrorStatePREPARING:
+		return []byte(s), nil
+	case BatchReplicationV1betaMirrorStateUNINITIALIZED:
+		return []byte(s), nil
+	case BatchReplicationV1betaMirrorStateMIRRORED:
+		return []byte(s), nil
+	case BatchReplicationV1betaMirrorStateSTOPPED:
+		return []byte(s), nil
+	case BatchReplicationV1betaMirrorStateTRANSFERRING:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchReplicationV1betaMirrorState) UnmarshalText(data []byte) error {
+	switch BatchReplicationV1betaMirrorState(data) {
+	case BatchReplicationV1betaMirrorStatePREPARING:
+		*s = BatchReplicationV1betaMirrorStatePREPARING
+		return nil
+	case BatchReplicationV1betaMirrorStateUNINITIALIZED:
+		*s = BatchReplicationV1betaMirrorStateUNINITIALIZED
+		return nil
+	case BatchReplicationV1betaMirrorStateMIRRORED:
+		*s = BatchReplicationV1betaMirrorStateMIRRORED
+		return nil
+	case BatchReplicationV1betaMirrorStateSTOPPED:
+		*s = BatchReplicationV1betaMirrorStateSTOPPED
+		return nil
+	case BatchReplicationV1betaMirrorStateTRANSFERRING:
+		*s = BatchReplicationV1betaMirrorStateTRANSFERRING
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type BatchReplicationV1betaReplicationSchedule string
+
+const (
+	BatchReplicationV1betaReplicationScheduleEVERY10MINUTES BatchReplicationV1betaReplicationSchedule = "EVERY_10_MINUTES"
+	BatchReplicationV1betaReplicationScheduleHOURLY         BatchReplicationV1betaReplicationSchedule = "HOURLY"
+	BatchReplicationV1betaReplicationScheduleDAILY          BatchReplicationV1betaReplicationSchedule = "DAILY"
+)
+
+// AllValues returns all BatchReplicationV1betaReplicationSchedule values.
+func (BatchReplicationV1betaReplicationSchedule) AllValues() []BatchReplicationV1betaReplicationSchedule {
+	return []BatchReplicationV1betaReplicationSchedule{
+		BatchReplicationV1betaReplicationScheduleEVERY10MINUTES,
+		BatchReplicationV1betaReplicationScheduleHOURLY,
+		BatchReplicationV1betaReplicationScheduleDAILY,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchReplicationV1betaReplicationSchedule) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchReplicationV1betaReplicationScheduleEVERY10MINUTES:
+		return []byte(s), nil
+	case BatchReplicationV1betaReplicationScheduleHOURLY:
+		return []byte(s), nil
+	case BatchReplicationV1betaReplicationScheduleDAILY:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchReplicationV1betaReplicationSchedule) UnmarshalText(data []byte) error {
+	switch BatchReplicationV1betaReplicationSchedule(data) {
+	case BatchReplicationV1betaReplicationScheduleEVERY10MINUTES:
+		*s = BatchReplicationV1betaReplicationScheduleEVERY10MINUTES
+		return nil
+	case BatchReplicationV1betaReplicationScheduleHOURLY:
+		*s = BatchReplicationV1betaReplicationScheduleHOURLY
+		return nil
+	case BatchReplicationV1betaReplicationScheduleDAILY:
+		*s = BatchReplicationV1betaReplicationScheduleDAILY
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Indicates whether the local volume is the source or destination for the volume replication.
+type BatchReplicationV1betaRole string
+
+const (
+	BatchReplicationV1betaRoleSOURCE      BatchReplicationV1betaRole = "SOURCE"
+	BatchReplicationV1betaRoleDESTINATION BatchReplicationV1betaRole = "DESTINATION"
+)
+
+// AllValues returns all BatchReplicationV1betaRole values.
+func (BatchReplicationV1betaRole) AllValues() []BatchReplicationV1betaRole {
+	return []BatchReplicationV1betaRole{
+		BatchReplicationV1betaRoleSOURCE,
+		BatchReplicationV1betaRoleDESTINATION,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchReplicationV1betaRole) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchReplicationV1betaRoleSOURCE:
+		return []byte(s), nil
+	case BatchReplicationV1betaRoleDESTINATION:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchReplicationV1betaRole) UnmarshalText(data []byte) error {
+	switch BatchReplicationV1betaRole(data) {
+	case BatchReplicationV1betaRoleSOURCE:
+		*s = BatchReplicationV1betaRoleSOURCE
+		return nil
+	case BatchReplicationV1betaRoleDESTINATION:
+		*s = BatchReplicationV1betaRoleDESTINATION
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type BatchReplicationV1betaSource struct {
+	// Full URI of volume.
+	VolumeName OptString `json:"volumeName"`
+	// UUID v4 used to identify the volume replication.
+	VolumeId OptString `json:"volumeId"`
+}
+
+// GetVolumeName returns the value of VolumeName.
+func (s *BatchReplicationV1betaSource) GetVolumeName() OptString {
+	return s.VolumeName
+}
+
+// GetVolumeId returns the value of VolumeId.
+func (s *BatchReplicationV1betaSource) GetVolumeId() OptString {
+	return s.VolumeId
+}
+
+// SetVolumeName sets the value of VolumeName.
+func (s *BatchReplicationV1betaSource) SetVolumeName(val OptString) {
+	s.VolumeName = val
+}
+
+// SetVolumeId sets the value of VolumeId.
+func (s *BatchReplicationV1betaSource) SetVolumeId(val OptString) {
+	s.VolumeId = val
+}
+
+// The current lifecycle state of the replication.
+type BatchReplicationV1betaState string
+
+const (
+	BatchReplicationV1betaStateSTATEUNSPECIFIED BatchReplicationV1betaState = "STATE_UNSPECIFIED"
+	BatchReplicationV1betaStateUPDATING         BatchReplicationV1betaState = "UPDATING"
+	BatchReplicationV1betaStateCREATING         BatchReplicationV1betaState = "CREATING"
+	BatchReplicationV1betaStateREADY            BatchReplicationV1betaState = "READY"
+	BatchReplicationV1betaStateDELETING         BatchReplicationV1betaState = "DELETING"
+	BatchReplicationV1betaStateDISABLED         BatchReplicationV1betaState = "DISABLED"
+	BatchReplicationV1betaStateERROR            BatchReplicationV1betaState = "ERROR"
+)
+
+// AllValues returns all BatchReplicationV1betaState values.
+func (BatchReplicationV1betaState) AllValues() []BatchReplicationV1betaState {
+	return []BatchReplicationV1betaState{
+		BatchReplicationV1betaStateSTATEUNSPECIFIED,
+		BatchReplicationV1betaStateUPDATING,
+		BatchReplicationV1betaStateCREATING,
+		BatchReplicationV1betaStateREADY,
+		BatchReplicationV1betaStateDELETING,
+		BatchReplicationV1betaStateDISABLED,
+		BatchReplicationV1betaStateERROR,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s BatchReplicationV1betaState) MarshalText() ([]byte, error) {
+	switch s {
+	case BatchReplicationV1betaStateSTATEUNSPECIFIED:
+		return []byte(s), nil
+	case BatchReplicationV1betaStateUPDATING:
+		return []byte(s), nil
+	case BatchReplicationV1betaStateCREATING:
+		return []byte(s), nil
+	case BatchReplicationV1betaStateREADY:
+		return []byte(s), nil
+	case BatchReplicationV1betaStateDELETING:
+		return []byte(s), nil
+	case BatchReplicationV1betaStateDISABLED:
+		return []byte(s), nil
+	case BatchReplicationV1betaStateERROR:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *BatchReplicationV1betaState) UnmarshalText(data []byte) error {
+	switch BatchReplicationV1betaState(data) {
+	case BatchReplicationV1betaStateSTATEUNSPECIFIED:
+		*s = BatchReplicationV1betaStateSTATEUNSPECIFIED
+		return nil
+	case BatchReplicationV1betaStateUPDATING:
+		*s = BatchReplicationV1betaStateUPDATING
+		return nil
+	case BatchReplicationV1betaStateCREATING:
+		*s = BatchReplicationV1betaStateCREATING
+		return nil
+	case BatchReplicationV1betaStateREADY:
+		*s = BatchReplicationV1betaStateREADY
+		return nil
+	case BatchReplicationV1betaStateDELETING:
+		*s = BatchReplicationV1betaStateDELETING
+		return nil
+	case BatchReplicationV1betaStateDISABLED:
+		*s = BatchReplicationV1betaStateDISABLED
+		return nil
+	case BatchReplicationV1betaStateERROR:
+		*s = BatchReplicationV1betaStateERROR
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Transfer statistics for replication.
+type BatchReplicationV1betaTransferStats struct {
+	// Cumulative bytes transferred for the relationship.
+	TotalTransferBytes OptFloat64 `json:"totalTransferBytes"`
+	// Cumulative total transfer time in seconds for the relationship.
+	TotalTransferTimeSecs OptFloat64 `json:"totalTransferTimeSecs"`
+	// The total number of bytes transferred as part of the last transfer.
+	LastTransferSize OptFloat64 `json:"lastTransferSize"`
+	// A message describing the cause of the last transfer failure.
+	LastTransferError OptString `json:"lastTransferError"`
+	// The amount of time in seconds it took for the last transfer to complete.
+	LastTransferDuration OptFloat64 `json:"lastTransferDuration"`
+	// The time of the end of the last transfer.
+	LastTransferEndTime OptDateTime `json:"lastTransferEndTime"`
+	// Total amount of data transferred for the current transfer operation.
+	TotalProgress OptFloat64 `json:"totalProgress"`
+	// Time indicating when the progress of the transfer was last updated.
+	ProgressLastUpdated OptDateTime `json:"progressLastUpdated"`
+	// The amount of time in seconds by which the data on the mirror lags behind the source.
+	LagTime OptFloat64 `json:"lagTime"`
+}
+
+// GetTotalTransferBytes returns the value of TotalTransferBytes.
+func (s *BatchReplicationV1betaTransferStats) GetTotalTransferBytes() OptFloat64 {
+	return s.TotalTransferBytes
+}
+
+// GetTotalTransferTimeSecs returns the value of TotalTransferTimeSecs.
+func (s *BatchReplicationV1betaTransferStats) GetTotalTransferTimeSecs() OptFloat64 {
+	return s.TotalTransferTimeSecs
+}
+
+// GetLastTransferSize returns the value of LastTransferSize.
+func (s *BatchReplicationV1betaTransferStats) GetLastTransferSize() OptFloat64 {
+	return s.LastTransferSize
+}
+
+// GetLastTransferError returns the value of LastTransferError.
+func (s *BatchReplicationV1betaTransferStats) GetLastTransferError() OptString {
+	return s.LastTransferError
+}
+
+// GetLastTransferDuration returns the value of LastTransferDuration.
+func (s *BatchReplicationV1betaTransferStats) GetLastTransferDuration() OptFloat64 {
+	return s.LastTransferDuration
+}
+
+// GetLastTransferEndTime returns the value of LastTransferEndTime.
+func (s *BatchReplicationV1betaTransferStats) GetLastTransferEndTime() OptDateTime {
+	return s.LastTransferEndTime
+}
+
+// GetTotalProgress returns the value of TotalProgress.
+func (s *BatchReplicationV1betaTransferStats) GetTotalProgress() OptFloat64 {
+	return s.TotalProgress
+}
+
+// GetProgressLastUpdated returns the value of ProgressLastUpdated.
+func (s *BatchReplicationV1betaTransferStats) GetProgressLastUpdated() OptDateTime {
+	return s.ProgressLastUpdated
+}
+
+// GetLagTime returns the value of LagTime.
+func (s *BatchReplicationV1betaTransferStats) GetLagTime() OptFloat64 {
+	return s.LagTime
+}
+
+// SetTotalTransferBytes sets the value of TotalTransferBytes.
+func (s *BatchReplicationV1betaTransferStats) SetTotalTransferBytes(val OptFloat64) {
+	s.TotalTransferBytes = val
+}
+
+// SetTotalTransferTimeSecs sets the value of TotalTransferTimeSecs.
+func (s *BatchReplicationV1betaTransferStats) SetTotalTransferTimeSecs(val OptFloat64) {
+	s.TotalTransferTimeSecs = val
+}
+
+// SetLastTransferSize sets the value of LastTransferSize.
+func (s *BatchReplicationV1betaTransferStats) SetLastTransferSize(val OptFloat64) {
+	s.LastTransferSize = val
+}
+
+// SetLastTransferError sets the value of LastTransferError.
+func (s *BatchReplicationV1betaTransferStats) SetLastTransferError(val OptString) {
+	s.LastTransferError = val
+}
+
+// SetLastTransferDuration sets the value of LastTransferDuration.
+func (s *BatchReplicationV1betaTransferStats) SetLastTransferDuration(val OptFloat64) {
+	s.LastTransferDuration = val
+}
+
+// SetLastTransferEndTime sets the value of LastTransferEndTime.
+func (s *BatchReplicationV1betaTransferStats) SetLastTransferEndTime(val OptDateTime) {
+	s.LastTransferEndTime = val
+}
+
+// SetTotalProgress sets the value of TotalProgress.
+func (s *BatchReplicationV1betaTransferStats) SetTotalProgress(val OptFloat64) {
+	s.TotalProgress = val
+}
+
+// SetProgressLastUpdated sets the value of ProgressLastUpdated.
+func (s *BatchReplicationV1betaTransferStats) SetProgressLastUpdated(val OptDateTime) {
+	s.ProgressLastUpdated = val
+}
+
+// SetLagTime sets the value of LagTime.
+func (s *BatchReplicationV1betaTransferStats) SetLagTime(val OptFloat64) {
+	s.LagTime = val
+}
+
 // Ref: #/components/schemas/BatchSnapshotUUIDList_v1beta
 type BatchSnapshotUUIDListV1beta struct {
 	// List of snapshot UUIDs to return.
@@ -9008,6 +9927,7 @@ func (*ErrorStatusCode) v1betaUpdatePoolRes()                                {}
 func (*ErrorStatusCode) v1betaUpdateQuotaRuleRes()                           {}
 func (*ErrorStatusCode) v1betaUpdateQuotaRuleVCPRes()                        {}
 func (*ErrorStatusCode) v1betaUpdateReplicationRes()                         {}
+func (*ErrorStatusCode) v1betaUpdateSnapshotRes()                            {}
 func (*ErrorStatusCode) v1betaUpdateVolumePerformanceGroupRes()              {}
 func (*ErrorStatusCode) v1betaUpdateVolumeRes()                              {}
 
@@ -10250,7 +11170,7 @@ type HybridReplicationParametersV1betaHybridReplicationType string
 const (
 	HybridReplicationParametersV1betaHybridReplicationTypeMIGRATION                        HybridReplicationParametersV1betaHybridReplicationType = "MIGRATION"
 	HybridReplicationParametersV1betaHybridReplicationTypeCONTINUOUSREPLICATION            HybridReplicationParametersV1betaHybridReplicationType = "CONTINUOUS_REPLICATION"
-	HybridReplicationParametersV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED HybridReplicationParametersV1betaHybridReplicationType = "HYBRId_REPLICATION_TYPE_UNSPECIFIED"
+	HybridReplicationParametersV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED HybridReplicationParametersV1betaHybridReplicationType = "HYBRID_REPLICATION_TYPE_UNSPECIFIED"
 	HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION                HybridReplicationParametersV1betaHybridReplicationType = "ONPREM_REPLICATION"
 	HybridReplicationParametersV1betaHybridReplicationTypeREVERSEONPREMREPLICATION         HybridReplicationParametersV1betaHybridReplicationType = "REVERSE_ONPREM_REPLICATION"
 )
@@ -10260,7 +11180,7 @@ func (HybridReplicationParametersV1betaHybridReplicationType) AllValues() []Hybr
 	return []HybridReplicationParametersV1betaHybridReplicationType{
 		HybridReplicationParametersV1betaHybridReplicationTypeMIGRATION,
 		HybridReplicationParametersV1betaHybridReplicationTypeCONTINUOUSREPLICATION,
-		HybridReplicationParametersV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED,
+		HybridReplicationParametersV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED,
 		HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION,
 		HybridReplicationParametersV1betaHybridReplicationTypeREVERSEONPREMREPLICATION,
 	}
@@ -10273,7 +11193,7 @@ func (s HybridReplicationParametersV1betaHybridReplicationType) MarshalText() ([
 		return []byte(s), nil
 	case HybridReplicationParametersV1betaHybridReplicationTypeCONTINUOUSREPLICATION:
 		return []byte(s), nil
-	case HybridReplicationParametersV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED:
+	case HybridReplicationParametersV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
 		return []byte(s), nil
 	case HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION:
 		return []byte(s), nil
@@ -10293,8 +11213,8 @@ func (s *HybridReplicationParametersV1betaHybridReplicationType) UnmarshalText(d
 	case HybridReplicationParametersV1betaHybridReplicationTypeCONTINUOUSREPLICATION:
 		*s = HybridReplicationParametersV1betaHybridReplicationTypeCONTINUOUSREPLICATION
 		return nil
-	case HybridReplicationParametersV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED:
-		*s = HybridReplicationParametersV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED
+	case HybridReplicationParametersV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
+		*s = HybridReplicationParametersV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
 		return nil
 	case HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION:
 		*s = HybridReplicationParametersV1betaHybridReplicationTypeONPREMREPLICATION
@@ -13745,6 +14665,236 @@ func (o OptBackupVaultV1betaState) Or(d BackupVaultV1betaState) BackupVaultV1bet
 	return d
 }
 
+// NewOptBatchReplicationV1betaHybridReplicationType returns new OptBatchReplicationV1betaHybridReplicationType with value set to v.
+func NewOptBatchReplicationV1betaHybridReplicationType(v BatchReplicationV1betaHybridReplicationType) OptBatchReplicationV1betaHybridReplicationType {
+	return OptBatchReplicationV1betaHybridReplicationType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBatchReplicationV1betaHybridReplicationType is optional BatchReplicationV1betaHybridReplicationType.
+type OptBatchReplicationV1betaHybridReplicationType struct {
+	Value BatchReplicationV1betaHybridReplicationType
+	Set   bool
+}
+
+// IsSet returns true if OptBatchReplicationV1betaHybridReplicationType was set.
+func (o OptBatchReplicationV1betaHybridReplicationType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBatchReplicationV1betaHybridReplicationType) Reset() {
+	var v BatchReplicationV1betaHybridReplicationType
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBatchReplicationV1betaHybridReplicationType) SetTo(v BatchReplicationV1betaHybridReplicationType) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBatchReplicationV1betaHybridReplicationType) Get() (v BatchReplicationV1betaHybridReplicationType, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBatchReplicationV1betaHybridReplicationType) Or(d BatchReplicationV1betaHybridReplicationType) BatchReplicationV1betaHybridReplicationType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBatchReplicationV1betaMirrorState returns new OptBatchReplicationV1betaMirrorState with value set to v.
+func NewOptBatchReplicationV1betaMirrorState(v BatchReplicationV1betaMirrorState) OptBatchReplicationV1betaMirrorState {
+	return OptBatchReplicationV1betaMirrorState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBatchReplicationV1betaMirrorState is optional BatchReplicationV1betaMirrorState.
+type OptBatchReplicationV1betaMirrorState struct {
+	Value BatchReplicationV1betaMirrorState
+	Set   bool
+}
+
+// IsSet returns true if OptBatchReplicationV1betaMirrorState was set.
+func (o OptBatchReplicationV1betaMirrorState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBatchReplicationV1betaMirrorState) Reset() {
+	var v BatchReplicationV1betaMirrorState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBatchReplicationV1betaMirrorState) SetTo(v BatchReplicationV1betaMirrorState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBatchReplicationV1betaMirrorState) Get() (v BatchReplicationV1betaMirrorState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBatchReplicationV1betaMirrorState) Or(d BatchReplicationV1betaMirrorState) BatchReplicationV1betaMirrorState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBatchReplicationV1betaReplicationSchedule returns new OptBatchReplicationV1betaReplicationSchedule with value set to v.
+func NewOptBatchReplicationV1betaReplicationSchedule(v BatchReplicationV1betaReplicationSchedule) OptBatchReplicationV1betaReplicationSchedule {
+	return OptBatchReplicationV1betaReplicationSchedule{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBatchReplicationV1betaReplicationSchedule is optional BatchReplicationV1betaReplicationSchedule.
+type OptBatchReplicationV1betaReplicationSchedule struct {
+	Value BatchReplicationV1betaReplicationSchedule
+	Set   bool
+}
+
+// IsSet returns true if OptBatchReplicationV1betaReplicationSchedule was set.
+func (o OptBatchReplicationV1betaReplicationSchedule) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBatchReplicationV1betaReplicationSchedule) Reset() {
+	var v BatchReplicationV1betaReplicationSchedule
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBatchReplicationV1betaReplicationSchedule) SetTo(v BatchReplicationV1betaReplicationSchedule) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBatchReplicationV1betaReplicationSchedule) Get() (v BatchReplicationV1betaReplicationSchedule, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBatchReplicationV1betaReplicationSchedule) Or(d BatchReplicationV1betaReplicationSchedule) BatchReplicationV1betaReplicationSchedule {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBatchReplicationV1betaRole returns new OptBatchReplicationV1betaRole with value set to v.
+func NewOptBatchReplicationV1betaRole(v BatchReplicationV1betaRole) OptBatchReplicationV1betaRole {
+	return OptBatchReplicationV1betaRole{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBatchReplicationV1betaRole is optional BatchReplicationV1betaRole.
+type OptBatchReplicationV1betaRole struct {
+	Value BatchReplicationV1betaRole
+	Set   bool
+}
+
+// IsSet returns true if OptBatchReplicationV1betaRole was set.
+func (o OptBatchReplicationV1betaRole) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBatchReplicationV1betaRole) Reset() {
+	var v BatchReplicationV1betaRole
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBatchReplicationV1betaRole) SetTo(v BatchReplicationV1betaRole) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBatchReplicationV1betaRole) Get() (v BatchReplicationV1betaRole, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBatchReplicationV1betaRole) Or(d BatchReplicationV1betaRole) BatchReplicationV1betaRole {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptBatchReplicationV1betaState returns new OptBatchReplicationV1betaState with value set to v.
+func NewOptBatchReplicationV1betaState(v BatchReplicationV1betaState) OptBatchReplicationV1betaState {
+	return OptBatchReplicationV1betaState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptBatchReplicationV1betaState is optional BatchReplicationV1betaState.
+type OptBatchReplicationV1betaState struct {
+	Value BatchReplicationV1betaState
+	Set   bool
+}
+
+// IsSet returns true if OptBatchReplicationV1betaState was set.
+func (o OptBatchReplicationV1betaState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptBatchReplicationV1betaState) Reset() {
+	var v BatchReplicationV1betaState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptBatchReplicationV1betaState) SetTo(v BatchReplicationV1betaState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptBatchReplicationV1betaState) Get() (v BatchReplicationV1betaState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptBatchReplicationV1betaState) Or(d BatchReplicationV1betaState) BatchReplicationV1betaState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptBatchSnapshotV1betaSnapshotState returns new OptBatchSnapshotV1betaSnapshotState with value set to v.
 func NewOptBatchSnapshotV1betaSnapshotState(v BatchSnapshotV1betaSnapshotState) OptBatchSnapshotV1betaSnapshotState {
 	return OptBatchSnapshotV1betaSnapshotState{
@@ -17006,6 +18156,447 @@ func (o OptNilBatchPoolV1betaType) Get() (v BatchPoolV1betaType, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptNilBatchPoolV1betaType) Or(d BatchPoolV1betaType) BatchPoolV1betaType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchReplicationV1betaDestination returns new OptNilBatchReplicationV1betaDestination with value set to v.
+func NewOptNilBatchReplicationV1betaDestination(v BatchReplicationV1betaDestination) OptNilBatchReplicationV1betaDestination {
+	return OptNilBatchReplicationV1betaDestination{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchReplicationV1betaDestination is optional nullable BatchReplicationV1betaDestination.
+type OptNilBatchReplicationV1betaDestination struct {
+	Value BatchReplicationV1betaDestination
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchReplicationV1betaDestination was set.
+func (o OptNilBatchReplicationV1betaDestination) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchReplicationV1betaDestination) Reset() {
+	var v BatchReplicationV1betaDestination
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchReplicationV1betaDestination) SetTo(v BatchReplicationV1betaDestination) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchReplicationV1betaDestination) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchReplicationV1betaDestination) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchReplicationV1betaDestination
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchReplicationV1betaDestination) Get() (v BatchReplicationV1betaDestination, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchReplicationV1betaDestination) Or(d BatchReplicationV1betaDestination) BatchReplicationV1betaDestination {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchReplicationV1betaDestinationVolumeParameters returns new OptNilBatchReplicationV1betaDestinationVolumeParameters with value set to v.
+func NewOptNilBatchReplicationV1betaDestinationVolumeParameters(v BatchReplicationV1betaDestinationVolumeParameters) OptNilBatchReplicationV1betaDestinationVolumeParameters {
+	return OptNilBatchReplicationV1betaDestinationVolumeParameters{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchReplicationV1betaDestinationVolumeParameters is optional nullable BatchReplicationV1betaDestinationVolumeParameters.
+type OptNilBatchReplicationV1betaDestinationVolumeParameters struct {
+	Value BatchReplicationV1betaDestinationVolumeParameters
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchReplicationV1betaDestinationVolumeParameters was set.
+func (o OptNilBatchReplicationV1betaDestinationVolumeParameters) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchReplicationV1betaDestinationVolumeParameters) Reset() {
+	var v BatchReplicationV1betaDestinationVolumeParameters
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchReplicationV1betaDestinationVolumeParameters) SetTo(v BatchReplicationV1betaDestinationVolumeParameters) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchReplicationV1betaDestinationVolumeParameters) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchReplicationV1betaDestinationVolumeParameters) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchReplicationV1betaDestinationVolumeParameters
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchReplicationV1betaDestinationVolumeParameters) Get() (v BatchReplicationV1betaDestinationVolumeParameters, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchReplicationV1betaDestinationVolumeParameters) Or(d BatchReplicationV1betaDestinationVolumeParameters) BatchReplicationV1betaDestinationVolumeParameters {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchReplicationV1betaHybridPeeringDetails returns new OptNilBatchReplicationV1betaHybridPeeringDetails with value set to v.
+func NewOptNilBatchReplicationV1betaHybridPeeringDetails(v BatchReplicationV1betaHybridPeeringDetails) OptNilBatchReplicationV1betaHybridPeeringDetails {
+	return OptNilBatchReplicationV1betaHybridPeeringDetails{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchReplicationV1betaHybridPeeringDetails is optional nullable BatchReplicationV1betaHybridPeeringDetails.
+type OptNilBatchReplicationV1betaHybridPeeringDetails struct {
+	Value BatchReplicationV1betaHybridPeeringDetails
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchReplicationV1betaHybridPeeringDetails was set.
+func (o OptNilBatchReplicationV1betaHybridPeeringDetails) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchReplicationV1betaHybridPeeringDetails) Reset() {
+	var v BatchReplicationV1betaHybridPeeringDetails
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchReplicationV1betaHybridPeeringDetails) SetTo(v BatchReplicationV1betaHybridPeeringDetails) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchReplicationV1betaHybridPeeringDetails) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchReplicationV1betaHybridPeeringDetails) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchReplicationV1betaHybridPeeringDetails
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchReplicationV1betaHybridPeeringDetails) Get() (v BatchReplicationV1betaHybridPeeringDetails, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchReplicationV1betaHybridPeeringDetails) Or(d BatchReplicationV1betaHybridPeeringDetails) BatchReplicationV1betaHybridPeeringDetails {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchReplicationV1betaHybridReplicationUserCommands returns new OptNilBatchReplicationV1betaHybridReplicationUserCommands with value set to v.
+func NewOptNilBatchReplicationV1betaHybridReplicationUserCommands(v BatchReplicationV1betaHybridReplicationUserCommands) OptNilBatchReplicationV1betaHybridReplicationUserCommands {
+	return OptNilBatchReplicationV1betaHybridReplicationUserCommands{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchReplicationV1betaHybridReplicationUserCommands is optional nullable BatchReplicationV1betaHybridReplicationUserCommands.
+type OptNilBatchReplicationV1betaHybridReplicationUserCommands struct {
+	Value BatchReplicationV1betaHybridReplicationUserCommands
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchReplicationV1betaHybridReplicationUserCommands was set.
+func (o OptNilBatchReplicationV1betaHybridReplicationUserCommands) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchReplicationV1betaHybridReplicationUserCommands) Reset() {
+	var v BatchReplicationV1betaHybridReplicationUserCommands
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchReplicationV1betaHybridReplicationUserCommands) SetTo(v BatchReplicationV1betaHybridReplicationUserCommands) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchReplicationV1betaHybridReplicationUserCommands) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchReplicationV1betaHybridReplicationUserCommands) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchReplicationV1betaHybridReplicationUserCommands
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchReplicationV1betaHybridReplicationUserCommands) Get() (v BatchReplicationV1betaHybridReplicationUserCommands, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchReplicationV1betaHybridReplicationUserCommands) Or(d BatchReplicationV1betaHybridReplicationUserCommands) BatchReplicationV1betaHybridReplicationUserCommands {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchReplicationV1betaLabels returns new OptNilBatchReplicationV1betaLabels with value set to v.
+func NewOptNilBatchReplicationV1betaLabels(v BatchReplicationV1betaLabels) OptNilBatchReplicationV1betaLabels {
+	return OptNilBatchReplicationV1betaLabels{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchReplicationV1betaLabels is optional nullable BatchReplicationV1betaLabels.
+type OptNilBatchReplicationV1betaLabels struct {
+	Value BatchReplicationV1betaLabels
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchReplicationV1betaLabels was set.
+func (o OptNilBatchReplicationV1betaLabels) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchReplicationV1betaLabels) Reset() {
+	var v BatchReplicationV1betaLabels
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchReplicationV1betaLabels) SetTo(v BatchReplicationV1betaLabels) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchReplicationV1betaLabels) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchReplicationV1betaLabels) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchReplicationV1betaLabels
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchReplicationV1betaLabels) Get() (v BatchReplicationV1betaLabels, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchReplicationV1betaLabels) Or(d BatchReplicationV1betaLabels) BatchReplicationV1betaLabels {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchReplicationV1betaSource returns new OptNilBatchReplicationV1betaSource with value set to v.
+func NewOptNilBatchReplicationV1betaSource(v BatchReplicationV1betaSource) OptNilBatchReplicationV1betaSource {
+	return OptNilBatchReplicationV1betaSource{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchReplicationV1betaSource is optional nullable BatchReplicationV1betaSource.
+type OptNilBatchReplicationV1betaSource struct {
+	Value BatchReplicationV1betaSource
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchReplicationV1betaSource was set.
+func (o OptNilBatchReplicationV1betaSource) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchReplicationV1betaSource) Reset() {
+	var v BatchReplicationV1betaSource
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchReplicationV1betaSource) SetTo(v BatchReplicationV1betaSource) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchReplicationV1betaSource) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchReplicationV1betaSource) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchReplicationV1betaSource
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchReplicationV1betaSource) Get() (v BatchReplicationV1betaSource, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchReplicationV1betaSource) Or(d BatchReplicationV1betaSource) BatchReplicationV1betaSource {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptNilBatchReplicationV1betaTransferStats returns new OptNilBatchReplicationV1betaTransferStats with value set to v.
+func NewOptNilBatchReplicationV1betaTransferStats(v BatchReplicationV1betaTransferStats) OptNilBatchReplicationV1betaTransferStats {
+	return OptNilBatchReplicationV1betaTransferStats{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptNilBatchReplicationV1betaTransferStats is optional nullable BatchReplicationV1betaTransferStats.
+type OptNilBatchReplicationV1betaTransferStats struct {
+	Value BatchReplicationV1betaTransferStats
+	Set   bool
+	Null  bool
+}
+
+// IsSet returns true if OptNilBatchReplicationV1betaTransferStats was set.
+func (o OptNilBatchReplicationV1betaTransferStats) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptNilBatchReplicationV1betaTransferStats) Reset() {
+	var v BatchReplicationV1betaTransferStats
+	o.Value = v
+	o.Set = false
+	o.Null = false
+}
+
+// SetTo sets value to v.
+func (o *OptNilBatchReplicationV1betaTransferStats) SetTo(v BatchReplicationV1betaTransferStats) {
+	o.Set = true
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o OptNilBatchReplicationV1betaTransferStats) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *OptNilBatchReplicationV1betaTransferStats) SetToNull() {
+	o.Set = true
+	o.Null = true
+	var v BatchReplicationV1betaTransferStats
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptNilBatchReplicationV1betaTransferStats) Get() (v BatchReplicationV1betaTransferStats, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptNilBatchReplicationV1betaTransferStats) Or(d BatchReplicationV1betaTransferStats) BatchReplicationV1betaTransferStats {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -25581,7 +27172,7 @@ func (s *ReplicationV1beta) SetHybridReplicationUserCommands(val OptHybridReplic
 type ReplicationV1betaHybridReplicationType string
 
 const (
-	ReplicationV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED ReplicationV1betaHybridReplicationType = "HYBRId_REPLICATION_TYPE_UNSPECIFIED"
+	ReplicationV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED ReplicationV1betaHybridReplicationType = "HYBRID_REPLICATION_TYPE_UNSPECIFIED"
 	ReplicationV1betaHybridReplicationTypeMIGRATION                        ReplicationV1betaHybridReplicationType = "MIGRATION"
 	ReplicationV1betaHybridReplicationTypeCONTINUOUSREPLICATION            ReplicationV1betaHybridReplicationType = "CONTINUOUS_REPLICATION"
 	ReplicationV1betaHybridReplicationTypeONPREMREPLICATION                ReplicationV1betaHybridReplicationType = "ONPREM_REPLICATION"
@@ -25591,7 +27182,7 @@ const (
 // AllValues returns all ReplicationV1betaHybridReplicationType values.
 func (ReplicationV1betaHybridReplicationType) AllValues() []ReplicationV1betaHybridReplicationType {
 	return []ReplicationV1betaHybridReplicationType{
-		ReplicationV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED,
+		ReplicationV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED,
 		ReplicationV1betaHybridReplicationTypeMIGRATION,
 		ReplicationV1betaHybridReplicationTypeCONTINUOUSREPLICATION,
 		ReplicationV1betaHybridReplicationTypeONPREMREPLICATION,
@@ -25602,7 +27193,7 @@ func (ReplicationV1betaHybridReplicationType) AllValues() []ReplicationV1betaHyb
 // MarshalText implements encoding.TextMarshaler.
 func (s ReplicationV1betaHybridReplicationType) MarshalText() ([]byte, error) {
 	switch s {
-	case ReplicationV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED:
+	case ReplicationV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
 		return []byte(s), nil
 	case ReplicationV1betaHybridReplicationTypeMIGRATION:
 		return []byte(s), nil
@@ -25620,8 +27211,8 @@ func (s ReplicationV1betaHybridReplicationType) MarshalText() ([]byte, error) {
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (s *ReplicationV1betaHybridReplicationType) UnmarshalText(data []byte) error {
 	switch ReplicationV1betaHybridReplicationType(data) {
-	case ReplicationV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED:
-		*s = ReplicationV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED
+	case ReplicationV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED:
+		*s = ReplicationV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
 		return nil
 	case ReplicationV1betaHybridReplicationTypeMIGRATION:
 		*s = ReplicationV1betaHybridReplicationTypeMIGRATION
@@ -28627,6 +30218,198 @@ func (*V1betaBatchListPoolsOK) v1betaBatchListPoolsRes() {}
 type V1betaBatchListPoolsUnauthorized Error
 
 func (*V1betaBatchListPoolsUnauthorized) v1betaBatchListPoolsRes() {}
+
+type V1betaBatchListReplicationsBadRequest Error
+
+func (*V1betaBatchListReplicationsBadRequest) v1betaBatchListReplicationsRes() {}
+
+type V1betaBatchListReplicationsFieldsItem string
+
+const (
+	V1betaBatchListReplicationsFieldsItemCreated                       V1betaBatchListReplicationsFieldsItem = "created"
+	V1betaBatchListReplicationsFieldsItemResourceId                    V1betaBatchListReplicationsFieldsItem = "resourceId"
+	V1betaBatchListReplicationsFieldsItemState                         V1betaBatchListReplicationsFieldsItem = "state"
+	V1betaBatchListReplicationsFieldsItemStateDetails                  V1betaBatchListReplicationsFieldsItem = "stateDetails"
+	V1betaBatchListReplicationsFieldsItemStateDetailsCode              V1betaBatchListReplicationsFieldsItem = "stateDetailsCode"
+	V1betaBatchListReplicationsFieldsItemRole                          V1betaBatchListReplicationsFieldsItem = "role"
+	V1betaBatchListReplicationsFieldsItemReplicationSchedule           V1betaBatchListReplicationsFieldsItem = "replicationSchedule"
+	V1betaBatchListReplicationsFieldsItemMirrorState                   V1betaBatchListReplicationsFieldsItem = "mirrorState"
+	V1betaBatchListReplicationsFieldsItemDescription                   V1betaBatchListReplicationsFieldsItem = "description"
+	V1betaBatchListReplicationsFieldsItemLabels                        V1betaBatchListReplicationsFieldsItem = "labels"
+	V1betaBatchListReplicationsFieldsItemHealthy                       V1betaBatchListReplicationsFieldsItem = "healthy"
+	V1betaBatchListReplicationsFieldsItemSource                        V1betaBatchListReplicationsFieldsItem = "source"
+	V1betaBatchListReplicationsFieldsItemDestination                   V1betaBatchListReplicationsFieldsItem = "destination"
+	V1betaBatchListReplicationsFieldsItemTransferStats                 V1betaBatchListReplicationsFieldsItem = "transferStats"
+	V1betaBatchListReplicationsFieldsItemClusterLocation               V1betaBatchListReplicationsFieldsItem = "clusterLocation"
+	V1betaBatchListReplicationsFieldsItemDestinationVolumeParameters   V1betaBatchListReplicationsFieldsItem = "destinationVolumeParameters"
+	V1betaBatchListReplicationsFieldsItemHybridPeeringDetails          V1betaBatchListReplicationsFieldsItem = "hybridPeeringDetails"
+	V1betaBatchListReplicationsFieldsItemHybridReplicationType         V1betaBatchListReplicationsFieldsItem = "hybridReplicationType"
+	V1betaBatchListReplicationsFieldsItemHybridReplicationUserCommands V1betaBatchListReplicationsFieldsItem = "hybridReplicationUserCommands"
+)
+
+// AllValues returns all V1betaBatchListReplicationsFieldsItem values.
+func (V1betaBatchListReplicationsFieldsItem) AllValues() []V1betaBatchListReplicationsFieldsItem {
+	return []V1betaBatchListReplicationsFieldsItem{
+		V1betaBatchListReplicationsFieldsItemCreated,
+		V1betaBatchListReplicationsFieldsItemResourceId,
+		V1betaBatchListReplicationsFieldsItemState,
+		V1betaBatchListReplicationsFieldsItemStateDetails,
+		V1betaBatchListReplicationsFieldsItemStateDetailsCode,
+		V1betaBatchListReplicationsFieldsItemRole,
+		V1betaBatchListReplicationsFieldsItemReplicationSchedule,
+		V1betaBatchListReplicationsFieldsItemMirrorState,
+		V1betaBatchListReplicationsFieldsItemDescription,
+		V1betaBatchListReplicationsFieldsItemLabels,
+		V1betaBatchListReplicationsFieldsItemHealthy,
+		V1betaBatchListReplicationsFieldsItemSource,
+		V1betaBatchListReplicationsFieldsItemDestination,
+		V1betaBatchListReplicationsFieldsItemTransferStats,
+		V1betaBatchListReplicationsFieldsItemClusterLocation,
+		V1betaBatchListReplicationsFieldsItemDestinationVolumeParameters,
+		V1betaBatchListReplicationsFieldsItemHybridPeeringDetails,
+		V1betaBatchListReplicationsFieldsItemHybridReplicationType,
+		V1betaBatchListReplicationsFieldsItemHybridReplicationUserCommands,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s V1betaBatchListReplicationsFieldsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case V1betaBatchListReplicationsFieldsItemCreated:
+		return []byte(s), nil
+	case V1betaBatchListReplicationsFieldsItemResourceId:
+		return []byte(s), nil
+	case V1betaBatchListReplicationsFieldsItemState:
+		return []byte(s), nil
+	case V1betaBatchListReplicationsFieldsItemStateDetails:
+		return []byte(s), nil
+	case V1betaBatchListReplicationsFieldsItemStateDetailsCode:
+		return []byte(s), nil
+	case V1betaBatchListReplicationsFieldsItemRole:
+		return []byte(s), nil
+	case V1betaBatchListReplicationsFieldsItemReplicationSchedule:
+		return []byte(s), nil
+	case V1betaBatchListReplicationsFieldsItemMirrorState:
+		return []byte(s), nil
+	case V1betaBatchListReplicationsFieldsItemDescription:
+		return []byte(s), nil
+	case V1betaBatchListReplicationsFieldsItemLabels:
+		return []byte(s), nil
+	case V1betaBatchListReplicationsFieldsItemHealthy:
+		return []byte(s), nil
+	case V1betaBatchListReplicationsFieldsItemSource:
+		return []byte(s), nil
+	case V1betaBatchListReplicationsFieldsItemDestination:
+		return []byte(s), nil
+	case V1betaBatchListReplicationsFieldsItemTransferStats:
+		return []byte(s), nil
+	case V1betaBatchListReplicationsFieldsItemClusterLocation:
+		return []byte(s), nil
+	case V1betaBatchListReplicationsFieldsItemDestinationVolumeParameters:
+		return []byte(s), nil
+	case V1betaBatchListReplicationsFieldsItemHybridPeeringDetails:
+		return []byte(s), nil
+	case V1betaBatchListReplicationsFieldsItemHybridReplicationType:
+		return []byte(s), nil
+	case V1betaBatchListReplicationsFieldsItemHybridReplicationUserCommands:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *V1betaBatchListReplicationsFieldsItem) UnmarshalText(data []byte) error {
+	switch V1betaBatchListReplicationsFieldsItem(data) {
+	case V1betaBatchListReplicationsFieldsItemCreated:
+		*s = V1betaBatchListReplicationsFieldsItemCreated
+		return nil
+	case V1betaBatchListReplicationsFieldsItemResourceId:
+		*s = V1betaBatchListReplicationsFieldsItemResourceId
+		return nil
+	case V1betaBatchListReplicationsFieldsItemState:
+		*s = V1betaBatchListReplicationsFieldsItemState
+		return nil
+	case V1betaBatchListReplicationsFieldsItemStateDetails:
+		*s = V1betaBatchListReplicationsFieldsItemStateDetails
+		return nil
+	case V1betaBatchListReplicationsFieldsItemStateDetailsCode:
+		*s = V1betaBatchListReplicationsFieldsItemStateDetailsCode
+		return nil
+	case V1betaBatchListReplicationsFieldsItemRole:
+		*s = V1betaBatchListReplicationsFieldsItemRole
+		return nil
+	case V1betaBatchListReplicationsFieldsItemReplicationSchedule:
+		*s = V1betaBatchListReplicationsFieldsItemReplicationSchedule
+		return nil
+	case V1betaBatchListReplicationsFieldsItemMirrorState:
+		*s = V1betaBatchListReplicationsFieldsItemMirrorState
+		return nil
+	case V1betaBatchListReplicationsFieldsItemDescription:
+		*s = V1betaBatchListReplicationsFieldsItemDescription
+		return nil
+	case V1betaBatchListReplicationsFieldsItemLabels:
+		*s = V1betaBatchListReplicationsFieldsItemLabels
+		return nil
+	case V1betaBatchListReplicationsFieldsItemHealthy:
+		*s = V1betaBatchListReplicationsFieldsItemHealthy
+		return nil
+	case V1betaBatchListReplicationsFieldsItemSource:
+		*s = V1betaBatchListReplicationsFieldsItemSource
+		return nil
+	case V1betaBatchListReplicationsFieldsItemDestination:
+		*s = V1betaBatchListReplicationsFieldsItemDestination
+		return nil
+	case V1betaBatchListReplicationsFieldsItemTransferStats:
+		*s = V1betaBatchListReplicationsFieldsItemTransferStats
+		return nil
+	case V1betaBatchListReplicationsFieldsItemClusterLocation:
+		*s = V1betaBatchListReplicationsFieldsItemClusterLocation
+		return nil
+	case V1betaBatchListReplicationsFieldsItemDestinationVolumeParameters:
+		*s = V1betaBatchListReplicationsFieldsItemDestinationVolumeParameters
+		return nil
+	case V1betaBatchListReplicationsFieldsItemHybridPeeringDetails:
+		*s = V1betaBatchListReplicationsFieldsItemHybridPeeringDetails
+		return nil
+	case V1betaBatchListReplicationsFieldsItemHybridReplicationType:
+		*s = V1betaBatchListReplicationsFieldsItemHybridReplicationType
+		return nil
+	case V1betaBatchListReplicationsFieldsItemHybridReplicationUserCommands:
+		*s = V1betaBatchListReplicationsFieldsItemHybridReplicationUserCommands
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type V1betaBatchListReplicationsForbidden Error
+
+func (*V1betaBatchListReplicationsForbidden) v1betaBatchListReplicationsRes() {}
+
+type V1betaBatchListReplicationsInternalServerError Error
+
+func (*V1betaBatchListReplicationsInternalServerError) v1betaBatchListReplicationsRes() {}
+
+type V1betaBatchListReplicationsOK struct {
+	Replications []BatchReplicationV1beta `json:"replications"`
+}
+
+// GetReplications returns the value of Replications.
+func (s *V1betaBatchListReplicationsOK) GetReplications() []BatchReplicationV1beta {
+	return s.Replications
+}
+
+// SetReplications sets the value of Replications.
+func (s *V1betaBatchListReplicationsOK) SetReplications(val []BatchReplicationV1beta) {
+	s.Replications = val
+}
+
+func (*V1betaBatchListReplicationsOK) v1betaBatchListReplicationsRes() {}
+
+type V1betaBatchListReplicationsUnauthorized Error
+
+func (*V1betaBatchListReplicationsUnauthorized) v1betaBatchListReplicationsRes() {}
 
 type V1betaBatchListSnapshotsBadRequest Error
 
@@ -33664,23 +35447,6 @@ func (*V1betaUpdateSnapshotBadRequest) v1betaUpdateSnapshotRes() {}
 type V1betaUpdateSnapshotConflict Error
 
 func (*V1betaUpdateSnapshotConflict) v1betaUpdateSnapshotRes() {}
-
-// V1betaUpdateSnapshotDef is default response for V1betaUpdateSnapshot operation.
-type V1betaUpdateSnapshotDef struct {
-	StatusCode int
-}
-
-// GetStatusCode returns the value of StatusCode.
-func (s *V1betaUpdateSnapshotDef) GetStatusCode() int {
-	return s.StatusCode
-}
-
-// SetStatusCode sets the value of StatusCode.
-func (s *V1betaUpdateSnapshotDef) SetStatusCode(val int) {
-	s.StatusCode = val
-}
-
-func (*V1betaUpdateSnapshotDef) v1betaUpdateSnapshotRes() {}
 
 type V1betaUpdateSnapshotForbidden Error
 

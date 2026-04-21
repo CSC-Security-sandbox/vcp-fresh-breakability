@@ -15,16 +15,16 @@ import (
 )
 
 func TestBatchListFieldStrings(t *testing.T) {
-	t.Run("nil_returns_nil", func(tt *testing.T) {
+	t.Run("WhenBatchListPoolFieldsSliceIsNilReturnsNil", func(tt *testing.T) {
 		var poolFields []gcpgenserver.V1betaBatchListPoolsFieldsItem
 		assert.Nil(tt, batchListFieldStrings(poolFields))
 	})
 
-	t.Run("empty_returns_nil", func(tt *testing.T) {
+	t.Run("WhenBatchListPoolFieldsSliceIsEmptyReturnsNil", func(tt *testing.T) {
 		assert.Nil(tt, batchListFieldStrings([]gcpgenserver.V1betaBatchListPoolsFieldsItem{}))
 	})
 
-	t.Run("pools_converts_to_strings", func(tt *testing.T) {
+	t.Run("WhenBatchListPoolFieldsConvertsToStrings", func(tt *testing.T) {
 		in := []gcpgenserver.V1betaBatchListPoolsFieldsItem{
 			gcpgenserver.V1betaBatchListPoolsFieldsItemResourceId,
 			gcpgenserver.V1betaBatchListPoolsFieldsItemSizeInBytes,
@@ -33,7 +33,7 @@ func TestBatchListFieldStrings(t *testing.T) {
 		assert.Equal(tt, []string{"resourceId", "sizeInBytes"}, got)
 	})
 
-	t.Run("snapshots_converts_to_strings", func(tt *testing.T) {
+	t.Run("WhenBatchListSnapshotFieldsConvertsToStrings", func(tt *testing.T) {
 		in := []gcpgenserver.V1betaBatchListSnapshotsFieldsItem{
 			gcpgenserver.V1betaBatchListSnapshotsFieldsItemResourceId,
 			gcpgenserver.V1betaBatchListSnapshotsFieldsItemCreated,
@@ -41,10 +41,19 @@ func TestBatchListFieldStrings(t *testing.T) {
 		got := batchListFieldStrings(in)
 		assert.Equal(tt, []string{"resourceId", "created"}, got)
 	})
+
+	t.Run("WhenBatchListReplicationFieldsConvertsToStrings", func(tt *testing.T) {
+		in := []gcpgenserver.V1betaBatchListReplicationsFieldsItem{
+			gcpgenserver.V1betaBatchListReplicationsFieldsItemResourceId,
+			gcpgenserver.V1betaBatchListReplicationsFieldsItemCreated,
+		}
+		got := batchListFieldStrings(in)
+		assert.Equal(tt, []string{"resourceId", "created"}, got)
+	})
 }
 
 func TestApplyBatchCvpListCommonParams(t *testing.T) {
-	t.Run("snapshots_params_sets_location_fields_correlation", func(tt *testing.T) {
+	t.Run("WhenApplySnapshotsParamsWithCorrelationSetsLocationFieldsAndCorrelationID", func(tt *testing.T) {
 		p := cvpBatch.NewV1betaBatchListSnapshotsParamsWithContext(context.Background())
 		corr := "corr-xyz"
 		applyBatchCvpListCommonParams(
@@ -59,7 +68,22 @@ func TestApplyBatchCvpListCommonParams(t *testing.T) {
 		assert.Equal(tt, corr, *p.XCorrelationID)
 	})
 
-	t.Run("pools_params_sets_location_fields_correlation", func(tt *testing.T) {
+	t.Run("WhenApplyReplicationsParamsWithCorrelationSetsLocationFieldsAndCorrelationID", func(tt *testing.T) {
+		p := cvpBatch.NewV1betaBatchListReplicationsParamsWithContext(context.Background())
+		corr := "corr-repl"
+		applyBatchCvpListCommonParams(
+			p,
+			"us-east4",
+			[]string{"resourceId", "created"},
+			gcpgenserver.NewOptString(corr),
+		)
+		assert.Equal(tt, "us-east4", p.LocationID)
+		assert.Equal(tt, []string{"resourceId", "created"}, p.Fields)
+		require.NotNil(tt, p.XCorrelationID)
+		assert.Equal(tt, corr, *p.XCorrelationID)
+	})
+
+	t.Run("WhenApplyPoolsParamsWithCorrelationSetsLocationFieldsAndCorrelationID", func(tt *testing.T) {
 		p := cvpBatch.NewV1betaBatchListPoolsParamsWithContext(context.Background())
 		corr := "corr-pool"
 		applyBatchCvpListCommonParams(
@@ -74,7 +98,7 @@ func TestApplyBatchCvpListCommonParams(t *testing.T) {
 		assert.Equal(tt, corr, *p.XCorrelationID)
 	})
 
-	t.Run("empty_field_strings_skips_SetFields_semantics", func(tt *testing.T) {
+	t.Run("WhenApplySnapshotsParamsWithEmptyFieldListLeavesFieldsAndCorrelationNil", func(tt *testing.T) {
 		p := cvpBatch.NewV1betaBatchListSnapshotsParamsWithContext(context.Background())
 		applyBatchCvpListCommonParams(p, "loc-1", nil, gcpgenserver.OptString{})
 		assert.Equal(tt, "loc-1", p.LocationID)
@@ -82,7 +106,15 @@ func TestApplyBatchCvpListCommonParams(t *testing.T) {
 		assert.Nil(tt, p.XCorrelationID)
 	})
 
-	t.Run("unset_correlation_leaves_XCorrelationID_nil", func(tt *testing.T) {
+	t.Run("WhenApplyReplicationsParamsWithEmptyFieldListLeavesFieldsAndCorrelationNil", func(tt *testing.T) {
+		p := cvpBatch.NewV1betaBatchListReplicationsParamsWithContext(context.Background())
+		applyBatchCvpListCommonParams(p, "loc-1", nil, gcpgenserver.OptString{})
+		assert.Equal(tt, "loc-1", p.LocationID)
+		assert.Nil(tt, p.Fields)
+		assert.Nil(tt, p.XCorrelationID)
+	})
+
+	t.Run("WhenApplyPoolsParamsWithUnsetCorrelationLeavesXCorrelationIDNil", func(tt *testing.T) {
 		p := cvpBatch.NewV1betaBatchListPoolsParamsWithContext(context.Background())
 		applyBatchCvpListCommonParams(
 			p,

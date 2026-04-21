@@ -51,7 +51,7 @@ var (
 	authSkipExactPaths  = []string{"/health", "/metrics", "/v1/expertMode"}
 	authSkipPrefixPaths = []string{"/v1/expertMode/"}
 	batchAuthPrefix     = "/v1beta/locations/"
-	batchAuthSuffixes   = []string{"/batch/hostGroups", "/batch/pools", "/batch/activeDirectories", "/batch/volumes", "/batch/snapshots", "/batch/backupVaults", "/batch/backups"}
+	batchAuthSuffixes   = []string{"/batch/hostGroups", "/batch/pools", "/batch/activeDirectories", "/batch/volumes", "/batch/snapshots", "/batch/backupVaults", "/batch/backups", "/batch/replications"}
 )
 
 type googleClaims struct {

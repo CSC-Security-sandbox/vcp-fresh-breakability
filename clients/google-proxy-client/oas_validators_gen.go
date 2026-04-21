@@ -4495,6 +4495,540 @@ func (s BatchPoolV1betaType) Validate() error {
 	}
 }
 
+func (s *BatchReplicationV1beta) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.ReplicationId.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    36,
+					MinLengthSet: true,
+					MaxLength:    36,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "replicationId",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.State.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "state",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Role.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "role",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.ReplicationSchedule.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "replicationSchedule",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.MirrorState.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "mirrorState",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.TransferStats.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "transferStats",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.DestinationVolumeParameters.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "destinationVolumeParameters",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.HybridReplicationType.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "hybridReplicationType",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *BatchReplicationV1betaDestinationVolumeParameters) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:    0,
+			MinLengthSet: false,
+			MaxLength:    255,
+			MaxLengthSet: true,
+			Email:        false,
+			Hostname:     false,
+			Regex:        regexMap["^projects\\/([^\\/]+)\\/locations\\/([^\\/]+)\\/storagePools|pools\\/([^\\/]+)$"],
+		}).Validate(string(s.StoragePool)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "storagePool",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.VolumeId.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    63,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-z]([a-z0-9-_]{0,61}[a-z0-9])?$"],
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "volumeId",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.ShareName.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    1,
+					MinLengthSet: true,
+					MaxLength:    80,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-zA-Z][a-zA-Z0-9\\-_]{0,79}$"],
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "shareName",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.Description.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    0,
+					MinLengthSet: false,
+					MaxLength:    2048,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        nil,
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "description",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.TieringPolicy.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "tieringPolicy",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.ThroughputMibps.Get(); ok {
+			if err := func() error {
+				if err := (validate.Float{}).Validate(float64(value)); err != nil {
+					return errors.Wrap(err, "float")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "throughputMibps",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.VolumePerformanceGroupId.Get(); ok {
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    36,
+					MinLengthSet: true,
+					MaxLength:    36,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(value)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "volumePerformanceGroupId",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s BatchReplicationV1betaHybridReplicationType) Validate() error {
+	switch s {
+	case "HYBRID_REPLICATION_TYPE_UNSPECIFIED":
+		return nil
+	case "MIGRATION":
+		return nil
+	case "CONTINUOUS_REPLICATION":
+		return nil
+	case "ONPREM_REPLICATION":
+		return nil
+	case "REVERSE_ONPREM_REPLICATION":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s BatchReplicationV1betaMirrorState) Validate() error {
+	switch s {
+	case "PREPARING":
+		return nil
+	case "UNINITIALIZED":
+		return nil
+	case "MIRRORED":
+		return nil
+	case "STOPPED":
+		return nil
+	case "TRANSFERRING":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s BatchReplicationV1betaReplicationSchedule) Validate() error {
+	switch s {
+	case "EVERY_10_MINUTES":
+		return nil
+	case "HOURLY":
+		return nil
+	case "DAILY":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s BatchReplicationV1betaRole) Validate() error {
+	switch s {
+	case "SOURCE":
+		return nil
+	case "DESTINATION":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s BatchReplicationV1betaState) Validate() error {
+	switch s {
+	case "STATE_UNSPECIFIED":
+		return nil
+	case "UPDATING":
+		return nil
+	case "CREATING":
+		return nil
+	case "READY":
+		return nil
+	case "DELETING":
+		return nil
+	case "DISABLED":
+		return nil
+	case "ERROR":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *BatchReplicationV1betaTransferStats) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if value, ok := s.TotalTransferBytes.Get(); ok {
+			if err := func() error {
+				if err := (validate.Float{}).Validate(float64(value)); err != nil {
+					return errors.Wrap(err, "float")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "totalTransferBytes",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.TotalTransferTimeSecs.Get(); ok {
+			if err := func() error {
+				if err := (validate.Float{}).Validate(float64(value)); err != nil {
+					return errors.Wrap(err, "float")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "totalTransferTimeSecs",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.LastTransferSize.Get(); ok {
+			if err := func() error {
+				if err := (validate.Float{}).Validate(float64(value)); err != nil {
+					return errors.Wrap(err, "float")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "lastTransferSize",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.LastTransferDuration.Get(); ok {
+			if err := func() error {
+				if err := (validate.Float{}).Validate(float64(value)); err != nil {
+					return errors.Wrap(err, "float")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "lastTransferDuration",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.TotalProgress.Get(); ok {
+			if err := func() error {
+				if err := (validate.Float{}).Validate(float64(value)); err != nil {
+					return errors.Wrap(err, "float")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "totalProgress",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.LagTime.Get(); ok {
+			if err := func() error {
+				if err := (validate.Float{}).Validate(float64(value)); err != nil {
+					return errors.Wrap(err, "float")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "lagTime",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *BatchSnapshotUUIDListV1beta) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -7491,7 +8025,7 @@ func (s HybridReplicationParametersV1betaHybridReplicationType) Validate() error
 		return nil
 	case "CONTINUOUS_REPLICATION":
 		return nil
-	case "HYBRId_REPLICATION_TYPE_UNSPECIFIED":
+	case "HYBRID_REPLICATION_TYPE_UNSPECIFIED":
 		return nil
 	case "ONPREM_REPLICATION":
 		return nil
@@ -11724,7 +12258,7 @@ func (s *ReplicationV1beta) Validate() error {
 
 func (s ReplicationV1betaHybridReplicationType) Validate() error {
 	switch s {
-	case "HYBRId_REPLICATION_TYPE_UNSPECIFIED":
+	case "HYBRID_REPLICATION_TYPE_UNSPECIFIED":
 		return nil
 	case "MIGRATION":
 		return nil
@@ -13583,6 +14117,120 @@ func (s *V1betaBatchListPoolsOK) Validate() error {
 }
 
 func (s *V1betaBatchListPoolsUnauthorized) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaBatchListReplicationsBadRequest) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s V1betaBatchListReplicationsFieldsItem) Validate() error {
+	switch s {
+	case "created":
+		return nil
+	case "resourceId":
+		return nil
+	case "state":
+		return nil
+	case "stateDetails":
+		return nil
+	case "stateDetailsCode":
+		return nil
+	case "role":
+		return nil
+	case "replicationSchedule":
+		return nil
+	case "mirrorState":
+		return nil
+	case "description":
+		return nil
+	case "labels":
+		return nil
+	case "healthy":
+		return nil
+	case "source":
+		return nil
+	case "destination":
+		return nil
+	case "transferStats":
+		return nil
+	case "clusterLocation":
+		return nil
+	case "destinationVolumeParameters":
+		return nil
+	case "hybridPeeringDetails":
+		return nil
+	case "hybridReplicationType":
+		return nil
+	case "hybridReplicationUserCommands":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *V1betaBatchListReplicationsForbidden) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaBatchListReplicationsInternalServerError) Validate() error {
+	alias := (*Error)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *V1betaBatchListReplicationsOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.Replications {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "replications",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *V1betaBatchListReplicationsUnauthorized) Validate() error {
 	alias := (*Error)(s)
 	if err := alias.Validate(); err != nil {
 		return err

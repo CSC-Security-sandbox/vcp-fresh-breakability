@@ -61,6 +61,12 @@ type Handler interface {
 	//
 	// POST /v1beta/locations/{locationId}/batch/pools
 	V1betaBatchListPools(ctx context.Context, req *BatchPoolUUIDListV1beta, params V1betaBatchListPoolsParams) (V1betaBatchListPoolsRes, error)
+	// V1betaBatchListReplications implements v1beta_batchListReplications operation.
+	//
+	// Batch lists all replications with the given URIs.
+	//
+	// POST /v1beta/locations/{locationId}/batch/replications
+	V1betaBatchListReplications(ctx context.Context, req *ReplicationURIListV1beta, params V1betaBatchListReplicationsParams) (V1betaBatchListReplicationsRes, error)
 	// V1betaBatchListSnapshots implements v1beta_batchListSnapshots operation.
 	//
 	// Batch list all snapshots with the given UUIDs across all accounts.

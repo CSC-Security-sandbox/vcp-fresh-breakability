@@ -849,16 +849,30 @@ func (o *GCPOrchestrator) GetMultipleReplicationsByExternalUUID(ctx context.Cont
 	return convertGcpReplicationV1betaToCommon(gcpReplications), nil
 }
 
+// GetBatchReplications lists volume replications by replication URI only, without resolving the account
+// or filtering by account_id (used by batch list replications).
+func (o *GCPOrchestrator) GetBatchReplications(ctx context.Context, params commonparams.GetMultipleReplicationsParams) ([]commonparams.ReplicationV1beta, error) {
+	if len(params.ReplicationURIs) == 0 {
+		return convertGcpReplicationV1betaToCommon(nil), nil
+	}
+	filter := utils2.CreateFilterWithConditions(
+		utils2.NewFilterCondition("uri", "in", params.ReplicationURIs),
+	)
+	gcpReplications, err := _listAndFetchMultipleReplications(ctx, o.storage, params, filter)
+	if err != nil {
+		return nil, err
+	}
+	return convertGcpReplicationV1betaToCommon(gcpReplications), nil
+}
+
 func _getMultipleReplications(ctx context.Context, se database.Storage, params commonparams.GetMultipleReplicationsParams) ([]gcpgenserver.ReplicationV1beta, error) {
 	logger := util.GetLogger(ctx)
-	resp := []gcpgenserver.ReplicationV1beta{}
 	account, err := getAccountWithName(ctx, se, params.AccountName)
 	if err != nil {
 		logger.Error("Failed to get account", "error", err)
 		return nil, err
 	}
 
-	// Check if replication exists in the database
 	filterConditions := []*utils2.FilterCondition{
 		utils2.NewFilterCondition("account_id", "=", account.ID),
 	}
@@ -866,13 +880,19 @@ func _getMultipleReplications(ctx context.Context, se database.Storage, params c
 		filterConditions = append(filterConditions, utils2.NewFilterCondition("uri", "in", params.ReplicationURIs))
 	}
 	filter := utils2.CreateFilterWithConditions(filterConditions...)
+	return _listAndFetchMultipleReplications(ctx, se, params, filter)
+}
+
+func _listAndFetchMultipleReplications(ctx context.Context, se database.Storage, params commonparams.GetMultipleReplicationsParams, filter *utils2.Filter) ([]gcpgenserver.ReplicationV1beta, error) {
+	logger := util.GetLogger(ctx)
+	resp := []gcpgenserver.ReplicationV1beta{}
 	replications, err := se.ListVolumeReplications(ctx, *filter, database.QueryDepthOne)
 	if err != nil {
-		logger.Errorf("Failed to list replications for account %s: %v", params.AccountName, err)
+		logger.Errorf("Failed to list volume replications: %v", err)
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
 	}
 	if len(replications) == 0 {
-		logger.Warnf("No replications found for account %s with URIs %v", params.AccountName, params.ReplicationURIs)
+		logger.Warnf("No replications found for URIs %v", params.ReplicationURIs)
 		return resp, nil
 	}
 

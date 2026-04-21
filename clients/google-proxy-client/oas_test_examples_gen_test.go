@@ -1553,6 +1553,311 @@ func TestBatchPoolV1betaType_Examples(t *testing.T) {
 		})
 	}
 }
+func TestBatchReplicationV1beta_EncodeDecode(t *testing.T) {
+	var typ BatchReplicationV1beta
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchReplicationV1beta
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchReplicationV1betaDestination_EncodeDecode(t *testing.T) {
+	var typ BatchReplicationV1betaDestination
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchReplicationV1betaDestination
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchReplicationV1betaDestinationVolumeParameters_EncodeDecode(t *testing.T) {
+	var typ BatchReplicationV1betaDestinationVolumeParameters
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchReplicationV1betaDestinationVolumeParameters
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchReplicationV1betaHybridPeeringDetails_EncodeDecode(t *testing.T) {
+	var typ BatchReplicationV1betaHybridPeeringDetails
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchReplicationV1betaHybridPeeringDetails
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchReplicationV1betaHybridReplicationType_EncodeDecode(t *testing.T) {
+	var typ BatchReplicationV1betaHybridReplicationType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchReplicationV1betaHybridReplicationType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestBatchReplicationV1betaHybridReplicationType_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"MIGRATION\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ BatchReplicationV1betaHybridReplicationType
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 BatchReplicationV1betaHybridReplicationType
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestBatchReplicationV1betaHybridReplicationUserCommands_EncodeDecode(t *testing.T) {
+	var typ BatchReplicationV1betaHybridReplicationUserCommands
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchReplicationV1betaHybridReplicationUserCommands
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchReplicationV1betaLabels_EncodeDecode(t *testing.T) {
+	var typ BatchReplicationV1betaLabels
+	typ = make(BatchReplicationV1betaLabels)
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchReplicationV1betaLabels
+	typ2 = make(BatchReplicationV1betaLabels)
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestBatchReplicationV1betaLabels_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "{\"some-key\":\"some-value\",\"some-key2\":\"some-value2\"}"},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ BatchReplicationV1betaLabels
+			typ = make(BatchReplicationV1betaLabels)
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 BatchReplicationV1betaLabels
+			typ2 = make(BatchReplicationV1betaLabels)
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestBatchReplicationV1betaMirrorState_EncodeDecode(t *testing.T) {
+	var typ BatchReplicationV1betaMirrorState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchReplicationV1betaMirrorState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestBatchReplicationV1betaMirrorState_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"MIRRORED\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ BatchReplicationV1betaMirrorState
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 BatchReplicationV1betaMirrorState
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestBatchReplicationV1betaReplicationSchedule_EncodeDecode(t *testing.T) {
+	var typ BatchReplicationV1betaReplicationSchedule
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchReplicationV1betaReplicationSchedule
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchReplicationV1betaRole_EncodeDecode(t *testing.T) {
+	var typ BatchReplicationV1betaRole
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchReplicationV1betaRole
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestBatchReplicationV1betaRole_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"DESTINATION\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ BatchReplicationV1betaRole
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 BatchReplicationV1betaRole
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestBatchReplicationV1betaSource_EncodeDecode(t *testing.T) {
+	var typ BatchReplicationV1betaSource
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchReplicationV1betaSource
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestBatchReplicationV1betaState_EncodeDecode(t *testing.T) {
+	var typ BatchReplicationV1betaState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchReplicationV1betaState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestBatchReplicationV1betaState_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"READY\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ BatchReplicationV1betaState
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 BatchReplicationV1betaState
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestBatchReplicationV1betaTransferStats_EncodeDecode(t *testing.T) {
+	var typ BatchReplicationV1betaTransferStats
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 BatchReplicationV1betaTransferStats
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestBatchSnapshotUUIDListV1beta_EncodeDecode(t *testing.T) {
 	var typ BatchSnapshotUUIDListV1beta
 	typ.SetFake()
@@ -6298,6 +6603,66 @@ func TestV1betaBatchListPoolsUnauthorized_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1betaBatchListPoolsUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBatchListReplicationsBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1betaBatchListReplicationsBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBatchListReplicationsBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBatchListReplicationsForbidden_EncodeDecode(t *testing.T) {
+	var typ V1betaBatchListReplicationsForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBatchListReplicationsForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBatchListReplicationsInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1betaBatchListReplicationsInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBatchListReplicationsInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBatchListReplicationsOK_EncodeDecode(t *testing.T) {
+	var typ V1betaBatchListReplicationsOK
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBatchListReplicationsOK
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1betaBatchListReplicationsUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1betaBatchListReplicationsUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1betaBatchListReplicationsUnauthorized
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1betaBatchListSnapshotsBadRequest_EncodeDecode(t *testing.T) {

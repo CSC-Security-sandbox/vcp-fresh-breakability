@@ -90,6 +90,15 @@ func (UnimplementedHandler) V1betaBatchListPools(ctx context.Context, req *Batch
 	return r, ht.ErrNotImplemented
 }
 
+// V1betaBatchListReplications implements v1beta_batchListReplications operation.
+//
+// Batch lists all replications with the given URIs.
+//
+// POST /v1beta/locations/{locationId}/batch/replications
+func (UnimplementedHandler) V1betaBatchListReplications(ctx context.Context, req *ReplicationURIListV1beta, params V1betaBatchListReplicationsParams) (r V1betaBatchListReplicationsRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1betaBatchListSnapshots implements v1beta_batchListSnapshots operation.
 //
 // Batch list all snapshots with the given UUIDs across all accounts.

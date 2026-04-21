@@ -74,6 +74,12 @@ type Invoker interface {
 	//
 	// POST /v1beta/locations/{locationId}/batch/pools
 	V1betaBatchListPools(ctx context.Context, request *BatchPoolUUIDListV1beta, params V1betaBatchListPoolsParams) (V1betaBatchListPoolsRes, error)
+	// V1betaBatchListReplications invokes v1beta_batchListReplications operation.
+	//
+	// Batch lists all replications with the given URIs.
+	//
+	// POST /v1beta/locations/{locationId}/batch/replications
+	V1betaBatchListReplications(ctx context.Context, request *ReplicationURIListV1beta, params V1betaBatchListReplicationsParams) (V1betaBatchListReplicationsRes, error)
 	// V1betaBatchListSnapshots invokes v1beta_batchListSnapshots operation.
 	//
 	// Batch list all snapshots with the given UUIDs across all accounts.
@@ -1733,6 +1739,118 @@ func (c *Client) sendV1betaBatchListPools(ctx context.Context, request *BatchPoo
 	defer resp.Body.Close()
 
 	result, err := decodeV1betaBatchListPoolsResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1betaBatchListReplications invokes v1beta_batchListReplications operation.
+//
+// Batch lists all replications with the given URIs.
+//
+// POST /v1beta/locations/{locationId}/batch/replications
+func (c *Client) V1betaBatchListReplications(ctx context.Context, request *ReplicationURIListV1beta, params V1betaBatchListReplicationsParams) (V1betaBatchListReplicationsRes, error) {
+	res, err := c.sendV1betaBatchListReplications(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1betaBatchListReplications(ctx context.Context, request *ReplicationURIListV1beta, params V1betaBatchListReplicationsParams) (res V1betaBatchListReplicationsRes, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/v1beta/locations/"
+	{
+		// Encode "locationId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "locationId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.LocationId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/batch/replications"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "fields" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "fields",
+			Style:   uri.QueryStyleForm,
+			Explode: false,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if params.Fields != nil {
+				return e.EncodeArray(func(e uri.Encoder) error {
+					for i, item := range params.Fields {
+						if err := func() error {
+							return e.EncodeValue(conv.StringToString(string(item)))
+						}(); err != nil {
+							return errors.Wrapf(err, "[%d]", i)
+						}
+					}
+					return nil
+				})
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1betaBatchListReplicationsRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "X-Correlation-ID",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1betaBatchListReplicationsResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

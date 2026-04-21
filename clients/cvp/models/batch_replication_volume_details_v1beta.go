@@ -10,10 +10,10 @@ import (
 	"github.com/go-openapi/swag"
 )
 
-// BatchReplicationVolumeInformationV1beta Volume information
+// BatchReplicationVolumeDetailsV1beta Volume details
 //
-// swagger:model BatchReplicationVolumeInformation_v1beta
-type BatchReplicationVolumeInformationV1beta struct {
+// swagger:model BatchReplicationVolumeDetails_v1beta
+type BatchReplicationVolumeDetailsV1beta struct {
 
 	// VolumeId
 	//
@@ -27,13 +27,13 @@ type BatchReplicationVolumeInformationV1beta struct {
 	VolumeName string `json:"volumeName,omitempty"`
 }
 
-// Validate validates this batch replication volume information v1beta
-func (m *BatchReplicationVolumeInformationV1beta) Validate(formats strfmt.Registry) error {
+// Validate validates this batch replication volume details v1beta
+func (m *BatchReplicationVolumeDetailsV1beta) Validate(formats strfmt.Registry) error {
 	return nil
 }
 
 // MarshalBinary interface implementation
-func (m *BatchReplicationVolumeInformationV1beta) MarshalBinary() ([]byte, error) {
+func (m *BatchReplicationVolumeDetailsV1beta) MarshalBinary() ([]byte, error) {
 	if m == nil {
 		return nil, nil
 	}
@@ -41,8 +41,8 @@ func (m *BatchReplicationVolumeInformationV1beta) MarshalBinary() ([]byte, error
 }
 
 // UnmarshalBinary interface implementation
-func (m *BatchReplicationVolumeInformationV1beta) UnmarshalBinary(b []byte) error {
-	var res BatchReplicationVolumeInformationV1beta
+func (m *BatchReplicationVolumeDetailsV1beta) UnmarshalBinary(b []byte) error {
+	var res BatchReplicationVolumeDetailsV1beta
 	if err := swag.ReadJSON(b, &res); err != nil {
 		return err
 	}

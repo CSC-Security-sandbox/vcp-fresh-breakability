@@ -8,9 +8,13 @@ package batch
 import (
 	"fmt"
 	"io"
+	"strconv"
 
+	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
+	"github.com/go-openapi/validate"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
@@ -76,21 +80,23 @@ V1betaBatchListReplicationsOK handles this case with default header values.
 OK
 */
 type V1betaBatchListReplicationsOK struct {
-	Payload []*models.BatchReplicationV1beta
+	Payload *V1betaBatchListReplicationsOKBody
 }
 
 func (o *V1betaBatchListReplicationsOK) Error() string {
 	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/replications][%d] v1betaBatchListReplicationsOK  %+v", 200, o.Payload)
 }
 
-func (o *V1betaBatchListReplicationsOK) GetPayload() []*models.BatchReplicationV1beta {
+func (o *V1betaBatchListReplicationsOK) GetPayload() *V1betaBatchListReplicationsOKBody {
 	return o.Payload
 }
 
 func (o *V1betaBatchListReplicationsOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
+	o.Payload = new(V1betaBatchListReplicationsOKBody)
+
 	// response payload
-	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
 		return err
 	}
 
@@ -273,5 +279,73 @@ func (o *V1betaBatchListReplicationsDefault) readResponse(response runtime.Clien
 		return err
 	}
 
+	return nil
+}
+
+/*
+V1betaBatchListReplicationsOKBody v1beta batch list replications o k body
+swagger:model V1betaBatchListReplicationsOKBody
+*/
+type V1betaBatchListReplicationsOKBody struct {
+
+	// replications
+	// Required: true
+	Replications []*models.BatchReplicationV1beta `json:"replications"`
+}
+
+// Validate validates this v1beta batch list replications o k body
+func (o *V1betaBatchListReplicationsOKBody) Validate(formats strfmt.Registry) error {
+	var res []error
+
+	if err := o.validateReplications(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (o *V1betaBatchListReplicationsOKBody) validateReplications(formats strfmt.Registry) error {
+
+	if err := validate.Required("v1betaBatchListReplicationsOK"+"."+"replications", "body", o.Replications); err != nil {
+		return err
+	}
+
+	for i := 0; i < len(o.Replications); i++ {
+		if swag.IsZero(o.Replications[i]) { // not required
+			continue
+		}
+
+		if o.Replications[i] != nil {
+			if err := o.Replications[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("v1betaBatchListReplicationsOK" + "." + "replications" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+// MarshalBinary interface implementation
+func (o *V1betaBatchListReplicationsOKBody) MarshalBinary() ([]byte, error) {
+	if o == nil {
+		return nil, nil
+	}
+	return swag.WriteJSON(o)
+}
+
+// UnmarshalBinary interface implementation
+func (o *V1betaBatchListReplicationsOKBody) UnmarshalBinary(b []byte) error {
+	var res V1betaBatchListReplicationsOKBody
+	if err := swag.ReadJSON(b, &res); err != nil {
+		return err
+	}
+	*o = res
 	return nil
 }

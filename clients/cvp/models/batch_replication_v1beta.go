@@ -19,6 +19,11 @@ import (
 // swagger:model BatchReplication_v1beta
 type BatchReplicationV1beta struct {
 
+	// clusterLocation
+	//
+	// Location of the cluster
+	ClusterLocation *string `json:"clusterLocation,omitempty"`
+
 	// created
 	//
 	// Creation date of the resource
@@ -31,7 +36,28 @@ type BatchReplicationV1beta struct {
 	Description *string `json:"description,omitempty"`
 
 	// destination
-	Destination *BatchReplicationVolumeInformationV1beta `json:"destination,omitempty"`
+	Destination *BatchReplicationVolumeDetailsV1beta `json:"destination,omitempty"`
+
+	// destination volume parameters
+	DestinationVolumeParameters *DestinationVolumeParametersV1beta `json:"destinationVolumeParameters,omitempty"`
+
+	// healthy
+	//
+	// Condition of the relationship.
+	// Read Only: true
+	Healthy *bool `json:"healthy,omitempty"`
+
+	// hybrid peering details
+	HybridPeeringDetails *HybridPeeringV1beta `json:"hybridPeeringDetails,omitempty"`
+
+	// hybridReplicationType
+	//
+	// Type of hybrid replication
+	// Enum: [HYBRID_REPLICATION_TYPE_UNSPECIFIED MIGRATION CONTINUOUS_REPLICATION ONPREM_REPLICATION REVERSE_ONPREM_REPLICATION]
+	HybridReplicationType *string `json:"hybridReplicationType,omitempty"`
+
+	// hybrid replication user commands
+	HybridReplicationUserCommands *HybridReplicationUserCommandsV1beta `json:"hybridReplicationUserCommands,omitempty"`
 
 	// labels
 	//
@@ -67,7 +93,7 @@ type BatchReplicationV1beta struct {
 	Role *string `json:"role,omitempty"`
 
 	// source
-	Source *BatchReplicationVolumeInformationV1beta `json:"source,omitempty"`
+	Source *BatchReplicationVolumeDetailsV1beta `json:"source,omitempty"`
 
 	// state
 	//
@@ -79,6 +105,15 @@ type BatchReplicationV1beta struct {
 	//
 	// Details about the current lifecycle state
 	StateDetails *string `json:"stateDetails,omitempty"`
+
+	// stateDetailsCode
+	//
+	// Numeric representation of current state details.
+	// Read Only: true
+	StateDetailsCode int32 `json:"stateDetailsCode,omitempty"`
+
+	// transfer stats
+	TransferStats *TransferStatsV1beta `json:"transferStats,omitempty"`
 }
 
 // Validate validates this batch replication v1beta
@@ -90,6 +125,22 @@ func (m *BatchReplicationV1beta) Validate(formats strfmt.Registry) error {
 	}
 
 	if err := m.validateDestination(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateDestinationVolumeParameters(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateHybridPeeringDetails(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateHybridReplicationType(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateHybridReplicationUserCommands(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -114,6 +165,10 @@ func (m *BatchReplicationV1beta) Validate(formats strfmt.Registry) error {
 	}
 
 	if err := m.validateState(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if err := m.validateTransferStats(formats); err != nil {
 		res = append(res, err)
 	}
 
@@ -146,6 +201,112 @@ func (m *BatchReplicationV1beta) validateDestination(formats strfmt.Registry) er
 		if err := m.Destination.Validate(formats); err != nil {
 			if ve, ok := err.(*errors.Validation); ok {
 				return ve.ValidateName("destination")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *BatchReplicationV1beta) validateDestinationVolumeParameters(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.DestinationVolumeParameters) { // not required
+		return nil
+	}
+
+	if m.DestinationVolumeParameters != nil {
+		if err := m.DestinationVolumeParameters.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("destinationVolumeParameters")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *BatchReplicationV1beta) validateHybridPeeringDetails(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.HybridPeeringDetails) { // not required
+		return nil
+	}
+
+	if m.HybridPeeringDetails != nil {
+		if err := m.HybridPeeringDetails.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("hybridPeeringDetails")
+			}
+			return err
+		}
+	}
+
+	return nil
+}
+
+var batchReplicationV1betaTypeHybridReplicationTypePropEnum []interface{}
+
+func init() {
+	var res []string
+	if err := json.Unmarshal([]byte(`["HYBRID_REPLICATION_TYPE_UNSPECIFIED","MIGRATION","CONTINUOUS_REPLICATION","ONPREM_REPLICATION","REVERSE_ONPREM_REPLICATION"]`), &res); err != nil {
+		panic(err)
+	}
+	for _, v := range res {
+		batchReplicationV1betaTypeHybridReplicationTypePropEnum = append(batchReplicationV1betaTypeHybridReplicationTypePropEnum, v)
+	}
+}
+
+const (
+
+	// BatchReplicationV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED captures enum value "HYBRID_REPLICATION_TYPE_UNSPECIFIED"
+	BatchReplicationV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED string = "HYBRID_REPLICATION_TYPE_UNSPECIFIED"
+
+	// BatchReplicationV1betaHybridReplicationTypeMIGRATION captures enum value "MIGRATION"
+	BatchReplicationV1betaHybridReplicationTypeMIGRATION string = "MIGRATION"
+
+	// BatchReplicationV1betaHybridReplicationTypeCONTINUOUSREPLICATION captures enum value "CONTINUOUS_REPLICATION"
+	BatchReplicationV1betaHybridReplicationTypeCONTINUOUSREPLICATION string = "CONTINUOUS_REPLICATION"
+
+	// BatchReplicationV1betaHybridReplicationTypeONPREMREPLICATION captures enum value "ONPREM_REPLICATION"
+	BatchReplicationV1betaHybridReplicationTypeONPREMREPLICATION string = "ONPREM_REPLICATION"
+
+	// BatchReplicationV1betaHybridReplicationTypeREVERSEONPREMREPLICATION captures enum value "REVERSE_ONPREM_REPLICATION"
+	BatchReplicationV1betaHybridReplicationTypeREVERSEONPREMREPLICATION string = "REVERSE_ONPREM_REPLICATION"
+)
+
+// prop value enum
+func (m *BatchReplicationV1beta) validateHybridReplicationTypeEnum(path, location string, value string) error {
+	if err := validate.EnumCase(path, location, value, batchReplicationV1betaTypeHybridReplicationTypePropEnum, true); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *BatchReplicationV1beta) validateHybridReplicationType(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.HybridReplicationType) { // not required
+		return nil
+	}
+
+	// value enum
+	if err := m.validateHybridReplicationTypeEnum("hybridReplicationType", "body", *m.HybridReplicationType); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *BatchReplicationV1beta) validateHybridReplicationUserCommands(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.HybridReplicationUserCommands) { // not required
+		return nil
+	}
+
+	if m.HybridReplicationUserCommands != nil {
+		if err := m.HybridReplicationUserCommands.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("hybridReplicationUserCommands")
 			}
 			return err
 		}
@@ -387,6 +548,24 @@ func (m *BatchReplicationV1beta) validateState(formats strfmt.Registry) error {
 	// value enum
 	if err := m.validateStateEnum("state", "body", m.State); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (m *BatchReplicationV1beta) validateTransferStats(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.TransferStats) { // not required
+		return nil
+	}
+
+	if m.TransferStats != nil {
+		if err := m.TransferStats.Validate(formats); err != nil {
+			if ve, ok := err.(*errors.Validation); ok {
+				return ve.ValidateName("transferStats")
+			}
+			return err
+		}
 	}
 
 	return nil

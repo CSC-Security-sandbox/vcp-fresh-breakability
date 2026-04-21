@@ -1166,6 +1166,28 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								return
 							}
 
+						case 'r': // Prefix: "replications"
+
+							if l := len("replications"); len(elem) >= l && elem[0:l] == "replications" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "POST":
+									s.handleV1betaBatchListReplicationsRequest([1]string{
+										args[0],
+									}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "POST")
+								}
+
+								return
+							}
+
 						case 's': // Prefix: "snapshots"
 
 							if l := len("snapshots"); len(elem) >= l && elem[0:l] == "snapshots" {
@@ -4412,6 +4434,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									r.summary = "Batch lists all pools with the given UUIDs"
 									r.operationID = "v1beta_batchListPools"
 									r.pathPattern = "/v1beta/locations/{locationId}/batch/pools"
+									r.args = args
+									r.count = 1
+									return r, true
+								default:
+									return
+								}
+							}
+
+						case 'r': // Prefix: "replications"
+
+							if l := len("replications"); len(elem) >= l && elem[0:l] == "replications" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "POST":
+									r.name = V1betaBatchListReplicationsOperation
+									r.summary = "Batch lists all replications with the given URIs"
+									r.operationID = "v1beta_batchListReplications"
+									r.pathPattern = "/v1beta/locations/{locationId}/batch/replications"
 									r.args = args
 									r.count = 1
 									return r, true

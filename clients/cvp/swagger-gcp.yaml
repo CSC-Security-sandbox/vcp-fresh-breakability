@@ -7216,15 +7216,21 @@ paths:
               - resourceId
               - state
               - stateDetails
+              - stateDetailsCode
               - role
               - replicationSchedule
-              - sourceVolumeId
-              - sourceVolumeName
-              - destinationVolumeId
-              - destinationVolumeName
               - mirrorState
               - description
               - labels
+              - healthy
+              - source
+              - destination
+              - transferStats
+              - clusterLocation
+              - destinationVolumeParameters
+              - hybridPeeringDetails
+              - hybridReplicationType
+              - hybridReplicationUserCommands
         - name: body
           in: body
           required: true
@@ -7235,9 +7241,14 @@ paths:
         '200':
           description: OK
           schema:
-            type: array
-            items:
-              $ref: '#/definitions/BatchReplication_v1beta'
+            type: object
+            required:
+              - replications
+            properties:
+              replications:
+                type: array
+                items:
+                  $ref: '#/definitions/BatchReplication_v1beta'
         '400':
           $ref: '#/responses/StandardError-400'
         '401':
@@ -11233,9 +11244,9 @@ definitions:
         maxLength: 36
         minLength: 36
         example: 9760acf5-4638-11e7-9bdb-020073ca7773
-  BatchReplicationVolumeInformation_v1beta:
+  BatchReplicationVolumeDetails_v1beta:
     type: object
-    title: Volume information
+    title: Volume details
     properties:
       volumeName:
         title: VolumeName
@@ -14996,11 +15007,11 @@ definitions:
       source:
         x-omitempty: true
         x-nullable: true
-        $ref: '#/definitions/BatchReplicationVolumeInformation_v1beta'
+        $ref: '#/definitions/BatchReplicationVolumeDetails_v1beta'
       destination:
         x-omitempty: true
         x-nullable: true
-        $ref: '#/definitions/BatchReplicationVolumeInformation_v1beta'
+        $ref: '#/definitions/BatchReplicationVolumeDetails_v1beta'
       mirrorState:
         title: mirrorState
         type: string
@@ -15013,6 +15024,18 @@ definitions:
           - STOPPED
           - TRANSFERRING
         example: MIRRORED
+      healthy:
+        title: healthy
+        type: boolean
+        description: Condition of the relationship.
+        example: true
+        readOnly: true
+        x-nullable: true
+        x-omitempty: true
+      transferStats:
+        $ref: '#/definitions/TransferStats_v1beta'
+      destinationVolumeParameters:
+        $ref: '#/definitions/DestinationVolumeParameters_v1beta'
       description:
         title: description
         type: string
@@ -15035,6 +15058,38 @@ definitions:
         example:
           some-key: some-value
           some-key2: some-value2
+      clusterLocation:
+        title: clusterLocation
+        type: string
+        description: Location of the cluster
+        x-nullable: true
+        x-omitempty: true
+        example: us-east1
+      hybridReplicationType:
+        title: hybridReplicationType
+        type: string
+        description: Type of hybrid replication
+        x-nullable: true
+        x-omitempty: true
+        enum:
+          - HYBRID_REPLICATION_TYPE_UNSPECIFIED
+          - MIGRATION
+          - CONTINUOUS_REPLICATION
+          - ONPREM_REPLICATION
+          - REVERSE_ONPREM_REPLICATION
+        example: MIGRATION
+      hybridPeeringDetails:
+        $ref: '#/definitions/HybridPeering_v1beta'
+      hybridReplicationUserCommands:
+        $ref: '#/definitions/HybridReplicationUserCommands_v1beta'
+      stateDetailsCode:
+        title: stateDetailsCode
+        type: integer
+        format: int32
+        readOnly: true
+        x-omitempty: true
+        description: Numeric representation of current state details.
+        example: 100001
   BatchReplicationCVP_v1beta:
     type: object
     title: BatchReplicationCVP

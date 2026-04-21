@@ -14,6 +14,7 @@ const (
 	V1betaBatchListBackupsOperation                          OperationName = "V1betaBatchListBackups"
 	V1betaBatchListHostGroupsOperation                       OperationName = "V1betaBatchListHostGroups"
 	V1betaBatchListPoolsOperation                            OperationName = "V1betaBatchListPools"
+	V1betaBatchListReplicationsOperation                     OperationName = "V1betaBatchListReplications"
 	V1betaBatchListSnapshotsOperation                        OperationName = "V1betaBatchListSnapshots"
 	V1betaBatchListVolumesOperation                          OperationName = "V1betaBatchListVolumes"
 	V1betaCheckKmsConfigOperation                            OperationName = "V1betaCheckKmsConfig"

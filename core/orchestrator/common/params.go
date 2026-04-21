@@ -1073,6 +1073,7 @@ type ReplicationV1beta struct {
 	Description                   *string
 	Source                        *ReplicationVolumeInformationV1beta
 	Destination                   *ReplicationVolumeInformationV1beta
+	DestinationVolumeParameters   *DestinationVolumeParametersV1beta
 	State                         *string
 	StateDetails                  *string
 	StateDetailsCode              *int32
@@ -1087,6 +1088,23 @@ type ReplicationV1beta struct {
 	HybridReplicationType         *string
 	HybridPeeringDetails          *HybridPeeringV1beta
 	HybridReplicationUserCommands *HybridReplicationUserCommandsV1beta
+}
+
+type DestinationVolumeParametersV1beta struct {
+	StoragePool              string
+	VolumeId                 *string
+	ShareName                *string
+	Description              *string
+	TieringPolicy            *TieringPolicyV1beta
+	ThroughputMibps          *float64
+	Iops                     *int64
+	VolumePerformanceGroupId *string
+}
+
+type TieringPolicyV1beta struct {
+	TierAction               *string
+	CoolingThresholdDays     *int32
+	HotTierBypassModeEnabled *bool
 }
 
 // ReplicationVolumeInformationV1beta represents volume information for replication

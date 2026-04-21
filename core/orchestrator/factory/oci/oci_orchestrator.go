@@ -291,6 +291,10 @@ func (o *OCIOrchestrator) GetMultipleReplications(ctx context.Context, params co
 	return nil, utilserrors.NewNotImplementedYetErr()
 }
 
+func (o *OCIOrchestrator) GetBatchReplications(ctx context.Context, params commonparams.GetMultipleReplicationsParams) ([]commonparams.ReplicationV1beta, error) {
+	return nil, utilserrors.NewNotImplementedYetErr()
+}
+
 func (o *OCIOrchestrator) GetMultipleReplicationsByExternalUUID(ctx context.Context, params commonparams.GetMultipleReplicationsByExternalUUIDParams) ([]commonparams.ReplicationV1beta, error) {
 	return nil, utilserrors.NewNotImplementedYetErr()
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	googleproxyclient "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/google-proxy-client"
 	models2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/ontap-rest/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
@@ -2014,7 +2015,7 @@ func TestGetMultipleReplications(t *testing.T) {
 
 		// Mock the getReplicationObjects function to return a replication where remote region matches current location
 		mm.On("getReplicationObjects", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, map[string]string, error) {
-			// Role comes from replicationRoleMap (uuid -> endpoint type); must match VolumeReplicationUuid.
+			// replicationRoleMap (uuid -> endpoint type) must match VolumeReplicationUuid; RemoteRegion matches current location (us-west1-a)
 			replication := &googleproxyclient.VolumeReplicationInternalV1beta{
 				VolumeReplicationUuid: googleproxyclient.NewOptString("dest-uuid-1"),
 				RemoteRegion:          "us-west1-a", // This matches the current location
@@ -2129,6 +2130,7 @@ func TestGetMultipleReplications(t *testing.T) {
 
 		// Mock the getReplicationObjects function to return a replication where remote region matches current location
 		mm.On("getReplicationObjects", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, map[string]string, error) {
+			// replicationRoleMap (uuid -> endpoint type); RemoteRegion matches current location (us-west1)
 			replication := &googleproxyclient.VolumeReplicationInternalV1beta{
 				VolumeReplicationUuid: googleproxyclient.NewOptString("dest-uuid-1"),
 				RemoteRegion:          "us-west1", // This matches the current location
@@ -2300,6 +2302,271 @@ func TestGetMultipleReplications(t *testing.T) {
 
 		_, err := _getMultipleReplications(ctx, mockStorage, params)
 		assert.Nil(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestGetBatchReplications(t *testing.T) {
+	t.Run("WhenReplicationURIsIsNilOrEmpty_SkipsListAndReturnsEmpty", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		orch := &GCPOrchestrator{storage: mockStorage}
+
+		for _, uris := range [][]string{nil, {}} {
+			res, err := orch.GetBatchReplications(ctx, commonparams.GetMultipleReplicationsParams{
+				LocationId:      "us-east4",
+				ReplicationURIs: uris,
+			})
+			assert.NoError(tt, err)
+			assert.Empty(tt, res)
+		}
+		mockStorage.AssertNotCalled(tt, "ListVolumeReplications")
+	})
+
+	t.Run("WhenListVolumeReplicationsReturnsError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		orch := &GCPOrchestrator{storage: mockStorage}
+
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).
+			Return(nil, errors.New("failed to list replications"))
+
+		_, err := orch.GetBatchReplications(ctx, commonparams.GetMultipleReplicationsParams{
+			LocationId:      "us-east4",
+			ReplicationURIs: []string{"projects/1/locations/us-east4/volumes/v/replications/r"},
+		})
+		assert.Error(tt, err)
+		var customErr *errors2.CustomError
+		assert.True(tt, errors2.As(err, &customErr), "Expected a CustomError")
+		assert.ErrorContains(tt, customErr.OriginalErr, "failed to list replications")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenListVolumeReplicationsReturnsEmpty", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		orch := &GCPOrchestrator{storage: mockStorage}
+
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).
+			Return([]*datamodel.VolumeReplication{}, nil)
+
+		res, err := orch.GetBatchReplications(ctx, commonparams.GetMultipleReplicationsParams{
+			LocationId:      "us-east4",
+			ReplicationURIs: []string{"projects/1/locations/us-east4/volumes/v/replications/r"},
+		})
+		assert.NoError(tt, err)
+		assert.Empty(tt, res)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenFilterUsesOnlyUriInCondition_NoAccountId", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		orch := &GCPOrchestrator{storage: mockStorage}
+		defer func() {
+			getReplicationObjects = _getReplicationObjects
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		uris := []string{"uri-a", "uri-b"}
+		mockStorage.On("ListVolumeReplications", ctx, mock.MatchedBy(func(filter utils2.Filter) bool {
+			hasAccountID, hasURI := false, false
+			uriMatch := false
+			for _, condition := range filter.Conditions {
+				if condition.Field == "account_id" {
+					hasAccountID = true
+				}
+				if condition.Field == "uri" {
+					hasURI = true
+					if v, ok := condition.Value.([]string); ok && len(v) == 2 && v[0] == uris[0] && v[1] == uris[1] {
+						uriMatch = true
+					}
+				}
+			}
+			return !hasAccountID && hasURI && uriMatch
+		}), mock.Anything).Return([]*datamodel.VolumeReplication{}, nil)
+
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpserver.Error) {
+			return "us-east4", "", nil
+		}
+		getReplicationObjects = _getReplicationObjects
+
+		_, err := orch.GetBatchReplications(ctx, commonparams.GetMultipleReplicationsParams{
+			AccountName:     "ignored-for-batch",
+			LocationId:      "us-east4",
+			ReplicationURIs: uris,
+		})
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUtilParseAndValidateRegionAndZoneFails", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		orch := &GCPOrchestrator{storage: mockStorage}
+		defer func() {
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+		}()
+
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpserver.Error) {
+			return "", "", &gcpserver.Error{Code: 400, Message: "bad location"}
+		}
+
+		replications := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "uuid-1"},
+				Name:      "replication-1",
+			},
+		}
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return(replications, nil)
+
+		res, err := orch.GetBatchReplications(ctx, commonparams.GetMultipleReplicationsParams{
+			LocationId:      "bad",
+			ReplicationURIs: []string{"uri-1"},
+		})
+		assert.Empty(tt, res)
+		assert.Error(tt, err)
+		expCustErr := errors2.CustomError{
+			TrackingID: 0,
+			Message:    "bad location",
+			Retriable:  false,
+			HttpCode:   nillable.GetIntPtr(500),
+		}
+		assert.EqualError(tt, err, errors2.NewVCPError(errors2.ErrRegionZoneParsingErrorCurrentRegion, &expCustErr).Error())
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenGetReplicationObjectsReturnsError", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		orch := &GCPOrchestrator{storage: mockStorage}
+		defer func() {
+			getReplicationObjects = _getReplicationObjects
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+		}()
+
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpserver.Error) {
+			return "us-e4", "", nil
+		}
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "45110233509", nil
+		}
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, map[string]string, error) {
+			return nil, []googleproxyclient.InternalJobV1beta{}, nil, errors.New("failed to get replication objects")
+		}
+
+		replications := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "uuid-1"},
+				Name:      "replication-1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:        "us-e4",
+					DestinationReplicationUUID: "replication-uuid-1",
+				},
+			},
+		}
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return(replications, nil)
+
+		res, err := orch.GetBatchReplications(ctx, commonparams.GetMultipleReplicationsParams{
+			LocationId:      "us-e4",
+			ReplicationURIs: []string{"uri-1"},
+		})
+		assert.Empty(tt, res)
+		assert.ErrorContains(tt, err, "failed to get replication objects")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenSuccess_ReturnsConvertedReplications", func(tt *testing.T) {
+		ctx := context.Background()
+		mockLogger := log.NewLogger()
+		ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, mockLogger)
+		mockStorage := new(database.MockStorage)
+		orch := &GCPOrchestrator{storage: mockStorage}
+		defer func() {
+			getReplicationObjects = _getReplicationObjects
+			utilParseAndValidateRegionAndZone = utils.ParseAndValidateRegionAndZone
+			utilsParseProjectNumberFromURI = utils.ParseProjectNumberFromURI
+		}()
+
+		utilParseAndValidateRegionAndZone = func(locationId string) (string, string, *gcpserver.Error) {
+			return "us-e4", "", nil
+		}
+		utilsParseProjectNumberFromURI = func(uri string) (string, error) {
+			return "45110233509", nil
+		}
+		getReplicationObjects = func(ctx context.Context, regionReplicationMap map[string][]*datamodel.VolumeReplication, logger log.Logger, params commonparams.GetMultipleReplicationsParams, regionProjectMap map[string]string) ([]*googleproxyclient.VolumeReplicationInternalV1beta, []googleproxyclient.InternalJobV1beta, map[string]string, error) {
+			return []*googleproxyclient.VolumeReplicationInternalV1beta{
+				{
+					VolumeReplicationUuid: googleproxyclient.NewOptString("replication-uuid-1"),
+					LifeCycleState:        googleproxyclient.NewOptVolumeReplicationInternalV1betaLifeCycleState(models.LifeCycleStateREADY),
+					LifeCycleStateDetails: googleproxyclient.NewOptString(models.LifeCycleStateAvailableDetails),
+					EndpointType:          models.DstEndpoint,
+					ReplicationSchedule:   googleproxyclient.NewOptVolumeReplicationInternalV1betaReplicationSchedule(googleproxyclient.VolumeReplicationInternalV1betaReplicationScheduleHourly),
+					RemoteRegion:          "us-e4",
+					SourceHostName:        "source-host",
+					SourceServerName:      "source-svm",
+					SourceVolumeName:      "source-volume",
+					SourceVolumeUuid:      googleproxyclient.NewOptString("00000000-0000-0000-0000-000000000000"),
+					SourcePoolUuid:        googleproxyclient.NewOptString("source-pool-uuid"),
+					DestinationHostName:   "destination-host",
+					DestinationServerName: "destination-svm",
+					DestinationVolumeName: "destination-volume",
+					DestinationVolumeUuid: googleproxyclient.NewOptString("destination-volume-uuid"),
+					DestinationPoolUuid:   googleproxyclient.NewOptString("destination-pool-uuid"),
+					Name:                  googleproxyclient.NewOptString("replication-1"),
+					MirrorState:           googleproxyclient.NewOptVolumeReplicationInternalV1betaMirrorState(googleproxyclient.VolumeReplicationInternalV1betaMirrorStateMIRRORED),
+					ReplicationType:       googleproxyclient.NewOptVolumeReplicationInternalV1betaReplicationType(googleproxyclient.VolumeReplicationInternalV1betaReplicationTypeCROSSREGIONREPLICATION),
+					RelationshipStatus:    googleproxyclient.NewOptVolumeReplicationInternalV1betaRelationshipStatus(googleproxyclient.VolumeReplicationInternalV1betaRelationshipStatusIdle),
+					TotalProgress:         googleproxyclient.NewOptInt64(100),
+					Healthy:               googleproxyclient.NewOptBool(true),
+					TotalTransferBytes:    googleproxyclient.NewOptInt64(1024 * 1024 * 1024),
+					TotalTransferTimeSecs: googleproxyclient.NewOptInt64(3600),
+					LastTransferSize:      googleproxyclient.NewOptInt64(1024 * 1024 * 100),
+					LastTransferError:     googleproxyclient.NewOptString("No error"),
+					LastTransferDuration:  googleproxyclient.NewOptInt64(300),
+					LastTransferEndTime:   googleproxyclient.NewOptDateTime(time.Now()),
+					ProgressLastUpdated:   googleproxyclient.NewOptDateTime(time.Now()),
+					LagTime:               googleproxyclient.NewOptInt64(60),
+					CreatedAt:             googleproxyclient.NewOptDateTime(time.Now()),
+					UpdatedAt:             googleproxyclient.NewOptDateTime(time.Now()),
+					Description:           googleproxyclient.NewOptString("Test replication"),
+				},
+			}, []googleproxyclient.InternalJobV1beta{}, nil, nil
+		}
+
+		replications := []*datamodel.VolumeReplication{
+			{
+				BaseModel: datamodel.BaseModel{ID: 1, UUID: "replication-uuid-1"},
+				Name:      "replication-1",
+				ReplicationAttributes: &datamodel.ReplicationDetails{
+					DestinationLocation:        "us-e4",
+					DestinationReplicationUUID: "replication-uuid-1",
+				},
+			},
+		}
+		mockStorage.On("ListVolumeReplications", ctx, mock.Anything, mock.Anything).Return(replications, nil)
+
+		res, err := orch.GetBatchReplications(ctx, commonparams.GetMultipleReplicationsParams{
+			LocationId:      "us-e4",
+			ReplicationURIs: []string{"uri-1"},
+		})
+		assert.NoError(tt, err)
+		require.Len(tt, res, 1)
+		require.NotNil(tt, res[0].ResourceId)
+		assert.Equal(tt, "replication-1", *res[0].ResourceId)
 		mockStorage.AssertExpectations(tt)
 	})
 }

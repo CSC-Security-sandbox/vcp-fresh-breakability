@@ -2165,6 +2165,322 @@ func (s *BatchPoolV1betaType) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *BatchReplicationV1beta) SetFake() {
+	{
+		{
+			s.ReplicationId.SetFake()
+		}
+	}
+	{
+		{
+			s.Created.SetFake()
+		}
+	}
+	{
+		{
+			s.ResourceId.SetFake()
+		}
+	}
+	{
+		{
+			s.State.SetFake()
+		}
+	}
+	{
+		{
+			s.StateDetails.SetFake()
+		}
+	}
+	{
+		{
+			s.Role.SetFake()
+		}
+	}
+	{
+		{
+			s.ReplicationSchedule.SetFake()
+		}
+	}
+	{
+		{
+			s.Source.SetFake()
+		}
+	}
+	{
+		{
+			s.Destination.SetFake()
+		}
+	}
+	{
+		{
+			s.MirrorState.SetFake()
+		}
+	}
+	{
+		{
+			s.Healthy.SetFake()
+		}
+	}
+	{
+		{
+			s.TransferStats.SetFake()
+		}
+	}
+	{
+		{
+			s.DestinationVolumeParameters.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.Labels.SetFake()
+		}
+	}
+	{
+		{
+			s.ClusterLocation.SetFake()
+		}
+	}
+	{
+		{
+			s.HybridReplicationType.SetFake()
+		}
+	}
+	{
+		{
+			s.HybridPeeringDetails.SetFake()
+		}
+	}
+	{
+		{
+			s.HybridReplicationUserCommands.SetFake()
+		}
+	}
+	{
+		{
+			s.StateDetailsCode.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BatchReplicationV1betaDestination) SetFake() {
+	{
+		{
+			s.VolumeName.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeId.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BatchReplicationV1betaDestinationVolumeParameters) SetFake() {
+	{
+		{
+			s.StoragePool = "string"
+		}
+	}
+	{
+		{
+			s.VolumeId.SetFake()
+		}
+	}
+	{
+		{
+			s.ShareName.SetFake()
+		}
+	}
+	{
+		{
+			s.Description.SetFake()
+		}
+	}
+	{
+		{
+			s.TieringPolicy.SetFake()
+		}
+	}
+	{
+		{
+			s.ThroughputMibps.SetFake()
+		}
+	}
+	{
+		{
+			s.Iops.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumePerformanceGroupId.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BatchReplicationV1betaHybridPeeringDetails) SetFake() {
+	{
+		{
+			s.SubnetIp.SetFake()
+		}
+	}
+	{
+		{
+			s.Command.SetFake()
+		}
+	}
+	{
+		{
+			s.Passphrase.SetFake()
+		}
+	}
+	{
+		{
+			s.CommandExpiryTime.SetFake()
+		}
+	}
+	{
+		{
+			s.PeerVolumeName.SetFake()
+		}
+	}
+	{
+		{
+			s.PeerClusterName.SetFake()
+		}
+	}
+	{
+		{
+			s.PeerSvmName.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BatchReplicationV1betaHybridReplicationType) SetFake() {
+	*s = BatchReplicationV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *BatchReplicationV1betaHybridReplicationUserCommands) SetFake() {
+	{
+		{
+			s.Commands = nil
+			for i := 0; i < 0; i++ {
+				var elem string
+				{
+					elem = "string"
+				}
+				s.Commands = append(s.Commands, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BatchReplicationV1betaLabels) SetFake() {
+	var (
+		elem string
+		m    map[string]string = s.init()
+	)
+	for i := 0; i < 0; i++ {
+		m[fmt.Sprintf("fake%d", i)] = elem
+	}
+}
+
+// SetFake set fake values.
+func (s *BatchReplicationV1betaMirrorState) SetFake() {
+	*s = BatchReplicationV1betaMirrorStatePREPARING
+}
+
+// SetFake set fake values.
+func (s *BatchReplicationV1betaReplicationSchedule) SetFake() {
+	*s = BatchReplicationV1betaReplicationScheduleEVERY10MINUTES
+}
+
+// SetFake set fake values.
+func (s *BatchReplicationV1betaRole) SetFake() {
+	*s = BatchReplicationV1betaRoleSOURCE
+}
+
+// SetFake set fake values.
+func (s *BatchReplicationV1betaSource) SetFake() {
+	{
+		{
+			s.VolumeName.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeId.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *BatchReplicationV1betaState) SetFake() {
+	*s = BatchReplicationV1betaStateSTATEUNSPECIFIED
+}
+
+// SetFake set fake values.
+func (s *BatchReplicationV1betaTransferStats) SetFake() {
+	{
+		{
+			s.TotalTransferBytes.SetFake()
+		}
+	}
+	{
+		{
+			s.TotalTransferTimeSecs.SetFake()
+		}
+	}
+	{
+		{
+			s.LastTransferSize.SetFake()
+		}
+	}
+	{
+		{
+			s.LastTransferError.SetFake()
+		}
+	}
+	{
+		{
+			s.LastTransferDuration.SetFake()
+		}
+	}
+	{
+		{
+			s.LastTransferEndTime.SetFake()
+		}
+	}
+	{
+		{
+			s.TotalProgress.SetFake()
+		}
+	}
+	{
+		{
+			s.ProgressLastUpdated.SetFake()
+		}
+	}
+	{
+		{
+			s.LagTime.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *BatchSnapshotUUIDListV1beta) SetFake() {
 	{
 		{
@@ -4685,6 +5001,51 @@ func (s *OptBackupVaultV1betaState) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *OptBatchReplicationV1betaHybridReplicationType) SetFake() {
+	var elem BatchReplicationV1betaHybridReplicationType
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptBatchReplicationV1betaMirrorState) SetFake() {
+	var elem BatchReplicationV1betaMirrorState
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptBatchReplicationV1betaReplicationSchedule) SetFake() {
+	var elem BatchReplicationV1betaReplicationSchedule
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptBatchReplicationV1betaRole) SetFake() {
+	var elem BatchReplicationV1betaRole
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptBatchReplicationV1betaState) SetFake() {
+	var elem BatchReplicationV1betaState
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
 func (s *OptBatchSnapshotV1betaSnapshotState) SetFake() {
 	var elem BatchSnapshotV1betaSnapshotState
 	{
@@ -5199,6 +5560,48 @@ func (s *OptNilBatchPoolV1betaStoragePoolState) SetFake() {
 
 // SetFake set fake values.
 func (s *OptNilBatchPoolV1betaType) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilBatchReplicationV1betaDestination) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilBatchReplicationV1betaDestinationVolumeParameters) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilBatchReplicationV1betaHybridPeeringDetails) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilBatchReplicationV1betaHybridReplicationUserCommands) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilBatchReplicationV1betaLabels) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilBatchReplicationV1betaSource) SetFake() {
+	s.Null = true
+	s.Set = true
+}
+
+// SetFake set fake values.
+func (s *OptNilBatchReplicationV1betaTransferStats) SetFake() {
 	s.Null = true
 	s.Set = true
 }
@@ -7113,7 +7516,7 @@ func (s *ReplicationV1beta) SetFake() {
 
 // SetFake set fake values.
 func (s *ReplicationV1betaHybridReplicationType) SetFake() {
-	*s = ReplicationV1betaHybridReplicationTypeHYBRIdREPLICATIONTYPEUNSPECIFIED
+	*s = ReplicationV1betaHybridReplicationTypeHYBRIDREPLICATIONTYPEUNSPECIFIED
 }
 
 // SetFake set fake values.
@@ -7983,6 +8386,58 @@ func (s *V1betaBatchListPoolsUnauthorized) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1betaBatchListPoolsUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListReplicationsBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListReplicationsBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListReplicationsForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListReplicationsForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListReplicationsInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListReplicationsInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListReplicationsOK) SetFake() {
+	{
+		{
+			s.Replications = nil
+			for i := 0; i < 0; i++ {
+				var elem BatchReplicationV1beta
+				{
+					elem.SetFake()
+				}
+				s.Replications = append(s.Replications, elem)
+			}
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *V1betaBatchListReplicationsUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1betaBatchListReplicationsUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.
