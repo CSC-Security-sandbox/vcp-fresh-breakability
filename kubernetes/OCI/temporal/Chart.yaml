@@ -1,0 +1,10 @@
+apiVersion: v2
+appVersion: 1.29.1
+description: Temporal is a distributed, scalable, durable, and highly available orchestration engine to execute asynchronous long-running business logic in a scalable and resilient way.
+keywords:
+  - temporal
+  - workflow
+  - orchestration
+name: temporal
+type: application
+version: 0.73.1

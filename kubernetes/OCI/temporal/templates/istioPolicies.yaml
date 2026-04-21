@@ -1,0 +1,110 @@
+{{- if .Values.schema.istio.enabled }}
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: istio-peer-authentication-temporal
+  namespace: {{ .Release.Namespace }}
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all-ingress-to-temporal-except
+  namespace: {{ .Release.Namespace }}
+spec:
+  action: DENY
+  rules:
+    - from:
+        - source:
+            notNamespaces: [ {{ .Release.Namespace | quote }}, "vcp-open-telemetry", "vcp", "vlm-ontap-*" ]
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: temporal-frontend-mtls
+  namespace: {{ .Release.Namespace }}
+spec:
+  host: temporal-frontend.temporal.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: temporal-admintools-mtls
+  namespace: {{ .Release.Namespace }}
+spec:
+  host: temporal-admintools.temporal.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: temporal-frontend-headless-mtls
+  namespace: {{ .Release.Namespace }}
+spec:
+  host: temporal-frontend-headless.temporal.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: temporal-history-headless-mtls
+  namespace: {{ .Release.Namespace }}
+spec:
+  host: temporal-history-headless.temporal.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: temporal-internal-frontend-mtls
+  namespace: {{ .Release.Namespace }}
+spec:
+  host: temporal-internal-frontend.temporal.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: temporal-matching-headless-mtls
+  namespace: {{ .Release.Namespace }}
+spec:
+  host: temporal-matching-headless.temporal.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: temporal-web-mtls
+  namespace: {{ .Release.Namespace }}
+spec:
+  host: temporal-web.temporal.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: temporal-worker-headless-mtls
+  namespace: {{ .Release.Namespace }}
+spec:
+  host: temporal-worker-headless.temporal.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+{{- end }}

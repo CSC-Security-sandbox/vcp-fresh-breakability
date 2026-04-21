@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oci-proxy-service-env-config
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    {{- include "oci_proxy.kubernetes.annotations" . | nindent 4 }}
+    {{- include "oci_proxy.helmchart.annotations" . | nindent 4 }}
+  labels:
+    {{- include "oci_proxy.kubernetes.labels" . | nindent 4 }}
+    {{- include "oci_proxy.helmchart.labels" . | nindent 4 }}
+    app: oci-proxy-service
+data:
+  DB_HOST: "{{ index .Values "database" "host" }}"
+  DB_NAME: "{{ index .Values "database" "name" }}"
+  DB_SSL_MODE: "{{ index .Values "database" "sslMode" }}"
+  LOCAL_REGION: "{{ index .Values "localRegion" }}"
+  RUN_MIGRATION_ON_START: "{{ index .Values "runMigrationOnStart" }}"
+  TEMPORAL_ADDRESS: "{{ index .Values "temporalAddress" }}"
+  OBJECT_STORE_PROVIDER: "{{ index .Values "objectStoreProvider" }}"
+  PROXY_CLIENT_TRANSPORT_SCHEMA: "{{ index .Values "proxyClientTransportSchema" }}"
+  LOGGER_LEVEL: "{{ index .Values "loggerLevel" }}"
+  CREATE_POOL_WORKFLOW_TIMEOUT_MINUTES: "{{ index .Values "createPoolWorkflowTimeoutMinutes" }}"
+  UPDATE_POOL_WORKFLOW_TIMEOUT_MINUTES: "{{ index .Values "updatePoolWorkflowTimeoutMinutes" }}"
+  ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION: "{{ index .Values "enableUniqueSerialNumberGeneration" }}"
+  CLUSTER_SERIAL_NUMBER_PREFIX: "{{ index .Values "clusterSerialNumberPrefix" }}"
+  REGION_NUMBER_MAP: {{ .Values.regionNumberMap | toJson | quote }}
+  WAIT_FOR_TEMPORAL_ENABLED: "{{ index .Values "waitForTemporalEnabled" }}"
+  TASK_QUEUE_VERSION: "{{ index .Chart.Version | lower | replace "." "-" }}"
+  SETUP_NW_HEARTBEAT_TIMEOUT_SEC: {{ index .Values "temporal" "timeouts" "heartbeat" "setupNwSecond" | quote }}
+  READINESS_PROBE_FAILURE_THRESHOLD: "{{ index .Values "readinessProbe" "failureThreshold" }}"
+  READINESS_PROBE_PERIOD_SECONDS: "{{ index .Values "readinessProbe" "periodSeconds" }}"
+  HYPERSCALER: "{{ index .Values "hyperScaler" }}"
+  config.yaml: |
+    DB_HOST: {{ index .Values "database" "host" }}
+    DB_NAME: {{ index .Values "database" "name"  }}
+    SETUP_NW_HEARTBEAT_TIMEOUT_SEC: {{ index .Values "temporal" "timeouts" "heartbeat" "setupNwSecond"}}

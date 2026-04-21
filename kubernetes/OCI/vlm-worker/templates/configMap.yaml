@@ -1,0 +1,37 @@
+{{- range $mapping := $.Values.ontapVersionVlmImageMappings}}
+  {{- $versionName := (regexFind `\d+\.\d+\.\d+(?:P\d+)?` $mapping.ontapVersion) }}
+  {{- $version := ($versionName | lower | replace "." "-") }}
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vlm-worker.configMapName" (list $ $version) }}
+  namespace: {{ $.Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+  labels:
+    app: {{ $.Values.app.name }}-{{ $version }}
+data:
+  PROVIDER: {{ $.Values.workerConfig.provider | quote }}
+  SERVER_IP: {{ $.Values.workerConfig.temporalHost | quote }}
+  SERVER_PORT: {{ $.Values.workerConfig.temporalPort | quote }}
+  TASK_QUEUE: {{ printf "%s-%s" $.Values.workerConfig.taskQueuePrefix $versionName | quote }}
+  DEBUG: {{ $.Values.workerConfig.debug | quote }}
+  MAX_CONCURRENT_ACTIVITIES: {{ $.Values.workerConfig.maxConcurrentActivities | quote }}
+  MAX_CONCURRENT_WORKFLOW: {{ $.Values.workerConfig.maxConcurrentWorkflow | quote }}
+  MAX_CONCURRENT_WORKFLOW_TASK_POLLERS: {{ $.Values.workerConfig.maxConcurrentWorkflowTaskPollers | quote }}
+  ENABLE_GLOBAL_GCP_CLIENTS: {{ $.Values.workerConfig.enableGlobalGcpClients | quote }}
+  USE_VM_RESERVATIONS: {{ $.Values.workerConfig.useVmReservations | quote }}
+  OCI_REGION: {{ $.Values.workerConfig.ociRegion | default "us-ashburn-1" | quote }}
+  {{- if $.Values.oke.workloadIdentityEnabled }}
+  FILE_BASED_AUTH: "false"
+  OCI_AUTH_TYPE: "oke_workload_identity"
+  OCI_RESOURCE_PRINCIPAL_REGION: {{ $.Values.workerConfig.ociRegion | default "us-ashburn-1" | quote }}
+  OCI_RESOURCE_PRINCIPAL_VERSION: {{ $.Values.workerConfig.ociResourcePrincipalVersion | default "2.2" | quote }}
+  OKE_WORKLOAD_IDENTITY_ENABLED: {{ $.Values.oke.workloadIdentityEnabled | quote }}
+  ONTAP_CREDENTIAL_ENCRYPT_KEY: {{ $.Values.workerConfig.vsaVlmEncryptionKey | default "" | quote }}
+  {{- else }}
+  FILE_BASED_AUTH: {{ $.Values.workerConfig.fileBasedAuth | default "true" | quote }}
+  {{- end }}
+---
+{{- end }}

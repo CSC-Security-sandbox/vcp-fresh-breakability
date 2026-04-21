@@ -1,0 +1,22 @@
+# OCI environment overrides: tenancy, compartment, region, OCIR, shared DB.
+# Merge with defaults:
+#   helm upgrade --install oci-proxy . -n <ns> -f values.yaml -f overrides.yaml
+
+
+# OCI region identifier (must match OCIR hostname prefix and DB host region).
+localRegion: "us-ashburn-1"
+
+global:
+  primaryImageRegistry: iad.ocir.io
+  primaryImageRegistryPath: "nmobsa"
+
+
+# Shared OCI PostgreSQL (primary connection string host from OCI console).
+database:
+  host: primary.kce5jry3ybj7h5x2ddd5iymauq6vqq.postgresql.us-ashburn-1.oci.oraclecloud.com
+
+images:
+  ociProxy:
+    name: oci-proxy
+    tag: "27032026_1"
+    digest: ""

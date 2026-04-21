@@ -1,0 +1,90 @@
+{{- range $mapping := $.Values.ontapVersionVlmImageMappings }}
+    {{- $versionName := (regexFind `\d+\.\d+\.\d+(?:P\d+)?` $mapping.ontapVersion) }}
+    {{- $version := ($versionName | lower | replace "." "-") }}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $.Values.app.name }}-{{ $version }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app: {{ $.Values.app.name }}-{{ $version }}
+spec:
+  replicas: {{ $.Values.app.replicas }}
+  selector:
+    matchLabels:
+      app: {{ $.Values.app.name }}-{{ $version }}
+  template:
+    metadata:
+      labels:
+        app: {{ $.Values.app.name }}-{{ $version }}
+      {{- with $.Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ $.Values.serviceAccount.name }}
+      automountServiceAccountToken: true
+      {{- if $.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range $.Values.imagePullSecrets }}
+        {{- if .name }}
+        - name: {{ .name | quote }}
+        {{- end }}
+        {{- end }}
+      {{- end }}
+      {{- if $.Values.oke.nodeSelector }}
+      nodeSelector:
+        {{- toYaml $.Values.oke.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- if and $.Values.podAffinity.enabled (eq $.Values.global.environment "oci") (not $.Values.oke.disableTopologySpread) }}
+      # OKE: spread across zones and nodes
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: {{ $.Values.app.name }}-{{ $version }}
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: {{ $.Values.app.name }}-{{ $version }}
+      {{- end }}
+      {{- with $.Values.initContainers }}
+      initContainers:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ $.Values.app.name }}-{{ $version }}
+          {{- if $mapping.secondary }}
+          image: "{{- include "containerImage" (list $ (dict "secondary" true "vlmImageName" $mapping.vlmImageName "vlmImageTag" $mapping.vlmImageTag "vlmImageDigest" $mapping.vlmImageDigest )) | trim -}}"
+          {{- else }}
+          image: "{{- include "containerImage" (list $ (dict "secondary" false "vlmImageName" $mapping.vlmImageName "vlmImageTag" $mapping.vlmImageTag "vlmImageDigest" $mapping.vlmImageDigest )) | trim -}}"
+          {{- end }}
+          imagePullPolicy: {{ $mapping.pullPolicy }}
+          resources:
+            limits:
+              cpu: {{ $.Values.resources.limits.cpu }}
+              memory: {{ $.Values.resources.limits.memory }}
+            requests:
+              cpu: {{ $.Values.resources.requests.cpu }}
+              memory: {{ $.Values.resources.requests.memory }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "vlm-worker.configMapName" (list $ $version) }}
+            {{- if and $.Values.workerConfig.useExistingSecret (not $.Values.oke.workloadIdentityEnabled) }}
+            - secretRef:
+                name: {{ $.Values.workerConfig.existingSecretName | quote }}
+            {{- else if not $.Values.oke.workloadIdentityEnabled }}
+            - secretRef:
+                name: {{ include "vlm-worker.secretName" $ }}
+            {{- end }}
+            {{- if and (include "vlm-worker.ociAuthSecretName" $) (not $.Values.oke.workloadIdentityEnabled) }}
+            - secretRef:
+                name: {{ include "vlm-worker.ociAuthSecretName" $ }}
+            {{- end }}
+---
+{{- end }}

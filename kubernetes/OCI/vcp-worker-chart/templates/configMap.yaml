@@ -1,0 +1,99 @@
+{{- range .Values.app }}
+  {{- $name := .name }}
+  {{- $workerAdditionalConfig := .workerAdditionalConfig }}
+  {{- $imageTag := $.Values.images.vcpWorker.tag | default ($.Chart.Version | default "v0.0.1") }}
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vcp-worker.configMapName" $name }}
+  namespace: {{ $.Release.Namespace }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+  labels:
+    app: {{ $name }}
+data:
+  {{- range $key, $value := $workerAdditionalConfig }}
+  {{ include "toUpperSnakeCase" $key }}: {{ $value | quote }}
+  {{- end }}
+  TEMPORAL_ADDRESS: {{ $.Values.workerConfig.temporalAddress | quote }}
+  HYPERSCALER: {{ $.Values.global.hyperscaler | default $.Values.global.environment | quote }}
+  DB_TYPE: {{ $.Values.workerConfig.database.type | quote }}
+  DB_PORT: {{ $.Values.workerConfig.database.port | quote }}
+  DB_NAME: {{ $.Values.workerConfig.database.dbname | quote }}
+  DB_ADMIN_USER: {{ $.Values.workerConfig.database.adminUser | quote }}
+  DB_SSL_MODE: {{ $.Values.workerConfig.database.sslMode | quote }}
+  DB_TIMEZONE: {{ $.Values.workerConfig.database.timezone | quote }}
+  DB_MAX_OPEN_CONNS: {{ $.Values.workerConfig.database.maxConns | quote }}
+  DB_MAX_IDLE_CONNS: {{ $.Values.workerConfig.database.maxIdleConns | quote }}
+  DB_CONN_MAX_LIFETIME: {{ $.Values.workerConfig.database.maxConnLifetime | quote }}
+  DB_HOST: {{ $.Values.workerConfig.database.host | quote }}
+  DB_USER: {{ $.Values.workerConfig.database.user | quote }}
+  VLMWORKFLOW_RETRY_MAX_ATTEMPTS: {{ $.Values.workerConfig.vlmWorkflowRetryMaxAttempts | quote }}
+  RUN_MIGRATION_ON_START: {{ $.Values.workerConfig.database.runMigrationOnStart | quote }}
+  OBJECT_STORE_PROVIDER: {{ $.Values.workerConfig.objectStoreProvider | quote }}
+  LOCAL_REGION: {{ $.Values.workerConfig.localRegion | quote }}
+  PROXY_CLIENT_TRANSPORT_SCHEMA: {{ $.Values.workerConfig.proxyClientTransportSchema | quote }}
+  VSA_OPERATION_TIMEOUT: {{ $.Values.workerConfig.vsaOperationTimeout | quote }}
+  LOGGER_LEVEL: {{ $.Values.workerConfig.loggerLevel | quote }}
+  VLM_CONFIG_FILE_PATH: {{ $.Values.workerConfig.vlmConfigFilePath | quote }}
+  CERTIFICATE_LIFETIME: {{ $.Values.workerConfig.certificateLifetime | quote }}
+  CA_NAME: {{ $.Values.workerConfig.caName | quote }}
+  ENABLE_VSA_CERTIFICATE_ROTATION: {{ $.Values.workerConfig.enableVsaCertificateRotation | quote }}
+  ENABLE_VSA_EXPIRED_CERTIFICATES_ROTATION: {{ $.Values.workerConfig.enableVsaExpiredCertificatesRotation | quote }}
+  VSA_LIFECYCLE_MANAGER_QUEUE_PREFIX: {{ $.Values.workerConfig.vsaLifecycleManagerQueuePrefix | quote }}
+  VSA_VLM_ENCRYPTION_KEY: {{ $.Values.workerConfig.vsaVlmEncryptionKey | quote }}
+  VLM_CREATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES: {{ $.Values.workerConfig.vlmCreateVSAClusterDeploymentWorkflowTimeoutMinutes | quote }}
+  VLM_CREATE_VSA_SVM_WF_TIMEOUT_MINUTES: {{ $.Values.workerConfig.vlmCreateVSASVMWorkflowTimeoutMinutes | quote }}
+  VLM_DELETE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES: {{ $.Values.workerConfig.vlmDeleteVSAClusterDeploymentWorkflowTimeoutMinutes | quote }}
+  VLM_UPDATE_VSA_CLUSTER_DEPLOYMENT_WF_TIMEOUT_MINUTES: {{ $.Values.workerConfig.vlmUpdateVSAClusterDeploymentWorkflowTimeoutMinutes | quote }}
+  VLM_VALIDATE_CLUSTER_HEALTH_WF_TIMEOUT_MINUTES: {{ $.Values.workerConfig.vlmValidateClusterHealthWorkflowTimeoutMinutes | quote }}
+  VLM_CLUSTER_POWER_OP_WF_TIMEOUT_MINUTES: {{ $.Values.workerConfig.vlmClusterPowerOpWorkflowTimeoutMinutes | quote }}
+  VLM_RETRY_ERROR_PATTERNS: {{ $.Values.workerConfig.vlmRetryErrorPatterns | quote }}
+  SKIP_ONTAP_IMAGE_VERSION_MATCH: {{ $.Values.workerConfig.skipOntapImageVersionMatch | quote }}
+  VSA_MEDIATOR_IMAGE_NAME: {{ $.Values.workerConfig.vsaMediatorImageName | quote }}
+  VSA_IMAGE_NAME: {{ $.Values.workerConfig.vsaImageName | quote }}
+  METRICS_PORT: {{ $.Values.workerConfig.metricsPort | quote }}
+  ENABLE_UNIQUE_SERIAL_NUMBER_GENERATION: {{ $.Values.workerConfig.enableUniqueSerialNumberGeneration | quote }}
+  CLUSTER_SERIAL_NUMBER_PREFIX: {{ $.Values.workerConfig.clusterSerialNumberPrefix | quote }}
+  REGION_NUMBER_MAP: {{ $.Values.regionNumberMap | toJson | quote }}
+  START_TO_CLOSE_WORKFLOW_TIMEOUT_LV: {{ $.Values.workerConfig.startToCloseWorkflowTimeoutLv | quote }}
+  ONTAP_TRANSIENT_ERROR_RETRY_MINUTES: {{ $.Values.workerConfig.ontapTransientErrorRetryMinutes | quote }}
+  WORKFLOW_GLOBAL_TIMEOUT_MINUTES: {{ $.Values.workerConfig.workflowGlobalTimeoutMinutes | quote }}
+  CREATE_POOL_WORKFLOW_TIMEOUT_MINUTES: {{ $.Values.workerConfig.createPoolWorkflowTimeoutMinutes | quote }}
+  CREATE_POOL_WORKFLOW_TIMEOUT_MINUTES_LV: {{ $.Values.workerConfig.createPoolWorkflowTimeoutMinutesLV | quote }}
+  UPDATE_POOL_WORKFLOW_TIMEOUT_MINUTES: {{ $.Values.workerConfig.updatePoolWorkflowTimeoutMinutes | quote }}
+  UPDATE_POOL_WORKFLOW_TIMEOUT_MINUTES_LV: {{ $.Values.workerConfig.updatePoolWorkflowTimeoutMinutesLV | quote }}
+  WORKFLOW_CANCELLATION_TIMEOUT: {{ $.Values.workerConfig.workflowCancellationTimeout | quote }}
+  WORKFLOW_FORCE_CANCEL_WAIT_TIMEOUT: {{ $.Values.workerConfig.workflowForceCancelWaitTimeout | quote }}
+  POOL_WORKFLOW_CANCELLATION_TIMEOUT: {{ $.Values.workerConfig.poolWorkflowCancellationAckTimeout | quote }}
+  POOL_WORKFLOW_FORCE_CANCEL_WAIT_TIMEOUT: {{ $.Values.workerConfig.poolWorkflowForceTerminationAckTimeout | quote }}
+  START_TO_CLOSE_WORKFLOW_TIMEOUT: {{ $.Values.workerConfig.startToCloseTimeout | quote }}
+  HYPERSCALER_HEARTBEAT_TIMEOUT: {{ $.Values.workerConfig.hyperscalerHeartbeatTimeout | quote }}
+  HYPERSCALER_RETRY_INITIAL_INTERVAL: {{ $.Values.workerConfig.hyperscalerRetryInitialInterval | quote }}
+  HYPERSCALER_LRO_RETRY_INITIAL_INTERVAL: {{ $.Values.workerConfig.hyperscalerLRORetryInitialInterval | quote }}
+  HYPERSCALER_RETRY_MAXIMUM_ATTEMPTS: {{ $.Values.workerConfig.hyperscalerRetryMaximumAttempts | quote }}
+  HYPERSCALER_RETRY_BACKOFF_COEFFICIENT: {{ $.Values.workerConfig.hyperscalerRetryBackoffCoefficient | quote }}
+  HYPERSCALER_RETRY_MAXIMUM_INTERVAL: {{ $.Values.workerConfig.hyperscalerRetryMaximumInterval | quote }}
+  RETRY_INTERVAL: {{ $.Values.workerConfig.retryInterval | quote }}
+  RETRY_MAX_ATTEMPTS: {{ $.Values.workerConfig.retryMaxAttempts | quote }}
+  RETRY_MAX_INTERVAL: {{ $.Values.workerConfig.retryMaxInterval | quote }}
+  RETRY_BACKOFF_COEFFICIENT: {{ $.Values.workerConfig.retryBackoffCoefficient | quote }}
+  START_TO_CLOSE_TIMEOUT_FOR_REPLICATION_ACTIVITIES: {{ $.Values.workerConfig.startToCloseTimeoutForReplicationActivities | quote }}
+  BACKOFF_COEFFICIENT_FOR_REPLICATION_ACTIVITIES: {{ $.Values.workerConfig.backoffCoefficientForReplicationActivities | quote }}
+  START_TO_CLOSE_TIMEOUT_FOR_HYPERSCALER: {{ $.Values.workerConfig.startToCloseTimeoutForHyperscaler | quote }}
+  POOL_ACTIVITY_HEARTBEAT_TIMEOUT: {{ $.Values.workerConfig.poolActivityHeartbeatTimeout | quote }}
+  DATABASE_HEARTBEAT_TIMEOUT_SEC: {{ $.Values.workerConfig.databaseHeartbeatTimeoutSec | quote }}
+  SETUP_NW_HEARTBEAT_TIMEOUT_SEC: {{ $.Values.workerConfig.setupNwHeartbeatTimeoutSec | quote }}
+  NLF_LICENSE_SECRET_PATH: {{ $.Values.workerConfig.nlfLicenseSecretPath | quote }}
+  TASK_QUEUE_VERSION: "{{ $.Chart.Version | lower | replace "." "-" }}"
+  ONTAP_VERSION_DETAILS: {{ $.Values.workerConfig.ontapVersionDetails | quote }}
+  OCI_VSA_INSTANCE_TYPE: {{ $.Values.workerConfig.vsaMediatorInstanceType | quote }}
+  OCI_CREATOR: {{ $.Values.workerConfig.ociCreator | quote }}
+  OCI_VSA_FLEX_OCPUS: {{ $.Values.workerConfig.ociVsaFlexOcpus | quote }}
+  OCI_VSA_FLEX_MEMORY_IN_GBS: {{ $.Values.workerConfig.ociVsaFlexMemoryInGBs | quote }}
+  OCI_MEDIATOR_INSTANCE_TYPE: {{ $.Values.workerConfig.ociMediatorInstanceType | quote }}
+  SECRET_URI: {{ $.Values.workerConfig.secretUri | quote }}
+
+---
+{{- end }}

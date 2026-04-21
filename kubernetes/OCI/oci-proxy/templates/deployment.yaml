@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oci-proxy
+  annotations:
+    {{- include "oci_proxy.kubernetes.annotations" . | nindent 4 }}
+    {{- include "oci_proxy.helmchart.annotations" . | nindent 4 }}
+  labels:
+    app: {{ .Chart.Name }}
+    {{- include "oci_proxy.kubernetes.labels" . | nindent 4 }}
+    {{- include "oci_proxy.helmchart.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+        {{- include "oci_proxy.kubernetes.labels" . | nindent 8 }}
+        {{- include "oci_proxy.helmchart.labels" . | nindent 8 }}
+    spec:
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range .Values.imagePullSecrets }}
+        {{- if .name }}
+        - name: {{ .name | quote }}
+        {{- end }}
+        {{- end }}
+      {{- end }}
+      {{- if .Values.oke.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.oke.nodeSelector | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ .Values.serviceAccountName }}
+      {{- if and .Values.podAffinity.enabled (eq .Values.environment "oci") (not .Values.oke.disableTopologySpread) }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "oci-proxy.podSelectorLabels" . | nindent 14 }}
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              {{- include "oci-proxy.podSelectorLabels" . | nindent 14 }}
+      {{- end }}
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: oci-proxy
+          {{- if .Values.images.ociProxy.secondary }}
+          image: "{{- include "containerImage" (list . (dict "name" "ociProxy" "secondary" true)) | trim -}}"
+          {{- else }}
+          image: "{{- include "containerImage" (list . (dict "name" "ociProxy" "secondary" false)) | trim -}}"
+          {{- end }}
+          imagePullPolicy: {{ .Values.images.ociProxy.pullPolicy }}
+          resources:
+            limits:
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+          ports:
+            - containerPort: {{ .Values.service.appPort }}
+          {{- if .Values.istio.enabled }}
+          startupProbe:
+            httpGet:
+              path: {{ .Values.startupProbe.path }}
+              port: {{ .Values.startupProbe.port }}
+              scheme: {{ .Values.startupProbe.scheme }}
+            periodSeconds: {{ .Values.startupProbe.periodSeconds }}
+            failureThreshold: {{ .Values.startupProbe.failureThreshold }}
+          {{- end }}
+          livenessProbe:
+            failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
+            httpGet:
+              path: /health
+              port: {{ .Values.service.appPort }}
+              scheme: HTTP
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+            successThreshold: 1
+            timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+          readinessProbe:
+            failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+            httpGet:
+              path: /health
+              port: {{ .Values.service.appPort }}
+              scheme: HTTP
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+            successThreshold: 1
+            timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+          envFrom:
+            - configMapRef:
+                name: oci-proxy-service-env-config
+            - secretRef:
+                name: {{ if .Values.database.useExistingSecret }}{{ .Values.database.existingSecretName | quote }}{{ else }}oci-proxy-service-env-secret{{ end }}
+          volumeMounts:
+            - name: env-config-volume
+              mountPath: /etc/config
+              readOnly: true
+      volumes:
+        - name: env-config-volume
+          configMap:
+            name: oci-proxy-service-env-config

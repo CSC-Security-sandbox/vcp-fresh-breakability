@@ -1,0 +1,209 @@
+global:
+  primaryImageRegistry: iad.ocir.io
+  primaryImageRegistryPath: "idqogasfjw45"
+  primaryImageRegistryPasswordAuth: true
+  primaryImagePullSecretName: ocir-secret
+  secondaryImageRegistry: "iad.ocir.io"
+  secondaryImageRegistryPath: "nmobsa"
+  secondaryImageRegistryPasswordAuth: false
+  useSecondaryImageRegistry: false
+  useTags: true
+  chartPrimaryImageRegistry: ""
+  chartSecondaryImageRegistry: ""
+  environment: oci
+  # HYPERSCALER env var for worker (utils/env.GetHyperscaler()). Use "oci" for OCI.
+  hyperscaler: oci
+
+# Application configuration (single customer worker for OCI/OKE)
+app:
+  - name: "vcp-customer-worker"
+    replicas: 1
+    workerAdditionalConfig:
+      workerTaskQueue: "customer-workflows"
+
+serviceAccount:
+  name: "vcp-worker-ksa"
+
+# Pod affinity configuration
+podAffinity:
+  enabled: true
+
+# Image configuration (OCIR)
+images:
+  vcpWorker:
+    image: ""  # Use name+tag with registry helpers (supports primary/secondary switch)
+    name: vcp-worker
+    tag: "23032026"
+    digest: ""
+    secondary: false
+    pullPolicy: IfNotPresent
+
+resources:
+  limits:
+    cpu: "1"
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 250Mi
+
+# Worker configuration (OCI/OKE)
+workerConfig:
+  temporalAddress: "temporal-frontend.temporal.svc.cluster.local:7233"
+  localRegion: "us-ashburn-1"
+  objectStoreProvider: "oci"
+  proxyClientTransportSchema: "https"
+  vlmWorkflowRetryMaxAttempts: "1"
+  vsaOperationTimeout: "45m"
+  loggerLevel: "info"
+  vlmConfigFilePath: "/common/vsa_config/vlm-config.json"
+  certificateLifetime: "94608000s"
+  caName: ""
+  enableVsaCertificateRotation: "false"
+  enableVsaExpiredCertificatesRotation: "false"
+  vsaLifecycleManagerQueuePrefix: "vsa-lifecycle-manager"
+  # Encryption key must be a 32-byte (256-bit) string for AES-256.
+  vsaVlmEncryptionKey: "" # Should be the same as in the vlm-worker values.yaml.
+  vlmCreateVSAClusterDeploymentWorkflowTimeoutMinutes: 30
+  vlmCreateVSASVMWorkflowTimeoutMinutes: 10
+  vlmDeleteVSAClusterDeploymentWorkflowTimeoutMinutes: 20
+  vlmUpdateVSAClusterDeploymentWorkflowTimeoutMinutes: 120
+  vlmValidateClusterHealthWorkflowTimeoutMinutes: 15
+  vlmClusterPowerOpWorkflowTimeoutMinutes: 30
+  # Comma-separated list of error patterns that trigger delete and retry operations
+  vlmRetryErrorPatterns: ""
+  ontapVersionDetails: "9.18.1"
+
+  # ONTAP Image Version Match Configuration
+  skipOntapImageVersionMatch: false
+
+  # Mediator VM Configuration
+  vsaMediatorInstanceType: "VM.DenseIO.E5.Flex"
+  ociCreator: "vcp"
+  ociVsaFlexOcpus: 8
+  ociVsaFlexMemoryInGBs: 96
+  ociMediatorInstanceType: "VM.Standard3.Flex"
+  vsaMediatorImageName: "ocid1.image.oc1.iad.aaaaaaaa7jahxa2up4364shyrd6x3tv3ijmip2umefrvoh754k3lorhmchva"
+  vsaImageName: "ocid1.image.oc1.iad.aaaaaaaaleoexbdjz4y6l46gukvm6becuesu5zvg276cqd6l345nfjxc3htq"
+  secretUri: "ocid1.vaultsecret.oc1.iad.amaaaaaarxzkjlqajgrscsxpkbduu4rcocmwi4wh57okquxkqibzwl6vyjxa"
+  
+
+  metricsPort: "9090"
+
+  enableUniqueSerialNumberGeneration: false
+  clusterSerialNumberPrefix: "935"
+  startToCloseWorkflowTimeoutLv: "60m"
+  ontapTransientErrorRetryMinutes: 20
+
+  workflowGlobalTimeoutMinutes: "60" # Global timeout for workflows in minutes
+  createPoolWorkflowTimeoutMinutes: "150" # Create pool workflow run timeout (standard pools) in minutes
+  createPoolWorkflowTimeoutMinutesLV: "150" # Create pool workflow run timeout (LV pools) in minutes
+  updatePoolWorkflowTimeoutMinutes: "150" # Update pool workflow run timeout (standard pools) in minutes
+  updatePoolWorkflowTimeoutMinutesLV: "150" # Update pool workflow run timeout (LV pools) in minutes
+  # Default cancellation timeouts
+  workflowCancellationTimeout: 5 # Default timeout (in minutes) for cancellation acknowledgment
+  workflowForceCancelWaitTimeout: 30 # Default timeout (in seconds) for force termination acknowledgment
+  poolWorkflowCancellationAckTimeout: 5 # Timeout (in minutes)
+  poolWorkflowForceTerminationAckTimeout: 30 # Timeout (in seconds)
+
+  # Default Workflow Retry configuration
+  startToCloseTimeout: "55m"
+  # Hyperscaler retry configuration
+  hyperscalerHeartbeatTimeout: "300s"
+  hyperscalerRetryInitialInterval: "30s"
+  hyperscalerLRORetryInitialInterval: "30s"
+  hyperscalerRetryMaximumAttempts: "10"
+  hyperscalerRetryBackoffCoefficient: "1"
+  hyperscalerRetryMaximumInterval: "30s"
+  retryInterval: "5s"
+  retryMaxAttempts: "3"
+  retryMaxInterval: "5m"
+  retryBackoffCoefficient: "2.0"
+  startToCloseTimeoutForReplicationActivities: 300
+  backoffCoefficientForReplicationActivities: 1.5
+  startToCloseTimeoutForHyperscaler: "5m"
+
+  # Pool workflow timeout configuration
+  poolActivityHeartbeatTimeout: "5m"  # Pool activity heartbeat timeout
+  databaseHeartbeatTimeoutSec: "10"   # Database operations heartbeat timeout in seconds
+  setupNwHeartbeatTimeoutSec: "300"   # Setup network heartbeat timeout in seconds
+
+  # NLF License configuration
+  nlfLicenseSecretPath: "" # Format to be followed: <secret-name>/versions/<secret-version>
+
+  database:
+    type: "postgres"
+    # OCI Database for PostgreSQL requires TLS. Use "require" (or "verify-full" with CA cert).
+    sslMode: "require"
+    timezone: "UTC"
+    runMigrationOnStart: "true"
+    host: primary.djzfvolyanswjizl6jz5bkqucnfeha.postgresql.us-ashburn-1.oci.oraclecloud.com  # Primary endpoint FQDN from OCI DB connection details
+    port: 5432
+    user: postgres
+    adminUser: postgres
+    dbname: vcp
+    # Kubernetes Secret (create before install; Helm does not manage it). Required keys:
+    # DB_USER, DB_PASSWORD, DB_ADMIN_USER, DB_ADMIN_PASSWORD
+    existingSecretName: "vcp-db-secret"
+    maxConns: 20
+    maxIdleConns: 20
+    maxConnLifetime: "1h"
+
+# OKE (Oracle Kubernetes Engine) - optional settings for OCI installation
+oke:
+  # Optional node selector for OKE node pools (e.g. worker shape or pool label)
+  nodeSelector: {}
+  # Set to true if OKE cluster does not expose zone/hostname labels and topology spread causes scheduling issues
+  disableTopologySpread: false
+
+# Image pull secrets for OCIR. Create with:
+# kubectl create secret docker-registry ocir-secret -n vcp --docker-server=<region>.ocir.io --docker-username='<tenancy>/<user>' --docker-password='<auth-token>'
+imagePullSecrets:
+  - name: ocir-secret
+
+service:
+  type: ClusterIP
+
+# OCI region number map (extend as needed for OCI regions)
+regionNumberMap:
+  us-ashburn-1: "01"
+  us-phoenix-1: "02"
+  eu-frankfurt-1: "03"
+  uk-london-1: "04"
+  ap-tokyo-1: "05"
+  ap-seoul-1: "06"
+  ap-singapore-1: "07"
+  ap-sydney-1: "08"
+  ca-montreal-1: "09"
+  ca-toronto-1: "10"
+  sa-saopaulo-1: "11"
+  sa-vinhedo-1: "12"
+  me-jeddah-1: "13"
+  me-dubai-1: "14"
+  ap-mumbai-1: "15"
+  ap-osaka-1: "16"
+  eu-zurich-1: "17"
+  eu-amsterdam-1: "18"
+  eu-marseille-1: "19"
+  mx-queretaro-1: "20"
+  il-jerusalem-1: "21"
+  ap-chuncheon-1: "22"
+  ap-hyderabad-1: "23"
+  eu-milan-1: "24"
+  eu-stockholm-1: "25"
+  af-johannesburg-1: "26"
+  sa-santiago-1: "27"
+  ap-melbourne-1: "28"
+  me-abudhabi-1: "29"
+  eu-madrid-1: "30"
+  uk-cardiff-1: "31"
+  ap-chiyoda-1: "32"
+  eu-paris-1: "33"
+  eu-dusseldorf-1: "34"
+  me-dxb-1: "35"
+  ap-singapore-2: "36"
+  us-sanjose-1: "37"
+  us-luke-1: "38"
+  us-chicago-1: "39"
+  us-gov-ashburn-1: "40"
+  us-gov-chicago-1: "41"
+  us-gov-phoenix-1: "42"

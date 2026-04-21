@@ -1,0 +1,91 @@
+global:
+  primaryImageRegistry: iad.ocir.io
+  primaryImageRegistryPath: "idqogasfjw45"
+  primaryImageRegistryPasswordAuth: true
+  primaryImagePullSecretName: ocir-secret
+  secondaryImageRegistry: "iad.ocir.io"
+  secondaryImageRegistryPath: "nmobsa"
+  secondaryImageRegistryPasswordAuth: false
+  useSecondaryImageRegistry: false
+  useTags: true
+  chartPrimaryImageRegistry: ""
+  chartSecondaryImageRegistry: ""
+  environment: oci
+
+# Application configuration
+app:
+  name: "vlm-worker"
+  replicas: 1
+
+serviceAccount:
+  name: "vlm-worker-ksa"
+  annotations: {}
+
+imagePullSecrets:
+  - name: ocir-secret
+
+resources:
+  limits:
+    cpu: "1"
+    memory: 1Gi
+  requests:
+    cpu: 350m
+    memory: 500Mi
+
+ontapVersionVlmImageMappings:
+  - ontapVersion: "9.18.1"
+    vlmImageName: "vlm-worker"
+    vlmImageTag: "latest"
+    vlmImageDigest: ""
+    secondary: false
+    pullPolicy: IfNotPresent
+
+podAnnotations: {}
+
+initContainers: []
+
+# Worker configuration (OCI/OKE)
+workerConfig:
+  provider: "oci"
+  temporalHost: "temporal-frontend.temporal.svc.cluster.local"
+  temporalPort: "7233"
+  taskQueuePrefix: "vsa-lifecycle-manager"
+  debug: "false"
+  maxConcurrentActivities: "1000"
+  maxConcurrentWorkflow: "1000"
+  maxConcurrentWorkflowTaskPollers: "2"
+  vsaVlmEncryptionKey: ""  # Must match vcp-worker-chart (ignored if useExistingSecret)
+  useExistingSecret: false
+  existingSecretName: ""
+  gceMetadataHost: ""
+  enableGlobalGcpClients: "false"
+  useVmReservations: "false"
+  ociRegion: "us-ashburn-1"
+  ociResourcePrincipalVersion: "2.2"
+  
+  # Ignored when oke.workloadIdentityEnabled is true (ConfigMap sets FILE_BASED_AUTH=false).
+  fileBasedAuth: "true"
+  ociAuthSecretName: ""
+  # Alternatively, let the chart create the OCI auth secret from the values below (do not commit privateKey; use --set-file or CI secret).
+  ociAuth:
+    createSecret: false
+    tenancy: ""
+    user: ""
+    fingerprint: ""
+    privateKey: ""
+    passphrase: ""
+
+secretManagerEnabled: false
+
+# Pod affinity and OKE topology spread
+podAffinity:
+  enabled: true
+
+# OKE-specific options
+oke:
+  # When true: use OKE workload identity for OCI API (no vlm-worker Opaque Secrets from this chart).
+  # Sets OKE_WORKLOAD_IDENTITY_ENABLED=true, OCI_AUTH_TYPE=oke_workload_identity, FILE_BASED_AUTH=false.
+  # ONTAP credential encrypt key is passed via ConfigMap (workerConfig.vsaVlmEncryptionKey) instead of Secret.
+  workloadIdentityEnabled: true
+  nodeSelector: {}
+  disableTopologySpread: false

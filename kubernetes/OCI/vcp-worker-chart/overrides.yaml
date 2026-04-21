@@ -1,0 +1,22 @@
+# OCI environment overrides: tenancy, compartment, region, OCIR, DB, custom images.
+# Merge with defaults:
+#   helm upgrade --install vcp-worker . -n <ns> -f values.yaml -f overrides.yaml
+
+global:
+  primaryImageRegistry: iad.ocir.io
+  primaryImageRegistryPath: "REPLACE_WITH_TENANCY_NAMESPACE"
+
+workerConfig:
+  localRegion: "REPLACE_WITH_REGION"
+  database:
+    host: REPLACE_WITH_POSTGRES_PRIMARY_FQDN
+  vsaMediatorImageName: "REPLACE_WITH_MEDIATOR_CUSTOM_IMAGE_OCID"
+  vsaImageName: "REPLACE_WITH_VSA_CUSTOM_IMAGE_OCID"
+  secretUri: "REPLACE_WITH_VAULT_SECRET_OCID"
+
+# Image configuration (OCIR)
+images:
+  vcpWorker:
+    name: vcp-worker
+    tag: "REPLACE_WITH_TAG"
+    digest: ""

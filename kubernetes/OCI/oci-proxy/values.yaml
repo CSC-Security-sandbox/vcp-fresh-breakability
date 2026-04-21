@@ -1,0 +1,135 @@
+environment: oci
+
+podAffinity:
+  enabled: true
+
+enabled: true
+serviceAccountName: oci-proxy
+replicaCount: 1
+
+localRegion: "us-ashburn-1"
+runMigrationOnStart: false
+temporalAddress: "temporal-frontend.temporal.svc.cluster.local:7233"
+proxyClientTransportSchema: "https"
+loggerLevel: "info"
+
+# OCI object store
+objectStoreProvider: "oci"
+
+createPoolWorkflowTimeoutMinutes: "150"
+updatePoolWorkflowTimeoutMinutes: "150"
+waitForTemporalEnabled: false
+hyperScaler: "oci"
+
+# Global for image registry (standalone chart)
+global:
+  primaryImageRegistry: iad.ocir.io
+  primaryImageRegistryPath: "idqogasfjw45"
+  primaryImageRegistryPasswordAuth: true
+  primaryImagePullSecretName: ocir-secret
+  secondaryImageRegistry: "iad.ocir.io"
+  secondaryImageRegistryPath: "nmobsa"
+  secondaryImageRegistryPasswordAuth: false
+  useSecondaryImageRegistry: false
+  useTags: true
+  chartPrimaryImageRegistry: ""
+  chartSecondaryImageRegistry: ""
+
+images:
+  ociProxy:
+    name: oci-proxy
+    tag: "02042026"
+    digest: ""
+    secondary: false
+    pullPolicy: IfNotPresent
+
+resources:
+  limits:
+    cpu: "1"
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 150Mi
+
+service:
+  type: ClusterIP
+  appPort: 8080
+
+istio:
+  enabled: false
+
+startupProbe:
+  path: /healthz/ready
+  port: 15021
+  scheme: HTTP
+  periodSeconds: 2
+  failureThreshold: 30
+
+livenessProbe:
+  initialDelaySeconds: 60
+  periodSeconds: 15
+  timeoutSeconds: 1
+  failureThreshold: 3
+
+readinessProbe:
+  initialDelaySeconds: 10
+  timeoutSeconds: 1
+  failureThreshold: 1
+  periodSeconds: 5
+
+# Database: same connection details as vcp-worker-chart (shared OCI Postgres).
+database:
+  host: primary.djzfvolyanswjizl6jz5bkqucnfeha.postgresql.us-ashburn-1.oci.oraclecloud.com
+  port: 5432
+  user: postgres
+  password: ""
+  name: vcp
+  adminUser: postgres
+  adminPassword: ""
+  sslMode: "require"
+  useExistingSecret: true
+  existingSecretName: "vcp-db-secret"
+
+serviceAccountAnnotations: {}
+
+temporal:
+  timeouts:
+    heartbeat:
+      setupNwSecond: 300
+
+secretManagerEnabled: false
+externalSecrets: {}
+
+enableUniqueSerialNumberGeneration: false
+clusterSerialNumberPrefix: "935"
+
+# OKE-specific
+oke:
+  nodeSelector: {}
+  disableTopologySpread: false
+
+imagePullSecrets:
+  - name: ocir-secret
+
+# Optional Ingress for OKE (e.g. OCI LB or nginx). Disabled by default.
+ingress:
+  enabled: false
+  className: ""   # e.g. "nginx" or OCI LB class
+  host: ""
+  annotations: {}
+  tls: []
+
+# OCI region number map (align with vcp-worker-chart)
+regionNumberMap:
+  us-ashburn-1: "01"
+  us-phoenix-1: "02"
+  eu-frankfurt-1: "03"
+  uk-london-1: "04"
+  ap-tokyo-1: "05"
+  ap-seoul-1: "06"
+  ap-singapore-1: "07"
+  ap-sydney-1: "08"
+  ca-montreal-1: "09"
+  ca-toronto-1: "10"
+  ap-mumbai-1: "15"
+  ap-hyderabad-1: "23"

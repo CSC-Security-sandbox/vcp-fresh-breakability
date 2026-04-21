@@ -1,0 +1,89 @@
+{{- range .Values.app }}
+  {{- $name := .name }}
+  {{- $replicas := .replicas }}
+  {{- $imageTag := $.Values.images.vcpWorker.tag | default ($.Chart.Version | default "v0.0.1") }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app: {{ $name }}
+spec:
+  replicas: {{ $replicas }}
+  selector:
+    matchLabels:
+      app: {{ $name }}
+  template:
+    metadata:
+      labels:
+        app: {{ $name }}
+    spec:
+      serviceAccountName: {{ $.Values.serviceAccount.name }}
+      {{- if $.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range $.Values.imagePullSecrets }}
+        {{- if .name }}
+        - name: {{ .name | quote }}
+        {{- end }}
+        {{- end }}
+      {{- end }}
+      {{- if $.Values.oke.nodeSelector }}
+      nodeSelector:
+        {{- toYaml $.Values.oke.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- if and $.Values.podAffinity.enabled (eq $.Values.global.environment "gcp") }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          minDomains: 3
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: {{ $name }}
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: {{ $name }}
+      {{- else if and $.Values.podAffinity.enabled (eq $.Values.global.environment "oci") (not $.Values.oke.disableTopologySpread) }}
+      # OKE: spread across zones and nodes (OKE node pools expose topology.kubernetes.io/zone, kubernetes.io/hostname)
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: {{ $name }}
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: {{ $name }}
+      {{- end }}
+      containers:
+        - name: {{ $name }}
+          {{- if $.Values.images.vcpWorker.image }}
+          image: {{ $.Values.images.vcpWorker.image | quote }}
+          {{- else if $.Values.images.vcpWorker.secondary }}
+          image: "{{- include "containerImage" (list $ (dict "name" "vcpWorker" "secondary" true "version" $imageTag "sha" "" )) | trim -}}"
+          {{- else }}
+          image: "{{- include "containerImage" (list $ (dict "name" "vcpWorker" "secondary" false "version" $imageTag "sha" "" )) | trim -}}"
+          {{- end }}
+          imagePullPolicy: {{ $.Values.images.vcpWorker.pullPolicy }}
+          resources:
+            limits:
+              cpu: {{ $.Values.resources.limits.cpu }}
+              memory: {{ $.Values.resources.limits.memory }}
+            requests:
+              cpu: {{ $.Values.resources.requests.cpu }}
+              memory: {{ $.Values.resources.requests.memory }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "vcp-worker.configMapName" $name }}
+            - secretRef:
+                name: {{ $.Values.workerConfig.database.existingSecretName | quote }}
+---
+{{- end }}

@@ -1,0 +1,68 @@
+# One-off Job to run Temporal schema setup for OCI PostgreSQL.
+#
+# Prereqs: databases "temporal" and "temporal_visibility" exist; secrets
+# temporal-default-store and temporal-visibility-store exist in namespace with key "password".
+
+
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: temporal-schema-setup-once
+  namespace: temporal
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: setup
+          # Use same OCIR image as Helm chart (push via push-images-to-ocir.sh)
+          image: iad.ocir.io/idqogasfjw45/temporalio/admin-tools:1.29
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              export SQL_PLUGIN=postgres12
+              export SQL_HOST=10.0.1.132
+              export SQL_PORT=5432
+              export SQL_USER=postgres
+              export SQL_TLS=true
+              # OCI PostgreSQL cert is signed by Oracle CA; skip host verification for VCN-private connections
+              export SQL_TLS_DISABLE_HOST_VERIFICATION=true
+
+              echo "Setting up default store schema (database: temporal)..."
+              export SQL_DATABASE=temporal
+              export SQL_PASSWORD="$(cat /etc/temporal-secrets/default/password)"
+              temporal-sql-tool setup-schema -v 0.0
+
+              echo "Setting up visibility store schema (database: temporal_visibility)..."
+              export SQL_DATABASE=temporal_visibility
+              export SQL_PASSWORD="$(cat /etc/temporal-secrets/visibility/password)"
+              temporal-sql-tool setup-schema -v 0.0
+
+              echo "Schema setup completed successfully."
+          volumeMounts:
+            - name: secret-default
+              mountPath: /etc/temporal-secrets/default
+              readOnly: true
+            - name: secret-visibility
+              mountPath: /etc/temporal-secrets/visibility
+              readOnly: true
+      volumes:
+        - name: secret-default
+          secret:
+            secretName: temporal-default-store
+            items:
+              - key: password
+                path: password
+        - name: secret-visibility
+          secret:
+            secretName: temporal-visibility-store
+            items:
+              - key: password
+                path: password

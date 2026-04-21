@@ -1,0 +1,408 @@
+# OKE (Oracle Kubernetes Engine) / OCI - complete Temporal values
+# Single file: no base values file needed.
+# From kubernetes/OCI/temporal/: helm install temporal . -f values-oke.yaml -n <namespace>
+# Istio is not enabled for OKE in this setup.
+
+nameOverride: ""
+fullnameOverride: ""
+debug: false
+imagePullSecrets:
+  - name: ocir-secret   # kubectl create secret docker-registry ocir-secret -n temporal --docker-server=iad.ocir.io --docker-username='idqogasfjw45/<oci-user>' --docker-password='<auth-token>'
+
+global:
+  primaryImageRegistry: iad.ocir.io
+  primaryImageRegistryPath: "idqogasfjw45"
+  secondaryImageRegistry: "iad.ocir.io"
+  secondaryImageRegistryPath: "nmobsa"
+  useSecondaryImageRegistry: false
+
+serviceAccount:
+  create: false
+  name:
+  extraAnnotations:
+additionalAnnotations: {}
+additionalLabels: {}
+
+secretManagerEnabled: false
+externalSecrets:
+  defaultStore:
+    temporalDBPassword: ""
+  visibilityStore:
+    temporalDBPassword: ""
+
+server:
+  enabled: true
+  image:
+    repository: iad.ocir.io/idqogasfjw45/temporalio/server
+    tag: "1.29.1"
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  metrics:
+    annotations:
+      enabled: true
+    tags: {}
+    excludeTags: {}
+    prefix:
+    serviceMonitor:
+      enabled: false
+      interval: 30s
+      additionalLabels: {}
+      metricRelabelings: []
+    prometheus:
+      timerType: histogram
+  deploymentLabels: {}
+  deploymentAnnotations: {}
+  podAnnotations: {}
+  podLabels: {}
+  secretLabels: {}
+  secretAnnotations: {}
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  additionalVolumes: []
+  additionalVolumeMounts: []
+  additionalEnv: []
+  additionalInitContainers: []
+  securityContext:
+    fsGroup: 1000
+    runAsUser: 1000
+  config:
+    logLevel: "debug,info"
+    numHistoryShards: 512
+    persistence:
+      defaultStore: default
+      additionalStores: {}
+      default:
+        driver: "sql"
+        sql:
+          driver: "postgres12"
+          host: "primary.djzfvolyanswjizl6jz5bkqucnfeha.postgresql.us-ashburn-1.oci.oraclecloud.com"   # Primary endpoint FQDN from OCI DB connection details
+          port: 5432
+          database: temporal
+          user: postgres
+          password: ""
+          existingSecret: "temporal-default-store"
+          secretName: ""
+          maxConns: 20
+          maxIdleConns: 20
+          maxConnLifetime: "1h"
+          tls:
+            enabled: true
+            enableHostVerification: false
+      visibility:
+        driver: sql
+        sql:
+          driver: "postgres12"
+          host: "primary.djzfvolyanswjizl6jz5bkqucnfeha.postgresql.us-ashburn-1.oci.oraclecloud.com"
+          port: 5432
+          database: temporal_visibility
+          user: postgres
+          password: ""
+          existingSecret: "temporal-visibility-store"
+          secretName: ""
+          maxConns: 20
+          maxIdleConns: 20
+          maxConnLifetime: "1h"
+          tls:
+            enabled: true
+            enableHostVerification: false
+    namespaces:
+      create: true
+      namespace:
+        - name: default
+          retention: 60d
+  frontend:
+    service:
+      annotations: {}
+      type: ClusterIP
+      port: 7233
+      membershipPort: 6933
+      httpPort: 7243
+    ingress:
+      enabled: false
+      annotations: {}
+      hosts:
+        - "/"
+      tls: []
+    metrics:
+      annotations:
+        enabled: true
+      serviceMonitor: {}
+      prometheus: {}
+    deploymentLabels: {}
+    deploymentAnnotations: {}
+    podAnnotations: {}
+    podLabels: {}
+    resources: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    additionalEnv: []
+    containerSecurityContext: {}
+    topologySpreadConstraints:
+      - maxSkew: 1
+        minDomains: 3
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: temporal
+            app.kubernetes.io/component: frontend
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: temporal
+            app.kubernetes.io/component: frontend
+    podDisruptionBudget: {}
+  internalFrontend:
+    enabled: false
+    service:
+      annotations: {}
+      type: ClusterIP
+      port: 7236
+      membershipPort: 6936
+      httpPort: 7246
+    metrics:
+      annotations:
+        enabled: true
+      serviceMonitor: {}
+      prometheus: {}
+    deploymentLabels: {}
+    deploymentAnnotations: {}
+    podAnnotations: {}
+    podLabels: {}
+    resources: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    additionalEnv: []
+    containerSecurityContext: {}
+    topologySpreadConstraints:
+      - maxSkew: 1
+        minDomains: 3
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: temporal
+            app.kubernetes.io/component: internal-frontend
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: temporal
+            app.kubernetes.io/component: internal-frontend
+    podDisruptionBudget: {}
+  history:
+    service:
+      port: 7234
+      membershipPort: 6934
+    metrics:
+      annotations:
+        enabled: true
+      serviceMonitor: {}
+      prometheus: {}
+    deploymentLabels: {}
+    deploymentAnnotations: {}
+    podAnnotations: {}
+    podLabels: {}
+    resources: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    additionalEnv: []
+    additionalEnvSecretName: ""
+    containerSecurityContext: {}
+    topologySpreadConstraints:
+      - maxSkew: 1
+        minDomains: 3
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: temporal
+            app.kubernetes.io/component: history
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: temporal
+            app.kubernetes.io/component: history
+    podDisruptionBudget: {}
+  matching:
+    service:
+      port: 7235
+      membershipPort: 6935
+    metrics:
+      annotations:
+        enabled: false
+      serviceMonitor: {}
+      prometheus: {}
+    deploymentLabels: {}
+    deploymentAnnotations: {}
+    podAnnotations: {}
+    podLabels: {}
+    resources: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    additionalEnv: []
+    containerSecurityContext: {}
+    topologySpreadConstraints:
+      - maxSkew: 1
+        minDomains: 3
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: temporal
+            app.kubernetes.io/component: matching
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: temporal
+            app.kubernetes.io/component: matching
+    podDisruptionBudget: {}
+  worker:
+    service:
+      port: 7239
+      membershipPort: 6939
+    metrics:
+      annotations:
+        enabled: true
+      serviceMonitor: {}
+      prometheus: {}
+    deploymentLabels: {}
+    deploymentAnnotations: {}
+    podAnnotations: {}
+    podLabels: {}
+    resources: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    additionalEnv: []
+    containerSecurityContext: {}
+    topologySpreadConstraints:
+      - maxSkew: 1
+        minDomains: 3
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: temporal
+            app.kubernetes.io/component: worker
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: temporal
+            app.kubernetes.io/component: worker
+    podDisruptionBudget: {}
+
+admintools:
+  enabled: true
+  image:
+    repository: iad.ocir.io/idqogasfjw45/temporalio/admin-tools
+    tag: "1.29"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 22
+    annotations: {}
+  deploymentLabels: {}
+  deploymentAnnotations: {}
+  podLabels: {}
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  additionalVolumes: []
+  additionalVolumeMounts: []
+  additionalEnv: []
+  additionalEnvSecretName: ""
+  additionalInitContainers: []
+  resources: {}
+  containerSecurityContext: {}
+  securityContext: {}
+  podDisruptionBudget: {}
+
+web:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: iad.ocir.io/idqogasfjw45/temporalio/ui
+    tag: "2.44.0"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8080
+    annotations: {}
+  ingress:
+    enabled: false
+    annotations: {}
+    hosts:
+      - "/"
+    tls: []
+  deploymentLabels: {}
+  deploymentAnnotations: {}
+  podAnnotations: {}
+  podLabels: {}
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  additionalVolumes: []
+  additionalVolumeMounts: []
+  additionalEnv: []
+  additionalEnvSecretName: ""
+  containerSecurityContext: {}
+  securityContext: {}
+  topologySpreadConstraints:
+    - maxSkew: 1
+      minDomains: 3
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: temporal
+          app.kubernetes.io/component: web
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: temporal
+          app.kubernetes.io/component: web
+  podDisruptionBudget: {}
+
+schema:
+  createDatabase:
+    enabled: true
+  setup:
+    enabled: true
+    backoffLimit: 100
+  update:
+    enabled: true
+    backoffLimit: 100
+  podAnnotations: {}
+  podLabels: {}
+  resources: {}
+  containerSecurityContext: {}
+  securityContext: {}
+  istio:
+    enabled: false
+
+# Postgres external Service + Endpoints. When enabled, creates postgres-db.<release-namespace>.svc.cluster.local
+# pointing to endpointIP. Set enabled: false when using FQDN directly (see persistence sql host above).
+postgresExternal:
+  enabled: false
+  endpointIP: "10.0.1.132"   # Primary endpoint (private IP) from DB System
+  port: 5432
