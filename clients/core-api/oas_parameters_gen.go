@@ -56,6 +56,12 @@ type V1ExpertModeVolumeParams struct {
 	XCorrelationID OptString
 }
 
+// V1ExpertModeVolumeFlexCloneSplitParams is parameters of v1_expertModeVolumeFlexCloneSplit operation.
+type V1ExpertModeVolumeFlexCloneSplitParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1ExpertModeVolumeRenameParams is parameters of v1_expertModeVolumeRename operation.
 type V1ExpertModeVolumeRenameParams struct {
 	// Correlation identifier.

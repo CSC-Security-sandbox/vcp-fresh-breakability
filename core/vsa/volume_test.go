@@ -3845,10 +3845,7 @@ func TestGetVolumeForExpertMode(t *testing.T) {
 			SvmName:    svmName,
 		})
 		assert.NoError(tt, err)
-		assert.Equal(tt, "", resp.CloneParentVolumeName)
-		assert.Equal(tt, "", resp.CloneParentVolumeUUID)
-		assert.Equal(tt, "", resp.CloneParentSnapshotName)
-		assert.Equal(tt, "", resp.CloneParentSnapshotUUID)
+		assert.Nil(tt, resp.Clone)
 	})
 
 	t.Run("WhenGetOntapClientFuncFails_ThenReturnError", func(tt *testing.T) {
@@ -4152,10 +4149,11 @@ func TestGetCloneVolumeForExpertMode(t *testing.T) {
 			SvmName:    svmName,
 		})
 		assert.NoError(tt, err)
-		assert.Equal(tt, parentVolName, resp.CloneParentVolumeName)
-		assert.Equal(tt, parentVolUUID, resp.CloneParentVolumeUUID)
-		assert.Equal(tt, parentSnapName, resp.CloneParentSnapshotName)
-		assert.Equal(tt, parentSnapUUID, resp.CloneParentSnapshotUUID)
+		require.NotNil(tt, resp.Clone)
+		assert.Equal(tt, parentVolName, resp.Clone.ParentVolumeName)
+		assert.Equal(tt, parentVolUUID, resp.Clone.ParentVolumeUUID)
+		assert.Equal(tt, parentSnapName, resp.Clone.ParentSnapshotName)
+		assert.Equal(tt, parentSnapUUID, resp.Clone.ParentSnapshotUUID)
 
 		mockStorage.AssertExpectations(tt)
 		mockClient.AssertExpectations(tt)

@@ -361,6 +361,26 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 							}
 
+						case ':': // Prefix: ":flexCloneSplit"
+
+							if l := len(":flexCloneSplit"); len(elem) >= l && elem[0:l] == ":flexCloneSplit" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "POST":
+									s.handleV1ExpertModeVolumeFlexCloneSplitRequest([0]string{}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "POST")
+								}
+
+								return
+							}
+
 						}
 
 					}
@@ -1062,6 +1082,30 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									}
 								}
 
+							}
+
+						case ':': // Prefix: ":flexCloneSplit"
+
+							if l := len(":flexCloneSplit"); len(elem) >= l && elem[0:l] == ":flexCloneSplit" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "POST":
+									r.name = V1ExpertModeVolumeFlexCloneSplitOperation
+									r.summary = "Start FlexClone split for an expert-mode volume"
+									r.operationID = "v1_expertModeVolumeFlexCloneSplit"
+									r.pathPattern = "/v1/expertMode/volumes:flexCloneSplit"
+									r.args = args
+									r.count = 0
+									return r, true
+								default:
+									return
+								}
 							}
 
 						}

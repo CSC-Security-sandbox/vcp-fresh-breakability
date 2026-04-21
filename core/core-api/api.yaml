@@ -1106,6 +1106,50 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /v1/expertMode/volumes:flexCloneSplit:
+    post:
+      tags:
+        - expertMode
+      summary: Start FlexClone split for an expert-mode volume
+      description: >
+        Starts a long-running ONTAP FlexClone split for the given volume. The request body accepts
+        external UUID (ONTAP volume UUID) and/or volume name (resolved within the provided pool). Returns 202 Accepted
+        with an empty body when the workflow is started. Split may take many hours. Requires sufficient pool capacity
+        (volume size minus shared bytes must fit in remaining pool capacity). Volume must be a FlexClone in READY state.
+      operationId: v1_expertModeVolumeFlexCloneSplit
+      parameters:
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpertModeVolumeFlexCloneSplit_v1'
+      responses:
+        "202":
+          description: FlexClone split workflow started (no response body)
+        "400":
+          $ref: '#/components/responses/StandardError-400'
+        "401":
+          $ref: '#/components/responses/StandardError-401'
+        "403":
+          $ref: '#/components/responses/StandardError-403'
+        "404":
+          $ref: '#/components/responses/StandardError-404'
+        "409":
+          $ref: '#/components/responses/StandardError-409'
+        "422":
+          $ref: '#/components/responses/StandardError-422'
+        "429":
+          $ref: '#/components/responses/StandardError-429'
+        "500":
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /v1/expertMode/rbac/refresh:
     post:
       tags:
@@ -2615,6 +2659,37 @@ components:
           type: string
           description: SVM name the volume belongs to
           example: "my-svm"
+    ExpertModeVolumeFlexCloneSplit_v1:
+      title: ExpertModeVolumeFlexCloneSplit
+      type: object
+      required:
+        - projectNumber
+        - poolUUID
+      properties:
+        projectNumber:
+          title: projectNumber
+          type: string
+          description: GCP project number
+          pattern: "^[0-9]{1,20}$"
+          example: "123456789012"
+        poolUUID:
+          title: poolUUID
+          type: string
+          description: GCNV pool UUID the volume belongs to
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          example: "9760acf5-4638-11e7-9bdb-020073ca7773"
+        volumeUUID:
+          title: volumeUUID
+          type: string
+          description: Expert-mode volume external UUID (ONTAP volume UUID)
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          example: "f5d0bf36-5282-45c2-a837-ed7d8181c860"
+        volumeName:
+          title: volumeName
+          type: string
+          description: Expert-mode volume name (used with poolUUID)
+          pattern: "^([a-zA-Z][a-zA-Z0-9_]{0,201})?$"
+          example: "clone_vol_01"
     SnapshotCreate_v1:
       title: SnapshotCreate
       type: object

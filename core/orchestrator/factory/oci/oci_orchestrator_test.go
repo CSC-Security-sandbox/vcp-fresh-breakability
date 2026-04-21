@@ -1997,6 +1997,19 @@ func TestOCIOrchestrator_RenameExpertModeVolume(t *testing.T) {
 	})
 }
 
+func TestOCIOrchestrator_StartExpertModeFlexCloneSplit(t *testing.T) {
+	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
+		orch := &OCIOrchestrator{}
+		ctx := context.Background()
+		params := &common.ExpertModeFlexCloneSplitParams{}
+
+		err := orch.StartExpertModeFlexCloneSplit(ctx, params)
+
+		assert.Error(tt, err)
+		assert.True(tt, errors.IsNotImplementedYetErr(err))
+	})
+}
+
 func TestOCIOrchestrator_UpdateRbacForPools(t *testing.T) {
 	t.Run("ReturnsNotImplementedError", func(tt *testing.T) {
 		orch := &OCIOrchestrator{}

@@ -54,6 +54,16 @@ type Handler interface {
 	//
 	// POST /v1/expertMode/volumes
 	V1ExpertModeVolume(ctx context.Context, req *ExpertModeVolumeV1, params V1ExpertModeVolumeParams) (V1ExpertModeVolumeRes, error)
+	// V1ExpertModeVolumeFlexCloneSplit implements v1_expertModeVolumeFlexCloneSplit operation.
+	//
+	// Starts a long-running ONTAP FlexClone split for the given volume. The request body accepts
+	// external UUID (ONTAP volume UUID) and/or volume name (resolved within the provided pool). Returns
+	// 202 Accepted with an empty body when the workflow is started. Split may take many hours. Requires
+	// sufficient pool capacity (volume size minus shared bytes must fit in remaining pool capacity).
+	// Volume must be a FlexClone in READY state.
+	//
+	// POST /v1/expertMode/volumes:flexCloneSplit
+	V1ExpertModeVolumeFlexCloneSplit(ctx context.Context, req *ExpertModeVolumeFlexCloneSplitV1, params V1ExpertModeVolumeFlexCloneSplitParams) (V1ExpertModeVolumeFlexCloneSplitRes, error)
 	// V1ExpertModeVolumeRename implements v1_expertModeVolumeRename operation.
 	//
 	// Renames an expert mode volume. The volume is identified by path and query; the body contains the

@@ -299,6 +299,18 @@ func TestError_Examples(t *testing.T) {
 		})
 	}
 }
+func TestExpertModeVolumeFlexCloneSplitV1_EncodeDecode(t *testing.T) {
+	var typ ExpertModeVolumeFlexCloneSplitV1
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 ExpertModeVolumeFlexCloneSplitV1
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestExpertModeVolumeRenameV1_EncodeDecode(t *testing.T) {
 	var typ ExpertModeVolumeRenameV1
 	typ.SetFake()
@@ -1774,6 +1786,102 @@ func TestV1ExpertModeVolumeConflict_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1ExpertModeVolumeConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ExpertModeVolumeFlexCloneSplitBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1ExpertModeVolumeFlexCloneSplitBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ExpertModeVolumeFlexCloneSplitBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ExpertModeVolumeFlexCloneSplitConflict_EncodeDecode(t *testing.T) {
+	var typ V1ExpertModeVolumeFlexCloneSplitConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ExpertModeVolumeFlexCloneSplitConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ExpertModeVolumeFlexCloneSplitForbidden_EncodeDecode(t *testing.T) {
+	var typ V1ExpertModeVolumeFlexCloneSplitForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ExpertModeVolumeFlexCloneSplitForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ExpertModeVolumeFlexCloneSplitInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1ExpertModeVolumeFlexCloneSplitInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ExpertModeVolumeFlexCloneSplitInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ExpertModeVolumeFlexCloneSplitNotFound_EncodeDecode(t *testing.T) {
+	var typ V1ExpertModeVolumeFlexCloneSplitNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ExpertModeVolumeFlexCloneSplitNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ExpertModeVolumeFlexCloneSplitTooManyRequests_EncodeDecode(t *testing.T) {
+	var typ V1ExpertModeVolumeFlexCloneSplitTooManyRequests
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ExpertModeVolumeFlexCloneSplitTooManyRequests
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ExpertModeVolumeFlexCloneSplitUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1ExpertModeVolumeFlexCloneSplitUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ExpertModeVolumeFlexCloneSplitUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ExpertModeVolumeFlexCloneSplitUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1ExpertModeVolumeFlexCloneSplitUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ExpertModeVolumeFlexCloneSplitUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1ExpertModeVolumeForbidden_EncodeDecode(t *testing.T) {

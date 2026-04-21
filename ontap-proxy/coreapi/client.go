@@ -209,3 +209,60 @@ func SubmitExpertModeVolumeRename(ctx context.Context, request *coreapi.ExpertMo
 		return err
 	}
 }
+
+// SubmitExpertModeFlexCloneSplit starts expert-mode FlexClone split for a volume
+// identified by UUID and/or name in the request body.
+func SubmitExpertModeFlexCloneSplit(ctx context.Context, volumeUUID, volumeName, projectNumber, poolUUID, jwtToken string, logger log.Logger) error {
+	logger.InfoContext(ctx, "Submitting expert mode flexclone split",
+		"volumeUUID", volumeUUID,
+		"volumeName", volumeName,
+		"projectNumber", projectNumber,
+		"poolUUID", poolUUID)
+
+	client := createCoreAPIClient(coreAPIHost, jwtToken, logger)
+	request := &coreapi.ExpertModeVolumeFlexCloneSplitV1{
+		ProjectNumber: projectNumber,
+		PoolUUID:      poolUUID,
+	}
+	if volumeUUID != "" {
+		request.VolumeUUID = coreapi.NewOptString(volumeUUID)
+	}
+	if volumeName != "" {
+		request.VolumeName = coreapi.NewOptString(volumeName)
+	}
+	params := coreapi.V1ExpertModeVolumeFlexCloneSplitParams{}
+	if correlationID, _ := ctx.Value(middleware.CorrelationContextKey).(string); correlationID != "" {
+		params.XCorrelationID = coreapi.NewOptString(correlationID)
+	}
+
+	response, err := client.Invoker.V1ExpertModeVolumeFlexCloneSplit(ctx, request, params)
+	if err != nil {
+		logger.ErrorContext(ctx, "Failed to submit expert mode flexclone split",
+			"error", err,
+			"volumeUUID", volumeUUID,
+			"volumeName", volumeName,
+			"poolUUID", poolUUID)
+		return err
+	}
+
+	switch resp := response.(type) {
+	case *coreapi.V1ExpertModeVolumeFlexCloneSplitAccepted:
+		logger.InfoContext(ctx, "Successfully submitted expert mode flexclone split",
+			"volumeUUID", volumeUUID,
+			"volumeName", volumeName,
+			"poolUUID", poolUUID)
+		return nil
+
+	case *coreapi.V1ExpertModeVolumeFlexCloneSplitBadRequest:
+		logger.ErrorContext(ctx, "Bad request when submitting expert mode flexclone split",
+			"errorMessage", resp.Message, "volumeUUID", volumeUUID, "volumeName", volumeName)
+		return customerrors.NewBadRequestErr(fmt.Sprintf("bad request: %s", resp.Message))
+
+	default:
+		logger.ErrorContext(ctx, "Unexpected response from Core API",
+			"responseType", fmt.Sprintf("%T", resp),
+			"volumeUUID", volumeUUID,
+			"volumeName", volumeName)
+		return fmt.Errorf("unexpected response from Core API")
+	}
+}

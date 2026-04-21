@@ -25,6 +25,10 @@ type V1DeletePoolRes interface {
 	v1DeletePoolRes()
 }
 
+type V1ExpertModeVolumeFlexCloneSplitRes interface {
+	v1ExpertModeVolumeFlexCloneSplitRes()
+}
+
 type V1ExpertModeVolumeRenameRes interface {
 	v1ExpertModeVolumeRenameRes()
 }

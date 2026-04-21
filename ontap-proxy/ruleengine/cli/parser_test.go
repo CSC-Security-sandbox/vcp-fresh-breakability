@@ -126,6 +126,31 @@ func TestParseCLICommand(t *testing.T) {
 				wantFlags:   []string{},
 			},
 			{
+				name:        "volume clone create multi-word command",
+				input:       "volume clone create -vserver vs1 -flexclone clone1 -parent-volume src1",
+				wantCommand: "volume clone",
+				wantSubcmd:  "create",
+				wantFull:    "volume clone create",
+				wantArgs: map[string]string{
+					"-vserver":       "vs1",
+					"-flexclone":     "clone1",
+					"-parent-volume": "src1",
+				},
+				wantFlags: []string{},
+			},
+			{
+				name:        "volume clone split start multi-word command",
+				input:       "volume clone split start -vserver vs1 -flexclone clone1",
+				wantCommand: "volume clone split",
+				wantSubcmd:  "start",
+				wantFull:    "volume clone split start",
+				wantArgs: map[string]string{
+					"-vserver":   "vs1",
+					"-flexclone": "clone1",
+				},
+				wantFlags: []string{},
+			},
+			{
 				name:    "WhenEmptyCommand_ShouldReturnError",
 				input:   "",
 				wantErr: true,

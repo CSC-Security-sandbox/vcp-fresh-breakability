@@ -372,6 +372,9 @@ workerConfig:
   volumeReconciliationExpertModeActivitiesMaxAttempts: "8"
   volumeReconciliationExpertModeStartToCloseTimeoutSec: "60"
   volumeReconciliationExpertModeBackoffCoefficient: 1.5
+  # FlexClone split: workflow ScheduleToClose (minutes) and poll interval between ONTAP checks (seconds); see workflow_engine/temporal/workflow_config.go
+  expertModeFlexCloneSplitWorkflowTimeoutMinutes: "4320"
+  expertModeFlexCloneSplitPollIntervalSec: "30"
 
   # Volume activities timeout configuration (in seconds)
   volumeActivitiesStartToCloseTimeoutSec: "600"  # 10 minutes

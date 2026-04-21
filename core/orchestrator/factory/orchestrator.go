@@ -171,6 +171,7 @@ type OrchestratorFactory interface {
 	UpdateExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeParams) error
 	DeleteExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeParams) error
 	RenameExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeRenameParams) error
+	StartExpertModeFlexCloneSplit(ctx context.Context, params *commonparams.ExpertModeFlexCloneSplitParams) error
 	UpdateRbacForPools(ctx context.Context) (string, error)
 	GetBackupConfigsForPool(ctx context.Context, poolID string, accountName string, locationId string) ([]*models.ExpertModeVolumeBackupConfig, error)
 	ManageBackupConfigForExpertModeVolume(ctx context.Context, params *commonparams.ManageBackupConfigForExpertModeVolumeParams) (*datamodel.DataProtection, string, error)

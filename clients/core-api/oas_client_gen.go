@@ -67,6 +67,16 @@ type Invoker interface {
 	//
 	// POST /v1/expertMode/volumes
 	V1ExpertModeVolume(ctx context.Context, request *ExpertModeVolumeV1, params V1ExpertModeVolumeParams) (V1ExpertModeVolumeRes, error)
+	// V1ExpertModeVolumeFlexCloneSplit invokes v1_expertModeVolumeFlexCloneSplit operation.
+	//
+	// Starts a long-running ONTAP FlexClone split for the given volume. The request body accepts
+	// external UUID (ONTAP volume UUID) and/or volume name (resolved within the provided pool). Returns
+	// 202 Accepted with an empty body when the workflow is started. Split may take many hours. Requires
+	// sufficient pool capacity (volume size minus shared bytes must fit in remaining pool capacity).
+	// Volume must be a FlexClone in READY state.
+	//
+	// POST /v1/expertMode/volumes:flexCloneSplit
+	V1ExpertModeVolumeFlexCloneSplit(ctx context.Context, request *ExpertModeVolumeFlexCloneSplitV1, params V1ExpertModeVolumeFlexCloneSplitParams) (V1ExpertModeVolumeFlexCloneSplitRes, error)
 	// V1ExpertModeVolumeRename invokes v1_expertModeVolumeRename operation.
 	//
 	// Renames an expert mode volume. The volume is identified by path and query; the body contains the
@@ -660,6 +670,74 @@ func (c *Client) sendV1ExpertModeVolume(ctx context.Context, request *ExpertMode
 	defer resp.Body.Close()
 
 	result, err := decodeV1ExpertModeVolumeResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1ExpertModeVolumeFlexCloneSplit invokes v1_expertModeVolumeFlexCloneSplit operation.
+//
+// Starts a long-running ONTAP FlexClone split for the given volume. The request body accepts
+// external UUID (ONTAP volume UUID) and/or volume name (resolved within the provided pool). Returns
+// 202 Accepted with an empty body when the workflow is started. Split may take many hours. Requires
+// sufficient pool capacity (volume size minus shared bytes must fit in remaining pool capacity).
+// Volume must be a FlexClone in READY state.
+//
+// POST /v1/expertMode/volumes:flexCloneSplit
+func (c *Client) V1ExpertModeVolumeFlexCloneSplit(ctx context.Context, request *ExpertModeVolumeFlexCloneSplitV1, params V1ExpertModeVolumeFlexCloneSplitParams) (V1ExpertModeVolumeFlexCloneSplitRes, error) {
+	res, err := c.sendV1ExpertModeVolumeFlexCloneSplit(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1ExpertModeVolumeFlexCloneSplit(ctx context.Context, request *ExpertModeVolumeFlexCloneSplitV1, params V1ExpertModeVolumeFlexCloneSplitParams) (res V1ExpertModeVolumeFlexCloneSplitRes, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v1/expertMode/volumes:flexCloneSplit"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1ExpertModeVolumeFlexCloneSplitRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1ExpertModeVolumeFlexCloneSplitResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

@@ -2,6 +2,7 @@ package coreapi
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -455,6 +456,149 @@ func TestSubmitExpertModeVolumeRename(t *testing.T) {
 
 		assert.Error(tt, err)
 		assert.Contains(tt, err.Error(), "volume not found: Volume not found")
+		mockInvoker.AssertExpectations(tt)
+	})
+}
+
+func TestSubmitExpertModeFlexCloneSplit(t *testing.T) {
+	originalCreateClient := createCoreAPIClient
+	defer func() { createCoreAPIClient = originalCreateClient }()
+
+	t.Run("Accepted202", func(tt *testing.T) {
+		mockInvoker := coreapi.NewMockInvoker(tt)
+		mockLogger := &log.MockLogger{}
+
+		mockLogger.On("InfoContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+		mockLogger.On("ErrorContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+
+		createCoreAPIClient = func(host, jwtToken string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{
+				Invoker: mockInvoker,
+			}
+		}
+
+		mockInvoker.On("V1ExpertModeVolumeFlexCloneSplit", mock.Anything,
+			mock.MatchedBy(func(req *coreapi.ExpertModeVolumeFlexCloneSplitV1) bool {
+				return req != nil &&
+					req.VolumeUUID.IsSet() && req.VolumeUUID.Value == "ext-vol-uuid" &&
+					!req.VolumeName.IsSet() &&
+					req.ProjectNumber == "12345" &&
+					req.PoolUUID == "pool-uuid-123"
+			}),
+			mock.MatchedBy(func(p coreapi.V1ExpertModeVolumeFlexCloneSplitParams) bool {
+				return p.XCorrelationID.IsSet() && p.XCorrelationID.Value == "corr-split"
+			}),
+		).Return(&coreapi.V1ExpertModeVolumeFlexCloneSplitAccepted{}, nil)
+
+		ctx := context.WithValue(context.Background(), middleware.CorrelationContextKey, "corr-split")
+		err := SubmitExpertModeFlexCloneSplit(ctx, "ext-vol-uuid", "", "12345", "pool-uuid-123", "jwt", mockLogger)
+
+		assert.NoError(tt, err)
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("BadRequest", func(tt *testing.T) {
+		mockInvoker := coreapi.NewMockInvoker(tt)
+		mockLogger := &log.MockLogger{}
+
+		mockLogger.On("InfoContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+		mockLogger.On("ErrorContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+
+		createCoreAPIClient = func(host, jwtToken string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{
+				Invoker: mockInvoker,
+			}
+		}
+
+		mockInvoker.On("V1ExpertModeVolumeFlexCloneSplit", mock.Anything, mock.Anything, mock.Anything).Return(&coreapi.V1ExpertModeVolumeFlexCloneSplitBadRequest{
+			Code:    400,
+			Message: "not a flexclone",
+		}, nil)
+
+		ctx := context.Background()
+		err := SubmitExpertModeFlexCloneSplit(ctx, "ext-vol-uuid", "", "12345", "pool-uuid-123", "jwt", mockLogger)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "bad request: not a flexclone")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("Accepted202_WithVolumeName", func(tt *testing.T) {
+		mockInvoker := coreapi.NewMockInvoker(tt)
+		mockLogger := &log.MockLogger{}
+
+		mockLogger.On("InfoContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+		mockLogger.On("ErrorContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+
+		createCoreAPIClient = func(host, jwtToken string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{
+				Invoker: mockInvoker,
+			}
+		}
+
+		mockInvoker.On("V1ExpertModeVolumeFlexCloneSplit", mock.Anything,
+			mock.MatchedBy(func(req *coreapi.ExpertModeVolumeFlexCloneSplitV1) bool {
+				return req != nil &&
+					!req.VolumeUUID.IsSet() &&
+					req.VolumeName.IsSet() && req.VolumeName.Value == "vol-by-name" &&
+					req.ProjectNumber == "12345" &&
+					req.PoolUUID == "pool-uuid-123"
+			}),
+			mock.Anything,
+		).Return(&coreapi.V1ExpertModeVolumeFlexCloneSplitAccepted{}, nil)
+
+		err := SubmitExpertModeFlexCloneSplit(context.Background(), "", "vol-by-name", "12345", "pool-uuid-123", "jwt", mockLogger)
+
+		assert.NoError(tt, err)
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("UnexpectedResponse_ReturnsError", func(tt *testing.T) {
+		mockInvoker := coreapi.NewMockInvoker(tt)
+		mockLogger := &log.MockLogger{}
+
+		mockLogger.On("InfoContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+		mockLogger.On("ErrorContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+
+		createCoreAPIClient = func(host, jwtToken string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{
+				Invoker: mockInvoker,
+			}
+		}
+
+		mockInvoker.On("V1ExpertModeVolumeFlexCloneSplit", mock.Anything, mock.Anything, mock.Anything).
+			Return(&coreapi.V1ExpertModeVolumeFlexCloneSplitForbidden{
+				Code:    403,
+				Message: "forbidden",
+			}, nil)
+
+		err := SubmitExpertModeFlexCloneSplit(context.Background(), "ext-vol-uuid", "", "12345", "pool-uuid-123", "jwt", mockLogger)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "unexpected response from Core API")
+		mockInvoker.AssertExpectations(tt)
+	})
+
+	t.Run("InvokerError_ReturnsError", func(tt *testing.T) {
+		mockInvoker := coreapi.NewMockInvoker(tt)
+		mockLogger := &log.MockLogger{}
+
+		mockLogger.On("InfoContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+		mockLogger.On("ErrorContext", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return()
+
+		createCoreAPIClient = func(host, jwtToken string, logger log.Logger) *coreapi.CoreAPIClient {
+			return &coreapi.CoreAPIClient{
+				Invoker: mockInvoker,
+			}
+		}
+
+		mockInvoker.On("V1ExpertModeVolumeFlexCloneSplit", mock.Anything, mock.Anything, mock.Anything).
+			Return(nil, errors.New("transport error"))
+
+		err := SubmitExpertModeFlexCloneSplit(context.Background(), "ext-vol-uuid", "", "12345", "pool-uuid-123", "jwt", mockLogger)
+
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "transport error")
 		mockInvoker.AssertExpectations(tt)
 	})
 }

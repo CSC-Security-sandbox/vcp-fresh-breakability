@@ -667,6 +667,10 @@ func (o *OCIOrchestrator) RenameExpertModeVolume(ctx context.Context, params *co
 	return utilserrors.NewNotImplementedYetErr()
 }
 
+func (o *OCIOrchestrator) StartExpertModeFlexCloneSplit(ctx context.Context, params *commonparams.ExpertModeFlexCloneSplitParams) error {
+	return utilserrors.NewNotImplementedYetErr()
+}
+
 func (o *OCIOrchestrator) UpdateRbacForPools(ctx context.Context) (string, error) {
 	return "", utilserrors.NewNotImplementedYetErr()
 }

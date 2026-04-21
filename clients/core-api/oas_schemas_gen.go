@@ -529,6 +529,58 @@ func (s *ErrorStatusCode) SetResponse(val Error) {
 	s.Response = val
 }
 
+// Ref: #/components/schemas/ExpertModeVolumeFlexCloneSplit_v1
+type ExpertModeVolumeFlexCloneSplitV1 struct {
+	// GCP project number.
+	ProjectNumber string `json:"projectNumber"`
+	// GCNV pool UUID the volume belongs to.
+	PoolUUID string `json:"poolUUID"`
+	// Expert-mode volume external UUID (ONTAP volume UUID).
+	VolumeUUID OptString `json:"volumeUUID"`
+	// Expert-mode volume name (used with poolUUID).
+	VolumeName OptString `json:"volumeName"`
+}
+
+// GetProjectNumber returns the value of ProjectNumber.
+func (s *ExpertModeVolumeFlexCloneSplitV1) GetProjectNumber() string {
+	return s.ProjectNumber
+}
+
+// GetPoolUUID returns the value of PoolUUID.
+func (s *ExpertModeVolumeFlexCloneSplitV1) GetPoolUUID() string {
+	return s.PoolUUID
+}
+
+// GetVolumeUUID returns the value of VolumeUUID.
+func (s *ExpertModeVolumeFlexCloneSplitV1) GetVolumeUUID() OptString {
+	return s.VolumeUUID
+}
+
+// GetVolumeName returns the value of VolumeName.
+func (s *ExpertModeVolumeFlexCloneSplitV1) GetVolumeName() OptString {
+	return s.VolumeName
+}
+
+// SetProjectNumber sets the value of ProjectNumber.
+func (s *ExpertModeVolumeFlexCloneSplitV1) SetProjectNumber(val string) {
+	s.ProjectNumber = val
+}
+
+// SetPoolUUID sets the value of PoolUUID.
+func (s *ExpertModeVolumeFlexCloneSplitV1) SetPoolUUID(val string) {
+	s.PoolUUID = val
+}
+
+// SetVolumeUUID sets the value of VolumeUUID.
+func (s *ExpertModeVolumeFlexCloneSplitV1) SetVolumeUUID(val OptString) {
+	s.VolumeUUID = val
+}
+
+// SetVolumeName sets the value of VolumeName.
+func (s *ExpertModeVolumeFlexCloneSplitV1) SetVolumeName(val OptString) {
+	s.VolumeName = val
+}
+
 // Ref: #/components/schemas/ExpertModeVolumeRename_v1
 type ExpertModeVolumeRenameV1 struct {
 	// New name for the volume after rename.
@@ -4911,6 +4963,43 @@ func (*V1ExpertModeVolumeBadRequest) v1ExpertModeVolumeRes() {}
 type V1ExpertModeVolumeConflict Error
 
 func (*V1ExpertModeVolumeConflict) v1ExpertModeVolumeRes() {}
+
+// V1ExpertModeVolumeFlexCloneSplitAccepted is response for V1ExpertModeVolumeFlexCloneSplit operation.
+type V1ExpertModeVolumeFlexCloneSplitAccepted struct{}
+
+func (*V1ExpertModeVolumeFlexCloneSplitAccepted) v1ExpertModeVolumeFlexCloneSplitRes() {}
+
+type V1ExpertModeVolumeFlexCloneSplitBadRequest Error
+
+func (*V1ExpertModeVolumeFlexCloneSplitBadRequest) v1ExpertModeVolumeFlexCloneSplitRes() {}
+
+type V1ExpertModeVolumeFlexCloneSplitConflict Error
+
+func (*V1ExpertModeVolumeFlexCloneSplitConflict) v1ExpertModeVolumeFlexCloneSplitRes() {}
+
+type V1ExpertModeVolumeFlexCloneSplitForbidden Error
+
+func (*V1ExpertModeVolumeFlexCloneSplitForbidden) v1ExpertModeVolumeFlexCloneSplitRes() {}
+
+type V1ExpertModeVolumeFlexCloneSplitInternalServerError Error
+
+func (*V1ExpertModeVolumeFlexCloneSplitInternalServerError) v1ExpertModeVolumeFlexCloneSplitRes() {}
+
+type V1ExpertModeVolumeFlexCloneSplitNotFound Error
+
+func (*V1ExpertModeVolumeFlexCloneSplitNotFound) v1ExpertModeVolumeFlexCloneSplitRes() {}
+
+type V1ExpertModeVolumeFlexCloneSplitTooManyRequests Error
+
+func (*V1ExpertModeVolumeFlexCloneSplitTooManyRequests) v1ExpertModeVolumeFlexCloneSplitRes() {}
+
+type V1ExpertModeVolumeFlexCloneSplitUnauthorized Error
+
+func (*V1ExpertModeVolumeFlexCloneSplitUnauthorized) v1ExpertModeVolumeFlexCloneSplitRes() {}
+
+type V1ExpertModeVolumeFlexCloneSplitUnprocessableEntity Error
+
+func (*V1ExpertModeVolumeFlexCloneSplitUnprocessableEntity) v1ExpertModeVolumeFlexCloneSplitRes() {}
 
 type V1ExpertModeVolumeForbidden Error
 

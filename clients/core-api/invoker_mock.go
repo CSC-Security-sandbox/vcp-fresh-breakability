@@ -437,6 +437,66 @@ func (_c *MockInvoker_V1ExpertModeVolume_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// V1ExpertModeVolumeFlexCloneSplit provides a mock function with given fields: ctx, request, params
+func (_m *MockInvoker) V1ExpertModeVolumeFlexCloneSplit(ctx context.Context, request *ExpertModeVolumeFlexCloneSplitV1, params V1ExpertModeVolumeFlexCloneSplitParams) (V1ExpertModeVolumeFlexCloneSplitRes, error) {
+	ret := _m.Called(ctx, request, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1ExpertModeVolumeFlexCloneSplit")
+	}
+
+	var r0 V1ExpertModeVolumeFlexCloneSplitRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *ExpertModeVolumeFlexCloneSplitV1, V1ExpertModeVolumeFlexCloneSplitParams) (V1ExpertModeVolumeFlexCloneSplitRes, error)); ok {
+		return rf(ctx, request, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *ExpertModeVolumeFlexCloneSplitV1, V1ExpertModeVolumeFlexCloneSplitParams) V1ExpertModeVolumeFlexCloneSplitRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1ExpertModeVolumeFlexCloneSplitRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *ExpertModeVolumeFlexCloneSplitV1, V1ExpertModeVolumeFlexCloneSplitParams) error); ok {
+		r1 = rf(ctx, request, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1ExpertModeVolumeFlexCloneSplit_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1ExpertModeVolumeFlexCloneSplit'
+type MockInvoker_V1ExpertModeVolumeFlexCloneSplit_Call struct {
+	*mock.Call
+}
+
+// V1ExpertModeVolumeFlexCloneSplit is a helper method to define mock.On call
+//   - ctx context.Context
+//   - request *ExpertModeVolumeFlexCloneSplitV1
+//   - params V1ExpertModeVolumeFlexCloneSplitParams
+func (_e *MockInvoker_Expecter) V1ExpertModeVolumeFlexCloneSplit(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1ExpertModeVolumeFlexCloneSplit_Call {
+	return &MockInvoker_V1ExpertModeVolumeFlexCloneSplit_Call{Call: _e.mock.On("V1ExpertModeVolumeFlexCloneSplit", ctx, request, params)}
+}
+
+func (_c *MockInvoker_V1ExpertModeVolumeFlexCloneSplit_Call) Run(run func(ctx context.Context, request *ExpertModeVolumeFlexCloneSplitV1, params V1ExpertModeVolumeFlexCloneSplitParams)) *MockInvoker_V1ExpertModeVolumeFlexCloneSplit_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*ExpertModeVolumeFlexCloneSplitV1), args[2].(V1ExpertModeVolumeFlexCloneSplitParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1ExpertModeVolumeFlexCloneSplit_Call) Return(_a0 V1ExpertModeVolumeFlexCloneSplitRes, _a1 error) *MockInvoker_V1ExpertModeVolumeFlexCloneSplit_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1ExpertModeVolumeFlexCloneSplit_Call) RunAndReturn(run func(context.Context, *ExpertModeVolumeFlexCloneSplitV1, V1ExpertModeVolumeFlexCloneSplitParams) (V1ExpertModeVolumeFlexCloneSplitRes, error)) *MockInvoker_V1ExpertModeVolumeFlexCloneSplit_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1ExpertModeVolumeRename provides a mock function with given fields: ctx, request, params
 func (_m *MockInvoker) V1ExpertModeVolumeRename(ctx context.Context, request *ExpertModeVolumeRenameV1, params V1ExpertModeVolumeRenameParams) (V1ExpertModeVolumeRenameRes, error) {
 	ret := _m.Called(ctx, request, params)

@@ -13,6 +13,7 @@ const (
 	V1DeleteImageVersionOperation                    OperationName = "V1DeleteImageVersion"
 	V1DeletePoolOperation                            OperationName = "V1DeletePool"
 	V1ExpertModeVolumeOperation                      OperationName = "V1ExpertModeVolume"
+	V1ExpertModeVolumeFlexCloneSplitOperation        OperationName = "V1ExpertModeVolumeFlexCloneSplit"
 	V1ExpertModeVolumeRenameOperation                OperationName = "V1ExpertModeVolumeRename"
 	V1GetClusterUpgradeStatusOperation               OperationName = "V1GetClusterUpgradeStatus"
 	V1GetMultipleReplicationsByExternalUUIDOperation OperationName = "V1GetMultipleReplicationsByExternalUUID"

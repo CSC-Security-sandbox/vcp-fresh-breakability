@@ -534,7 +534,11 @@ func TestVailidateVolumeCreation(t *testing.T) {
 
 func TestValidateVolumeModification(t *testing.T) {
 	origSubmit := submitExpertModeVolumeOperation
-	defer func() { submitExpertModeVolumeOperation = origSubmit }()
+	origFlexSplit := submitExpertModeFlexCloneSplit
+	defer func() {
+		submitExpertModeVolumeOperation = origSubmit
+		submitExpertModeFlexCloneSplit = origFlexSplit
+	}()
 	const cacheKey = "unit-test-cache-key-mod"
 
 	// success
@@ -834,6 +838,65 @@ func TestValidateVolumeModification(t *testing.T) {
 			t.Fatalf("expected reason to mention zero value, got reason=%q", reason)
 		}
 	})
+
+	t.Run("WhenFlexCloneSplitInitiated_ShouldCallFlexCloneSplitAPI", func(t *testing.T) {
+		var gotVolUUID, gotVolName, gotProj, gotPool string
+		submitExpertModeFlexCloneSplit = func(ctx context.Context, volumeUUID, volumeName, projectNumber, poolUUID, jwt string, logger log.Logger) error {
+			gotVolUUID, gotVolName, gotProj, gotPool = volumeUUID, volumeName, projectNumber, poolUUID
+			return nil
+		}
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			t.Fatal("volume operation submit must not be called for flexclone split PATCH")
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(http.MethodPatch, "/api/storage/volumes/vol-uuid-99", bytes.NewBufferString(`{"clone":{"split_initiated":true}}`))
+		r = r.WithContext(ctx)
+		r.Header.Set("Content-Type", "application/json")
+		ok, reason := _validateVolumeModification(r)
+		if !ok || reason != "" {
+			t.Fatalf("expected success, got ok=%v reason=%q", ok, reason)
+		}
+		if gotVolUUID != "vol-uuid-99" || gotVolName != "" || gotProj != "acc" || gotPool != "pool" {
+			t.Fatalf("unexpected flexclone split args: volUUID=%q volName=%q proj=%q pool=%q", gotVolUUID, gotVolName, gotProj, gotPool)
+		}
+	})
+
+	t.Run("WhenFlexCloneSplitWithName_ShouldReject", func(t *testing.T) {
+		submitExpertModeFlexCloneSplit = func(ctx context.Context, volumeUUID, volumeName, projectNumber, poolUUID, jwt string, logger log.Logger) error {
+			t.Fatal("flexclone split submit must not be called when combined with name")
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(http.MethodPatch, "/api/storage/volumes/vol-uuid-99", bytes.NewBufferString(`{"name":"v1","clone":{"split_initiated":true}}`))
+		r = r.WithContext(ctx)
+		r.Header.Set("Content-Type", "application/json")
+		ok, reason := _validateVolumeModification(r)
+		if ok || !strings.Contains(reason, "cannot be combined") {
+			t.Fatalf("expected combined-request error, got ok=%v reason=%q", ok, reason)
+		}
+	})
+
+	t.Run("WhenFlexCloneSplitWithoutVolumeUUID_ShouldReject", func(t *testing.T) {
+		submitExpertModeFlexCloneSplit = func(ctx context.Context, volumeUUID, volumeName, projectNumber, poolUUID, jwt string, logger log.Logger) error {
+			t.Fatal("flexclone split submit must not be called without volume UUID in path")
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(http.MethodPatch, "/api/storage/volumes", bytes.NewBufferString(`{"clone":{"split_initiated":true}}`))
+		r = r.WithContext(ctx)
+		r.Header.Set("Content-Type", "application/json")
+		ok, reason := _validateVolumeModification(r)
+		if ok || !strings.Contains(reason, "volume UUID is required") {
+			t.Fatalf("expected missing UUID error, got ok=%v reason=%q", ok, reason)
+		}
+	})
 }
 
 func TestValidateVolumeDeletion(t *testing.T) {
@@ -1026,6 +1089,146 @@ func TestValidatePrivateCLIVolumeCreation(t *testing.T) {
 		ok, reason := _validatePrivateCLIVolumeCreation(r)
 		if ok || !strings.Contains(reason, "invalid value for field \"size\"") {
 			t.Fatalf("expected invalid size error, got ok=%v reason=%q", ok, reason)
+		}
+	})
+}
+
+func TestValidatePrivateCLIVolumeCloneCreate(t *testing.T) {
+	origSubmit := submitExpertModeVolumeOperation
+	defer func() { submitExpertModeVolumeOperation = origSubmit }()
+
+	const cacheKey = "unit-test-cache-key-priv-cli-clone-create"
+
+	t.Run("WhenSuccessWithParentVolumeAndSize", func(t *testing.T) {
+		var capturedReq *coreapi.ExpertModeVolumeV1
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			capturedReq = req
+			return nil
+		}
+
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(http.MethodPost, "/api/private/cli/volume/clone", bytes.NewBufferString(`{"vserver":"vs0","flexclone":"clone1","parent_volume":"src1","parent_snapshot":"snap1","size":1024}`))
+		r = r.WithContext(ctx)
+		ok, reason := _validatePrivateCLIVolumeCloneCreate(r)
+		if !ok || reason != "" {
+			t.Fatalf("expected success, got ok=%v reason=%q", ok, reason)
+		}
+		if capturedReq == nil {
+			t.Fatal("expected request to be submitted")
+		}
+		if capturedReq.VolumeName != "clone1" {
+			t.Fatalf("expected clone name clone1, got %q", capturedReq.VolumeName)
+		}
+		if !capturedReq.Clone.IsSet() || !capturedReq.Clone.Value.ParentVolume.IsSet() {
+			t.Fatal("expected clone parent volume to be set")
+		}
+		if capturedReq.Clone.Value.ParentVolume.Value.Name.Or("") != "src1" {
+			t.Fatalf("expected parent volume src1, got %q", capturedReq.Clone.Value.ParentVolume.Value.Name.Or(""))
+		}
+		if !capturedReq.SizeInBytes.IsSet() || capturedReq.SizeInBytes.Value != 1024 {
+			t.Fatalf("expected size 1024, got %+v", capturedReq.SizeInBytes)
+		}
+	})
+
+	t.Run("WhenParentVolumeAliasB_ShouldSucceedWithoutSize", func(t *testing.T) {
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			if req.SizeInBytes.IsSet() {
+				t.Fatal("expected size to be omitted")
+			}
+			if req.Clone.Value.ParentVolume.Value.Name.Or("") != "src1" {
+				t.Fatalf("expected alias b to map parent volume src1, got %q", req.Clone.Value.ParentVolume.Value.Name.Or(""))
+			}
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(http.MethodPost, "/api/private/cli/volume/clone", bytes.NewBufferString(`{"vserver":"vs0","flexclone":"clone1","b":"src1"}`))
+		r = r.WithContext(ctx)
+		ok, reason := _validatePrivateCLIVolumeCloneCreate(r)
+		if !ok || reason != "" {
+			t.Fatalf("expected success, got ok=%v reason=%q", ok, reason)
+		}
+	})
+
+	t.Run("WhenInvalidSize_ShouldFail", func(t *testing.T) {
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(http.MethodPost, "/api/private/cli/volume/clone", bytes.NewBufferString(`{"vserver":"vs0","flexclone":"clone1","parent_volume":"src1","size":"100GiB"}`))
+		r = r.WithContext(ctx)
+		ok, reason := _validatePrivateCLIVolumeCloneCreate(r)
+		if ok || !strings.Contains(reason, "invalid value for field \"size\"") {
+			t.Fatalf("expected invalid size error, got ok=%v reason=%q", ok, reason)
+		}
+	})
+}
+
+func TestValidatePrivateCLIVolumeCloneSplit(t *testing.T) {
+	origSplitSubmit := submitExpertModeFlexCloneSplit
+	defer func() { submitExpertModeFlexCloneSplit = origSplitSubmit }()
+
+	const cacheKey = "unit-test-cache-key-priv-cli-clone-split"
+
+	t.Run("WhenSuccess_ShouldSubmitCoreSplitWithCloneName", func(t *testing.T) {
+		var gotVolUUID, gotVolName, gotProj, gotPool string
+		submitExpertModeFlexCloneSplit = func(ctx context.Context, volumeUUID, volumeName, projectNumber, poolUUID, jwt string, logger log.Logger) error {
+			gotVolUUID, gotVolName, gotProj, gotPool = volumeUUID, volumeName, projectNumber, poolUUID
+			return nil
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(http.MethodPost, "/api/private/cli/volume/clone/split/start", bytes.NewBufferString(`{"vserver":"vs0","flexclone":"clone1"}`))
+		r = r.WithContext(ctx)
+
+		ok, reason := _validatePrivateCLIVolumeCloneSplit(r)
+		if !ok || reason != "" {
+			t.Fatalf("expected success, got ok=%v reason=%q", ok, reason)
+		}
+		if gotVolUUID != "" || gotVolName != "clone1" || gotProj != "acc" || gotPool != "pool" {
+			t.Fatalf("unexpected split submit args volUUID=%q volName=%q proj=%q pool=%q", gotVolUUID, gotVolName, gotProj, gotPool)
+		}
+	})
+
+	t.Run("WhenMissingCacheKey_ShouldFail", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodPost, "/api/private/cli/volume/clone/split/start", bytes.NewBufferString(`{"vserver":"vs0","flexclone":"clone1"}`))
+		ok, reason := _validatePrivateCLIVolumeCloneSplit(r)
+		if ok || !strings.Contains(reason, "cache key not found") {
+			t.Fatalf("expected cache key error, got ok=%v reason=%q", ok, reason)
+		}
+	})
+
+	t.Run("WhenMissingAuthData_ShouldFail", func(t *testing.T) {
+		ctx := context.Background()
+		ctx = context.WithValue(ctx, models.AuthDataKey, "missing-cache-key")
+		r := httptest.NewRequest(http.MethodPost, "/api/private/cli/volume/clone/split/start", bytes.NewBufferString(`{"vserver":"vs0","flexclone":"clone1"}`))
+		r = r.WithContext(ctx)
+
+		ok, reason := _validatePrivateCLIVolumeCloneSplit(r)
+		if ok || !strings.Contains(reason, "auth data not found") {
+			t.Fatalf("expected missing auth data error, got ok=%v reason=%q", ok, reason)
+		}
+	})
+
+	t.Run("WhenCoreSplitFails_ShouldFail", func(t *testing.T) {
+		submitExpertModeFlexCloneSplit = func(ctx context.Context, volumeUUID, volumeName, projectNumber, poolUUID, jwt string, logger log.Logger) error {
+			return errors.New("volume is not a FlexClone")
+		}
+		ctx := context.Background()
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{AccountName: "acc", PoolID: "pool"})
+		ctx = context.WithValue(ctx, models.AuthDataKey, cacheKey)
+		r := httptest.NewRequest(http.MethodPost, "/api/private/cli/volume/clone/split/start", bytes.NewBufferString(`{"vserver":"vs0","flexclone":"clone1"}`))
+		r = r.WithContext(ctx)
+
+		ok, reason := _validatePrivateCLIVolumeCloneSplit(r)
+		if ok || !strings.Contains(reason, "volume is not a FlexClone") {
+			t.Fatalf("expected core split failure, got ok=%v reason=%q", ok, reason)
 		}
 	})
 }

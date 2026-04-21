@@ -146,6 +146,7 @@ const (
 	JobTypeUpdateExpertModeVolume                   JobType = "RECONCILE_EXPERT_MODE_VOLUME_UPDATE"
 	JobTypeDeleteExpertModeVolume                   JobType = "RECONCILE_EXPERT_MODE_VOLUME_DELETE"
 	JobTypeExpertModeRbacRefresh                    JobType = "EXPERT_MODE_RBAC_REFRESH"
+	JobTypeExpertModeFlexCloneSplit                 JobType = "RECONCILE_EXPERT_MODE_VOLUME_FLEXCLONE_SPLIT"
 	JobTypeRotateCmekBackups                        JobType = "ROTATE_CMEK_BACKUPS"
 	JobTypeManageBackupConfigExpertModeVolume       JobType = "MANAGE_BACKUP_CONFIG_EXPERT_MODE_VOLUME"
 )

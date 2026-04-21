@@ -325,6 +325,40 @@ func GetProxyRules() map[string]Rule {
 				},
 			},
 		},
+		// Private CLI derived route for "volume clone create"
+		"/api/private/cli/volume/clone": {
+			GET: DenyAll{},
+			POST: When{
+				Name: "Private CLI volume clone create validation",
+				Condition: And(
+					HasFields("vserver", "flexclone"),
+					HasAtLeastOneOf("parent_volume", "b", "missing required field(s): parent_volume or b"),
+					IfPresentThenValue("space_guarantee", "none"),
+					validatePrivateCLIVolumeCloneCreate,
+				),
+				IsTrue: Allow{
+					Name: "Allow private CLI volume clone create",
+				},
+			},
+			PATCH:  DenyAll{},
+			DELETE: DenyAll{},
+		},
+		// Private CLI derived route for "volume clone split start"
+		"/api/private/cli/volume/clone/split/start": {
+			GET: DenyAll{},
+			POST: When{
+				Name: "Private CLI volume clone split start validation",
+				Condition: And(
+					HasFields("vserver", "flexclone"),
+					validatePrivateCLIVolumeCloneSplit,
+				),
+				IsTrue: Allow{
+					Name: "Allow private CLI volume clone split start",
+				},
+			},
+			PATCH:  DenyAll{},
+			DELETE: DenyAll{},
+		},
 
 		// Storage Aggregates
 		"/api/storage/aggregates": {

@@ -807,6 +807,69 @@ func decodeV1ExpertModeVolumeParams(args [0]string, argsEscaped bool, r *http.Re
 	return params, nil
 }
 
+// V1ExpertModeVolumeFlexCloneSplitParams is parameters of v1_expertModeVolumeFlexCloneSplit operation.
+type V1ExpertModeVolumeFlexCloneSplitParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+func unpackV1ExpertModeVolumeFlexCloneSplitParams(packed middleware.Parameters) (params V1ExpertModeVolumeFlexCloneSplitParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "x-correlation-id",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XCorrelationID = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeV1ExpertModeVolumeFlexCloneSplitParams(args [0]string, argsEscaped bool, r *http.Request) (params V1ExpertModeVolumeFlexCloneSplitParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode header: x-correlation-id.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXCorrelationIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXCorrelationIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XCorrelationID.SetTo(paramsDotXCorrelationIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "x-correlation-id",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // V1ExpertModeVolumeRenameParams is parameters of v1_expertModeVolumeRename operation.
 type V1ExpertModeVolumeRenameParams struct {
 	// Correlation identifier.

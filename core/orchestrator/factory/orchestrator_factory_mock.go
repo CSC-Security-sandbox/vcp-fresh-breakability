@@ -8068,6 +8068,53 @@ func (_c *MockOrchestratorFactory_SplitStartVolume_Call) RunAndReturn(run func(c
 	return _c
 }
 
+// StartExpertModeFlexCloneSplit provides a mock function with given fields: ctx, params
+func (_m *MockOrchestratorFactory) StartExpertModeFlexCloneSplit(ctx context.Context, params *common.ExpertModeFlexCloneSplitParams) error {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for StartExpertModeFlexCloneSplit")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *common.ExpertModeFlexCloneSplitParams) error); ok {
+		r0 = rf(ctx, params)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockOrchestratorFactory_StartExpertModeFlexCloneSplit_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'StartExpertModeFlexCloneSplit'
+type MockOrchestratorFactory_StartExpertModeFlexCloneSplit_Call struct {
+	*mock.Call
+}
+
+// StartExpertModeFlexCloneSplit is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *common.ExpertModeFlexCloneSplitParams
+func (_e *MockOrchestratorFactory_Expecter) StartExpertModeFlexCloneSplit(ctx interface{}, params interface{}) *MockOrchestratorFactory_StartExpertModeFlexCloneSplit_Call {
+	return &MockOrchestratorFactory_StartExpertModeFlexCloneSplit_Call{Call: _e.mock.On("StartExpertModeFlexCloneSplit", ctx, params)}
+}
+
+func (_c *MockOrchestratorFactory_StartExpertModeFlexCloneSplit_Call) Run(run func(ctx context.Context, params *common.ExpertModeFlexCloneSplitParams)) *MockOrchestratorFactory_StartExpertModeFlexCloneSplit_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*common.ExpertModeFlexCloneSplitParams))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_StartExpertModeFlexCloneSplit_Call) Return(_a0 error) *MockOrchestratorFactory_StartExpertModeFlexCloneSplit_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_StartExpertModeFlexCloneSplit_Call) RunAndReturn(run func(context.Context, *common.ExpertModeFlexCloneSplitParams) error) *MockOrchestratorFactory_StartExpertModeFlexCloneSplit_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // StopReplication provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) StopReplication(ctx context.Context, params *common.StopReplicationParams) (*models.VolumeReplication, string, error) {
 	ret := _m.Called(ctx, params)

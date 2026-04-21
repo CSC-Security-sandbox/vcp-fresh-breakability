@@ -9,22 +9,23 @@ import (
 )
 
 var (
-	CMEKWorkflowGlobalTimeoutMinutes     = env.GetString("CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES", "14")
-	WorkflowGlobalTimeoutMinutes         = env.GetString("WORKFLOW_GLOBAL_TIMEOUT_MINUTES", "60")
-	ExpertModeSyncWorkflowTimeoutMinutes = env.GetString("EXPERT_MODE_SYNC_WORKFLOW_TIMEOUT_MINUTES", "30")
-	CreatePoolWorkflowTimeoutMinutes     = env.GetString("CREATE_POOL_WORKFLOW_TIMEOUT_MINUTES", "150")
-	CreatePoolWorkflowTimeoutMinutesLV   = env.GetString("CREATE_POOL_WORKFLOW_TIMEOUT_MINUTES_LV", "150")
-	UpdatePoolWorkflowTimeoutMinutes     = env.GetString("UPDATE_POOL_WORKFLOW_TIMEOUT_MINUTES", "150")
-	UpdatePoolWorkflowTimeoutMinutesLV   = env.GetString("UPDATE_POOL_WORKFLOW_TIMEOUT_MINUTES_LV", "150")
-	CreateBackupWorkflowTimeoutMinutes   = env.GetString("CREATE_BACKUP_WORKFLOW_TIMEOUT_MINUTES", "8640")
-	DeleteBackupWorkflowTimeoutMinutes   = env.GetString("DELETE_BACKUP_WORKFLOW_TIMEOUT_MINUTES", "6480")
-	SFRWorkflowTimeoutMinutes            = env.GetString("SFR_WORKFLOW_TIMEOUT_MINUTES", "13680")
-	CreateSnapshotWorkflowTimeoutMinutes = env.GetString("CREATE_SNAPSHOT_WORKFLOW_TIMEOUT_MINUTES", "50")
-	DeleteSnapshotWorkflowTimeoutMinutes = env.GetString("DELETE_SNAPSHOT_WORKFLOW_TIMEOUT_MINUTES", "65")
-	RevertVolumeWorkflowTimeoutMinutes   = env.GetString("REVERT_VOLUME_WORKFLOW_TIMEOUT_MINUTES", "95")
-	VolumeRefreshWorkflowTimeoutMinutes  = env.GetString("VOLUME_REFRESH_WORKFLOW_TIMEOUT_MINUTES", "20")
-	SplitVolumeWorkflowTimeoutMinutes    = env.GetString("SPLIT_VOLUME_WORKFLOW_TIMEOUT_MINUTES", "120")
-	SplitVolumeRunContinueAsNewMinutes   = env.GetString("SPLIT_VOLUME_RUN_CONTINUE_AS_NEW_MINUTES", "60")
+	CMEKWorkflowGlobalTimeoutMinutes               = env.GetString("CMEK_WORKFLOW_GLOBAL_TIMEOUT_MINUTES", "14")
+	WorkflowGlobalTimeoutMinutes                   = env.GetString("WORKFLOW_GLOBAL_TIMEOUT_MINUTES", "60")
+	ExpertModeSyncWorkflowTimeoutMinutes           = env.GetString("EXPERT_MODE_SYNC_WORKFLOW_TIMEOUT_MINUTES", "30")
+	ExpertModeFlexCloneSplitWorkflowTimeoutMinutes = env.GetString("EXPERT_MODE_FLEXCLONE_SPLIT_WORKFLOW_TIMEOUT_MINUTES", "4320")
+	CreatePoolWorkflowTimeoutMinutes               = env.GetString("CREATE_POOL_WORKFLOW_TIMEOUT_MINUTES", "150")
+	CreatePoolWorkflowTimeoutMinutesLV             = env.GetString("CREATE_POOL_WORKFLOW_TIMEOUT_MINUTES_LV", "150")
+	UpdatePoolWorkflowTimeoutMinutes               = env.GetString("UPDATE_POOL_WORKFLOW_TIMEOUT_MINUTES", "150")
+	UpdatePoolWorkflowTimeoutMinutesLV             = env.GetString("UPDATE_POOL_WORKFLOW_TIMEOUT_MINUTES_LV", "150")
+	CreateBackupWorkflowTimeoutMinutes             = env.GetString("CREATE_BACKUP_WORKFLOW_TIMEOUT_MINUTES", "8640")
+	DeleteBackupWorkflowTimeoutMinutes             = env.GetString("DELETE_BACKUP_WORKFLOW_TIMEOUT_MINUTES", "6480")
+	SFRWorkflowTimeoutMinutes                      = env.GetString("SFR_WORKFLOW_TIMEOUT_MINUTES", "13680")
+	CreateSnapshotWorkflowTimeoutMinutes           = env.GetString("CREATE_SNAPSHOT_WORKFLOW_TIMEOUT_MINUTES", "50")
+	DeleteSnapshotWorkflowTimeoutMinutes           = env.GetString("DELETE_SNAPSHOT_WORKFLOW_TIMEOUT_MINUTES", "65")
+	RevertVolumeWorkflowTimeoutMinutes             = env.GetString("REVERT_VOLUME_WORKFLOW_TIMEOUT_MINUTES", "95")
+	VolumeRefreshWorkflowTimeoutMinutes            = env.GetString("VOLUME_REFRESH_WORKFLOW_TIMEOUT_MINUTES", "20")
+	SplitVolumeWorkflowTimeoutMinutes              = env.GetString("SPLIT_VOLUME_WORKFLOW_TIMEOUT_MINUTES", "120")
+	SplitVolumeRunContinueAsNewMinutes             = env.GetString("SPLIT_VOLUME_RUN_CONTINUE_AS_NEW_MINUTES", "60")
 )
 
 // Struct for RetryPolicy configuration
@@ -106,6 +107,24 @@ func GetExpertModeSyncWorkflowTimeout() time.Duration {
 		return 10 * time.Minute
 	}
 	return timeout
+}
+
+// GetExpertModeFlexCloneSplitWorkflowTimeout is the workflow run timeout for FlexClone split (may run many hours).
+func GetExpertModeFlexCloneSplitWorkflowTimeout() time.Duration {
+	timeout, err := time.ParseDuration(ExpertModeFlexCloneSplitWorkflowTimeoutMinutes + "m")
+	if err != nil {
+		return 72 * time.Hour
+	}
+	return timeout
+}
+
+// GetExpertModeFlexCloneSplitPollInterval is the delay between Temporal activity retries while polling ONTAP for split completion.
+func GetExpertModeFlexCloneSplitPollInterval() time.Duration {
+	sec := env.GetUint64("EXPERT_MODE_FLEXCLONE_SPLIT_POLL_INTERVAL_SEC", 30)
+	if sec < 5 {
+		return 5 * time.Second
+	}
+	return time.Duration(sec) * time.Second
 }
 
 func getWorkflowTimeoutWithDefault(configValue string, defaultMinutes int) *time.Duration {

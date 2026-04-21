@@ -743,6 +743,77 @@ func newExpertModeVolumeRequest(poolUUID string, action oasgenserver.ExpertModeV
 	return req
 }
 
+func TestV1ExpertModeVolumeFlexCloneSplit(t *testing.T) {
+	volumeUUID := "f5d0bf36-5282-45c2-a837-ed7d8181c860"
+	volumeName := "clone-vol-name"
+	poolUUID := "9760acf5-4638-11e7-9bdb-020073ca7773"
+	projectNumber := "123456789012"
+	t.Run("Success", func(t *testing.T) {
+		mockOrch := factory.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+
+		req := &oasgenserver.ExpertModeVolumeFlexCloneSplitV1{
+			ProjectNumber: projectNumber,
+			PoolUUID:      poolUUID,
+			VolumeUUID:    oasgenserver.NewOptString(volumeUUID),
+		}
+
+		mockOrch.EXPECT().StartExpertModeFlexCloneSplit(mock.Anything, &commonparams.ExpertModeFlexCloneSplitParams{
+			VolumeUUID:  volumeUUID,
+			VolumeName:  "",
+			PoolUUID:    poolUUID,
+			AccountName: projectNumber,
+		}).Return(nil)
+
+		result, err := handler.V1ExpertModeVolumeFlexCloneSplit(context.Background(), req, oasgenserver.V1ExpertModeVolumeFlexCloneSplitParams{})
+		assert.NoError(t, err)
+		_, ok := result.(*oasgenserver.V1ExpertModeVolumeFlexCloneSplitAccepted)
+		assert.True(t, ok)
+		mockOrch.AssertExpectations(t)
+	})
+
+	t.Run("Success_WithVolumeName", func(t *testing.T) {
+		mockOrch := factory.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+
+		req := &oasgenserver.ExpertModeVolumeFlexCloneSplitV1{
+			ProjectNumber: projectNumber,
+			PoolUUID:      poolUUID,
+			VolumeName:    oasgenserver.NewOptString(volumeName),
+		}
+
+		mockOrch.EXPECT().StartExpertModeFlexCloneSplit(mock.Anything, &commonparams.ExpertModeFlexCloneSplitParams{
+			VolumeUUID:  "",
+			VolumeName:  volumeName,
+			PoolUUID:    poolUUID,
+			AccountName: projectNumber,
+		}).Return(nil)
+
+		result, err := handler.V1ExpertModeVolumeFlexCloneSplit(context.Background(), req, oasgenserver.V1ExpertModeVolumeFlexCloneSplitParams{})
+		assert.NoError(t, err)
+		_, ok := result.(*oasgenserver.V1ExpertModeVolumeFlexCloneSplitAccepted)
+		assert.True(t, ok)
+		mockOrch.AssertExpectations(t)
+	})
+
+	t.Run("BadRequest", func(t *testing.T) {
+		mockOrch := factory.NewMockOrchestratorFactory(t)
+		handler := NewHandler(mockOrch)
+		req := &oasgenserver.ExpertModeVolumeFlexCloneSplitV1{
+			ProjectNumber: projectNumber,
+			PoolUUID:      poolUUID,
+			VolumeUUID:    oasgenserver.NewOptString(volumeUUID),
+		}
+		mockOrch.EXPECT().StartExpertModeFlexCloneSplit(mock.Anything, mock.Anything).Return(customerrors.NewBadRequestErr("not a FlexClone"))
+
+		result, err := handler.V1ExpertModeVolumeFlexCloneSplit(context.Background(), req, oasgenserver.V1ExpertModeVolumeFlexCloneSplitParams{})
+		assert.NoError(t, err)
+		br, ok := result.(*oasgenserver.V1ExpertModeVolumeFlexCloneSplitBadRequest)
+		assert.True(t, ok)
+		assert.Contains(t, br.Message, "not a FlexClone")
+	})
+}
+
 func TestV1RefreshRbacForExpertModePools(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		// Setup

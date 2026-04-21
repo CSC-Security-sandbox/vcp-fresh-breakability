@@ -875,3 +875,218 @@ func Test_validateFlexCacheDelete(t *testing.T) {
 		}
 	})
 }
+
+func Test_validateVolumeCloneCreate(t *testing.T) {
+	t.Run("WhenCoreSucceedsWithParentVolumeAndSize_ShouldSubmitCloneCreate", func(t *testing.T) {
+		origSubmit := submitExpertModeVolumeOperation
+		defer func() { submitExpertModeVolumeOperation = origSubmit }()
+
+		var capturedReq *coreapi.ExpertModeVolumeV1
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			capturedReq = req
+			return nil
+		}
+
+		cacheKey := "test-pool-key-clone-create-success"
+		ctx := context.WithValue(context.Background(), models.AuthDataKey, cacheKey)
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+		})
+		defer cache.RemoveFromAuthDataCache(cacheKey)
+
+		cmd := &CLICommand{
+			FullCommand: "volume clone create",
+			Arguments: map[string]string{
+				"-vserver":         "vs1",
+				"-flexclone":       "clone1",
+				"-parent-volume":   "src1",
+				"-parent-snapshot": "snap1",
+				"-size":            "10g",
+			},
+		}
+
+		allowed, reason := _validateVolumeCloneCreate(ctx, cmd)
+		if !allowed {
+			t.Fatalf("Expected allowed, got reason %q", reason)
+		}
+		if capturedReq == nil {
+			t.Fatal("Expected request to be submitted")
+		}
+		if capturedReq.Action != coreapi.ExpertModeVolumeV1ActionCreate {
+			t.Errorf("Action = %v, want Create", capturedReq.Action)
+		}
+		if capturedReq.VolumeName != "clone1" {
+			t.Errorf("VolumeName = %q, want clone1", capturedReq.VolumeName)
+		}
+		if !capturedReq.Clone.IsSet() {
+			t.Fatal("Expected Clone to be set")
+		}
+		clone := capturedReq.Clone.Value
+		if !clone.IsFlexclone.IsSet() || !clone.IsFlexclone.Value {
+			t.Errorf("IsFlexclone = %v, want true", clone.IsFlexclone)
+		}
+		if !clone.ParentVolume.IsSet() || !clone.ParentVolume.Value.Name.IsSet() || clone.ParentVolume.Value.Name.Value != "src1" {
+			t.Errorf("ParentVolume.Name = %v, want src1", clone.ParentVolume)
+		}
+		if !clone.ParentSnapshot.IsSet() || !clone.ParentSnapshot.Value.Name.IsSet() || clone.ParentSnapshot.Value.Name.Value != "snap1" {
+			t.Errorf("ParentSnapshot.Name = %v, want snap1", clone.ParentSnapshot)
+		}
+		if !capturedReq.SizeInBytes.IsSet() {
+			t.Error("Expected SizeInBytes to be set when -size is provided")
+		}
+	})
+
+	t.Run("WhenUsingParentVolumeAliasBAndNoSize_ShouldOmitSizeInRequest", func(t *testing.T) {
+		origSubmit := submitExpertModeVolumeOperation
+		defer func() { submitExpertModeVolumeOperation = origSubmit }()
+
+		var capturedReq *coreapi.ExpertModeVolumeV1
+		submitExpertModeVolumeOperation = func(ctx context.Context, req *coreapi.ExpertModeVolumeV1, jwt string, logger log.Logger) error {
+			capturedReq = req
+			return nil
+		}
+
+		cacheKey := "test-pool-key-clone-create-alias"
+		ctx := context.WithValue(context.Background(), models.AuthDataKey, cacheKey)
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+		})
+		defer cache.RemoveFromAuthDataCache(cacheKey)
+
+		cmd := &CLICommand{
+			FullCommand: "vol clone create",
+			Arguments: map[string]string{
+				"-vserver":   "vs1",
+				"-flexclone": "clone1",
+				"-b":         "src1",
+			},
+		}
+
+		allowed, reason := _validateVolumeCloneCreate(ctx, cmd)
+		if !allowed {
+			t.Fatalf("Expected allowed, got reason %q", reason)
+		}
+		if capturedReq == nil {
+			t.Fatal("Expected request to be submitted")
+		}
+		if capturedReq.SizeInBytes.IsSet() {
+			t.Error("Expected SizeInBytes to be omitted when -size is absent")
+		}
+		if !capturedReq.Clone.IsSet() || !capturedReq.Clone.Value.ParentVolume.IsSet() {
+			t.Fatal("Expected clone parent volume to be set")
+		}
+		if capturedReq.Clone.Value.ParentVolume.Value.Name.Value != "src1" {
+			t.Errorf("ParentVolume.Name = %q, want src1", capturedReq.Clone.Value.ParentVolume.Value.Name.Value)
+		}
+	})
+
+	t.Run("WhenInvalidSize_ShouldReturnNotAllowed", func(t *testing.T) {
+		cacheKey := "test-pool-key-clone-create-invalid-size"
+		ctx := context.WithValue(context.Background(), models.AuthDataKey, cacheKey)
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+		})
+		defer cache.RemoveFromAuthDataCache(cacheKey)
+
+		cmd := &CLICommand{
+			FullCommand: "volume clone create",
+			Arguments: map[string]string{
+				"-vserver":       "vs1",
+				"-flexclone":     "clone1",
+				"-parent-volume": "src1",
+				"-size":          "bad-size",
+			},
+		}
+
+		allowed, reason := _validateVolumeCloneCreate(ctx, cmd)
+		if allowed {
+			t.Fatal("Expected not allowed for invalid size")
+		}
+		if reason != `"bad-size" is an invalid value for argument "-size"` {
+			t.Errorf("Reason = %q", reason)
+		}
+	})
+}
+
+func Test_validateVolumeCloneSplitStart(t *testing.T) {
+	t.Run("WhenCoreSucceeds_ShouldSubmitFlexCloneSplitWithCloneName", func(t *testing.T) {
+		origSubmit := submitExpertModeFlexCloneSplit
+		defer func() {
+			submitExpertModeFlexCloneSplit = origSubmit
+		}()
+
+		var capturedVolumeUUID, capturedVolumeName, capturedProject, capturedPool string
+		submitExpertModeFlexCloneSplit = func(ctx context.Context, volumeUUID, volumeName, projectNumber, poolUUID, jwt string, logger log.Logger) error {
+			capturedVolumeUUID = volumeUUID
+			capturedVolumeName = volumeName
+			capturedProject = projectNumber
+			capturedPool = poolUUID
+			return nil
+		}
+
+		cacheKey := "test-pool-key-clone-split-success"
+		ctx := context.WithValue(context.Background(), models.AuthDataKey, cacheKey)
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+		})
+		defer cache.RemoveFromAuthDataCache(cacheKey)
+
+		cmd := &CLICommand{
+			FullCommand: "volume clone split start",
+			Arguments: map[string]string{
+				"-vserver":   "vs1",
+				"-flexclone": "clone1",
+			},
+		}
+
+		allowed, reason := _validateVolumeCloneSplitStart(ctx, cmd)
+		if !allowed {
+			t.Fatalf("Expected allowed, got reason %q", reason)
+		}
+		if capturedVolumeUUID != "" {
+			t.Errorf("volume UUID = %q, want empty", capturedVolumeUUID)
+		}
+		if capturedVolumeName != "clone1" {
+			t.Errorf("volume name = %q, want clone1", capturedVolumeName)
+		}
+		if capturedProject != "test-account" || capturedPool != "pool-uuid" {
+			t.Errorf("project/pool = %q/%q, want test-account/pool-uuid", capturedProject, capturedPool)
+		}
+	})
+
+	t.Run("WhenCoreReturnsError_ShouldReturnNotAllowed", func(t *testing.T) {
+		origSubmit := submitExpertModeFlexCloneSplit
+		defer func() { submitExpertModeFlexCloneSplit = origSubmit }()
+		submitExpertModeFlexCloneSplit = func(ctx context.Context, volumeUUID, volumeName, projectNumber, poolUUID, jwt string, logger log.Logger) error {
+			return errors.New("volume is not a FlexClone")
+		}
+
+		cacheKey := "test-pool-key-clone-split-not-found"
+		ctx := context.WithValue(context.Background(), models.AuthDataKey, cacheKey)
+		cache.AddToAuthDataCache(cacheKey, &models.AuthData{
+			AccountName: "test-account",
+			PoolID:      "pool-uuid",
+		})
+		defer cache.RemoveFromAuthDataCache(cacheKey)
+
+		cmd := &CLICommand{
+			FullCommand: "volume clone split start",
+			Arguments: map[string]string{
+				"-vserver":   "vs1",
+				"-flexclone": "clone1",
+			},
+		}
+
+		allowed, reason := _validateVolumeCloneSplitStart(ctx, cmd)
+		if allowed {
+			t.Fatal("Expected not allowed when core returns split error")
+		}
+		if !strings.Contains(reason, "volume is not a FlexClone") {
+			t.Errorf("Reason = %q", reason)
+		}
+	})
+}

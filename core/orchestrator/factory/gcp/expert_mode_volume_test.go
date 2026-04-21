@@ -5947,6 +5947,183 @@ func TestSfrOntapModeBackup(t *testing.T) {
 	})
 }
 
+func Test_startExpertModeFlexCloneSplit(t *testing.T) {
+	ctx := context.WithValue(context.Background(), middleware.TemporalSLoggerKey, log.Fields{"key": "value"})
+
+	setup := func() (*datamodel.Account, *datamodel.PoolView, *datamodel.ExpertModeVolumes, *commonparams.ExpertModeFlexCloneSplitParams) {
+		account := &datamodel.Account{
+			BaseModel: datamodel.BaseModel{ID: 1, UUID: "acct-uuid"},
+			Name:      "test-account",
+		}
+		pool := &datamodel.PoolView{
+			Pool: datamodel.Pool{
+				BaseModel:     datamodel.BaseModel{ID: 10, UUID: "pool-uuid"},
+				APIAccessMode: APIAccessModeONTAP,
+				SizeInBytes:   1000,
+			},
+		}
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{ID: 20, UUID: "db-vol-uuid"},
+			ExternalUUID: "ext-vol-uuid",
+			Name:         "clone-vol",
+			SizeInBytes:  1000,
+			SharedBytes:  900,
+			State:        models.LifeCycleStateAvailable,
+			AccountID:    account.ID,
+			PoolID:       pool.ID,
+			Pool: &datamodel.Pool{
+				BaseModel: datamodel.BaseModel{UUID: pool.UUID},
+			},
+			VolumeAttributes: &datamodel.ExpertModeVolumeAttributes{
+				IsFlexclone: true,
+			},
+		}
+		params := &commonparams.ExpertModeFlexCloneSplitParams{
+			VolumeUUID:  volume.ExternalUUID,
+			VolumeName:  "",
+			PoolUUID:    pool.UUID,
+			AccountName: account.Name,
+		}
+		return account, pool, volume, params
+	}
+
+	t.Run("Success_WhenRemainingFreeSpaceCoversSharedBytes", func(tt *testing.T) {
+		account, pool, volume, params := setup()
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		createdJob := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "wf-id",
+			TrackingID: 1,
+		}
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(pool, nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+		// remaining = pool 1000 - used 100 = 900; need = vol.SharedBytes = 900 -> pass.
+		mockStorage.EXPECT().GetExpertModePoolUsedCapacityAndVolumeCount(ctx, volume.PoolID).
+			Return(&database.ExpertModePoolCapacity{TotalSize: 100, VolumeCount: 1}, nil).Once()
+		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.MatchedBy(func(v *datamodel.ExpertModeVolumes) bool {
+			return v.UUID == volume.UUID && v.State == models.LifeCycleStateUpdating
+		})).Return(volume, nil).Once()
+		mockStorage.EXPECT().CreateJob(ctx, mock.AnythingOfType("*datamodel.Job")).Return(createdJob, nil).Once()
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+		err := _startExpertModeFlexCloneSplit(ctx, mockStorage, temporal, params)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Success_WhenOnlyVolumeNameProvided_UsesPoolNameLookup", func(tt *testing.T) {
+		account, pool, volume, params := setup()
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		params.VolumeUUID = ""
+		params.VolumeName = volume.Name
+		createdJob := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "wf-id",
+			TrackingID: 1,
+		}
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(pool, nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByNameAndPoolID(ctx, volume.Name, pool.ID).Return(volume, nil).Once()
+		mockStorage.EXPECT().GetExpertModePoolUsedCapacityAndVolumeCount(ctx, volume.PoolID).
+			Return(&database.ExpertModePoolCapacity{TotalSize: 100, VolumeCount: 1}, nil).Once()
+		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.MatchedBy(func(v *datamodel.ExpertModeVolumes) bool {
+			return v.UUID == volume.UUID && v.State == models.LifeCycleStateUpdating
+		})).Return(volume, nil).Once()
+		mockStorage.EXPECT().CreateJob(ctx, mock.AnythingOfType("*datamodel.Job")).Return(createdJob, nil).Once()
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Once()
+
+		err := _startExpertModeFlexCloneSplit(ctx, mockStorage, temporal, params)
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_InsufficientCapacity", func(tt *testing.T) {
+		account, pool, volume, params := setup()
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(pool, nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+		// remaining = 1000 - 950 = 50; need = vol.SharedBytes = 900 -> should fail.
+		mockStorage.EXPECT().GetExpertModePoolUsedCapacityAndVolumeCount(ctx, volume.PoolID).
+			Return(&database.ExpertModePoolCapacity{TotalSize: 950, VolumeCount: 1}, nil).Once()
+
+		err := _startExpertModeFlexCloneSplit(ctx, mockStorage, temporal, params)
+		assert.Error(tt, err)
+		assert.True(tt, customerrors.IsBadRequestErr(err))
+		assert.Contains(tt, err.Error(), "insufficient pool capacity for flexclone split")
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+
+	t.Run("Failure_ExecuteWorkflowFails_RollsBackStateAndUpdatesJob", func(tt *testing.T) {
+		account, pool, volume, params := setup()
+		mockStorage := database.NewMockStorage(tt)
+		temporal := workflowenginemock.NewMockTemporalTestClient(tt)
+
+		originalGetAccountWithName := getAccountWithName
+		getAccountWithName = func(ctx context.Context, se database.Storage, accountName string) (*datamodel.Account, error) {
+			return account, nil
+		}
+		defer func() { getAccountWithName = originalGetAccountWithName }()
+
+		updatedVolume := *volume
+		updatedVolume.State = models.LifeCycleStateUpdating
+		createdJob := &datamodel.Job{
+			BaseModel:  datamodel.BaseModel{UUID: "job-uuid"},
+			WorkflowID: "wf-id",
+			TrackingID: 99,
+		}
+
+		mockStorage.EXPECT().GetPool(ctx, pool.UUID, account.ID).Return(pool, nil).Once()
+		mockStorage.EXPECT().GetExpertModeVolumeByExternalUUID(ctx, volume.ExternalUUID).Return(volume, nil).Once()
+		mockStorage.EXPECT().GetExpertModePoolUsedCapacityAndVolumeCount(ctx, volume.PoolID).
+			Return(&database.ExpertModePoolCapacity{TotalSize: 100, VolumeCount: 1}, nil).Once()
+		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.MatchedBy(func(v *datamodel.ExpertModeVolumes) bool {
+			return v.UUID == volume.UUID && v.State == models.LifeCycleStateUpdating
+		})).Return(&updatedVolume, nil).Once()
+		mockStorage.EXPECT().CreateJob(ctx, mock.AnythingOfType("*datamodel.Job")).Return(createdJob, nil).Once()
+		temporal.EXPECT().ExecuteWorkflow(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return(nil, errors.New("failed to start workflow")).Once()
+		mockStorage.EXPECT().UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, mock.AnythingOfType("string")).
+			Return(nil).Once()
+		mockStorage.EXPECT().UpdateExpertModeVolume(ctx, mock.MatchedBy(func(v *datamodel.ExpertModeVolumes) bool {
+			return v.UUID == volume.UUID && v.State == models.LifeCycleStateAvailable
+		})).Return(&updatedVolume, nil).Once()
+
+		err := _startExpertModeFlexCloneSplit(ctx, mockStorage, temporal, params)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "failed to start workflow")
+		mockStorage.AssertExpectations(tt)
+		temporal.AssertExpectations(tt)
+	})
+}
+
 func TestGetBackupConfigsForPool(t *testing.T) {
 	account := &datamodel.Account{
 		BaseModel: datamodel.BaseModel{ID: 1, UUID: "test-account-uuid"},

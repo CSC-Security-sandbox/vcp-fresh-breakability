@@ -16,13 +16,16 @@ import (
 var (
 	submitExpertModeVolumeOperation      = core.SubmitExpertModeVolumeOperation
 	submitExpertModeVolumeRename         = core.SubmitExpertModeVolumeRename
+	submitExpertModeFlexCloneSplit       = core.SubmitExpertModeFlexCloneSplit
 	validateVolumeCreation               = _validateVolumeCreation
 	validateVolumeModification           = _validateVolumeModification
 	validateVolumeDeletion               = _validateVolumeDeletion
 	validateFlexCacheCreation            = _validateFlexCacheCreation
 	validateFlexCacheDeletion            = _validateFlexCacheDeletion
 	validatePrivateCLIVolumeCreation     = _validatePrivateCLIVolumeCreation
+	validatePrivateCLIVolumeCloneCreate  = _validatePrivateCLIVolumeCloneCreate
 	validatePrivateCLIVolumeModification = _validatePrivateCLIVolumeModification
+	validatePrivateCLIVolumeCloneSplit   = _validatePrivateCLIVolumeCloneSplit
 	validatePrivateCLIVolumeDeletion     = _validatePrivateCLIVolumeDeletion
 	validatePrivateCLIVolumeRename       = _validatePrivateCLIVolumeRename
 )
@@ -140,6 +143,19 @@ func isCloneCreateRequest(requestBody map[string]interface{}) bool {
 	}
 	isFlexclone, _ := cloneObj["is_flexclone"].(bool)
 	return isFlexclone
+}
+
+// isFlexCloneSplitInitiatedRequest is true when ONTAP-style PATCH sets clone.split_initiated to true.
+func isFlexCloneSplitInitiatedRequest(requestBody map[string]interface{}) bool {
+	if requestBody == nil {
+		return false
+	}
+	cloneObj, ok := requestBody["clone"].(map[string]interface{})
+	if !ok || cloneObj == nil {
+		return false
+	}
+	v, ok := cloneObj["split_initiated"].(bool)
+	return ok && v
 }
 
 // volumePostCreateSizeFieldsCondition validates size-related fields on POST /api/storage/volumes create:
@@ -260,6 +276,23 @@ func _validateVolumeModification(r *http.Request) (bool, string) {
 
 	fields := parseVolumeRequestFields(requestBody)
 	volumeUUID := extractVolumeUUIDFromRequest(r)
+
+	// FlexClone split: ONTAP PATCH with clone.split_initiated -> dedicated Core API (not volume Update).
+	if isFlexCloneSplitInitiatedRequest(requestBody) {
+		_, nameExists := requestBody["name"]
+		_, topLevelSizeExists := requestBody["size"]
+		spaceSizeExists := hasSpaceSize(requestBody)
+		if nameExists || topLevelSizeExists || spaceSizeExists {
+			return false, "flexclone split cannot be combined with name or size changes in the same request"
+		}
+		if !volumeUUID.IsSet() || volumeUUID.Value == "" {
+			return false, "volume UUID is required in the request path to start flexclone split"
+		}
+		if err := submitExpertModeFlexCloneSplit(r.Context(), volumeUUID.Value, "", authData.AccountName, authData.PoolID, "", logger); err != nil {
+			return false, err.Error()
+		}
+		return true, ""
+	}
 
 	// Trigger reconcile only if name or size is being modified (size may be top-level or space.size)
 	_, nameExists := requestBody["name"]
@@ -503,6 +536,107 @@ func _validatePrivateCLIVolumeRename(r *http.Request) (bool, string) {
 		return false, err.Error()
 	}
 
+	return true, ""
+}
+
+// _validatePrivateCLIVolumeCloneCreate validates private CLI derived route:
+// POST /api/private/cli/volume/clone
+// Body fields are expected in private-CLI style (underscores).
+func _validatePrivateCLIVolumeCloneCreate(r *http.Request) (bool, string) {
+	logger := util.GetLogger(r.Context())
+	requestBody, parseErr := dsl.GetParsedBody(r)
+	if parseErr != "" {
+		return false, parseErr
+	}
+
+	cacheKey := cache.GetAuthDataKeyFromContext(r.Context())
+	if cacheKey == "" {
+		return false, "cache key not found in context"
+	}
+	authData, exists := cache.GetFromAuthDataCache(cacheKey)
+	if !exists || authData == nil {
+		return false, fmt.Sprintf("auth data not found in cache for key: %s", cacheKey)
+	}
+
+	cloneName, _ := requestBody["flexclone"].(string)
+	vserverName, _ := requestBody["vserver"].(string)
+
+	parentVolume := ""
+	if pv, ok := requestBody["parent_volume"].(string); ok {
+		parentVolume = pv
+	}
+	if parentVolume == "" {
+		if b, ok := requestBody["b"].(string); ok {
+			parentVolume = b
+		}
+	}
+	if parentVolume == "" {
+		return false, "missing required field: parent_volume or b"
+	}
+
+	cloneReq := coreapi.ExpertModeVolumeV1Clone{
+		IsFlexclone: coreapi.NewOptBool(true),
+		ParentVolume: coreapi.NewOptExpertModeVolumeV1CloneParentVolume(
+			coreapi.ExpertModeVolumeV1CloneParentVolume{
+				Name: coreapi.NewOptString(parentVolume),
+			},
+		),
+	}
+	if parentSnapshot, ok := requestBody["parent_snapshot"].(string); ok && parentSnapshot != "" {
+		cloneReq.ParentSnapshot = coreapi.NewOptExpertModeVolumeV1CloneParentSnapshot(
+			coreapi.ExpertModeVolumeV1CloneParentSnapshot{
+				Name: coreapi.NewOptString(parentSnapshot),
+			},
+		)
+	}
+
+	expertVolumeRequest := &coreapi.ExpertModeVolumeV1{
+		ProjectNumber: authData.AccountName,
+		PoolUUID:      authData.PoolID,
+		Action:        coreapi.ExpertModeVolumeV1ActionCreate,
+		VolumeName:    cloneName,
+		Style:         coreapi.ExpertModeVolumeV1StyleFlexvol,
+		SvmName:       coreapi.NewOptString(vserverName),
+		Clone:         coreapi.NewOptExpertModeVolumeV1Clone(cloneReq),
+	}
+
+	if sizeRaw, exists := requestBody["size"]; exists {
+		sizeInBytes := parseSize(sizeRaw)
+		if sizeInBytes <= 0 {
+			return false, fmt.Sprintf("\"%v\" is an invalid value for field \"size\"", sizeRaw)
+		}
+		expertVolumeRequest.SizeInBytes = coreapi.NewOptFloat64(sizeInBytes)
+	}
+
+	if err := submitExpertModeVolumeOperation(r.Context(), expertVolumeRequest, "", logger); err != nil {
+		return false, err.Error()
+	}
+	return true, ""
+}
+
+// _validatePrivateCLIVolumeCloneSplit validates private CLI derived route:
+// POST /api/private/cli/volume/clone/split/start
+// Body fields: vserver, flexclone
+func _validatePrivateCLIVolumeCloneSplit(r *http.Request) (bool, string) {
+	logger := util.GetLogger(r.Context())
+	requestBody, parseErr := dsl.GetParsedBody(r)
+	if parseErr != "" {
+		return false, parseErr
+	}
+
+	cacheKey := cache.GetAuthDataKeyFromContext(r.Context())
+	if cacheKey == "" {
+		return false, "cache key not found in context"
+	}
+	authData, exists := cache.GetFromAuthDataCache(cacheKey)
+	if !exists || authData == nil {
+		return false, fmt.Sprintf("auth data not found in cache for key: %s", cacheKey)
+	}
+
+	cloneName, _ := requestBody["flexclone"].(string)
+	if err := submitExpertModeFlexCloneSplit(r.Context(), "", cloneName, authData.AccountName, authData.PoolID, "", logger); err != nil {
+		return false, err.Error()
+	}
 	return true, ""
 }
 

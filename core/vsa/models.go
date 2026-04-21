@@ -66,14 +66,21 @@ type ProviderResponse struct {
 	ExternalUUID string
 }
 
+// VolumeResponseClone mirrors ONTAP volume.clone (expert-mode GET with clone.*).
+type VolumeResponseClone struct {
+	ParentVolumeName     string
+	ParentVolumeUUID     string
+	ParentSnapshotName   string
+	ParentSnapshotUUID   string
+	IsFlexclone          *bool
+	SplitInitiated       *bool
+	SplitCompletePercent *int64
+}
+
 type VolumeResponse struct {
 	ProviderResponse
 	AvailableSpace                 int64
 	Size                           int64
-	CloneParentVolumeName          string
-	CloneParentVolumeUUID          string
-	CloneParentSnapshotName        string
-	CloneParentSnapshotUUID        string
 	State                          string
 	SnapshotPolicyName             string
 	SnapReserve                    int64
@@ -87,6 +94,8 @@ type VolumeResponse struct {
 	Encryption
 	// JunctionPath is the fully-qualified path in the SVM namespace at which the volume is mounted (from volume.nas.path). Empty for unmounted or block volumes.
 	JunctionPath string
+	// Clone is set when ONTAP returns volume.clone (e.g. GetCloneVolumeForExpertMode).
+	Clone *VolumeResponseClone
 }
 
 type CreateLifParams struct {

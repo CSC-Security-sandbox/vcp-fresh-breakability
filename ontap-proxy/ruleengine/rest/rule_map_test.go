@@ -45,6 +45,26 @@ func TestGetProxyRules(t *testing.T) {
 		assert.NotNil(t, rule.DELETE)
 	})
 
+	t.Run("ShouldContainPrivateCLIVolumeCloneRule", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule, ok := rules["/api/private/cli/volume/clone"]
+		assert.True(t, ok, "Should have rule for /api/private/cli/volume/clone")
+		assert.NotNil(t, rule.GET)
+		assert.NotNil(t, rule.POST)
+		assert.NotNil(t, rule.PATCH)
+		assert.NotNil(t, rule.DELETE)
+	})
+
+	t.Run("ShouldContainPrivateCLIVolumeCloneSplitStartRule", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule, ok := rules["/api/private/cli/volume/clone/split/start"]
+		assert.True(t, ok, "Should have rule for /api/private/cli/volume/clone/split/start")
+		assert.NotNil(t, rule.GET)
+		assert.NotNil(t, rule.POST)
+		assert.NotNil(t, rule.PATCH)
+		assert.NotNil(t, rule.DELETE)
+	})
+
 	t.Run("ShouldContainStorageVolumesRule", func(t *testing.T) {
 		rules := GetProxyRules()
 		rule, ok := rules["/api/storage/volumes"]
@@ -421,6 +441,84 @@ func TestPrivateCLIVolumeShowFootprintRule(t *testing.T) {
 		assert.NotNil(t, action)
 		allowed, reason := action.ShouldAllow(req)
 		assert.False(t, allowed, "DELETE should be denied for volume show-footprint")
+		assert.NotEmpty(t, reason)
+	})
+}
+
+func TestPrivateCLIVolumeCloneRule(t *testing.T) {
+	origValidateCloneCreate := validatePrivateCLIVolumeCloneCreate
+	defer func() { validatePrivateCLIVolumeCloneCreate = origValidateCloneCreate }()
+	validatePrivateCLIVolumeCloneCreate = func(r *http.Request) (bool, string) { return true, "" }
+
+	t.Run("WhenPOSTWithRequiredFields_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/private/cli/volume/clone"]
+		body := bytes.NewBufferString(`{"vserver":"vs0","flexclone":"clone1","parent_volume":"src1"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/private/cli/volume/clone", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.True(t, allowed, "POST with required clone fields should be allowed, reason: %s", reason)
+	})
+
+	t.Run("WhenPOSTWithoutParentVolumeOrB_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/private/cli/volume/clone"]
+		body := bytes.NewBufferString(`{"vserver":"vs0","flexclone":"clone1"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/private/cli/volume/clone", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed)
+		assert.Contains(t, reason, "parent_volume or b")
+	})
+
+	t.Run("WhenGET_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/private/cli/volume/clone"]
+		req := httptest.NewRequest(http.MethodGet, "/api/private/cli/volume/clone", nil)
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed)
+		assert.NotEmpty(t, reason)
+	})
+}
+
+func TestPrivateCLIVolumeCloneSplitStartRule(t *testing.T) {
+	origValidateCloneSplit := validatePrivateCLIVolumeCloneSplit
+	defer func() { validatePrivateCLIVolumeCloneSplit = origValidateCloneSplit }()
+	validatePrivateCLIVolumeCloneSplit = func(r *http.Request) (bool, string) { return true, "" }
+
+	t.Run("WhenPOSTWithRequiredFields_ShouldAllow", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/private/cli/volume/clone/split/start"]
+		body := bytes.NewBufferString(`{"vserver":"vs0","flexclone":"clone1"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/private/cli/volume/clone/split/start", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.True(t, allowed, "POST split start with required fields should be allowed, reason: %s", reason)
+	})
+
+	t.Run("WhenPOSTWithoutFlexclone_ShouldDeny", func(t *testing.T) {
+		rules := GetProxyRules()
+		rule := rules["/api/private/cli/volume/clone/split/start"]
+		body := bytes.NewBufferString(`{"vserver":"vs0"}`)
+		req := httptest.NewRequest(http.MethodPost, "/api/private/cli/volume/clone/split/start", body)
+		req.Header.Set("Content-Type", "application/json")
+
+		action := rule.GetAction(req)
+		assert.NotNil(t, action)
+		allowed, reason := action.ShouldAllow(req)
+		assert.False(t, allowed)
 		assert.NotEmpty(t, reason)
 	})
 }

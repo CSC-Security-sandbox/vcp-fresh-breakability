@@ -194,6 +194,30 @@ func (s *Error) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *ExpertModeVolumeFlexCloneSplitV1) SetFake() {
+	{
+		{
+			s.ProjectNumber = "string"
+		}
+	}
+	{
+		{
+			s.PoolUUID = "string"
+		}
+	}
+	{
+		{
+			s.VolumeUUID.SetFake()
+		}
+	}
+	{
+		{
+			s.VolumeName.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
 func (s *ExpertModeVolumeRenameV1) SetFake() {
 	{
 		{
@@ -1745,6 +1769,78 @@ func (s *V1ExpertModeVolumeConflict) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1ExpertModeVolumeConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ExpertModeVolumeFlexCloneSplitBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ExpertModeVolumeFlexCloneSplitBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ExpertModeVolumeFlexCloneSplitConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ExpertModeVolumeFlexCloneSplitConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ExpertModeVolumeFlexCloneSplitForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ExpertModeVolumeFlexCloneSplitForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ExpertModeVolumeFlexCloneSplitInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ExpertModeVolumeFlexCloneSplitInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ExpertModeVolumeFlexCloneSplitNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ExpertModeVolumeFlexCloneSplitNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ExpertModeVolumeFlexCloneSplitTooManyRequests) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ExpertModeVolumeFlexCloneSplitTooManyRequests(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ExpertModeVolumeFlexCloneSplitUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ExpertModeVolumeFlexCloneSplitUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ExpertModeVolumeFlexCloneSplitUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ExpertModeVolumeFlexCloneSplitUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.

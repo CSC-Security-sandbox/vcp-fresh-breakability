@@ -404,13 +404,23 @@ func (rc *OntapRestProvider) GetCloneVolumeForExpertMode(params GetVolumeParams)
 		Style: volStyle,
 	}
 	if vol.Clone != nil {
+		res.Clone = &VolumeResponseClone{}
 		if vol.Clone.ParentVolume != nil {
-			res.CloneParentVolumeName = nillable.FromPointer(vol.Clone.ParentVolume.Name)
-			res.CloneParentVolumeUUID = nillable.FromPointer(vol.Clone.ParentVolume.UUID)
+			res.Clone.ParentVolumeName = nillable.FromPointer(vol.Clone.ParentVolume.Name)
+			res.Clone.ParentVolumeUUID = nillable.FromPointer(vol.Clone.ParentVolume.UUID)
 		}
 		if vol.Clone.ParentSnapshot != nil {
-			res.CloneParentSnapshotName = nillable.FromPointer(vol.Clone.ParentSnapshot.Name)
-			res.CloneParentSnapshotUUID = nillable.FromPointer(vol.Clone.ParentSnapshot.UUID)
+			res.Clone.ParentSnapshotName = nillable.FromPointer(vol.Clone.ParentSnapshot.Name)
+			res.Clone.ParentSnapshotUUID = nillable.FromPointer(vol.Clone.ParentSnapshot.UUID)
+		}
+		if vol.Clone.IsFlexclone != nil {
+			res.Clone.IsFlexclone = vol.Clone.IsFlexclone
+		}
+		if vol.Clone.SplitInitiated != nil {
+			res.Clone.SplitInitiated = vol.Clone.SplitInitiated
+		}
+		if vol.Clone.SplitCompletePercent != nil {
+			res.Clone.SplitCompletePercent = vol.Clone.SplitCompletePercent
 		}
 	}
 	return res, nil

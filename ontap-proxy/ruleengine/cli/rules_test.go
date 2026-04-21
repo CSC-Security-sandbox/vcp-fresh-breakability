@@ -64,6 +64,21 @@ func TestMatchCLIRule(t *testing.T) {
 				input:     "vol size -vserver vs1 -volume vol1 -new-size 100g",
 				wantAllow: true,
 			},
+			{
+				name:      "volume clone create allowed",
+				input:     "volume clone create -vserver vs1 -flexclone clone1 -parent-volume src1",
+				wantAllow: true,
+			},
+			{
+				name:      "vol clone create allowed",
+				input:     "vol clone create -vserver vs1 -flexclone clone1 -b src1",
+				wantAllow: true,
+			},
+			{
+				name:      "volume clone split start allowed",
+				input:     "volume clone split start -vserver vs1 -flexclone clone1",
+				wantAllow: true,
+			},
 		}
 
 		for _, tt := range tests {
@@ -83,6 +98,78 @@ func TestMatchCLIRule(t *testing.T) {
 				}
 			})
 		}
+	})
+
+	t.Run("volume clone split stop commands - no explicit rule (pass-through)", func(t *testing.T) {
+		tests := []struct {
+			name  string
+			input string
+		}{
+			{
+				name:  "volume clone split stop no rule",
+				input: "volume clone split stop -vserver vs1 -flexclone clone1",
+			},
+			{
+				name:  "vol clone split stop no rule",
+				input: "vol clone split stop -vserver vs1 -flexclone clone1",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				cmd, err := ParseCLICommand(tt.input)
+				if err != nil {
+					t.Fatalf("Failed to parse command: %v", err)
+				}
+
+				_, found := MatchCLIRule(cmd)
+				if found {
+					t.Fatal("Expected no explicit matching rule for split stop")
+				}
+			})
+		}
+	})
+
+	t.Run("volume clone create conditions", func(t *testing.T) {
+		t.Run("missing parent argument fails local condition", func(t *testing.T) {
+			cmd, err := ParseCLICommand("volume clone create -vserver vs1 -flexclone clone1")
+			if err != nil {
+				t.Fatalf("Failed to parse command: %v", err)
+			}
+
+			rule, found := MatchCLIRule(cmd)
+			if !found {
+				t.Fatal("Expected to find clone create rule")
+			}
+
+			allowed, reason := EvaluateRule(rule, cmd)
+			if allowed {
+				t.Fatal("Expected command to be denied")
+			}
+			if reason == "" {
+				t.Fatal("Expected non-empty deny reason")
+			}
+		})
+
+		t.Run("invalid space-guarantee fails local condition", func(t *testing.T) {
+			cmd, err := ParseCLICommand("volume clone create -vserver vs1 -flexclone clone1 -parent-volume src1 -space-guarantee volume")
+			if err != nil {
+				t.Fatalf("Failed to parse command: %v", err)
+			}
+
+			rule, found := MatchCLIRule(cmd)
+			if !found {
+				t.Fatal("Expected to find clone create rule")
+			}
+
+			allowed, reason := EvaluateRule(rule, cmd)
+			if allowed {
+				t.Fatal("Expected command to be denied")
+			}
+			if reason == "" {
+				t.Fatal("Expected non-empty deny reason")
+			}
+		})
 	})
 
 	t.Run("volume show-footprint commands - denied", func(t *testing.T) {

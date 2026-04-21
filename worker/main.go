@@ -509,6 +509,7 @@ func RegisterBackgroundWorkflowsAndActivities(worker tManagerPkg.Worker, tempora
 	worker.RegisterWorkflow(expertmodeworkflows.VolumeDeleteReconciliationWorkflow)
 	worker.RegisterWorkflow(expertmodeworkflows.VolumeUpdateReconciliationWorkflow)
 	worker.RegisterWorkflow(workflows.VolumePollSplitWorkflow)
+	worker.RegisterWorkflow(expertmodeworkflows.ExpertModeFlexCloneSplitWorkflow)
 
 	temporalScheduler := scheduler.NewTemporalScheduler(temporal.ScheduleClient())
 	worker.RegisterActivity(&jobmanageractivities.JobManagerActivity{SE: conn, Scheduler: temporalScheduler})

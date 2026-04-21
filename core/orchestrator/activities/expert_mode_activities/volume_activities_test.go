@@ -9,11 +9,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/vsa"
 	database "github.com/vcp-vsa-control-Plane/vsa-control-plane/database/vcp"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
+	"go.temporal.io/sdk/temporal"
 	"go.temporal.io/sdk/testsuite"
 )
 
@@ -547,8 +549,10 @@ func TestFetchOntapVolumeByName_FlexcloneSharedBytesFromParentSnapshot(t *testin
 		SvmName:   "svm-a",
 		IsRestore: false,
 	}).Return(&vsa.VolumeResponse{
-		CloneParentVolumeUUID:   parentVolUUID,
-		CloneParentSnapshotUUID: snapUUID,
+		Clone: &vsa.VolumeResponseClone{
+			ParentVolumeUUID:   parentVolUUID,
+			ParentSnapshotUUID: snapUUID,
+		},
 	}, nil).Once()
 
 	mockProvider.On("GetSnapshot", snapUUID, parentVolUUID).Return(&vsa.SnapshotProviderResponse{
@@ -640,8 +644,10 @@ func TestFetchOntapVolumeByName_ResolveSharedBytesError(t *testing.T) {
 		State:            "online",
 	}, nil)
 	mockProvider.On("GetCloneVolumeForExpertMode", mock.Anything).Return(&vsa.VolumeResponse{
-		CloneParentVolumeUUID:   parentVolUUID,
-		CloneParentSnapshotUUID: snapUUID,
+		Clone: &vsa.VolumeResponseClone{
+			ParentVolumeUUID:   parentVolUUID,
+			ParentSnapshotUUID: snapUUID,
+		},
 	}, nil)
 	snapErr := errors.New("snapshot read failed")
 	mockProvider.On("GetSnapshot", snapUUID, parentVolUUID).Return(nil, snapErr)
@@ -2483,4 +2489,520 @@ func TestExpertModeVolumeSizesMatchForValidation(t *testing.T) {
 			assert.Equal(tt, tc.want, expertModeVolumeSizesMatchForValidation(tc.db, tc.ontap))
 		})
 	}
+}
+
+func TestCompleteExpertModeFlexCloneSplitInDB(t *testing.T) {
+	t.Run("PersistsOntapSizeAndClearsCloneFields", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		mockStorage := database.NewMockStorage(tt)
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.CompleteExpertModeFlexCloneSplitInDB)
+
+		volumeUUID := "emv-uuid-complete"
+		currentVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: volumeUUID},
+			ExternalUUID: "ontap-vol-uuid",
+			State:        models.LifeCycleStateUpdating,
+			SizeInBytes:  100,
+			SharedBytes:  11,
+			VolumeAttributes: &datamodel.ExpertModeVolumeAttributes{
+				IsFlexclone: true,
+				Clone:       &datamodel.ExpertModeCloneInfo{},
+			},
+		}
+
+		mockStorage.On("GetExpertModeVolumeByUUID", mock.Anything, volumeUUID).Return(currentVolume, nil)
+		mockStorage.On("UpdateExpertModeVolume", mock.Anything, mock.MatchedBy(func(v *datamodel.ExpertModeVolumes) bool {
+			return v.UUID == volumeUUID &&
+				v.SizeInBytes == int64(2048) &&
+				v.State == models.LifeCycleStateAvailable &&
+				v.SharedBytes == int64(0) &&
+				v.VolumeAttributes != nil &&
+				!v.VolumeAttributes.IsFlexclone &&
+				v.VolumeAttributes.Clone == nil
+		})).Return(currentVolume, nil)
+
+		_, err := env.ExecuteActivity(activity.CompleteExpertModeFlexCloneSplitInDB, volumeUUID, int64(2048))
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("PersistsProvidedSplitSize", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		mockStorage := database.NewMockStorage(tt)
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.CompleteExpertModeFlexCloneSplitInDB)
+
+		volumeUUID := "emv-uuid-size"
+		currentVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: volumeUUID},
+			ExternalUUID: "ontap-vol-uuid",
+			State:        models.LifeCycleStateUpdating,
+			SizeInBytes:  8192,
+			VolumeAttributes: &datamodel.ExpertModeVolumeAttributes{
+				IsFlexclone: true,
+			},
+		}
+
+		mockStorage.On("GetExpertModeVolumeByUUID", mock.Anything, volumeUUID).Return(currentVolume, nil)
+		mockStorage.On("UpdateExpertModeVolume", mock.Anything, mock.MatchedBy(func(v *datamodel.ExpertModeVolumes) bool {
+			return v.UUID == volumeUUID &&
+				v.SizeInBytes == int64(4096) &&
+				v.State == models.LifeCycleStateAvailable &&
+				v.VolumeAttributes != nil &&
+				!v.VolumeAttributes.IsFlexclone
+		})).Return(currentVolume, nil)
+
+		_, err := env.ExecuteActivity(activity.CompleteExpertModeFlexCloneSplitInDB, volumeUUID, int64(4096))
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestFetchOntapCloneVolumeByUUID(t *testing.T) {
+	t.Run("WhenProviderLookupFails_ReturnsError", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(_fetchOntapCloneVolumeByUUID)
+
+		orig := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = orig }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return nil, errors.New("provider unavailable")
+		}
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "db-uuid"},
+			Name:         "clone-vol",
+			ExternalUUID: "ontap-clone-uuid",
+		}
+		node := &models.Node{Name: "node-1"}
+
+		_, err := env.ExecuteActivity(_fetchOntapCloneVolumeByUUID, volume, node)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "provider unavailable")
+	})
+
+	t.Run("WhenCloneVolumeNotFound_ReturnsRetryableNotFound", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(_fetchOntapCloneVolumeByUUID)
+
+		mockProvider := new(vsa.MockProvider)
+		orig := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = orig }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "db-uuid"},
+			Name:         "clone-vol",
+			ExternalUUID: "ontap-clone-uuid",
+		}
+		node := &models.Node{Name: "node-1"}
+
+		mockProvider.On("GetCloneVolumeForExpertMode", vsa.GetVolumeParams{
+			SvmName:   "",
+			IsRestore: false,
+			UUID:      "ontap-clone-uuid",
+		}).Return(nil, errors.New("volume not found"))
+
+		_, err := env.ExecuteActivity(_fetchOntapCloneVolumeByUUID, volume, node)
+		assert.Error(tt, err)
+		assert.Contains(tt, strings.ToLower(err.Error()), "not found")
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenProviderReturnsCloneVolume_ReturnsResponse", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(_fetchOntapCloneVolumeByUUID)
+
+		mockProvider := new(vsa.MockProvider)
+		orig := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = orig }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "db-uuid"},
+			Name:         "clone-vol",
+			ExternalUUID: "ontap-clone-uuid",
+			Svm:          &datamodel.Svm{Name: "svm1"},
+		}
+		node := &models.Node{Name: "node-1"}
+
+		mockProvider.On("GetCloneVolumeForExpertMode", vsa.GetVolumeParams{
+			SvmName:   "svm1",
+			IsRestore: false,
+			UUID:      "ontap-clone-uuid",
+		}).Return(&vsa.VolumeResponse{
+			ProviderResponse: vsa.ProviderResponse{
+				ExternalUUID: "ontap-clone-uuid",
+				Name:         "clone-vol",
+			},
+			Size: 4096,
+		}, nil)
+
+		encoded, err := env.ExecuteActivity(_fetchOntapCloneVolumeByUUID, volume, node)
+		assert.NoError(tt, err)
+
+		var response *vsa.VolumeResponse
+		err = encoded.Get(&response)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "ontap-clone-uuid", response.ExternalUUID)
+		assert.Equal(tt, int64(4096), response.Size)
+		mockProvider.AssertExpectations(tt)
+	})
+
+	t.Run("WhenCloneVolumeLookupFailsWithGenericError_ReturnsError", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		env.RegisterActivity(_fetchOntapCloneVolumeByUUID)
+
+		mockProvider := new(vsa.MockProvider)
+		orig := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = orig }()
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+
+		volume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "db-uuid"},
+			Name:         "clone-vol",
+			ExternalUUID: "ontap-clone-uuid",
+		}
+		node := &models.Node{Name: "node-1"}
+
+		mockProvider.On("GetCloneVolumeForExpertMode", mock.Anything).Return(nil, errors.New("clone read failed"))
+
+		_, err := env.ExecuteActivity(_fetchOntapCloneVolumeByUUID, volume, node)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "clone read failed")
+		mockProvider.AssertExpectations(tt)
+	})
+}
+
+func TestWaitForExpertModeFlexCloneSplitComplete(t *testing.T) {
+	t.Run("WhenSplitCompletes_ReturnsSplitVolumeSize", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		activity := ExpertModeVolumeActivity{}
+		env.RegisterActivity(activity.WaitForExpertModeFlexCloneSplitComplete)
+
+		orig := fetchOntapCloneVolumeByUUID
+		defer func() { fetchOntapCloneVolumeByUUID = orig }()
+		isFlexclone := false
+		fetchOntapCloneVolumeByUUID = func(ctx context.Context, volume *datamodel.ExpertModeVolumes, node *models.Node) (*vsa.VolumeResponse, error) {
+			return &vsa.VolumeResponse{
+				Size: 8192,
+				Clone: &vsa.VolumeResponseClone{
+					IsFlexclone: &isFlexclone,
+				},
+			}, nil
+		}
+
+		volume := &datamodel.ExpertModeVolumes{Name: "clone-vol"}
+		node := &models.Node{Name: "node-1"}
+
+		encoded, err := env.ExecuteActivity(activity.WaitForExpertModeFlexCloneSplitComplete, volume, node)
+		assert.NoError(tt, err)
+		var splitSize int64
+		err = encoded.Get(&splitSize)
+		assert.NoError(tt, err)
+		assert.Equal(tt, int64(8192), splitSize)
+	})
+
+	t.Run("WhenSplitAborted_ReturnsNonRetryableError", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		activity := ExpertModeVolumeActivity{}
+		env.RegisterActivity(activity.WaitForExpertModeFlexCloneSplitComplete)
+
+		orig := fetchOntapCloneVolumeByUUID
+		defer func() { fetchOntapCloneVolumeByUUID = orig }()
+		isFlexclone := true
+		splitInitiated := false
+		fetchOntapCloneVolumeByUUID = func(ctx context.Context, volume *datamodel.ExpertModeVolumes, node *models.Node) (*vsa.VolumeResponse, error) {
+			return &vsa.VolumeResponse{
+				Clone: &vsa.VolumeResponseClone{
+					IsFlexclone:    &isFlexclone,
+					SplitInitiated: &splitInitiated,
+				},
+			}, nil
+		}
+
+		volume := &datamodel.ExpertModeVolumes{Name: "clone-vol"}
+		node := &models.Node{Name: "node-1"}
+
+		_, err := env.ExecuteActivity(activity.WaitForExpertModeFlexCloneSplitComplete, volume, node)
+		assert.Error(tt, err)
+		assert.Contains(tt, strings.ToLower(err.Error()), "aborted")
+	})
+
+	t.Run("WhenSplitPending_ReturnsRetryablePendingError", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		activity := ExpertModeVolumeActivity{}
+		env.RegisterActivity(activity.WaitForExpertModeFlexCloneSplitComplete)
+
+		orig := fetchOntapCloneVolumeByUUID
+		defer func() { fetchOntapCloneVolumeByUUID = orig }()
+		fetchOntapCloneVolumeByUUID = func(ctx context.Context, volume *datamodel.ExpertModeVolumes, node *models.Node) (*vsa.VolumeResponse, error) {
+			return &vsa.VolumeResponse{
+				Size: 1024,
+			}, nil
+		}
+
+		volume := &datamodel.ExpertModeVolumes{Name: "clone-vol"}
+		node := &models.Node{Name: "node-1"}
+
+		_, err := env.ExecuteActivity(activity.WaitForExpertModeFlexCloneSplitComplete, volume, node)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "FlexCloneSplitPending")
+	})
+
+	t.Run("WhenFetchFails_ReturnsFetchError", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		activity := ExpertModeVolumeActivity{}
+		env.RegisterActivity(activity.WaitForExpertModeFlexCloneSplitComplete)
+
+		orig := fetchOntapCloneVolumeByUUID
+		defer func() { fetchOntapCloneVolumeByUUID = orig }()
+		fetchOntapCloneVolumeByUUID = func(ctx context.Context, volume *datamodel.ExpertModeVolumes, node *models.Node) (*vsa.VolumeResponse, error) {
+			return nil, errors.New("ontap lookup failed")
+		}
+
+		volume := &datamodel.ExpertModeVolumes{Name: "clone-vol"}
+		node := &models.Node{Name: "node-1"}
+
+		_, err := env.ExecuteActivity(activity.WaitForExpertModeFlexCloneSplitComplete, volume, node)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "ontap lookup failed")
+	})
+
+	t.Run("WhenFetchNotFound_ReturnsNonRetryableError", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		activity := ExpertModeVolumeActivity{}
+		env.RegisterActivity(activity.WaitForExpertModeFlexCloneSplitComplete)
+
+		orig := fetchOntapCloneVolumeByUUID
+		defer func() { fetchOntapCloneVolumeByUUID = orig }()
+		fetchOntapCloneVolumeByUUID = func(ctx context.Context, volume *datamodel.ExpertModeVolumes, node *models.Node) (*vsa.VolumeResponse, error) {
+			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, errors.New("volume not found")))
+		}
+
+		volume := &datamodel.ExpertModeVolumes{Name: "clone-vol"}
+		node := &models.Node{Name: "node-1"}
+
+		_, err := env.ExecuteActivity(activity.WaitForExpertModeFlexCloneSplitComplete, volume, node)
+		assert.Error(tt, err)
+		var appErr *temporal.ApplicationError
+		assert.True(tt, errors.As(err, &appErr))
+		assert.True(tt, appErr.NonRetryable())
+	})
+}
+
+func TestRecoverExpertModeVolumeAfterFlexCloneSplitFailure(t *testing.T) {
+	t.Run("WhenGetVolumeFails_ReturnsError", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		mockStorage := database.NewMockStorage(tt)
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.RecoverExpertModeVolumeAfterFlexCloneSplitFailure)
+
+		volume := &datamodel.ExpertModeVolumes{BaseModel: datamodel.BaseModel{UUID: "vol-uuid"}}
+		node := &models.Node{Name: "node-1"}
+		mockStorage.On("GetExpertModeVolumeByUUID", mock.Anything, "vol-uuid").Return(nil, errors.New("read failed"))
+
+		_, err := env.ExecuteActivity(activity.RecoverExpertModeVolumeAfterFlexCloneSplitFailure, volume, node)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "read failed")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenOntapRefetchFails_ReturnsError", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		mockStorage := database.NewMockStorage(tt)
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.RecoverExpertModeVolumeAfterFlexCloneSplitFailure)
+
+		origFetch := fetchOntapCloneVolumeByUUID
+		defer func() { fetchOntapCloneVolumeByUUID = origFetch }()
+
+		volume := &datamodel.ExpertModeVolumes{BaseModel: datamodel.BaseModel{UUID: "vol-uuid"}}
+		node := &models.Node{Name: "node-1"}
+		dbVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:    datamodel.BaseModel{UUID: "vol-uuid"},
+			ExternalUUID: "ext-uuid",
+		}
+		mockStorage.On("GetExpertModeVolumeByUUID", mock.Anything, "vol-uuid").Return(dbVolume, nil)
+		fetchOntapCloneVolumeByUUID = func(ctx context.Context, volume *datamodel.ExpertModeVolumes, node *models.Node) (*vsa.VolumeResponse, error) {
+			return nil, errors.New("ontap fetch failed")
+		}
+
+		_, err := env.ExecuteActivity(activity.RecoverExpertModeVolumeAfterFlexCloneSplitFailure, volume, node)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "ontap fetch failed")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateFails_ReturnsError", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		mockStorage := database.NewMockStorage(tt)
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.RecoverExpertModeVolumeAfterFlexCloneSplitFailure)
+
+		origFetch := fetchOntapCloneVolumeByUUID
+		defer func() { fetchOntapCloneVolumeByUUID = origFetch }()
+
+		volume := &datamodel.ExpertModeVolumes{BaseModel: datamodel.BaseModel{UUID: "vol-uuid"}}
+		node := &models.Node{Name: "node-1"}
+		dbVolume := &datamodel.ExpertModeVolumes{BaseModel: datamodel.BaseModel{UUID: "vol-uuid"}}
+		mockStorage.On("GetExpertModeVolumeByUUID", mock.Anything, "vol-uuid").Return(dbVolume, nil)
+		fetchOntapCloneVolumeByUUID = func(ctx context.Context, volume *datamodel.ExpertModeVolumes, node *models.Node) (*vsa.VolumeResponse, error) {
+			return &vsa.VolumeResponse{
+				ProviderResponse: vsa.ProviderResponse{ExternalUUID: "ext-uuid"},
+			}, nil
+		}
+		mockStorage.On("UpdateExpertModeVolume", mock.Anything, mock.MatchedBy(func(v *datamodel.ExpertModeVolumes) bool {
+			return v.UUID == "vol-uuid" &&
+				v.State == models.LifeCycleStateAvailable &&
+				v.SharedBytes == int64(0)
+		})).Return(nil, errors.New("update failed"))
+
+		_, err := env.ExecuteActivity(activity.RecoverExpertModeVolumeAfterFlexCloneSplitFailure, volume, node)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "update failed")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenRecoverySucceeds_RefreshesSharedBytesAndReturnsNil", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		mockStorage := database.NewMockStorage(tt)
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.RecoverExpertModeVolumeAfterFlexCloneSplitFailure)
+
+		origFetch := fetchOntapCloneVolumeByUUID
+		defer func() { fetchOntapCloneVolumeByUUID = origFetch }()
+		origProviderLookup := hyperscaler.GetProviderByNode
+		defer func() { hyperscaler.GetProviderByNode = origProviderLookup }()
+
+		mockProvider := new(vsa.MockProvider)
+		volume := &datamodel.ExpertModeVolumes{BaseModel: datamodel.BaseModel{UUID: "vol-uuid"}}
+		node := &models.Node{Name: "node-1"}
+		dbVolume := &datamodel.ExpertModeVolumes{
+			BaseModel: datamodel.BaseModel{UUID: "vol-uuid"},
+			State:     models.LifeCycleStateUpdating,
+		}
+
+		mockStorage.On("GetExpertModeVolumeByUUID", mock.Anything, "vol-uuid").Return(dbVolume, nil)
+		fetchOntapCloneVolumeByUUID = func(ctx context.Context, volume *datamodel.ExpertModeVolumes, node *models.Node) (*vsa.VolumeResponse, error) {
+			return &vsa.VolumeResponse{
+				Clone: &vsa.VolumeResponseClone{
+					ParentVolumeUUID:   "parent-vol-uuid",
+					ParentSnapshotUUID: "parent-snap-uuid",
+				},
+			}, nil
+		}
+		hyperscaler.GetProviderByNode = func(ctx context.Context, node *models.Node) (vsa.Provider, error) {
+			return mockProvider, nil
+		}
+		mockProvider.On("GetSnapshot", "parent-snap-uuid", "parent-vol-uuid").Return(&vsa.SnapshotProviderResponse{
+			LogicalSizeInBytes: 4096,
+		}, nil)
+
+		mockStorage.On("UpdateExpertModeVolume", mock.Anything, mock.MatchedBy(func(v *datamodel.ExpertModeVolumes) bool {
+			return v.UUID == "vol-uuid" &&
+				v.State == models.LifeCycleStateAvailable &&
+				v.SharedBytes == int64(4096)
+		})).Return(dbVolume, nil)
+
+		_, err := env.ExecuteActivity(activity.RecoverExpertModeVolumeAfterFlexCloneSplitFailure, volume, node)
+		assert.NoError(tt, err)
+		mockProvider.AssertExpectations(tt)
+		mockStorage.AssertExpectations(tt)
+	})
+}
+
+func TestCompleteExpertModeFlexCloneSplitInDB_ErrorAndNilAttributes(t *testing.T) {
+	t.Run("WhenGetVolumeFails_ReturnsError", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		mockStorage := database.NewMockStorage(tt)
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.CompleteExpertModeFlexCloneSplitInDB)
+
+		mockStorage.On("GetExpertModeVolumeByUUID", mock.Anything, "missing-vol").Return(nil, errors.New("lookup failed"))
+
+		_, err := env.ExecuteActivity(activity.CompleteExpertModeFlexCloneSplitInDB, "missing-vol", int64(1234))
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "lookup failed")
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenVolumeAttributesNil_InitializesAndUpdates", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		mockStorage := database.NewMockStorage(tt)
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.CompleteExpertModeFlexCloneSplitInDB)
+
+		dbVolume := &datamodel.ExpertModeVolumes{
+			BaseModel:         datamodel.BaseModel{UUID: "vol-with-nil-attrs"},
+			State:             models.LifeCycleStateUpdating,
+			VolumeAttributes:  nil,
+			SizeInBytes:       1,
+			SharedBytes:       99,
+			ExternalUUID:      "ontap-1",
+		}
+
+		mockStorage.On("GetExpertModeVolumeByUUID", mock.Anything, "vol-with-nil-attrs").Return(dbVolume, nil)
+		mockStorage.On("UpdateExpertModeVolume", mock.Anything, mock.MatchedBy(func(v *datamodel.ExpertModeVolumes) bool {
+			return v.UUID == "vol-with-nil-attrs" &&
+				v.VolumeAttributes != nil &&
+				!v.VolumeAttributes.IsFlexclone &&
+				v.VolumeAttributes.Clone == nil &&
+				v.SharedBytes == 0 &&
+				v.State == models.LifeCycleStateAvailable
+		})).Return(dbVolume, nil)
+
+		_, err := env.ExecuteActivity(activity.CompleteExpertModeFlexCloneSplitInDB, "vol-with-nil-attrs", int64(777))
+		assert.NoError(tt, err)
+		mockStorage.AssertExpectations(tt)
+	})
+
+	t.Run("WhenUpdateFails_ReturnsError", func(tt *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		env := testSuite.NewTestActivityEnvironment()
+		mockStorage := database.NewMockStorage(tt)
+		activity := ExpertModeVolumeActivity{SE: mockStorage}
+		env.RegisterActivity(activity.CompleteExpertModeFlexCloneSplitInDB)
+
+		dbVolume := &datamodel.ExpertModeVolumes{
+			BaseModel: datamodel.BaseModel{UUID: "vol-update-fail"},
+			State:     models.LifeCycleStateUpdating,
+			VolumeAttributes: &datamodel.ExpertModeVolumeAttributes{
+				IsFlexclone: true,
+				Clone:       &datamodel.ExpertModeCloneInfo{},
+			},
+		}
+
+		mockStorage.On("GetExpertModeVolumeByUUID", mock.Anything, "vol-update-fail").Return(dbVolume, nil)
+		mockStorage.On("UpdateExpertModeVolume", mock.Anything, mock.Anything).Return(nil, errors.New("persist failed"))
+
+		_, err := env.ExecuteActivity(activity.CompleteExpertModeFlexCloneSplitInDB, "vol-update-fail", int64(999))
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "persist failed")
+		mockStorage.AssertExpectations(tt)
+	})
 }

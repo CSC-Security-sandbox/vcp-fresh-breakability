@@ -2,6 +2,7 @@ package expertmodeactivities
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -14,6 +15,7 @@ import (
 	utilErrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/workflow_engine/util"
 	"go.temporal.io/sdk/activity"
+	"go.temporal.io/sdk/temporal"
 )
 
 type ExpertModeVolumeActivity struct {
@@ -21,7 +23,8 @@ type ExpertModeVolumeActivity struct {
 }
 
 var (
-	fetchOntapVolumeByUUID = _fetchOntapVolumeByUUID
+	fetchOntapVolumeByUUID      = _fetchOntapVolumeByUUID
+	fetchOntapCloneVolumeByUUID = _fetchOntapCloneVolumeByUUID
 )
 
 // expertModeOntapSizeToleranceBytes: max symmetric |ONTAP size − DB SizeInBytes| (1 decimal GB, 10^9).
@@ -100,11 +103,16 @@ func (a *ExpertModeVolumeActivity) FetchOntapVolumeByName(ctx context.Context, v
 			logger.Errorf("Failed to fetch clone metadata for volume %s (%s): %v", volume.Name, volume.ExternalUUID, cloneErr)
 			return nil, vsaerrors.WrapAsTemporalApplicationError(cloneErr)
 		}
+		var parentVolUUID, parentSnapUUID string
+		if cloneVolumeResponse.Clone != nil {
+			parentVolUUID = cloneVolumeResponse.Clone.ParentVolumeUUID
+			parentSnapUUID = cloneVolumeResponse.Clone.ParentSnapshotUUID
+		}
 		sharedBytes, sharedErr := resolveExpertModeFlexcloneSharedBytes(
 			ctx,
 			provider,
-			cloneVolumeResponse.CloneParentVolumeUUID,
-			cloneVolumeResponse.CloneParentSnapshotUUID,
+			parentVolUUID,
+			parentSnapUUID,
 		)
 		if sharedErr != nil {
 			logger.Errorf("Failed to resolve clone shared bytes from parent snapshot for volume %s: %v", volume.Name, sharedErr)
@@ -347,4 +355,147 @@ func _fetchOntapVolumeByUUID(ctx context.Context, volume *datamodel.ExpertModeVo
 
 	logger.Infof("Volume external UUID : %s found in ONTAP", volumeResponse.ExternalUUID)
 	return volumeResponse, nil
+}
+
+// _fetchOntapCloneVolumeByUUID loads a volume from ONTAP by external UUID including clone.* fields (FlexClone split polling, clone metadata).
+func _fetchOntapCloneVolumeByUUID(ctx context.Context, volume *datamodel.ExpertModeVolumes, node *models.Node) (*vsa.VolumeResponse, error) {
+	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Fetching clone volume %s from ONTAP by UUID", volume.Name))
+
+	provider, err := hyperscaler.GetProviderByNode(ctx, node)
+	if err != nil {
+		logger.Errorf("Failed to get ONTAP provider from node: %v", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	var svmName string
+	if volume.Svm != nil {
+		svmName = volume.Svm.Name
+	}
+
+	getVolumeParams := vsa.GetVolumeParams{
+		SvmName:   svmName,
+		IsRestore: false,
+		UUID:      volume.ExternalUUID,
+	}
+
+	volumeResponse, err := provider.GetCloneVolumeForExpertMode(getVolumeParams)
+	if err != nil {
+		if utilErrors.IsNotFoundErr(err) || strings.Contains(strings.ToLower(err.Error()), "not found") {
+			logger.Infof("Clone volume external UUID : %s not found in ONTAP, will retry", volume.UUID)
+			return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrResourceNotFound, err))
+		}
+		logger.Errorf("Failed to get clone volume external UUID : %s from ONTAP: %v", volume.UUID, err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	logger.Infof("Clone volume external UUID : %s found in ONTAP", volumeResponse.ExternalUUID)
+	return volumeResponse, nil
+}
+
+// WaitForExpertModeFlexCloneSplitComplete performs one ONTAP poll for split status. The workflow retries this activity
+// (see volume_flexclone_split_workflow) until split completes or ScheduleToClose elapses.
+// On success, it returns the latest ONTAP size for the split volume.
+func (a *ExpertModeVolumeActivity) WaitForExpertModeFlexCloneSplitComplete(ctx context.Context, volume *datamodel.ExpertModeVolumes, node *models.Node) (int64, error) {
+	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("polling flexclone split for volume %s", volume.Name))
+
+	resp, err := fetchOntapCloneVolumeByUUID(ctx, volume, node)
+	if err != nil {
+		ce := vsaerrors.ExtractCustomError(err)
+		if ce != nil && ce.IsError(vsaerrors.ErrResourceNotFound) {
+			logger.Errorf("Clone volume not found in ONTAP while waiting for flexclone split: %v", err)
+			return 0, vsaerrors.WrapAsNonRetryableTemporalApplicationError(ce)
+		}
+		logger.Warnf("Failed to fetch volume from ONTAP while waiting for split (will retry): %v", err)
+		return 0, err
+	}
+
+	// Split complete: is_flexclone sent as false (non-nil pointer).
+	if c := resp.Clone; c != nil && c.IsFlexclone != nil && !*c.IsFlexclone {
+		logger.Infof("Flexclone split complete for volume %s (is_flexclone=false)", volume.Name)
+		return resp.Size, nil
+	}
+
+	// Split abandoned: both fields present, split_initiated false and is_flexclone still true.
+	if c := resp.Clone; c != nil &&
+		c.SplitInitiated != nil && !*c.SplitInitiated &&
+		c.IsFlexclone != nil && *c.IsFlexclone {
+		err := vsaerrors.NewVCPError(vsaerrors.ErrResourceStateConflictError, errors.New("flexclone split was aborted or stopped on ONTAP before completion"))
+		return 0, vsaerrors.WrapAsNonRetryableTemporalApplicationError(err)
+	}
+
+	return 0, temporal.NewApplicationError("flexclone split still in progress on ONTAP", "FlexCloneSplitPending")
+}
+
+// RecoverExpertModeVolumeAfterFlexCloneSplitFailure sets volume state to AVAILABLE when polling for split
+// fails (e.g. split aborted on ONTAP, poll timeout), and refreshes SharedBytes from ONTAP clone metadata.
+// Successful split completion is handled by
+// CompleteExpertModeFlexCloneSplitInDB (AVAILABLE + isFlexclone cleared).
+func (a *ExpertModeVolumeActivity) RecoverExpertModeVolumeAfterFlexCloneSplitFailure(ctx context.Context, volume *datamodel.ExpertModeVolumes, node *models.Node) error {
+	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Recovering expert volume %s after failed flexclone split attempt", volume.Name))
+
+	vol, err := a.SE.GetExpertModeVolumeByUUID(ctx, volume.UUID)
+	if err != nil {
+		logger.Errorf("Failed to load volume for recovery: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	cloneResp, err := fetchOntapCloneVolumeByUUID(ctx, vol, node)
+	if err != nil {
+		logger.Errorf("Failed to re-fetch clone volume from ONTAP during recovery: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	sharedBytes := int64(0)
+	if c := cloneResp.Clone; c != nil && c.ParentVolumeUUID != "" && c.ParentSnapshotUUID != "" {
+		provider, providerErr := hyperscaler.GetProviderByNode(ctx, node)
+		if providerErr != nil {
+			logger.Errorf("Failed to get ONTAP provider from node for recovery: %v", providerErr)
+			return vsaerrors.WrapAsTemporalApplicationError(providerErr)
+		}
+		sharedBytes, err = resolveExpertModeFlexcloneSharedBytes(ctx, provider, c.ParentVolumeUUID, c.ParentSnapshotUUID)
+		if err != nil {
+			logger.Errorf("Failed to recalculate shared bytes during recovery for volume %s: %v", vol.Name, err)
+			return vsaerrors.WrapAsTemporalApplicationError(err)
+		}
+	}
+
+	vol.SharedBytes = sharedBytes
+	vol.State = models.LifeCycleStateAvailable
+	if _, err := a.SE.UpdateExpertModeVolume(ctx, vol); err != nil {
+		logger.Errorf("Failed to persist volume recovery state: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return nil
+}
+
+// CompleteExpertModeFlexCloneSplitInDB clears FlexClone flags after ONTAP reports split complete
+// and persists the split volume size returned by the split-wait activity.
+func (a *ExpertModeVolumeActivity) CompleteExpertModeFlexCloneSplitInDB(ctx context.Context, volumeUUID string, splitVolumeSize int64) error {
+	logger := util.GetLogger(ctx)
+	activity.RecordHeartbeat(ctx, "Completing flexclone split in DB")
+
+	vol, err := a.SE.GetExpertModeVolumeByUUID(ctx, volumeUUID)
+	if err != nil {
+		logger.Errorf("Failed to load volume %s: %v", volumeUUID, err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+
+	vol.SizeInBytes = splitVolumeSize
+
+	if vol.VolumeAttributes == nil {
+		vol.VolumeAttributes = &datamodel.ExpertModeVolumeAttributes{}
+	}
+	vol.VolumeAttributes.IsFlexclone = false
+	vol.SharedBytes = 0
+	vol.VolumeAttributes.Clone = nil
+	vol.State = models.LifeCycleStateAvailable
+
+	if _, err := a.SE.UpdateExpertModeVolume(ctx, vol); err != nil {
+		logger.Errorf("Failed to update volume after flexclone split: %v", err)
+		return vsaerrors.WrapAsTemporalApplicationError(err)
+	}
+	return nil
 }

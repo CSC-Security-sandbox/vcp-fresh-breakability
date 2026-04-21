@@ -98,6 +98,31 @@ func (h Handler) V1ExpertModeVolumeRename(ctx context.Context, req *oasgenserver
 	return &oasgenserver.V1ExpertModeVolumeRenameOK{}, nil
 }
 
+// V1ExpertModeVolumeFlexCloneSplit starts a long-running FlexClone split for an expert-mode ONTAP volume.
+func (h Handler) V1ExpertModeVolumeFlexCloneSplit(ctx context.Context, req *oasgenserver.ExpertModeVolumeFlexCloneSplitV1, params oasgenserver.V1ExpertModeVolumeFlexCloneSplitParams) (oasgenserver.V1ExpertModeVolumeFlexCloneSplitRes, error) {
+	orchParams := &commonparams.ExpertModeFlexCloneSplitParams{
+		VolumeUUID:  req.VolumeUUID.Or(""),
+		VolumeName:  req.VolumeName.Or(""),
+		PoolUUID:    req.PoolUUID,
+		AccountName: req.ProjectNumber,
+	}
+	err := h.Orchestrator.StartExpertModeFlexCloneSplit(ctx, orchParams)
+	if err != nil {
+		if customerrors.IsBadRequestErr(err) {
+			return &oasgenserver.V1ExpertModeVolumeFlexCloneSplitBadRequest{
+				Message: err.Error(),
+				Code:    http.StatusBadRequest,
+			}, nil
+		}
+		return &oasgenserver.V1ExpertModeVolumeFlexCloneSplitInternalServerError{
+			Message: err.Error(),
+			Code:    http.StatusInternalServerError,
+		}, nil
+	}
+
+	return &oasgenserver.V1ExpertModeVolumeFlexCloneSplitAccepted{}, nil
+}
+
 // V1RefreshRbacForExpertModePools implements the RBAC refresh endpoint
 func (h Handler) V1RefreshRbacForExpertModePools(ctx context.Context, params oasgenserver.V1RefreshRbacForExpertModePoolsParams) (oasgenserver.V1RefreshRbacForExpertModePoolsRes, error) {
 	// Trigger the RBAC update workflow

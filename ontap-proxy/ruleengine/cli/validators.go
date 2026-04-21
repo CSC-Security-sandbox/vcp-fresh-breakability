@@ -17,10 +17,13 @@ var (
 	validateVolumeDelete            = _validateVolumeDelete
 	validateVolumeUpdate            = _validateVolumeUpdate
 	validateVolumeRename            = _validateVolumeRename
+	validateVolumeCloneCreate       = _validateVolumeCloneCreate
+	validateVolumeCloneSplitStart   = _validateVolumeCloneSplitStart
 	validateFlexCacheCreate         = _validateFlexCacheCreate
 	validateFlexCacheDelete         = _validateFlexCacheDelete
 	submitExpertModeVolumeOperation = core.SubmitExpertModeVolumeOperation
 	submitExpertModeVolumeRename    = core.SubmitExpertModeVolumeRename
+	submitExpertModeFlexCloneSplit  = core.SubmitExpertModeFlexCloneSplit
 )
 
 func _validateVolumeCreate(ctx context.Context, cmd *CLICommand) (bool, string) {
@@ -64,8 +67,7 @@ func validateVolumeCreationByStyle(ctx context.Context, cmd *CLICommand, style c
 		SvmName:       coreapi.NewOptString(vserverName),
 	}
 
-	jwtToken := middleware.ExtractJWTFromContext(ctx)
-	if err := submitExpertModeVolumeOperation(ctx, expertVolumeRequest, jwtToken, logger); err != nil {
+	if err := submitExpertModeVolumeOperation(ctx, expertVolumeRequest, "", logger); err != nil {
 		return false, err.Error()
 	}
 
@@ -197,5 +199,90 @@ func _validateVolumeRename(ctx context.Context, cmd *CLICommand) (bool, string) 
 		return false, err.Error()
 	}
 
+	return true, ""
+}
+
+func _validateVolumeCloneCreate(ctx context.Context, cmd *CLICommand) (bool, string) {
+	logger := util.GetLogger(ctx)
+
+	cacheKey := cache.GetAuthDataKeyFromContext(ctx)
+	if cacheKey == "" {
+		return false, "cache key not found in context"
+	}
+	authData, exists := cache.GetFromAuthDataCache(cacheKey)
+	if !exists || authData == nil {
+		return false, fmt.Sprintf("auth data not found in cache for key: %s", cacheKey)
+	}
+
+	cloneName := cmd.GetArgument("-flexclone")
+	vserverName := cmd.GetArgument("-vserver")
+
+	parentVolume := cmd.GetArgument("-parent-volume")
+	if parentVolume == "" {
+		parentVolume = cmd.GetArgument("-b")
+	}
+	if parentVolume == "" {
+		return false, "Missing required argument: -parent-volume or -b"
+	}
+
+	cloneReq := coreapi.ExpertModeVolumeV1Clone{
+		IsFlexclone: coreapi.NewOptBool(true),
+		ParentVolume: coreapi.NewOptExpertModeVolumeV1CloneParentVolume(
+			coreapi.ExpertModeVolumeV1CloneParentVolume{
+				Name: coreapi.NewOptString(parentVolume),
+			},
+		),
+	}
+	if parentSnapshot := cmd.GetArgument("-parent-snapshot"); parentSnapshot != "" {
+		cloneReq.ParentSnapshot = coreapi.NewOptExpertModeVolumeV1CloneParentSnapshot(
+			coreapi.ExpertModeVolumeV1CloneParentSnapshot{
+				Name: coreapi.NewOptString(parentSnapshot),
+			},
+		)
+	}
+
+	expertVolumeRequest := &coreapi.ExpertModeVolumeV1{
+		ProjectNumber: authData.AccountName,
+		PoolUUID:      authData.PoolID,
+		Action:        coreapi.ExpertModeVolumeV1ActionCreate,
+		VolumeName:    cloneName,
+		Style:         coreapi.ExpertModeVolumeV1StyleFlexvol,
+		SvmName:       coreapi.NewOptString(vserverName),
+		Clone:         coreapi.NewOptExpertModeVolumeV1Clone(cloneReq),
+	}
+
+	if sizeArg := cmd.GetArgument("-size"); sizeArg != "" {
+		sizeInBytes := proxyutils.ParseSizeString(sizeArg)
+		if sizeInBytes <= 0 {
+			return false, fmt.Sprintf("%q is an invalid value for argument \"-size\"", sizeArg)
+		}
+		expertVolumeRequest.SizeInBytes = coreapi.NewOptFloat64(sizeInBytes)
+	}
+
+	jwtToken := middleware.ExtractJWTFromContext(ctx)
+	if err := submitExpertModeVolumeOperation(ctx, expertVolumeRequest, jwtToken, logger); err != nil {
+		return false, err.Error()
+	}
+
+	return true, ""
+}
+
+func _validateVolumeCloneSplitStart(ctx context.Context, cmd *CLICommand) (bool, string) {
+	logger := util.GetLogger(ctx)
+
+	cacheKey := cache.GetAuthDataKeyFromContext(ctx)
+	if cacheKey == "" {
+		return false, "cache key not found in context"
+	}
+	authData, exists := cache.GetFromAuthDataCache(cacheKey)
+	if !exists || authData == nil {
+		return false, fmt.Sprintf("auth data not found in cache for key: %s", cacheKey)
+	}
+
+	cloneName := cmd.GetArgument("-flexclone")
+
+	if err := submitExpertModeFlexCloneSplit(ctx, "", cloneName, authData.AccountName, authData.PoolID, "", logger); err != nil {
+		return false, err.Error()
+	}
 	return true, ""
 }

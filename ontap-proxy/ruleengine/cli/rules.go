@@ -105,7 +105,6 @@ var diagAllowedRules = []CLIRule{
 
 // cliRules is the ordered list of CLI rules. First match wins.
 // Uses DSL-like conditions similar to rules_v2/rule_map.go for consistency.
-// Only includes CLI equivalents of REST APIs defined in rule_map.go.
 var cliRules = []CLIRule{
 	// Storage Volumes - corresponds to /api/storage/volumes in rule_map.go
 	// Supports both "volume" and shorthand "vol"
@@ -159,6 +158,44 @@ var cliRules = []CLIRule{
 			"-is-space-enforcement-logical": "true",
 			"-is-space-reporting-logical":   "true",
 		},
+	},
+	{
+		Pattern: "volume clone create",
+		Allow:   true,
+		Condition: CLIAnd(
+			CLIHasArgs("-vserver", "-flexclone"),
+			CLIOr(
+				CLIHasArgs("-parent-volume"),
+				CLIHasArgs("-b"),
+			),
+			CLIIfPresentThenValue("-space-guarantee", "none"),
+		),
+		ExternalValidator: validateVolumeCloneCreate,
+	},
+	{
+		Pattern: "vol clone create",
+		Allow:   true,
+		Condition: CLIAnd(
+			CLIHasArgs("-vserver", "-flexclone"),
+			CLIOr(
+				CLIHasArgs("-parent-volume"),
+				CLIHasArgs("-b"),
+			),
+			CLIIfPresentThenValue("-space-guarantee", "none"),
+		),
+		ExternalValidator: validateVolumeCloneCreate,
+	},
+	{
+		Pattern:           "volume clone split start",
+		Allow:             true,
+		Condition:         CLIHasArgs("-vserver", "-flexclone"),
+		ExternalValidator: validateVolumeCloneSplitStart,
+	},
+	{
+		Pattern:           "vol clone split start",
+		Allow:             true,
+		Condition:         CLIHasArgs("-vserver", "-flexclone"),
+		ExternalValidator: validateVolumeCloneSplitStart,
 	},
 	{
 		Pattern: "volume modify",

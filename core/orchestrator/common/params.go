@@ -271,6 +271,14 @@ type ExpertModeVolumeRenameParams struct {
 	AccountName string
 }
 
+// ExpertModeFlexCloneSplitParams describes parameters for StartExpertModeFlexCloneSplit.
+type ExpertModeFlexCloneSplitParams struct {
+	VolumeUUID  string
+	VolumeName  string
+	PoolUUID    string
+	AccountName string
+}
+
 type UpdateResourceStateParams struct {
 	Description        string
 	State              string

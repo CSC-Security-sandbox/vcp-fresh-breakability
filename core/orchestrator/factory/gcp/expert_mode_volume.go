@@ -848,6 +848,26 @@ func canFitInPool(ctx context.Context, se database.Storage, poolID, poolSizeInBy
 	return nil
 }
 
+// validatePoolCapacityForExpertModeFlexCloneSplit ensures pool remaining free space is at least vol.SharedBytes
+// (the shared clone space that must be materialized on split).
+func validatePoolCapacityForExpertModeFlexCloneSplit(ctx context.Context, se database.Storage, vol *datamodel.ExpertModeVolumes, poolSizeInBytes int64, poolID int64) error {
+	logger := util.GetLogger(ctx)
+	need := vol.SharedBytes
+	if need < 0 {
+		need = 0
+	}
+	capacity, err := se.GetExpertModePoolUsedCapacityAndVolumeCount(ctx, poolID)
+	if err != nil {
+		logger.Error("Failed to get expert mode pool used capacity for flexclone split", "poolID", poolID, "error", err)
+		return err
+	}
+	remaining := poolSizeInBytes - capacity.TotalSize
+	if remaining < need {
+		return customerrors.NewBadRequestErr(fmt.Sprintf("insufficient pool capacity for flexclone split: need at least %d bytes free, have %d bytes", need, remaining))
+	}
+	return nil
+}
+
 // DeleteExpertModeVolume deletes an expert mode volume
 func (o *GCPOrchestrator) DeleteExpertModeVolume(ctx context.Context, params *commonparams.ExpertModeVolumeParams) error {
 	return _deleteExpertModeVolume(ctx, o.storage, o.temporal, params)
@@ -1228,6 +1248,11 @@ func (o *GCPOrchestrator) RenameExpertModeVolume(ctx context.Context, params *co
 	return _renameExpertModeVolume(ctx, o.storage, o.temporal, params)
 }
 
+// StartExpertModeFlexCloneSplit validates capacity and FlexClone preconditions, marks the volume UPDATING, and starts the split workflow.
+func (o *GCPOrchestrator) StartExpertModeFlexCloneSplit(ctx context.Context, params *commonparams.ExpertModeFlexCloneSplitParams) error {
+	return _startExpertModeFlexCloneSplit(ctx, o.storage, o.temporal, params)
+}
+
 func _renameExpertModeVolume(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.ExpertModeVolumeRenameParams) error {
 	logger := util.GetLogger(ctx)
 
@@ -1351,6 +1376,134 @@ func _renameExpertModeVolume(ctx context.Context, se database.Storage, temporal 
 		return err
 	}
 
+	return nil
+}
+
+func _startExpertModeFlexCloneSplit(ctx context.Context, se database.Storage, temporal client.Client, params *commonparams.ExpertModeFlexCloneSplitParams) error {
+	logger := util.GetLogger(ctx)
+	if params.PoolUUID == "" || (params.VolumeUUID == "" && params.VolumeName == "") {
+		return customerrors.NewBadRequestErr("poolUUID and either volumeUUID or volumeName are required")
+	}
+
+	account, err := getAccountWithName(ctx, se, params.AccountName)
+	if err != nil {
+		return err
+	}
+
+	dbPoolView, err := se.GetPool(ctx, params.PoolUUID, account.ID)
+	if err != nil {
+		logger.Error("Failed to get pool for flexclone split", "poolUUID", params.PoolUUID, "error", err)
+		return err
+	}
+	if dbPoolView.APIAccessMode != APIAccessModeONTAP {
+		return customerrors.NewBadRequestErr("flexclone split is only supported for ONTAP expert-mode pools")
+	}
+
+	var volume *datamodel.ExpertModeVolumes
+	if params.VolumeUUID != "" {
+		volume, err = se.GetExpertModeVolumeByExternalUUID(ctx, params.VolumeUUID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) || customerrors.IsNotFoundErr(err) {
+				return customerrors.NewBadRequestErr(fmt.Sprintf("volume with UUID '%s' not found", params.VolumeUUID))
+			}
+			logger.Error("Failed to load expert mode volume for flexclone split", "volumeUUID", params.VolumeUUID, "error", err)
+			return err
+		}
+		if params.VolumeName != "" && volume.Name != params.VolumeName {
+			return customerrors.NewBadRequestErr("volumeName does not match volumeUUID")
+		}
+	} else {
+		volume, err = se.GetExpertModeVolumeByNameAndPoolID(ctx, params.VolumeName, dbPoolView.ID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) || customerrors.IsNotFoundErr(err) {
+				return customerrors.NewBadRequestErr(fmt.Sprintf("volume with name '%s' not found in pool", params.VolumeName))
+			}
+			logger.Error("Failed to load expert mode volume by name for flexclone split", "volumeName", params.VolumeName, "poolID", dbPoolView.ID, "error", err)
+			return err
+		}
+	}
+
+	if volume.Pool == nil {
+		return customerrors.NewBadRequestErr("volume has no pool association")
+	}
+	if volume.Pool.UUID != params.PoolUUID {
+		return customerrors.NewBadRequestErr("volume is not in the specified pool")
+	}
+	if volume.AccountID != account.ID {
+		return customerrors.NewBadRequestErr("volume does not belong to the specified account")
+	}
+	if volume.State != models.LifeCycleStateAvailable {
+		return customerrors.NewBadRequestErr(fmt.Sprintf("volume must be AVAILABLE to start flexclone split, current state: %s", volume.State))
+	}
+	if volume.VolumeAttributes == nil || !volume.VolumeAttributes.IsFlexclone {
+		return customerrors.NewBadRequestErr("volume is not a FlexClone")
+	}
+
+	err = validatePoolCapacityForExpertModeFlexCloneSplit(ctx, se, volume, dbPoolView.SizeInBytes, volume.PoolID)
+	if err != nil {
+		return err
+	}
+
+	previousState := volume.State
+	volume.State = models.LifeCycleStateUpdating
+	volumeMarkedAsUpdating := true
+
+	updatedVolume, err := se.UpdateExpertModeVolume(ctx, volume)
+	if err != nil {
+		logger.Error("Failed to mark volume UPDATING for flexclone split", "volumeUUID", volume.UUID, "error", err)
+		return err
+	}
+
+	var createdJob *datamodel.Job
+	defer func() {
+		if err != nil {
+			if createdJob != nil {
+				if jobErr := se.UpdateJob(ctx, createdJob.UUID, string(models.JobsStateERROR), createdJob.TrackingID, err.Error()); jobErr != nil {
+					logger.Error("Failed to update flexclone split job to ERROR", "jobID", createdJob.UUID, "error", jobErr)
+				}
+			}
+			if volumeMarkedAsUpdating {
+				updatedVolume.State = previousState
+				if _, revertErr := se.UpdateExpertModeVolume(ctx, updatedVolume); revertErr != nil {
+					logger.Error("Failed to revert volume state after flexclone split start failure", "volumeUUID", updatedVolume.UUID, "error", revertErr)
+				}
+			}
+		}
+	}()
+
+	correlationID := utils.GetCoRelationIDFromContext(ctx)
+	job := &datamodel.Job{
+		Type:          string(models.JobTypeExpertModeFlexCloneSplit),
+		State:         string(models.JobsStateNEW),
+		ResourceName:  updatedVolume.Name,
+		AccountID:     sql.NullInt64{Int64: account.ID, Valid: true},
+		JobAttributes: &datamodel.JobAttributes{ResourceUUID: updatedVolume.UUID, PoolUUID: updatedVolume.Pool.UUID},
+		CorrelationID: correlationID,
+		RequestID:     utils.GetRequestIDFromContext(ctx),
+	}
+
+	createdJob, err = se.CreateJob(ctx, job)
+	if err != nil {
+		logger.Error("Failed to create job for flexclone split", "error", err)
+		return err
+	}
+
+	_, err = temporal.ExecuteWorkflow(ctx,
+		client.StartWorkflowOptions{
+			TaskQueue:             workflowengine.BackgroundTaskQueue,
+			ID:                    createdJob.WorkflowID,
+			WorkflowIDReusePolicy: enums.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE,
+			WorkflowRunTimeout:    workflowengine.GetExpertModeFlexCloneSplitWorkflowTimeout(),
+		},
+		expertModeWorkflows.ExpertModeFlexCloneSplitWorkflow,
+		updatedVolume,
+	)
+	if err != nil {
+		logger.Error("Failed to start flexclone split workflow", "workflowID", createdJob.WorkflowID, "error", err)
+		return err
+	}
+
+	volumeMarkedAsUpdating = false
 	return nil
 }
 
