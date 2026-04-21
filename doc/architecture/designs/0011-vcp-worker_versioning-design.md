@@ -96,6 +96,12 @@ The reason we followed this sort of versioning for VLM is listed below, as agree
        vlmImageDigest: "sha256:b43b5ae0d471ab668458070235d8a021b9e5cc5cbca7f8274bade66f88a49201"
        secondary: true
        pullPolicy: IfNotPresent
+     - ontapVersion: "9.18.1P2"
+       vlmImageName: "vlm-worker"
+       vlmImageTag: "R9.18.1x_8065561"
+       vlmImageDigest: "sha256:c90b0bcb0cbf0f489812676d0a3921ec8eb15c20967d43700a6b239f360dcbef"
+       secondary: true
+       pullPolicy: IfNotPresent
    ```
 
 - Above as you can see, we define the ontap version & vlm image details that support that particular ontap version.

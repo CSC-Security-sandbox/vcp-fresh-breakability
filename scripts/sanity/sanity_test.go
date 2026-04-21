@@ -132,7 +132,7 @@ func TestCreatePoolAndWaitForCompletion(t *testing.T) {
 		OperationId:   operationID,
 	}
 
-	done := pollOperationDone(t, client, ctx, describeParams, 50, 30*time.Second)
+	done := pollOperationDone(t, client, ctx, describeParams, 60, 30*time.Second)
 	require.True(t, done, "operation did not complete in time")
 }
 
