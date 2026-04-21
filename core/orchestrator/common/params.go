@@ -64,6 +64,12 @@ type CreatePoolParams struct {
 	CompartmentOCID    string
 	SerialNumberPrefix string
 	RequestedRanges    []string
+	OciAdminPassword   *OciAdminPassword
+}
+
+type OciAdminPassword struct {
+	Ocid    string
+	Version int64
 }
 
 // CustomPerformanceParams is used to specify the custom performance parameters for a pool

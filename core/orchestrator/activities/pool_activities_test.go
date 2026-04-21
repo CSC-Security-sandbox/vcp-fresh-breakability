@@ -2,12 +2,17 @@ package activities_test
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	digitalCert "crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"reflect"
 	"strconv"
@@ -16,6 +21,8 @@ import (
 	"time"
 	"unsafe"
 
+	ocicommon "github.com/oracle/oci-go-sdk/v65/common"
+	ocivault "github.com/oracle/oci-go-sdk/v65/vault"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -37,6 +44,7 @@ import (
 	hyperscaler2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscaler_models "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	oci "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/oci"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	utilsEnv "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
@@ -16658,6 +16666,293 @@ func Test_DeleteAllPoolVPGs_SkipsOntapWhenNoProvider(t *testing.T) {
 	_, err := env.ExecuteActivity(act.DeleteAllPoolVPGs, pool)
 	assert.NoError(t, err)
 	mockStorage.AssertExpectations(t)
+}
+
+// ---------------------------------------------------------------------------
+// OCI mock helpers for GetExpertModeCredentialsForOCI tests
+// ---------------------------------------------------------------------------
+
+type ociTestHTTPDispatcher struct {
+	doFunc func(req *http.Request) (*http.Response, error)
+}
+
+func (m *ociTestHTTPDispatcher) Do(req *http.Request) (*http.Response, error) {
+	return m.doFunc(req)
+}
+
+func ociMockJSONResponse(statusCode int, body string) *http.Response {
+	return &http.Response{
+		StatusCode: statusCode,
+		Header: http.Header{
+			"Content-Type":   []string{"application/json"},
+			"Opc-Request-Id": []string{"test-opc-request-id"},
+		},
+		Body:    io.NopCloser(strings.NewReader(body)),
+		Request: &http.Request{URL: &url.URL{Path: "/mock"}},
+	}
+}
+
+func newMockOCIServiceForTest(t *testing.T, vaultDoFunc func(*http.Request) (*http.Response, error)) *oci.OciServices {
+	t.Helper()
+	ctx := context.Background()
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	der := digitalCert.MarshalPKCS1PrivateKey(key)
+	pemKey := string(pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: der}))
+
+	configProvider := ocicommon.NewRawConfigurationProvider(
+		"ocid1.tenancy.oc1..test", "ocid1.user.oc1..test",
+		"us-ashburn-1", "aa:bb:cc:dd:ee:ff:00:11", pemKey, nil,
+	)
+
+	vaultCl, err := ocivault.NewVaultsClientWithConfigurationProvider(configProvider)
+	require.NoError(t, err)
+	vaultCl.HTTPClient = &ociTestHTTPDispatcher{doFunc: vaultDoFunc}
+
+	adminService := &oci.AdminOCIService{}
+	rv := reflect.ValueOf(adminService).Elem()
+	vaultField := rv.FieldByName("vaultClient")
+	reflect.NewAt(vaultField.Type(), unsafe.Pointer(vaultField.UnsafeAddr())).Elem().Set(reflect.ValueOf(vaultCl))
+
+	return &oci.OciServices{
+		Ctx:             ctx,
+		Logger:          util.GetLogger(ctx),
+		AdminOCIService: adminService,
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestPoolActivity_GetExpertModeCredentialsForOCI
+// ---------------------------------------------------------------------------
+
+func TestPoolActivity_GetExpertModeCredentialsForOCI(t *testing.T) {
+	act := &activities.PoolActivity{}
+
+	origGetOCIService := hyperscaler2.GetOCIService
+	defer func() { hyperscaler2.GetOCIService = origGetOCIService }()
+
+	pool := &datamodel.Pool{
+		Name:           "test-pool",
+		DeploymentName: "test-deployment",
+		PoolOCID:       "ocid1.pool.oc1..testpool",
+	}
+
+	t.Run("success — admin password fetched from OCI Vault", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.GetExpertModeCredentialsForOCI)
+
+		origGetSecretVersion := oci.GetSecretVersion
+		defer func() { oci.GetSecretVersion = origGetSecretVersion }()
+		oci.GetSecretVersion = func(svc *oci.OciServices, secretID string, versionNumber ...int64) (*oci.OCICustomSecret, error) {
+			return &oci.OCICustomSecret{
+				Ocid:    secretID,
+				Name:    "admin-password",
+				Value:   "super-secret-pw",
+				Version: 1,
+			}, nil
+		}
+
+		mockSvc := newMockOCIServiceForTest(t, func(req *http.Request) (*http.Response, error) {
+			return ociMockJSONResponse(200, `{
+				"id": "ocid1.vaultsecret.oc1..testadminpw",
+				"secretName": "test-admin-password",
+				"lifecycleState": "ACTIVE",
+				"currentVersionNumber": 1
+			}`), nil
+		})
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			return mockSvc, nil
+		}
+
+		adminPw := &commonparams.OciAdminPassword{Ocid: "ocid1.vaultsecret.oc1..testadminpw", Version: 1}
+		encodedValue, err := testEnv.ExecuteActivity(act.GetExpertModeCredentialsForOCI, pool, adminPw)
+		assert.NoError(t, err)
+		var creds *vlm.OntapCredentials
+		err = encodedValue.Get(&creds)
+		assert.NoError(t, err)
+		assert.Equal(t, "super-secret-pw", creds.AdminPassword)
+	})
+
+	t.Run("success — specific version number passed through", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.GetExpertModeCredentialsForOCI)
+
+		origGetSecretVersion := oci.GetSecretVersion
+		defer func() { oci.GetSecretVersion = origGetSecretVersion }()
+		var capturedVersion int64
+		oci.GetSecretVersion = func(svc *oci.OciServices, secretID string, versionNumber ...int64) (*oci.OCICustomSecret, error) {
+			if len(versionNumber) > 0 {
+				capturedVersion = versionNumber[0]
+			}
+			return &oci.OCICustomSecret{
+				Ocid:    secretID,
+				Name:    "admin-password",
+				Value:   "versioned-pw",
+				Version: 5,
+			}, nil
+		}
+
+		mockSvc := newMockOCIServiceForTest(t, func(req *http.Request) (*http.Response, error) {
+			return ociMockJSONResponse(200, `{
+				"id": "ocid1.vaultsecret.oc1..testadminpw",
+				"secretName": "test-admin-password",
+				"lifecycleState": "ACTIVE",
+				"currentVersionNumber": 5
+			}`), nil
+		})
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			return mockSvc, nil
+		}
+
+		adminPw := &commonparams.OciAdminPassword{Ocid: "ocid1.vaultsecret.oc1..testadminpw", Version: 5}
+		encodedValue, err := testEnv.ExecuteActivity(act.GetExpertModeCredentialsForOCI, pool, adminPw)
+		assert.NoError(t, err)
+		assert.Equal(t, int64(5), capturedVersion)
+		var creds *vlm.OntapCredentials
+		err = encodedValue.Get(&creds)
+		assert.NoError(t, err)
+		assert.Equal(t, "versioned-pw", creds.AdminPassword)
+	})
+
+	t.Run("GetOCIService fails", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.GetExpertModeCredentialsForOCI)
+
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			return nil, fmt.Errorf("OCI client initialization failed")
+		}
+
+		adminPw := &commonparams.OciAdminPassword{Ocid: "ocid1.vaultsecret.oc1..testadminpw", Version: 1}
+		_, err := testEnv.ExecuteActivity(act.GetExpertModeCredentialsForOCI, pool, adminPw)
+		assert.Error(t, err)
+	})
+
+	t.Run("nil ociAdminPassword", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.GetExpertModeCredentialsForOCI)
+
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			return &oci.OciServices{Ctx: context.Background(), Logger: util.GetLogger(context.Background())}, nil
+		}
+
+		var nilPw *commonparams.OciAdminPassword
+		_, err := testEnv.ExecuteActivity(act.GetExpertModeCredentialsForOCI, pool, nilPw)
+		assert.Error(t, err)
+	})
+
+	t.Run("empty Ocid in ociAdminPassword", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.GetExpertModeCredentialsForOCI)
+
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			return &oci.OciServices{Ctx: context.Background(), Logger: util.GetLogger(context.Background())}, nil
+		}
+
+		adminPw := &commonparams.OciAdminPassword{Ocid: "", Version: 1}
+		_, err := testEnv.ExecuteActivity(act.GetExpertModeCredentialsForOCI, pool, adminPw)
+		assert.Error(t, err)
+	})
+
+	t.Run("vault GetSecret API error", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.GetExpertModeCredentialsForOCI)
+
+		mockSvc := newMockOCIServiceForTest(t, func(req *http.Request) (*http.Response, error) {
+			return nil, fmt.Errorf("connection refused")
+		})
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			return mockSvc, nil
+		}
+
+		adminPw := &commonparams.OciAdminPassword{Ocid: "ocid1.vaultsecret.oc1..testadminpw", Version: 1}
+		_, err := testEnv.ExecuteActivity(act.GetExpertModeCredentialsForOCI, pool, adminPw)
+		assert.Error(t, err)
+	})
+
+	t.Run("secret in PENDING_DELETION state — treated as not found", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.GetExpertModeCredentialsForOCI)
+
+		mockSvc := newMockOCIServiceForTest(t, func(req *http.Request) (*http.Response, error) {
+			return ociMockJSONResponse(200, `{
+				"id": "ocid1.vaultsecret.oc1..testadminpw",
+				"secretName": "test-admin-password",
+				"lifecycleState": "PENDING_DELETION",
+				"currentVersionNumber": 1
+			}`), nil
+		})
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			return mockSvc, nil
+		}
+
+		adminPw := &commonparams.OciAdminPassword{Ocid: "ocid1.vaultsecret.oc1..testadminpw", Version: 1}
+		_, err := testEnv.ExecuteActivity(act.GetExpertModeCredentialsForOCI, pool, adminPw)
+		assert.Error(t, err)
+	})
+
+	t.Run("GetSecretVersion returns error", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.GetExpertModeCredentialsForOCI)
+
+		origGetSecretVersion := oci.GetSecretVersion
+		defer func() { oci.GetSecretVersion = origGetSecretVersion }()
+		oci.GetSecretVersion = func(svc *oci.OciServices, secretID string, versionNumber ...int64) (*oci.OCICustomSecret, error) {
+			return nil, fmt.Errorf("vault connection timeout")
+		}
+
+		mockSvc := newMockOCIServiceForTest(t, func(req *http.Request) (*http.Response, error) {
+			return ociMockJSONResponse(200, `{
+				"id": "ocid1.vaultsecret.oc1..testadminpw",
+				"secretName": "test-admin-password",
+				"lifecycleState": "ACTIVE",
+				"currentVersionNumber": 1
+			}`), nil
+		})
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			return mockSvc, nil
+		}
+
+		adminPw := &commonparams.OciAdminPassword{Ocid: "ocid1.vaultsecret.oc1..testadminpw", Version: 1}
+		_, err := testEnv.ExecuteActivity(act.GetExpertModeCredentialsForOCI, pool, adminPw)
+		assert.Error(t, err)
+	})
+
+	t.Run("GetSecretVersion returns nil secret", func(t *testing.T) {
+		testSuite := &testsuite.WorkflowTestSuite{}
+		testEnv := testSuite.NewTestActivityEnvironment()
+		testEnv.RegisterActivity(act.GetExpertModeCredentialsForOCI)
+
+		origGetSecretVersion := oci.GetSecretVersion
+		defer func() { oci.GetSecretVersion = origGetSecretVersion }()
+		oci.GetSecretVersion = func(svc *oci.OciServices, secretID string, versionNumber ...int64) (*oci.OCICustomSecret, error) {
+			return nil, nil
+		}
+
+		mockSvc := newMockOCIServiceForTest(t, func(req *http.Request) (*http.Response, error) {
+			return ociMockJSONResponse(200, `{
+				"id": "ocid1.vaultsecret.oc1..testadminpw",
+				"secretName": "test-admin-password",
+				"lifecycleState": "ACTIVE",
+				"currentVersionNumber": 1
+			}`), nil
+		})
+		hyperscaler2.GetOCIService = func(ctx context.Context) (*oci.OciServices, error) {
+			return mockSvc, nil
+		}
+
+		adminPw := &commonparams.OciAdminPassword{Ocid: "ocid1.vaultsecret.oc1..testadminpw", Version: 1}
+		_, err := testEnv.ExecuteActivity(act.GetExpertModeCredentialsForOCI, pool, adminPw)
+		assert.Error(t, err)
+	})
 }
 
 func TestMarkAddressRangeInUse_FlagDisabled(t *testing.T) {

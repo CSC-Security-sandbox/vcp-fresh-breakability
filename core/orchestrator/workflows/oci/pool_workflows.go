@@ -35,6 +35,11 @@ var (
 	extIPForNodeMgmt              = env.GetBool("OCI_VSA_EXT_IP_FOR_NODE_MGMT", false)
 	allowNonDenseShapeForVSA      = env.GetBool("OCI_VSA_ALLOW_NON_DENSE_SHAPE_FOR_VSA", true)
 	disableVsaCleanupOnVLMFailure = env.GetBool("DISABLE_VSA_CLEANUP_ON_VLM_FAILURE", false)
+	ociExpertModeRbacURL          = env.GetString("OCI_EXPERT_MODE_RBAC_FILE_URL", "")
+	ociExpertModeRbacHash         = env.GetString("OCI_EXPERT_MODE_RBAC_FILE_CHECKSUM", "")
+	ociExpertModeUsername         = env.GetString("OCI_EXPERT_MODE_USERNAME", "ociadmin")
+	ociExpertModePassword         = env.GetString("OCI_EXPERT_MODE_PASSWORD", "")
+	password                      = "password"
 )
 
 // ociVSAImageOCIDs returns trimmed VSA and mediator image OCIDs from the environment (no defaults).
@@ -193,6 +198,44 @@ func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 
 	// Apply shared activity options for DB operations.
 	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	expertModeAdminPassword := ociExpertModePassword
+	if expertModeAdminPassword == "" {
+		if params.OciAdminPassword == nil || params.OciAdminPassword.Ocid == "" {
+			return nil, workflows.ConvertToVSAError(
+				vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("OCI admin password config is required when OCI_EXPERT_MODE_PASSWORD env var is not set")))
+		}
+		expertModeConfig := &vlm.OntapCredentials{}
+		err = workflow.ExecuteActivity(ctx, poolActivity.GetExpertModeCredentialsForOCI, pool, params.OciAdminPassword).Get(ctx, &expertModeConfig)
+		if err != nil {
+			return nil, vsaerrors.ExtractCustomError(err)
+		}
+		expertModeAdminPassword = expertModeConfig.AdminPassword
+	}
+
+	expertModeReq := &vlm.OntapExpertModeUserConfig{
+		VLMConfig:          createVSAClusterDeploymentResponse.VLMConfig,
+		OntapCredentials:   *credConfig,
+		RbacFileURL:        ociExpertModeRbacURL,
+		RbacFileChecksum:   ociExpertModeRbacHash,
+		Username:           ociExpertModeUsername,
+		AuthenticationType: password,
+		ExpertModeUserCredentials: vlm.OntapCredentials{
+			AdminPassword: expertModeAdminPassword,
+			Certificate:   vlm.OntapCertificate{},
+		},
+	}
+	// TODO: change AuthenticationType once the certs are implemented for OCI expert mode users
+	// if pool.PoolCredentials.AuthType == env.USER_CERTIFICATE {
+	// 	expertModeReq.AuthenticationType = certificate
+	// } else {
+	// 	expertModeReq.AuthenticationType = password
+	// }
+
+	if _, err = vsaClientWorkflowManager.CreateVSAExpertModeUser(ctx, expertModeReq); err != nil {
+		logger.Errorf("Failed to create expert mode user for OCI pool: %v", err)
+		return nil, workflows.ConvertToVSAError(err)
+	}
 
 	// Create database heartbeat context for long-running DB operations
 	// This inherits StartToCloseTimeout from parent context but uses shorter heartbeat timeout

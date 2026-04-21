@@ -437,6 +437,32 @@ var (
 	MaxBatchActiveDirectoryUUIDs = GetInt("MAX_BATCH_AD_UUIDS", 1000)
 	MaxBatchBackupVaultUUIDs     = GetInt("MAX_BATCH_BACKUP_VAULT_UUIDS", 1000)
 	MaxBatchBackupPolicyUUIDs    = GetInt("MAX_BATCH_BACKUP_POLICY_UUIDS", 1000)
+
+	// OCISecretDeletionRetentionDays controls how many days after scheduling a
+	// deletion the OCI Vault secret is permanently removed. OCI enforces a
+	// minimum of 1 day; the service default is 7 days.
+	OCISecretDeletionRetentionDays = GetInt("OCI_SECRET_DELETION_RETENTION_DAYS", 7)
+
+	// OCICompartmentOCID is the OCID of the OCI compartment where VCP-managed
+	// secrets (ONTAP admin passwords) are created.
+	OCICompartmentOCID = GetString("OCI_COMPARTMENT_OCID", "")
+
+	// OCIVaultOCID is the OCID of the OCI Vault used to store and retrieve
+	// VCP-managed secrets (ONTAP admin passwords). Used by both the create
+	// and delete credential paths so they always reference the same vault.
+	OCIVaultOCID = GetString("OCI_VAULT_OCID", "")
+
+	// OCIMasterKeyOCID is the OCID of the master encryption key used to encrypt
+	// VCP-managed secrets in OCI Vault.
+	OCIMasterKeyOCID = GetString("OCI_MASTER_KEY_OCID", "")
+
+	// OCIAuthType controls which OCI SDK authentication method is used:
+	//   "config_file"           — reads from ~/.oci/config (local development)
+	//   "env"                   — reads from OCI_TENANCY, OCI_USER, etc. env vars
+	//   "instance_principal"    — for workloads on OCI compute instances
+	//   "oke_workload_identity" — for pods on OKE with workload identity federation
+	// Defaults to "oke_workload_identity".
+	OCIAuthType = GetString("OCI_AUTH_TYPE", "oke_workload_identity")
 )
 
 // networkEnvVariables holds the environment variables related to firewall of network configuration for source ranges

@@ -275,6 +275,36 @@
     "retriable": false,
     "http_code": 400
   },
+  "3100": {
+    "description": "OCI Client Initialization Error",
+    "message": "An internal error occurred.",
+    "retriable": false,
+    "http_code": 500
+  },
+  "3101": {
+    "description": "OCI Resource Provisioning Error",
+    "message": "An internal error occurred.",
+    "retriable": true,
+    "http_code": 500
+  },
+  "3102": {
+    "description": "OCI Resource Fetch Error",
+    "message": "An internal error occurred.",
+    "retriable": true,
+    "http_code": 500
+  },
+  "3103": {
+    "description": "OCI Resource Deprovisioning Error",
+    "message": "An internal error occurred.",
+    "retriable": true,
+    "http_code": 500
+  },
+  "3104": {
+    "description": "OCI Resource Not Found",
+    "message": "Resource not found",
+    "retriable": false,
+    "http_code": 404
+  },
   "4001": {
     "description": "VSA Cluster Provisioning Error",
     "message": "An internal error occurred.",

@@ -95,6 +95,13 @@ const (
 	ErrVLMCloudVMOffline                       = 9019
 	ErrVLMConfigParseError                     = 9020
 
+	// OCI-specific error codes (3100-3199 range)
+	ErrOCIClientInitializationError = 3100
+	ErrOCIResourceProvisionError    = 3101
+	ErrOCIResourceFetchError        = 3102
+	ErrOCIResourceDeprovisionError  = 3103
+	ErrOCIResourceNotFoundError     = 3104
+
 	ErrVSAClusterCreateError           = 4001
 	ErrCouldNotFetchVSAClusterDetails  = 4002
 	ErrVSAClusterDeleteError           = 4003

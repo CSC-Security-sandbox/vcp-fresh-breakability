@@ -927,6 +927,40 @@ func (j *PoolActivity) CreateOnTapCredentials(ctx context.Context, pool *datamod
 	return credentials, nil
 }
 
+// GetExpertModeCredentialsForOCI retrieves ONTAP expert mode credentials based on the authentication type for OCI
+func (j *PoolActivity) GetExpertModeCredentialsForOCI(ctx context.Context, pool *datamodel.Pool, ociAdminPassword *commonparams.OciAdminPassword) (*vlm.OntapCredentials, error) {
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Starting GetExpertModeCredentialsForOCI activity - pool Name: %s, deployment: %s", pool.Name, pool.DeploymentName))
+	credentials := &vlm.OntapCredentials{}
+
+	ociService, err := hyperscaler2.GetOCIService(ctx)
+	if err != nil {
+		return nil, vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrOCIClientInitializationError, err))
+	}
+
+	if ociAdminPassword == nil || ociAdminPassword.Ocid == "" {
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("ociAdminPassword is required for expert mode credentials")))
+	}
+
+	ociService.GetLogger().Infof("Fetching expert mode admin password from OCI Vault — secretOCID: %s, version: %d", ociAdminPassword.Ocid, ociAdminPassword.Version)
+	secret, err := ociService.GetSecretWithCustomVersion(ociAdminPassword.Ocid, ociAdminPassword.Version)
+	if err != nil {
+		// 404 from OCI covers both "secret doesn't exist" and "caller lacks permission" —
+		// neither resolves on retry, so mark non-retryable to surface the full OCI error.
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(err)
+	}
+	if secret == nil {
+		// Only reachable when the secret exists but is in a deletion lifecycle state.
+		return nil, vsaerrors.WrapAsNonRetryableTemporalApplicationError(
+			vsaerrors.NewVCPError(vsaerrors.ErrResourceEmptyError, fmt.Errorf("secret is inactive or pending deletion in OCI Vault — OCID: %s, version: %d", ociAdminPassword.Ocid, ociAdminPassword.Version)))
+	}
+
+	credentials.AdminPassword = secret.Value
+	ociService.GetLogger().Infof("Expert mode admin password fetched successfully from OCI Vault for pool: %s", pool.PoolOCID)
+	activity.RecordHeartbeat(ctx, fmt.Sprintf("Finished GetExpertModeCredentialsForOCI activity - pool Name: %s, deployment: %s", pool.Name, pool.DeploymentName))
+	return credentials, nil
+}
+
 // CreateExpertModeCredentials creates ONTAP expert mode credentials based on the authentication type
 func (j *PoolActivity) CreateExpertModeCredentials(ctx context.Context, pool *datamodel.Pool, clusterName, username string) (*vlm.OntapCredentials, error) {
 	activity.RecordHeartbeat(ctx, "Starting CreateExpertModeCredentials activity")

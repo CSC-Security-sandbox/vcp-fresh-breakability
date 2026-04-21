@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -83,6 +84,31 @@ func (h *Handler) CreatePool(ctx context.Context, req *ociserver.CreatePoolReque
 		}, nil
 	}
 
+	ociAdminPasswordVersion, err := strconv.ParseInt(req.OciAdminPassword.Version, 10, 64)
+	if err != nil {
+		logger.Error("invalid ociAdminPassword version", "error", err)
+		return &ociserver.CreatePoolBadRequest{
+			OpcRequestID: opcRequestID,
+			Response: ociserver.PoolOperationErrorResponse{
+				Status:       string(workflowquery.WorkflowStatusFailed),
+				PoolOCID:     req.PoolOCID,
+				ErrorMessage: "ociAdminPassword.version must be a valid integer",
+			},
+		}, nil
+	}
+
+	if ociAdminPasswordVersion < 1 {
+		logger.Error("invalid ociAdminPassword version", "version", ociAdminPasswordVersion)
+		return &ociserver.CreatePoolBadRequest{
+			OpcRequestID: opcRequestID,
+			Response: ociserver.PoolOperationErrorResponse{
+				Status:       string(workflowquery.WorkflowStatusFailed),
+				PoolOCID:     req.PoolOCID,
+				ErrorMessage: "ociAdminPassword.version must be greater than or equal to 1",
+			},
+		}, nil
+	}
+
 	// Map the provided config to CreatePoolParams
 	createPoolParams := &commonparams.CreatePoolParams{
 		AccountName:    params.TenancyOcid,                         // compartment_id from ociconfig                         // region
@@ -103,6 +129,10 @@ func (h *Handler) CreatePool(ctx context.Context, req *ociserver.CreatePoolReque
 		LargeCapacity:      false,
 		CompartmentOCID:    req.CompartmentOCID,
 		SerialNumberPrefix: req.SerialNumberPrefix.Value,
+		OciAdminPassword: &commonparams.OciAdminPassword{
+			Ocid:    req.OciAdminPassword.Ocid,
+			Version: ociAdminPasswordVersion,
+		},
 	}
 
 	_, workflowID, err := h.Orchestrator.CreatePool(ctx, createPoolParams)

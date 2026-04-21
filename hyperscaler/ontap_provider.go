@@ -19,6 +19,7 @@ import (
 	common2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google"
 	hyperscalermodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/oci"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/env"
 	errors2 "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
@@ -730,6 +731,32 @@ func NewGcpServices(ctx context.Context) *google.GcpServices {
 }
 
 var MaxRetries = env.GetInt("GOOGLE_API_MAX_RETRIES", 6)
+
+var GetOCIService = _getOCIService
+
+// _getOCIService initializes and returns an OciServices instance.
+func _getOCIService(ctx context.Context) (*oci.OciServices, error) {
+	ociService := NewOCIServices(ctx)
+
+	ociService.Logger.Debug("ociService initialized")
+	err := ociService.InitializeClients()
+	if err != nil || !ociService.IsAdminClientInitialized() {
+		ociService.Logger.Debug("Initialisation of OCI service failed")
+		return nil, errors.NewVCPError(errors.ErrOCIClientInitializationError, errors2.New("initialisation of OCI service failed"))
+	}
+	return ociService, nil
+}
+
+// NewOCIServices creates a new instance of OciServices with the provided context.
+func NewOCIServices(ctx context.Context) *oci.OciServices {
+	return &oci.OciServices{
+		Ctx:    ctx,
+		Logger: util.GetLogger(ctx),
+		Retry:  oci.NewExponentialRetryStrategy(time.Second, uint(maxOCIRetries)),
+	}
+}
+
+var maxOCIRetries = env.GetInt("OCI_API_MAX_RETRIES", 6)
 
 var CreateNodeForProvider = _createNodeForProvider
 
