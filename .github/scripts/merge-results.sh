@@ -58,8 +58,14 @@ incomplete_batches = missing_batches[:]
 
 for bf in batch_files:
     print(f"  Merging: {bf}")
-    with open(bf) as f:
-        data = json.load(f)
+    # V9.8 iter6 (G): tolerate corrupt/truncated batch artifacts instead of crashing the whole merge.
+    try:
+        with open(bf) as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, ValueError, OSError) as _err:
+        print(f"  ⚠️  SKIPPING corrupt batch {bf}: {_err}")
+        incomplete_batches.append(os.path.basename(os.path.dirname(bf)).replace('batch-', ''))
+        continue
     
     # Merge metadata (take first, update count)
     if not merged["metadata"]:
@@ -238,9 +244,10 @@ owner_repo = os.environ["OWNER_REPO"]
 try:
     result = subprocess.run(
         ["gh", "api", f"repos/{owner_repo}/dependabot/alerts",
-         "--jq", '.[] | {number, state, security_advisory: {ghsa_id: .security_advisory.ghsa_id, cve_id: .security_advisory.cve_id, severity: .security_advisory.severity, summary: .security_advisory.summary}, dependency: {package: .dependency.package.name, ecosystem: .dependency.package.ecosystem, manifest_path: .dependency.manifest_path}}',
+         "--jq", '.[] | {number, state, security_advisory: {ghsa_id: .security_advisory.ghsa_id, cve_id: .security_advisory.cve_id, severity: .security_advisory.severity, summary: .security_advisory.summary}, security_vulnerability: {first_patched_version: .security_vulnerability.first_patched_version.identifier, vulnerable_version_range: .security_vulnerability.vulnerable_version_range}, dependency: {package: .dependency.package.name, ecosystem: .dependency.package.ecosystem, manifest_path: .dependency.manifest_path}}',
          "-X", "GET", "--paginate"],
-        capture_output=True, text=True, timeout=60
+        capture_output=True, text=True, timeout=60,
+        env={**os.environ, **({"GH_TOKEN": os.environ["BREAKABILITY_PAT"], "GITHUB_TOKEN": os.environ["BREAKABILITY_PAT"]} if os.environ.get("BREAKABILITY_PAT") else {})}
     )
     if result.returncode != 0:
         print("  Could not fetch Dependabot alerts (may need security permissions)")
@@ -290,13 +297,58 @@ for num, pr in prs.items():
             "cve_ids": [a.get("security_advisory", {}).get("cve_id") or a.get("security_advisory", {}).get("ghsa_id", "") for a in matching_alerts]
         }
 
+# V9.8 iter6 (B): precise alert↔PR matching via first_patched_version + orphan alerts
+def _parse_semver(v):
+    if not v: return None
+    s = str(v).lstrip("v").lstrip("=").strip()
+    for sep in ("-", "+"):
+        if sep in s: s = s.split(sep, 1)[0]
+    parts = s.split(".")
+    try:
+        return tuple(int(p) for p in parts[:3]) + (0,) * (3 - min(3, len(parts)))
+    except ValueError:
+        return None
+
+def _semver_gte(a, b):
+    pa, pb = _parse_semver(a), _parse_semver(b)
+    if pa is None or pb is None: return False
+    return pa >= pb
+
+cve_fixes, orphan_alerts = [], []
+for a in open_alerts:
+    alert_pkg = a.get("dependency", {}).get("package", "")
+    fpv = a.get("security_vulnerability", {}).get("first_patched_version")
+    sev = a.get("security_advisory", {}).get("severity", "unknown")
+    cve = a.get("security_advisory", {}).get("cve_id") or a.get("security_advisory", {}).get("ghsa_id", "")
+    summary = a.get("security_advisory", {}).get("summary", "")
+    matched = False
+    for num, pr in prs.items():
+        if pr.get("package", "") == alert_pkg and fpv and _semver_gte(pr.get("to", ""), fpv):
+            cve_fixes.append({
+                "pr": int(num) if str(num).isdigit() else num,
+                "package": alert_pkg, "cve_id": cve, "severity": sev,
+                "from_version": pr.get("from", ""), "to_version": pr.get("to", ""),
+                "first_patched_version": fpv, "summary": summary[:200],
+            })
+            matched = True
+    if not matched:
+        orphan_alerts.append({
+            "cve_id": cve, "package": alert_pkg, "severity": sev,
+            "first_patched_version": fpv or "unknown", "summary": summary[:200],
+        })
+_SEV_ORDER = {"critical": 0, "high": 1, "medium": 2, "moderate": 2, "low": 3, "unknown": 4}
+cve_fixes.sort(key=lambda x: (_SEV_ORDER.get((x["severity"] or "").lower(), 4), x.get("pr", 9999)))
+orphan_alerts.sort(key=lambda x: _SEV_ORDER.get((x["severity"] or "").lower(), 4))
+
 security_posture = {
     "total_open_alerts": len(open_alerts),
     "severity_counts": severity_counts,
     "total_cves_in_prs": total_cve_count,
     "prs_fixing_alerts": fixes_by_pr,
     "prs_with_cves": pr_cves,
-    "alerts_fixable_by_merging": sum(f["alert_count"] for f in fixes_by_pr.values())
+    "alerts_fixable_by_merging": sum(f["alert_count"] for f in fixes_by_pr.values()),
+    "cve_fixes": cve_fixes,
+    "orphan_alerts": orphan_alerts,
 }
 
 data["security_posture"] = security_posture

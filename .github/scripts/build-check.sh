@@ -402,6 +402,10 @@ retry_cmd() {
       if [[ $has_timeout -eq 0 ]]; then
         return $rc
       fi
+    elif [[ $rc -eq 137 ]]; then
+      # V9.8 iter6 (E): SIGKILL / OOM — retrying will just OOM again, waste CI. Bail out.
+      echo "  ⚠️  Command killed (OOM, exit=137) — not retrying" >&2
+      return $rc
     else
       if [[ $attempt -lt $max_attempts ]]; then
         local delay=$((base_delay * (2 ** (attempt - 1))))
@@ -1008,6 +1012,9 @@ classify_go_error() {
   # Cache corruption: "open …/go-build/…: no such file or directory"
   if echo "$output" | grep -qE 'go-build/[a-f0-9]+.*no such file or directory'; then
     echo "cache_corruption"
+  # V9.8 iter6 (E): exit 137 = 128 + SIGKILL (OOM). Recognize by exit code even when output empty.
+  elif [[ "$exit_code" -eq 137 ]]; then
+    echo "resource_exhaustion"
   # OOM / resource exhaustion: compiler killed by OS, out of memory (A2-1)
   elif echo "$output" | grep -qiE 'signal: killed|cannot allocate memory|out of memory|oom-kill'; then
     echo "resource_exhaustion"
@@ -1607,6 +1614,7 @@ for i in $(seq 0 $(( PR_COUNT - 1 )) ); do
   printf '' > "/tmp/_bc_vuln_finding_${PR_NUM}.txt"
   printf '' > "/tmp/_bc_vuln_new_findings_${PR_NUM}.txt"
   printf '0' > "/tmp/_bc_vuln_preexisting_count_${PR_NUM}.txt"
+  printf '' > "/tmp/_bc_vuln_output_${PR_NUM}.txt"
 
   # Respect breakability:skip label — opt-out for PRs that should bypass analysis
   PR_SKIP=$(echo "$PR_JSON" | jq -r ".[$i].labels[] | select(.name==\"breakability:skip\") | .name" 2>/dev/null | head -1)
@@ -2318,10 +2326,14 @@ $GO_VET_OUT"
             # Extract first NEW vuln finding for header badge (if any)
             _VULN_FINDING=$(echo "$_NEW_VULNS" | head -1)
             [[ -n "$_VULN_FINDING" ]] && echo "$_VULN_FINDING" > "/tmp/_bc_vuln_finding_${PR_NUM}.txt" || printf '' > "/tmp/_bc_vuln_finding_${PR_NUM}.txt"
-            if [[ -n "$GO_VULN_OUT_DISPLAY" ]]; then
-              BUILD_OUTPUT="$BUILD_OUTPUT
---- go vulncheck (status=$VULN_STATUS new=$_NEW_VULN_COUNT pre_existing=$_PRE_VULN_COUNT) ---
-$GO_VULN_OUT_DISPLAY"
+            # V9.8 iter6 (C): keep govulncheck output in its OWN variable.
+            # Do NOT append to BUILD_OUTPUT — that caused vuln text to be misclassified
+            # as compile errors (iter5c finding F4/P0-1). Emit dedicated vuln scan file.
+            VULN_OUTPUT="$GO_VULN_OUT_DISPLAY"
+            if [[ -n "$VULN_OUTPUT" ]]; then
+              printf '%s' "$VULN_OUTPUT" > "/tmp/_bc_vuln_output_${PR_NUM}.txt"
+            else
+              printf '' > "/tmp/_bc_vuln_output_${PR_NUM}.txt"
             fi
           fi
           # Classify Go build error for JSON output (pass exit code for timeout detection — A2-2)
@@ -2995,6 +3007,12 @@ try:
         vuln_preexisting_count = int(f.read().strip() or "0")
 except (IOError, OSError, ValueError):
     vuln_preexisting_count = 0
+# V9.8 iter6 (C): load vuln scan output from its own file (separate from BUILD_OUTPUT)
+try:
+    with open(f"/tmp/_bc_vuln_output_{pr_num}.txt") as f:
+        vuln_output = f.read()
+except (IOError, OSError):
+    vuln_output = ""
 
 # Read PR metadata from temp files to avoid shell injection (Finding-4.4)
 # MUST be defined before INFRA_ERROR_PATTERNS because eco is used there (Finding-5.1)
@@ -3199,6 +3217,7 @@ pr_data = {
     "vuln_finding": vuln_finding,
     "vuln_new_findings": vuln_new_findings,
     "vuln_preexisting_count": vuln_preexisting_count,
+    "vuln_output": vuln_output,
     "nestjs_peer_warning": open(f"/tmp/_bc_peer_warn_{pr_num}.txt").read().strip() if os.path.exists(f"/tmp/_bc_peer_warn_{pr_num}.txt") else "",
     "install_ok": True if "$INSTALL_OK" == "true" else False,
     "additional_packages": open(f"/tmp/_bc_addl_pkgs_{pr_num}.txt").read().strip() if os.path.exists(f"/tmp/_bc_addl_pkgs_{pr_num}.txt") else "",
@@ -3628,15 +3647,23 @@ import json, subprocess, os
 owner_repo = "$OWNER_REPO"
 
 # Fetch Dependabot vulnerability alerts from GitHub API
+# V9.8 iter6: use BREAKABILITY_PAT if provided (fine-grained PAT with Dependabot-alerts:read).
+# The default GITHUB_TOKEN cannot list alerts without org-level security-events.
+import os as _sec_os
+_alerts_env = _sec_os.environ.copy()
+if _sec_os.environ.get("BREAKABILITY_PAT"):
+    _alerts_env["GH_TOKEN"] = _sec_os.environ["BREAKABILITY_PAT"]
+    _alerts_env["GITHUB_TOKEN"] = _sec_os.environ["BREAKABILITY_PAT"]
 try:
     result = subprocess.run(
         ["gh", "api", f"repos/{owner_repo}/dependabot/alerts",
-         "--jq", '.[] | {number, state, security_advisory: {ghsa_id: .security_advisory.ghsa_id, cve_id: .security_advisory.cve_id, severity: .security_advisory.severity, summary: .security_advisory.summary}, dependency: {package: .dependency.package.name, ecosystem: .dependency.package.ecosystem, manifest_path: .dependency.manifest_path}}',
+         "--jq", '.[] | {number, state, security_advisory: {ghsa_id: .security_advisory.ghsa_id, cve_id: .security_advisory.cve_id, severity: .security_advisory.severity, summary: .security_advisory.summary}, security_vulnerability: {first_patched_version: .security_vulnerability.first_patched_version.identifier, vulnerable_version_range: .security_vulnerability.vulnerable_version_range}, dependency: {package: .dependency.package.name, ecosystem: .dependency.package.ecosystem, manifest_path: .dependency.manifest_path}}',
          "-X", "GET", "--paginate"],
-        capture_output=True, text=True, timeout=60
+        capture_output=True, text=True, timeout=60, env=_alerts_env
     )
     if result.returncode != 0:
         print("  Could not fetch Dependabot alerts (may need security permissions)")
+        print(f"  stderr: {(result.stderr or '')[:200]}")
         alerts_raw = "[]"
     else:
         # gh --jq with paginate outputs one JSON object per line
@@ -3687,13 +3714,77 @@ for num, pr in prs.items():
             "cve_ids": [a.get("security_advisory", {}).get("cve_id") or a.get("security_advisory", {}).get("ghsa_id", "") for a in matching_alerts]
         }
 
+# V9.8 iter6 (B): Precise alert↔PR matching using first_patched_version.
+# A PR "fixes" an alert when its target version is >= first_patched_version for that alert.
+def _parse_semver(v):
+    if not v: return None
+    s = str(v).lstrip("v").lstrip("=").strip()
+    # Strip pre-release / build metadata for simple comparison
+    for sep in ("-", "+"):
+        if sep in s: s = s.split(sep, 1)[0]
+    parts = s.split(".")
+    try:
+        return tuple(int(p) for p in parts[:3]) + (0,) * (3 - min(3, len(parts)))
+    except ValueError:
+        return None
+
+def _semver_gte(a, b):
+    pa, pb = _parse_semver(a), _parse_semver(b)
+    if pa is None or pb is None: return False
+    return pa >= pb
+
+cve_fixes = []           # [{pr, package, cve_ids[], severities[], fixed_by_version}]
+orphan_alerts = []       # [{cve_id, package, severity, summary}]  — alerts with no PR
+matched_alert_ids = set()
+
+for a in open_alerts:
+    alert_pkg = a.get("dependency", {}).get("package", "")
+    fpv = a.get("security_vulnerability", {}).get("first_patched_version")
+    sev = a.get("security_advisory", {}).get("severity", "unknown")
+    cve = a.get("security_advisory", {}).get("cve_id") or a.get("security_advisory", {}).get("ghsa_id", "")
+    summary = a.get("security_advisory", {}).get("summary", "")
+    alert_num = a.get("number")
+    # Find any PR that upgrades this package to a fixed version
+    matched = False
+    for num, pr in prs.items():
+        pr_pkg = pr.get("package", "")
+        pr_to = pr.get("to", "")
+        if pr_pkg == alert_pkg and fpv and _semver_gte(pr_to, fpv):
+            cve_fixes.append({
+                "pr": int(num) if str(num).isdigit() else num,
+                "package": alert_pkg,
+                "cve_id": cve,
+                "severity": sev,
+                "from_version": pr.get("from", ""),
+                "to_version": pr_to,
+                "first_patched_version": fpv,
+                "summary": summary[:200],
+            })
+            matched_alert_ids.add(alert_num)
+            matched = True
+    if not matched:
+        orphan_alerts.append({
+            "cve_id": cve,
+            "package": alert_pkg,
+            "severity": sev,
+            "first_patched_version": fpv or "unknown",
+            "summary": summary[:200],
+        })
+
+# Rank severities for sorting
+_SEV_ORDER = {"critical": 0, "high": 1, "medium": 2, "moderate": 2, "low": 3, "unknown": 4}
+cve_fixes.sort(key=lambda x: (_SEV_ORDER.get((x["severity"] or "").lower(), 4), x.get("pr", 9999)))
+orphan_alerts.sort(key=lambda x: _SEV_ORDER.get((x["severity"] or "").lower(), 4))
+
 security_posture = {
     "total_open_alerts": len(open_alerts),
     "severity_counts": severity_counts,
     "total_cves_in_prs": total_cve_count,
     "prs_fixing_alerts": fixes_by_pr,
     "prs_with_cves": pr_cves,
-    "alerts_fixable_by_merging": sum(f["alert_count"] for f in fixes_by_pr.values())
+    "alerts_fixable_by_merging": sum(f["alert_count"] for f in fixes_by_pr.values()),
+    "cve_fixes": cve_fixes,                 # NEW: precise version-matched CVE fixes
+    "orphan_alerts": orphan_alerts,         # NEW: open alerts with no corresponding PR
 }
 
 # ── govulncheck aggregates (V9.7): main baseline + per-PR findings ──

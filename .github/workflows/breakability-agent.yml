@@ -173,6 +173,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # V9.8 iter6: optional fine-grained PAT for reading Dependabot alerts.
+          # If set, the security scan uses this instead of GITHUB_TOKEN.
+          # Required permissions: Dependabot alerts (Read), Contents (Read), Metadata (Read).
+          BREAKABILITY_PAT: ${{ secrets.BREAKABILITY_PAT }}
           CLI_PATH: .github/actions/breakability-check/index.js
           PR_FILTER: ${{ matrix.pr_filter }}
           BATCH_ID: ${{ matrix.batch_id }}
@@ -241,6 +245,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BREAKABILITY_PAT: ${{ secrets.BREAKABILITY_PAT }}
 
       - name: Upload merged results
         if: always()

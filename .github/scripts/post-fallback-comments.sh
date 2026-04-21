@@ -148,19 +148,36 @@ for PR_NUM in $PR_NUMBERS; do
   # 2. Delete old deterministic comments (<!-- breakability-check --> without <!-- breakability-agent -->)
   # 3. Post new deterministic comment
   # This avoids the race where merge-results.sh deletes comments before this script posts.
+  # V9.8 iter6 (D): only preserve AGENT comments from THIS run (or within last 2 hours).
+  # Stale agent comments from previous runs were surviving forever, causing dual-comment contradictions.
+  _WF_STARTED_AT="${GITHUB_RUN_STARTED_AT:-}"
+  if [[ -z "$_WF_STARTED_AT" ]]; then
+    # Fallback: anything created in the last 2 hours is "current run"
+    _CUTOFF=$(date -u -d "2 hours ago" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-2H +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "1970-01-01T00:00:00Z")
+  else
+    _CUTOFF="$_WF_STARTED_AT"
+  fi
   HAS_AGENT_COMMENT=$(gh api "repos/$OWNER/$REPO/issues/$PR_NUM/comments" \
-    --jq '[.[] | select(.body | contains("<!-- breakability-agent -->"))] | length' \
+    --jq "[.[] | select(.body | contains(\"<!-- breakability-agent -->\")) | select(.created_at >= \"$_CUTOFF\")] | length" \
     2>/dev/null || echo "0")
 
   if [[ "$HAS_AGENT_COMMENT" -gt 0 ]]; then
-    # AI agent already posted a richer comment — skip deterministic fallback
+    # AI agent already posted a richer comment IN THIS RUN — skip deterministic fallback.
+    # Still delete stale pre-cutoff agent comments so only the current one remains.
+    STALE_AGENT_IDS=$(gh api "repos/$OWNER/$REPO/issues/$PR_NUM/comments" \
+      --jq ".[] | select(.body | contains(\"<!-- breakability-agent -->\")) | select(.created_at < \"$_CUTOFF\") | .id" \
+      2>/dev/null || true)
+    for CID in $STALE_AGENT_IDS; do
+      gh api -X DELETE "repos/$OWNER/$REPO/issues/comments/$CID" 2>/dev/null || true
+    done
     SKIPPED=$((SKIPPED + 1))
     continue
   fi
 
-  # Delete old deterministic comments for this PR (atomic: delete before posting new one)
+  # No current-run agent comment → delete ALL previous breakability comments (both markers)
+  # so the new deterministic comment is the single source of truth.
   OLD_COMMENT_IDS=$(gh api "repos/$OWNER/$REPO/issues/$PR_NUM/comments" \
-    --jq '.[] | select(.body | contains("<!-- breakability-check -->")) | select(.body | contains("<!-- breakability-agent -->") | not) | .id' \
+    --jq '.[] | select(.body | contains("<!-- breakability-check -->") or (.body | contains("<!-- breakability-agent -->"))) | .id' \
     2>/dev/null || true)
   for CID in $OLD_COMMENT_IDS; do
     gh api -X DELETE "repos/$OWNER/$REPO/issues/comments/$CID" 2>/dev/null || true
@@ -696,6 +713,18 @@ else:
     continue
   fi
 
+  # V9.8 iter6 A (security verdict gate): a PR that INTRODUCES new vulnerabilities
+  # (vuln_status=vulns_found with non-empty vuln_new_findings) must NEVER be SAFE,
+  # regardless of build status. Demote pass → vulns_introduced so the dispatch
+  # chain renders the security-risk comment instead of SAFE.
+  # Pre-existing-only vulns (ok_preexisting) do NOT demote — PR is not at fault.
+  if [[ "$VULN_STATUS" == "vulns_found" && "$VULN_NEW_COUNT" -gt 0 ]]; then
+    if [[ "$VERDICT" == "pass" || "$VERDICT" == "pre_existing" ]]; then
+      echo "  PR #$PR_NUM: demoting VERDICT=$VERDICT → vulns_introduced ($VULN_NEW_COUNT new CVE(s))"
+      VERDICT="vulns_introduced"
+    fi
+  fi
+
   if [[ "$ECOSYSTEM" == "actions" ]]; then
     # GitHub Actions — always safe, no app code affected.
     # No L0/fallback labels — CI-only changes need no build verification (end-user feedback 2.4).
@@ -889,6 +918,27 @@ Build passes, but \`npm audit\` found **critical or high** vulnerabilities in th
 **Recommendation:** Review the npm audit output and CVE details. If vulnerabilities are in transitive deps not used by your code, merge may still be safe.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
 > 🔬 *Deterministic analysis — based on build comparison of main vs PR branch*"
 
+  elif [[ "$VERDICT" == "vulns_introduced" ]]; then
+    # V9.8 iter6 (A): PR build passes but govulncheck found NEW CVE(s) not on main.
+    # This overrides SAFE because a PR that introduces vulnerabilities is never SAFE.
+    _VULN_IDS_LIST="${VULN_NEW_LIST:-unknown}"
+    COMMENT="<!-- breakability-check -->
+## 🚨 SECURITY RISK — \`$PKG\` $FROM → $TO · $DEP_TYPE · $BUMP_DISPLAY
+
+Build: ✅ passes · Verification: **${VER_LABEL:-L1}** · Usage: $FILES_COUNT file(s)${CVE_LINE}
+
+### 🚨 This PR introduces **$VULN_NEW_COUNT NEW vulnerability(ies)** not present on \`main\`
+
+**New CVEs:** $_VULN_IDS_LIST
+
+Pre-existing on main: $VULN_PREEXISTING_COUNT (unaffected by this PR).
+
+**Recommendation:** Do **NOT** merge until these vulnerabilities are addressed. Options:
+1. Bump to a later fixed version that patches these CVEs, or
+2. Close this PR and wait for an upstream fix, or
+3. If the vulnerable paths are not reachable from your code, document the risk and override with \`breakability:override-security\` label.${PLAN_LINE}${HOW_CHECKED}${ADVISORY_FOOTER}
+> 🔬 *Deterministic analysis — govulncheck diffed against \`main\` baseline*"
+
   elif [[ "$INSTALL_METHOD" == "infra_error" ]]; then
     # Infrastructure blocked analysis
     COMMENT="<!-- breakability-check -->
@@ -1049,6 +1099,17 @@ for num, pr in sorted(prs.items(), key=lambda x: int(x[0])):
     main_exit = pr.get("build", {}).get("main_exit", -1)
     entry = {"num": num, "pkg": pkg, "from": fr, "to": to, "bump": bump, "dep_type": dep_type, "ver": ver, "cves": cves, "eco": eco, "verdict": v, "install_ok": install_ok, "pkg_dir": pkg_dir, "error_class": error_class, "new_error_count": len(new_errors), "main_exit": main_exit}
 
+    # V9.8 iter6 (A): security verdict gate — a PR that INTRODUCES new CVEs must never be "safe"
+    vuln_status = pr.get("vuln_status", "")
+    vuln_new = pr.get("vuln_new_findings", [])
+    if vuln_status == "vulns_found" and vuln_new:
+        entry["vuln_new_findings"] = vuln_new
+        entry["vuln_new_count"] = len(vuln_new)
+        if v in ("pass", "pre_existing"):
+            entry["verdict"] = "vulns_introduced"
+            entry["original_verdict"] = v
+            v = "vulns_introduced"
+
     if v == "skipped":
         skipped.append(entry)
     elif v == "skip":
@@ -1072,6 +1133,9 @@ for num, pr in sorted(prs.items(), key=lambda x: int(x[0])):
             review.append(entry)
     elif v in ("error", "security_review"):
         review.append(entry)
+    elif v == "vulns_introduced":
+        # V9.8 iter6 (A): PR introduces NEW CVEs → blocked, not safe
+        blocked.append(entry)
     elif v == "conflict":
         blocked.append(entry)
     else:
@@ -1343,6 +1407,22 @@ if all_cves:
         lines.append(f"- **PR #{e['num']}** `{e['pkg']}` {e['from']}→{e['to']} — {cve_str}{verdict_note}")
     lines.append("")
 
+# V9.8 iter6 (A): Dedicated security-risk section for PRs that INTRODUCE new CVEs
+vulns_introduced = [e for e in blocked if e.get("verdict") == "vulns_introduced"]
+if vulns_introduced:
+    lines.append("## 🚨 Security Risk — PRs That Introduce NEW Vulnerabilities")
+    lines.append("")
+    lines.append("> **DO NOT MERGE** these PRs. They add CVEs not present on `main`. Pin to an earlier version, wait for an upstream fix, or close the PR.")
+    lines.append("")
+    lines.append("| PR | Package | Version | NEW CVEs | Pre-existing |")
+    lines.append("|---|---|---|---|---|")
+    for e in vulns_introduced:
+        cves_new = e.get("vuln_new_findings", [])
+        cves_show = ", ".join(cves_new[:5]) + ("…" if len(cves_new) > 5 else "")
+        pre = len([c for c in (e.get("cves") or [])])  # fallback
+        lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {e.get('vuln_new_count', len(cves_new))}: {cves_show} | see PR |")
+    lines.append("")
+
 # Safe to merge — split L4 (tests pass) vs L2/L3 (build only)
 safe_l4 = [e for e in safe if e["ver"].startswith("L4") or e["ver"].startswith("L5")]
 safe_l2 = [e for e in safe if not (e["ver"].startswith("L4") or e["ver"].startswith("L5"))]
@@ -1431,6 +1511,8 @@ if blocked:
             issue = "Build fails"
         elif e["verdict"] == "conflict":
             issue = "Merge conflicts — rebase required"
+        elif e["verdict"] == "vulns_introduced":
+            issue = f"🚨 {e.get('vuln_new_count', 0)} NEW CVE(s) introduced — see Security Risk section"
         else:
             issue = "New errors on top of pre-existing"
         lines.append(f"| #{e['num']} | `{e['pkg']}` | {e['from']}→{e['to']} | {fmt_bump(e['bump'], e.get('from', ''))} | {issue} |")
@@ -1532,6 +1614,48 @@ if security:
         lines.append(f"- By severity: {sev_str}")
     lines.append("")
 
+    # V9.8 iter6 (B): precise CVE fixes with severity + advisory links
+    cve_fixes = security.get("cve_fixes", [])
+    if cve_fixes:
+        _SEV_RANK = {"critical": 0, "high": 1, "medium": 2, "moderate": 2, "low": 3, "unknown": 4}
+        # Group by PR so one PR fixing multiple CVEs appears once
+        fixes_by_pr = {}
+        for f in cve_fixes:
+            pr = f["pr"]
+            fixes_by_pr.setdefault(pr, []).append(f)
+        def _pr_sort_key(pr_num):
+            sev = min(_SEV_RANK.get((f["severity"] or "").lower(), 4) for f in fixes_by_pr[pr_num])
+            return (sev, pr_num)
+        lines.append("### 🛡️ Security Fixes — Merge with Priority")
+        lines.append("")
+        lines.append("| PR | Package | Version | CVE(s) | Severity | Advisory |")
+        lines.append("|---|---|---|---|---|---|")
+        for pr_num in sorted(fixes_by_pr.keys(), key=_pr_sort_key):
+            flist = fixes_by_pr[pr_num]
+            pkg = flist[0]["package"]
+            fr = flist[0]["from_version"]; to = flist[0]["to_version"]
+            cve_cell = ", ".join(sorted(set(f["cve_id"] for f in flist if f["cve_id"])))
+            sev_cell = ", ".join(sorted(set(f["severity"] for f in flist if f["severity"])))
+            adv_cell = " ".join(f"[{f['cve_id']}](https://nvd.nist.gov/vuln/detail/{f['cve_id']})" for f in flist if (f['cve_id'] or '').startswith('CVE-'))
+            if not adv_cell:
+                adv_cell = "_see Dependabot_"
+            lines.append(f"| #{pr_num} | `{pkg}` | {fr}→{to} | {cve_cell} | {sev_cell} | {adv_cell} |")
+        lines.append("")
+
+    # V9.8 iter6 (B): orphan alerts (no PR fixes them) — needs manual attention
+    orphans = security.get("orphan_alerts", [])
+    if orphans:
+        lines.append("### ⚠️ Orphan Alerts — No PR Fixes These")
+        lines.append("")
+        lines.append("_These open Dependabot alerts have **no corresponding PR** in this batch. Manual remediation required._")
+        lines.append("")
+        lines.append("| Package | CVE | Severity | Fixed in (upstream) |")
+        lines.append("|---|---|---|---|")
+        for o in orphans:
+            cve_cell = f"[{o['cve_id']}](https://nvd.nist.gov/vuln/detail/{o['cve_id']})" if (o['cve_id'] or '').startswith('CVE-') else (o['cve_id'] or '-')
+            lines.append(f"| `{o['package']}` | {cve_cell} | **{o['severity']}** | {o['first_patched_version']} |")
+        lines.append("")
+
 lines.append("---")
 lines.append("> 🔬 *Deterministic merge plan — generated from build-results.json. Refer to individual PR comments for full details.*")
 
@@ -1558,9 +1682,13 @@ print(len(data.get('prs', {})))
   # Step 1: Close ALL existing merge plan issues (both labels)
   _OLD_ISSUES=$(gh issue list --label "$_MP_LABEL" --state open --json number -q '.[].number' 2>/dev/null || echo "")
   # Also check old "dependencies" label for legacy issues
+  # V9.8 iter6 (F12): match both 📋-prefixed and the AI agent's "Dependabot Merge Plan" titles.
   _OLD_ISSUES_LEGACY=$(gh issue list --label "dependencies" --state open --json number,title \
-    -q '.[] | select(.title | test("📋.*[Mm]erge [Pp]lan")) | .number' 2>/dev/null || echo "")
-  for _OLD_NUM in $_OLD_ISSUES $_OLD_ISSUES_LEGACY; do
+    -q '.[] | select(.title | test("📋.*[Mm]erge [Pp]lan|[Dd]ependabot [Mm]erge [Pp]lan|[Bb]reakability [Mm]erge [Pp]lan")) | .number' 2>/dev/null || echo "")
+  # Also scan issues with NO label (AI agent may create unlabeled ones)
+  _OLD_ISSUES_UNLABELED=$(gh issue list --state open --json number,title,labels \
+    -q '.[] | select((.labels | length) == 0) | select(.title | test("[Dd]ependabot [Mm]erge [Pp]lan|📋.*[Mm]erge [Pp]lan")) | .number' 2>/dev/null || echo "")
+  for _OLD_NUM in $_OLD_ISSUES $_OLD_ISSUES_LEGACY $_OLD_ISSUES_UNLABELED; do
     [[ -z "$_OLD_NUM" ]] && continue
     gh issue close "$_OLD_NUM" --comment "Superseded by new merge plan run at $(date -u '+%Y-%m-%d %H:%M UTC')." 2>/dev/null && \
       echo "  Closed old merge plan issue #$_OLD_NUM" || true
