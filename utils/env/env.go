@@ -70,6 +70,12 @@ func ParseCaURI(caURI string) (caPoolDeployedProjectID, caPoolName, caName strin
 const (
 	Admin    = "admin"
 	LocalEnv = "local"
+
+	// EnvAddressSpaceMgmtEnabled is the feature flag that enables address space management.
+	// When true, VCP passes pre-registered address ranges as RequestedRanges to GCP Service
+	// Networking during pool subnet creation, and tracks range state (IN_USE/CREATED) on
+	// pool create/delete.
+	EnvAddressSpaceMgmtEnabled = "ADDRESS_SPACE_MGMT_ENABLED"
 )
 
 func init() {

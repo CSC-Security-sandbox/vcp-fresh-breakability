@@ -22,6 +22,15 @@ func (UnimplementedHandler) GetHealth(ctx context.Context) (r GetHealthRes, _ er
 	return r, ht.ErrNotImplemented
 }
 
+// V1CreateAddressRange implements v1_createAddressRange operation.
+//
+// Creates a new address range resource.
+//
+// POST /v1/addressRange
+func (UnimplementedHandler) V1CreateAddressRange(ctx context.Context, req *AddressRangeCreateV1, params V1CreateAddressRangeParams) (r V1CreateAddressRangeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1CreateImageVersion implements v1_createImageVersion operation.
 //
 // Creates a new image version entry in the database. This is useful when an image version was missed
@@ -47,6 +56,15 @@ func (UnimplementedHandler) V1CreatePool(ctx context.Context, req *PoolV1, param
 //
 // POST /v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots
 func (UnimplementedHandler) V1CreateSnapshot(ctx context.Context, req *VolumeSnapshotCreateV1, params V1CreateSnapshotParams) (r V1CreateSnapshotRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1DeleteAddressRange implements v1_deleteAddressRange operation.
+//
+// Soft-deletes the address range identified by the given UUID.
+//
+// DELETE /v1/addressRange/{addressRangeId}
+func (UnimplementedHandler) V1DeleteAddressRange(ctx context.Context, params V1DeleteAddressRangeParams) (r V1DeleteAddressRangeRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -103,6 +121,15 @@ func (UnimplementedHandler) V1ExpertModeVolumeRename(ctx context.Context, req *E
 	return r, ht.ErrNotImplemented
 }
 
+// V1GetAddressRange implements v1_getAddressRange operation.
+//
+// Returns the address range identified by the given UUID.
+//
+// GET /v1/addressRange/{addressRangeId}
+func (UnimplementedHandler) V1GetAddressRange(ctx context.Context, params V1GetAddressRangeParams) (r V1GetAddressRangeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // V1GetClusterUpgradeStatus implements v1_getClusterUpgradeStatus operation.
 //
 // Retrieves the status and progress of a cluster upgrade operation.
@@ -136,6 +163,15 @@ func (UnimplementedHandler) V1GetOntapCredentials(ctx context.Context, params V1
 //
 // GET /v1/pools/{poolId}
 func (UnimplementedHandler) V1GetPool(ctx context.Context, params V1GetPoolParams) (r V1GetPoolRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1ListAddressRanges implements v1_listAddressRanges operation.
+//
+// Returns address ranges matching the query parameters.
+//
+// GET /v1/addressRange
+func (UnimplementedHandler) V1ListAddressRanges(ctx context.Context, params V1ListAddressRangesParams) (r V1ListAddressRangesRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -183,6 +219,24 @@ func (UnimplementedHandler) V1RotateGcpKmsConfig(ctx context.Context, req *GcpKm
 //
 // POST /v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstart
 func (UnimplementedHandler) V1SplitStartVolume(ctx context.Context, params V1SplitStartVolumeParams) (r V1SplitStartVolumeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1UpdateAddressRange implements v1_updateAddressRange operation.
+//
+// Updates the address range resource.
+//
+// PUT /v1/addressRange/{addressRangeId}
+func (UnimplementedHandler) V1UpdateAddressRange(ctx context.Context, req *AddressRangeUpdateV1, params V1UpdateAddressRangeParams) (r V1UpdateAddressRangeRes, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// V1UpdateAddressRangeState implements v1_updateAddressRangeState operation.
+//
+// Updates the lifecycle state of the address range (CREATED or IN_USE).
+//
+// PUT /v1/addressRange/{addressRangeId}/updateState
+func (UnimplementedHandler) V1UpdateAddressRangeState(ctx context.Context, req *AddressRangeCVNUpdateV1, params V1UpdateAddressRangeStateParams) (r V1UpdateAddressRangeStateRes, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

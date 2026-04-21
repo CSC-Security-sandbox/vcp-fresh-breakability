@@ -16,6 +16,259 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestAddressRangeCVNUpdateV1_EncodeDecode(t *testing.T) {
+	var typ AddressRangeCVNUpdateV1
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 AddressRangeCVNUpdateV1
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestAddressRangeCVNUpdateV1LifeCycleState_EncodeDecode(t *testing.T) {
+	var typ AddressRangeCVNUpdateV1LifeCycleState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 AddressRangeCVNUpdateV1LifeCycleState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestAddressRangeCVNUpdateV1LifeCycleState_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"CREATED\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ AddressRangeCVNUpdateV1LifeCycleState
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 AddressRangeCVNUpdateV1LifeCycleState
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestAddressRangeCreateV1_EncodeDecode(t *testing.T) {
+	var typ AddressRangeCreateV1
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 AddressRangeCreateV1
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestAddressRangeCreateV1LifType_EncodeDecode(t *testing.T) {
+	var typ AddressRangeCreateV1LifType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 AddressRangeCreateV1LifType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestAddressRangeCreateV1LifType_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"dataLIF\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ AddressRangeCreateV1LifType
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 AddressRangeCreateV1LifType
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestAddressRangeUpdateV1_EncodeDecode(t *testing.T) {
+	var typ AddressRangeUpdateV1
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 AddressRangeUpdateV1
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestAddressRangeUpdateV1LifeCycleState_EncodeDecode(t *testing.T) {
+	var typ AddressRangeUpdateV1LifeCycleState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 AddressRangeUpdateV1LifeCycleState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestAddressRangeUpdateV1LifeCycleState_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"DISABLED\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ AddressRangeUpdateV1LifeCycleState
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 AddressRangeUpdateV1LifeCycleState
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestAddressRangeV1_EncodeDecode(t *testing.T) {
+	var typ AddressRangeV1
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 AddressRangeV1
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestAddressRangeV1LifType_EncodeDecode(t *testing.T) {
+	var typ AddressRangeV1LifType
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 AddressRangeV1LifType
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestAddressRangeV1LifType_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"dataLIF\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ AddressRangeV1LifType
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 AddressRangeV1LifType
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
+func TestAddressRangeV1LifeCycleState_EncodeDecode(t *testing.T) {
+	var typ AddressRangeV1LifeCycleState
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 AddressRangeV1LifeCycleState
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+
+func TestAddressRangeV1LifeCycleState_Examples(t *testing.T) {
+
+	for i, tc := range []struct {
+		Input string
+	}{
+		{Input: "\"CREATED\""},
+	} {
+		tc := tc
+		t.Run(fmt.Sprintf("Test%d", i+1), func(t *testing.T) {
+			var typ AddressRangeV1LifeCycleState
+
+			if err := typ.Decode(jx.DecodeStr(tc.Input)); err != nil {
+				if validateErr, ok := errors.Into[*validate.Error](err); ok {
+					t.Skipf("Validation error: %v", validateErr)
+					return
+				}
+				require.NoErrorf(t, err, "Input: %s", tc.Input)
+			}
+
+			e := jx.Encoder{}
+			typ.Encode(&e)
+			require.True(t, std.Valid(e.Bytes()), "Encoded: %s", e.Bytes())
+
+			var typ2 AddressRangeV1LifeCycleState
+			require.NoError(t, typ2.Decode(jx.DecodeBytes(e.Bytes())))
+		})
+	}
+}
 func TestAnyV1_EncodeDecode(t *testing.T) {
 	var typ AnyV1
 	typ.SetFake()
@@ -1332,6 +1585,78 @@ func TestUpgradeProgressV1Status_Examples(t *testing.T) {
 		})
 	}
 }
+func TestV1CreateAddressRangeBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1CreateAddressRangeBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateAddressRangeBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateAddressRangeConflict_EncodeDecode(t *testing.T) {
+	var typ V1CreateAddressRangeConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateAddressRangeConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateAddressRangeForbidden_EncodeDecode(t *testing.T) {
+	var typ V1CreateAddressRangeForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateAddressRangeForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateAddressRangeInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1CreateAddressRangeInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateAddressRangeInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateAddressRangeUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1CreateAddressRangeUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateAddressRangeUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1CreateAddressRangeUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1CreateAddressRangeUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1CreateAddressRangeUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1CreateImageVersionBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1CreateImageVersionBadRequest
 	typ.SetFake()
@@ -1594,6 +1919,78 @@ func TestV1CreateSnapshotUnprocessableEntity_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1CreateSnapshotUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteAddressRangeBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1DeleteAddressRangeBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteAddressRangeBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteAddressRangeForbidden_EncodeDecode(t *testing.T) {
+	var typ V1DeleteAddressRangeForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteAddressRangeForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteAddressRangeInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1DeleteAddressRangeInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteAddressRangeInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteAddressRangeNotFound_EncodeDecode(t *testing.T) {
+	var typ V1DeleteAddressRangeNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteAddressRangeNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteAddressRangeUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1DeleteAddressRangeUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteAddressRangeUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1DeleteAddressRangeUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1DeleteAddressRangeUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1DeleteAddressRangeUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1DeleteImageVersionBadRequest_EncodeDecode(t *testing.T) {
@@ -2040,6 +2437,66 @@ func TestV1ExpertModeVolumeUnprocessableEntity_EncodeDecode(t *testing.T) {
 	var typ2 V1ExpertModeVolumeUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
+func TestV1GetAddressRangeBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1GetAddressRangeBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetAddressRangeBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetAddressRangeForbidden_EncodeDecode(t *testing.T) {
+	var typ V1GetAddressRangeForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetAddressRangeForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetAddressRangeInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1GetAddressRangeInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetAddressRangeInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetAddressRangeNotFound_EncodeDecode(t *testing.T) {
+	var typ V1GetAddressRangeNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetAddressRangeNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1GetAddressRangeUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1GetAddressRangeUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1GetAddressRangeUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
 func TestV1GetClusterUpgradeStatusBadRequest_EncodeDecode(t *testing.T) {
 	var typ V1GetClusterUpgradeStatusBadRequest
 	typ.SetFake()
@@ -2410,6 +2867,66 @@ func TestV1GetPoolUnprocessableEntity_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1GetPoolUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ListAddressRangesBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1ListAddressRangesBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ListAddressRangesBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ListAddressRangesForbidden_EncodeDecode(t *testing.T) {
+	var typ V1ListAddressRangesForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ListAddressRangesForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ListAddressRangesInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1ListAddressRangesInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ListAddressRangesInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ListAddressRangesOKApplicationJSON_EncodeDecode(t *testing.T) {
+	var typ V1ListAddressRangesOKApplicationJSON
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ListAddressRangesOKApplicationJSON
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1ListAddressRangesUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1ListAddressRangesUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1ListAddressRangesUnauthorized
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1ListImageVersionsBadRequest_EncodeDecode(t *testing.T) {
@@ -2854,6 +3371,174 @@ func TestV1SplitStartVolumeUnprocessableEntity_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 V1SplitStartVolumeUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateAddressRangeBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1UpdateAddressRangeBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateAddressRangeBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateAddressRangeConflict_EncodeDecode(t *testing.T) {
+	var typ V1UpdateAddressRangeConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateAddressRangeConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateAddressRangeForbidden_EncodeDecode(t *testing.T) {
+	var typ V1UpdateAddressRangeForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateAddressRangeForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateAddressRangeInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1UpdateAddressRangeInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateAddressRangeInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateAddressRangeNotFound_EncodeDecode(t *testing.T) {
+	var typ V1UpdateAddressRangeNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateAddressRangeNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateAddressRangeStateBadRequest_EncodeDecode(t *testing.T) {
+	var typ V1UpdateAddressRangeStateBadRequest
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateAddressRangeStateBadRequest
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateAddressRangeStateConflict_EncodeDecode(t *testing.T) {
+	var typ V1UpdateAddressRangeStateConflict
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateAddressRangeStateConflict
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateAddressRangeStateForbidden_EncodeDecode(t *testing.T) {
+	var typ V1UpdateAddressRangeStateForbidden
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateAddressRangeStateForbidden
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateAddressRangeStateInternalServerError_EncodeDecode(t *testing.T) {
+	var typ V1UpdateAddressRangeStateInternalServerError
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateAddressRangeStateInternalServerError
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateAddressRangeStateNotFound_EncodeDecode(t *testing.T) {
+	var typ V1UpdateAddressRangeStateNotFound
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateAddressRangeStateNotFound
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateAddressRangeStateUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1UpdateAddressRangeStateUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateAddressRangeStateUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateAddressRangeStateUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1UpdateAddressRangeStateUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateAddressRangeStateUnprocessableEntity
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateAddressRangeUnauthorized_EncodeDecode(t *testing.T) {
+	var typ V1UpdateAddressRangeUnauthorized
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateAddressRangeUnauthorized
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestV1UpdateAddressRangeUnprocessableEntity_EncodeDecode(t *testing.T) {
+	var typ V1UpdateAddressRangeUnprocessableEntity
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 V1UpdateAddressRangeUnprocessableEntity
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestV1UpdatePoolBadRequest_EncodeDecode(t *testing.T) {

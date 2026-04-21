@@ -1609,6 +1609,30 @@ func (m *mockInvoker) V1RefreshRbacForExpertModePools(ctx context.Context, param
 	return nil, nil
 }
 
+func (m *mockInvoker) V1CreateAddressRange(ctx context.Context, request *coreapi.AddressRangeCreateV1, params coreapi.V1CreateAddressRangeParams) (coreapi.V1CreateAddressRangeRes, error) {
+	return nil, nil
+}
+
+func (m *mockInvoker) V1DeleteAddressRange(ctx context.Context, params coreapi.V1DeleteAddressRangeParams) (coreapi.V1DeleteAddressRangeRes, error) {
+	return nil, nil
+}
+
+func (m *mockInvoker) V1GetAddressRange(ctx context.Context, params coreapi.V1GetAddressRangeParams) (coreapi.V1GetAddressRangeRes, error) {
+	return nil, nil
+}
+
+func (m *mockInvoker) V1ListAddressRanges(ctx context.Context, params coreapi.V1ListAddressRangesParams) (coreapi.V1ListAddressRangesRes, error) {
+	return nil, nil
+}
+
+func (m *mockInvoker) V1UpdateAddressRange(ctx context.Context, request *coreapi.AddressRangeUpdateV1, params coreapi.V1UpdateAddressRangeParams) (coreapi.V1UpdateAddressRangeRes, error) {
+	return nil, nil
+}
+
+func (m *mockInvoker) V1UpdateAddressRangeState(ctx context.Context, request *coreapi.AddressRangeCVNUpdateV1, params coreapi.V1UpdateAddressRangeStateParams) (coreapi.V1UpdateAddressRangeStateRes, error) {
+	return nil, nil
+}
+
 func TestV1betaCreateSnapshot_WithSyncModeEnabled(t *testing.T) {
 	t.Run("WhenSyncModeEnabled_ForwardsToCoreAPI", func(tt *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)

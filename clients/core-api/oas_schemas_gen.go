@@ -14,6 +14,521 @@ func (s *ErrorStatusCode) Error() string {
 	return fmt.Sprintf("code %d: %+v", s.StatusCode, s.Response)
 }
 
+// Ref: #/components/schemas/AddressRangeCVNUpdate_v1
+type AddressRangeCVNUpdateV1 struct {
+	// The lifecycle state to transition to.
+	LifeCycleState AddressRangeCVNUpdateV1LifeCycleState `json:"lifeCycleState"`
+	// Indicates whether route aggregation is applied or not.
+	RouteAggregationApplied OptBool `json:"routeAggregationApplied"`
+}
+
+// GetLifeCycleState returns the value of LifeCycleState.
+func (s *AddressRangeCVNUpdateV1) GetLifeCycleState() AddressRangeCVNUpdateV1LifeCycleState {
+	return s.LifeCycleState
+}
+
+// GetRouteAggregationApplied returns the value of RouteAggregationApplied.
+func (s *AddressRangeCVNUpdateV1) GetRouteAggregationApplied() OptBool {
+	return s.RouteAggregationApplied
+}
+
+// SetLifeCycleState sets the value of LifeCycleState.
+func (s *AddressRangeCVNUpdateV1) SetLifeCycleState(val AddressRangeCVNUpdateV1LifeCycleState) {
+	s.LifeCycleState = val
+}
+
+// SetRouteAggregationApplied sets the value of RouteAggregationApplied.
+func (s *AddressRangeCVNUpdateV1) SetRouteAggregationApplied(val OptBool) {
+	s.RouteAggregationApplied = val
+}
+
+// The lifecycle state to transition to.
+type AddressRangeCVNUpdateV1LifeCycleState string
+
+const (
+	AddressRangeCVNUpdateV1LifeCycleStateCREATED AddressRangeCVNUpdateV1LifeCycleState = "CREATED"
+	AddressRangeCVNUpdateV1LifeCycleStateINUSE   AddressRangeCVNUpdateV1LifeCycleState = "IN_USE"
+)
+
+// AllValues returns all AddressRangeCVNUpdateV1LifeCycleState values.
+func (AddressRangeCVNUpdateV1LifeCycleState) AllValues() []AddressRangeCVNUpdateV1LifeCycleState {
+	return []AddressRangeCVNUpdateV1LifeCycleState{
+		AddressRangeCVNUpdateV1LifeCycleStateCREATED,
+		AddressRangeCVNUpdateV1LifeCycleStateINUSE,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AddressRangeCVNUpdateV1LifeCycleState) MarshalText() ([]byte, error) {
+	switch s {
+	case AddressRangeCVNUpdateV1LifeCycleStateCREATED:
+		return []byte(s), nil
+	case AddressRangeCVNUpdateV1LifeCycleStateINUSE:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AddressRangeCVNUpdateV1LifeCycleState) UnmarshalText(data []byte) error {
+	switch AddressRangeCVNUpdateV1LifeCycleState(data) {
+	case AddressRangeCVNUpdateV1LifeCycleStateCREATED:
+		*s = AddressRangeCVNUpdateV1LifeCycleStateCREATED
+		return nil
+	case AddressRangeCVNUpdateV1LifeCycleStateINUSE:
+		*s = AddressRangeCVNUpdateV1LifeCycleStateINUSE
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/AddressRangeCreate_v1
+type AddressRangeCreateV1 struct {
+	// The name of the address range.
+	AddressRange string `json:"addressRange"`
+	// The CIDR notation of the address range.
+	AddressRangeCidr string `json:"addressRangeCidr"`
+	// The full resource name of the network.
+	Network string `json:"network"`
+	// Type of the LIF this addressRange is for. Default is dataLIF.
+	LifType AddressRangeCreateV1LifType `json:"lifType"`
+}
+
+// GetAddressRange returns the value of AddressRange.
+func (s *AddressRangeCreateV1) GetAddressRange() string {
+	return s.AddressRange
+}
+
+// GetAddressRangeCidr returns the value of AddressRangeCidr.
+func (s *AddressRangeCreateV1) GetAddressRangeCidr() string {
+	return s.AddressRangeCidr
+}
+
+// GetNetwork returns the value of Network.
+func (s *AddressRangeCreateV1) GetNetwork() string {
+	return s.Network
+}
+
+// GetLifType returns the value of LifType.
+func (s *AddressRangeCreateV1) GetLifType() AddressRangeCreateV1LifType {
+	return s.LifType
+}
+
+// SetAddressRange sets the value of AddressRange.
+func (s *AddressRangeCreateV1) SetAddressRange(val string) {
+	s.AddressRange = val
+}
+
+// SetAddressRangeCidr sets the value of AddressRangeCidr.
+func (s *AddressRangeCreateV1) SetAddressRangeCidr(val string) {
+	s.AddressRangeCidr = val
+}
+
+// SetNetwork sets the value of Network.
+func (s *AddressRangeCreateV1) SetNetwork(val string) {
+	s.Network = val
+}
+
+// SetLifType sets the value of LifType.
+func (s *AddressRangeCreateV1) SetLifType(val AddressRangeCreateV1LifType) {
+	s.LifType = val
+}
+
+// Type of the LIF this addressRange is for. Default is dataLIF.
+type AddressRangeCreateV1LifType string
+
+const (
+	AddressRangeCreateV1LifTypeDataLIF         AddressRangeCreateV1LifType = "dataLIF"
+	AddressRangeCreateV1LifTypeInterclusterLIF AddressRangeCreateV1LifType = "interclusterLIF"
+)
+
+// AllValues returns all AddressRangeCreateV1LifType values.
+func (AddressRangeCreateV1LifType) AllValues() []AddressRangeCreateV1LifType {
+	return []AddressRangeCreateV1LifType{
+		AddressRangeCreateV1LifTypeDataLIF,
+		AddressRangeCreateV1LifTypeInterclusterLIF,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AddressRangeCreateV1LifType) MarshalText() ([]byte, error) {
+	switch s {
+	case AddressRangeCreateV1LifTypeDataLIF:
+		return []byte(s), nil
+	case AddressRangeCreateV1LifTypeInterclusterLIF:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AddressRangeCreateV1LifType) UnmarshalText(data []byte) error {
+	switch AddressRangeCreateV1LifType(data) {
+	case AddressRangeCreateV1LifTypeDataLIF:
+		*s = AddressRangeCreateV1LifTypeDataLIF
+		return nil
+	case AddressRangeCreateV1LifTypeInterclusterLIF:
+		*s = AddressRangeCreateV1LifTypeInterclusterLIF
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/AddressRangeUpdate_v1
+type AddressRangeUpdateV1 struct {
+	// Indicates whether route aggregation should be applied.
+	ApplyRouteAggregation OptBool `json:"applyRouteAggregation"`
+	// The current lifecycle state of the resource (only DISABLED allowed on update).
+	LifeCycleState OptAddressRangeUpdateV1LifeCycleState `json:"lifeCycleState"`
+}
+
+// GetApplyRouteAggregation returns the value of ApplyRouteAggregation.
+func (s *AddressRangeUpdateV1) GetApplyRouteAggregation() OptBool {
+	return s.ApplyRouteAggregation
+}
+
+// GetLifeCycleState returns the value of LifeCycleState.
+func (s *AddressRangeUpdateV1) GetLifeCycleState() OptAddressRangeUpdateV1LifeCycleState {
+	return s.LifeCycleState
+}
+
+// SetApplyRouteAggregation sets the value of ApplyRouteAggregation.
+func (s *AddressRangeUpdateV1) SetApplyRouteAggregation(val OptBool) {
+	s.ApplyRouteAggregation = val
+}
+
+// SetLifeCycleState sets the value of LifeCycleState.
+func (s *AddressRangeUpdateV1) SetLifeCycleState(val OptAddressRangeUpdateV1LifeCycleState) {
+	s.LifeCycleState = val
+}
+
+// The current lifecycle state of the resource (only DISABLED allowed on update).
+type AddressRangeUpdateV1LifeCycleState string
+
+const (
+	AddressRangeUpdateV1LifeCycleStateDISABLED AddressRangeUpdateV1LifeCycleState = "DISABLED"
+)
+
+// AllValues returns all AddressRangeUpdateV1LifeCycleState values.
+func (AddressRangeUpdateV1LifeCycleState) AllValues() []AddressRangeUpdateV1LifeCycleState {
+	return []AddressRangeUpdateV1LifeCycleState{
+		AddressRangeUpdateV1LifeCycleStateDISABLED,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AddressRangeUpdateV1LifeCycleState) MarshalText() ([]byte, error) {
+	switch s {
+	case AddressRangeUpdateV1LifeCycleStateDISABLED:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AddressRangeUpdateV1LifeCycleState) UnmarshalText(data []byte) error {
+	switch AddressRangeUpdateV1LifeCycleState(data) {
+	case AddressRangeUpdateV1LifeCycleStateDISABLED:
+		*s = AddressRangeUpdateV1LifeCycleStateDISABLED
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Ref: #/components/schemas/AddressRange_v1
+type AddressRangeV1 struct {
+	// UUID v4 used to identify the address range.
+	AddressRangeId OptString `json:"addressRangeId"`
+	// Creation date of the resource.
+	CreatedAt OptDateTime `json:"createdAt"`
+	// Date of last update of the resource.
+	UpdatedAt OptDateTime `json:"updatedAt"`
+	// Date the resource was deleted.
+	DeletedAt OptNilDateTime `json:"deletedAt"`
+	// The name of the address range.
+	AddressRange OptString `json:"addressRange"`
+	// The CIDR notation of the address range.
+	AddressRangeCidr OptString `json:"addressRangeCidr"`
+	// The full resource name of the network.
+	Network OptString `json:"network"`
+	// VPC name to identify the address range resource.
+	VpcName OptString `json:"vpcName"`
+	// The project number of the GCP project owning the resource.
+	HostProjectNumber OptString `json:"hostProjectNumber"`
+	// Type of the LIF that this addressRange is for. Default value is dataLIF if not specified.
+	LifType OptAddressRangeV1LifType `json:"lifType"`
+	// The current lifecycle state of the resource.
+	LifeCycleState OptAddressRangeV1LifeCycleState `json:"lifeCycleState"`
+	// Details about the current lifecycle state.
+	LifeCycleStateDetails OptString `json:"lifeCycleStateDetails"`
+	// Indicates whether route aggregation should be applied.
+	ApplyRouteAggregation OptBool `json:"applyRouteAggregation"`
+	// Indicates whether route aggregation is applied or not.
+	RouteAggregationApplied OptBool `json:"routeAggregationApplied"`
+	// Time when the aggregation is applied.
+	RouteAggregationAppliedAt OptNilDateTime `json:"routeAggregationAppliedAt"`
+}
+
+// GetAddressRangeId returns the value of AddressRangeId.
+func (s *AddressRangeV1) GetAddressRangeId() OptString {
+	return s.AddressRangeId
+}
+
+// GetCreatedAt returns the value of CreatedAt.
+func (s *AddressRangeV1) GetCreatedAt() OptDateTime {
+	return s.CreatedAt
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *AddressRangeV1) GetUpdatedAt() OptDateTime {
+	return s.UpdatedAt
+}
+
+// GetDeletedAt returns the value of DeletedAt.
+func (s *AddressRangeV1) GetDeletedAt() OptNilDateTime {
+	return s.DeletedAt
+}
+
+// GetAddressRange returns the value of AddressRange.
+func (s *AddressRangeV1) GetAddressRange() OptString {
+	return s.AddressRange
+}
+
+// GetAddressRangeCidr returns the value of AddressRangeCidr.
+func (s *AddressRangeV1) GetAddressRangeCidr() OptString {
+	return s.AddressRangeCidr
+}
+
+// GetNetwork returns the value of Network.
+func (s *AddressRangeV1) GetNetwork() OptString {
+	return s.Network
+}
+
+// GetVpcName returns the value of VpcName.
+func (s *AddressRangeV1) GetVpcName() OptString {
+	return s.VpcName
+}
+
+// GetHostProjectNumber returns the value of HostProjectNumber.
+func (s *AddressRangeV1) GetHostProjectNumber() OptString {
+	return s.HostProjectNumber
+}
+
+// GetLifType returns the value of LifType.
+func (s *AddressRangeV1) GetLifType() OptAddressRangeV1LifType {
+	return s.LifType
+}
+
+// GetLifeCycleState returns the value of LifeCycleState.
+func (s *AddressRangeV1) GetLifeCycleState() OptAddressRangeV1LifeCycleState {
+	return s.LifeCycleState
+}
+
+// GetLifeCycleStateDetails returns the value of LifeCycleStateDetails.
+func (s *AddressRangeV1) GetLifeCycleStateDetails() OptString {
+	return s.LifeCycleStateDetails
+}
+
+// GetApplyRouteAggregation returns the value of ApplyRouteAggregation.
+func (s *AddressRangeV1) GetApplyRouteAggregation() OptBool {
+	return s.ApplyRouteAggregation
+}
+
+// GetRouteAggregationApplied returns the value of RouteAggregationApplied.
+func (s *AddressRangeV1) GetRouteAggregationApplied() OptBool {
+	return s.RouteAggregationApplied
+}
+
+// GetRouteAggregationAppliedAt returns the value of RouteAggregationAppliedAt.
+func (s *AddressRangeV1) GetRouteAggregationAppliedAt() OptNilDateTime {
+	return s.RouteAggregationAppliedAt
+}
+
+// SetAddressRangeId sets the value of AddressRangeId.
+func (s *AddressRangeV1) SetAddressRangeId(val OptString) {
+	s.AddressRangeId = val
+}
+
+// SetCreatedAt sets the value of CreatedAt.
+func (s *AddressRangeV1) SetCreatedAt(val OptDateTime) {
+	s.CreatedAt = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *AddressRangeV1) SetUpdatedAt(val OptDateTime) {
+	s.UpdatedAt = val
+}
+
+// SetDeletedAt sets the value of DeletedAt.
+func (s *AddressRangeV1) SetDeletedAt(val OptNilDateTime) {
+	s.DeletedAt = val
+}
+
+// SetAddressRange sets the value of AddressRange.
+func (s *AddressRangeV1) SetAddressRange(val OptString) {
+	s.AddressRange = val
+}
+
+// SetAddressRangeCidr sets the value of AddressRangeCidr.
+func (s *AddressRangeV1) SetAddressRangeCidr(val OptString) {
+	s.AddressRangeCidr = val
+}
+
+// SetNetwork sets the value of Network.
+func (s *AddressRangeV1) SetNetwork(val OptString) {
+	s.Network = val
+}
+
+// SetVpcName sets the value of VpcName.
+func (s *AddressRangeV1) SetVpcName(val OptString) {
+	s.VpcName = val
+}
+
+// SetHostProjectNumber sets the value of HostProjectNumber.
+func (s *AddressRangeV1) SetHostProjectNumber(val OptString) {
+	s.HostProjectNumber = val
+}
+
+// SetLifType sets the value of LifType.
+func (s *AddressRangeV1) SetLifType(val OptAddressRangeV1LifType) {
+	s.LifType = val
+}
+
+// SetLifeCycleState sets the value of LifeCycleState.
+func (s *AddressRangeV1) SetLifeCycleState(val OptAddressRangeV1LifeCycleState) {
+	s.LifeCycleState = val
+}
+
+// SetLifeCycleStateDetails sets the value of LifeCycleStateDetails.
+func (s *AddressRangeV1) SetLifeCycleStateDetails(val OptString) {
+	s.LifeCycleStateDetails = val
+}
+
+// SetApplyRouteAggregation sets the value of ApplyRouteAggregation.
+func (s *AddressRangeV1) SetApplyRouteAggregation(val OptBool) {
+	s.ApplyRouteAggregation = val
+}
+
+// SetRouteAggregationApplied sets the value of RouteAggregationApplied.
+func (s *AddressRangeV1) SetRouteAggregationApplied(val OptBool) {
+	s.RouteAggregationApplied = val
+}
+
+// SetRouteAggregationAppliedAt sets the value of RouteAggregationAppliedAt.
+func (s *AddressRangeV1) SetRouteAggregationAppliedAt(val OptNilDateTime) {
+	s.RouteAggregationAppliedAt = val
+}
+
+func (*AddressRangeV1) v1CreateAddressRangeRes()      {}
+func (*AddressRangeV1) v1DeleteAddressRangeRes()      {}
+func (*AddressRangeV1) v1GetAddressRangeRes()         {}
+func (*AddressRangeV1) v1UpdateAddressRangeRes()      {}
+func (*AddressRangeV1) v1UpdateAddressRangeStateRes() {}
+
+// Type of the LIF that this addressRange is for. Default value is dataLIF if not specified.
+type AddressRangeV1LifType string
+
+const (
+	AddressRangeV1LifTypeDataLIF         AddressRangeV1LifType = "dataLIF"
+	AddressRangeV1LifTypeInterclusterLIF AddressRangeV1LifType = "interclusterLIF"
+)
+
+// AllValues returns all AddressRangeV1LifType values.
+func (AddressRangeV1LifType) AllValues() []AddressRangeV1LifType {
+	return []AddressRangeV1LifType{
+		AddressRangeV1LifTypeDataLIF,
+		AddressRangeV1LifTypeInterclusterLIF,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AddressRangeV1LifType) MarshalText() ([]byte, error) {
+	switch s {
+	case AddressRangeV1LifTypeDataLIF:
+		return []byte(s), nil
+	case AddressRangeV1LifTypeInterclusterLIF:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AddressRangeV1LifType) UnmarshalText(data []byte) error {
+	switch AddressRangeV1LifType(data) {
+	case AddressRangeV1LifTypeDataLIF:
+		*s = AddressRangeV1LifTypeDataLIF
+		return nil
+	case AddressRangeV1LifTypeInterclusterLIF:
+		*s = AddressRangeV1LifTypeInterclusterLIF
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The current lifecycle state of the resource.
+type AddressRangeV1LifeCycleState string
+
+const (
+	AddressRangeV1LifeCycleStateCREATED  AddressRangeV1LifeCycleState = "CREATED"
+	AddressRangeV1LifeCycleStateINUSE    AddressRangeV1LifeCycleState = "IN_USE"
+	AddressRangeV1LifeCycleStateDISABLED AddressRangeV1LifeCycleState = "DISABLED"
+	AddressRangeV1LifeCycleStateDELETED  AddressRangeV1LifeCycleState = "DELETED"
+)
+
+// AllValues returns all AddressRangeV1LifeCycleState values.
+func (AddressRangeV1LifeCycleState) AllValues() []AddressRangeV1LifeCycleState {
+	return []AddressRangeV1LifeCycleState{
+		AddressRangeV1LifeCycleStateCREATED,
+		AddressRangeV1LifeCycleStateINUSE,
+		AddressRangeV1LifeCycleStateDISABLED,
+		AddressRangeV1LifeCycleStateDELETED,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s AddressRangeV1LifeCycleState) MarshalText() ([]byte, error) {
+	switch s {
+	case AddressRangeV1LifeCycleStateCREATED:
+		return []byte(s), nil
+	case AddressRangeV1LifeCycleStateINUSE:
+		return []byte(s), nil
+	case AddressRangeV1LifeCycleStateDISABLED:
+		return []byte(s), nil
+	case AddressRangeV1LifeCycleStateDELETED:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *AddressRangeV1LifeCycleState) UnmarshalText(data []byte) error {
+	switch AddressRangeV1LifeCycleState(data) {
+	case AddressRangeV1LifeCycleStateCREATED:
+		*s = AddressRangeV1LifeCycleStateCREATED
+		return nil
+	case AddressRangeV1LifeCycleStateINUSE:
+		*s = AddressRangeV1LifeCycleStateINUSE
+		return nil
+	case AddressRangeV1LifeCycleStateDISABLED:
+		*s = AddressRangeV1LifeCycleStateDISABLED
+		return nil
+	case AddressRangeV1LifeCycleStateDELETED:
+		*s = AddressRangeV1LifeCycleStateDELETED
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Ref: #/components/schemas/Any_v1
 type AnyV1 struct {
 	// The URL of the type.
@@ -1690,6 +2205,47 @@ func (s *JobV1State) UnmarshalText(data []byte) error {
 	}
 }
 
+type LifTypeQueryParameter string
+
+const (
+	LifTypeQueryParameterDataLIF         LifTypeQueryParameter = "dataLIF"
+	LifTypeQueryParameterInterclusterLIF LifTypeQueryParameter = "interclusterLIF"
+)
+
+// AllValues returns all LifTypeQueryParameter values.
+func (LifTypeQueryParameter) AllValues() []LifTypeQueryParameter {
+	return []LifTypeQueryParameter{
+		LifTypeQueryParameterDataLIF,
+		LifTypeQueryParameterInterclusterLIF,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s LifTypeQueryParameter) MarshalText() ([]byte, error) {
+	switch s {
+	case LifTypeQueryParameterDataLIF:
+		return []byte(s), nil
+	case LifTypeQueryParameterInterclusterLIF:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *LifTypeQueryParameter) UnmarshalText(data []byte) error {
+	switch LifTypeQueryParameter(data) {
+	case LifTypeQueryParameterDataLIF:
+		*s = LifTypeQueryParameterDataLIF
+		return nil
+	case LifTypeQueryParameterInterclusterLIF:
+		*s = LifTypeQueryParameterInterclusterLIF
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 // Response containing all available ONTAP versions for cluster upgrades.
 // Ref: #/components/schemas/ListAvailableVersionsResponse_v1
 type ListAvailableVersionsResponseV1 struct {
@@ -1907,6 +2463,144 @@ func (*OperationV1) v1DeletePoolRes()                    {}
 func (*OperationV1) v1RefreshRbacForExpertModePoolsRes() {}
 func (*OperationV1) v1SplitStartVolumeRes()              {}
 func (*OperationV1) v1UpdatePoolRes()                    {}
+
+// NewOptAddressRangeUpdateV1LifeCycleState returns new OptAddressRangeUpdateV1LifeCycleState with value set to v.
+func NewOptAddressRangeUpdateV1LifeCycleState(v AddressRangeUpdateV1LifeCycleState) OptAddressRangeUpdateV1LifeCycleState {
+	return OptAddressRangeUpdateV1LifeCycleState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptAddressRangeUpdateV1LifeCycleState is optional AddressRangeUpdateV1LifeCycleState.
+type OptAddressRangeUpdateV1LifeCycleState struct {
+	Value AddressRangeUpdateV1LifeCycleState
+	Set   bool
+}
+
+// IsSet returns true if OptAddressRangeUpdateV1LifeCycleState was set.
+func (o OptAddressRangeUpdateV1LifeCycleState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptAddressRangeUpdateV1LifeCycleState) Reset() {
+	var v AddressRangeUpdateV1LifeCycleState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptAddressRangeUpdateV1LifeCycleState) SetTo(v AddressRangeUpdateV1LifeCycleState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptAddressRangeUpdateV1LifeCycleState) Get() (v AddressRangeUpdateV1LifeCycleState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptAddressRangeUpdateV1LifeCycleState) Or(d AddressRangeUpdateV1LifeCycleState) AddressRangeUpdateV1LifeCycleState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptAddressRangeV1LifType returns new OptAddressRangeV1LifType with value set to v.
+func NewOptAddressRangeV1LifType(v AddressRangeV1LifType) OptAddressRangeV1LifType {
+	return OptAddressRangeV1LifType{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptAddressRangeV1LifType is optional AddressRangeV1LifType.
+type OptAddressRangeV1LifType struct {
+	Value AddressRangeV1LifType
+	Set   bool
+}
+
+// IsSet returns true if OptAddressRangeV1LifType was set.
+func (o OptAddressRangeV1LifType) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptAddressRangeV1LifType) Reset() {
+	var v AddressRangeV1LifType
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptAddressRangeV1LifType) SetTo(v AddressRangeV1LifType) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptAddressRangeV1LifType) Get() (v AddressRangeV1LifType, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptAddressRangeV1LifType) Or(d AddressRangeV1LifType) AddressRangeV1LifType {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptAddressRangeV1LifeCycleState returns new OptAddressRangeV1LifeCycleState with value set to v.
+func NewOptAddressRangeV1LifeCycleState(v AddressRangeV1LifeCycleState) OptAddressRangeV1LifeCycleState {
+	return OptAddressRangeV1LifeCycleState{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptAddressRangeV1LifeCycleState is optional AddressRangeV1LifeCycleState.
+type OptAddressRangeV1LifeCycleState struct {
+	Value AddressRangeV1LifeCycleState
+	Set   bool
+}
+
+// IsSet returns true if OptAddressRangeV1LifeCycleState was set.
+func (o OptAddressRangeV1LifeCycleState) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptAddressRangeV1LifeCycleState) Reset() {
+	var v AddressRangeV1LifeCycleState
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptAddressRangeV1LifeCycleState) SetTo(v AddressRangeV1LifeCycleState) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptAddressRangeV1LifeCycleState) Get() (v AddressRangeV1LifeCycleState, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptAddressRangeV1LifeCycleState) Or(d AddressRangeV1LifeCycleState) AddressRangeV1LifeCycleState {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
 
 // NewOptAnyV1 returns new OptAnyV1 with value set to v.
 func NewOptAnyV1(v AnyV1) OptAnyV1 {
@@ -2500,6 +3194,52 @@ func (o OptJobV1State) Get() (v JobV1State, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptJobV1State) Or(d JobV1State) JobV1State {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptLifTypeQueryParameter returns new OptLifTypeQueryParameter with value set to v.
+func NewOptLifTypeQueryParameter(v LifTypeQueryParameter) OptLifTypeQueryParameter {
+	return OptLifTypeQueryParameter{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptLifTypeQueryParameter is optional LifTypeQueryParameter.
+type OptLifTypeQueryParameter struct {
+	Value LifTypeQueryParameter
+	Set   bool
+}
+
+// IsSet returns true if OptLifTypeQueryParameter was set.
+func (o OptLifTypeQueryParameter) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptLifTypeQueryParameter) Reset() {
+	var v LifTypeQueryParameter
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptLifTypeQueryParameter) SetTo(v LifTypeQueryParameter) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptLifTypeQueryParameter) Get() (v LifTypeQueryParameter, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptLifTypeQueryParameter) Or(d LifTypeQueryParameter) LifTypeQueryParameter {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -4802,6 +5542,30 @@ func (s *UpgradeProgressV1Status) UnmarshalText(data []byte) error {
 	}
 }
 
+type V1CreateAddressRangeBadRequest Error
+
+func (*V1CreateAddressRangeBadRequest) v1CreateAddressRangeRes() {}
+
+type V1CreateAddressRangeConflict Error
+
+func (*V1CreateAddressRangeConflict) v1CreateAddressRangeRes() {}
+
+type V1CreateAddressRangeForbidden Error
+
+func (*V1CreateAddressRangeForbidden) v1CreateAddressRangeRes() {}
+
+type V1CreateAddressRangeInternalServerError Error
+
+func (*V1CreateAddressRangeInternalServerError) v1CreateAddressRangeRes() {}
+
+type V1CreateAddressRangeUnauthorized Error
+
+func (*V1CreateAddressRangeUnauthorized) v1CreateAddressRangeRes() {}
+
+type V1CreateAddressRangeUnprocessableEntity Error
+
+func (*V1CreateAddressRangeUnprocessableEntity) v1CreateAddressRangeRes() {}
+
 type V1CreateImageVersionBadRequest Error
 
 func (*V1CreateImageVersionBadRequest) v1CreateImageVersionRes() {}
@@ -4889,6 +5653,30 @@ func (*V1CreateSnapshotUnauthorized) v1CreateSnapshotRes() {}
 type V1CreateSnapshotUnprocessableEntity Error
 
 func (*V1CreateSnapshotUnprocessableEntity) v1CreateSnapshotRes() {}
+
+type V1DeleteAddressRangeBadRequest Error
+
+func (*V1DeleteAddressRangeBadRequest) v1DeleteAddressRangeRes() {}
+
+type V1DeleteAddressRangeForbidden Error
+
+func (*V1DeleteAddressRangeForbidden) v1DeleteAddressRangeRes() {}
+
+type V1DeleteAddressRangeInternalServerError Error
+
+func (*V1DeleteAddressRangeInternalServerError) v1DeleteAddressRangeRes() {}
+
+type V1DeleteAddressRangeNotFound Error
+
+func (*V1DeleteAddressRangeNotFound) v1DeleteAddressRangeRes() {}
+
+type V1DeleteAddressRangeUnauthorized Error
+
+func (*V1DeleteAddressRangeUnauthorized) v1DeleteAddressRangeRes() {}
+
+type V1DeleteAddressRangeUnprocessableEntity Error
+
+func (*V1DeleteAddressRangeUnprocessableEntity) v1DeleteAddressRangeRes() {}
 
 type V1DeleteImageVersionBadRequest Error
 
@@ -5063,6 +5851,26 @@ type V1ExpertModeVolumeUnprocessableEntity Error
 
 func (*V1ExpertModeVolumeUnprocessableEntity) v1ExpertModeVolumeRes() {}
 
+type V1GetAddressRangeBadRequest Error
+
+func (*V1GetAddressRangeBadRequest) v1GetAddressRangeRes() {}
+
+type V1GetAddressRangeForbidden Error
+
+func (*V1GetAddressRangeForbidden) v1GetAddressRangeRes() {}
+
+type V1GetAddressRangeInternalServerError Error
+
+func (*V1GetAddressRangeInternalServerError) v1GetAddressRangeRes() {}
+
+type V1GetAddressRangeNotFound Error
+
+func (*V1GetAddressRangeNotFound) v1GetAddressRangeRes() {}
+
+type V1GetAddressRangeUnauthorized Error
+
+func (*V1GetAddressRangeUnauthorized) v1GetAddressRangeRes() {}
+
 type V1GetClusterUpgradeStatusBadRequest Error
 
 func (*V1GetClusterUpgradeStatusBadRequest) v1GetClusterUpgradeStatusRes() {}
@@ -5206,6 +6014,26 @@ func (*V1GetPoolUnauthorized) v1GetPoolRes() {}
 type V1GetPoolUnprocessableEntity Error
 
 func (*V1GetPoolUnprocessableEntity) v1GetPoolRes() {}
+
+type V1ListAddressRangesBadRequest Error
+
+func (*V1ListAddressRangesBadRequest) v1ListAddressRangesRes() {}
+
+type V1ListAddressRangesForbidden Error
+
+func (*V1ListAddressRangesForbidden) v1ListAddressRangesRes() {}
+
+type V1ListAddressRangesInternalServerError Error
+
+func (*V1ListAddressRangesInternalServerError) v1ListAddressRangesRes() {}
+
+type V1ListAddressRangesOKApplicationJSON []AddressRangeV1
+
+func (*V1ListAddressRangesOKApplicationJSON) v1ListAddressRangesRes() {}
+
+type V1ListAddressRangesUnauthorized Error
+
+func (*V1ListAddressRangesUnauthorized) v1ListAddressRangesRes() {}
 
 type V1ListImageVersionsBadRequest Error
 
@@ -5366,6 +6194,62 @@ func (*V1SplitStartVolumeUnauthorized) v1SplitStartVolumeRes() {}
 type V1SplitStartVolumeUnprocessableEntity Error
 
 func (*V1SplitStartVolumeUnprocessableEntity) v1SplitStartVolumeRes() {}
+
+type V1UpdateAddressRangeBadRequest Error
+
+func (*V1UpdateAddressRangeBadRequest) v1UpdateAddressRangeRes() {}
+
+type V1UpdateAddressRangeConflict Error
+
+func (*V1UpdateAddressRangeConflict) v1UpdateAddressRangeRes() {}
+
+type V1UpdateAddressRangeForbidden Error
+
+func (*V1UpdateAddressRangeForbidden) v1UpdateAddressRangeRes() {}
+
+type V1UpdateAddressRangeInternalServerError Error
+
+func (*V1UpdateAddressRangeInternalServerError) v1UpdateAddressRangeRes() {}
+
+type V1UpdateAddressRangeNotFound Error
+
+func (*V1UpdateAddressRangeNotFound) v1UpdateAddressRangeRes() {}
+
+type V1UpdateAddressRangeStateBadRequest Error
+
+func (*V1UpdateAddressRangeStateBadRequest) v1UpdateAddressRangeStateRes() {}
+
+type V1UpdateAddressRangeStateConflict Error
+
+func (*V1UpdateAddressRangeStateConflict) v1UpdateAddressRangeStateRes() {}
+
+type V1UpdateAddressRangeStateForbidden Error
+
+func (*V1UpdateAddressRangeStateForbidden) v1UpdateAddressRangeStateRes() {}
+
+type V1UpdateAddressRangeStateInternalServerError Error
+
+func (*V1UpdateAddressRangeStateInternalServerError) v1UpdateAddressRangeStateRes() {}
+
+type V1UpdateAddressRangeStateNotFound Error
+
+func (*V1UpdateAddressRangeStateNotFound) v1UpdateAddressRangeStateRes() {}
+
+type V1UpdateAddressRangeStateUnauthorized Error
+
+func (*V1UpdateAddressRangeStateUnauthorized) v1UpdateAddressRangeStateRes() {}
+
+type V1UpdateAddressRangeStateUnprocessableEntity Error
+
+func (*V1UpdateAddressRangeStateUnprocessableEntity) v1UpdateAddressRangeStateRes() {}
+
+type V1UpdateAddressRangeUnauthorized Error
+
+func (*V1UpdateAddressRangeUnauthorized) v1UpdateAddressRangeRes() {}
+
+type V1UpdateAddressRangeUnprocessableEntity Error
+
+func (*V1UpdateAddressRangeUnprocessableEntity) v1UpdateAddressRangeRes() {}
 
 type V1UpdatePoolBadRequest Error
 

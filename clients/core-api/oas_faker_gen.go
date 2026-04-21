@@ -8,6 +8,162 @@ import (
 )
 
 // SetFake set fake values.
+func (s *AddressRangeCVNUpdateV1) SetFake() {
+	{
+		{
+			s.LifeCycleState.SetFake()
+		}
+	}
+	{
+		{
+			s.RouteAggregationApplied.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *AddressRangeCVNUpdateV1LifeCycleState) SetFake() {
+	*s = AddressRangeCVNUpdateV1LifeCycleStateCREATED
+}
+
+// SetFake set fake values.
+func (s *AddressRangeCreateV1) SetFake() {
+	{
+		{
+			s.AddressRange = "string"
+		}
+	}
+	{
+		{
+			s.AddressRangeCidr = "string"
+		}
+	}
+	{
+		{
+			s.Network = "string"
+		}
+	}
+	{
+		{
+			s.LifType.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *AddressRangeCreateV1LifType) SetFake() {
+	*s = AddressRangeCreateV1LifTypeDataLIF
+}
+
+// SetFake set fake values.
+func (s *AddressRangeUpdateV1) SetFake() {
+	{
+		{
+			s.ApplyRouteAggregation.SetFake()
+		}
+	}
+	{
+		{
+			s.LifeCycleState.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *AddressRangeUpdateV1LifeCycleState) SetFake() {
+	*s = AddressRangeUpdateV1LifeCycleStateDISABLED
+}
+
+// SetFake set fake values.
+func (s *AddressRangeV1) SetFake() {
+	{
+		{
+			s.AddressRangeId.SetFake()
+		}
+	}
+	{
+		{
+			s.CreatedAt.SetFake()
+		}
+	}
+	{
+		{
+			s.UpdatedAt.SetFake()
+		}
+	}
+	{
+		{
+			s.DeletedAt.SetFake()
+		}
+	}
+	{
+		{
+			s.AddressRange.SetFake()
+		}
+	}
+	{
+		{
+			s.AddressRangeCidr.SetFake()
+		}
+	}
+	{
+		{
+			s.Network.SetFake()
+		}
+	}
+	{
+		{
+			s.VpcName.SetFake()
+		}
+	}
+	{
+		{
+			s.HostProjectNumber.SetFake()
+		}
+	}
+	{
+		{
+			s.LifType.SetFake()
+		}
+	}
+	{
+		{
+			s.LifeCycleState.SetFake()
+		}
+	}
+	{
+		{
+			s.LifeCycleStateDetails.SetFake()
+		}
+	}
+	{
+		{
+			s.ApplyRouteAggregation.SetFake()
+		}
+	}
+	{
+		{
+			s.RouteAggregationApplied.SetFake()
+		}
+	}
+	{
+		{
+			s.RouteAggregationAppliedAt.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *AddressRangeV1LifType) SetFake() {
+	*s = AddressRangeV1LifTypeDataLIF
+}
+
+// SetFake set fake values.
+func (s *AddressRangeV1LifeCycleState) SetFake() {
+	*s = AddressRangeV1LifeCycleStateCREATED
+}
+
+// SetFake set fake values.
 func (s *AnyV1) SetFake() {
 	{
 		{
@@ -716,6 +872,33 @@ func (s *OperationV1) SetFake() {
 			s.Response = []byte("null")
 		}
 	}
+}
+
+// SetFake set fake values.
+func (s *OptAddressRangeUpdateV1LifeCycleState) SetFake() {
+	var elem AddressRangeUpdateV1LifeCycleState
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptAddressRangeV1LifType) SetFake() {
+	var elem AddressRangeV1LifType
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
+}
+
+// SetFake set fake values.
+func (s *OptAddressRangeV1LifeCycleState) SetFake() {
+	var elem AddressRangeV1LifeCycleState
+	{
+		elem.SetFake()
+	}
+	s.SetTo(elem)
 }
 
 // SetFake set fake values.
@@ -1430,6 +1613,60 @@ func (s *UpgradeProgressV1Status) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1CreateAddressRangeBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateAddressRangeBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateAddressRangeConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateAddressRangeConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateAddressRangeForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateAddressRangeForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateAddressRangeInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateAddressRangeInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateAddressRangeUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateAddressRangeUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1CreateAddressRangeUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1CreateAddressRangeUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1CreateImageVersionBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -1625,6 +1862,60 @@ func (s *V1CreateSnapshotUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1CreateSnapshotUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteAddressRangeBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteAddressRangeBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteAddressRangeForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteAddressRangeForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteAddressRangeInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteAddressRangeInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteAddressRangeNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteAddressRangeNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteAddressRangeUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteAddressRangeUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1DeleteAddressRangeUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1DeleteAddressRangeUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.
@@ -1961,6 +2252,51 @@ func (s *V1ExpertModeVolumeUnprocessableEntity) SetFake() {
 }
 
 // SetFake set fake values.
+func (s *V1GetAddressRangeBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetAddressRangeBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetAddressRangeForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetAddressRangeForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetAddressRangeInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetAddressRangeInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetAddressRangeNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetAddressRangeNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1GetAddressRangeUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1GetAddressRangeUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
 func (s *V1GetClusterUpgradeStatusBadRequest) SetFake() {
 	var unwrapped Error
 	{
@@ -2244,6 +2580,58 @@ func (s *V1GetPoolUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1GetPoolUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ListAddressRangesBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ListAddressRangesBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ListAddressRangesForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ListAddressRangesForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ListAddressRangesInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ListAddressRangesInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ListAddressRangesOKApplicationJSON) SetFake() {
+	var unwrapped []AddressRangeV1
+	{
+		unwrapped = nil
+		for i := 0; i < 0; i++ {
+			var elem AddressRangeV1
+			{
+				elem.SetFake()
+			}
+			unwrapped = append(unwrapped, elem)
+		}
+	}
+	*s = V1ListAddressRangesOKApplicationJSON(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1ListAddressRangesUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1ListAddressRangesUnauthorized(unwrapped)
 }
 
 // SetFake set fake values.
@@ -2584,6 +2972,132 @@ func (s *V1SplitStartVolumeUnprocessableEntity) SetFake() {
 		unwrapped.SetFake()
 	}
 	*s = V1SplitStartVolumeUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateAddressRangeBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateAddressRangeBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateAddressRangeConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateAddressRangeConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateAddressRangeForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateAddressRangeForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateAddressRangeInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateAddressRangeInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateAddressRangeNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateAddressRangeNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateAddressRangeStateBadRequest) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateAddressRangeStateBadRequest(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateAddressRangeStateConflict) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateAddressRangeStateConflict(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateAddressRangeStateForbidden) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateAddressRangeStateForbidden(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateAddressRangeStateInternalServerError) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateAddressRangeStateInternalServerError(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateAddressRangeStateNotFound) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateAddressRangeStateNotFound(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateAddressRangeStateUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateAddressRangeStateUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateAddressRangeStateUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateAddressRangeStateUnprocessableEntity(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateAddressRangeUnauthorized) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateAddressRangeUnauthorized(unwrapped)
+}
+
+// SetFake set fake values.
+func (s *V1UpdateAddressRangeUnprocessableEntity) SetFake() {
+	var unwrapped Error
+	{
+		unwrapped.SetFake()
+	}
+	*s = V1UpdateAddressRangeUnprocessableEntity(unwrapped)
 }
 
 // SetFake set fake values.

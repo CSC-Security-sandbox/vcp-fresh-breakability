@@ -100,6 +100,7 @@ global:
     localRegion: ""
     coreApiClientTransportSchema: "https"
     enableDbRollback: "false"
+    addressSpaceMgmtEnabled: "false"
     vcpDbPreRollbackSteps: "0"
     vcpDbPostRollbackSteps: "0"
     metricsDbPreRollbackSteps: "0"

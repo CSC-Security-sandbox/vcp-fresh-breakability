@@ -65,12 +65,12 @@ func getNetworkSize(isLargeCapacity bool) int64 {
 }
 
 // CreateTPSubnetOp returns GCP operation for creating subnetwork for a tenant project
-func (gcpService *GcpServices) CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName string, isLargeCapacity bool) (*string, error) {
+func (gcpService *GcpServices) CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName string, isLargeCapacity bool, requestedRanges []string) (*string, error) {
 	consumerProjectNumber, consumerPeeringNetwork, err := utils.ParseProjectId(consumerNetwork)
 	if err != nil {
 		return nil, err
 	}
-	gcpService.Logger.Infof("Calling CreateTPSubnetOp consumerProjectNumber : %s consumerPeeringNetwork : %s tenantProjectNumber : %s region: %s subnet name : %s isLargeCapacity: %t", consumerProjectNumber, consumerPeeringNetwork, tenantProjectNumber, region, subnetName, isLargeCapacity)
+	gcpService.Logger.Infof("Calling CreateTPSubnetOp consumerProjectNumber : %s consumerPeeringNetwork : %s tenantProjectNumber : %s region: %s subnet name : %s isLargeCapacity: %t requestedRanges: %v", consumerProjectNumber, consumerPeeringNetwork, tenantProjectNumber, region, subnetName, isLargeCapacity, requestedRanges)
 
 	// Use the calculator to determine the appropriate network size
 	networkSize := getNetworkSize(isLargeCapacity)
@@ -82,6 +82,7 @@ func (gcpService *GcpServices) CreateTPSubnetOp(tenantProjectNumber, consumerNet
 		IpPrefixLength:  networkSize,
 		Region:          region,
 		Subnetwork:      subnetName,
+		RequestedRanges: requestedRanges,
 	}
 	snProducerOperation, err := CreateTPSubnetOp(gcpService, &request, tenantProjectNumber)
 	if err != nil {

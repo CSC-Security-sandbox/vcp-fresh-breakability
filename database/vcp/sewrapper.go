@@ -535,6 +535,22 @@ func (re *retryEngine) GetPoolsByAccountName(ctx context.Context, accountName st
 	return var0, err
 }
 
+func (re *retryEngine) CountActivePoolsByNetwork(ctx context.Context, network string, excludePoolUUID string) (int64, error) {
+	var var0 int64
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.CountActivePoolsByNetwork(ctx, network, excludePoolUUID)
+		if err != nil {
+			re.logError("CountActivePoolsByNetwork", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
 func (re *retryEngine) GetPoolsByActiveDirectoryId(ctx context.Context, activeDirectoryId string) ([]*datamodel.Pool, error) {
 	var var0 []*datamodel.Pool
 	err := retry.Do(func(attempt int) (bool, error) {
@@ -5551,6 +5567,133 @@ func (re *retryEngine) GetExpertModeBackupsByVolumeExternalUUID(ctx context.Cont
 		var0, err = re.dataStore.GetExpertModeBackupsByVolumeExternalUUID(ctx, volumeExternalUUID)
 		if err != nil {
 			re.logError("GetExpertModeBackupsByVolumeExternalUUID", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) CreateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error) {
+	var var0 *datamodel.AddressRange
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.CreateAddressRange(ctx, ar)
+		if err != nil {
+			re.logError("CreateAddressRange", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) GetAddressRange(ctx context.Context, arID string) (*datamodel.AddressRange, error) {
+	var var0 *datamodel.AddressRange
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.GetAddressRange(ctx, arID)
+		if err != nil {
+			re.logError("GetAddressRange", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) ListAddressRanges(ctx context.Context, hostProjectNumber, vpcName string, arID, lifType *string) ([]*datamodel.AddressRange, error) {
+	var var0 []*datamodel.AddressRange
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.ListAddressRanges(ctx, hostProjectNumber, vpcName, arID, lifType)
+		if err != nil {
+			re.logError("ListAddressRanges", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) UpdateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error) {
+	var var0 *datamodel.AddressRange
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.UpdateAddressRange(ctx, ar)
+		if err != nil {
+			re.logError("UpdateAddressRange", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) UpdateAddressRangeState(ctx context.Context, arID, state string, routeAggregationApplied *bool) (*datamodel.AddressRange, error) {
+	var var0 *datamodel.AddressRange
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.UpdateAddressRangeState(ctx, arID, state, routeAggregationApplied)
+		if err != nil {
+			re.logError("UpdateAddressRangeState", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) UpdateAddressRangeStateToCreatedIfLastPool(ctx context.Context, arUUID, network, excludePoolUUID, addressRangeCidr string) (bool, error) {
+	var var0 bool
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.UpdateAddressRangeStateToCreatedIfLastPool(ctx, arUUID, network, excludePoolUUID, addressRangeCidr)
+		if err != nil {
+			re.logError("UpdateAddressRangeStateToCreatedIfLastPool", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return var0, err
+}
+
+func (re *retryEngine) ResetAddressRangesInUseToCreated(ctx context.Context, hostProjectNumber, vpcName string) error {
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		err = re.dataStore.ResetAddressRangesInUseToCreated(ctx, hostProjectNumber, vpcName)
+		if err != nil {
+			re.logError("ResetAddressRangesInUseToCreated", err)
+			if !dbutils.IsTransientErr(err) {
+				return false, err
+			}
+		}
+		return true, err
+	})
+	return err
+}
+
+func (re *retryEngine) DeleteAddressRange(ctx context.Context, arID string) (*datamodel.AddressRange, error) {
+	var var0 *datamodel.AddressRange
+	err := retry.Do(func(attempt int) (bool, error) {
+		var err error
+		var0, err = re.dataStore.DeleteAddressRange(ctx, arID)
+		if err != nil {
+			re.logError("DeleteAddressRange", err)
 			if !dbutils.IsTransientErr(err) {
 				return false, err
 			}

@@ -9940,3 +9940,81 @@ func NewMockOrchestratorFactory(t interface {
 
 	return mock
 }
+
+func (_m *MockOrchestratorFactory) CreateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error) {
+	ret := _m.Called(ctx, ar)
+	var r0 *datamodel.AddressRange
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.AddressRange) *datamodel.AddressRange); ok {
+		r0 = rf(ctx, ar)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AddressRange)
+		}
+	}
+	return r0, ret.Error(1)
+}
+
+func (_m *MockOrchestratorFactory) GetAddressRange(ctx context.Context, arUUID string) (*datamodel.AddressRange, error) {
+	ret := _m.Called(ctx, arUUID)
+	var r0 *datamodel.AddressRange
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.AddressRange); ok {
+		r0 = rf(ctx, arUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AddressRange)
+		}
+	}
+	return r0, ret.Error(1)
+}
+
+func (_m *MockOrchestratorFactory) ListAddressRanges(ctx context.Context, hostProjectNumber, vpcName string, arUUID, lifType *string) ([]*datamodel.AddressRange, error) {
+	ret := _m.Called(ctx, hostProjectNumber, vpcName, arUUID, lifType)
+	var r0 []*datamodel.AddressRange
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, *string, *string) []*datamodel.AddressRange); ok {
+		r0 = rf(ctx, hostProjectNumber, vpcName, arUUID, lifType)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.AddressRange)
+		}
+	}
+	return r0, ret.Error(1)
+}
+
+func (_m *MockOrchestratorFactory) UpdateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error) {
+	ret := _m.Called(ctx, ar)
+	var r0 *datamodel.AddressRange
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.AddressRange) *datamodel.AddressRange); ok {
+		r0 = rf(ctx, ar)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AddressRange)
+		}
+	}
+	return r0, ret.Error(1)
+}
+
+func (_m *MockOrchestratorFactory) UpdateAddressRangeState(ctx context.Context, arUUID, state string, routeAggregationApplied *bool) (*datamodel.AddressRange, error) {
+	ret := _m.Called(ctx, arUUID, state, routeAggregationApplied)
+	var r0 *datamodel.AddressRange
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, *bool) *datamodel.AddressRange); ok {
+		r0 = rf(ctx, arUUID, state, routeAggregationApplied)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AddressRange)
+		}
+	}
+	return r0, ret.Error(1)
+}
+
+func (_m *MockOrchestratorFactory) DeleteAddressRange(ctx context.Context, arUUID string) (*datamodel.AddressRange, error) {
+	ret := _m.Called(ctx, arUUID)
+	var r0 *datamodel.AddressRange
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.AddressRange); ok {
+		r0 = rf(ctx, arUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AddressRange)
+		}
+	}
+	return r0, ret.Error(1)
+}

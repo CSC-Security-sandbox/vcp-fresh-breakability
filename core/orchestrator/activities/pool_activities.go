@@ -218,6 +218,10 @@ var (
 	regionMapJson             = env.GetString("REGION_NUMBER_MAP", utils.DefaultRegionNumberMap)
 	AggregateName             = env.GetString("AGGREGATE_NAME", "aggr1")
 
+	// addressSpaceMgmtEnabled is intentionally read per-call (not cached at startup)
+	// so that t.Setenv in tests can control it without a process restart.
+	addressSpaceMgmtEnabled = func() bool { return env.GetBool(env.EnvAddressSpaceMgmtEnabled, false) }
+
 	MgmtFirewallSourceRanges = env.GetString("MGMT_FIREWALL_SOURCE_RANGES", "")
 	RsmFirewallSourceRanges  = env.GetString("RSM_FIREWALL_SOURCE_RANGES", "")
 	IcFirewallSourceRanges   = env.GetString("IC_FIREWALL_SOURCE_RANGES", "")
@@ -647,7 +651,7 @@ func _getCreateDataSubnetworkOp(service hyperscaler2.GoogleServices, params comm
 	logger := service.GetLogger()
 	// if snHost is not found or subnet found cannot be used, create a new subnetwork for the tenant project
 	logger.Debugf("Handling creation of new subnetwork for pool : %s, tenant project: %s ", params.Name, tenantProjectNumber)
-	operationName, err := GetCreateSubnetworkOperation(service, tenantProjectNumber, consumerVPC, &tenantProjectRegion, params.LargeCapacity)
+	operationName, err := GetCreateSubnetworkOperation(service, tenantProjectNumber, consumerVPC, &tenantProjectRegion, params.LargeCapacity, params.RequestedRanges)
 	if err != nil {
 		logger.Errorf("Error creating subnetwork for pool: %s tenant project: %s, Region %s. Error : %s", params.Name, tenantProjectNumber, tenantProjectRegion, err.Error())
 		return nil, err
@@ -672,7 +676,7 @@ func (j *PoolActivity) GetTenancyInfo(ctx context.Context, tenantProjectNumber s
 	}
 	if snHostProjectID == "" {
 		logger.Errorf("Failed to find SN host project for tenant project: %s. IpCidrRange: %s, consumerPeeringNetwork: %s", tenantProjectNumber, subnet.IpCidrRange, subnet.Name)
-		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, errors.New(fmt.Sprintf("SN host project not found for tenant project : %s ", tenantProjectNumber)))
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, fmt.Errorf("SN host project not found for tenant project : %s ", tenantProjectNumber))
 	}
 	logger.Infof("Subnet used for tenant project: tenantProjectNumber: %s SN host project : %s IpCidrRange: %s, consumerPeeringNetwork: %s", tenantProjectNumber, snHostProjectID, subnet.IpCidrRange, subnet.Name)
 	return &commonparams.TenancyInfo{
@@ -681,6 +685,7 @@ func (j *PoolActivity) GetTenancyInfo(ctx context.Context, tenantProjectNumber s
 		SubnetworkNames:       []string{subnet.Name},
 		SnHostProject:         snHostProjectID,
 		Gateway:               subnet.GatewayAddress,
+		AllocatedSubnetCIDR:   subnet.IpCidrRange,
 	}, nil
 }
 
@@ -694,9 +699,9 @@ func (j *PoolActivity) UpdatePoolSubnet(ctx context.Context, poolUUID string, te
 }
 
 // createSubnetwork generates a subnetwork name based on the tenant project number and region and triggers creation the subnet in SN host project. returns operation name
-func _getCreateSubnetworkOperation(service hyperscaler2.GoogleServices, tenantProjectNumber, consumerVPC string, tenantProjectRegion *string, isLargeCapacity bool) (*string, error) {
+func _getCreateSubnetworkOperation(service hyperscaler2.GoogleServices, tenantProjectNumber, consumerVPC string, tenantProjectRegion *string, isLargeCapacity bool, requestedRanges []string) (*string, error) {
 	subnetName := MakeSubnetName(tenantProjectNumber, isLargeCapacity)
-	operationName, err := service.CreateTPSubnetOp(tenantProjectNumber, consumerVPC, *tenantProjectRegion, subnetName, isLargeCapacity)
+	operationName, err := service.CreateTPSubnetOp(tenantProjectNumber, consumerVPC, *tenantProjectRegion, subnetName, isLargeCapacity, requestedRanges)
 	if err != nil {
 		service.GetLogger().Errorf("Error adding subnetwork: %v", err)
 		return nil, err
@@ -3143,7 +3148,7 @@ func _getSubnetFromOperation(ctx context.Context, subnetInBytes []byte) (*hypers
 		logger.Errorf("Failed to get gateway from IP CIDR range %s: %v", subnetCreated.IpCidrRange, err)
 		return nil, vsaerrors.NewVCPError(vsaerrors.ErrGCPResourceFetchError, err)
 	}
-	return &hyperscaler_models.Subnet{Name: subnetCreated.Name, Network: subnetCreated.Network, GatewayAddress: gateway}, nil
+	return &hyperscaler_models.Subnet{Name: subnetCreated.Name, Network: subnetCreated.Network, GatewayAddress: gateway, IpCidrRange: subnetCreated.IpCidrRange}, nil
 }
 
 func _getGatewayFromIpCidrRange(ipCidrRange string) (string, error) {
@@ -3698,7 +3703,7 @@ func (j *PoolActivity) GetCreateJobByResourceUUID(ctx context.Context, resourceU
 // This checks for LIFTypeIlbNas in the SVMLIFs of any SVM in the config.
 func (j *PoolActivity) HasNasLifInVLMConfig(ctx context.Context, vlmConfig vlm.VLMConfig) (bool, error) {
 	activity.RecordHeartbeat(ctx, "Checking for NAS LIF in VLM config")
-	if vlmConfig.Svm == nil || len(vlmConfig.Svm) == 0 {
+	if len(vlmConfig.Svm) == 0 {
 		return false, nil
 	}
 
@@ -3847,4 +3852,188 @@ func (j *PoolActivity) CleanupServiceAccountPermissionsInTenantProjects(ctx cont
 // getServiceAccountRolesInProject fetches all IAM roles assigned to a service account in a specific project.
 func getServiceAccountRolesInProject(gcpService hyperscaler2.Services, saEmail string, projectID string) ([]string, error) {
 	return gcpService.GetServiceAccountRoles(saEmail, projectID)
+}
+
+// MarkAddressRangeInUse transitions the address range that contains allocatedSubnetCIDR to IN_USE.
+// It uses CIDR containment to identify the correct range: the registered CIDR that contains the
+// IP of the GCP-allocated subnet (e.g. 10.55.55.16/29 is contained within 10.55.55.0/24).
+// Only runs when ADDRESS_SPACE_MGMT_ENABLED=true.
+// If the matched range is already IN_USE (shared by multiple pools on the same network), this is a no-op.
+func (j *PoolActivity) MarkAddressRangeInUse(ctx context.Context, allocatedSubnetCIDR string, network string) error {
+	if !addressSpaceMgmtEnabled() {
+		return nil
+	}
+	if allocatedSubnetCIDR == "" || network == "" {
+		return nil
+	}
+
+	hostProjectNumber, vpcName, _ := utils.ParseProjectId(network)
+	if hostProjectNumber == "" || vpcName == "" {
+		return nil
+	}
+
+	// Parse the IP from the allocated subnet CIDR (e.g. "10.55.55.16" from "10.55.55.16/29").
+	allocatedIP, _, err := net.ParseCIDR(allocatedSubnetCIDR)
+	if err != nil {
+		return fmt.Errorf("MarkAddressRangeInUse: invalid allocatedSubnetCIDR %q: %w", allocatedSubnetCIDR, err)
+	}
+
+	lifType := database.AddressRangeLifTypeDataLIF
+	addressRanges, err := j.SE.ListAddressRanges(ctx, hostProjectNumber, vpcName, nil, &lifType)
+	if err != nil {
+		return err
+	}
+
+	for _, ar := range addressRanges {
+		_, registeredNet, err := net.ParseCIDR(ar.AddressRangeCidr)
+		if err != nil {
+			continue
+		}
+		if registeredNet.Contains(allocatedIP) {
+			if ar.AddressRangeState == database.AddressRangeStateCreated {
+				if _, err = j.SE.UpdateAddressRangeState(ctx, ar.UUID, database.AddressRangeStateInUse, nil); err != nil {
+					return err
+				}
+			}
+			// If already IN_USE, another pool is sharing this range — no state change needed.
+			return nil
+		}
+	}
+	return nil
+}
+
+// MarkAddressRangesCreated resets IN_USE address ranges for a VPC back to CREATED state,
+// but only for the specific range used by the deleted pool when no remaining active pool
+// still has a subnet carved from that same registered range.
+// Only runs when ADDRESS_SPACE_MGMT_ENABLED=true.
+func (j *PoolActivity) MarkAddressRangesCreated(ctx context.Context, pool *datamodel.Pool) error {
+	if !addressSpaceMgmtEnabled() {
+		return nil
+	}
+	if pool == nil || pool.Network == "" {
+		return nil
+	}
+	logger := util.GetLogger(ctx)
+	hostProjectNumber, vpcName, err := utils.ParseProjectId(pool.Network)
+	if err != nil {
+		return err
+	}
+
+	deletedPoolSubnetCIDR, err := j.getPoolAllocatedSubnetCIDR(ctx, pool)
+	if err != nil {
+		return err
+	}
+
+	lifType := database.AddressRangeLifTypeDataLIF
+	addressRanges, err := j.SE.ListAddressRanges(ctx, hostProjectNumber, vpcName, nil, &lifType)
+	if err != nil {
+		return err
+	}
+
+	if deletedPoolSubnetCIDR == "" {
+		// CIDR is unknown (legacy pool without AllocatedSubnetCIDR in DB, or subnet was
+		// already deleted before we could read it). Use CVN-style fallback: if no other
+		// active pools remain on this network, reset all IN_USE address ranges for the VPC.
+		remaining, countErr := j.SE.CountActivePoolsByNetwork(ctx, pool.Network, pool.UUID)
+		if countErr != nil {
+			return countErr
+		}
+		if remaining > 0 {
+			logger.Infof("MarkAddressRangesCreated: skipping reset (fallback path) — %d active pool(s) still on network %s, poolUUID=%s", remaining, pool.Network, pool.UUID)
+			return nil
+		}
+		logger.Infof("MarkAddressRangesCreated: no active pools remain on network %s, resetting all IN_USE ranges for vpc=%s hostProject=%s, poolUUID=%s", pool.Network, vpcName, hostProjectNumber, pool.UUID)
+		return j.SE.ResetAddressRangesInUseToCreated(ctx, hostProjectNumber, vpcName)
+	}
+
+	targetRange, err := findAddressRangeContainingSubnet(addressRanges, deletedPoolSubnetCIDR)
+	if err != nil || targetRange == nil {
+		logger.Infof("MarkAddressRangesCreated: no registered address range found containing subnet %s for poolUUID=%s network=%s", deletedPoolSubnetCIDR, pool.UUID, pool.Network)
+		return err
+	}
+
+	if targetRange.AddressRangeState == database.AddressRangeStateInUse {
+		// Atomically reset to CREATED only when no other active pool on this network has
+		// an allocated subnet CIDR within the same registered range. The conditional UPDATE
+		// with a NOT EXISTS subquery serialises concurrent deletions at the DB level,
+		// preventing the race where two pools each see the other as still-active and both skip the revert.
+		updated, err := j.SE.UpdateAddressRangeStateToCreatedIfLastPool(
+			ctx, targetRange.UUID, pool.Network, pool.UUID, targetRange.AddressRangeCidr,
+		)
+		if err != nil {
+			return err
+		}
+		if updated {
+			logger.Infof("MarkAddressRangesCreated: reset address range %s (%s) to CREATED — last pool using this range deleted, poolUUID=%s", targetRange.UUID, targetRange.AddressRangeCidr, pool.UUID)
+		} else {
+			logger.Infof("MarkAddressRangesCreated: skipping reset of address range %s (%s) — other active pool(s) still have subnets within this range, poolUUID=%s", targetRange.UUID, targetRange.AddressRangeCidr, pool.UUID)
+		}
+	}
+	return nil
+}
+
+func (j *PoolActivity) GetPoolTenancyInfo(ctx context.Context, pool *datamodel.Pool) (*commonparams.TenancyInfo, error) {
+	allocatedSubnetCIDR, err := j.getPoolAllocatedSubnetCIDR(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
+	return &commonparams.TenancyInfo{
+		AllocatedSubnetCIDR: allocatedSubnetCIDR,
+	}, nil
+}
+
+func (j *PoolActivity) getPoolAllocatedSubnetCIDR(ctx context.Context, pool *datamodel.Pool) (string, error) {
+	if pool == nil {
+		return "", nil
+	}
+	if pool.ClusterDetails.AllocatedSubnetCIDR != "" {
+		return pool.ClusterDetails.AllocatedSubnetCIDR, nil
+	}
+	if len(pool.ClusterDetails.SubnetNames) == 0 || pool.ClusterDetails.SnHostProject == "" || Region == "" {
+		return "", nil
+	}
+	service, err := hyperscaler2.GetGCPService(ctx)
+	if err != nil {
+		return "", vsaerrors.WrapAsTemporalApplicationError(vsaerrors.NewVCPError(vsaerrors.ErrGCPClientInitializationError, err))
+	}
+	if len(pool.ClusterDetails.SubnetNames) == 0 {
+		return "", nil
+	}
+	subnetName := pool.ClusterDetails.SubnetNames[len(pool.ClusterDetails.SubnetNames)-1]
+	subnet, err := service.GetSubnetwork(pool.ClusterDetails.SnHostProject, Region, subnetName)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			// Subnet was already deleted (common on the delete workflow path); CIDR unavailable.
+			return "", nil
+		}
+		return "", err
+	}
+	if subnet == nil {
+		return "", nil
+	}
+	return subnet.IpCidrRange, nil
+}
+
+func findAddressRangeContainingSubnet(addressRanges []*datamodel.AddressRange, subnetCIDR string) (*datamodel.AddressRange, error) {
+	if _, _, err := net.ParseCIDR(subnetCIDR); err != nil {
+		return nil, err
+	}
+	for _, ar := range addressRanges {
+		if subnetCIDRWithinRange(subnetCIDR, ar.AddressRangeCidr) {
+			return ar, nil
+		}
+	}
+	return nil, nil
+}
+
+func subnetCIDRWithinRange(subnetCIDR string, rangeCIDR string) bool {
+	subnetIP, _, err := net.ParseCIDR(subnetCIDR)
+	if err != nil {
+		return false
+	}
+	_, rangeNet, err := net.ParseCIDR(rangeCIDR)
+	if err != nil {
+		return false
+	}
+	return rangeNet.Contains(subnetIP)
 }

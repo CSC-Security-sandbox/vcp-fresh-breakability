@@ -14,6 +14,12 @@ type Handler interface {
 	//
 	// GET /health
 	GetHealth(ctx context.Context) (GetHealthRes, error)
+	// V1CreateAddressRange implements v1_createAddressRange operation.
+	//
+	// Creates a new address range resource.
+	//
+	// POST /v1/addressRange
+	V1CreateAddressRange(ctx context.Context, req *AddressRangeCreateV1, params V1CreateAddressRangeParams) (V1CreateAddressRangeRes, error)
 	// V1CreateImageVersion implements v1_createImageVersion operation.
 	//
 	// Creates a new image version entry in the database. This is useful when an image version was missed
@@ -33,6 +39,12 @@ type Handler interface {
 	//
 	// POST /v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots
 	V1CreateSnapshot(ctx context.Context, req *VolumeSnapshotCreateV1, params V1CreateSnapshotParams) (V1CreateSnapshotRes, error)
+	// V1DeleteAddressRange implements v1_deleteAddressRange operation.
+	//
+	// Soft-deletes the address range identified by the given UUID.
+	//
+	// DELETE /v1/addressRange/{addressRangeId}
+	V1DeleteAddressRange(ctx context.Context, params V1DeleteAddressRangeParams) (V1DeleteAddressRangeRes, error)
 	// V1DeleteImageVersion implements v1_deleteImageVersion operation.
 	//
 	// Deletes an image version entry from the database by ONTAP version.
@@ -71,6 +83,12 @@ type Handler interface {
 	//
 	// POST /v1/expertMode/volumes/{name}:rename
 	V1ExpertModeVolumeRename(ctx context.Context, req *ExpertModeVolumeRenameV1, params V1ExpertModeVolumeRenameParams) (V1ExpertModeVolumeRenameRes, error)
+	// V1GetAddressRange implements v1_getAddressRange operation.
+	//
+	// Returns the address range identified by the given UUID.
+	//
+	// GET /v1/addressRange/{addressRangeId}
+	V1GetAddressRange(ctx context.Context, params V1GetAddressRangeParams) (V1GetAddressRangeRes, error)
 	// V1GetClusterUpgradeStatus implements v1_getClusterUpgradeStatus operation.
 	//
 	// Retrieves the status and progress of a cluster upgrade operation.
@@ -95,6 +113,12 @@ type Handler interface {
 	//
 	// GET /v1/pools/{poolId}
 	V1GetPool(ctx context.Context, params V1GetPoolParams) (V1GetPoolRes, error)
+	// V1ListAddressRanges implements v1_listAddressRanges operation.
+	//
+	// Returns address ranges matching the query parameters.
+	//
+	// GET /v1/addressRange
+	V1ListAddressRanges(ctx context.Context, params V1ListAddressRangesParams) (V1ListAddressRangesRes, error)
 	// V1ListImageVersions implements v1_listImageVersions operation.
 	//
 	// Lists all available ONTAP image versions for cluster upgrades, including the current VCP version
@@ -127,6 +151,18 @@ type Handler interface {
 	//
 	// POST /v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstart
 	V1SplitStartVolume(ctx context.Context, params V1SplitStartVolumeParams) (V1SplitStartVolumeRes, error)
+	// V1UpdateAddressRange implements v1_updateAddressRange operation.
+	//
+	// Updates the address range resource.
+	//
+	// PUT /v1/addressRange/{addressRangeId}
+	V1UpdateAddressRange(ctx context.Context, req *AddressRangeUpdateV1, params V1UpdateAddressRangeParams) (V1UpdateAddressRangeRes, error)
+	// V1UpdateAddressRangeState implements v1_updateAddressRangeState operation.
+	//
+	// Updates the lifecycle state of the address range (CREATED or IN_USE).
+	//
+	// PUT /v1/addressRange/{addressRangeId}/updateState
+	V1UpdateAddressRangeState(ctx context.Context, req *AddressRangeCVNUpdateV1, params V1UpdateAddressRangeStateParams) (V1UpdateAddressRangeStateRes, error)
 	// V1UpdatePool implements v1_updatePool operation.
 	//
 	// Update the pool.

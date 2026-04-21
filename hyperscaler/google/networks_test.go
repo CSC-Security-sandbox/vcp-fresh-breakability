@@ -948,7 +948,7 @@ func Test_CreateTPSubnetOp(t *testing.T) {
 		gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
 		consumerNetworkIncorrect := "projects/123456789/global/networks"
 
-		_, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetworkIncorrect, region, subnetName, false)
+		_, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetworkIncorrect, region, subnetName, false, nil)
 		if err == nil || !strings.Contains(err.Error(), "parseProjectId failed for network : "+consumerNetworkIncorrect) {
 			tt.Errorf("Expected parse error, got: %v", err)
 		}
@@ -961,7 +961,7 @@ func Test_CreateTPSubnetOp(t *testing.T) {
 			return nil, fmt.Errorf("create error")
 		}
 		defer func() { CreateTPSubnetOp = origCreate }()
-		_, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName, false)
+		_, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName, false, nil)
 		if err == nil || !strings.Contains(err.Error(), "create error") {
 			tt.Errorf("Expected create error, got: %v", err)
 		}
@@ -974,7 +974,7 @@ func Test_CreateTPSubnetOp(t *testing.T) {
 			return &models.ComputeOperation{Name: "op-1", Response: []byte("success")}, nil
 		}
 		defer func() { CreateTPSubnetOp = origCreate }()
-		resp, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName, false)
+		resp, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName, false, nil)
 		if err != nil {
 			tt.Errorf("Unexpected error: %v", err)
 		}
@@ -990,7 +990,7 @@ func Test_CreateTPSubnetOp(t *testing.T) {
 			return &models.ComputeOperation{Name: "op-large-1", Response: []byte("success")}, nil
 		}
 		defer func() { CreateTPSubnetOp = origCreate }()
-		resp, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName, true)
+		resp, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName, true, nil)
 		if err != nil {
 			tt.Errorf("Unexpected error: %v", err)
 		}
@@ -1006,7 +1006,7 @@ func Test_CreateTPSubnetOp(t *testing.T) {
 			return nil, fmt.Errorf("create error with large capacity")
 		}
 		defer func() { CreateTPSubnetOp = origCreate }()
-		_, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName, true)
+		_, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName, true, nil)
 		if err == nil || !strings.Contains(err.Error(), "create error with large capacity") {
 			tt.Errorf("Expected create error with large capacity, got: %v", err)
 		}
@@ -1016,7 +1016,7 @@ func Test_CreateTPSubnetOp(t *testing.T) {
 		gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
 		consumerNetworkIncorrect := "projects/123456789/global/networks"
 
-		_, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetworkIncorrect, region, subnetName, true)
+		_, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetworkIncorrect, region, subnetName, true, nil)
 		if err == nil || !strings.Contains(err.Error(), "parseProjectId failed for network : "+consumerNetworkIncorrect) {
 			tt.Errorf("Expected parse error with large capacity, got: %v", err)
 		}
@@ -1033,7 +1033,7 @@ func Test_CreateTPSubnetOp(t *testing.T) {
 		defer func() { CreateTPSubnetOp = origCreate }()
 
 		// Test with isLargeCapacity = false (should use minimumTenantNetworkSize)
-		_, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName, false)
+		_, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName, false, nil)
 		if err != nil {
 			tt.Errorf("Unexpected error: %v", err)
 		}
@@ -1048,7 +1048,7 @@ func Test_CreateTPSubnetOp(t *testing.T) {
 		}
 
 		// Test with isLargeCapacity = true (should use minimumLVTenantNetworkSize)
-		_, err = gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName, true)
+		_, err = gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName, true, nil)
 		if err != nil {
 			tt.Errorf("Unexpected error: %v", err)
 		}
@@ -1060,6 +1060,66 @@ func Test_CreateTPSubnetOp(t *testing.T) {
 			if capturedRequest.IpPrefixLength != expectedSize {
 				tt.Errorf("Expected IpPrefixLength %d for large capacity, got %d", expectedSize, capturedRequest.IpPrefixLength)
 			}
+		}
+	})
+
+	t.Run("WhenRequestedRangesArePassedForRegularCapacity", func(tt *testing.T) {
+		gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
+		var capturedRequest *servicenetworking.AddSubnetworkRequest
+		origCreate := CreateTPSubnetOp
+		CreateTPSubnetOp = func(gService *GcpServices, request *servicenetworking.AddSubnetworkRequest, tenantProjectNumber string) (*models.ComputeOperation, error) {
+			capturedRequest = request
+			return &models.ComputeOperation{Name: "op-ranges-regular", Response: []byte("success")}, nil
+		}
+		defer func() { CreateTPSubnetOp = origCreate }()
+
+		requestedRanges := []string{"my-range-1", "my-range-2"}
+		resp, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName, false, requestedRanges)
+		if err != nil {
+			tt.Errorf("Unexpected error: %v", err)
+		}
+		if resp == nil || *resp != "op-ranges-regular" {
+			tt.Errorf("Expected operation name 'op-ranges-regular', got: %v", resp)
+		}
+		if capturedRequest == nil {
+			tt.Fatal("Expected request to be captured")
+		}
+		if len(capturedRequest.RequestedRanges) != 2 {
+			tt.Errorf("Expected 2 requested ranges, got %d", len(capturedRequest.RequestedRanges))
+		} else {
+			if capturedRequest.RequestedRanges[0] != "my-range-1" || capturedRequest.RequestedRanges[1] != "my-range-2" {
+				tt.Errorf("Expected ranges [my-range-1 my-range-2], got %v", capturedRequest.RequestedRanges)
+			}
+		}
+	})
+
+	t.Run("WhenRequestedRangesArePassedForLargeCapacity", func(tt *testing.T) {
+		gService := &GcpServices{Ctx: ctx, Logger: util.GetLogger(ctx)}
+		var capturedRequest *servicenetworking.AddSubnetworkRequest
+		origCreate := CreateTPSubnetOp
+		CreateTPSubnetOp = func(gService *GcpServices, request *servicenetworking.AddSubnetworkRequest, tenantProjectNumber string) (*models.ComputeOperation, error) {
+			capturedRequest = request
+			return &models.ComputeOperation{Name: "op-ranges-large", Response: []byte("success")}, nil
+		}
+		defer func() { CreateTPSubnetOp = origCreate }()
+
+		requestedRanges := []string{"lv-range-1"}
+		resp, err := gService.CreateTPSubnetOp(tenantProjectNumber, consumerNetwork, region, subnetName, true, requestedRanges)
+		if err != nil {
+			tt.Errorf("Unexpected error: %v", err)
+		}
+		if resp == nil || *resp != "op-ranges-large" {
+			tt.Errorf("Expected operation name 'op-ranges-large', got: %v", resp)
+		}
+		if capturedRequest == nil {
+			tt.Fatal("Expected request to be captured")
+		}
+		if len(capturedRequest.RequestedRanges) != 1 || capturedRequest.RequestedRanges[0] != "lv-range-1" {
+			tt.Errorf("Expected ranges [lv-range-1], got %v", capturedRequest.RequestedRanges)
+		}
+		expectedSize := env.GetInt64("DATA_SUBNET_CIDR_BLOCK_LV", int64(26))
+		if capturedRequest.IpPrefixLength != expectedSize {
+			tt.Errorf("Expected IpPrefixLength %d for large capacity, got %d", expectedSize, capturedRequest.IpPrefixLength)
 		}
 	})
 }

@@ -173,6 +173,7 @@ type ClusterDetails struct {
 	SnHostProject         string         `json:"sn_host_project"`
 	Network               string         `json:"network"`
 	SubnetNames           []string       `json:"subnet_names"`
+	AllocatedSubnetCIDR   string         `json:"allocated_subnet_cidr,omitempty"`
 	InterclusterLifIPs    []string       `json:"intercluster_lifs,omitempty"`
 	ReservedIPsInSubnet   *[]SubnetToIPs `json:"reserved_ips_in_subnet,omitempty"`
 }
@@ -1407,4 +1408,19 @@ type BackupChainHistory struct {
 	ResourceUUID   string `gorm:"column:resource_uuid;size:255" json:"resource_uuid"`
 	ConsumerID     string `gorm:"column:consumer_id;type:text" json:"consumer_id"`
 	DeploymentName string `gorm:"column:deployment_name;type:text" json:"deployment_name"`
+}
+
+type AddressRange struct {
+	BaseModel
+	Name                      string     `gorm:"column:name"`
+	AddressRangeCidr          string     `gorm:"column:address_range_cidr"`
+	Network                   string     `gorm:"column:network"`
+	VpcName                   string     `gorm:"column:vpc_name;index"`
+	HostProjectNumber         string     `gorm:"column:host_project_number;index"`
+	LifType                   string     `gorm:"column:lif_type;default:'dataLIF'"`
+	AddressRangeState         string     `gorm:"column:address_range_state;default:'CREATED'"`
+	AddressRangeStateDetails  string     `gorm:"column:address_range_state_details;type:text"`
+	ApplyRouteAggregation     bool       `gorm:"column:apply_route_aggregation;default:false"`
+	RouteAggregationApplied   bool       `gorm:"column:route_aggregation_applied;default:false"`
+	RouteAggregationAppliedAt *time.Time `gorm:"column:route_aggregation_applied_at"`
 }

@@ -711,3 +711,27 @@ func (o *OCIOrchestrator) SplitStartVolume(ctx context.Context, params *commonpa
 	// TODO implement me
 	return nil, "", utilserrors.NewNotImplementedYetErr()
 }
+
+func (o *OCIOrchestrator) CreateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error) {
+	return nil, utilserrors.NewNotImplementedYetErr()
+}
+
+func (o *OCIOrchestrator) GetAddressRange(ctx context.Context, arID string) (*datamodel.AddressRange, error) {
+	return nil, utilserrors.NewNotImplementedYetErr()
+}
+
+func (o *OCIOrchestrator) ListAddressRanges(ctx context.Context, hostProjectNumber, vpcName string, arID, lifType *string) ([]*datamodel.AddressRange, error) {
+	return nil, utilserrors.NewNotImplementedYetErr()
+}
+
+func (o *OCIOrchestrator) UpdateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error) {
+	return nil, utilserrors.NewNotImplementedYetErr()
+}
+
+func (o *OCIOrchestrator) UpdateAddressRangeState(ctx context.Context, arID, state string, routeAggregationApplied *bool) (*datamodel.AddressRange, error) {
+	return nil, utilserrors.NewNotImplementedYetErr()
+}
+
+func (o *OCIOrchestrator) DeleteAddressRange(ctx context.Context, arID string) (*datamodel.AddressRange, error) {
+	return nil, utilserrors.NewNotImplementedYetErr()
+}

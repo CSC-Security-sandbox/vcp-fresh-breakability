@@ -138,6 +138,91 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 					}
 
+				case 'a': // Prefix: "addressRange"
+
+					if l := len("addressRange"); len(elem) >= l && elem[0:l] == "addressRange" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						switch r.Method {
+						case "GET":
+							s.handleV1ListAddressRangesRequest([0]string{}, elemIsEscaped, w, r)
+						case "POST":
+							s.handleV1CreateAddressRangeRequest([0]string{}, elemIsEscaped, w, r)
+						default:
+							s.notAllowed(w, r, "GET,POST")
+						}
+
+						return
+					}
+					switch elem[0] {
+					case '/': // Prefix: "/"
+
+						if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						// Param: "addressRangeId"
+						// Match until "/"
+						idx := strings.IndexByte(elem, '/')
+						if idx < 0 {
+							idx = len(elem)
+						}
+						args[0] = elem[:idx]
+						elem = elem[idx:]
+
+						if len(elem) == 0 {
+							switch r.Method {
+							case "DELETE":
+								s.handleV1DeleteAddressRangeRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
+							case "GET":
+								s.handleV1GetAddressRangeRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
+							case "PUT":
+								s.handleV1UpdateAddressRangeRequest([1]string{
+									args[0],
+								}, elemIsEscaped, w, r)
+							default:
+								s.notAllowed(w, r, "DELETE,GET,PUT")
+							}
+
+							return
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/updateState"
+
+							if l := len("/updateState"); len(elem) >= l && elem[0:l] == "/updateState" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch r.Method {
+								case "PUT":
+									s.handleV1UpdateAddressRangeStateRequest([1]string{
+										args[0],
+									}, elemIsEscaped, w, r)
+								default:
+									s.notAllowed(w, r, "PUT")
+								}
+
+								return
+							}
+
+						}
+
+					}
+
 				case 'c': // Prefix: "clusters/"
 
 					if l := len("clusters/"); len(elem) >= l && elem[0:l] == "clusters/" {
@@ -841,6 +926,113 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							default:
 								return
 							}
+						}
+
+					}
+
+				case 'a': // Prefix: "addressRange"
+
+					if l := len("addressRange"); len(elem) >= l && elem[0:l] == "addressRange" {
+						elem = elem[l:]
+					} else {
+						break
+					}
+
+					if len(elem) == 0 {
+						switch method {
+						case "GET":
+							r.name = V1ListAddressRangesOperation
+							r.summary = "List address ranges"
+							r.operationID = "v1_listAddressRanges"
+							r.pathPattern = "/v1/addressRange"
+							r.args = args
+							r.count = 0
+							return r, true
+						case "POST":
+							r.name = V1CreateAddressRangeOperation
+							r.summary = "Create an address range"
+							r.operationID = "v1_createAddressRange"
+							r.pathPattern = "/v1/addressRange"
+							r.args = args
+							r.count = 0
+							return r, true
+						default:
+							return
+						}
+					}
+					switch elem[0] {
+					case '/': // Prefix: "/"
+
+						if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+							elem = elem[l:]
+						} else {
+							break
+						}
+
+						// Param: "addressRangeId"
+						// Match until "/"
+						idx := strings.IndexByte(elem, '/')
+						if idx < 0 {
+							idx = len(elem)
+						}
+						args[0] = elem[:idx]
+						elem = elem[idx:]
+
+						if len(elem) == 0 {
+							switch method {
+							case "DELETE":
+								r.name = V1DeleteAddressRangeOperation
+								r.summary = "Delete an address range"
+								r.operationID = "v1_deleteAddressRange"
+								r.pathPattern = "/v1/addressRange/{addressRangeId}"
+								r.args = args
+								r.count = 1
+								return r, true
+							case "GET":
+								r.name = V1GetAddressRangeOperation
+								r.summary = "Get an address range"
+								r.operationID = "v1_getAddressRange"
+								r.pathPattern = "/v1/addressRange/{addressRangeId}"
+								r.args = args
+								r.count = 1
+								return r, true
+							case "PUT":
+								r.name = V1UpdateAddressRangeOperation
+								r.summary = "Update an address range"
+								r.operationID = "v1_updateAddressRange"
+								r.pathPattern = "/v1/addressRange/{addressRangeId}"
+								r.args = args
+								r.count = 1
+								return r, true
+							default:
+								return
+							}
+						}
+						switch elem[0] {
+						case '/': // Prefix: "/updateState"
+
+							if l := len("/updateState"); len(elem) >= l && elem[0:l] == "/updateState" {
+								elem = elem[l:]
+							} else {
+								break
+							}
+
+							if len(elem) == 0 {
+								// Leaf node.
+								switch method {
+								case "PUT":
+									r.name = V1UpdateAddressRangeStateOperation
+									r.summary = "Update address range lifecycle state"
+									r.operationID = "v1_updateAddressRangeState"
+									r.pathPattern = "/v1/addressRange/{addressRangeId}/updateState"
+									r.args = args
+									r.count = 1
+									return r, true
+								default:
+									return
+								}
+							}
+
 						}
 
 					}

@@ -2,6 +2,12 @@
 
 package coreapi
 
+// V1CreateAddressRangeParams is parameters of v1_createAddressRange operation.
+type V1CreateAddressRangeParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
 // V1CreateImageVersionParams is parameters of v1_createImageVersion operation.
 type V1CreateImageVersionParams struct {
 	// Correlation identifier.
@@ -28,6 +34,14 @@ type V1CreateSnapshotParams struct {
 	VolumeId string
 	// Correlation identifier.
 	XCorrelationID OptString
+}
+
+// V1DeleteAddressRangeParams is parameters of v1_deleteAddressRange operation.
+type V1DeleteAddressRangeParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+	// UUID v4 used to identify the address range.
+	AddressRangeId string
 }
 
 // V1DeleteImageVersionParams is parameters of v1_deleteImageVersion operation.
@@ -70,6 +84,14 @@ type V1ExpertModeVolumeRenameParams struct {
 	Name string
 }
 
+// V1GetAddressRangeParams is parameters of v1_getAddressRange operation.
+type V1GetAddressRangeParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+	// UUID v4 used to identify the address range.
+	AddressRangeId string
+}
+
 // V1GetClusterUpgradeStatusParams is parameters of v1_getClusterUpgradeStatus operation.
 type V1GetClusterUpgradeStatusParams struct {
 	// Job ID of the upgrade operation.
@@ -107,6 +129,20 @@ type V1GetPoolParams struct {
 	LocationId string
 	// Correlation identifier.
 	XCorrelationID OptString
+}
+
+// V1ListAddressRangesParams is parameters of v1_listAddressRanges operation.
+type V1ListAddressRangesParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+	// The project number of the GCP host project.
+	HostProjectNumber OptString
+	// VPC name to filter address ranges.
+	VpcName OptString
+	// UUID v4 used to filter address ranges.
+	AddressRangeId OptString
+	// Type of LIF to filter address ranges.
+	LifType OptLifTypeQueryParameter
 }
 
 // V1ListImageVersionsParams is parameters of v1_listImageVersions operation.
@@ -149,6 +185,22 @@ type V1SplitStartVolumeParams struct {
 	VolumeId string
 	// Correlation identifier.
 	XCorrelationID OptString
+}
+
+// V1UpdateAddressRangeParams is parameters of v1_updateAddressRange operation.
+type V1UpdateAddressRangeParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+	// UUID v4 used to identify the address range.
+	AddressRangeId string
+}
+
+// V1UpdateAddressRangeStateParams is parameters of v1_updateAddressRangeState operation.
+type V1UpdateAddressRangeStateParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+	// UUID v4 used to identify the address range.
+	AddressRangeId string
 }
 
 // V1UpdatePoolParams is parameters of v1_updatePool operation.

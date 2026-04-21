@@ -4845,3 +4845,93 @@ func TestGetBlockOnlyPoolIDs_DBError(t *testing.T) {
 	assert.Error(t, err, "Expected error when database query fails")
 	assert.Nil(t, blockOnlyPools, "Expected nil result on error")
 }
+
+func TestCountActivePoolsByNetwork_CountsNonDeletedPools(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "cap-account-uuid"},
+		Name:      "cap-account",
+	}
+	err := store.db.Create(account).Error()
+	require.NoError(t, err)
+
+	network := "projects/123/global/networks/test-vpc"
+	pool1 := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "cap-pool-1"},
+		Name:           "cap-pool-1",
+		Network:        network,
+		AccountID:      account.ID,
+		DeploymentName: "cap-dep-1",
+	}
+	pool2 := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "cap-pool-2"},
+		Name:           "cap-pool-2",
+		Network:        network,
+		AccountID:      account.ID,
+		DeploymentName: "cap-dep-2",
+	}
+	deletedPool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{
+			UUID:      "cap-pool-deleted",
+			DeletedAt: &gorm.DeletedAt{Time: time.Now(), Valid: true},
+		},
+		Name:           "cap-pool-deleted",
+		Network:        network,
+		AccountID:      account.ID,
+		DeploymentName: "cap-dep-deleted",
+	}
+
+	require.NoError(t, store.db.Create(pool1).Error())
+	require.NoError(t, store.db.Create(pool2).Error())
+	require.NoError(t, store.db.Create(deletedPool).Error())
+
+	count, err := store.CountActivePoolsByNetwork(ctx, network, "")
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), count)
+}
+
+func TestCountActivePoolsByNetwork_ExcludesSpecifiedPool(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+
+	account := &datamodel.Account{
+		BaseModel: datamodel.BaseModel{UUID: "cap2-account-uuid"},
+		Name:      "cap2-account",
+	}
+	err := store.db.Create(account).Error()
+	require.NoError(t, err)
+
+	network := "projects/456/global/networks/test-vpc2"
+	pool1 := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "cap2-pool-1"},
+		Name:           "cap2-pool-1",
+		Network:        network,
+		AccountID:      account.ID,
+		DeploymentName: "cap2-dep-1",
+	}
+	pool2 := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "cap2-pool-2"},
+		Name:           "cap2-pool-2",
+		Network:        network,
+		AccountID:      account.ID,
+		DeploymentName: "cap2-dep-2",
+	}
+
+	require.NoError(t, store.db.Create(pool1).Error())
+	require.NoError(t, store.db.Create(pool2).Error())
+
+	count, err := store.CountActivePoolsByNetwork(ctx, network, "cap2-pool-1")
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), count)
+}
+
+func TestCountActivePoolsByNetwork_NoMatchingNetwork_ReturnsZero(t *testing.T) {
+	store := setup(t)
+	ctx := context.Background()
+
+	count, err := store.CountActivePoolsByNetwork(ctx, "projects/999/global/networks/nonexistent", "")
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), count)
+}

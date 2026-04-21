@@ -76,6 +76,7 @@ type (
 		SavePoolWithVsaDetails(ctx context.Context, pool *datamodel.Pool, cluster *datamodel.ClusterDetails) error
 		UpdatePoolWithKmsConfigID(ctx context.Context, pool *datamodel.Pool, kmsConfigUUID string) (*datamodel.Pool, error)
 		GetPoolsByAccountName(ctx context.Context, accountName string) ([]*datamodel.Pool, error)
+		CountActivePoolsByNetwork(ctx context.Context, network string, excludePoolUUID string) (int64, error)
 		GetPoolsByActiveDirectoryId(ctx context.Context, activeDirectoryId string) ([]*datamodel.Pool, error)
 		GetNextSerialNumberInRegion(ctx context.Context, region string) (string, error)
 		ListTpProjects(ctx context.Context) ([]string, error)
@@ -444,6 +445,16 @@ type (
 		GetActiveExpertModeVolumesCountByAccountID(ctx context.Context, accountID int64) (int64, error)
 		GetEligibleExpertModeVolumes(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.ExpertModeVolumes, error)
 		GetExpertModeBackupsByVolumeExternalUUID(ctx context.Context, volumeExternalUUID string) ([]*datamodel.Backup, error)
+
+		// AddressRange
+		CreateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error)
+		GetAddressRange(ctx context.Context, arID string) (*datamodel.AddressRange, error)
+		ListAddressRanges(ctx context.Context, hostProjectNumber, vpcName string, arID, lifType *string) ([]*datamodel.AddressRange, error)
+		UpdateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error)
+		UpdateAddressRangeState(ctx context.Context, arID, state string, routeAggregationApplied *bool) (*datamodel.AddressRange, error)
+		UpdateAddressRangeStateToCreatedIfLastPool(ctx context.Context, arUUID, network, excludePoolUUID, addressRangeCidr string) (bool, error)
+		ResetAddressRangesInUseToCreated(ctx context.Context, hostProjectNumber, vpcName string) error
+		DeleteAddressRange(ctx context.Context, arID string) (*datamodel.AddressRange, error)
 		GetMultipleVolumesWithExpertMode(ctx context.Context, conditions [][]interface{}) ([]*datamodel.ExpertModeVolumes, error)
 		ListExpertModeVolumesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.ExpertModeVolumes, error)
 	}

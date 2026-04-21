@@ -772,9 +772,9 @@ func (_c *MockGoogleServices_CreateSubnetwork_Call) RunAndReturn(run func(*model
 	return _c
 }
 
-// CreateTPSubnetOp provides a mock function with given fields: tenantProjectNumber, consumerNetwork, region, subnetName, isLargeCapacity
-func (_m *MockGoogleServices) CreateTPSubnetOp(tenantProjectNumber string, consumerNetwork string, region string, subnetName string, isLargeCapacity bool) (*string, error) {
-	ret := _m.Called(tenantProjectNumber, consumerNetwork, region, subnetName, isLargeCapacity)
+// CreateTPSubnetOp provides a mock function with given fields: tenantProjectNumber, consumerNetwork, region, subnetName, isLargeCapacity, requestedRanges
+func (_m *MockGoogleServices) CreateTPSubnetOp(tenantProjectNumber string, consumerNetwork string, region string, subnetName string, isLargeCapacity bool, requestedRanges []string) (*string, error) {
+	ret := _m.Called(tenantProjectNumber, consumerNetwork, region, subnetName, isLargeCapacity, requestedRanges)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateTPSubnetOp")
@@ -782,19 +782,19 @@ func (_m *MockGoogleServices) CreateTPSubnetOp(tenantProjectNumber string, consu
 
 	var r0 *string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string, string, string, string, bool) (*string, error)); ok {
-		return rf(tenantProjectNumber, consumerNetwork, region, subnetName, isLargeCapacity)
+	if rf, ok := ret.Get(0).(func(string, string, string, string, bool, []string) (*string, error)); ok {
+		return rf(tenantProjectNumber, consumerNetwork, region, subnetName, isLargeCapacity, requestedRanges)
 	}
-	if rf, ok := ret.Get(0).(func(string, string, string, string, bool) *string); ok {
-		r0 = rf(tenantProjectNumber, consumerNetwork, region, subnetName, isLargeCapacity)
+	if rf, ok := ret.Get(0).(func(string, string, string, string, bool, []string) *string); ok {
+		r0 = rf(tenantProjectNumber, consumerNetwork, region, subnetName, isLargeCapacity, requestedRanges)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*string)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(string, string, string, string, bool) error); ok {
-		r1 = rf(tenantProjectNumber, consumerNetwork, region, subnetName, isLargeCapacity)
+	if rf, ok := ret.Get(1).(func(string, string, string, string, bool, []string) error); ok {
+		r1 = rf(tenantProjectNumber, consumerNetwork, region, subnetName, isLargeCapacity, requestedRanges)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -813,13 +813,14 @@ type MockGoogleServices_CreateTPSubnetOp_Call struct {
 //   - region string
 //   - subnetName string
 //   - isLargeCapacity bool
-func (_e *MockGoogleServices_Expecter) CreateTPSubnetOp(tenantProjectNumber interface{}, consumerNetwork interface{}, region interface{}, subnetName interface{}, isLargeCapacity interface{}) *MockGoogleServices_CreateTPSubnetOp_Call {
-	return &MockGoogleServices_CreateTPSubnetOp_Call{Call: _e.mock.On("CreateTPSubnetOp", tenantProjectNumber, consumerNetwork, region, subnetName, isLargeCapacity)}
+//   - requestedRanges []string
+func (_e *MockGoogleServices_Expecter) CreateTPSubnetOp(tenantProjectNumber interface{}, consumerNetwork interface{}, region interface{}, subnetName interface{}, isLargeCapacity interface{}, requestedRanges interface{}) *MockGoogleServices_CreateTPSubnetOp_Call {
+	return &MockGoogleServices_CreateTPSubnetOp_Call{Call: _e.mock.On("CreateTPSubnetOp", tenantProjectNumber, consumerNetwork, region, subnetName, isLargeCapacity, requestedRanges)}
 }
 
-func (_c *MockGoogleServices_CreateTPSubnetOp_Call) Run(run func(tenantProjectNumber string, consumerNetwork string, region string, subnetName string, isLargeCapacity bool)) *MockGoogleServices_CreateTPSubnetOp_Call {
+func (_c *MockGoogleServices_CreateTPSubnetOp_Call) Run(run func(tenantProjectNumber string, consumerNetwork string, region string, subnetName string, isLargeCapacity bool, requestedRanges []string)) *MockGoogleServices_CreateTPSubnetOp_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string), args[2].(string), args[3].(string), args[4].(bool))
+		run(args[0].(string), args[1].(string), args[2].(string), args[3].(string), args[4].(bool), args[5].([]string))
 	})
 	return _c
 }
@@ -829,7 +830,7 @@ func (_c *MockGoogleServices_CreateTPSubnetOp_Call) Return(_a0 *string, _a1 erro
 	return _c
 }
 
-func (_c *MockGoogleServices_CreateTPSubnetOp_Call) RunAndReturn(run func(string, string, string, string, bool) (*string, error)) *MockGoogleServices_CreateTPSubnetOp_Call {
+func (_c *MockGoogleServices_CreateTPSubnetOp_Call) RunAndReturn(run func(string, string, string, string, bool, []string) (*string, error)) *MockGoogleServices_CreateTPSubnetOp_Call {
 	_c.Call.Return(run)
 	return _c
 }

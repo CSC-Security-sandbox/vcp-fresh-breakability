@@ -1222,3 +1222,81 @@ func NewMockInvoker(t interface {
 
 	return mock
 }
+
+func (_m *MockInvoker) V1CreateAddressRange(ctx context.Context, request *AddressRangeCreateV1, params V1CreateAddressRangeParams) (V1CreateAddressRangeRes, error) {
+	ret := _m.Called(ctx, request, params)
+	var r0 V1CreateAddressRangeRes
+	if rf, ok := ret.Get(0).(func(context.Context, *AddressRangeCreateV1, V1CreateAddressRangeParams) V1CreateAddressRangeRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1CreateAddressRangeRes)
+		}
+	}
+	return r0, ret.Error(1)
+}
+
+func (_m *MockInvoker) V1DeleteAddressRange(ctx context.Context, params V1DeleteAddressRangeParams) (V1DeleteAddressRangeRes, error) {
+	ret := _m.Called(ctx, params)
+	var r0 V1DeleteAddressRangeRes
+	if rf, ok := ret.Get(0).(func(context.Context, V1DeleteAddressRangeParams) V1DeleteAddressRangeRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1DeleteAddressRangeRes)
+		}
+	}
+	return r0, ret.Error(1)
+}
+
+func (_m *MockInvoker) V1GetAddressRange(ctx context.Context, params V1GetAddressRangeParams) (V1GetAddressRangeRes, error) {
+	ret := _m.Called(ctx, params)
+	var r0 V1GetAddressRangeRes
+	if rf, ok := ret.Get(0).(func(context.Context, V1GetAddressRangeParams) V1GetAddressRangeRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1GetAddressRangeRes)
+		}
+	}
+	return r0, ret.Error(1)
+}
+
+func (_m *MockInvoker) V1ListAddressRanges(ctx context.Context, params V1ListAddressRangesParams) (V1ListAddressRangesRes, error) {
+	ret := _m.Called(ctx, params)
+	var r0 V1ListAddressRangesRes
+	if rf, ok := ret.Get(0).(func(context.Context, V1ListAddressRangesParams) V1ListAddressRangesRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1ListAddressRangesRes)
+		}
+	}
+	return r0, ret.Error(1)
+}
+
+func (_m *MockInvoker) V1UpdateAddressRange(ctx context.Context, request *AddressRangeUpdateV1, params V1UpdateAddressRangeParams) (V1UpdateAddressRangeRes, error) {
+	ret := _m.Called(ctx, request, params)
+	var r0 V1UpdateAddressRangeRes
+	if rf, ok := ret.Get(0).(func(context.Context, *AddressRangeUpdateV1, V1UpdateAddressRangeParams) V1UpdateAddressRangeRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1UpdateAddressRangeRes)
+		}
+	}
+	return r0, ret.Error(1)
+}
+
+func (_m *MockInvoker) V1UpdateAddressRangeState(ctx context.Context, request *AddressRangeCVNUpdateV1, params V1UpdateAddressRangeStateParams) (V1UpdateAddressRangeStateRes, error) {
+	ret := _m.Called(ctx, request, params)
+	var r0 V1UpdateAddressRangeStateRes
+	if rf, ok := ret.Get(0).(func(context.Context, *AddressRangeCVNUpdateV1, V1UpdateAddressRangeStateParams) V1UpdateAddressRangeStateRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1UpdateAddressRangeStateRes)
+		}
+	}
+	return r0, ret.Error(1)
+}

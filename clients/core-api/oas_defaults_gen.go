@@ -3,6 +3,34 @@
 package coreapi
 
 // setDefaults set default value of fields.
+func (s *AddressRangeCVNUpdateV1) setDefaults() {
+	{
+		val := bool(false)
+		s.RouteAggregationApplied.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *AddressRangeUpdateV1) setDefaults() {
+	{
+		val := bool(false)
+		s.ApplyRouteAggregation.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
+func (s *AddressRangeV1) setDefaults() {
+	{
+		val := bool(false)
+		s.ApplyRouteAggregation.SetTo(val)
+	}
+	{
+		val := bool(false)
+		s.RouteAggregationApplied.SetTo(val)
+	}
+}
+
+// setDefaults set default value of fields.
 func (s *ClusterUpgradeRequestV1) setDefaults() {
 	{
 		val := bool(false)

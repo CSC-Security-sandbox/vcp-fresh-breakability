@@ -23,6 +23,8 @@ tags:
     description: Replication operations
   - name: expertMode
     description: Expert mode operations
+  - name: addressRanges
+    description: Address range operations
 paths:
   /health:
     get:
@@ -1293,6 +1295,233 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       x-codegen-request-body-name: body
+  /v1/addressRange:
+    get:
+      operationId: v1_listAddressRanges
+      summary: List address ranges
+      description: Returns address ranges matching the query parameters
+      tags:
+        - addressRanges
+      parameters:
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - $ref: '#/components/parameters/hostProjectNumberQueryParameter'
+        - $ref: '#/components/parameters/vpcNameQueryParameter'
+        - $ref: '#/components/parameters/addressRangeIdQueryParameter'
+        - $ref: '#/components/parameters/lifTypeQueryParameter'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AddressRange_v1'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      operationId: v1_createAddressRange
+      summary: Create an address range
+      description: Creates a new address range resource
+      tags:
+        - addressRanges
+      parameters:
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressRangeCreate_v1'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressRange_v1'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/addressRange/{addressRangeId}:
+    get:
+      operationId: v1_getAddressRange
+      summary: Get an address range
+      description: Returns the address range identified by the given UUID
+      tags:
+        - addressRanges
+      parameters:
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - $ref: '#/components/parameters/addressRangeIdPathParameter'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressRange_v1'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      operationId: v1_updateAddressRange
+      summary: Update an address range
+      description: Updates the address range resource
+      tags:
+        - addressRanges
+      parameters:
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - $ref: '#/components/parameters/addressRangeIdPathParameter'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressRangeUpdate_v1'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressRange_v1'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      operationId: v1_deleteAddressRange
+      summary: Delete an address range
+      description: Soft-deletes the address range identified by the given UUID
+      tags:
+        - addressRanges
+      parameters:
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - $ref: '#/components/parameters/addressRangeIdPathParameter'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressRange_v1'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /v1/addressRange/{addressRangeId}/updateState:
+    put:
+      operationId: v1_updateAddressRangeState
+      summary: Update address range lifecycle state
+      description: Updates the lifecycle state of the address range (CREATED or IN_USE)
+      tags:
+        - addressRanges
+      parameters:
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - $ref: '#/components/parameters/addressRangeIdPathParameter'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressRangeCVNUpdate_v1'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressRange_v1'
+        '400':
+          $ref: '#/components/responses/StandardError-400'
+        '401':
+          $ref: '#/components/responses/StandardError-401'
+        '403':
+          $ref: '#/components/responses/StandardError-403'
+        '404':
+          $ref: '#/components/responses/StandardError-404'
+        '409':
+          $ref: '#/components/responses/StandardError-409'
+        '422':
+          $ref: '#/components/responses/StandardError-422'
+        '500':
+          $ref: '#/components/responses/StandardError-500'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   schemas:
     Error:
@@ -2844,6 +3073,185 @@ components:
           format: date-time
           readOnly: true
           example: "2016-11-28T19:30:23.123Z"
+    AddressRange_v1:
+      title: AddressRange
+      type: object
+      properties:
+        addressRangeId:
+          title: addressRangeId
+          type: string
+          readOnly: true
+          description: UUID v4 used to identify the address range
+          pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+          maxLength: 36
+          minLength: 36
+          example: "9760acf5-4638-11e7-9bdb-020073ca3333"
+        createdAt:
+          title: createdAt
+          type: string
+          format: date-time
+          readOnly: true
+          description: Creation date of the resource
+          example: "2023-11-28T19:30:23.123Z"
+        updatedAt:
+          title: updatedAt
+          type: string
+          format: date-time
+          readOnly: true
+          description: Date of last update of the resource
+          example: "2023-11-29T20:32:50.459Z"
+        deletedAt:
+          title: deletedAt
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: Date the resource was deleted
+          example: "2023-11-30T23:59:59.999Z"
+        addressRange:
+          title: addressRange
+          type: string
+          description: The name of the address range.
+          example: "vpc1-range"
+        addressRangeCidr:
+          title: addressRangeCidr
+          type: string
+          readOnly: true
+          description: The CIDR notation of the address range.
+          example: "172.18.0.0/16"
+        network:
+          title: network
+          type: string
+          description: The full resource name of the network.
+          example: "projects/954964321833/global/networks/vpc1"
+        vpcName:
+          title: vpcName
+          type: string
+          readOnly: true
+          description: VPC name to identify the address range resource.
+          example: "vpc1"
+        hostProjectNumber:
+          title: hostProjectNumber
+          type: string
+          readOnly: true
+          description: The project number of the GCP project owning the resource.
+          example: "954964321833"
+        lifType:
+          title: lifType
+          type: string
+          description: Type of the LIF that this addressRange is for. Default value is dataLIF if not specified.
+          enum:
+            - dataLIF
+            - interclusterLIF
+          example: "dataLIF"
+        lifeCycleState:
+          title: lifeCycleState
+          type: string
+          readOnly: true
+          description: The current lifecycle state of the resource
+          enum:
+            - CREATED
+            - IN_USE
+            - DISABLED
+            - DELETED
+          example: "CREATED"
+        lifeCycleStateDetails:
+          title: lifeCycleStateDetails
+          type: string
+          readOnly: true
+          description: Details about the current lifecycle state
+          example: "Available for use"
+        applyRouteAggregation:
+          title: applyRouteAggregation
+          type: boolean
+          description: Indicates whether route aggregation should be applied.
+          default: false
+          example: false
+        routeAggregationApplied:
+          title: routeAggregationApplied
+          type: boolean
+          readOnly: true
+          description: Indicates whether route aggregation is applied or not.
+          default: false
+          example: false
+        routeAggregationAppliedAt:
+          title: routeAggregationAppliedAt
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: Time when the aggregation is applied
+          example: "2023-11-28T19:30:23.123Z"
+    AddressRangeCreate_v1:
+      title: AddressRangeCreate
+      type: object
+      required:
+        - addressRange
+        - addressRangeCidr
+        - network
+        - lifType
+      properties:
+        addressRange:
+          title: addressRange
+          type: string
+          description: The name of the address range.
+          example: "vpc1-range"
+        addressRangeCidr:
+          title: addressRangeCidr
+          type: string
+          description: The CIDR notation of the address range.
+          example: "172.18.0.0/16"
+        network:
+          title: network
+          type: string
+          description: The full resource name of the network.
+          example: "projects/954964321833/global/networks/vpc1"
+          pattern: "^projects/\\d+/global/networks/[a-z]([-a-z0-9]*[a-z0-9])?$"
+        lifType:
+          title: lifType
+          type: string
+          description: Type of the LIF this addressRange is for. Default is dataLIF.
+          enum:
+            - dataLIF
+            - interclusterLIF
+          example: "dataLIF"
+    AddressRangeUpdate_v1:
+      title: AddressRangeUpdate
+      type: object
+      properties:
+        applyRouteAggregation:
+          title: applyRouteAggregation
+          type: boolean
+          description: Indicates whether route aggregation should be applied.
+          default: false
+          example: false
+        lifeCycleState:
+          title: lifeCycleState
+          type: string
+          description: The current lifecycle state of the resource (only DISABLED allowed on update)
+          enum:
+            - DISABLED
+          example: "DISABLED"
+    AddressRangeCVNUpdate_v1:
+      title: AddressRangeCVNUpdate
+      type: object
+      required:
+        - lifeCycleState
+      properties:
+        lifeCycleState:
+          title: lifeCycleState
+          type: string
+          description: The lifecycle state to transition to
+          enum:
+            - CREATED
+            - IN_USE
+          example: "CREATED"
+        routeAggregationApplied:
+          title: routeAggregationApplied
+          type: boolean
+          description: Indicates whether route aggregation is applied or not.
+          default: false
+          example: false
   responses:
     StandardError-400:
       description: Bad request
@@ -3038,3 +3446,47 @@ components:
         maxLength: 36
         minLength: 36
         type: string
+    addressRangeIdPathParameter:
+      name: addressRangeId
+      in: path
+      description: UUID v4 used to identify the address range
+      required: true
+      schema:
+        pattern: "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+        maxLength: 36
+        minLength: 36
+        type: string
+    addressRangeIdQueryParameter:
+      name: addressRangeId
+      in: query
+      description: UUID v4 used to filter address ranges
+      required: false
+      schema:
+        type: string
+    hostProjectNumberQueryParameter:
+      name: hostProjectNumber
+      in: query
+      description: The project number of the GCP host project
+      required: false
+      schema:
+        type: string
+        example: "954964321833"
+    vpcNameQueryParameter:
+      name: vpcName
+      in: query
+      description: VPC name to filter address ranges
+      required: false
+      schema:
+        type: string
+        example: "vpc1"
+    lifTypeQueryParameter:
+      name: lifType
+      in: query
+      description: Type of LIF to filter address ranges
+      required: false
+      schema:
+        type: string
+        enum:
+          - dataLIF
+          - interclusterLIF
+        example: "dataLIF"

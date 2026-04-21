@@ -239,6 +239,16 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		return nil, ConvertToVSAError(err)
 	}
 
+	// Mark the address range as IN_USE now that GCP has allocated the subnet from it.
+	// Use CIDR containment: find the registered range whose CIDR contains the allocated
+	// subnet's IP (e.g. 10.55.55.16/29 is carved from 10.55.55.0/24). This correctly
+	// Only runs when ADDRESS_SPACE_MGMT_ENABLED=true and a subnet was allocated.
+	if len(params.RequestedRanges) > 0 && tenancyDetails != nil && tenancyDetails.AllocatedSubnetCIDR != "" {
+		if markErr := workflow.ExecuteActivity(ctx, poolActivity.MarkAddressRangeInUse, tenancyDetails.AllocatedSubnetCIDR, params.VendorSubNetID).Get(ctx, nil); markErr != nil {
+			util.GetLogger(ctx).Warnf("MarkAddressRangeInUse failed, continuing pool creation: %v", markErr)
+		}
+	}
+
 	if cancelErr := cancellationHandler.CheckCancellationSignal(ctx); cancelErr != nil {
 		return nil, cancelErr
 	}
@@ -249,6 +259,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		SnHostProject:         tenancyDetails.SnHostProject,
 		Network:               tenancyDetails.Network,
 		SubnetNames:           tenancyDetails.SubnetworkNames,
+		AllocatedSubnetCIDR:   tenancyDetails.AllocatedSubnetCIDR,
 	}
 	dbPool.SnHostProject = tenancyDetails.SnHostProject
 	dbPool.ClusterDetails = *tenancyInfo
@@ -528,6 +539,7 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		SnHostProject:         tenancyDetails.SnHostProject,
 		Network:               tenancyDetails.Network,
 		SubnetNames:           tenancyDetails.SubnetworkNames,
+		AllocatedSubnetCIDR:   dbPool.ClusterDetails.AllocatedSubnetCIDR,
 	}
 	dbPool.SnHostProject = tenancyDetails.SnHostProject
 	err = workflow.ExecuteActivity(dbHbCtx, poolActivity.SavePoolWithClusterDetails, dbPool, clusterDetails).Get(dbHbCtx, nil)
@@ -1458,9 +1470,18 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	// Only execute data subnet cleanup if cluster details exist
 	if hasClusterDetails {
-		err = workflow.ExecuteChildWorkflow(hyperscalerCtx, DataSubnetSequentialPoller, params, dbPool, dbPool.ClusterDetails.RegionalTenantProject, models.ResourceOperationDelete).Get(ctx, nil)
+		deletedSubnetDetails := &common.TenancyInfo{}
+		err = workflow.ExecuteChildWorkflow(hyperscalerCtx, DataSubnetSequentialPoller, params, dbPool, dbPool.ClusterDetails.RegionalTenantProject, models.ResourceOperationDelete).Get(ctx, &deletedSubnetDetails)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
+		}
+		if deletedSubnetDetails != nil && deletedSubnetDetails.AllocatedSubnetCIDR != "" {
+			dbPool.ClusterDetails.AllocatedSubnetCIDR = deletedSubnetDetails.AllocatedSubnetCIDR
+		}
+
+		// Release the address range back to CREATED state now that the subnet has been deleted.
+		if markErr := workflow.ExecuteActivity(ctx, poolActivity.MarkAddressRangesCreated, dbPool).Get(ctx, nil); markErr != nil {
+			util.GetLogger(ctx).Warnf("MarkAddressRangesCreated failed, continuing pool deletion: %v", markErr)
 		}
 	}
 
@@ -1738,11 +1759,17 @@ func (wf *poolDataSubnetWorkFlow) Run(ctx workflow.Context, args ...interface{})
 		}
 		// Adding the result to the workflow, which will be returned to the caller as Query after workflow completion
 		wf.TenancyDetails = tenancyDetails
+		return tenancyDetails, nil
 
 	case models.ResourceOperationDelete:
 		// check the cases thoroughly when the accountID is empty like in case of delete pool
 		dbPool := &datamodel.Pool{BaseModel: datamodel.BaseModel{UUID: poolUUID}, AccountID: accountID}
 		err = workflow.ExecuteActivity(ctx, poolActivity.GetPool, dbPool).Get(ctx, &dbPool)
+		if err != nil {
+			return nil, ConvertToVSAError(err)
+		}
+		tenancyDetails := &common.TenancyInfo{}
+		err = workflow.ExecuteActivity(ctx, poolActivity.GetPoolTenancyInfo, dbPool).Get(ctx, &tenancyDetails)
 		if err != nil {
 			return nil, ConvertToVSAError(err)
 		}
@@ -1755,11 +1782,15 @@ func (wf *poolDataSubnetWorkFlow) Run(ctx workflow.Context, args ...interface{})
 		if err != nil {
 			return nil, ConvertToVSAError(vsaerror.Errorf("failed to release data subnet for pool: %s project: %s with error : %w", dbPool.Name, dbPool.Account.Name, err))
 		}
+		// Expose tenancy details (including pre-deletion AllocatedSubnetCIDR) via the query
+		// handler so DataSubnetSequentialPoller can return the CIDR to the delete workflow for
+		// address-range state reset.
+		wf.TenancyDetails = tenancyDetails
+		return tenancyDetails, nil
 	default:
 		// throw error for invalid action type
 		return nil, ConvertToVSAError(fmt.Errorf("invalid action type for pool data subnet workflow. Please send either Create or Delete. Current actionType: %s. poolUUID: %s", actionType, poolUUID))
 	}
-	return nil, nil
 }
 
 // SubnetActivity is a struct used for subnet related activities.
@@ -1820,16 +1851,16 @@ func DataSubnetSequentialPoller(ctx workflow.Context, params *common.CreatePoolP
 		return nil, vsaerrors.WrapAsTemporalApplicationError(err)
 	}
 
-	if actionType == models.ResourceOperationCreate {
-		tenancyDetails := &common.TenancyInfo{}
-		err = workflow.ExecuteActivity(ctx, subnetActivity.GetTenancyDetails, createDeleteSubnetJobUUID).Get(ctx, &tenancyDetails)
-		if err != nil {
-			logger.Errorf("Failed to get tenancy details for job %s, error: %v", *createDeleteSubnetJobUUID, err)
-			return nil, ConvertToVSAError(err)
-		}
-		return tenancyDetails, nil
+	// Fetch tenancy details for both create and delete: on create it carries the allocated subnet
+	// CIDR needed for MarkAddressRangeInUse; on delete it carries the pre-deletion CIDR needed
+	// for MarkAddressRangesCreated to reset the address-range state.
+	tenancyDetails := &common.TenancyInfo{}
+	err = workflow.ExecuteActivity(ctx, subnetActivity.GetTenancyDetails, createDeleteSubnetJobUUID).Get(ctx, &tenancyDetails)
+	if err != nil {
+		logger.Errorf("Failed to get tenancy details for job %s, error: %v", *createDeleteSubnetJobUUID, err)
+		return nil, ConvertToVSAError(err)
 	}
-	return nil, nil
+	return tenancyDetails, nil
 }
 
 // CreateDeleteDataSubnetJob is an activity that triggers PoolDataSubnetWorkFlow for the pool

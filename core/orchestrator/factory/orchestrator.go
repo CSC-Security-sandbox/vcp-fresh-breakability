@@ -185,6 +185,14 @@ type OrchestratorFactory interface {
 
 	// Quota rules
 	ReplaceDstQuotaRulesWithSrc(ctx context.Context, req *commonparams.UpdateDstWithSrcQuotaRulesV1beta, params commonparams.V1betaUpdateDestinationQuotaRulesVCPParams) ([]*datamodel.QuotaRule, error)
+
+	// Address ranges
+	CreateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error)
+	GetAddressRange(ctx context.Context, arID string) (*datamodel.AddressRange, error)
+	ListAddressRanges(ctx context.Context, hostProjectNumber, vpcName string, arID, lifType *string) ([]*datamodel.AddressRange, error)
+	UpdateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error)
+	UpdateAddressRangeState(ctx context.Context, arID, state string, routeAggregationApplied *bool) (*datamodel.AddressRange, error)
+	DeleteAddressRange(ctx context.Context, arID string) (*datamodel.AddressRange, error)
 }
 
 // GetOrchestratorForProvider returns the appropriate orchestrator implementation based on provider

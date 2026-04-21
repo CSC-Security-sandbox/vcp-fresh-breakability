@@ -486,6 +486,10 @@ func (s *PersistenceStore) GetPoolsCount(ctx context.Context, filter *dbutils.Fi
 	return s.dataStore.GetPoolsCount(ctx, filter)
 }
 
+func (s *PersistenceStore) CountActivePoolsByNetwork(ctx context.Context, network string, excludePoolUUID string) (int64, error) {
+	return s.dataStore.CountActivePoolsByNetwork(ctx, network, excludePoolUUID)
+}
+
 func (s *PersistenceStore) GetPoolByName(ctx context.Context, conditions [][]interface{}) (*datamodel.PoolView, error) {
 	return s.dataStore.GetPoolByName(ctx, conditions)
 }
@@ -1763,4 +1767,36 @@ func (s *PersistenceStore) GetMultipleVolumesWithExpertMode(ctx context.Context,
 
 func (s *PersistenceStore) ListExpertModeVolumesWithPagination(ctx context.Context, conditions [][]interface{}, pagination *dbutils.Pagination) ([]*datamodel.ExpertModeVolumes, error) {
 	return s.dataStore.ListExpertModeVolumesWithPagination(ctx, conditions, pagination)
+}
+
+func (s *PersistenceStore) CreateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error) {
+	return s.dataStore.CreateAddressRange(ctx, ar)
+}
+
+func (s *PersistenceStore) GetAddressRange(ctx context.Context, arID string) (*datamodel.AddressRange, error) {
+	return s.dataStore.GetAddressRange(ctx, arID)
+}
+
+func (s *PersistenceStore) ListAddressRanges(ctx context.Context, hostProjectNumber, vpcName string, arID, lifType *string) ([]*datamodel.AddressRange, error) {
+	return s.dataStore.ListAddressRanges(ctx, hostProjectNumber, vpcName, arID, lifType)
+}
+
+func (s *PersistenceStore) UpdateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error) {
+	return s.dataStore.UpdateAddressRange(ctx, ar)
+}
+
+func (s *PersistenceStore) UpdateAddressRangeState(ctx context.Context, arID, state string, routeAggregationApplied *bool) (*datamodel.AddressRange, error) {
+	return s.dataStore.UpdateAddressRangeState(ctx, arID, state, routeAggregationApplied)
+}
+
+func (s *PersistenceStore) UpdateAddressRangeStateToCreatedIfLastPool(ctx context.Context, arUUID, network, excludePoolUUID, addressRangeCidr string) (bool, error) {
+	return s.dataStore.UpdateAddressRangeStateToCreatedIfLastPool(ctx, arUUID, network, excludePoolUUID, addressRangeCidr)
+}
+
+func (s *PersistenceStore) ResetAddressRangesInUseToCreated(ctx context.Context, hostProjectNumber, vpcName string) error {
+	return s.dataStore.ResetAddressRangesInUseToCreated(ctx, hostProjectNumber, vpcName)
+}
+
+func (s *PersistenceStore) DeleteAddressRange(ctx context.Context, arID string) (*datamodel.AddressRange, error) {
+	return s.dataStore.DeleteAddressRange(ctx, arID)
 }

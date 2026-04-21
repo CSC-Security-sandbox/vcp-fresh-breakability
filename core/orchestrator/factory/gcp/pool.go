@@ -30,6 +30,8 @@ var (
 	// Pool size limits
 	minQuotaInBytesPool = utils.MinQuotaInBytesPool
 	maxQuotaInBytesPool = utils.MaxQuotaInBytesPool
+	// Feature flags
+	addressSpaceMgmtEnabled = env.GetBool(env.EnvAddressSpaceMgmtEnabled, false)
 	// Function variables
 	createPool                     = _createPool
 	updatePool                     = _updatePool
@@ -134,6 +136,12 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 		return nil, "", errors.New("unable to process request, please try again later")
 	}
 
+	// When address space management is enabled, look up registered address ranges for this VPC
+	// and pass them as RequestedRanges to the subnet creation operation.
+	// Ranges in both CREATED and IN_USE state are included — IN_USE means another pool is already
+	// using this range, and GCP will allocate a new subnet block from it for this pool.
+	params.RequestedRanges = resolveRequestedRanges(ctx, se, logger, params.VendorSubNetID, addressSpaceMgmtEnabled)
+
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
 		if err != nil {
@@ -158,6 +166,34 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 
 	poolView := database.ConvertPoolToPoolView(dbPool)
 	return common.ConvertDatastorePoolToModel(poolView, account.Name), createdJob.UUID, nil
+}
+
+// resolveRequestedRanges returns the list of address range names to pass as RequestedRanges
+// to GCP Service Networking during pool subnet creation. Returns nil when the feature flag is
+// off, when the VPC cannot be parsed, or when the DB lookup fails (with a warning logged).
+// Both CREATED and IN_USE ranges are included: IN_USE means another pool already uses the
+// range and GCP will carve a new subnet block from it for this pool.
+func resolveRequestedRanges(ctx context.Context, se database.Storage, logger log.Logger, vendorSubNetID string, addressSpaceMgmtEnabled bool) []string {
+	if !addressSpaceMgmtEnabled || vendorSubNetID == "" {
+		return nil
+	}
+	hostProjectNumber, vpcName, _ := utils.ParseProjectId(vendorSubNetID)
+	if hostProjectNumber == "" || vpcName == "" {
+		return nil
+	}
+	lifType := database.AddressRangeLifTypeDataLIF
+	addressRanges, err := se.ListAddressRanges(ctx, hostProjectNumber, vpcName, nil, &lifType)
+	if err != nil {
+		logger.Warn("Failed to list address ranges for address space management; proceeding without RequestedRanges", "error", err)
+		return nil
+	}
+	var requestedRanges []string
+	for _, ar := range addressRanges {
+		if ar.AddressRangeState == database.AddressRangeStateCreated || ar.AddressRangeState == database.AddressRangeStateInUse {
+			requestedRanges = append(requestedRanges, ar.Name)
+		}
+	}
+	return requestedRanges
 }
 
 func createExpertModeUser(poolObj *datamodel.Pool, userName string) *datamodel.ExpertModeCredentials {

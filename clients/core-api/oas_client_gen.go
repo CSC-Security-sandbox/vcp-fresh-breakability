@@ -27,6 +27,12 @@ type Invoker interface {
 	//
 	// GET /health
 	GetHealth(ctx context.Context) (GetHealthRes, error)
+	// V1CreateAddressRange invokes v1_createAddressRange operation.
+	//
+	// Creates a new address range resource.
+	//
+	// POST /v1/addressRange
+	V1CreateAddressRange(ctx context.Context, request *AddressRangeCreateV1, params V1CreateAddressRangeParams) (V1CreateAddressRangeRes, error)
 	// V1CreateImageVersion invokes v1_createImageVersion operation.
 	//
 	// Creates a new image version entry in the database. This is useful when an image version was missed
@@ -46,6 +52,12 @@ type Invoker interface {
 	//
 	// POST /v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/snapshots
 	V1CreateSnapshot(ctx context.Context, request *VolumeSnapshotCreateV1, params V1CreateSnapshotParams) (V1CreateSnapshotRes, error)
+	// V1DeleteAddressRange invokes v1_deleteAddressRange operation.
+	//
+	// Soft-deletes the address range identified by the given UUID.
+	//
+	// DELETE /v1/addressRange/{addressRangeId}
+	V1DeleteAddressRange(ctx context.Context, params V1DeleteAddressRangeParams) (V1DeleteAddressRangeRes, error)
 	// V1DeleteImageVersion invokes v1_deleteImageVersion operation.
 	//
 	// Deletes an image version entry from the database by ONTAP version.
@@ -84,6 +96,12 @@ type Invoker interface {
 	//
 	// POST /v1/expertMode/volumes/{name}:rename
 	V1ExpertModeVolumeRename(ctx context.Context, request *ExpertModeVolumeRenameV1, params V1ExpertModeVolumeRenameParams) (V1ExpertModeVolumeRenameRes, error)
+	// V1GetAddressRange invokes v1_getAddressRange operation.
+	//
+	// Returns the address range identified by the given UUID.
+	//
+	// GET /v1/addressRange/{addressRangeId}
+	V1GetAddressRange(ctx context.Context, params V1GetAddressRangeParams) (V1GetAddressRangeRes, error)
 	// V1GetClusterUpgradeStatus invokes v1_getClusterUpgradeStatus operation.
 	//
 	// Retrieves the status and progress of a cluster upgrade operation.
@@ -108,6 +126,12 @@ type Invoker interface {
 	//
 	// GET /v1/pools/{poolId}
 	V1GetPool(ctx context.Context, params V1GetPoolParams) (V1GetPoolRes, error)
+	// V1ListAddressRanges invokes v1_listAddressRanges operation.
+	//
+	// Returns address ranges matching the query parameters.
+	//
+	// GET /v1/addressRange
+	V1ListAddressRanges(ctx context.Context, params V1ListAddressRangesParams) (V1ListAddressRangesRes, error)
 	// V1ListImageVersions invokes v1_listImageVersions operation.
 	//
 	// Lists all available ONTAP image versions for cluster upgrades, including the current VCP version
@@ -140,6 +164,18 @@ type Invoker interface {
 	//
 	// POST /v1/projects/{projectNumber}/locations/{locationId}/volumes/{volumeId}/splitstart
 	V1SplitStartVolume(ctx context.Context, params V1SplitStartVolumeParams) (V1SplitStartVolumeRes, error)
+	// V1UpdateAddressRange invokes v1_updateAddressRange operation.
+	//
+	// Updates the address range resource.
+	//
+	// PUT /v1/addressRange/{addressRangeId}
+	V1UpdateAddressRange(ctx context.Context, request *AddressRangeUpdateV1, params V1UpdateAddressRangeParams) (V1UpdateAddressRangeRes, error)
+	// V1UpdateAddressRangeState invokes v1_updateAddressRangeState operation.
+	//
+	// Updates the lifecycle state of the address range (CREATED or IN_USE).
+	//
+	// PUT /v1/addressRange/{addressRangeId}/updateState
+	V1UpdateAddressRangeState(ctx context.Context, request *AddressRangeCVNUpdateV1, params V1UpdateAddressRangeStateParams) (V1UpdateAddressRangeStateRes, error)
 	// V1UpdatePool invokes v1_updatePool operation.
 	//
 	// Update the pool.
@@ -222,6 +258,70 @@ func (c *Client) sendGetHealth(ctx context.Context) (res GetHealthRes, err error
 	defer resp.Body.Close()
 
 	result, err := decodeGetHealthResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1CreateAddressRange invokes v1_createAddressRange operation.
+//
+// Creates a new address range resource.
+//
+// POST /v1/addressRange
+func (c *Client) V1CreateAddressRange(ctx context.Context, request *AddressRangeCreateV1, params V1CreateAddressRangeParams) (V1CreateAddressRangeRes, error) {
+	res, err := c.sendV1CreateAddressRange(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1CreateAddressRange(ctx context.Context, request *AddressRangeCreateV1, params V1CreateAddressRangeParams) (res V1CreateAddressRangeRes, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v1/addressRange"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1CreateAddressRangeRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1CreateAddressRangeResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -463,6 +563,76 @@ func (c *Client) sendV1CreateSnapshot(ctx context.Context, request *VolumeSnapsh
 	defer resp.Body.Close()
 
 	result, err := decodeV1CreateSnapshotResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1DeleteAddressRange invokes v1_deleteAddressRange operation.
+//
+// Soft-deletes the address range identified by the given UUID.
+//
+// DELETE /v1/addressRange/{addressRangeId}
+func (c *Client) V1DeleteAddressRange(ctx context.Context, params V1DeleteAddressRangeParams) (V1DeleteAddressRangeRes, error) {
+	res, err := c.sendV1DeleteAddressRange(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1DeleteAddressRange(ctx context.Context, params V1DeleteAddressRangeParams) (res V1DeleteAddressRangeRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/v1/addressRange/"
+	{
+		// Encode "addressRangeId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "addressRangeId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.AddressRangeId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1DeleteAddressRangeResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -829,6 +999,76 @@ func (c *Client) sendV1ExpertModeVolumeRename(ctx context.Context, request *Expe
 	return result, nil
 }
 
+// V1GetAddressRange invokes v1_getAddressRange operation.
+//
+// Returns the address range identified by the given UUID.
+//
+// GET /v1/addressRange/{addressRangeId}
+func (c *Client) V1GetAddressRange(ctx context.Context, params V1GetAddressRangeParams) (V1GetAddressRangeRes, error) {
+	res, err := c.sendV1GetAddressRange(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1GetAddressRange(ctx context.Context, params V1GetAddressRangeParams) (res V1GetAddressRangeRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/v1/addressRange/"
+	{
+		// Encode "addressRangeId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "addressRangeId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.AddressRangeId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1GetAddressRangeResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
 // V1GetClusterUpgradeStatus invokes v1_getClusterUpgradeStatus operation.
 //
 // Retrieves the status and progress of a cluster upgrade operation.
@@ -1124,6 +1364,129 @@ func (c *Client) sendV1GetPool(ctx context.Context, params V1GetPoolParams) (res
 	defer resp.Body.Close()
 
 	result, err := decodeV1GetPoolResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1ListAddressRanges invokes v1_listAddressRanges operation.
+//
+// Returns address ranges matching the query parameters.
+//
+// GET /v1/addressRange
+func (c *Client) V1ListAddressRanges(ctx context.Context, params V1ListAddressRangesParams) (V1ListAddressRangesRes, error) {
+	res, err := c.sendV1ListAddressRanges(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendV1ListAddressRanges(ctx context.Context, params V1ListAddressRangesParams) (res V1ListAddressRangesRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/v1/addressRange"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "hostProjectNumber" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "hostProjectNumber",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.HostProjectNumber.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "vpcName" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "vpcName",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.VpcName.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "addressRangeId" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "addressRangeId",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.AddressRangeId.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "lifType" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "lifType",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.LifType.Get(); ok {
+				return e.EncodeValue(conv.StringToString(string(val)))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1ListAddressRangesResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -1478,6 +1841,171 @@ func (c *Client) sendV1SplitStartVolume(ctx context.Context, params V1SplitStart
 	defer resp.Body.Close()
 
 	result, err := decodeV1SplitStartVolumeResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1UpdateAddressRange invokes v1_updateAddressRange operation.
+//
+// Updates the address range resource.
+//
+// PUT /v1/addressRange/{addressRangeId}
+func (c *Client) V1UpdateAddressRange(ctx context.Context, request *AddressRangeUpdateV1, params V1UpdateAddressRangeParams) (V1UpdateAddressRangeRes, error) {
+	res, err := c.sendV1UpdateAddressRange(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1UpdateAddressRange(ctx context.Context, request *AddressRangeUpdateV1, params V1UpdateAddressRangeParams) (res V1UpdateAddressRangeRes, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [2]string
+	pathParts[0] = "/v1/addressRange/"
+	{
+		// Encode "addressRangeId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "addressRangeId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.AddressRangeId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1UpdateAddressRangeRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1UpdateAddressRangeResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// V1UpdateAddressRangeState invokes v1_updateAddressRangeState operation.
+//
+// Updates the lifecycle state of the address range (CREATED or IN_USE).
+//
+// PUT /v1/addressRange/{addressRangeId}/updateState
+func (c *Client) V1UpdateAddressRangeState(ctx context.Context, request *AddressRangeCVNUpdateV1, params V1UpdateAddressRangeStateParams) (V1UpdateAddressRangeStateRes, error) {
+	res, err := c.sendV1UpdateAddressRangeState(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendV1UpdateAddressRangeState(ctx context.Context, request *AddressRangeCVNUpdateV1, params V1UpdateAddressRangeStateParams) (res V1UpdateAddressRangeStateRes, err error) {
+	// Validate request before sending.
+	if err := func() error {
+		if err := request.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return res, errors.Wrap(err, "validate")
+	}
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/v1/addressRange/"
+	{
+		// Encode "addressRangeId" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "addressRangeId",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.AddressRangeId))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/updateState"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeV1UpdateAddressRangeStateRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.XCorrelationID.Get(); ok {
+				return e.EncodeValue(conv.StringToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	defer resp.Body.Close()
+
+	result, err := decodeV1UpdateAddressRangeStateResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

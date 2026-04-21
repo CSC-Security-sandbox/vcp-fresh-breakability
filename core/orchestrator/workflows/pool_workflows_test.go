@@ -1303,6 +1303,58 @@ func TestDataSubnetSequentialPoller_Create_Success(t *testing.T) {
 	env.AssertExpectations(t)
 }
 
+func TestDataSubnetSequentialPoller_Delete_Success(t *testing.T) {
+	var suite testsuite.WorkflowTestSuite
+	env := suite.NewTestWorkflowEnvironment()
+	env.SetContextPropagators([]workflow.ContextPropagator{util.NewContextMapPropagator()})
+	encodedValue, _ := converter.GetDefaultDataConverter().ToPayload(log.Fields{})
+	mockHeader := &commonpb.Header{
+		Fields: map[string]*commonpb.Payload{
+			"logParam": encodedValue,
+		},
+	}
+	env.SetHeader(mockHeader)
+
+	mockStorage := database.NewMockStorage(t)
+	env.RegisterActivity(&SubnetActivity{SE: mockStorage})
+	env.RegisterActivity(&activities.CommonActivities{SE: mockStorage})
+
+	params := &common.CreatePoolParams{
+		AccountName:    "test-account",
+		VendorSubNetID: "test-vpc",
+	}
+	pool := &datamodel.Pool{BaseModel: datamodel.BaseModel{ID: 123}}
+	tenantProjectNumber := "tenant-123"
+	actionType := models.ResourceOperationDelete
+
+	subnetJobUUID := "job-uuid-delete"
+	// Pre-deletion CIDR is returned so MarkAddressRangesCreated can reset the range.
+	tenancyDetails := &common.TenancyInfo{AllocatedSubnetCIDR: "10.55.55.16/29"}
+
+	env.RegisterWorkflow(DataSubnetSequentialPoller)
+
+	env.OnActivity("CreateDeleteDataSubnetJob", mock.Anything, params, pool, tenantProjectNumber, actionType).
+		Return(subnetJobUUID, nil)
+	mockStorage.EXPECT().GetJob(mock.Anything, subnetJobUUID).Return(&datamodel.Job{
+		BaseModel: datamodel.BaseModel{UUID: subnetJobUUID},
+		State:     string(models.JobsStateDONE),
+	}, nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, subnetJobUUID).
+		Return(tenancyDetails, nil)
+
+	env.ExecuteWorkflow(DataSubnetSequentialPoller, params, pool, tenantProjectNumber, actionType)
+
+	assert.True(t, env.IsWorkflowCompleted())
+	assert.NoError(t, env.GetWorkflowError())
+
+	var result *common.TenancyInfo
+	err := env.GetWorkflowResult(&result)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "10.55.55.16/29", result.AllocatedSubnetCIDR)
+	env.AssertExpectations(t)
+}
+
 func TestDataSubnetSequentialPoller_Create_ActivityError(t *testing.T) {
 	suite := &testsuite.WorkflowTestSuite{}
 	env := suite.NewTestWorkflowEnvironment()
@@ -10734,11 +10786,18 @@ func TestDataSubnetSequentialPoller_DeleteActionType(t *testing.T) {
 		BaseModel: datamodel.BaseModel{UUID: "test-subnet-job-id"},
 		State:     string(models.JobsStateDONE),
 	}, nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, "test-subnet-job-id").
+		Return(&common.TenancyInfo{AllocatedSubnetCIDR: "10.55.55.16/29"}, nil)
 
 	env.ExecuteWorkflow(DataSubnetSequentialPoller, params, pool, tenantProjectNumber, models.ResourceOperationDelete)
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
+
+	var result *common.TenancyInfo
+	assert.NoError(t, env.GetWorkflowResult(&result))
+	assert.NotNil(t, result)
+	assert.Equal(t, "10.55.55.16/29", result.AllocatedSubnetCIDR)
 	env.AssertExpectations(t)
 }
 
@@ -11064,13 +11123,18 @@ func TestDataSubnetSequentialPoller_DeleteActionType_Success(t *testing.T) {
 		BaseModel: datamodel.BaseModel{UUID: subnetJobUUID},
 		State:     string(models.JobsStateDONE),
 	}, nil)
+	env.OnActivity("GetTenancyDetails", mock.Anything, subnetJobUUID).
+		Return(&common.TenancyInfo{AllocatedSubnetCIDR: "10.55.55.16/29"}, nil)
 
 	env.ExecuteWorkflow(DataSubnetSequentialPoller, params, pool, tenantProjectNumber, models.ResourceOperationDelete)
 
 	assert.True(t, env.IsWorkflowCompleted())
 	assert.NoError(t, env.GetWorkflowError())
 
-	// Delete action returns nil, so we don't need to check the result
+	var result *common.TenancyInfo
+	assert.NoError(t, env.GetWorkflowResult(&result))
+	assert.NotNil(t, result)
+	assert.Equal(t, "10.55.55.16/29", result.AllocatedSubnetCIDR)
 	env.AssertExpectations(t)
 }
 

@@ -15,6 +15,69 @@ import (
 	"github.com/ogen-go/ogen/validate"
 )
 
+// V1CreateAddressRangeParams is parameters of v1_createAddressRange operation.
+type V1CreateAddressRangeParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+}
+
+func unpackV1CreateAddressRangeParams(packed middleware.Parameters) (params V1CreateAddressRangeParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "x-correlation-id",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XCorrelationID = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeV1CreateAddressRangeParams(args [0]string, argsEscaped bool, r *http.Request) (params V1CreateAddressRangeParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode header: x-correlation-id.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXCorrelationIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXCorrelationIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XCorrelationID.SetTo(paramsDotXCorrelationIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "x-correlation-id",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // V1CreateImageVersionParams is parameters of v1_createImageVersion operation.
 type V1CreateImageVersionParams struct {
 	// Correlation identifier.
@@ -448,6 +511,139 @@ func decodeV1CreateSnapshotParams(args [3]string, argsEscaped bool, r *http.Requ
 		return params, &ogenerrors.DecodeParamError{
 			Name: "x-correlation-id",
 			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// V1DeleteAddressRangeParams is parameters of v1_deleteAddressRange operation.
+type V1DeleteAddressRangeParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+	// UUID v4 used to identify the address range.
+	AddressRangeId string
+}
+
+func unpackV1DeleteAddressRangeParams(packed middleware.Parameters) (params V1DeleteAddressRangeParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "x-correlation-id",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XCorrelationID = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "addressRangeId",
+			In:   "path",
+		}
+		params.AddressRangeId = packed[key].(string)
+	}
+	return params
+}
+
+func decodeV1DeleteAddressRangeParams(args [1]string, argsEscaped bool, r *http.Request) (params V1DeleteAddressRangeParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode header: x-correlation-id.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXCorrelationIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXCorrelationIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XCorrelationID.SetTo(paramsDotXCorrelationIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "x-correlation-id",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	// Decode path: addressRangeId.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "addressRangeId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.AddressRangeId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    36,
+					MinLengthSet: true,
+					MaxLength:    36,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(params.AddressRangeId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "addressRangeId",
+			In:   "path",
 			Err:  err,
 		}
 	}
@@ -996,6 +1192,139 @@ func decodeV1ExpertModeVolumeRenameParams(args [1]string, argsEscaped bool, r *h
 	}(); err != nil {
 		return params, &ogenerrors.DecodeParamError{
 			Name: "name",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// V1GetAddressRangeParams is parameters of v1_getAddressRange operation.
+type V1GetAddressRangeParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+	// UUID v4 used to identify the address range.
+	AddressRangeId string
+}
+
+func unpackV1GetAddressRangeParams(packed middleware.Parameters) (params V1GetAddressRangeParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "x-correlation-id",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XCorrelationID = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "addressRangeId",
+			In:   "path",
+		}
+		params.AddressRangeId = packed[key].(string)
+	}
+	return params
+}
+
+func decodeV1GetAddressRangeParams(args [1]string, argsEscaped bool, r *http.Request) (params V1GetAddressRangeParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode header: x-correlation-id.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXCorrelationIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXCorrelationIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XCorrelationID.SetTo(paramsDotXCorrelationIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "x-correlation-id",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	// Decode path: addressRangeId.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "addressRangeId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.AddressRangeId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    36,
+					MinLengthSet: true,
+					MaxLength:    36,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(params.AddressRangeId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "addressRangeId",
 			In:   "path",
 			Err:  err,
 		}
@@ -1622,6 +1951,293 @@ func decodeV1GetPoolParams(args [1]string, argsEscaped bool, r *http.Request) (p
 		return params, &ogenerrors.DecodeParamError{
 			Name: "x-correlation-id",
 			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// V1ListAddressRangesParams is parameters of v1_listAddressRanges operation.
+type V1ListAddressRangesParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+	// The project number of the GCP host project.
+	HostProjectNumber OptString
+	// VPC name to filter address ranges.
+	VpcName OptString
+	// UUID v4 used to filter address ranges.
+	AddressRangeId OptString
+	// Type of LIF to filter address ranges.
+	LifType OptLifTypeQueryParameter
+}
+
+func unpackV1ListAddressRangesParams(packed middleware.Parameters) (params V1ListAddressRangesParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "x-correlation-id",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XCorrelationID = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "hostProjectNumber",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.HostProjectNumber = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "vpcName",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.VpcName = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "addressRangeId",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.AddressRangeId = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "lifType",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.LifType = v.(OptLifTypeQueryParameter)
+		}
+	}
+	return params
+}
+
+func decodeV1ListAddressRangesParams(args [0]string, argsEscaped bool, r *http.Request) (params V1ListAddressRangesParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode header: x-correlation-id.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXCorrelationIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXCorrelationIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XCorrelationID.SetTo(paramsDotXCorrelationIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "x-correlation-id",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	// Decode query: hostProjectNumber.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "hostProjectNumber",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotHostProjectNumberVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotHostProjectNumberVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.HostProjectNumber.SetTo(paramsDotHostProjectNumberVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "hostProjectNumber",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: vpcName.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "vpcName",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotVpcNameVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotVpcNameVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.VpcName.SetTo(paramsDotVpcNameVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "vpcName",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: addressRangeId.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "addressRangeId",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotAddressRangeIdVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotAddressRangeIdVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.AddressRangeId.SetTo(paramsDotAddressRangeIdVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "addressRangeId",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	// Decode query: lifType.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "lifType",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotLifTypeVal LifTypeQueryParameter
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotLifTypeVal = LifTypeQueryParameter(c)
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.LifType.SetTo(paramsDotLifTypeVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.LifType.Get(); ok {
+					if err := func() error {
+						if err := value.Validate(); err != nil {
+							return err
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "lifType",
+			In:   "query",
 			Err:  err,
 		}
 	}
@@ -2264,6 +2880,272 @@ func decodeV1SplitStartVolumeParams(args [3]string, argsEscaped bool, r *http.Re
 		return params, &ogenerrors.DecodeParamError{
 			Name: "x-correlation-id",
 			In:   "header",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// V1UpdateAddressRangeParams is parameters of v1_updateAddressRange operation.
+type V1UpdateAddressRangeParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+	// UUID v4 used to identify the address range.
+	AddressRangeId string
+}
+
+func unpackV1UpdateAddressRangeParams(packed middleware.Parameters) (params V1UpdateAddressRangeParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "x-correlation-id",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XCorrelationID = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "addressRangeId",
+			In:   "path",
+		}
+		params.AddressRangeId = packed[key].(string)
+	}
+	return params
+}
+
+func decodeV1UpdateAddressRangeParams(args [1]string, argsEscaped bool, r *http.Request) (params V1UpdateAddressRangeParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode header: x-correlation-id.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXCorrelationIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXCorrelationIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XCorrelationID.SetTo(paramsDotXCorrelationIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "x-correlation-id",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	// Decode path: addressRangeId.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "addressRangeId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.AddressRangeId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    36,
+					MinLengthSet: true,
+					MaxLength:    36,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(params.AddressRangeId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "addressRangeId",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
+// V1UpdateAddressRangeStateParams is parameters of v1_updateAddressRangeState operation.
+type V1UpdateAddressRangeStateParams struct {
+	// Correlation identifier.
+	XCorrelationID OptString
+	// UUID v4 used to identify the address range.
+	AddressRangeId string
+}
+
+func unpackV1UpdateAddressRangeStateParams(packed middleware.Parameters) (params V1UpdateAddressRangeStateParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "x-correlation-id",
+			In:   "header",
+		}
+		if v, ok := packed[key]; ok {
+			params.XCorrelationID = v.(OptString)
+		}
+	}
+	{
+		key := middleware.ParameterKey{
+			Name: "addressRangeId",
+			In:   "path",
+		}
+		params.AddressRangeId = packed[key].(string)
+	}
+	return params
+}
+
+func decodeV1UpdateAddressRangeStateParams(args [1]string, argsEscaped bool, r *http.Request) (params V1UpdateAddressRangeStateParams, _ error) {
+	h := uri.NewHeaderDecoder(r.Header)
+	// Decode header: x-correlation-id.
+	if err := func() error {
+		cfg := uri.HeaderParameterDecodingConfig{
+			Name:    "x-correlation-id",
+			Explode: false,
+		}
+		if err := h.HasParam(cfg); err == nil {
+			if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotXCorrelationIDVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotXCorrelationIDVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.XCorrelationID.SetTo(paramsDotXCorrelationIDVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "x-correlation-id",
+			In:   "header",
+			Err:  err,
+		}
+	}
+	// Decode path: addressRangeId.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "addressRangeId",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.AddressRangeId = c
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := (validate.String{
+					MinLength:    36,
+					MinLengthSet: true,
+					MaxLength:    36,
+					MaxLengthSet: true,
+					Email:        false,
+					Hostname:     false,
+					Regex:        regexMap["^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"],
+				}).Validate(string(params.AddressRangeId)); err != nil {
+					return errors.Wrap(err, "string")
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "addressRangeId",
+			In:   "path",
 			Err:  err,
 		}
 	}

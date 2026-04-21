@@ -102,6 +102,8 @@ spec:
               value: "25"
             - name: JOB_POLLING_INTERVAL
               value: "3"
+            - name: ADDRESS_SPACE_MGMT_ENABLED
+              value: "true"
           resources:
             limits:
               cpu: "1"

@@ -5435,10 +5435,11 @@ func Test_createSubnetwork(t *testing.T) {
 			return subnetName
 		}
 		operation := "operation-12345"
-		mockSvc.On("CreateTPSubnetOp", tenantProjectNumber, consumerVPC, region, subnetName, false).
+		var nilRanges []string
+		mockSvc.On("CreateTPSubnetOp", tenantProjectNumber, consumerVPC, region, subnetName, false, nilRanges).
 			Return(&operation, nil)
 
-		operationName, err := activities.GetCreateSubnetworkOperation(mockSvc, tenantProjectNumber, consumerVPC, &region, false) // assuming standard pools
+		operationName, err := activities.GetCreateSubnetworkOperation(mockSvc, tenantProjectNumber, consumerVPC, &region, false, nil) // assuming standard pools
 		assert.NoError(t, err)
 		assert.Equal(t, "operation-12345", *operationName)
 		mockSvc.AssertExpectations(t)
@@ -5453,11 +5454,12 @@ func Test_createSubnetwork(t *testing.T) {
 		activities.MakeSubnetName = func(projectNumber string, isLargeCapacity bool) string {
 			return subnetName
 		}
-		mockSvc.On("CreateTPSubnetOp", tenantProjectNumber, consumerVPC, region, subnetName, false).
+		var nilRanges []string
+		mockSvc.On("CreateTPSubnetOp", tenantProjectNumber, consumerVPC, region, subnetName, false, nilRanges).
 			Return(nil, errors.New("create failed"))
 		mockSvc.On("GetLogger").Return(util.GetLogger(context.Background()))
 
-		_, err := activities.GetCreateSubnetworkOperation(mockSvc, tenantProjectNumber, consumerVPC, &region, false)
+		_, err := activities.GetCreateSubnetworkOperation(mockSvc, tenantProjectNumber, consumerVPC, &region, false, nil)
 		assert.Error(t, err)
 		mockSvc.AssertExpectations(t)
 	})
@@ -7431,6 +7433,7 @@ func TestPoolActivity_GetTenancyInfo(t *testing.T) {
 			SnHostProject:         "sn-host",
 			SubnetworkNames:       []string{"subnet-1"},
 			Gateway:               "10.0.0.1",
+			AllocatedSubnetCIDR:   "10.0.0.0/24",
 		}
 
 		// Mock GCP service with httptest server for GetSnHost
@@ -8460,7 +8463,7 @@ func Test_getCreateDataSubnetworkOp(t *testing.T) {
 		originalGetCreateSubnetworkOperation := activities.GetCreateSubnetworkOperation
 		defer func() { activities.GetCreateSubnetworkOperation = originalGetCreateSubnetworkOperation }()
 
-		activities.GetCreateSubnetworkOperation = func(service hyperscaler2.GoogleServices, tenantProjectNumber, consumerVPC string, tenantProjectRegion *string, isLargeCapacity bool) (*string, error) {
+		activities.GetCreateSubnetworkOperation = func(service hyperscaler2.GoogleServices, tenantProjectNumber, consumerVPC string, tenantProjectRegion *string, isLargeCapacity bool, requestedRanges []string) (*string, error) {
 			assert.Equal(t, "123456789", tenantProjectNumber)
 			assert.Equal(t, "test-vpc", consumerVPC)
 			assert.Equal(t, "us-central1", *tenantProjectRegion)
@@ -8495,7 +8498,7 @@ func Test_getCreateDataSubnetworkOp(t *testing.T) {
 		originalGetCreateSubnetworkOperation := activities.GetCreateSubnetworkOperation
 		defer func() { activities.GetCreateSubnetworkOperation = originalGetCreateSubnetworkOperation }()
 
-		activities.GetCreateSubnetworkOperation = func(service hyperscaler2.GoogleServices, tenantProjectNumber, consumerVPC string, tenantProjectRegion *string, isLargeCapacity bool) (*string, error) {
+		activities.GetCreateSubnetworkOperation = func(service hyperscaler2.GoogleServices, tenantProjectNumber, consumerVPC string, tenantProjectRegion *string, isLargeCapacity bool, requestedRanges []string) (*string, error) {
 			return nil, expectedError
 		}
 
@@ -8537,7 +8540,7 @@ func Test_getCreateDataSubnetworkOp(t *testing.T) {
 				originalGetCreateSubnetworkOperation := activities.GetCreateSubnetworkOperation
 				defer func() { activities.GetCreateSubnetworkOperation = originalGetCreateSubnetworkOperation }()
 
-				activities.GetCreateSubnetworkOperation = func(service hyperscaler2.GoogleServices, tenantProjectNumber, consumerVPC string, tenantProjectRegion *string, isLargeCapacity bool) (*string, error) {
+				activities.GetCreateSubnetworkOperation = func(service hyperscaler2.GoogleServices, tenantProjectNumber, consumerVPC string, tenantProjectRegion *string, isLargeCapacity bool, requestedRanges []string) (*string, error) {
 					assert.Equal(t, tc.tenantProjectNumber, tenantProjectNumber)
 					assert.Equal(t, tc.vendorSubNetID, consumerVPC)
 					assert.Equal(t, tc.region, *tenantProjectRegion)
@@ -16654,5 +16657,654 @@ func Test_DeleteAllPoolVPGs_SkipsOntapWhenNoProvider(t *testing.T) {
 
 	_, err := env.ExecuteActivity(act.DeleteAllPoolVPGs, pool)
 	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestMarkAddressRangeInUse_FlagDisabled(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "false")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	err := activity.MarkAddressRangeInUse(ctx, "10.55.55.16/29", "projects/123/global/networks/vpc1")
+	assert.NoError(t, err)
+	// No SE calls expected when flag is disabled.
+	mockStorage.AssertExpectations(t)
+}
+
+func TestMarkAddressRangeInUse_EmptyArgs(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	// Both empty — early return, no SE call.
+	err := activity.MarkAddressRangeInUse(ctx, "", "")
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestMarkAddressRangeInUse_InvalidNetwork(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	// Network string that ParseProjectId cannot parse — early return.
+	err := activity.MarkAddressRangeInUse(ctx, "10.55.55.16/29", "not-a-valid-network")
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestMarkAddressRangeInUse_InvalidAllocatedCIDR(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	// Malformed CIDR — should return an error.
+	err := activity.MarkAddressRangeInUse(ctx, "not-a-cidr", "projects/123/global/networks/vpc1")
+	assert.ErrorContains(t, err, "invalid allocatedSubnetCIDR")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestMarkAddressRangeInUse_HappyPath_TransitionsToInUse(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	lifType := "dataLIF"
+	// Registered range 10.55.55.0/24 — GCP allocated 10.55.55.16/29 from within it.
+	ar := &datamodel.AddressRange{
+		BaseModel:        datamodel.BaseModel{UUID: "ar-uuid-1"},
+		Name:             "my-range",
+		AddressRangeCidr: "10.55.55.0/24",
+		AddressRangeState:   "CREATED",
+	}
+	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
+		Return([]*datamodel.AddressRange{ar}, nil)
+	mockStorage.On("UpdateAddressRangeState", ctx, "ar-uuid-1", "IN_USE", (*bool)(nil)).
+		Return(ar, nil)
+
+	err := activity.MarkAddressRangeInUse(ctx, "10.55.55.16/29", "projects/123/global/networks/vpc1")
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestMarkAddressRangeInUse_CorrectRangeSelectedFromMultiple(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	lifType := "dataLIF"
+	// Two registered ranges — GCP allocated from the second one.
+	ar1 := &datamodel.AddressRange{
+		BaseModel:        datamodel.BaseModel{UUID: "ar-uuid-1"},
+		Name:             "range-a",
+		AddressRangeCidr: "10.55.55.0/24",
+		AddressRangeState:   "CREATED",
+	}
+	ar2 := &datamodel.AddressRange{
+		BaseModel:        datamodel.BaseModel{UUID: "ar-uuid-2"},
+		Name:             "range-b",
+		AddressRangeCidr: "10.56.0.0/24",
+		AddressRangeState:   "CREATED",
+	}
+	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
+		Return([]*datamodel.AddressRange{ar1, ar2}, nil)
+	// Only ar2 should be marked IN_USE — the allocated subnet is in its range.
+	mockStorage.On("UpdateAddressRangeState", ctx, "ar-uuid-2", "IN_USE", (*bool)(nil)).
+		Return(ar2, nil)
+
+	err := activity.MarkAddressRangeInUse(ctx, "10.56.0.16/29", "projects/123/global/networks/vpc1")
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestMarkAddressRangeInUse_AlreadyInUse_NoStateChange(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	lifType := "dataLIF"
+	ar := &datamodel.AddressRange{
+		BaseModel:        datamodel.BaseModel{UUID: "ar-uuid-2"},
+		Name:             "my-range",
+		AddressRangeCidr: "10.55.55.0/24",
+		AddressRangeState:   "IN_USE",
+	}
+	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
+		Return([]*datamodel.AddressRange{ar}, nil)
+	// UpdateAddressRangeState must NOT be called.
+
+	err := activity.MarkAddressRangeInUse(ctx, "10.55.55.16/29", "projects/123/global/networks/vpc1")
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestMarkAddressRangeInUse_RangeNotFound_NoError(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	lifType := "dataLIF"
+	// Registered range does not contain the allocated subnet IP.
+	other := &datamodel.AddressRange{
+		BaseModel:        datamodel.BaseModel{UUID: "ar-uuid-3"},
+		Name:             "different-range",
+		AddressRangeCidr: "192.168.1.0/24",
+		AddressRangeState:   "CREATED",
+	}
+	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
+		Return([]*datamodel.AddressRange{other}, nil)
+
+	err := activity.MarkAddressRangeInUse(ctx, "10.55.55.16/29", "projects/123/global/networks/vpc1")
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestMarkAddressRangeInUse_SEListError(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	lifType := "dataLIF"
+	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
+		Return(nil, errors.New("db error"))
+
+	err := activity.MarkAddressRangeInUse(ctx, "10.55.55.16/29", "projects/123/global/networks/vpc1")
+	assert.ErrorContains(t, err, "db error")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestMarkAddressRangeInUse_SEUpdateError(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	lifType := "dataLIF"
+	ar := &datamodel.AddressRange{
+		BaseModel:        datamodel.BaseModel{UUID: "ar-uuid-4"},
+		Name:             "my-range",
+		AddressRangeCidr: "10.55.55.0/24",
+		AddressRangeState:   "CREATED",
+	}
+	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
+		Return([]*datamodel.AddressRange{ar}, nil)
+	mockStorage.On("UpdateAddressRangeState", ctx, "ar-uuid-4", "IN_USE", (*bool)(nil)).
+		Return(nil, errors.New("update failed"))
+
+	err := activity.MarkAddressRangeInUse(ctx, "10.55.55.16/29", "projects/123/global/networks/vpc1")
+	assert.ErrorContains(t, err, "update failed")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestMarkAddressRangesCreated_FlagDisabled(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "false")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	pool := &datamodel.Pool{Network: "projects/123/global/networks/vpc1"}
+	err := activity.MarkAddressRangesCreated(ctx, pool)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestMarkAddressRangesCreated_NilPool(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	err := activity.MarkAddressRangesCreated(ctx, nil)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestMarkAddressRangesCreated_InvalidNetwork(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	pool := &datamodel.Pool{Network: "bad-network-string"}
+	err := activity.MarkAddressRangesCreated(ctx, pool)
+	assert.ErrorContains(t, err, "parseProjectId failed")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestMarkAddressRangesCreated_RemainingPoolUsesSameRange_NoStateChange(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid-1"},
+		Network:   "projects/123/global/networks/vpc1",
+		ClusterDetails: datamodel.ClusterDetails{
+			AllocatedSubnetCIDR: "10.55.55.16/29",
+		},
+	}
+	lifType := "dataLIF"
+	arInUse := &datamodel.AddressRange{
+		BaseModel:        datamodel.BaseModel{UUID: "ar-uuid-5"},
+		AddressRangeCidr: "10.55.55.0/24",
+		AddressRangeState:   "IN_USE",
+	}
+	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
+		Return([]*datamodel.AddressRange{arInUse}, nil)
+	// Atomic update returns false — another active pool still has a subnet within this range.
+	mockStorage.On("UpdateAddressRangeStateToCreatedIfLastPool", ctx, "ar-uuid-5", pool.Network, pool.UUID, "10.55.55.0/24").
+		Return(false, nil)
+
+	err := activity.MarkAddressRangesCreated(ctx, pool)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestMarkAddressRangesCreated_HappyPath_ResetsOnlyMatchedRange(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid-2"},
+		Network:   "projects/123/global/networks/vpc1",
+		ClusterDetails: datamodel.ClusterDetails{
+			AllocatedSubnetCIDR: "10.55.55.16/29",
+		},
+	}
+	lifType := "dataLIF"
+	arInUse := &datamodel.AddressRange{
+		BaseModel:        datamodel.BaseModel{UUID: "ar-uuid-5"},
+		AddressRangeCidr: "10.55.55.0/24",
+		AddressRangeState:   "IN_USE",
+	}
+	arOther := &datamodel.AddressRange{
+		BaseModel:        datamodel.BaseModel{UUID: "ar-uuid-6"},
+		AddressRangeCidr: "10.88.88.0/24",
+		AddressRangeState:   "IN_USE",
+	}
+	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
+		Return([]*datamodel.AddressRange{arInUse, arOther}, nil)
+	// Only the matching range (arInUse) is reset — atomic update returns true (no other pool uses it).
+	mockStorage.On("UpdateAddressRangeStateToCreatedIfLastPool", ctx, "ar-uuid-5", pool.Network, pool.UUID, "10.55.55.0/24").
+		Return(true, nil)
+
+	err := activity.MarkAddressRangesCreated(ctx, pool)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestMarkAddressRangesCreated_SEAtomicUpdateError(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid-3"},
+		Network:   "projects/123/global/networks/vpc1",
+		ClusterDetails: datamodel.ClusterDetails{
+			AllocatedSubnetCIDR: "10.55.55.16/29",
+		},
+	}
+	lifType := "dataLIF"
+	arInUse := &datamodel.AddressRange{
+		BaseModel:        datamodel.BaseModel{UUID: "ar-uuid-5"},
+		AddressRangeCidr: "10.55.55.0/24",
+		AddressRangeState:   "IN_USE",
+	}
+	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
+		Return([]*datamodel.AddressRange{arInUse}, nil)
+	mockStorage.On("UpdateAddressRangeStateToCreatedIfLastPool", ctx, "ar-uuid-5", pool.Network, pool.UUID, "10.55.55.0/24").
+		Return(false, errors.New("list pools error"))
+
+	err := activity.MarkAddressRangesCreated(ctx, pool)
+	assert.ErrorContains(t, err, "list pools error")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestMarkAddressRangesCreated_SEListError(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid-4"},
+		Network:   "projects/123/global/networks/vpc1",
+		ClusterDetails: datamodel.ClusterDetails{
+			AllocatedSubnetCIDR: "10.55.55.16/29",
+		},
+	}
+	lifType := "dataLIF"
+	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
+		Return(nil, errors.New("list error"))
+
+	err := activity.MarkAddressRangesCreated(ctx, pool)
+	assert.ErrorContains(t, err, "list error")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestMarkAddressRangesCreated_SEUpdateError(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-uuid-5"},
+		Network:   "projects/123/global/networks/vpc1",
+		ClusterDetails: datamodel.ClusterDetails{
+			AllocatedSubnetCIDR: "10.55.55.16/29",
+		},
+	}
+	lifType := "dataLIF"
+	arInUse := &datamodel.AddressRange{
+		BaseModel:        datamodel.BaseModel{UUID: "ar-uuid-7"},
+		AddressRangeCidr: "10.55.55.0/24",
+		AddressRangeState:   "IN_USE",
+	}
+	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
+		Return([]*datamodel.AddressRange{arInUse}, nil)
+	mockStorage.On("UpdateAddressRangeStateToCreatedIfLastPool", ctx, "ar-uuid-7", pool.Network, pool.UUID, "10.55.55.0/24").
+		Return(false, errors.New("update error"))
+
+	err := activity.MarkAddressRangesCreated(ctx, pool)
+	assert.ErrorContains(t, err, "update error")
+	mockStorage.AssertExpectations(t)
+}
+
+// CVN-style fallback tests — pool has no AllocatedSubnetCIDR in DB (legacy pool or
+// subnet already deleted before CIDR could be read). getPoolAllocatedSubnetCIDR returns ""
+// via the early guard (no subnet names / no SnHostProject), triggering the fallback path.
+
+func TestMarkAddressRangesCreated_LegacyPool_LastPool_ResetsAllInUseRanges(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	// Pool has no AllocatedSubnetCIDR and no SubnetNames → CIDR is empty, CVN fallback runs.
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "pool-legacy-1"},
+		Network:        "projects/123/global/networks/vpc1",
+		ClusterDetails: datamodel.ClusterDetails{},
+	}
+	lifType := "dataLIF"
+	arInUse1 := &datamodel.AddressRange{
+		BaseModel:        datamodel.BaseModel{UUID: "ar-legacy-1"},
+		AddressRangeCidr: "10.10.0.0/24",
+		AddressRangeState:   "IN_USE",
+	}
+	arInUse2 := &datamodel.AddressRange{
+		BaseModel:        datamodel.BaseModel{UUID: "ar-legacy-2"},
+		AddressRangeCidr: "10.20.0.0/24",
+		AddressRangeState:   "IN_USE",
+	}
+	arCreated := &datamodel.AddressRange{
+		BaseModel:        datamodel.BaseModel{UUID: "ar-legacy-3"},
+		AddressRangeCidr: "10.30.0.0/24",
+		AddressRangeState:   "CREATED",
+	}
+	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
+		Return([]*datamodel.AddressRange{arInUse1, arInUse2, arCreated}, nil)
+	mockStorage.On("CountActivePoolsByNetwork", ctx, pool.Network, pool.UUID).
+		Return(int64(0), nil)
+	mockStorage.On("ResetAddressRangesInUseToCreated", ctx, "123", "vpc1").
+		Return(nil)
+
+	err := activity.MarkAddressRangesCreated(ctx, pool)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestMarkAddressRangesCreated_LegacyPool_OtherPoolsExist_NoReset(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "pool-legacy-2"},
+		Network:        "projects/123/global/networks/vpc1",
+		ClusterDetails: datamodel.ClusterDetails{},
+	}
+	lifType := "dataLIF"
+	arInUse := &datamodel.AddressRange{
+		BaseModel:        datamodel.BaseModel{UUID: "ar-legacy-4"},
+		AddressRangeCidr: "10.10.0.0/24",
+		AddressRangeState:   "IN_USE",
+	}
+	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
+		Return([]*datamodel.AddressRange{arInUse}, nil)
+	// Another active pool remains on the network — do not reset.
+	mockStorage.On("CountActivePoolsByNetwork", ctx, pool.Network, pool.UUID).
+		Return(int64(1), nil)
+
+	err := activity.MarkAddressRangesCreated(ctx, pool)
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestMarkAddressRangesCreated_LegacyPool_CountActivePoolsError(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "pool-legacy-3"},
+		Network:        "projects/123/global/networks/vpc1",
+		ClusterDetails: datamodel.ClusterDetails{},
+	}
+	lifType := "dataLIF"
+	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
+		Return([]*datamodel.AddressRange{}, nil)
+	mockStorage.On("CountActivePoolsByNetwork", ctx, pool.Network, pool.UUID).
+		Return(int64(0), errors.New("db error"))
+
+	err := activity.MarkAddressRangesCreated(ctx, pool)
+	assert.ErrorContains(t, err, "db error")
+	mockStorage.AssertExpectations(t)
+}
+
+func TestMarkAddressRangesCreated_LegacyPool_UpdateError(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	pool := &datamodel.Pool{
+		BaseModel:      datamodel.BaseModel{UUID: "pool-legacy-4"},
+		Network:        "projects/123/global/networks/vpc1",
+		ClusterDetails: datamodel.ClusterDetails{},
+	}
+	lifType := "dataLIF"
+	arInUse := &datamodel.AddressRange{
+		BaseModel:        datamodel.BaseModel{UUID: "ar-legacy-5"},
+		AddressRangeCidr: "10.10.0.0/24",
+		AddressRangeState:   "IN_USE",
+	}
+	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
+		Return([]*datamodel.AddressRange{arInUse}, nil)
+	mockStorage.On("CountActivePoolsByNetwork", ctx, pool.Network, pool.UUID).
+		Return(int64(0), nil)
+	mockStorage.On("ResetAddressRangesInUseToCreated", ctx, "123", "vpc1").
+		Return(errors.New("update error"))
+
+	err := activity.MarkAddressRangesCreated(ctx, pool)
+	assert.ErrorContains(t, err, "update error")
+	mockStorage.AssertExpectations(t)
+}
+
+// GetPoolTenancyInfo tests
+
+func TestGetPoolTenancyInfo_NilPool_ReturnsEmptyCIDR(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	info, err := activity.GetPoolTenancyInfo(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, "", info.AllocatedSubnetCIDR)
+}
+
+func TestGetPoolTenancyInfo_AllocatedSubnetCIDRFromClusterDetails(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	pool := &datamodel.Pool{
+		ClusterDetails: datamodel.ClusterDetails{
+			AllocatedSubnetCIDR: "10.55.0.0/29",
+		},
+	}
+	info, err := activity.GetPoolTenancyInfo(ctx, pool)
+	require.NoError(t, err)
+	assert.Equal(t, "10.55.0.0/29", info.AllocatedSubnetCIDR)
+}
+
+func TestGetPoolTenancyInfo_NoSubnetNames_ReturnsEmptyCIDR(t *testing.T) {
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	pool := &datamodel.Pool{
+		ClusterDetails: datamodel.ClusterDetails{
+			// AllocatedSubnetCIDR is empty, SubnetNames is empty — no GCP call.
+		},
+	}
+	info, err := activity.GetPoolTenancyInfo(ctx, pool)
+	require.NoError(t, err)
+	assert.Equal(t, "", info.AllocatedSubnetCIDR)
+}
+
+// MarkAddressRangesCreated — additional missing paths
+
+func TestMarkAddressRangesCreated_InvalidDeletedPoolCIDR_FindRangeError(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-invalid-cidr"},
+		Network:   "projects/123/global/networks/vpc1",
+		ClusterDetails: datamodel.ClusterDetails{
+			AllocatedSubnetCIDR: "not-a-cidr",
+		},
+	}
+	lifType := "dataLIF"
+	ar := &datamodel.AddressRange{
+		BaseModel:        datamodel.BaseModel{UUID: "ar-1"},
+		AddressRangeCidr: "10.0.0.0/24",
+		AddressRangeState:   "IN_USE",
+	}
+	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
+		Return([]*datamodel.AddressRange{ar}, nil)
+
+	// findAddressRangeContainingSubnet returns error when deletedPoolSubnetCIDR is invalid.
+	err := activity.MarkAddressRangesCreated(ctx, pool)
+	assert.Error(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestMarkAddressRangesCreated_RemainingPoolIsDeletedPool_Skipped(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-self"},
+		Network:   "projects/123/global/networks/vpc1",
+		ClusterDetails: datamodel.ClusterDetails{
+			AllocatedSubnetCIDR: "10.55.55.16/29",
+		},
+	}
+	lifType := "dataLIF"
+	arInUse := &datamodel.AddressRange{
+		BaseModel:        datamodel.BaseModel{UUID: "ar-target"},
+		AddressRangeCidr: "10.55.55.0/24",
+		AddressRangeState:   "IN_USE",
+	}
+	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
+		Return([]*datamodel.AddressRange{arInUse}, nil)
+	// Atomic update returns true — only the pool-self existed and it's the one being deleted.
+	mockStorage.On("UpdateAddressRangeStateToCreatedIfLastPool", ctx, "ar-target", pool.Network, pool.UUID, "10.55.55.0/24").
+		Return(true, nil)
+
+	err := activity.MarkAddressRangesCreated(ctx, pool)
+	require.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestMarkAddressRangesCreated_RemainingPoolEmptyCIDR_Skipped(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-main"},
+		Network:   "projects/123/global/networks/vpc1",
+		ClusterDetails: datamodel.ClusterDetails{
+			AllocatedSubnetCIDR: "10.55.55.16/29",
+		},
+	}
+	lifType := "dataLIF"
+	arInUse := &datamodel.AddressRange{
+		BaseModel:        datamodel.BaseModel{UUID: "ar-target2"},
+		AddressRangeCidr: "10.55.55.0/24",
+		AddressRangeState:   "IN_USE",
+	}
+	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
+		Return([]*datamodel.AddressRange{arInUse}, nil)
+	// Atomic update returns true — only active pool with a subnet in range is being deleted.
+	mockStorage.On("UpdateAddressRangeStateToCreatedIfLastPool", ctx, "ar-target2", pool.Network, pool.UUID, "10.55.55.0/24").
+		Return(true, nil)
+
+	err := activity.MarkAddressRangesCreated(ctx, pool)
+	require.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
+func TestMarkAddressRangesCreated_UpdateStateToCreated_Error(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	pool := &datamodel.Pool{
+		BaseModel: datamodel.BaseModel{UUID: "pool-update-err"},
+		Network:   "projects/123/global/networks/vpc1",
+		ClusterDetails: datamodel.ClusterDetails{
+			AllocatedSubnetCIDR: "10.55.55.16/29",
+		},
+	}
+	lifType := "dataLIF"
+	arInUse := &datamodel.AddressRange{
+		BaseModel:        datamodel.BaseModel{UUID: "ar-update-err"},
+		AddressRangeCidr: "10.55.55.0/24",
+		AddressRangeState:   "IN_USE",
+	}
+	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
+		Return([]*datamodel.AddressRange{arInUse}, nil)
+	mockStorage.On("UpdateAddressRangeStateToCreatedIfLastPool", ctx, "ar-update-err", pool.Network, pool.UUID, "10.55.55.0/24").
+		Return(false, errors.New("update to created error"))
+
+	err := activity.MarkAddressRangesCreated(ctx, pool)
+	assert.ErrorContains(t, err, "update to created error")
 	mockStorage.AssertExpectations(t)
 }

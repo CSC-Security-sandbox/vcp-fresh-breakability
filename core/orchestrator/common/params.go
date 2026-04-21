@@ -63,6 +63,7 @@ type CreatePoolParams struct {
 	DeploymentName     string // Pre-generated deployment name (if set, CreatePoolInDB will use it instead of generating)
 	CompartmentOCID    string
 	SerialNumberPrefix string
+	RequestedRanges    []string
 }
 
 // CustomPerformanceParams is used to specify the custom performance parameters for a pool
@@ -78,6 +79,7 @@ type TenancyInfo struct {
 	SubnetworkNames       []string
 	SnHostProject         string
 	Gateway               string
+	AllocatedSubnetCIDR   string
 }
 
 // LocationInfo contains location-related information for pool operations

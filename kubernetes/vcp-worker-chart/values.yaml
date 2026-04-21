@@ -144,6 +144,7 @@ workerConfig:
   enableNfsOverTls: "false"
   nfsTlsConnMaxLimit: "100"
   enableMqos: "true"
+  addressSpaceMgmtEnabled: "false"
   enableVpgEndpoints: "false"
   vsaDeployedDnsName: "au-se1.vsa"
   vsaManagedZone: "au-se1-vsa"

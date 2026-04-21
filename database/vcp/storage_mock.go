@@ -10452,6 +10452,64 @@ func (_c *MockStorage_GetPoolsCount_Call) Return(_a0 int64, _a1 error) *MockStor
 	return _c
 }
 
+// CountActivePoolsByNetwork provides a mock function with given fields: ctx, network, excludePoolUUID
+func (_m *MockStorage) CountActivePoolsByNetwork(ctx context.Context, network string, excludePoolUUID string) (int64, error) {
+	ret := _m.Called(ctx, network, excludePoolUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountActivePoolsByNetwork")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (int64, error)); ok {
+		return rf(ctx, network, excludePoolUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) int64); ok {
+		r0 = rf(ctx, network, excludePoolUUID)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, network, excludePoolUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockStorage_CountActivePoolsByNetwork_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountActivePoolsByNetwork'
+type MockStorage_CountActivePoolsByNetwork_Call struct {
+	*mock.Call
+}
+
+// CountActivePoolsByNetwork is a helper method to define mock.On call
+//   - ctx context.Context
+//   - network string
+//   - excludePoolUUID string
+func (_e *MockStorage_Expecter) CountActivePoolsByNetwork(ctx interface{}, network interface{}, excludePoolUUID interface{}) *MockStorage_CountActivePoolsByNetwork_Call {
+	return &MockStorage_CountActivePoolsByNetwork_Call{Call: _e.mock.On("CountActivePoolsByNetwork", ctx, network, excludePoolUUID)}
+}
+
+func (_c *MockStorage_CountActivePoolsByNetwork_Call) Run(run func(ctx context.Context, network string, excludePoolUUID string)) *MockStorage_CountActivePoolsByNetwork_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockStorage_CountActivePoolsByNetwork_Call) Return(_a0 int64, _a1 error) *MockStorage_CountActivePoolsByNetwork_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockStorage_CountActivePoolsByNetwork_Call) RunAndReturn(run func(context.Context, string, string) (int64, error)) *MockStorage_CountActivePoolsByNetwork_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 func (_c *MockStorage_GetPoolsCount_Call) RunAndReturn(run func(context.Context, *utils.Filter) (int64, error)) *MockStorage_GetPoolsCount_Call {
 	_c.Call.Return(run)
 	return _c
@@ -20521,4 +20579,98 @@ func NewMockStorage(t interface {
 	t.Cleanup(func() { mock.AssertExpectations(t) })
 
 	return mock
+}
+
+func (_m *MockStorage) CreateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error) {
+	ret := _m.Called(ctx, ar)
+	var r0 *datamodel.AddressRange
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.AddressRange) *datamodel.AddressRange); ok {
+		r0 = rf(ctx, ar)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AddressRange)
+		}
+	}
+	return r0, ret.Error(1)
+}
+
+func (_m *MockStorage) GetAddressRange(ctx context.Context, arUUID string) (*datamodel.AddressRange, error) {
+	ret := _m.Called(ctx, arUUID)
+	var r0 *datamodel.AddressRange
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.AddressRange); ok {
+		r0 = rf(ctx, arUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AddressRange)
+		}
+	}
+	return r0, ret.Error(1)
+}
+
+func (_m *MockStorage) ListAddressRanges(ctx context.Context, hostProjectNumber, vpcName string, arUUID, lifType *string) ([]*datamodel.AddressRange, error) {
+	ret := _m.Called(ctx, hostProjectNumber, vpcName, arUUID, lifType)
+	var r0 []*datamodel.AddressRange
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, *string, *string) []*datamodel.AddressRange); ok {
+		r0 = rf(ctx, hostProjectNumber, vpcName, arUUID, lifType)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.AddressRange)
+		}
+	}
+	return r0, ret.Error(1)
+}
+
+func (_m *MockStorage) UpdateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error) {
+	ret := _m.Called(ctx, ar)
+	var r0 *datamodel.AddressRange
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.AddressRange) *datamodel.AddressRange); ok {
+		r0 = rf(ctx, ar)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AddressRange)
+		}
+	}
+	return r0, ret.Error(1)
+}
+
+func (_m *MockStorage) UpdateAddressRangeState(ctx context.Context, arUUID, state string, routeAggregationApplied *bool) (*datamodel.AddressRange, error) {
+	ret := _m.Called(ctx, arUUID, state, routeAggregationApplied)
+	var r0 *datamodel.AddressRange
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, *bool) *datamodel.AddressRange); ok {
+		r0 = rf(ctx, arUUID, state, routeAggregationApplied)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AddressRange)
+		}
+	}
+	return r0, ret.Error(1)
+}
+
+func (_m *MockStorage) UpdateAddressRangeStateToCreatedIfLastPool(ctx context.Context, arUUID, network, excludePoolUUID, addressRangeCidr string) (bool, error) {
+	ret := _m.Called(ctx, arUUID, network, excludePoolUUID, addressRangeCidr)
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string) bool); ok {
+		r0 = rf(ctx, arUUID, network, excludePoolUUID, addressRangeCidr)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	return r0, ret.Error(1)
+}
+
+func (_m *MockStorage) DeleteAddressRange(ctx context.Context, arUUID string) (*datamodel.AddressRange, error) {
+	ret := _m.Called(ctx, arUUID)
+	var r0 *datamodel.AddressRange
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.AddressRange); ok {
+		r0 = rf(ctx, arUUID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AddressRange)
+		}
+	}
+	return r0, ret.Error(1)
+}
+
+func (_m *MockStorage) ResetAddressRangesInUseToCreated(ctx context.Context, hostProjectNumber, vpcName string) error {
+	ret := _m.Called(ctx, hostProjectNumber, vpcName)
+	return ret.Error(0)
 }

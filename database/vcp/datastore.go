@@ -40,6 +40,7 @@ func getVcpModels() []interface{} {
 		&datamodel.QuotaRule{},
 		&datamodel.ExpertModeVolumes{},
 		&datamodel.BackupChainHistory{},
+		&datamodel.AddressRange{},
 	}
 }
 

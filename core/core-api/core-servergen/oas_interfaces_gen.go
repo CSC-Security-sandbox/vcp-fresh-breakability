@@ -5,6 +5,10 @@ type GetHealthRes interface {
 	getHealthRes()
 }
 
+type V1CreateAddressRangeRes interface {
+	v1CreateAddressRangeRes()
+}
+
 type V1CreateImageVersionRes interface {
 	v1CreateImageVersionRes()
 }
@@ -15,6 +19,10 @@ type V1CreatePoolRes interface {
 
 type V1CreateSnapshotRes interface {
 	v1CreateSnapshotRes()
+}
+
+type V1DeleteAddressRangeRes interface {
+	v1DeleteAddressRangeRes()
 }
 
 type V1DeleteImageVersionRes interface {
@@ -37,6 +45,10 @@ type V1ExpertModeVolumeRes interface {
 	v1ExpertModeVolumeRes()
 }
 
+type V1GetAddressRangeRes interface {
+	v1GetAddressRangeRes()
+}
+
 type V1GetClusterUpgradeStatusRes interface {
 	v1GetClusterUpgradeStatusRes()
 }
@@ -51,6 +63,10 @@ type V1GetOntapCredentialsRes interface {
 
 type V1GetPoolRes interface {
 	v1GetPoolRes()
+}
+
+type V1ListAddressRangesRes interface {
+	v1ListAddressRangesRes()
 }
 
 type V1ListImageVersionsRes interface {
@@ -71,6 +87,14 @@ type V1RotateGcpKmsConfigRes interface {
 
 type V1SplitStartVolumeRes interface {
 	v1SplitStartVolumeRes()
+}
+
+type V1UpdateAddressRangeRes interface {
+	v1UpdateAddressRangeRes()
+}
+
+type V1UpdateAddressRangeStateRes interface {
+	v1UpdateAddressRangeStateRes()
 }
 
 type V1UpdatePoolRes interface {

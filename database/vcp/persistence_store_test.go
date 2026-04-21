@@ -8029,3 +8029,447 @@ func TestPersistenceStore_ListExpertModeVolumesWithPagination(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, results)
 }
+
+// helpers for address range tests
+
+func newTestAddressRange(uuid, name, cidr, vpc, hostProject, lifType string) *datamodel.AddressRange {
+	return &datamodel.AddressRange{
+		BaseModel:             datamodel.BaseModel{UUID: uuid},
+		Name:                  name,
+		AddressRangeCidr:      cidr,
+		Network:               "projects/host/global/networks/vpc1",
+		VpcName:               vpc,
+		HostProjectNumber:     hostProject,
+		LifType:               lifType,
+		AddressRangeState: "CREATED",
+		AddressRangeStateDetails: "CREATED",
+	}
+}
+
+func setupAddressRangeStore(t *testing.T) *DataStoreRepository {
+	t.Helper()
+	db, err := SetupTestDB()
+	assert.NoError(t, err)
+	wrapper := gormwrapper.New(db)
+	store := NewDataStoreRepository(wrapper)
+	assert.NoError(t, ClearInMemoryDB(store.db.GORM()))
+	return store
+}
+
+func TestCreateAddressRange_PersistenceStore(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("WhenAddressRangeIsCreatedSuccessfully", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		ar := newTestAddressRange("", "ar-1", "10.0.0.0/24", "vpc1", "123456", "dataLIF")
+		created, err := store.CreateAddressRange(ctx, ar)
+		assert.NoError(tt, err)
+		assert.NotNil(tt, created)
+		assert.NotEmpty(tt, created.UUID)
+		assert.Equal(tt, AddressRangeStateCreated, created.AddressRangeState)
+	})
+
+	t.Run("WhenDuplicateCIDRExists", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		ar1 := newTestAddressRange("", "ar-cidr-1", "10.1.0.0/24", "vpc1", "123456", "dataLIF")
+		_, err := store.CreateAddressRange(ctx, ar1)
+		assert.NoError(tt, err)
+
+		ar2 := newTestAddressRange("", "ar-cidr-2", "10.1.0.0/24", "vpc1", "123456", "dataLIF")
+		_, err = store.CreateAddressRange(ctx, ar2)
+		assert.Error(tt, err)
+	})
+
+	t.Run("WhenDuplicateNameExists", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		ar1 := newTestAddressRange("", "ar-name-dup", "10.2.0.0/24", "vpc1", "123456", "dataLIF")
+		_, err := store.CreateAddressRange(ctx, ar1)
+		assert.NoError(tt, err)
+
+		ar2 := newTestAddressRange("", "ar-name-dup", "10.3.0.0/24", "vpc1", "123456", "dataLIF")
+		_, err = store.CreateAddressRange(ctx, ar2)
+		assert.Error(tt, err)
+	})
+
+	t.Run("WhenSecondInterclusterLIFIsRejected", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		ar1 := newTestAddressRange("", "ar-ic-1", "10.4.0.0/24", "vpc1", "123456", "interclusterLIF")
+		_, err := store.CreateAddressRange(ctx, ar1)
+		assert.NoError(tt, err)
+
+		ar2 := newTestAddressRange("", "ar-ic-2", "10.5.0.0/24", "vpc1", "123456", "interclusterLIF")
+		_, err = store.CreateAddressRange(ctx, ar2)
+		assert.Error(tt, err)
+	})
+
+	t.Run("WhenSameCIDROnDifferentVPCIsAllowed", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		ar1 := newTestAddressRange("", "ar-vpc-a", "10.6.0.0/24", "vpc-a", "123456", "dataLIF")
+		_, err := store.CreateAddressRange(ctx, ar1)
+		assert.NoError(tt, err)
+
+		ar2 := newTestAddressRange("", "ar-vpc-b", "10.6.0.0/24", "vpc-b", "123456", "dataLIF")
+		_, err = store.CreateAddressRange(ctx, ar2)
+		assert.NoError(tt, err)
+	})
+}
+
+func TestGetAddressRange_PersistenceStore(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("WhenAddressRangeExists", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		ar := newTestAddressRange("", "ar-get", "10.10.0.0/24", "vpc1", "123456", "dataLIF")
+		created, err := store.CreateAddressRange(ctx, ar)
+		assert.NoError(tt, err)
+
+		got, err := store.GetAddressRange(ctx, created.UUID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, created.UUID, got.UUID)
+		assert.Equal(tt, "ar-get", got.Name)
+	})
+
+	t.Run("WhenAddressRangeDoesNotExist", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		_, err := store.GetAddressRange(ctx, "non-existent-uuid")
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Resource not found")
+	})
+}
+
+func TestListAddressRanges_PersistenceStore(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("WhenFilteredByVPCAndHostProject", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		ar1 := newTestAddressRange("", "ar-list-1", "10.20.0.0/24", "vpc-list", "proj-1", "dataLIF")
+		ar2 := newTestAddressRange("", "ar-list-2", "10.20.1.0/24", "vpc-list", "proj-1", "dataLIF")
+		ar3 := newTestAddressRange("", "ar-list-3", "10.20.2.0/24", "vpc-other", "proj-1", "dataLIF")
+		for _, ar := range []*datamodel.AddressRange{ar1, ar2, ar3} {
+			_, err := store.CreateAddressRange(ctx, ar)
+			assert.NoError(tt, err)
+		}
+
+		results, err := store.ListAddressRanges(ctx, "proj-1", "vpc-list", nil, nil)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 2)
+	})
+
+	t.Run("WhenFilteredByLifType", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		ar1 := newTestAddressRange("", "ar-lif-data", "10.21.0.0/24", "vpc-lif", "proj-2", "dataLIF")
+		ar2 := newTestAddressRange("", "ar-lif-ic", "10.21.1.0/24", "vpc-lif", "proj-2", "interclusterLIF")
+		for _, ar := range []*datamodel.AddressRange{ar1, ar2} {
+			_, err := store.CreateAddressRange(ctx, ar)
+			assert.NoError(tt, err)
+		}
+
+		lifType := "interclusterLIF"
+		results, err := store.ListAddressRanges(ctx, "proj-2", "vpc-lif", nil, &lifType)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+		assert.Equal(tt, "interclusterLIF", results[0].LifType)
+	})
+
+	t.Run("WhenNoFiltersReturnAll", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		for i, cidr := range []string{"10.30.0.0/24", "10.30.1.0/24"} {
+			ar := newTestAddressRange("", fmt.Sprintf("ar-all-%d", i), cidr, fmt.Sprintf("vpc-%d", i), "proj-3", "dataLIF")
+			_, err := store.CreateAddressRange(ctx, ar)
+			assert.NoError(tt, err)
+		}
+
+		results, err := store.ListAddressRanges(ctx, "", "", nil, nil)
+		assert.NoError(tt, err)
+		assert.GreaterOrEqual(tt, len(results), 2)
+	})
+}
+
+func TestUpdateAddressRange_PersistenceStore(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("WhenUpdateSucceedsInCreatedState_NameAndCidrAreImmutable", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		ar := newTestAddressRange("", "ar-upd", "10.40.0.0/24", "vpc1", "123456", "dataLIF")
+		created, err := store.CreateAddressRange(ctx, ar)
+		assert.NoError(tt, err)
+
+		// Name and AddressRangeCidr are immutable — passing them is silently ignored.
+		update := &datamodel.AddressRange{
+			BaseModel:             datamodel.BaseModel{UUID: created.UUID},
+			Name:                  "ar-upd-renamed",
+			AddressRangeCidr:      "10.40.1.0/24",
+			ApplyRouteAggregation: true,
+		}
+		updated, err := store.UpdateAddressRange(ctx, update)
+		assert.NoError(tt, err)
+		assert.Equal(tt, "ar-upd", updated.Name, "Name must not change")
+		assert.Equal(tt, "10.40.0.0/24", updated.AddressRangeCidr, "AddressRangeCidr must not change")
+		assert.True(tt, updated.ApplyRouteAggregation, "ApplyRouteAggregation should be updated")
+	})
+
+	t.Run("WhenUpdateBlockedInINUSEState", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		ar := newTestAddressRange("", "ar-inuse-upd", "10.41.0.0/24", "vpc1", "123456", "dataLIF")
+		created, err := store.CreateAddressRange(ctx, ar)
+		assert.NoError(tt, err)
+
+		// transition to IN_USE first
+		_, err = store.UpdateAddressRangeState(ctx, created.UUID, AddressRangeStateInUse, nil)
+		assert.NoError(tt, err)
+
+		// try updating name — only applyRouteAggregation is allowed in IN_USE
+		update := &datamodel.AddressRange{
+			BaseModel: datamodel.BaseModel{UUID: created.UUID},
+			Name:      "should-not-change",
+		}
+		updated, err := store.UpdateAddressRange(ctx, update)
+		assert.NoError(tt, err)
+		// Name should not have changed
+		assert.Equal(tt, "ar-inuse-upd", updated.Name)
+	})
+
+	t.Run("WhenUpdateBlockedIfRouteAggApplied", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		ar := newTestAddressRange("", "ar-routeagg", "10.42.0.0/24", "vpc1", "123456", "dataLIF")
+		created, err := store.CreateAddressRange(ctx, ar)
+		assert.NoError(tt, err)
+
+		applied := true
+		_, err = store.UpdateAddressRangeState(ctx, created.UUID, AddressRangeStateInUse, &applied)
+		assert.NoError(tt, err)
+
+		update := &datamodel.AddressRange{BaseModel: datamodel.BaseModel{UUID: created.UUID}}
+		_, err = store.UpdateAddressRange(ctx, update)
+		assert.Error(tt, err)
+	})
+}
+
+func TestUpdateAddressRangeState_PersistenceStore(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("WhenTransitionToINUSESucceeds", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		ar := newTestAddressRange("", "ar-state-1", "10.50.0.0/24", "vpc1", "123456", "dataLIF")
+		created, err := store.CreateAddressRange(ctx, ar)
+		assert.NoError(tt, err)
+
+		updated, err := store.UpdateAddressRangeState(ctx, created.UUID, AddressRangeStateInUse, nil)
+		assert.NoError(tt, err)
+		assert.Equal(tt, AddressRangeStateInUse, updated.AddressRangeState)
+		assert.False(tt, updated.RouteAggregationApplied)
+	})
+
+	t.Run("WhenTransitionToINUSESetsRouteAggApplied", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		ar := newTestAddressRange("", "ar-routeagg-state", "10.51.0.0/24", "vpc1", "123456", "dataLIF")
+		created, err := store.CreateAddressRange(ctx, ar)
+		assert.NoError(tt, err)
+
+		applied := true
+		updated, err := store.UpdateAddressRangeState(ctx, created.UUID, AddressRangeStateInUse, &applied)
+		assert.NoError(tt, err)
+		assert.Equal(tt, AddressRangeStateInUse, updated.AddressRangeState)
+		assert.True(tt, updated.RouteAggregationApplied)
+		assert.NotNil(tt, updated.RouteAggregationAppliedAt)
+	})
+
+	t.Run("WhenTransitionBackToCREATEDResetsRouteAgg", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		ar := newTestAddressRange("", "ar-reset-state", "10.52.0.0/24", "vpc1", "123456", "dataLIF")
+		created, err := store.CreateAddressRange(ctx, ar)
+		assert.NoError(tt, err)
+
+		applied := true
+		_, err = store.UpdateAddressRangeState(ctx, created.UUID, AddressRangeStateInUse, &applied)
+		assert.NoError(tt, err)
+
+		reset, err := store.UpdateAddressRangeState(ctx, created.UUID, AddressRangeStateCreated, nil)
+		assert.NoError(tt, err)
+		assert.Equal(tt, AddressRangeStateCreated, reset.AddressRangeState)
+		assert.False(tt, reset.RouteAggregationApplied)
+		assert.Nil(tt, reset.RouteAggregationAppliedAt)
+	})
+
+	t.Run("WhenInvalidStateIsRejected", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		ar := newTestAddressRange("", "ar-invalid-state", "10.53.0.0/24", "vpc1", "123456", "dataLIF")
+		created, err := store.CreateAddressRange(ctx, ar)
+		assert.NoError(tt, err)
+
+		_, err = store.UpdateAddressRangeState(ctx, created.UUID, "BOGUS_STATE", nil)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Invalid input")
+	})
+
+	t.Run("WhenAddressRangeNotFound", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		_, err := store.UpdateAddressRangeState(ctx, "non-existent-uuid", AddressRangeStateInUse, nil)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Resource not found")
+	})
+}
+
+func TestDeleteAddressRange_PersistenceStore(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("WhenDeleteSucceeds", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		ar := newTestAddressRange("", "ar-del", "10.60.0.0/24", "vpc1", "123456", "dataLIF")
+		created, err := store.CreateAddressRange(ctx, ar)
+		assert.NoError(tt, err)
+
+		deleted, err := store.DeleteAddressRange(ctx, created.UUID)
+		assert.NoError(tt, err)
+		assert.Equal(tt, AddressRangeStateDeleted, deleted.AddressRangeState)
+
+		// Confirm soft delete: not accessible via Get
+		_, err = store.GetAddressRange(ctx, created.UUID)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Resource not found")
+	})
+
+	t.Run("WhenDeleteBlockedIfINUSE", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		ar := newTestAddressRange("", "ar-del-inuse", "10.61.0.0/24", "vpc1", "123456", "dataLIF")
+		created, err := store.CreateAddressRange(ctx, ar)
+		assert.NoError(tt, err)
+
+		_, err = store.UpdateAddressRangeState(ctx, created.UUID, AddressRangeStateInUse, nil)
+		assert.NoError(tt, err)
+
+		_, err = store.DeleteAddressRange(ctx, created.UUID)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "invalid state")
+	})
+
+	t.Run("WhenDeleteBlockedIfRouteAggApplied", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		ar := newTestAddressRange("", "ar-del-routeagg", "10.62.0.0/24", "vpc1", "123456", "dataLIF")
+		created, err := store.CreateAddressRange(ctx, ar)
+		assert.NoError(tt, err)
+
+		applied := true
+		_, err = store.UpdateAddressRangeState(ctx, created.UUID, AddressRangeStateInUse, &applied)
+		assert.NoError(tt, err)
+
+		_, err = store.DeleteAddressRange(ctx, created.UUID)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "invalid state")
+	})
+
+	t.Run("WhenAddressRangeNotFound", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		_, err := store.DeleteAddressRange(ctx, "non-existent-uuid")
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Resource not found")
+	})
+}
+
+func TestUpdateAddressRange_NetworkImmutable(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("WhenNetworkIsPassedItIsIgnored", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		ar := newTestAddressRange("", "ar-net-immutable", "10.70.0.0/24", "vpc1", "123456", "dataLIF")
+		ar.Network = "projects/123456/global/networks/vpc1"
+		created, err := store.CreateAddressRange(ctx, ar)
+		assert.NoError(tt, err)
+
+		update := &datamodel.AddressRange{
+			BaseModel: datamodel.BaseModel{UUID: created.UUID},
+			Network:   "projects/999/global/networks/other-vpc",
+		}
+		updated, err := store.UpdateAddressRange(ctx, update)
+		assert.NoError(tt, err)
+		// Network must not change
+		assert.Equal(tt, "projects/123456/global/networks/vpc1", updated.Network)
+	})
+}
+
+func TestUpdateAddressRange_DisabledTransition(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("WhenStateSetToDisabledInCreatedState", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		ar := newTestAddressRange("", "ar-disable", "10.71.0.0/24", "vpc1", "123456", "dataLIF")
+		created, err := store.CreateAddressRange(ctx, ar)
+		assert.NoError(tt, err)
+
+		update := &datamodel.AddressRange{
+			BaseModel:      datamodel.BaseModel{UUID: created.UUID},
+			AddressRangeState: AddressRangeStateDisabled,
+		}
+		updated, err := store.UpdateAddressRange(ctx, update)
+		assert.NoError(tt, err)
+		assert.Equal(tt, AddressRangeStateDisabled, updated.AddressRangeState)
+		assert.Equal(tt, AddressRangeStateDisabled, updated.AddressRangeStateDetails)
+	})
+
+	t.Run("WhenUpdateFailsInDisabledState", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		ar := newTestAddressRange("", "ar-disabled-upd", "10.72.0.0/24", "vpc1", "123456", "dataLIF")
+		created, err := store.CreateAddressRange(ctx, ar)
+		assert.NoError(tt, err)
+
+		// First disable it
+		update := &datamodel.AddressRange{
+			BaseModel:      datamodel.BaseModel{UUID: created.UUID},
+			AddressRangeState: AddressRangeStateDisabled,
+		}
+		_, err = store.UpdateAddressRange(ctx, update)
+		assert.NoError(tt, err)
+
+		// Attempt another update in DISABLED state should fail
+		update2 := &datamodel.AddressRange{
+			BaseModel:             datamodel.BaseModel{UUID: created.UUID},
+			ApplyRouteAggregation: true,
+		}
+		_, err = store.UpdateAddressRange(ctx, update2)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "invalid state")
+	})
+
+	t.Run("WhenUpdateFailsForNotFoundUUID", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		update := &datamodel.AddressRange{
+			BaseModel:             datamodel.BaseModel{UUID: "non-existent-uuid"},
+			ApplyRouteAggregation: true,
+		}
+		_, err := store.UpdateAddressRange(ctx, update)
+		assert.Error(tt, err)
+		assert.Contains(tt, err.Error(), "Resource not found")
+	})
+}
+
+func TestListAddressRanges_FilterByID(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("WhenFilteredByAddressRangeID", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		ar1 := newTestAddressRange("", "ar-id-filter-1", "10.80.0.0/24", "vpc-id-filter", "proj-id", "dataLIF")
+		ar2 := newTestAddressRange("", "ar-id-filter-2", "10.80.1.0/24", "vpc-id-filter", "proj-id", "dataLIF")
+		created1, err := store.CreateAddressRange(ctx, ar1)
+		assert.NoError(tt, err)
+		_, err = store.CreateAddressRange(ctx, ar2)
+		assert.NoError(tt, err)
+
+		results, err := store.ListAddressRanges(ctx, "proj-id", "vpc-id-filter", &created1.UUID, nil)
+		assert.NoError(tt, err)
+		assert.Len(tt, results, 1)
+		assert.Equal(tt, created1.UUID, results[0].UUID)
+	})
+}
+
+func TestCreateAddressRange_ApplyRouteAggregation(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("WhenApplyRouteAggregationIsSetOnCreate", func(tt *testing.T) {
+		store := setupAddressRangeStore(tt)
+		ar := newTestAddressRange("", "ar-routeagg-create", "10.90.0.0/24", "vpc1", "123456", "dataLIF")
+		ar.ApplyRouteAggregation = true
+		created, err := store.CreateAddressRange(ctx, ar)
+		assert.NoError(tt, err)
+		assert.True(tt, created.ApplyRouteAggregation)
+	})
+}

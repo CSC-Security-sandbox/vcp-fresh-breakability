@@ -473,6 +473,22 @@ func (d *DataStoreRepository) GetPoolsByAccountName(ctx context.Context, account
 	return pools, nil
 }
 
+// CountActivePoolsByNetwork returns the number of non-deleted pools on the given network,
+// optionally excluding a specific pool UUID (used during deletion to check remaining pools).
+func (d *DataStoreRepository) CountActivePoolsByNetwork(ctx context.Context, network string, excludePoolUUID string) (int64, error) {
+	db := d.db.GORM().WithContext(ctx).
+		Model(&datamodel.Pool{}).
+		Where("network = ? AND deleted_at IS NULL", network)
+	if excludePoolUUID != "" {
+		db = db.Where("uuid != ?", excludePoolUUID)
+	}
+	var count int64
+	if err := db.Count(&count).Error; err != nil {
+		return 0, vsaerrors.NewVCPError(vsaerrors.ErrDatabaseDataReadError, err)
+	}
+	return count, nil
+}
+
 func (d *DataStoreRepository) GetPoolsByActiveDirectoryId(ctx context.Context, activeDirectoryId string) ([]*datamodel.Pool, error) {
 	var pools []*datamodel.Pool
 
