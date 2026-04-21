@@ -107,7 +107,7 @@ spec:
             - mountPath: "/configs/harvest"
               name: harvest-farm-shared
         - name: otel-collector
-          image: otel/opentelemetry-collector-contrib:latest
+          image: otel/opentelemetry-collector-contrib:0.126.0
           args:
             - "--config=/etc/otel-collector-config/config.yaml"
           env:

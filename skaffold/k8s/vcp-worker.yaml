@@ -177,10 +177,16 @@ spec:
         app: vcp-customer-worker
     spec:
       serviceAccountName: vcp-service-account
+      volumes:
+        - name: app-tmp
+          emptyDir: {}
       containers:
         - name: vcp-customer-worker
           image: vcp-worker
           imagePullPolicy: Never
+          volumeMounts:
+            - name: app-tmp
+              mountPath: /app/tmp
           ports:
             - containerPort: 8080
               name: http
@@ -215,10 +221,16 @@ spec:
         app: vcp-background-worker
     spec:
       serviceAccountName: vcp-service-account
+      volumes:
+        - name: app-tmp
+          emptyDir: {}
       containers:
         - name: vcp-background-worker
           image: vcp-worker
           imagePullPolicy: Never
+          volumeMounts:
+            - name: app-tmp
+              mountPath: /app/tmp
           ports:
             - containerPort: 8080
               name: http

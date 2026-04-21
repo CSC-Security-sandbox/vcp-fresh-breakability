@@ -142,9 +142,13 @@ spec:
               value: "60"
             - name: ENVIRONMENT
               value: "dev"
+            - name: LOGGER_LEVEL
+              value: "debug"
             - name: ENABLE_BACKUP_BILLING_METRICS
               value: "false"
             - name: ENABLE_BACKUP_HISTORY_FORMATTER
-              value: "false"
+              value: "true"
+            - name: ENABLE_COUNTER_FORMATTER
+              value: "true"
 
 
