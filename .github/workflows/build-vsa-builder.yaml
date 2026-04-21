@@ -1,0 +1,45 @@
+name: Build VSA Builder Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to build and push (e.g. v9)"
+        required: true
+        default: "v9"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    name: Build and Push vsa-builder
+    runs-on: [self-hosted, linux]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build and push vsa-builder image
+        working-directory: tools/vsa-builder
+        run: |
+          docker buildx build \
+            --build-arg SSH_CONFIG="StrictHostKeyChecking" \
+            -t ghcr.io/vcp-vsa-control-plane/vsa-builder:${{ inputs.tag }} \
+            --platform=linux/amd64 \
+            --push \
+            .
+
+      - name: Verify ORAS is installed in the new image
+        run: |
+          docker run --rm ghcr.io/vcp-vsa-control-plane/vsa-builder:${{ inputs.tag }} oras version
+
+      - name: Verify cosign is installed
+        run: |
+          docker run --rm ghcr.io/vcp-vsa-control-plane/vsa-builder:${{ inputs.tag }} cosign version

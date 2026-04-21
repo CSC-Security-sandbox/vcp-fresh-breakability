@@ -176,6 +176,23 @@ else
   exit 1
 fi
 
+# ORAS CLI install (pinned version + checksum for supply-chain integrity)
+# Used to push binaries as OCI artifacts to OCI registries (e.g. GHCR).
+printf "\n\t🐋 Install ORAS CLI 🐋\n"
+ORAS_VERSION="1.2.0"
+ORAS_CHECKSUM="5b3f1cbb86d869eee68120b9b45b9be983f3738442f87ee5f06b00edd0bab336"
+ORAS_TARBALL="oras_${ORAS_VERSION}_linux_amd64.tar.gz"
+if curl -fsSL ${CURL_OPTS} -o "/tmp/${ORAS_TARBALL}" "https://github.com/oras-project/oras/releases/download/v${ORAS_VERSION}/${ORAS_TARBALL}" && \
+   echo "${ORAS_CHECKSUM}  /tmp/${ORAS_TARBALL}" | sha256sum --check --strict && \
+   tar -xzf "/tmp/${ORAS_TARBALL}" -C /usr/local/bin oras && \
+   rm -f "/tmp/${ORAS_TARBALL}" && \
+   oras version; then
+  printf "oras installed\n"
+else
+  printf "::error:: Failed to install oras\n"
+  exit 1
+fi
+
 # install gosu https://github.com/tianon/gosu
 GOSU_URL="https://github.com/tianon/gosu/releases/download/1.14/gosu-amd64"
 GOSU_ASC_URL="${GOSU_URL}.asc"

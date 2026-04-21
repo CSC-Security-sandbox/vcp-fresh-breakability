@@ -588,4 +588,3 @@ jobs:
           REPOSITORY: VCP-VSA-control-Plane/vsa-control-plane
           NEW_TAG: ${{ inputs.tag }}
         run: vsacictl jira tag_component_version
-
