@@ -8,9 +8,12 @@ package batch
 import (
 	"fmt"
 	"io"
+	"strconv"
 
+	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
 
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 )
@@ -76,21 +79,23 @@ V1betaBatchListSnapshotsOK handles this case with default header values.
 OK
 */
 type V1betaBatchListSnapshotsOK struct {
-	Payload []*models.BatchSnapshotV1beta
+	Payload *V1betaBatchListSnapshotsOKBody
 }
 
 func (o *V1betaBatchListSnapshotsOK) Error() string {
 	return fmt.Sprintf("[POST /v1beta/locations/{locationId}/batch/snapshots][%d] v1betaBatchListSnapshotsOK  %+v", 200, o.Payload)
 }
 
-func (o *V1betaBatchListSnapshotsOK) GetPayload() []*models.BatchSnapshotV1beta {
+func (o *V1betaBatchListSnapshotsOK) GetPayload() *V1betaBatchListSnapshotsOKBody {
 	return o.Payload
 }
 
 func (o *V1betaBatchListSnapshotsOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
+	o.Payload = new(V1betaBatchListSnapshotsOKBody)
+
 	// response payload
-	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), o.Payload); err != nil && err != io.EOF {
 		return err
 	}
 
@@ -273,5 +278,72 @@ func (o *V1betaBatchListSnapshotsDefault) readResponse(response runtime.ClientRe
 		return err
 	}
 
+	return nil
+}
+
+/*
+V1betaBatchListSnapshotsOKBody v1beta batch list snapshots o k body
+swagger:model V1betaBatchListSnapshotsOKBody
+*/
+type V1betaBatchListSnapshotsOKBody struct {
+
+	// snapshots
+	Snapshots []*models.BatchSnapshotV1beta `json:"snapshots"`
+}
+
+// Validate validates this v1beta batch list snapshots o k body
+func (o *V1betaBatchListSnapshotsOKBody) Validate(formats strfmt.Registry) error {
+	var res []error
+
+	if err := o.validateSnapshots(formats); err != nil {
+		res = append(res, err)
+	}
+
+	if len(res) > 0 {
+		return errors.CompositeValidationError(res...)
+	}
+	return nil
+}
+
+func (o *V1betaBatchListSnapshotsOKBody) validateSnapshots(formats strfmt.Registry) error {
+
+	if swag.IsZero(o.Snapshots) { // not required
+		return nil
+	}
+
+	for i := 0; i < len(o.Snapshots); i++ {
+		if swag.IsZero(o.Snapshots[i]) { // not required
+			continue
+		}
+
+		if o.Snapshots[i] != nil {
+			if err := o.Snapshots[i].Validate(formats); err != nil {
+				if ve, ok := err.(*errors.Validation); ok {
+					return ve.ValidateName("v1betaBatchListSnapshotsOK" + "." + "snapshots" + "." + strconv.Itoa(i))
+				}
+				return err
+			}
+		}
+
+	}
+
+	return nil
+}
+
+// MarshalBinary interface implementation
+func (o *V1betaBatchListSnapshotsOKBody) MarshalBinary() ([]byte, error) {
+	if o == nil {
+		return nil, nil
+	}
+	return swag.WriteJSON(o)
+}
+
+// UnmarshalBinary interface implementation
+func (o *V1betaBatchListSnapshotsOKBody) UnmarshalBinary(b []byte) error {
+	var res V1betaBatchListSnapshotsOKBody
+	if err := swag.ReadJSON(b, &res); err != nil {
+		return err
+	}
+	*o = res
 	return nil
 }

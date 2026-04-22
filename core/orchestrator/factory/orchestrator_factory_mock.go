@@ -325,6 +325,65 @@ func (_c *MockOrchestratorFactory_CreateActiveDirectory_Call) RunAndReturn(run f
 	return _c
 }
 
+// CreateAddressRange provides a mock function with given fields: ctx, ar
+func (_m *MockOrchestratorFactory) CreateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error) {
+	ret := _m.Called(ctx, ar)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateAddressRange")
+	}
+
+	var r0 *datamodel.AddressRange
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.AddressRange) (*datamodel.AddressRange, error)); ok {
+		return rf(ctx, ar)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.AddressRange) *datamodel.AddressRange); ok {
+		r0 = rf(ctx, ar)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AddressRange)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.AddressRange) error); ok {
+		r1 = rf(ctx, ar)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_CreateAddressRange_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateAddressRange'
+type MockOrchestratorFactory_CreateAddressRange_Call struct {
+	*mock.Call
+}
+
+// CreateAddressRange is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ar *datamodel.AddressRange
+func (_e *MockOrchestratorFactory_Expecter) CreateAddressRange(ctx interface{}, ar interface{}) *MockOrchestratorFactory_CreateAddressRange_Call {
+	return &MockOrchestratorFactory_CreateAddressRange_Call{Call: _e.mock.On("CreateAddressRange", ctx, ar)}
+}
+
+func (_c *MockOrchestratorFactory_CreateAddressRange_Call) Run(run func(ctx context.Context, ar *datamodel.AddressRange)) *MockOrchestratorFactory_CreateAddressRange_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.AddressRange))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateAddressRange_Call) Return(_a0 *datamodel.AddressRange, _a1 error) *MockOrchestratorFactory_CreateAddressRange_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_CreateAddressRange_Call) RunAndReturn(run func(context.Context, *datamodel.AddressRange) (*datamodel.AddressRange, error)) *MockOrchestratorFactory_CreateAddressRange_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateAndSyncKmsConfig provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) CreateAndSyncKmsConfig(ctx context.Context, params *common.CreateKmsConfigParams) (*models.KmsConfig, error) {
 	ret := _m.Called(ctx, params)
@@ -1746,6 +1805,65 @@ func (_c *MockOrchestratorFactory_DeleteActiveDirectory_Call) Return(_a0 string,
 }
 
 func (_c *MockOrchestratorFactory_DeleteActiveDirectory_Call) RunAndReturn(run func(context.Context, *common.DeleteActiveDirectoryParams) (string, error)) *MockOrchestratorFactory_DeleteActiveDirectory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteAddressRange provides a mock function with given fields: ctx, arID
+func (_m *MockOrchestratorFactory) DeleteAddressRange(ctx context.Context, arID string) (*datamodel.AddressRange, error) {
+	ret := _m.Called(ctx, arID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteAddressRange")
+	}
+
+	var r0 *datamodel.AddressRange
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.AddressRange, error)); ok {
+		return rf(ctx, arID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.AddressRange); ok {
+		r0 = rf(ctx, arID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AddressRange)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, arID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_DeleteAddressRange_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteAddressRange'
+type MockOrchestratorFactory_DeleteAddressRange_Call struct {
+	*mock.Call
+}
+
+// DeleteAddressRange is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arID string
+func (_e *MockOrchestratorFactory_Expecter) DeleteAddressRange(ctx interface{}, arID interface{}) *MockOrchestratorFactory_DeleteAddressRange_Call {
+	return &MockOrchestratorFactory_DeleteAddressRange_Call{Call: _e.mock.On("DeleteAddressRange", ctx, arID)}
+}
+
+func (_c *MockOrchestratorFactory_DeleteAddressRange_Call) Run(run func(ctx context.Context, arID string)) *MockOrchestratorFactory_DeleteAddressRange_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteAddressRange_Call) Return(_a0 *datamodel.AddressRange, _a1 error) *MockOrchestratorFactory_DeleteAddressRange_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_DeleteAddressRange_Call) RunAndReturn(run func(context.Context, string) (*datamodel.AddressRange, error)) *MockOrchestratorFactory_DeleteAddressRange_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3301,6 +3419,65 @@ func (_c *MockOrchestratorFactory_GetActiveDirectory_Call) Return(_a0 *models.Ac
 }
 
 func (_c *MockOrchestratorFactory_GetActiveDirectory_Call) RunAndReturn(run func(context.Context, *common.GetADParams) (*models.ActiveDirectory, error)) *MockOrchestratorFactory_GetActiveDirectory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAddressRange provides a mock function with given fields: ctx, arID
+func (_m *MockOrchestratorFactory) GetAddressRange(ctx context.Context, arID string) (*datamodel.AddressRange, error) {
+	ret := _m.Called(ctx, arID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAddressRange")
+	}
+
+	var r0 *datamodel.AddressRange
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.AddressRange, error)); ok {
+		return rf(ctx, arID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.AddressRange); ok {
+		r0 = rf(ctx, arID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AddressRange)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, arID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetAddressRange_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAddressRange'
+type MockOrchestratorFactory_GetAddressRange_Call struct {
+	*mock.Call
+}
+
+// GetAddressRange is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arID string
+func (_e *MockOrchestratorFactory_Expecter) GetAddressRange(ctx interface{}, arID interface{}) *MockOrchestratorFactory_GetAddressRange_Call {
+	return &MockOrchestratorFactory_GetAddressRange_Call{Call: _e.mock.On("GetAddressRange", ctx, arID)}
+}
+
+func (_c *MockOrchestratorFactory_GetAddressRange_Call) Run(run func(ctx context.Context, arID string)) *MockOrchestratorFactory_GetAddressRange_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetAddressRange_Call) Return(_a0 *datamodel.AddressRange, _a1 error) *MockOrchestratorFactory_GetAddressRange_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetAddressRange_Call) RunAndReturn(run func(context.Context, string) (*datamodel.AddressRange, error)) *MockOrchestratorFactory_GetAddressRange_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -5345,66 +5522,6 @@ func (_c *MockOrchestratorFactory_GetMultipleVolumes_Call) RunAndReturn(run func
 	return _c
 }
 
-// GetVolumesByUUIDs provides a mock function with given fields: ctx, volumeIds, opts
-func (_m *MockOrchestratorFactory) GetVolumesByUUIDs(ctx context.Context, volumeIds []string, opts common.VolumeFetchOptions) ([]*models.Volume, error) {
-	ret := _m.Called(ctx, volumeIds, opts)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetVolumesByUUIDs")
-	}
-
-	var r0 []*models.Volume
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, []string, common.VolumeFetchOptions) ([]*models.Volume, error)); ok {
-		return rf(ctx, volumeIds, opts)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, []string, common.VolumeFetchOptions) []*models.Volume); ok {
-		r0 = rf(ctx, volumeIds, opts)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*models.Volume)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, []string, common.VolumeFetchOptions) error); ok {
-		r1 = rf(ctx, volumeIds, opts)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockOrchestratorFactory_GetVolumesByUUIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumesByUUIDs'
-type MockOrchestratorFactory_GetVolumesByUUIDs_Call struct {
-	*mock.Call
-}
-
-// GetVolumesByUUIDs is a helper method to define mock.On call
-//   - ctx context.Context
-//   - volumeIds []string
-//   - opts common.VolumeFetchOptions
-func (_e *MockOrchestratorFactory_Expecter) GetVolumesByUUIDs(ctx interface{}, volumeIds interface{}, opts interface{}) *MockOrchestratorFactory_GetVolumesByUUIDs_Call {
-	return &MockOrchestratorFactory_GetVolumesByUUIDs_Call{Call: _e.mock.On("GetVolumesByUUIDs", ctx, volumeIds, opts)}
-}
-
-func (_c *MockOrchestratorFactory_GetVolumesByUUIDs_Call) Run(run func(ctx context.Context, volumeIds []string, opts common.VolumeFetchOptions)) *MockOrchestratorFactory_GetVolumesByUUIDs_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].([]string), args[2].(common.VolumeFetchOptions))
-	})
-	return _c
-}
-
-func (_c *MockOrchestratorFactory_GetVolumesByUUIDs_Call) Return(_a0 []*models.Volume, _a1 error) *MockOrchestratorFactory_GetVolumesByUUIDs_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockOrchestratorFactory_GetVolumesByUUIDs_Call) RunAndReturn(run func(context.Context, []string, common.VolumeFetchOptions) ([]*models.Volume, error)) *MockOrchestratorFactory_GetVolumesByUUIDs_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetPoolByName provides a mock function with given fields: ctx, poolName, accountName, queryDepth
 func (_m *MockOrchestratorFactory) GetPoolByName(ctx context.Context, poolName string, accountName string, queryDepth int) (*models.Pool, error) {
 	ret := _m.Called(ctx, poolName, accountName, queryDepth)
@@ -6174,6 +6291,66 @@ func (_c *MockOrchestratorFactory_GetVolumePerformanceGroup_Call) RunAndReturn(r
 	return _c
 }
 
+// GetVolumesByUUIDs provides a mock function with given fields: ctx, volumeIds, opts
+func (_m *MockOrchestratorFactory) GetVolumesByUUIDs(ctx context.Context, volumeIds []string, opts common.VolumeFetchOptions) ([]*models.Volume, error) {
+	ret := _m.Called(ctx, volumeIds, opts)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVolumesByUUIDs")
+	}
+
+	var r0 []*models.Volume
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []string, common.VolumeFetchOptions) ([]*models.Volume, error)); ok {
+		return rf(ctx, volumeIds, opts)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []string, common.VolumeFetchOptions) []*models.Volume); ok {
+		r0 = rf(ctx, volumeIds, opts)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*models.Volume)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []string, common.VolumeFetchOptions) error); ok {
+		r1 = rf(ctx, volumeIds, opts)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_GetVolumesByUUIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVolumesByUUIDs'
+type MockOrchestratorFactory_GetVolumesByUUIDs_Call struct {
+	*mock.Call
+}
+
+// GetVolumesByUUIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeIds []string
+//   - opts common.VolumeFetchOptions
+func (_e *MockOrchestratorFactory_Expecter) GetVolumesByUUIDs(ctx interface{}, volumeIds interface{}, opts interface{}) *MockOrchestratorFactory_GetVolumesByUUIDs_Call {
+	return &MockOrchestratorFactory_GetVolumesByUUIDs_Call{Call: _e.mock.On("GetVolumesByUUIDs", ctx, volumeIds, opts)}
+}
+
+func (_c *MockOrchestratorFactory_GetVolumesByUUIDs_Call) Run(run func(ctx context.Context, volumeIds []string, opts common.VolumeFetchOptions)) *MockOrchestratorFactory_GetVolumesByUUIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]string), args[2].(common.VolumeFetchOptions))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetVolumesByUUIDs_Call) Return(_a0 []*models.Volume, _a1 error) *MockOrchestratorFactory_GetVolumesByUUIDs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_GetVolumesByUUIDs_Call) RunAndReturn(run func(context.Context, []string, common.VolumeFetchOptions) ([]*models.Volume, error)) *MockOrchestratorFactory_GetVolumesByUUIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // HasActiveClusterUpgrade provides a mock function with given fields: ctx, clusterID
 func (_m *MockOrchestratorFactory) HasActiveClusterUpgrade(ctx context.Context, clusterID string) (bool, error) {
 	ret := _m.Called(ctx, clusterID)
@@ -6343,6 +6520,68 @@ func (_c *MockOrchestratorFactory_ListActiveDirectories_Call) Return(_a0 []*mode
 }
 
 func (_c *MockOrchestratorFactory_ListActiveDirectories_Call) RunAndReturn(run func(context.Context, string) ([]*models.ActiveDirectory, error)) *MockOrchestratorFactory_ListActiveDirectories_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListAddressRanges provides a mock function with given fields: ctx, hostProjectNumber, vpcName, arID, lifType
+func (_m *MockOrchestratorFactory) ListAddressRanges(ctx context.Context, hostProjectNumber string, vpcName string, arID *string, lifType *string) ([]*datamodel.AddressRange, error) {
+	ret := _m.Called(ctx, hostProjectNumber, vpcName, arID, lifType)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListAddressRanges")
+	}
+
+	var r0 []*datamodel.AddressRange
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, *string, *string) ([]*datamodel.AddressRange, error)); ok {
+		return rf(ctx, hostProjectNumber, vpcName, arID, lifType)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, *string, *string) []*datamodel.AddressRange); ok {
+		r0 = rf(ctx, hostProjectNumber, vpcName, arID, lifType)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.AddressRange)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, *string, *string) error); ok {
+		r1 = rf(ctx, hostProjectNumber, vpcName, arID, lifType)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_ListAddressRanges_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListAddressRanges'
+type MockOrchestratorFactory_ListAddressRanges_Call struct {
+	*mock.Call
+}
+
+// ListAddressRanges is a helper method to define mock.On call
+//   - ctx context.Context
+//   - hostProjectNumber string
+//   - vpcName string
+//   - arID *string
+//   - lifType *string
+func (_e *MockOrchestratorFactory_Expecter) ListAddressRanges(ctx interface{}, hostProjectNumber interface{}, vpcName interface{}, arID interface{}, lifType interface{}) *MockOrchestratorFactory_ListAddressRanges_Call {
+	return &MockOrchestratorFactory_ListAddressRanges_Call{Call: _e.mock.On("ListAddressRanges", ctx, hostProjectNumber, vpcName, arID, lifType)}
+}
+
+func (_c *MockOrchestratorFactory_ListAddressRanges_Call) Run(run func(ctx context.Context, hostProjectNumber string, vpcName string, arID *string, lifType *string)) *MockOrchestratorFactory_ListAddressRanges_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(*string), args[4].(*string))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_ListAddressRanges_Call) Return(_a0 []*datamodel.AddressRange, _a1 error) *MockOrchestratorFactory_ListAddressRanges_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_ListAddressRanges_Call) RunAndReturn(run func(context.Context, string, string, *string, *string) ([]*datamodel.AddressRange, error)) *MockOrchestratorFactory_ListAddressRanges_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -8442,6 +8681,126 @@ func (_c *MockOrchestratorFactory_UpdateActiveDirectory_Call) RunAndReturn(run f
 	return _c
 }
 
+// UpdateAddressRange provides a mock function with given fields: ctx, ar
+func (_m *MockOrchestratorFactory) UpdateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error) {
+	ret := _m.Called(ctx, ar)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateAddressRange")
+	}
+
+	var r0 *datamodel.AddressRange
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.AddressRange) (*datamodel.AddressRange, error)); ok {
+		return rf(ctx, ar)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.AddressRange) *datamodel.AddressRange); ok {
+		r0 = rf(ctx, ar)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AddressRange)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.AddressRange) error); ok {
+		r1 = rf(ctx, ar)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_UpdateAddressRange_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateAddressRange'
+type MockOrchestratorFactory_UpdateAddressRange_Call struct {
+	*mock.Call
+}
+
+// UpdateAddressRange is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ar *datamodel.AddressRange
+func (_e *MockOrchestratorFactory_Expecter) UpdateAddressRange(ctx interface{}, ar interface{}) *MockOrchestratorFactory_UpdateAddressRange_Call {
+	return &MockOrchestratorFactory_UpdateAddressRange_Call{Call: _e.mock.On("UpdateAddressRange", ctx, ar)}
+}
+
+func (_c *MockOrchestratorFactory_UpdateAddressRange_Call) Run(run func(ctx context.Context, ar *datamodel.AddressRange)) *MockOrchestratorFactory_UpdateAddressRange_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.AddressRange))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateAddressRange_Call) Return(_a0 *datamodel.AddressRange, _a1 error) *MockOrchestratorFactory_UpdateAddressRange_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateAddressRange_Call) RunAndReturn(run func(context.Context, *datamodel.AddressRange) (*datamodel.AddressRange, error)) *MockOrchestratorFactory_UpdateAddressRange_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateAddressRangeState provides a mock function with given fields: ctx, arID, state, routeAggregationApplied
+func (_m *MockOrchestratorFactory) UpdateAddressRangeState(ctx context.Context, arID string, state string, routeAggregationApplied *bool) (*datamodel.AddressRange, error) {
+	ret := _m.Called(ctx, arID, state, routeAggregationApplied)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateAddressRangeState")
+	}
+
+	var r0 *datamodel.AddressRange
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, *bool) (*datamodel.AddressRange, error)); ok {
+		return rf(ctx, arID, state, routeAggregationApplied)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, *bool) *datamodel.AddressRange); ok {
+		r0 = rf(ctx, arID, state, routeAggregationApplied)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AddressRange)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, *bool) error); ok {
+		r1 = rf(ctx, arID, state, routeAggregationApplied)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockOrchestratorFactory_UpdateAddressRangeState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateAddressRangeState'
+type MockOrchestratorFactory_UpdateAddressRangeState_Call struct {
+	*mock.Call
+}
+
+// UpdateAddressRangeState is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arID string
+//   - state string
+//   - routeAggregationApplied *bool
+func (_e *MockOrchestratorFactory_Expecter) UpdateAddressRangeState(ctx interface{}, arID interface{}, state interface{}, routeAggregationApplied interface{}) *MockOrchestratorFactory_UpdateAddressRangeState_Call {
+	return &MockOrchestratorFactory_UpdateAddressRangeState_Call{Call: _e.mock.On("UpdateAddressRangeState", ctx, arID, state, routeAggregationApplied)}
+}
+
+func (_c *MockOrchestratorFactory_UpdateAddressRangeState_Call) Run(run func(ctx context.Context, arID string, state string, routeAggregationApplied *bool)) *MockOrchestratorFactory_UpdateAddressRangeState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(*bool))
+	})
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateAddressRangeState_Call) Return(_a0 *datamodel.AddressRange, _a1 error) *MockOrchestratorFactory_UpdateAddressRangeState_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockOrchestratorFactory_UpdateAddressRangeState_Call) RunAndReturn(run func(context.Context, string, string, *bool) (*datamodel.AddressRange, error)) *MockOrchestratorFactory_UpdateAddressRangeState_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateBackup provides a mock function with given fields: ctx, params
 func (_m *MockOrchestratorFactory) UpdateBackup(ctx context.Context, params *common.UpdateBackupParams) (*models.Backup, string, error) {
 	ret := _m.Called(ctx, params)
@@ -9998,82 +10357,4 @@ func NewMockOrchestratorFactory(t interface {
 	t.Cleanup(func() { mock.AssertExpectations(t) })
 
 	return mock
-}
-
-func (_m *MockOrchestratorFactory) CreateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error) {
-	ret := _m.Called(ctx, ar)
-	var r0 *datamodel.AddressRange
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.AddressRange) *datamodel.AddressRange); ok {
-		r0 = rf(ctx, ar)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*datamodel.AddressRange)
-		}
-	}
-	return r0, ret.Error(1)
-}
-
-func (_m *MockOrchestratorFactory) GetAddressRange(ctx context.Context, arUUID string) (*datamodel.AddressRange, error) {
-	ret := _m.Called(ctx, arUUID)
-	var r0 *datamodel.AddressRange
-	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.AddressRange); ok {
-		r0 = rf(ctx, arUUID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*datamodel.AddressRange)
-		}
-	}
-	return r0, ret.Error(1)
-}
-
-func (_m *MockOrchestratorFactory) ListAddressRanges(ctx context.Context, hostProjectNumber, vpcName string, arUUID, lifType *string) ([]*datamodel.AddressRange, error) {
-	ret := _m.Called(ctx, hostProjectNumber, vpcName, arUUID, lifType)
-	var r0 []*datamodel.AddressRange
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, *string, *string) []*datamodel.AddressRange); ok {
-		r0 = rf(ctx, hostProjectNumber, vpcName, arUUID, lifType)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*datamodel.AddressRange)
-		}
-	}
-	return r0, ret.Error(1)
-}
-
-func (_m *MockOrchestratorFactory) UpdateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error) {
-	ret := _m.Called(ctx, ar)
-	var r0 *datamodel.AddressRange
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.AddressRange) *datamodel.AddressRange); ok {
-		r0 = rf(ctx, ar)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*datamodel.AddressRange)
-		}
-	}
-	return r0, ret.Error(1)
-}
-
-func (_m *MockOrchestratorFactory) UpdateAddressRangeState(ctx context.Context, arUUID, state string, routeAggregationApplied *bool) (*datamodel.AddressRange, error) {
-	ret := _m.Called(ctx, arUUID, state, routeAggregationApplied)
-	var r0 *datamodel.AddressRange
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, *bool) *datamodel.AddressRange); ok {
-		r0 = rf(ctx, arUUID, state, routeAggregationApplied)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*datamodel.AddressRange)
-		}
-	}
-	return r0, ret.Error(1)
-}
-
-func (_m *MockOrchestratorFactory) DeleteAddressRange(ctx context.Context, arUUID string) (*datamodel.AddressRange, error) {
-	ret := _m.Called(ctx, arUUID)
-	var r0 *datamodel.AddressRange
-	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.AddressRange); ok {
-		r0 = rf(ctx, arUUID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*datamodel.AddressRange)
-		}
-	}
-	return r0, ret.Error(1)
 }

@@ -6920,9 +6920,12 @@ paths:
         '200':
           description: OK
           schema:
-            type: array
-            items:
-              $ref: '#/definitions/BatchSnapshot_v1beta'
+            type: object
+            properties:
+              snapshots:
+                type: array
+                items:
+                  $ref: '#/definitions/BatchSnapshot_v1beta'
         '400':
           $ref: '#/responses/StandardError-400'
         '401':

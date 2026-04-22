@@ -152,7 +152,7 @@ func fetchBatchSnapshotsFromCVP(ctx context.Context, snapshotUUIDs []string, par
 
 	var result []gcpgenserver.BatchSnapshotV1beta
 	if cviResponse != nil && cviResponse.Payload != nil {
-		for _, p := range cviResponse.Payload {
+		for _, p := range cviResponse.Payload.Snapshots {
 			if p != nil {
 				bp := convertCVPBatchSnapshotToGCPBatchSnapshot(p)
 				applyBatchSnapshotFieldQuery(&bp, fieldSet)

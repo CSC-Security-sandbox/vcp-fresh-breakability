@@ -79,6 +79,66 @@ func (_c *MockInvoker_GetHealth_Call) RunAndReturn(run func(context.Context) (Ge
 	return _c
 }
 
+// V1CreateAddressRange provides a mock function with given fields: ctx, request, params
+func (_m *MockInvoker) V1CreateAddressRange(ctx context.Context, request *AddressRangeCreateV1, params V1CreateAddressRangeParams) (V1CreateAddressRangeRes, error) {
+	ret := _m.Called(ctx, request, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1CreateAddressRange")
+	}
+
+	var r0 V1CreateAddressRangeRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *AddressRangeCreateV1, V1CreateAddressRangeParams) (V1CreateAddressRangeRes, error)); ok {
+		return rf(ctx, request, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *AddressRangeCreateV1, V1CreateAddressRangeParams) V1CreateAddressRangeRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1CreateAddressRangeRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *AddressRangeCreateV1, V1CreateAddressRangeParams) error); ok {
+		r1 = rf(ctx, request, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1CreateAddressRange_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1CreateAddressRange'
+type MockInvoker_V1CreateAddressRange_Call struct {
+	*mock.Call
+}
+
+// V1CreateAddressRange is a helper method to define mock.On call
+//   - ctx context.Context
+//   - request *AddressRangeCreateV1
+//   - params V1CreateAddressRangeParams
+func (_e *MockInvoker_Expecter) V1CreateAddressRange(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1CreateAddressRange_Call {
+	return &MockInvoker_V1CreateAddressRange_Call{Call: _e.mock.On("V1CreateAddressRange", ctx, request, params)}
+}
+
+func (_c *MockInvoker_V1CreateAddressRange_Call) Run(run func(ctx context.Context, request *AddressRangeCreateV1, params V1CreateAddressRangeParams)) *MockInvoker_V1CreateAddressRange_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*AddressRangeCreateV1), args[2].(V1CreateAddressRangeParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1CreateAddressRange_Call) Return(_a0 V1CreateAddressRangeRes, _a1 error) *MockInvoker_V1CreateAddressRange_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1CreateAddressRange_Call) RunAndReturn(run func(context.Context, *AddressRangeCreateV1, V1CreateAddressRangeParams) (V1CreateAddressRangeRes, error)) *MockInvoker_V1CreateAddressRange_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1CreateImageVersion provides a mock function with given fields: ctx, request, params
 func (_m *MockInvoker) V1CreateImageVersion(ctx context.Context, request *ImageVersionCreateRequestV1, params V1CreateImageVersionParams) (V1CreateImageVersionRes, error) {
 	ret := _m.Called(ctx, request, params)
@@ -255,6 +315,65 @@ func (_c *MockInvoker_V1CreateSnapshot_Call) Return(_a0 V1CreateSnapshotRes, _a1
 }
 
 func (_c *MockInvoker_V1CreateSnapshot_Call) RunAndReturn(run func(context.Context, *VolumeSnapshotCreateV1, V1CreateSnapshotParams) (V1CreateSnapshotRes, error)) *MockInvoker_V1CreateSnapshot_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1DeleteAddressRange provides a mock function with given fields: ctx, params
+func (_m *MockInvoker) V1DeleteAddressRange(ctx context.Context, params V1DeleteAddressRangeParams) (V1DeleteAddressRangeRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1DeleteAddressRange")
+	}
+
+	var r0 V1DeleteAddressRangeRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1DeleteAddressRangeParams) (V1DeleteAddressRangeRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1DeleteAddressRangeParams) V1DeleteAddressRangeRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1DeleteAddressRangeRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1DeleteAddressRangeParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1DeleteAddressRange_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1DeleteAddressRange'
+type MockInvoker_V1DeleteAddressRange_Call struct {
+	*mock.Call
+}
+
+// V1DeleteAddressRange is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1DeleteAddressRangeParams
+func (_e *MockInvoker_Expecter) V1DeleteAddressRange(ctx interface{}, params interface{}) *MockInvoker_V1DeleteAddressRange_Call {
+	return &MockInvoker_V1DeleteAddressRange_Call{Call: _e.mock.On("V1DeleteAddressRange", ctx, params)}
+}
+
+func (_c *MockInvoker_V1DeleteAddressRange_Call) Run(run func(ctx context.Context, params V1DeleteAddressRangeParams)) *MockInvoker_V1DeleteAddressRange_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1DeleteAddressRangeParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1DeleteAddressRange_Call) Return(_a0 V1DeleteAddressRangeRes, _a1 error) *MockInvoker_V1DeleteAddressRange_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1DeleteAddressRange_Call) RunAndReturn(run func(context.Context, V1DeleteAddressRangeParams) (V1DeleteAddressRangeRes, error)) *MockInvoker_V1DeleteAddressRange_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -557,6 +676,65 @@ func (_c *MockInvoker_V1ExpertModeVolumeRename_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// V1GetAddressRange provides a mock function with given fields: ctx, params
+func (_m *MockInvoker) V1GetAddressRange(ctx context.Context, params V1GetAddressRangeParams) (V1GetAddressRangeRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1GetAddressRange")
+	}
+
+	var r0 V1GetAddressRangeRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1GetAddressRangeParams) (V1GetAddressRangeRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1GetAddressRangeParams) V1GetAddressRangeRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1GetAddressRangeRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1GetAddressRangeParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1GetAddressRange_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1GetAddressRange'
+type MockInvoker_V1GetAddressRange_Call struct {
+	*mock.Call
+}
+
+// V1GetAddressRange is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1GetAddressRangeParams
+func (_e *MockInvoker_Expecter) V1GetAddressRange(ctx interface{}, params interface{}) *MockInvoker_V1GetAddressRange_Call {
+	return &MockInvoker_V1GetAddressRange_Call{Call: _e.mock.On("V1GetAddressRange", ctx, params)}
+}
+
+func (_c *MockInvoker_V1GetAddressRange_Call) Run(run func(ctx context.Context, params V1GetAddressRangeParams)) *MockInvoker_V1GetAddressRange_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1GetAddressRangeParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1GetAddressRange_Call) Return(_a0 V1GetAddressRangeRes, _a1 error) *MockInvoker_V1GetAddressRange_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1GetAddressRange_Call) RunAndReturn(run func(context.Context, V1GetAddressRangeParams) (V1GetAddressRangeRes, error)) *MockInvoker_V1GetAddressRange_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1GetClusterUpgradeStatus provides a mock function with given fields: ctx, params
 func (_m *MockInvoker) V1GetClusterUpgradeStatus(ctx context.Context, params V1GetClusterUpgradeStatusParams) (V1GetClusterUpgradeStatusRes, error) {
 	ret := _m.Called(ctx, params)
@@ -789,6 +967,65 @@ func (_c *MockInvoker_V1GetPool_Call) Return(_a0 V1GetPoolRes, _a1 error) *MockI
 }
 
 func (_c *MockInvoker_V1GetPool_Call) RunAndReturn(run func(context.Context, V1GetPoolParams) (V1GetPoolRes, error)) *MockInvoker_V1GetPool_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1ListAddressRanges provides a mock function with given fields: ctx, params
+func (_m *MockInvoker) V1ListAddressRanges(ctx context.Context, params V1ListAddressRangesParams) (V1ListAddressRangesRes, error) {
+	ret := _m.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1ListAddressRanges")
+	}
+
+	var r0 V1ListAddressRangesRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, V1ListAddressRangesParams) (V1ListAddressRangesRes, error)); ok {
+		return rf(ctx, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, V1ListAddressRangesParams) V1ListAddressRangesRes); ok {
+		r0 = rf(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1ListAddressRangesRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, V1ListAddressRangesParams) error); ok {
+		r1 = rf(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1ListAddressRanges_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1ListAddressRanges'
+type MockInvoker_V1ListAddressRanges_Call struct {
+	*mock.Call
+}
+
+// V1ListAddressRanges is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params V1ListAddressRangesParams
+func (_e *MockInvoker_Expecter) V1ListAddressRanges(ctx interface{}, params interface{}) *MockInvoker_V1ListAddressRanges_Call {
+	return &MockInvoker_V1ListAddressRanges_Call{Call: _e.mock.On("V1ListAddressRanges", ctx, params)}
+}
+
+func (_c *MockInvoker_V1ListAddressRanges_Call) Run(run func(ctx context.Context, params V1ListAddressRangesParams)) *MockInvoker_V1ListAddressRanges_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(V1ListAddressRangesParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1ListAddressRanges_Call) Return(_a0 V1ListAddressRangesRes, _a1 error) *MockInvoker_V1ListAddressRanges_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1ListAddressRanges_Call) RunAndReturn(run func(context.Context, V1ListAddressRangesParams) (V1ListAddressRangesRes, error)) *MockInvoker_V1ListAddressRanges_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1089,6 +1326,126 @@ func (_c *MockInvoker_V1SplitStartVolume_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// V1UpdateAddressRange provides a mock function with given fields: ctx, request, params
+func (_m *MockInvoker) V1UpdateAddressRange(ctx context.Context, request *AddressRangeUpdateV1, params V1UpdateAddressRangeParams) (V1UpdateAddressRangeRes, error) {
+	ret := _m.Called(ctx, request, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1UpdateAddressRange")
+	}
+
+	var r0 V1UpdateAddressRangeRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *AddressRangeUpdateV1, V1UpdateAddressRangeParams) (V1UpdateAddressRangeRes, error)); ok {
+		return rf(ctx, request, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *AddressRangeUpdateV1, V1UpdateAddressRangeParams) V1UpdateAddressRangeRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1UpdateAddressRangeRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *AddressRangeUpdateV1, V1UpdateAddressRangeParams) error); ok {
+		r1 = rf(ctx, request, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1UpdateAddressRange_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1UpdateAddressRange'
+type MockInvoker_V1UpdateAddressRange_Call struct {
+	*mock.Call
+}
+
+// V1UpdateAddressRange is a helper method to define mock.On call
+//   - ctx context.Context
+//   - request *AddressRangeUpdateV1
+//   - params V1UpdateAddressRangeParams
+func (_e *MockInvoker_Expecter) V1UpdateAddressRange(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1UpdateAddressRange_Call {
+	return &MockInvoker_V1UpdateAddressRange_Call{Call: _e.mock.On("V1UpdateAddressRange", ctx, request, params)}
+}
+
+func (_c *MockInvoker_V1UpdateAddressRange_Call) Run(run func(ctx context.Context, request *AddressRangeUpdateV1, params V1UpdateAddressRangeParams)) *MockInvoker_V1UpdateAddressRange_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*AddressRangeUpdateV1), args[2].(V1UpdateAddressRangeParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1UpdateAddressRange_Call) Return(_a0 V1UpdateAddressRangeRes, _a1 error) *MockInvoker_V1UpdateAddressRange_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1UpdateAddressRange_Call) RunAndReturn(run func(context.Context, *AddressRangeUpdateV1, V1UpdateAddressRangeParams) (V1UpdateAddressRangeRes, error)) *MockInvoker_V1UpdateAddressRange_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// V1UpdateAddressRangeState provides a mock function with given fields: ctx, request, params
+func (_m *MockInvoker) V1UpdateAddressRangeState(ctx context.Context, request *AddressRangeCVNUpdateV1, params V1UpdateAddressRangeStateParams) (V1UpdateAddressRangeStateRes, error) {
+	ret := _m.Called(ctx, request, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for V1UpdateAddressRangeState")
+	}
+
+	var r0 V1UpdateAddressRangeStateRes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *AddressRangeCVNUpdateV1, V1UpdateAddressRangeStateParams) (V1UpdateAddressRangeStateRes, error)); ok {
+		return rf(ctx, request, params)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *AddressRangeCVNUpdateV1, V1UpdateAddressRangeStateParams) V1UpdateAddressRangeStateRes); ok {
+		r0 = rf(ctx, request, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(V1UpdateAddressRangeStateRes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *AddressRangeCVNUpdateV1, V1UpdateAddressRangeStateParams) error); ok {
+		r1 = rf(ctx, request, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockInvoker_V1UpdateAddressRangeState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'V1UpdateAddressRangeState'
+type MockInvoker_V1UpdateAddressRangeState_Call struct {
+	*mock.Call
+}
+
+// V1UpdateAddressRangeState is a helper method to define mock.On call
+//   - ctx context.Context
+//   - request *AddressRangeCVNUpdateV1
+//   - params V1UpdateAddressRangeStateParams
+func (_e *MockInvoker_Expecter) V1UpdateAddressRangeState(ctx interface{}, request interface{}, params interface{}) *MockInvoker_V1UpdateAddressRangeState_Call {
+	return &MockInvoker_V1UpdateAddressRangeState_Call{Call: _e.mock.On("V1UpdateAddressRangeState", ctx, request, params)}
+}
+
+func (_c *MockInvoker_V1UpdateAddressRangeState_Call) Run(run func(ctx context.Context, request *AddressRangeCVNUpdateV1, params V1UpdateAddressRangeStateParams)) *MockInvoker_V1UpdateAddressRangeState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*AddressRangeCVNUpdateV1), args[2].(V1UpdateAddressRangeStateParams))
+	})
+	return _c
+}
+
+func (_c *MockInvoker_V1UpdateAddressRangeState_Call) Return(_a0 V1UpdateAddressRangeStateRes, _a1 error) *MockInvoker_V1UpdateAddressRangeState_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockInvoker_V1UpdateAddressRangeState_Call) RunAndReturn(run func(context.Context, *AddressRangeCVNUpdateV1, V1UpdateAddressRangeStateParams) (V1UpdateAddressRangeStateRes, error)) *MockInvoker_V1UpdateAddressRangeState_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // V1UpdatePool provides a mock function with given fields: ctx, request, params
 func (_m *MockInvoker) V1UpdatePool(ctx context.Context, request *PoolUpdateV1, params V1UpdatePoolParams) (V1UpdatePoolRes, error) {
 	ret := _m.Called(ctx, request, params)
@@ -1221,82 +1578,4 @@ func NewMockInvoker(t interface {
 	t.Cleanup(func() { mock.AssertExpectations(t) })
 
 	return mock
-}
-
-func (_m *MockInvoker) V1CreateAddressRange(ctx context.Context, request *AddressRangeCreateV1, params V1CreateAddressRangeParams) (V1CreateAddressRangeRes, error) {
-	ret := _m.Called(ctx, request, params)
-	var r0 V1CreateAddressRangeRes
-	if rf, ok := ret.Get(0).(func(context.Context, *AddressRangeCreateV1, V1CreateAddressRangeParams) V1CreateAddressRangeRes); ok {
-		r0 = rf(ctx, request, params)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(V1CreateAddressRangeRes)
-		}
-	}
-	return r0, ret.Error(1)
-}
-
-func (_m *MockInvoker) V1DeleteAddressRange(ctx context.Context, params V1DeleteAddressRangeParams) (V1DeleteAddressRangeRes, error) {
-	ret := _m.Called(ctx, params)
-	var r0 V1DeleteAddressRangeRes
-	if rf, ok := ret.Get(0).(func(context.Context, V1DeleteAddressRangeParams) V1DeleteAddressRangeRes); ok {
-		r0 = rf(ctx, params)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(V1DeleteAddressRangeRes)
-		}
-	}
-	return r0, ret.Error(1)
-}
-
-func (_m *MockInvoker) V1GetAddressRange(ctx context.Context, params V1GetAddressRangeParams) (V1GetAddressRangeRes, error) {
-	ret := _m.Called(ctx, params)
-	var r0 V1GetAddressRangeRes
-	if rf, ok := ret.Get(0).(func(context.Context, V1GetAddressRangeParams) V1GetAddressRangeRes); ok {
-		r0 = rf(ctx, params)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(V1GetAddressRangeRes)
-		}
-	}
-	return r0, ret.Error(1)
-}
-
-func (_m *MockInvoker) V1ListAddressRanges(ctx context.Context, params V1ListAddressRangesParams) (V1ListAddressRangesRes, error) {
-	ret := _m.Called(ctx, params)
-	var r0 V1ListAddressRangesRes
-	if rf, ok := ret.Get(0).(func(context.Context, V1ListAddressRangesParams) V1ListAddressRangesRes); ok {
-		r0 = rf(ctx, params)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(V1ListAddressRangesRes)
-		}
-	}
-	return r0, ret.Error(1)
-}
-
-func (_m *MockInvoker) V1UpdateAddressRange(ctx context.Context, request *AddressRangeUpdateV1, params V1UpdateAddressRangeParams) (V1UpdateAddressRangeRes, error) {
-	ret := _m.Called(ctx, request, params)
-	var r0 V1UpdateAddressRangeRes
-	if rf, ok := ret.Get(0).(func(context.Context, *AddressRangeUpdateV1, V1UpdateAddressRangeParams) V1UpdateAddressRangeRes); ok {
-		r0 = rf(ctx, request, params)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(V1UpdateAddressRangeRes)
-		}
-	}
-	return r0, ret.Error(1)
-}
-
-func (_m *MockInvoker) V1UpdateAddressRangeState(ctx context.Context, request *AddressRangeCVNUpdateV1, params V1UpdateAddressRangeStateParams) (V1UpdateAddressRangeStateRes, error) {
-	ret := _m.Called(ctx, request, params)
-	var r0 V1UpdateAddressRangeStateRes
-	if rf, ok := ret.Get(0).(func(context.Context, *AddressRangeCVNUpdateV1, V1UpdateAddressRangeStateParams) V1UpdateAddressRangeStateRes); ok {
-		r0 = rf(ctx, request, params)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(V1UpdateAddressRangeStateRes)
-		}
-	}
-	return r0, ret.Error(1)
 }

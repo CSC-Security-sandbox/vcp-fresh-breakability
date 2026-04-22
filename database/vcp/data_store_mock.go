@@ -825,6 +825,64 @@ func (_c *MockDataStore_CheckAndFetchDuplicateJobs_Call) RunAndReturn(run func(c
 	return _c
 }
 
+// CountActivePoolsByNetwork provides a mock function with given fields: ctx, network, excludePoolUUID
+func (_m *MockDataStore) CountActivePoolsByNetwork(ctx context.Context, network string, excludePoolUUID string) (int64, error) {
+	ret := _m.Called(ctx, network, excludePoolUUID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountActivePoolsByNetwork")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (int64, error)); ok {
+		return rf(ctx, network, excludePoolUUID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) int64); ok {
+		r0 = rf(ctx, network, excludePoolUUID)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, network, excludePoolUUID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_CountActivePoolsByNetwork_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountActivePoolsByNetwork'
+type MockDataStore_CountActivePoolsByNetwork_Call struct {
+	*mock.Call
+}
+
+// CountActivePoolsByNetwork is a helper method to define mock.On call
+//   - ctx context.Context
+//   - network string
+//   - excludePoolUUID string
+func (_e *MockDataStore_Expecter) CountActivePoolsByNetwork(ctx interface{}, network interface{}, excludePoolUUID interface{}) *MockDataStore_CountActivePoolsByNetwork_Call {
+	return &MockDataStore_CountActivePoolsByNetwork_Call{Call: _e.mock.On("CountActivePoolsByNetwork", ctx, network, excludePoolUUID)}
+}
+
+func (_c *MockDataStore_CountActivePoolsByNetwork_Call) Run(run func(ctx context.Context, network string, excludePoolUUID string)) *MockDataStore_CountActivePoolsByNetwork_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_CountActivePoolsByNetwork_Call) Return(_a0 int64, _a1 error) *MockDataStore_CountActivePoolsByNetwork_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_CountActivePoolsByNetwork_Call) RunAndReturn(run func(context.Context, string, string) (int64, error)) *MockDataStore_CountActivePoolsByNetwork_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateAccount provides a mock function with given fields: ctx, account
 func (_m *MockDataStore) CreateAccount(ctx context.Context, account *datamodel.Account) (*datamodel.Account, error) {
 	ret := _m.Called(ctx, account)
@@ -939,6 +997,65 @@ func (_c *MockDataStore_CreateActiveDirectory_Call) Return(_a0 *datamodel.Active
 }
 
 func (_c *MockDataStore_CreateActiveDirectory_Call) RunAndReturn(run func(context.Context, *datamodel.ActiveDirectory) (*datamodel.ActiveDirectory, error)) *MockDataStore_CreateActiveDirectory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateAddressRange provides a mock function with given fields: ctx, ar
+func (_m *MockDataStore) CreateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error) {
+	ret := _m.Called(ctx, ar)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateAddressRange")
+	}
+
+	var r0 *datamodel.AddressRange
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.AddressRange) (*datamodel.AddressRange, error)); ok {
+		return rf(ctx, ar)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.AddressRange) *datamodel.AddressRange); ok {
+		r0 = rf(ctx, ar)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AddressRange)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.AddressRange) error); ok {
+		r1 = rf(ctx, ar)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_CreateAddressRange_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateAddressRange'
+type MockDataStore_CreateAddressRange_Call struct {
+	*mock.Call
+}
+
+// CreateAddressRange is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ar *datamodel.AddressRange
+func (_e *MockDataStore_Expecter) CreateAddressRange(ctx interface{}, ar interface{}) *MockDataStore_CreateAddressRange_Call {
+	return &MockDataStore_CreateAddressRange_Call{Call: _e.mock.On("CreateAddressRange", ctx, ar)}
+}
+
+func (_c *MockDataStore_CreateAddressRange_Call) Run(run func(ctx context.Context, ar *datamodel.AddressRange)) *MockDataStore_CreateAddressRange_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.AddressRange))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_CreateAddressRange_Call) Return(_a0 *datamodel.AddressRange, _a1 error) *MockDataStore_CreateAddressRange_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_CreateAddressRange_Call) RunAndReturn(run func(context.Context, *datamodel.AddressRange) (*datamodel.AddressRange, error)) *MockDataStore_CreateAddressRange_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2748,6 +2865,65 @@ func (_c *MockDataStore_DeleteActiveDirectory_Call) Return(_a0 error) *MockDataS
 }
 
 func (_c *MockDataStore_DeleteActiveDirectory_Call) RunAndReturn(run func(context.Context, string) error) *MockDataStore_DeleteActiveDirectory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteAddressRange provides a mock function with given fields: ctx, arID
+func (_m *MockDataStore) DeleteAddressRange(ctx context.Context, arID string) (*datamodel.AddressRange, error) {
+	ret := _m.Called(ctx, arID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteAddressRange")
+	}
+
+	var r0 *datamodel.AddressRange
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.AddressRange, error)); ok {
+		return rf(ctx, arID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.AddressRange); ok {
+		r0 = rf(ctx, arID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AddressRange)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, arID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_DeleteAddressRange_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteAddressRange'
+type MockDataStore_DeleteAddressRange_Call struct {
+	*mock.Call
+}
+
+// DeleteAddressRange is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arID string
+func (_e *MockDataStore_Expecter) DeleteAddressRange(ctx interface{}, arID interface{}) *MockDataStore_DeleteAddressRange_Call {
+	return &MockDataStore_DeleteAddressRange_Call{Call: _e.mock.On("DeleteAddressRange", ctx, arID)}
+}
+
+func (_c *MockDataStore_DeleteAddressRange_Call) Run(run func(ctx context.Context, arID string)) *MockDataStore_DeleteAddressRange_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_DeleteAddressRange_Call) Return(_a0 *datamodel.AddressRange, _a1 error) *MockDataStore_DeleteAddressRange_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_DeleteAddressRange_Call) RunAndReturn(run func(context.Context, string) (*datamodel.AddressRange, error)) *MockDataStore_DeleteAddressRange_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -5275,6 +5451,65 @@ func (_c *MockDataStore_GetActivePrepopulateJobs_Call) Return(_a0 []*datamodel.J
 }
 
 func (_c *MockDataStore_GetActivePrepopulateJobs_Call) RunAndReturn(run func(context.Context) ([]*datamodel.Job, error)) *MockDataStore_GetActivePrepopulateJobs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAddressRange provides a mock function with given fields: ctx, arID
+func (_m *MockDataStore) GetAddressRange(ctx context.Context, arID string) (*datamodel.AddressRange, error) {
+	ret := _m.Called(ctx, arID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAddressRange")
+	}
+
+	var r0 *datamodel.AddressRange
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*datamodel.AddressRange, error)); ok {
+		return rf(ctx, arID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.AddressRange); ok {
+		r0 = rf(ctx, arID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AddressRange)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, arID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetAddressRange_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAddressRange'
+type MockDataStore_GetAddressRange_Call struct {
+	*mock.Call
+}
+
+// GetAddressRange is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arID string
+func (_e *MockDataStore_Expecter) GetAddressRange(ctx interface{}, arID interface{}) *MockDataStore_GetAddressRange_Call {
+	return &MockDataStore_GetAddressRange_Call{Call: _e.mock.On("GetAddressRange", ctx, arID)}
+}
+
+func (_c *MockDataStore_GetAddressRange_Call) Run(run func(ctx context.Context, arID string)) *MockDataStore_GetAddressRange_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetAddressRange_Call) Return(_a0 *datamodel.AddressRange, _a1 error) *MockDataStore_GetAddressRange_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetAddressRange_Call) RunAndReturn(run func(context.Context, string) (*datamodel.AddressRange, error)) *MockDataStore_GetAddressRange_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -9145,65 +9380,6 @@ func (_c *MockDataStore_GetMultipleVolumes_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
-// GetMultipleVolumesWithExpertMode provides a mock function with given fields: ctx, conditions
-func (_m *MockDataStore) GetMultipleVolumesWithExpertMode(ctx context.Context, conditions [][]interface{}) ([]*datamodel.ExpertModeVolumes, error) {
-	ret := _m.Called(ctx, conditions)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetMultipleVolumesWithExpertMode")
-	}
-
-	var r0 []*datamodel.ExpertModeVolumes
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}) ([]*datamodel.ExpertModeVolumes, error)); ok {
-		return rf(ctx, conditions)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}) []*datamodel.ExpertModeVolumes); ok {
-		r0 = rf(ctx, conditions)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*datamodel.ExpertModeVolumes)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, [][]interface{}) error); ok {
-		r1 = rf(ctx, conditions)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockDataStore_GetMultipleVolumesWithExpertMode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMultipleVolumesWithExpertMode'
-type MockDataStore_GetMultipleVolumesWithExpertMode_Call struct {
-	*mock.Call
-}
-
-// GetMultipleVolumesWithExpertMode is a helper method to define mock.On call
-//   - ctx context.Context
-//   - conditions [][]interface{}
-func (_e *MockDataStore_Expecter) GetMultipleVolumesWithExpertMode(ctx interface{}, conditions interface{}) *MockDataStore_GetMultipleVolumesWithExpertMode_Call {
-	return &MockDataStore_GetMultipleVolumesWithExpertMode_Call{Call: _e.mock.On("GetMultipleVolumesWithExpertMode", ctx, conditions)}
-}
-
-func (_c *MockDataStore_GetMultipleVolumesWithExpertMode_Call) Run(run func(ctx context.Context, conditions [][]interface{})) *MockDataStore_GetMultipleVolumesWithExpertMode_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].([][]interface{}))
-	})
-	return _c
-}
-
-func (_c *MockDataStore_GetMultipleVolumesWithExpertMode_Call) Return(_a0 []*datamodel.ExpertModeVolumes, _a1 error) *MockDataStore_GetMultipleVolumesWithExpertMode_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockDataStore_GetMultipleVolumesWithExpertMode_Call) RunAndReturn(run func(context.Context, [][]interface{}) ([]*datamodel.ExpertModeVolumes, error)) *MockDataStore_GetMultipleVolumesWithExpertMode_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetMultipleVolumesSelective provides a mock function with given fields: ctx, conditions, opts
 func (_m *MockDataStore) GetMultipleVolumesSelective(ctx context.Context, conditions [][]interface{}, opts VolumePreloadOptions) ([]*datamodel.Volume, error) {
 	ret := _m.Called(ctx, conditions, opts)
@@ -9260,6 +9436,65 @@ func (_c *MockDataStore_GetMultipleVolumesSelective_Call) Return(_a0 []*datamode
 }
 
 func (_c *MockDataStore_GetMultipleVolumesSelective_Call) RunAndReturn(run func(context.Context, [][]interface{}, VolumePreloadOptions) ([]*datamodel.Volume, error)) *MockDataStore_GetMultipleVolumesSelective_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetMultipleVolumesWithExpertMode provides a mock function with given fields: ctx, conditions
+func (_m *MockDataStore) GetMultipleVolumesWithExpertMode(ctx context.Context, conditions [][]interface{}) ([]*datamodel.ExpertModeVolumes, error) {
+	ret := _m.Called(ctx, conditions)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMultipleVolumesWithExpertMode")
+	}
+
+	var r0 []*datamodel.ExpertModeVolumes
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}) ([]*datamodel.ExpertModeVolumes, error)); ok {
+		return rf(ctx, conditions)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, [][]interface{}) []*datamodel.ExpertModeVolumes); ok {
+		r0 = rf(ctx, conditions)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.ExpertModeVolumes)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, [][]interface{}) error); ok {
+		r1 = rf(ctx, conditions)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetMultipleVolumesWithExpertMode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMultipleVolumesWithExpertMode'
+type MockDataStore_GetMultipleVolumesWithExpertMode_Call struct {
+	*mock.Call
+}
+
+// GetMultipleVolumesWithExpertMode is a helper method to define mock.On call
+//   - ctx context.Context
+//   - conditions [][]interface{}
+func (_e *MockDataStore_Expecter) GetMultipleVolumesWithExpertMode(ctx interface{}, conditions interface{}) *MockDataStore_GetMultipleVolumesWithExpertMode_Call {
+	return &MockDataStore_GetMultipleVolumesWithExpertMode_Call{Call: _e.mock.On("GetMultipleVolumesWithExpertMode", ctx, conditions)}
+}
+
+func (_c *MockDataStore_GetMultipleVolumesWithExpertMode_Call) Run(run func(ctx context.Context, conditions [][]interface{})) *MockDataStore_GetMultipleVolumesWithExpertMode_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([][]interface{}))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetMultipleVolumesWithExpertMode_Call) Return(_a0 []*datamodel.ExpertModeVolumes, _a1 error) *MockDataStore_GetMultipleVolumesWithExpertMode_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetMultipleVolumesWithExpertMode_Call) RunAndReturn(run func(context.Context, [][]interface{}) ([]*datamodel.ExpertModeVolumes, error)) *MockDataStore_GetMultipleVolumesWithExpertMode_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -10318,63 +10553,7 @@ func (_c *MockDataStore_GetPoolsCount_Call) RunAndReturn(run func(context.Contex
 	return _c
 }
 
-// CountActivePoolsByNetwork provides a mock function with given fields: ctx, network, excludePoolUUID
-func (_m *MockDataStore) CountActivePoolsByNetwork(ctx context.Context, network string, excludePoolUUID string) (int64, error) {
-	ret := _m.Called(ctx, network, excludePoolUUID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for CountActivePoolsByNetwork")
-	}
-
-	var r0 int64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) (int64, error)); ok {
-		return rf(ctx, network, excludePoolUUID)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) int64); ok {
-		r0 = rf(ctx, network, excludePoolUUID)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
-		r1 = rf(ctx, network, excludePoolUUID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockDataStore_CountActivePoolsByNetwork_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountActivePoolsByNetwork'
-type MockDataStore_CountActivePoolsByNetwork_Call struct {
-	*mock.Call
-}
-
-// CountActivePoolsByNetwork is a helper method to define mock.On call
-//   - ctx context.Context
-//   - network string
-//   - excludePoolUUID string
-func (_e *MockDataStore_Expecter) CountActivePoolsByNetwork(ctx interface{}, network interface{}, excludePoolUUID interface{}) *MockDataStore_CountActivePoolsByNetwork_Call {
-	return &MockDataStore_CountActivePoolsByNetwork_Call{Call: _e.mock.On("CountActivePoolsByNetwork", ctx, network, excludePoolUUID)}
-}
-
-func (_c *MockDataStore_CountActivePoolsByNetwork_Call) Run(run func(ctx context.Context, network string, excludePoolUUID string)) *MockDataStore_CountActivePoolsByNetwork_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string))
-	})
-	return _c
-}
-
-func (_c *MockDataStore_CountActivePoolsByNetwork_Call) Return(_a0 int64, _a1 error) *MockDataStore_CountActivePoolsByNetwork_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockDataStore_CountActivePoolsByNetwork_Call) RunAndReturn(run func(context.Context, string, string) (int64, error)) *MockDataStore_CountActivePoolsByNetwork_Call {
-	_c.Call.Return(run)
-	return _c
-}
+// GetQuotaRuleByUUID provides a mock function with given fields: ctx, uuid, accountID
 func (_m *MockDataStore) GetQuotaRuleByUUID(ctx context.Context, uuid string, accountID int64) (*datamodel.QuotaRule, error) {
 	ret := _m.Called(ctx, uuid, accountID)
 
@@ -10605,6 +10784,65 @@ func (_c *MockDataStore_GetQuotaRulesWithCondition_Call) Return(_a0 []*datamodel
 }
 
 func (_c *MockDataStore_GetQuotaRulesWithCondition_Call) RunAndReturn(run func(context.Context, utils.Filter) ([]*datamodel.QuotaRule, error)) *MockDataStore_GetQuotaRulesWithCondition_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetReplicatedVolumeUUIDs provides a mock function with given fields: ctx, volumeUUIDs
+func (_m *MockDataStore) GetReplicatedVolumeUUIDs(ctx context.Context, volumeUUIDs []string) ([]string, error) {
+	ret := _m.Called(ctx, volumeUUIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetReplicatedVolumeUUIDs")
+	}
+
+	var r0 []string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []string) ([]string, error)); ok {
+		return rf(ctx, volumeUUIDs)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []string) []string); ok {
+		r0 = rf(ctx, volumeUUIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []string) error); ok {
+		r1 = rf(ctx, volumeUUIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_GetReplicatedVolumeUUIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetReplicatedVolumeUUIDs'
+type MockDataStore_GetReplicatedVolumeUUIDs_Call struct {
+	*mock.Call
+}
+
+// GetReplicatedVolumeUUIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - volumeUUIDs []string
+func (_e *MockDataStore_Expecter) GetReplicatedVolumeUUIDs(ctx interface{}, volumeUUIDs interface{}) *MockDataStore_GetReplicatedVolumeUUIDs_Call {
+	return &MockDataStore_GetReplicatedVolumeUUIDs_Call{Call: _e.mock.On("GetReplicatedVolumeUUIDs", ctx, volumeUUIDs)}
+}
+
+func (_c *MockDataStore_GetReplicatedVolumeUUIDs_Call) Run(run func(ctx context.Context, volumeUUIDs []string)) *MockDataStore_GetReplicatedVolumeUUIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_GetReplicatedVolumeUUIDs_Call) Return(_a0 []string, _a1 error) *MockDataStore_GetReplicatedVolumeUUIDs_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_GetReplicatedVolumeUUIDs_Call) RunAndReturn(run func(context.Context, []string) ([]string, error)) *MockDataStore_GetReplicatedVolumeUUIDs_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -13086,65 +13324,6 @@ func (_c *MockDataStore_GetVolumeReplicationCountByVolumeID_Call) RunAndReturn(r
 	return _c
 }
 
-// GetReplicatedVolumeUUIDs provides a mock function with given fields: ctx, volumeUUIDs
-func (_m *MockDataStore) GetReplicatedVolumeUUIDs(ctx context.Context, volumeUUIDs []string) ([]string, error) {
-	ret := _m.Called(ctx, volumeUUIDs)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetReplicatedVolumeUUIDs")
-	}
-
-	var r0 []string
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, []string) ([]string, error)); ok {
-		return rf(ctx, volumeUUIDs)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, []string) []string); ok {
-		r0 = rf(ctx, volumeUUIDs)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, []string) error); ok {
-		r1 = rf(ctx, volumeUUIDs)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockDataStore_GetReplicatedVolumeUUIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetReplicatedVolumeUUIDs'
-type MockDataStore_GetReplicatedVolumeUUIDs_Call struct {
-	*mock.Call
-}
-
-// GetReplicatedVolumeUUIDs is a helper method to define mock.On call
-//   - ctx context.Context
-//   - volumeUUIDs []string
-func (_e *MockDataStore_Expecter) GetReplicatedVolumeUUIDs(ctx interface{}, volumeUUIDs interface{}) *MockDataStore_GetReplicatedVolumeUUIDs_Call {
-	return &MockDataStore_GetReplicatedVolumeUUIDs_Call{Call: _e.mock.On("GetReplicatedVolumeUUIDs", ctx, volumeUUIDs)}
-}
-
-func (_c *MockDataStore_GetReplicatedVolumeUUIDs_Call) Run(run func(ctx context.Context, volumeUUIDs []string)) *MockDataStore_GetReplicatedVolumeUUIDs_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].([]string))
-	})
-	return _c
-}
-
-func (_c *MockDataStore_GetReplicatedVolumeUUIDs_Call) Return(_a0 []string, _a1 error) *MockDataStore_GetReplicatedVolumeUUIDs_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockDataStore_GetReplicatedVolumeUUIDs_Call) RunAndReturn(run func(context.Context, []string) ([]string, error)) *MockDataStore_GetReplicatedVolumeUUIDs_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetVolumeWithAccountID provides a mock function with given fields: ctx, id, accountID
 func (_m *MockDataStore) GetVolumeWithAccountID(ctx context.Context, id string, accountID int64) (*datamodel.Volume, error) {
 	ret := _m.Called(ctx, id, accountID)
@@ -13997,6 +14176,68 @@ func (_c *MockDataStore_ListActiveDirectories_Call) Return(_a0 []*datamodel.Acti
 }
 
 func (_c *MockDataStore_ListActiveDirectories_Call) RunAndReturn(run func(context.Context, int64) ([]*datamodel.ActiveDirectory, error)) *MockDataStore_ListActiveDirectories_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListAddressRanges provides a mock function with given fields: ctx, hostProjectNumber, vpcName, arID, lifType
+func (_m *MockDataStore) ListAddressRanges(ctx context.Context, hostProjectNumber string, vpcName string, arID *string, lifType *string) ([]*datamodel.AddressRange, error) {
+	ret := _m.Called(ctx, hostProjectNumber, vpcName, arID, lifType)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListAddressRanges")
+	}
+
+	var r0 []*datamodel.AddressRange
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, *string, *string) ([]*datamodel.AddressRange, error)); ok {
+		return rf(ctx, hostProjectNumber, vpcName, arID, lifType)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, *string, *string) []*datamodel.AddressRange); ok {
+		r0 = rf(ctx, hostProjectNumber, vpcName, arID, lifType)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*datamodel.AddressRange)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, *string, *string) error); ok {
+		r1 = rf(ctx, hostProjectNumber, vpcName, arID, lifType)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_ListAddressRanges_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListAddressRanges'
+type MockDataStore_ListAddressRanges_Call struct {
+	*mock.Call
+}
+
+// ListAddressRanges is a helper method to define mock.On call
+//   - ctx context.Context
+//   - hostProjectNumber string
+//   - vpcName string
+//   - arID *string
+//   - lifType *string
+func (_e *MockDataStore_Expecter) ListAddressRanges(ctx interface{}, hostProjectNumber interface{}, vpcName interface{}, arID interface{}, lifType interface{}) *MockDataStore_ListAddressRanges_Call {
+	return &MockDataStore_ListAddressRanges_Call{Call: _e.mock.On("ListAddressRanges", ctx, hostProjectNumber, vpcName, arID, lifType)}
+}
+
+func (_c *MockDataStore_ListAddressRanges_Call) Run(run func(ctx context.Context, hostProjectNumber string, vpcName string, arID *string, lifType *string)) *MockDataStore_ListAddressRanges_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(*string), args[4].(*string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ListAddressRanges_Call) Return(_a0 []*datamodel.AddressRange, _a1 error) *MockDataStore_ListAddressRanges_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_ListAddressRanges_Call) RunAndReturn(run func(context.Context, string, string, *string, *string) ([]*datamodel.AddressRange, error)) *MockDataStore_ListAddressRanges_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -16419,6 +16660,54 @@ func (_c *MockDataStore_ReplaceDstQuotaRulesWithSrc_Call) RunAndReturn(run func(
 	return _c
 }
 
+// ResetAddressRangesInUseToCreated provides a mock function with given fields: ctx, hostProjectNumber, vpcName
+func (_m *MockDataStore) ResetAddressRangesInUseToCreated(ctx context.Context, hostProjectNumber string, vpcName string) error {
+	ret := _m.Called(ctx, hostProjectNumber, vpcName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ResetAddressRangesInUseToCreated")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, hostProjectNumber, vpcName)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockDataStore_ResetAddressRangesInUseToCreated_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ResetAddressRangesInUseToCreated'
+type MockDataStore_ResetAddressRangesInUseToCreated_Call struct {
+	*mock.Call
+}
+
+// ResetAddressRangesInUseToCreated is a helper method to define mock.On call
+//   - ctx context.Context
+//   - hostProjectNumber string
+//   - vpcName string
+func (_e *MockDataStore_Expecter) ResetAddressRangesInUseToCreated(ctx interface{}, hostProjectNumber interface{}, vpcName interface{}) *MockDataStore_ResetAddressRangesInUseToCreated_Call {
+	return &MockDataStore_ResetAddressRangesInUseToCreated_Call{Call: _e.mock.On("ResetAddressRangesInUseToCreated", ctx, hostProjectNumber, vpcName)}
+}
+
+func (_c *MockDataStore_ResetAddressRangesInUseToCreated_Call) Run(run func(ctx context.Context, hostProjectNumber string, vpcName string)) *MockDataStore_ResetAddressRangesInUseToCreated_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_ResetAddressRangesInUseToCreated_Call) Return(_a0 error) *MockDataStore_ResetAddressRangesInUseToCreated_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockDataStore_ResetAddressRangesInUseToCreated_Call) RunAndReturn(run func(context.Context, string, string) error) *MockDataStore_ResetAddressRangesInUseToCreated_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // RestoreDeletedBackupVault provides a mock function with given fields: ctx, backupVaultUUID, accountID, state, stateDetails
 func (_m *MockDataStore) RestoreDeletedBackupVault(ctx context.Context, backupVaultUUID string, accountID int64, state string, stateDetails string) (*datamodel.BackupVault, error) {
 	ret := _m.Called(ctx, backupVaultUUID, accountID, state, stateDetails)
@@ -16941,6 +17230,186 @@ func (_c *MockDataStore_UpdateActiveDirectory_Call) Return(_a0 *datamodel.Active
 }
 
 func (_c *MockDataStore_UpdateActiveDirectory_Call) RunAndReturn(run func(context.Context, *datamodel.ActiveDirectory) (*datamodel.ActiveDirectory, error)) *MockDataStore_UpdateActiveDirectory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateAddressRange provides a mock function with given fields: ctx, ar
+func (_m *MockDataStore) UpdateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error) {
+	ret := _m.Called(ctx, ar)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateAddressRange")
+	}
+
+	var r0 *datamodel.AddressRange
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.AddressRange) (*datamodel.AddressRange, error)); ok {
+		return rf(ctx, ar)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.AddressRange) *datamodel.AddressRange); ok {
+		r0 = rf(ctx, ar)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AddressRange)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *datamodel.AddressRange) error); ok {
+		r1 = rf(ctx, ar)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_UpdateAddressRange_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateAddressRange'
+type MockDataStore_UpdateAddressRange_Call struct {
+	*mock.Call
+}
+
+// UpdateAddressRange is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ar *datamodel.AddressRange
+func (_e *MockDataStore_Expecter) UpdateAddressRange(ctx interface{}, ar interface{}) *MockDataStore_UpdateAddressRange_Call {
+	return &MockDataStore_UpdateAddressRange_Call{Call: _e.mock.On("UpdateAddressRange", ctx, ar)}
+}
+
+func (_c *MockDataStore_UpdateAddressRange_Call) Run(run func(ctx context.Context, ar *datamodel.AddressRange)) *MockDataStore_UpdateAddressRange_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*datamodel.AddressRange))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateAddressRange_Call) Return(_a0 *datamodel.AddressRange, _a1 error) *MockDataStore_UpdateAddressRange_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateAddressRange_Call) RunAndReturn(run func(context.Context, *datamodel.AddressRange) (*datamodel.AddressRange, error)) *MockDataStore_UpdateAddressRange_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateAddressRangeState provides a mock function with given fields: ctx, arID, state, routeAggregationApplied
+func (_m *MockDataStore) UpdateAddressRangeState(ctx context.Context, arID string, state string, routeAggregationApplied *bool) (*datamodel.AddressRange, error) {
+	ret := _m.Called(ctx, arID, state, routeAggregationApplied)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateAddressRangeState")
+	}
+
+	var r0 *datamodel.AddressRange
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, *bool) (*datamodel.AddressRange, error)); ok {
+		return rf(ctx, arID, state, routeAggregationApplied)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, *bool) *datamodel.AddressRange); ok {
+		r0 = rf(ctx, arID, state, routeAggregationApplied)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*datamodel.AddressRange)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, *bool) error); ok {
+		r1 = rf(ctx, arID, state, routeAggregationApplied)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_UpdateAddressRangeState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateAddressRangeState'
+type MockDataStore_UpdateAddressRangeState_Call struct {
+	*mock.Call
+}
+
+// UpdateAddressRangeState is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arID string
+//   - state string
+//   - routeAggregationApplied *bool
+func (_e *MockDataStore_Expecter) UpdateAddressRangeState(ctx interface{}, arID interface{}, state interface{}, routeAggregationApplied interface{}) *MockDataStore_UpdateAddressRangeState_Call {
+	return &MockDataStore_UpdateAddressRangeState_Call{Call: _e.mock.On("UpdateAddressRangeState", ctx, arID, state, routeAggregationApplied)}
+}
+
+func (_c *MockDataStore_UpdateAddressRangeState_Call) Run(run func(ctx context.Context, arID string, state string, routeAggregationApplied *bool)) *MockDataStore_UpdateAddressRangeState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(*bool))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateAddressRangeState_Call) Return(_a0 *datamodel.AddressRange, _a1 error) *MockDataStore_UpdateAddressRangeState_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateAddressRangeState_Call) RunAndReturn(run func(context.Context, string, string, *bool) (*datamodel.AddressRange, error)) *MockDataStore_UpdateAddressRangeState_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateAddressRangeStateToCreatedIfLastPool provides a mock function with given fields: ctx, arUUID, network, excludePoolUUID, addressRangeCidr
+func (_m *MockDataStore) UpdateAddressRangeStateToCreatedIfLastPool(ctx context.Context, arUUID string, network string, excludePoolUUID string, addressRangeCidr string) (bool, error) {
+	ret := _m.Called(ctx, arUUID, network, excludePoolUUID, addressRangeCidr)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateAddressRangeStateToCreatedIfLastPool")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string) (bool, error)); ok {
+		return rf(ctx, arUUID, network, excludePoolUUID, addressRangeCidr)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string) bool); ok {
+		r0 = rf(ctx, arUUID, network, excludePoolUUID, addressRangeCidr)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, string) error); ok {
+		r1 = rf(ctx, arUUID, network, excludePoolUUID, addressRangeCidr)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockDataStore_UpdateAddressRangeStateToCreatedIfLastPool_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateAddressRangeStateToCreatedIfLastPool'
+type MockDataStore_UpdateAddressRangeStateToCreatedIfLastPool_Call struct {
+	*mock.Call
+}
+
+// UpdateAddressRangeStateToCreatedIfLastPool is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arUUID string
+//   - network string
+//   - excludePoolUUID string
+//   - addressRangeCidr string
+func (_e *MockDataStore_Expecter) UpdateAddressRangeStateToCreatedIfLastPool(ctx interface{}, arUUID interface{}, network interface{}, excludePoolUUID interface{}, addressRangeCidr interface{}) *MockDataStore_UpdateAddressRangeStateToCreatedIfLastPool_Call {
+	return &MockDataStore_UpdateAddressRangeStateToCreatedIfLastPool_Call{Call: _e.mock.On("UpdateAddressRangeStateToCreatedIfLastPool", ctx, arUUID, network, excludePoolUUID, addressRangeCidr)}
+}
+
+func (_c *MockDataStore_UpdateAddressRangeStateToCreatedIfLastPool_Call) Run(run func(ctx context.Context, arUUID string, network string, excludePoolUUID string, addressRangeCidr string)) *MockDataStore_UpdateAddressRangeStateToCreatedIfLastPool_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(string), args[4].(string))
+	})
+	return _c
+}
+
+func (_c *MockDataStore_UpdateAddressRangeStateToCreatedIfLastPool_Call) Return(_a0 bool, _a1 error) *MockDataStore_UpdateAddressRangeStateToCreatedIfLastPool_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockDataStore_UpdateAddressRangeStateToCreatedIfLastPool_Call) RunAndReturn(run func(context.Context, string, string, string, string) (bool, error)) *MockDataStore_UpdateAddressRangeStateToCreatedIfLastPool_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -20209,98 +20678,3 @@ func NewMockDataStore(t interface {
 
 	return mock
 }
-
-func (_m *MockDataStore) CreateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error) {
-	ret := _m.Called(ctx, ar)
-	var r0 *datamodel.AddressRange
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.AddressRange) *datamodel.AddressRange); ok {
-		r0 = rf(ctx, ar)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*datamodel.AddressRange)
-		}
-	}
-	return r0, ret.Error(1)
-}
-
-func (_m *MockDataStore) GetAddressRange(ctx context.Context, arUUID string) (*datamodel.AddressRange, error) {
-	ret := _m.Called(ctx, arUUID)
-	var r0 *datamodel.AddressRange
-	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.AddressRange); ok {
-		r0 = rf(ctx, arUUID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*datamodel.AddressRange)
-		}
-	}
-	return r0, ret.Error(1)
-}
-
-func (_m *MockDataStore) ListAddressRanges(ctx context.Context, hostProjectNumber, vpcName string, arUUID, lifType *string) ([]*datamodel.AddressRange, error) {
-	ret := _m.Called(ctx, hostProjectNumber, vpcName, arUUID, lifType)
-	var r0 []*datamodel.AddressRange
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, *string, *string) []*datamodel.AddressRange); ok {
-		r0 = rf(ctx, hostProjectNumber, vpcName, arUUID, lifType)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]*datamodel.AddressRange)
-		}
-	}
-	return r0, ret.Error(1)
-}
-
-func (_m *MockDataStore) UpdateAddressRange(ctx context.Context, ar *datamodel.AddressRange) (*datamodel.AddressRange, error) {
-	ret := _m.Called(ctx, ar)
-	var r0 *datamodel.AddressRange
-	if rf, ok := ret.Get(0).(func(context.Context, *datamodel.AddressRange) *datamodel.AddressRange); ok {
-		r0 = rf(ctx, ar)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*datamodel.AddressRange)
-		}
-	}
-	return r0, ret.Error(1)
-}
-
-func (_m *MockDataStore) UpdateAddressRangeState(ctx context.Context, arUUID, state string, routeAggregationApplied *bool) (*datamodel.AddressRange, error) {
-	ret := _m.Called(ctx, arUUID, state, routeAggregationApplied)
-	var r0 *datamodel.AddressRange
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, *bool) *datamodel.AddressRange); ok {
-		r0 = rf(ctx, arUUID, state, routeAggregationApplied)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*datamodel.AddressRange)
-		}
-	}
-	return r0, ret.Error(1)
-}
-
-func (_m *MockDataStore) UpdateAddressRangeStateToCreatedIfLastPool(ctx context.Context, arUUID, network, excludePoolUUID, addressRangeCidr string) (bool, error) {
-	ret := _m.Called(ctx, arUUID, network, excludePoolUUID, addressRangeCidr)
-	var r0 bool
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string) bool); ok {
-		r0 = rf(ctx, arUUID, network, excludePoolUUID, addressRangeCidr)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-	return r0, ret.Error(1)
-}
-
-func (_m *MockDataStore) ResetAddressRangesInUseToCreated(ctx context.Context, hostProjectNumber, vpcName string) error {
-	ret := _m.Called(ctx, hostProjectNumber, vpcName)
-	return ret.Error(0)
-}
-
-func (_m *MockDataStore) DeleteAddressRange(ctx context.Context, arUUID string) (*datamodel.AddressRange, error) {
-	ret := _m.Called(ctx, arUUID)
-	var r0 *datamodel.AddressRange
-	if rf, ok := ret.Get(0).(func(context.Context, string) *datamodel.AddressRange); ok {
-		r0 = rf(ctx, arUUID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*datamodel.AddressRange)
-		}
-	}
-	return r0, ret.Error(1)
-}
-

@@ -668,9 +668,11 @@ func TestFetchBatchSnapshotsFromCVP(t *testing.T) {
 		mockBatch := cvpBatch.NewMockClientService(tt)
 		resX := "res-x"
 		mockBatch.EXPECT().V1betaBatchListSnapshots(mock.Anything).Return(&cvpBatch.V1betaBatchListSnapshotsOK{
-			Payload: []*cvpmodels.BatchSnapshotV1beta{
-				nil,
-				{SnapshotID: "x", ResourceID: &resX},
+			Payload: &cvpBatch.V1betaBatchListSnapshotsOKBody{
+				Snapshots: []*cvpmodels.BatchSnapshotV1beta{
+					nil,
+					{SnapshotID: "x", ResourceID: &resX},
+				},
 			},
 		}, nil)
 
@@ -695,8 +697,10 @@ func TestFetchBatchSnapshotsFromCVP(t *testing.T) {
 	t.Run("success_minimalCVPPayload_allRequestedFieldsPresentInWireJSON", func(tt *testing.T) {
 		mockBatch := cvpBatch.NewMockClientService(tt)
 		mockBatch.EXPECT().V1betaBatchListSnapshots(mock.Anything).Return(&cvpBatch.V1betaBatchListSnapshotsOK{
-			Payload: []*cvpmodels.BatchSnapshotV1beta{
-				{SnapshotID: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"},
+			Payload: &cvpBatch.V1betaBatchListSnapshotsOKBody{
+				Snapshots: []*cvpmodels.BatchSnapshotV1beta{
+					{SnapshotID: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"},
+				},
 			},
 		}, nil)
 
@@ -732,10 +736,12 @@ func TestFetchBatchSnapshotsFromCVP(t *testing.T) {
 		mockBatch := cvpBatch.NewMockClientService(tt)
 		resFromCVP := "resource-from-cvp"
 		mockBatch.EXPECT().V1betaBatchListSnapshots(mock.Anything).Return(&cvpBatch.V1betaBatchListSnapshotsOK{
-			Payload: []*cvpmodels.BatchSnapshotV1beta{
-				{
-					SnapshotID: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
-					ResourceID: &resFromCVP,
+			Payload: &cvpBatch.V1betaBatchListSnapshotsOKBody{
+				Snapshots: []*cvpmodels.BatchSnapshotV1beta{
+					{
+						SnapshotID: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+						ResourceID: &resFromCVP,
+					},
 				},
 			},
 		}, nil)
@@ -788,8 +794,10 @@ func TestV1betaBatchListSnapshots_CVPMissingRequestedFields(t *testing.T) {
 
 	mockBatch := cvpBatch.NewMockClientService(t)
 	mockBatch.EXPECT().V1betaBatchListSnapshots(mock.Anything).Return(&cvpBatch.V1betaBatchListSnapshotsOK{
-		Payload: []*cvpmodels.BatchSnapshotV1beta{
-			{SnapshotID: "cccccccc-cccc-cccc-cccc-cccccccccccc"},
+		Payload: &cvpBatch.V1betaBatchListSnapshotsOKBody{
+			Snapshots: []*cvpmodels.BatchSnapshotV1beta{
+				{SnapshotID: "cccccccc-cccc-cccc-cccc-cccccccccccc"},
+			},
 		},
 	}, nil)
 
