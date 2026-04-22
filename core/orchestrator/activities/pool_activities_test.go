@@ -17012,10 +17012,10 @@ func TestMarkAddressRangeInUse_HappyPath_TransitionsToInUse(t *testing.T) {
 	lifType := "dataLIF"
 	// Registered range 10.55.55.0/24 — GCP allocated 10.55.55.16/29 from within it.
 	ar := &datamodel.AddressRange{
-		BaseModel:        datamodel.BaseModel{UUID: "ar-uuid-1"},
-		Name:             "my-range",
-		AddressRangeCidr: "10.55.55.0/24",
-		AddressRangeState:   "CREATED",
+		BaseModel:         datamodel.BaseModel{UUID: "ar-uuid-1"},
+		Name:              "my-range",
+		AddressRangeCidr:  "10.55.55.0/24",
+		AddressRangeState: "CREATED",
 	}
 	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
 		Return([]*datamodel.AddressRange{ar}, nil)
@@ -17036,16 +17036,16 @@ func TestMarkAddressRangeInUse_CorrectRangeSelectedFromMultiple(t *testing.T) {
 	lifType := "dataLIF"
 	// Two registered ranges — GCP allocated from the second one.
 	ar1 := &datamodel.AddressRange{
-		BaseModel:        datamodel.BaseModel{UUID: "ar-uuid-1"},
-		Name:             "range-a",
-		AddressRangeCidr: "10.55.55.0/24",
-		AddressRangeState:   "CREATED",
+		BaseModel:         datamodel.BaseModel{UUID: "ar-uuid-1"},
+		Name:              "range-a",
+		AddressRangeCidr:  "10.55.55.0/24",
+		AddressRangeState: "CREATED",
 	}
 	ar2 := &datamodel.AddressRange{
-		BaseModel:        datamodel.BaseModel{UUID: "ar-uuid-2"},
-		Name:             "range-b",
-		AddressRangeCidr: "10.56.0.0/24",
-		AddressRangeState:   "CREATED",
+		BaseModel:         datamodel.BaseModel{UUID: "ar-uuid-2"},
+		Name:              "range-b",
+		AddressRangeCidr:  "10.56.0.0/24",
+		AddressRangeState: "CREATED",
 	}
 	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
 		Return([]*datamodel.AddressRange{ar1, ar2}, nil)
@@ -17066,10 +17066,10 @@ func TestMarkAddressRangeInUse_AlreadyInUse_NoStateChange(t *testing.T) {
 
 	lifType := "dataLIF"
 	ar := &datamodel.AddressRange{
-		BaseModel:        datamodel.BaseModel{UUID: "ar-uuid-2"},
-		Name:             "my-range",
-		AddressRangeCidr: "10.55.55.0/24",
-		AddressRangeState:   "IN_USE",
+		BaseModel:         datamodel.BaseModel{UUID: "ar-uuid-2"},
+		Name:              "my-range",
+		AddressRangeCidr:  "10.55.55.0/24",
+		AddressRangeState: "IN_USE",
 	}
 	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
 		Return([]*datamodel.AddressRange{ar}, nil)
@@ -17089,10 +17089,10 @@ func TestMarkAddressRangeInUse_RangeNotFound_NoError(t *testing.T) {
 	lifType := "dataLIF"
 	// Registered range does not contain the allocated subnet IP.
 	other := &datamodel.AddressRange{
-		BaseModel:        datamodel.BaseModel{UUID: "ar-uuid-3"},
-		Name:             "different-range",
-		AddressRangeCidr: "192.168.1.0/24",
-		AddressRangeState:   "CREATED",
+		BaseModel:         datamodel.BaseModel{UUID: "ar-uuid-3"},
+		Name:              "different-range",
+		AddressRangeCidr:  "192.168.1.0/24",
+		AddressRangeState: "CREATED",
 	}
 	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
 		Return([]*datamodel.AddressRange{other}, nil)
@@ -17125,10 +17125,10 @@ func TestMarkAddressRangeInUse_SEUpdateError(t *testing.T) {
 
 	lifType := "dataLIF"
 	ar := &datamodel.AddressRange{
-		BaseModel:        datamodel.BaseModel{UUID: "ar-uuid-4"},
-		Name:             "my-range",
-		AddressRangeCidr: "10.55.55.0/24",
-		AddressRangeState:   "CREATED",
+		BaseModel:         datamodel.BaseModel{UUID: "ar-uuid-4"},
+		Name:              "my-range",
+		AddressRangeCidr:  "10.55.55.0/24",
+		AddressRangeState: "CREATED",
 	}
 	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
 		Return([]*datamodel.AddressRange{ar}, nil)
@@ -17190,9 +17190,9 @@ func TestMarkAddressRangesCreated_RemainingPoolUsesSameRange_NoStateChange(t *te
 	}
 	lifType := "dataLIF"
 	arInUse := &datamodel.AddressRange{
-		BaseModel:        datamodel.BaseModel{UUID: "ar-uuid-5"},
-		AddressRangeCidr: "10.55.55.0/24",
-		AddressRangeState:   "IN_USE",
+		BaseModel:         datamodel.BaseModel{UUID: "ar-uuid-5"},
+		AddressRangeCidr:  "10.55.55.0/24",
+		AddressRangeState: "IN_USE",
 	}
 	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
 		Return([]*datamodel.AddressRange{arInUse}, nil)
@@ -17220,14 +17220,14 @@ func TestMarkAddressRangesCreated_HappyPath_ResetsOnlyMatchedRange(t *testing.T)
 	}
 	lifType := "dataLIF"
 	arInUse := &datamodel.AddressRange{
-		BaseModel:        datamodel.BaseModel{UUID: "ar-uuid-5"},
-		AddressRangeCidr: "10.55.55.0/24",
-		AddressRangeState:   "IN_USE",
+		BaseModel:         datamodel.BaseModel{UUID: "ar-uuid-5"},
+		AddressRangeCidr:  "10.55.55.0/24",
+		AddressRangeState: "IN_USE",
 	}
 	arOther := &datamodel.AddressRange{
-		BaseModel:        datamodel.BaseModel{UUID: "ar-uuid-6"},
-		AddressRangeCidr: "10.88.88.0/24",
-		AddressRangeState:   "IN_USE",
+		BaseModel:         datamodel.BaseModel{UUID: "ar-uuid-6"},
+		AddressRangeCidr:  "10.88.88.0/24",
+		AddressRangeState: "IN_USE",
 	}
 	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
 		Return([]*datamodel.AddressRange{arInUse, arOther}, nil)
@@ -17255,9 +17255,9 @@ func TestMarkAddressRangesCreated_SEAtomicUpdateError(t *testing.T) {
 	}
 	lifType := "dataLIF"
 	arInUse := &datamodel.AddressRange{
-		BaseModel:        datamodel.BaseModel{UUID: "ar-uuid-5"},
-		AddressRangeCidr: "10.55.55.0/24",
-		AddressRangeState:   "IN_USE",
+		BaseModel:         datamodel.BaseModel{UUID: "ar-uuid-5"},
+		AddressRangeCidr:  "10.55.55.0/24",
+		AddressRangeState: "IN_USE",
 	}
 	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
 		Return([]*datamodel.AddressRange{arInUse}, nil)
@@ -17306,9 +17306,9 @@ func TestMarkAddressRangesCreated_SEUpdateError(t *testing.T) {
 	}
 	lifType := "dataLIF"
 	arInUse := &datamodel.AddressRange{
-		BaseModel:        datamodel.BaseModel{UUID: "ar-uuid-7"},
-		AddressRangeCidr: "10.55.55.0/24",
-		AddressRangeState:   "IN_USE",
+		BaseModel:         datamodel.BaseModel{UUID: "ar-uuid-7"},
+		AddressRangeCidr:  "10.55.55.0/24",
+		AddressRangeState: "IN_USE",
 	}
 	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
 		Return([]*datamodel.AddressRange{arInUse}, nil)
@@ -17338,19 +17338,19 @@ func TestMarkAddressRangesCreated_LegacyPool_LastPool_ResetsAllInUseRanges(t *te
 	}
 	lifType := "dataLIF"
 	arInUse1 := &datamodel.AddressRange{
-		BaseModel:        datamodel.BaseModel{UUID: "ar-legacy-1"},
-		AddressRangeCidr: "10.10.0.0/24",
-		AddressRangeState:   "IN_USE",
+		BaseModel:         datamodel.BaseModel{UUID: "ar-legacy-1"},
+		AddressRangeCidr:  "10.10.0.0/24",
+		AddressRangeState: "IN_USE",
 	}
 	arInUse2 := &datamodel.AddressRange{
-		BaseModel:        datamodel.BaseModel{UUID: "ar-legacy-2"},
-		AddressRangeCidr: "10.20.0.0/24",
-		AddressRangeState:   "IN_USE",
+		BaseModel:         datamodel.BaseModel{UUID: "ar-legacy-2"},
+		AddressRangeCidr:  "10.20.0.0/24",
+		AddressRangeState: "IN_USE",
 	}
 	arCreated := &datamodel.AddressRange{
-		BaseModel:        datamodel.BaseModel{UUID: "ar-legacy-3"},
-		AddressRangeCidr: "10.30.0.0/24",
-		AddressRangeState:   "CREATED",
+		BaseModel:         datamodel.BaseModel{UUID: "ar-legacy-3"},
+		AddressRangeCidr:  "10.30.0.0/24",
+		AddressRangeState: "CREATED",
 	}
 	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
 		Return([]*datamodel.AddressRange{arInUse1, arInUse2, arCreated}, nil)
@@ -17377,9 +17377,9 @@ func TestMarkAddressRangesCreated_LegacyPool_OtherPoolsExist_NoReset(t *testing.
 	}
 	lifType := "dataLIF"
 	arInUse := &datamodel.AddressRange{
-		BaseModel:        datamodel.BaseModel{UUID: "ar-legacy-4"},
-		AddressRangeCidr: "10.10.0.0/24",
-		AddressRangeState:   "IN_USE",
+		BaseModel:         datamodel.BaseModel{UUID: "ar-legacy-4"},
+		AddressRangeCidr:  "10.10.0.0/24",
+		AddressRangeState: "IN_USE",
 	}
 	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
 		Return([]*datamodel.AddressRange{arInUse}, nil)
@@ -17427,9 +17427,9 @@ func TestMarkAddressRangesCreated_LegacyPool_UpdateError(t *testing.T) {
 	}
 	lifType := "dataLIF"
 	arInUse := &datamodel.AddressRange{
-		BaseModel:        datamodel.BaseModel{UUID: "ar-legacy-5"},
-		AddressRangeCidr: "10.10.0.0/24",
-		AddressRangeState:   "IN_USE",
+		BaseModel:         datamodel.BaseModel{UUID: "ar-legacy-5"},
+		AddressRangeCidr:  "10.10.0.0/24",
+		AddressRangeState: "IN_USE",
 	}
 	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
 		Return([]*datamodel.AddressRange{arInUse}, nil)
@@ -17502,9 +17502,9 @@ func TestMarkAddressRangesCreated_InvalidDeletedPoolCIDR_FindRangeError(t *testi
 	}
 	lifType := "dataLIF"
 	ar := &datamodel.AddressRange{
-		BaseModel:        datamodel.BaseModel{UUID: "ar-1"},
-		AddressRangeCidr: "10.0.0.0/24",
-		AddressRangeState:   "IN_USE",
+		BaseModel:         datamodel.BaseModel{UUID: "ar-1"},
+		AddressRangeCidr:  "10.0.0.0/24",
+		AddressRangeState: "IN_USE",
 	}
 	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
 		Return([]*datamodel.AddressRange{ar}, nil)
@@ -17530,9 +17530,9 @@ func TestMarkAddressRangesCreated_RemainingPoolIsDeletedPool_Skipped(t *testing.
 	}
 	lifType := "dataLIF"
 	arInUse := &datamodel.AddressRange{
-		BaseModel:        datamodel.BaseModel{UUID: "ar-target"},
-		AddressRangeCidr: "10.55.55.0/24",
-		AddressRangeState:   "IN_USE",
+		BaseModel:         datamodel.BaseModel{UUID: "ar-target"},
+		AddressRangeCidr:  "10.55.55.0/24",
+		AddressRangeState: "IN_USE",
 	}
 	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
 		Return([]*datamodel.AddressRange{arInUse}, nil)
@@ -17560,9 +17560,9 @@ func TestMarkAddressRangesCreated_RemainingPoolEmptyCIDR_Skipped(t *testing.T) {
 	}
 	lifType := "dataLIF"
 	arInUse := &datamodel.AddressRange{
-		BaseModel:        datamodel.BaseModel{UUID: "ar-target2"},
-		AddressRangeCidr: "10.55.55.0/24",
-		AddressRangeState:   "IN_USE",
+		BaseModel:         datamodel.BaseModel{UUID: "ar-target2"},
+		AddressRangeCidr:  "10.55.55.0/24",
+		AddressRangeState: "IN_USE",
 	}
 	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
 		Return([]*datamodel.AddressRange{arInUse}, nil)
@@ -17590,9 +17590,9 @@ func TestMarkAddressRangesCreated_UpdateStateToCreated_Error(t *testing.T) {
 	}
 	lifType := "dataLIF"
 	arInUse := &datamodel.AddressRange{
-		BaseModel:        datamodel.BaseModel{UUID: "ar-update-err"},
-		AddressRangeCidr: "10.55.55.0/24",
-		AddressRangeState:   "IN_USE",
+		BaseModel:         datamodel.BaseModel{UUID: "ar-update-err"},
+		AddressRangeCidr:  "10.55.55.0/24",
+		AddressRangeState: "IN_USE",
 	}
 	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
 		Return([]*datamodel.AddressRange{arInUse}, nil)

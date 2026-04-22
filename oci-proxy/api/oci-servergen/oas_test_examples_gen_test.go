@@ -97,18 +97,6 @@ func TestCreatePoolRequest_Examples(t *testing.T) {
 		})
 	}
 }
-func TestCreatePoolRequestCustomerVnicInfo_EncodeDecode(t *testing.T) {
-	var typ CreatePoolRequestCustomerVnicInfo
-	typ.SetFake()
-
-	e := jx.Encoder{}
-	typ.Encode(&e)
-	data := e.Bytes()
-	require.True(t, std.Valid(data), "Encoded: %s", data)
-
-	var typ2 CreatePoolRequestCustomerVnicInfo
-	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
-}
 func TestDeletePoolAcceptedResponse_EncodeDecode(t *testing.T) {
 	var typ DeletePoolAcceptedResponse
 	typ.SetFake()
@@ -249,6 +237,18 @@ func TestOCICreatePoolWorkflowMetadata_EncodeDecode(t *testing.T) {
 	require.True(t, std.Valid(data), "Encoded: %s", data)
 
 	var typ2 OCICreatePoolWorkflowMetadata
+	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
+}
+func TestOCICreatePoolWorkflowVM_EncodeDecode(t *testing.T) {
+	var typ OCICreatePoolWorkflowVM
+	typ.SetFake()
+
+	e := jx.Encoder{}
+	typ.Encode(&e)
+	data := e.Bytes()
+	require.True(t, std.Valid(data), "Encoded: %s", data)
+
+	var typ2 OCICreatePoolWorkflowVM
 	require.NoError(t, typ2.Decode(jx.DecodeBytes(data)))
 }
 func TestOCIOCIDVersionRef_EncodeDecode(t *testing.T) {

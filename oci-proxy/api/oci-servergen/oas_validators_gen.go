@@ -136,24 +136,13 @@ func (s *OCICreatePoolWorkflowMetadata) Validate() error {
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if s.InterclusterIPs == nil {
+		if s.Vms == nil {
 			return errors.New("nil is invalid value")
 		}
 		return nil
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
-			Name:  "interclusterIPs",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if s.NodeIPs == nil {
-			return errors.New("nil is invalid value")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "nodeIPs",
+			Name:  "vms",
 			Error: err,
 		})
 	}

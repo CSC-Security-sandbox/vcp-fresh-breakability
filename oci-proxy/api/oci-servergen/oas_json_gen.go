@@ -205,16 +205,14 @@ func (s *CreatePoolRequest) encodeFields(e *jx.Encoder) {
 		s.OciAdminPassword.Encode(e)
 	}
 	{
-		if s.CustomerVnicInfo != nil {
-			e.FieldStart("customerVnicInfo")
-			s.CustomerVnicInfo.Encode(e)
-		}
-	}
-	{
 		if s.Description.Set {
 			e.FieldStart("description")
 			s.Description.Encode(e)
 		}
+	}
+	{
+		e.FieldStart("dataNicSubnetId")
+		e.Str(s.DataNicSubnetId)
 	}
 }
 
@@ -231,8 +229,8 @@ var jsonFieldsNameOfCreatePoolRequest = [14]string{
 	9:  "throughputGBps",
 	10: "iops",
 	11: "ociAdminPassword",
-	12: "customerVnicInfo",
-	13: "description",
+	12: "description",
+	13: "dataNicSubnetId",
 }
 
 // Decode decodes CreatePoolRequest from json.
@@ -380,18 +378,6 @@ func (s *CreatePoolRequest) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"ociAdminPassword\"")
 			}
-		case "customerVnicInfo":
-			if err := func() error {
-				s.CustomerVnicInfo = nil
-				var elem CreatePoolRequestCustomerVnicInfo
-				if err := elem.Decode(d); err != nil {
-					return err
-				}
-				s.CustomerVnicInfo = &elem
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"customerVnicInfo\"")
-			}
 		case "description":
 			if err := func() error {
 				s.Description.Reset()
@@ -401,6 +387,18 @@ func (s *CreatePoolRequest) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"description\"")
+			}
+		case "dataNicSubnetId":
+			requiredBitSet[1] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.DataNicSubnetId = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"dataNicSubnetId\"")
 			}
 		default:
 			return d.Skip()
@@ -413,7 +411,7 @@ func (s *CreatePoolRequest) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b00111111,
-		0b00001110,
+		0b00101110,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -455,50 +453,6 @@ func (s *CreatePoolRequest) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *CreatePoolRequest) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
-func (s *CreatePoolRequestCustomerVnicInfo) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *CreatePoolRequestCustomerVnicInfo) encodeFields(e *jx.Encoder) {
-}
-
-var jsonFieldsNameOfCreatePoolRequestCustomerVnicInfo = [0]string{}
-
-// Decode decodes CreatePoolRequestCustomerVnicInfo from json.
-func (s *CreatePoolRequestCustomerVnicInfo) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode CreatePoolRequestCustomerVnicInfo to nil")
-	}
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		default:
-			return d.Skip()
-		}
-	}); err != nil {
-		return errors.Wrap(err, "decode CreatePoolRequestCustomerVnicInfo")
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *CreatePoolRequestCustomerVnicInfo) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *CreatePoolRequestCustomerVnicInfo) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -1171,18 +1125,10 @@ func (s *OCICreatePoolWorkflowMetadata) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *OCICreatePoolWorkflowMetadata) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("interclusterIPs")
+		e.FieldStart("vms")
 		e.ArrStart()
-		for _, elem := range s.InterclusterIPs {
-			e.Str(elem)
-		}
-		e.ArrEnd()
-	}
-	{
-		e.FieldStart("nodeIPs")
-		e.ArrStart()
-		for _, elem := range s.NodeIPs {
-			e.Str(elem)
+		for _, elem := range s.Vms {
+			elem.Encode(e)
 		}
 		e.ArrEnd()
 	}
@@ -1192,10 +1138,9 @@ func (s *OCICreatePoolWorkflowMetadata) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfOCICreatePoolWorkflowMetadata = [3]string{
-	0: "interclusterIPs",
-	1: "nodeIPs",
-	2: "credentials",
+var jsonFieldsNameOfOCICreatePoolWorkflowMetadata = [2]string{
+	0: "vms",
+	1: "credentials",
 }
 
 // Decode decodes OCICreatePoolWorkflowMetadata from json.
@@ -1207,48 +1152,26 @@ func (s *OCICreatePoolWorkflowMetadata) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "interclusterIPs":
+		case "vms":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				s.InterclusterIPs = make([]string, 0)
+				s.Vms = make([]OCICreatePoolWorkflowVM, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem string
-					v, err := d.Str()
-					elem = string(v)
-					if err != nil {
+					var elem OCICreatePoolWorkflowVM
+					if err := elem.Decode(d); err != nil {
 						return err
 					}
-					s.InterclusterIPs = append(s.InterclusterIPs, elem)
+					s.Vms = append(s.Vms, elem)
 					return nil
 				}); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"interclusterIPs\"")
-			}
-		case "nodeIPs":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				s.NodeIPs = make([]string, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem string
-					v, err := d.Str()
-					elem = string(v)
-					if err != nil {
-						return err
-					}
-					s.NodeIPs = append(s.NodeIPs, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"nodeIPs\"")
+				return errors.Wrap(err, "decode field \"vms\"")
 			}
 		case "credentials":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				if err := s.Credentials.Decode(d); err != nil {
 					return err
@@ -1267,7 +1190,7 @@ func (s *OCICreatePoolWorkflowMetadata) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -1309,6 +1232,170 @@ func (s *OCICreatePoolWorkflowMetadata) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OCICreatePoolWorkflowMetadata) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *OCICreatePoolWorkflowVM) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *OCICreatePoolWorkflowVM) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("serialNumber")
+		e.Str(s.SerialNumber)
+	}
+	{
+		e.FieldStart("vsaManagementIP")
+		e.Str(s.VsaManagementIP)
+	}
+	{
+		e.FieldStart("interclusterIP")
+		e.Str(s.InterclusterIP)
+	}
+	{
+		e.FieldStart("nodeIP")
+		e.Str(s.NodeIP)
+	}
+}
+
+var jsonFieldsNameOfOCICreatePoolWorkflowVM = [5]string{
+	0: "name",
+	1: "serialNumber",
+	2: "vsaManagementIP",
+	3: "interclusterIP",
+	4: "nodeIP",
+}
+
+// Decode decodes OCICreatePoolWorkflowVM from json.
+func (s *OCICreatePoolWorkflowVM) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode OCICreatePoolWorkflowVM to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "name":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "serialNumber":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.SerialNumber = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"serialNumber\"")
+			}
+		case "vsaManagementIP":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.VsaManagementIP = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"vsaManagementIP\"")
+			}
+		case "interclusterIP":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.InterclusterIP = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"interclusterIP\"")
+			}
+		case "nodeIP":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.NodeIP = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"nodeIP\"")
+			}
+		default:
+			return d.Skip()
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode OCICreatePoolWorkflowVM")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00011111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfOCICreatePoolWorkflowVM) {
+					name = jsonFieldsNameOfOCICreatePoolWorkflowVM[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *OCICreatePoolWorkflowVM) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *OCICreatePoolWorkflowVM) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

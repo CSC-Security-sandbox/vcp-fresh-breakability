@@ -266,6 +266,9 @@ func TestGetWorkflowInputMetadata_OCIPoolChildResult(t *testing.T) {
 				"ha_pair": []interface{}{
 					map[string]interface{}{
 						"vm1": map[string]interface{}{
+							"name":              "FsnIdocnv-vm-01",
+							"serial_number":     "1234501",
+							"vsa_management_ip": "150.136.212.147",
 							"lifs": map[string]interface{}{
 								"intercluster":     map[string]interface{}{"ip": "10.38.25.146"},
 								"nodemgmtinternal": map[string]interface{}{"ip": "10.38.0.1"},
@@ -302,8 +305,10 @@ func TestGetWorkflowInputMetadata_OCIPoolChildResult(t *testing.T) {
 	f := &fakeHistoryFetcher{pages: [][]*historypb.HistoryEvent{events}}
 	meta := getWorkflowInputMetadata(ctx, f, "ns", "wf", "run")
 	require.NotNil(t, meta)
-	require.NotEmpty(t, meta.InterclusterIPs)
-	require.NotEmpty(t, meta.NodeIPs)
+	require.NotEmpty(t, meta.Vms)
+	require.Equal(t, "FsnIdocnv-vm-01", meta.Vms[0].Name)
+	require.Equal(t, "1234501", meta.Vms[0].SerialNumber)
+	require.Equal(t, "150.136.212.147", meta.Vms[0].VSAManagementIP)
 }
 
 func TestGetWorkflowInputMetadata_WrongParentOrChildSkipped(t *testing.T) {
@@ -341,6 +346,15 @@ type fakeTemporalQuerier struct {
 	hist     historyFetcher
 }
 
+func withTemporalNamespace(t *testing.T, ns string) {
+	t.Helper()
+	orig := temporalNamespace
+	temporalNamespace = ns
+	t.Cleanup(func() {
+		temporalNamespace = orig
+	})
+}
+
 func (f *fakeTemporalQuerier) DescribeWorkflowExecution(ctx context.Context, workflowID, runID string) (*workflowservice.DescribeWorkflowExecutionResponse, error) {
 	return f.describe, f.descErr
 }
@@ -370,7 +384,7 @@ func TestQueryWithClient_NoExecutionInfo(t *testing.T) {
 }
 
 func TestQueryWithClient_CompletedSetsWorkflowTypeAndMetadata(t *testing.T) {
-	t.Setenv("TEMPORAL_NAMESPACE", "test-ns")
+	withTemporalNamespace(t, "test-ns")
 
 	ctx := context.Background()
 	childJSON := map[string]interface{}{
@@ -379,6 +393,9 @@ func TestQueryWithClient_CompletedSetsWorkflowTypeAndMetadata(t *testing.T) {
 				"ha_pair": []interface{}{
 					map[string]interface{}{
 						"vm1": map[string]interface{}{
+							"name":              "single-vm",
+							"serial_number":     "9001",
+							"vsa_management_ip": "10.0.0.3",
 							"lifs": map[string]interface{}{
 								"intercluster":     map[string]interface{}{"ip": "10.0.0.1"},
 								"nodemgmtinternal": map[string]interface{}{"ip": "10.0.0.2"},
@@ -431,6 +448,8 @@ func TestQueryWithClient_CompletedSetsWorkflowTypeAndMetadata(t *testing.T) {
 	require.Nil(t, res.Error)
 	require.Equal(t, "test-ns", hf.lastNamespace)
 	require.NotNil(t, res.Metadata)
+	require.NotEmpty(t, res.Metadata.Vms)
+	require.Equal(t, "single-vm", res.Metadata.Vms[0].Name)
 }
 
 func TestQueryWithClient_FailedIncludesError(t *testing.T) {
@@ -492,4 +511,3 @@ func TestQueryWithClient_TimedOut(t *testing.T) {
 	require.NotNil(t, res.Error)
 	require.Contains(t, res.Error.Message, "timed out")
 }
-

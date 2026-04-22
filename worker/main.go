@@ -194,11 +194,11 @@ func main() {
 		worker = tManagerPkg.NewWorker(temporalManager.GetClient(), workflowEngine.CustomerTaskQueue)
 
 		if cloudProvider == orchcommon.ProviderOCI {
-			if err := ociworkflows.ValidateOCIVSAImageEnv(); err != nil {
-				logger.Error("OCI VSA image environment validation failed", "error", err.Error())
+			if err := ociworkflows.ValidateOCIWorkerStartupEnv(); err != nil {
+				logger.Error("OCI worker startup environment validation failed", "error", err.Error())
 				os.Exit(1)
 			}
-			logger.Info("OCI VSA image environment validation passed")
+			logger.Info("OCI worker startup environment validation passed")
 			logger.Info("registering OCI customer workflows and activities")
 			RegisterOCICustomerWorkflowsAndActivities(*worker, dbConn, workflowClient.GetTemporalClient())
 		} else {

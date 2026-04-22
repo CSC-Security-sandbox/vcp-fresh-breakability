@@ -65,6 +65,7 @@ type CreatePoolParams struct {
 	SerialNumberPrefix string
 	RequestedRanges    []string
 	OciAdminPassword   *OciAdminPassword
+	DataNICSubnetID    string
 }
 
 type OciAdminPassword struct {

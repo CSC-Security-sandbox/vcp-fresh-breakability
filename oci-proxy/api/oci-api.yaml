@@ -517,6 +517,7 @@ components:
         - throughputGBps
         - iops
         - ociAdminPassword
+        - dataNicSubnetId
       properties:
         poolOCID:
           type: string
@@ -557,15 +558,12 @@ components:
         ociAdminPassword:
           $ref: '#/components/schemas/OCIOCIDVersionRef'
           description: OCI secret reference for admin password.
-        customerVnicInfo:
-          type: object
-          description: |
-            Customer VNIC information for the data path. Reserved; structure TBD.
-            Open question: How do we obtain or specify the customer VNIC information used for the data path?
         description:
           type: string
           description: Optional description for the pool.
-
+        dataNicSubnetId:
+          type: string
+          description: OCI subnet OCID for the data NIC
     DeletePoolRequest:
       type: object
       required:
@@ -594,23 +592,42 @@ components:
             Present only when `workflow_type` is `OCICreatePoolWorkflow` and `status` is `completed`.
             Omitted for all other workflow types and statuses.
 
+    OCICreatePoolWorkflowVM:
+      type: object
+      required:
+        - name
+        - serialNumber
+        - vsaManagementIP
+        - interclusterIP
+        - nodeIP
+      properties:
+        name:
+          type: string
+          description: VM name from VLM config.
+        serialNumber:
+          type: string
+          description: VM serial number from VLM config.
+        vsaManagementIP:
+          type: string
+          description: VSA management IP for this VM.
+        interclusterIP:
+          type: string
+          description: Intercluster IP address for this VM.
+        nodeIP:
+          type: string
+          description: Node management internal IP address for this VM.
+
     OCICreatePoolWorkflowMetadata:
       type: object
       required:
-        - interclusterIPs
-        - nodeIPs
+        - vms
         - credentials
       properties:
-        interclusterIPs:
+        vms:
           type: array
-          description: Intercluster IP addresses for the created OCI pool nodes.
+          description: VM metadata for OCI pool nodes.
           items:
-            type: string
-        nodeIPs:
-          type: array
-          description: Node management/data IP addresses for the created OCI pool nodes.
-          items:
-            type: string
+            $ref: '#/components/schemas/OCICreatePoolWorkflowVM'
         credentials:
           $ref: '#/components/schemas/OCICreatePoolWorkflowCredentials'
 

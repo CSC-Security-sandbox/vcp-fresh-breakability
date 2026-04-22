@@ -1,7 +1,6 @@
 package oci
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -29,6 +28,15 @@ const (
 var (
 	ociVSAFlexOcpus               = float32(env.GetFloat64("OCI_VSA_FLEX_OCPUS", 8))
 	ociVSAFlexMemoryInGBs         = float32(env.GetFloat64("OCI_VSA_FLEX_MEMORY_IN_GBS", 96))
+	vsaImageName                  = strings.TrimSpace(env.GetString("VSA_IMAGE_NAME", ""))
+	vsaMediatorImageName          = strings.TrimSpace(env.GetString("VSA_MEDIATOR_IMAGE_NAME", ""))
+	ociOntapAdminPassword         = env.GetString("OCI_ONTAP_ADMIN_PASSWORD", "")
+	ociDefinedTagNamespace        = env.GetString("OCI_DEFINED_TAG_NAMESPACE", "netapp_tags")
+	ociVSAInstanceType            = env.GetString("OCI_VSA_INSTANCE_TYPE", "VM.DenseIO.E5.Flex")
+	ociMediatorInstanceType       = env.GetString("OCI_MEDIATOR_INSTANCE_TYPE", "VM.Standard3.Flex")
+	localRegion                   = env.GetString("LOCAL_REGION", "")
+	ociCreator                    = env.GetString("OCI_CREATOR", "vcp")
+	secretURI                     = env.GetString("SECRET_URI", "")
 	dbHeartbeatTimeoutSec         = env.GetUint64("DATABASE_HEARTBEAT_TIMEOUT_SEC", 10)
 	numHAPair                     = env.GetIntNotNegative("OCI_VSA_NUM_HA_PAIR", 1)
 	dataDiskCount                 = env.GetIntNotNegative("OCI_VSA_DATA_DISK_COUNT", 2)
@@ -42,27 +50,29 @@ var (
 	password                      = "password"
 )
 
-// ociVSAImageOCIDs returns trimmed VSA and mediator image OCIDs from the environment (no defaults).
-func ociVSAImageOCIDs() (vsa string, mediator string) {
-	return strings.TrimSpace(env.GetString("VSA_IMAGE_NAME", "")),
-		strings.TrimSpace(env.GetString("VSA_MEDIATOR_IMAGE_NAME", ""))
-}
-
-func ociVSAImageEnvError() error {
-	v, m := ociVSAImageOCIDs()
-	if v == "" {
-		return errors.New("VSA_IMAGE_NAME environment variable must be set")
+// ValidateOCIWorkerStartupEnv ensures OCI worker startup has all required environment variables.
+// This is called from worker/main.go when HYPERSCALER=oci to fail fast before polling workflows.
+func ValidateOCIWorkerStartupEnv() error {
+	missing := make([]string, 0, 5)
+	if strings.TrimSpace(vsaImageName) == "" {
+		missing = append(missing, "VSA_IMAGE_NAME")
 	}
-	if m == "" {
-		return errors.New("VSA_MEDIATOR_IMAGE_NAME environment variable must be set")
+	if strings.TrimSpace(vsaMediatorImageName) == "" {
+		missing = append(missing, "VSA_MEDIATOR_IMAGE_NAME")
 	}
-	return nil
-}
-
-// ValidateOCIVSAImageEnv ensures OCI VSA and mediator image OCIDs are configured (required for pool creation).
-func ValidateOCIVSAImageEnv() error {
-	if err := ociVSAImageEnvError(); err != nil {
-		return utilserrors.NewUserInputValidationErr(err.Error())
+	if strings.TrimSpace(ociOntapAdminPassword) == "" {
+		missing = append(missing, "OCI_ONTAP_ADMIN_PASSWORD")
+	}
+	if strings.TrimSpace(localRegion) == "" {
+		missing = append(missing, "LOCAL_REGION")
+	}
+	if strings.TrimSpace(secretURI) == "" {
+		missing = append(missing, "SECRET_URI")
+	}
+	if len(missing) > 0 {
+		return utilserrors.NewUserInputValidationErr(
+			fmt.Sprintf("missing required OCI startup env vars: %s", strings.Join(missing, ", ")),
+		)
 	}
 	return nil
 }
@@ -163,7 +173,7 @@ func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 	// For OCI, we need to implement OCI-specific credential creation logic.
 	// For now, creating a simple struct with password from environment variable.
 	credConfig := &vlm.OntapCredentials{
-		AdminPassword: env.GetString("OCI_ONTAP_ADMIN_PASSWORD", ""),
+		AdminPassword: ociOntapAdminPassword,
 		Certificate:   vlm.OntapCertificate{},
 	}
 
@@ -263,8 +273,7 @@ func (wf *ociCreatePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) 
 // ociDefinedTags returns the OCI defined tags map (netapp-tags with deployment_id).
 func ociDefinedTags(deploymentName string) map[string]map[string]interface{} {
 	definedTags := make(map[string]map[string]interface{})
-	definedTagNamespace := env.GetString("OCI_DEFINED_TAG_NAMESPACE", "netapp_tags")
-	definedTags[definedTagNamespace] = map[string]interface{}{
+	definedTags[ociDefinedTagNamespace] = map[string]interface{}{
 		"deployment_id": deploymentName,
 	}
 	return definedTags
@@ -272,25 +281,20 @@ func ociDefinedTags(deploymentName string) map[string]map[string]interface{} {
 
 // ociDeploymentConfig builds the VLM DeploymentConfig for OCI (provider, deployment ID, images, OCI config, SP config, etc.).
 func ociDeploymentConfig(params *common.CreatePoolParams, pool *datamodel.Pool, sizeStr string, throughputMibps, iops int64, ociConfig vlm.OCIConfig) vlm.DeploymentConfig {
-	vsaInstanceType := env.GetString("OCI_VSA_INSTANCE_TYPE", "VM.DenseIO.E5.Flex")
-	mediatorInstanceType := env.GetString("OCI_MEDIATOR_INSTANCE_TYPE", "VM.Standard3.Flex")
-	region := env.GetString("LOCAL_REGION", "")
 	deploymentType := vlm.DeploymentTypeNonSharedHA
 	serialNumberPrefix := params.SerialNumberPrefix
 	if serialNumberPrefix == "" {
 		serialNumberPrefix = defaultSerialNumberPrefix
 	}
 
-	vsaImg, mediatorImg := ociVSAImageOCIDs()
-
 	return vlm.DeploymentConfig{
 		Provider:           vlm.OCICloud,
 		DeploymentID:       pool.DeploymentName,
 		SerialNumberPrefix: serialNumberPrefix,
-		Region:             region,
+		Region:             localRegion,
 		Images: vlm.ImageConfig{
-			VSAImageName:      vsaImg,
-			MediatorImageName: mediatorImg,
+			VSAImageName:      vsaImageName,
+			MediatorImageName: vsaMediatorImageName,
 		},
 		UserBootargs: ociVSAUserBootargs,
 		Labels: map[string]string{
@@ -300,8 +304,8 @@ func ociDeploymentConfig(params *common.CreatePoolParams, pool *datamodel.Pool, 
 		},
 		DeploymentType:       deploymentType,
 		NumHAPair:            numHAPair,
-		VSAInstanceType:      vsaInstanceType,
-		MediatorInstanceType: mediatorInstanceType,
+		VSAInstanceType:      ociVSAInstanceType,
+		MediatorInstanceType: ociMediatorInstanceType,
 		DataDiskCount:        dataDiskCount,
 		OCIConfig:            ociConfig,
 		SPConfig: vlm.SPConfig{
@@ -318,10 +322,6 @@ func ociDeploymentConfig(params *common.CreatePoolParams, pool *datamodel.Pool, 
 
 // prepareVLMConfig prepares the VLM configuration for OCI pool creation.
 func prepareVLMConfig(params *common.CreatePoolParams, pool *datamodel.Pool) (*vlm.VLMConfig, error) {
-	if err := ociVSAImageEnvError(); err != nil {
-		return nil, err
-	}
-
 	sizeInGB := utils.BytesToGigabytes(params.SizeInBytes)
 	sizeStr := fmt.Sprintf("%dGi", sizeInGB)
 
@@ -336,19 +336,19 @@ func prepareVLMConfig(params *common.CreatePoolParams, pool *datamodel.Pool) (*v
 
 	definedTags := ociDefinedTags(pool.DeploymentName)
 
-	creator := env.GetString("OCI_CREATOR", "vcp")
 	ociConfig := vlm.OCIConfig{
-		CompartmentID: params.CompartmentOCID,
-		SubnetID:      params.VendorSubNetID,
+		CompartmentID:   params.CompartmentOCID,
+		SubnetID:        params.VendorSubNetID,
+		DataNICSubnetID: params.DataNICSubnetID,
 		AvailabilityDomain: vlm.AvailabilityDomainInfo{
 			AvailabilityDomain1:        params.PrimaryZone,
 			AvailabilityDomain2:        params.SecondaryZone,
 			MediatorAvailabilityDomain: params.MediatorZone,
 		},
-		VSAInstanceShape:   env.GetString("OCI_VSA_INSTANCE_TYPE", "VM.DenseIO.E5.Flex"),
+		VSAInstanceShape:   ociVSAInstanceType,
 		VSAFlexOcpus:       ociVSAFlexOcpus,
 		VSAFlexMemoryInGBs: ociVSAFlexMemoryInGBs,
-		Creator:            creator,
+		Creator:            ociCreator,
 		DefinedTags:        definedTags,
 	}
 
@@ -370,15 +370,14 @@ func prepareCreateVSAClusterDeploymentRequest(createVSAClusterDeploymentRequest 
 	}
 
 	// Set images (already set in prepareVLMConfig, but ensure they're correct)
-	vsaImg, mediatorImg := ociVSAImageOCIDs()
-	vlmConfig.Deployment.Images.VSAImageName = vsaImg
-	vlmConfig.Deployment.Images.MediatorImageName = mediatorImg
+	vlmConfig.Deployment.Images.VSAImageName = vsaImageName
+	vlmConfig.Deployment.Images.MediatorImageName = vsaMediatorImageName
 
 	createVSAClusterDeploymentRequest.VLMConfig = vlmConfig
 	createVSAClusterDeploymentRequest.OntapCredentials = ontapCredentials
 
 	createVSAClusterDeploymentRequest.OntapLicense = vlm.OntapLicense{
-		SecretUri: []string{env.GetString("SECRET_URI", "")},
+		SecretUri: []string{secretURI},
 	}
 }
 

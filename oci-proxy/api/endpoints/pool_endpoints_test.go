@@ -11,10 +11,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	ociserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/oci-proxy/api/oci-servergen"
 	utilserrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/errors"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/middleware"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/utils/workflowquery"
+	"go.temporal.io/sdk/client"
 )
 
 // defaultTestOPC matches middleware: a stable UUID used when tests do not care about the exact value.
@@ -63,6 +66,7 @@ func TestCreatePool(t *testing.T) {
 			CompartmentOCID:           "ocid1.compartment.oc1..aaa",
 			DisplayName:               "test-pool",
 			SubnetId:                  "ocid1.subnet.oc1..aaa",
+			DataNicSubnetId:           "ocid1.subnet.oc1..data",
 			SizeInGiB:                 1024,
 			PrimaryAvailabilityDomain: "ad1",
 			ThroughputGBps:            1,
@@ -88,6 +92,7 @@ func TestCreatePool(t *testing.T) {
 			CompartmentOCID:           "ocid1.compartment.oc1..aaa",
 			DisplayName:               "test-pool",
 			SubnetId:                  "ocid1.subnet.oc1..aaa",
+			DataNicSubnetId:           "ocid1.subnet.oc1..data",
 			SizeInGiB:                 1024,
 			PrimaryAvailabilityDomain: "ad1",
 			ThroughputGBps:            1,
@@ -123,6 +128,7 @@ func TestCreatePool(t *testing.T) {
 			CompartmentOCID:           "comp-1",
 			DisplayName:               "my-pool",
 			SubnetId:                  "subnet-1",
+			DataNicSubnetId:           "ocid1.subnet.oc1..data",
 			SizeInGiB:                 2048,
 			PrimaryAvailabilityDomain: "ad1",
 			ThroughputGBps:            1,
@@ -150,6 +156,43 @@ func TestCreatePool(t *testing.T) {
 		assert.Equal(tt, req.PoolOCID, headers.Response.PoolOCID)
 	})
 
+	t.Run("CreatePool forwards required DataNicSubnetId to orchestrator params", func(tt *testing.T) {
+		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
+		req := &ociserver.CreatePoolRequest{
+			PoolOCID:                  "ocid1.pool.oc1..datanic",
+			CompartmentOCID:           "comp-1",
+			DisplayName:               "pool-with-data-nic",
+			SubnetId:                  "subnet-1",
+			DataNicSubnetId:           "subnet-data-1",
+			SizeInGiB:                 1024,
+			PrimaryAvailabilityDomain: "ad1",
+			ThroughputGBps:            1,
+			Iops:                      1000,
+			OciAdminPassword:          ociserver.OCIOCIDVersionRef{Ocid: "ocid1.secret.oc1..aaa", Version: "1"},
+		}
+		mockOrchestrator.EXPECT().
+			CreatePool(mock.Anything, mock.MatchedBy(func(p *commonparams.CreatePoolParams) bool {
+				return p != nil && p.DataNICSubnetID == req.DataNicSubnetId
+			})).
+			Return(&models.Pool{
+				BaseModel:      models.BaseModel{UUID: "pool-data-nic", CreatedAt: time.Now(), UpdatedAt: time.Now()},
+				Name:           req.DisplayName,
+				AccountName:    req.CompartmentOCID,
+				VendorSubNetID: req.SubnetId,
+				SizeInBytes:    uint64(req.SizeInGiB) * 1024 * 1024 * 1024,
+				State:          "CREATING",
+			}, "work-req-data-nic", nil)
+		h := Handler{Orchestrator: mockOrchestrator}
+
+		res, err := h.CreatePool(contextWithOpcRequestID(nil, defaultTestOPC), req, ociserver.CreatePoolParams{})
+
+		assert.NoError(tt, err)
+		headers, ok := res.(*ociserver.CreatePoolAcceptedResponseHeaders)
+		assert.True(tt, ok, "response should be *ociserver.CreatePoolAcceptedResponseHeaders")
+		assert.Equal(tt, "work-req-data-nic", headers.Response.WorkflowId)
+		assert.Equal(tt, req.PoolOCID, headers.Response.PoolOCID)
+	})
+
 	t.Run("CreatePool returns 400 when orchestrator returns validation error", func(tt *testing.T) {
 		mockOrchestrator := factory.NewMockOrchestratorFactory(tt)
 		mockOrchestrator.EXPECT().CreatePool(mock.Anything, mock.Anything).Return(nil, "", utilserrors.NewUserInputValidationErr("invalid region"))
@@ -160,6 +203,7 @@ func TestCreatePool(t *testing.T) {
 			CompartmentOCID:           "ocid1.compartment.oc1..aaa",
 			DisplayName:               "test-pool",
 			SubnetId:                  "ocid1.subnet.oc1..aaa",
+			DataNicSubnetId:           "ocid1.subnet.oc1..data",
 			SizeInGiB:                 1024,
 			PrimaryAvailabilityDomain: "ad1",
 			ThroughputGBps:            1,
@@ -190,6 +234,7 @@ func TestCreatePool(t *testing.T) {
 			CompartmentOCID:           "ocid1.compartment.oc1..aaa",
 			DisplayName:               "test-pool",
 			SubnetId:                  "ocid1.subnet.oc1..aaa",
+			DataNicSubnetId:           "ocid1.subnet.oc1..data",
 			SizeInGiB:                 1024,
 			PrimaryAvailabilityDomain: "ad1",
 			ThroughputGBps:            1,
@@ -215,6 +260,7 @@ func TestCreatePool(t *testing.T) {
 			CompartmentOCID:           "ocid1.compartment.oc1..aaa",
 			DisplayName:               "test-pool",
 			SubnetId:                  "ocid1.subnet.oc1..aaa",
+			DataNicSubnetId:           "ocid1.subnet.oc1..data",
 			SizeInGiB:                 1024,
 			PrimaryAvailabilityDomain: "ad1",
 			ThroughputGBps:            1,
@@ -243,6 +289,7 @@ func TestCreatePool(t *testing.T) {
 			CompartmentOCID:           "ocid1.compartment.oc1..aaa",
 			DisplayName:               "test-pool",
 			SubnetId:                  "ocid1.subnet.oc1..aaa",
+			DataNicSubnetId:           "ocid1.subnet.oc1..data",
 			SizeInGiB:                 1024,
 			PrimaryAvailabilityDomain: "ad1",
 			ThroughputGBps:            1,
@@ -301,6 +348,46 @@ func TestGetHealth(t *testing.T) {
 
 func TestGetWorkflow(t *testing.T) {
 	const opcWf = "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+
+	t.Run("GetWorkflow maps metadata VMs when query succeeds", func(tt *testing.T) {
+		orig := workflowQueryFn
+		workflowQueryFn = func(ctx context.Context, c client.Client, workflowID, runID string) (workflowquery.Result, error) {
+			return workflowquery.Result{
+				Status:       workflowquery.WorkflowStatusCompleted,
+				WorkflowType: "OCICreatePoolWorkflow",
+				Metadata: &workflowquery.OCICreatePoolMetadata{
+					Vms: []workflowquery.OCICreatePoolVMMetadata{
+						{
+							Name:            "vm-01",
+							SerialNumber:    "1234501",
+							VSAManagementIP: "10.0.0.3",
+							InterclusterIP:  "10.0.0.1",
+							NodeIP:          "10.0.0.2",
+						},
+					},
+				},
+			}, nil
+		}
+		tt.Cleanup(func() { workflowQueryFn = orig })
+
+		h := Handler{}
+		res, err := h.GetWorkflow(contextWithOpcRequestID(nil, opcWf), ociserver.GetWorkflowParams{WorkRequestId: "wf-1"})
+		assert.NoError(tt, err)
+		headers, ok := res.(*ociserver.GetWorkflowStatusResponseHeaders)
+		assert.True(tt, ok, "response should be *ociserver.GetWorkflowStatusResponseHeaders")
+		assert.Equal(tt, opcWf, headers.OpcRequestID)
+		assert.Equal(tt, "completed", headers.Response.Status)
+		assert.True(tt, headers.Response.Metadata.IsSet())
+		meta, ok := headers.Response.Metadata.Get()
+		assert.True(tt, ok)
+		if assert.Len(tt, meta.Vms, 1) {
+			assert.Equal(tt, "vm-01", meta.Vms[0].Name)
+			assert.Equal(tt, "1234501", meta.Vms[0].SerialNumber)
+			assert.Equal(tt, "10.0.0.3", meta.Vms[0].VsaManagementIP)
+			assert.Equal(tt, "10.0.0.1", meta.Vms[0].InterclusterIP)
+			assert.Equal(tt, "10.0.0.2", meta.Vms[0].NodeIP)
+		}
+	})
 
 	t.Run("mapGetWorkflowQueryError returns 404 for not found error", func(tt *testing.T) {
 		res := mapGetWorkflowQueryError(opcWf, errors.New("workflow not found"))
@@ -477,6 +564,7 @@ func TestCreatePool_MissingOPCRequestID(t *testing.T) {
 		CompartmentOCID:           "ocid1.compartment.oc1..aaa",
 		DisplayName:               "p",
 		SubnetId:                  "ocid1.subnet.oc1..aaa",
+		DataNicSubnetId:           "ocid1.subnet.oc1..data",
 		SizeInGiB:                 1024,
 		PrimaryAvailabilityDomain: "ad1",
 		ThroughputGBps:            1,
@@ -503,6 +591,7 @@ func TestCreatePool_EmptyWorkflowID(t *testing.T) {
 		CompartmentOCID:           "ocid1.compartment.oc1..aaa",
 		DisplayName:               "test-pool",
 		SubnetId:                  "ocid1.subnet.oc1..aaa",
+		DataNicSubnetId:           "ocid1.subnet.oc1..data",
 		SizeInGiB:                 1024,
 		PrimaryAvailabilityDomain: "ad1",
 		ThroughputGBps:            1,

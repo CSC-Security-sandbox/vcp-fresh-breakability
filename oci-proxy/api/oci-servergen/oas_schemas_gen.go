@@ -156,11 +156,10 @@ type CreatePoolRequest struct {
 	Iops int64 `json:"iops"`
 	// OCI secret reference for admin password.
 	OciAdminPassword OCIOCIDVersionRef `json:"ociAdminPassword"`
-	// Customer VNIC information for the data path. Reserved; structure TBD.
-	// Open question: How do we obtain or specify the customer VNIC information used for the data path?.
-	CustomerVnicInfo *CreatePoolRequestCustomerVnicInfo `json:"customerVnicInfo"`
 	// Optional description for the pool.
 	Description OptString `json:"description"`
+	// OCI subnet OCID for the data NIC.
+	DataNicSubnetId string `json:"dataNicSubnetId"`
 }
 
 // GetPoolOCID returns the value of PoolOCID.
@@ -223,14 +222,14 @@ func (s *CreatePoolRequest) GetOciAdminPassword() OCIOCIDVersionRef {
 	return s.OciAdminPassword
 }
 
-// GetCustomerVnicInfo returns the value of CustomerVnicInfo.
-func (s *CreatePoolRequest) GetCustomerVnicInfo() *CreatePoolRequestCustomerVnicInfo {
-	return s.CustomerVnicInfo
-}
-
 // GetDescription returns the value of Description.
 func (s *CreatePoolRequest) GetDescription() OptString {
 	return s.Description
+}
+
+// GetDataNicSubnetId returns the value of DataNicSubnetId.
+func (s *CreatePoolRequest) GetDataNicSubnetId() string {
+	return s.DataNicSubnetId
 }
 
 // SetPoolOCID sets the value of PoolOCID.
@@ -293,19 +292,15 @@ func (s *CreatePoolRequest) SetOciAdminPassword(val OCIOCIDVersionRef) {
 	s.OciAdminPassword = val
 }
 
-// SetCustomerVnicInfo sets the value of CustomerVnicInfo.
-func (s *CreatePoolRequest) SetCustomerVnicInfo(val *CreatePoolRequestCustomerVnicInfo) {
-	s.CustomerVnicInfo = val
-}
-
 // SetDescription sets the value of Description.
 func (s *CreatePoolRequest) SetDescription(val OptString) {
 	s.Description = val
 }
 
-// Customer VNIC information for the data path. Reserved; structure TBD.
-// Open question: How do we obtain or specify the customer VNIC information used for the data path?.
-type CreatePoolRequestCustomerVnicInfo struct{}
+// SetDataNicSubnetId sets the value of DataNicSubnetId.
+func (s *CreatePoolRequest) SetDataNicSubnetId(val string) {
+	s.DataNicSubnetId = val
+}
 
 type CreatePoolTooManyRequests PoolOperationErrorResponseHeaders
 
@@ -768,21 +763,14 @@ func (s *OCICreatePoolWorkflowCredentials) SetCertificate(val OCIOCIDVersionRef)
 
 // Ref: #/components/schemas/OCICreatePoolWorkflowMetadata
 type OCICreatePoolWorkflowMetadata struct {
-	// Intercluster IP addresses for the created OCI pool nodes.
-	InterclusterIPs []string `json:"interclusterIPs"`
-	// Node management/data IP addresses for the created OCI pool nodes.
-	NodeIPs     []string                         `json:"nodeIPs"`
+	// VM metadata for OCI pool nodes.
+	Vms         []OCICreatePoolWorkflowVM        `json:"vms"`
 	Credentials OCICreatePoolWorkflowCredentials `json:"credentials"`
 }
 
-// GetInterclusterIPs returns the value of InterclusterIPs.
-func (s *OCICreatePoolWorkflowMetadata) GetInterclusterIPs() []string {
-	return s.InterclusterIPs
-}
-
-// GetNodeIPs returns the value of NodeIPs.
-func (s *OCICreatePoolWorkflowMetadata) GetNodeIPs() []string {
-	return s.NodeIPs
+// GetVms returns the value of Vms.
+func (s *OCICreatePoolWorkflowMetadata) GetVms() []OCICreatePoolWorkflowVM {
+	return s.Vms
 }
 
 // GetCredentials returns the value of Credentials.
@@ -790,19 +778,78 @@ func (s *OCICreatePoolWorkflowMetadata) GetCredentials() OCICreatePoolWorkflowCr
 	return s.Credentials
 }
 
-// SetInterclusterIPs sets the value of InterclusterIPs.
-func (s *OCICreatePoolWorkflowMetadata) SetInterclusterIPs(val []string) {
-	s.InterclusterIPs = val
-}
-
-// SetNodeIPs sets the value of NodeIPs.
-func (s *OCICreatePoolWorkflowMetadata) SetNodeIPs(val []string) {
-	s.NodeIPs = val
+// SetVms sets the value of Vms.
+func (s *OCICreatePoolWorkflowMetadata) SetVms(val []OCICreatePoolWorkflowVM) {
+	s.Vms = val
 }
 
 // SetCredentials sets the value of Credentials.
 func (s *OCICreatePoolWorkflowMetadata) SetCredentials(val OCICreatePoolWorkflowCredentials) {
 	s.Credentials = val
+}
+
+// Ref: #/components/schemas/OCICreatePoolWorkflowVM
+type OCICreatePoolWorkflowVM struct {
+	// VM name from VLM config.
+	Name string `json:"name"`
+	// VM serial number from VLM config.
+	SerialNumber string `json:"serialNumber"`
+	// VSA management IP for this VM.
+	VsaManagementIP string `json:"vsaManagementIP"`
+	// Intercluster IP address for this VM.
+	InterclusterIP string `json:"interclusterIP"`
+	// Node management internal IP address for this VM.
+	NodeIP string `json:"nodeIP"`
+}
+
+// GetName returns the value of Name.
+func (s *OCICreatePoolWorkflowVM) GetName() string {
+	return s.Name
+}
+
+// GetSerialNumber returns the value of SerialNumber.
+func (s *OCICreatePoolWorkflowVM) GetSerialNumber() string {
+	return s.SerialNumber
+}
+
+// GetVsaManagementIP returns the value of VsaManagementIP.
+func (s *OCICreatePoolWorkflowVM) GetVsaManagementIP() string {
+	return s.VsaManagementIP
+}
+
+// GetInterclusterIP returns the value of InterclusterIP.
+func (s *OCICreatePoolWorkflowVM) GetInterclusterIP() string {
+	return s.InterclusterIP
+}
+
+// GetNodeIP returns the value of NodeIP.
+func (s *OCICreatePoolWorkflowVM) GetNodeIP() string {
+	return s.NodeIP
+}
+
+// SetName sets the value of Name.
+func (s *OCICreatePoolWorkflowVM) SetName(val string) {
+	s.Name = val
+}
+
+// SetSerialNumber sets the value of SerialNumber.
+func (s *OCICreatePoolWorkflowVM) SetSerialNumber(val string) {
+	s.SerialNumber = val
+}
+
+// SetVsaManagementIP sets the value of VsaManagementIP.
+func (s *OCICreatePoolWorkflowVM) SetVsaManagementIP(val string) {
+	s.VsaManagementIP = val
+}
+
+// SetInterclusterIP sets the value of InterclusterIP.
+func (s *OCICreatePoolWorkflowVM) SetInterclusterIP(val string) {
+	s.InterclusterIP = val
+}
+
+// SetNodeIP sets the value of NodeIP.
+func (s *OCICreatePoolWorkflowVM) SetNodeIP(val string) {
+	s.NodeIP = val
 }
 
 // Ref: #/components/schemas/OCIOCIDVersionRef

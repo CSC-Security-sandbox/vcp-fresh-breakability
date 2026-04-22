@@ -22,9 +22,17 @@ import (
 	"gorm.io/gorm"
 )
 
+func withOCIAdminCreds(t *testing.T, username, password string) {
+	t.Helper()
+	origUser, origPass := ociOntapAdminUsername, ociOntapAdminPassword
+	ociOntapAdminUsername, ociOntapAdminPassword = username, password
+	t.Cleanup(func() {
+		ociOntapAdminUsername, ociOntapAdminPassword = origUser, origPass
+	})
+}
+
 func TestPreparePool_OntapAdminCredentialsFromEnv(t *testing.T) {
-	t.Setenv("OCI_ONTAP_ADMIN_USERNAME", "svc-admin")
-	t.Setenv("OCI_ONTAP_ADMIN_PASSWORD", "secret-pass")
+	withOCIAdminCreds(t, "svc-admin", "secret-pass")
 
 	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acct"}
 	iops := int64(100)
@@ -42,8 +50,7 @@ func TestPreparePool_OntapAdminCredentialsFromEnv(t *testing.T) {
 }
 
 func TestPreparePool_KmsConfigAndActiveDirectory(t *testing.T) {
-	t.Setenv("OCI_ONTAP_ADMIN_USERNAME", "admin")
-	t.Setenv("OCI_ONTAP_ADMIN_PASSWORD", "pw")
+	withOCIAdminCreds(t, "admin", "pw")
 	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acct"}
 	params := &commonparams.CreatePoolParams{
 		Name: "pool1",
@@ -64,8 +71,7 @@ func TestPreparePool_KmsConfigAndActiveDirectory(t *testing.T) {
 }
 
 func TestPreparePool_UsesPreGeneratedDeploymentName(t *testing.T) {
-	t.Setenv("OCI_ONTAP_ADMIN_USERNAME", "admin")
-	t.Setenv("OCI_ONTAP_ADMIN_PASSWORD", "pw")
+	withOCIAdminCreds(t, "admin", "pw")
 	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acct"}
 	params := &commonparams.CreatePoolParams{
 		Name:           "pool1",
@@ -76,12 +82,7 @@ func TestPreparePool_UsesPreGeneratedDeploymentName(t *testing.T) {
 }
 
 func TestPreparePool_OntapAdminDefaultsWhenEnvUnset(t *testing.T) {
-	t.Cleanup(func() {
-		_ = os.Unsetenv("OCI_ONTAP_ADMIN_USERNAME")
-		_ = os.Unsetenv("OCI_ONTAP_ADMIN_PASSWORD")
-	})
-	_ = os.Unsetenv("OCI_ONTAP_ADMIN_USERNAME")
-	_ = os.Unsetenv("OCI_ONTAP_ADMIN_PASSWORD")
+	withOCIAdminCreds(t, "admin", "")
 
 	acc := &datamodel.Account{BaseModel: datamodel.BaseModel{ID: 1}, Name: "acct"}
 	iops := int64(100)
@@ -99,8 +100,7 @@ func TestPreparePool_OntapAdminDefaultsWhenEnvUnset(t *testing.T) {
 
 // TestCreatePool_Integration uses a real in-memory database for integration testing
 func TestCreatePool_Integration(t *testing.T) {
-	t.Setenv("OCI_ONTAP_ADMIN_USERNAME", "admin")
-	t.Setenv("OCI_ONTAP_ADMIN_PASSWORD", "Netapp1!")
+	withOCIAdminCreds(t, "admin", "Netapp1!")
 
 	ctx := context.Background()
 	mockLogger := log.NewLogger()
@@ -356,8 +356,7 @@ func TestCreatePool_GetOrCreateAccountFails(t *testing.T) {
 }
 
 func TestCreatePool_CreatingPoolConflictPassesThrough(t *testing.T) {
-	t.Setenv("OCI_ONTAP_ADMIN_USERNAME", "admin")
-	t.Setenv("OCI_ONTAP_ADMIN_PASSWORD", "x")
+	withOCIAdminCreds(t, "admin", "x")
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
@@ -385,8 +384,7 @@ func TestCreatePool_CreatingPoolConflictPassesThrough(t *testing.T) {
 }
 
 func TestCreatePool_CreatingPoolVCPErrorWrappedConflictPassesThrough(t *testing.T) {
-	t.Setenv("OCI_ONTAP_ADMIN_USERNAME", "admin")
-	t.Setenv("OCI_ONTAP_ADMIN_PASSWORD", "x")
+	withOCIAdminCreds(t, "admin", "x")
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
@@ -414,8 +412,7 @@ func TestCreatePool_CreatingPoolVCPErrorWrappedConflictPassesThrough(t *testing.
 }
 
 func TestCreatePool_CreatingPoolNonConflictReturnsError(t *testing.T) {
-	t.Setenv("OCI_ONTAP_ADMIN_USERNAME", "admin")
-	t.Setenv("OCI_ONTAP_ADMIN_PASSWORD", "x")
+	withOCIAdminCreds(t, "admin", "x")
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())
@@ -446,8 +443,7 @@ func TestCreatePool_CreatingPoolNonConflictReturnsError(t *testing.T) {
 // TestCreatePool_SucceedsWithoutVSAImageEnv documents that VSA / mediator image OCIDs are validated at OCI
 // customer worker startup (see worker/main.go), not in CreatePool — oci-proxy need not set VSA_IMAGE_*.
 func TestCreatePool_SucceedsWithoutVSAImageEnv(t *testing.T) {
-	t.Setenv("OCI_ONTAP_ADMIN_USERNAME", "admin")
-	t.Setenv("OCI_ONTAP_ADMIN_PASSWORD", "Netapp1!")
+	withOCIAdminCreds(t, "admin", "Netapp1!")
 	t.Cleanup(func() {
 		_ = os.Unsetenv("VSA_IMAGE_NAME")
 		_ = os.Unsetenv("VSA_MEDIATOR_IMAGE_NAME")
@@ -492,8 +488,7 @@ func TestCreatePool_SucceedsWithoutVSAImageEnv(t *testing.T) {
 }
 
 func TestCreatePool_WorkflowStartFails(t *testing.T) {
-	t.Setenv("OCI_ONTAP_ADMIN_USERNAME", "admin")
-	t.Setenv("OCI_ONTAP_ADMIN_PASSWORD", "Netapp1!")
+	withOCIAdminCreds(t, "admin", "Netapp1!")
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, middleware.ContextSLoggerKey, log.NewLogger())

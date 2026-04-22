@@ -1,7 +1,6 @@
 package oci
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,10 +24,19 @@ const (
 	testMediatorImageOCID = "ocid1.image.oc1.iad.aaaaaaaagakcrtyceuuvl6ts7xhqzzrdk3lv4z7tcqif3xpa6qsvppzflaaq"
 )
 
+// withVSAImageOCIDs sets package-level image OCIDs for the test (init-time env is not re-read; tests must assign).
+func withVSAImageOCIDs(t *testing.T, vsa, mediator string) {
+	t.Helper()
+	origV, origM := vsaImageName, vsaMediatorImageName
+	vsaImageName, vsaMediatorImageName = vsa, mediator
+	t.Cleanup(func() {
+		vsaImageName, vsaMediatorImageName = origV, origM
+	})
+}
+
 func setTestOCIImageEnv(t *testing.T) {
 	t.Helper()
-	t.Setenv("VSA_IMAGE_NAME", testVSAImageOCID)
-	t.Setenv("VSA_MEDIATOR_IMAGE_NAME", testMediatorImageOCID)
+	withVSAImageOCIDs(t, testVSAImageOCID, testMediatorImageOCID)
 }
 
 // setOCIExpertModePassword overrides the package-level ociExpertModePassword
@@ -52,36 +60,37 @@ func registerOCICreatePoolVLMRollbackWorkflows(env *testsuite.TestWorkflowEnviro
 	)
 }
 
-func TestValidateOCIVSAImageEnv(t *testing.T) {
-	t.Run("both unset", func(t *testing.T) {
-		t.Cleanup(func() {
-			_ = os.Unsetenv("VSA_IMAGE_NAME")
-			_ = os.Unsetenv("VSA_MEDIATOR_IMAGE_NAME")
-		})
-		_ = os.Unsetenv("VSA_IMAGE_NAME")
-		_ = os.Unsetenv("VSA_MEDIATOR_IMAGE_NAME")
-		err := ValidateOCIVSAImageEnv()
+func withOCIWorkerStartupEnv(t *testing.T, vsa, mediator, adminPassword, region, secret string) {
+	t.Helper()
+	origVsa, origMediator := vsaImageName, vsaMediatorImageName
+	origAdminPassword, origRegion, origSecret := ociOntapAdminPassword, localRegion, secretURI
+	vsaImageName = vsa
+	vsaMediatorImageName = mediator
+	ociOntapAdminPassword = adminPassword
+	localRegion = region
+	secretURI = secret
+	t.Cleanup(func() {
+		vsaImageName, vsaMediatorImageName = origVsa, origMediator
+		ociOntapAdminPassword, localRegion, secretURI = origAdminPassword, origRegion, origSecret
+	})
+}
+
+func TestValidateOCIWorkerStartupEnv(t *testing.T) {
+	t.Run("ok when all required vars are present", func(t *testing.T) {
+		withOCIWorkerStartupEnv(t, testVSAImageOCID, testMediatorImageOCID, "Netapp1!", "us-ashburn-1", "ocid1.vaultsecret.oc1..aaa")
+		assert.NoError(t, ValidateOCIWorkerStartupEnv())
+	})
+
+	t.Run("fails and lists missing vars", func(t *testing.T) {
+		withOCIWorkerStartupEnv(t, "", "", "", "", "")
+		err := ValidateOCIWorkerStartupEnv()
 		assert.Error(t, err)
 		assert.True(t, utilserrors.IsUserInputValidationErr(err))
-	})
-	t.Run("only mediator set", func(t *testing.T) {
-		t.Setenv("VSA_IMAGE_NAME", "")
-		t.Setenv("VSA_MEDIATOR_IMAGE_NAME", testMediatorImageOCID)
-		err := ValidateOCIVSAImageEnv()
-		assert.Error(t, err)
-		assert.True(t, utilserrors.IsUserInputValidationErr(err))
-	})
-	t.Run("ok", func(t *testing.T) {
-		t.Setenv("VSA_IMAGE_NAME", testVSAImageOCID)
-		t.Setenv("VSA_MEDIATOR_IMAGE_NAME", testMediatorImageOCID)
-		assert.NoError(t, ValidateOCIVSAImageEnv())
-	})
-	t.Run("VSA set but mediator empty", func(t *testing.T) {
-		t.Setenv("VSA_IMAGE_NAME", testVSAImageOCID)
-		t.Setenv("VSA_MEDIATOR_IMAGE_NAME", "")
-		err := ValidateOCIVSAImageEnv()
-		assert.Error(t, err)
-		assert.True(t, utilserrors.IsUserInputValidationErr(err))
+		assert.Contains(t, err.Error(), "VSA_IMAGE_NAME")
+		assert.Contains(t, err.Error(), "VSA_MEDIATOR_IMAGE_NAME")
+		assert.Contains(t, err.Error(), "OCI_ONTAP_ADMIN_PASSWORD")
+		assert.Contains(t, err.Error(), "LOCAL_REGION")
+		assert.Contains(t, err.Error(), "SECRET_URI")
 	})
 }
 

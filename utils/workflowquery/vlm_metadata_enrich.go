@@ -28,7 +28,6 @@ func vsaClusterChildMetadataFromPayloads(payloads []*commonpb.Payload) *OCICreat
 	}
 
 	return &OCICreatePoolMetadata{
-		InterclusterIPs: interclusterIPsFromEmbed(&ipCfg),
-		NodeIPs:         nodemgmtInternalIPsFromEmbed(&ipCfg),
+		Vms: poolVMMetadataFromEmbed(&ipCfg),
 	}
 }

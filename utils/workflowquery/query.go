@@ -29,6 +29,8 @@ type temporalQuerier interface {
 
 type sdkClientWrap struct{ c client.Client }
 
+var temporalNamespace = env.GetString("TEMPORAL_NAMESPACE", "default")
+
 func (w sdkClientWrap) DescribeWorkflowExecution(ctx context.Context, workflowID, runID string) (*workflowservice.DescribeWorkflowExecutionResponse, error) {
 	return w.c.DescribeWorkflowExecution(ctx, workflowID, runID)
 }
@@ -43,9 +45,16 @@ type WorkflowError struct {
 	Cause   string `json:"cause,omitempty"`
 }
 
+type OCICreatePoolVMMetadata struct {
+	Name            string `json:"name,omitempty"`
+	SerialNumber    string `json:"serialNumber,omitempty"`
+	VSAManagementIP string `json:"vsaManagementIP,omitempty"`
+	InterclusterIP  string `json:"interclusterIP,omitempty"`
+	NodeIP          string `json:"nodeIP,omitempty"`
+}
+
 type OCICreatePoolMetadata struct {
-	InterclusterIPs []string `json:"interclusterIPs,omitempty"`
-	NodeIPs         []string `json:"nodeIPs,omitempty"`
+	Vms []OCICreatePoolVMMetadata `json:"vms,omitempty"`
 }
 
 type WorkflowStatus string
@@ -95,13 +104,12 @@ func queryWithClient(ctx context.Context, c temporalQuerier, workflowID, runID s
 	out.Status = normalizedStatus(info.GetStatus())
 
 	svc := c.History()
-	namespace := env.GetString("TEMPORAL_NAMESPACE", "default")
 
 	switch out.Status {
 	case WorkflowStatusFailed, WorkflowStatusTimedOut:
-		out.Error = getWorkflowFailureReason(ctx, svc, namespace, workflowID, runID)
+		out.Error = getWorkflowFailureReason(ctx, svc, temporalNamespace, workflowID, runID)
 	case WorkflowStatusCompleted:
-		out.Metadata = getWorkflowInputMetadata(ctx, svc, namespace, workflowID, runID)
+		out.Metadata = getWorkflowInputMetadata(ctx, svc, temporalNamespace, workflowID, runID)
 	}
 	return out, nil
 }

@@ -33,6 +33,8 @@ type Handler struct {
 	TemporalClient client.Client
 }
 
+var workflowQueryFn = workflowquery.Query
+
 func NewHandler(serverState *ServerState) *Handler {
 	return &Handler{ServerState: serverState}
 }
@@ -133,6 +135,7 @@ func (h *Handler) CreatePool(ctx context.Context, req *ociserver.CreatePoolReque
 			Ocid:    req.OciAdminPassword.Ocid,
 			Version: ociAdminPasswordVersion,
 		},
+		DataNICSubnetID: req.DataNicSubnetId,
 	}
 
 	_, workflowID, err := h.Orchestrator.CreatePool(ctx, createPoolParams)
@@ -205,7 +208,7 @@ func (h *Handler) GetWorkflow(ctx context.Context, params ociserver.GetWorkflowP
 		}, nil
 	}
 
-	res, err := workflowquery.Query(ctx, h.TemporalClient, params.WorkRequestId, "")
+	res, err := workflowQueryFn(ctx, h.TemporalClient, params.WorkRequestId, "")
 	if err != nil {
 		return mapGetWorkflowQueryError(opcRequestID, err), nil
 	}
@@ -223,11 +226,20 @@ func (h *Handler) GetWorkflow(ctx context.Context, params ociserver.GetWorkflowP
 		resp.Error = ociserver.NewOptWorkflowStatusError(workflowErr)
 	}
 	if res.Metadata != nil {
+		vms := make([]ociserver.OCICreatePoolWorkflowVM, 0, len(res.Metadata.Vms))
+		for _, vm := range res.Metadata.Vms {
+			vms = append(vms, ociserver.OCICreatePoolWorkflowVM{
+				Name:            vm.Name,
+				SerialNumber:    vm.SerialNumber,
+				VsaManagementIP: vm.VSAManagementIP,
+				InterclusterIP:  vm.InterclusterIP,
+				NodeIP:          vm.NodeIP,
+			})
+		}
 		resp.Metadata = ociserver.NewOptOCICreatePoolWorkflowMetadata(
 			ociserver.OCICreatePoolWorkflowMetadata{
-				InterclusterIPs: res.Metadata.InterclusterIPs,
-				NodeIPs:         res.Metadata.NodeIPs,
-				Credentials:     ociserver.OCICreatePoolWorkflowCredentials{},
+				Vms:         vms,
+				Credentials: ociserver.OCICreatePoolWorkflowCredentials{},
 			},
 		)
 	}

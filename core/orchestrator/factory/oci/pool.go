@@ -33,10 +33,13 @@ const (
 	ociNameMaxLen = 255
 )
 
-// ociDeploymentPrefix is the OCI deployment name prefix, from OCI_DEPLOYMENT_NAME_PREFIX (default "ocnv-").
-var ociDeploymentPrefix = env.GetString("OCI_DEPLOYMENT_NAME_PREFIX", "ocnv-")
-
-var ociDeploymentNameValidChars = regexp.MustCompile(`[^a-z0-9-]`)
+var (
+	// ociDeploymentPrefix is the OCI deployment name prefix, from OCI_DEPLOYMENT_NAME_PREFIX (default "ocnv-").
+	ociDeploymentPrefix         = env.GetString("OCI_DEPLOYMENT_NAME_PREFIX", "ocnv-")
+	ociOntapAdminPassword       = env.GetString("OCI_ONTAP_ADMIN_PASSWORD", "")
+	ociOntapAdminUsername       = env.GetString("OCI_ONTAP_ADMIN_USERNAME", "admin")
+	ociDeploymentNameValidChars = regexp.MustCompile(`[^a-z0-9-]`)
+)
 
 // GenerateDeploymentNameFromOCID generates a deployment name from OCID following OCI naming conventions.
 // OCI naming: lowercase alphanumeric and hyphens, max OCINameMaxLen chars.
@@ -104,6 +107,7 @@ func preparePool(
 		PoolAttributes: &datamodel.PoolAttributes{
 			PrimaryZone:   params.PrimaryZone,
 			SecondaryZone: params.SecondaryZone,
+			MediatorZone:  params.MediatorZone,
 			Labels:        params.Labels,
 			IsRegionalHA:  params.IsRegionalHA,
 			LdapEnabled:   params.LdapEnabled,
@@ -141,9 +145,9 @@ func preparePool(
 	poolObj.PoolCredentials = &datamodel.PoolCredentials{
 		SecretID:      "",
 		CertificateID: "",
-		Password:      env.GetString("OCI_ONTAP_ADMIN_PASSWORD", ""),
+		Password:      ociOntapAdminPassword,
 		AuthType:      env.USERNAME_PWD,
-		Username:      env.GetString("OCI_ONTAP_ADMIN_USERNAME", "admin"),
+		Username:      ociOntapAdminUsername,
 	}
 
 	return poolObj

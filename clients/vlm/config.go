@@ -176,6 +176,7 @@ type GCPConfig struct {
 type OCIConfig struct {
 	CompartmentID      string                            `json:"compartment_id"` // OCI Compartment ID
 	SubnetID           string                            `json:"subnet_id"`
+	DataNICSubnetID    string                            `json:"data_nic_subnet_id"`
 	AvailabilityDomain AvailabilityDomainInfo            `json:"availability_domain_info"`         // OCI Availability Domain Info
 	VSAInstanceShape   string                            `json:"vsa_instance_shape"`               // Instance shape for VSA
 	VSAFlexOcpus       float32                           `json:"vsa_flex_ocpus,omitempty"`         // OCPUs for VSA flex (non-mediator); 0 = default 4

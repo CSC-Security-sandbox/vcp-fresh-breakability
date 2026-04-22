@@ -84,19 +84,15 @@ func (s *CreatePoolRequest) SetFake() {
 		}
 	}
 	{
-		{ // Keep pointer nil to prevent infinite recursion.
-			s.CustomerVnicInfo = nil
-		}
-	}
-	{
 		{
 			s.Description.SetFake()
 		}
 	}
-}
-
-// SetFake set fake values.
-func (s *CreatePoolRequestCustomerVnicInfo) SetFake() {
+	{
+		{
+			s.DataNicSubnetId = "string"
+		}
+	}
 }
 
 // SetFake set fake values.
@@ -192,31 +188,48 @@ func (s *OCICreatePoolWorkflowCredentials) SetFake() {
 func (s *OCICreatePoolWorkflowMetadata) SetFake() {
 	{
 		{
-			s.InterclusterIPs = nil
+			s.Vms = nil
 			for i := 0; i < 0; i++ {
-				var elem string
+				var elem OCICreatePoolWorkflowVM
 				{
-					elem = "string"
+					elem.SetFake()
 				}
-				s.InterclusterIPs = append(s.InterclusterIPs, elem)
-			}
-		}
-	}
-	{
-		{
-			s.NodeIPs = nil
-			for i := 0; i < 0; i++ {
-				var elem string
-				{
-					elem = "string"
-				}
-				s.NodeIPs = append(s.NodeIPs, elem)
+				s.Vms = append(s.Vms, elem)
 			}
 		}
 	}
 	{
 		{
 			s.Credentials.SetFake()
+		}
+	}
+}
+
+// SetFake set fake values.
+func (s *OCICreatePoolWorkflowVM) SetFake() {
+	{
+		{
+			s.Name = "string"
+		}
+	}
+	{
+		{
+			s.SerialNumber = "string"
+		}
+	}
+	{
+		{
+			s.VsaManagementIP = "string"
+		}
+	}
+	{
+		{
+			s.InterclusterIP = "string"
+		}
+	}
+	{
+		{
+			s.NodeIP = "string"
 		}
 	}
 }
