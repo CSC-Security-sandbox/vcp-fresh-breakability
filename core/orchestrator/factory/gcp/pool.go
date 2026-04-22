@@ -141,6 +141,7 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 	// Ranges in both CREATED and IN_USE state are included — IN_USE means another pool is already
 	// using this range, and GCP will allocate a new subnet block from it for this pool.
 	params.RequestedRanges = resolveRequestedRanges(ctx, se, logger, params.VendorSubNetID, addressSpaceMgmtEnabled)
+	logger.Info("Address space management", "enabled", addressSpaceMgmtEnabled, "requestedRanges", params.RequestedRanges, "network", params.VendorSubNetID)
 
 	// Defer statement to mark job as errored if workflow fails to start
 	defer func() {
@@ -175,10 +176,12 @@ func _createPool(ctx context.Context, se database.Storage, temporal client.Clien
 // range and GCP will carve a new subnet block from it for this pool.
 func resolveRequestedRanges(ctx context.Context, se database.Storage, logger log.Logger, vendorSubNetID string, addressSpaceMgmtEnabled bool) []string {
 	if !addressSpaceMgmtEnabled || vendorSubNetID == "" {
+		logger.Info("resolveRequestedRanges: skipping — address space management disabled or no network", "enabled", addressSpaceMgmtEnabled, "network", vendorSubNetID)
 		return nil
 	}
 	hostProjectNumber, vpcName, _ := utils.ParseProjectId(vendorSubNetID)
 	if hostProjectNumber == "" || vpcName == "" {
+		logger.Warn("resolveRequestedRanges: could not parse network, skipping", "network", vendorSubNetID)
 		return nil
 	}
 	lifType := database.AddressRangeLifTypeDataLIF
@@ -193,6 +196,7 @@ func resolveRequestedRanges(ctx context.Context, se database.Storage, logger log
 			requestedRanges = append(requestedRanges, ar.Name)
 		}
 	}
+	logger.Info("resolveRequestedRanges: resolved address ranges", "requestedRanges", requestedRanges, "totalFound", len(addressRanges), "network", vendorSubNetID)
 	return requestedRanges
 }
 

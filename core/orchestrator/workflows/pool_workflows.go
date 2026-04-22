@@ -230,6 +230,8 @@ func (wf *createPoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 
 	tenancyDetails := &common.TenancyInfo{}
 	rollbackManager.AddWorkflow(workflowengine.CustomerTaskQueue, DataSubnetSequentialPoller, params, pool, tenantProjectNumber, models.ResourceOperationDelete)
+	requestedRangesPresent := len(params.RequestedRanges) > 0
+	wf.Logger.Infof("DataSubnetSequentialPoller: starting subnet allocation, requestedRangesPresent=%v requestedRanges=%v network=%s", requestedRangesPresent, params.RequestedRanges, params.VendorSubNetID)
 	// Using REQUEST_CANCEL policy so child workflow is cancelled when parent is cancelled
 	dataSubnetCtx := workflow.WithChildOptions(ctx, workflow.ChildWorkflowOptions{
 		ParentClosePolicy: enums.PARENT_CLOSE_POLICY_REQUEST_CANCEL,
@@ -1480,6 +1482,7 @@ func (wf *deletePoolWorkflow) Run(ctx workflow.Context, args ...interface{}) (in
 		}
 
 		// Release the address range back to CREATED state now that the subnet has been deleted.
+		util.GetLogger(ctx).Infof("MarkAddressRangesCreated: invoking activity for pool deletion, poolUUID=%s network=%s allocatedSubnetCIDR=%s", dbPool.UUID, dbPool.Network, dbPool.ClusterDetails.AllocatedSubnetCIDR)
 		if markErr := workflow.ExecuteActivity(ctx, poolActivity.MarkAddressRangesCreated, dbPool).Get(ctx, nil); markErr != nil {
 			util.GetLogger(ctx).Warnf("MarkAddressRangesCreated failed, continuing pool deletion: %v", markErr)
 		}

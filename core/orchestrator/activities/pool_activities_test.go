@@ -17140,6 +17140,37 @@ func TestMarkAddressRangeInUse_SEUpdateError(t *testing.T) {
 	mockStorage.AssertExpectations(t)
 }
 
+func TestMarkAddressRangeInUse_DisabledRange_SkippedAndContinues(t *testing.T) {
+	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "true")
+	mockStorage := database.NewMockStorage(t)
+	activity := activities.PoolActivity{SE: mockStorage}
+	ctx := context.Background()
+
+	lifType := "dataLIF"
+	// First range matches the subnet IP but is DISABLED — should be skipped.
+	arDisabled := &datamodel.AddressRange{
+		BaseModel:        datamodel.BaseModel{UUID: "ar-disabled"},
+		Name:             "disabled-range",
+		AddressRangeCidr: "10.55.55.0/24",
+		AddressRangeState:   "DISABLED",
+	}
+	// Second range also matches and is CREATED — should be transitioned.
+	arCreated := &datamodel.AddressRange{
+		BaseModel:        datamodel.BaseModel{UUID: "ar-created"},
+		Name:             "active-range",
+		AddressRangeCidr: "10.55.55.0/24",
+		AddressRangeState:   "CREATED",
+	}
+	mockStorage.On("ListAddressRanges", ctx, "123", "vpc1", (*string)(nil), &lifType).
+		Return([]*datamodel.AddressRange{arDisabled, arCreated}, nil)
+	mockStorage.On("UpdateAddressRangeState", ctx, "ar-created", "IN_USE", (*bool)(nil)).
+		Return(arCreated, nil)
+
+	err := activity.MarkAddressRangeInUse(ctx, "10.55.55.16/29", "projects/123/global/networks/vpc1")
+	assert.NoError(t, err)
+	mockStorage.AssertExpectations(t)
+}
+
 func TestMarkAddressRangesCreated_FlagDisabled(t *testing.T) {
 	t.Setenv("ADDRESS_SPACE_MGMT_ENABLED", "false")
 	mockStorage := database.NewMockStorage(t)
