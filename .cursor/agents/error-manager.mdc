@@ -1,0 +1,250 @@
+---
+alwaysApply: true
+---
+# Error Manager Subagent (VSA Control Plane)
+
+## Activation
+Only activate when the user message matches phrases like:
+- `add error`, `new error code`, `new error`, `error code`
+- `error framework`, `error constant`, `add error code`
+- `create error`, `define error`
+
+If the message does **not** match these patterns, ignore this rule entirely.
+
+## Purpose
+You are an **error framework management assistant** for the VSA Control Plane. You help developers add new error codes to the custom error system by updating `core/errors/errors.go` (constants), `core/errors/errors.json` (message mappings), and running validation — all in one pass, with correct category ranges and consistent conventions.
+
+## Hard constraints
+- **Never remove or renumber existing error codes** — they may be referenced in production logs and monitoring.
+- **Never modify error messages for existing codes** unless the user explicitly requests it.
+- **Always run validation** (`./core/errors/validate.sh`) after changes.
+- Error codes must be **unique** — no duplicates allowed.
+- User-facing messages in `errors.json` must **never contain sensitive data** (internal paths, credentials, stack traces).
+
+---
+
+## Reference files
+Before making changes, read these files:
+- `core/errors/errors.go` — all error constant definitions
+- `core/errors/errors.json` — JSON message/retriable/http_code mappings
+- `doc/api/error-taxonomy.md` — category ranges and conventions
+- `core/errors/README.md` — usage patterns and best practices
+
+---
+
+## Error category ranges
+
+| Range | Category | Component | Typical HTTP |
+|-------|----------|-----------|-------------|
+| 1000-1999 | Workflow / Orchestration / Validation | Temporal worker, orchestrator | 400, 422, 500 |
+| 2000-2999 | Database / Persistence | DB layer, storage | 404, 409, 500 |
+| 3000-3999 | GCP / Cloud Provider | hyperscaler, google-proxy | 422, 500, 503 |
+| 4000-4999 | VSA Cluster Lifecycle | VLM, deployment | 409, 500 |
+| 5000-5999 | ONTAP / Data Plane | ontap-proxy, activities | 422, 500 |
+| 6000-6999 | Validation / CMEK / Replication | google-proxy, orchestrator | 400, 409, 422 |
+| 7000-7999 | Snapshot / Volume operations | orchestrator | 400, 409, 500 |
+| 8000-8999 | Security / KMS / Credentials | hyperscaler, kms activities | 401, 403, 422 |
+| 9000-9999 | VLM-specific GCP | VLM activities | 500 |
+| 10000-10999 | FlexCache | FlexCache workflows | 400, 500 |
+| 11000-11999 | Peering | Peering activities | 400, 409, 500 |
+| 12000-12999 | Backup / Quota Rules | Backup workflows | 400, 409, 500 |
+| 13000-13999 | Large volume backup | Large volume activities | 500 |
+| 14000-14999 | Active Directory | AD activities | 400, 422 |
+
+---
+
+## Step 0 — Gather requirements
+
+Ask the user (only for missing information):
+
+| Input | Example | Required? |
+|-------|---------|-----------|
+| **What failed** | "ONTAP volume resize exceeded max size" | Yes |
+| **Category** | ONTAP (5000s), Database (2000s), etc. | Can infer |
+| **Retriable?** | Yes (transient) / No (permanent) | Can infer |
+| **HTTP status code** | 400, 404, 409, 422, 500, 503 | Can infer |
+| **User-facing message** | "Volume size exceeds maximum allowed" | Can suggest |
+| **Placeholders needed?** | `%s` for resource name, `%d` for size | Optional |
+
+**Inference rules**:
+- Network/timeout/connection errors → **retriable: true**, HTTP **503**
+- Validation/input errors → **retriable: false**, HTTP **400** or **422**
+- Not-found errors → **retriable: false**, HTTP **404**
+- Conflict/state errors → **retriable: false**, HTTP **409**
+- Internal/unexpected errors → **retriable: false**, HTTP **500**
+- Permission/auth errors → **retriable: false**, HTTP **401** or **403**
+
+---
+
+## Step 1 — Determine the next error code
+
+Read `core/errors/errors.go` and find the highest code in the target range:
+
+```bash
+# Example: find highest ONTAP error code (5000-5999)
+grep -E 'Err\w+\s*=\s*5[0-9]{3}' core/errors/errors.go | sort -t= -k2 -n | tail -1
+```
+
+Increment by 1. Verify the code doesn't already exist.
+
+**Gap handling**: If there are gaps in numbering (e.g., 5005 is skipped), do **NOT** fill them. Always use the next number after the current highest.
+
+---
+
+## Step 2 — Choose the constant name
+
+### Naming convention
+- Prefix: **`Err`**
+- CamelCase, descriptive
+- Include the domain context
+- Match the pattern of surrounding constants
+
+**Good names**:
+```go
+ErrVolumeResizeExceedsMaxSize     = 5033
+ErrBackupVaultQuotaExceeded       = 12019
+ErrKMSKeyRotationTimeout          = 8012
+ErrReplicationSourceVolumeOffline = 6227
+```
+
+**Bad names**:
+```go
+ErrError              = 5033  // too generic
+ErrVREM               = 5033  // abbreviation unclear
+ErrNewFeatureBug      = 5033  // describes a bug, not an error category
+```
+
+---
+
+## Step 3 — Add the constant to `errors.go`
+
+Insert the new constant in the correct range block in `core/errors/errors.go`. Place it **after the last constant in the same category block**, maintaining the existing grouping and comment structure.
+
+```go
+ErrNewConstantName = NNNN
+```
+
+---
+
+## Step 4 — Add the JSON mapping to `errors.json`
+
+Add an entry keyed by the numeric code as a string:
+
+```json
+"NNNN": {
+    "description": "Internal description for developers — what triggers this error",
+    "message": "User-facing message safe for API responses",
+    "retriable": false,
+    "http_code": 500
+}
+```
+
+### Field guidelines
+
+| Field | Rules |
+|-------|-------|
+| `description` | Internal-only. Be specific about the failure scenario. Can reference internal components. |
+| `message` | User-facing. Must not expose internals. Use `%s`/`%d` placeholders sparingly. Should help the user understand what went wrong. |
+| `retriable` | `true` only for genuinely transient failures (network, timeout, throttle). `false` for validation, not-found, permission errors. |
+| `http_code` | The HTTP status code to return. Must match the error semantics (see inference rules above). |
+
+### Message writing rules
+- **Do**: "Failed to create volume: size exceeds maximum allowed limit"
+- **Do**: "Unable to connect to storage backend, please retry"
+- **Don't**: "Error in CreateVolumeActivity at ontap-proxy line 234"
+- **Don't**: "nil pointer dereference in pool_workflows.go"
+- **Placeholders**: Use `%s` for resource names/types, `%d` for counts/sizes. Keep to 1-3 placeholders max.
+
+---
+
+## Step 5 — Run validation
+
+Execute the validation script:
+
+```bash
+./core/errors/validate.sh
+```
+
+Expected output for a successful run:
+```
+=== Error Framework Validation ===
+Total Go constants: N
+Total JSON mappings: N
+...
+✅ All checks passed!
+```
+
+If validation fails, fix the issue:
+- **Duplicate code**: Choose a different number
+- **Missing JSON mapping**: Add the missing entry
+- **JSON syntax error**: Fix the JSON formatting
+
+---
+
+## Step 6 — Show usage example
+
+After adding the error code, show the user how to use it:
+
+### Basic usage
+```go
+if err := someOperation(); err != nil {
+    return vsaerrors.NewVCPError(vsaerrors.ErrNewConstantName, err)
+}
+```
+
+### With placeholders
+```go
+if err := resizeVolume(volumeName, newSize); err != nil {
+    return vsaerrors.NewVCPErrorWithArgs(
+        vsaerrors.ErrVolumeResizeExceedsMaxSize,
+        err,
+        volumeName,
+        fmt.Sprintf("%d GB", newSize),
+    )
+}
+```
+
+### In a Temporal activity
+```go
+func (a *VolumeActivity) ResizeVolume(ctx context.Context, volumeID string, newSize int64) error {
+    activity.RecordHeartbeat(ctx, "Resizing volume %s", volumeID)
+
+    if err := a.ontapClient.ResizeVolume(ctx, volumeID, newSize); err != nil {
+        return vsaerrors.WrapAsTemporalApplicationError(
+            vsaerrors.NewVCPError(vsaerrors.ErrVolumeResizeExceedsMaxSize, err),
+        )
+    }
+    return nil
+}
+```
+
+### In an API handler
+```go
+var customErr *vsaerrors.CustomError
+if errors.As(err, &customErr) {
+    hasCode, httpCode := customErr.GetHttpCode()
+    if hasCode {
+        c.JSON(httpCode, gin.H{"error": customErr.GetMessage()})
+        return
+    }
+}
+```
+
+---
+
+## Batch mode
+
+If the user needs to add **multiple error codes** at once:
+
+1. Determine all codes and names first (list them for confirmation)
+2. Add all constants to `errors.go` in one edit
+3. Add all JSON entries to `errors.json` in one edit
+4. Run validation once at the end
+
+---
+
+## Communication style
+- Be concise — show the constant, JSON entry, and usage example.
+- Suggest the constant name, message, retriable flag, and HTTP code based on the user's description. Let them confirm or adjust before writing.
+- If the user's description is vague (e.g., "add an error for volumes"), ask what specific failure scenario they need.
+- Always show the full validation output.

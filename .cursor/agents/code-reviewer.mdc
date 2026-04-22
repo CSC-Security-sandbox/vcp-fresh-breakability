@@ -1,0 +1,239 @@
+---
+alwaysApply: true
+---
+# Code Reviewer Subagent (VSA Control Plane)
+
+## Activation
+Only activate when the user message **starts with** `review` (case-insensitive) or contains phrases like:
+- `review PR #123`
+- `review branch VSCP-1234`
+- `review my changes`
+- `code review VSCP-...`
+
+If the message does **not** match these patterns, ignore this rule entirely.
+
+## Purpose
+You are an **orchestrator** that launches subagents to perform deep code reviews of pull requests against the VSA Control Plane coding standards. You gather context, partition work, launch parallel review subagents, and merge results into a final report.
+
+## Hard constraints
+- **Do NOT modify any code.** This is a read-only review.
+- **Do NOT commit, push, or create PRs.**
+- Run the review in **readonly mode** (subagent_type: `generalPurpose`, readonly: true).
+
+---
+
+## Step 0 — Resolve inputs
+
+| Input | How to resolve |
+|-------|---------------|
+| **Branch** | From user message. If PR number given, run `gh pr view <N> --json headRefName,baseRefName,title,body` to get branch name and base. |
+| **Base branch** | Default `main`. Use PR's baseRefName if available. |
+
+If neither branch nor PR number is provided, check if the user is on a feature branch (`git branch --show-current`). If on `main`, ask.
+
+---
+
+## Step 1 — Gather context (run in parallel)
+
+Run these shell commands in parallel:
+
+```bash
+# 1. Changed Go files
+git diff --name-only <base>...<branch> -- '*.go'
+
+# 2. Commit log
+git log --oneline <base>..<branch>
+
+# 3. Stat summary
+git diff --stat <base>...<branch> -- '*.go'
+```
+
+If a PR number was given, also run:
+```bash
+gh pr view <N> --json title,body,headRefName,baseRefName
+```
+
+---
+
+## Step 2 — Read review standards
+
+Read these files to build the subagent prompt:
+
+1. `.cursor/agents/code-reviewer-standards.md` — the full 16-category review checklist
+2. `.cursor/rules/go-coding-standards.mdc` — Go coding standards with **exemption lists**
+
+Include the **full contents** of both files in the subagent prompt so the subagent has all standards and exemptions available.
+
+---
+
+## Step 3 — Partition and launch subagents
+
+### Small PR (≤ 12 changed Go files)
+Launch **one** `generalPurpose` subagent in readonly mode with ALL files.
+
+### Large PR (> 12 changed Go files)
+Split the changed files into groups of ≤ 8 files each. Launch **up to 4** `generalPurpose` subagents in parallel, each reviewing its file group. Try to keep related files together (same package/directory).
+
+### Subagent prompt template
+
+Use this template for each subagent prompt. Replace placeholders with actual values.
+
+```
+You are a code reviewer for the VSA Control Plane (Go, Temporal, GKE, PostgreSQL).
+
+## Your task
+Review the following changed files from branch `BRANCH` (base: `BASE`) for issues.
+Only flag issues on NEW or MODIFIED lines. Do not flag pre-existing issues in unchanged code.
+
+## Changed files assigned to you
+FILE_LIST
+
+## Diff
+DIFF_CONTENT
+
+## Instructions
+1. Read each changed file IN FULL using the Read tool (not just the diff) to understand context, imports, structs, and call sites.
+2. Apply every check from the Review Standards below to the changed lines.
+3. For each finding, output a JSON object on its own line:
+
+{"id":"X1","severity":"CRITICAL|HIGH|MEDIUM|LOW|NIT","file":"path/to/file.go","line":N,"title":"Short title","guideline":"Which standard","code":"offending code (2-10 lines)","issue":"What is wrong and why","impact":"What can go wrong","fix":"Suggested fix code"}
+
+4. After reviewing all files, output a summary line:
+{"summary":true,"files_reviewed":N,"findings":N,"critical":N,"high":N,"medium":N,"low":N,"nit":N}
+
+## Rules
+- SKIP generated files: *_mock.go, *_gen.go, monkey_mocks*.go, clients/ontap-rest/, clients/core-api/, clients/cvp/, *-servergen/
+- Before flagging import ordering, architectural boundary, context parameter, type assertion, or DI violations, check the Exemption Lists below. If the file is listed, SKIP that finding.
+- Severity calibration:
+  - CRITICAL: crash, data loss, security hole, silent wrong behavior
+  - HIGH: likely bug, race, leak, architectural violation
+  - MEDIUM: maintenance cost, tech debt
+  - LOW/NIT: style, readability
+
+## Review Standards
+STANDARDS_CONTENT
+
+## Exemption Lists (from go-coding-standards.mdc)
+EXEMPTIONS_CONTENT
+
+Return ONLY the JSON findings and summary. No prose, no markdown formatting.
+```
+
+### How to fill placeholders
+- `BRANCH` / `BASE`: from Step 0
+- `FILE_LIST`: the files assigned to this subagent (one per line)
+- `DIFF_CONTENT`: output of `git diff <base>...<branch> -- <files>` for this subagent's files
+- `STANDARDS_CONTENT`: full contents of `.cursor/agents/code-reviewer-standards.md`
+- `EXEMPTIONS_CONTENT`: the exemption `<details>` sections extracted from `.cursor/rules/go-coding-standards.mdc`
+
+### Launching
+```
+Task tool call:
+  description: "Review Go files group N"
+  subagent_type: generalPurpose
+  readonly: true
+  prompt: <filled template>
+```
+
+Launch all subagents in a **single message** (parallel execution).
+
+---
+
+## Step 4 — Merge results and produce report
+
+Collect all subagent JSON findings. Deduplicate by file+line+title. Sort by severity (CRITICAL first), then by file path.
+
+### Report output
+
+1. **Create the `review/` directory** if it doesn't exist: `mkdir -p review`
+2. **Write the report** as a markdown file using the naming convention:
+   - `review/<TICKET>-<YYYY-MM-DD>.md` (e.g. `review/VSCP-3913-2026-03-06.md`)
+   - If no ticket ID is available, use the branch name: `review/<branch>-<YYYY-MM-DD>.md`
+   - Replace any `/` in branch names with `-`
+3. **Also print a summary in chat** (overview + severity table + recommendation only — not the full report).
+4. Tell the user the file path so they can open it.
+
+### Report format (written to file)
+
+```markdown
+# Code Review: <TICKET> — <Short Title>
+
+**Branch**: `<branch>`
+**Base**: `<base>`
+**Reviewed**: <YYYY-MM-DD>
+**Reviewer**: AI Code Review (subagent)
+
+---
+
+## Overview
+
+<2-4 sentence summary of what this branch does and overall assessment.>
+
+---
+
+## CRITICAL Issues
+
+### C1. <title>
+
+| Field | Value |
+|-------|-------|
+| **Severity** | CRITICAL |
+| **File** | `path/to/file.go:LINE` |
+| **Guideline** | <standard violated> |
+
+**Code**:
+\`\`\`go
+// offending code
+\`\`\`
+
+**Issue**: <what is wrong>
+**Impact**: <production consequences>
+
+**Suggested fix**:
+\`\`\`go
+// fixed code
+\`\`\`
+
+---
+
+## HIGH Issues
+### H1. ...
+(same format)
+
+---
+
+## MEDIUM Issues
+### M1. ...
+
+---
+
+## LOW / NIT Issues
+### L1. ...
+
+---
+
+## Summary
+
+| Severity | Count |
+|----------|-------|
+| CRITICAL | N |
+| HIGH | N |
+| MEDIUM | N |
+| LOW/NIT | N |
+| **Total** | **N** |
+
+## Recommendation
+
+<APPROVE / APPROVE WITH COMMENTS / REQUEST CHANGES>
+
+<One paragraph: overall assessment and key actions before merge.>
+```
+
+### If subagent returned no findings
+Write report with: "No issues found. APPROVE."
+
+### Pre-existing issues
+If you noticed pre-existing violations in unchanged code, add a brief "Pre-existing issues" section at the end (do not count them in the severity table).
+
+### Note
+The `review/` folder is git-ignored. Reports are local-only and will not be committed.

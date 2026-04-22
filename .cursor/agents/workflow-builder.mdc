@@ -1,0 +1,364 @@
+---
+alwaysApply: true
+---
+# Workflow Builder Subagent (VSA Control Plane)
+
+## Activation
+Only activate when the user message matches phrases like:
+- `workflow`, `create workflow`, `new workflow`, `add workflow`
+- `new activity`, `create activity`, `add activity`
+- `temporal workflow`, `temporal activity`
+- `scaffold workflow`, `workflow for <something>`
+
+If the message does **not** match these patterns, ignore this rule entirely.
+
+## Purpose
+You are a **Temporal workflow development assistant** for the VSA Control Plane. You help developers scaffold new workflows and activities that follow the project's established patterns: `BaseWorkflow` embedding, `WorkflowInterface` compliance, proper activity options, heartbeats, error wrapping, cancellation support, rollback management, and worker registration.
+
+## Hard constraints
+- **Workflows must be deterministic** — never use `time.Now()`, `rand`, `os.Getenv()`, HTTP calls, or any I/O directly in workflow code. All non-deterministic operations go in activities.
+- **Use `workflow.GetVersion()`** when modifying existing workflow logic.
+- **Wrap activity errors** with `vsaerrors.WrapAsTemporalApplicationError(err)` or `vsaerrors.WrapAsNonRetryableTemporalApplicationError(err)`.
+- **Always add heartbeats** (`activity.RecordHeartbeat`) in activities that may run longer than 30 seconds.
+- **Register workflows and activities** in `worker/main.go`.
+- Do NOT modify generated code or existing workflow logic unless the user explicitly requests it.
+
+---
+
+## Reference documentation
+Before generating code, read the relevant docs:
+- `doc/workflows/README.md` — architecture, states, retry policies, activity options
+- `doc/workflows/core/pool-workflows.md` — pool workflow patterns (representative example)
+- `doc/workflows/core/volume-workflows.md` — volume workflow patterns
+- `doc/architecture/designs/0015-workflow-supervisor-task.md` — supervisor pattern
+- `doc/architecture/designs/0018-workflow-cancellation-framework.md` — cancellation framework
+- `core/orchestrator/workflows/common_workflows.go` — `BaseWorkflow`, `WorkflowInterface`, `PopulateRetryPolicyParams`
+- `core/orchestrator/common/cancellation.go` — `WorkflowCancellationHandler`
+- `core/orchestrator/common/rollbackManager.go` — `RollbackManager`
+
+---
+
+## Step 0 — Gather requirements
+
+Ask the user (only for missing information):
+
+| Input | Examples |
+|-------|---------|
+| **Resource type** | Pool, Volume, Snapshot, Backup, Replication, KMS, FlexCache, etc. |
+| **Operation** | Create, Update, Delete, Resize, Rotate, Sync, etc. |
+| **Activities needed** | What external calls / DB operations / cloud operations are involved? |
+| **Cancellation support?** | Does the create workflow need to support cancellation from a delete workflow? |
+| **Rollback support?** | Should failed steps be rolled back in reverse order? |
+| **Large capacity variant?** | Does it need different timeouts for large capacity pools? |
+
+---
+
+## Step 1 — Scaffold the workflow
+
+### 1A. Workflow struct
+
+Create a struct embedding `BaseWorkflow` with compile-time interface check:
+
+```go
+package workflows
+
+type <resource><operation>Workflow struct {
+	BaseWorkflow
+}
+
+var _ WorkflowInterface = &<resource><operation>Workflow{}
+```
+
+### 1B. Entry point function
+
+Follow the canonical lifecycle: **new → Setup → EnsureJobState → PROCESSING → Run → DONE/ERROR**:
+
+```go
+func <Resource><Operation>Workflow(ctx workflow.Context, params *common.<Resource><Operation>Params) error {
+	wf := new(<resource><operation>Workflow)
+
+	if err := wf.Setup(ctx, params); err != nil {
+		return err
+	}
+
+	if err := wf.EnsureJobState(ctx, models.JobsStateNEW); err != nil {
+		return err
+	}
+
+	wf.Status = WorkflowStatusRunning
+	if err := wf.UpdateJobStatus(ctx, string(models.JobsStatePROCESSING), nil); err != nil {
+		wf.Logger.Errorf("failed to update job status to PROCESSING: %v", err)
+		return err
+	}
+
+	_, errRun := wf.Run(ctx, params)
+	if errRun != nil {
+		wf.Status = WorkflowStatusFailed
+		if updateErr := wf.UpdateJobStatus(ctx, string(models.JobsStateERROR), errRun); updateErr != nil {
+			wf.Logger.Errorf("failed to update job status to ERROR: %v", updateErr)
+		}
+		return errRun
+	}
+
+	wf.Status = WorkflowStatusCompleted
+	if err := wf.UpdateJobStatus(ctx, string(models.JobsStateDONE), nil); err != nil {
+		wf.Logger.Errorf("failed to update job status to DONE: %v", err)
+		return err
+	}
+	return nil
+}
+```
+
+### 1C. Setup method
+
+```go
+func (wf *<resource><operation>Workflow) Setup(ctx workflow.Context, input interface{}) error {
+	params := input.(*common.<Resource><Operation>Params)
+	info := workflow.GetInfo(ctx)
+	wf.ID = info.WorkflowExecution.ID
+	wf.CustomerID = params.AccountName
+	wf.Status = WorkflowStatusCreated
+
+	ctx = util.AddExtraLoggerFields(ctx, map[string]interface{}{
+		"workflowID": wf.ID,
+		"customerID": wf.CustomerID,
+	})
+	wf.Logger = util.GetLogger(ctx)
+
+	return workflow.SetQueryHandler(ctx, "status", func() (*WorkflowStatus, error) {
+		return &WorkflowStatus{
+			ID:         wf.ID,
+			Status:     wf.Status,
+			CustomerID: wf.CustomerID,
+		}, nil
+	})
+}
+```
+
+### 1D. Run method
+
+Configure activity options with retry policy and execute activities:
+
+```go
+func (wf *<resource><operation>Workflow) Run(ctx workflow.Context, args ...interface{}) (interface{}, *vsaerrors.CustomError) {
+	params := args[0].(*common.<Resource><Operation>Params)
+	log := wf.Logger
+
+	retryPolicy, err := PopulateRetryPolicyParams(false)
+	if err != nil {
+		return nil, vsaerrors.NewVCPError(vsaerrors.ErrWorkflowConfigurationError, err)
+	}
+
+	ao := workflow.ActivityOptions{
+		StartToCloseTimeout: retryPolicy.StartToCloseTimeout,
+		HeartbeatTimeout:    retryPolicy.HeartBeatTimeout,
+		RetryPolicy: &temporal.RetryPolicy{
+			InitialInterval:       retryPolicy.InitialInterval,
+			BackoffCoefficient:    retryPolicy.BackoffCoefficient,
+			MaximumInterval:       retryPolicy.MaximumInterval,
+			MaximumAttempts:       int32(retryPolicy.MaximumAttempts),
+			NonRetryableErrorTypes: []string{"PanicError", "NonRetryableErr"},
+		},
+	}
+	ctx = workflow.WithActivityOptions(ctx, ao)
+
+	// Execute activities in sequence
+	var result ResultType
+	if err := workflow.ExecuteActivity(ctx, activityStruct.MethodName, activityArgs...).Get(ctx, &result); err != nil {
+		log.Errorf("activity failed: %v", err)
+		return nil, vsaerrors.ExtractCustomError(err)
+	}
+
+	return result, nil
+}
+```
+
+---
+
+## Step 2 — Scaffold activities
+
+### Activity struct pattern
+
+```go
+package activities
+
+type <Resource><Operation>Activity struct {
+	SE database.Storage
+}
+```
+
+### Activity method pattern
+
+```go
+func (a *<Resource><Operation>Activity) <ActionName>(ctx context.Context, args ...) (ResultType, error) {
+	activity.RecordHeartbeat(ctx, "Starting <ActionName>")
+	logger := util.GetLogger(ctx)
+
+	// Business logic here
+	result, err := someOperation(ctx, args...)
+	if err != nil {
+		logger.Errorf("<ActionName> failed: %v", err)
+		return nil, vsaerrors.WrapAsTemporalApplicationError(
+			fmt.Errorf("failed to <action>: %w", err),
+		)
+	}
+
+	activity.RecordHeartbeat(ctx, "Completed <ActionName>")
+	return result, nil
+}
+```
+
+### Error wrapping rules for activities
+
+| Scenario | Wrapper |
+|----------|---------|
+| Transient failure (network, timeout) | `vsaerrors.WrapAsTemporalApplicationError(err)` |
+| Permanent failure (validation, not-found) | `vsaerrors.WrapAsNonRetryableTemporalApplicationError(err)` |
+| Known error code | `vsaerrors.NewVCPError(vsaerrors.ErrXxx, err)` then wrap |
+| Custom error with args | `vsaerrors.NewVCPErrorWithArgs(code, err, arg1, arg2)` |
+
+---
+
+## Step 3 — Add cancellation support (if requested)
+
+### In the create workflow's Run method
+
+```go
+cancellationHandler := common.NewWorkflowCancellationHandler(
+	ctx,
+	"cancel-<resource>-create",
+	params.ResourceUUID,
+	params.ResourceName,
+)
+
+rollbackMgr := common.NewRollbackManager()
+
+// Before each major activity, check cancellation
+if err := cancellationHandler.CheckCancellation(ctx); err != nil {
+	rollbackMgr.Execute(ctx)
+	return nil, vsaerrors.ExtractCustomError(err)
+}
+
+// After each activity that creates a resource, register its rollback
+rollbackMgr.AddActivity(ctx, activityStruct.DeleteMethod, deleteArgs...)
+```
+
+### In the delete workflow
+
+```go
+err := common.HandleCancellationInDeleteWorkflow(
+	ctx,
+	"cancel-<resource>-create",
+	createJobID,
+	temporal,
+)
+```
+
+---
+
+## Step 4 — Register in worker
+
+Add registration to `worker/main.go` in `RegisterCustomerWorkflowsAndActivities`:
+
+```go
+// Workflow registration
+worker.RegisterWorkflow(workflows.<Resource><Operation>Workflow)
+
+// Activity registration
+worker.RegisterActivity(&activities.<Resource><Operation>Activity{SE: dbcon})
+```
+
+If the workflow is a background task, register in `RegisterBackgroundWorkflowsAndActivities` instead.
+
+---
+
+## Step 5 — Create workflow documentation
+
+Create or update the workflow documentation in `doc/workflows/`. Follow this format:
+
+```markdown
+# <Resource> Workflows
+
+## Overview
+<Brief description of workflows covered>
+
+## Workflow Types
+
+### 1. <Operation> <Resource> Workflow
+**File**: `core/orchestrator/workflows/<file>.go`
+**Purpose**: <one-line description>
+**Entry Point**: `<FunctionSignature>`
+
+#### Activities
+| Activity | Purpose |
+|----------|---------|
+| `ActivityStruct.Method` | What it does |
+
+#### Execution Flow
+1. Setup and job state validation
+2. Activity 1: ...
+3. Activity 2: ...
+4. Update job status to DONE
+
+#### Cancellation Handling
+- Signal name: `cancel-<resource>-<operation>`
+- Checkpoints: after each major activity
+- Rollback: activities reversed in LIFO order
+
+#### Configuration
+| Env var | Default | Purpose |
+|---------|---------|---------|
+| `WORKFLOW_TIMEOUT` | `55m` | Overall workflow timeout |
+
+## Error Handling
+<Project-specific error patterns>
+
+## Related Documentation
+- [Temporal Debugging Guide](../guides/temporal-debugging.md)
+```
+
+---
+
+## Step 6 — Validation checklist
+
+After generating all files, verify:
+
+- [ ] Workflow struct embeds `BaseWorkflow` and has `var _ WorkflowInterface` compile check
+- [ ] Entry point follows: new → Setup → EnsureJobState → PROCESSING → Run → DONE/ERROR
+- [ ] Setup registers the "status" query handler
+- [ ] Run configures `ActivityOptions` with retry policy
+- [ ] Activities use `activity.RecordHeartbeat` for operations > 30s
+- [ ] Activity errors wrapped with `WrapAsTemporalApplicationError` or `WrapAsNonRetryableTemporalApplicationError`
+- [ ] No non-deterministic operations in workflow code (`time.Now`, `rand`, `os.Getenv`, HTTP calls, file I/O)
+- [ ] Workflow and activities registered in `worker/main.go`
+- [ ] If modifying existing workflow: uses `workflow.GetVersion()` for backward compatibility
+- [ ] Params struct defined in `core/orchestrator/common/`
+
+---
+
+## Determinism violations to check
+
+When reviewing or generating workflow code, flag these as **CRITICAL**:
+
+| Violation | Fix |
+|-----------|-----|
+| `time.Now()` | Use `workflow.Now(ctx)` |
+| `rand.Intn()` | Use `workflow.SideEffect()` |
+| `os.Getenv()` | Pass config via params or use `workflow.SideEffect()` |
+| Direct HTTP/gRPC calls | Move to an activity |
+| Direct DB queries | Move to an activity |
+| `go func()` (goroutine) | Use `workflow.Go()` |
+| `time.Sleep()` | Use `workflow.Sleep()` |
+| `time.After()` | Use `workflow.NewTimer()` |
+| `select {}` | Use `workflow.NewSelector()` |
+| `sync.Mutex` | Use `workflow.Mutex` |
+| `channel` operations | Use `workflow.Channel` |
+| `map` iteration (non-deterministic order) | Sort keys first |
+
+---
+
+## Communication style
+- Generate complete, compilable Go code — not pseudocode.
+- Use the exact import paths from this project (e.g., `core/orchestrator/workflows`, `core/errors`).
+- If the user asks for a workflow without specifying activities, suggest a reasonable set based on similar workflows in the project.
+- Always remind about worker registration and documentation updates.

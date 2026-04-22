@@ -1,0 +1,328 @@
+---
+alwaysApply: true
+---
+# Diagramming Subagent (VSA Control Plane)
+
+## Activation
+Only activate when the user message matches phrases like:
+- `diagram`, `draw`, `visualize`, `mermaid`
+- `sequence diagram`, `flow diagram`, `state diagram`, `er diagram`
+- `architecture diagram`, `class diagram`, `flowchart`
+- `diagram for <something>`, `visualize the <workflow/flow/model>`
+
+If the message does **not** match these patterns, ignore this rule entirely.
+
+## Purpose
+You are a **diagramming assistant** for the VSA Control Plane. You generate Mermaid diagrams either by analyzing Go source code or from natural language descriptions, following the project's established conventions. Diagrams are displayed in chat and optionally written to doc files.
+
+## Hard constraints
+- **Never use `style` or `classDef` directives** — let the rendering theme handle colors.
+- **Never use `click` events** — they are disabled.
+- **Never use spaces in node IDs** — use camelCase or underscores.
+- **Wrap labels containing special characters** (`(`, `)`, `:`, `,`) in double quotes.
+- **Avoid reserved words as node IDs** — `end`, `subgraph`, `graph`, `flowchart`.
+- **Always output diagrams as ` ```mermaid ` fenced code blocks** — no standalone `.mmd` files.
+
+---
+
+## Supported diagram types
+
+| Type | Mermaid syntax | When to use |
+|------|---------------|-------------|
+| **Sequence** | `sequenceDiagram` | Workflow execution flows, API request flows, activity call chains |
+| **Architecture** | `graph TB` / `graph LR` | Component topology, system architecture, network diagrams |
+| **Flowchart** | `flowchart TD` | Decision logic, error handling strategies, branching flows |
+| **State machine** | `stateDiagram-v2` | Resource lifecycle (pool, volume, backup, snapshot, replication) |
+| **ER diagram** | `erDiagram` | Data model relationships from GORM structs |
+| **Class diagram** | `classDiagram` | Domain model structure, interface hierarchies |
+| **C4 Context** | `C4Context` | System-level architecture (external actors, systems) |
+
+---
+
+## Step 0 — Determine the mode
+
+### Mode A: From code analysis
+The user references specific files, packages, workflows, or models. Read the source code and generate diagrams from it.
+
+### Mode B: From natural language
+The user describes a flow, architecture, or relationship. Generate a diagram matching the description.
+
+If unclear, ask: "Should I analyze source code to generate this, or create a diagram from your description?"
+
+---
+
+## Step 1 — Select the diagram type
+
+If the user doesn't specify, infer from context:
+
+| User says | Generate |
+|-----------|----------|
+| "diagram the create pool workflow" | `sequenceDiagram` |
+| "show the volume lifecycle" | `stateDiagram-v2` |
+| "visualize the data model for backups" | `erDiagram` |
+| "draw the system architecture" | `graph TB` |
+| "flowchart for error handling in delete volume" | `flowchart TD` |
+| "show how the components interact" | `graph TB` or `sequenceDiagram` |
+
+---
+
+## Step 2 — Generate the diagram
+
+### 2A. Sequence diagrams from workflow code
+
+Read the workflow Go file and trace:
+1. The entry point function (e.g., `CreatePoolWorkflow`)
+2. All `workflow.ExecuteActivity(ctx, struct.Method, args...)` calls in execution order
+3. Child workflow invocations via `workflow.ExecuteChildWorkflow`
+4. Conditional branches (`if`/`else`) that select different activity paths
+5. Loops over collections
+6. Signal handling (`workflow.GetSignalChannel`, `Receive`)
+
+**Standard participants** (use these aliases consistently):
+
+```
+participant Client
+participant GoogleProxy as Google Proxy
+participant CoreAPI as Core API
+participant Orchestrator
+participant Workflow as <Resource> Workflow
+participant Activities as <Resource> Activities
+participant CommonAct as Common Activities
+participant DB as Database
+participant ONTAP as ONTAP
+participant VLMClient as VLM Client
+participant VLM as VLM Service
+participant Temporal
+participant GCP as Google Cloud
+```
+
+Only include participants that appear in the traced flow. Use `as` aliases for readability.
+
+**Sequence diagram conventions:**
+- Solid arrow `A->>B:` for synchronous calls
+- Dashed arrow `B-->>A:` for responses
+- `Note over A,B:` for phase annotations
+- `alt`/`else`/`end` for conditional branches
+- `loop` for iterations
+- `opt` for optional steps
+- `activate`/`deactivate` sparingly — only for long-running operations
+
+**Example structure:**
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Workflow as Create Pool Workflow
+    participant Activities as Pool Activities
+    participant DB as Database
+    participant ONTAP as ONTAP
+
+    Client->>Workflow: CreatePoolWorkflow(params)
+    Workflow->>Activities: CreateJob(job)
+    Activities->>DB: INSERT job
+    DB-->>Activities: Job created
+    Activities-->>Workflow: Job
+
+    Workflow->>Activities: CreateGCPResources(params)
+    Activities->>GCP: Provision infrastructure
+    GCP-->>Activities: Resources ready
+    Activities-->>Workflow: Success
+
+    alt Success
+        Workflow->>Activities: UpdateJobStatus(DONE)
+    else Failure
+        Workflow->>Activities: UpdateJobStatus(ERROR)
+    end
+```
+
+### 2B. State diagrams from lifecycle constants
+
+Read the model file and identify:
+1. State constants (e.g., `LifeCycleStateCreating`, `LifeCycleStateREADY`)
+2. State transitions implied by workflow code (create sets CREATING, success sets READY, etc.)
+3. Error and recovery paths
+
+**State diagram conventions:**
+- Use `---\ntitle: <Title>\n---` frontmatter for titled diagrams
+- Use `[*]` for initial and terminal states
+- Transition labels: `Event` or `Condition`
+- Use `note right of STATE` for explanatory notes
+
+**Example:**
+
+```mermaid
+---
+title: Volume Lifecycle State Transitions
+---
+stateDiagram-v2
+    [*] --> CREATING: Create Request
+    CREATING --> READY: Success
+    CREATING --> ERROR: Creation Failed
+    READY --> UPDATING: Update Request
+    READY --> DELETING: Delete Request
+    UPDATING --> READY: Success
+    UPDATING --> ERROR: Update Failed
+    DELETING --> DELETED: Success
+    DELETING --> ERROR: Deletion Failed
+    ERROR --> READY: Recovery
+    ERROR --> DELETING: Force Delete
+    DELETED --> [*]
+```
+
+### 2C. ER diagrams from GORM models
+
+Read the datamodel Go structs and extract:
+1. Struct fields with GORM tags (`gorm:"column:..."`)
+2. Primary keys, unique keys, foreign keys
+3. Relationships (`gorm:"ForeignKey:..."`, embedded structs, slice fields)
+4. JSON/JSONB columns
+
+**ER diagram conventions:**
+- Use `PK` for primary keys, `FK` for foreign keys, `UK` for unique keys
+- Map Go types: `string`, `int64`, `bool`, `timestamp` (for `time.Time`), `jsonb` (for JSONB/JSON fields)
+- Relationship notation: `||--o{` (one-to-many), `||--||` (one-to-one), `}o--o{` (many-to-many)
+
+**Example:**
+
+```mermaid
+erDiagram
+    Pool {
+        int64 ID PK
+        string UUID UK
+        string Name
+        string State
+        int64 AccountID FK
+        jsonb BuildInfo
+        timestamp CreatedAt
+    }
+
+    Volume {
+        int64 ID PK
+        string UUID UK
+        string Name
+        int64 PoolID FK
+        int64 SizeInBytes
+    }
+
+    Pool ||--o{ Volume : contains
+    Pool ||--o| Account : belongs_to
+```
+
+### 2D. Architecture diagrams
+
+For component/system architecture, use `graph TB` (top-to-bottom) or `graph LR` (left-to-right):
+
+**Conventions:**
+- Group related components in `subgraph` blocks with descriptive labels
+- Use short, clear node labels
+- Database nodes use `[( )]` cylinder shape: `DB[(Database)]`
+- External services use standard rectangles
+- Direction arrows show data/control flow
+
+**Example:**
+
+```mermaid
+graph TB
+    subgraph clientLayer [Client Layer]
+        API[Google Cloud API]
+    end
+
+    subgraph controlPlane [VSA Control Plane]
+        GP[Google Proxy]
+        Core[Core API]
+        Worker[VCP Worker]
+        Temporal[Temporal Server]
+    end
+
+    subgraph dataLayer [Data Layer]
+        VCP[(VCP Database)]
+        Metrics[(Metrics Database)]
+    end
+
+    subgraph external [External Services]
+        ONTAP[ONTAP Storage]
+        VLM[VLM Service]
+        GCP[Google Cloud]
+    end
+
+    API --> GP
+    GP --> Core
+    Core --> Worker
+    Worker --> Temporal
+    Worker --> VCP
+    Worker --> ONTAP
+    Worker --> VLM
+    Worker --> GCP
+```
+
+### 2E. Flowcharts for decision logic
+
+Use `flowchart TD` for branching/decision flows:
+
+```mermaid
+flowchart TD
+    Start([Start]) --> CheckState{Pool State?}
+    CheckState -->|READY| Proceed[Proceed with operation]
+    CheckState -->|CREATING| Wait[Wait for pool]
+    CheckState -->|DELETED| Reject[Reject request]
+    CheckState -->|ERROR| Evaluate{Retriable?}
+    Evaluate -->|Yes| Retry[Retry operation]
+    Evaluate -->|No| Fail[Return error]
+    Proceed --> Done([Done])
+    Retry --> CheckState
+```
+
+---
+
+## Step 3 — Output the diagram
+
+### Always show in chat
+Display the complete mermaid code block in the chat response.
+
+### Offer to write to a doc file
+After showing the diagram, suggest writing it to the appropriate location:
+
+| Diagram subject | Target location |
+|----------------|-----------------|
+| Workflow execution flow | `doc/workflows/core/<resource>-workflows.md` or `doc/workflows/<category>/` |
+| Design/architecture | `doc/architecture/designs/` |
+| Data model | `doc/architecture/` or existing design doc |
+| Standalone reference | New file in `doc/architecture/` |
+
+If the target file already exists, **append** the diagram under a new section heading. If it doesn't exist, create a new markdown file with a title, brief description, and the diagram.
+
+### Image export reminder
+After writing to a doc file, mention:
+
+> To render this diagram as SVG, run:
+> ```bash
+> python scripts/export_mermaid_images.py --input <path-to-markdown-file>
+> ```
+> Output will be in `doc/images/mermaid/`.
+
+---
+
+## Code analysis reference
+
+When generating diagrams from code, read these source locations:
+
+| What to diagram | Where to look |
+|----------------|---------------|
+| Workflow flows | `core/orchestrator/workflows/` — trace `ExecuteActivity`, `ExecuteChildWorkflow` |
+| Activity details | `core/orchestrator/activities/` — trace external calls, DB ops |
+| Data models | `core/datamodel/models.go` (alias: `database/vcp/datamodel/`) |
+| Lifecycle states | `core/models/` — `LifeCycleState*` constants |
+| API endpoints | `core/core-api/endpoints/` — request/response flow |
+| Factory orchestration | `core/orchestrator/factory/gcp/` or `oci/` — how operations are initiated |
+| Hyperscaler calls | `hyperscaler/` — cloud provider abstractions |
+| Cancellation flow | `core/orchestrator/common/cancellation.go` — signal/rollback pattern |
+| Supervisor pattern | `core/tasks/workflow_supervisor_task.go` — job monitoring |
+
+---
+
+## Communication style
+- Show the diagram immediately — don't describe it first.
+- If the diagram is large, break it into multiple focused diagrams rather than one monolithic one.
+- If generating from code and the source file is ambiguous, list the candidates and ask which one to diagram.
+- For sequence diagrams, aim for 15-40 interactions. If the workflow has more, split into phases (pre-processing, main flow, cleanup).
+- Use the standard participant aliases consistently across all diagrams.

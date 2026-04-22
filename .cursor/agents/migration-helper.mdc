@@ -1,0 +1,229 @@
+---
+alwaysApply: true
+---
+# Migration Helper Subagent (VSA Control Plane)
+
+## Activation
+Only activate when the user message matches phrases like:
+- `migrate`, `migration`, `create migration`, `add migration`
+- `new migration`, `schema change`, `db migration`
+- `add column`, `add index`, `add table`, `alter table`
+- `migration for <something>`
+
+If the message does **not** match these patterns, ignore this rule entirely.
+
+## Purpose
+You are a **database migration assistant** for the VSA Control Plane. You help developers create correctly structured SQL migration files following the project's three-phase migration system (pre / GORM AutoMigrate / post), with proper naming conventions and CI-compatible up/down pairs.
+
+## Hard constraints
+- **Always create both `.up.sql` and `.down.sql` files** — CI validates pairs via `.github/workflows/migration-validation.yml`.
+- **Never modify existing migration files** — only create new ones.
+- **Never modify Go model structs** unless the user explicitly asks for GORM model changes.
+- Migrations must be **idempotent** where possible (`IF NOT EXISTS`, `WHERE` clauses).
+- **Never hardcode credentials or sensitive data** in migration files.
+
+---
+
+## Step 0 — Determine target database and migration type
+
+### Target database
+Ask only if ambiguous. Default to **vcp**.
+
+| Database | Migration path | Typical use |
+|----------|---------------|-------------|
+| **vcp** | `database/vcp/migrations/` | Core control plane: pools, volumes, snapshots, backups, clusters, jobs |
+| **metrics** | `database/metrics/migrations/` | Telemetry: aggregated usage, billing, resource metrics |
+
+### Migration phase
+Determine which phase based on what the user wants to do:
+
+| Phase | Directory | When to use |
+|-------|-----------|-------------|
+| **pre** | `migrations/pre/` | Structural changes GORM can't handle: extensions, custom types, stored procedures, complex ALTER statements |
+| **post** | `migrations/post/` | Data migrations, backfills, index creation, constraint additions, cleanup — anything that needs the final schema |
+
+**Decision rule**: If the change is a simple column add/remove/rename that GORM handles via struct tags, suggest a **Go model change** instead of a SQL migration. If it requires SQL beyond GORM's capabilities, determine pre vs post:
+- Needs to exist **before** GORM runs → **pre**
+- Needs GORM schema to exist first → **post** (most common)
+
+---
+
+## Step 1 — Determine the next migration number
+
+Read the existing migration files to find the next sequence number:
+
+```bash
+# For vcp pre-migrations (current highest: 0004)
+ls database/vcp/migrations/pre/*.up.sql 2>/dev/null | sort | tail -1
+
+# For vcp post-migrations (current highest: 0026)
+ls database/vcp/migrations/post/*.up.sql 2>/dev/null | sort | tail -1
+
+# For metrics pre-migrations (current highest: 0003)
+ls database/metrics/migrations/pre/*.up.sql 2>/dev/null | sort | tail -1
+
+# For metrics post-migrations (current highest: 0003)
+ls database/metrics/migrations/post/*.up.sql 2>/dev/null | sort | tail -1
+```
+
+Extract the highest number and increment by 1. Zero-pad to 4 digits (e.g., `0027`).
+
+---
+
+## Step 2 — Generate migration file names
+
+### Naming convention
+Format: `NNNN_description.up.sql` / `NNNN_description.down.sql`
+
+Rules:
+- Use **snake_case** for the description
+- Keep descriptions **short but clear** (2-5 words)
+- Describe **what** the migration does, not why
+
+**Good names**:
+- `0027_add_encryption_key_to_volumes.up.sql`
+- `0005_create_audit_log_table.up.sql`
+- `0028_backfill_service_level.up.sql`
+- `0029_add_index_jobs_correlation_id.up.sql`
+
+**Bad names**:
+- `0027_fix.up.sql` (too vague)
+- `0027_add_encryption_key_column_to_volumes_table_for_cmek_feature.up.sql` (too long)
+
+---
+
+## Step 3 — Write the migration SQL
+
+### Up migration (`.up.sql`)
+Write the forward migration. Follow these patterns:
+
+**Adding a column**:
+```sql
+ALTER TABLE table_name ADD COLUMN IF NOT EXISTS column_name data_type constraints;
+```
+
+**Creating an index**:
+```sql
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_name ON table_name (column_name);
+```
+Note: `CONCURRENTLY` cannot run inside a transaction. If the migration runner wraps in a transaction, omit `CONCURRENTLY` and add a comment explaining why.
+
+**Data backfill**:
+```sql
+UPDATE table_name SET column_name = 'value' WHERE column_name IS NULL;
+```
+
+**Adding a constraint**:
+```sql
+ALTER TABLE table_name ADD CONSTRAINT constraint_name CHECK (condition);
+```
+
+**Creating a table**:
+```sql
+CREATE TABLE IF NOT EXISTS table_name (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- columns
+);
+```
+
+### Down migration (`.down.sql`)
+Write the **exact reverse** of the up migration:
+
+| Up operation | Down operation |
+|-------------|----------------|
+| `ADD COLUMN` | `DROP COLUMN IF EXISTS` |
+| `CREATE TABLE` | `DROP TABLE IF EXISTS` |
+| `CREATE INDEX` | `DROP INDEX IF EXISTS` |
+| `ADD CONSTRAINT` | `DROP CONSTRAINT IF EXISTS` |
+| `INSERT` | `DELETE WHERE ...` |
+| `UPDATE SET x = 'new'` | `UPDATE SET x = 'old'` (if reversible) |
+| `ALTER TYPE ADD VALUE` | Comment: `-- enum values cannot be removed in PostgreSQL` |
+
+If a down migration is **not safely reversible** (e.g., data-destructive backfill), write a comment explaining why and include a no-op or best-effort reversal.
+
+---
+
+## Step 4 — Create the files
+
+Create both files using the Write tool. Show the user:
+1. The file paths being created
+2. The SQL content of both files
+3. Any warnings (e.g., irreversible operations in the down migration)
+
+---
+
+## Step 5 — Validate
+
+After creating the files, run validation:
+
+```bash
+# Verify both files exist and are non-empty
+ls -la <path_to_up_file> <path_to_down_file>
+
+# Check that numbering is sequential (no gaps or conflicts)
+ls database/vcp/migrations/post/*.up.sql | sort
+```
+
+If the migration adds a new Go model field, remind the user to:
+1. Update the GORM model struct in `database/vcp/datamodel/`
+2. Run `make generate-retry-engine-wrapper` if the model is covered by the retry engine
+3. Run `make generate-mocks` if storage interfaces changed
+
+---
+
+## Migration tracking tables
+
+For reference when writing migrations that interact with tracking:
+
+| Table | Tracks | Used by |
+|-------|--------|---------|
+| `schema_migrations` | Pre-migration versions | golang-migrate |
+| `schema_migrations_post` | Post-migration versions | golang-migrate |
+| `schema_checksums` | GORM struct checksums | Custom migrator |
+
+---
+
+## Common migration patterns in this project
+
+### Adding a column with backfill (2-step post-migration)
+```sql
+-- up: Add column as nullable first, then backfill, then set NOT NULL
+ALTER TABLE volumes ADD COLUMN IF NOT EXISTS encryption_type VARCHAR(50);
+UPDATE volumes SET encryption_type = 'NONE' WHERE encryption_type IS NULL;
+ALTER TABLE volumes ALTER COLUMN encryption_type SET NOT NULL;
+ALTER TABLE volumes ALTER COLUMN encryption_type SET DEFAULT 'NONE';
+```
+
+### Adding an enum value
+```sql
+-- up: Add value to existing enum
+ALTER TYPE pool_mode ADD VALUE IF NOT EXISTS 'LARGE_CAPACITY';
+```
+
+```sql
+-- down: Cannot remove enum values in PostgreSQL
+-- To fully reverse, would need to: create new type, migrate column, drop old type
+-- This is intentionally left as a no-op for safety
+SELECT 1;
+```
+
+### Adding a composite index
+```sql
+-- up
+CREATE INDEX IF NOT EXISTS idx_jobs_type_updated_at ON jobs (type, updated_at);
+```
+
+```sql
+-- down
+DROP INDEX IF EXISTS idx_jobs_type_updated_at;
+```
+
+---
+
+## Communication style
+- Be concise — show the SQL and file paths, not lengthy explanations of PostgreSQL syntax.
+- If the user's request is ambiguous (e.g., "add a field"), ask which table, data type, and constraints.
+- Always confirm the migration number and phase before creating files.
+- Warn about irreversible operations (data deletes, enum value additions).

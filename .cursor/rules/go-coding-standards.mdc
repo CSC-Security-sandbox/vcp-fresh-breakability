@@ -1,0 +1,427 @@
+---
+description: Go coding standards for VSA Control Plane
+globs: **/*.go
+alwaysApply: false
+---
+
+# Go Coding Standards
+
+> **Scope**: These rules apply to **new and modified code only**. Do NOT refactor
+> existing code solely to fix legacy violations listed in the exemptions below.
+> When modifying an existing file, apply the standards to the lines you touch —
+> do not rewrite surrounding legacy code to comply.
+
+## Import Organization
+
+Group imports into TWO sections separated by a blank line:
+
+```go
+// ✅ GOOD
+import (
+    // Standard library
+    "context"
+    "fmt"
+    "net/http"
+
+    // Third-party and local
+    "github.com/stretchr/testify/assert"
+    "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/datamodel"
+)
+
+// ❌ BAD - no separation
+import (
+    "context"
+    "github.com/stretchr/testify/assert"
+    "fmt"
+)
+```
+
+**Import Aliases**: Use consistent, meaningful aliases. Avoid duplicate imports.
+
+<details><summary>Existing exemptions (import organization)</summary>
+
+The following files have legacy import ordering violations. Do not fix unless
+you are already modifying the import block for other reasons:
+- `core/orchestrator/activities/hostgroup_activities.go`
+- `core/orchestrator/activities/resource_events_activities/common_handle_resource_event.go`
+- `core/orchestrator/activities/replicationActivities/replication_internal_reverse_activities.go`
+- `core/orchestrator/activities/active_directory_activities/active_directory_sync_activity_test.go`
+- `core/orchestrator/activities/psc_activities_test.go`
+- `core/orchestrator/activities/kms_activities/kms_config_ontap_activities.go`
+- `core/orchestrator/workflows/workflowExecutor_test.go`
+- `core/orchestrator/workflows/smc_token_rotate_workflow_test.go`
+- `core/orchestrator/workflows/replicationWorkflows/replication_reverse_hybrid_fallback_workflow.go`
+- `core/ontap-rest/poller_test.go`
+- `database/vcp/resources.go`
+- `telemetry/jobs/collectMetrics.go`
+- `telemetry/common/job_definition.go`
+- `telemetry/common/formatter_test.go`
+- `utils/validator/base_validator.go`
+- `utils/printfmt_test.go`
+- `utils/errors/ontap_error.go`
+- `utils/crypto/encryption.go`
+- `utils/setRetryPolicy.go`
+
+</details>
+
+## Architectural Boundaries
+
+### PROHIBITED in `core/**/*.go` files:
+- `cloud.google.com/go`
+- `google.golang.org/api`
+- `google.golang.org/genproto`
+- `github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler/google`
+
+**Why**: Core business logic must remain cloud-agnostic. Use hyperscaler interfaces instead.
+
+```go
+// ✅ GOOD - in core/
+import (
+    "github.com/vcp-vsa-control-Plane/vsa-control-plane/hyperscaler"
+)
+
+// ❌ BAD - in core/
+import (
+    "cloud.google.com/go/storage"
+)
+```
+
+<details><summary>Existing exemptions (architectural boundaries)</summary>
+
+The following `core/` files have legacy cloud-specific imports. Do not fix unless
+the file is being significantly refactored (e.g., adding DI for hyperscaler):
+
+**`google.golang.org/api` imports:**
+- `core/orchestrator/workflows/pool_workflows.go` — `iam/v1`
+- `core/orchestrator/activities/pool_activities.go` — `servicenetworking/v1`
+
+**`hyperscaler/google` imports (production code):**
+- `core/orchestrator/activities/pool_activities.go`
+- `core/orchestrator/activities/common_activities.go`
+- `core/orchestrator/activities/kms_activities/kms_common_activities.go`
+- `core/orchestrator/activities/active_directory_activities/active_directory_update_activity.go`
+- `core/orchestrator/activities/backgroundactivities/rotate_kms_key_activities.go`
+
+**`hyperscaler/google` imports (test code):**
+- `core/orchestrator/activities/volume_create_activities_test.go`
+- `core/orchestrator/activities/backup_vault_activities_test.go`
+- `core/orchestrator/activities/replicationActivities/replication_create_activities_test.go`
+- `core/orchestrator/activities/kms_activities/kms_common_activities_test.go`
+- `core/orchestrator/activities/backup_activities_test.go`
+- `core/orchestrator/activities/pool_activities_test.go`
+- `core/orchestrator/activities/common_activities_test.go`
+- `core/orchestrator/activities/backgroundactivities/rotate_kms_key_activities_test.go`
+- `core/orchestrator/activities/backgroundactivities/certificate_rotation_activities_test.go`
+- `core/orchestrator/activities/backgroundactivities/rotation_shared_activities_test.go`
+- `core/orchestrator/activities/backgroundactivities/resource_cleanup_activities_test.go`
+- `core/orchestrator/activities/psc_activities_test.go`
+- `core/orchestrator/activities/expert_mode_activities/rbac_activities_test.go`
+- `core/orchestrator/activities/smc_token_activities_test.go`
+
+</details>
+
+## Context Handling
+
+`context.Context` MUST be the first parameter:
+
+```go
+// ✅ GOOD
+func ProcessData(ctx context.Context, data string, opts Options) error
+
+// ❌ BAD
+func ProcessData(data string, ctx context.Context, opts Options) error
+```
+
+<details><summary>Existing exemptions (context parameter ordering)</summary>
+
+The following functions have legacy `context.Context`-not-first signatures. Do not
+change their signatures unless the function is being refactored or its callers are
+being updated:
+
+- `core/app.go` — `handleGracefulShutdown(eg, ctx, ...)`
+- `google-proxy/app.go` — `handleGracefulShutdown(eg, ctx, ...)`
+- `telemetry/main.go` — `handleGracefulShutdown(eg, ctx, ...)`
+- `core/orchestrator/workflows/control_workflow.go` — `ExecuteWorkflowSequentially(temporal, ctx, ...)`
+- `core/orchestrator/workflows/control_workflow.go` — `_executeWorkflowSequentially(temporal, ctx, ...)`
+- `core/orchestrator/activities/volume_update_activities.go` — `_getHostGroup(se, ctx, ...)`
+- `core/orchestrator/activities/volume_create_activities.go` — `getBackupVaultDetails(se, ctx, ...)`
+- `core/orchestrator/activities/volume_create_activities.go` — `UpdateBackupVaultWithBucketDetails(se, ctx, ...)`
+- `core/orchestrator/activities/pool_activities.go` — `_getBucketFile(service, ctx, ...)`
+- `core/orchestrator/activities/kms_activities/kms_config_update_activities.go` — `UpdateKmsConfig(se, ctx, ...)`
+- `core/orchestrator/activities/kms_activities/kms_common_activities.go` — `_gcpServiceCreateServiceAccountKey(gcpService, ctx, ...)`
+- `database/vcp/migrator.go` — `MigratorInterface.Migrate(db, ctx)` and `Rollback(db, ctx)`
+- `database/metrics/migrator.go` — `MigratorInterface.Migrate(db, ctx)` and `Rollback(db, ctx)`
+- `database/drivers/postgres/migrate.go` — all `Migrate`, `Rollback`, and helper methods
+- `database/drivers/sqllite/sqllite.go` — `Migrate(db, ctx)` and `Rollback(db, ctx)`
+- `database/vcp/volume_performance_group.go` — `updateVolumePerformanceGroup(db, ctx, ...)`
+- `hyperscaler/google/service_account.go` — `_createServiceAccountKey(gcpService, ctx, ...)`
+
+</details>
+
+## Error Handling
+
+Always check errors. Use explicit ignore `_` when safe:
+
+```go
+// ✅ GOOD
+result, err := operation()
+if err != nil {
+    return fmt.Errorf("operation failed: %w", err)
+}
+
+// ✅ GOOD - explicit ignore
+_ = file.Close() // Close on read-only file
+
+// ❌ BAD - silent ignore
+result, _ := operation()
+```
+
+**Type Assertions**: Always use the two-value form:
+
+```go
+// ✅ GOOD
+if handler, ok := obj.(http.Handler); ok {
+    handler.ServeHTTP(w, r)
+}
+
+// ❌ BAD - can panic
+handler := obj.(http.Handler)
+```
+
+<details><summary>Existing exemptions (single-value type assertions)</summary>
+
+The following files use legacy single-value type assertions. Do not convert them
+unless you are already modifying the surrounding code:
+
+- `core/tasks/SyncVSAClusterHealthTask.go` — 12+ single-value assertions on `inputs[N].(Type)`
+- `core/orchestrator/workflows/pool_workflows.go` — `args[4].(models.ResourceOperation)`
+- `core/orchestrator/workflows/replicationWorkflows/hybrid_create_workflow.go` — `args[0].(replication.CreateHybridReplicationResult)`
+
+Generated and mock files (`*_gen.go`, `*_mock.go`, `monkey_mocks*.go`) are always exempt.
+
+</details>
+
+## Dependency Injection
+
+Use interfaces and dependency injection for testability:
+
+```go
+// ✅ GOOD - cloud-agnostic with DI
+type PoolActivity struct {
+    SE          database.Storage
+    Hyperscaler hyperscaler.Services // Interface
+}
+
+func NewPoolActivity(se database.Storage, hs hyperscaler.Services) *PoolActivity {
+    return &PoolActivity{SE: se, Hyperscaler: hs}
+}
+
+// ❌ BAD - direct cloud dependencies
+type PoolActivity struct {
+    SE         database.Storage
+    IamService *iam.Service // Direct GCP dependency
+}
+```
+
+<details><summary>Existing exemptions (dependency injection)</summary>
+
+Existing activity structs access cloud services through package-level function
+variables (`hyperscaler.GetGCPService(ctx)`, `hyperscaler.GetProviderByNode(ctx, node)`)
+rather than injected struct fields. This is a legacy pattern — do not extend it to
+new code. New activity structs and new cloud interactions should inject
+`hyperscaler.Services` (or a narrower interface) as a struct field.
+
+Legacy function-variable pattern files (do not refactor unless doing a broader DI migration):
+- `core/orchestrator/activities/volume_create_activities.go`
+- `core/orchestrator/activities/volume_update_activities.go`
+- `core/orchestrator/activities/volume_delete_activities.go`
+- `core/orchestrator/activities/pool_activities.go`
+- `core/orchestrator/activities/backup_activities.go`
+- `core/orchestrator/activities/backup_vault_activities.go`
+- `core/orchestrator/activities/snapshot_create_activities.go`
+- `core/orchestrator/activities/sfr_activities.go`
+- `core/orchestrator/activities/adc_activities.go`
+- `core/orchestrator/activities/psc_activities.go`
+- `core/orchestrator/activities/common_activities.go`
+- `core/orchestrator/activities/kms_activities/kms_common_activities.go`
+- `core/orchestrator/activities/active_directory_activities/active_directory_update_activity.go`
+- `core/orchestrator/activities/active_directory_activities/active_directory_activity.go`
+- `core/orchestrator/activities/backgroundactivities/rotate_kms_key_activities.go`
+- `core/orchestrator/activities/backgroundactivities/sync_snapshot_activities.go`
+- `core/orchestrator/activities/backgroundactivities/rotation_shared_activities.go`
+
+</details>
+
+## Function Design
+
+### Decompose Large Functions
+
+Break down monolithic functions for testability:
+
+```go
+// ✅ GOOD - decomposed
+func (a *Activity) Sync(ctx context.Context, poolID int64) error {
+    snapshots, err := a.getSnapshots(ctx, poolID)
+    if err != nil {
+        return err
+    }
+    return a.process(ctx, snapshots)
+}
+
+func (a *Activity) getSnapshots(ctx context.Context, poolID int64) ([]*Snapshot, error)
+func (a *Activity) process(ctx context.Context, snapshots []*Snapshot) error
+```
+
+### Constructor Patterns
+
+Provide both simple and advanced constructors:
+
+```go
+// Simple constructor with defaults
+func NewActivity(se database.Storage, hs hyperscaler.Services) *Activity {
+    return NewActivityWithDeps(se, hs, DefaultConfig(), DefaultDeps())
+}
+
+// Advanced constructor for testing
+func NewActivityWithDeps(se database.Storage, hs hyperscaler.Services, cfg *Config, deps *Dependencies) *Activity {
+    return &Activity{SE: se, Hyperscaler: hs, Config: cfg, Dependencies: deps}
+}
+```
+
+## Configuration Management
+
+Use structured config objects instead of global variables:
+
+```go
+// ✅ GOOD - structured config
+type Config struct {
+    ChunkSize int
+    Enabled   bool
+}
+
+func DefaultConfig() *Config {
+    return &Config{
+        ChunkSize: env.GetInt("CHUNK_SIZE", 200),
+        Enabled:   env.GetBool("ENABLED", true),
+    }
+}
+
+// ❌ BAD - global variables
+var (
+    chunkSize = env.GetInt("CHUNK_SIZE", 200)
+    enabled   = env.GetBool("ENABLED", true)
+)
+```
+
+<details><summary>Existing exemptions (configuration globals)</summary>
+
+The following files use legacy package-level `var` blocks for configuration and
+monkey-patchable function variables. This is an established pattern in the
+codebase — do not extend it to new code but do not refactor it either:
+
+**Config globals:**
+- `core/orchestrator/workflows/common_workflows.go` — timeout durations
+- `core/orchestrator/factory/gcp/volume.go` — volume size limits
+- `core/orchestrator/factory/gcp/backup_policy.go` — `maxBackupsToKeep`
+- `core/orchestrator/activities/backgroundactivities/sync_snapshot_activities.go` — chunk sizes, concurrency
+- `core/orchestrator/activities/replicationActivities/replication_common_activities.go` — `hydrationEnabled`
+
+**Function-variable globals (monkey-patching for tests):**
+- `core/orchestrator/factory/gcp/pool.go`
+- `core/orchestrator/factory/gcp/volume.go`
+- `core/orchestrator/factory/gcp/snapshot.go`
+- `core/orchestrator/factory/gcp/backup.go`
+- `core/orchestrator/factory/gcp/backup_vault.go`
+- `core/orchestrator/factory/gcp/backup_policy.go`
+- `core/orchestrator/factory/gcp/active_directory.go`
+- `core/orchestrator/factory/gcp/kms_config.go`
+- `core/orchestrator/factory/gcp/volume_replication.go`
+- `core/orchestrator/factory/gcp/replications_internal.go`
+- `core/orchestrator/factory/gcp/flexcache_volume.go`
+- `core/orchestrator/factory/gcp/cluster.go`
+- `core/orchestrator/factory/gcp/cluster_upgrade.go`
+- `core/orchestrator/factory/gcp/hostgroup.go`
+- `core/orchestrator/factory/gcp/quota_rule.go`
+- `core/orchestrator/factory/gcp/accounts.go`
+- `core/orchestrator/factory/gcp/resource_events.go`
+- `core/orchestrator/activities/volume_update_activities.go`
+- `core/orchestrator/activities/volume_create_activities.go`
+- `core/orchestrator/activities/resource_events_activities/handle_resource_events_activities.go`
+- `core/orchestrator/activities/active_directory_activities/active_directory_update_activity.go`
+- `core/orchestrator/activities/active_directory_activities/active_directory_activity.go`
+- `core/orchestrator/workflows/volume_update_workflow.go`
+- `core/vsa/storage.go`
+- `core/tasks/SyncVSAClusterHealthTask.go`
+
+</details>
+
+## Testing Best Practices
+
+### Use Dependency Injection
+
+```go
+func TestCreate_Success(t *testing.T) {
+    mockStorage := database.NewMockStorage(t)
+    mockHyperscaler := hyperscaler.NewMockServices(t)
+    
+    activity := NewActivity(mockStorage, mockHyperscaler)
+    
+    mockHyperscaler.On("CreateResource", mock.Anything).Return(nil)
+    
+    err := activity.Create(context.Background())
+    assert.NoError(t, err)
+    mockHyperscaler.AssertExpectations(t)
+}
+```
+
+### Table-Driven Tests
+
+```go
+func TestOperation(t *testing.T) {
+    tests := []struct {
+        name   string
+        input  Input
+        expect Output
+    }{
+        {"case1", Input{Val: 1}, Output{Val: 2}},
+        {"case2", Input{Val: 2}, Output{Val: 4}},
+    }
+    
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            result := Operation(tt.input)
+            assert.Equal(t, tt.expect, result)
+        })
+    }
+}
+```
+
+### Test Error Conditions
+
+```go
+func TestOperation_Error(t *testing.T) {
+    mockSE := database.NewMockStorage(t)
+    mockSE.On("Save", mock.Anything).Return(errors.New("db error"))
+    
+    err := activity.Save(context.Background())
+    
+    assert.Error(t, err)
+    assert.Contains(t, err.Error(), "db error")
+}
+```
+
+## Code Review Checklist
+
+Before submitting:
+- [ ] Imports properly grouped (stdlib / third-party+local)
+- [ ] No cloud-specific imports in `core/`
+- [ ] Context as first parameter
+- [ ] All errors checked or explicitly ignored
+- [ ] Type assertions use two-value form
+- [ ] Dependency injection used for external dependencies
+- [ ] Functions decomposed for testability
+- [ ] Tests written for new functionality
+
+> **Reminder**: This checklist applies to new and modified code. Legacy violations
+> listed in the exemption sections above do not need to be addressed unless
+> you are already refactoring the affected code.

@@ -1,0 +1,288 @@
+---
+alwaysApply: true
+---
+# Local Environment Subagent (VSA Control Plane)
+
+## Activation
+Only activate when the user message matches phrases like:
+- `local env`, `local environment`, `bring up local`, `start local`
+- `setup dev`, `dev environment`, `start services`
+- `skaffold`, `docker desktop k8s`
+
+If the message does **not** match these patterns, ignore this rule entirely.
+
+## Purpose
+You are an **operator assistant** that helps bring up and manage the VSA Control Plane local development environment. You verify prerequisites, configure environment files, start infrastructure, build services, and verify health — step by step, asking for input only when secrets are needed.
+
+## Hard constraints
+- **Never echo or log secrets** (DB passwords, PATs, tokens).
+- **Never commit** `.env.development`, `env.development.local`, or any file containing secrets.
+- Ask the user before running destructive commands (`kubectl delete`, `docker system prune`).
+- If a step fails, diagnose and suggest a fix before retrying.
+
+---
+
+## Step 0 — Determine the setup mode
+
+Ask the user which mode they want:
+
+| Mode | Description |
+|------|-------------|
+| **skaffold** | Full Kubernetes-based local environment using Docker Desktop K8s + Skaffold (all services, Temporal, Postgres, etc.) |
+| **services-only** | Run individual services directly (e.g., `air -c core/air.toml`) against local/remote Postgres + Temporal |
+
+If user just says "bring up local" without specifying, default to **skaffold** mode.
+
+---
+
+## Mode A: Skaffold (Full Local K8s)
+
+### A1 — Check prerequisites
+
+Run these checks in parallel. Report missing tools and suggest install commands.
+
+```bash
+# Check each tool
+docker version --format '{{.Client.Version}}'
+kubectl version --client 2>/dev/null
+helm version --short
+skaffold version
+gh --version
+go version
+```
+
+For any missing tool, provide the install command:
+- docker: `brew install --cask docker`
+- kubectl: Bundled with Docker Desktop (enable Kubernetes in Docker Desktop settings)
+- helm: `brew install helm`
+- skaffold: `brew install skaffold`
+- gh: `brew install gh`
+
+Do NOT proceed until all prerequisites pass.
+
+### A2 — Check Docker Desktop Kubernetes
+
+Verify that Docker Desktop is running and its built-in Kubernetes is enabled:
+
+```bash
+# Check Docker daemon is running
+docker info --format '{{.ServerVersion}}'
+
+# Check Kubernetes is enabled and the docker-desktop context is available
+kubectl config get-contexts | grep docker-desktop
+kubectl --context docker-desktop cluster-info
+```
+
+If Kubernetes is **not enabled**:
+1. Open Docker Desktop → Settings → Kubernetes.
+2. Check **Enable Kubernetes** and click **Apply & Restart**.
+3. Wait for the Kubernetes status indicator (bottom-left of Docker Desktop) to turn green.
+
+If the current kubectl context is not `docker-desktop`, switch to it:
+```bash
+kubectl config use-context docker-desktop
+```
+
+Verify the cluster is healthy before proceeding:
+```bash
+kubectl get nodes
+```
+
+Expected output: one node named `docker-desktop` in `Ready` status.
+
+### A3 — Set environment variables
+
+Check if the required env vars are set:
+
+```bash
+echo "GHVSA_PAT=${GHVSA_PAT:+SET}"
+echo "DB_PASSWORD=${DB_PASSWORD:+SET}"
+echo "DB_ADMIN_PASSWORD=${DB_ADMIN_PASSWORD:+SET}"
+echo "VSA_NODE_PASSWORD=${VSA_NODE_PASSWORD:+SET}"
+```
+
+For any that are NOT set, prompt the user:
+
+- `GHVSA_PAT`: Suggest `export GHVSA_PAT=$(gh auth token)` if gh is authenticated.
+- `DB_PASSWORD`: Ask user to pick a local dev password. Suggest `export DB_PASSWORD=localdev123`.
+- `DB_ADMIN_PASSWORD`: Same as DB_PASSWORD for local dev.
+- `VSA_NODE_PASSWORD`: Ask user or suggest a default.
+
+**Important**: Do NOT echo the actual values. Only check if they are set.
+
+### A4 — Build binaries
+
+```bash
+make build-all-binaries-dev
+```
+
+This runs a Docker-based build. It may take 3-5 minutes on first run. Monitor the terminal output for errors.
+
+If the build fails:
+- Check Docker is running: `docker info`
+- Check GHVSA_PAT is set (needed for private Go modules)
+- Check disk space: `df -h`
+
+### A5 — Start Skaffold
+
+```bash
+export $(cat skaffold.env | xargs) && skaffold dev -p dev
+```
+
+This is a long-running process. Run it in the background (`block_until_ms: 0`).
+
+Monitor the terminal for:
+- "Deployments stabilized" → services are up
+- Pod crash loops → diagnose with `kubectl logs <pod>`
+- Image pull errors → check GHVSA_PAT and Docker registry auth
+
+### A6 — Verify services
+
+Once Skaffold reports stabilized, verify services:
+
+```bash
+kubectl get pods -A
+```
+
+Expected services:
+- core-api
+- google-proxy
+- worker
+- temporal (server, web, matching, history, frontend)
+- postgres
+
+Provide the service URLs:
+- Google Proxy: http://localhost:9000
+- Postgres: http://localhost:5433
+- Temporal Web: http://localhost:8080
+
+---
+
+## Mode B: Services-Only (Direct Run)
+
+### B1 — Check prerequisites
+
+```bash
+go version
+docker version --format '{{.Client.Version}}'
+```
+
+Also check if Postgres and Temporal are accessible (either local Docker containers or remote).
+
+### B2 — Setup environment file
+
+Check if `env.development.local` exists:
+
+```bash
+ls -la env.development.local 2>/dev/null
+```
+
+If not, copy from example:
+
+```bash
+cp env.development.example env.development.local
+```
+
+Then tell the user to update passwords and project-specific values in `env.development.local`. List the key fields that need updating:
+- `DB_PASSWORD` / `DB_ADMIN_PASSWORD`
+- `GCP_PROJECT_ID`
+- `TEMPORAL_HOST` (default: `localhost:7233`)
+
+### B3 — Start infrastructure dependencies
+
+Check if Postgres is running locally:
+
+```bash
+pg_isready -h localhost -p 5432 2>/dev/null
+```
+
+If not, suggest starting via Docker:
+
+```bash
+docker run -d --name vcp-postgres \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=localdev123 \
+  -e POSTGRES_DB=vcp \
+  -p 5432:5432 \
+  postgres:15
+
+docker run -d --name metrics-postgres \
+  -e POSTGRES_USER=metrics \
+  -e POSTGRES_PASSWORD=localdev123 \
+  -e POSTGRES_DB=metrics \
+  -p 5433:5432 \
+  postgres:15
+```
+
+Check if Temporal is running:
+
+```bash
+temporal operator namespace describe default 2>/dev/null
+```
+
+If not, suggest:
+
+```bash
+temporal server start-dev --db-filename temporal.db --ui-port 8080
+```
+
+### B4 — Run database migrations
+
+```bash
+RUN_MIGRATION_ON_START=true go run ./core/
+```
+
+Or if the user prefers to run migrations separately, point them to `database/readme.md`.
+
+### B5 — Start services
+
+The user can start individual services. Provide the commands:
+
+```bash
+# Core API (port 8080)
+source env.development.local && go run ./core/
+
+# Google Proxy (port 8090)
+source env.development.local && go run ./google-proxy/
+
+# Worker
+source env.development.local && go run ./worker/
+
+# Telemetry
+source env.development.local && go run ./telemetry/
+```
+
+Or with hot reload (if Air is installed):
+
+```bash
+air -c core/air.toml
+air -c ontap-proxy/air.toml
+air -c google-proxy/air.toml
+```
+
+---
+
+## Troubleshooting
+
+If the user reports an error at any point, diagnose using this checklist:
+
+| Error | Likely cause | Fix |
+|-------|-------------|-----|
+| `pq: duplicate key value violates unique constraint` | Stale data in DB | Delete the namespace or relevant PVCs: `kubectl delete ns <ns>` then redeploy |
+| `Not enough hosts to serve the request` | Stale cluster state | Reset Kubernetes cluster via Docker Desktop Settings → Kubernetes → Reset Kubernetes Cluster |
+| Docker build fails with auth error | GHVSA_PAT not set or expired | `export GHVSA_PAT=$(gh auth token)` |
+| `connection refused` on port 5432 | Postgres not running | Start Postgres container |
+| `connection refused` on port 7233 | Temporal not running | Start Temporal dev server |
+| Pods in CrashLoopBackOff | Check logs | `kubectl logs <pod-name> --previous` |
+| Image pull errors | Registry auth issue | `docker login ghcr.io -u <user> -p $(gh auth token)` |
+| `Unable to connect to the server` | K8s not enabled in Docker Desktop | Open Docker Desktop → Settings → Kubernetes → Enable Kubernetes |
+| Wrong kubectl context | Context not set to docker-desktop | `kubectl config use-context docker-desktop` |
+
+---
+
+## Communication style
+- Be concise — show commands and their output, not lengthy explanations.
+- Check each step before proceeding to the next.
+- If a step succeeds, say so briefly and move on.
+- If a step fails, show the error and suggest a specific fix.
+- Never prompt for information you can derive (e.g., derive GHVSA_PAT from `gh auth token`).
