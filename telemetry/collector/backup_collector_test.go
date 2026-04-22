@@ -1228,12 +1228,13 @@ func TestGetBackupMetrics_CmekBackupBilling_SkipsAndIncludes(t *testing.T) {
 
 // TestGetBackupMetrics_SkipBilling_Cascade validates the skipBilling decision
 // cascade in GetBackupMetrics. The billing metric (HydratedMetricsDataModel) is
-// gated by four sequential checks:
+// gated by five sequential checks:
 //
 //	Gate 1: cross-region flag disabled + cross-region vault           → skip
 //	Gate 2: cross-region flag enabled  + (nil or same-region backup)  → skip
 //	Gate 3: CMEK billing disabled      + CMEK vault                   → skip
-//	Gate 4: skipBilling=false but files billing disabled & non-SAN    → not emitted
+//	Gate 4: expert mode billing disabled + IsExpertModeBackup=true    → skip
+//	Gate 5: skipBilling=false but files billing disabled & non-SAN    → not emitted
 //
 // Each sub-test targets one gate and confirms that subsequent gates are not
 // reached (or that all gates pass and the metric is emitted).
@@ -1338,22 +1339,48 @@ func TestGetBackupMetrics_SkipBilling_Cascade(t *testing.T) {
 			description:   "Not cross-region so gates 1/2 pass; gate 3 fires on CMEK",
 		},
 		{
-			name: "Gate4: all skip gates pass, but files billing disabled and NAS protocol blocks emission",
+			name: "Gate4: passes cross-region and CMEK gates, expert mode billing disabled skips",
 			config: &common.TelemetryConfig{
 				RegionName:                            "us-east-1",
 				EnableCrossRegionBackupBillingMetrics: false,
 				EnableCmekBackupBilling:               true,
+				EnableExpertModeBackupBilling:         false,
+				EnableFilesBackupBilling:              true,
+			},
+			backup: &datamodel.Backup{
+				BaseModel: datamodel.BaseModel{UUID: "b-g4em"}, VolumeUUID: "v-g4em",
+				LatestLogicalBackupSize: 450,
+				Attributes: &datamodel.BackupAttributes{
+					AccountIdentifier:  "acct", VolumeName: "vol",
+					IsExpertModeBackup: true,
+				},
+				BackupVault: &datamodel.BackupVault{
+					BaseModel:       datamodel.BaseModel{UUID: "bv-g4em"},
+					Name:            "vault",
+					BackupVaultType: "IN_REGION",
+				},
+			},
+			expectBilling: false,
+			description:   "Not cross-region/CMEK so gates 1-3 pass; gate 4 fires on expert mode",
+		},
+		{
+			name: "Gate5: all skip gates pass, but files billing disabled and NAS protocol blocks emission",
+			config: &common.TelemetryConfig{
+				RegionName:                            "us-east-1",
+				EnableCrossRegionBackupBillingMetrics: false,
+				EnableCmekBackupBilling:               true,
+				EnableExpertModeBackupBilling:         true,
 				EnableFilesBackupBilling:              false,
 			},
 			backup: &datamodel.Backup{
-				BaseModel: datamodel.BaseModel{UUID: "b-g4"}, VolumeUUID: "v-g4",
+				BaseModel: datamodel.BaseModel{UUID: "b-g5"}, VolumeUUID: "v-g5",
 				LatestLogicalBackupSize: 500,
 				Attributes: &datamodel.BackupAttributes{
 					AccountIdentifier: "acct", VolumeName: "vol",
 					Protocols: []string{"NFS"},
 				},
 				BackupVault: &datamodel.BackupVault{
-					BaseModel:       datamodel.BaseModel{UUID: "bv-g4"},
+					BaseModel:       datamodel.BaseModel{UUID: "bv-g5"},
 					Name:            "vault",
 					BackupVaultType: "IN_REGION",
 				},
@@ -1362,22 +1389,23 @@ func TestGetBackupMetrics_SkipBilling_Cascade(t *testing.T) {
 			description:   "skipBilling=false but final protocol/files gate blocks NAS when files billing disabled",
 		},
 		{
-			name: "Gate4: skipBilling false, files billing disabled but SAN protocol passes",
+			name: "Gate5: skipBilling false, files billing disabled but SAN protocol passes",
 			config: &common.TelemetryConfig{
 				RegionName:                            "us-east-1",
 				EnableCrossRegionBackupBillingMetrics: false,
 				EnableCmekBackupBilling:               true,
+				EnableExpertModeBackupBilling:         true,
 				EnableFilesBackupBilling:              false,
 			},
 			backup: &datamodel.Backup{
-				BaseModel: datamodel.BaseModel{UUID: "b-g4san"}, VolumeUUID: "v-g4san",
+				BaseModel: datamodel.BaseModel{UUID: "b-g5san"}, VolumeUUID: "v-g5san",
 				LatestLogicalBackupSize: 600,
 				Attributes: &datamodel.BackupAttributes{
 					AccountIdentifier: "acct", VolumeName: "vol",
 					Protocols: []string{"ISCSI"},
 				},
 				BackupVault: &datamodel.BackupVault{
-					BaseModel:       datamodel.BaseModel{UUID: "bv-g4san"},
+					BaseModel:       datamodel.BaseModel{UUID: "bv-g5san"},
 					Name:            "vault",
 					BackupVaultType: "IN_REGION",
 				},
@@ -1386,11 +1414,12 @@ func TestGetBackupMetrics_SkipBilling_Cascade(t *testing.T) {
 			description:   "skipBilling=false and SAN protocol passes final gate even with files billing disabled",
 		},
 		{
-			name: "All gates pass: cross-region different region + no CMEK + files billing enabled",
+			name: "All gates pass: cross-region different region + no CMEK + expert mode enabled + files billing enabled",
 			config: &common.TelemetryConfig{
 				RegionName:                            "us-east-1",
 				EnableCrossRegionBackupBillingMetrics: true,
 				EnableCmekBackupBilling:               true,
+				EnableExpertModeBackupBilling:         true,
 				EnableFilesBackupBilling:              true,
 			},
 			backup: &datamodel.Backup{
@@ -1411,19 +1440,21 @@ func TestGetBackupMetrics_SkipBilling_Cascade(t *testing.T) {
 			description:   "Every gate passes; billing metric emitted",
 		},
 		{
-			name: "All gates pass: in-region non-CMEK with files billing enabled",
+			name: "All gates pass: in-region non-CMEK non-expert with files billing enabled",
 			config: &common.TelemetryConfig{
 				RegionName:                            "us-east-1",
 				EnableCrossRegionBackupBillingMetrics: false,
 				EnableCmekBackupBilling:               false,
+				EnableExpertModeBackupBilling:         false,
 				EnableFilesBackupBilling:              true,
 			},
 			backup: &datamodel.Backup{
 				BaseModel: datamodel.BaseModel{UUID: "b-std"}, VolumeUUID: "v-std",
 				LatestLogicalBackupSize: 800,
 				Attributes: &datamodel.BackupAttributes{
-					AccountIdentifier: "acct", VolumeName: "vol",
-					Protocols: []string{"NFS"},
+					AccountIdentifier:  "acct", VolumeName: "vol",
+					Protocols:          []string{"NFS"},
+					IsExpertModeBackup: false,
 				},
 				BackupVault: &datamodel.BackupVault{
 					BaseModel:       datamodel.BaseModel{UUID: "bv-std"},
@@ -1432,7 +1463,7 @@ func TestGetBackupMetrics_SkipBilling_Cascade(t *testing.T) {
 				},
 			},
 			expectBilling: true,
-			description:   "Standard in-region backup passes all gates",
+			description:   "Standard in-region non-expert backup passes all gates",
 		},
 	}
 
@@ -1790,6 +1821,162 @@ func TestGetBackupMetrics_GcbdrBackupBilling_SkipsAndIncludes(t *testing.T) {
 				RegionName:               "us-east-1",
 				EnableFilesBackupBilling: true,
 				EnableGcbdrBackupBilling: tt.enableGcbdrBackupBilling,
+			}
+
+			m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+				return pagination.Offset == 0
+			})).Return(tt.backups, nil)
+			m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {
+				return pagination.Offset > 0
+			})).Return([]*datamodel.Backup{}, nil)
+
+			result, err := GetBackupMetrics(ctx, m, config, time.Now())
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
+
+			assert.Len(t, result.HydratedMetrics, tt.expectedHydratedMetricsCount,
+				"HydratedMetrics count mismatch: %s", tt.description)
+			assert.Len(t, result.HydratedMetricsDataModel, tt.expectedDataModelMetricsCount,
+				"HydratedMetricsDataModel count mismatch: %s", tt.description)
+
+			for i, metric := range result.HydratedMetrics {
+				assert.Equal(t, metadata.BackupLogicalSize, metric.MeasuredType,
+					"HydratedMetrics[%d] should have BackupLogicalSize type", i)
+			}
+		})
+	}
+}
+
+func TestGetBackupMetrics_ExpertModeBackupBilling_SkipsAndIncludes(t *testing.T) {
+	tests := []struct {
+		name                          string
+		enableExpertModeBackupBilling bool
+		backups                       []*datamodel.Backup
+		expectedHydratedMetricsCount  int
+		expectedDataModelMetricsCount int
+		description                   string
+	}{
+		{
+			name:                          "Expert mode billing disabled - skip expert mode backup billing metrics",
+			enableExpertModeBackupBilling: false,
+			backups: []*datamodel.Backup{
+				{
+					BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-em-1"},
+					Name:                    "ExpertModeBackup1",
+					VolumeUUID:              "volume-uuid-em-1",
+					LatestLogicalBackupSize: 1024,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier:  "AccountEM1",
+						VolumeName:         "VolumeEM1",
+						IsExpertModeBackup: true,
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel: datamodel.BaseModel{UUID: "vault-uuid-em-1"},
+						Name:      "BackupVaultEM1",
+					},
+				},
+			},
+			expectedHydratedMetricsCount:  1, // observability metric always emitted
+			expectedDataModelMetricsCount: 0, // billing skipped when flag is disabled
+			description:                   "Expert mode backup should skip HydratedMetricsDataModel when billing flag is disabled",
+		},
+		{
+			name:                          "Expert mode billing enabled - include expert mode backup billing metrics",
+			enableExpertModeBackupBilling: true,
+			backups: []*datamodel.Backup{
+				{
+					BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-em-2"},
+					Name:                    "ExpertModeBackup2",
+					VolumeUUID:              "volume-uuid-em-2",
+					LatestLogicalBackupSize: 2048,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier:  "AccountEM2",
+						VolumeName:         "VolumeEM2",
+						IsExpertModeBackup: true,
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel: datamodel.BaseModel{UUID: "vault-uuid-em-2"},
+						Name:      "BackupVaultEM2",
+					},
+				},
+			},
+			expectedHydratedMetricsCount:  1,
+			expectedDataModelMetricsCount: 1, // billing included when flag is enabled
+			description:                   "Expert mode backup should create both metrics when billing flag is enabled",
+		},
+		{
+			name:                          "Expert mode billing disabled - non-expert mode backups still billed",
+			enableExpertModeBackupBilling: false,
+			backups: []*datamodel.Backup{
+				{
+					BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-non-em-1"},
+					Name:                    "NonExpertModeBackup1",
+					VolumeUUID:              "volume-uuid-non-em-1",
+					LatestLogicalBackupSize: 4096,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier:  "AccountNonEM1",
+						VolumeName:         "VolumeNonEM1",
+						IsExpertModeBackup: false,
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel: datamodel.BaseModel{UUID: "vault-uuid-non-em-1"},
+						Name:      "BackupVaultNonEM1",
+					},
+				},
+			},
+			expectedHydratedMetricsCount:  1,
+			expectedDataModelMetricsCount: 1, // non-expert mode backups are not affected by the flag
+			description:                   "Non-expert mode backup should create both metrics even when expert mode billing flag is disabled",
+		},
+		{
+			name:                          "Expert mode billing disabled - mixed expert and non-expert backups",
+			enableExpertModeBackupBilling: false,
+			backups: []*datamodel.Backup{
+				{
+					BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-em-mix-1"},
+					Name:                    "ExpertModeBackupMix1",
+					VolumeUUID:              "volume-uuid-em-mix-1",
+					LatestLogicalBackupSize: 1024,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier:  "AccountEMMix1",
+						VolumeName:         "VolumeEMMix1",
+						IsExpertModeBackup: true,
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel: datamodel.BaseModel{UUID: "vault-uuid-em-mix-1"},
+						Name:      "BackupVaultEMMix1",
+					},
+				},
+				{
+					BaseModel:               datamodel.BaseModel{UUID: "backup-uuid-em-mix-2"},
+					Name:                    "NonExpertModeBackupMix2",
+					VolumeUUID:              "volume-uuid-em-mix-2",
+					LatestLogicalBackupSize: 2048,
+					Attributes: &datamodel.BackupAttributes{
+						AccountIdentifier:  "AccountEMMix2",
+						VolumeName:         "VolumeEMMix2",
+						IsExpertModeBackup: false,
+					},
+					BackupVault: &datamodel.BackupVault{
+						BaseModel: datamodel.BaseModel{UUID: "vault-uuid-em-mix-2"},
+						Name:      "BackupVaultEMMix2",
+					},
+				},
+			},
+			expectedHydratedMetricsCount:  2, // both get observability metrics
+			expectedDataModelMetricsCount: 1, // only non-expert mode backup gets billing metric
+			description:                   "Mixed backups: expert mode skipped, non-expert mode billed when flag is disabled",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := new(mockBackupStorage)
+			ctx := context.Background()
+			config := &common.TelemetryConfig{
+				RegionName:                    "us-east-1",
+				EnableFilesBackupBilling:      true,
+				EnableExpertModeBackupBilling: tt.enableExpertModeBackupBilling,
 			}
 
 			m.On("GetBackupMetrics", mock.Anything, mock.Anything, mock.MatchedBy(func(pagination *dbutils.Pagination) bool {

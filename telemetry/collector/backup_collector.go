@@ -140,6 +140,12 @@ func GetBackupMetrics(ctx context.Context, vcpDB database.Storage, config *commo
 			}
 		}
 
+		// Skip billing for expert mode backups when the feature flag is disabled.
+		if !skipBilling && !config.EnableExpertModeBackupBilling && backup.Attributes != nil && backup.Attributes.IsExpertModeBackup {
+			logger.Debug("Skipping BackupLogicalSize billing metric for expert mode backup", "backupUUID", backup.UUID)
+			skipBilling = true
+		}
+
 		// Get account identifier from backup attributes
 		accountName := ""
 		if backup.Attributes != nil {

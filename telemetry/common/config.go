@@ -28,6 +28,7 @@ type TelemetryConfig struct {
 	EnableFilesBackupBilling                     bool
 	EnableCmekBackupBilling                      bool
 	EnableGcbdrBackupBilling                     bool
+	EnableExpertModeBackupBilling                bool
 	EnableCrossRegionBackupBillingMetrics        bool
 	EnableSFRCrossRegionRestoreBilling           bool
 	EnableReplicationBillingMetrics              bool
@@ -90,6 +91,7 @@ func LoadConfig() *TelemetryConfig {
 	enableFilesBackupBilling := env.GetBool("ENABLE_FILES_BACKUP_BILLING", false)
 	enableCmekBackupBilling := env.GetBool("ENABLE_CMEK_BACKUP_BILLING", false)
 	enableGcbdrBackupBilling := env.GetBool("ENABLE_GCBDR_BACKUP_BILLING", false)
+	enableExpertModeBackupBilling := env.GetBool("ENABLE_EXPERT_MODE_BACKUP_BILLING", false)
 	enableReplicationBillingMetrics := env.GetBool("ENABLE_REPLICATION_BILLING_METRICS", false)
 	enableBidirectionalReplicationBillingMetrics := env.GetBool("ENABLE_BIDIRECTIONAL_REPLICATION_BILLING_METRICS", false)
 	enableInRegionReplicationBillingMetrics := env.GetBool("ENABLE_IN_REGION_REPLICATION_BILLING_METRICS", false)
@@ -143,6 +145,7 @@ func LoadConfig() *TelemetryConfig {
 		EnableFilesBackupBilling:                     enableFilesBackupBilling,
 		EnableCmekBackupBilling:                      enableCmekBackupBilling,
 		EnableGcbdrBackupBilling:                     enableGcbdrBackupBilling,
+		EnableExpertModeBackupBilling:                enableExpertModeBackupBilling,
 		EnableCrossRegionBackupBillingMetrics:        enableCrossRegionBackupBillingMetrics,
 		EnableSFRCrossRegionRestoreBilling:           enableSFRCrossRegionRestoreBilling,
 		EnableReplicationBillingMetrics:              enableReplicationBillingMetrics,
