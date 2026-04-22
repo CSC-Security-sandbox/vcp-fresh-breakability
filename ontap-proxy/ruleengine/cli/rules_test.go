@@ -1450,17 +1450,57 @@ func TestVolumeShowFootprintDenied(t *testing.T) {
 	})
 }
 
-func TestMatchDiagRule_VolumeCheckMetadata(t *testing.T) {
-	cmd, err := ParseCLICommand("volume check metadata")
-	if err != nil {
-		t.Fatalf("ParseCLICommand: %v", err)
+func TestMatchDiagRule_AllCommands(t *testing.T) {
+	allowed := []struct {
+		name  string
+		input string
+	}{
+		{"WhenDebugDmVserverXc_ShouldBeInDiagAllowlist", "debug dm vserver xc"},
+		{"WhenDebugLocksPersistenceShow_ShouldBeInDiagAllowlist", "debug locks persistence show"},
+		{"WhenDebugLocksReconstructionShow_ShouldBeInDiagAllowlist", "debug locks persistence reconstruction show"},
+		{"WhenDebugLocksReconstructionShowVolume_ShouldBeInDiagAllowlist", "debug locks persistence reconstruction show-volume"},
+		{"WhenDebugNetworkTcpdump_ShouldBeInDiagAllowlist", "debug network tcpdump"},
+		{"WhenDebugSanLun_ShouldBeInDiagAllowlist", "debug san lun"},
+		{"WhenVserverNfsClient_ShouldBeInDiagAllowlist", "vserver nfs client"},
 	}
-	rule, found := MatchPrivilegedRule(cmd, GetDiagAllowedRules())
-	if !found {
-		t.Fatal("volume check metadata should be in diag allowlist")
+	for _, tt := range allowed {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd, err := ParseCLICommand(tt.input)
+			if err != nil {
+				t.Fatalf("ParseCLICommand(%q): %v", tt.input, err)
+			}
+			_, found := MatchPrivilegedRule(cmd, GetDiagAllowedRules())
+			if !found {
+				t.Fatalf("%q should be in diag allowlist", tt.input)
+			}
+		})
 	}
-	if !rule.Allow {
-		t.Error("volume check metadata should be allowed")
+
+	rejected := []struct {
+		name  string
+		input string
+	}{
+		{"WhenVolumeShow_ShouldNotBeInDiagAllowlist", "volume show -vserver vs1"},
+		{"WhenVolumeCreate_ShouldNotBeInDiagAllowlist", "volume create -vserver vs1 -volume vol1 -size 100g"},
+		{"WhenStatisticsShow_ShouldNotBeInDiagAllowlist", "statistics show"},
+		{"WhenSecurityCertDelete_ShouldNotBeInDiagAllowlist", "security certificate delete -vserver vs1"},
+		{"WhenClusterAppRecord_ShouldNotBeInDiagAllowlist", "cluster application-record"},
+		{"WhenEventGenerate_ShouldNotBeInDiagAllowlist", "event generate"},
+		{"WhenSnapmirrorCheck_ShouldNotBeInDiagAllowlist", "snapmirror check"},
+		{"WhenLunRescan_ShouldNotBeInDiagAllowlist", "lun rescan"},
+		{"WhenVolumeFileMoveStart_ShouldNotBeInDiagAllowlist", "volume file move start -vserver vs1"},
+	}
+	for _, tt := range rejected {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd, err := ParseCLICommand(tt.input)
+			if err != nil {
+				t.Fatalf("ParseCLICommand(%q): %v", tt.input, err)
+			}
+			_, found := MatchPrivilegedRule(cmd, GetDiagAllowedRules())
+			if found {
+				t.Errorf("%q should NOT be in diag allowlist", tt.input)
+			}
+		})
 	}
 }
 

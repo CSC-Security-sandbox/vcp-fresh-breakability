@@ -20,8 +20,9 @@ import (
 const snaplockIAMRoleRequiredMessage = "user is not authorized for this operation"
 
 var (
-	snapLockOperationEnabled   = env.GetBool("SNAPLOCK_OPERATION_ENABLED", false)
-	privateCliOperationEnabled = env.GetBool("PRIVATE_CLI_OPERATION_ENABLED", false)
+	snapLockOperationEnabled     = env.GetBool("SNAPLOCK_OPERATION_ENABLED", false)
+	privateCliOperationEnabled   = env.GetBool("PRIVATE_CLI_OPERATION_ENABLED", false)
+	advancedModeAllowlistEnabled = env.GetBool("ADVANCED_MODE_ALLOWLIST_ENABLED", false)
 
 	setupCredentialsForHandler  = middleware.SetupCredentialsForHandler
 	ensureCertificateOrPassword = middleware.EnsureCertificateOrPassword

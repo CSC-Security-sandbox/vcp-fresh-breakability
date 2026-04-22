@@ -88,17 +88,21 @@ func (h Handler) V1PrivateCli(
 		}
 		rule = diagRule
 	case chain.IsAdvancedMode():
-		advRule, matched := cli.MatchPrivilegedRule(cliCmd, cli.GetAdvancedAllowedRules())
-		if !matched {
-			logger.WarnContext(ctx, "CLI command not in advanced mode allowlist",
-				"command", cliCmd.FullCommand,
-			)
-			return &oasgenserver.V1PrivateCliBadRequest{
-				Code:    400,
-				Message: fmt.Sprintf("Command %q is not allowed in advanced mode", cliCmd.FullCommand),
-			}, nil
+		if advancedModeAllowlistEnabled {
+			advRule, matched := cli.MatchPrivilegedRule(cliCmd, cli.GetAdvancedAllowedRules())
+			if !matched {
+				logger.WarnContext(ctx, "CLI command not in advanced mode allowlist",
+					"command", cliCmd.FullCommand,
+				)
+				return &oasgenserver.V1PrivateCliBadRequest{
+					Code:    400,
+					Message: fmt.Sprintf("Command %q is not allowed in advanced mode", cliCmd.FullCommand),
+				}, nil
+			}
+			rule = advRule
+		} else {
+			rule, _ = cli.MatchCLIRule(cliCmd)
 		}
-		rule = advRule
 	default:
 		rule, _ = cli.MatchCLIRule(cliCmd)
 	}

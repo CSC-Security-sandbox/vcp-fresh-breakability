@@ -131,7 +131,7 @@ func TestV1PrivateCli_Validation(t *testing.T) {
 
 	t.Run("diag + allowlisted command passes validation", func(t *testing.T) {
 		req := &oasgenserver.CLIExecuteRequest{
-			Input: "set diag; volume check metadata",
+			Input: "set diag; debug san lun",
 		}
 		params := oasgenserver.V1PrivateCliParams{
 			ProjectNumber: "123456789",
@@ -144,7 +144,7 @@ func TestV1PrivateCli_Validation(t *testing.T) {
 		badReq, isBadReq := res.(*oasgenserver.V1PrivateCliBadRequest)
 		if isBadReq {
 			require.False(t, isBadReq,
-				"volume check metadata should pass allowlist validation, got BadRequest: %s", badReq.Message)
+				"debug san lun should pass allowlist validation, got BadRequest: %s", badReq.Message)
 		}
 	})
 
@@ -243,7 +243,11 @@ func TestV1PrivateCli_Validation(t *testing.T) {
 		assert.Contains(t, badReq.Message, "not allowed in diagnostic mode")
 	})
 
-	t.Run("advanced + statistics show passes validation", func(t *testing.T) {
+	t.Run("WhenAdvancedAllowlistEnabled_StatisticsShow_ShouldPassValidation", func(t *testing.T) {
+		origAllowlist := advancedModeAllowlistEnabled
+		advancedModeAllowlistEnabled = true
+		defer func() { advancedModeAllowlistEnabled = origAllowlist }()
+
 		req := &oasgenserver.CLIExecuteRequest{
 			Input: "set advanced; statistics show",
 		}
@@ -262,7 +266,11 @@ func TestV1PrivateCli_Validation(t *testing.T) {
 		}
 	})
 
-	t.Run("advanced + volume show in allowlist passes validation", func(t *testing.T) {
+	t.Run("WhenAdvancedAllowlistEnabled_VolumeShow_ShouldPassValidation", func(t *testing.T) {
+		origAllowlist := advancedModeAllowlistEnabled
+		advancedModeAllowlistEnabled = true
+		defer func() { advancedModeAllowlistEnabled = origAllowlist }()
+
 		req := &oasgenserver.CLIExecuteRequest{
 			Input: "set advanced; volume show -vserver vs1",
 		}
@@ -281,7 +289,10 @@ func TestV1PrivateCli_Validation(t *testing.T) {
 		}
 	})
 
-	t.Run("advanced + volume check metadata not in allowlist rejected", func(t *testing.T) {
+	t.Run("WhenAdvancedAllowlistEnabled_VolumeCheckMetadata_ShouldBeRejected", func(t *testing.T) {
+		origAllowlist := advancedModeAllowlistEnabled
+		advancedModeAllowlistEnabled = true
+		defer func() { advancedModeAllowlistEnabled = origAllowlist }()
 		req := &oasgenserver.CLIExecuteRequest{
 			Input: "set advanced; volume check metadata",
 		}
@@ -300,7 +311,11 @@ func TestV1PrivateCli_Validation(t *testing.T) {
 		assert.Contains(t, badReq.Message, "not allowed in advanced mode")
 	})
 
-	t.Run("advanced + command not in allowlist rejected", func(t *testing.T) {
+	t.Run("WhenAdvancedAllowlistEnabled_CommandNotInAllowlist_ShouldBeRejected", func(t *testing.T) {
+		origAllowlist := advancedModeAllowlistEnabled
+		advancedModeAllowlistEnabled = true
+		defer func() { advancedModeAllowlistEnabled = origAllowlist }()
+
 		req := &oasgenserver.CLIExecuteRequest{
 			Input: "set advanced; security certificate delete -vserver vs1",
 		}
@@ -319,7 +334,11 @@ func TestV1PrivateCli_Validation(t *testing.T) {
 		assert.Contains(t, badReq.Message, "not allowed in advanced mode")
 	})
 
-	t.Run("advanced + volume create not in allowlist rejected", func(t *testing.T) {
+	t.Run("WhenAdvancedAllowlistEnabled_VolumeCreate_ShouldBeRejected", func(t *testing.T) {
+		origAllowlist := advancedModeAllowlistEnabled
+		advancedModeAllowlistEnabled = true
+		defer func() { advancedModeAllowlistEnabled = origAllowlist }()
+
 		req := &oasgenserver.CLIExecuteRequest{
 			Input: "set advanced; volume create -vserver vs1 -volume vol1 -size 100g",
 		}
@@ -338,7 +357,11 @@ func TestV1PrivateCli_Validation(t *testing.T) {
 		assert.Contains(t, badReq.Message, "not allowed in advanced mode")
 	})
 
-	t.Run("set -privilege advanced variant also enforces advanced allowlist", func(t *testing.T) {
+	t.Run("WhenAdvancedAllowlistEnabled_SetPrivilegeAdvanced_ShouldEnforceAllowlist", func(t *testing.T) {
+		origAllowlist := advancedModeAllowlistEnabled
+		advancedModeAllowlistEnabled = true
+		defer func() { advancedModeAllowlistEnabled = origAllowlist }()
+
 		req := &oasgenserver.CLIExecuteRequest{
 			Input: "set -privilege advanced; snapshot show -vserver vs1",
 		}
@@ -357,7 +380,7 @@ func TestV1PrivateCli_Validation(t *testing.T) {
 		assert.Contains(t, badReq.Message, "not allowed in advanced mode")
 	})
 
-	t.Run("advanced is not diag mode", func(t *testing.T) {
+	t.Run("WhenAdvancedMode_ShouldNotBeDiagMode", func(t *testing.T) {
 		req := &oasgenserver.CLIExecuteRequest{
 			Input: "set advanced; statistics show",
 		}
@@ -375,6 +398,76 @@ func TestV1PrivateCli_Validation(t *testing.T) {
 			badReq := res.(*oasgenserver.V1PrivateCliBadRequest)
 			assert.NotContains(t, badReq.Message, "diagnostic mode",
 				"advanced mode should not produce diagnostic mode errors")
+		}
+	})
+
+	t.Run("WhenAdvancedAllowlistDisabled_AnyCommand_ShouldPassAllowlistCheck", func(t *testing.T) {
+		origAllowlist := advancedModeAllowlistEnabled
+		advancedModeAllowlistEnabled = false
+		defer func() { advancedModeAllowlistEnabled = origAllowlist }()
+
+		req := &oasgenserver.CLIExecuteRequest{
+			Input: "set advanced; volume check metadata",
+		}
+		params := oasgenserver.V1PrivateCliParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			PoolId:        poolId,
+		}
+
+		res, err := h.V1PrivateCli(ctx, req, params)
+		require.NoError(t, err)
+		badReq, isBadReq := res.(*oasgenserver.V1PrivateCliBadRequest)
+		if isBadReq {
+			assert.NotContains(t, badReq.Message, "not allowed in advanced mode",
+				"with allowlist disabled, no command should be rejected by the advanced allowlist")
+		}
+	})
+
+	t.Run("WhenAdvancedAllowlistDisabled_DeniedCommandStillDeniedByNormalRules", func(t *testing.T) {
+		origAllowlist := advancedModeAllowlistEnabled
+		advancedModeAllowlistEnabled = false
+		defer func() { advancedModeAllowlistEnabled = origAllowlist }()
+
+		req := &oasgenserver.CLIExecuteRequest{
+			Input: "set advanced; security certificate delete -vserver vs1",
+		}
+		params := oasgenserver.V1PrivateCliParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			PoolId:        poolId,
+		}
+
+		res, err := h.V1PrivateCli(ctx, req, params)
+		require.NoError(t, err)
+
+		badReq, ok := res.(*oasgenserver.V1PrivateCliBadRequest)
+		require.True(t, ok, "Expected denied command to still be rejected by normal rules, got %T", res)
+		assert.Equal(t, 400, badReq.Code)
+		assert.NotContains(t, badReq.Message, "not allowed in advanced mode",
+			"error should come from normal rules, not the advanced allowlist")
+	})
+
+	t.Run("WhenAdvancedAllowlistDisabled_StatisticsShowPassesValidation", func(t *testing.T) {
+		origAllowlist := advancedModeAllowlistEnabled
+		advancedModeAllowlistEnabled = false
+		defer func() { advancedModeAllowlistEnabled = origAllowlist }()
+
+		req := &oasgenserver.CLIExecuteRequest{
+			Input: "set advanced; statistics show",
+		}
+		params := oasgenserver.V1PrivateCliParams{
+			ProjectNumber: "123456789",
+			LocationId:    "us-east1",
+			PoolId:        poolId,
+		}
+
+		res, err := h.V1PrivateCli(ctx, req, params)
+		require.NoError(t, err)
+		badReq, isBadReq := res.(*oasgenserver.V1PrivateCliBadRequest)
+		if isBadReq {
+			assert.NotContains(t, badReq.Message, "not allowed in advanced mode",
+				"statistics show should not be rejected by allowlist when disabled")
 		}
 	})
 

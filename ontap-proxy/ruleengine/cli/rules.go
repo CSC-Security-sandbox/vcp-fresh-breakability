@@ -93,12 +93,35 @@ var advancedAllowedRules = []CLIRule{
 
 // diagAllowedRules is the allowlist of commands permitted in diagnostic mode.
 var diagAllowedRules = []CLIRule{
+	// Debug
 	{
-		Pattern: "volume check metadata",
+		Pattern: "debug dm vserver xc",
 		Allow:   true,
 	},
 	{
-		Pattern: "vol check metadata",
+		Pattern: "debug locks persistence show",
+		Allow:   true,
+	},
+	{
+		Pattern: "debug locks persistence reconstruction show",
+		Allow:   true,
+	},
+	{
+		Pattern: "debug locks persistence reconstruction show-volume",
+		Allow:   true,
+	},
+	{
+		Pattern: "debug network tcpdump",
+		Allow:   true,
+	},
+	{
+		Pattern: "debug san lun",
+		Allow:   true,
+	},
+
+	// Vserver
+	{
+		Pattern: "vserver nfs client",
 		Allow:   true,
 	},
 }
