@@ -13,6 +13,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	vsaerrors "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/errors"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
@@ -1517,7 +1518,9 @@ func convertBackupVaultV1Beta(bv *models.BackupVaultV1beta) gcpgenserver.BackupV
 }
 
 func convertCoreToCvpBackupVault(coreBV *coremodels.BackupVaultV1beta) *models.BackupVaultV1beta {
-	var backupRetentionPolicy *models.BackupRetentionPolicyV1beta
+	backupRetentionPolicy := &models.BackupRetentionPolicyV1beta{
+		BackupMinimumEnforcedRetentionDays: nillable.GetInt64Ptr(0),
+	}
 	if coreBV.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration != nil ||
 		coreBV.BackupRetentionPolicy.IsDailyBackupImmutable ||
 		coreBV.BackupRetentionPolicy.IsWeeklyBackupImmutable ||
@@ -1537,10 +1540,6 @@ func convertCoreToCvpBackupVault(coreBV *coremodels.BackupVaultV1beta) *models.B
 		BackupVaultID:            coreBV.BackupVaultID,
 		ResourceID:               &coreBV.Name,
 		Description:              coreBV.Description,
-		BackupRegion:             coreBV.BackupRegion,
-		SourceRegion:             coreBV.SourceRegion,
-		DestinationBackupVault:   coreBV.DestinationBackupVault,
-		SourceBackupVault:        coreBV.SourceBackupVault,
 		BackupVaultType:          coreBV.BackupVaultType,
 		State:                    coreBV.LifeCycleState,
 		StateDetails:             coreBV.LifeCycleStateDetails,
@@ -1550,6 +1549,12 @@ func convertCoreToCvpBackupVault(coreBV *coremodels.BackupVaultV1beta) *models.B
 		KmsConfigResourcePath:    coreBV.KmsConfigResourcePath,
 		BackupsPrimaryKeyVersion: coreBV.BackupsPrimaryKeyVersion,
 		EncryptionState:          coreBV.EncryptionState,
+	}
+	if coreBV.BackupVaultType != nil && *coreBV.BackupVaultType == activities.CrossRegionBackupType {
+		cvpBV.BackupRegion = coreBV.BackupRegion
+		cvpBV.SourceRegion = coreBV.SourceRegion
+		cvpBV.DestinationBackupVault = coreBV.DestinationBackupVault
+		cvpBV.SourceBackupVault = coreBV.SourceBackupVault
 	}
 	if coreBV.ServiceType == coremodels.ServiceTypeCrossProject {
 		cvpBV.CrossProjectVault = nillable.ToPointer(true)
@@ -1584,17 +1589,13 @@ func convertCoreModelsToBackupVaultV1beta(beta *coremodels.BackupVaultV1beta) *g
 		backupMinimumEnforcedRetentionDuration = int(*beta.BackupRetentionPolicy.BackupMinimumEnforcedRetentionDuration)
 	}
 	result := &gcpgenserver.BackupVaultV1beta{
-		BackupVaultId:          gcpgenserver.NewOptString(beta.BackupVaultID),
-		State:                  gcpgenserver.NewOptBackupVaultV1betaState(gcpgenserver.BackupVaultV1betaState(beta.LifeCycleState)),
-		StateDetails:           gcpgenserver.NewOptString(beta.LifeCycleStateDetails),
-		CreatedAt:              gcpgenserver.NewOptDateTime(time.Time(beta.CreatedAt)),
-		Description:            gcpgenserver.NewOptString(description),
-		ResourceId:             beta.Name,
-		DestinationBackupVault: gcpgenserver.NewOptString(destinationBackupVault),
-		SourceBackupVault:      gcpgenserver.NewOptString(sourceBackupVault),
-		SourceRegion:           gcpgenserver.NewOptString(sourceRegion),
-		BackupRegion:           gcpgenserver.NewOptString(backupRegion),
-		BackupVaultType:        gcpgenserver.NewOptBackupVaultV1betaBackupVaultType(gcpgenserver.BackupVaultV1betaBackupVaultType(backupVaultType)),
+		BackupVaultId:   gcpgenserver.NewOptString(beta.BackupVaultID),
+		State:           gcpgenserver.NewOptBackupVaultV1betaState(gcpgenserver.BackupVaultV1betaState(beta.LifeCycleState)),
+		StateDetails:    gcpgenserver.NewOptString(beta.LifeCycleStateDetails),
+		CreatedAt:       gcpgenserver.NewOptDateTime(time.Time(beta.CreatedAt)),
+		Description:     gcpgenserver.NewOptString(description),
+		ResourceId:      beta.Name,
+		BackupVaultType: gcpgenserver.NewOptBackupVaultV1betaBackupVaultType(gcpgenserver.BackupVaultV1betaBackupVaultType(backupVaultType)),
 		BackupRetentionPolicy: gcpgenserver.NewOptBackupRetentionPolicyV1beta(gcpgenserver.BackupRetentionPolicyV1beta{
 			BackupMinimumEnforcedRetentionDays: gcpgenserver.NewOptInt(backupMinimumEnforcedRetentionDuration),
 			DailyBackupImmutable:               gcpgenserver.NewOptBool(beta.BackupRetentionPolicy.IsDailyBackupImmutable),
@@ -1602,6 +1603,13 @@ func convertCoreModelsToBackupVaultV1beta(beta *coremodels.BackupVaultV1beta) *g
 			MonthlyBackupImmutable:             gcpgenserver.NewOptBool(beta.BackupRetentionPolicy.IsMonthlyBackupImmutable),
 			WeeklyBackupImmutable:              gcpgenserver.NewOptBool(beta.BackupRetentionPolicy.IsWeeklyBackupImmutable),
 		}),
+	}
+
+	if beta.BackupVaultType != nil && *beta.BackupVaultType == activities.CrossRegionBackupType {
+		result.BackupRegion = gcpgenserver.NewOptString(backupRegion)
+		result.SourceRegion = gcpgenserver.NewOptString(sourceRegion)
+		result.DestinationBackupVault = gcpgenserver.NewOptString(destinationBackupVault)
+		result.SourceBackupVault = gcpgenserver.NewOptString(sourceBackupVault)
 	}
 
 	if beta.KmsConfigResourcePath != nil {

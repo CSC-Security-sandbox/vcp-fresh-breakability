@@ -15,6 +15,7 @@ import (
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/cvpapi/backup_vault"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/clients/cvp/models"
 	coremodels "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/models"
+	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/activities"
 	commonparams "github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/common"
 	"github.com/vcp-vsa-control-Plane/vsa-control-plane/core/orchestrator/factory"
 	gcpgenserver "github.com/vcp-vsa-control-Plane/vsa-control-plane/google-proxy/api/gcp-servergen"
@@ -347,6 +348,36 @@ func TestConvertCoreToCvpBackupVault_OmitsCMEKFieldsWhenNil(t *testing.T) {
 	assert.Nil(t, result.KmsConfigResourcePath)
 	assert.Nil(t, result.BackupsPrimaryKeyVersion)
 	assert.Nil(t, result.EncryptionState)
+}
+
+func TestConvertCoreToCvpBackupVault_MapsCrossRegionFieldsWhenCrossRegionType(t *testing.T) {
+	bvType := activities.CrossRegionBackupType
+	backupRegion := "us-east4"
+	sourceRegion := "us-central1"
+	destBV := "projects/1/locations/us-east4/backupVaults/dest-bv"
+	srcBV := "projects/1/locations/us-central1/backupVaults/src-bv"
+
+	coreBV := &coremodels.BackupVaultV1beta{
+		BackupVaultID:          "vault-id",
+		Name:                   "cr-bv",
+		LifeCycleState:         "READY",
+		CreatedAt:              time.Now(),
+		BackupVaultType:        &bvType,
+		BackupRegion:           &backupRegion,
+		SourceRegion:           &sourceRegion,
+		DestinationBackupVault: &destBV,
+		SourceBackupVault:      &srcBV,
+	}
+
+	result := convertCoreToCvpBackupVault(coreBV)
+	require.NotNil(t, result.BackupRegion)
+	assert.Equal(t, backupRegion, *result.BackupRegion)
+	require.NotNil(t, result.SourceRegion)
+	assert.Equal(t, sourceRegion, *result.SourceRegion)
+	require.NotNil(t, result.DestinationBackupVault)
+	assert.Equal(t, destBV, *result.DestinationBackupVault)
+	require.NotNil(t, result.SourceBackupVault)
+	assert.Equal(t, srcBV, *result.SourceBackupVault)
 }
 
 func TestBuildCreateBackupVaultParams(t *testing.T) {
@@ -5941,7 +5972,7 @@ func TestReturnsBackupVaultV1betaWhenAllFieldsAreSet(t *testing.T) {
 		DestinationBackupVault: nillable.GetStringPtr("destination-vault"),
 		SourceRegion:           nillable.GetStringPtr("us-central1"),
 		BackupRegion:           nillable.GetStringPtr("us-east1"),
-		BackupVaultType:        nillable.GetStringPtr("STANDARD"),
+		BackupVaultType:        nillable.GetStringPtr("CROSS_REGION"),
 		BackupRetentionPolicy: coremodels.BackupRetentionPolicyparams{
 			BackupMinimumEnforcedRetentionDuration: nillable.GetInt64Ptr(30),
 			IsDailyBackupImmutable:                 true,
@@ -5967,7 +5998,7 @@ func TestReturnsBackupVaultV1betaWhenAllFieldsAreSet(t *testing.T) {
 	assert.Equal(t, "destination-vault", result.DestinationBackupVault.Value)
 	assert.Equal(t, "us-central1", result.SourceRegion.Value)
 	assert.Equal(t, "us-east1", result.BackupRegion.Value)
-	assert.Equal(t, "STANDARD", string(result.BackupVaultType.Value))
+	assert.Equal(t, "CROSS_REGION", string(result.BackupVaultType.Value))
 	assert.Equal(t, 30, result.BackupRetentionPolicy.Value.BackupMinimumEnforcedRetentionDays.Value)
 	assert.True(t, result.BackupRetentionPolicy.Value.DailyBackupImmutable.IsSet())
 	assert.True(t, result.BackupRetentionPolicy.Value.DailyBackupImmutable.Value)
