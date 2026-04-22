@@ -53,7 +53,7 @@ jobs:
     needs: setup-vsacictl
     runs-on: [ ubuntu-22.04 ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v9
       options: --user root
     steps:
       - name: Checkout codes
@@ -92,7 +92,7 @@ jobs:
     needs: setup-vsacictl
     runs-on: [ self-hosted, linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v9
       options: --user root
 
     steps:
@@ -127,7 +127,7 @@ jobs:
     needs: [unit_tests, setup-vsacictl]
     runs-on: [ self-hosted, linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v9
       options: --user root
 
     steps:
@@ -159,7 +159,7 @@ jobs:
     needs: [unit_tests, setup-vsacictl]
     runs-on: [ self-hosted, linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v9
       options: --user root
 
     steps:
@@ -244,7 +244,7 @@ jobs:
     needs: setup-vsacictl
     runs-on: [ self-hosted, linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v9
       options: --user root
     permissions:
       contents: read
@@ -278,7 +278,7 @@ jobs:
     needs: setup-vsacictl
     runs-on: [ self-hosted, linux ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v9
       options: --user root
     permissions:
       contents: read
@@ -306,7 +306,7 @@ jobs:
     needs: setup-vsacictl
     runs-on: [self-hosted, linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v9
       options: --user root
 
     steps:

@@ -25,7 +25,7 @@ jobs:
     name: Obtain PR details
     runs-on: [self-hosted,linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v9
       options: --user root
 
     steps:
@@ -91,7 +91,7 @@ jobs:
     runs-on: [ self-hosted, linux ]
     needs: [ obtain_pr_details, setup-vsacictl ]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v9
       options: -v /var/run/docker.sock:/var/run/docker.sock --user root
     permissions:
       contents: read
@@ -171,7 +171,7 @@ jobs:
     needs: [obtain_pr_details, generate_tag, create_pre_release_vsa_control_plane]
     runs-on: [self-hosted, linux]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v9
       options: --user root
 
     steps:

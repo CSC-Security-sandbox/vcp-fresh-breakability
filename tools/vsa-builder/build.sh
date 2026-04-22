@@ -9,4 +9,3 @@ docker build \
   --platform=linux/amd64 \
   --push \
   "$SCRIPT_DIR"
-

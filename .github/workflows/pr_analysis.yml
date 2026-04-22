@@ -15,7 +15,7 @@ jobs:
     #    runs-on: ubuntu-latest
     runs-on: [self-hosted, pr-analysis]
     container:
-      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v8
+      image: ghcr.io/vcp-vsa-control-plane/vsa-builder:v9
       options: --user root
 
     steps:
