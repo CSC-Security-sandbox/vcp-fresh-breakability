@@ -718,7 +718,7 @@ func generateOtelConfig(monitoringProjectID, customPrefix string) string {
 
 extensions:
   health_check:
-    endpoint: "0.0.0.0:13133"
+    endpoint: "0.0.0.0:20001"
 
 processors:
   batch:
@@ -787,7 +787,7 @@ func createOtelCollectorContainer(config *DeploymentConfig) (*cloudrun.GoogleClo
 			FailureThreshold:    3,
 			HttpGet: &cloudrun.GoogleCloudRunV2HTTPGetAction{
 				Path: "/",
-				Port: 13133,
+				Port: 20001,
 			},
 		},
 		LivenessProbe: &cloudrun.GoogleCloudRunV2Probe{
@@ -797,7 +797,7 @@ func createOtelCollectorContainer(config *DeploymentConfig) (*cloudrun.GoogleClo
 			FailureThreshold:    3,
 			HttpGet: &cloudrun.GoogleCloudRunV2HTTPGetAction{
 				Path: "/",
-				Port: 13133,
+				Port: 20001,
 			},
 		},
 	}

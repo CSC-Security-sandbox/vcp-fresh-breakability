@@ -187,7 +187,7 @@ data:
           queue_size: 40000
     extensions:
       health_check:
-        endpoint: "0.0.0.0:13133"
+        endpoint: "0.0.0.0:20001"
     processors:
       batch:
         send_batch_size: 200

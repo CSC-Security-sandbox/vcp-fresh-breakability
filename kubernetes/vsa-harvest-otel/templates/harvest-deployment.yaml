@@ -106,11 +106,11 @@ spec:
           livenessProbe:
             httpGet:
               path: /
-              port: 13133
+              port: 20001
           readinessProbe:
             httpGet:
               path: /
-              port: 13133
+              port: 20001
           {{- with .Values.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
