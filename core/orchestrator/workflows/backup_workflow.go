@@ -709,12 +709,10 @@ func (wf *BackupDeleteWorkflow) Run(ctx workflow.Context, args ...interface{}) (
 			if err != nil {
 				return nil, ConvertToVSAError(fmt.Errorf("failed to delete snapmirror: %w", err))
 			}
-			// When vault switching is off, set volume BackupChainBytes to 0; when on, we recompute sum after DeleteBackup
-			if !utils.EnableBackupVaultSwitching {
-				err = workflow.ExecuteActivity(ctx, backupActivity.UpdateVolumeLatestLogicalBackupSize, volume, 0).Get(ctx, nil)
-				if err != nil {
-					return nil, ConvertToVSAError(err)
-				}
+
+			err = workflow.ExecuteActivity(ctx, backupActivity.UpdateVolumeLatestLogicalBackupSize, volume, 0).Get(ctx, nil)
+			if err != nil {
+				return nil, ConvertToVSAError(err)
 			}
 
 			wf.deleteInitiated = true
