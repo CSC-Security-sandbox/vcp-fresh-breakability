@@ -49,6 +49,8 @@ bidiReplicationEnabled: false
 autoTieringEnabled: false
 blockUpdatePoolToATPool: false # Block updating existing pools to Auto-Tiering pools
 regionalSupportEnabled: true
+# When true, core/worker use registered address ranges for pool subnet creation; set to match global.coreConfig.addressSpaceMgmtEnabled in deployments.
+addressSpaceMgmtEnabled: "false"
 filesProtocolSupport: true
 ontapVersionDetails: "9.18.1P2"
 ontapVersionDetailsExperimental: ""
